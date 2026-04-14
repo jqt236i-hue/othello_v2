@@ -262,6 +262,48 @@ describe('animation-engine guard timer rendering', () => {
     expect(cell.classList.contains('effect-target-highlight-positive')).toBe(false);
   });
 
+  test('HYPERACTIVE の STATUS_APPLIED は color=0 でも owner 色を保って crossfade する', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    global.window.getEffectKeyForSpecialType = () => 'hyperactiveStone';
+    const engine = require('../ui/animation-engine');
+    jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.dataset.row = '2';
+    cell.dataset.col = '6';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      targets: [{ r: 2, col: 6, after: { color: 0, special: 'HYPERACTIVE', timer: 3, owner: 'black' } }],
+      meta: {
+        special: 'HYPERACTIVE',
+        owner: 'black',
+        timer: 3,
+        reason: 'instant_hyperactive_applied'
+      }
+    });
+
+    expect(crossfadeSpy).toHaveBeenCalledWith(disc, expect.objectContaining({
+      effectKey: 'hyperactiveStone',
+      owner: 'black',
+      newColor: 1,
+      fadeIn: true
+    }));
+    expect(disc.classList.contains('black')).toBe(true);
+    expect(disc.classList.contains('white')).toBe(false);
+  });
+
   test('TIME_BOMB の STATUS_APPLIED は赤セルハイライトを一瞬出す', async () => {
     const crossfadeSpy = jest.fn(() => Promise.resolve());
     jest.doMock('../ui/stone-visuals', () => ({
@@ -741,7 +783,8 @@ describe('animation-engine guard timer rendering', () => {
     expect(crossfadeSpy).toHaveBeenCalledTimes(1);
     expect(crossfadeSpy.mock.calls[0][1]).toEqual(expect.objectContaining({
       effectKey: null,
-      owner: 1,
+      owner: 'black',
+      newColor: 1,
       fadeIn: false
     }));
     expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');

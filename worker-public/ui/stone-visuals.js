@@ -85,7 +85,7 @@ function applyStoneVisualState(disc, options = {}) {
     if (!disc || !disc.parentElement) return;
 
     // Apply final color immediately
-    if (newColor !== null) {
+    if (newColor === 1 || newColor === -1) {
         disc.classList.remove('black', 'white');
         disc.classList.add(newColor === 1 ? 'black' : 'white');
     }

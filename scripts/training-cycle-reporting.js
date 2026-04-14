@@ -49,6 +49,7 @@ const TRAINING_CYCLE_SUMMARY_CONFIG_KEYS = Object.freeze([
     'onnxDevice',
     'onnxLogIntervalSteps',
     'onnxValSplit',
+    'onnxValSplitMode',
     'onnxEarlyStopPatience',
     'onnxEarlyStopMinDelta',
     'onnxEarlyStopMinEpochs',

@@ -215,6 +215,7 @@ function parseArgs(argv) {
         onnxDevice: 'auto',
         onnxLogIntervalSteps: 0,
         onnxValSplit: 0.1,
+        onnxValSplitMode: 'grouped-game',
         onnxEarlyStopPatience: 8,
         onnxEarlyStopMinDelta: 0.0005,
         onnxEarlyStopMinEpochs: 8,
@@ -403,6 +404,7 @@ function parseArgs(argv) {
         if (a === '--onnx-device') { args.onnxDevice = String(argv[++i] || '').trim().toLowerCase() || 'auto'; continue; }
         if (a === '--onnx-log-interval-steps') { args.onnxLogIntervalSteps = Number(argv[++i]); continue; }
         if (a === '--onnx-val-split') { args.onnxValSplit = Number(argv[++i]); continue; }
+        if (a === '--onnx-val-split-mode') { args.onnxValSplitMode = String(argv[++i] || '').trim().toLowerCase(); continue; }
         if (a === '--onnx-early-stop-patience') { args.onnxEarlyStopPatience = Number(argv[++i]); continue; }
         if (a === '--onnx-early-stop-min-delta') { args.onnxEarlyStopMinDelta = Number(argv[++i]); continue; }
         if (a === '--onnx-early-stop-min-epochs') { args.onnxEarlyStopMinEpochs = Number(argv[++i]); continue; }
@@ -670,6 +672,9 @@ function parseArgs(argv) {
     }
     if (!Number.isFinite(args.onnxValSplit) || args.onnxValSplit < 0 || args.onnxValSplit >= 0.5) {
         throw new Error('--onnx-val-split must be in [0,0.5)');
+    }
+    if (args.onnxValSplitMode !== 'random' && args.onnxValSplitMode !== 'grouped-game') {
+        throw new Error('--onnx-val-split-mode must be random or grouped-game');
     }
     if (!Number.isFinite(args.onnxEarlyStopPatience) || args.onnxEarlyStopPatience < 0) {
         throw new Error('--onnx-early-stop-patience must be >= 0');
@@ -1013,6 +1018,21 @@ function parseArgs(argv) {
     if (args.promotionMode !== 'strict' && args.promotionMode !== 'onnx-primary' && args.promotionMode !== 'quick-only') {
         throw new Error('--promotion-mode must be strict, onnx-primary, or quick-only');
     }
+    // Warn when permissive gate configuration may allow weak models through
+    if (args.promotionMode === 'quick-only' && !args.qualityGateEnabled) {
+        console.warn(
+            '[training-cycle] WARNING: --promotion-mode quick-only with --no-quality-gate ' +
+            'allows promotion with only a quick gate pass. This may promote weaker models. ' +
+            'Consider using --promotion-mode strict for production runs.'
+        );
+    }
+    if (args.quickSeedCount < 3) {
+        console.warn(
+            `[training-cycle] WARNING: quick seed count is ${args.quickSeedCount}. ` +
+            'With fewer than 3 seeds, confidence intervals are unreliable. ' +
+            'Consider using at least 3 seeds (5+ recommended).'
+        );
+    }
     if (!Number.isFinite(args.onnxPrimaryMaxQuickRegression) || args.onnxPrimaryMaxQuickRegression < 0 || args.onnxPrimaryMaxQuickRegression > 1) {
         throw new Error('--onnx-primary-max-quick-regression must be in [0,1]');
     }
@@ -1122,6 +1142,7 @@ function printHelp() {
         '      --onnx-device <mode>    train_policy_onnx --device auto/cpu/cuda (default: auto)',
         '      --onnx-log-interval-steps <n>  train_policy_onnx step log interval (default: 0=off)',
         '      --onnx-val-split <r>    train_policy_onnx --val-split [0..0.5) (default: 0.1)',
+        '      --onnx-val-split-mode <m> train_policy_onnx --val-split-mode random|grouped-game (default: grouped-game)',
         '      --onnx-early-stop-patience <n> train_policy_onnx early stop patience (default: 8)',
         '      --onnx-early-stop-min-delta <r> train_policy_onnx early stop min delta (default: 0.0005)',
         '      --onnx-early-stop-min-epochs <n> train_policy_onnx minimum epochs before early-stop (default: 8)',

@@ -14,6 +14,20 @@
         return element;
     }
 
+    function resolveGachaItemVisualsModule() {
+        if (typeof require === 'function') {
+            try {
+                return require('./gacha-item-visuals.js');
+            } catch (e) { /* ignore */ }
+        }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.GachaItemVisualsModule) {
+                return globalThis.GachaItemVisualsModule;
+            }
+        } catch (e) { /* ignore */ }
+        throw new Error('GachaItemVisualsModule is required before building the gacha reveal stage.');
+    }
+
     function createParticleRow(docRef, container, className, count) {
         for (let i = 0; i < count; i += 1) {
             const particle = docRef.createElement('span');
@@ -25,6 +39,7 @@
 
     function ensureGachaRevealStage(docRef, overlay) {
         if (!docRef || !overlay) return null;
+        const itemVisuals = resolveGachaItemVisualsModule();
 
         let stage = docRef.getElementById('gachaRevealStage');
         if (!stage) {
@@ -62,9 +77,9 @@
             viewport.appendChild(impact);
 
             const copy = createStaticElement(docRef, 'div', 'gacha-reveal-copy');
-            copy.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-label', 'HAND GACHA'));
+            copy.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-label', 'OBSERVATION GACHA'));
             copy.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-headline', '観測が収束しています'));
-            copy.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-subtitle', '新しい手の見た目を解析中...'));
+            copy.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-subtitle', '新しい報酬を解析中...'));
             viewport.appendChild(copy);
 
             const hero = createStaticElement(docRef, 'div', 'gacha-reveal-hero');
@@ -77,7 +92,9 @@
             heroImage.decoding = 'async';
             heroImage.draggable = false;
             heroImageWrap.appendChild(heroImage);
+            heroImageWrap.appendChild(itemVisuals.createSoundFallbackTile(docRef, 'gacha-reveal-hero-fallback'));
             hero.appendChild(heroImageWrap);
+            hero.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-hero-kind'));
             hero.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-hero-name'));
             hero.appendChild(createStaticElement(docRef, 'div', 'gacha-reveal-hero-status'));
             viewport.appendChild(hero);
@@ -96,6 +113,8 @@
             hero: stage.querySelector('.gacha-reveal-hero'),
             heroRarity: stage.querySelector('.gacha-reveal-hero-rarity'),
             heroImage: stage.querySelector('.gacha-reveal-hero-image'),
+            heroFallback: stage.querySelector('.gacha-reveal-hero-fallback'),
+            heroKind: stage.querySelector('.gacha-reveal-hero-kind'),
             heroName: stage.querySelector('.gacha-reveal-hero-name'),
             heroStatus: stage.querySelector('.gacha-reveal-hero-status'),
             grid: stage.querySelector('.gacha-reveal-grid')
@@ -104,6 +123,7 @@
 
     function createSlotCard(docRef, pull, isNew, index, spotlightId) {
         const rarityId = String((pull && pull.rarity) || '').trim().toLowerCase();
+        const itemVisuals = resolveGachaItemVisualsModule();
         const card = docRef.createElement('div');
         card.className = `gacha-reveal-slot rarity-${rarityId}`;
         card.setAttribute('data-gacha-rarity', rarityId);
@@ -113,19 +133,25 @@
         card.style.setProperty('--gacha-reveal-delay', `${Math.max(0, index) * 42}ms`);
 
         const rarity = createStaticElement(docRef, 'div', 'gacha-reveal-slot-rarity', String((pull && pull.rarity) || ''));
+        const visual = createStaticElement(docRef, 'div', 'gacha-reveal-slot-visual');
         const image = docRef.createElement('img');
         image.className = 'gacha-reveal-slot-image';
-        image.src = pull && pull.item ? pull.item.imagePath : '';
         image.alt = '';
         image.loading = 'lazy';
         image.decoding = 'async';
         image.draggable = false;
+        const fallback = itemVisuals.createSoundFallbackTile(docRef, 'gacha-reveal-slot-fallback');
+        itemVisuals.applyItemPreviewState(pull && pull.item ? pull.item : null, image, fallback);
+        visual.appendChild(image);
+        visual.appendChild(fallback);
         const name = createStaticElement(docRef, 'div', 'gacha-reveal-slot-name', pull && pull.item ? pull.item.label : '');
+        const kind = createStaticElement(docRef, 'div', 'gacha-reveal-slot-kind', itemVisuals.getItemKindLabel(pull && pull.item ? pull.item : null));
         const status = createStaticElement(docRef, 'div', `gacha-reveal-slot-status ${isNew ? 'is-new' : 'is-owned'}`, isNew ? 'NEW' : '所持済み');
 
         card.appendChild(rarity);
-        card.appendChild(image);
+        card.appendChild(visual);
         card.appendChild(name);
+        card.appendChild(kind);
         card.appendChild(status);
         return card;
     }
@@ -135,9 +161,12 @@
         if (!refs || !item) return;
         const rarityId = String(pull.rarity || '').trim().toLowerCase();
         const isNew = newlyUnlockedIdSet.has(item.id);
+        const itemVisuals = resolveGachaItemVisualsModule();
         refs.hero.setAttribute('data-gacha-rarity', rarityId);
         refs.heroRarity.textContent = String(pull.rarity || '');
-        refs.heroImage.src = item.imagePath;
+        refs.hero.setAttribute('data-gacha-kind', itemVisuals.normalizeItemKind(item));
+        itemVisuals.applyItemPreviewState(item, refs.heroImage, refs.heroFallback);
+        refs.heroKind.textContent = itemVisuals.getItemKindLabel(item);
         refs.heroName.textContent = item.label;
         refs.heroStatus.textContent = isNew ? 'NEW' : '所持済み';
         refs.heroStatus.className = `gacha-reveal-hero-status ${isNew ? 'is-new' : 'is-owned'}`;

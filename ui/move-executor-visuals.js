@@ -480,9 +480,19 @@ async function runMoveVisualSequence(move, hadSelection, phases, effects, immedi
         }
 
         if (effects && effects.hyperactivePlaced) {
-            // Avoid duplicate visual writes; diff-renderer already applies the marker visual.
-            // Additional sync here can cause transient double-render artifacts.
-            console.log('[Visuals] hyperactivePlaced detected — relying on diff-renderer visuals');
+            const hasImmediateHyperactiveMove = !!(
+                immediate &&
+                Array.isArray(immediate.hyperactiveMoved) &&
+                immediate.hyperactiveMoved.length > 0
+            );
+            if (hasImmediateHyperactiveMove) {
+                console.log('[Visuals] hyperactivePlaced with immediate move detected — syncing placed cell before movement', move.row, move.col);
+                syncDiscVisualToCurrentState(move.row, move.col);
+            } else {
+                // Avoid duplicate visual writes; diff-renderer already applies the marker visual.
+                // Additional sync here can cause transient double-render artifacts.
+                console.log('[Visuals] hyperactivePlaced detected — relying on diff-renderer visuals');
+            }
         }
     } catch (e) {
         /* defensive */

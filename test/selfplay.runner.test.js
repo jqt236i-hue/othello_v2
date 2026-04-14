@@ -164,6 +164,44 @@ describe('selfplay runner', () => {
         expect(result.records.length).toBeGreaterThan(0);
     });
 
+    test('records per-player deck metrics when deck sizes diverge', () => {
+        const realInitGame = CardLogic.initGame;
+        jest.spyOn(CardLogic, 'initGame').mockImplementation((prng) => {
+            const init = realInitGame(prng);
+            init.cardState.decks.black = init.cardState.decks.black.slice(0, 3);
+            init.cardState.decks.white = init.cardState.decks.white.slice(0, 1);
+            init.cardState.deck = init.cardState.decks.black.slice();
+            init.cardState.initialDeckSize = 3;
+            init.cardState.initialDeckSizeByPlayer = { black: 3, white: 1 };
+            return init;
+        });
+
+        const result = runSelfPlayGames({
+            games: 1,
+            baseSeed: 17,
+            maxPlies: 2,
+            allowCardUsage: false
+        });
+
+        const blackRecord = result.records.find((one) => one && one.player === 'black');
+        const whiteRecord = result.records.find((one) => one && one.player === 'white');
+        expect(blackRecord).toEqual(expect.objectContaining({
+            deckCount: 3,
+            ownDeckCount: 3,
+            initialDeckSize: 3
+        }));
+        expect(whiteRecord).toEqual(expect.objectContaining({
+            deckCount: 1,
+            ownDeckCount: 1,
+            initialDeckSize: 1,
+            actorView: expect.objectContaining({
+                deckCount: 1,
+                ownDeckCount: 1,
+                initialDeckSize: 1
+            })
+        }));
+    });
+
     test('teacher lookahead uses per-policy tactical depth and beam overrides', () => {
         const board = createPlacementBoard();
         const candidateMoves = [

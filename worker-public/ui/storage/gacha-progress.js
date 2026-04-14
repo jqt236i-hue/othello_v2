@@ -2,14 +2,17 @@
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = factory();
     } else {
-        root.GachaProgressStorage = factory();
+        const api = factory();
+        root.GachaProgressStorage = api;
+        root.GachaProgressStorageModule = api;
     }
 }(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
     const STORAGE_KEY = 'othello.gacha.progress.v1';
-    const STATE_VERSION = 1;
+    const STATE_VERSION = 2;
     const DEFAULT_OWNED_HAND_SKIN_IDS = Object.freeze(['default']);
+    const DEFAULT_OWNED_PLACEMENT_SOUND_IDS = Object.freeze(['default']);
     let GachaHandCatalogSharedModule = null;
     if (typeof require === 'function') {
         try {
@@ -67,11 +70,49 @@
         return owned;
     }
 
+    function normalizeOwnedPlacementSoundId(value) {
+        const normalized = String(value || '').trim();
+        if (!normalized) return '';
+        if (GachaHandCatalogSharedModule && typeof GachaHandCatalogSharedModule.normalizeCatalogItemId === 'function') {
+            return GachaHandCatalogSharedModule.normalizeCatalogItemId(normalized);
+        }
+        return normalized;
+    }
+
+    function normalizeOwnedPlacementSoundIds(value) {
+        const owned = {};
+        DEFAULT_OWNED_PLACEMENT_SOUND_IDS.forEach((soundId) => {
+            owned[soundId] = true;
+        });
+
+        if (Array.isArray(value)) {
+            value.forEach((soundId) => {
+                const normalized = normalizeOwnedPlacementSoundId(soundId);
+                if (!normalized) return;
+                owned[normalized] = true;
+            });
+            return owned;
+        }
+
+        if (!value || typeof value !== 'object') return owned;
+
+        Object.entries(value).forEach(([soundId, flag]) => {
+            const normalized = normalizeOwnedPlacementSoundId(soundId);
+            if (!normalized) return;
+            owned[normalized] = owned[normalized] === true || flag === true;
+        });
+        DEFAULT_OWNED_PLACEMENT_SOUND_IDS.forEach((soundId) => {
+            owned[soundId] = true;
+        });
+        return owned;
+    }
+
     function createDefaultState() {
         return {
             version: STATE_VERSION,
             observationStones: 0,
             ownedHandSkinIds: normalizeOwnedHandSkinIds(null),
+            ownedPlacementSoundIds: normalizeOwnedPlacementSoundIds(null),
             totalPullCount: 0,
             totalObservationEarned: 0
         };
@@ -83,6 +124,7 @@
             version: STATE_VERSION,
             observationStones: toNonNegativeInteger(source.observationStones, 0),
             ownedHandSkinIds: normalizeOwnedHandSkinIds(source.ownedHandSkinIds || source.ownedSkins || source.unlockedHandSkinIds),
+            ownedPlacementSoundIds: normalizeOwnedPlacementSoundIds(source.ownedPlacementSoundIds || source.unlockedPlacementSoundIds),
             totalPullCount: toNonNegativeInteger(source.totalPullCount, 0),
             totalObservationEarned: toNonNegativeInteger(source.totalObservationEarned, 0)
         };
@@ -131,11 +173,23 @@
         return Object.keys(state.ownedHandSkinIds).filter((skinId) => state.ownedHandSkinIds[skinId] === true);
     }
 
+    function listOwnedPlacementSoundIds(rootRef) {
+        const state = readState(rootRef);
+        return Object.keys(state.ownedPlacementSoundIds).filter((soundId) => state.ownedPlacementSoundIds[soundId] === true);
+    }
+
     function isHandSkinOwned(rootRef, skinId) {
         const normalized = normalizeOwnedHandSkinId(skinId);
         if (!normalized) return false;
         const state = readState(rootRef);
         return state.ownedHandSkinIds[normalized] === true;
+    }
+
+    function isPlacementSoundOwned(rootRef, soundId) {
+        const normalized = normalizeOwnedPlacementSoundId(soundId);
+        if (!normalized) return false;
+        const state = readState(rootRef);
+        return state.ownedPlacementSoundIds[normalized] === true;
     }
 
     function awardObservationStones(rootRef, amount) {
@@ -187,6 +241,29 @@
         };
     }
 
+    function unlockPlacementSoundIds(rootRef, soundIds) {
+        const state = readState(rootRef);
+        const newlyUnlockedIds = [];
+        const alreadyOwnedIds = [];
+
+        (Array.isArray(soundIds) ? soundIds : []).forEach((soundId) => {
+            const normalized = normalizeOwnedPlacementSoundId(soundId);
+            if (!normalized) return;
+            if (state.ownedPlacementSoundIds[normalized] === true) {
+                alreadyOwnedIds.push(normalized);
+                return;
+            }
+            state.ownedPlacementSoundIds[normalized] = true;
+            newlyUnlockedIds.push(normalized);
+        });
+
+        return {
+            state: writeState(rootRef, state),
+            newlyUnlockedIds,
+            alreadyOwnedIds
+        };
+    }
+
     function applyPullResults(rootRef, pulls) {
         const state = readState(rootRef);
         const newlyUnlockedIds = [];
@@ -195,14 +272,21 @@
 
         state.totalPullCount += safePulls.length;
         safePulls.forEach((pull) => {
+            const item = pull && pull.item && typeof pull.item === 'object' ? pull.item : null;
+            const kind = String(item && item.kind || '').trim().toLowerCase();
             const candidateId = pull && pull.item ? pull.item.id : pull && pull.id;
-            const normalized = normalizeOwnedHandSkinId(candidateId);
+            const normalized = kind === 'placement_sound'
+                ? normalizeOwnedPlacementSoundId(candidateId)
+                : normalizeOwnedHandSkinId(candidateId);
             if (!normalized) return;
-            if (state.ownedHandSkinIds[normalized] === true) {
+            const targetOwned = kind === 'placement_sound'
+                ? state.ownedPlacementSoundIds
+                : state.ownedHandSkinIds;
+            if (targetOwned[normalized] === true) {
                 alreadyOwnedIds.push(normalized);
                 return;
             }
-            state.ownedHandSkinIds[normalized] = true;
+            targetOwned[normalized] = true;
             newlyUnlockedIds.push(normalized);
         });
 
@@ -223,10 +307,13 @@
         writeState,
         getObservationStones,
         listOwnedHandSkinIds,
+        listOwnedPlacementSoundIds,
         isHandSkinOwned,
+        isPlacementSoundOwned,
         awardObservationStones,
         spendObservationStones,
         unlockHandSkinIds,
+        unlockPlacementSoundIds,
         applyPullResults
     };
 }));

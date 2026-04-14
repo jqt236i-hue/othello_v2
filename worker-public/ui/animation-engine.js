@@ -308,6 +308,27 @@
             return ownerColor === blackVal ? 'black' : 'white';
         }
 
+        _resolveVisualColorFromState(state, fallbackDisc, fallbackOwner) {
+            const blackVal = (typeof BLACK !== 'undefined') ? BLACK : 1;
+            const whiteVal = (typeof WHITE !== 'undefined') ? WHITE : -1;
+            const rawColor = Number(state && state.color);
+            if (rawColor === blackVal || rawColor === whiteVal) return rawColor;
+
+            const ownerCandidate = (state && Object.prototype.hasOwnProperty.call(state, 'owner'))
+                ? state.owner
+                : fallbackOwner;
+            const normalizedOwnerKey = this._normalizePlayerKeyOptional(ownerCandidate);
+            if (normalizedOwnerKey === 'black') return blackVal;
+            if (normalizedOwnerKey === 'white') return whiteVal;
+
+            if (fallbackDisc && fallbackDisc.classList) {
+                if (fallbackDisc.classList.contains('black')) return blackVal;
+                if (fallbackDisc.classList.contains('white')) return whiteVal;
+            }
+
+            return null;
+        }
+
         _normalizePlayerKeyOptional(value) {
             if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
                 const normalized = OwnerHelpersModule.normalizePlayerKeyOptional(value);
@@ -3102,20 +3123,51 @@
                         const specialTypeUpper = String(after && after.special ? after.special : '').toUpperCase();
                         const visualSpecialType = (specialTypeUpper === 'INHERITED_HYPERACTIVE') ? null : after.special;
                         const effectKey = window.getEffectKeyForSpecialType(visualSpecialType);
+                        const metaOwner = (ev && ev.meta && Object.prototype.hasOwnProperty.call(ev.meta, 'owner'))
+                            ? ev.meta.owner
+                            : null;
+                        const visualOwner = (Object.prototype.hasOwnProperty.call(after, 'owner')
+                            && after.owner !== null
+                            && typeof after.owner !== 'undefined'
+                            && after.owner !== '')
+                            ? after.owner
+                            : metaOwner;
+                        const visualAfter = Object.assign({}, after);
+                        const resolvedVisualColor = this._resolveVisualColorFromState(
+                            visualAfter,
+                            disc,
+                            visualOwner
+                        );
+                        if ((visualAfter.owner === null || typeof visualAfter.owner === 'undefined' || visualAfter.owner === '')
+                            && visualOwner !== null
+                            && typeof visualOwner !== 'undefined'
+                            && visualOwner !== '') {
+                            visualAfter.owner = visualOwner;
+                        }
+                        if (visualSpecialType && (resolvedVisualColor === 1 || resolvedVisualColor === -1)) {
+                            visualAfter.color = resolvedVisualColor;
+                        }
 
                         // Section 1.5: True Cross-Fade via overlay
                         if (Visuals.crossfadeStoneVisual) {
-                            await Visuals.crossfadeStoneVisual(disc, {
+                            const crossfadeOptions = {
                                 effectKey: effectKey,
-                                owner: after.color, // Usually owner is same as color for these
+                                owner: (visualOwner !== null && typeof visualOwner !== 'undefined' && visualOwner !== '')
+                                    ? visualOwner
+                                    : (resolvedVisualColor === 1 || resolvedVisualColor === -1
+                                        ? resolvedVisualColor
+                                        : after.color),
                                 durationMs: OVERLAY_CROSSFADE_MS,
-                                newColor: after.color,
                                 fadeIn: !!visualSpecialType
-                            });
+                            };
+                            if (resolvedVisualColor === 1 || resolvedVisualColor === -1) {
+                                crossfadeOptions.newColor = resolvedVisualColor;
+                            }
+                            await Visuals.crossfadeStoneVisual(disc, crossfadeOptions);
                             // Ensure timer UI is updated immediately after status changes.
-                            this.syncDiscVisual(disc, after);
+                            this.syncDiscVisual(disc, visualAfter);
                         } else {
-                            this.syncDiscVisual(disc, after);
+                            this.syncDiscVisual(disc, visualAfter);
                         }
                     },
                     this._resolveStatusChangeHighlightMinimumMs(highlightTone)
@@ -3255,27 +3307,50 @@
             if (state.color === 1) disc.classList.add('black');
             else if (state.color === -1) disc.classList.add('white');
             disc.classList.toggle('living-will-aura', !!state.livingWillAura);
-            if (typeof window !== 'undefined' && typeof window.setDiscStoneImage === 'function') {
-                window.setDiscStoneImage(disc, state.color);
-            }
+
+            const setDiscStoneImage = (typeof window !== 'undefined' && typeof window.setDiscStoneImage === 'function')
+                ? window.setDiscStoneImage
+                : null;
+            const clearStoneVisualEffectState = (typeof window !== 'undefined' && typeof window.clearStoneVisualEffectState === 'function')
+                ? window.clearStoneVisualEffectState
+                : null;
+            const applyStoneVisualEffect = (typeof window !== 'undefined' && typeof window.applyStoneVisualEffect === 'function')
+                ? window.applyStoneVisualEffect
+                : null;
+            const getEffectKeyForSpecialType = (typeof window !== 'undefined' && typeof window.getEffectKeyForSpecialType === 'function')
+                ? window.getEffectKeyForSpecialType
+                : null;
 
             const specialTypeUpper = String(state.special || '').toUpperCase();
             const visualSpecialType = (specialTypeUpper === 'INHERITED_HYPERACTIVE') ? null : state.special;
 
             if (visualSpecialType) {
-                const effectKey = window.getEffectKeyForSpecialType(visualSpecialType);
-                if (window.applyStoneVisualEffect && effectKey) {
-                    const ownerVal = (state.owner !== undefined && state.owner !== null) ? state.owner : state.color;
-                    window.applyStoneVisualEffect(disc, effectKey, { owner: ownerVal });
-                }
-            } else {
-                if (typeof window !== 'undefined' && typeof window.clearStoneVisualEffectState === 'function') {
-                    window.clearStoneVisualEffectState(disc);
+                const effectKey = getEffectKeyForSpecialType ? getEffectKeyForSpecialType(visualSpecialType) : null;
+                if (clearStoneVisualEffectState) {
+                    clearStoneVisualEffectState(disc, { skipRenderReset: true });
                 } else {
                     disc.classList.remove('special-stone');
                     disc.style.removeProperty('--special-stone-image');
                     disc.style.removeProperty('--disc-overlay-image');
                     disc.style.removeProperty('--disc-overlay-scale');
+                }
+                if (applyStoneVisualEffect && effectKey) {
+                    const ownerVal = (state.owner !== undefined && state.owner !== null) ? state.owner : state.color;
+                    applyStoneVisualEffect(disc, effectKey, { owner: ownerVal });
+                } else if (setDiscStoneImage) {
+                    setDiscStoneImage(disc, state.color);
+                }
+            } else {
+                if (clearStoneVisualEffectState) {
+                    clearStoneVisualEffectState(disc);
+                } else {
+                    disc.classList.remove('special-stone');
+                    disc.style.removeProperty('--special-stone-image');
+                    disc.style.removeProperty('--disc-overlay-image');
+                    disc.style.removeProperty('--disc-overlay-scale');
+                    if (setDiscStoneImage) {
+                        setDiscStoneImage(disc, state.color);
+                    }
                 }
             }
 

@@ -3,11 +3,9 @@ const SoundEngine = {
     ctx: null,
     isMuted: false,
     volume: 0.56,
-    currentType: '2',
-    stoneClackVolumeScale: 0.75,
     bgm: null,
-    bgmVolume: 0.07,
-    currentTrackIndex: 1,
+    bgmVolume: 0.091,
+    currentTrackIndex: 0,
     allowBgmPlay: true, // Default to true requested by user
     _bgmBufferedState: null,
     _bgmBufferCache: {},
@@ -23,11 +21,11 @@ const SoundEngine = {
         { name: '幻想即興曲', file: 'assets/audio/bgm/幻想即興曲.mp3' },
         { name: 'ノクターン', file: 'assets/audio/bgm/ノクターン.mp3' }
     ],
-    externalBuffers: {},
     effectBasePath: 'assets/audio/sound-effect/',
     effectSoundFiles: {
         card_use_button: 'カード使用ボタンを押したタイミング.mp3',
         hand_card_select: '手札のカードを選択したタイミング.mp3',
+        stone_place: 'assets/audio/sound-effect-skin/default.mp3',
         clone_spawn: '石が複製されたタイミング.mp3',
         trap_select: '罠・時限爆弾の石を選択したタイミング.mp3',
         guard_select: '自分の石を選択したタイミング.mp3',
@@ -65,6 +63,7 @@ const SoundEngine = {
     effectDefaultVolumeScale: 0.35,
     effectVolumeScales: {
         hand_card_select: 0.5,
+        stone_place: 15 / 7,
         stone_destroy: 0.7,
         board_shrink_selected: 0.7
     },
@@ -458,19 +457,6 @@ const SoundEngine = {
         this._loadHtmlBgmTrack(track);
     },
 
-    async loadExternalSound(name, url) {
-        try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('Sound file not found');
-            const arrayBuffer = await response.arrayBuffer();
-            const audioBuffer = await this.ctx.decodeAudioData(arrayBuffer);
-            this.externalBuffers[name] = audioBuffer;
-            console.log(`Loaded external sound: ${name}`);
-        } catch (e) {
-            console.warn(`Could not load ${url}: ${e.message}`);
-        }
-    },
-
     _canCreateEffectAudioElement() {
         return typeof Audio === 'function';
     },
@@ -577,15 +563,124 @@ const SoundEngine = {
         return this.effectBasePath;
     },
 
+    _resolveRootRef() {
+        return (typeof globalThis !== 'undefined') ? globalThis : null;
+    },
+
+    _resolvePlacementSoundSelectionModule(rootRef) {
+        const ctx = rootRef || this._resolveRootRef();
+        if (ctx && ctx.PlacementSoundSelectionModule) {
+            return ctx.PlacementSoundSelectionModule;
+        }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.PlacementSoundSelectionModule) {
+                return globalThis.PlacementSoundSelectionModule;
+            }
+        } catch (e) { /* ignore */ }
+        if (typeof require === 'function') {
+            try {
+                return require('./ui/placement-sound-selection.js');
+            } catch (e) { /* ignore */ }
+        }
+        return null;
+    },
+
+    _getPlacementSoundFallbackDefinition() {
+        const defaultPath = String(this.effectSoundFiles.stone_place || '').trim() || 'assets/audio/sound-effect-skin/default.mp3';
+        return {
+            id: 'default',
+            label: '既定配置音',
+            kind: 'placement_sound',
+            assetPath: defaultPath,
+            soundPath: defaultPath,
+            previewImagePath: '',
+            note: '既定の石置き音'
+        };
+    },
+
+    getDefaultPlacementSoundDefinition(options = {}) {
+        const opts = options && typeof options === 'object' ? options : {};
+        const selectionModule = this._resolvePlacementSoundSelectionModule(opts.root || this._resolveRootRef());
+        if (selectionModule && typeof selectionModule.getDefaultPlacementSoundDefinition === 'function') {
+            return selectionModule.getDefaultPlacementSoundDefinition();
+        }
+        return this._getPlacementSoundFallbackDefinition();
+    },
+
+    listSelectablePlacementSounds(options = {}) {
+        const opts = options && typeof options === 'object' ? options : {};
+        const rootRef = opts.root || this._resolveRootRef();
+        const selectionModule = this._resolvePlacementSoundSelectionModule(rootRef);
+        if (selectionModule && typeof selectionModule.listSelectablePlacementSounds === 'function') {
+            return selectionModule.listSelectablePlacementSounds({ root: rootRef });
+        }
+        return [this.getDefaultPlacementSoundDefinition({ root: rootRef })];
+    },
+
+    isPlacementSoundOwned(soundId, options = {}) {
+        const opts = options && typeof options === 'object' ? options : {};
+        const rootRef = opts.root || this._resolveRootRef();
+        const selectionModule = this._resolvePlacementSoundSelectionModule(rootRef);
+        if (selectionModule && typeof selectionModule.isPlacementSoundOwned === 'function') {
+            return selectionModule.isPlacementSoundOwned(soundId, { root: rootRef });
+        }
+        return String(soundId || '').trim() === 'default';
+    },
+
+    getSelectedPlacementSoundId(options = {}) {
+        const opts = options && typeof options === 'object' ? options : {};
+        const rootRef = opts.root || this._resolveRootRef();
+        const selectionModule = this._resolvePlacementSoundSelectionModule(rootRef);
+        if (selectionModule && typeof selectionModule.getSelectedPlacementSoundId === 'function') {
+            return selectionModule.getSelectedPlacementSoundId({ root: rootRef });
+        }
+        return 'default';
+    },
+
+    setSelectedPlacementSoundId(soundId, options = {}) {
+        const opts = options && typeof options === 'object' ? options : {};
+        const rootRef = opts.root || this._resolveRootRef();
+        const selectionModule = this._resolvePlacementSoundSelectionModule(rootRef);
+        const nextId = selectionModule && typeof selectionModule.setSelectedPlacementSoundId === 'function'
+            ? selectionModule.setSelectedPlacementSoundId(soundId, { root: rootRef })
+            : 'default';
+        const selectedPath = this.resolveSelectedPlacementSoundFilePath({ root: rootRef, soundId: nextId });
+        if (this._effectWarmupStarted && selectedPath) {
+            try { this._getEffectAudioPool(selectedPath); } catch (e) { /* ignore */ }
+        }
+        return nextId;
+    },
+
+    getSelectedPlacementSoundDefinition(options = {}) {
+        const opts = options && typeof options === 'object' ? options : {};
+        const rootRef = opts.root || this._resolveRootRef();
+        const selectionModule = this._resolvePlacementSoundSelectionModule(rootRef);
+        if (selectionModule && typeof selectionModule.getSelectedPlacementSoundDefinition === 'function') {
+            return selectionModule.getSelectedPlacementSoundDefinition(Object.assign({}, opts, { root: rootRef }));
+        }
+        return this.getDefaultPlacementSoundDefinition({ root: rootRef });
+    },
+
+    resolveSelectedPlacementSoundFilePath(options = {}) {
+        const definition = this.getSelectedPlacementSoundDefinition(options);
+        return definition ? String(definition.assetPath || '').trim() : String(this.effectSoundFiles.stone_place || '').trim();
+    },
+
     getEffectFilePath(effectKey, options = {}) {
         const key = String(effectKey || '').trim();
         if (!key) return null;
         const opts = options && typeof options === 'object' ? options : {};
         const directFilePath = String(opts.filePath || '').trim();
         if (directFilePath) return directFilePath;
+        if (key === 'stone_place' && !opts.fileName) {
+            return this.resolveSelectedPlacementSoundFilePath(opts);
+        }
         const fileNameRaw = opts.fileName || this.effectSoundFiles[key] || `${key}.mp3`;
         const fileName = String(fileNameRaw || '').trim();
         if (!fileName) return null;
+        if (/^(?:[A-Za-z]:[\\/]|[./]|assets\/)/.test(fileName)) {
+            return fileName.replace(/\\/g, '/');
+        }
         const basePath = String(this.effectBasePath || 'assets/audio/sound-effect/');
         const normalizedBase = basePath.endsWith('/') ? basePath : `${basePath}/`;
         return `${normalizedBase}${fileName}`;
@@ -599,12 +694,6 @@ const SoundEngine = {
 
     _clamp01(value) {
         return Math.max(0, Math.min(1, Number(value) || 0));
-    },
-
-    resolveStoneClackVolume() {
-        const masterVolume = this._toNonNegativeNumber(this.volume, 0);
-        const clackScale = this._toNonNegativeNumber(this.stoneClackVolumeScale, 1);
-        return this._clamp01(masterVolume * clackScale);
     },
 
     resolveEffectVolumeScale(effectKey, options = {}) {
@@ -641,9 +730,6 @@ const SoundEngine = {
             if (!this._missingEffectWarned[filePath]) {
                 this._missingEffectWarned[filePath] = true;
                 console.warn(`Effect sound not found: ${filePath}`);
-            }
-            if (opts.fallbackStoneClack === true) {
-                try { this.playStoneClack(); } catch (e) { /* ignore */ }
             }
         };
 
@@ -694,111 +780,7 @@ const SoundEngine = {
         updateBgmButtons();
     },
 
-    setSoundType(type) {
-        this.currentType = type;
-    },
-
     setBgmTrack(index) {
         this.loadBgm(parseInt(index, 10));
-    },
-
-    playStoneClack() {
-        if (this.isMuted || !this.ctx) return;
-
-        // Ensure context is running
-        if (this.ctx.state === 'suspended') this.ctx.resume();
-
-        const t = this.ctx.currentTime;
-        const vol = this.resolveStoneClackVolume();
-        const type = this.currentType;
-
-        // Special Case: Real Sound (External)
-        if (type === '6' && this.externalBuffers['real']) {
-            const source = this.ctx.createBufferSource();
-            source.buffer = this.externalBuffers['real'];
-            const gainNode = this.ctx.createGain();
-            gainNode.gain.setValueAtTime(vol * 1.5, t); // Boost real sound a bit
-            source.connect(gainNode);
-            gainNode.connect(this.ctx.destination);
-            source.start(t);
-            return;
-        }
-
-        // Tone Parameters based on type
-        let clickFreq = 1200, clickDecay = 0.08, clickGain = 0.3;
-        let thudFreq = 300, thudDecay = 0.15, thudGain = 0.5;
-        let noiseFreq = 800, noiseDecay = 0.05, noiseGain = 0.1;
-
-        switch (type) {
-            case '2': // Sharp / Plastic
-                clickFreq = 1800; clickDecay = 0.04; clickGain = 0.4;
-                thudFreq = 500; thudDecay = 0.05; thudGain = 0.2;
-                noiseFreq = 1500; noiseDecay = 0.03; noiseGain = 0.15;
-                break;
-            case '3': // Heavy / Thud
-                clickFreq = 800; clickDecay = 0.1; clickGain = 0.2;
-                thudFreq = 150; thudDecay = 0.25; thudGain = 0.7;
-                noiseFreq = 400; noiseDecay = 0.1; noiseGain = 0.05;
-                break;
-            case '4': // Resonant / Wood
-                clickFreq = 1400; clickDecay = 0.12; clickGain = 0.3;
-                thudFreq = 400; thudDecay = 0.3; thudGain = 0.4;
-                noiseFreq = 1000; noiseDecay = 0.15; noiseGain = 0.08;
-                break;
-            case '5': // Soft / Muted
-                clickFreq = 600; clickDecay = 0.05; clickGain = 0.15;
-                thudFreq = 200; thudDecay = 0.1; thudGain = 0.3;
-                noiseFreq = 300; noiseDecay = 0.08; noiseGain = 0.2;
-                break;
-            default: // Standard (Type 1)
-                // Uses defaults
-                break;
-        }
-
-        // Oscillator 1: High frequency impact
-        const osc1 = this.ctx.createOscillator();
-        const gain1 = this.ctx.createGain();
-        osc1.type = 'triangle';
-        osc1.frequency.setValueAtTime(clickFreq, t);
-        osc1.frequency.exponentialRampToValueAtTime(100, t + clickDecay);
-        gain1.gain.setValueAtTime(0, t);
-        gain1.gain.linearRampToValueAtTime(clickGain * vol, t + 0.005);
-        gain1.gain.exponentialRampToValueAtTime(0.01 * vol, t + clickDecay + 0.02);
-        osc1.connect(gain1);
-        gain1.connect(this.ctx.destination);
-        osc1.start(t);
-        osc1.stop(t + clickDecay + 0.02);
-
-        // Oscillator 2: Low frequency body
-        const osc2 = this.ctx.createOscillator();
-        const gain2 = this.ctx.createGain();
-        osc2.type = 'sine';
-        osc2.frequency.setValueAtTime(thudFreq, t);
-        osc2.frequency.exponentialRampToValueAtTime(50, t + thudDecay);
-        gain2.gain.setValueAtTime(0, t);
-        gain2.gain.linearRampToValueAtTime(thudGain * vol, t + 0.01);
-        gain2.gain.exponentialRampToValueAtTime(0.01 * vol, t + thudDecay + 0.05);
-        osc2.connect(gain2);
-        gain2.connect(this.ctx.destination);
-        osc2.start(t);
-        osc2.stop(t + thudDecay + 0.05);
-
-        // Noise Burst: Texture
-        const bufferSize = this.ctx.sampleRate * 0.2;
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-        const noise = this.ctx.createBufferSource();
-        noise.buffer = buffer;
-        const noiseGainNode = this.ctx.createGain();
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'highpass';
-        filter.frequency.value = noiseFreq;
-        noiseGainNode.gain.setValueAtTime(noiseGain * vol, t);
-        noiseGainNode.gain.exponentialRampToValueAtTime(0.01 * vol, t + noiseDecay);
-        noise.connect(filter);
-        filter.connect(noiseGainNode);
-        noiseGainNode.connect(this.ctx.destination);
-        noise.start(t);
     }
 };

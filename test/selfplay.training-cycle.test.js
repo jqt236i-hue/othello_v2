@@ -77,6 +77,7 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxEarlyStopMinDelta).toBeCloseTo(0.0005, 8);
         expect(args.onnxEarlyStopMinEpochs).toBe(8);
         expect(args.onnxEarlyStopSmoothingWindow).toBe(1);
+        expect(args.onnxValSplitMode).toBe('grouped-game');
         expect(args.onnxWinnerSampleBoost).toBeCloseTo(0.35, 6);
         expect(args.onnxLoserSampleWeight).toBeCloseTo(0.8, 6);
         expect(args.onnxDrawSampleWeight).toBeCloseTo(1.0, 6);
@@ -205,6 +206,7 @@ describe('selfplay training cycle script', () => {
         expect(() => parseArgs(['--selfplay-heuristic-weight-min', '1.1', '--selfplay-heuristic-weight-max', '0.9'])).toThrow('--selfplay-heuristic-weight-max must be >= --selfplay-heuristic-weight-min');
         expect(() => parseArgs(['--onnx-log-interval-steps', '-1'])).toThrow('--onnx-log-interval-steps must be >= 0');
         expect(() => parseArgs(['--onnx-val-split', '0.5'])).toThrow('--onnx-val-split must be in [0,0.5)');
+        expect(() => parseArgs(['--onnx-val-split-mode', 'bad'])).toThrow('--onnx-val-split-mode must be random or grouped-game');
         expect(() => parseArgs(['--onnx-early-stop-patience', '-1'])).toThrow('--onnx-early-stop-patience must be >= 0');
         expect(() => parseArgs(['--onnx-early-stop-min-delta', '-0.1'])).toThrow('--onnx-early-stop-min-delta must be >= 0');
         expect(() => parseArgs(['--onnx-early-stop-smoothing-window', '0'])).toThrow('--onnx-early-stop-smoothing-window must be >= 1');
@@ -663,6 +665,7 @@ describe('selfplay training cycle script', () => {
                 '--policy-table-out', iterationPaths.candidateModelPath,
                 '--metrics-out', iterationPaths.onnxMetricsPath,
                 '--checkpoint-out', iterationPaths.checkpointPath,
+                '--val-split-mode', 'grouped-game',
                 '--resume-checkpoint', path.join(modelsDir, 'policy.resume.pt'),
                 '--resume-optimizer'
             ]));
@@ -1009,6 +1012,7 @@ describe('selfplay training cycle script', () => {
                 '--onnx-hand-pressure-sample-boost', '0.25',
                 '--onnx-pending-target-sample-boost', '0.35',
                 '--onnx-early-stop-smoothing-window', '4',
+                '--onnx-val-split-mode', 'random',
                 '--promotion-mode', 'onnx-primary',
                 '--onnx-primary-max-quick-regression', '0.06',
                 '--onnx-primary-require-quick-regression',
@@ -1091,6 +1095,7 @@ describe('selfplay training cycle script', () => {
             expect(args.onnxHandPressureSampleBoost).toBeCloseTo(0.25, 6);
             expect(args.onnxPendingTargetSampleBoost).toBeCloseTo(0.35, 6);
             expect(args.onnxEarlyStopSmoothingWindow).toBe(4);
+            expect(args.onnxValSplitMode).toBe('random');
             expect(args.adoptionUseGuideBaseline).toBe(true);
             expect(args.promotionMode).toBe('onnx-primary');
             expect(args.onnxPrimaryMaxQuickRegression).toBeCloseTo(0.06, 6);
@@ -1260,6 +1265,8 @@ describe('selfplay training cycle script', () => {
             expect(manifest.models.policyCheckpoint.compatibility).toBe('compatible');
             expect(manifest.gates.quick.lifecycle).toBe('experimental');
             expect(manifest.training.hasTargetTrainingData).toBe(true);
+            expect(manifest.training.onnxValSplit).toBeCloseTo(0.1, 6);
+            expect(manifest.training.onnxValSplitMode).toBe('grouped-game');
             expect(manifest.steps[0]).toMatchObject({
                 name: 'generate-train',
                 status: 0
@@ -1625,6 +1632,7 @@ describe('selfplay training cycle script', () => {
             });
 
             expect(payload.config.runTag).toBe('summarytest');
+            expect(payload.config.onnxValSplitMode).toBe('grouped-game');
             expect(payload.latestResumeCheckpointPath).toBe(path.join(modelsDir, 'policy.resume.pt'));
             expect(payload.latestWarehouseManifestPath).toBe(latestWarehouseManifestPath);
             expect(payload.warehouseManifestSchemaVersion).toBe(TRAINING_WAREHOUSE_MANIFEST_SCHEMA_VERSION);

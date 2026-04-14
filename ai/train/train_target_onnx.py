@@ -56,6 +56,7 @@ class TargetDatasetBundle:
     x: torch.Tensor
     y_target: torch.Tensor
     sample_weight: torch.Tensor
+    split_group_keys: list[str | None]
     records_read: int
     train_records: int
     target_records: int
@@ -88,55 +89,16 @@ class TargetNet(nn.Module):
 
 
 def accuracy_from_logits(logits: torch.Tensor, target: torch.Tensor) -> tuple[int, int]:
-    mask = target != base.IGNORE_INDEX
-    samples = int(mask.sum().item())
-    if samples <= 0:
-        return 0, 0
-    pred = torch.argmax(logits, dim=1)
-    correct = int((pred[mask] == target[mask]).sum().item())
-    return correct, samples
+    return trainer_common.accuracy_from_logits(logits, target, base.IGNORE_INDEX)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train pending-target ONNX model from self-play NDJSON.")
-    parser.add_argument("--input", required=True, help="Path to NDJSON self-play data.")
-    parser.add_argument(
-        "--onnx-out",
-        default=os.path.join("data", "models", "policy-target.onnx"),
-        help="Output ONNX path.",
+    trainer_common.add_common_args(
+        parser,
+        onnx_out_default=os.path.join("data", "models", "policy-target.onnx"),
+        include_balance_boosts=True,
     )
-    parser.add_argument(
-        "--meta-out",
-        default=None,
-        help="Output metadata JSON path (default: <onnx-out>.meta.json).",
-    )
-    parser.add_argument("--epochs", type=int, default=8, help="Training epochs (default: 8).")
-    parser.add_argument("--batch-size", type=int, default=2048, help="Batch size (default: 2048).")
-    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate (default: 1e-3).")
-    parser.add_argument("--hidden-size", type=int, default=256, help="MLP hidden size (default: 256).")
-    parser.add_argument("--seed", type=int, default=7, help="Random seed (default: 7).")
-    parser.add_argument("--val-split", type=float, default=0.1, help="Validation split ratio in [0,0.5).")
-    parser.add_argument("--early-stop-patience", type=int, default=0, help="Early-stop patience (default: 0=off).")
-    parser.add_argument("--early-stop-min-delta", type=float, default=0.0, help="Early-stop min delta.")
-    parser.add_argument("--early-stop-min-epochs", type=int, default=0, help="Minimum epochs before early-stop.")
-    parser.add_argument("--early-stop-monitor", default="val_loss", help="Metric for early stopping: val_loss/train_loss.")
-    parser.add_argument("--early-stop-smoothing-window", type=int, default=1, help="Moving-average window for early-stop monitor.")
-    parser.add_argument("--log-interval-steps", type=int, default=0, help="If > 0, print batch loss every N steps.")
-    parser.add_argument("--metrics-out", default="", help="Optional JSONL path for per-epoch metrics.")
-    parser.add_argument("--resume-checkpoint", default="", help="Optional checkpoint path to resume model/optimizer state from.")
-    parser.add_argument("--resume-optimizer", action="store_true", help="When set, also restore optimizer state.")
-    parser.add_argument("--checkpoint-out", default="", help="Optional checkpoint output path (.pt).")
-    parser.add_argument("--device", default="auto", help="Device: auto/cpu/cuda.")
-    parser.add_argument("--winner-sample-boost", type=float, default=0.35, help="Extra sample weight added to winner-side records.")
-    parser.add_argument("--loser-sample-weight", type=float, default=0.8, help="Sample weight used for loser-side records.")
-    parser.add_argument("--draw-sample-weight", type=float, default=1.0, help="Sample weight used for draw records.")
-    parser.add_argument("--corner-emergency-sample-boost", type=float, default=0.0, help="Extra weight boost when cornerEmergency is active.")
-    parser.add_argument("--negative-future-disc-sample-boost", type=float, default=0.0, help="Extra weight boost when futureDiscDelta3Ply is below threshold.")
-    parser.add_argument("--negative-future-disc-threshold", type=float, default=-1.0, help="Danger threshold for futureDiscDelta3Ply.")
-    parser.add_argument("--tactical-miss-sample-boost", type=float, default=0.0, help="Extra weight boost when tacticalScoreMissRatio exceeds threshold.")
-    parser.add_argument("--tactical-miss-threshold", type=float, default=0.08, help="Threshold for tacticalScoreMissRatio danger boost.")
-    parser.add_argument("--hand-pressure-sample-boost", type=float, default=0.0, help="Extra weight boost when handCards length is >= 4.")
-    parser.add_argument("--pending-target-sample-boost", type=float, default=0.0, help="Extra weight boost when pendingType is active.")
     return parser.parse_args()
 
 
@@ -179,6 +141,7 @@ def load_target_dataset(args: argparse.Namespace) -> TargetDatasetBundle:
     xs: list[list[float]] = []
     y_target: list[int] = []
     sample_weight: list[float] = []
+    split_group_keys: list[str | None] = []
     records_read = 0
     target_records = 0
     winner_records = 0
@@ -199,6 +162,7 @@ def load_target_dataset(args: argparse.Namespace) -> TargetDatasetBundle:
 
             xs.append(feature_vector(rec))
             y_target.append(target_t)
+            split_group_keys.append(trainer_common.build_record_group_key(rec))
             weight_value, weight_label = base.sample_weight_for_record(
                 rec,
                 winner_sample_boost=float(args.winner_sample_boost),
@@ -211,6 +175,9 @@ def load_target_dataset(args: argparse.Namespace) -> TargetDatasetBundle:
                 tactical_miss_threshold=float(args.tactical_miss_threshold),
                 hand_pressure_sample_boost=float(args.hand_pressure_sample_boost),
                 pending_target_sample_boost=float(args.pending_target_sample_boost),
+                corner_balance_sample_boost=float(args.corner_balance_sample_boost),
+                edge_balance_sample_boost=float(args.edge_balance_sample_boost),
+                economy_balance_sample_boost=float(args.economy_balance_sample_boost),
             )
             sample_weight.append(float(weight_value))
             target_records += 1
@@ -233,6 +200,7 @@ def load_target_dataset(args: argparse.Namespace) -> TargetDatasetBundle:
         x=torch.tensor(xs, dtype=torch.float32),
         y_target=torch.tensor(y_target, dtype=torch.long),
         sample_weight=torch.tensor(sample_weight, dtype=torch.float32),
+        split_group_keys=split_group_keys,
         records_read=records_read,
         train_records=target_records,
         target_records=target_records,
@@ -252,6 +220,7 @@ def train_model(
     device: str,
     seed: int,
     val_split: float,
+    val_split_mode: str,
     early_stop_patience: int,
     early_stop_min_delta: float,
     early_stop_min_epochs: int,
@@ -260,7 +229,7 @@ def train_model(
     resume_checkpoint: str,
     resume_optimizer: bool,
     log_interval_steps: int,
-) -> tuple[nn.Module, torch.optim.Optimizer, TargetTrainSummary, str | None, list[dict[str, Any]]]:
+) -> tuple[nn.Module, torch.optim.Optimizer, TargetTrainSummary, str | None, list[dict[str, Any]], dict[str, Any]]:
     if epochs < 1:
         raise ValueError("--epochs must be >= 1")
     if batch_size < 1:
@@ -292,28 +261,18 @@ def train_model(
     y_target = data.y_target.to(device)
     sample_weight = data.sample_weight.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    resumed_from: str | None = None
+    resumed_from = trainer_common.apply_resume_checkpoint(
+        "train_target_onnx", model, optimizer, resume_checkpoint, resume_optimizer, device,
+    )
 
-    resume_path, checkpoint, state = trainer_common.read_resume_checkpoint(resume_checkpoint, device)
-    if resume_path and state is not None:
-        try:
-            model.load_state_dict(state)
-            if resume_optimizer and isinstance(checkpoint, dict) and isinstance(checkpoint.get("optimizer_state"), dict):
-                optimizer.load_state_dict(checkpoint["optimizer_state"])
-            resumed_from = resume_path
-        except Exception as exc:
-            trainer_common.log_ignored_resume_checkpoint("train_target_onnx", resume_path, exc)
-
-    total_records = int(x.shape[0])
-    val_count = int(total_records * val_split)
-    train_count = max(1, total_records - val_count)
-    if train_count >= total_records:
-        train_indices = torch.arange(total_records)
-        val_indices = torch.empty((0,), dtype=torch.long)
-    else:
-        perm = torch.randperm(total_records)
-        train_indices = perm[:train_count]
-        val_indices = perm[train_count:]
+    train_indices, val_indices, split_summary = trainer_common.resolve_train_val_split(
+        int(x.shape[0]),
+        val_split,
+        device,
+        seed=seed,
+        split_mode=val_split_mode,
+        split_group_keys=data.split_group_keys,
+    )
 
     x_train = x[train_indices]
     y_train = y_target[train_indices]
@@ -429,24 +388,14 @@ def train_model(
         target_acc=(target_correct_all / max(1, target_samples_all)),
         target_samples=target_samples_all,
     )
-    return model, optimizer, summary, resumed_from, epoch_metrics
+    return model, optimizer, summary, resumed_from, epoch_metrics, split_summary
 
 
 def export_onnx(model: nn.Module, onnx_out: str) -> None:
-    os.makedirs(os.path.dirname(onnx_out) or ".", exist_ok=True)
-    model.eval()
-    dummy = torch.zeros((1, TARGET_INPUT_DIM), dtype=torch.float32)
-    torch.onnx.export(
-        model.cpu(),
-        (dummy,),
-        onnx_out,
-        input_names=["obs"],
+    trainer_common.export_onnx_model(
+        model, onnx_out, TARGET_INPUT_DIM,
         output_names=["target_logits"],
-        dynamic_axes={
-            "obs": {0: "batch"},
-            "target_logits": {0: "batch"},
-        },
-        opset_version=17,
+        dynamic_axes={"obs": {0: "batch"}, "target_logits": {0: "batch"}},
     )
 
 
@@ -456,7 +405,15 @@ def write_meta(
     data: TargetDatasetBundle,
     train_summary: TargetTrainSummary,
     device: str,
+    split_summary: dict[str, Any] | None,
 ) -> None:
+    feature_spec = list(trainer_common.BASE_FEATURE_SPEC) + [
+        "hand_card_counts_norm",
+        "usable_card_mask",
+        "pending_type_onehot",
+    ]
+    training = trainer_common.build_common_training_meta(args, device)
+    trainer_common.apply_split_summary_meta(training, split_summary)
     payload = {
         "schemaVersion": MODEL_SCHEMA_VERSION,
         "inputName": "obs",
@@ -477,55 +434,9 @@ def write_meta(
         "actionSpace": "pending_target_padded10",
         "pendingTypes": TARGET_PENDING_TYPES,
         "cardActionIds": base.CARD_ACTION_IDS,
-        "featureSpec": [
-            "board_padded_10x10_perspective_flat",
-            "legal_moves_norm",
-            "disc_diff_before_norm",
-            "own_charge_norm",
-            "opp_charge_norm",
-            "deck_count_norm",
-            "pending_flag",
-            "own_corners_norm",
-            "opp_corners_norm",
-            "own_edges_norm",
-            "opp_edges_norm",
-            "has_corner_move_now_flag",
-            "has_edge_move_now_flag",
-            "corner_emergency_flag",
-            "corner_hold_mode_flag",
-            "high_bonus_move_available_flag",
-            "max_legal_move_bonus_norm",
-            "hand_card_counts_norm",
-            "usable_card_mask",
-            "pending_type_onehot",
-        ],
-        "training": {
-            "epochs": args.epochs,
-            "batchSize": args.batch_size,
-            "lr": args.lr,
-            "hiddenSize": args.hidden_size,
-            "seed": args.seed,
-            "device": device,
-            "valSplit": args.val_split,
-            "earlyStopPatience": args.early_stop_patience,
-            "earlyStopMinDelta": args.early_stop_min_delta,
-            "earlyStopMinEpochs": args.early_stop_min_epochs,
-            "earlyStopMonitor": args.early_stop_monitor,
-            "earlyStopSmoothingWindow": args.early_stop_smoothing_window,
-            "winnerSampleBoost": args.winner_sample_boost,
-            "loserSampleWeight": args.loser_sample_weight,
-            "drawSampleWeight": args.draw_sample_weight,
-            "cornerEmergencySampleBoost": args.corner_emergency_sample_boost,
-            "negativeFutureDiscSampleBoost": args.negative_future_disc_sample_boost,
-            "negativeFutureDiscThreshold": args.negative_future_disc_threshold,
-            "tacticalMissSampleBoost": args.tactical_miss_sample_boost,
-            "tacticalMissThreshold": args.tactical_miss_threshold,
-            "handPressureSampleBoost": args.hand_pressure_sample_boost,
-            "pendingTargetSampleBoost": args.pending_target_sample_boost,
-            "resumeCheckpoint": (args.resume_checkpoint or "").strip() or None,
-            "resumeOptimizer": bool(args.resume_optimizer),
-            "checkpointOut": (args.checkpoint_out or "").strip() or None,
-        },
+        **trainer_common.build_deck_count_feature_meta(),
+        "featureSpec": feature_spec,
+        "training": training,
         "stats": {
             "recordsRead": data.records_read,
             "trainRecords": data.train_records,
@@ -550,7 +461,10 @@ def maybe_write_checkpoint(
     train_summary: TargetTrainSummary,
     device: str,
     resumed_from: str | None,
+    split_summary: dict[str, Any] | None,
 ) -> None:
+    ckpt_training = trainer_common.build_common_checkpoint_training(args, device, resumed_from)
+    trainer_common.apply_split_summary_meta(ckpt_training, split_summary)
     payload = trainer_common.build_model_checkpoint_payload(
         MODEL_SCHEMA_VERSION,
         model,
@@ -566,33 +480,9 @@ def maybe_write_checkpoint(
             "paddedBoardSize": base.PADDED_BOARD_SIZE,
             "pendingTypes": TARGET_PENDING_TYPES,
             "cardActionIds": base.CARD_ACTION_IDS,
+            **trainer_common.build_deck_count_feature_meta(),
         },
-        {
-            "epochs": int(args.epochs),
-            "batchSize": int(args.batch_size),
-            "lr": float(args.lr),
-            "hiddenSize": int(args.hidden_size),
-            "seed": int(args.seed),
-            "device": device,
-            "valSplit": float(args.val_split),
-            "earlyStopPatience": int(args.early_stop_patience),
-            "earlyStopMinDelta": float(args.early_stop_min_delta),
-            "earlyStopMinEpochs": int(args.early_stop_min_epochs),
-            "earlyStopMonitor": str(args.early_stop_monitor),
-            "earlyStopSmoothingWindow": int(args.early_stop_smoothing_window),
-            "winnerSampleBoost": float(args.winner_sample_boost),
-            "loserSampleWeight": float(args.loser_sample_weight),
-            "drawSampleWeight": float(args.draw_sample_weight),
-            "cornerEmergencySampleBoost": float(args.corner_emergency_sample_boost),
-            "negativeFutureDiscSampleBoost": float(args.negative_future_disc_sample_boost),
-            "negativeFutureDiscThreshold": float(args.negative_future_disc_threshold),
-            "tacticalMissSampleBoost": float(args.tactical_miss_sample_boost),
-            "tacticalMissThreshold": float(args.tactical_miss_threshold),
-            "handPressureSampleBoost": float(args.hand_pressure_sample_boost),
-            "pendingTargetSampleBoost": float(args.pending_target_sample_boost),
-            "resumedFrom": resumed_from,
-            "resumeOptimizer": bool(args.resume_optimizer),
-        },
+        ckpt_training,
         {
             "recordsRead": int(data.records_read),
             "trainRecords": int(data.train_records),
@@ -610,11 +500,12 @@ def maybe_write_checkpoint(
 
 def main() -> int:
     args = parse_args()
+    trainer_common.validate_sample_weight_args(args)
     device = base.choose_device(str(args.device).strip().lower())
     meta_out = trainer_common.resolve_meta_output_path(args.meta_out, args.onnx_out)
 
     data = load_target_dataset(args)
-    model, optimizer, train_summary, resumed_from, epoch_metrics = train_model(
+    model, optimizer, train_summary, resumed_from, epoch_metrics, split_summary = train_model(
         data=data,
         epochs=int(args.epochs),
         batch_size=int(args.batch_size),
@@ -623,6 +514,7 @@ def main() -> int:
         device=device,
         seed=int(args.seed),
         val_split=float(args.val_split),
+        val_split_mode=str(args.val_split_mode or ""),
         early_stop_patience=int(args.early_stop_patience),
         early_stop_min_delta=float(args.early_stop_min_delta),
         early_stop_min_epochs=int(args.early_stop_min_epochs),
@@ -633,7 +525,7 @@ def main() -> int:
         log_interval_steps=int(args.log_interval_steps),
     )
     export_onnx(model, args.onnx_out)
-    write_meta(meta_out, args, data, train_summary, device)
+    write_meta(meta_out, args, data, train_summary, device, split_summary)
     base.maybe_write_metrics(str(args.metrics_out or ""), epoch_metrics)
     maybe_write_checkpoint(
         checkpoint_out=str(args.checkpoint_out or ""),
@@ -644,6 +536,7 @@ def main() -> int:
         train_summary=train_summary,
         device=device,
         resumed_from=resumed_from,
+        split_summary=split_summary,
     )
 
     print(

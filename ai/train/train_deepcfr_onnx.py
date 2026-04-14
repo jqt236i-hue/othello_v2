@@ -58,6 +58,7 @@ class DistillSample:
     place_index: int
     card_index: int
     had_usable_cards: bool
+    split_group_key: str | None
 
 
 @dataclass
@@ -67,6 +68,7 @@ class DistillDataset:
     card_target: torch.Tensor
     place_mask: torch.Tensor
     card_mask: torch.Tensor
+    split_group_keys: list[str | None]
     records_read: int
     train_records: int
     place_records: int
@@ -99,6 +101,15 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--lr", type=float, default=8e-4, help="Learning rate (default: 8e-4).")
     p.add_argument("--hidden-size", type=int, default=384, help="Hidden size (default: 384).")
     p.add_argument("--val-split", type=float, default=0.1, help="Validation split ratio in [0,0.5). Default: 0.1")
+    p.add_argument(
+        "--val-split-mode",
+        choices=trainer_common.VAL_SPLIT_MODE_CHOICES,
+        default=trainer_common.VAL_SPLIT_MODE_GROUPED_GAME,
+        help=(
+            "Validation split strategy: random or grouped-game "
+            "(default: grouped-game)."
+        ),
+    )
     p.add_argument("--early-stop-patience", type=int, default=4, help="Stop if monitored metric does not improve for N epochs (default: 4).")
     p.add_argument("--early-stop-min-delta", type=float, default=0.0002, help="Minimum metric improvement to reset early-stop counter (default: 0.0002).")
     p.add_argument(
@@ -273,6 +284,7 @@ def load_infosets_and_samples(input_path: str, max_samples: int, seed: int, shap
                     isinstance(one, str) and one.strip()
                     for one in (rec.get("usableCardIds") if isinstance(rec.get("usableCardIds"), list) else [])
                 ),
+                split_group_key=trainer_common.build_record_group_key(rec),
             )
             reservoir_append(samples, sample, train_records, max_samples, rng)
 
@@ -377,6 +389,7 @@ def build_distill_dataset(samples: list[DistillSample], final_policy: dict[str, 
         card_target=card_target,
         place_mask=place_mask,
         card_mask=card_mask,
+        split_group_keys=[sample.split_group_key for sample in samples],
         records_read=n,
         train_records=n,
         place_records=place_records,
@@ -466,6 +479,7 @@ def train_distillation(
     device: str,
     seed: int,
     val_split: float,
+    val_split_mode: str,
     early_stop_patience: int,
     early_stop_min_delta: float,
     early_stop_monitor: str,
@@ -480,7 +494,7 @@ def train_distillation(
     card_loss_weight: float,
     card_no_action_weight: float,
     card_class_balance_power: float,
-) -> tuple[nn.Module, torch.optim.Optimizer, DistillSummary, str | None, list[dict]]:
+) -> tuple[nn.Module, torch.optim.Optimizer, DistillSummary, str | None, list[dict], dict]:
     if epochs < 1:
         raise ValueError("--epochs must be >= 1")
     if batch_size < 1:
@@ -560,16 +574,14 @@ def train_distillation(
     card_mask = data.card_mask.to(device)
 
     n = int(x.shape[0])
-    all_perm = torch.randperm(n, device=device)
-    val_size = int(n * val_split)
-    if val_size > 0:
-        val_idx = all_perm[:val_size]
-        train_idx = all_perm[val_size:]
-    else:
-        val_idx = torch.empty((0,), dtype=torch.long, device=device)
-        train_idx = all_perm
-    if int(train_idx.shape[0]) <= 0:
-        raise ValueError("training split became empty; reduce --val-split")
+    train_idx, val_idx, split_summary = trainer_common.resolve_train_val_split(
+        n,
+        val_split,
+        device,
+        seed=seed,
+        split_mode=val_split_mode,
+        split_group_keys=data.split_group_keys,
+    )
 
     def select_rows(t: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
         return t[idx] if idx.numel() > 0 else t.new_zeros((0,) + t.shape[1:])
@@ -906,7 +918,7 @@ def train_distillation(
         place_samples=all_place_samples,
         card_samples=all_card_samples,
     )
-    return model, opt, summary, resumed_from, epoch_metrics
+    return model, opt, summary, resumed_from, epoch_metrics, split_summary
 
 def build_policy_table_model(
     infosets: Dict[str, Dict[str, ActionAggregate]],
@@ -962,7 +974,14 @@ def build_policy_table_model(
     }
 
 
-def write_meta(path: str, args: argparse.Namespace, stats: dict, summary: DistillSummary, device: str) -> None:
+def write_meta(
+    path: str,
+    args: argparse.Namespace,
+    stats: dict,
+    summary: DistillSummary,
+    device: str,
+    split_summary: dict | None,
+) -> None:
     feature_spec = [
         "board_8x8_perspective_flat",
         "legal_moves_norm",
@@ -985,6 +1004,33 @@ def write_meta(path: str, args: argparse.Namespace, stats: dict, summary: Distil
     if onnx_base.CARD_ACTION_DIM > 0:
         feature_spec += ["hand_card_counts_norm", "usable_card_mask"]
 
+    training = {
+        "epochs": int(args.epochs),
+        "batchSize": int(args.batch_size),
+        "lr": float(args.lr),
+        "hiddenSize": int(args.hidden_size),
+        "seed": int(args.seed),
+        "device": device,
+        "valSplit": float(args.val_split),
+        "valSplitMode": str(args.val_split_mode),
+        "earlyStopPatience": int(args.early_stop_patience),
+        "earlyStopMinDelta": float(args.early_stop_min_delta),
+        "earlyStopMonitor": str(args.early_stop_monitor),
+        "earlyStopMinEpochs": int(args.early_stop_min_epochs),
+        "lrPlateauPatience": int(args.lr_plateau_patience),
+        "lrPlateauFactor": float(args.lr_plateau_factor),
+        "lrPlateauMinLr": float(args.lr_plateau_min_lr),
+        "placeLossWeight": float(args.place_loss_weight),
+        "cardLossWeight": float(args.card_loss_weight),
+        "cardNoActionWeight": float(args.card_no_action_weight),
+        "cardClassBalancePower": float(args.card_class_balance_power),
+        "resumeCheckpoint": (args.resume_checkpoint or "").strip() or None,
+        "checkpointOut": (args.checkpoint_out or "").strip() or None,
+        "cfrIterations": int(args.cfr_iterations),
+        "cfrRegretFloor": float(args.cfr_regret_floor),
+        "cfrStrategyDecay": float(args.cfr_strategy_decay),
+    }
+    trainer_common.apply_split_summary_meta(training, split_summary)
     payload = {
         "schemaVersion": MODEL_SCHEMA_VERSION,
         "inputName": "obs",
@@ -999,33 +1045,10 @@ def write_meta(path: str, args: argparse.Namespace, stats: dict, summary: Distil
         "boardSize": onnx_base.BOARD_SIZE,
         "actionSpace": "place_8x8+use_card",
         "cardActionIds": onnx_base.CARD_ACTION_IDS,
+        **trainer_common.build_deck_count_feature_meta(),
         "featureSpec": feature_spec,
         "algorithm": "deepcfr_cfrplus_distill.v1",
-        "training": {
-            "epochs": int(args.epochs),
-            "batchSize": int(args.batch_size),
-            "lr": float(args.lr),
-            "hiddenSize": int(args.hidden_size),
-            "seed": int(args.seed),
-            "device": device,
-            "valSplit": float(args.val_split),
-            "earlyStopPatience": int(args.early_stop_patience),
-            "earlyStopMinDelta": float(args.early_stop_min_delta),
-            "earlyStopMonitor": str(args.early_stop_monitor),
-            "earlyStopMinEpochs": int(args.early_stop_min_epochs),
-            "lrPlateauPatience": int(args.lr_plateau_patience),
-            "lrPlateauFactor": float(args.lr_plateau_factor),
-            "lrPlateauMinLr": float(args.lr_plateau_min_lr),
-            "placeLossWeight": float(args.place_loss_weight),
-            "cardLossWeight": float(args.card_loss_weight),
-            "cardNoActionWeight": float(args.card_no_action_weight),
-            "cardClassBalancePower": float(args.card_class_balance_power),
-            "resumeCheckpoint": (args.resume_checkpoint or "").strip() or None,
-            "checkpointOut": (args.checkpoint_out or "").strip() or None,
-            "cfrIterations": int(args.cfr_iterations),
-            "cfrRegretFloor": float(args.cfr_regret_floor),
-            "cfrStrategyDecay": float(args.cfr_strategy_decay),
-        },
+        "training": training,
         "stats": {
             "recordsRead": int(stats["recordsRead"]),
             "trainRecords": int(stats["trainRecords"]),
@@ -1051,7 +1074,34 @@ def maybe_write_checkpoint(
     summary: DistillSummary,
     device: str,
     resumed_from: str | None,
+    split_summary: dict | None,
 ) -> None:
+    training = {
+        "epochs": int(args.epochs),
+        "batchSize": int(args.batch_size),
+        "lr": float(args.lr),
+        "hiddenSize": int(args.hidden_size),
+        "seed": int(args.seed),
+        "device": device,
+        "valSplit": float(args.val_split),
+        "valSplitMode": str(args.val_split_mode),
+        "earlyStopPatience": int(args.early_stop_patience),
+        "earlyStopMinDelta": float(args.early_stop_min_delta),
+        "earlyStopMonitor": str(args.early_stop_monitor),
+        "earlyStopMinEpochs": int(args.early_stop_min_epochs),
+        "lrPlateauPatience": int(args.lr_plateau_patience),
+        "lrPlateauFactor": float(args.lr_plateau_factor),
+        "lrPlateauMinLr": float(args.lr_plateau_min_lr),
+        "placeLossWeight": float(args.place_loss_weight),
+        "cardLossWeight": float(args.card_loss_weight),
+        "cardNoActionWeight": float(args.card_no_action_weight),
+        "cardClassBalancePower": float(args.card_class_balance_power),
+        "resumedFrom": resumed_from,
+        "cfrIterations": int(args.cfr_iterations),
+        "cfrRegretFloor": float(args.cfr_regret_floor),
+        "cfrStrategyDecay": float(args.cfr_strategy_decay),
+    }
+    trainer_common.apply_split_summary_meta(training, split_summary)
     payload = trainer_common.build_model_checkpoint_payload(
         MODEL_SCHEMA_VERSION,
         model,
@@ -1062,31 +1112,9 @@ def maybe_write_checkpoint(
             "placeOutputDim": onnx_base.PLACE_OUTPUT_DIM,
             "cardOutputDim": onnx_base.CARD_ACTION_DIM,
             "cardActionIds": onnx_base.CARD_ACTION_IDS,
+            **trainer_common.build_deck_count_feature_meta(),
         },
-        {
-            "epochs": int(args.epochs),
-            "batchSize": int(args.batch_size),
-            "lr": float(args.lr),
-            "hiddenSize": int(args.hidden_size),
-            "seed": int(args.seed),
-            "device": device,
-            "valSplit": float(args.val_split),
-            "earlyStopPatience": int(args.early_stop_patience),
-            "earlyStopMinDelta": float(args.early_stop_min_delta),
-            "earlyStopMonitor": str(args.early_stop_monitor),
-            "earlyStopMinEpochs": int(args.early_stop_min_epochs),
-            "lrPlateauPatience": int(args.lr_plateau_patience),
-            "lrPlateauFactor": float(args.lr_plateau_factor),
-            "lrPlateauMinLr": float(args.lr_plateau_min_lr),
-            "placeLossWeight": float(args.place_loss_weight),
-            "cardLossWeight": float(args.card_loss_weight),
-            "cardNoActionWeight": float(args.card_no_action_weight),
-            "cardClassBalancePower": float(args.card_class_balance_power),
-            "resumedFrom": resumed_from,
-            "cfrIterations": int(args.cfr_iterations),
-            "cfrRegretFloor": float(args.cfr_regret_floor),
-            "cfrStrategyDecay": float(args.cfr_strategy_decay),
-        },
+        training,
         {
             "recordsRead": int(stats["recordsRead"]),
             "trainRecords": int(stats["trainRecords"]),
@@ -1155,7 +1183,7 @@ def main() -> int:
     )
     distill_data = build_distill_dataset(samples, final_policy)
 
-    model, optimizer, train_summary, resumed_from, epoch_metrics = train_distillation(
+    model, optimizer, train_summary, resumed_from, epoch_metrics, split_summary = train_distillation(
         data=distill_data,
         epochs=int(args.epochs),
         batch_size=int(args.batch_size),
@@ -1164,6 +1192,7 @@ def main() -> int:
         device=device,
         seed=int(args.seed),
         val_split=float(args.val_split),
+        val_split_mode=str(args.val_split_mode or ""),
         early_stop_patience=int(args.early_stop_patience),
         early_stop_min_delta=float(args.early_stop_min_delta),
         early_stop_monitor=str(args.early_stop_monitor or ""),
@@ -1181,7 +1210,7 @@ def main() -> int:
     )
 
     onnx_base.export_onnx(model, args.onnx_out)
-    write_meta(meta_out, args, stats, train_summary, device)
+    write_meta(meta_out, args, stats, train_summary, device, split_summary)
     maybe_write_metrics(str(args.metrics_out or ""), epoch_metrics)
     maybe_write_checkpoint(
         checkpoint_out=str(args.checkpoint_out or ""),
@@ -1192,6 +1221,7 @@ def main() -> int:
         summary=train_summary,
         device=device,
         resumed_from=resumed_from,
+        split_summary=split_summary,
     )
 
     policy_table_model = build_policy_table_model(

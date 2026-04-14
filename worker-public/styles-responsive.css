@@ -45,8 +45,9 @@
     }
 
     #handSkinPanel {
-        left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(48px * var(--layout-stage-scale)));
+        left: 50%;
+        top: 50%;
+        bottom: auto;
         width: min(calc(240px * var(--layout-stage-scale)), calc(100vw - calc(20px * var(--layout-stage-scale))));
         padding: calc(10px * var(--layout-stage-scale));
     }
@@ -1702,8 +1703,9 @@ html.sim-aspect-5-4 #hero-character-img {
     }
 
     html.layout-stage-enabled #handSkinPanel {
-        left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
-        bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(52px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
+        left: 50%;
+        top: 50%;
+        bottom: auto;
     }
 
     html.layout-stage-enabled body.story-battle-active #card-detail-panel {

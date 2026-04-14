@@ -27,18 +27,20 @@ describe('gacha transaction module', () => {
     });
   });
 
-  test('returns a structured success payload when a pull resolves', () => {
+  test('returns a structured success payload when a mixed reward pull resolves', () => {
     const mod = require('../ui/gacha/gacha-transaction.js');
-    const rollHandGacha = jest.fn(() => ({
+    const rollObservationGacha = jest.fn(() => ({
       rarity: 'N',
       item: {
-        id: 'gacha__n__小鬼の手',
-        label: '小鬼の手',
-        imagePath: 'assets/images/Gacha/N/小鬼の手.png'
+        id: 'gacha__n__placement_sound__type-1-standard',
+        kind: 'placement_sound',
+        label: 'type-1-standard',
+        assetPath: 'assets/images/Gacha/N/type-1-standard.mp3',
+        soundPath: 'assets/images/Gacha/N/type-1-standard.mp3'
       }
     }));
     const applyPullResults = jest.fn(() => ({
-      newlyUnlockedIds: ['gacha__n__小鬼の手'],
+      newlyUnlockedIds: ['gacha__n__placement_sound__type-1-standard'],
       alreadyOwnedIds: [],
       state: {
         observationStones: 0
@@ -49,19 +51,22 @@ describe('gacha transaction module', () => {
       helpersModule: {
         OBSERVATION_STONE_PULL_COST: 100,
         OBSERVATION_STONE_TEN_PULL_COST: 1000,
-        rollHandGacha
+        rollObservationGacha
       },
       storageModule: {
         spendObservationStones: () => ({ ok: true }),
         applyPullResults
       },
-      catalogItems: [{ id: 'sample-hand' }]
+      catalogItems: [{ id: 'sample-sound', kind: 'placement_sound' }]
     });
 
-    expect(rollHandGacha).toHaveBeenCalledTimes(1);
+    expect(rollObservationGacha).toHaveBeenCalledTimes(1);
     expect(applyPullResults).toHaveBeenCalledWith({}, [
       expect.objectContaining({
-        item: expect.objectContaining({ id: 'gacha__n__小鬼の手' })
+        item: expect.objectContaining({
+          id: 'gacha__n__placement_sound__type-1-standard',
+          kind: 'placement_sound'
+        })
       })
     ]);
     expect(result).toEqual(expect.objectContaining({
@@ -71,17 +76,18 @@ describe('gacha transaction module', () => {
       cost: 100,
       newCount: 1,
       duplicateCount: 0,
-      newlyUnlockedIds: ['gacha__n__小鬼の手']
+      newlyUnlockedIds: ['gacha__n__placement_sound__type-1-standard']
     }));
   });
 
-  test('derives catalog items from loaded asset manifest before generated fallback', () => {
+  test('derives mixed catalog items from loaded asset manifest before generated fallback', () => {
     const mod = require('../ui/gacha/gacha-transaction.js');
     const items = mod.getCatalogItems({
       assetManifest: {
         generatedAt: '2026-04-12T00:00:00.000Z',
         files: [
-          { path: 'assets/images/Gacha/UR/天空の手.png' }
+          { path: 'assets/images/Gacha/UR/天空の手.png' },
+          { path: 'assets/images/Gacha/N/type-1-standard.mp3' }
         ]
       },
       catalogModule: {
@@ -101,7 +107,16 @@ describe('gacha transaction module', () => {
         id: 'gacha__ur__天空の手',
         label: '天空の手',
         rarity: 'UR',
+        kind: 'hand_skin',
         imagePath: 'assets/images/Gacha/UR/天空の手.png'
+      }),
+      expect.objectContaining({
+        id: 'gacha__n__placement_sound__type-1-standard',
+        label: 'type-1-standard',
+        rarity: 'N',
+        kind: 'placement_sound',
+        assetPath: 'assets/images/Gacha/N/type-1-standard.mp3',
+        soundPath: 'assets/images/Gacha/N/type-1-standard.mp3'
       })
     ]);
   });
@@ -115,7 +130,7 @@ describe('gacha transaction module', () => {
       helpersModule: {
         OBSERVATION_STONE_PULL_COST: 100,
         OBSERVATION_STONE_TEN_PULL_COST: 1000,
-        rollHandGacha: () => null
+        rollObservationGacha: () => null
       },
       storageModule: {
         spendObservationStones: () => ({ ok: true }),

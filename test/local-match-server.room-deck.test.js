@@ -82,9 +82,75 @@ function countPlayerCopies(cardState, playerKey, cardId) {
   return decks.concat(hands).filter((one) => one === cardId).length;
 }
 
+function listPlayerCards(cardState, playerKey) {
+  const decks = (cardState && cardState.decks && Array.isArray(cardState.decks[playerKey]))
+    ? cardState.decks[playerKey]
+    : [];
+  const hands = (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey]))
+    ? cardState.hands[playerKey]
+    : [];
+  return hands.concat(decks);
+}
+
 describe('local match server room deck', () => {
   afterEach(() => {
     resetRoomsForTests();
+  });
+
+  test('両者デフォルト時は同じ30種を共有しつつ山札順だけ黒白で別になる', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', {
+        playerName: 'くろ'
+      });
+      const roomId = created.data.roomId;
+      const blackSeatToken = created.data.seatToken;
+
+      const joined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId,
+        playerName: 'しろ'
+      });
+
+      expect(created.status).toBe(200);
+      expect(joined.status).toBe(200);
+      expect(joined.data.roomDeck).toMatchObject({
+        mode: 'shared',
+        deckCode: '',
+        deckSize: DeckSpecHelpers.getDefaultDeckSize()
+      });
+
+      const state = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${encodeURIComponent(roomId)}&seatKey=black&seatToken=${encodeURIComponent(blackSeatToken)}`
+      );
+
+      let internalCardState = null;
+      const captured = patchRoomSnapshotForTests(roomId, (room) => {
+        internalCardState = JSON.parse(JSON.stringify(room && room.snapshot && room.snapshot.cardState ? room.snapshot.cardState : null));
+      });
+      expect(captured).toBe(true);
+      expect(state.status).toBe(200);
+      expect(state.data.roomDeck).toMatchObject({
+        mode: 'shared',
+        deckCode: '',
+        deckSize: DeckSpecHelpers.getDefaultDeckSize()
+      });
+
+      const blackCards = listPlayerCards(internalCardState, 'black');
+      const whiteCards = listPlayerCards(internalCardState, 'white');
+
+      expect(blackCards).toHaveLength(DeckSpecHelpers.getDefaultDeckSize());
+      expect(whiteCards).toHaveLength(DeckSpecHelpers.getDefaultDeckSize());
+      expect(new Set(blackCards).size).toBe(DeckSpecHelpers.getDefaultDeckSize());
+      expect(new Set(whiteCards).size).toBe(DeckSpecHelpers.getDefaultDeckSize());
+      expect(blackCards.slice().sort()).toEqual(whiteCards.slice().sort());
+      expect(blackCards).not.toEqual(whiteCards);
+    } finally {
+      await closeServer(server);
+    }
   });
 
   test('timeout turn-start reconcile keeps per-player custom decks in rebuilt baseline cardState', async () => {

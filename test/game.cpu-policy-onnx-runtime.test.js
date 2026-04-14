@@ -84,11 +84,12 @@ describe('policy-onnx-runtime', () => {
     scores[0] = 0.1;  // (0,0)
     scores[9] = 3.2;  // (1,1)
     scores[18] = 2.4; // (2,2)
-    runtime.__setLoadedForTest({
+    const session = {
       run: jest.fn(async () => ({
         logits: { data: scores }
       }))
-    }, {
+    };
+    runtime.__setLoadedForTest(session, {
       schemaVersion: runtime.MODEL_SCHEMA_VERSION,
       inputName: 'obs',
       outputName: 'logits',
@@ -105,9 +106,45 @@ describe('policy-onnx-runtime', () => {
       playerKey: 'white',
       level: 6,
       board,
-      legalMovesCount: candidates.length
+      legalMovesCount: candidates.length,
+      deckCount: 30,
+      ownDeckCount: 5,
+      initialDeckSize: 30
     });
     expect(selected).toEqual(candidates[1]);
+    const obs = session.run.mock.calls[0][0].obs.data;
+    expect(obs[68]).toBeCloseTo(30 / 60, 6);
+  });
+
+  test('chooseMove uses own-deck ratio when model metadata requests it', async () => {
+    const scores = new Float32Array(64);
+    scores[0] = 4.5;
+    const session = {
+      run: jest.fn(async () => ({
+        logits: { data: scores }
+      }))
+    };
+    runtime.__setLoadedForTest(session, {
+      schemaVersion: runtime.MODEL_SCHEMA_VERSION,
+      inputName: 'obs',
+      outputName: 'logits',
+      inputDim: 70,
+      deckCountFeature: 'own_deck_ratio_v1'
+    });
+
+    const selected = await runtime.chooseMove([{ row: 0, col: 0, flips: [] }], {
+      playerKey: 'white',
+      level: 6,
+      board: Array.from({ length: 8 }, () => Array.from({ length: 8 }, () => 0)),
+      legalMovesCount: 1,
+      deckCount: 30,
+      ownDeckCount: 5,
+      initialDeckSize: 30
+    });
+
+    expect(selected).toEqual({ row: 0, col: 0, flips: [] });
+    const obs = session.run.mock.calls[0][0].obs.data;
+    expect(obs[68]).toBeCloseTo(5 / 30, 6);
   });
 
   test('chooseMove supports padded 10x10 expansion indexes for new models', async () => {

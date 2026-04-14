@@ -61,15 +61,7 @@ function restoreOptionalFile(srcPath, targetPath) {
     return { restored: true, skipped: false, reason: null, sourcePath: srcPath, targetPath };
 }
 
-function rollbackModel(options) {
-    const manifest = readJson(options.manifestPath);
-    if (!manifest || (manifest.schemaVersion !== 'policy_promotion.v2' && manifest.schemaVersion !== 'policy_promotion.v3')) {
-        throw new Error('manifest schema must be policy_promotion.v2 or policy_promotion.v3');
-    }
-    const deployTruth = manifest.deployTruthPath && fs.existsSync(manifest.deployTruthPath)
-        ? readJson(manifest.deployTruthPath)
-        : null;
-    const source = deployTruth && typeof deployTruth === 'object' ? deployTruth : manifest;
+function doRollback(source, manifest, options) {
     if (!source.rollback || !source.rollback.modelPath) {
         throw new Error('manifest does not include a rollback model path');
     }
@@ -117,6 +109,37 @@ function rollbackModel(options) {
         restored,
         championRestore
     };
+}
+
+function rollbackModel(options) {
+    const manifest = readJson(options.manifestPath);
+    if (!manifest || (manifest.schemaVersion !== 'policy_promotion.v2' && manifest.schemaVersion !== 'policy_promotion.v3')) {
+        throw new Error('manifest schema must be policy_promotion.v2 or policy_promotion.v3');
+    }
+    const deployTruth = manifest.deployTruthPath && fs.existsSync(manifest.deployTruthPath)
+        ? readJson(manifest.deployTruthPath)
+        : null;
+    // Validate promotionId match to prevent cross-promotion rollback
+    if (deployTruth && typeof deployTruth === 'object' &&
+        deployTruth.promotionId && manifest.promotionId &&
+        deployTruth.promotionId !== manifest.promotionId) {
+        // Try per-promotionId backup
+        const helpers = require('./promotion-helpers');
+        const backupName = `promotion-deploy-truth.${helpers.sanitizePromotionId(manifest.promotionId)}.json`;
+        const backupPath = path.join(path.dirname(manifest.deployTruthPath), backupName);
+        if (fs.existsSync(backupPath)) {
+            const backup = readJson(backupPath);
+            if (backup && backup.promotionId === manifest.promotionId) {
+                return doRollback(backup, manifest, options);
+            }
+        }
+        throw new Error(
+            `deploy-truth promotionId mismatch: manifest=${manifest.promotionId} deploy-truth=${deployTruth.promotionId}. ` +
+            `Per-promotionId backup not found at ${backupPath}.`
+        );
+    }
+    const source = deployTruth && typeof deployTruth === 'object' ? deployTruth : manifest;
+    return doRollback(source, manifest, options);
 }
 
 function main() {

@@ -879,8 +879,83 @@ function toPublicSeatHandSkins(room) {
     return buildPublicSeatState(room).seatHandSkins;
 }
 
+function normalizeDeckSizeValue(value) {
+    if (value === null || typeof value === 'undefined' || value === '') return null;
+    return Number.isFinite(Number(value))
+        ? Math.max(0, Math.trunc(Number(value)))
+        : null;
+}
+
 function toPublicRoomDeck(room) {
-    return (room && room.roomDeck) ? deepClone(room.roomDeck) : null;
+    const metadata = (room && room.roomDeck && typeof room.roomDeck === 'object')
+        ? deepClone(room.roomDeck)
+        : null;
+    const snapshotDeckSizes = {
+        black: normalizeDeckSizeValue(
+            room
+            && room.snapshot
+            && room.snapshot.cardState
+            && room.snapshot.cardState.initialDeckSizeByPlayer
+            && room.snapshot.cardState.initialDeckSizeByPlayer.black
+        ),
+        white: normalizeDeckSizeValue(
+            room
+            && room.snapshot
+            && room.snapshot.cardState
+            && room.snapshot.cardState.initialDeckSizeByPlayer
+            && room.snapshot.cardState.initialDeckSizeByPlayer.white
+        )
+    };
+    const snapshotDeckSize = snapshotDeckSizes.black !== null
+        ? snapshotDeckSizes.black
+        : normalizeDeckSizeValue(room && room.snapshot && room.snapshot.cardState && room.snapshot.cardState.initialDeckSize);
+
+    if (metadata && metadata.mode === 'perPlayer') {
+        const deckCodeByPlayerSource = (metadata.deckCodeByPlayer && typeof metadata.deckCodeByPlayer === 'object')
+            ? metadata.deckCodeByPlayer
+            : {};
+        const deckSizeByPlayerSource = (metadata.deckSizeByPlayer && typeof metadata.deckSizeByPlayer === 'object')
+            ? metadata.deckSizeByPlayer
+            : {};
+        const deckCodeByPlayer = {
+            black: String(deckCodeByPlayerSource.black || '').trim(),
+            white: String(deckCodeByPlayerSource.white || '').trim()
+        };
+        const deckSizeByPlayer = {
+            black: normalizeDeckSizeValue(deckSizeByPlayerSource.black) !== null
+                ? normalizeDeckSizeValue(deckSizeByPlayerSource.black)
+                : snapshotDeckSizes.black,
+            white: normalizeDeckSizeValue(deckSizeByPlayerSource.white) !== null
+                ? normalizeDeckSizeValue(deckSizeByPlayerSource.white)
+                : snapshotDeckSizes.white
+        };
+        const sharedDeckCode = deckCodeByPlayer.black && deckCodeByPlayer.black === deckCodeByPlayer.white
+            ? deckCodeByPlayer.black
+            : '';
+        const sharedDeckSize = sharedDeckCode && deckSizeByPlayer.black === deckSizeByPlayer.white
+            ? deckSizeByPlayer.black
+            : null;
+
+        return {
+            mode: 'perPlayer',
+            deckCode: sharedDeckCode,
+            deckSize: sharedDeckSize,
+            deckCodeByPlayer,
+            deckSizeByPlayer,
+            source: metadata.source ? String(metadata.source) : 'room'
+        };
+    }
+
+    if (!metadata && snapshotDeckSize === null) return null;
+
+    return {
+        mode: metadata && metadata.mode ? String(metadata.mode) : 'shared',
+        deckCode: metadata && metadata.deckCode ? String(metadata.deckCode).trim() : '',
+        deckSize: metadata && normalizeDeckSizeValue(metadata.deckSize) !== null
+            ? normalizeDeckSizeValue(metadata.deckSize)
+            : snapshotDeckSize,
+        source: metadata && metadata.source ? String(metadata.source) : 'room'
+    };
 }
 
 function toPublicRoomBoardConfig(room) {

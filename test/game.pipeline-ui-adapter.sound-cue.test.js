@@ -206,6 +206,37 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
+  test('condemn_selected は相手手札の hand_remove phase で stone_destroy を再生する', () => {
+    const base = [
+      {
+        type: 'card_use_animation',
+        phase: 4,
+        targets: [{ player: 'black', cardId: 'condemn_01' }]
+      },
+      {
+        type: 'hand_remove',
+        phase: 7,
+        targets: [{
+          player: 'white',
+          count: 1,
+          reason: 'condemn_will',
+          cardId: 'enemy_card'
+        }]
+      }
+    ];
+    const raw = [{
+      type: 'condemn_selected',
+      applied: true,
+      destroyedCardId: 'enemy_card'
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(7);
+  });
+
   test('board_shrink_selected 成功時は METEOR_HOLE の status_applied phase で board_shrink_selected を再生する', () => {
     const base = [{
       type: 'status_applied',

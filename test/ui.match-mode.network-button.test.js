@@ -155,7 +155,7 @@ describe('match-mode network button behavior', () => {
   });
 
   test('初期化直後に部屋盤面情報が未確定でも 8x8 表示へ安全にフォールバックする', () => {
-    expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: 標準デッキ / 作成時に送る盤面: 8x8');
+    expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: デフォルトデッキ / 作成時に送る盤面: 8x8');
   });
 
   test('ネット対戦モーダルの盤面サイズ変更は pending 表示と部屋作成 payload に反映される', async () => {
@@ -175,7 +175,7 @@ describe('match-mode network button behavior', () => {
         DeckBuilderController: {
           getLocalBoardConfig: jest.fn(() => Object.assign({}, localBoardConfig)),
           setLocalBoardConfig,
-          getActiveLocalChoice: jest.fn(() => ({ mode: 'standard', deckSize: 64 }))
+          getActiveLocalChoice: jest.fn(() => ({ mode: 'standard', deckSize: 30 }))
         }
       }))
     };
@@ -196,7 +196,7 @@ describe('match-mode network button behavior', () => {
 
     expect(setLocalBoardConfig).toHaveBeenCalled();
     expect(document.getElementById('networkBoardSizeSummary').textContent).toBe('7x9');
-    expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: 標準 64枚 / 作成時に送る盤面: 7x9');
+    expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: デフォルト 30枚 / 作成時に送る盤面: 7x9');
 
     playerInput.value = 'くろ';
     createBtn.click();
@@ -230,7 +230,7 @@ describe('match-mode network button behavior', () => {
         DeckBuilderController: {
           getLocalBoardConfig: jest.fn(() => Object.assign({}, localBoardConfig)),
           setLocalBoardConfig,
-          getActiveLocalChoice: jest.fn(() => ({ mode: 'standard', deckSize: 64 }))
+          getActiveLocalChoice: jest.fn(() => ({ mode: 'standard', deckSize: 30 }))
         }
       }))
     };
@@ -253,7 +253,7 @@ describe('match-mode network button behavior', () => {
 
     expect(setLocalBoardConfig).toHaveBeenCalled();
     expect(document.getElementById('networkBoardSizeSummary').textContent).toBe('10x10');
-    expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: 標準 64枚 / 作成時に送る盤面: 10x10');
+    expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: デフォルト 30枚 / 作成時に送る盤面: 10x10');
   });
 
   test('部屋盤面が確定したらネット対戦モーダルの盤面サイズ入力をロックする', () => {

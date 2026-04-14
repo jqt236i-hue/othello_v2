@@ -3,6 +3,8 @@ const { JSDOM } = require('jsdom');
 describe('animation-engine inherited hyperactive timer rendering', () => {
   let dom;
   let applyStoneVisualEffectMock;
+  let clearStoneVisualEffectStateMock;
+  let setDiscStoneImageMock;
 
   beforeEach(() => {
     jest.resetModules();
@@ -12,7 +14,11 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
     global.window.__telemetry__ = { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 };
     global.window.getEffectKeyForSpecialType = (type) => (type ? `effect-${String(type).toLowerCase()}` : null);
     applyStoneVisualEffectMock = jest.fn();
+    clearStoneVisualEffectStateMock = jest.fn();
+    setDiscStoneImageMock = jest.fn();
     global.window.applyStoneVisualEffect = applyStoneVisualEffectMock;
+    global.window.clearStoneVisualEffectState = clearStoneVisualEffectStateMock;
+    global.window.setDiscStoneImage = setDiscStoneImageMock;
   });
 
   afterEach(() => {
@@ -67,6 +73,26 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
     const evadeTimer = disc.querySelector('.flip-evade-timer');
     expect(evadeTimer).not.toBeNull();
     expect(evadeTimer.textContent).toBe('0');
+  });
+
+  test('特殊石同期は通常石への描き戻しなしで visual を載せる', () => {
+    const engine = require('../ui/animation-engine');
+    const disc = document.createElement('div');
+    disc.className = 'disc black';
+    global.window.getEffectKeyForSpecialType = (type) => (type ? `effect-${String(type).toLowerCase()}` : null);
+    global.window.applyStoneVisualEffect = applyStoneVisualEffectMock;
+    global.window.clearStoneVisualEffectState = clearStoneVisualEffectStateMock;
+    global.window.setDiscStoneImage = setDiscStoneImageMock;
+
+    engine.syncDiscVisual(disc, {
+      color: 1,
+      special: 'HYPERACTIVE',
+      owner: 'black'
+    });
+
+    expect(setDiscStoneImageMock).not.toHaveBeenCalled();
+    expect(clearStoneVisualEffectStateMock).toHaveBeenCalledWith(disc, { skipRenderReset: true });
+    expect(applyStoneVisualEffectMock).toHaveBeenCalledWith(disc, 'effect-hyperactive', { owner: 'black' });
   });
 
   test('通常特殊石と継承多動が共存する場合、反転回避回数は合算表示する', () => {

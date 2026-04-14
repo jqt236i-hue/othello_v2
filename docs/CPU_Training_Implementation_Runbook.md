@@ -161,6 +161,7 @@ npm run selfplay:generate -- --games 3000 --seed 100001 --max-plies 220 --with-c
 補足:
 
 - 学習用追加パッケージの管理先は `ai/train/requirements.txt` とする（ルート直下の `requirements.txt` は使わない）。
+- selfplay v2 系の NDJSON は `seed` / `gameIndex` を持つ前提で、validation split は `grouped-game` を使う。旧データでそれが無い時だけ `--val-split-mode random` を明示する。
 - `train_policy_table.py` の出力 `schemaVersion` が `policy_table.v2` であることを毎回確認する。
 - `train_policy_onnx.py` のメタ出力 `schemaVersion` が `policy_onnx.v1` であることを毎回確認する。
 - `setup.ps1` は GPU を自動検出して `torch/torchvision/torchaudio` を導入する（CPU固定時は `.\ai\train\setup.ps1 -CpuOnly`）。

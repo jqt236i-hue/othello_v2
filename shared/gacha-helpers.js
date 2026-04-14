@@ -114,7 +114,7 @@
         return matches[Math.min(index, matches.length - 1)] || null;
     }
 
-    function rollHandGacha(items, options) {
+    function rollObservationGacha(items, options) {
         const opts = (options && typeof options === 'object') ? options : {};
         const summary = summarizeRarityAvailability(items);
         const rarity = rollGachaRarity({
@@ -132,6 +132,10 @@
             item,
             summary
         };
+    }
+
+    function rollHandGacha(items, options) {
+        return rollObservationGacha(items, options);
     }
 
     function normalizePositiveInteger(value, fallback) {
@@ -212,6 +216,7 @@
         summarizeRarityAvailability,
         rollGachaRarity,
         selectCatalogItemByRarity,
+        rollObservationGacha,
         rollHandGacha,
         getObservationBonusTotalWeight,
         rollObservationBonus,

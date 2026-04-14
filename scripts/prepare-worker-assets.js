@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 const { generateManifest } = require('./generate-asset-manifest');
-const { generateGachaHandCatalog } = require('./generate-gacha-hand-catalog');
+const { generateObservationGachaCatalogs } = require('./generate-observation-gacha-catalog');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUT_DIR = path.join(ROOT, 'worker-public');
@@ -352,7 +352,7 @@ function refreshGeneratedCatalogArtifacts(settings) {
     const gachaDir = path.join(rootDir, 'assets', 'images', 'Gacha');
     const sharedDir = path.join(rootDir, 'shared');
     if (fs.existsSync(gachaDir) && fs.existsSync(sharedDir)) {
-        generateGachaHandCatalog({ root: rootDir });
+        generateObservationGachaCatalogs({ root: rootDir });
     }
 }
 

@@ -1,20 +1,27 @@
 const SharedConstants = require('../shared-constants');
 const CardLogic = require('../game/logic/cards');
 const DeckSpecHelpers = require('../shared/deck-spec');
+const SeededPRNG = require('../game/schema/prng');
 
 describe('CardLogic commitDraw reshuffle cycle policy', () => {
-  test('initial deck contains each enabled card id exactly once (no duplicates)', () => {
-    const prng = { shuffle: jest.fn(), random: () => 0.5 };
+  test('default deck uses 30 unique enabled cards and shares contents while shuffling order per player', () => {
+    const prng = SeededPRNG.createPRNG(7);
     const cardState = CardLogic.createCardState(prng);
     const enabledIds = (SharedConstants.CARD_DEFS || [])
       .filter((card) => card && card.enabled !== false && card.id)
       .map((card) => card.id);
-    const expectedDeckSize = new Set(enabledIds).size;
+    const enabledIdSet = new Set(enabledIds);
+    const expectedDeckSize = DeckSpecHelpers.getDefaultDeckSize();
+
     expect(cardState.initialDeckSize).toBe(expectedDeckSize);
     expect(cardState.decks.black).toHaveLength(expectedDeckSize);
     expect(cardState.decks.white).toHaveLength(expectedDeckSize);
     expect(new Set(cardState.decks.black).size).toBe(expectedDeckSize);
     expect(new Set(cardState.decks.white).size).toBe(expectedDeckSize);
+    expect(cardState.decks.black.every((cardId) => enabledIdSet.has(cardId))).toBe(true);
+    expect(cardState.decks.white.every((cardId) => enabledIdSet.has(cardId))).toBe(true);
+    expect(cardState.decks.black.slice().sort()).toEqual(cardState.decks.white.slice().sort());
+    expect(cardState.decks.black).not.toEqual(cardState.decks.white);
   });
 
   test('does not reshuffle when deck is empty even if discard has cards', () => {
@@ -52,6 +59,13 @@ describe('CardLogic commitDraw reshuffle cycle policy', () => {
     }
 
     expect(seen.size).toBe(cardState.initialDeckSizeByPlayer.black);
+  });
+
+  test('different seeds reroll the default deck contents', () => {
+    const firstState = CardLogic.createCardState(SeededPRNG.createPRNG(7), {});
+    const secondState = CardLogic.createCardState(SeededPRNG.createPRNG(8), {});
+
+    expect(firstState.decks.black.slice().sort()).not.toEqual(secondState.decks.black.slice().sort());
   });
 
   test('custom initialDeckSpec initializes both players with the requested 30-card deck', () => {

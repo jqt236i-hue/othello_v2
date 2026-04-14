@@ -36,6 +36,21 @@ describe('ui stone visuals contract split', () => {
     expect(global.applyStoneVisualEffect).toHaveBeenCalledWith(disc, 'regenStone', { owner: 1 });
   });
 
+  test('applyStoneVisualState does not force white when newColor is 0', () => {
+    const stoneVisuals = require('../ui/stone-visuals');
+    const disc = document.querySelector('.disc');
+
+    stoneVisuals.applyStoneVisualState(disc, {
+      effectKey: 'regenStone',
+      owner: 'black',
+      newColor: 0
+    });
+
+    expect(disc.classList.contains('black')).toBe(true);
+    expect(disc.classList.contains('white')).toBe(false);
+    expect(global.applyStoneVisualEffect).toHaveBeenCalledWith(disc, 'regenStone', { owner: 'black' });
+  });
+
   test('crossfadeStoneVisual uses the animated API and removes overlay remnants', async () => {
     const stoneVisuals = require('../ui/stone-visuals');
     const disc = document.querySelector('.disc');

@@ -58,10 +58,11 @@ describe('gacha handler', () => {
     const fakeRevealPlayer = {
       play: jest.fn().mockResolvedValue({ finishedWith: 'animated' })
     };
+    const randomValues = [0.99, 0.25];
 
     const api = mod.setupGachaControls({
       root: window,
-      randomFn: () => 0.99,
+      randomFn: () => randomValues.shift() || 0.25,
       createRevealPlayer: () => fakeRevealPlayer
     });
 
@@ -71,20 +72,21 @@ describe('gacha handler', () => {
 
     document.getElementById('gachaDetailToggleBtn').click();
     expect(document.getElementById('gachaDetailsPanel').hidden).toBe(false);
-    expect(document.getElementById('gachaDetailsPanel').textContent).toContain('未登録 rarity');
+    expect(document.getElementById('gachaDetailsPanel').textContent).toContain('EXR');
+    expect(document.getElementById('gachaDetailsPanel').textContent).not.toContain('未登録 rarity');
 
     return api.performPull(1).then(() => {
       expect(fakeRevealPlayer.play).toHaveBeenCalledWith(expect.objectContaining({
         pulls: expect.arrayContaining([
           expect.objectContaining({
-            item: expect.objectContaining({ label: '陽気な手' })
+            item: expect.objectContaining({ label: '人の手' })
           })
         ]),
-        newlyUnlockedIds: ['gacha__n__陽気な手']
+        newlyUnlockedIds: ['gacha__n__人の手']
       }));
 
       expect(storageModule.getObservationStones(window)).toBe(150);
-      expect(document.getElementById('gachaResults').textContent).toContain('陽気な手');
+      expect(document.getElementById('gachaResults').textContent).toContain('人の手');
       expect(document.getElementById('gachaResults').textContent).toContain('NEW');
       expect(document.getElementById('gachaStatusText').textContent).toContain('新規 1件');
     });
@@ -95,15 +97,16 @@ describe('gacha handler', () => {
     setDom();
     storageModule = require('../ui/storage/gacha-progress.js');
     storageModule.awardObservationStones(window, 200);
-    storageModule.applyPullResults(window, [{ item: { id: 'gacha__n__陽気な手' } }]);
+    storageModule.applyPullResults(window, [{ item: { id: 'gacha__n__人の手', kind: 'hand_skin' } }]);
     const mod = require('../ui/handlers/gacha.js');
     const fakeRevealPlayer = {
       play: jest.fn().mockResolvedValue({ finishedWith: 'animated' })
     };
+    const randomValues = [0.99, 0.25];
 
     const api = mod.setupGachaControls({
       root: window,
-      randomFn: () => 0.99,
+      randomFn: () => randomValues.shift() || 0.25,
       createRevealPlayer: () => fakeRevealPlayer
     });
 

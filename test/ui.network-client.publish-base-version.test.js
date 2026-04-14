@@ -978,7 +978,7 @@ describe('NetworkMatchClient queued publish', () => {
             },
             deckSizeByPlayer: {
               black: 30,
-              white: 64
+              white: 30
             },
             source: 'room'
           },
@@ -1015,7 +1015,8 @@ describe('NetworkMatchClient queued publish', () => {
       roomBoardConfig: {
         rows: 7,
         cols: 9
-      }
+      },
+      selectedHandSkinId: 'default'
     });
     expect(client.getRoomDeck()).toEqual({
       mode: 'perPlayer',
@@ -1027,7 +1028,7 @@ describe('NetworkMatchClient queued publish', () => {
       },
       deckSizeByPlayer: {
         black: 30,
-        white: 64
+        white: 30
       },
       source: 'room'
     });
@@ -1096,7 +1097,8 @@ describe('NetworkMatchClient queued publish', () => {
     expect(joinBody).toEqual({
       roomId: 'ABC',
       playerName: 'しろ',
-      deckCode: 'D1C1:white_card*3'
+      deckCode: 'D1C1:white_card*3',
+      selectedHandSkinId: 'default'
     });
     expect(client.getRoomDeck()).toEqual({
       mode: 'perPlayer',

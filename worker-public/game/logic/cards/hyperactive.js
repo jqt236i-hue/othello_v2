@@ -14,8 +14,102 @@
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
     const BoardUtils = SharedBoardUtils || null;
+    const StoneStatusSnapshot = (() => {
+        if (typeof module === 'object' && module.exports) {
+            try { return require('../../../shared/stone-status-snapshot'); } catch (e) { /* ignore */ }
+        }
+        const globalScope = typeof globalThis !== 'undefined'
+            ? globalThis
+            : ((typeof self !== 'undefined') ? self : this);
+        return globalScope && globalScope.StoneStatusSnapshot
+            ? globalScope.StoneStatusSnapshot
+            : null;
+    })();
     const EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
     const ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
+    const OVERLAY_ONLY_SPECIAL_TYPES = new Set(['GUARD', 'INHERITED_HYPERACTIVE', 'LIVING_WILL']);
+
+    function toCounterOrNull(value) {
+        if (value === null || value === undefined || value === '') return null;
+        const n = Number(value);
+        if (!Number.isFinite(n)) return null;
+        return Math.max(0, Math.trunc(n));
+    }
+
+    function compactPresentationMeta(meta) {
+        if (!meta || typeof meta !== 'object') return undefined;
+        const out = {};
+        for (const [key, value] of Object.entries(meta)) {
+            if (value !== null && value !== undefined) out[key] = value;
+        }
+        return Object.keys(out).length ? out : undefined;
+    }
+
+    function buildMovingStonePresentationMeta(cardState, row, col) {
+        const markersAtCell = Array.isArray(cardState && cardState.markers)
+            ? cardState.markers.filter((marker) => (
+                marker &&
+                marker.kind === 'specialStone' &&
+                marker.row === row &&
+                marker.col === col
+            ))
+            : [];
+        if (!markersAtCell.length) return undefined;
+
+        if (StoneStatusSnapshot && typeof StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers === 'function') {
+            return compactPresentationMeta(StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers(markersAtCell, {
+                mode: 'raw'
+            }));
+        }
+
+        const destroyValues = markersAtCell
+            .map((marker) => toCounterOrNull(marker && marker.data && marker.data.destroyEvadeRemaining))
+            .filter((value) => value !== null);
+        const inherited = markersAtCell.find((marker) => (
+            marker &&
+            marker.data &&
+            String(marker.data.type || '').toUpperCase() === 'INHERITED_HYPERACTIVE'
+        ));
+        const visualSpecial = markersAtCell.find((marker) => {
+            const typeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+            return !!typeUpper && !OVERLAY_ONLY_SPECIAL_TYPES.has(typeUpper);
+        });
+
+        const meta = {
+            special: null,
+            timer: null,
+            owner: null,
+            inheritedTimer: null,
+            inheritedOwner: null,
+            flipEvadeRemaining: null,
+            inheritedFlipEvadeRemaining: null,
+            destroyEvadeRemaining: destroyValues.length
+                ? destroyValues.reduce((sum, value) => sum + value, 0)
+                : null
+        };
+
+        if (inherited) {
+            meta.inheritedTimer = toCounterOrNull(inherited.data && inherited.data.remainingOwnerTurns);
+            meta.inheritedOwner = (inherited.owner !== undefined && inherited.owner !== null) ? inherited.owner : null;
+            meta.inheritedFlipEvadeRemaining = toCounterOrNull(inherited.data && inherited.data.flipEvadeRemaining);
+        }
+
+        if (visualSpecial) {
+            const specialType = (visualSpecial.data && visualSpecial.data.type) || null;
+            meta.special = specialType;
+            meta.timer = toCounterOrNull(visualSpecial.data && visualSpecial.data.remainingOwnerTurns);
+            if (meta.timer === null && String(specialType || '').toUpperCase() === 'REGEN') {
+                meta.timer = toCounterOrNull(visualSpecial.data && visualSpecial.data.regenRemaining);
+            }
+            meta.owner = (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null;
+            meta.flipEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.flipEvadeRemaining);
+            if (meta.destroyEvadeRemaining === null) {
+                meta.destroyEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.destroyEvadeRemaining);
+            }
+        }
+
+        return compactPresentationMeta(meta);
+    }
 
     function resolveBoardConfig(gameState) {
         if (BoardUtils && typeof BoardUtils.resolveBoardConfig === 'function') {
@@ -783,7 +877,7 @@
                         target.col,
                         cause,
                         moveReason,
-                        { evade: true }
+                        Object.assign({}, buildMovingStonePresentationMeta(cardState, fromRow, fromCol), { evade: true })
                     );
                     movedRes = !!(res && res.moved);
                 } else {
@@ -1238,7 +1332,8 @@
                     target.row,
                     target.col,
                     moveCause,
-                    moveReason
+                    moveReason,
+                    buildMovingStonePresentationMeta(cardState, sourceRow, sourceCol)
                 );
                 moveSucceeded = !!(moveResult && moveResult.moved);
             } else {
@@ -1530,7 +1625,7 @@
                     target.col,
                     'ULTIMATE_HYPERACTIVE_GOD',
                     'ultimate_hyperactive_step_move',
-                    { step }
+                    Object.assign({}, buildMovingStonePresentationMeta(cardState, sourceRow, sourceCol), { step })
                 );
                 movedRes = !!(res && res.moved);
             } else {
@@ -1666,7 +1761,8 @@
                 target.row,
                 target.col,
                 'ROBOT_VACUUM',
-                'robot_vacuum_move'
+                'robot_vacuum_move',
+                buildMovingStonePresentationMeta(cardState, entry.row, entry.col)
             );
             movedRes = !!(res && res.moved);
         } else {
@@ -1824,11 +1920,11 @@
                     target.col,
                     'GLUTTONOUS_WILL',
                     'gluttonous_eat_move',
-                    {
+                    Object.assign({}, buildMovingStonePresentationMeta(cardState, from.row, from.col), {
                         sourceRow: from.row,
                         sourceCol: from.col,
                         ate: true
-                    }
+                    })
                 );
                 movedRes = !!(res && res.moved);
             } else {
@@ -1878,7 +1974,8 @@
                         target.row,
                         target.col,
                         'GLUTTONOUS_WILL',
-                        'gluttonous_starve_move'
+                        'gluttonous_starve_move',
+                        buildMovingStonePresentationMeta(cardState, entry.row, entry.col)
                     );
                     movedRes = !!(res && res.moved);
                 } else {

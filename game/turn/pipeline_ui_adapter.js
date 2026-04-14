@@ -2746,8 +2746,15 @@
 
         const condemnPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'card_use_animation',
-            ctx.fallbackPhase
+            (ev) => ev &&
+                ev.type === 'hand_remove' &&
+                Array.isArray(ev.targets) &&
+                ev.targets.some((target) => String(target && target.reason ? target.reason : '').toLowerCase() === 'condemn_will'),
+            _findPhase(
+                ctx.base,
+                (ev) => ev && ev.type === 'card_use_animation',
+                ctx.fallbackPhase
+            )
         );
         if (_hasRawEvent(ctx.raw, 'condemn_selected', (ev) => !!(ev && ev.applied && ev.destroyedCardId))) {
             _pushSoundCue(ctx, 'stone_destroy', condemnPhase, 'condemn_selected');

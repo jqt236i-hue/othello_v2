@@ -130,6 +130,73 @@ describe('animation-engine _sleep', () => {
     delete global.window;
   });
 
+  test('network の place_hand_animation -> 特殊 spawn では通常石への描き戻しなしで配置する', async () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM(`
+      <!doctype html>
+      <html>
+        <body>
+          <div id="board">
+            <div class="cell" data-row="2" data-col="3"></div>
+          </div>
+        </body>
+      </html>
+    `);
+    const setDiscStoneImage = jest.fn();
+    const clearStoneVisualEffectState = jest.fn();
+    const applyStoneVisualEffect = jest.fn();
+
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+    global.window.requestAnimationFrame = global.requestAnimationFrame;
+    global.window.MATCH_MODE = 'network';
+    global.window.playHandAnimation = jest.fn((player, row, col, done) => {
+      if (typeof done === 'function') done();
+    });
+    global.window.getEffectKeyForSpecialType = jest.fn(() => 'hyperactiveStone');
+    global.window.setDiscStoneImage = setDiscStoneImage;
+    global.window.clearStoneVisualEffectState = clearStoneVisualEffectState;
+    global.window.applyStoneVisualEffect = applyStoneVisualEffect;
+    global.emitBoardUpdate = jest.fn();
+
+    const engine = require('../ui/animation-engine');
+    global.window.MATCH_MODE = 'network';
+    global.window.playHandAnimation = jest.fn((player, row, col, done) => {
+      if (typeof done === 'function') done();
+    });
+    global.window.getEffectKeyForSpecialType = jest.fn(() => 'hyperactiveStone');
+    global.window.setDiscStoneImage = setDiscStoneImage;
+    global.window.clearStoneVisualEffectState = clearStoneVisualEffectState;
+    global.window.applyStoneVisualEffect = applyStoneVisualEffect;
+    await engine.play([
+      { type: 'place_hand_animation', phase: 0, targets: [{ r: 2, col: 3, player: 'black', owner: 'black' }] },
+      {
+        type: 'spawn',
+        phase: 1,
+        targets: [{
+          r: 2,
+          col: 3,
+          ownerAfter: 'black',
+          cause: 'HYPERACTIVE',
+          reason: 'instant_hyperactive_spawn',
+          after: { color: 1, special: 'HYPERACTIVE', owner: 'black' }
+        }]
+      }
+    ]);
+
+    expect(global.window.playHandAnimation).toHaveBeenCalled();
+    expect(setDiscStoneImage).not.toHaveBeenCalled();
+    expect(clearStoneVisualEffectState).toHaveBeenCalledWith(expect.any(dom.window.Element), { skipRenderReset: true });
+    expect(applyStoneVisualEffect).toHaveBeenCalledWith(expect.any(dom.window.Element), 'hyperactiveStone', { owner: 'black' });
+
+    dom.window.close();
+    delete global.emitBoardUpdate;
+    delete global.requestAnimationFrame;
+    delete global.window;
+    delete global.document;
+  });
+
   test('宝箱 card_use_animation では direct sound を鳴らさない', async () => {
     const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
     global.document = { getElementById: () => cellEl };

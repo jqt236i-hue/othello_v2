@@ -472,9 +472,16 @@
         }
     };
 
-    function buildStandardDeckCardIds() {
-        if (DeckSpecHelpers && typeof DeckSpecHelpers.getStandardDeckCardIds === 'function') {
-            return DeckSpecHelpers.getStandardDeckCardIds();
+    function getDefaultDeckSize() {
+        if (DeckSpecHelpers && typeof DeckSpecHelpers.getDefaultDeckSize === 'function') {
+            return DeckSpecHelpers.getDefaultDeckSize();
+        }
+        return 30;
+    }
+
+    function buildDefaultDeckCardIds(prng) {
+        if (DeckSpecHelpers && typeof DeckSpecHelpers.sampleDefaultDeckCardIds === 'function') {
+            return DeckSpecHelpers.sampleDefaultDeckCardIds(prng);
         }
 
         const seen = new Set();
@@ -485,11 +492,14 @@
             seen.add(cardDef.id);
             deck.push(cardDef.id);
         });
-        return deck;
+        if (prng && typeof prng.shuffle === 'function') {
+            prng.shuffle(deck);
+        }
+        return deck.slice(0, getDefaultDeckSize());
     }
 
     function expandInitialDeckSpec(deckSpec) {
-        if (!deckSpec) return buildStandardDeckCardIds();
+        if (!deckSpec) return null;
         if (!DeckSpecHelpers || typeof DeckSpecHelpers.expandDeckSpec !== 'function') {
             throw new Error('DeckSpecHelpers is required for custom deck initialization');
         }
@@ -507,7 +517,7 @@
         });
     }
 
-    function resolveInitialDeckCardIds(options, playerKey) {
+    function resolveExplicitInitialDeckCardIds(options, playerKey) {
         const opts = (options && typeof options === 'object') ? options : {};
         const deckCardIdsByPlayer = (opts.initialDeckCardIdsByPlayer && typeof opts.initialDeckCardIdsByPlayer === 'object')
             ? opts.initialDeckCardIdsByPlayer
@@ -526,7 +536,24 @@
         const playerDeckSpec = byPlayer ? byPlayer[playerKey] : null;
         const deckSpec = playerDeckSpec || opts.initialDeckSpec || null;
 
-        return deckSpec ? expandInitialDeckSpec(deckSpec) : buildStandardDeckCardIds();
+        return deckSpec ? expandInitialDeckSpec(deckSpec) : null;
+    }
+
+    function resolveInitialDeckCardIdsByPlayer(options, prng) {
+        const blackExplicitDeck = resolveExplicitInitialDeckCardIds(options, 'black');
+        const whiteExplicitDeck = resolveExplicitInitialDeckCardIds(options, 'white');
+        const sharedDefaultDeck = (!blackExplicitDeck && !whiteExplicitDeck)
+            ? buildDefaultDeckCardIds(prng)
+            : null;
+
+        return {
+            black: blackExplicitDeck
+                ? blackExplicitDeck.slice()
+                : (sharedDefaultDeck ? sharedDefaultDeck.slice() : buildDefaultDeckCardIds(prng)),
+            white: whiteExplicitDeck
+                ? whiteExplicitDeck.slice()
+                : (sharedDefaultDeck ? sharedDefaultDeck.slice() : buildDefaultDeckCardIds(prng))
+        };
     }
 
     const CardCostsModule = (() => {
@@ -2524,9 +2551,12 @@
     function createCardState(prng, options) {
         const p = prng || defaultPrng;
         const boardConfig = resolveCardBoardConfig(options && options.boardConfig);
+        const initialDeckCardIdsByPlayer = resolveInitialDeckCardIdsByPlayer(options, p);
 
         const buildDeck = (playerKey) => {
-            const deck = resolveInitialDeckCardIds(options, playerKey).slice();
+            const deck = Array.isArray(initialDeckCardIdsByPlayer[playerKey])
+                ? initialDeckCardIdsByPlayer[playerKey].slice()
+                : [];
             p.shuffle(deck);
             return deck;
         };

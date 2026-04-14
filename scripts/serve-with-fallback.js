@@ -6,7 +6,7 @@ const net = require('net');
 const path = require('path');
 const { spawn } = require('child_process');
 const { generateManifest } = require('./generate-asset-manifest');
-const { generateGachaHandCatalog } = require('./generate-gacha-hand-catalog');
+const { generateObservationGachaCatalogs } = require('./generate-observation-gacha-catalog');
 
 function parseInteger(value, label) {
     const parsed = Number(value);
@@ -156,7 +156,7 @@ function refreshGeneratedCatalogArtifacts(rootPath) {
     const gachaDir = path.join(resolvedRoot, 'assets', 'images', 'Gacha');
     const sharedDir = path.join(resolvedRoot, 'shared');
     if (fs.existsSync(gachaDir) && fs.existsSync(sharedDir)) {
-        generateGachaHandCatalog({ root: resolvedRoot });
+        generateObservationGachaCatalogs({ root: resolvedRoot });
     }
 }
 

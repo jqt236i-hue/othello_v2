@@ -12,6 +12,7 @@
     'use strict';
 
     const DECK_SPEC_VERSION = 1;
+    const DEFAULT_DECK_SIZE = 30;
     const CUSTOM_DECK_SIZE = 30;
     const MAX_DUPLICATES_PER_CARD = 3;
 
@@ -84,12 +85,57 @@
         return new Map(getCatalogCache().enabledById);
     }
 
-    function getStandardDeckCardIds() {
+    function getEnabledCardIds() {
         return getEnabledCardDefs().map((cardDef) => cardDef.id);
+    }
+
+    function getEnabledCardCount() {
+        return getEnabledCardIds().length;
+    }
+
+    function getStandardDeckCardIds() {
+        return getEnabledCardIds();
     }
 
     function getStandardDeckSize() {
         return getStandardDeckCardIds().length;
+    }
+
+    function getDefaultDeckSize() {
+        return DEFAULT_DECK_SIZE;
+    }
+
+    function getShuffleOnlyPrng(prng) {
+        if (prng && typeof prng.shuffle === 'function') {
+            return prng;
+        }
+        return {
+            shuffle(array) {
+                return array;
+            }
+        };
+    }
+
+    function sampleDefaultDeckCardIds(prng) {
+        const enabledCardIds = getEnabledCardIds();
+        if (enabledCardIds.length < DEFAULT_DECK_SIZE) {
+            throw createDeckSpecError(
+                'DEFAULT_DECK_POOL_TOO_SMALL',
+                `デフォルトデッキを作るには有効カードが ${DEFAULT_DECK_SIZE} 種以上必要です`,
+                {
+                    expectedMin: DEFAULT_DECK_SIZE,
+                    actual: enabledCardIds.length
+                }
+            );
+        }
+
+        const sampled = enabledCardIds.slice();
+        getShuffleOnlyPrng(prng).shuffle(sampled);
+        return sampled.slice(0, DEFAULT_DECK_SIZE);
+    }
+
+    function createDefaultDeckSpec(prng) {
+        return normalizeDeckSpec(sampleDefaultDeckCardIds(prng));
     }
 
     function normalizeCardId(value) {
@@ -264,14 +310,20 @@
 
     return {
         DECK_SPEC_VERSION,
+        DEFAULT_DECK_SIZE,
         CUSTOM_DECK_SIZE,
         MAX_DUPLICATES_PER_CARD,
         createDeckSpecError,
         getCatalogVersion,
         getEnabledCardDefs,
         getEnabledCardDefMap,
+        getEnabledCardIds,
+        getEnabledCardCount,
         getStandardDeckCardIds,
         getStandardDeckSize,
+        getDefaultDeckSize,
+        sampleDefaultDeckCardIds,
+        createDefaultDeckSpec,
         normalizeDeckSpec,
         safeNormalizeDeckSpec,
         createDeckSpecFromCardIds,

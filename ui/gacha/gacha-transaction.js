@@ -26,38 +26,16 @@
         return null;
     }
 
-    function resolveGachaCatalogModule() {
+    function resolveObservationCatalogAccessModule() {
         if (typeof require === 'function') {
             try {
-                return require('../../shared/gacha-hand-catalog.generated.js');
+                return require('./catalog-access.js');
             } catch (e) { /* ignore */ }
         }
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.GachaHandCatalogModule) return globalThis.GachaHandCatalogModule;
-        } catch (e) { /* ignore */ }
-        return null;
-    }
-
-    function resolveGachaCatalogSharedModule() {
-        if (typeof require === 'function') {
-            try {
-                return require('../../shared/gacha-hand-catalog-shared.js');
-            } catch (e) { /* ignore */ }
-        }
-        try {
-            if (typeof globalThis !== 'undefined' && globalThis.GachaHandCatalogSharedModule) return globalThis.GachaHandCatalogSharedModule;
-        } catch (e) { /* ignore */ }
-        return null;
-    }
-
-    function resolveUIBootstrapModule() {
-        if (typeof require === 'function') {
-            try {
-                return require('../bootstrap.js');
-            } catch (e) { /* ignore */ }
-        }
-        try {
-            if (typeof globalThis !== 'undefined' && globalThis.UIBootstrap) return globalThis.UIBootstrap;
+            if (typeof globalThis !== 'undefined' && globalThis.ObservationGachaCatalogAccessModule) {
+                return globalThis.ObservationGachaCatalogAccessModule;
+            }
         } catch (e) { /* ignore */ }
         return null;
     }
@@ -74,57 +52,16 @@
         return null;
     }
 
-    function readLoadedAssetManifest(rootRef, options) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        if (opts.assetManifest && typeof opts.assetManifest === 'object') {
-            return opts.assetManifest;
-        }
-
-        const uiBootstrap = opts.uiBootstrap || resolveUIBootstrapModule();
-        if (uiBootstrap && typeof uiBootstrap.getLoadedAssetManifest === 'function') {
-            try {
-                const manifest = uiBootstrap.getLoadedAssetManifest();
-                if (manifest && typeof manifest === 'object' && Array.isArray(manifest.files)) {
-                    return manifest;
-                }
-            } catch (e) { /* ignore */ }
-        }
-
-        const ctx = opts.root || rootRef || (typeof window !== 'undefined' ? window : null);
-        if (ctx && ctx.UIBootstrap && typeof ctx.UIBootstrap.getLoadedAssetManifest === 'function') {
-            try {
-                const manifest = ctx.UIBootstrap.getLoadedAssetManifest();
-                if (manifest && typeof manifest === 'object' && Array.isArray(manifest.files)) {
-                    return manifest;
-                }
-            } catch (e) { /* ignore */ }
-        }
-
-        return null;
-    }
-
     function getCatalogItems(options) {
         const opts = (options && typeof options === 'object') ? options : {};
         if (Array.isArray(opts.catalogItems)) {
             return opts.catalogItems.filter(Boolean);
         }
-
-        const manifest = readLoadedAssetManifest(opts.root, opts);
-        const catalogSharedModule = opts.catalogSharedModule || resolveGachaCatalogSharedModule();
-        if (manifest && catalogSharedModule && typeof catalogSharedModule.buildCatalogFromAssetManifest === 'function') {
-            const manifestCatalog = catalogSharedModule.buildCatalogFromAssetManifest(manifest, {
-                generatedAt: manifest.generatedAt || manifest.version || null
-            });
-            const manifestItems = Array.isArray(manifestCatalog && manifestCatalog.items)
-                ? manifestCatalog.items.filter(Boolean)
-                : [];
-            if (manifestItems.length) {
-                return manifestItems;
-            }
+        const catalogAccessModule = opts.catalogAccessModule || resolveObservationCatalogAccessModule();
+        if (!catalogAccessModule || typeof catalogAccessModule.getObservationCatalogItems !== 'function') {
+            return [];
         }
-
-        const items = (((opts.catalogModule || resolveGachaCatalogModule()) || {}).items || []);
-        return Array.isArray(items) ? items.filter(Boolean) : [];
+        return catalogAccessModule.getObservationCatalogItems(opts);
     }
 
     function getObservationStoneBalance(rootRef, options) {
@@ -175,8 +112,13 @@
         }
 
         const pulls = [];
+        const rollFn = typeof helpersModule.rollObservationGacha === 'function'
+            ? helpersModule.rollObservationGacha
+            : helpersModule.rollHandGacha;
         for (let i = 0; i < count; i += 1) {
-            const pull = helpersModule.rollHandGacha(catalogItems, { randomFn: opts.randomFn });
+            const pull = typeof rollFn === 'function'
+                ? rollFn(catalogItems, { randomFn: opts.randomFn })
+                : null;
             if (!pull || !pull.item) {
                 storageModule.awardObservationStones(rootRef, cost);
                 return buildFailure(TRANSACTION_ERROR_CODES.ROLL_FAILED, {

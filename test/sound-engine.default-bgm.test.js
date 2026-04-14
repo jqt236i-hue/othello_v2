@@ -126,6 +126,12 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.volume).toBe(0.56);
   });
 
+  test('startup default BGM volume is 0.091', () => {
+    const soundEngine = loadSoundEngine();
+
+    expect(soundEngine.bgmVolume).toBe(0.091);
+  });
+
   test('duration-end revert sound uses the renamed asset mapping', () => {
     const soundEngine = loadSoundEngine();
 
@@ -141,7 +147,7 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.effectVolumeScales.board_shrink_selected).toBe(0.7);
   });
 
-  test('startup default track points to c-othello-2', () => {
+  test('startup default track points to c-othello', () => {
     const soundEngine = loadSoundEngine();
 
     expect(soundEngine.playlist).toHaveLength(5);
@@ -152,14 +158,14 @@ describe('SoundEngine default BGM', () => {
       '幻想即興曲',
       'ノクターン'
     ]);
-    expect(soundEngine.currentTrackIndex).toBe(1);
-    expect(soundEngine.playlist[1]).toEqual({
-      name: 'c-othello-2',
-      file: 'assets/audio/bgm/c-othello-2.mp3'
-    });
+    expect(soundEngine.currentTrackIndex).toBe(0);
     expect(soundEngine.playlist[0]).toEqual({
       name: 'c-othello',
       file: 'assets/audio/bgm/c-othello.mp3'
+    });
+    expect(soundEngine.playlist[1]).toEqual({
+      name: 'c-othello-2',
+      file: 'assets/audio/bgm/c-othello-2.mp3'
     });
     expect(soundEngine.playlist[3]).toEqual({
       name: '幻想即興曲',
@@ -274,6 +280,14 @@ describe('SoundEngine default BGM', () => {
     })).toBe('assets/story/sound-ef/テキストをクリックするとき.mp3');
   });
 
+  test('effect keys can resolve direct asset paths outside the default effect directory', () => {
+    const soundEngine = loadSoundEngine();
+
+    expect(soundEngine.getEffectFilePath('stone_place')).toBe(
+      'assets/audio/sound-effect-skin/default.mp3'
+    );
+  });
+
   test('super buoyancy sound key resolves to the shipped filename', () => {
     const soundEngine = loadSoundEngine();
 
@@ -358,20 +372,53 @@ describe('SoundEngine default BGM', () => {
     expect(warmedAudio.play).toHaveBeenCalledTimes(2);
   });
 
-  test('stone placement sound applies its own 0.75 volume scale on top of the SE master volume', () => {
-    const soundEngine = loadSoundEngine();
-    const { context, gains } = createMockAudioContext();
-    soundEngine.ctx = context;
+  test('stone placement sound uses the dedicated mp3 effect while keeping the 0.75 volume ratio', () => {
+    const { MockAudio, instances } = createMockHtmlAudioClass();
+    const soundEngine = loadSoundEngine({ Audio: MockAudio });
+    const originalPrimeEffectSounds = soundEngine.primeEffectSounds.bind(soundEngine);
+    const effectPath = soundEngine.getEffectFilePath('stone_place');
     soundEngine.volume = 0.7;
-    soundEngine.currentType = '2';
+    soundEngine.init = jest.fn(() => {
+      originalPrimeEffectSounds();
+    });
 
-    expect(soundEngine.resolveStoneClackVolume()).toBeCloseTo(0.525, 6);
+    expect(soundEngine.effectSoundFiles.stone_place).toBe('assets/audio/sound-effect-skin/default.mp3');
+    expect(effectPath).toBe('assets/audio/sound-effect-skin/default.mp3');
+    expect(soundEngine.resolveEffectVolume('stone_place')).toBeCloseTo(0.525, 6);
+    expect(soundEngine.playEffectByKey('stone_place')).toBe(true);
 
-    soundEngine.playStoneClack();
+    const warmedAudio = instances.find((audio) => audio.src === effectPath);
+    expect(warmedAudio).toBeTruthy();
+    expect(warmedAudio.volume).toBeCloseTo(0.525, 6);
+    expect(warmedAudio.play).toHaveBeenCalledTimes(1);
+  });
 
-    expect(gains).toHaveLength(3);
-    expect(gains[0].gain.linearRampToValueAtTime.mock.calls[0][0]).toBeCloseTo(0.21, 6);
-    expect(gains[1].gain.linearRampToValueAtTime.mock.calls[0][0]).toBeCloseTo(0.105, 6);
-    expect(gains[2].gain.setValueAtTime.mock.calls[0][0]).toBeCloseTo(0.07875, 6);
+  test('stone placement sound resolves the selected unlocked gacha sound asset path', () => {
+    const selectedSoundId = 'gacha__n__placement_sound__type-1-standard';
+    const placementSoundSelection = require('../ui/placement-sound-selection.js');
+    const soundEngine = loadSoundEngine({
+      localStorage: {
+        getItem: jest.fn(() => selectedSoundId),
+        setItem: jest.fn()
+      },
+      PlacementSoundSelectionModule: placementSoundSelection,
+      ObservationGachaCatalogAccessModule: {
+        getObservationCatalogItemsByKind: jest.fn(() => ([
+          {
+            id: selectedSoundId,
+            kind: 'placement_sound',
+            label: 'type-1-standard',
+            assetPath: 'assets/images/Gacha/N/type-1-standard.mp3',
+            soundPath: 'assets/images/Gacha/N/type-1-standard.mp3'
+          }
+        ]))
+      },
+      GachaProgressStorage: {
+        listOwnedPlacementSoundIds: jest.fn(() => ['default', selectedSoundId])
+      }
+    });
+
+    expect(soundEngine.getSelectedPlacementSoundId()).toBe(selectedSoundId);
+    expect(soundEngine.getEffectFilePath('stone_place')).toBe('assets/images/Gacha/N/type-1-standard.mp3');
   });
 });

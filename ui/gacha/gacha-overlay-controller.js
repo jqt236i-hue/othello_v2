@@ -28,13 +28,13 @@
         case 'init-unavailable':
             return 'ガチャ機能を初期化できません';
         case 'catalog-empty':
-            return 'ガチャ画像が未登録です';
+            return 'ガチャ報酬が未登録です';
         case 'insufficient-observation-stones': {
             const missing = Math.max(0, Math.floor(Number(data.missing) || 0));
             return `観測石が足りません（あと${missing}個）`;
         }
         case 'roll-failed':
-            return '抽選対象の手が不足しています';
+            return '抽選対象の報酬が不足しています';
         default:
             return 'ガチャを引けませんでした';
         }
@@ -89,10 +89,10 @@
             if (refreshOptions.keepStatus === true) return snapshot;
 
             if (!snapshot.hasCatalog) {
-                view.writeStatus('ガチャ画像が未登録です', true);
+                view.writeStatus('ガチャ報酬が未登録です', true);
                 return snapshot;
             }
-            view.writeStatus('観測石を集めて手の見た目を解放できます', false);
+            view.writeStatus('観測石を集めて手の見た目や配置音を解放できます', false);
             return snapshot;
         }
 

@@ -25,6 +25,20 @@
         return null;
     }
 
+    function resolveGachaItemVisualsModule() {
+        if (typeof require === 'function') {
+            try {
+                return require('./gacha-item-visuals.js');
+            } catch (e) { /* ignore */ }
+        }
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.GachaItemVisualsModule) {
+                return globalThis.GachaItemVisualsModule;
+            }
+        } catch (e) { /* ignore */ }
+        throw new Error('GachaItemVisualsModule is required before rendering gacha item previews.');
+    }
+
     function resolveRefs(docRef, options) {
         const opts = (options && typeof options === 'object') ? options : {};
         const refs = {
@@ -89,12 +103,20 @@
 
         const docRef = detailsPanel.ownerDocument || (typeof document !== 'undefined' ? document : null);
         const gachaHelpers = helpersModule || resolveGachaHelpersModule();
+        const itemVisuals = resolveGachaItemVisualsModule();
         if (!docRef || !gachaHelpers) return;
 
         const intro = docRef.createElement('div');
         intro.className = 'gacha-details-copy';
-        intro.textContent = '観測石100で1回、1000で10連。重複時は所持済みとして表示し、観測石の補填はありません。';
+        intro.textContent = '観測石100で1回、1000で10連。手の見た目と配置音が排出され、重複時は所持済みとして表示し、観測石の補填はありません。';
         detailsPanel.appendChild(intro);
+
+        const handCount = catalogItems.filter((item) => itemVisuals.normalizeItemKind(item) === 'hand_skin').length;
+        const soundCount = catalogItems.filter((item) => itemVisuals.normalizeItemKind(item) === 'placement_sound').length;
+        const kindSummary = docRef.createElement('div');
+        kindSummary.className = 'gacha-details-note';
+        kindSummary.textContent = `排出内容: 手の見た目 ${handCount}種 / 配置音 ${soundCount}種`;
+        detailsPanel.appendChild(kindSummary);
 
         const rateList = docRef.createElement('div');
         rateList.className = 'gacha-rate-list';
@@ -116,10 +138,12 @@
         const item = pull && pull.item ? pull.item : null;
         if (!item) return null;
         const rarityId = String(pull.rarity || '').trim().toLowerCase();
+        const itemVisuals = resolveGachaItemVisualsModule();
 
         const card = docRef.createElement('div');
         card.className = `gacha-result-card rarity-${rarityId}`;
         card.setAttribute('data-gacha-rarity', rarityId);
+        card.setAttribute('data-gacha-kind', itemVisuals.normalizeItemKind(item));
 
         const rarity = docRef.createElement('div');
         rarity.className = 'gacha-result-rarity';
@@ -128,17 +152,24 @@
 
         const image = docRef.createElement('img');
         image.className = 'gacha-result-image';
-        image.src = item.imagePath;
         image.alt = '';
         image.loading = 'lazy';
         image.decoding = 'async';
         image.draggable = false;
+        const fallback = itemVisuals.createSoundFallbackTile(docRef, 'gacha-result-fallback');
+        itemVisuals.applyItemPreviewState(item, image, fallback);
         card.appendChild(image);
+        card.appendChild(fallback);
 
         const name = docRef.createElement('div');
         name.className = 'gacha-result-name';
         name.textContent = item.label;
         card.appendChild(name);
+
+        const kind = docRef.createElement('div');
+        kind.className = 'gacha-result-kind';
+        kind.textContent = itemVisuals.getItemKindLabel(item);
+        card.appendChild(kind);
 
         const status = docRef.createElement('div');
         const isNew = newlyUnlockedIdSet.has(item.id);

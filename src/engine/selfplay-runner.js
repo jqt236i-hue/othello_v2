@@ -757,6 +757,25 @@ function buildSelectionTrace(record) {
     };
 }
 
+function getDeckStatsForPlayer(cardState, playerKey) {
+    const decksByPlayer = cardState && cardState.decks && typeof cardState.decks === 'object'
+        ? cardState.decks
+        : null;
+    const ownDeckCount = decksByPlayer && Array.isArray(decksByPlayer[playerKey])
+        ? decksByPlayer[playerKey].length
+        : ((cardState && Array.isArray(cardState.deck)) ? cardState.deck.length : 0);
+    const initialDeckSizeByPlayer = cardState && cardState.initialDeckSizeByPlayer && typeof cardState.initialDeckSizeByPlayer === 'object'
+        ? cardState.initialDeckSizeByPlayer
+        : null;
+    const initialDeckSize = initialDeckSizeByPlayer && Number.isFinite(initialDeckSizeByPlayer[playerKey])
+        ? Number(initialDeckSizeByPlayer[playerKey])
+        : ((cardState && Number.isFinite(cardState.initialDeckSize)) ? Number(cardState.initialDeckSize) : ownDeckCount);
+    return {
+        ownDeckCount,
+        initialDeckSize
+    };
+}
+
 function buildActorViewSnapshot(record) {
     if (!record || typeof record !== 'object') return null;
     return {
@@ -771,6 +790,8 @@ function buildActorViewSnapshot(record) {
         chargeBlack: Number.isFinite(record.chargeBlack) ? Number(record.chargeBlack) : 0,
         chargeWhite: Number.isFinite(record.chargeWhite) ? Number(record.chargeWhite) : 0,
         deckCount: Number.isFinite(record.deckCount) ? Number(record.deckCount) : 0,
+        ownDeckCount: Number.isFinite(record.ownDeckCount) ? Number(record.ownDeckCount) : 0,
+        initialDeckSize: Number.isFinite(record.initialDeckSize) ? Number(record.initialDeckSize) : 0,
         discardCount: Number.isFinite(record.discardCount) ? Number(record.discardCount) : 0,
         blackCountBefore: Number.isFinite(record.blackCountBefore) ? Number(record.blackCountBefore) : 0,
         whiteCountBefore: Number.isFinite(record.whiteCountBefore) ? Number(record.whiteCountBefore) : 0,
@@ -3809,6 +3830,7 @@ function runSingleGame(gameIndex, seed, options) {
         )
             ? decision.placementMetrics
             : null;
+        const deckStats = getDeckStatsForPlayer(state.cardState, playerKey);
 
         const record = {
             schemaVersion: normalizedOptions.schemaVersion,
@@ -3828,7 +3850,9 @@ function runSingleGame(gameIndex, seed, options) {
             handWhite: state.cardState.hands.white.length,
             chargeBlack: state.cardState.charge.black || 0,
             chargeWhite: state.cardState.charge.white || 0,
-            deckCount: state.cardState.deck.length,
+            deckCount: deckStats.ownDeckCount,
+            ownDeckCount: deckStats.ownDeckCount,
+            initialDeckSize: deckStats.initialDeckSize,
             discardCount: state.cardState.discard.length,
             blackCountBefore: countsBefore.black,
             whiteCountBefore: countsBefore.white,

@@ -452,7 +452,7 @@ describe('deck builder controller', () => {
     }
   });
 
-  test('CPU対戦ではプレイヤー黒だけにカスタムデッキを渡し、CPU白は標準デッキを維持する', () => {
+  test('CPU対戦ではプレイヤー黒だけにカスタムデッキを渡し、CPU白はデフォルトデッキを維持する', () => {
     const localDeck = createThirtyCardDeck(0);
 
     localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_1', 'ローカル', localDeck.deckCode)));
@@ -591,7 +591,7 @@ describe('deck builder controller', () => {
     });
   });
 
-  test('CPU対戦の片側カスタム指定でも白は標準デッキ枚数を維持する', () => {
+  test('CPU対戦の片側カスタム指定でも白はデフォルトデッキ枚数を維持する', () => {
     const localDeck = createThirtyCardDeck(0);
     const CardLogic = require('../game/logic/cards');
     const DeckSpecHelpers = require('../shared/deck-spec');
@@ -605,11 +605,11 @@ describe('deck builder controller', () => {
 
     expect(cardState.decks.black).toEqual(DeckSpecHelpers.expandDeckSpec(localDeck.deckSpec));
     expect(cardState.initialDeckSizeByPlayer.black).toBe(30);
-    expect(cardState.initialDeckSizeByPlayer.white).toBe(DeckSpecHelpers.getStandardDeckSize());
-    expect(cardState.decks.white).toHaveLength(DeckSpecHelpers.getStandardDeckSize());
+    expect(cardState.initialDeckSizeByPlayer.white).toBe(DeckSpecHelpers.getDefaultDeckSize());
+    expect(cardState.decks.white).toHaveLength(DeckSpecHelpers.getDefaultDeckSize());
   });
 
-  test('無効な保存済みプリセットは activePresetId を外して標準デッキへ戻す', () => {
+  test('無効な保存済みプリセットは activePresetId を外してデフォルトデッキへ戻す', () => {
     localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_1', '壊れたプリセット', 'broken-deck-code')));
 
     const controller = createController();

@@ -527,6 +527,27 @@ function getHandCardIdsForPlayer(playerKey) {
     return hand.slice();
 }
 
+function getDeckMetricsForPlayer(playerKey) {
+    const cs = (typeof cardState !== 'undefined') ? cardState : null;
+    const legacyDeckCount = (cs && cs.deck && Number.isFinite(cs.deck.length))
+        ? cs.deck.length
+        : 0;
+    const ownDeckCount = (cs && cs.decks && Array.isArray(cs.decks[playerKey]))
+        ? cs.decks[playerKey].length
+        : (legacyDeckCount > 0 ? legacyDeckCount : null);
+    const initialDeckSizeByPlayer = (cs && cs.initialDeckSizeByPlayer && typeof cs.initialDeckSizeByPlayer === 'object')
+        ? cs.initialDeckSizeByPlayer
+        : null;
+    const initialDeckSize = initialDeckSizeByPlayer && Number.isFinite(initialDeckSizeByPlayer[playerKey])
+        ? initialDeckSizeByPlayer[playerKey]
+        : ((cs && Number.isFinite(cs.initialDeckSize)) ? cs.initialDeckSize : ownDeckCount);
+    return {
+        legacyDeckCount,
+        ownDeckCount,
+        initialDeckSize
+    };
+}
+
 function buildOnnxContext(playerKey, level, legalMovesCount, handCardIds, usableCardIds, candidateMoves) {
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
     const moves = Array.isArray(candidateMoves)
@@ -537,6 +558,7 @@ function buildOnnxContext(playerKey, level, legalMovesCount, handCardIds, usable
     let maxLegalMoveBonus = 0;
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
+    const deckMetrics = getDeckMetricsForPlayer(playerKey);
     const boardRef = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
     for (const move of moves) {
         if (!hasCornerMoveNow && isCornerCell(move.row, move.col, boardRef)) hasCornerMoveNow = true;
@@ -550,14 +572,16 @@ function buildOnnxContext(playerKey, level, legalMovesCount, handCardIds, usable
         board: boardRef,
         pendingType: resolvePendingType(playerKey),
         legalMovesCount: Number.isFinite(legalMovesCount) ? legalMovesCount : 0,
-        ownCharge: (cardState && cardState.charge && Number.isFinite(cardState.charge[playerKey])) ? cardState.charge[playerKey] : 0,
-        oppCharge: (cardState && cardState.charge && Number.isFinite(cardState.charge[opponentKey])) ? cardState.charge[opponentKey] : 0,
-        deckCount: (cardState && cardState.deck && Number.isFinite(cardState.deck.length)) ? cardState.deck.length : 0,
-        boardBonusByCell: (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
-            ? cardState.boardBonusByCell
+        ownCharge: (cs && cs.charge && Number.isFinite(cs.charge[playerKey])) ? cs.charge[playerKey] : 0,
+        oppCharge: (cs && cs.charge && Number.isFinite(cs.charge[opponentKey])) ? cs.charge[opponentKey] : 0,
+        deckCount: Number.isFinite(deckMetrics.legacyDeckCount) ? deckMetrics.legacyDeckCount : 0,
+        ownDeckCount: Number.isFinite(deckMetrics.ownDeckCount) ? deckMetrics.ownDeckCount : 0,
+        initialDeckSize: Number.isFinite(deckMetrics.initialDeckSize) ? deckMetrics.initialDeckSize : 0,
+        boardBonusByCell: (cs && cs.boardBonusByCell && typeof cs.boardBonusByCell === 'object')
+            ? cs.boardBonusByCell
             : null,
-        boardBonusConsumedByCell: (cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
-            ? cardState.boardBonusConsumedByCell
+        boardBonusConsumedByCell: (cs && cs.boardBonusConsumedByCell && typeof cs.boardBonusConsumedByCell === 'object')
+            ? cs.boardBonusConsumedByCell
             : null,
         handCardIds: Array.isArray(handCardIds) ? handCardIds.slice() : getHandCardIdsForPlayer(playerKey),
         usableCardIds: Array.isArray(usableCardIds) ? usableCardIds.slice() : null,
@@ -6100,6 +6124,7 @@ if (typeof module !== 'undefined' && module.exports) {
         isCardChoiceAllowedByRisk,
         isCardChoiceAllowedByHighConfidence,
         hasPlanPressureProfileForCardType,
+        buildOnnxContext,
         buildCardUseDecisionContext,
         cpuSelectDestroyWithPolicy,
         cpuSelectHeavenBlessingWithPolicy,

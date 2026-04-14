@@ -25,28 +25,33 @@ describe('gacha progress storage', () => {
     const state = mod.readState(window);
 
     expect(state.observationStones).toBe(0);
+    expect(state.version).toBe(2);
     expect(mod.listOwnedHandSkinIds(window).sort()).toEqual(['default']);
+    expect(mod.listOwnedPlacementSoundIds(window).sort()).toEqual(['default']);
   });
 
-  test('awards, spends, and applies pull results with duplicate tracking', () => {
+  test('awards, spends, and applies mixed pull results with duplicate tracking', () => {
     const mod = require('../ui/storage/gacha-progress.js');
 
     mod.awardObservationStones(window, 250);
     const spend = mod.spendObservationStones(window, 100);
     const apply = mod.applyPullResults(window, [
-      { item: { id: 'gacha__n__小鬼の手' } },
-      { item: { id: 'default' } },
-      { item: { id: 'gacha__r__猫の手' } }
+      { item: { id: 'gacha__n__小鬼の手', kind: 'hand_skin' } },
+      { item: { id: 'default', kind: 'placement_sound' } },
+      { item: { id: 'gacha__n__placement_sound__type-1-standard', kind: 'placement_sound' } }
     ]);
 
     expect(spend.ok).toBe(true);
-    expect(apply.newlyUnlockedIds.sort()).toEqual(['gacha__n__小鬼の手', 'gacha__r__猫の手']);
+    expect(apply.newlyUnlockedIds.sort()).toEqual(['gacha__n__placement_sound__type-1-standard', 'gacha__n__小鬼の手']);
     expect(apply.alreadyOwnedIds).toEqual(['default']);
     expect(mod.getObservationStones(window)).toBe(150);
-    expect(mod.listOwnedHandSkinIds(window).sort()).toEqual([
+    expect(mod.listOwnedHandSkinIds(window)).toEqual([
       'default',
-      'gacha__n__小鬼の手',
-      'gacha__r__猫の手'
+      'gacha__n__小鬼の手'
+    ]);
+    expect(mod.listOwnedPlacementSoundIds(window).sort()).toEqual([
+      'default',
+      'gacha__n__placement_sound__type-1-standard'
     ]);
     expect(mod.readState(window).totalPullCount).toBe(3);
   });

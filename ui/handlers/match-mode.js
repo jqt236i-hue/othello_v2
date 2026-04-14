@@ -242,7 +242,7 @@
     function formatPendingRoomDeckText() {
         const controller = getDeckBuilderController();
         if (!controller || typeof controller.getActiveLocalChoice !== 'function') {
-            return '作成時に送るデッキ: 標準デッキ';
+            return '作成時に送るデッキ: デフォルトデッキ';
         }
         try {
             const choice = controller.getActiveLocalChoice();
@@ -250,10 +250,10 @@
                 const deckSize = Number.isFinite(Number(choice.deckSize)) ? Number(choice.deckSize) : 30;
                 return `作成時に送るデッキ: カスタム ${deckSize}枚`;
             }
-            const standardSize = Number.isFinite(Number(choice && choice.deckSize)) ? Number(choice.deckSize) : 64;
-            return `作成時に送るデッキ: 標準 ${standardSize}枚`;
+            const standardSize = Number.isFinite(Number(choice && choice.deckSize)) ? Number(choice.deckSize) : 30;
+            return `作成時に送るデッキ: デフォルト ${standardSize}枚`;
         } catch (e) {
-            return '作成時に送るデッキ: 標準デッキ';
+            return '作成時に送るデッキ: デフォルトデッキ';
         }
     }
 
@@ -308,9 +308,9 @@
             return `${seatLabel}カスタム ${customSize}枚`;
         }
         if (Number.isFinite(Number(deckSize))) {
-            return `${seatLabel}標準 ${Number(deckSize)}枚`;
+            return `${seatLabel}デフォルト ${Number(deckSize)}枚`;
         }
-        return `${seatLabel}標準デッキ`;
+        return `${seatLabel}デフォルトデッキ`;
     }
 
     function hasCustomRoomDeck(roomDeck) {
@@ -340,9 +340,9 @@
             return `部屋デッキ: カスタム ${deckSize}枚`;
         }
         if (Number.isFinite(Number(roomDeck.deckSize))) {
-            return `部屋デッキ: 標準 ${Number(roomDeck.deckSize)}枚`;
+            return `部屋デッキ: デフォルト ${Number(roomDeck.deckSize)}枚`;
         }
-        return '部屋デッキ: 標準デッキ';
+        return '部屋デッキ: デフォルトデッキ';
     }
 
     function renderNetworkDeckInfo(roomState) {

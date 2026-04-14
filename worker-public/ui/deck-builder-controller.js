@@ -198,15 +198,21 @@
             return String(leftDef.id || '').localeCompare(String(rightDef.id || ''), 'en');
         }
 
+        function getDefaultDeckSize() {
+            return (DeckSpecHelpers && typeof DeckSpecHelpers.getDefaultDeckSize === 'function')
+                ? DeckSpecHelpers.getDefaultDeckSize()
+                : 30;
+        }
+
         function createStandardChoice(context) {
             const ctx = (context && typeof context === 'object') ? context : {};
             return {
                 source: ctx.source || 'standard',
                 mode: 'standard',
-                name: normalizeChoiceLabel(ctx.name, '標準デッキ'),
+                name: normalizeChoiceLabel(ctx.name, 'デフォルトデッキ'),
                 deckCode: '',
                 deckSpec: null,
-                deckSize: DeckSpecHelpers.getStandardDeckSize(),
+                deckSize: getDefaultDeckSize(),
                 presetId: ctx.presetId || ''
             };
         }
@@ -305,7 +311,7 @@
             if (!presetChoice) {
                 state.presetState.activePresetId = '';
                 savePresetState();
-                emitNotice('保存済みデッキを読み込めなかったため標準デッキを使います', true, true);
+                emitNotice('保存済みデッキを読み込めなかったためデフォルトデッキを使います', true, true);
                 return;
             }
 
@@ -677,7 +683,7 @@
             if (targetChoice.mode === 'custom') {
                 return `${normalizeChoiceLabel(targetChoice.name, 'カスタムデッキ')} / ${targetChoice.deckSize}枚`;
             }
-            return `標準デッキ / ${targetChoice.deckSize}枚`;
+            return `デフォルトデッキ / ${targetChoice.deckSize}枚`;
         }
 
         function formatEffectiveChoiceSummary(effective) {
@@ -688,7 +694,7 @@
             if (effective.choice.mode === 'custom') {
                 return `実対局に使うデッキ: 部屋デッキ / ${effective.choice.deckSize}枚（退出後はローカル設定へ戻ります）`;
             }
-            return `実対局に使うデッキ: 部屋デッキ / 標準デッキ（退出後はローカル設定へ戻ります）`;
+            return `実対局に使うデッキ: 部屋デッキ / デフォルトデッキ（退出後はローカル設定へ戻ります）`;
         }
 
         function buildPresetViewModel() {
@@ -781,7 +787,7 @@
                 effectiveSummaryText: formatEffectiveChoiceSummary(effective),
                 noticeText: state.noticeText,
                 noticeIsError: state.noticeIsError,
-                standardSummaryText: `${DeckSpecHelpers.getStandardDeckSize()}枚 / 有効カード各1枚`,
+                standardSummaryText: `${getDefaultDeckSize()}枚 / 有効カードから重複なしランダム`,
                 presets: buildPresetViewModel(),
                 editor: buildEditorViewModel()
             };
@@ -858,7 +864,7 @@
 
         function useStandardDeck() {
             setLocalActiveChoice(createStandardChoice({ source: 'standard' }));
-            emitNotice('標準デッキへ切り替えました', false, true);
+            emitNotice('デフォルトデッキへ切り替えました', false, true);
             render();
         }
 

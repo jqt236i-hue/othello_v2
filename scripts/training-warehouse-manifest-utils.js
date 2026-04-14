@@ -501,6 +501,10 @@ function buildIterationWarehouseManifest(args, iterationResult) {
             usedSelfplayCardUsageRate: Number.isFinite(Number(result.usedSelfplayCardUsageRate))
                 ? Number(result.usedSelfplayCardUsageRate)
                 : null,
+            onnxValSplit: Number.isFinite(Number(args && args.onnxValSplit))
+                ? Number(args.onnxValSplit)
+                : null,
+            onnxValSplitMode: args && args.onnxValSplitMode ? String(args.onnxValSplitMode) : null,
             hasTargetTrainingData: !!result.hasTargetTrainingData,
             gateIterationAllowed: !!gateControl.gateIterationAllowed,
             promoted: !!result.promoted,

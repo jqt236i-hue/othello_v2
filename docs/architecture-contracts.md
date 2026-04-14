@@ -143,7 +143,20 @@ For gate/promotion bundle handling, the contract is:
 
 `promotion-manifest.json` is lane-local promotion attempt metadata and must be interpreted together with the lane's target bundle files, not as a cross-lane singleton source of deploy truth.
 `promotion-deploy-truth.json` is the lane-local deploy truth record used by rollback; it is written alongside the manifest and should be treated as the canonical deployed-state snapshot.
+Deploy truth records are keyed by promotionId: when a new promotion overwrites the shared file, the previous deploy truth is preserved as `promotion-deploy-truth.<promotionId>.json` so that rollback for earlier promotions finds the correct artifact snapshot.
 Its artifact entries now carry `lifecycle` tags (`active`, `archived`, `experimental`, `incompatible`) so current deploy truth, archive snapshots, and run outputs can be separated without guessing from filenames alone.
+
+### 5.2.1 Lane→root deployment contract
+
+Lane promotion and root deployment are separate phases:
+
+- Lane promotion writes to the lane-local target bundle only (unchanged).
+- Root deployment is an explicit, auditable post-promotion step that copies the lane champion bundle to root `data/models/` active files.
+- `scripts/deploy-lane-model-to-root.js` is the canonical deploy entry point.
+- Root deployment archives the existing root model under `data/models/archive/<deployId>/` before overwriting.
+- `data/models/deploy-manifest.json` (schema `root_deploy_manifest.v1`) records the deployed model provenance, source lane, source promotionId, and deployment timestamp.
+- Root deployment does not modify lane-local promotion metadata or deploy truth.
+- After root deployment, `npm run worker:prepare` must be run to sync the worker-public mirror.
 
 ## 6. Core state contracts
 
@@ -218,12 +231,31 @@ Any new board-writing path must preserve that contract rather than bypass it.
 
 Hand-layer animation must keep visual resolution and motion playback as separate responsibilities.
 
-- `ui/handlers/hand-skin.js` is the canonical UI-side resolver for owner / seat / CPU / CPU level / selected-vs-rendered hand skin context.
+- `ui/hand-skin/catalog.js` is the canonical UI-side source for known / owned hand skin definitions resolved from the observation cosmetic catalog.
+- `ui/hand-skin/selection.js` is the canonical local-selection storage boundary for the player's selected hand skin.
+- `ui/hand-skin/runtime.js` is the canonical resolver for owner / seat / CPU / CPU level / selected-vs-rendered hand skin context.
+- `ui/hand-skin/controller.js` owns only the skin-button panel UI and inventory refresh wiring.
+- `ui/handlers/hand-skin.js` is a compatibility facade / browser-global export surface over those modules.
 - `ui/animation-utils.js` consumes that resolved context for place and draw hand-layer playback.
 - `ui/animation-engine.js` and gameplay-side callers may forward actor or source metadata, but they must not duplicate CPU hand visual resolution in separate adapters.
-- `network` hand skin sync is seat metadata (`seatHandSkins`) carried by room/session payloads, not gameplay state, and remote-seat rendering must still be resolved only through `ui/handlers/hand-skin.js`.
+- `network` hand skin sync is seat metadata (`seatHandSkins`) carried by room/session payloads, not gameplay state, and remote-seat rendering must still be resolved only through the hand-skin runtime boundary rather than re-derived in animation or network callers.
 
 Any refactor here must preserve a single effective hand visual resolver rather than re-deriving CPU hand state in multiple call sites.
+
+### 7.5 Observation cosmetic catalog and local selection
+
+Observation-gacha cosmetics span generated catalog files, local inventory, local selection, and runtime playback, but the stable contract is:
+
+- `scripts/generate-observation-gacha-catalog.js` is the canonical generator for both `shared/observation-gacha-catalog.generated.js` and the hand-only compatibility output `shared/gacha-hand-catalog.generated.js`.
+- `scripts/generate-gacha-hand-catalog.js` is only a compatibility wrapper over that canonical generator.
+- `shared/observation-gacha-catalog-shared.js` and `shared/observation-gacha-catalog.generated.js` are the canonical generic observation cosmetic catalog contract.
+- `shared/gacha-hand-catalog-shared.js` and `shared/gacha-hand-catalog.generated.js` are hand-skin-only compatibility adapters for callers that still intentionally consume `hand_skin` items only.
+- `ui/gacha/catalog-access.js` is the canonical UI-side access boundary for manifest-vs-generated observation catalog resolution.
+- `ui/placement-sound-selection.js` is the canonical local resolver for owned placement sounds, selected placement sound id, and selected placement sound file path.
+- `sound-engine.js` is the playback consumer of that resolved placement-sound selection and must not parse gacha inventory or observation catalog state directly.
+- `ui/gacha/gacha-item-visuals.js` is the canonical shared mixed-item preview/fallback helper for both result cards and reveal-stage rendering.
+
+The generic observation catalog is the source of truth. Hand-only catalog helpers exist only to preserve existing callers while they consume a filtered `hand_skin` view.
 
 ## 8. Authority and network contracts
 

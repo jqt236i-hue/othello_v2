@@ -587,20 +587,20 @@
     </div>
 
     <div id="gachaOverlay" aria-hidden="true">
-        <div id="gachaModal" role="dialog" aria-modal="true" aria-label="ハンドガチャ">
+        <div id="gachaModal" role="dialog" aria-modal="true" aria-label="観測ガチャ">
             <div id="gachaModalHeader">
                 <div class="gacha-title-wrap">
-                    <div class="gacha-title">ハンドガチャ</div>
+                    <div class="gacha-title">観測ガチャ</div>
                     <div id="gachaBalanceSummary">
                         <span class="observation-stone-icon" aria-hidden="true"></span>
                         <span class="gacha-balance-label">観測石</span>
                         <span id="gachaBalanceValue">0</span>
                     </div>
                 </div>
-                <button id="gachaCloseBtn" class="btn-small" type="button" aria-label="ハンドガチャを閉じる">×</button>
+                <button id="gachaCloseBtn" class="btn-small" type="button" aria-label="観測ガチャを閉じる">×</button>
             </div>
             <div id="gachaModalBody">
-                <div id="gachaStatusText">観測石を集めて手の見た目を解放できます</div>
+                <div id="gachaStatusText">観測石を集めて手の見た目や配置音を解放できます</div>
                 <div id="gachaActionRow">
                     <button id="gachaDetailToggleBtn" class="btn-small" type="button" aria-expanded="false"
                         aria-controls="gachaDetailsPanel">詳細</button>
@@ -776,11 +776,16 @@
     <script src="ui/move-executor-visuals.js"></script>
     <script src="ui/visual-effects-map.js"></script>
     <script src="shared/gacha-helpers.js"></script>
+    <script src="shared/observation-gacha-catalog-shared.js"></script>
+    <script src="shared/observation-gacha-catalog.generated.js"></script>
     <script src="shared/gacha-hand-catalog-shared.js"></script>
     <script src="shared/gacha-hand-catalog.generated.js"></script>
     <script src="ui/storage/gacha-progress.js"></script>
     <script src="ui/gacha/gacha-events.js"></script>
+    <script src="ui/gacha/catalog-access.js"></script>
+    <script src="ui/placement-sound-selection.js"></script>
     <script src="ui/gacha/gacha-transaction.js"></script>
+    <script src="ui/gacha/gacha-item-visuals.js"></script>
     <script src="ui/gacha/gacha-overlay-view.js"></script>
     <script src="ui/gacha/gacha-overlay-controller.js"></script>
     <script src="ui/gacha/gacha-reveal-stage.js"></script>
@@ -893,6 +898,10 @@
     <script src="ui/handlers/sound.js"></script>
     <script src="ui/handlers/rules-help.js"></script>
     <script src="ui/handlers/gacha.js"></script>
+    <script src="ui/hand-skin/catalog.js"></script>
+    <script src="ui/hand-skin/selection.js"></script>
+    <script src="ui/hand-skin/runtime.js"></script>
+    <script src="ui/hand-skin/controller.js"></script>
     <script src="ui/handlers/hand-skin.js"></script>
     <script src="ui/handlers/story.js"></script>
     <script src="ui/handlers/tutorial.js"></script>

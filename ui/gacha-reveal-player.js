@@ -129,6 +129,12 @@
         });
     }
 
+    function describeObservedItem(item) {
+        return String(item && item.kind || '').trim().toLowerCase() === 'placement_sound'
+            ? '配置音を観測しました'
+            : '手の見た目を観測しました';
+    }
+
     function waitForDismiss(state) {
         if (state.isActive !== true) return Promise.resolve();
 
@@ -286,7 +292,7 @@
                 refs.headline.textContent = '観測が収束しました';
                 refs.subtitle.textContent = isTenPull
                     ? 'もっとも強い反応を観測しました'
-                    : '手の見た目を観測しました';
+                    : describeObservedItem(spotlightPull && spotlightPull.item ? spotlightPull.item : null);
                 refs.stage.classList.add('is-impact-visible');
                 refs.stage.classList.add('is-hero-visible');
                 await waitForStep(state, timings.heroMs);

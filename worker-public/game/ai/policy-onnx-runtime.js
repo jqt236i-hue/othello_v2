@@ -61,6 +61,8 @@ const CHARGE_MAX_NORMALIZER = (() => {
     return 99;
 })();
 const NO_CARD_ACTION_ID = '__no_card__';
+const LEGACY_DECK_COUNT_NORMALIZER = 60;
+const DECK_COUNT_FEATURE_MODE = 'own_deck_ratio_v1';
 
 let _session = null;
 let _meta = null;
@@ -809,6 +811,18 @@ function resolveBaseInputDim(modelMeta, inputDim, cardDim) {
     return Math.min(BASE_INPUT_DIM, inputDim);
 }
 
+function resolveDeckCountScalar(ctx, modelMeta) {
+    const legacyDeckCount = Number.isFinite(ctx.deckCount) ? ctx.deckCount : 0;
+    if (modelMeta && modelMeta.deckCountFeature === DECK_COUNT_FEATURE_MODE) {
+        const ownDeckCount = Number.isFinite(ctx.ownDeckCount) ? ctx.ownDeckCount : legacyDeckCount;
+        const initialDeckSize = Number.isFinite(ctx.initialDeckSize) && ctx.initialDeckSize > 0
+            ? ctx.initialDeckSize
+            : LEGACY_DECK_COUNT_NORMALIZER;
+        return ownDeckCount / initialDeckSize;
+    }
+    return legacyDeckCount / LEGACY_DECK_COUNT_NORMALIZER;
+}
+
 function buildInputVector(context, metaOverride, actionIdsOverride) {
     const ctx = context || {};
     const board = Array.isArray(ctx.board) ? ctx.board : [];
@@ -855,7 +869,7 @@ function buildInputVector(context, metaOverride, actionIdsOverride) {
     }
     const ownCharge = Number.isFinite(ctx.ownCharge) ? ctx.ownCharge : 0;
     const oppCharge = Number.isFinite(ctx.oppCharge) ? ctx.oppCharge : 0;
-    const deckCount = Number.isFinite(ctx.deckCount) ? ctx.deckCount : 0;
+    const deckCountScalar = resolveDeckCountScalar(ctx, modelMeta);
     const pendingFlag = ctx.pendingType ? 1 : 0;
     const discDiff = playerKey === 'black' ? (blackCount - whiteCount) : (whiteCount - blackCount);
     const planFeatures = getCornerPlanFeatures(ctx, board, playerKey);
@@ -865,7 +879,7 @@ function buildInputVector(context, metaOverride, actionIdsOverride) {
     if (baseInputDim > (scalarOffset + 1)) out[scalarOffset + 1] = discDiff / 64;
     if (baseInputDim > (scalarOffset + 2)) out[scalarOffset + 2] = ownCharge / CHARGE_MAX_NORMALIZER;
     if (baseInputDim > (scalarOffset + 3)) out[scalarOffset + 3] = oppCharge / CHARGE_MAX_NORMALIZER;
-    if (baseInputDim > (scalarOffset + 4)) out[scalarOffset + 4] = deckCount / 60;
+    if (baseInputDim > (scalarOffset + 4)) out[scalarOffset + 4] = deckCountScalar;
     if (baseInputDim > (scalarOffset + 5)) out[scalarOffset + 5] = pendingFlag;
     if (baseInputDim > (scalarOffset + 6)) out[scalarOffset + 6] = planFeatures.ownCorners / 4;
     if (baseInputDim > (scalarOffset + 7)) out[scalarOffset + 7] = planFeatures.oppCorners / 4;

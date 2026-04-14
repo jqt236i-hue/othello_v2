@@ -1,6 +1,7 @@
 const CardLogic = require('../game/logic/cards');
 const Core = require('../game/logic/core');
 const TurnPipeline = require('../game/turn/turn_pipeline');
+const PipelineUiAdapter = require('../game/turn/pipeline_ui_adapter');
 
 describe('INSTANT_HYPERACTIVE_WILL（瞬間多動）', () => {
   function makePrng() {
@@ -106,6 +107,53 @@ describe('INSTANT_HYPERACTIVE_WILL（瞬間多動）', () => {
     expect(lastMove && lastMove.to).toBeTruthy();
     expect(bubble).toBeTruthy();
     expect({ row: bubble.row, col: bubble.col }).toEqual(lastMove.to);
+  });
+
+  test('playback move metadata keeps the hyperactive visual during immediate movement', () => {
+    const prng = makePrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = Core.createGameState();
+
+    gameState.board[1][3] = Core.WHITE;
+    gameState.board[1][4] = Core.BLACK;
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'INSTANT_HYPERACTIVE_WILL',
+      stage: null,
+      cardId: 'instant_hyperactive_01'
+    };
+
+    const res = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 2, col: 3 },
+      prng
+    );
+
+    const movePresentationEvents = (res.presentationEvents || []).filter((ev) => ev && ev.type === 'MOVE');
+    expect(movePresentationEvents).toHaveLength(3);
+    for (const ev of movePresentationEvents) {
+      expect(ev.meta).toEqual(expect.objectContaining({
+        special: 'HYPERACTIVE',
+        owner: 'black'
+      }));
+    }
+
+    const playback = PipelineUiAdapter.mapToPlaybackEvents(
+      res.presentationEvents || [],
+      cardState,
+      gameState
+    );
+    const movePlaybackEvents = playback.filter((ev) => ev && ev.type === 'move');
+    expect(movePlaybackEvents).toHaveLength(3);
+    for (const ev of movePlaybackEvents) {
+      expect(ev.targets[0].after).toMatchObject({
+        color: Core.BLACK,
+        special: 'HYPERACTIVE',
+        owner: 'black'
+      });
+    }
   });
 
   test('通常の多動の意志は配置ターンで即時移動しない', () => {

@@ -117,113 +117,17 @@ function printHelp() {
     ].join('\n'));
 }
 
-function readJson(p) {
-    const raw = fs.readFileSync(p, 'utf8');
-    return JSON.parse(raw);
-}
-
-function validatePolicyModel(model) {
-    if (!model || typeof model !== 'object') throw new Error('candidate model is not an object');
-    if (model.schemaVersion !== 'policy_table.v1' && model.schemaVersion !== 'policy_table.v2') {
-        throw new Error('candidate model schema must be policy_table.v1 or policy_table.v2');
-    }
-    if (!model.states || typeof model.states !== 'object') throw new Error('candidate model must include states object');
-}
-
-function sanitizePromotionId(value) {
-    const raw = typeof value === 'string' && value.trim()
-        ? value.trim()
-        : new Date().toISOString();
-    return raw.replace(/[\\/:*?"<>|.]+/g, '-').replace(/\s+/g, '-');
-}
-
-function buildBundlePaths(rootDir, bundleName, options) {
-    const baseDir = path.join(rootDir, bundleName);
-    return {
-        rootDir: baseDir,
-        modelPath: path.join(baseDir, path.basename(options.targetModelPath)),
-        onnxPath: options.targetOnnxPath ? path.join(baseDir, path.basename(options.targetOnnxPath)) : null,
-        onnxMetaPath: options.targetOnnxMetaPath ? path.join(baseDir, path.basename(options.targetOnnxMetaPath)) : null,
-        cardOnnxPath: options.targetCardOnnxPath ? path.join(baseDir, path.basename(options.targetCardOnnxPath)) : null,
-        cardOnnxMetaPath: options.targetCardOnnxMetaPath ? path.join(baseDir, path.basename(options.targetCardOnnxMetaPath)) : null,
-        targetOnnxPath: options.targetTargetOnnxPath ? path.join(baseDir, path.basename(options.targetTargetOnnxPath)) : null,
-        targetOnnxMetaPath: options.targetTargetOnnxMetaPath ? path.join(baseDir, path.basename(options.targetTargetOnnxMetaPath)) : null,
-        valueOnnxPath: options.targetValueOnnxPath ? path.join(baseDir, path.basename(options.targetValueOnnxPath)) : null,
-        valueOnnxMetaPath: options.targetValueOnnxMetaPath ? path.join(baseDir, path.basename(options.targetValueOnnxMetaPath)) : null
-    };
-}
-
-function writeJson(p, value) {
-    fs.mkdirSync(path.dirname(p), { recursive: true });
-    fs.writeFileSync(p, JSON.stringify(value, null, 2), 'utf8');
-}
-
-function decorateTransferArtifact(record, sourcePath, targetPath) {
-    const classification = classifyTrainingArtifactPath(targetPath || sourcePath);
-    return Object.assign({}, record, {
-        sourcePath,
-        targetPath,
-        lifecycle: classification.lifecycle,
-        lifecycleReason: classification.reason,
-        compatibility: classification.compatibility,
-        expectedCheckpointHead: classification.expectedCheckpointHead,
-        detectedCheckpointHead: classification.detectedCheckpointHead
-    });
-}
-
-function copyRequiredFile(srcPath, targetPath, label) {
-    if (!srcPath || !fs.existsSync(srcPath)) {
-        throw new Error(`${label} is missing: ${srcPath || '(null)'}`);
-    }
-    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-    fs.copyFileSync(srcPath, targetPath);
-    return decorateTransferArtifact({
-        promoted: true,
-        skipped: false,
-        reason: null
-    }, srcPath, targetPath);
-}
-
-function promoteOptionalFile(srcPath, targetPath) {
-    if (!srcPath) {
-        return decorateTransferArtifact({
-            promoted: false,
-            skipped: true,
-            reason: 'not_requested'
-        }, null, targetPath);
-    }
-    if (!fs.existsSync(srcPath)) {
-        return decorateTransferArtifact({
-            promoted: false,
-            skipped: true,
-            reason: 'source_missing'
-        }, srcPath, targetPath);
-    }
-    const targetDir = path.dirname(targetPath);
-    fs.mkdirSync(targetDir, { recursive: true });
-    fs.copyFileSync(srcPath, targetPath);
-    return decorateTransferArtifact({
-        promoted: true,
-        skipped: false,
-        reason: null
-    }, srcPath, targetPath);
-}
-
-function archiveExistingFile(srcPath, targetPath) {
-    const archived = promoteOptionalFile(srcPath, targetPath);
-    return {
-        archived: archived.promoted,
-        skipped: archived.skipped,
-        reason: archived.reason,
-        sourcePath: archived.sourcePath,
-        targetPath: archived.targetPath,
-        lifecycle: archived.lifecycle,
-        lifecycleReason: archived.lifecycleReason,
-        compatibility: archived.compatibility,
-        expectedCheckpointHead: archived.expectedCheckpointHead,
-        detectedCheckpointHead: archived.detectedCheckpointHead
-    };
-}
+const {
+    readJson,
+    writeJson,
+    validatePolicyModel,
+    sanitizePromotionId,
+    decorateTransferArtifact,
+    copyRequiredFile,
+    promoteOptionalFile,
+    archiveExistingFile,
+    buildBundlePaths
+} = require('./promotion-helpers');
 
 function summarizeGateDecision(decision) {
     if (!decision || typeof decision !== 'object') return null;
@@ -415,6 +319,19 @@ function promoteModel(options) {
             lifecycle: classifyTrainingArtifactPath(archivePaths.rootDir).lifecycle
         }, rollback)
     };
+    // Back up existing deploy-truth per-promotionId to prevent overwrite bug
+    if (fs.existsSync(deployTruthPath)) {
+        try {
+            const existing = readJson(deployTruthPath);
+            if (existing && existing.promotionId && existing.promotionId !== promotionId) {
+                const backupName = `promotion-deploy-truth.${sanitizePromotionId(existing.promotionId)}.json`;
+                const backupPath = path.join(path.dirname(deployTruthPath), backupName);
+                if (!fs.existsSync(backupPath)) {
+                    writeJson(backupPath, existing);
+                }
+            }
+        } catch (_e) { /* best-effort backup */ }
+    }
     writeJson(deployTruthPath, deployTruth);
 
     const manifest = {

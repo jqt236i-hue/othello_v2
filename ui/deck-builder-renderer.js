@@ -259,7 +259,7 @@
         standardCard.className = 'deck-builder-preset-card deck-builder-standard-card';
         const standardTitle = document.createElement('div');
         standardTitle.className = 'deck-builder-preset-title';
-        standardTitle.textContent = '標準デッキ';
+        standardTitle.textContent = 'デフォルトデッキ';
         standardCard.appendChild(standardTitle);
         const standardSummary = document.createElement('div');
         standardSummary.className = 'deck-builder-preset-summary';

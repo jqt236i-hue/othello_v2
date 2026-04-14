@@ -1113,10 +1113,55 @@ body.auto-mode-active #cancel-card-btn {
     background: rgba(0, 0, 0, 0.18);
 }
 
+.gacha-item-fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: calc(6px * var(--layout-stage-scale));
+    border-radius: calc(8px * var(--layout-stage-scale));
+    background:
+        radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0) 56%),
+        linear-gradient(145deg, rgba(30, 22, 17, 0.94), rgba(12, 9, 8, 0.96));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.04),
+        0 0 calc(12px * var(--layout-stage-scale)) var(--gacha-rarity-shadow, rgba(0, 0, 0, 0.2));
+}
+
+.gacha-item-fallback[hidden] {
+    display: none;
+}
+
+.gacha-item-fallback-icon {
+    font-size: calc(15px * var(--layout-stage-scale));
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    color: var(--gacha-rarity-accent, #ffe4a3);
+}
+
+.gacha-item-fallback-note {
+    font-size: calc(11px * var(--layout-stage-scale));
+    font-weight: 700;
+    color: #f7ead0;
+}
+
+.gacha-result-fallback {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+}
+
 .gacha-result-name {
     font-size: calc(12px * var(--layout-stage-scale));
     font-weight: 700;
     color: #fff5d6;
+}
+
+.gacha-result-kind {
+    font-size: calc(10px * var(--layout-stage-scale));
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: rgba(255, 239, 205, 0.78);
 }
 
 .gacha-result-status {
@@ -1426,11 +1471,23 @@ body.auto-mode-active #cancel-card-btn {
     object-fit: contain;
 }
 
+.gacha-reveal-hero-fallback {
+    width: 100%;
+    height: 100%;
+}
+
 .gacha-reveal-hero-name {
     font-size: calc(18px * var(--layout-stage-scale));
     font-weight: 800;
     color: #fff5d8;
     text-align: center;
+}
+
+.gacha-reveal-hero-kind {
+    font-size: calc(11px * var(--layout-stage-scale));
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: rgba(255, 239, 210, 0.78);
 }
 
 .gacha-reveal-hero-status {
@@ -1515,18 +1572,35 @@ body.auto-mode-active #cancel-card-btn {
     line-height: 1.25;
 }
 
-.gacha-reveal-slot-image {
+.gacha-reveal-slot-visual {
     width: 100%;
     aspect-ratio: 1 / 1;
+}
+
+.gacha-reveal-slot-image {
+    width: 100%;
+    height: 100%;
     object-fit: contain;
     border-radius: calc(8px * var(--layout-stage-scale));
     background: rgba(255, 255, 255, 0.04);
+}
+
+.gacha-reveal-slot-fallback {
+    width: 100%;
+    height: 100%;
 }
 
 .gacha-reveal-slot-name {
     font-size: calc(12px * var(--layout-stage-scale));
     font-weight: 700;
     color: #f9edcf;
+}
+
+.gacha-reveal-slot-kind {
+    font-size: calc(10px * var(--layout-stage-scale));
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: rgba(255, 239, 210, 0.76);
 }
 
 .gacha-reveal-slot-status.is-new {
@@ -3281,8 +3355,9 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 
 #handSkinPanel {
     position: fixed;
-    left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
-    bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(52px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
+    left: 50%;
+    top: 50%;
+    bottom: auto;
     width: min(calc(260px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
     padding: calc(10px * var(--layout-stage-scale));
     border-radius: calc(14px * var(--layout-stage-scale));
@@ -3295,8 +3370,8 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transform: translateY(calc(8px * var(--layout-stage-scale))) scale(0.98);
-    transform-origin: left bottom;
+    transform: translate(-50%, calc(-50% + calc(8px * var(--layout-stage-scale)))) scale(0.98);
+    transform-origin: center center;
     transition: opacity 160ms ease, transform 160ms ease;
     z-index: 13024;
 }
@@ -3305,7 +3380,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
-    transform: translateY(0) scale(1);
+    transform: translate(-50%, -50%) scale(1);
 }
 
 #handSkinPanelHeader {
