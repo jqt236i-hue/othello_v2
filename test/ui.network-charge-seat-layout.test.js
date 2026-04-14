@@ -115,6 +115,28 @@ describe('network charge seat layout', () => {
     dom.window.close();
   });
 
+  test('shows deck count and ratio for the owner currently mapped to each seat slot', () => {
+    const dom = createRendererContext({ seatKey: 'white' });
+    const { window } = dom;
+
+    window.cardState.decks.black = ['b1', 'b2', 'b3'];
+    window.cardState.decks.white = ['w1'];
+    window.cardState.initialDeckSizeByPlayer = { black: 10, white: 20 };
+    window.renderCardUI();
+
+    const bottomDeckEl = window.document.getElementById('deck-black');
+    const topDeckEl = window.document.getElementById('deck-white');
+
+    expect(bottomDeckEl.dataset.ownerKey).toBe('white');
+    expect(bottomDeckEl.querySelector('.deck-count')?.textContent).toBe('1/20');
+    expect(bottomDeckEl.style.getPropertyValue('--deck-ratio')).toBe('0.05');
+    expect(topDeckEl.dataset.ownerKey).toBe('black');
+    expect(topDeckEl.querySelector('.deck-count')?.textContent).toBe('3/10');
+    expect(topDeckEl.style.getPropertyValue('--deck-ratio')).toBe('0.3');
+
+    dom.window.close();
+  });
+
   test('shows the time stop active badge near the top HUD for the controlling viewer', () => {
     const dom = createRendererContext({ seatKey: 'white' });
     const { window } = dom;

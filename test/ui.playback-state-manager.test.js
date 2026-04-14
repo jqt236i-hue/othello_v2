@@ -16,6 +16,9 @@ describe('PlaybackStateManager runtime helpers', () => {
   afterEach(() => {
     try {
       const manager = require('../ui/playback-state-manager');
+      if (manager && typeof manager.clearPlaybackLock === 'function') {
+        manager.clearPlaybackLock();
+      }
       if (manager && typeof manager.clearDebugRuntime === 'function') {
         manager.clearDebugRuntime();
       }
@@ -61,6 +64,61 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(manager.getProcessing()).toBe(false);
     expect(global.window.isCardAnimating).toBe(false);
     expect(global.window.isProcessing).toBe(false);
+  });
+
+  test('playback stale helpers reflect animation engine state and configured timeout', () => {
+    const manager = require('../ui/playback-state-manager');
+
+    global.window.PASS_STALE_PLAYBACK_MS = 2500;
+    global.window.AnimationEngine = { isPlaying: true };
+
+    manager.setPlaybackActive(true);
+    manager.setPlaybackStartedAt(1000);
+
+    expect(manager.getPlaybackStaleMs()).toBe(2500);
+    expect(manager.isPlaybackRunning()).toBe(true);
+    expect(manager.isPlaybackStale()).toBe(false);
+
+    global.window.AnimationEngine.isPlaying = false;
+    expect(manager.isPlaybackRunning()).toBe(false);
+    expect(manager.isPlaybackStale()).toBe(true);
+  });
+
+  test('playback stale helpers fall back to elapsed playback time when engine state is unavailable', () => {
+    const manager = require('../ui/playback-state-manager');
+
+    global.window.PASS_STALE_PLAYBACK_MS = 2000;
+    delete global.window.AnimationEngine;
+
+    manager.setPlaybackActive(true);
+    manager.setPlaybackStartedAt(1000);
+
+    jest.setSystemTime(2500);
+    expect(manager.isPlaybackRunning()).toBe(true);
+    expect(manager.isPlaybackStale()).toBe(false);
+
+    jest.setSystemTime(3101);
+    expect(manager.isPlaybackStale()).toBe(true);
+  });
+
+  test('clearPlaybackLock clears startedAt so the next playback starts fresh', () => {
+    const manager = require('../ui/playback-state-manager');
+
+    delete global.window.AnimationEngine;
+    global.window.PASS_STALE_PLAYBACK_MS = 2000;
+
+    manager.beginPlayback({ startedAt: 1000 });
+    jest.setSystemTime(4005);
+    expect(manager.isPlaybackStale()).toBe(true);
+
+    manager.clearPlaybackLock();
+    expect(manager.getPlaybackStartedAt()).toBeNull();
+    expect(global.window.__playbackActiveSince).toBeNull();
+
+    jest.setSystemTime(5000);
+    manager.beginPlayback();
+    expect(manager.getPlaybackStartedAt()).toBe(5000);
+    expect(manager.isPlaybackStale()).toBe(false);
   });
 
   test('ensureDebugRuntime aborts stuck playback that was started through the manager', () => {

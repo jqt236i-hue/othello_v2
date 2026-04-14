@@ -34,6 +34,85 @@
         return parseSeatKeyOptional(value);
     }
 
+    function getOpposingPlayerKey(playerKey) {
+        const ownerKey = normalizePlayerKeyOptional(playerKey);
+        if (!ownerKey) return null;
+        return ownerKey === 'black' ? 'white' : 'black';
+    }
+
+    function resolveVisibleOwnerLayout(layout) {
+        const config = (layout && typeof layout === 'object') ? layout : {};
+        const fallbackBottomOwnerKey = normalizePlayerKey(
+            config.defaultBottomOwnerKey,
+            'black'
+        );
+        const fallbackTopOwnerKey = normalizePlayerKey(
+            config.defaultTopOwnerKey,
+            getOpposingPlayerKey(fallbackBottomOwnerKey) || 'white'
+        );
+        const rawBottomOwnerKey = Object.prototype.hasOwnProperty.call(config, 'bottomOwnerKey')
+            ? config.bottomOwnerKey
+            : config.bottomSlotOwnerKey;
+        const rawTopOwnerKey = Object.prototype.hasOwnProperty.call(config, 'topOwnerKey')
+            ? config.topOwnerKey
+            : config.topSlotOwnerKey;
+        const bottomOwnerKey = normalizePlayerKey(rawBottomOwnerKey, fallbackBottomOwnerKey);
+        let topOwnerKey = normalizePlayerKey(rawTopOwnerKey, fallbackTopOwnerKey);
+        if (topOwnerKey === bottomOwnerKey) {
+            topOwnerKey = getOpposingPlayerKey(bottomOwnerKey) || fallbackTopOwnerKey;
+        }
+        return {
+            bottomOwnerKey,
+            topOwnerKey
+        };
+    }
+
+    function getElementOwnerKey(element) {
+        if (!element || typeof element !== 'object') return null;
+        const datasetOwnerKey = element.dataset && Object.prototype.hasOwnProperty.call(element.dataset, 'ownerKey')
+            ? element.dataset.ownerKey
+            : null;
+        if (datasetOwnerKey !== null && typeof datasetOwnerKey !== 'undefined' && datasetOwnerKey !== '') {
+            return normalizePlayerKeyOptional(datasetOwnerKey);
+        }
+        try {
+            if (typeof element.getAttribute === 'function') {
+                return normalizePlayerKeyOptional(element.getAttribute('data-owner-key'));
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function filterOwnerMatchedElements(elements, ownerKey) {
+        const targetOwnerKey = normalizePlayerKey(ownerKey, 'black');
+        const candidates = Array.isArray(elements) ? elements : [];
+        return candidates.filter((element) => getElementOwnerKey(element) === targetOwnerKey);
+    }
+
+    function resolveOwnerMatchedElement(elements, ownerKey, fallbackElement) {
+        const matched = filterOwnerMatchedElements(elements, ownerKey);
+        if (matched.length > 0) return matched[0];
+        return fallbackElement || null;
+    }
+
+    function resolveVisibleOwnerLayoutFromElements(bottomElement, topElement, layout) {
+        const config = (layout && typeof layout === 'object') ? layout : {};
+        return resolveVisibleOwnerLayout({
+            bottomOwnerKey: getElementOwnerKey(bottomElement),
+            topOwnerKey: getElementOwnerKey(topElement),
+            defaultBottomOwnerKey: config.defaultBottomOwnerKey || config.bottomOwnerKey || config.bottomSlotOwnerKey || 'black',
+            defaultTopOwnerKey: config.defaultTopOwnerKey || config.topOwnerKey || config.topSlotOwnerKey || 'white'
+        });
+    }
+
+    function isOwnerOnBottomSlot(ownerKey, bottomElement, topElement, layout) {
+        const normalizedOwnerKey = normalizePlayerKey(ownerKey, 'black');
+        const visibleOwners = resolveVisibleOwnerLayoutFromElements(bottomElement, topElement, layout);
+        if (visibleOwners.bottomOwnerKey === normalizedOwnerKey) return true;
+        if (visibleOwners.topOwnerKey === normalizedOwnerKey) return false;
+        return normalizedOwnerKey === 'black';
+    }
+
     function isHiddenHandToken(value) {
         return typeof value === 'string' && HIDDEN_HAND_TOKEN_RE.test(value);
     }
@@ -196,6 +275,13 @@
         parseSeatKeyOptional: parseSeatKeyOptional,
         normalizePlayerKey: normalizePlayerKey,
         normalizePlayerKeyOptional: normalizePlayerKeyOptional,
+        getOpposingPlayerKey: getOpposingPlayerKey,
+        resolveVisibleOwnerLayout: resolveVisibleOwnerLayout,
+        getElementOwnerKey: getElementOwnerKey,
+        filterOwnerMatchedElements: filterOwnerMatchedElements,
+        resolveOwnerMatchedElement: resolveOwnerMatchedElement,
+        resolveVisibleOwnerLayoutFromElements: resolveVisibleOwnerLayoutFromElements,
+        isOwnerOnBottomSlot: isOwnerOnBottomSlot,
         isHiddenHandToken: isHiddenHandToken,
         resolveLocalPlayerKey: resolveLocalPlayerKey,
         getFateWillControllerForTurnOwner: getFateWillControllerForTurnOwner,

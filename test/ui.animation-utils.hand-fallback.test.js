@@ -394,6 +394,54 @@ describe('animation-utils hand fallback', () => {
     expect(latestCard.style.getPropertyValue('--card-fade-in-duration')).toBe('1s');
   });
 
+  test('playDirectHandAddAnimation clears fade classes after animation end', async () => {
+    global.renderCardUI.mockImplementation(() => {
+      document.getElementById('hand-black').innerHTML = '<div class="card-item card-fade-prep"></div>';
+    });
+
+    const mod = require('../ui/animation-utils');
+
+    await expect(mod.playDirectHandAddAnimation({
+      player: 'black',
+      cardId: 'triple_01',
+      count: 1,
+      reason: 'generated_throw_chain'
+    })).resolves.toBeUndefined();
+
+    const latestCard = document.querySelector('#hand-black .card-item:last-child');
+    expect(latestCard).toBeTruthy();
+    expect(latestCard.classList.contains('card-fade-in')).toBe(true);
+    expect(latestCard.style.getPropertyValue('--card-fade-in-duration')).toBe('1s');
+
+    latestCard.dispatchEvent(new window.Event('animationend'));
+
+    expect(latestCard.classList.contains('card-fade-prep')).toBe(false);
+    expect(latestCard.classList.contains('card-fade-in')).toBe(false);
+    expect(latestCard.style.getPropertyValue('--card-fade-in-duration')).toBe('');
+  });
+
+  test('settleOwnerHandFadeIn clears queued fade state on the owner-matched hand when seats are swapped', () => {
+    const handBottom = document.getElementById('hand-black');
+    const handTop = document.getElementById('hand-white');
+    handBottom.dataset.ownerKey = 'white';
+    handTop.dataset.ownerKey = 'black';
+    handTop.innerHTML = '<div class="card-item card-fade-in" data-card-id="queued" style="--card-fade-in-duration: 1s;"></div>';
+    window.__handFadeInState = { playerKey: 'black', count: 1, token: 'fade-token' };
+    window.__handFadeInHint = { playerKey: 'black', count: 1, token: 'fade-token' };
+
+    const mod = require('../ui/animation-utils');
+    expect(mod.getQueuedHandFadeInState()).toMatchObject({ playerKey: 'black', count: 1, token: 'fade-token' });
+
+    mod.settleOwnerHandFadeIn('black');
+
+    const queuedCard = handTop.querySelector('.card-item');
+    expect(queuedCard.classList.contains('card-fade-prep')).toBe(false);
+    expect(queuedCard.classList.contains('card-fade-in')).toBe(false);
+    expect(queuedCard.style.getPropertyValue('--card-fade-in-duration')).toBe('');
+    expect(window.__handFadeInState).toBeNull();
+    expect(window.__handFadeInHint).toBeNull();
+  });
+
   test('playDirectHandAddAnimation keeps default fade duration for non throw-chain hand adds', async () => {
     global.renderCardUI.mockImplementation(() => {
       document.getElementById('hand-black').innerHTML = '<div class="card-item card-fade-prep" style="--card-fade-in-duration: 1s;"></div>';
