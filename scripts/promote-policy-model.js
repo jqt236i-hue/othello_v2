@@ -244,6 +244,7 @@ function summarizeGatePayload(filePath) {
     const summary = {
         path: filePath,
         exists: fs.existsSync(filePath),
+        status: fs.existsSync(filePath) ? 'present' : 'missing',
         lifecycle: classification.lifecycle,
         lifecycleReason: classification.reason,
         compatibility: classification.compatibility,
@@ -256,6 +257,10 @@ function summarizeGatePayload(filePath) {
     };
     if (!summary.exists) return summary;
     const payload = readJson(filePath);
+    if (!payload || typeof payload !== 'object') {
+        summary.status = 'unreadable';
+        return summary;
+    }
     summary.generatedAt = payload && payload.generatedAt ? payload.generatedAt : null;
     summary.gateType = payload && payload.gateType ? payload.gateType : null;
     summary.gateFamily = payload && payload.gateFamily ? payload.gateFamily : null;
@@ -299,6 +304,7 @@ function promoteModel(options) {
     const promotedDir = options.promotedDir || path.resolve(process.cwd(), 'data', 'models', 'promoted');
     const archiveDir = options.archiveDir || path.resolve(process.cwd(), 'data', 'models', 'archive');
     const manifestPath = options.manifestPath || path.join(promotedDir, 'promotion-manifest.json');
+    const deployTruthPath = options.deployTruthPath || path.join(promotedDir, 'promotion-deploy-truth.json');
     const targetDir = path.dirname(options.targetModelPath);
     fs.mkdirSync(targetDir, { recursive: true });
     const candidateOnnxPath = options.candidateOnnxPath || null;
@@ -370,6 +376,47 @@ function promoteModel(options) {
         valueOnnxMetaPath: archivedChampion.valueOnnxMeta.archived ? archivedChampion.valueOnnxMeta.targetPath : null
     };
 
+    const deployTruth = {
+        schemaVersion: 'policy_promotion_deploy_truth.v1',
+        promotionId,
+        promotedAt,
+        manifestPath,
+        candidateModelPath: options.candidateModelPath,
+        deployed: {
+            lifecycle: classifyTrainingArtifactPath(options.targetModelPath).lifecycle,
+            modelPath: options.targetModelPath,
+            onnxPath: options.targetOnnxPath,
+            onnxMetaPath: options.targetOnnxMetaPath,
+            cardOnnxPath: options.targetCardOnnxPath,
+            cardOnnxMetaPath: options.targetCardOnnxMetaPath,
+            targetOnnxPath: options.targetTargetOnnxPath,
+            targetOnnxMetaPath: options.targetTargetOnnxMetaPath,
+            valueOnnxPath: options.targetValueOnnxPath,
+            valueOnnxMetaPath: options.targetValueOnnxMetaPath
+        },
+        champion: Object.assign({
+            lifecycle: classifyTrainingArtifactPath(championPaths.rootDir).lifecycle
+        }, championPaths),
+        archive: {
+            lifecycle: classifyTrainingArtifactPath(archivePaths.rootDir).lifecycle,
+            bundleId: promotionId,
+            rootDir: archivePaths.rootDir,
+            model: archivedChampion.model,
+            onnx: archivedChampion.onnx,
+            onnxMeta: archivedChampion.onnxMeta,
+            cardOnnx: archivedChampion.cardOnnx,
+            cardOnnxMeta: archivedChampion.cardOnnxMeta,
+            targetOnnx: archivedChampion.targetOnnx,
+            targetOnnxMeta: archivedChampion.targetOnnxMeta,
+            valueOnnx: archivedChampion.valueOnnx,
+            valueOnnxMeta: archivedChampion.valueOnnxMeta
+        },
+        rollback: Object.assign({
+            lifecycle: classifyTrainingArtifactPath(archivePaths.rootDir).lifecycle
+        }, rollback)
+    };
+    writeJson(deployTruthPath, deployTruth);
+
     const manifest = {
         schemaVersion: 'policy_promotion.v3',
         promotionId,
@@ -429,6 +476,8 @@ function promoteModel(options) {
             onnx: summarizeGatePayload(options.onnxGatePayloadPath)
         },
         trainingWarehouse: buildArtifactReference(options.warehouseManifestPath),
+        deployTruthPath,
+        deployTruth: buildArtifactReference(deployTruthPath),
         rollback: Object.assign({
             lifecycle: classifyTrainingArtifactPath(archivePaths.rootDir).lifecycle
         }, rollback)
@@ -453,7 +502,8 @@ function promoteModel(options) {
         promotionId,
         rollback,
         forced: !!options.force,
-        promotedAt
+        promotedAt,
+        deployTruthPath
     };
 }
 

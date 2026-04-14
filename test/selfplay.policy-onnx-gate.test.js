@@ -9,116 +9,162 @@ const {
     computeOnnxGateDecision
 } = require('../scripts/benchmark-policy-onnx-gate');
 
+function writeOnnxPair(onnxPath, tag) {
+    const metaPath = `${onnxPath}.meta.json`;
+    fs.mkdirSync(path.dirname(onnxPath), { recursive: true });
+    fs.writeFileSync(onnxPath, Buffer.from([1, 2, 3]));
+    fs.writeFileSync(metaPath, JSON.stringify({ schemaVersion: 'policy_onnx.v1', tag }), 'utf8');
+    return { onnxPath, metaPath };
+}
+
 describe('selfplay onnx gate benchmark script', () => {
     test('parseArgs requires candidate onnx path', () => {
-        expect(() => parseArgs(['--games', '2'])).toThrow('--candidate-onnx is required');
+        const modelsDir = path.resolve(__dirname, '..', 'data', 'models');
+        const target = writeOnnxPair(path.join(modelsDir, 'policy-net.onnx-gate.required.target.onnx'), 'target');
+        try {
+            expect(() => parseArgs([
+                '--games', '2',
+                '--target-onnx', target.onnxPath,
+                '--target-onnx-meta', target.metaPath
+            ])).toThrow('--candidate-onnx is required');
+        } finally {
+            fs.unlinkSync(target.onnxPath);
+            fs.unlinkSync(target.metaPath);
+        }
     });
 
     test('parseArgs infers candidate meta path', () => {
         const modelsDir = path.resolve(__dirname, '..', 'data', 'models');
         const onnxPath = path.join(modelsDir, 'policy-net.onnx-gate.test.onnx');
         const metaPath = `${onnxPath}.meta.json`;
-        fs.mkdirSync(modelsDir, { recursive: true });
-        fs.writeFileSync(onnxPath, Buffer.from([1, 2, 3]));
-        fs.writeFileSync(metaPath, JSON.stringify({ schemaVersion: 'policy_onnx.v1' }), 'utf8');
+        const target = writeOnnxPair(path.join(modelsDir, 'policy-net.onnx-gate.test.target.onnx'), 'target');
+        writeOnnxPair(onnxPath, 'candidate');
 
-        const args = parseArgs([
-            '--games', '4',
-            '--seed-count', '3',
-            '--min-seed-pass-count', '2',
-            '--max-average-latency-ms', '18',
-            '--max-p95-latency-ms', '24',
-            '--max-max-latency-ms', '40',
-            '--candidate-onnx', onnxPath
-        ]);
-        expect(args.games).toBe(4);
-        expect(args.seedCount).toBe(3);
-        expect(args.minSeedPassCount).toBe(2);
-        expect(args.maxAverageLatencyMs).toBe(18);
-        expect(args.maxP95LatencyMs).toBe(24);
-        expect(args.maxMaxLatencyMs).toBe(40);
-        expect(args.candidateOnnxMetaPath).toBe(metaPath);
-
-        fs.unlinkSync(onnxPath);
-        fs.unlinkSync(metaPath);
+        try {
+            const args = parseArgs([
+                '--games', '4',
+                '--seed-count', '3',
+                '--min-seed-pass-count', '2',
+                '--max-average-latency-ms', '18',
+                '--max-p95-latency-ms', '24',
+                '--max-max-latency-ms', '40',
+                '--candidate-onnx', onnxPath,
+                '--target-onnx', target.onnxPath,
+                '--target-onnx-meta', target.metaPath
+            ]);
+            expect(args.games).toBe(4);
+            expect(args.seedCount).toBe(3);
+            expect(args.minSeedPassCount).toBe(2);
+            expect(args.maxAverageLatencyMs).toBe(18);
+            expect(args.maxP95LatencyMs).toBe(24);
+            expect(args.maxMaxLatencyMs).toBe(40);
+            expect(args.candidateOnnxMetaPath).toBe(metaPath);
+        } finally {
+            fs.unlinkSync(onnxPath);
+            fs.unlinkSync(metaPath);
+            fs.unlinkSync(target.onnxPath);
+            fs.unlinkSync(target.metaPath);
+        }
     });
 
     test('parseArgs normalizes fractional loop counts to integers', () => {
         const modelsDir = path.resolve(__dirname, '..', 'data', 'models');
         const onnxPath = path.join(modelsDir, 'policy-net.onnx-gate.integerize.test.onnx');
         const metaPath = `${onnxPath}.meta.json`;
-        fs.mkdirSync(modelsDir, { recursive: true });
-        fs.writeFileSync(onnxPath, Buffer.from([13, 14, 15]));
-        fs.writeFileSync(metaPath, JSON.stringify({ schemaVersion: 'policy_onnx.v1' }), 'utf8');
+        const target = writeOnnxPair(path.join(modelsDir, 'policy-net.onnx-gate.integerize.target.onnx'), 'target');
+        writeOnnxPair(onnxPath, 'candidate');
 
-        const args = parseArgs([
-            '--candidate-onnx', onnxPath,
-            '--games', '4.9',
-            '--seed-count', '3.7',
-            '--seed-stride', '777.8'
-        ]);
+        try {
+            const args = parseArgs([
+                '--candidate-onnx', onnxPath,
+                '--target-onnx', target.onnxPath,
+                '--target-onnx-meta', target.metaPath,
+                '--games', '4.9',
+                '--seed-count', '3.7',
+                '--seed-stride', '777.8'
+            ]);
 
-        expect(args.games).toBe(4);
-        expect(args.seedCount).toBe(3);
-        expect(args.seedStride).toBe(777);
-
-        fs.unlinkSync(onnxPath);
-        fs.unlinkSync(metaPath);
+            expect(args.games).toBe(4);
+            expect(args.seedCount).toBe(3);
+            expect(args.seedStride).toBe(777);
+        } finally {
+            fs.unlinkSync(onnxPath);
+            fs.unlinkSync(metaPath);
+            fs.unlinkSync(target.onnxPath);
+            fs.unlinkSync(target.metaPath);
+        }
     });
 
     test('parseArgs accepts match retries and rejects negative value', () => {
         const modelsDir = path.resolve(__dirname, '..', 'data', 'models');
         const onnxPath = path.join(modelsDir, 'policy-net.onnx-gate.retry.test.onnx');
         const metaPath = `${onnxPath}.meta.json`;
-        fs.mkdirSync(modelsDir, { recursive: true });
-        fs.writeFileSync(onnxPath, Buffer.from([4, 5, 6]));
-        fs.writeFileSync(metaPath, JSON.stringify({ schemaVersion: 'policy_onnx.v1' }), 'utf8');
+        const target = writeOnnxPair(path.join(modelsDir, 'policy-net.onnx-gate.retry.target.onnx'), 'target');
+        writeOnnxPair(onnxPath, 'candidate');
 
-        const args = parseArgs([
-            '--candidate-onnx', onnxPath,
-            '--match-retries', '2'
-        ]);
-        expect(args.matchRetries).toBe(2);
+        try {
+            const args = parseArgs([
+                '--candidate-onnx', onnxPath,
+                '--target-onnx', target.onnxPath,
+                '--target-onnx-meta', target.metaPath,
+                '--match-retries', '2'
+            ]);
+            expect(args.matchRetries).toBe(2);
 
-        expect(() => parseArgs([
-            '--candidate-onnx', onnxPath,
-            '--match-retries', '-1'
-        ])).toThrow('--match-retries must be >= 0');
-
-        fs.unlinkSync(onnxPath);
-        fs.unlinkSync(metaPath);
+            expect(() => parseArgs([
+                '--candidate-onnx', onnxPath,
+                '--target-onnx', target.onnxPath,
+                '--target-onnx-meta', target.metaPath,
+                '--match-retries', '-1'
+            ])).toThrow('--match-retries must be >= 0');
+        } finally {
+            fs.unlinkSync(onnxPath);
+            fs.unlinkSync(metaPath);
+            fs.unlinkSync(target.onnxPath);
+            fs.unlinkSync(target.metaPath);
+        }
     });
 
     test('parseArgs accepts white-only candidate color mode', () => {
         const modelsDir = path.resolve(__dirname, '..', 'data', 'models');
         const onnxPath = path.join(modelsDir, 'policy-net.onnx-gate.color.test.onnx');
         const metaPath = `${onnxPath}.meta.json`;
-        fs.mkdirSync(modelsDir, { recursive: true });
-        fs.writeFileSync(onnxPath, Buffer.from([7, 8, 9]));
-        fs.writeFileSync(metaPath, JSON.stringify({ schemaVersion: 'policy_onnx.v1' }), 'utf8');
+        const target = writeOnnxPair(path.join(modelsDir, 'policy-net.onnx-gate.color.target.onnx'), 'target');
+        writeOnnxPair(onnxPath, 'candidate');
 
-        const args = parseArgs([
-            '--candidate-onnx', onnxPath,
-            '--candidate-color-mode', 'white'
-        ]);
-        expect(args.candidateColorMode).toBe('white');
+        try {
+            const args = parseArgs([
+                '--candidate-onnx', onnxPath,
+                '--target-onnx', target.onnxPath,
+                '--target-onnx-meta', target.metaPath,
+                '--candidate-color-mode', 'white'
+            ]);
+            expect(args.candidateColorMode).toBe('white');
 
-        expect(() => parseArgs([
-            '--candidate-onnx', onnxPath,
-            '--candidate-color-mode', 'black'
-        ])).toThrow('--candidate-color-mode must be one of: both, white');
-
-        fs.unlinkSync(onnxPath);
-        fs.unlinkSync(metaPath);
+            expect(() => parseArgs([
+                '--candidate-onnx', onnxPath,
+                '--target-onnx', target.onnxPath,
+                '--target-onnx-meta', target.metaPath,
+                '--candidate-color-mode', 'black'
+            ])).toThrow('--candidate-color-mode must be one of: both, white');
+        } finally {
+            fs.unlinkSync(onnxPath);
+            fs.unlinkSync(metaPath);
+            fs.unlinkSync(target.onnxPath);
+            fs.unlinkSync(target.metaPath);
+        }
     });
 
     test('parseArgs applies defaults from resolved config', () => {
         const tempDir = fs.mkdtempSync(path.join(__dirname, '..', 'data', 'models', 'onnx-gate-resolved-'));
         const candidateOnnxPath = path.join(tempDir, 'candidate.onnx');
         const candidateMetaPath = `${candidateOnnxPath}.meta.json`;
+        const targetOnnxPath = path.join(tempDir, 'policy-net.onnx');
+        const targetMetaPath = `${targetOnnxPath}.meta.json`;
         const resolvedConfigPath = path.join(tempDir, 'resolved-config.json');
         fs.writeFileSync(candidateOnnxPath, Buffer.from([10, 11, 12]));
         fs.writeFileSync(candidateMetaPath, JSON.stringify({ schemaVersion: 'policy_onnx.v1' }), 'utf8');
+        writeOnnxPair(targetOnnxPath, 'target');
         fs.writeFileSync(resolvedConfigPath, JSON.stringify({
             paths: {
                 modelsDir: tempDir
@@ -163,8 +209,8 @@ describe('selfplay onnx gate benchmark script', () => {
             expect(args.blackLevel).toBe(5);
             expect(args.whiteLevel).toBe(6);
             expect(args.candidateColorMode).toBe('white');
-            expect(args.targetOnnxPath).toBe(path.join(tempDir, 'policy-net.onnx'));
-            expect(args.targetOnnxMetaPath).toBe(path.join(tempDir, 'policy-net.onnx.meta.json'));
+            expect(args.targetOnnxPath).toBe(targetOnnxPath);
+            expect(args.targetOnnxMetaPath).toBe(targetMetaPath);
         } finally {
             fs.rmSync(tempDir, { recursive: true, force: true });
         }

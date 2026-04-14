@@ -56,6 +56,7 @@ describe('selfplay policy rollback', () => {
         });
 
         expect(rolledBack.promotionId).toBe('2026-03-08T20-00-00-000Z');
+        expect(rolledBack.deployTruthPath).toBe(path.join(promotedDir, 'promotion-deploy-truth.json'));
         expect(JSON.parse(fs.readFileSync(target, 'utf8'))).toEqual(previousPayload);
         expect(fs.readFileSync(targetOnnx, 'utf8')).toBe('old-onnx');
         expect(JSON.parse(fs.readFileSync(path.join(promotedDir, 'champion', 'policy-table.json'), 'utf8'))).toEqual(previousPayload);

@@ -335,7 +335,7 @@ npm run selfplay:train-preset:cards -- --max-hours 6 --seed 1
 - 各反復で `data/models/policy-net.candidate.<tag>.itXX.onnx` と `.meta.json` が保存される。
 - 各反復で `data/models/policy-net.candidate.<tag>.itXX.checkpoint.pt` が保存される。
 - 候補モデルは `data/models/policy-table.candidate.<tag>.itXX.json` に保存される。
-- `promotion-manifest.json` と `training-warehouse.*.json` には `lifecycle` が付くので、`data/models/promoted/champion` は active、`data/models/archive` は archived、`data/runs/*` と candidate 出力は experimental と読める。
+- `promotion-manifest.json` は昇格試行の記録、`promotion-deploy-truth.json` は現在の配備状態の記録として読む。`training-warehouse.*.json` には `lifecycle` が付くので、`data/models/promoted/champion` は active、`data/models/archive` は archived、`data/runs/*` と candidate 出力は experimental と読める。
 - チェックポイント名が head と合わないものは manifest 上で incompatible として扱われる。
 - `--onnx-gate` を有効にした場合、最終採用前にブラウザ実行ONNXゲートが走る。
 - 最終判定とONNXゲート通過時のみ `policy-table.json` / `policy-net.onnx` へ自動昇格する（`--no-promote` 指定時を除く）。

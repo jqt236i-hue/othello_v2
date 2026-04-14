@@ -50,6 +50,11 @@ describe('shared cpu lv6 runtime capability', () => {
     ).toEqual(cpuLv6SharedProfile.browser.lookaheadTimeCaps.black);
   });
 
+  test('shared helper exposes teacher profile and lookahead weights from the shared profile', () => {
+    expect(CpuLv6RuntimeCapability.resolveCpuLv6TeacherProfile(cpuLv6SharedProfile)).toBe(cpuLv6SharedProfile.teacher);
+    expect(CpuLv6RuntimeCapability.resolveCpuLv6LookaheadWeights(cpuLv6SharedProfile)).toEqual(cpuLv6SharedProfile.browser.lookaheadWeights);
+  });
+
   test('standard-board compatibility helper only accepts 8x8 boards', () => {
     expect(
       CpuLv6RuntimeCapability.isStandardBoardCpuPolicyCompatible(

@@ -20,6 +20,11 @@ if (typeof require === 'function') {
     try { CpuPolicyCore = require('./cpu-policy-core'); } catch (e) { /* ignore */ }
 }
 
+let CpuLv6RuntimeCapabilityModule = null;
+if (typeof require === 'function') {
+    try { CpuLv6RuntimeCapabilityModule = require('../../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
+}
+
 const countBoardEmpties = (BoardUtils && typeof BoardUtils.countBoardEmpties === 'function')
     ? BoardUtils.countBoardEmpties
     : function countBoardEmptiesFallback(board) {
@@ -61,15 +66,38 @@ function resolveCpuLv6SharedProfile() {
     return sharedProfile && typeof sharedProfile === 'object' ? sharedProfile : null;
 }
 
+function resolveCpuLv6RuntimeCapabilityModule() {
+    try {
+        if (
+            typeof globalThis !== 'undefined' &&
+            globalThis.CpuLv6RuntimeCapability &&
+            typeof globalThis.CpuLv6RuntimeCapability.resolveCpuLv6BrowserRuntimeCapability === 'function'
+        ) {
+            return globalThis.CpuLv6RuntimeCapability;
+        }
+    } catch (e) { /* ignore */ }
+    return CpuLv6RuntimeCapabilityModule && typeof CpuLv6RuntimeCapabilityModule === 'object'
+        ? CpuLv6RuntimeCapabilityModule
+        : null;
+}
+
 function resolveCpuLv6BrowserProfile() {
+    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
     const shared = resolveCpuLv6SharedProfile();
+    if (capabilityModule && typeof capabilityModule.resolveCpuLv6BrowserProfile === 'function') {
+        return capabilityModule.resolveCpuLv6BrowserProfile(shared);
+    }
     return shared && shared.browser && typeof shared.browser === 'object'
         ? shared.browser
         : null;
 }
 
 function resolveCpuLv6TeacherProfile() {
+    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
     const shared = resolveCpuLv6SharedProfile();
+    if (capabilityModule && typeof capabilityModule.resolveCpuLv6TeacherProfile === 'function') {
+        return capabilityModule.resolveCpuLv6TeacherProfile(shared);
+    }
     return shared && shared.teacher && typeof shared.teacher === 'object'
         ? shared.teacher
         : null;
@@ -314,14 +342,19 @@ function buildLv6LookaheadOptions(level, board, legalMovesCount, playerKey, runt
 }
 
 function resolveLv6LookaheadWeights() {
+    const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
+    const shared = resolveCpuLv6SharedProfile();
+    if (capabilityModule && typeof capabilityModule.resolveCpuLv6LookaheadWeights === 'function') {
+        return capabilityModule.resolveCpuLv6LookaheadWeights(shared);
+    }
     const browserProfile = resolveCpuLv6BrowserProfile();
     const configured = browserProfile && browserProfile.lookaheadWeights && typeof browserProfile.lookaheadWeights === 'object'
         ? browserProfile.lookaheadWeights
         : null;
     return {
-        onnxRefinePriorWeight: Number(configured && configured.onnxRefinePriorWeight) || 62,
-        policyLookaheadPriorWeight: Number(configured && configured.policyLookaheadPriorWeight) || 58,
-        searchWeight: Number(configured && configured.searchWeight) || 1.55
+        onnxRefinePriorWeight: Number(configured && configured.onnxRefinePriorWeight) || 66,
+        policyLookaheadPriorWeight: Number(configured && configured.policyLookaheadPriorWeight) || 62,
+        searchWeight: Number(configured && configured.searchWeight) || 1.8
     };
 }
 

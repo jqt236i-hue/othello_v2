@@ -23,6 +23,18 @@ describe('board-renderer fallback legal hints', () => {
     global.renderBoardDiff = jest.fn();
     global.updateOccupancyUI = jest.fn();
     global.renderCardUI = jest.fn();
+    global.SoundEngine = {
+      bgm: { paused: false },
+      allowBgmPlay: true,
+      pauseBgm: jest.fn(function () {
+        this.allowBgmPlay = false;
+        this.bgm.paused = true;
+      }),
+      playBgm: jest.fn(function () {
+        this.allowBgmPlay = true;
+        this.bgm.paused = false;
+      })
+    };
 
     global.CardLogic = {
       getCardContext: () => ({
@@ -67,6 +79,7 @@ describe('board-renderer fallback legal hints', () => {
     delete global.renderBoardDiff;
     delete global.updateOccupancyUI;
     delete global.renderCardUI;
+    delete global.SoundEngine;
     delete global.CardLogic;
     delete global.gameState;
     delete global.cardState;
@@ -260,7 +273,7 @@ describe('board-renderer fallback legal hints', () => {
     expect(global.renderCardUI).not.toHaveBeenCalled();
   });
 
-  test('renderBoard toggles time-stop-active class from card state', () => {
+  test('renderBoard toggles time-stop-active class from card state and pauses/resumes BGM', () => {
     const boardRenderer = require('../ui/board-renderer');
 
     global.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 1, white: 0 };
@@ -268,12 +281,29 @@ describe('board-renderer fallback legal hints', () => {
 
     expect(document.documentElement.classList.contains('time-stop-active')).toBe(true);
     expect(document.body.classList.contains('time-stop-active')).toBe(true);
+    expect(global.SoundEngine.pauseBgm).toHaveBeenCalledTimes(1);
 
     global.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 0, white: 0 };
     boardRenderer.renderBoard();
 
     expect(document.documentElement.classList.contains('time-stop-active')).toBe(false);
     expect(document.body.classList.contains('time-stop-active')).toBe(false);
+    expect(global.SoundEngine.playBgm).toHaveBeenCalledTimes(1);
+  });
+
+  test('renderBoard does not resume BGM if time stop started while BGM was already paused', () => {
+    global.SoundEngine.allowBgmPlay = false;
+    global.SoundEngine.bgm.paused = true;
+    const boardRenderer = require('../ui/board-renderer');
+
+    global.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 1, white: 0 };
+    boardRenderer.renderBoard();
+
+    global.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 0, white: 0 };
+    boardRenderer.renderBoard();
+
+    expect(global.SoundEngine.pauseBgm).not.toHaveBeenCalled();
+    expect(global.SoundEngine.playBgm).not.toHaveBeenCalled();
   });
 
   test('renderBoardFull adds time-stop legal emphasis to legal cells during time stop', () => {
