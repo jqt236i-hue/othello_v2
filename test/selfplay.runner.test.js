@@ -152,6 +152,26 @@ describe('selfplay runner', () => {
         }
     });
 
+    test('records grouped split metadata on every selfplay record', () => {
+        const result = runSelfPlayGames({
+            games: 2,
+            baseSeed: 31,
+            gameIndexOffset: 900,
+            maxPlies: 80,
+            allowCardUsage: false,
+            seedFamily: 'eval',
+            dataLane: 'eval-main'
+        });
+
+        expect(result.records.length).toBeGreaterThan(0);
+        expect([...new Set(result.records.map((rec) => rec.gameIndex))].sort((a, b) => a - b)).toEqual([900, 901]);
+        for (const rec of result.records) {
+            expect([900, 901]).toContain(rec.gameIndex);
+            expect(rec.seedFamily).toBe('eval');
+            expect(rec.dataLane).toBe('eval-main');
+        }
+    });
+
     test('cards enabled smoke run does not throw', () => {
         const result = runSelfPlayGames({
             games: 1,

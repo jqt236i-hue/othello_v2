@@ -13,7 +13,10 @@ const {
 } = require('../scripts/training-warehouse-manifest-utils');
 const {
     buildGenerateSelfplayDataArgs,
-    buildPolicyTrainingCommandArgs
+    buildPolicyTrainingCommandArgs,
+    buildCardTrainingCommandArgs,
+    buildTargetTrainingCommandArgs,
+    buildValueTrainingCommandArgs
 } = require('../scripts/training-cycle-command-builders');
 const {
     buildTrainingCycleSummaryPayload
@@ -673,6 +676,77 @@ describe('selfplay training cycle script', () => {
             fs.rmSync(tempDir, { recursive: true, force: true });
         }
     });
+
+    test.each([
+        [
+            'Card',
+            buildCardTrainingCommandArgs,
+            'train_card_onnx.py',
+            'cardOnnxModelPath',
+            'cardOnnxMetaPath',
+            'cardMetricsPath',
+            'cardCheckpointPath',
+            'policy-card.resume.pt'
+        ],
+        [
+            'Target',
+            buildTargetTrainingCommandArgs,
+            'train_target_onnx.py',
+            'targetOnnxModelPath',
+            'targetOnnxMetaPath',
+            'targetMetricsPath',
+            'targetCheckpointPath',
+            'policy-target.resume.pt'
+        ],
+        [
+            'Value',
+            buildValueTrainingCommandArgs,
+            'train_value_onnx.py',
+            'valueOnnxModelPath',
+            'valueOnnxMetaPath',
+            'valueMetricsPath',
+            'valueCheckpointPath',
+            'policy-value.resume.pt'
+        ]
+    ])(
+        'build%sTrainingCommandArgs keeps grouped split and resume wiring',
+        (label, buildCommandArgs, scriptName, onnxOutKey, metaOutKey, metricsOutKey, checkpointOutKey, resumeName) => {
+            const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `training-${label.toLowerCase()}-builder-`));
+            const runsDir = path.join(tempDir, 'runs');
+            const modelsDir = path.join(tempDir, 'models');
+            fs.mkdirSync(runsDir, { recursive: true });
+            fs.mkdirSync(modelsDir, { recursive: true });
+
+            try {
+                const args = parseArgs([
+                    '--runs-dir', runsDir,
+                    '--models-dir', modelsDir,
+                    '--onnx-resume-optimizer'
+                ]);
+                const iterationPaths = buildIterationPaths(args, 1);
+                const resumeCheckpointPath = path.join(modelsDir, resumeName);
+                const commandArgs = buildCommandArgs({
+                    args,
+                    iterationPaths,
+                    resumeCheckpointPath
+                });
+
+                expect(commandArgs).toEqual(expect.arrayContaining([
+                    path.resolve('ai', 'train', scriptName),
+                    '--input', iterationPaths.trainDataPath,
+                    '--onnx-out', iterationPaths[onnxOutKey],
+                    '--meta-out', iterationPaths[metaOutKey],
+                    '--metrics-out', iterationPaths[metricsOutKey],
+                    '--checkpoint-out', iterationPaths[checkpointOutKey],
+                    '--val-split-mode', 'grouped-game',
+                    '--resume-checkpoint', resumeCheckpointPath,
+                    '--resume-optimizer'
+                ]));
+            } finally {
+                fs.rmSync(tempDir, { recursive: true, force: true });
+            }
+        }
+    );
 
     test('resolveNextCarryOverState keeps promoted-only guide while carrying checkpoint when candidate is not promoted', () => {
         const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-carry-over-'));
