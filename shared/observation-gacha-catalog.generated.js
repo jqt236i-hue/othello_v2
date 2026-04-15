@@ -2,7 +2,7 @@
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = factory();
     } else {
-        root.GachaHandCatalogModule = factory();
+        root.ObservationGachaCatalogModule = factory();
     }
 }(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
@@ -121,6 +121,50 @@
             "imagePath": "assets/images/Gacha/N/陽気な手.png",
             "previewImagePath": "assets/images/Gacha/N/陽気な手.png",
             "soundPath": ""
+        },
+        {
+            "id": "gacha__n__placement_sound__type-1-standard",
+            "label": "type-1-standard",
+            "note": "レアリティ N / 配置音",
+            "rarity": "N",
+            "kind": "placement_sound",
+            "assetPath": "assets/images/Gacha/N/type-1-standard.mp3",
+            "imagePath": "",
+            "previewImagePath": "",
+            "soundPath": "assets/images/Gacha/N/type-1-standard.mp3"
+        },
+        {
+            "id": "gacha__n__placement_sound__type-3-heavy",
+            "label": "type-3-heavy",
+            "note": "レアリティ N / 配置音",
+            "rarity": "N",
+            "kind": "placement_sound",
+            "assetPath": "assets/images/Gacha/N/type-3-heavy.mp3",
+            "imagePath": "",
+            "previewImagePath": "",
+            "soundPath": "assets/images/Gacha/N/type-3-heavy.mp3"
+        },
+        {
+            "id": "gacha__n__placement_sound__type-4-resonant",
+            "label": "type-4-resonant",
+            "note": "レアリティ N / 配置音",
+            "rarity": "N",
+            "kind": "placement_sound",
+            "assetPath": "assets/images/Gacha/N/type-4-resonant.mp3",
+            "imagePath": "",
+            "previewImagePath": "",
+            "soundPath": "assets/images/Gacha/N/type-4-resonant.mp3"
+        },
+        {
+            "id": "gacha__n__placement_sound__type-5-soft",
+            "label": "type-5-soft",
+            "note": "レアリティ N / 配置音",
+            "rarity": "N",
+            "kind": "placement_sound",
+            "assetPath": "assets/images/Gacha/N/type-5-soft.mp3",
+            "imagePath": "",
+            "previewImagePath": "",
+            "soundPath": "assets/images/Gacha/N/type-5-soft.mp3"
         }
     ]
 };
