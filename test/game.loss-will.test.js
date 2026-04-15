@@ -1,5 +1,12 @@
+const SharedConstants = require('../shared-constants');
 const TurnPipeline = require('../game/turn/turn_pipeline');
 const CardLogic = require('../game/logic/cards');
+
+const LOSS_WILL_DEF = (SharedConstants.CARD_DEFS || []).find((card) => card && card.id === 'loss_will_01');
+const LOSS_WILL_COST = Number(LOSS_WILL_DEF && LOSS_WILL_DEF.cost);
+if (!Number.isFinite(LOSS_WILL_COST)) {
+  throw new Error('loss_will_01 cost missing');
+}
 
 describe('LOSS_WILL（意志の喪失）', () => {
   function makeState() {
@@ -17,7 +24,7 @@ describe('LOSS_WILL（意志の喪失）', () => {
   test('use card: 完全保護マスは除外し、それ以外の特殊石と爆弾を通常石へ戻す', () => {
     const { cardState, gameState } = makeState();
     cardState.hands.black = ['loss_will_01'];
-    cardState.charge.black = 11;
+    cardState.charge.black = LOSS_WILL_COST;
 
     gameState.board[2][2] = 1;
     gameState.board[3][3] = -1;
@@ -62,7 +69,7 @@ describe('LOSS_WILL（意志の喪失）', () => {
   test('use card: 特殊石が無い場合でも爆弾は解除される', () => {
     const { cardState, gameState } = makeState();
     cardState.hands.black = ['loss_will_01'];
-    cardState.charge.black = 11;
+    cardState.charge.black = LOSS_WILL_COST;
 
     gameState.board[4][4] = 1;
     cardState.markers = [
@@ -83,7 +90,7 @@ describe('LOSS_WILL（意志の喪失）', () => {
   test('特殊石も爆弾もない場合は使用できない', () => {
     const { cardState, gameState } = makeState();
     cardState.hands.black = ['loss_will_01'];
-    cardState.charge.black = 11;
+    cardState.charge.black = LOSS_WILL_COST;
     cardState.markers = [];
 
     const action = { type: 'use_card', useCardId: 'loss_will_01' };
@@ -93,13 +100,13 @@ describe('LOSS_WILL（意志の喪失）', () => {
 
     // Card was not consumed
     expect(cardState.hands.black).toContain('loss_will_01');
-    expect(cardState.charge.black).toBe(11);
+    expect(cardState.charge.black).toBe(LOSS_WILL_COST);
   });
 
   test('全特殊石がGUARD保護下で除去対象ゼロの場合は使用できない', () => {
     const { cardState, gameState } = makeState();
     cardState.hands.black = ['loss_will_01'];
-    cardState.charge.black = 11;
+    cardState.charge.black = LOSS_WILL_COST;
     gameState.board[2][2] = 1;
 
     // GUARD on (2,2) protects the WORK on the same cell

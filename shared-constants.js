@@ -214,7 +214,7 @@
 
         { id: 'ribo_01', name: 'リボ払いの意志', type: 'RIBO_WILL', cost: 0, desc: '布石を30得る。その後9ターンの間4返済。足りない場合は自石2個を消滅させる。' },
 
-        { id: 'loss_will_01', name: '意志の喪失', type: 'LOSS_WILL', cost: 11, desc: '盤面上の特殊石をすべて通常石に戻す。敵味方を問わず、色は変わらない。' },
+        { id: 'loss_will_01', name: '意志の喪失', type: 'LOSS_WILL', cost: 15, desc: '盤面上の特殊石をすべて通常石に戻す。敵味方を問わず、色は変わらない。' },
 
         // DOUBLE_PLACE (二連投石) - 1 card, cost: 24
         { id: 'double_01', name: '二連投石', type: 'DOUBLE_PLACE', cost: 24, desc: 'このターン、石を2回置ける。使用後、三連投石が手札に加わる。' },

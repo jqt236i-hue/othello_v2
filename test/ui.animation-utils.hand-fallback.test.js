@@ -918,7 +918,7 @@ describe('animation-utils hand fallback', () => {
       player: 'black',
       owner: 'black',
       cardId: 'loss_will_01',
-      cost: 11,
+      cost: 15,
       name: '意志の喪失',
       disappearSoundKey: 'loss_will_reset',
       onDisappear

@@ -251,7 +251,7 @@ window.CardCatalog = {
       "id": "seed_01",
       "name_ja": "種まきの意志",
       "type": "SEED_WILL",
-      "cost": 12,
+      "cost": 7,
       "desc_ja": "空きマス1つに種をまく。種マスは通常どおり配置でき、石が置かれると種は消える。所有者ターン開始時だけ減算し、5回目で空いたままなら同色の通常石が1個芽生える。芽生えでは反転しない。",
       "display_type_ja": "繁栄"
     },
@@ -403,7 +403,7 @@ window.CardCatalog = {
       "id": "loss_will_01",
       "name_ja": "意志の喪失",
       "type": "LOSS_WILL",
-      "cost": 11,
+      "cost": 15,
       "desc_ja": "盤面上の特殊石をすべて通常石に戻す。敵味方を問わず、色は変わらない。",
       "display_type_ja": "執行"
     },
