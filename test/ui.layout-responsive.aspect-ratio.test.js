@@ -18,14 +18,14 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(css).toMatch(/#hero-label[\s\S]*display:\s*none/);
     expect(css).toMatch(/#card-detail-panel[\s\S]*position:\s*fixed/);
     expect(css).toMatch(/--card-detail-landscape-bottom-reserve/);
-    expect(css).toMatch(/html\.layout-stage-enabled\s+#board/);
-    expect(css).toMatch(/html\.layout-stage-enabled\s+#side-panel/);
-    expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*html\.layout-stage-enabled\s+#game-container/);
-    expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*html\.layout-stage-enabled\s+#card-detail-panel/);
-    expect(css).toMatch(/html\.layout-stage-enabled\s+#card-detail-panel[\s\S]*--layout-anchor-card-detail-width/);
-    expect(css).toMatch(/html\.layout-stage-enabled\s+#card-detail-panel[\s\S]*--layout-anchor-card-detail-gap/);
-    expect(css).toMatch(/@media\s*\(min-width:\s*(?:901px|56\.3125em)\)\s*\{[\s\S]*html\.layout-stage-enabled\s+#hand-black\s+\.card-item/);
-    expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*html\.layout-stage-enabled\s+#hand-black\s+\.card-item/);
+    expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#board/);
+    expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#side-panel/);
+    expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#game-container[\s\S]*width:\s*var\(--layout-stage-viewport-width\)/);
+    expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#cpu-level-label/);
+    expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#card-detail-panel[\s\S]*--layout-anchor-card-detail-width/);
+    expect(css).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#card-detail-panel[\s\S]*--layout-anchor-card-detail-gap/);
+    expect(css).toMatch(/@media\s*\(min-width:\s*(?:901px|56\.3125em)\)\s*\{[\s\S]*html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#game-container[\s\S]*padding-bottom:\s*calc\(96px\s*\*\s*var\(--layout-stage-scale\)\)/);
+    expect(css).toMatch(/@media\s*\(orientation:\s*landscape\)\s*and\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#hero-label[\s\S]*font-size:\s*clamp\(11px/);
     expect(css).toMatch(/html\.sim-aspect-16-10\s+#board/);
     expect(css).toMatch(/html\.sim-aspect-3-2\s+#board/);
     expect(css).toMatch(/html\.sim-aspect-4-3\s+#effect-live-panel/);
@@ -56,6 +56,16 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(html).toMatch(/sim-aspect-5-4/);
     expect(html).toMatch(/id="round-display-panel"/);
     expect(html).toMatch(/id="gachaBalanceSummary"[\s\S]*observation-stone-icon/);
+  });
+
+  test('worker-public layout mirrors stay in sync with root sources', () => {
+    const rootResponsivePath = path.join(__dirname, '..', 'styles-responsive.css');
+    const workerResponsivePath = path.join(__dirname, '..', 'worker-public', 'styles-responsive.css');
+    const rootStagePath = path.join(__dirname, '..', 'ui', 'layout-stage.js');
+    const workerStagePath = path.join(__dirname, '..', 'worker-public', 'ui', 'layout-stage.js');
+
+    expect(fs.readFileSync(workerResponsivePath, 'utf8')).toBe(fs.readFileSync(rootResponsivePath, 'utf8'));
+    expect(fs.readFileSync(workerStagePath, 'utf8')).toBe(fs.readFileSync(rootStagePath, 'utf8'));
   });
 
   test('card detail panel anchor sync exists for landscape layout', () => {
@@ -108,7 +118,6 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(stageJs).toMatch(/BASE_PHONE_PORTRAIT[\s\S]*430[\s\S]*932/);
     expect(stageJs).toMatch(/BASE_TABLET_43[\s\S]*1366[\s\S]*960/);
     expect(stageJs).toMatch(/resolveLayoutProfile/);
-    expect(stageJs).toMatch(/isZoomInteractionActive/);
     expect(stageJs).toMatch(/any-pointer:\s*coarse/);
     expect(stageJs).toMatch(/maxTouchPoints/);
     expect(stageJs).toMatch(/isIpadUserAgent/);
@@ -218,7 +227,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(responsiveCss).toMatch(/html\.layout-profile-tablet-4x3\.layout-stage-enabled\s+#card-detail-panel[\s\S]*right:\s*calc\(var\(--layout-stage-offset-x\)\s*\+\s*max\(var\(--layout-anchor-side-right\),\s*env\(safe-area-inset-right\)\)\)/);
     expect(responsiveCss).not.toMatch(/#hand-black\s+\.card-item\s+\.card-badge-row\s+\.card-cost-badge/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#hand-black\s+\.card-item\s+\.card-cost-badge[\s\S]*top:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)[\s\S]*left:\s*calc\(4px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(responsiveCss).toMatch(/html\.layout-stage-enabled\s+#hand-black\s+\.card-item\s+\.card-cost-badge[\s\S]*top:\s*var\(--layout-size-card-badge-large-offset\)[\s\S]*left:\s*var\(--layout-size-card-badge-large-offset\)/);
+    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#hand-black\s+\.card-item\s+\.card-cost-badge[\s\S]*top:\s*var\(--layout-size-card-badge-large-offset\)[\s\S]*left:\s*var\(--layout-size-card-badge-large-offset\)/);
     expect(responsiveCss).toMatch(/#storyBtn/);
     expect(responsiveCss).toMatch(/@media\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*#gachaOpenBtn[\s\S]*bottom:/);
     expect(responsiveCss).toMatch(/@media\s*\(max-width:\s*(?:900px|56\.25em)\)\s*\{[\s\S]*#gachaRevealSkipBtn/);

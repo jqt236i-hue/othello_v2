@@ -89,13 +89,16 @@
         const userAgent = typeof navigator !== 'undefined' ? String(navigator.userAgent || '') : '';
         const maxTouchPoints = typeof navigator !== 'undefined' ? Number(navigator.maxTouchPoints || 0) : 0;
         const isIpadUserAgent = /iPad/i.test(userAgent) || (/Macintosh/i.test(userAgent) && maxTouchPoints > 1);
+        const finePointerCapable = matchesMedia('(pointer: fine)');
+        const hoverCapable = matchesMedia('(hover: hover)');
         const touchCapable = matchesMedia('(pointer: coarse)')
             || matchesMedia('(any-pointer: coarse)')
             || maxTouchPoints > 0
             || ('ontouchstart' in window);
+        const touchOnlyDevice = touchCapable && !finePointerCapable && !hoverCapable;
         const phoneLikeViewport = shortEdge <= 500 && longEdge <= 1000;
         const isPhoneLikeTouchDevice = touchCapable && phoneLikeViewport;
-        const tabletLikeTouchDevice = touchCapable && !isPhoneLikeTouchDevice
+        const tabletLikeTouchDevice = touchOnlyDevice && !isPhoneLikeTouchDevice
             && shortEdge >= 700 && shortEdge <= 1500
             && longEdge >= 1000 && longEdge <= 3000;
 
@@ -119,12 +122,13 @@
         const nearTabletAspectWithHysteresis = currentAspect >= (ASPECT_TABLET_43_MIN - ASPECT_TABLET_43_HYSTERESIS)
             && currentAspect <= (ASPECT_TABLET_43_MAX + ASPECT_TABLET_43_HYSTERESIS);
         const keepTabletProfile = previousProfile === PROFILE_TABLET_43 && nearTabletAspectWithHysteresis;
+        const allowTabletAspectFallback = !isPortrait && touchOnlyDevice && !isPhoneLikeTouchDevice;
 
         if (!isPortrait && Number.isFinite(simAspect) && simAspect >= ASPECT_TABLET_43_MIN && simAspect <= ASPECT_TABLET_43_MAX) {
             return { profile: PROFILE_TABLET_43, blockPhoneLandscape: false };
         }
 
-        if (!isPortrait && (nearTabletAspect || keepTabletProfile)) {
+        if (allowTabletAspectFallback && (nearTabletAspect || keepTabletProfile)) {
             return { profile: PROFILE_TABLET_43, blockPhoneLandscape: false };
         }
 
@@ -142,20 +146,6 @@
         root.classList.toggle(PROFILE_PHONE_PORTRAIT, profile === PROFILE_PHONE_PORTRAIT);
         root.classList.toggle(CLASS_PHONE_LANDSCAPE_BLOCKED, !!blockPhoneLandscape);
         root.setAttribute('data-layout-profile', profile);
-    }
-
-    function isZoomInteractionActive() {
-        const vv = window.visualViewport;
-        if (vv && Number.isFinite(vv.scale) && Math.abs(vv.scale - 1) > 0.01) {
-            return true;
-        }
-        const currentDpr = Number(window.devicePixelRatio || 1);
-        if (Number.isFinite(initialDevicePixelRatio) && Number.isFinite(currentDpr)) {
-            if (Math.abs(currentDpr - initialDevicePixelRatio) > 0.001) {
-                return true;
-            }
-        }
-        return false;
     }
 
     function parseSimAspectRatio() {
@@ -261,7 +251,7 @@
         root.style.setProperty('--layout-stage-viewport-height', `${viewport.height}px`);
     }
 
-    function scheduleApplyLayoutStageVars(force) {
+    function scheduleApplyLayoutStageVars() {
         if (rafId !== null && typeof window.cancelAnimationFrame === 'function') {
             window.cancelAnimationFrame(rafId);
             rafId = null;
@@ -277,7 +267,7 @@
     }
 
     window.addEventListener('resize', scheduleApplyLayoutStageVars, { passive: true });
-    window.addEventListener('orientationchange', () => scheduleApplyLayoutStageVars(true), { passive: true });
+    window.addEventListener('orientationchange', scheduleApplyLayoutStageVars, { passive: true });
 
     const vv = window.visualViewport;
     if (vv && typeof vv.addEventListener === 'function') {

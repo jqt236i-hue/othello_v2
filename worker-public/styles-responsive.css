@@ -1389,13 +1389,158 @@ html.sim-aspect-5-4 #hero-character-img {
     }
 }
 
-/* Stage-first desktop/tablet layout: keep 1920x1080 relative composition stable. */
-@media (min-width: 56.3125em) {
-    html.layout-stage-enabled #game-container {
+@media (min-width: 56.3125em), (orientation: landscape) and (max-width: 56.25em) {
+    /* Shared stage projection for desktop and landscape stage layouts. */
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #game-container {
         gap: calc(10px * var(--layout-stage-scale));
         padding-bottom: calc(108px * var(--layout-stage-scale));
     }
 
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #board {
+        --board-max-size: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale));
+        max-width: none;
+        max-height: none;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #side-panel {
+        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)));
+        bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-side-bottom) * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
+        width: calc(var(--layout-anchor-side-width) * var(--layout-stage-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #info-panel {
+        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-info-left) * var(--layout-stage-scale)));
+        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-info-top) * var(--layout-stage-scale)) + max(0px, calc(-1 * var(--layout-stage-offset-y))));
+        transform: none;
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #log {
+        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-log-left) * var(--layout-stage-scale)));
+        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-log-top) * var(--layout-stage-scale)));
+        transform: none;
+        width: calc(var(--layout-anchor-log-width) * var(--layout-stage-scale));
+        height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
+        min-height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
+        max-height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #effect-live-panel {
+        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
+        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
+        transform: none;
+        width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
+        min-height: calc(var(--layout-anchor-effect-height) * var(--layout-stage-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #cpu-character-panel {
+        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-cpu-top) * var(--layout-stage-scale)));
+        right: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-cpu-right) * var(--layout-stage-scale)));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #cpu-character-img {
+        width: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale) * var(--layout-cpu-image-scale));
+        height: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale) * var(--layout-cpu-image-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hero-character-panel {
+        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-hero-left) * var(--layout-stage-scale)));
+        bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-hero-bottom) * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hero-character-img {
+        width: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale));
+        height: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale));
+        transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hero-character-img:hover {
+        transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(1.04);
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hero-label {
+        transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #networkChatPanel {
+        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-chat-left) * var(--layout-stage-scale)));
+        bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-chat-bottom) * var(--layout-stage-scale)));
+        width: calc(var(--layout-anchor-chat-width) * var(--layout-stage-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #card-detail-panel {
+        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)) + ((var(--layout-anchor-side-width) + var(--layout-anchor-card-detail-gap)) * var(--layout-stage-scale)));
+        bottom: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))));
+        left: auto;
+        top: auto;
+        width: calc(var(--layout-anchor-card-detail-width) * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
+        transform: none;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #card-detail-panel {
+        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)));
+        bottom: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))) + var(--layout-stage-bottom-safe-shift) + calc(18px * var(--layout-stage-scale)));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hand-white {
+        min-height: var(--layout-size-hand-min-height-top);
+        margin-bottom: calc(4px * var(--layout-stage-scale));
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #hand-white {
+        min-height: calc(var(--layout-size-hand-min-height-top) * 0.88);
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled #hand-white .card-item {
+        width: calc(var(--layout-size-card-width) * var(--layout-priority-hand-scale) * 0.82);
+        height: calc(var(--layout-size-card-height) * var(--layout-priority-hand-scale) * 0.82);
+        font-size: calc(var(--layout-size-card-font) * var(--layout-priority-hand-scale) * 0.82);
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hand-black {
+        min-height: var(--layout-size-hand-min-height-bottom);
+        margin-top: calc(4px * var(--layout-stage-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hand-black .card-item {
+        width: calc(var(--layout-size-card-large-width) * var(--layout-priority-hand-scale));
+        height: calc(var(--layout-size-card-large-height) * var(--layout-priority-hand-scale));
+        font-size: calc(var(--layout-size-card-large-font) * var(--layout-priority-hand-scale));
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hand-black .card-item .card-cost-badge {
+        font-size: var(--layout-size-card-badge-large-font);
+        top: var(--layout-size-card-badge-large-offset);
+        left: var(--layout-size-card-badge-large-offset);
+        padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hand-black .card-item .card-badge-row {
+        bottom: var(--layout-size-card-badge-large-offset);
+        right: var(--layout-size-card-badge-large-offset);
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hand-black .card-item .card-badge-row .card-type-badge {
+        font-size: var(--layout-size-card-badge-large-font);
+        padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
+    }
+
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) body.story-battle-active #card-detail-panel {
+        right: max(12px, env(safe-area-inset-right)) !important;
+        bottom: calc(max(12px, env(safe-area-inset-bottom)) + clamp(calc(154px * var(--layout-stage-scale)), 22vh, calc(228px * var(--layout-stage-scale)))) !important;
+        left: auto !important;
+        top: auto !important;
+        width: clamp(calc(190px * var(--layout-stage-scale)), 20vw, calc(230px * var(--layout-stage-scale))) !important;
+        transform: none !important;
+    }
+
+    html.layout-profile-tablet-4x3.layout-stage-enabled body.story-battle-active #card-detail-panel {
+        right: max(12px, env(safe-area-inset-right)) !important;
+        bottom: calc(max(12px, env(safe-area-inset-bottom)) + clamp(calc(154px * var(--layout-stage-scale)), 22vh, calc(228px * var(--layout-stage-scale)))) !important;
+    }
+}
+
+/* Stage-first desktop/tablet layout: keep 1920x1080 relative composition stable. */
+@media (min-width: 56.3125em) {
     html.layout-profile-tablet-4x3.layout-stage-enabled #game-container {
         gap: calc(8px * var(--layout-stage-scale));
         padding-bottom: calc(96px * var(--layout-stage-scale));
@@ -1406,290 +1551,22 @@ html.sim-aspect-5-4 #hero-character-img {
         margin-bottom: calc(6px * var(--layout-stage-scale));
     }
 
-    html.layout-stage-enabled #board {
-        --board-max-size: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale));
-        max-width: none;
-        max-height: none;
-    }
-
-    html.layout-stage-enabled #side-panel {
-        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)));
-        bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-side-bottom) * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
-        width: calc(var(--layout-anchor-side-width) * var(--layout-stage-scale));
-    }
-
-    html.layout-stage-enabled #info-panel {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-info-left) * var(--layout-stage-scale)));
-        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-info-top) * var(--layout-stage-scale)) + max(0px, calc(-1 * var(--layout-stage-offset-y))));
-        transform: none;
-    }
-
-    html.layout-stage-enabled #log {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-log-left) * var(--layout-stage-scale)));
-        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-log-top) * var(--layout-stage-scale)));
-        transform: none;
-        width: calc(var(--layout-anchor-log-width) * var(--layout-stage-scale));
-        height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
-        min-height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
-        max-height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
-    }
-
-    html.layout-stage-enabled #effect-live-panel {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
-        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
-        transform: none;
-        width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
-        min-height: calc(var(--layout-anchor-effect-height) * var(--layout-stage-scale));
-    }
-
-    html.layout-stage-enabled #cpu-character-panel {
-        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-cpu-top) * var(--layout-stage-scale)));
-        right: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-cpu-right) * var(--layout-stage-scale)));
-    }
-
-    html.layout-stage-enabled #cpu-character-img {
-        width: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale) * var(--layout-cpu-image-scale));
-        height: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale) * var(--layout-cpu-image-scale));
-    }
-
-    html.layout-stage-enabled #hero-character-panel {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-hero-left) * var(--layout-stage-scale)));
-        bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-hero-bottom) * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
-    }
-
-    html.layout-stage-enabled #hero-character-img {
-        width: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale));
-        height: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale));
-        transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
-    }
-
-    html.layout-stage-enabled #hero-character-img:hover {
-        transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(1.04);
-    }
-
-    html.layout-stage-enabled #hero-label {
-        transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
-    }
-
-    html.layout-stage-enabled #networkChatPanel {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-chat-left) * var(--layout-stage-scale)));
-        bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-chat-bottom) * var(--layout-stage-scale)));
-        width: calc(var(--layout-anchor-chat-width) * var(--layout-stage-scale));
-    }
-
-    html.layout-stage-enabled #card-detail-panel {
-        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)) + ((var(--layout-anchor-side-width) + var(--layout-anchor-card-detail-gap)) * var(--layout-stage-scale)));
-        bottom: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))));
-        width: calc(var(--layout-anchor-card-detail-width) * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
-        transform: none;
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled #card-detail-panel {
-        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)));
-        bottom: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))) + var(--layout-stage-bottom-safe-shift) + calc(18px * var(--layout-stage-scale)));
-    }
-
-    body.story-battle-active html.layout-stage-enabled #card-detail-panel,
-    html.layout-stage-enabled body.story-battle-active #card-detail-panel {
-        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)));
-        bottom: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))));
-        left: auto;
-        top: auto;
-        width: calc(var(--layout-anchor-card-detail-width) * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
-        transform: none;
-    }
-
-    body.story-battle-active html.layout-profile-tablet-4x3.layout-stage-enabled #card-detail-panel,
-    html.layout-profile-tablet-4x3.layout-stage-enabled body.story-battle-active #card-detail-panel {
-        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)));
-        bottom: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))) + var(--layout-stage-bottom-safe-shift) + calc(18px * var(--layout-stage-scale)));
-    }
-
-    html.layout-stage-enabled #hand-white {
-        min-height: var(--layout-size-hand-min-height-top);
-        margin-bottom: calc(4px * var(--layout-stage-scale));
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled #hand-white {
-        min-height: calc(var(--layout-size-hand-min-height-top) * 0.88);
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled #hand-white .card-item {
-        width: calc(var(--layout-size-card-width) * var(--layout-priority-hand-scale) * 0.82);
-        height: calc(var(--layout-size-card-height) * var(--layout-priority-hand-scale) * 0.82);
-        font-size: calc(var(--layout-size-card-font) * var(--layout-priority-hand-scale) * 0.82);
-    }
-
-    html.layout-stage-enabled #hand-black {
-        min-height: var(--layout-size-hand-min-height-bottom);
-        margin-top: calc(4px * var(--layout-stage-scale));
-    }
-
-    html.layout-stage-enabled #hand-black .card-item {
-        width: calc(var(--layout-size-card-large-width) * var(--layout-priority-hand-scale));
-        height: calc(var(--layout-size-card-large-height) * var(--layout-priority-hand-scale));
-        font-size: calc(var(--layout-size-card-large-font) * var(--layout-priority-hand-scale));
-    }
-
-    html.layout-stage-enabled #hand-black .card-item .card-cost-badge {
-        font-size: var(--layout-size-card-badge-large-font);
-        top: var(--layout-size-card-badge-large-offset);
-        left: var(--layout-size-card-badge-large-offset);
-        padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
-    }
-
-    html.layout-stage-enabled #hand-black .card-item .card-badge-row {
-        bottom: var(--layout-size-card-badge-large-offset);
-        right: var(--layout-size-card-badge-large-offset);
-    }
-
-    html.layout-stage-enabled #hand-black .card-item .card-badge-row .card-type-badge {
-        font-size: var(--layout-size-card-badge-large-font);
-        padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
-    }
 }
 
 /* Stage-first mobile landscape layout: keep 1920x1080-relative composition on <=900px screens. */
 @media (orientation: landscape) and (max-width: 56.25em) {
-    html.layout-stage-enabled #game-container {
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #game-container {
         width: var(--layout-stage-viewport-width);
         height: var(--layout-stage-viewport-height);
         min-height: var(--layout-stage-viewport-height);
-        gap: calc(10px * var(--layout-stage-scale));
-        padding-bottom: calc(108px * var(--layout-stage-scale));
     }
 
-    html.layout-stage-enabled #board {
-        --board-max-size: calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale));
-        max-width: none;
-        max-height: none;
-    }
-
-    html.layout-stage-enabled #side-panel {
-        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)));
-        bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-side-bottom) * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
-        width: calc(var(--layout-anchor-side-width) * var(--layout-stage-scale));
-    }
-
-    html.layout-stage-enabled #info-panel {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-info-left) * var(--layout-stage-scale)));
-        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-info-top) * var(--layout-stage-scale)) + max(0px, calc(-1 * var(--layout-stage-offset-y))));
-        transform: none;
-    }
-
-    html.layout-stage-enabled #log {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-log-left) * var(--layout-stage-scale)));
-        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-log-top) * var(--layout-stage-scale)));
-        transform: none;
-        width: calc(var(--layout-anchor-log-width) * var(--layout-stage-scale));
-        height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
-        min-height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
-        max-height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
-    }
-
-    html.layout-stage-enabled #effect-live-panel {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
-        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
-        transform: none;
-        width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
-        min-height: calc(var(--layout-anchor-effect-height) * var(--layout-stage-scale));
-    }
-
-    html.layout-stage-enabled #cpu-character-panel {
-        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-cpu-top) * var(--layout-stage-scale)));
-        right: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-cpu-right) * var(--layout-stage-scale)));
-    }
-
-    html.layout-stage-enabled #cpu-character-img {
-        width: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale) * var(--layout-cpu-image-scale));
-        height: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale) * var(--layout-cpu-image-scale));
-    }
-
-    html.layout-stage-enabled #cpu-level-label {
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #cpu-level-label {
         font-size: clamp(11px, calc(var(--layout-anchor-cpu-label-font) * var(--layout-stage-scale)), 22px);
     }
 
-    html.layout-stage-enabled #hero-character-panel {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-hero-left) * var(--layout-stage-scale)));
-        bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-hero-bottom) * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
-    }
-
-    html.layout-stage-enabled #hero-character-img {
-        width: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale));
-        height: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale));
-        transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
-    }
-
-    html.layout-stage-enabled #hero-character-img:hover {
-        transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(1.04);
-    }
-
-    html.layout-stage-enabled #hero-label {
-        transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #hero-label {
         font-size: clamp(11px, calc(var(--layout-anchor-hero-label-font) * var(--layout-stage-scale)), 22px);
-    }
-
-    html.layout-stage-enabled #networkChatPanel {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-chat-left) * var(--layout-stage-scale)));
-        bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-chat-bottom) * var(--layout-stage-scale)));
-        width: calc(var(--layout-anchor-chat-width) * var(--layout-stage-scale));
-    }
-
-    html.layout-stage-enabled #card-detail-panel {
-        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)) + ((var(--layout-anchor-side-width) + var(--layout-anchor-card-detail-gap)) * var(--layout-stage-scale)));
-        bottom: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))));
-        left: auto;
-        top: auto;
-        width: calc(var(--layout-anchor-card-detail-width) * var(--layout-stage-scale) * var(--layout-priority-card-detail-scale));
-        transform: none;
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled #card-detail-panel {
-        right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)));
-        bottom: calc(var(--layout-stage-offset-y) + var(--card-detail-landscape-bottom-reserve, calc(var(--layout-anchor-card-detail-bottom) * var(--layout-stage-scale))) + var(--layout-stage-bottom-safe-shift) + calc(18px * var(--layout-stage-scale)));
-    }
-
-    html.layout-stage-enabled #hand-white {
-        min-height: var(--layout-size-hand-min-height-top);
-        margin-bottom: calc(4px * var(--layout-stage-scale));
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled #hand-white {
-        min-height: calc(var(--layout-size-hand-min-height-top) * 0.88);
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled #hand-white .card-item {
-        width: calc(var(--layout-size-card-width) * var(--layout-priority-hand-scale) * 0.82);
-        height: calc(var(--layout-size-card-height) * var(--layout-priority-hand-scale) * 0.82);
-        font-size: calc(var(--layout-size-card-font) * var(--layout-priority-hand-scale) * 0.82);
-    }
-
-    html.layout-stage-enabled #hand-black {
-        min-height: var(--layout-size-hand-min-height-bottom);
-        margin-top: calc(4px * var(--layout-stage-scale));
-    }
-
-    html.layout-stage-enabled #hand-black .card-item {
-        width: calc(var(--layout-size-card-large-width) * var(--layout-priority-hand-scale));
-        height: calc(var(--layout-size-card-large-height) * var(--layout-priority-hand-scale));
-        font-size: calc(var(--layout-size-card-large-font) * var(--layout-priority-hand-scale));
-    }
-
-    html.layout-stage-enabled #hand-black .card-item .card-cost-badge {
-        font-size: var(--layout-size-card-badge-large-font);
-        top: var(--layout-size-card-badge-large-offset);
-        left: var(--layout-size-card-badge-large-offset);
-        padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
-    }
-
-    html.layout-stage-enabled #hand-black .card-item .card-badge-row {
-        bottom: var(--layout-size-card-badge-large-offset);
-        right: var(--layout-size-card-badge-large-offset);
-    }
-
-    html.layout-stage-enabled #hand-black .card-item .card-badge-row .card-type-badge {
-        font-size: var(--layout-size-card-badge-large-font);
-        padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
     }
 
     html.layout-stage-enabled #rulesHelpBtn {
@@ -1706,19 +1583,5 @@ html.sim-aspect-5-4 #hero-character-img {
         left: 50%;
         top: 50%;
         bottom: auto;
-    }
-
-    html.layout-stage-enabled body.story-battle-active #card-detail-panel {
-        right: max(12px, env(safe-area-inset-right)) !important;
-        bottom: calc(max(12px, env(safe-area-inset-bottom)) + clamp(calc(154px * var(--layout-stage-scale)), 22vh, calc(228px * var(--layout-stage-scale)))) !important;
-        left: auto !important;
-        top: auto !important;
-        width: clamp(calc(190px * var(--layout-stage-scale)), 20vw, calc(230px * var(--layout-stage-scale))) !important;
-        transform: none !important;
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled body.story-battle-active #card-detail-panel {
-        right: max(12px, env(safe-area-inset-right)) !important;
-        bottom: calc(max(12px, env(safe-area-inset-bottom)) + clamp(calc(154px * var(--layout-stage-scale)), 22vh, calc(228px * var(--layout-stage-scale)))) !important;
     }
 }
