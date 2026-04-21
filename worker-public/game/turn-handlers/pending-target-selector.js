@@ -54,6 +54,22 @@ function callSelector(selector, context) {
     return selector(context.gameState, context.cardState, context.playerKey, context.rng);
 }
 
+function readPendingEffectFromContext(context) {
+    if (!context || typeof context !== 'object') return null;
+    if (context.pending && typeof context.pending === 'object') {
+        return context.pending;
+    }
+    if (typeof context.readPendingEffect === 'function') {
+        const pending = context.readPendingEffect(context.cardState, context.playerKey, context);
+        if (pending && typeof pending === 'object') {
+            return pending;
+        }
+    }
+    return context.cardState && context.cardState.pendingEffectByPlayer
+        ? (context.cardState.pendingEffectByPlayer[context.playerKey] || null)
+        : null;
+}
+
 function buildBoardCellAction(context, selectorName, actionKey) {
     const selector = context.selectors && context.selectors[selectorName];
     const target = callSelector(selector, context);
@@ -67,9 +83,7 @@ function buildBoardCellAction(context, selectorName, actionKey) {
 }
 
 function buildHeavenBlessingAction(context) {
-    const pending = context.cardState && context.cardState.pendingEffectByPlayer
-        ? context.cardState.pendingEffectByPlayer[context.playerKey]
-        : null;
+    const pending = readPendingEffectFromContext(context);
     const offers = pending && Array.isArray(pending.offers)
         ? pending.offers.filter((id) => typeof id === 'string')
         : [];
@@ -120,9 +134,7 @@ function buildHeavenBlessingAction(context) {
 }
 
 function buildCondemnAction(context) {
-    const pending = context.cardState && context.cardState.pendingEffectByPlayer
-        ? context.cardState.pendingEffectByPlayer[context.playerKey]
-        : null;
+    const pending = readPendingEffectFromContext(context);
     const offers = pending && Array.isArray(pending.offers) ? pending.offers : [];
     if (!offers.length || !context.cardLogic) return createCancelCardAction();
 
@@ -156,7 +168,8 @@ function buildCondemnAction(context) {
 }
 
 function buildPendingSelectionAction(context) {
-    const pendingType = String(context && context.pendingType || '');
+    const pending = readPendingEffectFromContext(context);
+    const pendingType = String((context && context.pendingType) || (pending && pending.type) || '');
     if (!pendingType) return createCancelCardAction();
 
     switch (pendingType) {

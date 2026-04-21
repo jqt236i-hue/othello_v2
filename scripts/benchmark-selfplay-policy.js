@@ -257,11 +257,14 @@ function createQualityStat() {
         edgeHoldSuccessCount: 0,
         cornerSwingSum: 0,
         edgeSwingSum: 0,
+        edgeChainSwingSum: 0,
         finalGameCount: 0,
         finalCornersOwnedSum: 0,
         finalCornersTotalSum: 0,
         finalEdgesOwnedSum: 0,
         finalEdgesTotalSum: 0,
+        finalLongestEdgeRunOwnedSum: 0,
+        finalLongestEdgeRunTotalSum: 0,
         finalCornerDominanceCount: 0,
         finalEdgeDominanceCount: 0,
         immediateDiscDeltaSum: 0,
@@ -333,6 +336,18 @@ function updateQualityForRecord(qualityAcc, rec, blackPolicy) {
     const edgeDiffAfter = ownEdgesAfter - oppEdgesAfter;
     stat.cornerSwingSum += (cornerDiffAfter - cornerDiffBefore);
     stat.edgeSwingSum += (edgeDiffAfter - edgeDiffBefore);
+    const ownEdgeChainBefore = toFiniteNumber(rec.ownEdgeChainStrengthBefore);
+    const oppEdgeChainBefore = toFiniteNumber(rec.oppEdgeChainStrengthBefore);
+    const ownEdgeChainAfter = Number.isFinite(Number(rec.ownEdgeChainStrengthAfter))
+        ? Number(rec.ownEdgeChainStrengthAfter)
+        : ownEdgeChainBefore;
+    const oppEdgeChainAfter = Number.isFinite(Number(rec.oppEdgeChainStrengthAfter))
+        ? Number(rec.oppEdgeChainStrengthAfter)
+        : oppEdgeChainBefore;
+    stat.edgeChainSwingSum += (
+        (ownEdgeChainAfter - ownEdgeChainBefore) -
+        (oppEdgeChainAfter - oppEdgeChainBefore)
+    );
 
     if (cornerDiffBefore < 0) {
         stat.cornerRecoveryOpportunityCount += 1;
@@ -389,10 +404,13 @@ function updateQualityFinalFromSummary(qualityAcc, summary, blackPolicy) {
     const whiteCorners = toFiniteNumber(summary.whiteCorners);
     const blackEdges = toFiniteNumber(summary.blackEdges);
     const whiteEdges = toFiniteNumber(summary.whiteEdges);
+    const blackLongestEdgeRun = toFiniteNumber(summary.blackLongestEdgeRun);
+    const whiteLongestEdgeRun = toFiniteNumber(summary.whiteLongestEdgeRun);
+    const maxEdgeLineLength = Math.max(1, toFiniteNumber(summary.maxEdgeLineLength));
     const totalCorners = Math.max(0, blackCorners + whiteCorners);
     const totalEdges = Math.max(0, blackEdges + whiteEdges);
 
-    const applyForPolicy = (policyKey, ownCorners, oppCorners, ownEdges, oppEdges) => {
+    const applyForPolicy = (policyKey, ownCorners, oppCorners, ownEdges, oppEdges, ownLongestEdgeRun) => {
         const stat = qualityAcc[policyKey];
         if (!stat) return;
         stat.finalGameCount += 1;
@@ -400,17 +418,19 @@ function updateQualityFinalFromSummary(qualityAcc, summary, blackPolicy) {
         stat.finalCornersTotalSum += totalCorners;
         stat.finalEdgesOwnedSum += ownEdges;
         stat.finalEdgesTotalSum += totalEdges;
+        stat.finalLongestEdgeRunOwnedSum += ownLongestEdgeRun;
+        stat.finalLongestEdgeRunTotalSum += maxEdgeLineLength;
         if (ownCorners > oppCorners) stat.finalCornerDominanceCount += 1;
         if (ownEdges > oppEdges) stat.finalEdgeDominanceCount += 1;
     };
 
     if (blackPolicy === 'A') {
-        applyForPolicy('A', blackCorners, whiteCorners, blackEdges, whiteEdges);
-        applyForPolicy('B', whiteCorners, blackCorners, whiteEdges, blackEdges);
+        applyForPolicy('A', blackCorners, whiteCorners, blackEdges, whiteEdges, blackLongestEdgeRun);
+        applyForPolicy('B', whiteCorners, blackCorners, whiteEdges, blackEdges, whiteLongestEdgeRun);
         return;
     }
-    applyForPolicy('A', whiteCorners, blackCorners, whiteEdges, blackEdges);
-    applyForPolicy('B', blackCorners, whiteCorners, blackEdges, whiteEdges);
+    applyForPolicy('A', whiteCorners, blackCorners, whiteEdges, blackEdges, whiteLongestEdgeRun);
+    applyForPolicy('B', blackCorners, whiteCorners, blackEdges, whiteEdges, blackLongestEdgeRun);
 }
 
 function finalizeQualityStat(stat) {
@@ -455,6 +475,7 @@ function finalizeQualityStat(stat) {
         cornerHoldTurnsSum: stat.cornerHoldTurnsSum,
         edgeHoldOpportunityCount: stat.edgeHoldOpportunityCount,
         edgeHoldSuccessCount: stat.edgeHoldSuccessCount,
+        edgeChainSwingSum: stat.edgeChainSwingSum,
         cardFutureDiscDelta3PlyCount: stat.cardFutureDiscDelta3PlyCount,
         cardFutureDiscDelta3PlySum: stat.cardFutureDiscDelta3PlySum,
         finalGameCount: stat.finalGameCount,
@@ -462,6 +483,8 @@ function finalizeQualityStat(stat) {
         finalCornersTotalSum: stat.finalCornersTotalSum,
         finalEdgesOwnedSum: stat.finalEdgesOwnedSum,
         finalEdgesTotalSum: stat.finalEdgesTotalSum,
+        finalLongestEdgeRunOwnedSum: stat.finalLongestEdgeRunOwnedSum,
+        finalLongestEdgeRunTotalSum: stat.finalLongestEdgeRunTotalSum,
         finalCornerDominanceCount: stat.finalCornerDominanceCount,
         finalEdgeDominanceCount: stat.finalEdgeDominanceCount,
         useCardRate: stat.useCardActions / totalActions,
@@ -478,8 +501,10 @@ function finalizeQualityStat(stat) {
         edgeHoldRate: stat.edgeHoldSuccessCount / edgeHoldOpportunityCount,
         avgCornerSwing: stat.cornerSwingSum / totalActions,
         avgEdgeSwing: stat.edgeSwingSum / totalActions,
+        avgEdgeChainSwing: stat.edgeChainSwingSum / totalActions,
         finalCornerShare: stat.finalCornersOwnedSum / finalCornersTotalSum,
         finalEdgeShare: stat.finalEdgesOwnedSum / finalEdgesTotalSum,
+        finalLongestEdgeRunShare: stat.finalLongestEdgeRunOwnedSum / Math.max(1, stat.finalLongestEdgeRunTotalSum),
         finalCornerDominanceRate: stat.finalCornerDominanceCount / finalGameCount,
         finalEdgeDominanceRate: stat.finalEdgeDominanceCount / finalGameCount,
         avgImmediateDiscDelta: stat.immediateDiscDeltaSum / totalActions,

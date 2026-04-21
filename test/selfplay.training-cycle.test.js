@@ -58,6 +58,7 @@ describe('selfplay training cycle script', () => {
         expect(args.adoptionJobs).toBe(10);
         expect(args.onnxGateJobs).toBe(10);
         expect(args.cardUsageRate).toBeCloseTo(0.2, 6);
+        expect(args.selfplayGenerateHardcases).toBe(true);
         expect(args.selfplayPolicyMixRate).toBeCloseTo(1, 6);
         expect(args.selfplayPolicyModelPoolSize).toBe(4);
         expect(args.selfplayPolicyPoolSampling).toBe('recency');
@@ -80,6 +81,11 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxEarlyStopMinDelta).toBeCloseTo(0.0005, 8);
         expect(args.onnxEarlyStopMinEpochs).toBe(8);
         expect(args.onnxEarlyStopSmoothingWindow).toBe(1);
+        expect(args.onnxLrPlateauPatience).toBe(0);
+        expect(args.onnxLrPlateauFactor).toBeCloseTo(0.6, 8);
+        expect(args.onnxLrPlateauMinLr).toBeCloseTo(1e-5, 12);
+        expect(args.onnxValueLr).toBeNull();
+        expect(args.onnxValueHiddenSize).toBeNull();
         expect(args.onnxValSplitMode).toBe('grouped-game');
         expect(args.onnxWinnerSampleBoost).toBeCloseTo(0.35, 6);
         expect(args.onnxLoserSampleWeight).toBeCloseTo(0.8, 6);
@@ -98,6 +104,8 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxValueTargetEdgeWeight).toBeCloseTo(0.0, 6);
         expect(args.onnxValueTargetEconomyWeight).toBeCloseTo(0.0, 6);
         expect(args.onnxValueTargetCornerEmergencyWeight).toBeCloseTo(0.0, 6);
+        expect(args.trainTargetHeadEnabled).toBe(true);
+        expect(args.trainValueHeadEnabled).toBe(true);
         expect(args.adoptionTacticalWeight).toBeCloseTo(0.25, 6);
         expect(args.adoptionTacticalDepthOpening).toBe(4);
         expect(args.adoptionTacticalDepthMid).toBe(6);
@@ -107,15 +115,17 @@ describe('selfplay training cycle script', () => {
         expect(args.adoptionHeuristicWeight).toBeCloseTo(0.85, 6);
         expect(args.adoptionWhitePriority).toBeCloseTo(0.5, 6);
         expect(args.adoptionQualityWeightCorner).toBeCloseTo(0.22, 6);
-        expect(args.adoptionQualityWeightEdge).toBeCloseTo(0.16, 6);
+        expect(args.adoptionQualityWeightEdge).toBeCloseTo(0.10, 6);
         expect(args.adoptionQualityWeightCornerRecovery).toBeCloseTo(0.18, 6);
         expect(args.adoptionQualityWeightCornerRecapture).toBeCloseTo(0.14, 6);
         expect(args.adoptionQualityWeightEdgeRecovery).toBeCloseTo(0.12, 6);
         expect(args.adoptionQualityWeightCornerHold).toBeCloseTo(0.16, 6);
         expect(args.adoptionQualityWeightCornerHoldTurns).toBeCloseTo(0.10, 6);
-        expect(args.adoptionQualityWeightEdgeHold).toBeCloseTo(0.10, 6);
+        expect(args.adoptionQualityWeightEdgeHold).toBeCloseTo(0.09, 6);
+        expect(args.adoptionQualityWeightEdgeChain).toBeCloseTo(0.12, 6);
         expect(args.adoptionQualityWeightFinalCornerShare).toBeCloseTo(0.24, 6);
-        expect(args.adoptionQualityWeightFinalEdgeShare).toBeCloseTo(0.10, 6);
+        expect(args.adoptionQualityWeightFinalEdgeShare).toBeCloseTo(0.06, 6);
+        expect(args.adoptionQualityWeightFinalLongestEdgeRunShare).toBeCloseTo(0.08, 6);
         expect(args.adoptionQualityWeightBonus).toBeCloseTo(0.01, 6);
         expect(args.adoptionQualityWeightCardImmediate).toBeCloseTo(0.015, 6);
         expect(args.adoptionQualityWeightCardFuture).toBeCloseTo(0.02, 6);
@@ -210,9 +220,14 @@ describe('selfplay training cycle script', () => {
         expect(() => parseArgs(['--onnx-log-interval-steps', '-1'])).toThrow('--onnx-log-interval-steps must be >= 0');
         expect(() => parseArgs(['--onnx-val-split', '0.5'])).toThrow('--onnx-val-split must be in [0,0.5)');
         expect(() => parseArgs(['--onnx-val-split-mode', 'bad'])).toThrow('--onnx-val-split-mode must be random or grouped-game');
+        expect(() => parseArgs(['--onnx-value-lr', '0'])).toThrow('--onnx-value-lr must be > 0');
+        expect(() => parseArgs(['--onnx-value-hidden-size', '7'])).toThrow('--onnx-value-hidden-size must be >= 8');
         expect(() => parseArgs(['--onnx-early-stop-patience', '-1'])).toThrow('--onnx-early-stop-patience must be >= 0');
         expect(() => parseArgs(['--onnx-early-stop-min-delta', '-0.1'])).toThrow('--onnx-early-stop-min-delta must be >= 0');
         expect(() => parseArgs(['--onnx-early-stop-smoothing-window', '0'])).toThrow('--onnx-early-stop-smoothing-window must be >= 1');
+        expect(() => parseArgs(['--onnx-lr-plateau-patience', '-1'])).toThrow('--onnx-lr-plateau-patience must be >= 0');
+        expect(() => parseArgs(['--onnx-lr-plateau-patience', '4', '--onnx-lr-plateau-factor', '1'])).toThrow('--onnx-lr-plateau-factor must be in (0,1) when plateau scheduling is enabled');
+        expect(() => parseArgs(['--onnx-lr-plateau-patience', '4', '--onnx-lr-plateau-min-lr', '0'])).toThrow('--onnx-lr-plateau-min-lr must be > 0 when plateau scheduling is enabled');
         expect(() => parseArgs(['--onnx-early-stop-monitor', 'x'])).toThrow('--onnx-early-stop-monitor must be val_loss/train_loss/val_place_loss/train_place_loss');
         expect(() => parseArgs(['--onnx-winner-sample-boost', '-0.1'])).toThrow('--onnx-winner-sample-boost must be >= 0');
         expect(() => parseArgs(['--onnx-loser-sample-weight', '0'])).toThrow('--onnx-loser-sample-weight must be > 0');
@@ -288,8 +303,10 @@ describe('selfplay training cycle script', () => {
         expect(() => parseArgs(['--adoption-quality-weight-corner-hold', '-1'])).toThrow('--adoption-quality-weight-corner-hold must be in [0,1]');
         expect(() => parseArgs(['--adoption-quality-weight-corner-hold-turns', '2'])).toThrow('--adoption-quality-weight-corner-hold-turns must be in [0,1]');
         expect(() => parseArgs(['--adoption-quality-weight-edge-hold', '2'])).toThrow('--adoption-quality-weight-edge-hold must be in [0,1]');
+        expect(() => parseArgs(['--adoption-quality-weight-edge-chain', '2'])).toThrow('--adoption-quality-weight-edge-chain must be in [0,1]');
         expect(() => parseArgs(['--adoption-quality-weight-final-corner-share', '-1'])).toThrow('--adoption-quality-weight-final-corner-share must be in [0,1]');
         expect(() => parseArgs(['--adoption-quality-weight-final-edge-share', '2'])).toThrow('--adoption-quality-weight-final-edge-share must be in [0,1]');
+        expect(() => parseArgs(['--adoption-quality-weight-final-longest-edge-run-share', '-1'])).toThrow('--adoption-quality-weight-final-longest-edge-run-share must be in [0,1]');
         expect(() => parseArgs(['--adoption-quality-weight-bonus', '-1'])).toThrow('--adoption-quality-weight-bonus must be in [0,1]');
         expect(() => parseArgs(['--adoption-quality-weight-card-immediate', '2'])).toThrow('--adoption-quality-weight-card-immediate must be in [0,1]');
         expect(() => parseArgs(['--adoption-quality-weight-card-future', '-1'])).toThrow('--adoption-quality-weight-card-future must be in [0,1]');
@@ -323,11 +340,27 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxGateEnabled).toBe(false);
     });
 
+    test('parseArgs disables value head when requested', () => {
+        const args = parseArgs(['--no-train-value-head']);
+
+        expect(args.trainValueHeadEnabled).toBe(false);
+        expect(args.resumeCheckpointPaths.value).toBeNull();
+    });
+
+    test('parseArgs disables target head when requested', () => {
+        const args = parseArgs(['--no-train-target-head']);
+
+        expect(args.trainTargetHeadEnabled).toBe(false);
+        expect(args.resumeCheckpointPaths.target).toBeNull();
+    });
+
     test('parseArgs accepts strategic sample and value-target blend overrides', () => {
         const args = parseArgs([
             '--onnx-corner-balance-sample-boost', '0.18',
             '--onnx-edge-balance-sample-boost', '0.09',
             '--onnx-economy-balance-sample-boost', '0.14',
+            '--onnx-value-lr', '0.0001',
+            '--onnx-value-hidden-size', '256',
             '--onnx-value-target-corner-weight', '0.05',
             '--onnx-value-target-edge-weight', '0.03',
             '--onnx-value-target-economy-weight', '0.02',
@@ -337,6 +370,8 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxCornerBalanceSampleBoost).toBeCloseTo(0.18, 6);
         expect(args.onnxEdgeBalanceSampleBoost).toBeCloseTo(0.09, 6);
         expect(args.onnxEconomyBalanceSampleBoost).toBeCloseTo(0.14, 6);
+        expect(args.onnxValueLr).toBeCloseTo(0.0001, 8);
+        expect(args.onnxValueHiddenSize).toBe(256);
         expect(args.onnxValueTargetCornerWeight).toBeCloseTo(0.05, 6);
         expect(args.onnxValueTargetEdgeWeight).toBeCloseTo(0.03, 6);
         expect(args.onnxValueTargetEconomyWeight).toBeCloseTo(0.02, 6);
@@ -380,6 +415,13 @@ describe('selfplay training cycle script', () => {
         } finally {
             fs.rmSync(tempDir, { recursive: true, force: true });
         }
+    });
+
+    test('parseArgs accepts promoted-only checkpoint carry-over mode', () => {
+        const args = parseArgs(['--carry-over-checkpoint-promoted-only']);
+
+        expect(args.carryOverCheckpoint).toBe(true);
+        expect(args.carryOverCheckpointMode).toBe('promoted-only');
     });
 
     test('parseArgs accepts head-specific resume checkpoints', () => {
@@ -526,6 +568,70 @@ describe('selfplay training cycle script', () => {
         }
     });
 
+    test('buildPromotionCommandArgs omits value bundle when lane disables value head', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-promotion-novalue-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--with-cards',
+                '--no-train-value-head'
+            ]);
+            const promoteArgs = buildPromotionCommandArgs(args, {
+                candidateModelPath: path.join(modelsDir, 'policy-table.candidate.test.it01.json'),
+                onnxModelPath: path.join(modelsDir, 'policy-net.candidate.test.it01.onnx'),
+                onnxMetaPath: path.join(modelsDir, 'policy-net.candidate.test.it01.onnx.meta.json'),
+                cardOnnxModelPath: path.join(modelsDir, 'policy-card.candidate.test.it01.onnx'),
+                cardOnnxMetaPath: path.join(modelsDir, 'policy-card.candidate.test.it01.onnx.meta.json'),
+                targetOnnxModelPath: path.join(modelsDir, 'policy-target.candidate.test.it01.onnx'),
+                targetOnnxMetaPath: path.join(modelsDir, 'policy-target.candidate.test.it01.onnx.meta.json'),
+                valueOnnxModelPath: null,
+                valueOnnxMetaPath: null
+            }, path.join(tempDir, 'adoption.quick.test.it01.json'), true);
+
+            expect(promoteArgs).not.toContain('--candidate-value-onnx');
+            expect(promoteArgs).not.toContain('--candidate-value-onnx-meta');
+            expect(promoteArgs).not.toContain('--target-value-onnx');
+            expect(promoteArgs).not.toContain('--target-value-onnx-meta');
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('buildPromotionCommandArgs omits target bundle when lane disables target head', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-promotion-notarget-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--with-cards',
+                '--no-train-target-head'
+            ]);
+            const promoteArgs = buildPromotionCommandArgs(args, {
+                candidateModelPath: path.join(modelsDir, 'policy-table.candidate.test.it01.json'),
+                onnxModelPath: path.join(modelsDir, 'policy-net.candidate.test.it01.onnx'),
+                onnxMetaPath: path.join(modelsDir, 'policy-net.candidate.test.it01.onnx.meta.json'),
+                cardOnnxModelPath: path.join(modelsDir, 'policy-card.candidate.test.it01.onnx'),
+                cardOnnxMetaPath: path.join(modelsDir, 'policy-card.candidate.test.it01.onnx.meta.json'),
+                targetOnnxModelPath: null,
+                targetOnnxMetaPath: null,
+                valueOnnxModelPath: path.join(modelsDir, 'policy-value.candidate.test.it01.onnx'),
+                valueOnnxMetaPath: path.join(modelsDir, 'policy-value.candidate.test.it01.onnx.meta.json')
+            }, path.join(tempDir, 'adoption.quick.test.it01.json'), true);
+
+            expect(promoteArgs).not.toContain('--candidate-target-onnx');
+            expect(promoteArgs).not.toContain('--candidate-target-onnx-meta');
+            expect(promoteArgs).not.toContain('--target-target-onnx');
+            expect(promoteArgs).not.toContain('--target-target-onnx-meta');
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('buildTargetOnnxBundleArgs scopes onnx gate targets under modelsDir', () => {
         const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-onnx-target-bundle-'));
         const modelsDir = path.join(tempDir, 'models');
@@ -552,6 +658,56 @@ describe('selfplay training cycle script', () => {
             expect(promotionTargetBundleArgs).toEqual([
                 '--target-model', path.join(modelsDir, 'policy-table.json'),
                 ...targetBundleArgs
+            ]);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('buildTargetOnnxBundleArgs omits value target bundle when lane disables value head', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-onnx-target-bundle-novalue-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--with-cards',
+                '--no-train-value-head'
+            ]);
+
+            expect(buildTargetOnnxBundleArgs(args, true)).toEqual([
+                '--target-onnx', path.join(modelsDir, 'policy-net.onnx'),
+                '--target-onnx-meta', path.join(modelsDir, 'policy-net.onnx.meta.json'),
+                '--target-card-onnx', path.join(modelsDir, 'policy-card.onnx'),
+                '--target-card-onnx-meta', path.join(modelsDir, 'policy-card.onnx.meta.json'),
+                '--target-target-onnx', path.join(modelsDir, 'policy-target.onnx'),
+                '--target-target-onnx-meta', path.join(modelsDir, 'policy-target.onnx.meta.json')
+            ]);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('buildTargetOnnxBundleArgs omits target target bundle when lane disables target head', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-onnx-target-bundle-notarget-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--with-cards',
+                '--no-train-target-head'
+            ]);
+
+            expect(buildTargetOnnxBundleArgs(args, true)).toEqual([
+                '--target-onnx', path.join(modelsDir, 'policy-net.onnx'),
+                '--target-onnx-meta', path.join(modelsDir, 'policy-net.onnx.meta.json'),
+                '--target-card-onnx', path.join(modelsDir, 'policy-card.onnx'),
+                '--target-card-onnx-meta', path.join(modelsDir, 'policy-card.onnx.meta.json'),
+                '--target-value-onnx', path.join(modelsDir, 'policy-value.onnx'),
+                '--target-value-onnx-meta', path.join(modelsDir, 'policy-value.onnx.meta.json')
             ]);
         } finally {
             fs.rmSync(tempDir, { recursive: true, force: true });
@@ -602,6 +758,76 @@ describe('selfplay training cycle script', () => {
         }
     });
 
+    test('buildCandidateOnnxBundleArgs omits value bundle when lane disables value head', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-onnx-candidate-bundle-novalue-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--with-cards',
+                '--no-train-value-head'
+            ]);
+            const iterationPaths = {
+                onnxModelPath: path.join(modelsDir, 'policy-net.candidate.test.onnx'),
+                onnxMetaPath: path.join(modelsDir, 'policy-net.candidate.test.onnx.meta.json'),
+                cardOnnxModelPath: path.join(modelsDir, 'policy-card.candidate.test.onnx'),
+                cardOnnxMetaPath: path.join(modelsDir, 'policy-card.candidate.test.onnx.meta.json'),
+                targetOnnxModelPath: path.join(modelsDir, 'policy-target.candidate.test.onnx'),
+                targetOnnxMetaPath: path.join(modelsDir, 'policy-target.candidate.test.onnx.meta.json'),
+                valueOnnxModelPath: null,
+                valueOnnxMetaPath: null
+            };
+
+            expect(buildCandidateOnnxBundleArgs(args, iterationPaths, true)).toEqual([
+                '--candidate-onnx', iterationPaths.onnxModelPath,
+                '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
+                '--candidate-card-onnx', iterationPaths.cardOnnxModelPath,
+                '--candidate-card-onnx-meta', iterationPaths.cardOnnxMetaPath,
+                '--candidate-target-onnx', iterationPaths.targetOnnxModelPath,
+                '--candidate-target-onnx-meta', iterationPaths.targetOnnxMetaPath
+            ]);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('buildCandidateOnnxBundleArgs omits target bundle when lane disables target head', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-onnx-candidate-bundle-notarget-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--with-cards',
+                '--no-train-target-head'
+            ]);
+            const iterationPaths = {
+                onnxModelPath: path.join(modelsDir, 'policy-net.candidate.test.onnx'),
+                onnxMetaPath: path.join(modelsDir, 'policy-net.candidate.test.onnx.meta.json'),
+                cardOnnxModelPath: path.join(modelsDir, 'policy-card.candidate.test.onnx'),
+                cardOnnxMetaPath: path.join(modelsDir, 'policy-card.candidate.test.onnx.meta.json'),
+                targetOnnxModelPath: null,
+                targetOnnxMetaPath: null,
+                valueOnnxModelPath: path.join(modelsDir, 'policy-value.candidate.test.onnx'),
+                valueOnnxMetaPath: path.join(modelsDir, 'policy-value.candidate.test.onnx.meta.json')
+            };
+
+            expect(buildCandidateOnnxBundleArgs(args, iterationPaths, true)).toEqual([
+                '--candidate-onnx', iterationPaths.onnxModelPath,
+                '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
+                '--candidate-card-onnx', iterationPaths.cardOnnxModelPath,
+                '--candidate-card-onnx-meta', iterationPaths.cardOnnxMetaPath,
+                '--candidate-value-onnx', iterationPaths.valueOnnxModelPath,
+                '--candidate-value-onnx-meta', iterationPaths.valueOnnxMetaPath
+            ]);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('buildGenerateSelfplayDataArgs preserves selfplay lane wiring and optional flags', () => {
         const commandArgs = buildGenerateSelfplayDataArgs({
             games: 24,
@@ -626,10 +852,10 @@ describe('selfplay training cycle script', () => {
             '--seed', '101',
             '--max-plies', '220',
             '--out', 'train.ndjson',
-            '--hardcase-out', 'train.hardcase.ndjson',
             '--seed-family', 'train',
             '--data-lane', 'train-main',
             '--jobs', '6',
+            '--hardcase-out', 'train.hardcase.ndjson',
             '--with-cards', '--card-usage-rate', '0.2',
             '--policy-mix-rate', '0.9',
             '--policy-model', 'guide.json',
@@ -637,6 +863,36 @@ describe('selfplay training cycle script', () => {
             '--resume-chunk-size', '1000',
             '--reuse-completed-chunks',
             '--verbose'
+        ]);
+    });
+
+    test('buildGenerateSelfplayDataArgs omits hardcase wiring when disabled', () => {
+        const commandArgs = buildGenerateSelfplayDataArgs({
+            games: 24,
+            seed: 101,
+            maxPlies: 220,
+            outPath: 'train.ndjson',
+            hardcaseOutPath: null,
+            seedFamily: 'train',
+            dataLane: 'train-main',
+            selfplayJobs: 6,
+            generateCardArgs: ['--with-cards', '--card-usage-rate', '0.2'],
+            selfplayDiversityArgs: [],
+            guideModelArgs: [],
+            selfplayResumeArgs: [],
+            verboseArgs: []
+        });
+
+        expect(commandArgs).toEqual([
+            path.resolve('scripts', 'generate-selfplay-data.js'),
+            '--games', '24',
+            '--seed', '101',
+            '--max-plies', '220',
+            '--out', 'train.ndjson',
+            '--seed-family', 'train',
+            '--data-lane', 'train-main',
+            '--jobs', '6',
+            '--with-cards', '--card-usage-rate', '0.2'
         ]);
     });
 
@@ -651,6 +907,9 @@ describe('selfplay training cycle script', () => {
             const args = parseArgs([
                 '--runs-dir', runsDir,
                 '--models-dir', modelsDir,
+                '--onnx-lr-plateau-patience', '8',
+                '--onnx-lr-plateau-factor', '0.6',
+                '--onnx-lr-plateau-min-lr', '0.00003',
                 '--onnx-resume-optimizer'
             ]);
             const iterationPaths = buildIterationPaths(args, 1);
@@ -669,6 +928,9 @@ describe('selfplay training cycle script', () => {
                 '--metrics-out', iterationPaths.onnxMetricsPath,
                 '--checkpoint-out', iterationPaths.checkpointPath,
                 '--val-split-mode', 'grouped-game',
+                '--lr-plateau-patience', '8',
+                '--lr-plateau-factor', '0.6',
+                '--lr-plateau-min-lr', '0.00003',
                 '--resume-checkpoint', path.join(modelsDir, 'policy.resume.pt'),
                 '--resume-optimizer'
             ]));
@@ -721,6 +983,11 @@ describe('selfplay training cycle script', () => {
                 const args = parseArgs([
                     '--runs-dir', runsDir,
                     '--models-dir', modelsDir,
+                    '--onnx-lr-plateau-patience', '8',
+                    '--onnx-lr-plateau-factor', '0.6',
+                    '--onnx-lr-plateau-min-lr', '0.00003',
+                    '--onnx-value-lr', '0.0001',
+                    '--onnx-value-hidden-size', '256',
                     '--onnx-resume-optimizer'
                 ]);
                 const iterationPaths = buildIterationPaths(args, 1);
@@ -739,9 +1006,18 @@ describe('selfplay training cycle script', () => {
                     '--metrics-out', iterationPaths[metricsOutKey],
                     '--checkpoint-out', iterationPaths[checkpointOutKey],
                     '--val-split-mode', 'grouped-game',
+                    '--lr-plateau-patience', '8',
+                    '--lr-plateau-factor', '0.6',
+                    '--lr-plateau-min-lr', '0.00003',
                     '--resume-checkpoint', resumeCheckpointPath,
                     '--resume-optimizer'
                 ]));
+                if (label === 'Value') {
+                    expect(commandArgs).toEqual(expect.arrayContaining([
+                        '--lr', '0.0001',
+                        '--hidden-size', '256'
+                    ]));
+                }
             } finally {
                 fs.rmSync(tempDir, { recursive: true, force: true });
             }
@@ -801,6 +1077,60 @@ describe('selfplay training cycle script', () => {
         }
     });
 
+    test('resolveNextCarryOverState keeps previous checkpoint when promoted-only carry-over waits for promotion', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-carry-over-promoted-only-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+        const currentGuidePath = path.join(modelsDir, 'policy-table.json');
+        const previousCheckpointPath = path.join(modelsDir, 'policy-net.prev.checkpoint.pt');
+        const previousCardCheckpointPath = path.join(modelsDir, 'policy-card.prev.checkpoint.pt');
+        const candidateModelPath = path.join(modelsDir, 'policy-table.candidate.test.it01.json');
+        const candidateCheckpointPath = path.join(modelsDir, 'policy-net.candidate.test.it01.checkpoint.pt');
+        const candidateCardCheckpointPath = path.join(modelsDir, 'policy-card.candidate.test.it01.checkpoint.pt');
+        fs.writeFileSync(currentGuidePath, '{}\n', 'utf8');
+        fs.writeFileSync(previousCheckpointPath, 'prev\n', 'utf8');
+        fs.writeFileSync(previousCardCheckpointPath, 'prev-card\n', 'utf8');
+        fs.writeFileSync(candidateModelPath, '{}\n', 'utf8');
+        fs.writeFileSync(candidateCheckpointPath, 'candidate\n', 'utf8');
+        fs.writeFileSync(candidateCardCheckpointPath, 'candidate-card\n', 'utf8');
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--selfplay-use-promoted-model-only',
+                '--selfplay-policy-model-pool-size', '1',
+                '--carry-over-checkpoint-promoted-only'
+            ]);
+            const nextState = resolveNextCarryOverState(args, {
+                guideModelPath: currentGuidePath,
+                guideModelPoolPaths: [currentGuidePath],
+                resumeCheckpointPath: previousCheckpointPath,
+                resumeCheckpointPaths: {
+                    policy: previousCheckpointPath,
+                    card: previousCardCheckpointPath
+                }
+            }, {
+                promoted: false,
+                paths: {
+                    candidateModelPath,
+                    checkpointPath: candidateCheckpointPath,
+                    cardCheckpointPath: candidateCardCheckpointPath
+                }
+            });
+
+            expect(nextState.guideModelPath).toBe(currentGuidePath);
+            expect(nextState.guideModelPoolPaths).toEqual([currentGuidePath]);
+            expect(nextState.resumeCheckpointPath).toBe(previousCheckpointPath);
+            expect(nextState.resumeCheckpointPaths).toMatchObject({
+                policy: previousCheckpointPath,
+                card: previousCardCheckpointPath
+            });
+            expect(nextState.checkpointCarryOverSkipped).toBe(true);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('resolveNextCarryOverState advances guide and checkpoint after promotion', () => {
         const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-carry-over-'));
         const modelsDir = path.join(tempDir, 'models');
@@ -851,6 +1181,104 @@ describe('selfplay training cycle script', () => {
                 value: candidateValueCheckpointPath
             });
             expect(nextState.checkpointCarryOverSkipped).toBe(false);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('resolveNextCarryOverState drops stale value checkpoint when value head is disabled', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-carry-over-novalue-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+        const previousGuidePath = path.join(modelsDir, 'policy-table.previous.json');
+        const previousCheckpointPath = path.join(modelsDir, 'policy-net.prev.checkpoint.pt');
+        const previousValueCheckpointPath = path.join(modelsDir, 'policy-value.prev.checkpoint.pt');
+        const candidateModelPath = path.join(modelsDir, 'policy-table.candidate.test.it02.json');
+        const candidateCheckpointPath = path.join(modelsDir, 'policy-net.candidate.test.it02.checkpoint.pt');
+        fs.writeFileSync(previousGuidePath, '{}\n', 'utf8');
+        fs.writeFileSync(previousCheckpointPath, 'prev\n', 'utf8');
+        fs.writeFileSync(previousValueCheckpointPath, 'prev-value\n', 'utf8');
+        fs.writeFileSync(candidateModelPath, '{}\n', 'utf8');
+        fs.writeFileSync(candidateCheckpointPath, 'candidate\n', 'utf8');
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--selfplay-use-promoted-model-only',
+                '--selfplay-policy-model-pool-size', '1',
+                '--no-train-value-head'
+            ]);
+            const nextState = resolveNextCarryOverState(args, {
+                guideModelPath: previousGuidePath,
+                guideModelPoolPaths: [previousGuidePath],
+                resumeCheckpointPath: previousCheckpointPath,
+                resumeCheckpointPaths: {
+                    policy: previousCheckpointPath,
+                    value: previousValueCheckpointPath
+                }
+            }, {
+                promoted: false,
+                paths: {
+                    candidateModelPath,
+                    checkpointPath: candidateCheckpointPath,
+                    valueCheckpointPath: null
+                }
+            });
+
+            expect(nextState.resumeCheckpointPath).toBe(candidateCheckpointPath);
+            expect(nextState.resumeCheckpointPaths).toMatchObject({
+                policy: candidateCheckpointPath,
+                value: null
+            });
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('resolveNextCarryOverState drops stale target checkpoint when target head is disabled', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-carry-over-notarget-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+        const previousGuidePath = path.join(modelsDir, 'policy-table.previous.json');
+        const previousCheckpointPath = path.join(modelsDir, 'policy-net.prev.checkpoint.pt');
+        const previousTargetCheckpointPath = path.join(modelsDir, 'policy-target.prev.checkpoint.pt');
+        const candidateModelPath = path.join(modelsDir, 'policy-table.candidate.test.it02.json');
+        const candidateCheckpointPath = path.join(modelsDir, 'policy-net.candidate.test.it02.checkpoint.pt');
+        fs.writeFileSync(previousGuidePath, '{}\n', 'utf8');
+        fs.writeFileSync(previousCheckpointPath, 'prev\n', 'utf8');
+        fs.writeFileSync(previousTargetCheckpointPath, 'prev-target\n', 'utf8');
+        fs.writeFileSync(candidateModelPath, '{}\n', 'utf8');
+        fs.writeFileSync(candidateCheckpointPath, 'candidate\n', 'utf8');
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--selfplay-use-promoted-model-only',
+                '--selfplay-policy-model-pool-size', '1',
+                '--no-train-target-head'
+            ]);
+            const nextState = resolveNextCarryOverState(args, {
+                guideModelPath: previousGuidePath,
+                guideModelPoolPaths: [previousGuidePath],
+                resumeCheckpointPath: previousCheckpointPath,
+                resumeCheckpointPaths: {
+                    policy: previousCheckpointPath,
+                    target: previousTargetCheckpointPath
+                }
+            }, {
+                promoted: false,
+                paths: {
+                    candidateModelPath,
+                    checkpointPath: candidateCheckpointPath,
+                    targetCheckpointPath: null
+                }
+            });
+
+            expect(nextState.resumeCheckpointPath).toBe(candidateCheckpointPath);
+            expect(nextState.resumeCheckpointPaths).toMatchObject({
+                policy: candidateCheckpointPath,
+                target: null
+            });
         } finally {
             fs.rmSync(tempDir, { recursive: true, force: true });
         }
@@ -1086,6 +1514,9 @@ describe('selfplay training cycle script', () => {
                 '--onnx-hand-pressure-sample-boost', '0.25',
                 '--onnx-pending-target-sample-boost', '0.35',
                 '--onnx-early-stop-smoothing-window', '4',
+                '--onnx-lr-plateau-patience', '6',
+                '--onnx-lr-plateau-factor', '0.55',
+                '--onnx-lr-plateau-min-lr', '0.00002',
                 '--onnx-val-split-mode', 'random',
                 '--promotion-mode', 'onnx-primary',
                 '--onnx-primary-max-quick-regression', '0.06',
@@ -1169,6 +1600,9 @@ describe('selfplay training cycle script', () => {
             expect(args.onnxHandPressureSampleBoost).toBeCloseTo(0.25, 6);
             expect(args.onnxPendingTargetSampleBoost).toBeCloseTo(0.35, 6);
             expect(args.onnxEarlyStopSmoothingWindow).toBe(4);
+            expect(args.onnxLrPlateauPatience).toBe(6);
+            expect(args.onnxLrPlateauFactor).toBeCloseTo(0.55, 6);
+            expect(args.onnxLrPlateauMinLr).toBeCloseTo(0.00002, 8);
             expect(args.onnxValSplitMode).toBe('random');
             expect(args.adoptionUseGuideBaseline).toBe(true);
             expect(args.promotionMode).toBe('onnx-primary');
@@ -1219,6 +1653,37 @@ describe('selfplay training cycle script', () => {
         expect(p.qualityGatePath.endsWith(path.join('data', 'runs', 'adoption.quality.abc123.it03.json'))).toBe(true);
         expect(p.onnxGatePath.endsWith(path.join('data', 'runs', 'adoption.onnx.abc123.it03.json'))).toBe(true);
         expect(p.warehouseManifestPath.endsWith(path.join('data', 'runs', 'training-warehouse.abc123.it03.json'))).toBe(true);
+    });
+
+    test('buildIterationPaths disables hardcase outputs when selfplay hardcases are off', () => {
+        const args = parseArgs(['--run-tag', 'abc123', '--no-selfplay-hardcases']);
+        const p = buildIterationPaths(args, 3);
+
+        expect(args.selfplayGenerateHardcases).toBe(false);
+        expect(p.trainHardcaseDataPath).toBeNull();
+        expect(p.evalHardcaseDataPath).toBeNull();
+    });
+
+    test('buildIterationPaths disables value outputs when value head is off', () => {
+        const args = parseArgs(['--run-tag', 'abc123', '--no-train-value-head']);
+        const p = buildIterationPaths(args, 3);
+
+        expect(args.trainValueHeadEnabled).toBe(false);
+        expect(p.valueOnnxModelPath).toBeNull();
+        expect(p.valueOnnxMetaPath).toBeNull();
+        expect(p.valueCheckpointPath).toBeNull();
+        expect(p.valueMetricsPath).toBeNull();
+    });
+
+    test('buildIterationPaths disables target outputs when target head is off', () => {
+        const args = parseArgs(['--run-tag', 'abc123', '--no-train-target-head']);
+        const p = buildIterationPaths(args, 3);
+
+        expect(args.trainTargetHeadEnabled).toBe(false);
+        expect(p.targetOnnxModelPath).toBeNull();
+        expect(p.targetOnnxMetaPath).toBeNull();
+        expect(p.targetCheckpointPath).toBeNull();
+        expect(p.targetMetricsPath).toBeNull();
     });
 
     test('buildIterationWarehouseManifest records dataset lineage and gate summaries', () => {
@@ -1707,6 +2172,8 @@ describe('selfplay training cycle script', () => {
 
             expect(payload.config.runTag).toBe('summarytest');
             expect(payload.config.onnxValSplitMode).toBe('grouped-game');
+            expect(payload.config.trainTargetHeadEnabled).toBe(true);
+            expect(payload.config.trainValueHeadEnabled).toBe(true);
             expect(payload.latestResumeCheckpointPath).toBe(path.join(modelsDir, 'policy.resume.pt'));
             expect(payload.latestWarehouseManifestPath).toBe(latestWarehouseManifestPath);
             expect(payload.warehouseManifestSchemaVersion).toBe(TRAINING_WAREHOUSE_MANIFEST_SCHEMA_VERSION);

@@ -757,6 +757,35 @@
             return (Date.now() - startedAt) > getStalePlaybackTimeoutMs();
         }
 
+        function shouldReleaseUnclaimedPlaybackBusyState(cardStateRef, playbackEvents) {
+            if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
+            if (isVisualPlaybackActive() === true) return false;
+
+            const currentQueues = captureTransientPresentationQueues(cardStateRef);
+            if (currentQueues.hasPending) return false;
+
+            return isPlaybackEngineRunning() !== true;
+        }
+
+        function shouldClearUndrainedPlaybackQueues(cardStateRef, playbackEvents, options) {
+            const opts = (options && typeof options === 'object') ? options : {};
+            if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
+            // Force-applied same-version recovery intentionally keeps the batch
+            // queued so later stream playback recovery can consume it once.
+            if (opts.force === true) return false;
+            if (isVisualPlaybackActive() === true) return false;
+            if (isPlaybackEngineRunning() === true) return false;
+
+            const currentQueues = captureTransientPresentationQueues(cardStateRef);
+            if (!currentQueues.hasPending) return false;
+
+            const queueEntries = []
+                .concat(Array.isArray(currentQueues.presentationEvents) ? currentQueues.presentationEvents : [])
+                .concat(Array.isArray(currentQueues.persistentEvents) ? currentQueues.persistentEvents : []);
+            if (queueEntries.length === 0) return false;
+            return queueEntries.every((entry) => entry && entry.type === 'PLAYBACK_EVENTS');
+        }
+
         function hasPendingPlaybackOrPresentation() {
             const cardStateRef = resolveGlobalObject('cardState');
             try {
@@ -816,6 +845,7 @@
 
         function refreshUi() {
             let cardStateChangeRequested = false;
+            let boardUpdateRequested = false;
             try {
                 const emitCardStateChange = resolveGlobalFunction('emitCardStateChange', cfg.emitCardStateChange);
                 if (emitCardStateChange) cardStateChangeRequested = emitCardStateChange() === true;
@@ -827,20 +857,27 @@
             try {
                 const boardUpdateDispatch = resolveBoardUpdateDispatch();
                 if (boardUpdateDispatch && typeof boardUpdateDispatch.requestBoardUpdate === 'function') {
-                    boardUpdateDispatch.requestBoardUpdate({
+                    boardUpdateRequested = boardUpdateDispatch.requestBoardUpdate({
                         emitBoardUpdate: cfg.emitBoardUpdate,
                         renderBoard: cfg.renderBoard
-                    });
+                    }) === true;
                 } else {
                     const emitBoardUpdate = resolveGlobalFunction('emitBoardUpdate', cfg.emitBoardUpdate);
                     const renderBoard = resolveGlobalFunction('renderBoard', cfg.renderBoard);
-                    if (emitBoardUpdate) emitBoardUpdate();
-                    else if (renderBoard) renderBoard();
+                    if (emitBoardUpdate) boardUpdateRequested = emitBoardUpdate() === true;
+                    else if (renderBoard) {
+                        renderBoard();
+                        boardUpdateRequested = true;
+                    }
                 }
             } catch (e) { /* ignore */ }
             if (!cardStateChangeRequested) {
                 renderCardUiAfterPlaybackIfNeeded();
             }
+            return {
+                cardStateChangeRequested,
+                boardUpdateRequested
+            };
         }
 
         function resolveResultPresentationSync() {
@@ -906,7 +943,7 @@
                     shouldEmitShadowPlayback ? 'snapshot_shadow_playback_board_sync' : 'snapshot_playback_board_sync'
                 );
             }
-            refreshUi();
+            const refreshState = refreshUi();
 
             // After refreshUi consumed the suppressed shadow events for
             // diff-renderer's move-source detection, clear them so
@@ -914,6 +951,11 @@
             // permanently block future renderBoard() calls.
             if (shouldEmitShadowPlayback) {
                 clearTransientPresentationQueues(cardStateRef);
+            } else if (refreshState && refreshState.boardUpdateRequested === true && shouldClearUndrainedPlaybackQueues(cardStateRef, playbackEvents, opts)) {
+                clearTransientPresentationQueues(cardStateRef);
+                setBusyState(false);
+            } else if (shouldReleaseUnclaimedPlaybackBusyState(cardStateRef, playbackEvents)) {
+                setBusyState(false);
             } else if (shouldReleaseRestoredQueueBusyState(cardStateRef, presentationState, busyStateBeforeSnapshot)) {
                 clearTransientPresentationQueues(cardStateRef);
                 setBusyState(false);
@@ -974,9 +1016,13 @@
             }
             if (state && state.authoritativeMatchState && typeof state.authoritativeMatchState === 'object') {
                 state.authoritativeMatchState.stateVersion = nextVersion;
+                state.authoritativeMatchState.gameState = cloneData(snapshot.gameState);
+                state.authoritativeMatchState.cardState = cloneData(snapshot.cardState);
                 state.authoritativeMatchState.authority = snapshotMeta ? snapshotMeta.authority : null;
                 state.authoritativeMatchState.projectedForSeat = snapshotMeta ? snapshotMeta.projectedForSeat : null;
                 state.authoritativeMatchState.turnStartReconciled = snapshotMeta ? snapshotMeta.turnStartReconciled : false;
+                state.authoritativeMatchState.projectedSnapshotHash = snapshotMeta ? (snapshotMeta.projectedSnapshotHash || null) : null;
+                state.authoritativeMatchState.lastAppliedProjectedSnapshotHash = snapshotMeta ? (snapshotMeta.projectedSnapshotHash || null) : null;
             }
 
             return {

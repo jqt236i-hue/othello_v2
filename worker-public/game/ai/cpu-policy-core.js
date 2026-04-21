@@ -171,7 +171,6 @@ const CHARGE_RAMP_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
         'RAINBOW_STONE',
         'SILVER_STONE',
         'CRYSTAL_STONE',
-        'SELL_CARD_WILL',
         'PLUNDER_WILL',
         'CORNER_TRIBUTE',
         'WORK_WILL',
@@ -461,7 +460,6 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     ROBOT_VACUUM_WILL: 4,
     SALVATION_WILL: 8,
     SEED_WILL: 2,
-    SELL_CARD_WILL: 8,
     SUPPLY_WILL: 8,
     SILVER_STONE: 10,
     SNIPER_WILL: 4,
@@ -549,7 +547,6 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'ROBOT_VACUUM_WILL',
     'SALVATION_WILL',
     'SEED_WILL',
-    'SELL_CARD_WILL',
     'SUPPLY_WILL',
     'SILVER_STONE',
     'SNIPER_WILL',
@@ -757,7 +754,6 @@ function buildCardTypeUsageStyle() {
         'CRYSTAL_STONE',
         'RAINBOW_STONE',
         'SILVER_STONE',
-        'SELL_CARD_WILL',
         'PLUNDER_WILL',
         'TREASURE_BOX',
         'WORK_WILL',
@@ -3843,6 +3839,10 @@ function scoreMoveForCornerEdgePlan(move, context) {
     const oppEdgesBefore = countEdgesFor(board, -playerValue);
     const ownEdgesAfter = countEdgesFor(after, playerValue);
     const oppEdgesAfter = countEdgesFor(after, -playerValue);
+    const ownEdgeRunBefore = summarizeEdgeRunsFor(board, playerValue);
+    const oppEdgeRunBefore = summarizeEdgeRunsFor(board, -playerValue);
+    const ownEdgeRunAfter = summarizeEdgeRunsFor(after, playerValue);
+    const oppEdgeRunAfter = summarizeEdgeRunsFor(after, -playerValue);
     const ownFrontierBefore = countFrontierDiscsFor(board, playerValue);
     const ownFrontierAfter = countFrontierDiscsFor(after, playerValue);
     const ownAnchoredEdgesBefore = countAnchoredEdgeDiscsFromCorners(board, playerValue);
@@ -3855,6 +3855,14 @@ function scoreMoveForCornerEdgePlan(move, context) {
     const edgeLeadAfter = ownEdgesAfter - oppEdgesAfter;
     const edgeLeadDelta = edgeLeadAfter - edgeLeadBefore;
     const oppEdgeDelta = oppEdgesAfter - oppEdgesBefore;
+    const ownEdgeChainDelta = Number(ownEdgeRunAfter.chainStrength || 0) - Number(ownEdgeRunBefore.chainStrength || 0);
+    const oppEdgeChainDelta = Number(oppEdgeRunAfter.chainStrength || 0) - Number(oppEdgeRunBefore.chainStrength || 0);
+    const ownLongestEdgeRunDelta = Number(ownEdgeRunAfter.longestRun || 0) - Number(ownEdgeRunBefore.longestRun || 0);
+    const oppLongestEdgeRunDelta = Number(oppEdgeRunAfter.longestRun || 0) - Number(oppEdgeRunBefore.longestRun || 0);
+    const ownCompleteEdgeLineDelta = Number(ownEdgeRunAfter.completeLineCount || 0) - Number(ownEdgeRunBefore.completeLineCount || 0);
+    const oppCompleteEdgeLineDelta = Number(oppEdgeRunAfter.completeLineCount || 0) - Number(oppEdgeRunBefore.completeLineCount || 0);
+    const ownLoneEdgeDiscDelta = Number(ownEdgeRunAfter.loneDiscCount || 0) - Number(ownEdgeRunBefore.loneDiscCount || 0);
+    const adjacentLoneEnemyEdgeCount = countAdjacentLoneEdgeDiscsFor(board, row, col, -playerValue);
     score += cornerLead * 2800;
 
     // Lv6: even before corner lead is secured, prefer lines that claw back edge
@@ -3880,6 +3888,50 @@ function scoreMoveForCornerEdgePlan(move, context) {
         if (!isCorner(row, col, board) && !isEdge(row, col, board) && edgeLeadAfter < edgeLeadBefore) {
             score -= whiteLv6Mode ? 260 : 180;
         }
+    }
+
+    if (level >= 6) {
+        if (ownEdgeChainDelta !== 0) {
+            score += ownEdgeChainDelta * (whiteLv6Mode ? 260 : 220);
+        }
+        if (oppEdgeChainDelta > 0) {
+            score -= oppEdgeChainDelta * (whiteLv6Mode ? 280 : 230);
+        } else if (oppEdgeChainDelta < 0) {
+            score += (-oppEdgeChainDelta) * (whiteLv6Mode ? 170 : 140);
+        }
+        if (ownLongestEdgeRunDelta > 0) {
+            score += ownLongestEdgeRunDelta * (whiteLv6Mode ? 960 : 760);
+        }
+        if (oppLongestEdgeRunDelta > 0) {
+            score -= oppLongestEdgeRunDelta * (whiteLv6Mode ? 1280 : 980);
+        } else if (oppLongestEdgeRunDelta < 0) {
+            score += (-oppLongestEdgeRunDelta) * (whiteLv6Mode ? 540 : 420);
+        }
+        if (ownCompleteEdgeLineDelta > 0) {
+            score += ownCompleteEdgeLineDelta * (whiteLv6Mode ? 5200 : 4200);
+        }
+        if (oppCompleteEdgeLineDelta > 0) {
+            score -= oppCompleteEdgeLineDelta * (whiteLv6Mode ? 5600 : 4500);
+        }
+        if (ownLoneEdgeDiscDelta < 0) {
+            score += (-ownLoneEdgeDiscDelta) * (whiteLv6Mode ? 360 : 260);
+        } else if (!isCorner(row, col, board) && isEdge(row, col, board) && ownLoneEdgeDiscDelta > 0) {
+            score -= ownLoneEdgeDiscDelta * (whiteLv6Mode ? 760 : 520);
+        }
+    }
+
+    if (level >= 6 && !isCorner(row, col, board) && isEdge(row, col, board) && adjacentLoneEnemyEdgeCount > 0) {
+        let loneEnemyPenalty = adjacentLoneEnemyEdgeCount * (whiteLv6Mode ? 3400 : 2600);
+        if (ownEdgeChainDelta <= 0) {
+            loneEnemyPenalty += adjacentLoneEnemyEdgeCount * (whiteLv6Mode ? 1700 : 1200);
+        }
+        if (oppEdgeChainDelta > 0 || oppLongestEdgeRunDelta > 0) {
+            loneEnemyPenalty += adjacentLoneEnemyEdgeCount * (whiteLv6Mode ? 2200 : 1600);
+        }
+        if (ownCompleteEdgeLineDelta > 0 || ownLongestEdgeRunDelta >= 2) {
+            loneEnemyPenalty = Math.round(loneEnemyPenalty * 0.42);
+        }
+        score -= loneEnemyPenalty;
     }
 
     // Lv6: once corners are secured, prefer stabilizing edge control over loose inner expansion.
@@ -4107,6 +4159,31 @@ function countEdgesFor(board, playerValue) {
         }
     }
     return count;
+}
+
+function summarizeEdgeRunsFor(board, playerValue) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.summarizeEdgeRuns === 'function') {
+        return SharedBoardUtils.summarizeEdgeRuns(board, playerValue);
+    }
+    return {
+        totalLines: 0,
+        maxLineLength: 0,
+        totalLineCells: 0,
+        totalOwnedCells: 0,
+        chainStrength: 0,
+        longestRun: 0,
+        longestRunShare: 0,
+        completeLineCount: 0,
+        segmentCount: 0,
+        loneDiscCount: 0
+    };
+}
+
+function countAdjacentLoneEdgeDiscsFor(board, row, col, playerValue) {
+    if (SharedBoardUtils && typeof SharedBoardUtils.countAdjacentLoneEdgeDiscs === 'function') {
+        return Number(SharedBoardUtils.countAdjacentLoneEdgeDiscs(board, row, col, playerValue) || 0);
+    }
+    return 0;
 }
 
 function normalizePriorScore(score) {

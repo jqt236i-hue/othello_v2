@@ -4668,15 +4668,19 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     display: block;
     order: 1;
     transform-origin: center;
-    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(var(--cpu-level-scale, 1));
+    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(var(--cpu-level-scale, 1)) scaleX(var(--cpu-character-face-direction, 1));
 }
 
 #cpu-character-img[src]:not([src=""]) {
     opacity: 1;
 }
 
+#cpu-character-img.is-network-opponent-hero {
+    --cpu-character-face-direction: -1;
+}
+
 #cpu-character-img:hover {
-    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(calc(var(--cpu-level-scale, 1) * 1.04));
+    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(calc(var(--cpu-level-scale, 1) * 1.04)) scaleX(var(--cpu-character-face-direction, 1));
     filter: drop-shadow(0 8px 20px rgba(255, 204, 153, 0.4));
 }
 

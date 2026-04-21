@@ -80,7 +80,7 @@ describe('TurnPipeline destroy_hand_card', () => {
 
     expect(res.cardState.hands.white).toEqual(['enemy_a']);
     const handRemove = findHandRemoveEvent(res.presentationEvents, 'condemn_will');
-    expect(handRemove).toMatchObject({ player: 'white', count: 1, cardId: 'enemy_b' });
+    expect(handRemove).toMatchObject({ player: 'white', count: 1, cardId: 'enemy_b', cardIds: ['enemy_b'] });
   });
 
   test('TRAP_WILL発動時に被害側HAND_REMOVEを出す', () => {

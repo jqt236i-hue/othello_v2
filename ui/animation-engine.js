@@ -38,6 +38,9 @@
     const HIGHLIGHT_TONE_NEGATIVE = 'negative';
     const HIGHLIGHT_TONE_POSITIVE = 'positive';
     const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
+    const LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY = '__skipNextCardUseAnimationUntilByKey';
+    const LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY = '__skipNextCardUseButtonSoundCount';
+    const LOCAL_CARD_USE_PLAYBACK_SKIP_MS = 30000;
 
     function hasRegenBackFlip(events) {
         return (events || []).some(e =>
@@ -126,6 +129,72 @@
             registry[normalizedKey] = 0;
         }
         return expiresAt >= Date.now();
+    }
+
+    function _buildCardUseAnimationSkipKey(target) {
+        const source = (target && typeof target === 'object') ? target : {};
+        const owner = String(source.owner || source.player || '').trim();
+        const cardId = String(source.cardId || '').trim();
+        if (!owner || !cardId) return '';
+        return `${owner}::${cardId}`;
+    }
+
+    function _armLocalCardUseAnimationSkip(target) {
+        const key = _buildCardUseAnimationSkipKey(target);
+        if (!key) return false;
+        const rootRef = _getUiRootRef();
+        if (!rootRef) return false;
+        const registry = (rootRef[LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY] && typeof rootRef[LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY] === 'object')
+            ? rootRef[LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY]
+            : {};
+        registry[key] = Date.now() + LOCAL_CARD_USE_PLAYBACK_SKIP_MS;
+        rootRef[LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY] = registry;
+        return true;
+    }
+
+    function _consumeLocalCardUseAnimationSkip(target) {
+        const key = _buildCardUseAnimationSkipKey(target);
+        if (!key) return false;
+        const rootRef = _getUiRootRef();
+        if (!rootRef) return false;
+        const registry = rootRef[LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY];
+        if (!registry || typeof registry !== 'object') return false;
+        const expiresAt = Number(registry[key]);
+        if (!Number.isFinite(expiresAt)) return false;
+        try {
+            delete registry[key];
+            if (Object.keys(registry).length === 0) {
+                delete rootRef[LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY];
+            }
+        } catch (e) {
+            registry[key] = 0;
+        }
+        return expiresAt >= Date.now();
+    }
+
+    function _armSkipNextCardUseButtonSound() {
+        const rootRef = _getUiRootRef();
+        if (!rootRef) return false;
+        const current = Number.isFinite(Number(rootRef[LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY]))
+            ? Math.max(0, Math.trunc(Number(rootRef[LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY])))
+            : 0;
+        rootRef[LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY] = current + 1;
+        return true;
+    }
+
+    function _consumeSkipNextCardUseButtonSound() {
+        const rootRef = _getUiRootRef();
+        if (!rootRef) return false;
+        const current = Number.isFinite(Number(rootRef[LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY]))
+            ? Math.max(0, Math.trunc(Number(rootRef[LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY])))
+            : 0;
+        if (current <= 0) return false;
+        if (current === 1) {
+            delete rootRef[LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY];
+        } else {
+            rootRef[LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY] = current - 1;
+        }
+        return true;
     }
 
     function _requestBoardUpdate() {
@@ -1759,6 +1828,15 @@
                 case EVENT_TYPES.CARD_USE_ANIMATION:
                     {
                         const t2 = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
+                        const meta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
+                        const isLocalPendingPreview = meta.localPendingPreview === true;
+                        if (!isLocalPendingPreview && _consumeLocalCardUseAnimationSkip(t2)) {
+                            _armSkipNextCardUseButtonSound();
+                            return Promise.resolve();
+                        }
+                        if (isLocalPendingPreview) {
+                            _armLocalCardUseAnimationSkip(t2);
+                        }
                         const disappearPlaybackEvents = Array.isArray(t2.disappearPlaybackEvents)
                             ? t2.disappearPlaybackEvents.filter((one) => !!one)
                             : [];
@@ -1841,6 +1919,8 @@
         }
 
         async handleSoundEffect(ev) {
+            const meta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
+            const isLocalPendingPreview = meta.localPendingPreview === true;
             const keys = [];
             if (ev && ev.soundKey) keys.push(String(ev.soundKey));
             const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
@@ -1854,7 +1934,8 @@
                 const trimmed = String(key || '').trim();
                 if (!trimmed || seen.has(trimmed)) continue;
                 seen.add(trimmed);
-                if (_consumeLocalPlaybackSoundSkip(trimmed)) continue;
+                if (trimmed === 'card_use_button' && !isLocalPendingPreview && _consumeSkipNextCardUseButtonSound()) continue;
+                if (!isLocalPendingPreview && _consumeLocalPlaybackSoundSkip(trimmed)) continue;
                 try {
                     if (typeof SoundEngine !== 'undefined' && SoundEngine && typeof SoundEngine.playEffectByKey === 'function') {
                         SoundEngine.init();
@@ -3066,6 +3147,7 @@
                     async () => {
                         const after = t.after || {};
                         const rawType = String(ev && ev.rawType ? ev.rawType : '').toUpperCase();
+                        const afterSpecialUpper = String(after && after.special ? after.special : '').toUpperCase();
                         const isStatusTick = rawType === 'STATUS_TICK';
                         const statusRemoveReason = String(
                             (ev && ev.meta && ev.meta.reason) ||
@@ -3089,6 +3171,12 @@
 
                         if (isFreezeDurationEnd) {
                             await this.fadeOutFreezeOverlay(cell, OVERLAY_CROSSFADE_MS);
+                            return;
+                        }
+
+                        if (afterSpecialUpper === 'METEOR_HOLE') {
+                            const staleDisc = cell.querySelector('.disc');
+                            if (staleDisc) this._removeDiscFromCell(cell, staleDisc);
                             return;
                         }
 
@@ -3120,7 +3208,7 @@
                             return;
                         }
 
-                        const specialTypeUpper = String(after && after.special ? after.special : '').toUpperCase();
+                        const specialTypeUpper = afterSpecialUpper;
                         const visualSpecialType = (specialTypeUpper === 'INHERITED_HYPERACTIVE') ? null : after.special;
                         const effectKey = window.getEffectKeyForSpecialType(visualSpecialType);
                         const metaOwner = (ev && ev.meta && Object.prototype.hasOwnProperty.call(ev.meta, 'owner'))

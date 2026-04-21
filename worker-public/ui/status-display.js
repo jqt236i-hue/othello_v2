@@ -11,6 +11,8 @@ let roundDisplayBonusFadeTimer = null;
 let roundDisplayBonusState = null;
 const ROUND_DISPLAY_BONUS_FADE_OUT_MS = 320;
 const HERO_DEFAULT_LABEL = 'オセロの勇者';
+const HERO_IMAGE_SRC = 'assets/images/hero/hero.png';
+const NETWORK_OPPONENT_HERO_CLASS = 'is-network-opponent-hero';
 const NETWORK_WAITING_NAME = '接続待ち';
 const PORTRAIT_SPEECH_ROLE_CPU = 'cpu';
 const PORTRAIT_SPEECH_ROLE_HERO = 'hero';
@@ -670,11 +672,34 @@ function applyCpuCharacterLevelScale(charImg, level) {
     charImg.style.setProperty('--cpu-level-scale', levelScale.toFixed(3));
 }
 
+function resetCpuCharacterLevelScale(charImg) {
+    if (!charImg) {
+        return;
+    }
+    charImg.style.width = '';
+    charImg.style.height = '';
+    charImg.style.transform = '';
+    charImg.style.transformOrigin = '';
+    charImg.style.removeProperty('--cpu-level-scale');
+}
+
+function setCpuCharacterNetworkHeroState(charImg, enabled) {
+    if (!charImg || !charImg.classList) {
+        return;
+    }
+    if (enabled) {
+        charImg.classList.add(NETWORK_OPPONENT_HERO_CLASS);
+    } else {
+        charImg.classList.remove(NETWORK_OPPONENT_HERO_CLASS);
+    }
+}
+
 function updateCpuCharacter() {
     const level = cpuSmartness.white || 1;
     const storyEncounterPresentation = resolveStoryEncounterCpuPresentation();
     const observerDuelPresentation = resolveObserverDuelCpuPresentation();
     const specialPresentation = storyEncounterPresentation || observerDuelPresentation;
+    const useNetworkHeroPresentation = !specialPresentation && isNetworkModeForLabels();
     const displayLevel = observerDuelPresentation ? 6 : level;
     const charImg = getElement('cpuCharacterImg');
     const levelLabel = getElement('cpuLevelLabel');
@@ -687,21 +712,30 @@ function updateCpuCharacter() {
     } catch (e) { /* ignore */ }
     
     if (charImg && levelLabel) {
-        const primaryPath = specialPresentation && specialPresentation.imageSrc
-            ? String(specialPresentation.imageSrc)
-            : `assets/images/cpu/level${displayLevel}.png`;
+        const primaryPath = useNetworkHeroPresentation
+            ? HERO_IMAGE_SRC
+            : (specialPresentation && specialPresentation.imageSrc
+                ? String(specialPresentation.imageSrc)
+                : `assets/images/cpu/level${displayLevel}.png`);
         const fallbackCandidates = [];
         const levelImagePath = `assets/images/cpu/level${displayLevel}.png`;
         const legacyFallbackPath = `assets/cpu-characters/level${displayLevel}.png`;
-        if (levelImagePath !== primaryPath) fallbackCandidates.push(levelImagePath);
-        fallbackCandidates.push(legacyFallbackPath);
+        if (!useNetworkHeroPresentation) {
+            if (levelImagePath !== primaryPath) fallbackCandidates.push(levelImagePath);
+            fallbackCandidates.push(legacyFallbackPath);
+        }
         let fallbackIndex = 0;
+        charImg.alt = useNetworkHeroPresentation
+            ? '対戦相手の勇者'
+            : (specialPresentation ? String(specialPresentation.label || '敵CPU') : '敵CPU');
+        setCpuCharacterNetworkHeroState(charImg, useNetworkHeroPresentation);
         
         // プリロード + フェード効果（新パス→旧パスの順で試行）
         const img = new Image();
         img.onload = () => {
             charImg.src = img.src;
-            applyCpuCharacterLevelScale(charImg, displayLevel);
+            if (useNetworkHeroPresentation) resetCpuCharacterLevelScale(charImg);
+            else applyCpuCharacterLevelScale(charImg, displayLevel);
             applyObserverDuelCpuPanelState(observerDuelPresentation, charImg, levelLabel);
             try { positionCpuSpeechBubble(); } catch (e) { /* ignore */ }
         };
@@ -714,10 +748,7 @@ function updateCpuCharacter() {
                 }
             }
             charImg.style.opacity = '0.3';
-            charImg.style.transform = '';
-            charImg.style.width = '';
-            charImg.style.height = '';
-            charImg.style.removeProperty('--cpu-level-scale');
+            resetCpuCharacterLevelScale(charImg);
             applyObserverDuelCpuPanelState(observerDuelPresentation, charImg, levelLabel);
             console.warn(`敵キャラクター画像が見つかりません: ${primaryPath}`);
         };

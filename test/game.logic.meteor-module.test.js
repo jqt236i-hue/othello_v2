@@ -51,7 +51,7 @@ describe('CardMeteor module', () => {
     });
 
     expect(result).toEqual({ applied: true, row: 3, col: 3, destroyed: true });
-    expect(destroyed).toEqual([{ row: 3, col: 3, cause: 'METEOR_WILL', reason: 'meteor_cell_destroy', meta: { ignoreGuard: true } }]);
+    expect(destroyed).toEqual([{ row: 3, col: 3, cause: 'METEOR_WILL', reason: 'meteor_cell_destroy', meta: { ignoreGuard: true, ignoreRegen: true } }]);
     expect(cardState.markers).toEqual([{ kind: 'specialStone', row: 3, col: 3, owner: 'white', data: { type: 'METEOR_HOLE' } }]);
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
   });

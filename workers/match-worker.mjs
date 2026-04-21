@@ -822,6 +822,12 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
     if (normalizePlayerKey(builtAction.actor) !== playerKey) {
         return { ok: false, rejectedReason: 'SEAT_MISMATCH' };
     }
+    const pendingValidation = MatchAuthority && typeof MatchAuthority.validatePendingSelectionPublish === 'function'
+        ? MatchAuthority.validatePendingSelectionPublish(currentSnapshot, playerKey, builtAction.action)
+        : { ok: true };
+    if (!pendingValidation || pendingValidation.ok !== true) {
+        return { ok: false, rejectedReason: pendingValidation && pendingValidation.rejectedReason ? pendingValidation.rejectedReason : 'STALE_PENDING_SELECTION' };
+    }
 
     const { TurnPipeline, SeededPRNG, TurnPipelineUIAdapter, CardLogic } = await loadTurnPipelineModules();
     if (!TurnPipeline || typeof TurnPipeline.applyTurnSafe !== 'function') {
@@ -900,7 +906,8 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
         playbackEvents: combinedPlaybackEvents,
         playbackDiagnostics: toDebugPlaybackDiagnostics(playbackAssembly && playbackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
         effectLogs: combinedEffectLogs,
-        action: builtAction.action
+        action: builtAction.action,
+        pendingEffectId: pendingValidation && pendingValidation.pendingEffectId ? pendingValidation.pendingEffectId : null
     };
 }
 
@@ -1681,12 +1688,26 @@ export class MatchRoomDurableObject {
         this.streamSeq = 0;
         this.encoder = new TextEncoder();
         this.heartbeatTimerId = null;
-        this.sseEventBuffer = [];
+        this.sseEventBuffer = Array.isArray(this.room && this.room.sseEventBuffer)
+            ? this.room.sseEventBuffer.slice()
+            : [];
     }
 
     async loadRoom() {
         if (this.roomLoaded) return;
         this.room = await this.state.storage.get(ROOM_STORAGE_KEY) || null;
+        if (this.room && !Array.isArray(this.room.sseEventBuffer)) {
+            this.room.sseEventBuffer = [];
+        }
+        if (this.room && !Array.isArray(this.room.authorityLog)) {
+            this.room.authorityLog = [];
+        }
+        if (this.room && typeof this.room.authoritativeStateHash === 'undefined' && MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function') {
+            this.room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(this.room.snapshot);
+        }
+        this.sseEventBuffer = this.room && Array.isArray(this.room.sseEventBuffer)
+            ? this.room.sseEventBuffer.slice()
+            : [];
         this.roomLoaded = true;
     }
 
@@ -1702,6 +1723,9 @@ export class MatchRoomDurableObject {
             this.heartbeatTimerId = null;
         }
         await this.state.storage.delete(ROOM_STORAGE_KEY);
+        if (this.state.storage && typeof this.state.storage.deleteAlarm === 'function') {
+            await this.state.storage.deleteAlarm();
+        }
     }
 
     nextSseEventId() {
@@ -1726,7 +1750,14 @@ export class MatchRoomDurableObject {
 
     rememberBufferedSseEvent(record) {
         if (!MatchAuthority || typeof MatchAuthority.appendBufferedSseEvent !== 'function') return;
-        this.sseEventBuffer = MatchAuthority.appendBufferedSseEvent(this.sseEventBuffer, record);
+        const nextBuffer = MatchAuthority.appendBufferedSseEvent(
+            this.room && Array.isArray(this.room.sseEventBuffer) ? this.room.sseEventBuffer : this.sseEventBuffer,
+            record
+        );
+        this.sseEventBuffer = nextBuffer;
+        if (this.room && typeof this.room === 'object') {
+            this.room.sseEventBuffer = nextBuffer.slice();
+        }
     }
 
     buildBufferedSnapshotEvent(meta, eventId) {
@@ -1758,6 +1789,7 @@ export class MatchRoomDurableObject {
     async broadcastPreparedSnapshot(preparedSnapshot) {
         if (!this.room || !preparedSnapshot) return;
         this.rememberBufferedSseEvent(preparedSnapshot.record);
+        await this.saveRoom();
         const streamEntries = Array.from(this.streams.entries());
         if (streamEntries.length === 0) return;
         await Promise.all(streamEntries.map(([streamId, streamInfo]) => {
@@ -1798,6 +1830,7 @@ export class MatchRoomDurableObject {
             eventName: 'heartbeat',
             payload
         });
+        await this.saveRoom();
 
         await Promise.all(streamEntries.map(([streamId]) => (
             this.sendSse(streamId, 'heartbeat', payload, { eventId })
@@ -1871,6 +1904,7 @@ export class MatchRoomDurableObject {
             eventName: 'presence',
             payload
         });
+        await this.saveRoom();
         const streamEntries = Array.from(this.streams.entries());
         if (streamEntries.length === 0) return;
         await Promise.all(streamEntries.map(([streamId]) => (
@@ -1886,6 +1920,7 @@ export class MatchRoomDurableObject {
             eventName: 'chat',
             payload
         });
+        await this.saveRoom();
         const streamEntries = Array.from(this.streams.entries());
         if (streamEntries.length === 0) return;
         await Promise.all(streamEntries.map(([streamId]) => (
@@ -1912,6 +1947,9 @@ export class MatchRoomDurableObject {
             roomId,
             seed,
             snapshot,
+            authoritativeStateHash: MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
+                ? MatchAuthority.computeAuthoritativeStateHash(snapshot)
+                : null,
             initialDeckSpec,
             initialDeckSpecByPlayer,
             roomDeck,
@@ -1934,10 +1972,31 @@ export class MatchRoomDurableObject {
                 white: null
             },
             eventSeq: 0,
+            sseEventBuffer: [],
+            authorityLog: [],
             chatMessages: [],
             chatSeq: 0,
             updatedAt: nowMs
         };
+    }
+
+    async syncTurnTimerAlarm() {
+        const room = this.room;
+        if (!room || !this.state || !this.state.storage) return false;
+        const storage = this.state.storage;
+        const timer = (room.turnTimer && typeof room.turnTimer === 'object') ? room.turnTimer : null;
+        if (!timer || timer.active !== true || !Number.isFinite(Number(timer.turnDeadlineAt))) {
+            if (typeof storage.deleteAlarm === 'function') {
+                await storage.deleteAlarm();
+                return true;
+            }
+            return false;
+        }
+        if (typeof storage.setAlarm === 'function') {
+            await storage.setAlarm(Math.max(0, Math.trunc(Number(timer.turnDeadlineAt))));
+            return true;
+        }
+        return false;
     }
 
     async isSnapshotGameOver(snapshot) {
@@ -1966,6 +2025,7 @@ export class MatchRoomDurableObject {
             const pausedTimer = createPausedTurnTimer(room);
             const changed = !areTurnTimersEqual(room.turnTimer, pausedTimer);
             room.turnTimer = pausedTimer;
+            await this.syncTurnTimerAlarm();
             return changed;
         }
 
@@ -1982,6 +2042,7 @@ export class MatchRoomDurableObject {
         const activeTimer = createActiveTurnTimer(room, nowMs);
         const changed = !areTurnTimersEqual(room.turnTimer, activeTimer);
         room.turnTimer = activeTimer;
+        await this.syncTurnTimerAlarm();
         return changed;
     }
 
@@ -2053,6 +2114,18 @@ export class MatchRoomDurableObject {
         nextSnapshot.updatedAt = nowMs;
         room.snapshot = nextSnapshot;
         room.updatedAt = nowMs;
+        room.authoritativeStateHash = MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
+            ? MatchAuthority.computeAuthoritativeStateHash(nextSnapshot)
+            : null;
+        if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
+            MatchAuthority.appendAuthorityLog(room, {
+                kind: 'timeout_applied',
+                actionType: 'timeout_pass',
+                committedVersion: room.stateVersion,
+                stateHashAfter: room.authoritativeStateHash,
+                timeoutReason: 'turn_deadline_expired'
+            });
+        }
 
         await this.refreshTurnTimer({ nowMs, forceRestart: true });
         await this.saveRoom();
@@ -2071,6 +2144,20 @@ export class MatchRoomDurableObject {
             stateVersion: room.stateVersion,
             playerKey: timedOutSeatKey
         };
+    }
+
+    async alarm() {
+        await this.loadRoom();
+        if (!this.room) return;
+        const nowMs = Date.now();
+        const result = await this.applyExpiredTurnTimeoutIfNeeded({ nowMs });
+        if (!result || result.applied !== true) {
+            const timerChanged = await this.refreshTurnTimer({ nowMs, forceRestart: false });
+            if (timerChanged) {
+                this.room.updatedAt = nowMs;
+                await this.saveRoom();
+            }
+        }
     }
 
     async handleInternalCreate(urlObj, body) {
@@ -2369,71 +2456,64 @@ export class MatchRoomDurableObject {
         const isNetworkDebugAction = isNetworkDebugFillHandPayload(body);
         const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
         const acceptedOperationsBySeat = ensureAcceptedOperationsBySeat(room);
+        if (!Array.isArray(room.authorityLog)) room.authorityLog = [];
+        if (!Array.isArray(room.sseEventBuffer)) room.sseEventBuffer = [];
+        if (typeof room.authoritativeStateHash === 'undefined' && MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function') {
+            room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(room.snapshot);
+        }
 
         if (!room.seats[seatKey]) {
-            return jsonResponse(403, buildPublishPayload(room, viewerSeatKey, {
+            return jsonResponse(403, buildPublishPayload(room, viewerSeatKey, MatchAuthority.buildPublishResponseOptions({
                 ok: false,
                 rejectedReason: 'SEAT_NOT_JOINED',
-                publishMeta: {
-                    kind: 'rejected',
-                    operationId,
-                    actionType,
-                    receivedBaseVersion: baseVersion,
-                    authoritativeStateVersion: room.stateVersion,
-                    rejectedReason: 'SEAT_NOT_JOINED'
-                }
-            }));
+                publishKind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion
+            })));
         }
 
         if (seatKey !== playerKey) {
-            return jsonResponse(403, buildPublishPayload(room, viewerSeatKey, {
+            return jsonResponse(403, buildPublishPayload(room, viewerSeatKey, MatchAuthority.buildPublishResponseOptions({
                 ok: false,
                 rejectedReason: 'SEAT_MISMATCH',
-                publishMeta: {
-                    kind: 'rejected',
-                    operationId,
-                    actionType,
-                    receivedBaseVersion: baseVersion,
-                    authoritativeStateVersion: room.stateVersion,
-                    rejectedReason: 'SEAT_MISMATCH'
-                }
-            }));
+                publishKind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion
+            })));
         }
 
         if (!seatToken || !room.seatTokens || room.seatTokens[seatKey] !== seatToken) {
-            return jsonResponse(403, buildPublishPayload(room, null, {
+            return jsonResponse(403, buildPublishPayload(room, null, MatchAuthority.buildPublishResponseOptions({
                 ok: false,
                 rejectedReason: 'SEAT_TOKEN_MISMATCH',
-                publishMeta: {
-                    kind: 'rejected',
-                    operationId,
-                    actionType,
-                    receivedBaseVersion: baseVersion,
-                    authoritativeStateVersion: room.stateVersion,
-                    rejectedReason: 'SEAT_TOKEN_MISMATCH'
-                }
-            }));
+                publishKind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion
+            })));
         }
 
         if (!(MatchAuthority && typeof MatchAuthority.hasRequiredOperationId === 'function'
             ? MatchAuthority.hasRequiredOperationId(operationId)
             : !!operationId)) {
-            return jsonResponse(409, buildPublishPayload(room, seatKey, {
+            return jsonResponse(409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                 ok: false,
                 rejectedReason: 'OPERATION_ID_REQUIRED',
-                publishMeta: {
-                    kind: 'rejected',
-                    operationId,
-                    actionType,
-                    receivedBaseVersion: baseVersion,
-                    authoritativeStateVersion: room.stateVersion,
-                    rejectedReason: 'OPERATION_ID_REQUIRED'
-                }
-            }));
+                publishKind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion
+            })));
         }
 
-        const lastAcceptedOperation = MatchAuthority && typeof MatchAuthority.findAcceptedOperationBySeat === 'function'
-            ? MatchAuthority.findAcceptedOperationBySeat(room, seatKey, operationId)
+        const lastAcceptedOperation = MatchAuthority && typeof MatchAuthority.resolveAcceptedOperation === 'function'
+            ? MatchAuthority.resolveAcceptedOperation(room, seatKey, operationId, acceptedOperationsBySeat[seatKey])
             : acceptedOperationsBySeat[seatKey];
         if (
             operationId &&
@@ -2441,37 +2521,54 @@ export class MatchRoomDurableObject {
             typeof lastAcceptedOperation === 'object'
         ) {
             const serverTime = Date.now();
-            return jsonResponse(200, buildPublishPayload(room, seatKey, {
+            if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
+                MatchAuthority.appendAuthorityLog(room, {
+                    kind: 'publish_idempotent_replay',
+                    operationId,
+                    actionType,
+                    baseVersion,
+                    committedVersion: room.stateVersion,
+                    stateHashBefore: room.authoritativeStateHash,
+                    dedupeOutcome: 'replay'
+                });
+            }
+            return jsonResponse(200, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                 ok: true,
                 idempotentReplay: true,
                 serverTime,
-                publishMeta: {
-                    kind: 'idempotent_replay',
-                    operationId,
-                    actionType,
-                    receivedBaseVersion: baseVersion,
-                    authoritativeStateVersion: room.stateVersion,
-                    replayedStateVersion: lastAcceptedOperation.stateVersion
-                }
-            }));
+                publishKind: 'idempotent_replay',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion,
+                replayedStateVersion: lastAcceptedOperation.stateVersion
+            })));
         }
 
         if (baseVersion === null || baseVersion !== room.stateVersion) {
             const rejectedReason = MatchAuthority && typeof MatchAuthority.classifyVersionRejectionReason === 'function'
                 ? MatchAuthority.classifyVersionRejectionReason(baseVersion, room.stateVersion)
                 : 'VERSION_MISMATCH';
-            return jsonResponse(409, buildPublishPayload(room, seatKey, {
-                ok: false,
-                rejectedReason,
-                publishMeta: {
-                    kind: 'rejected',
+            if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
+                MatchAuthority.appendAuthorityLog(room, {
+                    kind: 'publish_rejected',
                     operationId,
                     actionType,
-                    receivedBaseVersion: baseVersion,
-                    authoritativeStateVersion: room.stateVersion,
+                    baseVersion,
+                    committedVersion: room.stateVersion,
+                    stateHashBefore: room.authoritativeStateHash,
                     rejectedReason
-                }
-            }));
+                });
+            }
+            return jsonResponse(409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
+                ok: false,
+                rejectedReason,
+                publishKind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion
+            })));
         }
 
         const expectedPlayerKey = getCurrentPlayerKey(room.snapshot && room.snapshot.gameState);
@@ -2481,18 +2578,15 @@ export class MatchRoomDurableObject {
             const allowFateWillController = MatchAuthority && typeof MatchAuthority.isFateWillControllerForCurrentTurn === 'function'
                 && MatchAuthority.isFateWillControllerForCurrentTurn(room.snapshot, playerKey);
             if (!allowOutOfTurnRematch && !allowOutOfTurnNetworkDebug && !allowFateWillController) {
-                return jsonResponse(409, buildPublishPayload(room, seatKey, {
+                return jsonResponse(409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                     ok: false,
                     rejectedReason: 'OUT_OF_TURN',
-                    publishMeta: {
-                        kind: 'rejected',
-                        operationId,
-                        actionType,
-                        receivedBaseVersion: baseVersion,
-                        authoritativeStateVersion: room.stateVersion,
-                        rejectedReason: 'OUT_OF_TURN'
-                    }
-                }));
+                    publishKind: 'rejected',
+                    operationId,
+                    actionType,
+                    receivedBaseVersion: baseVersion,
+                    authoritativeStateVersion: room.stateVersion
+                })));
             }
         }
 
@@ -2507,63 +2601,73 @@ export class MatchRoomDurableObject {
             )
         );
 
+        const stateHashBefore = MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
+            ? MatchAuthority.computeAuthoritativeStateHash(room.snapshot)
+            : (room.authoritativeStateHash || null);
         let nextSnapshot;
         let serverPlaybackEvents = [];
         let serverEffectLogs = [];
         let serverPlaybackDiagnostics = null;
+        let commandAction = null;
+        let pendingEffectId = null;
         if (isRematchResetAction) {
             const rematchSeed = Date.now();
             try {
                 nextSnapshot = await makeInitialSnapshot(rematchSeed, buildInitialDeckSnapshotOptions(room));
                 room.seed = rematchSeed;
             } catch (e) {
-                return jsonResponse(500, buildPublishPayload(room, seatKey, {
+                return jsonResponse(500, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                     ok: false,
                     rejectedReason: 'REMATCH_RESET_FAILED',
-                    publishMeta: {
-                        kind: 'rejected',
-                        operationId,
-                        actionType,
-                        receivedBaseVersion: baseVersion,
-                        authoritativeStateVersion: room.stateVersion,
-                        rejectedReason: 'REMATCH_RESET_FAILED'
-                    }
-                }));
+                    publishKind: 'rejected',
+                    operationId,
+                    actionType,
+                    receivedBaseVersion: baseVersion,
+                    authoritativeStateVersion: room.stateVersion
+                })));
             }
         } else if (hasCommandPayload) {
             const commandResult = await applyCommandPublishToSnapshot(room, body, playerKey);
             if (!commandResult.ok) {
-                return jsonResponse(409, buildPublishPayload(room, seatKey, {
+                if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
+                    MatchAuthority.appendAuthorityLog(room, {
+                        kind: 'publish_rejected',
+                        operationId,
+                        actionType,
+                        baseVersion,
+                        committedVersion: room.stateVersion,
+                        stateHashBefore,
+                        pendingEffectId: commandResult.pendingEffectId || null,
+                        rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
+                    });
+                }
+                return jsonResponse(409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                     ok: false,
                     rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED',
                     errorMessage: commandResult.errorMessage || null,
-                    publishMeta: {
-                        kind: 'rejected',
-                        operationId,
-                        actionType,
-                        receivedBaseVersion: baseVersion,
-                        authoritativeStateVersion: room.stateVersion,
-                        rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
-                    }
-                }));
+                    publishKind: 'rejected',
+                    operationId,
+                    actionType,
+                    receivedBaseVersion: baseVersion,
+                    authoritativeStateVersion: room.stateVersion
+                })));
             }
             nextSnapshot = commandResult.snapshot;
             serverPlaybackEvents = Array.isArray(commandResult.playbackEvents) ? commandResult.playbackEvents : [];
             serverEffectLogs = Array.isArray(commandResult.effectLogs) ? commandResult.effectLogs : [];
             serverPlaybackDiagnostics = commandResult.playbackDiagnostics || null;
+            commandAction = commandResult.action || null;
+            pendingEffectId = commandResult.pendingEffectId || null;
         } else {
-            return jsonResponse(409, buildPublishPayload(room, seatKey, {
+            return jsonResponse(409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                 ok: false,
                 rejectedReason: 'COMMAND_REQUIRED',
-                publishMeta: {
-                    kind: 'rejected',
-                    operationId,
-                    actionType,
-                    receivedBaseVersion: baseVersion,
-                    authoritativeStateVersion: room.stateVersion,
-                    rejectedReason: 'COMMAND_REQUIRED'
-                }
-            }));
+                publishKind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion
+            })));
         }
 
         room.stateVersion += 1;
@@ -2572,6 +2676,9 @@ export class MatchRoomDurableObject {
 
         room.snapshot = nextSnapshot;
         room.updatedAt = nextSnapshot.updatedAt;
+        room.authoritativeStateHash = MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
+            ? MatchAuthority.computeAuthoritativeStateHash(nextSnapshot)
+            : null;
         if (operationId) {
             const acceptedEntry = {
                 operationId,
@@ -2596,20 +2703,31 @@ export class MatchRoomDurableObject {
         };
         const serverTime = Date.now();
         const preparedSnapshot = this.prepareSnapshotBroadcast(meta);
-        const responsePayload = buildPublishPayload(room, seatKey, {
+        const responsePayload = buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
             ok: true,
             serverTime,
             playbackEvents: serverPlaybackEvents,
             effectLogs: serverEffectLogs,
             playbackDiagnostics: serverPlaybackDiagnostics,
-            publishMeta: {
-                kind: 'accepted',
+            publishKind: 'accepted',
+            operationId,
+            actionType,
+            receivedBaseVersion: baseVersion,
+            authoritativeStateVersion: room.stateVersion
+        }));
+        if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
+            MatchAuthority.appendAuthorityLog(room, {
+                kind: 'publish_accepted',
                 operationId,
-                actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion
-            }
-        });
+                actionType: actionType || (commandAction && commandAction.type) || null,
+                baseVersion,
+                committedVersion: room.stateVersion,
+                stateHashBefore,
+                stateHashAfter: room.authoritativeStateHash,
+                pendingEffectId,
+                dedupeOutcome: 'accepted'
+            });
+        }
         if (MatchAuthority && typeof MatchAuthority.stripTransientChargeDeltaState === 'function') {
             MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
         }
@@ -2678,8 +2796,9 @@ export class MatchRoomDurableObject {
         this.streams.set(streamId, { writer, seatKey: viewerSeatKey });
         this.ensureHeartbeatTimer();
         const lastEventId = String(request.headers.get('Last-Event-ID') || resumeEventId).trim();
+        const replayBuffer = Array.isArray(room.sseEventBuffer) ? room.sseEventBuffer : this.sseEventBuffer;
         const replayEvents = MatchAuthority && typeof MatchAuthority.getBufferedSseReplayEvents === 'function'
-            ? MatchAuthority.getBufferedSseReplayEvents(this.sseEventBuffer, lastEventId, viewerSeatKey)
+            ? MatchAuthority.getBufferedSseReplayEvents(replayBuffer, lastEventId, viewerSeatKey)
             : null;
 
         const onAbort = () => {
@@ -2698,6 +2817,13 @@ export class MatchRoomDurableObject {
             (async () => {
                 try {
                     if (Array.isArray(replayEvents)) {
+                        if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
+                            MatchAuthority.appendAuthorityLog(room, {
+                                kind: replayEvents.length > 0 ? 'stream_resume_replay' : 'stream_resume_heartbeat',
+                                stateHashBefore: room.authoritativeStateHash,
+                                dedupeOutcome: replayEvents.length > 0 ? 'replay' : 'empty_replay'
+                            });
+                        }
                         if (replayEvents.length > 0) {
                             for (const event of replayEvents) {
                                 await this.sendSse(streamId, event.eventName, event.payload, { eventId: event.eventId });
@@ -2706,6 +2832,13 @@ export class MatchRoomDurableObject {
                             await this.sendSse(streamId, 'heartbeat', buildHeartbeatPayload(room, Date.now()), { eventId: null });
                         }
                         return;
+                    }
+                    if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
+                        MatchAuthority.appendAuthorityLog(room, {
+                            kind: 'stream_resume_full_sync',
+                            stateHashBefore: room.authoritativeStateHash,
+                            dedupeOutcome: 'full_sync'
+                        });
                     }
                     await this.sendSse(streamId, 'snapshot', initialPayload);
                     await this.sendSse(streamId, 'chat', withPublicSeatState(room, {

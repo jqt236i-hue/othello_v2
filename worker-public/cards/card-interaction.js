@@ -1839,7 +1839,7 @@ function _runPipelineAction(playerKey, action) {
     if (res.nextCardState) _commitSharedStateSnapshot('cardState', res.nextCardState);
     if (res.nextGameState) _commitSharedStateSnapshot('gameState', res.nextGameState);
 
-    if (typeof ActionManager !== 'undefined' && ActionManager.ActionManager) {
+    if (res.skippedLocalExecution !== true && typeof ActionManager !== 'undefined' && ActionManager.ActionManager) {
         try {
             ActionManager.ActionManager.recordAction(action);
             ActionManager.ActionManager.incrementTurnIndex();

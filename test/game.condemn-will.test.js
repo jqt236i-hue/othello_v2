@@ -86,6 +86,25 @@ describe('CONDEMN_WILL core behavior', () => {
     expect(cs.discard).toContain('meteor_will');
   });
 
+  test('clears selected card state after condemn resolution', () => {
+    const condemn = Shared.CARD_DEFS.find((c) => c && c.type === 'CONDEMN_WILL');
+    expect(condemn).toBeTruthy();
+
+    const cs = createState();
+    cs.hands.black = [condemn.id];
+    cs.hands.white = ['silver_stone', 'gold_stone'];
+    cs.selectedCardId = 'gold_stone';
+    cs.selectedCardOwnerKey = 'white';
+
+    const used = CardLogic.applyCardUsage(cs, 'black', condemn.id);
+    expect(used).toBe(true);
+
+    const result = CardLogic.applyCondemnWill(cs, 'black', 1);
+    expect(result.applied).toBe(true);
+    expect(cs.selectedCardId).toBeNull();
+    expect(cs.selectedCardOwnerKey).toBeNull();
+  });
+
   test('turn pipeline resolves condemn selection action and emits opponent hand removal', () => {
     const condemn = Shared.CARD_DEFS.find((c) => c && c.type === 'CONDEMN_WILL');
     expect(condemn).toBeTruthy();

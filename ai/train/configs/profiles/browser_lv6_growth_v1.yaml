@@ -19,7 +19,7 @@ bootstrap:
   copyPromotedOnnxModel: true
   copyPromotedOnnxMeta: true
   useCopiedPolicyTableAsBootstrap: true
-  autoResumeLatestCheckpoint: true
+  autoResumeLatestCheckpoint: false
 preflight:
   enabled: true
   strict: false
@@ -33,7 +33,7 @@ trainCycleArgs:
   - --train-games
   - "10000"
   - --eval-games
-  - "2000"
+  - "500"
   - --selfplay-jobs
   - "10"
   - --adoption-jobs
@@ -43,6 +43,7 @@ trainCycleArgs:
   - --max-plies
   - "220"
   - --with-cards
+  - --no-selfplay-hardcases
   - --card-usage-rate
   - "0.60"
   - --selfplay-policy-mix-rate
@@ -99,16 +100,21 @@ trainCycleArgs:
   - --onnx-val-split
   - "0.15"
   - --onnx-early-stop-patience
-  - "16"
+  - "24"
   - --onnx-early-stop-min-delta
-  - "0.00010"
+  - "0.00004"
   - --onnx-early-stop-min-epochs
-  - "48"
+  - "120"
   - --onnx-early-stop-monitor
   - val_loss
   - --onnx-early-stop-smoothing-window
-  - "3"
-  - --onnx-resume-optimizer
+  - "5"
+  - --onnx-lr-plateau-patience
+  - "8"
+  - --onnx-lr-plateau-factor
+  - "0.60"
+  - --onnx-lr-plateau-min-lr
+  - "0.00003"
   - --onnx-card-no-action-weight
   - "0.66"
   - --onnx-card-class-balance-power
@@ -128,9 +134,19 @@ trainCycleArgs:
   - --onnx-tactical-miss-sample-boost
   - "0.60"
   - --onnx-tactical-miss-threshold
-  - "0.08"
+  - "0.05"
+  - --onnx-hand-pressure-sample-boost
+  - "0.35"
+  - --onnx-pending-target-sample-boost
+  - "0.45"
+  - --no-train-target-head
+  - --no-train-value-head
+  - --min-visits
+  - "4"
+  - --shape-immediate
+  - "0.48"
   - --onnx-corner-balance-sample-boost
   - "0.18"
   - --onnx-edge-balance-sample-boost
   - "0.08"
-  - --carry-over-checkpoint
+  - --carry-over-checkpoint-promoted-only

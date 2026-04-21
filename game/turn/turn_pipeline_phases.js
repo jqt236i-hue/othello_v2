@@ -2873,7 +2873,8 @@
                         player: opponentKey,
                         count: 1,
                         reason: 'condemn_will',
-                        cardId: (res && res.destroyedCardId) ? res.destroyedCardId : null
+                        cardId: (res && res.destroyedCardId) ? res.destroyedCardId : null,
+                        cardIds: (res && res.destroyedCardId) ? [res.destroyedCardId] : []
                     });
                 }
                 // Selection-only pre-placement effect: stop after handling selection

@@ -290,6 +290,24 @@ describe('card use source element selection', () => {
     expect(global.playCardUseHandAnimation).not.toHaveBeenCalled();
   });
 
+  test('network server-authored card use does not advance local action history', () => {
+    window.MATCH_MODE = 'network';
+    window.LOCAL_PLAYER_KEY = 'black';
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      skippedLocalExecution: true,
+      nextCardState: global.cardState,
+      nextGameState: global.gameState,
+      playbackEvents: []
+    }));
+
+    require('../cards/card-interaction.js');
+    window.useSelectedCard();
+
+    expect(global.ActionManager.ActionManager.recordAction).not.toHaveBeenCalled();
+    expect(global.ActionManager.ActionManager.incrementTurnIndex).not.toHaveBeenCalled();
+  });
+
   test('network pending target-card use attaches source element to returned card_use_animation and skips direct fallback', () => {
     const ownCardEl = document.querySelector('#hand-black .card-item[data-card-id="dup_card"]');
     ownCardEl.getBoundingClientRect = () => ({
@@ -313,7 +331,7 @@ describe('card use source element selection', () => {
       type: 'sound_effect',
       phase: 1,
       targets: [{ soundKey: 'card_use_button' }],
-      meta: { sourceType: 'card_used' }
+      meta: { sourceType: 'card_used', localPendingPreview: true }
     }];
 
     window.MATCH_MODE = 'network';

@@ -42,7 +42,7 @@ function createSnapshot(stateVersion) {
       hands: { black: [], white: [] },
       charge: { black: 10, white: 10 },
       pendingEffectByPlayer: {
-        black: { type: 'TRAP_WILL', stage: 'selectTarget' },
+        black: { type: 'TRAP_WILL', stage: 'selectTarget', cardId: 'trap_01' },
         white: null
       },
       hasUsedCardThisTurnByPlayer: { black: false, white: false },
@@ -240,7 +240,14 @@ describe('NetworkMatchClient trap deferred publish', () => {
     expect(publishBodies[0].actor).toBe('black');
     expect(publishBodies[0].params).toEqual({
       player: 'black',
-      trapTarget: { row: 6, col: 8 }
+      trapTarget: { row: 6, col: 8 },
+      pendingSelectionState: {
+        type: 'TRAP_WILL',
+        stage: 'selectTarget',
+        cardId: 'trap_01'
+      },
+      useCardId: 'trap_01',
+      useCardOwnerKey: 'black'
     });
     expect(publishBodies[0].snapshot).toBeUndefined();
     expect(publishBodies[0].playbackEvents).toBeUndefined();

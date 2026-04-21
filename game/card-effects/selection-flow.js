@@ -203,6 +203,19 @@
         return pendingCoordinator.clearPendingSelectionAction(playerKey);
     }
 
+    function clearPendingSelectionFailureState(cardStateValue, playerKey, options) {
+        const pendingCoordinator = getPendingCoordinator();
+        if (pendingCoordinator && typeof pendingCoordinator.clearPendingSelectionFailureState === 'function') {
+            return pendingCoordinator.clearPendingSelectionFailureState(cardStateValue, playerKey, options);
+        }
+        const opts = (options && typeof options === 'object') ? options : {};
+        if (opts.clearPendingEffect === true && cardStateValue && cardStateValue.pendingEffectByPlayer) {
+            cardStateValue.pendingEffectByPlayer[normalizeSelectionPlayerKey(playerKey)] = null;
+        }
+        clearPendingSelectionAction(playerKey);
+        return true;
+    }
+
     function syncPendingSelectionActionCache(pendingEffectByPlayer) {
         const pendingCoordinator = getPendingCoordinator();
         if (!pendingCoordinator || typeof pendingCoordinator.syncPendingSelectionActionCache !== 'function') {
@@ -529,8 +542,21 @@
         const ensureFn = typeof opts.ensureCurrentPlayerCanActOrPass === 'function'
             ? opts.ensureCurrentPlayerCanActOrPass
             : null;
-        const skipNetworkPublish = opts.skipNetworkPublish === true;
+        let skipNetworkPublish = opts.skipNetworkPublish === true;
         const clearCardAnimatingOnFinish = opts.clearCardAnimatingOnFinish !== false;
+        const currentPending = pendingByPlayer ? pendingByPlayer[playerKey] : null;
+        if (
+            !skipNetworkPublish
+            && contract
+            && contract.deferNetworkPublish === true
+            && contract.kind === 'multi_stage'
+            && pendingAction
+            && pendingAction.deferNetworkPublish === true
+            && normalizePendingType(currentPending && currentPending.type) === pendingType
+            && String(currentPending && currentPending.stage || '') === 'selectTarget'
+        ) {
+            skipNetworkPublish = true;
+        }
 
         if (contract && contract.turnOutcome === 'end_turn') {
             const networkTurnHandoff = getNetworkTurnHandoff();
@@ -677,61 +703,57 @@
         }
     }
 
-    function applyStateSnapshotInPlace(stateKey, nextValue) {
-        if (!root || !nextValue || typeof nextValue !== 'object') return nextValue || null;
+    function applyStateSnapshotInPlace(currentValue, nextValue) {
+        if (!nextValue || typeof nextValue !== 'object') return nextValue || null;
 
-        const currentValue = root[stateKey];
         if (currentValue && typeof currentValue === 'object' && currentValue !== nextValue) {
             const keys = Object.keys(currentValue);
             for (let index = 0; index < keys.length; index += 1) {
                 delete currentValue[keys[index]];
             }
             Object.assign(currentValue, nextValue);
-            root[stateKey] = currentValue;
             return currentValue;
         }
 
-        root[stateKey] = nextValue;
         return nextValue;
     }
 
-    function applySelectionStateResult(result) {
-        if (result && result.nextCardState) {
-            applyStateSnapshotInPlace('cardState', result.nextCardState);
-        }
-        if (result && result.nextGameState) {
-            applyStateSnapshotInPlace('gameState', result.nextGameState);
-        }
+    function resolveSelectionStateRefs(options) {
+        const opts = (options && typeof options === 'object') ? options : {};
         return {
-            cardState: root ? root.cardState : null,
-            gameState: root ? root.gameState : null
+            cardState: opts.cardState || (root ? root.cardState : null),
+            gameState: opts.gameState || (root ? root.gameState : null)
         };
     }
 
-    async function applyDeferredSelectionPreviewResult(result, context) {
-        const liveContext = (context && typeof context === 'object') ? context : {};
-        const appliedState = applySelectionStateResult(result);
-        const playbackEvents = Array.isArray(result && result.playbackEvents)
-            ? result.playbackEvents
-            : [];
-        const nextContext = Object.assign({}, liveContext, {
-            cardState: appliedState.cardState,
-            gameState: appliedState.gameState,
-            playbackEvents
-        });
+    function applySelectionStateResult(result, options) {
+        const stateRefs = resolveSelectionStateRefs(options);
+        let nextCardState = stateRefs.cardState;
+        let nextGameState = stateRefs.gameState;
 
-        if (liveContext.emitStateChanges !== false) {
-            emitSelectionStateChangeSignals(playbackEvents);
+        if (result && result.nextCardState) {
+            nextCardState = applyStateSnapshotInPlace(nextCardState, result.nextCardState);
+            if (root) {
+                root.cardState = nextCardState;
+            }
         }
-
-        if (typeof liveContext.afterStateChange === 'function') {
-            await liveContext.afterStateChange(nextContext);
+        if (result && result.nextGameState) {
+            nextGameState = applyStateSnapshotInPlace(nextGameState, result.nextGameState);
+            if (root) {
+                root.gameState = nextGameState;
+            }
         }
-
         return {
-            appliedState,
-            playbackEvents,
-            liveContext: nextContext
+            cardState: nextCardState,
+            gameState: nextGameState
+        };
+    }
+
+    function resolveAuthoritativeSelectionState() {
+        const stateRefs = resolveSelectionStateRefs();
+        return {
+            cardState: stateRefs.cardState,
+            gameState: stateRefs.gameState
         };
     }
 
@@ -802,11 +824,12 @@
     function getSelectionPending(playerKey, options) {
         const normalizedPlayerKey = normalizeSelectionPlayerKey(playerKey);
         const opts = (options && typeof options === 'object') ? options : {};
+        const stateRefs = resolveSelectionStateRefs(opts);
         const pendingCoordinator = getPendingCoordinator();
         const pending = (pendingCoordinator && typeof pendingCoordinator.readPendingEffect === 'function')
-            ? pendingCoordinator.readPendingEffect(root ? root.cardState : null, normalizedPlayerKey)
-            : (root && root.cardState && root.cardState.pendingEffectByPlayer
-                ? root.cardState.pendingEffectByPlayer[normalizedPlayerKey]
+            ? pendingCoordinator.readPendingEffect(stateRefs.cardState, normalizedPlayerKey)
+            : (stateRefs.cardState && stateRefs.cardState.pendingEffectByPlayer
+                ? stateRefs.cardState.pendingEffectByPlayer[normalizedPlayerKey]
                 : null);
         if (!pending || typeof pending !== 'object') {
             return { pending: null, pendingType: null };
@@ -888,6 +911,7 @@
         const actionType = typeof opts.actionType === 'string' && opts.actionType
             ? opts.actionType
             : 'place';
+        const stateRefs = resolveSelectionStateRefs(opts);
 
         const pendingInfo = getSelectionPending(playerKey, opts);
         const pending = pendingInfo.pending;
@@ -917,10 +941,13 @@
         let appliedSelection = null;
         let skipFinalizeNetworkPublish = false;
         let shouldClearPendingActionOnExit = false;
+        let shouldClearPendingEffectOnExit = false;
+        let pendingFailureReason = null;
 
-        function markPendingActionFailure() {
+        function markPendingActionFailure(reason) {
             if (!pendingAction || typeof pendingAction !== 'object') return;
             shouldClearPendingActionOnExit = true;
+            pendingFailureReason = typeof reason === 'string' && reason ? reason : 'selection_failed';
         }
 
         try {
@@ -934,8 +961,9 @@
                 playerKey,
                 pending,
                 pendingType: resolvedPendingType,
-                cardState: root ? root.cardState : null,
-                gameState: root ? root.gameState : null
+                cardState: stateRefs.cardState,
+                gameState: stateRefs.gameState,
+                stateRefs
             };
 
             if (typeof opts.beforeRun === 'function') {
@@ -953,7 +981,7 @@
                 : {};
 
             pendingAction = createPendingSelectionAction(playerKey, resolvedPendingType, normalizedActionPayload, {
-                cardState: root ? root.cardState : null,
+                cardState: stateRefs.cardState,
                 actionType
             });
             const contract = resolvePendingSelectionContract(resolvedPendingType);
@@ -966,7 +994,7 @@
                     playbackEvents: []
                 }));
                 if (!publishResult || publishResult.ok !== true) {
-                    markPendingActionFailure();
+                    markPendingActionFailure('network_publish_failed');
                     const ensureFn = resolveRootFunction('ensureCurrentPlayerCanActOrPass');
                     if (typeof ensureFn === 'function') {
                         ensureFn({ useBlackDelay: true });
@@ -998,13 +1026,13 @@
                 const preview = await previewPendingSelectionExecution({
                     playerKey,
                     action: pendingAction,
-                    cardState: root ? root.cardState : null,
-                    gameState: root ? root.gameState : null,
+                    cardState: stateRefs.cardState,
+                    gameState: stateRefs.gameState,
                     context: baseContext,
                     validateResult: opts.validateResult
                 });
                 if (!preview.ok) {
-                    markPendingActionFailure();
+                    markPendingActionFailure('selection_not_applied');
                     emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
                         action: pendingAction,
                         result: preview.result
@@ -1029,7 +1057,7 @@
                         playbackEvents: []
                     }));
                     if (!publishResult || publishResult.ok !== true) {
-                        markPendingActionFailure();
+                        markPendingActionFailure('network_publish_failed');
                         const ensureFn = resolveRootFunction('ensureCurrentPlayerCanActOrPass');
                         if (typeof ensureFn === 'function') {
                             ensureFn({ useBlackDelay: true });
@@ -1041,14 +1069,8 @@
                         };
                     }
 
-                    const deferredPreviewContext = Object.assign({}, baseContext, {
-                        action: pendingAction,
-                        result: preview.result,
-                        appliedSelection: preview.appliedSelection,
-                        emitStateChanges: false
-                    });
-                    const deferredPreview = await applyDeferredSelectionPreviewResult(preview.result, deferredPreviewContext);
-                    if (!shouldRetainPendingSelectionAction(deferredPreview.appliedState.cardState, playerKey, resolvedPendingType)) {
+                    const authoritativeState = resolveAuthoritativeSelectionState();
+                    if (!shouldRetainPendingSelectionAction(authoritativeState.cardState || stateRefs.cardState, playerKey, resolvedPendingType)) {
                         clearPendingSelectionAction(playerKey);
                     }
 
@@ -1066,7 +1088,7 @@
 
                 executionResult = preview.result;
                 appliedSelection = preview.appliedSelection;
-                const appliedState = applySelectionStateResult(executionResult);
+                const appliedState = applySelectionStateResult(executionResult, stateRefs);
                 playbackEvents = Array.isArray(executionResult.playbackEvents)
                     ? executionResult.playbackEvents
                     : [];
@@ -1109,13 +1131,13 @@
                 const preview = await previewPendingSelectionExecution({
                     playerKey,
                     action: pendingAction,
-                    cardState: root ? root.cardState : null,
-                    gameState: root ? root.gameState : null,
+                    cardState: stateRefs.cardState,
+                    gameState: stateRefs.gameState,
                     context: baseContext,
                     validateResult: opts.validateResult
                 });
                 if (!preview.ok) {
-                    markPendingActionFailure();
+                    markPendingActionFailure('selection_not_applied');
                     emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
                         action: pendingAction,
                         result: preview.result
@@ -1134,7 +1156,7 @@
                     playbackEvents: []
                 }));
                 if (!publishResult || publishResult.ok !== true) {
-                    markPendingActionFailure();
+                    markPendingActionFailure('network_publish_failed');
                     return {
                         ok: false,
                         reason: 'network_publish_failed',
@@ -1142,14 +1164,8 @@
                     };
                 }
 
-                const deferredPreviewContext = Object.assign({}, baseContext, {
-                    action: pendingAction,
-                    result: preview.result,
-                    appliedSelection: preview.appliedSelection,
-                    emitStateChanges: false
-                });
-                const deferredPreview = await applyDeferredSelectionPreviewResult(preview.result, deferredPreviewContext);
-                if (!shouldRetainPendingSelectionAction(deferredPreview.appliedState.cardState, playerKey, resolvedPendingType)) {
+                const authoritativeState = resolveAuthoritativeSelectionState();
+                if (!shouldRetainPendingSelectionAction(authoritativeState.cardState || stateRefs.cardState, playerKey, resolvedPendingType)) {
                     clearPendingSelectionAction(playerKey);
                 }
 
@@ -1168,11 +1184,11 @@
             const adapter = resolveTurnPipelineUIAdapter();
             const pipeline = resolveTurnPipeline();
             executionResult = (adapter && pipeline && typeof adapter.runTurnWithAdapter === 'function')
-                ? adapter.runTurnWithAdapter(root ? root.cardState : null, root ? root.gameState : null, playerKey, pendingAction, pipeline)
+                ? adapter.runTurnWithAdapter(stateRefs.cardState, stateRefs.gameState, playerKey, pendingAction, pipeline)
                 : null;
 
             if (!executionResult || executionResult.ok === false) {
-                markPendingActionFailure();
+                markPendingActionFailure('selection_rejected');
                 emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
                     action: pendingAction,
                     result: executionResult
@@ -1192,7 +1208,7 @@
                 : true;
 
             if (!appliedSelection) {
-                markPendingActionFailure();
+                markPendingActionFailure('selection_not_applied');
                 emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
                     action: pendingAction,
                     result: executionResult
@@ -1204,7 +1220,7 @@
                 };
             }
 
-            const appliedState = applySelectionStateResult(executionResult);
+            const appliedState = applySelectionStateResult(executionResult, stateRefs);
             playbackEvents = Array.isArray(executionResult.playbackEvents)
                 ? executionResult.playbackEvents
                 : [];
@@ -1255,8 +1271,8 @@
                         actionType,
                         action: pendingAction,
                         playbackEvents,
-                        gameStateValue: root ? root.gameState : null,
-                        cardStateValue: root ? root.cardState : null,
+                        gameStateValue: stateRefs.gameState,
+                        cardStateValue: stateRefs.cardState,
                         onHumanTurnReady: defaultSelectionHandoffRender,
                         ensureCurrentPlayerCanActOrPass: resolveRootFunction('ensureCurrentPlayerCanActOrPass'),
                         skipNetworkPublish: skipFinalizeNetworkPublish,
@@ -1275,7 +1291,10 @@
                 }
             } else {
                 if (shouldClearPendingActionOnExit) {
-                    clearPendingSelectionAction(playerKey);
+                    clearPendingSelectionFailureState(stateRefs.cardState, playerKey, {
+                        clearPendingEffect: shouldClearPendingEffectOnExit,
+                        failureReason: pendingFailureReason
+                    });
                     pendingAction = null;
                 }
                 setSelectionProcessing(false);

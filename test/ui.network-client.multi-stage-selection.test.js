@@ -504,8 +504,15 @@ describe.each(CASES)('$label authoritative multi-stage contract', ({
     expect(publishBodies[0].params).toEqual(expect.objectContaining({
       player: 'black',
       [actionField]: secondTarget,
-      pendingSelectionState: expectedTransportState
+      pendingSelectionState: expect.objectContaining(expectedTransportState)
     }));
+    if (initialPending && typeof initialPending.cardId === 'string' && initialPending.cardId) {
+      expect(publishBodies[0].params.pendingSelectionState).toEqual(expect.objectContaining({
+        cardId: initialPending.cardId
+      }));
+      expect(publishBodies[0].params.useCardId).toBe(initialPending.cardId);
+      expect(publishBodies[0].params.useCardOwnerKey).toBe('black');
+    }
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
     expect(global.gameState.turnNumber).toBe(13);
     expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();

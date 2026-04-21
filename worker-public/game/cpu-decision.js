@@ -3749,47 +3749,48 @@ function filterLv6EdgeMovesByPlan(playerKey, level, candidateMoves, board) {
         return !isEdgeDangerousCornerAdjacent(Number(move.row), Number(move.col), board);
     });
     if (safeEdgeMoves.length <= 0) return [];
-    if (safeEdgeMoves.length <= 1) return safeEdgeMoves;
     if (!CpuPolicyCore || typeof CpuPolicyCore.scoreMoveForCornerEdgePlan !== 'function') return safeEdgeMoves;
 
-    const planContext = buildMovePlanContext(playerKey, Math.max(4, level), safeEdgeMoves);
+    const planContext = buildMovePlanContext(playerKey, Math.max(4, level), candidateMoves);
     if (!planContext) return safeEdgeMoves;
 
+    const safeEdgeSet = new Set(safeEdgeMoves);
+    const edgeFinalistMargin = 1200;
+    const edgeEscapeMargin = 3000;
+    const strictPendingPlacement = shouldRespectPendingPlacementPlanStrictly(resolvePendingType(playerKey));
     let bestPlanScore = Number.NEGATIVE_INFINITY;
-    const planScored = safeEdgeMoves.map((move) => {
+    let bestOverallPlanScore = Number.NEGATIVE_INFINITY;
+    let bestOverallMove = null;
+    const planScored = candidateMoves.map((move) => {
         const planScore = scoreLv6PlacementPlanMove(playerKey, level, move, planContext);
-        if (planScore > bestPlanScore) bestPlanScore = planScore;
+        if (safeEdgeSet.has(move) && planScore > bestPlanScore) bestPlanScore = planScore;
+        if (planScore > bestOverallPlanScore) {
+            bestOverallPlanScore = planScore;
+            bestOverallMove = move;
+        }
         return { move, planScore };
     });
+
     const finalists = planScored
-        .filter((one) => one.planScore >= (bestPlanScore - 1200))
+        .filter((one) => safeEdgeSet.has(one.move) && one.planScore >= (bestPlanScore - edgeFinalistMargin))
         .map((one) => one.move);
+
+    const bestOverallIsSafeEdge = !!bestOverallMove && safeEdgeSet.has(bestOverallMove);
+    if (
+        !strictPendingPlacement &&
+        candidateMoves.length > safeEdgeMoves.length &&
+        !bestOverallIsSafeEdge &&
+        Number.isFinite(bestOverallPlanScore) &&
+        Number.isFinite(bestPlanScore) &&
+        (bestOverallPlanScore - bestPlanScore) >= edgeEscapeMargin
+    ) {
+        cpuDebugLog(
+            `[CPU] Lv${level} ${playerKey}: 辺優先を緩和し、内側の安全候補も保持 (${Math.round(bestOverallPlanScore - bestPlanScore)})`
+        );
+        return candidateMoves;
+    }
+
     return finalists.length > 0 ? finalists : safeEdgeMoves;
-}
-
-function hasLv6MarkerPressure() {
-    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-    return markers.some((marker) => {
-        if (!marker) return false;
-        if (marker.kind === 'bomb') return true;
-        if (marker.kind !== 'specialStone') return false;
-        const type = String(marker.data && marker.data.type ? marker.data.type : '');
-        return type !== 'METEOR_HOLE';
-    });
-}
-
-function shouldForceLv6EdgePriority(playerKey, board) {
-    if (!board) return true;
-
-    const pending = readCpuPendingEffect(playerKey);
-    if (pending && pending.type) {
-        return true;
-    }
-
-    if (hasLv6MarkerPressure()) {
-        return true;
-    }
-    return false;
 }
 
 function filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves) {
@@ -3841,48 +3842,10 @@ function filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves) {
 
     const edgeMoves = filterLv6EdgeMovesByPlan(playerKey, level, candidatePool, board);
     if (edgeMoves.length > 0) {
-        const forceEdge = shouldForceLv6EdgePriority(playerKey, board);
         cpuDebugLog(
-            `[CPU] Lv${level} ${playerKey}: edge-gate force=${forceEdge} pending=${String(resolvePendingType(playerKey) || '')} marker=${hasLv6MarkerPressure()}`
+            `[CPU] Lv${level} ${playerKey}: 安全な辺手を優先 (${edgeMoves.length}/${candidatePool.length})`
         );
-        if (forceEdge) {
-            cpuDebugLog(
-                `[CPU] Lv${level} ${playerKey}: 辺手を優先 (${edgeMoves.length}/${candidatePool.length})`
-            );
-            return edgeMoves;
-        }
-
-        const nonEdgeAlternatives = candidatePool.filter((move) => {
-            if (!move) return false;
-            const row = Number(move.row);
-            const col = Number(move.col);
-            if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-            return !isEdgeCell(row, col, board);
-        });
-        if (nonEdgeAlternatives.length <= 0) {
-            cpuDebugLog(
-                `[CPU] Lv${level} ${playerKey}: 非辺候補がないため辺手を維持 (${edgeMoves.length}/${candidatePool.length})`
-            );
-            return edgeMoves;
-        }
-
-        const hasPlainInnerAlternative = nonEdgeAlternatives.some((move) => {
-            if (!move) return false;
-            const row = Number(move.row);
-            const col = Number(move.col);
-            if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-            return getBoardBonusValueAt(row, col) <= 0;
-        });
-        if (!hasPlainInnerAlternative) {
-            cpuDebugLog(
-                `[CPU] Lv${level} ${playerKey}: 非辺候補が番号マスのみのため辺手を維持 (${edgeMoves.length}/${candidatePool.length})`
-            );
-            return edgeMoves;
-        }
-
-        cpuDebugLog(
-            `[CPU] Lv${level} ${playerKey}: 辺手の強制優先を緩和 (${candidatePool.length}/${candidateMoves.length})`
-        );
+        return edgeMoves;
     }
 
     return candidatePool;

@@ -1,0 +1,2729 @@
+{
+  "startedAt": "2026-04-20T15:50:01.567Z",
+  "cards": [
+    {
+      "id": "chest_01",
+      "type": "TREASURE_BOX",
+      "name": "宝箱",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 4
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "free_01",
+      "type": "FREE_PLACEMENT",
+      "name": "自由の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "last_resort_01",
+      "type": "LAST_RESORT",
+      "name": "最後の切り札",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "pass"
+        },
+        {
+          "ok": true,
+          "action": "pass"
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "sniper_01",
+      "type": "SNIPER_WILL",
+      "name": "狙撃の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "hard_01",
+      "type": "PROTECTED_NEXT_STONE",
+      "name": "弱い意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "ghost_01",
+      "type": "GHOST_WILL",
+      "name": "幽霊の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "afterimage_will_01",
+      "type": "AFTERIMAGE_WILL",
+      "name": "残像の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "swap_01",
+      "type": "SWAP_WITH_ENEMY",
+      "name": "交換の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "4L3",
+            "seatKey": "black",
+            "stateVersion": 2,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": null,
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 4
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 4,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "position_swap_01",
+      "type": "POSITION_SWAP_WILL",
+      "name": "入替の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "WKD",
+            "seatKey": "black",
+            "stateVersion": 2,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": "POSITION_SWAP_WILL",
+            "pendingStage": "selectTarget",
+            "pendingOffers": 0,
+            "pendingFirstTarget": {
+              "row": 0,
+              "col": 0
+            },
+            "pendingCardId": "position_swap_01",
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": {
+              "id": "position_swap_01",
+              "name": "入替の意志",
+              "desc": "盤面上の石2つを選び、位置を入れ替える。通常石・特殊石・爆弾を問わず対象にできる。"
+            },
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "action": "pending_target",
+          "row": 7,
+          "col": 7,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "WKD",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "position_swap_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "perma_01",
+      "type": "PERMA_PROTECT_NEXT_STONE",
+      "name": "強い意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "strong_wind_01",
+      "type": "STRONG_WIND_WILL",
+      "name": "強風の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 2,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "6KK",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,0,0,0,0,-1,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "strong_wind_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "super_buoyancy_01",
+      "type": "SUPER_BUOYANCY_WILL",
+      "name": "超浮力",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 1,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "HN6",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[1,-1,-1,0,0,0,0,-1],[0,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "super_buoyancy_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 0,
+          "col": 3
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "super_gravity_01",
+      "type": "SUPER_GRAVITY_WILL",
+      "name": "超重力",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "2EJ",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[0,-1,-1,0,0,0,0,-1],[0,-1,0,0,0,0,0,0],[0,-1,0,0,0,0,0,0],[0,-1,0,1,-1,0,0,0],[0,-1,1,-1,1,0,0,0],[0,-1,0,0,0,0,0,0],[0,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "super_gravity_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "trap_01",
+      "type": "TRAP_WILL",
+      "name": "罠の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 1,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "W2Q",
+            "seatKey": "black",
+            "stateVersion": 2,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": null,
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 4,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "tempt_01",
+      "type": "TEMPT_WILL",
+      "name": "誘惑の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 1,
+          "col": 1,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "5ES",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "tempt_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 4
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "capture_01",
+      "type": "CAPTURE_WILL",
+      "name": "捕獲の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 1,
+          "col": 1,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "NPS",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,0,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "capture_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "double_chain_01",
+      "type": "DOUBLE_CHAIN_WILL",
+      "name": "二連鎖の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "taboo_reverse_01",
+      "type": "TABOO_REVERSE_WILL",
+      "name": "禁忌の反転",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "regen_01",
+      "type": "REGEN_WILL",
+      "name": "復活の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "destroy_01",
+      "type": "DESTROY_ONE_STONE",
+      "name": "破壊神",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "ZFB",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[0,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "destroy_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "bomb_01",
+      "type": "TIME_BOMB",
+      "name": "時限爆弾",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 1,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "L9Z",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "bomb_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "time_stop_god_01",
+      "type": "TIME_STOP_GOD",
+      "name": "時間停石",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 3,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "udr_01",
+      "type": "ULTIMATE_REVERSE_DRAGON",
+      "name": "究極反転龍",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "breeding_01",
+      "type": "BREEDING_WILL",
+      "name": "繁殖の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "proliferation_01",
+      "type": "PROLIFERATION_WILL",
+      "name": "増殖の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "clone_01",
+      "type": "CLONE_WILL",
+      "name": "複製の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 3,
+          "col": 3,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "KCB",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,1,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "clone_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "split_01",
+      "type": "SPLIT_WILL",
+      "name": "分裂の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 3,
+          "col": 3,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "8HT",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,1,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "split_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "seed_01",
+      "type": "SEED_WILL",
+      "name": "種まきの意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 3,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "ZUF",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "seed_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 2
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "teleport_01",
+      "type": "TELEPORT_WILL",
+      "name": "テレポート",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "NME",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[0,-1,-1,0,-1,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "teleport_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "cell_teleport_01",
+      "type": "CELL_TELEPORT_WILL",
+      "name": "マステレポート",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "3SN",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[0,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "cell_teleport_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "cross_bomb_01",
+      "type": "CROSS_BOMB",
+      "name": "十字爆弾",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "pass"
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "x_bomb_01",
+      "type": "X_BOMB",
+      "name": "クロス爆弾",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "hyperactive_01",
+      "type": "HYPERACTIVE_WILL",
+      "name": "多動の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 6
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "hyperactive_inherit_01",
+      "type": "HYPERACTIVE_INHERIT_WILL",
+      "name": "多動の継承",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 1,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "V44",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "hyperactive_inherit_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "extreme_hyperactive_01",
+      "type": "EXTREME_HYPERACTIVE_WILL",
+      "name": "極悪多動魔",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 2
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "escape_01",
+      "type": "ESCAPE_WILL",
+      "name": "逃げる意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "robot_vacuum_01",
+      "type": "ROBOT_VACUUM_WILL",
+      "name": "ロボット掃除機",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "gluttonous_will_01",
+      "type": "GLUTTONOUS_WILL",
+      "name": "悪食の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "will_hunter_king_01",
+      "type": "WILL_HUNTER_KING",
+      "name": "意志狩りの王",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 3,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "instant_hyperactive_01",
+      "type": "INSTANT_HYPERACTIVE_WILL",
+      "name": "瞬間多動",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "rebuild_01",
+      "type": "REBUILD_WILL",
+      "name": "再構築の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "supply_01",
+      "type": "SUPPLY_WILL",
+      "name": "補給の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "plunder_will",
+      "type": "PLUNDER_WILL",
+      "name": "吸収の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "corner_tribute_01",
+      "type": "CORNER_TRIBUTE",
+      "name": "角の代償",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "work_01",
+      "type": "WORK_WILL",
+      "name": "出稼ぎの意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "ribo_01",
+      "type": "RIBO_WILL",
+      "name": "リボ払いの意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "loss_will_01",
+      "type": "LOSS_WILL",
+      "name": "意志の喪失",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 2
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 2
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "double_01",
+      "type": "DOUBLE_PLACE",
+      "name": "二連投石",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 3,
+          "col": 2
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 4
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 6,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "heaven_01",
+      "type": "HEAVEN_BLESSING",
+      "name": "天の恵み",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "overlay_select"
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 6,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "reveal_hand_01",
+      "type": "REVEAL_HAND_WILL",
+      "name": "観測の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "condemn_01",
+      "type": "CONDEMN_WILL",
+      "name": "断罪の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "overlay_select"
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 3,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 6,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "gold_stone",
+      "type": "GOLD_STONE",
+      "name": "金の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "rainbow_stone",
+      "type": "RAINBOW_STONE",
+      "name": "虹の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "silver_stone",
+      "type": "SILVER_STONE",
+      "name": "銀の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 3,
+          "col": 2
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "crystal_stone",
+      "type": "CRYSTAL_STONE",
+      "name": "水晶の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "extend_life_01",
+      "type": "EXTEND_LIFE_WILL",
+      "name": "延命の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 3,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "986",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "extend_life_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "extend_life_god_01",
+      "type": "EXTEND_LIFE_GOD",
+      "name": "延命神",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 3,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "9D5",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "extend_life_god_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "corrosion_01",
+      "type": "CORROSION_WILL",
+      "name": "腐食の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 3,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "KK6",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "corrosion_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "guard_01",
+      "type": "GUARD_WILL",
+      "name": "守る意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 1,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "A79",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "guard_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "guardian_god_01",
+      "type": "GUARDIAN_GOD",
+      "name": "守護神",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 1,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "299",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "guardian_god_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "destroy_dragon_01",
+      "type": "DESTROY_DRAGON_WILL",
+      "name": "破壊龍",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 3,
+          "col": 2
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "lightning_01",
+      "type": "LIGHTNING_WILL",
+      "name": "落雷",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "udg_01",
+      "type": "ULTIMATE_DESTROY_GOD",
+      "name": "究極破壊神",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "ultimate_hyperactive_01",
+      "type": "ULTIMATE_HYPERACTIVE_GOD",
+      "name": "究極多動神",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "board_expand_01",
+      "type": "BOARD_EXPANSION_WILL",
+      "name": "盤面拡張",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "3CU",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "board_expand_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "board_expand_god_01",
+      "type": "BOARD_EXPANSION_GOD",
+      "name": "盤面拡張神",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "W2C",
+            "seatKey": "black",
+            "stateVersion": 2,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": "BOARD_EXPANSION_GOD",
+            "pendingStage": "selectTarget",
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": "board_expand_god_01",
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 1,
+            "pendingSelectedTargets": [
+              {
+                "row": 0,
+                "col": 0
+              }
+            ],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": {
+              "id": "board_expand_god_01",
+              "name": "盤面拡張神",
+              "desc": "初期8x8の角マスから拡張可能な角を最大2つ選び、その外側3〜6マス（各角3マスずつ、直交2方向+斜め）に拡張セルを追加する。"
+            },
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "action": "pending_target",
+          "row": 7,
+          "col": 7,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "W2C",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "board_expand_god_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "board_shrink_01",
+      "type": "BOARD_SHRINK_WILL",
+      "name": "盤面縮小",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "A85",
+            "seatKey": "black",
+            "stateVersion": 2,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": "BOARD_SHRINK_WILL",
+            "pendingStage": "selectTarget",
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": "board_shrink_01",
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 1,
+            "pendingSelectedTargets": [
+              {
+                "row": 0,
+                "col": 0
+              }
+            ],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": {
+              "id": "board_shrink_01",
+              "name": "盤面縮小",
+              "desc": "現在の盤面外周の角/辺から3マスを順に選び、3つ目の選択時に同時に穴化する。盤面拡張マスも対象にできるが、絶対保護石のあるマスは穴化されない。"
+            },
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 1,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "A85",
+            "seatKey": "black",
+            "stateVersion": 2,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": "BOARD_SHRINK_WILL",
+            "pendingStage": "selectTarget",
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": "board_shrink_01",
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 2,
+            "pendingSelectedTargets": [
+              {
+                "row": 0,
+                "col": 0
+              },
+              {
+                "row": 0,
+                "col": 1
+              }
+            ],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": {
+              "id": "board_shrink_01",
+              "name": "盤面縮小",
+              "desc": "現在の盤面外周の角/辺から3マスを順に選び、3つ目の選択時に同時に穴化する。盤面拡張マスも対象にできるが、絶対保護石のあるマスは穴化されない。"
+            },
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 2,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "A85",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[0,0,0,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "board_shrink_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "board_shrink_god_01",
+      "type": "BOARD_SHRINK_GOD",
+      "name": "盤面縮小神",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "E2R",
+            "seatKey": "black",
+            "stateVersion": 2,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": "BOARD_SHRINK_GOD",
+            "pendingStage": "selectTarget",
+            "pendingOffers": 0,
+            "pendingFirstTarget": {
+              "row": 0,
+              "col": 0
+            },
+            "pendingCardId": "board_shrink_god_01",
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": {
+              "id": "board_shrink_god_01",
+              "name": "盤面縮小神",
+              "desc": "現在の盤面外周の角を1つ選び、その角から伸びる辺1列を選ぶ。盤面拡張マスを含め、選んだ辺1列を同時に穴化するが、絶対保護石のあるマスは残る。"
+            },
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "action": "pending_target",
+          "row": 1,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "E2R",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[0,-1,-1,0,0,0,0,-1],[0,-1,0,0,0,0,0,0],[0,-1,0,0,0,0,0,0],[0,-1,0,1,-1,0,0,0],[0,-1,1,-1,1,0,0,0],[0,-1,0,0,0,0,0,0],[0,-1,0,0,0,0,0,0],[0,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "board_shrink_god_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "blockade_01",
+      "type": "BLOCKADE_WILL",
+      "name": "封鎖の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 3,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "BJS",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "blockade_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "meteor_01",
+      "type": "METEOR_WILL",
+      "name": "隕石",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "A73",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[0,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "meteor_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "freeze_01",
+      "type": "FREEZE_WILL",
+      "name": "凍結の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 0,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "9HV",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "freeze_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "observer_01",
+      "type": "OBSERVER_WILL",
+      "name": "盤理の観測者",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 4
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "salvation_01",
+      "type": "SALVATION_WILL",
+      "name": "救済の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 4
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "living_will_01",
+      "type": "LIVING_WILL",
+      "name": "生きる意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "action": "pending_target",
+          "row": 1,
+          "col": 0,
+          "localOnlyProgress": false,
+          "afterState": {
+            "roomId": "7UK",
+            "seatKey": "black",
+            "stateVersion": 3,
+            "currentPlayerKey": "black",
+            "controllerKey": "black",
+            "turnNumber": 20,
+            "gameOver": false,
+            "pendingType": null,
+            "pendingStage": null,
+            "pendingOffers": 0,
+            "pendingFirstTarget": null,
+            "pendingCardId": null,
+            "pendingSourceHandIndex": null,
+            "pendingSelectedCount": 0,
+            "pendingSelectedTargets": [],
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "living_will_01",
+            "lastUsedWhite": null
+          }
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "reinforcement_01",
+      "type": "REINFORCEMENT_WILL",
+      "name": "増援の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 5,
+          "col": 4
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "equality_will_01",
+      "type": "EQUALITY_WILL",
+      "name": "平等の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 0,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 3,
+          "col": 7
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 5,
+      "finalCurrentPlayerKey": "black"
+    },
+    {
+      "id": "fate_will_01",
+      "type": "FATE_WILL",
+      "name": "運命の意志",
+      "status": "ok",
+      "actionLog": [
+        {
+          "ok": true,
+          "action": "place",
+          "row": 2,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 5
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 4
+        },
+        {
+          "ok": true,
+          "action": "place",
+          "row": 1,
+          "col": 3
+        }
+      ],
+      "preStateVersion": 2,
+      "finalStateVersion": 7,
+      "finalCurrentPlayerKey": "black"
+    }
+  ],
+  "summary": {
+    "total": 77,
+    "ok": 77,
+    "failed": 0
+  },
+  "finishedAt": "2026-04-20T16:05:32.864Z"
+}

@@ -1464,7 +1464,7 @@ describe('cpu decision refactor helpers', () => {
     expect(move).toBe(safeInnerMove);
   });
 
-  test('selectCpuMoveWithPolicy does not hard-force edge in early no-marker board state', () => {
+  test('selectCpuMoveWithPolicy now hard-forces safe edge in early no-marker board state', () => {
     const safeEdgeMove = { row: 0, col: 4, flips: [{ row: 1, col: 4 }] };
     const safeInnerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
     const candidates = [safeEdgeMove, safeInnerMove];
@@ -1492,7 +1492,43 @@ describe('cpu decision refactor helpers', () => {
       markers: []
     };
     jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
-      expect(moves).toEqual([safeEdgeMove, safeInnerMove]);
+      expect(moves).toEqual([safeEdgeMove]);
+      return safeEdgeMove;
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+    expect(move).toBe(safeEdgeMove);
+  });
+
+  test('selectCpuMoveWithPolicy keeps safer inner option when safe edge is far worse by plan score', () => {
+    const safeEdgeMove = { row: 0, col: 4, flips: [{ row: 1, col: 4 }] };
+    const safeInnerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+    const candidates = [safeEdgeMove, safeInnerMove];
+    global.gameState = {
+      board: [
+        [0, 0, 1, 0, 0, 0, -1, 0],
+        [1, 0, 1, -1, 1, -1, 0, -1],
+        [0, 0, -1, 0, -1, 0, 0, 0],
+        [1, 1, 0, 1, 0, 0, -1, 1],
+        [-1, 0, 0, 0, -1, 1, -1, -1],
+        [1, -1, 1, 0, 1, -1, 0, 0],
+        [0, 0, 1, 0, 0, -1, -1, 0],
+        [0, 1, -1, 1, 0, -1, 1, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cpuSmartness.white = 6;
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {},
+      markers: []
+    };
+    jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves) => {
+      expect(moves).toEqual(candidates);
       return safeInnerMove;
     });
 

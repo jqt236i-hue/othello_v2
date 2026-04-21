@@ -42,7 +42,7 @@ function createSnapshot(stateVersion) {
       hands: { black: [], white: [] },
       charge: { black: 10, white: 10 },
       pendingEffectByPlayer: {
-        black: { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget' },
+        black: { type: 'SWAP_WITH_ENEMY', stage: 'selectTarget', cardId: 'swap_01' },
         white: null
       },
       hasUsedCardThisTurnByPlayer: { black: false, white: false },
@@ -247,7 +247,14 @@ describe('NetworkMatchClient swap deferred publish', () => {
     expect(publishBodies[0].actor).toBe('black');
     expect(publishBodies[0].params).toEqual({
       player: 'black',
-      swapTarget: { row: 6, col: 8 }
+      swapTarget: { row: 6, col: 8 },
+      pendingSelectionState: {
+        type: 'SWAP_WITH_ENEMY',
+        stage: 'selectTarget',
+        cardId: 'swap_01'
+      },
+      useCardId: 'swap_01',
+      useCardOwnerKey: 'black'
     });
     expect(publishBodies[0].snapshot).toBeUndefined();
     expect(publishBodies[0].playbackEvents).toBeUndefined();

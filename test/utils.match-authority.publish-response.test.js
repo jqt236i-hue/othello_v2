@@ -159,11 +159,69 @@ describe('match authority publish response payload', () => {
       authority: 'server',
       version: 7,
       projectedForSeat: 'white',
-      turnStartReconciled: true
+      turnStartReconciled: true,
+      projectedSnapshotHash: expect.stringMatching(/^fnv1a32:/)
     });
     expect(snapshot.stateVersion).toBe(7);
     expect(snapshot.cardState.hands.black).toEqual(['__hidden_hand__:black:0']);
     expect(snapshot.cardState.hands.white).toEqual(['w1']);
+  });
+
+  test('validatePendingSelectionPublish rejects stale pendingEffectId mismatch', () => {
+    const result = MatchAuthority.validatePendingSelectionPublish({
+      cardState: {
+        pendingEffectByPlayer: {
+          black: {
+            type: 'TEMPT_WILL',
+            pendingEffectId: 'pending_7_2'
+          },
+          white: null
+        }
+      }
+    }, 'black', {
+      type: 'place',
+      pendingSelectionState: {
+        type: 'TEMPT_WILL',
+        pendingEffectId: 'pending_7_1'
+      }
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      rejectedReason: 'STALE_PENDING_SELECTION'
+    });
+  });
+
+  test('appendAuthorityLog keeps a bounded structured history', () => {
+    const room = { roomId: 'abc', authorityLog: [] };
+
+    MatchAuthority.appendAuthorityLog(room, {
+      kind: 'publish_accepted',
+      operationId: 'op_1',
+      actionType: 'place',
+      baseVersion: 3,
+      committedVersion: 4,
+      stateHashBefore: 'before',
+      stateHashAfter: 'after',
+      pendingEffectId: 'pending_3_1',
+      dedupeOutcome: 'accepted'
+    }, 1);
+
+    MatchAuthority.appendAuthorityLog(room, {
+      kind: 'timeout_applied',
+      actionType: 'timeout_pass',
+      committedVersion: 5,
+      timeoutReason: 'turn_deadline_expired'
+    }, 1);
+
+    expect(room.authorityLog).toHaveLength(1);
+    expect(room.authorityLog[0]).toEqual(expect.objectContaining({
+      kind: 'timeout_applied',
+      matchId: 'ABC',
+      actionType: 'timeout_pass',
+      committedVersion: 5,
+      timeoutReason: 'turn_deadline_expired'
+    }));
   });
 
   test('classifies version rejection reasons by received vs authoritative version', () => {
@@ -237,6 +295,41 @@ describe('match authority publish response payload', () => {
       operationId: 'op_black_2',
       stateVersion: 3,
       updatedAt: 30
+    });
+  });
+
+  test('resolveAcceptedOperation falls back to legacy accepted-operation entry and shared response options normalize publishMeta', () => {
+    expect(MatchAuthority.resolveAcceptedOperation(
+      { acceptedOperationHistoryBySeat: { black: [], white: [] } },
+      'black',
+      ' op_black_legacy ',
+      { operationId: 'op_black_legacy', stateVersion: 9, updatedAt: 90 }
+    )).toEqual({
+      operationId: 'op_black_legacy',
+      stateVersion: 9,
+      updatedAt: 90
+    });
+
+    expect(MatchAuthority.buildPublishResponseOptions({
+      ok: false,
+      rejectedReason: 'VERSION_BEHIND',
+      publishKind: 'rejected',
+      operationId: ' op_black_legacy ',
+      actionType: 'PLACE',
+      receivedBaseVersion: '8',
+      authoritativeStateVersion: '9'
+    })).toEqual({
+      ok: false,
+      rejectedReason: 'VERSION_BEHIND',
+      publishMeta: {
+        kind: 'rejected',
+        operationId: 'op_black_legacy',
+        actionType: 'place',
+        receivedBaseVersion: 8,
+        authoritativeStateVersion: 9,
+        replayedStateVersion: null,
+        rejectedReason: 'VERSION_BEHIND'
+      }
     });
   });
 

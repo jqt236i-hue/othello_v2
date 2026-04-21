@@ -7,18 +7,18 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '時間停石',
   type: 'TIME_STOP_GOD',
   cost: 0,
-  desc_ja: '自分石3つを壊し、次石を時間停石化。5ターン後時間停止を発動し2連続行動できる。',
+  desc_ja: '手札に入った時点で即時破壊され、通常プレイでは使用しない。デバッグ等で手札に残った場合のみ、5ターン後時間停止を発動し2連続行動できる。',
   display_type_ja: '禁忌'
 });
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
   name: '時間停石',
-  desc: '自分石3つを壊し、次石を時間停石化。5ターン後時間停止を発動し2連続行動できる。'
+  desc: '手札に入った時点で即時破壊され、通常プレイでは使用しない。デバッグ等で手札に残った場合のみ、5ターン後時間停止を発動し2連続行動できる。'
 });
 
-const EXPECTED_QUICK_TEXT = '自分石3つを壊し、次石を時間停石化。5ターン後時間停止を発動し2連続行動できる。';
-const EXPECTED_DETAIL_TEXT = '配置したターンは残り回数が減らない。\n5回目の所有者ターン開始時に発動し、そのターンと次のターンを連続で行動する。\n発動後は通常石に戻り、先に空マスになるか相手色になると不発。\n反転保護は持たない。';
+const EXPECTED_QUICK_TEXT = '手札に入った時点で即時破壊され、通常プレイでは使用しない。';
+const EXPECTED_DETAIL_TEXT = '通常プレイでは発動しない。\nデバッグ等で手札に残った場合のみ、5回目の所有者ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。\n発動後は通常石に戻り、先に空マスになるか相手色になると不発。\n反転保護は持たない。';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;

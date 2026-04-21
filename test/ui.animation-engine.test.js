@@ -310,4 +310,54 @@ describe('animation-engine _sleep', () => {
     delete global.SoundEngine;
     delete global.window;
   });
+
+  test('local pending preview の card_use は後続 authoritative playback を一度だけ抑止する', async () => {
+    global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
+    global.window = {
+      playCardUseHandAnimation: jest.fn(() => Promise.resolve())
+    };
+    const playEffectByKey = jest.fn();
+    global.SoundEngine = {
+      init: jest.fn(),
+      playEffectByKey
+    };
+    const engine = require('../ui/animation-engine');
+
+    await engine.executePhase([
+      {
+        type: 'card_use_animation',
+        phase: 1,
+        meta: { sourceType: 'card_used', localPendingPreview: true },
+        targets: [{ player: 'black', owner: 'black', cardId: 'guard_01' }]
+      },
+      {
+        type: 'sound_effect',
+        phase: 1,
+        targets: [{ soundKey: 'card_use_button' }],
+        meta: { sourceType: 'card_used', localPendingPreview: true }
+      }
+    ]);
+
+    await engine.executePhase([
+      {
+        type: 'card_use_animation',
+        phase: 1,
+        targets: [{ player: 'black', owner: 'black', cardId: 'guard_01' }]
+      },
+      {
+        type: 'sound_effect',
+        phase: 1,
+        targets: [{ soundKey: 'card_use_button' }]
+      }
+    ]);
+
+    expect(global.window.playCardUseHandAnimation).toHaveBeenCalledTimes(1);
+    expect(playEffectByKey).toHaveBeenCalledTimes(1);
+    expect(playEffectByKey).toHaveBeenCalledWith('card_use_button');
+    expect(global.window.__skipNextCardUseAnimationUntilByKey).toBeUndefined();
+    expect(global.window.__skipNextCardUseButtonSoundCount).toBeUndefined();
+
+    delete global.SoundEngine;
+    delete global.window;
+  });
 });

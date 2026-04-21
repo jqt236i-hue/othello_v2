@@ -413,6 +413,39 @@ describe('animation-engine guard timer rendering', () => {
     expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
   });
 
+  test('METEOR_HOLE の STATUS_APPLIED は残っていた disc を消す', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board');
+    const cell = document.createElement('div');
+    cell.className = 'cell has-disc';
+    cell.dataset.row = '2';
+    cell.dataset.col = '4';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc black special-stone';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      targets: [{ r: 2, col: 4, after: { color: 0, special: 'METEOR_HOLE', timer: null, owner: 'black' } }],
+      meta: {
+        special: 'METEOR_HOLE',
+        owner: 'black'
+      }
+    });
+
+    expect(crossfadeSpy).not.toHaveBeenCalled();
+    expect(cell.querySelector('.disc')).toBeNull();
+    expect(cell.classList.contains('has-disc')).toBe(false);
+  });
+
   test('trap_expired_reveal の STATUS_APPLIED は赤セルハイライトを一瞬出す', async () => {
     const crossfadeSpy = jest.fn(() => Promise.resolve());
     jest.doMock('../ui/stone-visuals', () => ({

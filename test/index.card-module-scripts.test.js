@@ -180,6 +180,29 @@ function runClassicScriptInContext(filePath, context) {
 }
 
 describe('card module script includes', () => {
+  test('index.html loads network command payload before network-client.js', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const commandPayloadTag = '<script src="ui/network/command-payload.js"></script>';
+    const publishRequestTag = '<script src="ui/network/publish-request.js"></script>';
+    const reconnectControllerTag = '<script src="ui/network/reconnect-controller.js"></script>';
+    const publishTrackerTag = '<script src="ui/network/publish-tracker.js"></script>';
+    const networkClientTag = '<script src="ui/network-client.js"></script>';
+
+    expect(html.includes(commandPayloadTag)).toBe(true);
+    expect(html.includes(publishRequestTag)).toBe(true);
+    expect(html.includes(reconnectControllerTag)).toBe(true);
+    expect(html.includes(publishTrackerTag)).toBe(true);
+    expect(html.includes(networkClientTag)).toBe(true);
+    expect(html.indexOf(publishRequestTag)).toBeGreaterThan(html.indexOf(commandPayloadTag));
+    expect(html.indexOf(reconnectControllerTag)).toBeGreaterThan(html.indexOf(publishRequestTag));
+    expect(html.indexOf(publishTrackerTag)).toBeGreaterThan(html.indexOf(reconnectControllerTag));
+    expect(html.indexOf(networkClientTag)).toBeGreaterThan(html.indexOf(publishTrackerTag));
+    expect(fs.existsSync(path.resolve(__dirname, '../ui/network/command-payload.js'))).toBe(true);
+    expect(fs.existsSync(path.resolve(__dirname, '../ui/network/publish-request.js'))).toBe(true);
+    expect(fs.existsSync(path.resolve(__dirname, '../ui/network/reconnect-controller.js'))).toBe(true);
+    expect(fs.existsSync(path.resolve(__dirname, '../ui/network/publish-tracker.js'))).toBe(true);
+  });
+
   test('index.html loads network turn handoff before trap/cpu/move executor scripts', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     const handoffTag = '<script src="game/network-turn-handoff.js"></script>';

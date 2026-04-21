@@ -78,6 +78,83 @@ describe('pending-target-selector', () => {
     expect(action).toEqual({ type: 'place', heavenBlessingCardId: 'guard_01' });
   });
 
+  test('buildPendingSelectionAction for HEAVEN_BLESSING prefers supplied pending over stale cardState', () => {
+    const action = PendingTargetSelector.buildPendingSelectionAction({
+      pendingType: 'HEAVEN_BLESSING',
+      pending: { type: 'HEAVEN_BLESSING', stage: 'selectTarget', offers: ['guard_01', 'meteor_01'] },
+      playerKey: 'white',
+      gameState: {},
+      rng: () => 0.5,
+      cardState: {
+        pendingEffectByPlayer: {
+          white: { type: 'HEAVEN_BLESSING', stage: 'selectTarget', offers: ['stale_01'] }
+        }
+      },
+      cardLogic: {
+        getCardCost: (id) => {
+          if (id === 'meteor_01') return 21;
+          if (id === 'guard_01') return 2;
+          return 99;
+        },
+        getCardDef: (id) => ({ id, type: id === 'meteor_01' ? 'METEOR_WILL' : 'GUARD_WILL' })
+      },
+      getLegalMovesForAction: () => [{ row: 0, col: 0 }, { row: 2, col: 3 }],
+      buildCardDecisionContext: () => ({ level: 6, playerValue: -1 }),
+      cpuPolicyCore: {
+        scoreCardUseDecision: (id) => {
+          if (id === 'meteor_01') return { score: 20, shouldUse: false };
+          if (id === 'guard_01') return { score: 42, shouldUse: true };
+          return { score: -100, shouldUse: false };
+        },
+        scoreCardRetentionPriority: (id) => {
+          if (id === 'meteor_01') return { score: -10 };
+          if (id === 'guard_01') return { score: 30 };
+          return { score: -100 };
+        }
+      }
+    });
+
+    expect(action).toEqual({ type: 'place', heavenBlessingCardId: 'guard_01' });
+  });
+
+  test('buildPendingSelectionAction can read pending via callback when cardState is stale', () => {
+    const readPendingEffect = jest.fn(() => ({
+      type: 'CONDEMN_WILL',
+      stage: 'selectTarget',
+      offers: [
+        { handIndex: 1, cardId: 'guard_01' },
+        { handIndex: 3, cardId: 'meteor_01' }
+      ]
+    }));
+    const cardState = {
+      pendingEffectByPlayer: {
+        white: null
+      }
+    };
+
+    const action = PendingTargetSelector.buildPendingSelectionAction({
+      playerKey: 'white',
+      gameState: {},
+      cardState,
+      readPendingEffect,
+      cardLogic: {
+        getCardCost: (id) => id === 'meteor_01' ? 21 : 2,
+        getCardDef: (id) => ({ id, type: id === 'meteor_01' ? 'METEOR_WILL' : 'GUARD_WILL' })
+      },
+      getLegalMovesForAction: () => [{ row: 1, col: 1 }],
+      buildCardDecisionContext: () => ({ level: 6, playerValue: 1 }),
+      cpuPolicyCore: {
+        scoreCardUseDecision: (id) => {
+          if (id === 'meteor_01') return { score: 20, shouldUse: true };
+          return { score: 0, shouldUse: false };
+        }
+      }
+    });
+
+    expect(readPendingEffect).toHaveBeenCalledWith(cardState, 'white', expect.any(Object));
+    expect(action).toEqual({ type: 'place', condemnTargetIndex: 3 });
+  });
+
   test('buildPendingSelectionAction uses shrinkTarget payload for board shrink cards', () => {
     const action = PendingTargetSelector.buildPendingSelectionAction({
       pendingType: 'BOARD_SHRINK_GOD',

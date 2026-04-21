@@ -160,6 +160,127 @@ function runTimeoutPassScenario() {
   return runScenario(runner);
 }
 
+function runAlarmScheduleScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const board = Array.from({ length: 8 }, () => Array(8).fill(0));",
+    "  board[3][3] = -1;",
+    "  board[3][4] = 1;",
+    "  board[4][3] = 1;",
+    "  board[4][4] = -1;",
+    "  const storage = new Map();",
+    "  let scheduledAlarmAt = null;",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key),",
+    "      setAlarm: async (when) => { scheduledAlarmAt = when; },",
+    "      deleteAlarm: async () => { scheduledAlarmAt = null; }",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
+    "    roomId: 'TMR3',",
+    "    playerName: 'くろ',",
+    "    seed: 1,",
+    "    snapshot: {",
+    "      gameState: { board, currentPlayer: 1, consecutivePasses: 0, turnNumber: 0 },",
+    "      cardState: {}",
+    "    }",
+    "  });",
+    "  const joinResponse = await durableObject.handleJoin({ seatKey: 'white', playerName: 'しろ' });",
+    "  const joinPayload = await joinResponse.json();",
+    "  process.stdout.write(JSON.stringify({ scheduledAlarmAt, joinPayload }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
+function runAlarmTimeoutScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const board = Array.from({ length: 8 }, () => Array(8).fill(0));",
+    "  board[3][3] = -1;",
+    "  board[3][4] = 1;",
+    "  board[4][3] = 1;",
+    "  board[4][4] = -1;",
+    "  const room = {",
+    "    roomId: 'TMR4',",
+    "    seed: 1,",
+    "    stateVersion: 4,",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    seatNames: { black: 'くろ', white: 'しろ' },",
+    "    roomDeck: null,",
+    "    lastAcceptedOperationBySeat: { black: null, white: null },",
+    "    sseEventBuffer: [],",
+    "    authorityLog: [],",
+    "    turnTimer: {",
+    "      limitSeconds: 120,",
+    "      active: true,",
+    "      turnSeatKey: 'black',",
+    "      turnStartedAt: Date.now() - 300000,",
+    "      turnDeadlineAt: Date.now() - 10",
+    "    },",
+    "    snapshot: {",
+    "      gameState: { board, currentPlayer: 1, consecutivePasses: 0, turnNumber: 9 },",
+    "      cardState: {",
+    "        hands: { black: ['b0'], white: [] },",
+    "        decks: { black: [], white: ['wdraw'] },",
+    "        discard: [],",
+    "        turnIndex: 10,",
+    "        lastTurnStartedFor: 'black',",
+    "        turnCountByPlayer: { black: 3, white: 2 },",
+    "        selectedCardId: 'timeout_card',",
+    "        selectedCardOwnerKey: 'black',",
+    "        hasUsedCardThisTurnByPlayer: { black: true, white: true },",
+    "        hasDestroyedCardThisTurnByPlayer: { black: false, white: false },",
+    "        pendingEffectByPlayer: { black: { type: 'PERMA_PROTECT_NEXT_STONE' }, white: null },",
+    "        extraPlaceRemainingByPlayer: { black: 0, white: 0 },",
+    "        charge: { black: 0, white: 0 },",
+    "        chargeGainedTotal: { black: 0, white: 0 },",
+    "        breedingSproutByOwner: { black: [], white: [] },",
+    "        _breedingSproutClearedTokenByOwner: { black: null, white: null },",
+    "        presentationEvents: [],",
+    "        _presentationEventsPersist: [],",
+    "        markers: []",
+    "      }",
+    "    }",
+    "  };",
+    "  const storage = new Map();",
+    "  storage.set('match_room_state_v1', room);",
+    "  const state = {",
+    "    storage: {",
+    "      get: async (key) => storage.get(key),",
+    "      put: async (key, value) => storage.set(key, value),",
+    "      delete: async (key) => storage.delete(key),",
+    "      setAlarm: async () => {},",
+    "      deleteAlarm: async () => {}",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  await durableObject.alarm();",
+    "  await durableObject.loadRoom();",
+    "  process.stdout.write(JSON.stringify({ snapshot: durableObject.room.snapshot, stateVersion: durableObject.room.stateVersion }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
 describe('match worker turn timer', () => {
   test('2人そろうと120秒手番タイマーが有効化される', () => {
     const result = runJoinTimerScenario();
@@ -196,5 +317,21 @@ describe('match worker turn timer', () => {
     expect(timer.limitSeconds).toBe(120);
     expect(timer.turnSeatKey).toBe('white');
     expect(Number(timer.turnDeadlineAt)).toBeGreaterThan(Number(result.statePayload.serverTime));
+  });
+
+  test('2人そろってタイマーが有効になったら Durable Object alarm を次の期限へ張る', () => {
+    const result = runAlarmScheduleScenario();
+
+    expect(Number(result.scheduledAlarmAt)).toBeGreaterThan(0);
+    expect(Number(result.scheduledAlarmAt)).toBe(Number(result.joinPayload.turnTimer.turnDeadlineAt));
+  });
+
+  test('alarm 発火だけでも期限切れ手番を進められる', () => {
+    const result = runAlarmTimeoutScenario();
+
+    expect(result.stateVersion).toBe(5);
+    expect(result.snapshot.gameState.currentPlayer).toBe(-1);
+    expect(result.snapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.snapshot.cardState.selectedCardId).toBeNull();
   });
 });

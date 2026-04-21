@@ -123,6 +123,34 @@ describe('METEOR_WILL（隕石）', () => {
     expect(markersAtCell.some((m) => m.data && m.data.type === 'METEOR_HOLE')).toBe(true);
   });
 
+  test('復活の意志付きの石に隕石を使うと復活せず元マスは穴になる', () => {
+    const rng = createPrng(0);
+    const cardState = CardLogic.createCardState(rng);
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.currentPlayer = Core.BLACK;
+    gameState.board[2][2] = Core.BLACK;
+
+    expect(CardLogic.applyRegenWill(cardState, 'black', 2, 2)).toEqual({ applied: true });
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'METEOR_WILL',
+      stage: 'selectTarget',
+      cardId: 'meteor_01'
+    };
+
+    const res = CardLogic.applyMeteorWill(cardState, gameState, 'black', 2, 2, rng);
+    expect(res).toMatchObject({ applied: true, row: 2, col: 2, destroyed: true });
+    expect(gameState.board[2][2]).toBe(Core.EMPTY);
+
+    const markersAtCell = (cardState.markers || []).filter((m) => m && m.row === 2 && m.col === 2);
+    expect(markersAtCell.some((m) => m.data && m.data.type === 'REGEN')).toBe(false);
+    expect(markersAtCell.some((m) => m.data && m.data.type === 'METEOR_HOLE')).toBe(true);
+    expect(CardLogic.isBlockedCell(cardState, 2, 2, gameState)).toBe(true);
+  });
+
   test('生きる意志付きの石にも隕石を使え、別の空きマスへ復活させたうえで元マスは穴になる', () => {
     const rng = createPrng(0);
     const cardState = CardLogic.createCardState(rng);

@@ -220,7 +220,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     expect(payload.playbackEvents).toBeUndefined();
   });
 
-  test('nextCardState で deferred pending が生まれた use_card は即 publish しない', async () => {
+  test('nextCardState で deferred pending が生まれる use_card でも初回 command は即 publish する', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     expect(client).toBeTruthy();
@@ -256,10 +256,17 @@ describe('NetworkMatchClient action bridge snapshot', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(publishPayloads).toHaveLength(0);
+    expect(publishPayloads).toHaveLength(1);
+    expect(publishPayloads[0]).toEqual(expect.objectContaining({
+      actionType: 'use_card',
+      actor: 'black',
+      params: {
+        useCardId: 'trap_01'
+      }
+    }));
   });
 
-  test('pending な use_card はローカルで pending hint だけを立てて server-owned state を汚さない', async () => {
+  test('pending な use_card はローカル pending を作らず authority publish を待つ', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     expect(client).toBeTruthy();
@@ -284,38 +291,113 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     expect(result).toEqual(expect.objectContaining({
       ok: true,
       pendingSelectionActive: true,
+      skippedLocalExecution: true,
+      publishPromise: expect.any(Promise),
       nextCardState: global.cardState,
       nextGameState: global.gameState
     }));
-    expect(global.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
-      type: 'GUARD_WILL',
-      stage: 'selectTarget',
-      cardId: 'guard_01'
-    }));
+    expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
     expect(global.cardState.hands.black).toEqual(['guard_01']);
     expect(global.cardState.charge.black).toBe(10);
     expect(global.cardState.discard).toEqual([]);
     expect(global.cardState.hasUsedCardThisTurnByPlayer.black).toBe(false);
     expect(global.cardState.lastUsedCardByPlayer.black).toBeNull();
-    expect(result.playbackEvents).toEqual([
-      expect.objectContaining({
-        type: 'card_use_animation',
-        phase: 1,
-        targets: [expect.objectContaining({
-          player: 'black',
-          owner: 'black',
-          cardId: 'guard_01',
-          cardType: 'GUARD_WILL'
-        })]
-      }),
-      expect.objectContaining({
-        type: 'sound_effect',
-        phase: 1,
-        targets: [{ soundKey: 'card_use_button' }],
-        meta: { sourceType: 'card_used' }
-      })
-    ]);
-    expect(publishPayloads).toHaveLength(0);
+    expect(result.playbackEvents).toEqual([]);
+    await result.publishPromise;
+    expect(publishPayloads).toHaveLength(1);
+    expect(publishPayloads[0]).toEqual(expect.objectContaining({
+      actionType: 'use_card',
+      actor: 'black',
+      params: {
+        useCardId: 'guard_01'
+      }
+    }));
+  });
+
+  test('HEAVEN_BLESSING の pending use_card は authority publish に寄せてローカル pending を作らない', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const CardLogic = require('../game/logic/cards');
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    global.cardState.hands.black = ['heaven_01'];
+    global.cardState.charge.black = 10;
+    global.cardState.turnIndex = 4;
+    global.cardState.pendingEffectByPlayer.black = null;
+
+    const expectedOffers = CardLogic.buildHeavenBlessingOffers(
+      'heaven_01',
+      null,
+      CardLogic.buildHeavenBlessingSeedHint(global.cardState, 'black')
+    );
+
+    const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(
+      global.cardState,
+      global.gameState,
+      'black',
+      createUseCardAction('black', 'heaven_01', 4),
+      {}
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      pendingSelectionActive: true,
+      skippedLocalExecution: true,
+      publishPromise: expect.any(Promise)
+    }));
+    expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+    await result.publishPromise;
+    expect(publishPayloads).toHaveLength(1);
+    expect(publishPayloads[0]).toEqual(expect.objectContaining({
+      actionType: 'use_card',
+      actor: 'black',
+      turnIndex: 4,
+      params: {
+        useCardId: 'heaven_01'
+      }
+    }));
+  });
+
+  test('CONDEMN_WILL の pending use_card は authority publish に寄せてローカル pending を作らない', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    global.cardState.hands.black = ['condemn_01'];
+    global.cardState.hands.white = ['__hidden_hand__:white:0', '__hidden_hand__:white:1'];
+    global.cardState.pendingEffectByPlayer.black = null;
+
+    const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(
+      global.cardState,
+      global.gameState,
+      'black',
+      createUseCardAction('black', 'condemn_01'),
+      {}
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      pendingSelectionActive: true,
+      skippedLocalExecution: true,
+      publishPromise: expect.any(Promise)
+    }));
+    expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+    await result.publishPromise;
+    expect(publishPayloads).toHaveLength(1);
+    expect(publishPayloads[0]).toEqual(expect.objectContaining({
+      actionType: 'use_card',
+      actor: 'black',
+      turnIndex: 1,
+      params: {
+        useCardId: 'condemn_01'
+      }
+    }));
   });
 
   test('pending card の type を解決できない use_card は explicit reject しクラッシュしない', async () => {
@@ -351,7 +433,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     expect(publishPayloads).toHaveLength(0);
   });
 
-  test('PendingCoordinator が無い pending use_card は explicit reject し server-owned state を汚さない', async () => {
+  test('PendingCoordinator が無くても pending use_card は authority publish できる', async () => {
     jest.doMock('../game/turn/pending-coordinator', () => null);
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
@@ -374,15 +456,185 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     );
 
     expect(result).toEqual(expect.objectContaining({
-      ok: false,
-      rejectedReason: 'PENDING_HINT_COORDINATOR_UNAVAILABLE',
-      cardType: 'GUARD_WILL'
+      ok: true,
+      pendingSelectionActive: true,
+      skippedLocalExecution: true,
+      publishPromise: expect.any(Promise)
     }));
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
     expect(global.cardState.hands.black).toEqual(['guard_01']);
     expect(global.cardState.charge.black).toBe(10);
     expect(global.cardState.discard).toEqual([]);
-    expect(publishPayloads).toHaveLength(0);
+    await result.publishPromise;
+    expect(publishPayloads).toHaveLength(1);
+    expect(publishPayloads[0]).toEqual(expect.objectContaining({
+      actionType: 'use_card',
+      actor: 'black',
+      params: {
+        useCardId: 'guard_01'
+      }
+    }));
+  });
+
+  test('PendingCoordinator が無くても非 pending use_card はローカル実行しつつ publish できる', async () => {
+    jest.doMock('../game/turn/pending-coordinator', () => null);
+    jest.doMock('../game/logic/cards', () => {
+      const actual = jest.requireActual('../game/logic/cards');
+      return {
+        ...actual,
+        getCardDef(cardId) {
+          if (cardId === 'plain_01') {
+            return { id: 'plain_01', type: 'DOUBLE_CHAIN_WILL', cost: 3 };
+          }
+          return actual.getCardDef(cardId);
+        }
+      };
+    });
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(
+      global.cardState,
+      global.gameState,
+      'black',
+      createUseCardAction('black', 'plain_01'),
+      {}
+    );
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true
+    }));
+    expect(result.skippedLocalExecution).not.toBe(true);
+    expect(result.nextCardState.charge.black).toBe(7);
+    expect(typeof result.publishPromise.then).toBe('function');
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(publishPayloads).toHaveLength(1);
+    expect(publishPayloads[0]).toEqual(expect.objectContaining({
+      actionType: 'use_card',
+      actor: 'black',
+      params: { useCardId: 'plain_01' }
+    }));
+    expect(client.getState().publishTracker.operations[0].requestMeta).toEqual(expect.objectContaining({
+      usedSnapshotFallback: true
+    }));
+  });
+
+  test('即時 use_card の publish 応答は一致時に shadow playback で再適用する', async () => {
+    jest.doMock('../game/turn/pending-coordinator', () => null);
+    jest.doMock('../game/logic/cards', () => {
+      const actual = jest.requireActual('../game/logic/cards');
+      return {
+        ...actual,
+        getCardDef(cardId) {
+          if (cardId === 'plain_01') {
+            return { id: 'plain_01', type: 'DOUBLE_CHAIN_WILL', cost: 3 };
+          }
+          return actual.getCardDef(cardId);
+        }
+      };
+    });
+
+    const playbackEvents = [{
+      type: 'sound_effect',
+      phase: 1,
+      targets: [{ soundKey: 'card_use_button' }]
+    }];
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn((_cs, _gs, _player, action) => {
+      if (action && action.type === 'use_card') {
+        return {
+          ok: true,
+          nextGameState: {
+            currentPlayer: 1,
+            turnNumber: 2
+          },
+          nextCardState: {
+            ...createSnapshot(20).cardState,
+            charge: { black: 7, white: 10 },
+            hasUsedCardThisTurnByPlayer: { black: true, white: false },
+            discard: ['plain_01']
+          },
+          playbackEvents
+        };
+      }
+      return {
+        ok: true,
+        nextGameState: createSnapshot(20).gameState,
+        nextCardState: createSnapshot(20).cardState,
+        playbackEvents: []
+      };
+    });
+    window.TurnPipelineUIAdapter = global.TurnPipelineUIAdapter;
+
+    const responseSnapshot = createSnapshot(21);
+    responseSnapshot.gameState.turnNumber = 2;
+    responseSnapshot.cardState.charge.black = 7;
+    responseSnapshot.cardState.hasUsedCardThisTurnByPlayer.black = true;
+    responseSnapshot.cardState.discard = ['plain_01'];
+
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+      if (path === '/api/match/create') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ROOM1234',
+          seatKey: 'black',
+          seatToken: 'seat-token',
+          stateVersion: 20,
+          snapshot: createSnapshot(20)
+        });
+      }
+      if (path === '/api/match/publish') {
+        publishPayloads.push(JSON.parse(init.body || '{}'));
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ROOM1234',
+          stateVersion: 21,
+          snapshot: responseSnapshot,
+          playbackEvents
+        });
+      }
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    global.gameState = {
+      currentPlayer: 1,
+      turnNumber: 2
+    };
+    global.cardState = {
+      ...createSnapshot(20).cardState,
+      charge: { black: 7, white: 10 },
+      hasUsedCardThisTurnByPlayer: { black: true, white: false },
+      discard: ['plain_01']
+    };
+
+    const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(
+      createSnapshot(20).cardState,
+      createSnapshot(20).gameState,
+      'black',
+      createUseCardAction('black', 'plain_01'),
+      {}
+    );
+
+    await result.publishPromise;
+
+    const telemetry = client.getNetworkTelemetry();
+    const appliedEvent = telemetry.recentEvents.find((entry) => entry && entry.type === 'publish_response_snapshot_applied');
+    expect(appliedEvent).toBeTruthy();
+    expect(appliedEvent.details).toEqual(expect.objectContaining({
+      usedShadowPlayback: true
+    }));
   });
 
   test('publish成功レスポンスのsnapshotを即反映し断罪候補の不明カードを解消する', async () => {

@@ -128,6 +128,11 @@ describe('selfplay runner', () => {
         expect(result.summary.totalGames).toBe(1);
         expect(result.records.length).toBeGreaterThan(0);
         expect(['black', 'white', 'draw']).toContain(result.gameSummaries[0].winner);
+        expect(result.gameSummaries[0]).toEqual(expect.objectContaining({
+            blackLongestEdgeRun: expect.any(Number),
+            whiteLongestEdgeRun: expect.any(Number),
+            maxEdgeLineLength: expect.any(Number)
+        }));
 
         for (const rec of result.records) {
             expect(['black', 'white']).toContain(rec.player);
@@ -141,6 +146,14 @@ describe('selfplay runner', () => {
             expect(rec.boardMinCol).toBe(0);
             expect(Array.isArray(rec.handCards)).toBe(true);
             expect(Array.isArray(rec.usableCardIds)).toBe(true);
+            expect(Object.prototype.hasOwnProperty.call(rec, 'ownEdgeChainStrengthBefore')).toBe(true);
+            expect(Object.prototype.hasOwnProperty.call(rec, 'oppEdgeChainStrengthBefore')).toBe(true);
+            expect(Object.prototype.hasOwnProperty.call(rec, 'ownLongestEdgeRunBefore')).toBe(true);
+            expect(Object.prototype.hasOwnProperty.call(rec, 'oppLongestEdgeRunBefore')).toBe(true);
+            expect(Object.prototype.hasOwnProperty.call(rec, 'ownEdgeChainStrengthAfter')).toBe(true);
+            expect(Object.prototype.hasOwnProperty.call(rec, 'oppEdgeChainStrengthAfter')).toBe(true);
+            expect(Object.prototype.hasOwnProperty.call(rec, 'ownLongestEdgeRunAfter')).toBe(true);
+            expect(Object.prototype.hasOwnProperty.call(rec, 'oppLongestEdgeRunAfter')).toBe(true);
             expect(Object.prototype.hasOwnProperty.call(rec, 'tacticalScoreMissRatio')).toBe(true);
             if (Number.isFinite(rec.bestTacticalScore) && rec.bestTacticalScore <= 0) {
                 expect(rec.tacticalScoreMiss).toBe(0);

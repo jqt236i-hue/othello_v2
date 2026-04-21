@@ -19,7 +19,8 @@
     const OBSERVATION_STONE_PULL_COST = 100;
     const OBSERVATION_STONE_TEN_PULL_COST = 1000;
     const OBSERVATION_STONE_REWARD_BASE = 100;
-    const OBSERVATION_STONE_REWARD_BONUS_MAX = 1000;
+    const OBSERVATION_STONE_REWARD_BONUS_MIN = 100;
+    const OBSERVATION_STONE_REWARD_BONUS_MAX = 3000;
     const OBSERVATION_STONE_REWARD_BONUS_STEP = 10;
 
     function clampRandom(value) {
@@ -144,33 +145,35 @@
         return Math.max(1, Math.floor(numeric));
     }
 
-    function getObservationBonusStepCount(maxBonus, bonusStep) {
-        const maxValue = Math.max(0, Math.floor(Number(maxBonus) || 0));
+    function getObservationBonusStepCount(minBonus, maxBonus, bonusStep) {
+        const minValue = Math.max(0, Math.floor(Number(minBonus) || 0));
+        const maxValue = Math.max(minValue, Math.floor(Number(maxBonus) || 0));
         const stepValue = normalizePositiveInteger(bonusStep, OBSERVATION_STONE_REWARD_BONUS_STEP);
-        return Math.floor(maxValue / stepValue);
+        return Math.floor((maxValue - minValue) / stepValue);
     }
 
-    function getObservationBonusTotalWeight(maxBonus, bonusStep) {
-        const stepCount = getObservationBonusStepCount(maxBonus, bonusStep);
+    function getObservationBonusTotalWeight(minBonus, maxBonus, bonusStep) {
+        const stepCount = getObservationBonusStepCount(minBonus, maxBonus, bonusStep);
         return ((stepCount + 1) * (stepCount + 2)) / 2;
     }
 
     function rollObservationBonus(randomFn) {
+        const minBonus = OBSERVATION_STONE_REWARD_BONUS_MIN;
         const maxBonus = OBSERVATION_STONE_REWARD_BONUS_MAX;
         const bonusStep = normalizePositiveInteger(
             OBSERVATION_STONE_REWARD_BONUS_STEP,
             OBSERVATION_STONE_REWARD_BONUS_STEP
         );
-        const stepCount = getObservationBonusStepCount(maxBonus, bonusStep);
-        const totalWeight = getObservationBonusTotalWeight(maxBonus, bonusStep);
+        const stepCount = getObservationBonusStepCount(minBonus, maxBonus, bonusStep);
+        const totalWeight = getObservationBonusTotalWeight(minBonus, maxBonus, bonusStep);
         let cumulative = 0;
         const target = Math.floor(resolveRandomValue(randomFn) * totalWeight);
 
         for (let stepIndex = 0; stepIndex <= stepCount; stepIndex += 1) {
             cumulative += (stepCount + 1) - stepIndex;
-            if (target < cumulative) return stepIndex * bonusStep;
+            if (target < cumulative) return minBonus + (stepIndex * bonusStep);
         }
-        return stepCount * bonusStep;
+        return minBonus + (stepCount * bonusStep);
     }
 
     function formatRateBasisPoints(rateBasisPoints) {
@@ -210,6 +213,7 @@
         OBSERVATION_STONE_PULL_COST,
         OBSERVATION_STONE_TEN_PULL_COST,
         OBSERVATION_STONE_REWARD_BASE,
+        OBSERVATION_STONE_REWARD_BONUS_MIN,
         OBSERVATION_STONE_REWARD_BONUS_MAX,
         OBSERVATION_STONE_REWARD_BONUS_STEP,
         normalizeRarity,

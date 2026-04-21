@@ -38,7 +38,6 @@
         TIME_BOMB: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'time_bomb' },
         SWAP_WITH_ENEMY: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'swap_with_enemy' },
         HEAVEN_BLESSING: { kind: 'hand_overlay', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'heaven_blessing' },
-        SELL_CARD_WILL: { kind: 'hand_overlay', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'sell_card' },
         CONDEMN_WILL: { kind: 'hand_overlay', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'condemn' }
     });
 
@@ -209,6 +208,7 @@
         return {
             type: cardType,
             cardId: opts.cardId,
+            pendingEffectId: (typeof opts.pendingEffectId === 'string' && opts.pendingEffectId) ? opts.pendingEffectId : undefined,
             sourceHandIndex: Number.isInteger(opts.sourceHandIndex) ? opts.sourceHandIndex : undefined,
             stage: needsSelection ? 'selectTarget' : null,
             offers: opts.offers || undefined,

@@ -224,6 +224,9 @@ def train_model(
     early_stop_min_epochs: int,
     early_stop_monitor: str,
     early_stop_smoothing_window: int,
+    lr_plateau_patience: int,
+    lr_plateau_factor: float,
+    lr_plateau_min_lr: float,
     resume_checkpoint: str,
     resume_optimizer: bool,
     log_interval_steps: int,
@@ -240,6 +243,11 @@ def train_model(
         raise ValueError("--log-interval-steps must be >= 0")
     if val_split < 0 or val_split >= 0.5:
         raise ValueError("--val-split must be in [0,0.5)")
+    trainer_common.validate_lr_plateau_args(
+        lr_plateau_patience=lr_plateau_patience,
+        lr_plateau_factor=lr_plateau_factor,
+        lr_plateau_min_lr=lr_plateau_min_lr,
+    )
     monitor = trainer_common.normalize_early_stop_monitor(
         early_stop_monitor,
         early_stop_patience=early_stop_patience,
@@ -279,10 +287,7 @@ def train_model(
     y_val = y_value[val_indices] if int(val_indices.numel()) > 0 else None
     w_val = sample_weight[val_indices] if int(val_indices.numel()) > 0 else None
 
-    best_state = None
-    best_epoch = 0
-    best_monitor = float("inf")
-    no_improve_count = 0
+    control = trainer_common.create_monitor_control_state()
     stopped_early = False
     early_stop_epoch = 0
     history: list[float] = []
@@ -343,31 +348,44 @@ def train_model(
         smoothed = history[-early_stop_smoothing_window:]
         effective_monitor = sum(smoothed) / max(1, len(smoothed))
 
-        if effective_monitor + early_stop_min_delta < best_monitor:
-            best_monitor = effective_monitor
-            best_epoch = epoch_index + 1
-            best_state = {key: value.detach().cpu().clone() for key, value in model.state_dict().items()}
-            no_improve_count = 0
-        else:
-            no_improve_count += 1
+        control_update = trainer_common.advance_monitor_control_state(
+            control,
+            model=model,
+            optimizer=optimizer,
+            epoch_number=epoch_index + 1,
+            monitor_value=effective_monitor,
+            early_stop_min_delta=early_stop_min_delta,
+            lr_plateau_patience=lr_plateau_patience,
+            lr_plateau_factor=lr_plateau_factor,
+            lr_plateau_min_lr=lr_plateau_min_lr,
+        )
+        if control_update.lr_reduced:
+            print(
+                f"[train_value_onnx] lr-reduce epoch={epoch_index + 1} "
+                f"old_lr={control_update.old_lr:.8f} new_lr={control_update.current_lr:.8f} drops={control.lr_drop_count}",
+                flush=True,
+            )
+        metric_entry.update(
+            trainer_common.build_monitor_control_metrics(control, current_lr=control_update.current_lr)
+        )
 
         reached_min_epochs = (epoch_index + 1) >= early_stop_min_epochs
-        if early_stop_patience > 0 and reached_min_epochs and no_improve_count >= early_stop_patience:
+        if early_stop_patience > 0 and reached_min_epochs and control.no_improve_count >= early_stop_patience:
             stopped_early = True
             early_stop_epoch = epoch_index + 1
             print(
-                f"[train_value_onnx] early-stop triggered at epoch={early_stop_epoch} best_epoch={best_epoch} best_{monitor}={best_monitor:.6f}",
+                f"[train_value_onnx] early-stop triggered at epoch={early_stop_epoch} best_epoch={control.best_epoch} best_{monitor}={control.best_monitor:.6f}",
                 flush=True,
             )
             break
 
-    if best_state is not None:
-        model.load_state_dict(best_state)
-    if epoch_metrics:
-        epoch_metrics[-1]["stoppedEarly"] = stopped_early
-        epoch_metrics[-1]["earlyStopEpoch"] = early_stop_epoch
-        epoch_metrics[-1]["bestEpoch"] = best_epoch
-        epoch_metrics[-1]["bestMonitor"] = best_monitor
+    trainer_common.restore_best_training_state(model, optimizer, control.best_state, control.best_optimizer_state)
+    trainer_common.finalize_monitor_control_metrics(
+        epoch_metrics,
+        control,
+        stopped_early=stopped_early,
+        early_stop_epoch=early_stop_epoch,
+    )
 
     with torch.no_grad():
         pred_all = model(x).squeeze(1)
@@ -524,6 +542,9 @@ def main() -> int:
         early_stop_min_epochs=int(args.early_stop_min_epochs),
         early_stop_monitor=str(args.early_stop_monitor or ""),
         early_stop_smoothing_window=int(args.early_stop_smoothing_window),
+        lr_plateau_patience=int(args.lr_plateau_patience),
+        lr_plateau_factor=float(args.lr_plateau_factor),
+        lr_plateau_min_lr=float(args.lr_plateau_min_lr),
         resume_checkpoint=str(args.resume_checkpoint or ""),
         resume_optimizer=bool(args.resume_optimizer),
         log_interval_steps=int(args.log_interval_steps),

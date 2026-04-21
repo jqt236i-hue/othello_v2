@@ -11,9 +11,11 @@ constants.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import random
+from dataclasses import dataclass
 from typing import Any
 
 import torch
@@ -490,6 +492,158 @@ def apply_resume_checkpoint(
     return path
 
 
+def clone_optimizer_state(optimizer: torch.optim.Optimizer | None) -> dict[str, Any] | None:
+    if optimizer is None:
+        return None
+    return copy.deepcopy(optimizer.state_dict())
+
+
+def restore_best_training_state(
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer | None,
+    best_state: dict[str, Any] | None,
+    best_optimizer_state: dict[str, Any] | None,
+) -> None:
+    if best_state is not None:
+        model.load_state_dict(best_state)
+    if optimizer is None or best_optimizer_state is None:
+        return
+    try:
+        optimizer.load_state_dict(best_optimizer_state)
+    except Exception:
+        pass
+
+
+def validate_lr_plateau_args(
+    lr_plateau_patience: int,
+    lr_plateau_factor: float,
+    lr_plateau_min_lr: float,
+) -> None:
+    if lr_plateau_patience < 0:
+        raise ValueError("--lr-plateau-patience must be >= 0")
+    if lr_plateau_patience <= 0:
+        return
+    if lr_plateau_factor <= 0 or lr_plateau_factor >= 1:
+        raise ValueError("--lr-plateau-factor must be in (0,1) when plateau scheduling is enabled")
+    if lr_plateau_min_lr <= 0:
+        raise ValueError("--lr-plateau-min-lr must be > 0 when plateau scheduling is enabled")
+
+
+def maybe_reduce_lr_on_plateau(
+    optimizer: torch.optim.Optimizer,
+    *,
+    plateau_no_improve_count: int,
+    lr_plateau_patience: int,
+    lr_plateau_factor: float,
+    lr_plateau_min_lr: float,
+) -> tuple[bool, float, float]:
+    current_lr = float(optimizer.param_groups[0]["lr"])
+    if lr_plateau_patience <= 0 or plateau_no_improve_count < lr_plateau_patience:
+        return False, current_lr, current_lr
+    next_lr = max(float(lr_plateau_min_lr), current_lr * float(lr_plateau_factor))
+    if next_lr + 1e-12 >= current_lr:
+        return False, current_lr, current_lr
+    for group in optimizer.param_groups:
+        group["lr"] = next_lr
+    return True, current_lr, next_lr
+
+
+@dataclass
+class MonitorControlState:
+    best_monitor: float = float("inf")
+    best_epoch: int = 0
+    no_improve_count: int = 0
+    plateau_no_improve_count: int = 0
+    lr_drop_count: int = 0
+    best_state: dict[str, Any] | None = None
+    best_optimizer_state: dict[str, Any] | None = None
+
+
+@dataclass
+class MonitorControlUpdate:
+    current_lr: float
+    lr_reduced: bool
+    old_lr: float
+
+
+def create_monitor_control_state() -> MonitorControlState:
+    return MonitorControlState()
+
+
+def advance_monitor_control_state(
+    state: MonitorControlState,
+    *,
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    epoch_number: int,
+    monitor_value: float,
+    early_stop_min_delta: float,
+    lr_plateau_patience: int,
+    lr_plateau_factor: float,
+    lr_plateau_min_lr: float,
+) -> MonitorControlUpdate:
+    improved = (state.best_monitor - monitor_value) > early_stop_min_delta
+    if improved:
+        state.best_monitor = monitor_value
+        state.best_epoch = epoch_number
+        state.no_improve_count = 0
+        state.plateau_no_improve_count = 0
+        state.best_state = {key: value.detach().cpu().clone() for key, value in model.state_dict().items()}
+        state.best_optimizer_state = clone_optimizer_state(optimizer)
+    else:
+        state.no_improve_count += 1
+        state.plateau_no_improve_count += 1
+
+    lr_reduced, old_lr, _next_lr = maybe_reduce_lr_on_plateau(
+        optimizer,
+        plateau_no_improve_count=state.plateau_no_improve_count,
+        lr_plateau_patience=lr_plateau_patience,
+        lr_plateau_factor=lr_plateau_factor,
+        lr_plateau_min_lr=lr_plateau_min_lr,
+    )
+    if lr_reduced:
+        state.lr_drop_count += 1
+        state.plateau_no_improve_count = 0
+        state.no_improve_count = 0
+
+    return MonitorControlUpdate(
+        current_lr=float(optimizer.param_groups[0]["lr"]),
+        lr_reduced=lr_reduced,
+        old_lr=old_lr,
+    )
+
+
+def build_monitor_control_metrics(
+    state: MonitorControlState,
+    *,
+    current_lr: float,
+) -> dict[str, Any]:
+    return {
+        "bestMonitor": state.best_monitor,
+        "bestEpoch": state.best_epoch,
+        "noImproveCount": state.no_improve_count,
+        "plateauNoImproveCount": state.plateau_no_improve_count,
+        "lr": current_lr,
+        "lrDropCount": state.lr_drop_count,
+    }
+
+
+def finalize_monitor_control_metrics(
+    epoch_metrics: list[dict[str, Any]],
+    state: MonitorControlState,
+    *,
+    stopped_early: bool,
+    early_stop_epoch: int | None,
+) -> None:
+    if not epoch_metrics:
+        return
+    epoch_metrics[-1]["stoppedEarly"] = stopped_early
+    epoch_metrics[-1]["earlyStopEpoch"] = early_stop_epoch
+    epoch_metrics[-1]["bestEpoch"] = state.best_epoch
+    epoch_metrics[-1]["bestMonitor"] = state.best_monitor
+    epoch_metrics[-1]["lrDropCount"] = state.lr_drop_count
+
+
 # ---------------------------------------------------------------------------
 # ONNX export
 # ---------------------------------------------------------------------------
@@ -635,6 +789,24 @@ def add_common_args(
         help="Moving-average window for early-stop monitor (default: 1=disabled).",
     )
     parser.add_argument(
+        "--lr-plateau-patience",
+        type=int,
+        default=0,
+        help="If > 0, reduce LR after N non-improving epochs (default: 0=disabled).",
+    )
+    parser.add_argument(
+        "--lr-plateau-factor",
+        type=float,
+        default=0.6,
+        help="LR multiply factor on plateau in (0,1) (default: 0.6).",
+    )
+    parser.add_argument(
+        "--lr-plateau-min-lr",
+        type=float,
+        default=1e-5,
+        help="Lower bound for LR when plateau scheduling is enabled (default: 1e-5).",
+    )
+    parser.add_argument(
         "--log-interval-steps",
         type=int,
         default=0,
@@ -766,6 +938,9 @@ def build_common_training_meta(args: argparse.Namespace, device: str) -> dict[st
         "earlyStopMinEpochs": args.early_stop_min_epochs,
         "earlyStopMonitor": args.early_stop_monitor,
         "earlyStopSmoothingWindow": args.early_stop_smoothing_window,
+        "lrPlateauPatience": args.lr_plateau_patience,
+        "lrPlateauFactor": args.lr_plateau_factor,
+        "lrPlateauMinLr": args.lr_plateau_min_lr,
         "winnerSampleBoost": args.winner_sample_boost,
         "loserSampleWeight": args.loser_sample_weight,
         "drawSampleWeight": args.draw_sample_weight,
@@ -809,6 +984,9 @@ def build_common_checkpoint_training(
         "earlyStopMinEpochs": int(args.early_stop_min_epochs),
         "earlyStopMonitor": str(args.early_stop_monitor),
         "earlyStopSmoothingWindow": int(args.early_stop_smoothing_window),
+        "lrPlateauPatience": int(args.lr_plateau_patience),
+        "lrPlateauFactor": float(args.lr_plateau_factor),
+        "lrPlateauMinLr": float(args.lr_plateau_min_lr),
         "winnerSampleBoost": float(args.winner_sample_boost),
         "loserSampleWeight": float(args.loser_sample_weight),
         "drawSampleWeight": float(args.draw_sample_weight),

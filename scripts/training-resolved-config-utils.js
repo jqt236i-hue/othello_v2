@@ -188,8 +188,10 @@ function applyAdoptionArgsFromResolvedConfig(target, specified, resolved) {
     setNumberFromFlag(target, specified, 'qualityWeightCornerHold', argMap, '--adoption-quality-weight-corner-hold');
     setNumberFromFlag(target, specified, 'qualityWeightCornerHoldTurns', argMap, '--adoption-quality-weight-corner-hold-turns');
     setNumberFromFlag(target, specified, 'qualityWeightEdgeHold', argMap, '--adoption-quality-weight-edge-hold');
+    setNumberFromFlag(target, specified, 'qualityWeightEdgeChain', argMap, '--adoption-quality-weight-edge-chain');
     setNumberFromFlag(target, specified, 'qualityWeightFinalCornerShare', argMap, '--adoption-quality-weight-final-corner-share');
     setNumberFromFlag(target, specified, 'qualityWeightFinalEdgeShare', argMap, '--adoption-quality-weight-final-edge-share');
+    setNumberFromFlag(target, specified, 'qualityWeightFinalLongestEdgeRunShare', argMap, '--adoption-quality-weight-final-longest-edge-run-share');
     setNumberFromFlag(target, specified, 'qualityWeightBonus', argMap, '--adoption-quality-weight-bonus');
     setNumberFromFlag(target, specified, 'qualityWeightCardImmediate', argMap, '--adoption-quality-weight-card-immediate');
     setNumberFromFlag(target, specified, 'qualityWeightCardFuture', argMap, '--adoption-quality-weight-card-future');

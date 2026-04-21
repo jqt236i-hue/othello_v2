@@ -177,6 +177,16 @@ Pending card flows must remain explicit in state rather than hidden in UI-only f
 Pending resolution is part of gameplay state.
 In network mode, authoritative pending outcomes must come from the server path, not from speculative local mutation that masquerades as final state.
 
+Current network UI may still carry temporary compatibility hints while a publish is in flight.
+Those hints are not accepted pending state.
+
+- client-side pending hints exist only to preserve local UX until the authoritative path answers
+- current compatibility markers such as `__networkLocalHint` are transient bridge state, not canonical gameplay outcome
+- same-version force-sync / reconnect recovery may preserve that bridge state briefly, but only while no newer authoritative snapshot has arrived
+- that bridge state is expected to be replaced by newer authoritative snapshot state or explicit local cleanup; it must not be treated as accepted pending outcome
+- authoritative pending instances may carry opaque `pendingEffectId` values; final target-selection publish must bind to that specific pending instance when present
+- browser preview may help the player choose a target, but once authority accepts the publish, preview state must not write gameplay state back over the authoritative snapshot
+
 ### 6.4 Snapshot and playback
 
 Network snapshot data is authoritative state transfer.
@@ -186,6 +196,11 @@ Those two concepts may travel together, but they do not have the same role:
 
 - snapshot decides the canonical current state
 - playback decides how the UI animates into that state
+- local busy / playback recovery decides only how pending presentation work settles; it never changes canonical state
+
+Self-originated preview / recovery paths may suppress playback, shadow playback, or preserve local settlement context for the same authoritative state.
+Those branches are compatibility behavior only.
+They must not overrule newer authoritative state.
 
 ## 7. Primary flow contracts
 
@@ -226,6 +241,16 @@ The existing contract is visible in code:
 - `ui/playback-state-manager.js` mirrors playback lock state
 
 Any new board-writing path must preserve that contract rather than bypass it.
+
+#### 7.3.1 Snapshot / playback / busy ownership
+
+Network playback must keep these ownership boundaries explicit:
+
+- snapshot application owns canonical state replacement
+- playback queue ownership owns animation sequencing and settlement only
+- local busy flags (`isProcessing`, card-animation locks, playback locks, and related guards) are UI settlement state, not authority state
+- compatibility paths such as suppressed playback or shadow playback may exist for self-originated preview/recovery flows, but they remain noncanonical and must not block canonical convergence once the same authoritative state has landed
+- if both clients have converged on the same authoritative snapshot and no further presentation work is pending, local busy state must be releasable on both clients
 
 ### 7.4 Hand animation context
 
@@ -292,6 +317,48 @@ Those fields are part of the authority contract and must stay consistent across 
 SSE, reconnect, and heartbeat behavior are part of the authority / projection contract, not just transport details.
 
 Changes here must be treated as contract changes because they affect canonical state delivery and replay ordering.
+
+- buffered SSE replay is an optimization, not the canonical source of truth
+- Durable Object replay buffering must survive object re-construction through room-owned persisted state rather than process memory alone
+- `/api/match/state` remains the full authoritative recovery path when replay cannot prove continuity
+- worker timeout progression must be authority-scheduled; it must not depend on an unrelated later request arriving before expiry is applied
+- local server may use a different internal scheduler, but the externally visible timeout semantics must stay aligned with worker authority
+
+### 8.5 Publish / stream / resync precedence
+
+Network delivery paths may race, but they do not have equal authority:
+
+1. newer authoritative `stateVersion` wins over older authoritative `stateVersion`
+2. a tracked self-operation may be satisfied first by stream delivery before its publish response arrives
+3. once a self-operation has already been established by stream at the same or newer `stateVersion`, same-version or older publish-response state must not be reapplied as if it were newer canonical state
+4. matching publish-response playback may still be consumed as suppressed or shadow playback recovery when canonical state already matches and only presentation settlement remains
+5. reconnect / heartbeat recovery uses `/api/match/state` as the full authoritative catch-up path when stream delivery is stale, missing, or version-behind
+
+This means precedence is decided by both version and tracked self-operation identity (`operationId`), not by transport arrival order alone.
+If version matches but projection-safe snapshot hash differs, the browser must treat that as different authoritative truth and must not skip force-sync only because the numeric `stateVersion` is unchanged.
+
+### 8.6 Randomness and turn-start reconciliation
+
+Canonical randomness belongs to the authority runtime.
+
+- worker and local server must consume the same gameplay randomness contract
+- persisted `prngState` is authoritative when present
+- when persisted `prngState` is unavailable, turn-start reconciliation must derive the next PRNG state from stable authority inputs such as room seed, `stateVersion`, turn number, turn index, and active player
+- browser-side preview may mirror authority results, but it must not define canonical random outcomes
+- gameplay-relevant `Math.random()` fallback on a canonical path is hardening debt, not a valid long-term authority contract
+- authority-side diagnostics may record `matchId`, `operationId`, version, pending identity, timeout reason, dedupe outcome, and before/after state hashes, but those diagnostics remain internal and must not widen normal public payloads by default
+
+### 8.7 Projection details
+
+Projection is authoritative for the viewer who receives it, but projection-specific placeholders are not gameplay identity.
+
+- hidden opponent hands may be replaced by seat-specific placeholder tokens while preserving slot count
+- hidden-opponent-card selection uses `handIndex` as the authoritative selector; placeholder token strings are presentation-only transport values
+- if the viewer is not allowed to inspect the selected hand owner, projection must clear `selectedCardId` / selected-owner visibility rather than leak hidden card identity
+- viewer-specific reveal paths such as `REVEAL_HAND_WILL` and projected opponent-hand offer lists must preserve the same authoritative choice space while redacting card identity for viewers who are not entitled to inspect it
+- player-visible wording for these projection rules belongs in `01-rulebook.md`; this document defines the runtime contract that keeps worker, local server, and browser projection behavior aligned
+- transport-visible snapshot integrity, when exposed, must be projection-safe (`projectedSnapshotHash` over the viewer's projected snapshot) rather than a hash over hidden canonical state
+- internal authority diagnostics may keep a stronger `authoritativeStateHash`, but that value is server-side only and must not weaken hidden-information projection
 
 ## 9. DI and bootstrap contracts
 

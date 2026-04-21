@@ -179,7 +179,7 @@ describe('card detail effect tags', () => {
       name: '時間停石',
       type: 'TIME_STOP_GOD',
       cost: 0,
-      desc: '使用時にランダムで自分の石3つを破壊し、次に置く石を時間停石化する。5回目の自ターン開始時に時間停止し、そのターンと次のターンを連続で行動する。発動時に効果は終了し、その石は同色の通常石に戻る。先に消えた場合は不発。'
+      desc: '手札に入った時点で即時破壊され、通常プレイでは使用しない。デバッグ等で手札に残った場合のみ、5ターン後時間停止を発動し2連続行動できる。'
     };
 
     global.cardState.selectedCardId = cardDef.id;
@@ -189,8 +189,9 @@ describe('card detail effect tags', () => {
     window.updateCardDetailPanel();
 
     const desc = document.getElementById('card-detail-desc').textContent;
-    expect(desc).toContain('時間停石化');
+    expect(desc).toContain('即時破壊');
     const detailText = document.getElementById('card-detail-more').textContent;
+    expect(detailText).toContain('通常プレイでは発動しない');
     expect(detailText).toContain('5回目の所有者ターン開始時');
     expect(detailText).toContain('反転保護は持たない');
 

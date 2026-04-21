@@ -131,16 +131,16 @@ describe('result overlay seat perspective', () => {
       const rewardLine = document.querySelector('.result-observation-stones');
       expect(rewardLine && rewardLine.textContent).toContain('観測石');
       expect(rewardLine && rewardLine.textContent).toContain('基本100');
-      expect(rewardLine && rewardLine.textContent).toContain('追加0');
-      expect(rewardLine && rewardLine.textContent).toContain('所持 100');
+      expect(rewardLine && rewardLine.textContent).toContain('追加100');
+      expect(rewardLine && rewardLine.textContent).toContain('所持 200');
       expect(rewardLine && rewardLine.querySelector('.observation-stone-icon')).not.toBeNull();
-      expect(storageModule.getObservationStones(window)).toBe(100);
+      expect(storageModule.getObservationStones(window)).toBe(200);
     } finally {
       randomSpy.mockRestore();
     }
   });
 
-  test('CPU勝利時は追加観測石の上限1000を表示できる', () => {
+  test('CPU勝利時は追加観測石の上限3000を表示できる', () => {
     global.countDiscs.mockReturnValue({ black: 48, white: 16 });
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(1 - Number.EPSILON);
 
@@ -150,15 +150,15 @@ describe('result overlay seat perspective', () => {
       mod.showResultOverlay();
 
       const rewardLine = document.querySelector('.result-observation-stones');
-      expect(rewardLine && rewardLine.textContent).toContain('追加1000');
-      expect(rewardLine && rewardLine.textContent).toContain('所持 1100');
-      expect(storageModule.getObservationStones(window)).toBe(1100);
+      expect(rewardLine && rewardLine.textContent).toContain('追加3000');
+      expect(rewardLine && rewardLine.textContent).toContain('所持 3100');
+      expect(storageModule.getObservationStones(window)).toBe(3100);
     } finally {
       randomSpy.mockRestore();
     }
   });
 
-  test('CPU敗北時は観測石が増えず結果表示も0になる', () => {
+  test('CPU敗北時も最低保証の観測石100を獲得し追加は0になる', () => {
     global.countDiscs.mockReturnValue({ black: 16, white: 48 });
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
 
@@ -168,9 +168,30 @@ describe('result overlay seat perspective', () => {
       mod.showResultOverlay();
 
       const rewardLine = document.querySelector('.result-observation-stones');
-      expect(rewardLine && rewardLine.textContent).toContain('観測石 +0');
+      expect(rewardLine && rewardLine.textContent).toContain('観測石 +100');
+      expect(rewardLine && rewardLine.textContent).toContain('基本100');
+      expect(rewardLine && rewardLine.textContent).toContain('追加0');
       expect(rewardLine && rewardLine.querySelector('.observation-stone-icon')).not.toBeNull();
-      expect(storageModule.getObservationStones(window)).toBe(0);
+      expect(storageModule.getObservationStones(window)).toBe(100);
+    } finally {
+      randomSpy.mockRestore();
+    }
+  });
+
+  test('CPU引き分け時も最低保証の観測石100を獲得し追加は0になる', () => {
+    global.countDiscs.mockReturnValue({ black: 32, white: 32 });
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.75);
+
+    try {
+      const mod = require('../ui/result-overlay.js');
+      const storageModule = require('../ui/storage/gacha-progress.js');
+      mod.showResultOverlay();
+
+      const rewardLine = document.querySelector('.result-observation-stones');
+      expect(rewardLine && rewardLine.textContent).toContain('観測石 +100');
+      expect(rewardLine && rewardLine.textContent).toContain('基本100');
+      expect(rewardLine && rewardLine.textContent).toContain('追加0');
+      expect(storageModule.getObservationStones(window)).toBe(100);
     } finally {
       randomSpy.mockRestore();
     }

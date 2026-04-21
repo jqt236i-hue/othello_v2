@@ -117,12 +117,30 @@ describe('local match server publish contract', () => {
         ok: false,
         roomId,
         rejectedReason: 'VERSION_BEHIND',
-        roomDeck: null,
+        roomDeck: expect.objectContaining({
+          mode: 'shared',
+          deckCode: '',
+          deckSize: 30,
+          source: 'room'
+        }),
+        roomBoardConfig: expect.objectContaining({
+          rows: 8,
+          cols: 8,
+          standard8x8: true
+        }),
         networkDebugEnabled: false,
         snapshot: expect.any(Object),
-        seats: expect.any(Object),
-        seatNames: expect.any(Object),
-        turnTimer: expect.any(Object),
+        seats: { black: true, white: false },
+        seatNames: { black: 'くろ', white: '' },
+        seatHandSkins: { black: '', white: '' },
+        turnTimer: expect.objectContaining({
+          limitSeconds: 120,
+          active: false,
+          turnSeatKey: 'black'
+        }),
+        playbackEvents: [],
+        effectLogs: [],
+        serverTime: expect.any(Number),
         publishMeta: expect.objectContaining({
           kind: 'rejected',
           operationId: 'op_vm_1',
@@ -301,6 +319,171 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('deferred tempt publish can steal robot vacuum once card-use context is included in command payload', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const joined = await requestJson(port, 'POST', '/api/match/join', {
+        roomId: created.data.roomId,
+        playerName: 'しろ'
+      });
+
+      const patched = patchRoomSnapshotForTests(created.data.roomId, (room) => {
+        const snapshot = room.snapshot;
+        snapshot.gameState.currentPlayer = -1;
+        snapshot.gameState.turnNumber = 7;
+        snapshot.gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        snapshot.gameState.board[3][3] = 1;
+        snapshot.cardState.turnIndex = 7;
+        snapshot.cardState.lastTurnStartedFor = 'white';
+        snapshot.cardState.charge.black = 30;
+        snapshot.cardState.charge.white = 30;
+        snapshot.cardState.hands.black = [];
+        snapshot.cardState.hands.white = ['tempt_01'];
+        snapshot.cardState.pendingEffectByPlayer = { black: null, white: null };
+        snapshot.cardState.markers = [{
+          kind: 'specialStone',
+          row: 3,
+          col: 3,
+          owner: 'black',
+          data: { type: 'ROBOT_VACUUM', remainingOwnerTurns: 5 }
+        }];
+      });
+      expect(patched).toBe(true);
+
+      const state = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${created.data.roomId}&seatKey=white&seatToken=${joined.data.seatToken}`
+      );
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId: created.data.roomId,
+        seatKey: 'white',
+        playerKey: 'white',
+        seatToken: joined.data.seatToken,
+        baseVersion: state.data.stateVersion,
+        operationId: 'op_tempt_robot_vacuum',
+        actionType: 'place',
+        actor: 'white',
+        params: {
+          temptTarget: { row: 3, col: 3 },
+          pendingSelectionState: {
+            type: 'TEMPT_WILL',
+            stage: 'selectTarget',
+            cardId: 'tempt_01'
+          },
+          useCardId: 'tempt_01',
+          useCardOwnerKey: 'white'
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data).toEqual(expect.objectContaining({
+        ok: true,
+        roomId: created.data.roomId,
+        snapshot: expect.any(Object),
+        publishMeta: expect.objectContaining({
+          kind: 'accepted',
+          operationId: 'op_tempt_robot_vacuum',
+          actionType: 'place'
+        })
+      }));
+      expect(response.data.snapshot.gameState.currentPlayer).toBe(-1);
+      expect(response.data.snapshot.gameState.board[3][3]).toBe(-1);
+      expect(response.data.snapshot.cardState.hands.white).toEqual([]);
+      expect(response.data.snapshot.cardState.charge.white).toBe(7);
+      expect(response.data.snapshot.cardState.pendingEffectByPlayer.white).toBeNull();
+      expect(response.data.snapshot.cardState.markers).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          row: 3,
+          col: 3,
+          owner: 'white',
+          data: expect.objectContaining({
+            type: 'ROBOT_VACUUM',
+            remainingOwnerTurns: 5
+          })
+        })
+      ]));
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  test('stale pendingEffectId publish is rejected before deferred selection is applied', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+
+      const patched = patchRoomSnapshotForTests(roomId, (room) => {
+        room.snapshot.gameState.currentPlayer = 1;
+        room.snapshot.cardState.turnIndex = 9;
+        room.snapshot.cardState.pendingEffectByPlayer = {
+          black: {
+            type: 'TEMPT_WILL',
+            stage: 'selectTarget',
+            cardId: 'tempt_01',
+            pendingEffectId: 'pending_9_2'
+          },
+          white: null
+        };
+      });
+      expect(patched).toBe(true);
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken,
+        baseVersion: created.data.stateVersion,
+        operationId: 'op_stale_pending_1',
+        actionType: 'place',
+        actor: 'black',
+        params: {
+          row: 2,
+          col: 3,
+          pendingSelectionState: {
+            type: 'TEMPT_WILL',
+            pendingEffectId: 'pending_9_1'
+          }
+        },
+        action: {
+          type: 'place',
+          playerKey: 'black',
+          row: 2,
+          col: 3,
+          pendingSelectionState: {
+            type: 'TEMPT_WILL',
+            pendingEffectId: 'pending_9_1'
+          },
+          turnIndex: 9
+        },
+        turnIndex: 9
+      });
+
+      expect(response.status).toBe(409);
+      expect(response.data).toEqual(expect.objectContaining({
+        ok: false,
+        roomId,
+        rejectedReason: 'STALE_PENDING_SELECTION',
+        publishMeta: expect.objectContaining({
+          kind: 'rejected',
+          operationId: 'op_stale_pending_1',
+          actionType: 'place',
+          rejectedReason: 'STALE_PENDING_SELECTION'
+        })
+      }));
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('idempotent replay response keeps shared publishMeta shape', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);
@@ -343,14 +526,30 @@ describe('local match server publish contract', () => {
         ok: true,
         roomId,
         idempotentReplay: true,
-        roomDeck: null,
+        roomDeck: expect.objectContaining({
+          mode: 'shared',
+          deckCode: '',
+          deckSize: 30,
+          source: 'room'
+        }),
+        roomBoardConfig: expect.objectContaining({
+          rows: 8,
+          cols: 8,
+          standard8x8: true
+        }),
         networkDebugEnabled: false,
         snapshot: expect.any(Object),
-        playbackEvents: expect.any(Array),
-        effectLogs: expect.any(Array),
-        seats: expect.any(Object),
-        seatNames: expect.any(Object),
-        turnTimer: expect.any(Object),
+        playbackEvents: [],
+        effectLogs: [],
+        seats: { black: true, white: false },
+        seatNames: { black: 'くろ', white: '' },
+        seatHandSkins: { black: '', white: '' },
+        turnTimer: expect.objectContaining({
+          limitSeconds: 120,
+          active: false,
+          turnSeatKey: 'white'
+        }),
+        serverTime: expect.any(Number),
         publishMeta: expect.objectContaining({
           kind: 'idempotent_replay',
           operationId: 'op_place_1',
@@ -359,6 +558,12 @@ describe('local match server publish contract', () => {
           authoritativeStateVersion: Number(first.data.stateVersion),
           replayedStateVersion: Number(first.data.stateVersion)
         })
+      }));
+      expect(replay.data.snapshot._meta).toEqual(expect.objectContaining({
+        authority: 'server',
+        version: Number(first.data.stateVersion),
+        projectedForSeat: 'black',
+        turnStartReconciled: true
       }));
     } finally {
       await closeServer(server);

@@ -79,7 +79,7 @@
                     col,
                     cardType,
                     destroyReason,
-                    { ignoreGuard: true, random }
+                    { ignoreGuard: true, ignoreRegen: true, random }
                 );
                 destroyed = isDestroyResolved(result);
                 if (result && (result.reason === 'out_of_board' || result.reason === 'absolute_protected' || result.reason === 'frozen_protected')) {

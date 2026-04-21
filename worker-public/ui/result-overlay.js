@@ -641,15 +641,6 @@ function resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey
         });
     }
 
-    if (localOutcomeKey !== 'win') {
-        const zeroSummary = Object.assign({}, baseSummary, {
-            visible: true,
-            token
-        });
-        _observationStoneRewardByToken.set(token, zeroSummary);
-        return zeroSummary;
-    }
-
     const rootRef = (typeof window !== 'undefined' && window)
         ? window
         : (typeof globalThis !== 'undefined' ? globalThis : null);
@@ -657,7 +648,7 @@ function resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey
         0,
         toFiniteInteger(ResultOverlayGachaHelpersModule.OBSERVATION_STONE_REWARD_BASE, 100)
     );
-    const bonusReward = (typeof ResultOverlayGachaHelpersModule.rollObservationBonus === 'function')
+    const bonusReward = localOutcomeKey === 'win' && (typeof ResultOverlayGachaHelpersModule.rollObservationBonus === 'function')
         ? Math.max(0, toFiniteInteger(ResultOverlayGachaHelpersModule.rollObservationBonus(), 0))
         : 0;
     const totalReward = baseReward + bonusReward;
@@ -699,10 +690,6 @@ function createObservationStoneLine(summary) {
         line.appendChild(text);
         return line;
     }
-
-    text.textContent = `観測石 +0 / 所持 ${summary.balance}`;
-    line.appendChild(text);
-    return line;
 }
 
 function createObserverDuelMetaLine(override) {

@@ -3,6 +3,40 @@
  * @description Placement-triggered effects (logs + apply)
  */
 
+let cachedPendingCoordinator = null;
+
+function resolvePendingCoordinator() {
+    if (cachedPendingCoordinator && typeof cachedPendingCoordinator === 'object') {
+        return cachedPendingCoordinator;
+    }
+    if (typeof require === 'function') {
+        try {
+            cachedPendingCoordinator = require('../turn/pending-coordinator');
+        } catch (e) { /* ignore */ }
+    }
+    return cachedPendingCoordinator;
+}
+
+function readPlacementPendingType(move) {
+    if (!move) return null;
+    const playerKey = typeof getPlayerKey === 'function' ? getPlayerKey(move.player) : null;
+    if (!playerKey) return null;
+    const activeCardState = (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object')
+        ? cardState
+        : ((typeof globalThis !== 'undefined' && globalThis.cardState && typeof globalThis.cardState === 'object')
+            ? globalThis.cardState
+            : null);
+    if (!activeCardState) return null;
+
+    const pendingCoordinator = resolvePendingCoordinator();
+    if (pendingCoordinator && typeof pendingCoordinator.getPendingEffectType === 'function') {
+        return pendingCoordinator.getPendingEffectType(activeCardState, playerKey);
+    }
+    return (activeCardState.pendingEffectByPlayer
+        && activeCardState.pendingEffectByPlayer[playerKey]
+        && activeCardState.pendingEffectByPlayer[playerKey].type) || null;
+}
+
 function logPlacementEffects(effects, player) {
     if (!effects) return;
     const ownerName = getPlayerDisplayName(player);
@@ -107,7 +141,7 @@ function applyProtectionAfterMove(move, effects) {
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.breedingSpawned(getPlayerName(move.player), effects.breedingSpawned));
     }
 
-    effects.pendingType = effects.pendingType || (cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[getPlayerKey(move.player)] && cardState.pendingEffectByPlayer[getPlayerKey(move.player)].type);
+    effects.pendingType = effects.pendingType || readPlacementPendingType(move);
 
     return effects;
 }

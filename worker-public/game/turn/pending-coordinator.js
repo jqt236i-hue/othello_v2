@@ -11,6 +11,7 @@
 
     var cachedPendingStateManager = null;
     var cachedOwnerHelpers = null;
+    var cachedCardLogic = null;
     var pendingSelectionActionByPlayer = {
         black: null,
         white: null
@@ -46,6 +47,15 @@
             'OwnerHelpers'
         );
         return cachedOwnerHelpers;
+    }
+
+    function getCardLogic() {
+        cachedCardLogic = resolveCachedModule(
+            cachedCardLogic,
+            '../logic/cards',
+            'CardLogic'
+        );
+        return cachedCardLogic;
     }
 
     function callPendingStateManager(methodName, args, fallbackValue) {
@@ -165,6 +175,20 @@
         return pending && pending.type ? pending.type : null;
     }
 
+    function allocatePendingEffectId(cardState) {
+        var baseTurnIndex = cardState && Number.isFinite(Number(cardState.turnIndex))
+            ? Math.max(0, Math.trunc(Number(cardState.turnIndex)))
+            : 0;
+        var previousSeq = cardState && Number.isFinite(Number(cardState.pendingEffectSeq))
+            ? Math.max(0, Math.trunc(Number(cardState.pendingEffectSeq)))
+            : 0;
+        var nextSeq = previousSeq + 1;
+        if (cardState && typeof cardState === 'object') {
+            cardState.pendingEffectSeq = nextSeq;
+        }
+        return 'pending_' + String(baseTurnIndex) + '_' + String(nextSeq);
+    }
+
     function writePendingEffect(cardState, playerKey, pendingEffect, options) {
         var pendingByPlayer = ensurePendingStateByPlayer(cardState);
         if (!pendingByPlayer) {
@@ -178,6 +202,9 @@
                 playerKey: normalizedPlayerKey,
                 pendingEffect: null
             };
+        }
+        if (pendingEffect && typeof pendingEffect === 'object' && !pendingEffect.pendingEffectId) {
+            pendingEffect.pendingEffectId = allocatePendingEffectId(cardState);
         }
         pendingByPlayer[normalizedPlayerKey] = pendingEffect;
         var opts = (options && typeof options === 'object') ? options : {};
@@ -227,10 +254,16 @@
         };
     }
 
-    function syncPendingSelectionActionCache(pendingState) {
+    function syncPendingSelectionActionCache(pendingState, options) {
         var syncContext = resolvePendingSyncContext(pendingState);
         var pendingByPlayer = syncContext.pendingByPlayer;
         var expectedTurnIndex = syncContext.turnIndex;
+        var opts = (options && typeof options === 'object') ? options : {};
+        var preservePlayerKeys = Array.isArray(opts.preservePlayerKeys)
+            ? opts.preservePlayerKeys.map(function (value) {
+                return normalizePlayerKey(value);
+            })
+            : [];
         var summary = {
             cleared: [],
             retained: []
@@ -240,6 +273,10 @@
             var playerKey = playerKeys[index];
             var storedEntry = pendingSelectionActionByPlayer[playerKey];
             if (!storedEntry || typeof storedEntry !== 'object') continue;
+            if (preservePlayerKeys.indexOf(playerKey) !== -1) {
+                summary.retained.push(playerKey);
+                continue;
+            }
 
             var pending = pendingByPlayer ? pendingByPlayer[playerKey] : null;
             var expectedType = normalizePendingType(pending && pending.type);
@@ -281,6 +318,29 @@
         return { row: target.row, col: target.col };
     }
 
+    function applyPendingSelectionCardContext(target, playerKey, pendingLike, options) {
+        var normalizedPlayerKey = normalizePlayerKey(playerKey);
+        var payload = (target && typeof target === 'object') ? target : {};
+        var source = (pendingLike && typeof pendingLike === 'object')
+            ? pendingLike
+            : ((payload.pendingSelectionState && typeof payload.pendingSelectionState === 'object')
+                ? payload.pendingSelectionState
+                : null);
+        var cardId = source && typeof source.cardId === 'string'
+            ? String(source.cardId).trim()
+            : '';
+        if (!cardId) {
+            return payload;
+        }
+        if (!payload.useCardId) {
+            payload.useCardId = cardId;
+        }
+        if (!payload.useCardOwnerKey) {
+            payload.useCardOwnerKey = normalizedPlayerKey;
+        }
+        return payload;
+    }
+
     function buildPendingSelectionTransportState(pendingType, pending) {
         var normalizedPendingType = normalizePendingType(pendingType || (pending && pending.type));
         if (!normalizedPendingType || !pending || normalizePendingType(pending.type) !== normalizedPendingType) {
@@ -291,9 +351,19 @@
             type: normalizedPendingType,
             stage: typeof pending.stage === 'string' && pending.stage ? pending.stage : 'selectTarget'
         };
+        if (typeof pending.cardId === 'string' && pending.cardId) {
+            transportState.cardId = pending.cardId;
+        }
+        if (Number.isInteger(pending.sourceHandIndex)) {
+            transportState.sourceHandIndex = pending.sourceHandIndex;
+        }
+        if (typeof pending.pendingEffectId === 'string' && pending.pendingEffectId) {
+            transportState.pendingEffectId = pending.pendingEffectId;
+        }
+
         var contract = resolvePendingSelectionContract(normalizedPendingType);
         if (!contract || contract.kind !== 'multi_stage') {
-            return null;
+            return transportState;
         }
 
         if (normalizedPendingType === 'POSITION_SWAP_WILL' || normalizedPendingType === 'BOARD_SHRINK_GOD') {
@@ -322,7 +392,7 @@
             }
         }
 
-        return Object.keys(transportState).length > 2 ? transportState : null;
+        return transportState;
     }
 
     function createPendingSelectionAction(playerKey, pendingType, actionPayload, options) {
@@ -366,49 +436,25 @@
         return action;
     }
 
-    function setPendingHintLocally(cardState, playerKey, cardType, options) {
-        var pendingStateManager = getPendingStateManager();
-        if (!pendingStateManager || typeof pendingStateManager.createPendingEffectState !== 'function') {
-            return { ok: false, reason: 'pending_state_manager_unavailable' };
-        }
-        var pendingByPlayer = ensurePendingStateByPlayer(cardState);
-        if (!pendingByPlayer) {
-            return { ok: false, reason: 'invalid_card_state' };
-        }
-
+    function clearPendingSelectionFailureState(cardState, playerKey, options) {
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
         var opts = (options && typeof options === 'object') ? options : {};
-        var pending = pendingStateManager.createPendingEffectState({
-            cardType: cardType,
-            cardId: opts.cardId,
-            sourceHandIndex: opts.sourceHandIndex,
-            needsSelection: opts.needsSelection,
-            offers: opts.offers
-        });
-        if (!pending || typeof pending !== 'object') {
-            return { ok: false, reason: 'pending_hint_unavailable' };
+        var shouldClearPendingEffect = opts.clearPendingEffect === true;
+
+        if (shouldClearPendingEffect && cardState && typeof cardState === 'object') {
+            var clearedPending = clearPendingEffect(cardState, normalizedPlayerKey, {
+                clearSelectionAction: true
+            });
+            return Object.assign({}, clearedPending, {
+                clearedPendingEffect: true
+            });
         }
 
-        pending.__networkLocalHint = true;
-        pending.__networkLocalHintSetAt = Date.now();
-        pendingByPlayer[normalizedPlayerKey] = pending;
+        clearPendingSelectionAction(normalizedPlayerKey);
         return {
             ok: true,
             playerKey: normalizedPlayerKey,
-            pending: pending
-        };
-    }
-
-    function clearPendingHint(cardState, playerKey) {
-        var pendingByPlayer = ensurePendingStateByPlayer(cardState);
-        if (!pendingByPlayer) {
-            return { ok: false, reason: 'invalid_card_state' };
-        }
-        var normalizedPlayerKey = normalizePlayerKey(playerKey);
-        pendingByPlayer[normalizedPlayerKey] = null;
-        return {
-            ok: true,
-            playerKey: normalizedPlayerKey
+            clearedPendingEffect: false
         };
     }
 
@@ -426,8 +472,6 @@
     }
 
     return {
-        setPendingHintLocally: setPendingHintLocally,
-        clearPendingHint: clearPendingHint,
         readPendingEffect: readPendingEffect,
         getPendingEffectType: getPendingEffectType,
         writePendingEffect: writePendingEffect,
@@ -438,12 +482,14 @@
         shouldDeferNetworkPublishForPendingType: shouldDeferNetworkPublishForPendingType,
         shouldWaitForPlaybackIdleForPendingType: shouldWaitForPlaybackIdleForPendingType,
         resolvePendingSelectionDispatchKey: resolvePendingSelectionDispatchKey,
+        applyPendingSelectionCardContext: applyPendingSelectionCardContext,
         storePendingSelectionAction: storePendingSelectionAction,
         readPendingSelectionAction: readPendingSelectionAction,
         clearPendingSelectionAction: clearPendingSelectionAction,
         clearPendingSelectionActionCache: clearPendingSelectionActionCache,
         syncPendingSelectionActionCache: syncPendingSelectionActionCache,
         shouldRetainPendingSelectionAction: shouldRetainPendingSelectionAction,
-        createPendingSelectionAction: createPendingSelectionAction
+        createPendingSelectionAction: createPendingSelectionAction,
+        clearPendingSelectionFailureState: clearPendingSelectionFailureState
     };
 }));

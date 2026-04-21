@@ -9,19 +9,22 @@ const CASES = [
     label: 'STRONG_WIND_WILL',
     handlerName: 'handleStrongWindSelection',
     pendingType: 'STRONG_WIND_WILL',
-    actionField: 'strongWindTarget'
+    actionField: 'strongWindTarget',
+    cardId: 'strong_wind_01'
   },
   {
     label: 'SUPER_BUOYANCY_WILL',
     handlerName: 'handleSuperBuoyancySelection',
     pendingType: 'SUPER_BUOYANCY_WILL',
-    actionField: 'superBuoyancyTarget'
+    actionField: 'superBuoyancyTarget',
+    cardId: 'super_buoyancy_01'
   },
   {
     label: 'SUPER_GRAVITY_WILL',
     handlerName: 'handleSuperGravitySelection',
     pendingType: 'SUPER_GRAVITY_WILL',
-    actionField: 'superGravityTarget'
+    actionField: 'superGravityTarget',
+    cardId: 'super_gravity_01'
   }
 ];
 
@@ -57,7 +60,7 @@ function createLiveResponseSnapshot(stateVersion) {
   };
 }
 
-function createSnapshot(stateVersion, pendingType) {
+function createSnapshot(stateVersion, pendingType, cardId) {
   return {
     stateVersion,
     _meta: {
@@ -78,7 +81,7 @@ function createSnapshot(stateVersion, pendingType) {
       hands: { black: [], white: [] },
       charge: { black: 10, white: 10 },
       pendingEffectByPlayer: {
-        black: { type: pendingType, stage: 'selectTarget' },
+        black: { type: pendingType, stage: 'selectTarget', cardId },
         white: null
       },
       hasUsedCardThisTurnByPlayer: { black: false, white: false },
@@ -90,7 +93,7 @@ function createSnapshot(stateVersion, pendingType) {
   };
 }
 
-describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerName, pendingType, actionField }) => {
+describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerName, pendingType, actionField, cardId }) => {
   let dom;
   let publishBodies;
   let runTurnMock;
@@ -116,7 +119,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerNam
     global.MATCH_MODE = 'network';
     global.DEBUG_HUMAN_VS_HUMAN = false;
 
-    const initial = createSnapshot(20, pendingType);
+    const initial = createSnapshot(20, pendingType, cardId);
     global.gameState = initial.gameState;
     global.cardState = initial.cardState;
 
@@ -181,7 +184,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerNam
           seatToken: 'seat-token',
           stateVersion: 20,
           roomBoardConfig: cloneJson(CUSTOM_BOARD_CONFIG),
-          snapshot: createSnapshot(20, pendingType)
+          snapshot: createSnapshot(20, pendingType, cardId)
         });
       }
 
@@ -303,7 +306,12 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerNam
     expect(publishBodies[0].actor).toBe('black');
     expect(publishBodies[0].params).toEqual({
       player: 'black',
-      [actionField]: { row: 6, col: 8 }
+      [actionField]: { row: 6, col: 8 },
+      pendingSelectionState: {
+        type: pendingType,
+        stage: 'selectTarget',
+        cardId
+      }
     });
     expect(publishBodies[0].snapshot).toBeUndefined();
     expect(publishBodies[0].playbackEvents).toBeUndefined();

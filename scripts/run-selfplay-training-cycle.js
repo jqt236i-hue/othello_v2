@@ -185,6 +185,7 @@ function parseArgs(argv) {
         maxPlies: 220,
         allowCardUsage: true,
         cardUsageRate: 0.2,
+        selfplayGenerateHardcases: true,
         selfplayPolicyMixRate: 1,
         selfplayPolicyModelPoolSize: 4,
         selfplayPolicyPoolSampling: 'recency',
@@ -211,7 +212,9 @@ function parseArgs(argv) {
         onnxEpochs: 9999,
         onnxBatchSize: 2048,
         onnxLr: 0.001,
+        onnxValueLr: null,
         onnxHiddenSize: 256,
+        onnxValueHiddenSize: null,
         onnxDevice: 'auto',
         onnxLogIntervalSteps: 0,
         onnxValSplit: 0.1,
@@ -221,6 +224,9 @@ function parseArgs(argv) {
         onnxEarlyStopMinEpochs: 8,
         onnxEarlyStopMonitor: 'val_loss',
         onnxEarlyStopSmoothingWindow: 1,
+        onnxLrPlateauPatience: 0,
+        onnxLrPlateauFactor: 0.6,
+        onnxLrPlateauMinLr: 1e-5,
         onnxResumeOptimizer: false,
         onnxCardNoActionWeight: 0.7,
         onnxCardClassBalancePower: 0.25,
@@ -241,6 +247,8 @@ function parseArgs(argv) {
         onnxValueTargetEdgeWeight: 0.0,
         onnxValueTargetEconomyWeight: 0.0,
         onnxValueTargetCornerEmergencyWeight: 0.0,
+        trainTargetHeadEnabled: true,
+        trainValueHeadEnabled: true,
         trainCardEvery: 1,
         trainTargetEvery: 1,
         trainValueEvery: 1,
@@ -291,15 +299,17 @@ function parseArgs(argv) {
         adoptionHeuristicWeight: 0.85,
         adoptionWhitePriority: 0.5,
         adoptionQualityWeightCorner: 0.22,
-        adoptionQualityWeightEdge: 0.16,
+        adoptionQualityWeightEdge: 0.10,
         adoptionQualityWeightCornerRecovery: 0.18,
         adoptionQualityWeightCornerRecapture: 0.14,
         adoptionQualityWeightEdgeRecovery: 0.12,
         adoptionQualityWeightCornerHold: 0.16,
         adoptionQualityWeightCornerHoldTurns: 0.10,
-        adoptionQualityWeightEdgeHold: 0.10,
+        adoptionQualityWeightEdgeHold: 0.09,
+        adoptionQualityWeightEdgeChain: 0.12,
         adoptionQualityWeightFinalCornerShare: 0.24,
-        adoptionQualityWeightFinalEdgeShare: 0.10,
+        adoptionQualityWeightFinalEdgeShare: 0.06,
+        adoptionQualityWeightFinalLongestEdgeRunShare: 0.08,
         adoptionQualityWeightBonus: 0.01,
         adoptionQualityWeightCardImmediate: 0.015,
         adoptionQualityWeightCardFuture: 0.02,
@@ -343,6 +353,7 @@ function parseArgs(argv) {
         resumeValueCheckpointPath: null,
         resumeCheckpointPaths: createEmptyResumeCheckpointPaths(),
         carryOverCheckpoint: true,
+        carryOverCheckpointMode: 'always',
         seedBankPath: null,
         runTag: null,
         runsDir: path.resolve(process.cwd(), 'data', 'runs'),
@@ -371,6 +382,8 @@ function parseArgs(argv) {
         if (a === '--max-plies') { args.maxPlies = Number(argv[++i]); continue; }
         if (a === '--with-cards') { args.allowCardUsage = true; continue; }
         if (a === '--no-cards') { args.allowCardUsage = false; continue; }
+        if (a === '--selfplay-hardcases') { args.selfplayGenerateHardcases = true; continue; }
+        if (a === '--no-selfplay-hardcases') { args.selfplayGenerateHardcases = false; continue; }
         if (a === '--card-usage-rate') { args.cardUsageRate = Number(argv[++i]); continue; }
         if (a === '--selfplay-policy-mix-rate') { args.selfplayPolicyMixRate = Number(argv[++i]); continue; }
         if (a === '--selfplay-policy-model-pool-size') { args.selfplayPolicyModelPoolSize = Number(argv[++i]); continue; }
@@ -400,7 +413,9 @@ function parseArgs(argv) {
         if (a === '--onnx-epochs') { args.onnxEpochs = Number(argv[++i]); continue; }
         if (a === '--onnx-batch-size') { args.onnxBatchSize = Number(argv[++i]); continue; }
         if (a === '--onnx-lr') { args.onnxLr = Number(argv[++i]); continue; }
+        if (a === '--onnx-value-lr') { args.onnxValueLr = Number(argv[++i]); continue; }
         if (a === '--onnx-hidden-size') { args.onnxHiddenSize = Number(argv[++i]); continue; }
+        if (a === '--onnx-value-hidden-size') { args.onnxValueHiddenSize = Number(argv[++i]); continue; }
         if (a === '--onnx-device') { args.onnxDevice = String(argv[++i] || '').trim().toLowerCase() || 'auto'; continue; }
         if (a === '--onnx-log-interval-steps') { args.onnxLogIntervalSteps = Number(argv[++i]); continue; }
         if (a === '--onnx-val-split') { args.onnxValSplit = Number(argv[++i]); continue; }
@@ -410,6 +425,9 @@ function parseArgs(argv) {
         if (a === '--onnx-early-stop-min-epochs') { args.onnxEarlyStopMinEpochs = Number(argv[++i]); continue; }
         if (a === '--onnx-early-stop-monitor') { args.onnxEarlyStopMonitor = String(argv[++i] || '').trim().toLowerCase(); continue; }
         if (a === '--onnx-early-stop-smoothing-window') { args.onnxEarlyStopSmoothingWindow = Number(argv[++i]); continue; }
+        if (a === '--onnx-lr-plateau-patience') { args.onnxLrPlateauPatience = Number(argv[++i]); continue; }
+        if (a === '--onnx-lr-plateau-factor') { args.onnxLrPlateauFactor = Number(argv[++i]); continue; }
+        if (a === '--onnx-lr-plateau-min-lr') { args.onnxLrPlateauMinLr = Number(argv[++i]); continue; }
         if (a === '--onnx-resume-optimizer') { args.onnxResumeOptimizer = true; continue; }
         if (a === '--no-onnx-resume-optimizer') { args.onnxResumeOptimizer = false; continue; }
         if (a === '--onnx-card-no-action-weight') { args.onnxCardNoActionWeight = Number(argv[++i]); continue; }
@@ -431,6 +449,10 @@ function parseArgs(argv) {
         if (a === '--onnx-value-target-edge-weight') { args.onnxValueTargetEdgeWeight = Number(argv[++i]); continue; }
         if (a === '--onnx-value-target-economy-weight') { args.onnxValueTargetEconomyWeight = Number(argv[++i]); continue; }
         if (a === '--onnx-value-target-corner-emergency-weight') { args.onnxValueTargetCornerEmergencyWeight = Number(argv[++i]); continue; }
+        if (a === '--train-target-head') { args.trainTargetHeadEnabled = true; continue; }
+        if (a === '--no-train-target-head') { args.trainTargetHeadEnabled = false; continue; }
+        if (a === '--train-value-head') { args.trainValueHeadEnabled = true; continue; }
+        if (a === '--no-train-value-head') { args.trainValueHeadEnabled = false; continue; }
         if (a === '--train-card-every') { args.trainCardEvery = Number(argv[++i]); continue; }
         if (a === '--train-target-every') { args.trainTargetEvery = Number(argv[++i]); continue; }
         if (a === '--train-value-every') { args.trainValueEvery = Number(argv[++i]); continue; }
@@ -490,8 +512,10 @@ function parseArgs(argv) {
         if (a === '--adoption-quality-weight-corner-hold') { args.adoptionQualityWeightCornerHold = Number(argv[++i]); continue; }
         if (a === '--adoption-quality-weight-corner-hold-turns') { args.adoptionQualityWeightCornerHoldTurns = Number(argv[++i]); continue; }
         if (a === '--adoption-quality-weight-edge-hold') { args.adoptionQualityWeightEdgeHold = Number(argv[++i]); continue; }
+        if (a === '--adoption-quality-weight-edge-chain') { args.adoptionQualityWeightEdgeChain = Number(argv[++i]); continue; }
         if (a === '--adoption-quality-weight-final-corner-share') { args.adoptionQualityWeightFinalCornerShare = Number(argv[++i]); continue; }
         if (a === '--adoption-quality-weight-final-edge-share') { args.adoptionQualityWeightFinalEdgeShare = Number(argv[++i]); continue; }
+        if (a === '--adoption-quality-weight-final-longest-edge-run-share') { args.adoptionQualityWeightFinalLongestEdgeRunShare = Number(argv[++i]); continue; }
         if (a === '--adoption-quality-weight-bonus') { args.adoptionQualityWeightBonus = Number(argv[++i]); continue; }
         if (a === '--adoption-quality-weight-card-immediate') { args.adoptionQualityWeightCardImmediate = Number(argv[++i]); continue; }
         if (a === '--adoption-quality-weight-card-future') { args.adoptionQualityWeightCardFuture = Number(argv[++i]); continue; }
@@ -541,8 +565,21 @@ function parseArgs(argv) {
         if (a === '--resume-card-checkpoint') { args.resumeCardCheckpointPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--resume-target-checkpoint') { args.resumeTargetCheckpointPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--resume-value-checkpoint') { args.resumeValueCheckpointPath = path.resolve(process.cwd(), argv[++i]); continue; }
-        if (a === '--carry-over-checkpoint') { args.carryOverCheckpoint = true; continue; }
-        if (a === '--no-carry-over-checkpoint') { args.carryOverCheckpoint = false; continue; }
+        if (a === '--carry-over-checkpoint') {
+            args.carryOverCheckpoint = true;
+            args.carryOverCheckpointMode = 'always';
+            continue;
+        }
+        if (a === '--carry-over-checkpoint-promoted-only') {
+            args.carryOverCheckpoint = true;
+            args.carryOverCheckpointMode = 'promoted-only';
+            continue;
+        }
+        if (a === '--no-carry-over-checkpoint') {
+            args.carryOverCheckpoint = false;
+            args.carryOverCheckpointMode = 'always';
+            continue;
+        }
         if (a === '--seed-bank') { args.seedBankPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--run-tag') { args.runTag = String(argv[++i] || '').trim(); continue; }
         if (a === '--runs-dir') { args.runsDir = path.resolve(process.cwd(), argv[++i]); continue; }
@@ -663,7 +700,13 @@ function parseArgs(argv) {
     if (!Number.isFinite(args.onnxEpochs) || args.onnxEpochs < 1) throw new Error('--onnx-epochs must be >= 1');
     if (!Number.isFinite(args.onnxBatchSize) || args.onnxBatchSize < 1) throw new Error('--onnx-batch-size must be >= 1');
     if (!Number.isFinite(args.onnxLr) || args.onnxLr <= 0) throw new Error('--onnx-lr must be > 0');
+    if (args.onnxValueLr !== null && (!Number.isFinite(args.onnxValueLr) || args.onnxValueLr <= 0)) {
+        throw new Error('--onnx-value-lr must be > 0');
+    }
     if (!Number.isFinite(args.onnxHiddenSize) || args.onnxHiddenSize < 8) throw new Error('--onnx-hidden-size must be >= 8');
+    if (args.onnxValueHiddenSize !== null && (!Number.isFinite(args.onnxValueHiddenSize) || args.onnxValueHiddenSize < 8)) {
+        throw new Error('--onnx-value-hidden-size must be >= 8');
+    }
     if (args.onnxDevice !== 'auto' && args.onnxDevice !== 'cpu' && args.onnxDevice !== 'cuda') {
         throw new Error('--onnx-device must be one of auto/cpu/cuda');
     }
@@ -690,6 +733,18 @@ function parseArgs(argv) {
         throw new Error('--onnx-early-stop-smoothing-window must be >= 1');
     }
     args.onnxEarlyStopSmoothingWindow = Math.floor(args.onnxEarlyStopSmoothingWindow);
+    if (!Number.isFinite(args.onnxLrPlateauPatience) || args.onnxLrPlateauPatience < 0) {
+        throw new Error('--onnx-lr-plateau-patience must be >= 0');
+    }
+    args.onnxLrPlateauPatience = Math.floor(args.onnxLrPlateauPatience);
+    if (args.onnxLrPlateauPatience > 0) {
+        if (!Number.isFinite(args.onnxLrPlateauFactor) || args.onnxLrPlateauFactor <= 0 || args.onnxLrPlateauFactor >= 1) {
+            throw new Error('--onnx-lr-plateau-factor must be in (0,1) when plateau scheduling is enabled');
+        }
+        if (!Number.isFinite(args.onnxLrPlateauMinLr) || args.onnxLrPlateauMinLr <= 0) {
+            throw new Error('--onnx-lr-plateau-min-lr must be > 0 when plateau scheduling is enabled');
+        }
+    }
     if (
         args.onnxEarlyStopMonitor !== 'val_loss' &&
         args.onnxEarlyStopMonitor !== 'train_loss' &&
@@ -948,11 +1003,17 @@ function parseArgs(argv) {
     if (!Number.isFinite(args.adoptionQualityWeightEdgeHold) || args.adoptionQualityWeightEdgeHold < 0 || args.adoptionQualityWeightEdgeHold > 1) {
         throw new Error('--adoption-quality-weight-edge-hold must be in [0,1]');
     }
+    if (!Number.isFinite(args.adoptionQualityWeightEdgeChain) || args.adoptionQualityWeightEdgeChain < 0 || args.adoptionQualityWeightEdgeChain > 1) {
+        throw new Error('--adoption-quality-weight-edge-chain must be in [0,1]');
+    }
     if (!Number.isFinite(args.adoptionQualityWeightFinalCornerShare) || args.adoptionQualityWeightFinalCornerShare < 0 || args.adoptionQualityWeightFinalCornerShare > 1) {
         throw new Error('--adoption-quality-weight-final-corner-share must be in [0,1]');
     }
     if (!Number.isFinite(args.adoptionQualityWeightFinalEdgeShare) || args.adoptionQualityWeightFinalEdgeShare < 0 || args.adoptionQualityWeightFinalEdgeShare > 1) {
         throw new Error('--adoption-quality-weight-final-edge-share must be in [0,1]');
+    }
+    if (!Number.isFinite(args.adoptionQualityWeightFinalLongestEdgeRunShare) || args.adoptionQualityWeightFinalLongestEdgeRunShare < 0 || args.adoptionQualityWeightFinalLongestEdgeRunShare > 1) {
+        throw new Error('--adoption-quality-weight-final-longest-edge-run-share must be in [0,1]');
     }
     if (!Number.isFinite(args.adoptionQualityWeightBonus) || args.adoptionQualityWeightBonus < 0 || args.adoptionQualityWeightBonus > 1) {
         throw new Error('--adoption-quality-weight-bonus must be in [0,1]');
@@ -1075,6 +1136,14 @@ function parseArgs(argv) {
         }
     }
     args.resumeCheckpointPaths = resolveResumeCheckpointPathsFromArgs(args);
+    if (args.trainTargetHeadEnabled === false) {
+        args.resumeTargetCheckpointPath = null;
+        args.resumeCheckpointPaths.target = null;
+    }
+    if (args.trainValueHeadEnabled === false) {
+        args.resumeValueCheckpointPath = null;
+        args.resumeCheckpointPaths.value = null;
+    }
     args.resumeCheckpointPath = getPrimaryResumeCheckpointPath(args.resumeCheckpointPaths);
     if (args.seedBankPath && !fs.existsSync(args.seedBankPath)) {
         throw new Error(`--seed-bank not found: ${args.seedBankPath}`);
@@ -1112,6 +1181,8 @@ function printHelp() {
         '      --max-plies <n>         Max plies per game (default: 220)',
         '      --with-cards            Enable cards in self-play (default: on)',
         '      --no-cards              Disable cards in self-play',
+        '      --selfplay-hardcases    Write hardcase-only NDJSON alongside self-play data (default: on)',
+        '      --no-selfplay-hardcases Disable hardcase-only NDJSON generation for self-play',
         '      --card-usage-rate <r>   Card usage rate [0..1] (default: 0.2)',
         '      --selfplay-policy-mix-rate <r> Probability to use guide model per player/game [0..1] (default: 1)',
         '      --selfplay-policy-model-pool-size <n> Recent promoted/candidate models kept in self-play pool (default: 4)',
@@ -1138,7 +1209,9 @@ function printHelp() {
         '      --onnx-epochs <n>       train_policy_onnx --epochs (default: 9999)',
         '      --onnx-batch-size <n>   train_policy_onnx --batch-size (default: 2048)',
         '      --onnx-lr <r>           train_policy_onnx --lr (default: 0.001)',
+        '      --onnx-value-lr <r>     train_value_onnx --lr override (>0, default: reuse --onnx-lr)',
         '      --onnx-hidden-size <n>  train_policy_onnx --hidden-size (default: 256)',
+        '      --onnx-value-hidden-size <n>  train_value_onnx --hidden-size override (>=8, default: reuse --onnx-hidden-size)',
         '      --onnx-device <mode>    train_policy_onnx --device auto/cpu/cuda (default: auto)',
         '      --onnx-log-interval-steps <n>  train_policy_onnx step log interval (default: 0=off)',
         '      --onnx-val-split <r>    train_policy_onnx --val-split [0..0.5) (default: 0.1)',
@@ -1169,6 +1242,10 @@ function printHelp() {
         '      --onnx-value-target-edge-weight <r> Value-target edge blend weight [0..1] (default: 0.0)',
         '      --onnx-value-target-economy-weight <r> Value-target economy blend weight [0..1] (default: 0.0)',
         '      --onnx-value-target-corner-emergency-weight <r> Value-target corner-emergency penalty weight [0..1] (default: 0.0)',
+        '      --train-target-head     Enable pending-target specialist training and packaging (default: on)',
+        '      --no-train-target-head  Disable pending-target specialist training and promotion packaging for this lane',
+        '      --train-value-head      Enable value specialist training and packaging (default: on)',
+        '      --no-train-value-head   Disable value specialist training, ONNX gate wiring, and promotion packaging for this lane',
         '      --train-card-every <n>  Train card specialist every N iterations, starting from iteration 1 (default: 1)',
         '      --train-target-every <n> Train pending-target specialist every N iterations, starting from iteration 1 (default: 1)',
         '      --train-value-every <n> Train value specialist every N iterations, starting from iteration 1 (default: 1)',
@@ -1220,15 +1297,17 @@ function printHelp() {
         '      --adoption-heuristic-weight <r> Shared heuristic score weight in adoption benchmark (default: 0.85)',
         '      --adoption-white-priority <r> White-side score blend in adoption benchmark [0..1] (default: 0.5)',
         '      --adoption-quality-weight-corner <r> Adoption quality corner-take weight [0..1] (default: 0.22)',
-        '      --adoption-quality-weight-edge <r> Adoption quality edge-take weight [0..1] (default: 0.16)',
+        '      --adoption-quality-weight-edge <r> Adoption quality edge-take weight [0..1] (default: 0.10)',
         '      --adoption-quality-weight-corner-recovery <r> Adoption quality corner-recovery weight [0..1] (default: 0.18)',
         '      --adoption-quality-weight-corner-recapture <r> Adoption quality corner-recapture weight [0..1] (default: 0.14)',
         '      --adoption-quality-weight-edge-recovery <r> Adoption quality edge-recovery weight [0..1] (default: 0.12)',
         '      --adoption-quality-weight-corner-hold <r> Adoption quality corner-hold weight [0..1] (default: 0.16)',
         '      --adoption-quality-weight-corner-hold-turns <r> Adoption quality corner-hold-turns weight [0..1] (default: 0.10)',
-        '      --adoption-quality-weight-edge-hold <r> Adoption quality edge-hold weight [0..1] (default: 0.10)',
+        '      --adoption-quality-weight-edge-hold <r> Adoption quality edge-hold weight [0..1] (default: 0.09)',
+        '      --adoption-quality-weight-edge-chain <r> Adoption quality contiguous-edge weight [0..1] (default: 0.12)',
         '      --adoption-quality-weight-final-corner-share <r> Adoption quality final corner share weight [0..1] (default: 0.24)',
-        '      --adoption-quality-weight-final-edge-share <r> Adoption quality final edge share weight [0..1] (default: 0.10)',
+        '      --adoption-quality-weight-final-edge-share <r> Adoption quality final edge share weight [0..1] (default: 0.06)',
+        '      --adoption-quality-weight-final-longest-edge-run-share <r> Adoption quality final longest-edge-run share weight [0..1] (default: 0.08)',
         '      --adoption-quality-weight-bonus <r> Adoption quality bonus weight [0..1] (default: 0.01)',
         '      --adoption-quality-weight-card-immediate <r> Adoption quality card-immediate weight [0..1] (default: 0.015)',
         '      --adoption-quality-weight-card-future <r> Adoption quality card-future(3ply) weight [0..1] (default: 0.02)',
@@ -1279,6 +1358,7 @@ function printHelp() {
         '      --resume-target-checkpoint <path> Resume target ONNX training from checkpoint (.pt)',
         '      --resume-value-checkpoint <path>  Resume value ONNX training from checkpoint (.pt)',
         '      --carry-over-checkpoint          Carry candidate checkpoint to next iteration (default: on)',
+        '      --carry-over-checkpoint-promoted-only  Carry candidate checkpoint only after promotion succeeds',
         '      --no-carry-over-checkpoint       Do not carry checkpoint to next iteration',
         '      --seed-bank <path>     Optional seed_bank.v1 file for quick/quality/final/onnx gate seeds',
         '      --run-tag <tag>         Tag appended to output filenames',
@@ -1337,13 +1417,19 @@ function iterationTag(runTag, iterationIndex) {
 
 function buildIterationPaths(args, iterationIndex) {
     const tag = iterationTag(args.runTag, iterationIndex);
+    const targetHeadEnabled = args.trainTargetHeadEnabled !== false;
+    const valueHeadEnabled = args.trainValueHeadEnabled !== false;
     return {
         tag,
         trainDataPath: path.resolve(args.runsDir, `selfplay.train.${tag}.ndjson`),
-        trainHardcaseDataPath: path.resolve(args.runsDir, `selfplay.train.hardcase.${tag}.ndjson`),
+        trainHardcaseDataPath: args.selfplayGenerateHardcases === false
+            ? null
+            : path.resolve(args.runsDir, `selfplay.train.hardcase.${tag}.ndjson`),
         trainDataSummaryPath: path.resolve(args.runsDir, `selfplay.train.${tag}.ndjson.summary.json`),
         evalDataPath: path.resolve(args.runsDir, `selfplay.eval.${tag}.ndjson`),
-        evalHardcaseDataPath: path.resolve(args.runsDir, `selfplay.eval.hardcase.${tag}.ndjson`),
+        evalHardcaseDataPath: args.selfplayGenerateHardcases === false
+            ? null
+            : path.resolve(args.runsDir, `selfplay.eval.hardcase.${tag}.ndjson`),
         evalDataSummaryPath: path.resolve(args.runsDir, `selfplay.eval.${tag}.ndjson.summary.json`),
         onnxModelPath: path.resolve(args.modelsDir, `policy-net.candidate.${tag}.onnx`),
         onnxMetaPath: path.resolve(args.modelsDir, `policy-net.candidate.${tag}.onnx.meta.json`),
@@ -1351,16 +1437,32 @@ function buildIterationPaths(args, iterationIndex) {
         cardOnnxModelPath: path.resolve(args.modelsDir, `policy-card.candidate.${tag}.onnx`),
         cardOnnxMetaPath: path.resolve(args.modelsDir, `policy-card.candidate.${tag}.onnx.meta.json`),
         cardCheckpointPath: path.resolve(args.modelsDir, `policy-card.candidate.${tag}.checkpoint.pt`),
-        targetOnnxModelPath: path.resolve(args.modelsDir, `policy-target.candidate.${tag}.onnx`),
-        targetOnnxMetaPath: path.resolve(args.modelsDir, `policy-target.candidate.${tag}.onnx.meta.json`),
-        targetCheckpointPath: path.resolve(args.modelsDir, `policy-target.candidate.${tag}.checkpoint.pt`),
-        valueOnnxModelPath: path.resolve(args.modelsDir, `policy-value.candidate.${tag}.onnx`),
-        valueOnnxMetaPath: path.resolve(args.modelsDir, `policy-value.candidate.${tag}.onnx.meta.json`),
-        valueCheckpointPath: path.resolve(args.modelsDir, `policy-value.candidate.${tag}.checkpoint.pt`),
+        targetOnnxModelPath: targetHeadEnabled
+            ? path.resolve(args.modelsDir, `policy-target.candidate.${tag}.onnx`)
+            : null,
+        targetOnnxMetaPath: targetHeadEnabled
+            ? path.resolve(args.modelsDir, `policy-target.candidate.${tag}.onnx.meta.json`)
+            : null,
+        targetCheckpointPath: targetHeadEnabled
+            ? path.resolve(args.modelsDir, `policy-target.candidate.${tag}.checkpoint.pt`)
+            : null,
+        valueOnnxModelPath: valueHeadEnabled
+            ? path.resolve(args.modelsDir, `policy-value.candidate.${tag}.onnx`)
+            : null,
+        valueOnnxMetaPath: valueHeadEnabled
+            ? path.resolve(args.modelsDir, `policy-value.candidate.${tag}.onnx.meta.json`)
+            : null,
+        valueCheckpointPath: valueHeadEnabled
+            ? path.resolve(args.modelsDir, `policy-value.candidate.${tag}.checkpoint.pt`)
+            : null,
         onnxMetricsPath: path.resolve(args.runsDir, `train.metrics.${tag}.jsonl`),
         cardMetricsPath: path.resolve(args.runsDir, `train.card.metrics.${tag}.jsonl`),
-        targetMetricsPath: path.resolve(args.runsDir, `train.target.metrics.${tag}.jsonl`),
-        valueMetricsPath: path.resolve(args.runsDir, `train.value.metrics.${tag}.jsonl`),
+        targetMetricsPath: targetHeadEnabled
+            ? path.resolve(args.runsDir, `train.target.metrics.${tag}.jsonl`)
+            : null,
+        valueMetricsPath: valueHeadEnabled
+            ? path.resolve(args.runsDir, `train.value.metrics.${tag}.jsonl`)
+            : null,
         candidateModelPath: path.resolve(args.modelsDir, `policy-table.candidate.${tag}.json`),
         quickAdoptionPath: path.resolve(args.runsDir, `adoption.quick.${tag}.json`),
         finalAdoptionPath: path.resolve(args.runsDir, `adoption.final.${tag}.json`),
@@ -1379,6 +1481,7 @@ function buildResumeChunkArtifactDir(dataPath) {
 }
 
 function buildMergeArtifactPaths(dataPath) {
+    if (!dataPath) return [];
     const resolvedPath = path.resolve(String(dataPath || ''));
     return [
         `${resolvedPath}.partial`,
@@ -1752,6 +1855,12 @@ function resolveNextCarryOverState(args, carryOver, result) {
             : getPrimaryResumeCheckpointPath(resolveCarryOverResumeCheckpointPaths(carryOver)),
         checkpointCarryOverSkipped: false
     };
+    if (args.trainTargetHeadEnabled === false) {
+        nextState.resumeCheckpointPaths.target = null;
+    }
+    if (args.trainValueHeadEnabled === false) {
+        nextState.resumeCheckpointPaths.value = null;
+    }
     if (!result || !result.paths) return nextState;
 
     const shouldAdvanceGuide = !args.selfplayUsePromotedModelOnly || !!result.promoted;
@@ -1777,9 +1886,16 @@ function resolveNextCarryOverState(args, carryOver, result) {
     }
 
     // Guide advancement and checkpoint carry-over are intentionally decoupled:
-    // promoted-only lanes should keep the promoted guide fixed while still
-    // accumulating candidate training state across iterations.
-    const shouldCarryOverCheckpoint = !!args.carryOverCheckpoint;
+    // some promoted-only lanes still accumulate candidate state, while others
+    // keep both guide and resume checkpoint fixed until a promotion succeeds.
+    const carryOverCheckpointMode = args.carryOverCheckpointMode === 'promoted-only'
+        ? 'promoted-only'
+        : 'always';
+    const shouldCarryOverCheckpoint = !!args.carryOverCheckpoint
+        && (carryOverCheckpointMode !== 'promoted-only' || !!result.promoted);
+    if (!!args.carryOverCheckpoint && carryOverCheckpointMode === 'promoted-only' && !result.promoted) {
+        nextState.checkpointCarryOverSkipped = true;
+    }
     if (shouldCarryOverCheckpoint) {
         for (const spec of TRAINING_CHECKPOINT_HEAD_SPECS) {
             const checkpointPath = result.paths[spec.resultPathKey];
@@ -2021,9 +2137,14 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         }
     }
 
-    const hasTargetTrainingData = args.allowCardUsage && hasCoordinatePendingSelectionRecords(p.trainDataPath);
+    const hasTargetTrainingData = args.trainTargetHeadEnabled !== false
+        && args.allowCardUsage
+        && hasCoordinatePendingSelectionRecords(p.trainDataPath);
     const trainTargetThisIteration = hasTargetTrainingData && shouldRunPeriodicTraining(iterationIndex, args.trainTargetEvery);
-    if (hasTargetTrainingData) {
+    if (args.trainTargetHeadEnabled === false) {
+        console.log(`[training-cycle] skip train-target-policy iteration=${iterationIndex} reason=disabled`);
+        recordSkippedStep('train-target-policy', 'disabled', { trainTargetHeadEnabled: false });
+    } else if (hasTargetTrainingData) {
         if (trainTargetThisIteration) {
             runManagedStep('train-target-policy', args.pythonPath, buildTargetTrainingCommandArgs({
                 args,
@@ -2039,7 +2160,10 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     }
 
     const trainValueThisIteration = shouldRunPeriodicTraining(iterationIndex, args.trainValueEvery);
-    if (trainValueThisIteration) {
+    if (args.trainValueHeadEnabled === false) {
+        console.log(`[training-cycle] skip train-value-policy iteration=${iterationIndex} reason=disabled`);
+        recordSkippedStep('train-value-policy', 'disabled', { trainValueHeadEnabled: false });
+    } else if (trainValueThisIteration) {
         runManagedStep('train-value-policy', args.pythonPath, buildValueTrainingCommandArgs({
             args,
             iterationPaths: p,
@@ -2336,13 +2460,15 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
                 executed: trainCardThisIteration
             },
             target: {
+                enabled: args.trainTargetHeadEnabled !== false,
                 dataAvailable: hasTargetTrainingData,
                 every: args.trainTargetEvery,
-                executed: trainTargetThisIteration
+                executed: args.trainTargetHeadEnabled !== false && trainTargetThisIteration
             },
             value: {
+                enabled: args.trainValueHeadEnabled !== false,
                 every: args.trainValueEvery,
-                executed: trainValueThisIteration
+                executed: args.trainValueHeadEnabled !== false && trainValueThisIteration
             }
         },
         promotionDetail: {
@@ -2398,6 +2524,8 @@ function main() {
     console.log(`[training-cycle] selfplay guide update mode=${args.selfplayUsePromotedModelOnly ? 'promoted-only' : 'candidate-every-iteration'}`);
     console.log(`[training-cycle] adoption baseline mode=${resolveAdoptionBaselineMode(args)} gate_final_iteration_only=${args.gateFinalIterationOnly ? 'on' : 'off'}`);
     console.log(`[training-cycle] reuse existing artifacts=${args.reuseExistingArtifacts ? 'on' : 'off'}`);
+    console.log(`[training-cycle] target head=${args.trainTargetHeadEnabled ? 'on' : 'off'} cadence_every=${args.trainTargetEvery}`);
+    console.log(`[training-cycle] value head=${args.trainValueHeadEnabled ? 'on' : 'off'} cadence_every=${args.trainValueEvery}`);
     if (args.restartFromStep) {
         console.log(`[training-cycle] restart from step=${args.restartFromStep}`);
     }

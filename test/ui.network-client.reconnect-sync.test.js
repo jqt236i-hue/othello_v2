@@ -19,7 +19,8 @@ function createSnapshot(stateVersion, gameStateOverrides = {}) {
       authority: 'server',
       version: stateVersion,
       projectedForSeat: null,
-      turnStartReconciled: true
+      turnStartReconciled: true,
+      projectedSnapshotHash: `hash_${stateVersion}`
     },
     gameState: {
       currentPlayer: -1,
@@ -732,42 +733,6 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(queuedResult.ok).toBe(true);
   });
 
-  test('local pending hint中の同版force syncはpending selectionを消さない', async () => {
-    const PendingCoordinator = require('../game/turn/pending-coordinator');
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
-    expect(client).toBeTruthy();
-
-    const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
-    expect(joined.ok).toBe(true);
-
-    client.applySnapshot(createSnapshot(2, { currentPlayer: 1, turnNumber: 2 }), { force: true });
-    expect(client.getStateVersion()).toBe(2);
-
-    const pendingHintResult = PendingCoordinator.setPendingHintLocally(global.cardState, 'white', 'GUARD_WILL', {
-      cardId: 'guard_01',
-      sourceHandIndex: 0
-    });
-    expect(pendingHintResult).toEqual(expect.objectContaining({ ok: true, playerKey: 'white' }));
-    expect(global.cardState.pendingEffectByPlayer.white).toEqual(expect.objectContaining({
-      type: 'GUARD_WILL',
-      cardId: 'guard_01',
-      stage: 'selectTarget',
-      __networkLocalHint: true
-    }));
-
-    const syncResult = await client.syncLatestState();
-    expect(syncResult).toEqual({ ok: true, appliedSnapshot: false });
-    expect(stateFetchCount).toBe(1);
-    expect(global.gameState.turnNumber).toBe(2);
-    expect(global.cardState.pendingEffectByPlayer.white).toEqual(expect.objectContaining({
-      type: 'GUARD_WILL',
-      cardId: 'guard_01',
-      stage: 'selectTarget',
-      __networkLocalHint: true
-    }));
-  });
-
   test('pending publish中は同版stream recoveryを適用しない', async () => {
     global.BoardOps = {
       emitPresentationEvent: jest.fn((state, ev) => {
@@ -1024,6 +989,96 @@ describe('NetworkMatchClient reconnect and resync', () => {
     const publishResult = await publishPromise;
     expect(publishResult.ok).toBe(true);
     expect(client.getStateVersion()).toBe(2);
+  });
+
+  test('pending publish中でも同版 hash 不一致 snapshot は force sync で適用する', async () => {
+    let resolvePublishResponse = null;
+    const optimisticSnapshot = createSnapshot(1, {
+      currentPlayer: 1,
+      turnNumber: 2,
+      consecutivePasses: 0
+    });
+    optimisticSnapshot._meta.projectedSnapshotHash = 'hash_local_1';
+    optimisticSnapshot.cardState.turnIndex = 2;
+    optimisticSnapshot.cardState.markers = [{ row: 2, col: 3, type: 'GUARD', owner: 'white' }];
+
+    const authoritativeSnapshot = createSnapshot(1, {
+      currentPlayer: -1,
+      turnNumber: 7,
+      consecutivePasses: 1
+    });
+    authoritativeSnapshot._meta.projectedSnapshotHash = 'hash_remote_1';
+
+    global.fetch = jest.fn(async (url) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/join') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'white',
+          seatToken: 'token_white',
+          seats: { black: true, white: true },
+          stateVersion: 1,
+          snapshot: optimisticSnapshot
+        });
+      }
+
+      if (path === '/api/match/state') {
+        stateFetchCount += 1;
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seats: { black: true, white: true },
+          stateVersion: 1,
+          snapshot: authoritativeSnapshot
+        });
+      }
+
+      if (path === '/api/match/publish') {
+        return new Promise((resolve) => {
+          resolvePublishResponse = () => resolve(jsonResponse(200, {
+            ok: true,
+            roomId: 'ABC',
+            seats: { black: true, white: true },
+            stateVersion: 2,
+            snapshot: createSnapshot(2, { currentPlayer: -1, turnNumber: 8, consecutivePasses: 2 })
+          }));
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
+    expect(joined.ok).toBe(true);
+
+    global.gameState = JSON.parse(JSON.stringify(optimisticSnapshot.gameState));
+    global.cardState = JSON.parse(JSON.stringify(optimisticSnapshot.cardState));
+
+    const publishPromise = client.publishSnapshot({
+      playerKey: 'white',
+      actionType: 'place',
+      playbackEvents: [],
+      snapshot: optimisticSnapshot,
+      action: createPlaceAction('white', optimisticSnapshot.cardState.turnIndex)
+    });
+
+    await Promise.resolve();
+
+    const syncResult = await client.syncLatestState();
+    expect(syncResult).toEqual({ ok: true, appliedSnapshot: true });
+    expect(stateFetchCount).toBe(1);
+    expect(global.gameState.turnNumber).toBe(7);
+    expect(global.cardState.markers).toEqual([]);
+
+    expect(typeof resolvePublishResponse).toBe('function');
+    resolvePublishResponse();
+    const publishResult = await publishPromise;
+    expect(publishResult.ok).toBe(true);
   });
 
   test('requestRematch は reset_game publish を送る', async () => {

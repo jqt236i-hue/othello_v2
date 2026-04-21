@@ -64,7 +64,7 @@ describe('CardTimeBomb.applyTimeBombWill', () => {
     });
 
     expect(result).toEqual({ applied: false, reason: 'exists' });
-    expect(cardState.pendingEffectByPlayer.white).toEqual({ type: 'TIME_BOMB', stage: 'selectTarget', cardId: 'bomb_02' });
+    expect(cardState.pendingEffectByPlayer.white).toEqual(expect.objectContaining({ type: 'TIME_BOMB', stage: 'selectTarget', cardId: 'bomb_02' }));
   });
 
   test('uses canonical marker allocation when addMarker is not injected', () => {

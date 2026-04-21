@@ -1075,6 +1075,7 @@
         if (prev === null) return { destroyed: false, reason: 'out_of_board' };
         if (_isAbsoluteProtectedCell(cardState, row, col)) return { destroyed: false, reason: 'absolute_protected' };
         const ignoreGuard = !!(meta && meta.ignoreGuard === true);
+        const ignoreRegen = !!(meta && meta.ignoreRegen === true);
         const cardMarkers = getCardMarkersModule();
 
         const guardMarker = cardMarkers && typeof cardMarkers.findSpecialMarkerAt === 'function'
@@ -1236,7 +1237,7 @@
         const activeRegenMarker = cardRegenModule && typeof cardRegenModule.findActiveRegenMarkerAt === 'function'
             ? cardRegenModule.findActiveRegenMarkerAt(cardState, row, col)
             : null;
-        if (activeRegenMarker && typeof cardRegenModule.applyRegenAfterDestroy === 'function') {
+        if (!ignoreRegen && activeRegenMarker && typeof cardRegenModule.applyRegenAfterDestroy === 'function') {
             const ownerBeforeKeyForRegen = (prev === (SharedConstants.BLACK || 1)) ? 'black' : 'white';
             const stoneId = getStoneIdAt(cardState, gameState, row, col);
             const destroyMeta = _populateSpecialVisualMeta(cardState, row, col, _clonePresentationMeta(meta));

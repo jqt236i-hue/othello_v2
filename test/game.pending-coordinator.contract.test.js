@@ -1,4 +1,5 @@
 const PendingCoordinator = require('../game/turn/pending-coordinator');
+const CardLogic = require('../game/logic/cards');
 
 describe('PendingCoordinator', () => {
   afterEach(() => {
@@ -7,65 +8,46 @@ describe('PendingCoordinator', () => {
     delete global.ActionManager;
   });
 
-  test('setPendingHintLocally only updates pending state for the selected player', () => {
-    const cardState = {
-      pendingEffectByPlayer: { black: null, white: null },
-      hands: { black: ['guard_01'], white: [] },
-      charge: { black: 5, white: 0 },
-      hasUsedCardThisTurnByPlayer: { black: false, white: false },
-      lastUsedCardByPlayer: { black: null, white: null }
-    };
-
-    const beforeHands = JSON.parse(JSON.stringify(cardState.hands));
-    const beforeCharge = JSON.parse(JSON.stringify(cardState.charge));
-    const beforeUsage = JSON.parse(JSON.stringify(cardState.hasUsedCardThisTurnByPlayer));
-    const beforeLastUsed = JSON.parse(JSON.stringify(cardState.lastUsedCardByPlayer));
-
-    const result = PendingCoordinator.setPendingHintLocally(cardState, 'black', 'GUARD_WILL', {
-      cardId: 'guard_01',
-      sourceHandIndex: 0
-    });
-
-    expect(result).toEqual(expect.objectContaining({
-      ok: true,
-      playerKey: 'black',
-      pending: expect.objectContaining({
+  test('applyPendingSelectionCardContext derives top-level card identity from authoritative pendingSelectionState', () => {
+    const payload = {
+      pendingSelectionState: {
         type: 'GUARD_WILL',
-        cardId: 'guard_01',
-        sourceHandIndex: 0,
-        stage: 'selectTarget'
-      })
-    }));
-    expect(cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
-      type: 'GUARD_WILL',
-      cardId: 'guard_01',
-      sourceHandIndex: 0,
-      stage: 'selectTarget'
-    }));
-    expect(cardState.pendingEffectByPlayer.white).toBeNull();
-    expect(cardState.hands).toEqual(beforeHands);
-    expect(cardState.charge).toEqual(beforeCharge);
-    expect(cardState.hasUsedCardThisTurnByPlayer).toEqual(beforeUsage);
-    expect(cardState.lastUsedCardByPlayer).toEqual(beforeLastUsed);
-  });
-
-  test('clearPendingHint nulls only the requested player entry', () => {
-    const cardState = {
-      pendingEffectByPlayer: {
-        black: { type: 'TRAP_WILL', stage: 'selectTarget' },
-        white: { type: 'GUARD_WILL', stage: 'selectTarget' }
+        stage: 'selectTarget',
+        cardId: 'guard_01'
       }
     };
 
-    expect(PendingCoordinator.clearPendingHint(cardState, 'black')).toEqual({
-      ok: true,
-      playerKey: 'black'
+    expect(PendingCoordinator.applyPendingSelectionCardContext(payload, 'black')).toEqual({
+      pendingSelectionState: {
+        type: 'GUARD_WILL',
+        stage: 'selectTarget',
+        cardId: 'guard_01'
+      },
+      useCardId: 'guard_01',
+      useCardOwnerKey: 'black'
     });
-    expect(cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(cardState.pendingEffectByPlayer.white).toEqual(expect.objectContaining({
-      type: 'GUARD_WILL',
-      stage: 'selectTarget'
-    }));
+  });
+
+  test('applyPendingSelectionCardContext keeps explicit card identity when already present', () => {
+    const payload = {
+      pendingSelectionState: {
+        type: 'HEAVEN_BLESSING',
+        stage: 'selectTarget',
+        cardId: 'heaven_01'
+      },
+      useCardId: 'explicit_01',
+      useCardOwnerKey: 'white'
+    };
+
+    expect(PendingCoordinator.applyPendingSelectionCardContext(payload, 'black')).toEqual({
+      pendingSelectionState: {
+        type: 'HEAVEN_BLESSING',
+        stage: 'selectTarget',
+        cardId: 'heaven_01'
+      },
+      useCardId: 'explicit_01',
+      useCardOwnerKey: 'white'
+    });
   });
 
   test('clearPendingEffect clears pending state and cached pending action for the requested player', () => {
@@ -119,21 +101,53 @@ describe('PendingCoordinator', () => {
     ).toEqual({
       ok: true,
       playerKey: 'black',
-      pendingEffect: {
+      pendingEffect: expect.objectContaining({
         type: 'TRAP_WILL',
         stage: 'selectTarget',
         cardId: 'trap_01'
-      }
+      })
     });
-    expect(PendingCoordinator.readPendingEffect(cardState, 'black')).toEqual({
+    expect(PendingCoordinator.readPendingEffect(cardState, 'black')).toEqual(expect.objectContaining({
       type: 'TRAP_WILL',
       stage: 'selectTarget',
       cardId: 'trap_01'
-    });
+    }));
     expect(PendingCoordinator.readPendingEffect(cardState, 'white')).toEqual({
       type: 'GUARD_WILL',
       stage: 'selectTarget'
     });
+  });
+
+  test('createPendingSelectionAction transports authoritative pendingEffectId with deferred selection state', () => {
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const cardState = {
+      turnIndex: 9,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'TEMPT_WILL',
+          stage: 'selectTarget',
+          cardId: 'tempt_01',
+          pendingEffectId: 'pending_9_2'
+        },
+        white: null
+      }
+    };
+
+    const action = PendingCoordinator.createPendingSelectionAction(
+      'black',
+      'TEMPT_WILL',
+      { temptTarget: { row: 2, col: 3 } },
+      { cardState }
+    );
+
+    expect(action.pendingSelectionState).toEqual(expect.objectContaining({
+      type: 'TEMPT_WILL',
+      pendingEffectId: 'pending_9_2'
+    }));
   });
 
   test('normalizes seat aliases through OwnerHelpers when reading and writing pending state', () => {
@@ -149,22 +163,22 @@ describe('PendingCoordinator', () => {
         type: 'TRAP_WILL',
         stage: 'selectTarget'
       })
-    ).toEqual({
+    ).toEqual(expect.objectContaining({
       ok: true,
       playerKey: 'white',
-      pendingEffect: {
+      pendingEffect: expect.objectContaining({
         type: 'TRAP_WILL',
         stage: 'selectTarget'
-      }
-    });
-    expect(PendingCoordinator.readPendingEffect(cardState, 'white')).toEqual({
+      })
+    }));
+    expect(PendingCoordinator.readPendingEffect(cardState, 'white')).toEqual(expect.objectContaining({
       type: 'TRAP_WILL',
       stage: 'selectTarget'
-    });
-    expect(PendingCoordinator.readPendingEffect(cardState, '-1')).toEqual({
+    }));
+    expect(PendingCoordinator.readPendingEffect(cardState, '-1')).toEqual(expect.objectContaining({
       type: 'TRAP_WILL',
       stage: 'selectTarget'
-    });
+    }));
     expect(PendingCoordinator.readPendingEffect(cardState, '+1')).toBeNull();
   });
 
@@ -179,7 +193,7 @@ describe('PendingCoordinator', () => {
       kind: 'continue_turn',
       deferNetworkPublish: true
     }));
-    expect(PendingCoordinator.getPendingSelectionContract('SELL_CARD_WILL')).toEqual(expect.objectContaining({
+    expect(PendingCoordinator.getPendingSelectionContract('HEAVEN_BLESSING')).toEqual(expect.objectContaining({
       kind: 'hand_overlay',
       turnOutcome: 'continue_turn',
       deferNetworkPublish: true
@@ -188,7 +202,7 @@ describe('PendingCoordinator', () => {
     expect(PendingCoordinator.isSelectionOnlyEndTurnPendingType('GUARD_WILL')).toBe(false);
     expect(PendingCoordinator.shouldDeferNetworkPublishForPendingType('GUARD_WILL')).toBe(true);
     expect(PendingCoordinator.shouldWaitForPlaybackIdleForPendingType('GUARD_WILL')).toBe(true);
-    expect(PendingCoordinator.resolvePendingSelectionDispatchKey('SELL_CARD_WILL')).toBe('sell_card');
+    expect(PendingCoordinator.resolvePendingSelectionDispatchKey('HEAVEN_BLESSING')).toBe('heaven_blessing');
   });
 
   test('createPendingSelectionAction caches multi-stage transport state under the coordinator owner', () => {
@@ -238,6 +252,85 @@ describe('PendingCoordinator', () => {
         stage: 'selectTarget'
       })
     }));
+  });
+
+  test('createPendingSelectionAction keeps card identity inside pendingSelectionState only', () => {
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const cardState = {
+      turnIndex: 9,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'TEMPT_WILL',
+          stage: 'selectTarget',
+          cardId: 'tempt_01'
+        },
+        white: null
+      }
+    };
+
+    const action = PendingCoordinator.createPendingSelectionAction(
+      'black',
+      'TEMPT_WILL',
+      { temptTarget: { row: 2, col: 2 } },
+      { cardState }
+    );
+
+    expect(action).toEqual(expect.objectContaining({
+      type: 'place',
+      player: 'black',
+      temptTarget: { row: 2, col: 2 },
+      deferNetworkPublish: true,
+      turnIndex: 9,
+      pendingSelectionState: {
+        type: 'TEMPT_WILL',
+        stage: 'selectTarget',
+        cardId: 'tempt_01'
+      }
+    }));
+    expect(action.useCardId).toBeUndefined();
+    expect(action.useCardOwnerKey).toBeUndefined();
+  });
+
+  test('clearPendingSelectionFailureState clears cached action but keeps authoritative pending by default', () => {
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    const cardState = {
+      turnIndex: 9,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'TEMPT_WILL',
+          stage: 'selectTarget',
+          cardId: 'tempt_01'
+        },
+        white: null
+      }
+    };
+
+    PendingCoordinator.createPendingSelectionAction(
+      'black',
+      'TEMPT_WILL',
+      { temptTarget: { row: 2, col: 2 } },
+      { cardState }
+    );
+
+    expect(PendingCoordinator.clearPendingSelectionFailureState(cardState, 'black')).toEqual(expect.objectContaining({
+      ok: true,
+      playerKey: 'black',
+      clearedPendingEffect: false
+    }));
+    expect(PendingCoordinator.readPendingEffect(cardState, 'black')).toEqual({
+      type: 'TEMPT_WILL',
+      stage: 'selectTarget',
+      cardId: 'tempt_01'
+    });
+    expect(PendingCoordinator.readPendingSelectionAction('black')).toBeNull();
   });
 
   test('createPendingSelectionAction transports shrink selections for both selectedTargets and firstTarget contracts', () => {
@@ -383,5 +476,45 @@ describe('PendingCoordinator', () => {
       retained: []
     });
     expect(PendingCoordinator.readPendingSelectionAction('white')).toBeNull();
+  });
+
+  test('syncPendingSelectionActionCache preserves requested players during local selection processing', () => {
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+
+    PendingCoordinator.createPendingSelectionAction(
+      'white',
+      'BOARD_EXPANSION_GOD',
+      { anchor: { row: 4, col: 4 } },
+      {
+        cardState: {
+          turnIndex: 6,
+          pendingEffectByPlayer: {
+            black: null,
+            white: { type: 'BOARD_EXPANSION_GOD', stage: 'selectTarget', selectedTargets: [{ row: 3, col: 3 }] }
+          }
+        }
+      }
+    );
+
+    expect(PendingCoordinator.syncPendingSelectionActionCache({
+      turnIndex: 7,
+      pendingEffectByPlayer: {
+        black: null,
+        white: { type: 'BOARD_EXPANSION_GOD', stage: 'selectTarget' }
+      }
+    }, {
+      preservePlayerKeys: ['white']
+    })).toEqual({
+      cleared: [],
+      retained: ['white']
+    });
+    expect(PendingCoordinator.readPendingSelectionAction('white')).toEqual(expect.objectContaining({
+      type: 'place',
+      anchor: { row: 4, col: 4 }
+    }));
   });
 });

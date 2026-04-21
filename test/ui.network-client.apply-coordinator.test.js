@@ -224,9 +224,68 @@ describe('NetworkMatchClient apply coordinator', () => {
     const result = await publishPromise;
 
     expect(result.ok).toBe(true);
+    expect(client.getStateVersion()).toBe(11);
     expect(global.gameState.turnNumber).toBe(2);
     expect(global.cardState.markers).toEqual([{ row: 4, col: 4, type: 'STREAM_MARKER' }]);
     expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    expect(client.getNetworkTelemetry().counts.publish_response_snapshot_skipped).toBe(1);
+  });
+
+  test('self stream snapshot 適用後に古い publish response が返っても stateVersion を巻き戻さない', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+    expect(eventSources).toHaveLength(1);
+
+    const streamSnapshot = createSnapshot(11, { topLevelStateVersion: 11, metaVersion: 11 });
+    streamSnapshot.gameState.turnNumber = 2;
+
+    const staleResponseSnapshot = createSnapshot(10, { topLevelStateVersion: 10, metaVersion: 10 });
+    staleResponseSnapshot.gameState.turnNumber = 99;
+
+    responsePayload = {
+      ok: true,
+      roomId: 'ABC',
+      stateVersion: 10,
+      snapshot: staleResponseSnapshot,
+      playbackEvents: []
+    };
+
+    const publishPromise = client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      action: createPlaceAction('black', 1)
+    });
+
+    await Promise.resolve();
+    expect(publishPayloads).toHaveLength(1);
+    const operationId = publishPayloads[0].operationId;
+
+    eventSources[0].onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        operationId,
+        playerKey: 'black',
+        actionType: 'place',
+        playbackEvents: [],
+        snapshot: streamSnapshot
+      })
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(client.getStateVersion()).toBe(11);
+
+    resolvePublishResponse();
+    const result = await publishPromise;
+
+    expect(result.ok).toBe(true);
+    expect(client.getStateVersion()).toBe(11);
     expect(client.getNetworkTelemetry().counts.publish_response_snapshot_skipped).toBe(1);
   });
 

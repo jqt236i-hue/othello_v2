@@ -1,5 +1,10 @@
 const flow = require('../game/card-effects/selection-flow');
 const PendingCoordinator = require('../game/turn/pending-coordinator');
+const Core = require('../game/logic/core');
+const TurnPipeline = require('../game/turn/turn_pipeline');
+const TurnPipelineUIAdapter = require('../game/turn/pipeline_ui_adapter');
+const BoardExpansionEffects = require('../game/card-effects/board-expansion');
+const BoardShrinkEffects = require('../game/card-effects/board-shrink');
 
 function attachPlaybackStateManager() {
   const playbackStateManager = require('../ui/playback-state-manager');
@@ -325,6 +330,206 @@ describe('pending selection flow contracts', () => {
     expect(action.turnIndex).toBe(7);
   });
 
+  test('publish-success deferred preview does not overwrite authoritative snapshot state', async () => {
+    attachPlaybackStateManager();
+    global.MATCH_MODE = 'network';
+    global.cardState = {
+      turnIndex: 12,
+      charge: { black: 10, white: 0 },
+      pendingEffectByPlayer: {
+        black: { type: 'SUPER_GRAVITY_WILL', stage: 'selectTarget', pendingEffectId: 'pending_12_2' },
+        white: null
+      },
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+    global.gameState = {
+      currentPlayer: 1,
+      turnNumber: 20,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    global.NetworkMatchClient = {
+      isActive: jest.fn(() => true),
+      publishSnapshot: jest.fn(() => {
+        global.cardState = {
+          ...global.cardState,
+          charge: { black: 42, white: 0 },
+          pendingEffectByPlayer: { black: null, white: null }
+        };
+        global.gameState = {
+          ...global.gameState,
+          turnNumber: 21
+        };
+        return Promise.resolve({ ok: true });
+      })
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          charge: { black: 11, white: 0 },
+          pendingEffectByPlayer: { black: null, white: null }
+        },
+        nextGameState: {
+          ...global.gameState,
+          turnNumber: 99
+        },
+        playbackEvents: []
+      }))
+    };
+
+    const result = await flow.executePendingSelection({
+      row: 2,
+      col: 4,
+      playerKey: 'black',
+      pendingType: 'SUPER_GRAVITY_WILL',
+      actionPayload: {
+        superGravityTarget: { row: 2, col: 4 }
+      }
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      pendingType: 'SUPER_GRAVITY_WILL',
+      publishedByNetwork: true
+    }));
+    expect(global.cardState.charge.black).toBe(42);
+    expect(global.gameState.turnNumber).toBe(21);
+    expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
+  test('BOARD_EXPANSION_GOD final network preview does not reapply card usage from pending card identity', async () => {
+    attachPlaybackStateManager();
+    global.MATCH_MODE = 'network';
+    global.cardState = {
+      turnIndex: 19,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'BOARD_EXPANSION_GOD',
+          stage: 'selectTarget',
+          cardId: 'board_expand_god_01',
+          sourceHandIndex: 0,
+          selectedCount: 1,
+          maxSelections: 2,
+          selectedTargets: [{ row: 0, col: 0 }]
+        },
+        white: null
+      },
+      hands: { black: [], white: [] },
+      charge: { black: 99, white: 50 },
+      hasUsedCardThisTurnByPlayer: { black: true, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      lastUsedCardByPlayer: { black: 'board_expand_god_01', white: null },
+      markers: [],
+      discard: ['board_expand_god_01']
+    };
+    global.gameState = Core.createGameState();
+    global.gameState.currentPlayer = Core.BLACK;
+    global.gameState.turnNumber = 20;
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    global.TurnPipeline = TurnPipeline;
+    global.TurnPipelineUIAdapter = TurnPipelineUIAdapter;
+    global.NetworkMatchClient = {
+      isActive: jest.fn(() => true),
+      publishSnapshot: jest.fn(() => Promise.resolve({ ok: true }))
+    };
+
+    const result = await BoardExpansionEffects.handleBoardExpansionSelection(7, 7, 'black');
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      pendingType: 'BOARD_EXPANSION_GOD',
+      publishedByNetwork: true
+    }));
+    expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      action: expect.not.objectContaining({
+        useCardId: expect.anything(),
+        useCardOwnerKey: expect.anything()
+      })
+    }));
+    expect(global.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      cardId: 'board_expand_god_01',
+      selectedCount: 1,
+      selectedTargets: [{ row: 0, col: 0 }]
+    }));
+  });
+
+  test('BOARD_SHRINK_GOD final network preview does not reapply card usage from pending card identity', async () => {
+    attachPlaybackStateManager();
+    global.MATCH_MODE = 'network';
+    global.cardState = {
+      turnIndex: 19,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'BOARD_SHRINK_GOD',
+          stage: 'selectTarget',
+          cardId: 'board_shrink_god_01',
+          sourceHandIndex: 0,
+          firstTarget: { row: 0, col: 0 }
+        },
+        white: null
+      },
+      hands: { black: [], white: [] },
+      charge: { black: 99, white: 50 },
+      hasUsedCardThisTurnByPlayer: { black: true, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      lastUsedCardByPlayer: { black: 'board_shrink_god_01', white: null },
+      markers: [],
+      discard: ['board_shrink_god_01']
+    };
+    global.gameState = Core.createGameState();
+    global.gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    for (let col = 0; col < 8; col += 1) {
+      global.gameState.board[0][col] = Core.WHITE;
+    }
+    global.gameState.currentPlayer = Core.BLACK;
+    global.gameState.turnNumber = 20;
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    global.TurnPipeline = TurnPipeline;
+    global.TurnPipelineUIAdapter = TurnPipelineUIAdapter;
+    global.NetworkMatchClient = {
+      isActive: jest.fn(() => true),
+      publishSnapshot: jest.fn(() => Promise.resolve({ ok: true }))
+    };
+
+    const result = await BoardShrinkEffects.handleBoardShrinkSelection(0, 1, 'black');
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      pendingType: 'BOARD_SHRINK_GOD',
+      publishedByNetwork: true
+    }));
+    expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      action: expect.not.objectContaining({
+        useCardId: expect.anything(),
+        useCardOwnerKey: expect.anything()
+      })
+    }));
+    expect(global.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: 'BOARD_SHRINK_GOD',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_god_01',
+      firstTarget: { row: 0, col: 0 }
+    }));
+  });
+
   test('finalizePendingSelectionFlow waits for playback before publishing continue-turn selections', async () => {
     let releasePlayback;
     const ensureCurrentPlayerCanActOrPass = jest.fn();
@@ -391,6 +596,82 @@ describe('pending selection flow contracts', () => {
     expect(global.isCardAnimating).toBe(false);
     expect(ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
 
+  });
+
+  test('finalizePendingSelectionFlow skips publish for deferred multi-stage intermediate selection while pending remains active', async () => {
+    const ensureCurrentPlayerCanActOrPass = jest.fn();
+    attachPlaybackStateManager();
+
+    global.MATCH_MODE = 'network';
+    global.waitForPlaybackIdle = jest.fn(() => Promise.resolve());
+    global.NetworkMatchClient = {
+      isActive: () => true,
+      publishSnapshot: jest.fn()
+    };
+    global.cardState = {
+      turnIndex: 19,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'BOARD_EXPANSION_GOD',
+          stage: 'selectTarget',
+          cardId: 'board_expand_god_01',
+          selectedCount: 0,
+          maxSelections: 2
+        },
+        white: null
+      }
+    };
+    global.gameState = {
+      currentPlayer: 1,
+      turnNumber: 20,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    flow.createPendingSelectionAction('black', 'BOARD_EXPANSION_GOD', {
+      expansionTarget: { row: 0, col: 0 }
+    }, { cardState: global.cardState });
+
+    global.cardState = {
+      turnIndex: 19,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'BOARD_EXPANSION_GOD',
+          stage: 'selectTarget',
+          cardId: 'board_expand_god_01',
+          selectedTargets: [{ row: 0, col: 0 }],
+          selectedCount: 1,
+          maxSelections: 2
+        },
+        white: null
+      }
+    };
+    global.isProcessing = true;
+    global.isCardAnimating = true;
+
+    const result = await flow.finalizePendingSelectionFlow({
+      playerKey: 'black',
+      pendingType: 'BOARD_EXPANSION_GOD',
+      playbackEvents: [],
+      gameStateValue: global.gameState,
+      cardStateValue: global.cardState,
+      ensureCurrentPlayerCanActOrPass
+    });
+
+    expect(result).toBe(true);
+    expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
+    expect(flow.readPendingSelectionAction('black')).toEqual(expect.objectContaining({
+      deferNetworkPublish: true,
+      pendingSelectionState: expect.objectContaining({
+        type: 'BOARD_EXPANSION_GOD'
+      })
+    }));
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+    expect(ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
   });
 
   test('finalizePendingSelectionFlow clears end-turn staged action cache on publish failure', async () => {
@@ -752,6 +1033,132 @@ describe('pending selection flow contracts', () => {
     expect(flow.readPendingSelectionAction('black')).toBeNull();
   });
 
+  test('selection_not_applied keeps authoritative pending state so deferred selection can retry', async () => {
+    attachPlaybackStateManager();
+    global.MATCH_MODE = 'network';
+    global.cardState = {
+      turnIndex: 6,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'TEMPT_WILL',
+          stage: 'selectTarget',
+          cardId: 'tempt_01'
+        },
+        white: null
+      }
+    };
+    global.gameState = {
+      currentPlayer: 1,
+      turnNumber: 10,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: { ...global.cardState },
+        nextGameState: { ...global.gameState },
+        playbackEvents: []
+      }))
+    };
+
+    const result = await flow.executePendingSelection({
+      row: 3,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TEMPT_WILL',
+      actionPayload: {
+        temptTarget: { row: 3, col: 3 }
+      },
+      validateResult: () => false
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      reason: 'selection_not_applied'
+    }));
+    expect(flow.readPendingSelectionAction('black')).toBeNull();
+    expect(global.cardState.pendingEffectByPlayer.black).toEqual({
+      type: 'TEMPT_WILL',
+      stage: 'selectTarget',
+      cardId: 'tempt_01'
+    });
+  });
+
+  test('selection_not_applied keeps authoritative pending state on injected cardState', async () => {
+    attachPlaybackStateManager();
+    global.MATCH_MODE = 'network';
+    const suppliedCardState = {
+      turnIndex: 6,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'TEMPT_WILL',
+          stage: 'selectTarget',
+          cardId: 'tempt_01'
+        },
+        white: null
+      }
+    };
+    const suppliedGameState = {
+      currentPlayer: 1,
+      turnNumber: 10,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.cardState = {
+      turnIndex: 1,
+      pendingEffectByPlayer: { black: null, white: null }
+    };
+    global.gameState = {
+      currentPlayer: -1,
+      turnNumber: 1,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: { ...suppliedCardState },
+        nextGameState: { ...suppliedGameState },
+        playbackEvents: []
+      }))
+    };
+
+    const result = await flow.executePendingSelection({
+      row: 3,
+      col: 3,
+      playerKey: 'black',
+      pendingType: 'TEMPT_WILL',
+      cardState: suppliedCardState,
+      gameState: suppliedGameState,
+      actionPayload: {
+        temptTarget: { row: 3, col: 3 }
+      },
+      validateResult: () => false
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: false,
+      reason: 'selection_not_applied'
+    }));
+    expect(flow.readPendingSelectionAction('black')).toBeNull();
+    expect(suppliedCardState.pendingEffectByPlayer.black).toEqual({
+      type: 'TEMPT_WILL',
+      stage: 'selectTarget',
+      cardId: 'tempt_01'
+    });
+    expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
   test('executePendingSelection reads pending effect through coordinator when raw pending state is stale', async () => {
     attachPlaybackStateManager();
     const originalReadPendingEffect = PendingCoordinator.readPendingEffect;
@@ -810,6 +1217,93 @@ describe('pending selection flow contracts', () => {
     } finally {
       PendingCoordinator.readPendingEffect = originalReadPendingEffect;
     }
+  });
+
+  test('executePendingSelection prefers injected cardState/gameState over stale globals', async () => {
+    attachPlaybackStateManager();
+    const suppliedCardState = {
+      turnIndex: 8,
+      charge: { black: 10, white: 10 },
+      pendingEffectByPlayer: {
+        black: { type: 'GUARD_WILL', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    const suppliedGameState = {
+      currentPlayer: 1,
+      turnNumber: 10,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.cardState = {
+      turnIndex: 1,
+      charge: { black: 1, white: 1 },
+      pendingEffectByPlayer: {
+        black: null,
+        white: null
+      }
+    };
+    global.gameState = {
+      currentPlayer: -1,
+      turnNumber: 1,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    global.emitCardStateChange = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...suppliedCardState,
+          charge: { black: 7, white: 10 },
+          pendingEffectByPlayer: { black: null, white: null }
+        },
+        nextGameState: {
+          ...suppliedGameState,
+          turnNumber: 11
+        },
+        playbackEvents: []
+      }))
+    };
+
+    const result = await flow.executePendingSelection({
+      row: 4,
+      col: 4,
+      playerKey: 'black',
+      pendingType: 'GUARD_WILL',
+      cardState: suppliedCardState,
+      gameState: suppliedGameState,
+      actionPayload: {
+        guardTarget: { row: 4, col: 4 }
+      }
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      ok: true,
+      pendingType: 'GUARD_WILL'
+    }));
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledWith(
+      suppliedCardState,
+      suppliedGameState,
+      'black',
+      expect.objectContaining({
+        type: 'place',
+        player: 'black',
+        guardTarget: { row: 4, col: 4 },
+        turnIndex: 8
+      }),
+      global.TurnPipeline
+    );
+    expect(suppliedCardState.charge.black).toBe(7);
+    expect(suppliedGameState.turnNumber).toBe(11);
+    expect(global.cardState).toBe(suppliedCardState);
+    expect(global.gameState).toBe(suppliedGameState);
   });
 
   test('network continue-turn deferred selection skips local playback wait and publishes immediately', async () => {

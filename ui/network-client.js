@@ -20,7 +20,6 @@
     const PUBLISH_RETRY_MAX_DELAY_MS = 4000;
     const PUBLISH_TRACKER_MAX_OPERATIONS = 32;
     const PUBLISH_TRACKER_RETENTION_MS = 60000;
-    const NETWORK_LOCAL_PENDING_HINT_TTL_MS = 45000;
     const NETWORK_TELEMETRY_RECENT_LIMIT = 40;
     const PlaybackStateModule = (typeof require === 'function')
         ? (() => {
@@ -37,32 +36,11 @@
             try { return require('../game/logic/cards-internal/pending-state-manager'); } catch (e) { return root.CardPendingStateManager || null; }
         })()
         : (root.CardPendingStateManager || null);
-    const PlaybackEventHelpers = (typeof require === 'function')
-        ? (() => {
-            try { return require('../shared/playback-event-helpers'); } catch (e) { return root.PlaybackEventHelpers || null; }
-        })()
-        : (root.PlaybackEventHelpers || null);
     const ResultOverlayModule = (typeof require === 'function')
         ? (() => {
             try { return require('./result-overlay'); } catch (e) { return root || null; }
         })()
         : (root || null);
-
-    function resolveCardLogicModule() {
-        if (root && root.CardLogic) return root.CardLogic;
-        if (typeof require === 'function') {
-            try { return require('../game/logic/cards'); } catch (e) { return null; }
-        }
-        return null;
-    }
-
-    function resolveCardTypeForId(cardId) {
-        if (!cardId) return null;
-        const cl = resolveCardLogicModule();
-        if (!cl || typeof cl.getCardDef !== 'function') return null;
-        const def = cl.getCardDef(cardId);
-        return (def && def.type) ? String(def.type) : null;
-    }
 
     function resolvePendingSelectionContract(cardType) {
         if (!cardType) return null;
@@ -93,21 +71,30 @@
     }
 
     function syncPendingSelectionActionCache(pendingEffectByPlayer) {
+        const syncOptions = {};
+        try {
+            if (
+                PlaybackStateModule
+                && typeof PlaybackStateModule.getProcessing === 'function'
+                && PlaybackStateModule.getProcessing() === true
+                && state
+                && state.seatKey
+            ) {
+                syncOptions.preservePlayerKeys = [normalizePlayerKey(state.seatKey)];
+            }
+        } catch (e) { /* ignore */ }
         try {
             if (PendingCoordinatorModule && typeof PendingCoordinatorModule.syncPendingSelectionActionCache === 'function') {
-                return PendingCoordinatorModule.syncPendingSelectionActionCache(pendingEffectByPlayer);
+                return PendingCoordinatorModule.syncPendingSelectionActionCache(
+                    pendingEffectByPlayer,
+                    syncOptions.preservePlayerKeys ? syncOptions : undefined
+                );
             }
         } catch (e) { /* ignore */ }
         return {
             cleared: [],
             retained: []
         };
-    }
-
-    function shouldRestorePendingCardUsePlayback(cardType) {
-        const contract = resolvePendingSelectionContract(cardType);
-        if (!contract) return false;
-        return contract.kind !== 'hand_overlay';
     }
 
     function createInitialResultPresentationState() {
@@ -130,55 +117,6 @@
         resultState.lastResultVersionShown = null;
         resultState.resultShownForUnversioned = false;
         return resultState;
-    }
-
-    function buildPendingCardUsePlaybackEvents(playerKey, cardId, cardType) {
-        if (!cardId) return [];
-
-        const normalizedPlayerKey = normalizePlayerKey(playerKey);
-        const cardLogic = resolveCardLogicModule();
-        const cardDef = (cardLogic && typeof cardLogic.getCardDef === 'function')
-            ? cardLogic.getCardDef(cardId)
-            : null;
-        const resolvedCardType = cardType || (cardDef && cardDef.type ? String(cardDef.type) : null);
-        const cost = (cardDef && Number.isFinite(Number(cardDef.cost)))
-            ? Number(cardDef.cost)
-            : null;
-        const name = (cardDef && cardDef.name)
-            ? String(cardDef.name)
-            : null;
-        const costTier = (cardDef && cardDef.costTier)
-            ? String(cardDef.costTier)
-            : null;
-        const visualDescriptor = (PlaybackEventHelpers && typeof PlaybackEventHelpers.createCardVisualDescriptor === 'function')
-            ? PlaybackEventHelpers.createCardVisualDescriptor(cardId, {
-                name,
-                cost,
-                costTier
-            })
-            : null;
-
-        return [
-            {
-                type: 'card_use_animation',
-                phase: 1,
-                targets: [{
-                    player: normalizedPlayerKey,
-                    owner: normalizedPlayerKey,
-                    cardId,
-                    cardType: resolvedCardType,
-                    cost,
-                    name,
-                    visualDescriptor
-                }]
-            },
-            {
-                type: 'sound_effect',
-                phase: 1,
-                targets: [{ soundKey: 'card_use_button' }],
-                meta: { sourceType: 'card_used' }
-            }
-        ];
     }
 
     function getPlaybackActive() {
@@ -336,8 +274,6 @@
         roomStateListener: null,
         chatListener: null,
         chatHistory: [],
-        originalRunTurnWithAdapter: null,
-        actionBridgeInstalled: false,
         publishChain: Promise.resolve(),
         publishTracker: {
             nextSequence: 0,
@@ -371,7 +307,9 @@
             stateVersion: null,
             authority: null,
             projectedForSeat: null,
-            turnStartReconciled: false
+            turnStartReconciled: false,
+            projectedSnapshotHash: null,
+            lastAppliedProjectedSnapshotHash: null
         },
         localPresentationState: {
             preservedQueues: null,
@@ -386,19 +324,32 @@
     };
 
     let networkCommentaryModule = null;
+    let networkPublishRequestModule = null;
     let networkSnapshotModule = null;
     let networkSessionSeatModule = null;
-    let networkActionSchemaModule = null;
+    let networkCommandPayloadModule = null;
+    let networkActionBridgeModule = null;
+    let networkApplyCoordinatorModule = null;
+    let networkReconnectControllerModule = null;
+    let networkPublishTrackerModule = null;
     let networkCommentaryController = null;
     let networkSnapshotController = null;
     let networkSessionSeatController = null;
+    let networkActionBridgeController = null;
+    let networkReconnectController = null;
+    let networkPublishTrackerController = null;
     let ownerHelpers = null;
 
     if (typeof require === 'function') {
         try { networkCommentaryModule = require('./network/commentary'); } catch (e) { /* ignore */ }
+        try { networkPublishRequestModule = require('./network/publish-request'); } catch (e) { /* ignore */ }
         try { networkSnapshotModule = require('./network/snapshot'); } catch (e) { /* ignore */ }
         try { networkSessionSeatModule = require('./network/session-seat'); } catch (e) { /* ignore */ }
-        try { networkActionSchemaModule = require('../shared/network-action-schema'); } catch (e) { /* ignore */ }
+        try { networkCommandPayloadModule = require('./network/command-payload'); } catch (e) { /* ignore */ }
+        try { networkActionBridgeModule = require('./network/action-bridge'); } catch (e) { /* ignore */ }
+        try { networkApplyCoordinatorModule = require('./network/apply-coordinator'); } catch (e) { /* ignore */ }
+        try { networkReconnectControllerModule = require('./network/reconnect-controller'); } catch (e) { /* ignore */ }
+        try { networkPublishTrackerModule = require('./network/publish-tracker'); } catch (e) { /* ignore */ }
     }
 
     function resolveNetworkCommentaryModule() {
@@ -461,20 +412,120 @@
         return null;
     }
 
-    function resolveNetworkActionSchemaModule() {
-        if (networkActionSchemaModule) return networkActionSchemaModule;
+    function resolveNetworkCommandPayloadModule() {
+        if (networkCommandPayloadModule) return networkCommandPayloadModule;
 
         try {
-            if (root && root.NetworkActionSchema) {
-                networkActionSchemaModule = root.NetworkActionSchema;
-                return networkActionSchemaModule;
+            if (root && root.NetworkCommandPayloadModule) {
+                networkCommandPayloadModule = root.NetworkCommandPayloadModule;
+                return networkCommandPayloadModule;
             }
         } catch (e) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.NetworkActionSchema) {
-                networkActionSchemaModule = globalThis.NetworkActionSchema;
-                return networkActionSchemaModule;
+            if (typeof globalThis !== 'undefined' && globalThis.NetworkCommandPayloadModule) {
+                networkCommandPayloadModule = globalThis.NetworkCommandPayloadModule;
+                return networkCommandPayloadModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        return null;
+    }
+
+    function resolveNetworkActionBridgeModule() {
+        if (networkActionBridgeModule) return networkActionBridgeModule;
+
+        try {
+            if (root && root.NetworkActionBridgeModule) {
+                networkActionBridgeModule = root.NetworkActionBridgeModule;
+                return networkActionBridgeModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.NetworkActionBridgeModule) {
+                networkActionBridgeModule = globalThis.NetworkActionBridgeModule;
+                return networkActionBridgeModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        return null;
+    }
+
+    function resolveNetworkApplyCoordinatorModule() {
+        if (networkApplyCoordinatorModule) return networkApplyCoordinatorModule;
+
+        try {
+            if (root && root.NetworkApplyCoordinatorModule) {
+                networkApplyCoordinatorModule = root.NetworkApplyCoordinatorModule;
+                return networkApplyCoordinatorModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.NetworkApplyCoordinatorModule) {
+                networkApplyCoordinatorModule = globalThis.NetworkApplyCoordinatorModule;
+                return networkApplyCoordinatorModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        return null;
+    }
+
+    function resolveNetworkReconnectControllerModule() {
+        if (networkReconnectControllerModule) return networkReconnectControllerModule;
+
+        try {
+            if (root && root.NetworkReconnectControllerModule) {
+                networkReconnectControllerModule = root.NetworkReconnectControllerModule;
+                return networkReconnectControllerModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.NetworkReconnectControllerModule) {
+                networkReconnectControllerModule = globalThis.NetworkReconnectControllerModule;
+                return networkReconnectControllerModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        return null;
+    }
+
+    function resolveNetworkPublishTrackerModule() {
+        if (networkPublishTrackerModule) return networkPublishTrackerModule;
+
+        try {
+            if (root && root.NetworkPublishTrackerModule) {
+                networkPublishTrackerModule = root.NetworkPublishTrackerModule;
+                return networkPublishTrackerModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.NetworkPublishTrackerModule) {
+                networkPublishTrackerModule = globalThis.NetworkPublishTrackerModule;
+                return networkPublishTrackerModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        return null;
+    }
+
+    function resolveNetworkPublishRequestModule() {
+        if (networkPublishRequestModule) return networkPublishRequestModule;
+
+        try {
+            if (root && root.NetworkPublishRequestModule) {
+                networkPublishRequestModule = root.NetworkPublishRequestModule;
+                return networkPublishRequestModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.NetworkPublishRequestModule) {
+                networkPublishRequestModule = globalThis.NetworkPublishRequestModule;
+                return networkPublishRequestModule;
             }
         } catch (e) { /* ignore */ }
 
@@ -523,6 +574,58 @@
             resetResultPresentationState: (resultState) => resetNetworkResultPresentationState(resultState)
         });
         return networkSessionSeatController;
+    }
+
+    function getNetworkActionBridgeController() {
+        if (networkActionBridgeController) return networkActionBridgeController;
+        const mod = resolveNetworkActionBridgeModule();
+        if (!mod || typeof mod.createNetworkActionBridge !== 'function') return null;
+        networkActionBridgeController = mod.createNetworkActionBridge({
+            root,
+            isActive: () => state.active,
+            normalizePlayerKey,
+            queueCommandPublish: (playerKey, action, options) => queueCommandPublish(playerKey, action, options),
+            shouldDeferNetworkPublishForPendingType
+        });
+        return networkActionBridgeController;
+    }
+
+    function getNetworkReconnectController() {
+        if (networkReconnectController) return networkReconnectController;
+        const mod = resolveNetworkReconnectControllerModule();
+        if (!mod || typeof mod.createNetworkReconnectController !== 'function') return null;
+        networkReconnectController = mod.createNetworkReconnectController({
+            getState: () => state,
+            isActive,
+            scheduleTimeout,
+            clearScheduledTimeout,
+            emitStatus,
+            openStream: (options) => openStream(options),
+            syncLatestStateWithRetry: (options) => syncLatestStateWithRetry(options),
+            recordNetworkTelemetry: (type, details) => recordNetworkTelemetry(type, details),
+            getAppliedStateVersion,
+            computeRetryDelayMs,
+            reconnectRecoveryWaitMs: RECONNECT_STREAM_RECOVERY_WAIT_MS,
+            streamWatchdogIntervalMs: STREAM_WATCHDOG_INTERVAL_MS,
+            streamStaleTimeoutMs: STREAM_STALE_TIMEOUT_MS,
+            reconnectBaseDelayMs: RECONNECT_BASE_DELAY_MS,
+            reconnectMaxDelayMs: RECONNECT_MAX_DELAY_MS
+        });
+        return networkReconnectController;
+    }
+
+    function getNetworkPublishTrackerController() {
+        if (networkPublishTrackerController) return networkPublishTrackerController;
+        const mod = resolveNetworkPublishTrackerModule();
+        if (!mod || typeof mod.createNetworkPublishTracker !== 'function') return null;
+        networkPublishTrackerController = mod.createNetworkPublishTracker({
+            getState: () => state,
+            cloneData: cloneDataForCommandPayload,
+            getSnapshotStateVersion,
+            maxOperations: PUBLISH_TRACKER_MAX_OPERATIONS,
+            retentionMs: PUBLISH_TRACKER_RETENTION_MS
+        });
+        return networkPublishTrackerController;
     }
 
     function invokeControllerMethod(resolveController, methodName, argsLike, fallback) {
@@ -694,7 +797,10 @@
             playbackEvents: Array.isArray(requestMeta.playbackEvents)
                 ? cloneReadableNetworkStateValue(requestMeta.playbackEvents, [])
                 : [],
-            usedSnapshotFallback: requestMeta.usedSnapshotFallback === true
+            usedSnapshotFallback: requestMeta.usedSnapshotFallback === true,
+            snapshotProjectedHash: (typeof requestMeta.snapshotProjectedHash === 'string' && requestMeta.snapshotProjectedHash)
+                ? requestMeta.snapshotProjectedHash
+                : null
         };
     }
 
@@ -755,7 +861,10 @@
             authority: String(meta.authority || '').trim().toLowerCase(),
             version: Number.isFinite(Number(meta.version)) ? Number(meta.version) : null,
             projectedForSeat: normalizePlayerKey(meta.projectedForSeat),
-            turnStartReconciled: meta.turnStartReconciled !== false
+            turnStartReconciled: meta.turnStartReconciled !== false,
+            projectedSnapshotHash: (typeof meta.projectedSnapshotHash === 'string' && meta.projectedSnapshotHash)
+                ? meta.projectedSnapshotHash
+                : null
         };
     }
 
@@ -766,6 +875,42 @@
         return Number.isFinite(Number(state.stateVersion))
             ? Number(state.stateVersion)
             : null;
+    }
+
+    function getCurrentPublishTurnIndex() {
+        const authoritativeCardState = state.authoritativeMatchState && state.authoritativeMatchState.cardState
+            && typeof state.authoritativeMatchState.cardState === 'object'
+            ? state.authoritativeMatchState.cardState
+            : null;
+        const liveCardState = root && root.cardState && typeof root.cardState === 'object'
+            ? root.cardState
+            : ((typeof globalThis !== 'undefined' && globalThis.cardState && typeof globalThis.cardState === 'object')
+                ? globalThis.cardState
+                : null);
+        const authoritativeTurnIndex = authoritativeCardState && Number.isFinite(Number(authoritativeCardState.turnIndex))
+            ? Math.trunc(Number(authoritativeCardState.turnIndex))
+            : null;
+        const liveTurnIndex = liveCardState && Number.isFinite(Number(liveCardState.turnIndex))
+            ? Math.trunc(Number(liveCardState.turnIndex))
+            : null;
+        if (authoritativeTurnIndex !== null && liveTurnIndex !== null) {
+            return Math.max(authoritativeTurnIndex, liveTurnIndex);
+        }
+        if (authoritativeTurnIndex !== null) {
+            return authoritativeTurnIndex;
+        }
+        if (liveTurnIndex !== null) {
+            return liveTurnIndex;
+        }
+        const liveGameState = root && root.gameState && typeof root.gameState === 'object'
+            ? root.gameState
+            : ((typeof globalThis !== 'undefined' && globalThis.gameState && typeof globalThis.gameState === 'object')
+                ? globalThis.gameState
+                : null);
+        if (liveGameState && Number.isFinite(Number(liveGameState.turnNumber))) {
+            return Math.trunc(Number(liveGameState.turnNumber));
+        }
+        return null;
     }
 
     function computeForceSyncPlaybackRecoverySignature(snapshot) {
@@ -784,6 +929,23 @@
         } catch (e) {
             return '';
         }
+    }
+
+    function computeCurrentPlaybackRecoverySignature() {
+        const currentSnapshot = getCurrentSnapshotForPublish();
+        return computeForceSyncPlaybackRecoverySignature(currentSnapshot);
+    }
+
+    function shouldApplyPublishResponseAsShadowPlayback(trackedPublish, snapshot, playbackEvents) {
+        if (!trackedPublish || typeof trackedPublish !== 'object') return false;
+        if (!trackedPublish.requestMeta || trackedPublish.requestMeta.usedSnapshotFallback !== true) return false;
+        const requestedPlaybackEvents = getTrackedPublishRequestedPlaybackEvents(trackedPublish);
+        if (!Array.isArray(requestedPlaybackEvents) || requestedPlaybackEvents.length === 0) return false;
+        if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
+        const snapshotSignature = computeForceSyncPlaybackRecoverySignature(snapshot);
+        if (!snapshotSignature) return false;
+        const currentSignature = computeCurrentPlaybackRecoverySignature();
+        return !!currentSignature && currentSignature === snapshotSignature;
     }
 
     function clearPendingForceSyncPlaybackRecovery() {
@@ -863,7 +1025,8 @@
         return '';
     }
 
-    function resolveRejectedPublishSnapshotHandling(entry, payload, rejectedReason) {
+    function resolveRejectedPublishSnapshotHandling(entry, payload, rejectedReason, options) {
+        const opts = (options && typeof options === 'object') ? options : {};
         const reason = String(rejectedReason || '').trim() || 'PUBLISH_REJECTED';
         const snapshot = (payload && payload.snapshot && typeof payload.snapshot === 'object')
             ? payload.snapshot
@@ -895,68 +1058,25 @@
         if (isVersionConflictReason(reason) && localStateVersionBefore !== null && snapshotVersion === localStateVersionBefore) {
             return { shouldApplySnapshot: false, skipReason: 'same_version_version_mismatch', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
         }
-        if (shouldSkipForceSyncSnapshot(snapshot, { ignoreSequence: entry && entry.sequence })) {
+        if (shouldSkipForceSyncSnapshot(snapshot, {
+            ignoreSequence: entry && entry.sequence,
+            localProjectedSnapshotHash: opts.localProjectedSnapshotHash || null
+        })) {
             return { shouldApplySnapshot: false, skipReason: 'skip_force_sync_guard', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
         }
         return { shouldApplySnapshot: true, skipReason: null, snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
     }
 
-    function serializeActionForCommandPayload(action, fallbackPlayerKey) {
-        if (!action || typeof action !== 'object') return null;
-
-        const schema = resolveNetworkActionSchemaModule();
-        if (schema && typeof schema.serializeAction === 'function') {
-            const serialized = schema.serializeAction(action, fallbackPlayerKey);
-            if (serialized) return serialized;
-        }
-
-        const actionType = String(action.type || action.actionType || '').trim().toLowerCase();
-        if (!actionType) return null;
-
-        const payload = {
-            actionType,
-            actor: normalizePlayerKey(action.actor || action.playerKey || fallbackPlayerKey),
-            params: {}
-        };
-        if (action.actionId) payload.actionId = String(action.actionId);
-        if (Number.isFinite(Number(action.turnIndex))) payload.turnIndex = Math.trunc(Number(action.turnIndex));
-
-        const keys = Object.keys(action);
-        for (let index = 0; index < keys.length; index += 1) {
-            const key = keys[index];
-            if (key === 'type' || key === 'actionType' || key === 'actor' || key === 'playerKey' || key === 'actionId' || key === 'turnIndex' || key === 'deferNetworkPublish' || key === 'snapshot' || key === 'playbackEvents') {
-                continue;
-            }
-            if (typeof action[key] === 'undefined') continue;
-            payload.params[key] = cloneDataForCommandPayload(action[key]);
-        }
-        return payload;
-    }
-
     function buildPublishCommandPayload(info, playerKey) {
-        const source = (info && typeof info === 'object') ? info : {};
-        const action = (source.action && typeof source.action === 'object') ? source.action : null;
-        const schema = resolveNetworkActionSchemaModule();
-        const actionType = String(source.actionType || (action && (action.type || action.actionType)) || '').trim().toLowerCase();
-
-        if (action) {
-            const serialized = serializeActionForCommandPayload(action, playerKey);
-            if (serialized) {
-                if (!schema || typeof schema.shouldUseCommandPayload !== 'function' || schema.shouldUseCommandPayload(serialized)) {
-                    return serialized;
-                }
-            }
+        const moduleRef = resolveNetworkCommandPayloadModule();
+        if (!moduleRef || typeof moduleRef.buildPublishCommandPayload !== 'function') {
+            return null;
         }
-
-        if (actionType === 'reset_game' || actionType === 'rematch' || actionType === 'restart') {
-            return {
-                actionType,
-                actor: normalizePlayerKey(playerKey),
-                params: {}
-            };
-        }
-
-        return null;
+        return moduleRef.buildPublishCommandPayload(info, {
+            playerKey,
+            normalizePlayerKey,
+            pendingCoordinator: PendingCoordinatorModule
+        });
     }
 
     function withTrailingSlashRemoved(url) {
@@ -1148,6 +1268,7 @@
             state.authoritativeMatchState.authority = snapshotMeta.authority;
             state.authoritativeMatchState.projectedForSeat = snapshotMeta.projectedForSeat;
             state.authoritativeMatchState.turnStartReconciled = snapshotMeta.turnStartReconciled;
+            state.authoritativeMatchState.projectedSnapshotHash = snapshotMeta.projectedSnapshotHash;
         }
         const warnings = (payload.playbackDiagnostics && Array.isArray(payload.playbackDiagnostics.warnings))
             ? payload.playbackDiagnostics.warnings.filter((warning) => String(warning || '').trim())
@@ -1190,38 +1311,9 @@
     }
 
     function maybeSyncFromHeartbeat(payload) {
-        const remoteVersion = Number.isFinite(Number(payload && payload.stateVersion))
-            ? Number(payload.stateVersion)
-            : null;
-        if (remoteVersion === null) return;
-
-        const localVersion = getAppliedStateVersion();
-
-        if (localVersion !== null && remoteVersion <= localVersion) return;
-        if (state.heartbeatResyncInFlight) return;
-
-        recordNetworkTelemetry('heartbeat_resync_requested', {
-            remoteVersion,
-            localVersion
-        });
-        state.heartbeatResyncInFlight = true;
-        syncLatestStateWithRetry({ maxAttempts: 2, baseDelayMs: 300 })
-            .then(() => {
-                recordNetworkTelemetry('heartbeat_resync_succeeded', {
-                    remoteVersion,
-                    localVersionBefore: localVersion,
-                    localVersionAfter: Number.isFinite(Number(state.stateVersion)) ? Number(state.stateVersion) : null
-                });
-            })
-            .catch(() => {
-                recordNetworkTelemetry('heartbeat_resync_failed', {
-                    remoteVersion,
-                    localVersion
-                });
-            })
-            .finally(() => {
-                state.heartbeatResyncInFlight = false;
-            });
+        const controller = getNetworkReconnectController();
+        if (!controller || typeof controller.maybeSyncFromHeartbeat !== 'function') return;
+        controller.maybeSyncFromHeartbeat(payload);
     }
 
     function getAdjustedNowMs() {
@@ -1236,249 +1328,139 @@
     }
 
     function ensurePublishTracker() {
-        const tracker = (state.publishTracker && typeof state.publishTracker === 'object')
-            ? state.publishTracker
-            : null;
-        if (tracker && Array.isArray(tracker.operations) && Number.isFinite(Number(tracker.nextSequence))) {
-            return tracker;
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.ensurePublishTracker !== 'function') {
+            throw new Error('NetworkPublishTrackerModule unavailable');
         }
-
-        state.publishTracker = {
-            nextSequence: 0,
-            operations: []
-        };
-        return state.publishTracker;
+        return controller.ensurePublishTracker();
     }
 
     function pruneTrackedPublishes() {
-        const tracker = ensurePublishTracker();
-        const now = Date.now();
-        tracker.operations = tracker.operations.filter((entry) => {
-            if (!entry || !entry.operationId) return false;
-            if (entry.phase === 'settled') return false;
-            if (entry.responseSettled === true && entry.selfSnapshotReceived === true) return false;
-            if (entry.responseSettled === true && Number.isFinite(Number(entry.completedAt)) && (now - Number(entry.completedAt)) > PUBLISH_TRACKER_RETENTION_MS) {
-                return false;
-            }
-            return true;
-        });
-
-        if (tracker.operations.length > PUBLISH_TRACKER_MAX_OPERATIONS) {
-            tracker.operations = tracker.operations.slice(tracker.operations.length - PUBLISH_TRACKER_MAX_OPERATIONS);
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.pruneTrackedPublishes !== 'function') {
+            throw new Error('NetworkPublishTrackerModule unavailable');
         }
-
-        return tracker.operations;
+        return controller.pruneTrackedPublishes();
     }
 
     function resetPublishTracker() {
-        state.publishTracker = {
-            nextSequence: 0,
-            operations: []
-        };
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.resetPublishTracker !== 'function') return;
+        controller.resetPublishTracker();
     }
 
     function createTrackedPublish(operationId, requestMeta) {
-        const tracker = ensurePublishTracker();
-        const sequence = Number.isFinite(Number(tracker.nextSequence))
-            ? Number(tracker.nextSequence) + 1
-            : 1;
-        tracker.nextSequence = sequence;
-
-        const entry = {
-            operationId: String(operationId || ''),
-            sequence,
-            phase: 'queued',
-            responseSettled: false,
-            responseVersion: null,
-            selfSnapshotReceived: false,
-            selfSnapshotVersion: null,
-            appliedSource: '',
-            appliedVersion: null,
-            completedAt: null,
-            requestMeta: (requestMeta && typeof requestMeta === 'object') ? {
-                actionType: requestMeta.actionType || null,
-                actor: requestMeta.actor || null,
-                params: (requestMeta.params && typeof requestMeta.params === 'object') ? cloneDataForCommandPayload(requestMeta.params) : null,
-                playbackEvents: Array.isArray(requestMeta.playbackEvents) ? cloneDataForCommandPayload(requestMeta.playbackEvents) : [],
-                usedSnapshotFallback: requestMeta.usedSnapshotFallback === true
-            } : null
-        };
-        tracker.operations.push(entry);
-        pruneTrackedPublishes();
-        return entry;
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.createTrackedPublish !== 'function') {
+            throw new Error('NetworkPublishTrackerModule unavailable');
+        }
+        return controller.createTrackedPublish(operationId, requestMeta);
     }
 
     function getTrackedPublishRequestedPlaybackEvents(entry) {
-        const playbackEvents = entry && entry.requestMeta && Array.isArray(entry.requestMeta.playbackEvents)
-            ? entry.requestMeta.playbackEvents
-            : [];
-        return playbackEvents;
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.getTrackedPublishRequestedPlaybackEvents !== 'function') return [];
+        return controller.getTrackedPublishRequestedPlaybackEvents(entry);
     }
 
     function findTrackedPublish(operationId) {
-        if (!operationId) return null;
-        const operations = pruneTrackedPublishes();
-        for (let index = 0; index < operations.length; index += 1) {
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.findTrackedPublish !== 'function') return null;
+        return controller.findTrackedPublish(operationId);
+    }
+
+    function settleTrackedPublish(entry) {
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.settleTrackedPublish !== 'function') return;
+        controller.settleTrackedPublish(entry);
+    }
+
+    function markTrackedPublishInFlight(entry) {
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.markTrackedPublishInFlight !== 'function') return;
+        controller.markTrackedPublishInFlight(entry);
+    }
+
+    function markTrackedPublishResponse(entry, stateVersionValue) {
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.markTrackedPublishResponse !== 'function') return;
+        controller.markTrackedPublishResponse(entry, stateVersionValue);
+    }
+
+    function markTrackedPublishSelfSnapshot(entry, snapshot) {
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.markTrackedPublishSelfSnapshot !== 'function') return;
+        controller.markTrackedPublishSelfSnapshot(entry, snapshot);
+    }
+
+    function markTrackedPublishSnapshotApplied(entry, snapshot, source) {
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.markTrackedPublishSnapshotApplied !== 'function') return;
+        controller.markTrackedPublishSnapshotApplied(entry, snapshot, source);
+    }
+
+    function hasTrackedPublishPresentedResult(entry) {
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.hasTrackedPublishPresentedResult !== 'function') return false;
+        return controller.hasTrackedPublishPresentedResult(entry);
+    }
+
+    function markTrackedPublishResultPresented(entry, snapshot) {
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.markTrackedPublishResultPresented !== 'function') return;
+        controller.markTrackedPublishResultPresented(entry, snapshot);
+    }
+
+    function hasPendingLocalPublishes(options) {
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.hasPendingLocalPublishes !== 'function') return false;
+        return controller.hasPendingLocalPublishes(options);
+    }
+
+    function hasNewerQueuedPublish(sequence) {
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.hasNewerQueuedPublish !== 'function') return false;
+        return controller.hasNewerQueuedPublish(sequence);
+    }
+
+    function getPendingLocalPublishProjectedSnapshotHash(options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        const ignoredSequence = Number.isFinite(Number(opts.ignoreSequence))
+            ? Number(opts.ignoreSequence)
+            : null;
+        const tracker = ensurePublishTracker();
+        const operations = Array.isArray(tracker && tracker.operations) ? tracker.operations : [];
+        for (let index = operations.length - 1; index >= 0; index -= 1) {
             const entry = operations[index];
-            if (entry && entry.operationId === operationId) {
-                return entry;
+            if (!entry || (entry.phase !== 'queued' && entry.phase !== 'inflight')) continue;
+            if (ignoredSequence !== null && Number(entry.sequence) === ignoredSequence) continue;
+            const requestMeta = entry.requestMeta;
+            if (
+                requestMeta
+                && typeof requestMeta.snapshotProjectedHash === 'string'
+                && requestMeta.snapshotProjectedHash
+            ) {
+                return requestMeta.snapshotProjectedHash;
             }
         }
         return null;
     }
 
-    function settleTrackedPublish(entry) {
-        if (!entry || typeof entry !== 'object') return;
-        entry.phase = 'settled';
-        entry.completedAt = Date.now();
-        pruneTrackedPublishes();
-    }
-
-    function markTrackedPublishInFlight(entry) {
-        if (!entry || typeof entry !== 'object') return;
-        entry.phase = 'inflight';
-    }
-
-    function markTrackedPublishResponse(entry, stateVersionValue) {
-        if (!entry || typeof entry !== 'object') return;
-        entry.phase = 'acknowledged';
-        entry.responseSettled = true;
-        entry.responseVersion = Number.isFinite(Number(stateVersionValue))
-            ? Number(stateVersionValue)
-            : null;
-        entry.completedAt = Date.now();
-        if (entry.selfSnapshotReceived === true) {
-            settleTrackedPublish(entry);
-        } else {
-            pruneTrackedPublishes();
-        }
-    }
-
-    function markTrackedPublishSelfSnapshot(entry, snapshot) {
-        if (!entry || typeof entry !== 'object') return;
-        entry.selfSnapshotReceived = true;
-        entry.selfSnapshotVersion = getSnapshotStateVersion(snapshot);
-        if (entry.responseSettled === true) {
-            settleTrackedPublish(entry);
-        }
-    }
-
-    function markTrackedPublishSnapshotApplied(entry, snapshot, source) {
-        if (!entry || typeof entry !== 'object') return;
-        entry.appliedSource = typeof source === 'string' ? source : '';
-        entry.appliedVersion = getSnapshotStateVersion(snapshot);
-    }
-
-    function hasTrackedPublishPresentedResult(entry) {
-        return !!(entry && entry.resultOverlayPresented === true);
-    }
-
-    function markTrackedPublishResultPresented(entry, snapshot) {
-        if (!entry || typeof entry !== 'object') return;
-        entry.resultOverlayPresented = true;
-        entry.resultOverlayVersion = getSnapshotStateVersion(snapshot);
-    }
-
-    function hasPendingLocalPublishes(options) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const ignoredSequence = Number.isFinite(Number(opts.ignoreSequence))
-            ? Number(opts.ignoreSequence)
-            : null;
-        const operations = pruneTrackedPublishes();
-        return operations.some((entry) => {
-            if (!entry || (entry.phase !== 'queued' && entry.phase !== 'inflight')) return false;
-            if (ignoredSequence === null) return true;
-            return Number(entry.sequence) !== ignoredSequence;
-        });
-    }
-
-    function hasLocalDeferredPendingHint() {
-        const localCardState = (root && root.cardState && typeof root.cardState === 'object')
-            ? root.cardState
-            : ((typeof globalThis !== 'undefined' && globalThis.cardState && typeof globalThis.cardState === 'object')
-                ? globalThis.cardState
-                : null);
-        if (!localCardState || typeof localCardState !== 'object') return false;
-        const pendingByPlayer = localCardState.pendingEffectByPlayer;
-        if (!pendingByPlayer || typeof pendingByPlayer !== 'object') return false;
-        const seatKey = normalizePlayerKey(state.seatKey);
-        const pending = pendingByPlayer[seatKey];
-        if (!pending || typeof pending !== 'object') return false;
-        if (pending.__networkLocalHint !== true) return false;
-        const hintSetAt = Number.isFinite(Number(pending.__networkLocalHintSetAt))
-            ? Number(pending.__networkLocalHintSetAt)
-            : null;
-        if (hintSetAt === null || (Date.now() - hintSetAt) > NETWORK_LOCAL_PENDING_HINT_TTL_MS) {
-            return false;
-        }
-        const pendingType = pending.type ? String(pending.type) : '';
-        return shouldDeferNetworkPublishForPendingType(pendingType);
-    }
-
-    function hasNewerQueuedPublish(sequence) {
-        const currentSequence = Number.isFinite(Number(sequence)) ? Number(sequence) : 0;
-        const operations = pruneTrackedPublishes();
-        return operations.some((entry) => entry && entry.phase !== 'settled' && Number(entry.sequence) > currentSequence);
-    }
-
-    function shouldApplyPublishResponseSnapshot(entry, snapshot) {
-        if (!entry || !snapshot) return false;
-        if (hasNewerQueuedPublish(entry.sequence)) return false;
-        if (entry.selfSnapshotReceived !== true) return true;
-
-        const responseVersion = getSnapshotStateVersion(snapshot);
-        const selfSnapshotVersion = Number.isFinite(Number(entry.selfSnapshotVersion))
-            ? Number(entry.selfSnapshotVersion)
-            : null;
-
-        if (responseVersion === null) return false;
-        if (selfSnapshotVersion === null) return false;
-        return responseVersion > selfSnapshotVersion;
-    }
-
-    function shouldApplyTrackedPublishSnapshot(entry, snapshot, source) {
-        if (!entry || !snapshot) return true;
-
-        const sourceKey = typeof source === 'string' ? source : '';
-        const snapshotVersion = getSnapshotStateVersion(snapshot);
-        const appliedVersion = Number.isFinite(Number(entry.appliedVersion))
-            ? Number(entry.appliedVersion)
-            : null;
-        if (snapshotVersion !== null && appliedVersion !== null && snapshotVersion <= appliedVersion) {
-            return false;
-        }
-        if (sourceKey === 'publish_response') {
-            return shouldApplyPublishResponseSnapshot(entry, snapshot);
-        }
-        if (sourceKey === 'stream' && hasNewerQueuedPublish(entry.sequence)) {
-            return false;
-        }
-        return true;
-    }
-
     function applySnapshotThroughCoordinator(snapshot, options) {
-        const opts = options || {};
-        const trackedPublish = opts.trackedPublish || null;
-        const source = typeof opts.source === 'string' ? opts.source : '';
-        const applyOptions = (opts.applyOptions && typeof opts.applyOptions === 'object')
-            ? opts.applyOptions
-            : {};
-
-        if (!shouldApplyTrackedPublishSnapshot(trackedPublish, snapshot, source)) {
-            return false;
+        const mod = resolveNetworkApplyCoordinatorModule();
+        if (!mod || typeof mod.applySnapshotThroughCoordinator !== 'function') {
+            throw new Error('NetworkApplyCoordinatorModule unavailable');
         }
-
-        const applied = applySnapshot(snapshot, applyOptions);
-        if (applied && trackedPublish) {
-            markTrackedPublishSnapshotApplied(trackedPublish, snapshot, source);
-        }
-        if (applied) {
-            const appliedVersion = getSnapshotStateVersion(snapshot);
-            if (appliedVersion !== null) {
+        return mod.applySnapshotThroughCoordinator(snapshot, Object.assign({}, options, {
+            getSnapshotStateVersion,
+            hasNewerQueuedPublish,
+            applySnapshot,
+            markTrackedPublishSnapshotApplied,
+            onAppliedVersion: (appliedVersion) => {
                 state.appliedStateVersion = appliedVersion;
+                state.stateVersion = appliedVersion;
             }
-        }
-        return applied;
+        }));
     }
 
     function isTerminalSnapshotForResult(snapshot) {
@@ -1492,19 +1474,47 @@
         return gameState.currentPlayer === -1;
     }
 
+    function getKnownProjectedSnapshotHash() {
+        if (
+            state.authoritativeMatchState
+            && typeof state.authoritativeMatchState.lastAppliedProjectedSnapshotHash === 'string'
+            && state.authoritativeMatchState.lastAppliedProjectedSnapshotHash
+        ) {
+            return state.authoritativeMatchState.lastAppliedProjectedSnapshotHash;
+        }
+        if (
+            state.authoritativeMatchState
+            && typeof state.authoritativeMatchState.projectedSnapshotHash === 'string'
+            && state.authoritativeMatchState.projectedSnapshotHash
+        ) {
+            return state.authoritativeMatchState.projectedSnapshotHash;
+        }
+        return null;
+    }
+
     function shouldSkipForceSyncSnapshot(snapshot, options) {
+        const opts = (options && typeof options === 'object') ? options : {};
         const remoteVersion = getSnapshotStateVersion(snapshot);
         const localVersion = getAppliedStateVersion();
-        const pendingLocalPublish = hasPendingLocalPublishes(options);
-        const preserveLocalPendingHint = hasLocalDeferredPendingHint()
-            && remoteVersion !== null
-            && localVersion !== null
-            && remoteVersion <= localVersion;
+        const pendingLocalPublish = hasPendingLocalPublishes(opts);
+        const remoteMeta = getSnapshotMeta(snapshot);
+        const remoteHash = remoteMeta && remoteMeta.projectedSnapshotHash ? remoteMeta.projectedSnapshotHash : null;
+        const localHash = (typeof opts.localProjectedSnapshotHash === 'string' && opts.localProjectedSnapshotHash)
+            ? opts.localProjectedSnapshotHash
+            : (getPendingLocalPublishProjectedSnapshotHash(opts) || getKnownProjectedSnapshotHash());
 
-        if (!pendingLocalPublish && !preserveLocalPendingHint) return false;
+        if (!pendingLocalPublish) return false;
 
         if (remoteVersion === null) return true;
         if (localVersion === null) return false;
+        if (
+            remoteVersion === localVersion
+            && remoteHash
+            && localHash
+            && remoteHash !== localHash
+        ) {
+            return false;
+        }
         return remoteVersion <= localVersion;
     }
 
@@ -1851,6 +1861,21 @@
         return playbackEvents.map((event) => sanitizePlaybackValueForPublish(event));
     }
 
+    function queueCommandPublish(playerKey, action, options) {
+        const opts = (options && typeof options === 'object') ? options : {};
+        const normalizedPlayerKey = normalizePlayerKey(playerKey);
+        const resolvedActionType = String(
+            opts.actionType || (action && (action.type || action.actionType)) || 'action'
+        ).trim();
+        return publishSnapshot({
+            playerKey: normalizedPlayerKey,
+            actionType: resolvedActionType,
+            playbackEvents: Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [],
+            usedSnapshotFallback: opts.usedSnapshotFallback === true,
+            action
+        });
+    }
+
     function isMatchApiMissing(res) {
         return !!(res && Number(res.status) === 404);
     }
@@ -1861,252 +1886,75 @@
     }
 
     function ensureActionBridge() {
-        if (state.actionBridgeInstalled) return true;
-        if (!root.TurnPipelineUIAdapter || typeof root.TurnPipelineUIAdapter.runTurnWithAdapter !== 'function') return false;
-
-        state.originalRunTurnWithAdapter = root.TurnPipelineUIAdapter.runTurnWithAdapter;
-
-        root.TurnPipelineUIAdapter.runTurnWithAdapter = function wrappedRunTurnWithAdapter(cardStateArg, gameStateArg, playerKey, action, turnPipeline) {
-            // --- Single Writer: network active 時はローカル実行をスキップ ---
-            if (state.active) {
-                const actionType = action && (action.type || action.actionType) ? String(action.type || action.actionType) : '';
-                const shouldDeferNetworkPublish = !!(action && action.deferNetworkPublish === true);
-                const isBoardPlacement = action && Number.isFinite(action.row) && Number.isFinite(action.col);
-                const isPass = actionType === 'pass';
-                if (!shouldDeferNetworkPublish && (isBoardPlacement || isPass)) {
-                    const publishPromise = publishSnapshot({
-                        playerKey: normalizePlayerKey(playerKey),
-                        actionType: isBoardPlacement ? 'place' : 'pass',
-                        playbackEvents: [],
-                        action
-                    });
-                    return { ok: true, skippedLocalExecution: true, playbackEvents: [], publishPromise };
-                }
-
-                // Phase 2: cancel_card / destroy_hand_card — skip local, publish directly
-                if (!shouldDeferNetworkPublish && (actionType === 'cancel_card' || actionType === 'destroy_hand_card')) {
-                    const publishPromise = publishSnapshot({
-                        playerKey: normalizePlayerKey(playerKey),
-                        actionType,
-                        playbackEvents: [],
-                        action
-                    });
-                    return { ok: true, skippedLocalExecution: true, playbackEvents: [], publishPromise };
-                }
-
-                // Phase 2: use_card
-                if (actionType === 'use_card') {
-                    const cardId = action && (action.useCardId || action.cardId);
-                    const cardType = resolveCardTypeForId(cardId);
-                    const canResolvePendingType = !!cardType;
-                    const needsPending = !!(canResolvePendingType && shouldDeferNetworkPublishForPendingType(cardType));
-
-                    if (canResolvePendingType && !needsPending) {
-                        // No-target card: skip local, publish directly
-                        const publishPromise = publishSnapshot({
-                            playerKey: normalizePlayerKey(playerKey),
-                            actionType: 'use_card',
-                            playbackEvents: [],
-                            action
-                        });
-                        return { ok: true, skippedLocalExecution: true, playbackEvents: [], publishPromise };
-                    }
-
-                    if (!canResolvePendingType) {
-                        return {
-                            ok: false,
-                            rejectedReason: 'PENDING_CARD_TYPE_UNRESOLVED',
-                            cardId: cardId || null
-                        };
-                    }
-
-                    if (!PendingCoordinatorModule || typeof PendingCoordinatorModule.setPendingHintLocally !== 'function') {
-                        return {
-                            ok: false,
-                            rejectedReason: 'PENDING_HINT_COORDINATOR_UNAVAILABLE',
-                            cardType
-                        };
-                    }
-                    const pendingHintResult = PendingCoordinatorModule.setPendingHintLocally(
-                        cardStateArg,
-                        normalizePlayerKey(playerKey),
-                        cardType,
-                        { cardId }
-                    );
-                    if (!pendingHintResult || pendingHintResult.ok !== true) {
-                        return {
-                            ok: false,
-                            rejectedReason: 'PENDING_HINT_UNAVAILABLE',
-                            cardType
-                        };
-                    }
-                    const playbackEvents = shouldRestorePendingCardUsePlayback(cardType)
-                        ? buildPendingCardUsePlaybackEvents(playerKey, cardId, cardType)
-                        : [];
-                    return {
-                        ok: true,
-                        pendingSelectionActive: true,
-                        playbackEvents,
-                        nextCardState: cardStateArg,
-                        nextGameState: gameStateArg
-                    };
-                }
-            }
-
-            const result = state.originalRunTurnWithAdapter.call(root.TurnPipelineUIAdapter, cardStateArg, gameStateArg, playerKey, action, turnPipeline);
-
-            if (state.active && result && result.ok !== false) {
-                const shouldDeferNetworkPublish = !!(action && action.deferNetworkPublish === true);
-                const pendingType = (() => {
-                    try {
-                        const normalizedPlayerKey = normalizePlayerKey(playerKey);
-                        const pendingByPlayer = (result.nextCardState && result.nextCardState.pendingEffectByPlayer)
-                            ? result.nextCardState.pendingEffectByPlayer
-                            : (cardStateArg && cardStateArg.pendingEffectByPlayer);
-                        const pending = pendingByPlayer && pendingByPlayer[normalizedPlayerKey];
-                        return pending && pending.type ? String(pending.type) : null;
-                    } catch (e) {
-                        return null;
-                    }
-                })();
-                const shouldDeferPendingSelection = shouldDeferNetworkPublishForPendingType(pendingType);
-                if (!shouldDeferNetworkPublish && !shouldDeferPendingSelection) {
-                    publishSnapshot({
-                        playerKey: normalizePlayerKey(playerKey),
-                        actionType: action && (action.type || action.actionType) ? String(action.type || action.actionType) : 'action',
-                        playbackEvents: Array.isArray(result.playbackEvents) ? result.playbackEvents : [],
-                        action
-                    });
-                }
-            }
-
-            return result;
-        };
-
-        state.actionBridgeInstalled = true;
-        return true;
+        const controller = getNetworkActionBridgeController();
+        if (!controller || typeof controller.install !== 'function') return false;
+        return controller.install() === true;
     }
 
     function teardownActionBridge() {
-        if (!state.actionBridgeInstalled) return;
-        if (root.TurnPipelineUIAdapter && state.originalRunTurnWithAdapter) {
-            root.TurnPipelineUIAdapter.runTurnWithAdapter = state.originalRunTurnWithAdapter;
-        }
-        state.originalRunTurnWithAdapter = null;
-        state.actionBridgeInstalled = false;
+        const controller = getNetworkActionBridgeController();
+        if (!controller || typeof controller.teardown !== 'function') return;
+        controller.teardown();
     }
 
     function clearReconnectTimer() {
-        if (state.reconnectTimerId !== null) {
-            clearScheduledTimeout(state.reconnectTimerId);
-            state.reconnectTimerId = null;
-        }
+        const controller = getNetworkReconnectController();
+        if (!controller || typeof controller.clearReconnectTimer !== 'function') return;
+        controller.clearReconnectTimer();
     }
 
     function clearReconnectRecoveryTimer() {
-        if (state.reconnectRecoveryTimerId !== null) {
-            clearScheduledTimeout(state.reconnectRecoveryTimerId);
-            state.reconnectRecoveryTimerId = null;
-        }
+        const controller = getNetworkReconnectController();
+        if (!controller || typeof controller.clearReconnectRecoveryTimer !== 'function') return;
+        controller.clearReconnectRecoveryTimer();
     }
 
     function completeReconnectRecoveryFromStream() {
-        if (!state.reconnectRecoveryPending) return;
-        state.reconnectRecoveryPending = false;
-        clearReconnectRecoveryTimer();
+        const controller = getNetworkReconnectController();
+        if (!controller || typeof controller.completeReconnectRecoveryFromStream !== 'function') return;
+        controller.completeReconnectRecoveryFromStream();
     }
 
     function scheduleReconnectRecoverySync() {
-        clearReconnectRecoveryTimer();
-        state.reconnectRecoveryPending = true;
-        state.reconnectRecoveryTimerId = scheduleTimeout(() => {
-            state.reconnectRecoveryTimerId = null;
-            if (!state.reconnectRecoveryPending) return;
-            state.reconnectRecoveryPending = false;
-            syncLatestStateWithRetry({ maxAttempts: 3, baseDelayMs: 350 }).catch(() => {
-                // Keep stream path resilient; next snapshot or reconnect will recover.
-            });
-        }, RECONNECT_STREAM_RECOVERY_WAIT_MS);
+        const controller = getNetworkReconnectController();
+        if (!controller || typeof controller.scheduleReconnectRecoverySync !== 'function') return;
+        controller.scheduleReconnectRecoverySync();
     }
 
     function clearStreamWatchdogTimer() {
-        if (!state.streamWatchdogTimerId) return;
-        clearScheduledTimeout(state.streamWatchdogTimerId);
-        state.streamWatchdogTimerId = 0;
+        const controller = getNetworkReconnectController();
+        if (!controller || typeof controller.clearStreamWatchdogTimer !== 'function') return;
+        controller.clearStreamWatchdogTimer();
     }
 
     function markStreamActivity() {
-        state.lastStreamActivityAt = Date.now();
+        const controller = getNetworkReconnectController();
+        if (!controller || typeof controller.markStreamActivity !== 'function') return;
+        controller.markStreamActivity();
     }
 
     function rememberStreamEventId(event) {
-        const eventId = String(
-            event && typeof event === 'object'
-                ? (event.lastEventId || event.eventId || '')
-                : ''
-        ).trim();
-        if (!eventId) return;
-        state.lastStreamEventId = eventId;
+        const controller = getNetworkReconnectController();
+        if (!controller || typeof controller.rememberStreamEventId !== 'function') return;
+        controller.rememberStreamEventId(event);
     }
 
     function scheduleStreamWatchdog() {
-        clearStreamWatchdogTimer();
-        if (!isActive()) return;
-        if (!state.eventSource) return;
-
-        state.streamWatchdogTimerId = scheduleTimeout(() => {
-            state.streamWatchdogTimerId = 0;
-            if (!isActive()) return;
-            if (!state.eventSource) return;
-
-            const lastActivityAt = Number.isFinite(Number(state.lastStreamActivityAt))
-                ? Number(state.lastStreamActivityAt)
-                : 0;
-            const elapsedMs = Date.now() - lastActivityAt;
-
-            if (elapsedMs >= STREAM_STALE_TIMEOUT_MS) {
-                emitStatus('ネット対戦: 配信接続の応答がないため再接続します', true);
-                try {
-                    if (state.eventSource) {
-                        state.eventSource.close();
-                    }
-                } catch (e) { /* ignore */ }
-                state.eventSource = null;
-                scheduleStreamReconnect();
-                return;
-            }
-
-            scheduleStreamWatchdog();
-        }, STREAM_WATCHDOG_INTERVAL_MS);
+        const controller = getNetworkReconnectController();
+        if (!controller || typeof controller.scheduleStreamWatchdog !== 'function') return;
+        controller.scheduleStreamWatchdog();
     }
 
     function scheduleStreamReconnect() {
-        if (!isActive()) return;
-        if (state.reconnectTimerId !== null) return;
-
-        const attempt = Number.isFinite(Number(state.reconnectAttempt))
-            ? Number(state.reconnectAttempt)
-            : 0;
-        const delayMs = computeRetryDelayMs(RECONNECT_BASE_DELAY_MS, RECONNECT_MAX_DELAY_MS, attempt);
-        state.reconnectAttempt = attempt + 1;
-
-        state.reconnectTimerId = scheduleTimeout(() => {
-            state.reconnectTimerId = null;
-            if (!isActive()) return;
-            openStream({ reconnect: true });
-        }, delayMs);
+        const controller = getNetworkReconnectController();
+        if (!controller || typeof controller.scheduleStreamReconnect !== 'function') return;
+        controller.scheduleStreamReconnect();
     }
 
     function closeStream() {
-        clearReconnectTimer();
-        clearReconnectRecoveryTimer();
-        state.reconnectRecoveryPending = false;
-        clearStreamWatchdogTimer();
-        if (state.eventSource) {
-            try { state.eventSource.close(); } catch (e) { /* ignore */ }
-            state.eventSource = null;
-        }
-        state.lastStreamActivityAt = 0;
+        const controller = getNetworkReconnectController();
+        if (!controller || typeof controller.closeStream !== 'function') return;
+        controller.closeStream();
     }
 
     function isRetryablePublishStatus(status) {
@@ -2419,10 +2267,13 @@
         if (!res.ok || !res.data || res.data.ok !== true) {
             return { ok: false, reason: (res.data && res.data.reason) || 'STATE_FETCH_FAILED' };
         }
+        const localProjectedSnapshotHashBefore = getKnownProjectedSnapshotHash();
         applyPayloadSessionState(res.data);
         let appliedSnapshot = false;
         if (res.data.snapshot) {
-            if (!shouldSkipForceSyncSnapshot(res.data.snapshot)) {
+            if (!shouldSkipForceSyncSnapshot(res.data.snapshot, {
+                localProjectedSnapshotHash: localProjectedSnapshotHashBefore
+            })) {
                 appliedSnapshot = applySnapshotThroughCoordinator(res.data.snapshot, {
                     source: 'state_sync',
                     applyOptions: { force: true }
@@ -2534,10 +2385,20 @@
             state.chatHistory = [];
             state.stateVersion = null;
             state.appliedStateVersion = null;
+            state.authoritativeMatchState.gameState = null;
+            state.authoritativeMatchState.cardState = null;
+            state.authoritativeMatchState.stateVersion = null;
+            state.authoritativeMatchState.projectedSnapshotHash = null;
+            state.authoritativeMatchState.lastAppliedProjectedSnapshotHash = null;
             resetPublishTracker();
             resetNetworkResultPresentationState(state);
         }
         state.appliedStateVersion = null;
+        state.authoritativeMatchState.gameState = null;
+        state.authoritativeMatchState.cardState = null;
+        state.authoritativeMatchState.stateVersion = null;
+        state.authoritativeMatchState.projectedSnapshotHash = null;
+        state.authoritativeMatchState.lastAppliedProjectedSnapshotHash = null;
         resetPublishTracker();
         resetNetworkTelemetry();
         resetTurnTimerState();
@@ -2566,21 +2427,33 @@
             emitStatus(`ネット対戦: 操作主体が座席と不一致です (${playerKey} != ${state.seatKey})`, true);
             return Promise.resolve({ ok: false, reason: 'SEAT_MISMATCH_LOCAL' });
         }
-        const commandPayload = buildPublishCommandPayload(info, playerKey);
-        if (!commandPayload) {
+        const operationId = createOperationId();
+        const publishRequestModule = resolveNetworkPublishRequestModule();
+        const publishRequest = publishRequestModule && typeof publishRequestModule.buildPublishRequest === 'function'
+            ? publishRequestModule.buildPublishRequest(info, {
+                playerKey,
+                operationId,
+                roomId: state.roomId,
+                seatKey: state.seatKey,
+                seatToken: state.seatToken,
+                baseVersion: state.stateVersion,
+                turnIndex: getCurrentPublishTurnIndex(),
+                buildPublishCommandPayload: buildPublishCommandPayload
+            })
+            : null;
+        if (!publishRequest || !publishRequest.commandPayload || !publishRequest.requestPayload) {
             return Promise.resolve({ ok: false, reason: 'COMMAND_REQUIRED' });
         }
+        const commandPayload = publishRequest.commandPayload;
         const queuedPlaybackEvents = sanitizePlaybackEventsForPublish(info.playbackEvents);
-        const queuedActionType = (commandPayload && commandPayload.actionType)
-            ? commandPayload.actionType
-            : (info.actionType || null);
-        const operationId = createOperationId();
+        const queuedActionType = publishRequest.queuedActionType;
         const trackedPublish = createTrackedPublish(operationId, {
             actionType: queuedActionType,
             actor: commandPayload ? (commandPayload.actor || playerKey) : playerKey,
             params: commandPayload ? (commandPayload.params || {}) : null,
             playbackEvents: queuedPlaybackEvents,
-            usedSnapshotFallback: false
+            usedSnapshotFallback: info.usedSnapshotFallback === true,
+            snapshotProjectedHash: getSnapshotMeta(info && info.snapshot) && getSnapshotMeta(info && info.snapshot).projectedSnapshotHash
         });
 
         state.publishChain = state.publishChain
@@ -2594,7 +2467,7 @@
                     return { ok: false, reason: 'SEAT_TOKEN_REQUIRED' };
                 }
 
-                const payload = {
+                const payload = Object.assign({}, publishRequest.requestPayload, {
                     roomId: state.roomId,
                     seatKey: state.seatKey,
                     seatToken: state.seatToken,
@@ -2602,28 +2475,17 @@
                     actionType: queuedActionType,
                     operationId,
                     baseVersion: state.stateVersion
-                };
-
-                if (commandPayload) {
-                    payload.actor = commandPayload.actor || playerKey;
-                    payload.params = commandPayload.params || {};
-                    if (commandPayload.actionId) {
-                        payload.actionId = commandPayload.actionId;
-                    }
-                    if (Number.isFinite(Number(commandPayload.turnIndex))) {
-                        payload.turnIndex = Math.trunc(Number(commandPayload.turnIndex));
-                    }
-                }
-                if (info.action && typeof info.action === 'object') {
-                    payload.action = cloneDataForCommandPayload(info.action);
-                }
+                });
 
                 markTrackedPublishInFlight(trackedPublish);
                 const res = await publishRequestWithRetry(payload);
                 if (!res.ok || !res.data || res.data.ok !== true) {
                     const reason = (res.data && res.data.rejectedReason) || 'PUBLISH_REJECTED';
+                    const localProjectedSnapshotHashBefore = getKnownProjectedSnapshotHash();
                     applyPayloadSessionState(res.data);
-                    const rejectionHandling = resolveRejectedPublishSnapshotHandling(trackedPublish, res.data, reason);
+                    const rejectionHandling = resolveRejectedPublishSnapshotHandling(trackedPublish, res.data, reason, {
+                        localProjectedSnapshotHash: localProjectedSnapshotHashBefore
+                    });
                     const versionTelemetryKey = getVersionConflictTelemetryKey(reason);
                     recordNetworkTelemetry(versionTelemetryKey || 'publish_rejected', {
                         reason,
@@ -2683,7 +2545,10 @@
                     ? Number(res.data.stateVersion)
                     : null;
                 if (responseStateVersion !== null) {
-                    state.stateVersion = responseStateVersion;
+                    const currentAppliedVersion = getAppliedStateVersion();
+                    if (currentAppliedVersion === null || responseStateVersion >= currentAppliedVersion) {
+                        state.stateVersion = responseStateVersion;
+                    }
                 }
                 markTrackedPublishResponse(trackedPublish, responseStateVersion);
                 if (res.data && res.data.idempotentReplay === true) {
@@ -2694,12 +2559,19 @@
                 }
                 if (res.data && res.data.snapshot) {
                     const serverPlaybackEvents = Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : [];
+                    const shouldShadowPlaybackResponse = shouldApplyPublishResponseAsShadowPlayback(
+                        trackedPublish,
+                        res.data.snapshot,
+                        serverPlaybackEvents
+                    );
                     const applied = applySnapshotThroughCoordinator(res.data.snapshot, {
                         source: 'publish_response',
                         trackedPublish,
                         applyOptions: {
                             force: true,
-                            playbackEvents: serverPlaybackEvents,
+                            playbackEvents: shouldShadowPlaybackResponse ? [] : serverPlaybackEvents,
+                            shadowPlaybackEvents: shouldShadowPlaybackResponse ? serverPlaybackEvents : [],
+                            shadowPlaybackSource: shouldShadowPlaybackResponse ? 'publish_response_shadow' : undefined,
                             skipResultOverlay: hasTrackedPublishPresentedResult(trackedPublish)
                         }
                     });
@@ -2707,14 +2579,15 @@
                         rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
                             source: 'publish_response',
                             force: true,
-                            playbackEvents: serverPlaybackEvents
+                            playbackEvents: shouldShadowPlaybackResponse ? [] : serverPlaybackEvents
                         });
                         emitPayloadEffectLogs(res.data);
                         recordNetworkTelemetry('publish_response_snapshot_applied', {
                             operationId,
                             applied,
                             responseStateVersion,
-                            playbackEventCount: serverPlaybackEvents.length
+                            playbackEventCount: serverPlaybackEvents.length,
+                            usedShadowPlayback: shouldShadowPlaybackResponse
                         });
                     } else {
                         recordNetworkTelemetry('publish_response_snapshot_skipped', {

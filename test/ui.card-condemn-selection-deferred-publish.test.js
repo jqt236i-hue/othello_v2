@@ -73,6 +73,7 @@ function createSnapshot(stateVersion) {
         black: {
           type: 'CONDEMN_WILL',
           stage: 'selectTarget',
+          cardId: 'condemn_01',
           offers: [{ cardId: 'enemy_card', handIndex: 0 }]
         },
         white: null
@@ -312,7 +313,12 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     expect(publishBodies[0].actor).toBe('black');
     expect(publishBodies[0].params).toEqual({
       player: 'black',
-      condemnTargetIndex: 0
+      condemnTargetIndex: 0,
+      pendingSelectionState: {
+        type: 'CONDEMN_WILL',
+        stage: 'selectTarget',
+        cardId: 'condemn_01'
+      }
     });
     expect(publishBodies[0].snapshot).toBeUndefined();
     expect(publishBodies[0].playbackEvents).toBeUndefined();

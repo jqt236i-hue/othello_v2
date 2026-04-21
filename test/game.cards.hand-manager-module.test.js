@@ -143,4 +143,39 @@ describe('CardHandManager module', () => {
     expect(restored.cardCopyId).toBe(initialCopyIds[0]);
     expect(CardHandManager.isCardCopyIdRevealedToViewer(cardState, 'black', restored.cardCopyId, context)).toBe(true);
   });
+
+  test('TIME_STOP_GOD is destroyed immediately when it enters hand', () => {
+    const CardHandManager = require('../game/logic/cards-internal/hand-manager');
+    const cardId = 'time_stop_god_01';
+    const context = {
+      constants: {
+        MAX_HAND_SIZE: 5,
+        RIBO_WILL_UNLOCK_TURN_INDEX: 19
+      },
+      modules: {
+        CardDefsModule: {
+          getCardDef: (id) => ({ id, type: id === cardId ? 'TIME_STOP_GOD' : 'GENERIC', cost: 0, name: id }),
+          getCardType: (id) => (id === cardId ? 'TIME_STOP_GOD' : 'GENERIC')
+        },
+        CardCostsModule: {
+          getCardCost: () => 0
+        }
+      },
+      helpers: {}
+    };
+    const cardState = {
+      hands: { black: [], white: [] },
+      decks: { black: [cardId], white: [] },
+      discard: [],
+      charge: { black: 0, white: 0 },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      turnIndex: 0
+    };
+
+    expect(CardHandManager.commitDraw(cardState, 'black', null, context)).toBe(cardId);
+    expect(cardState.hands.black).toEqual([]);
+    expect(cardState.discard).toEqual([cardId]);
+    expect(CardHandManager.getHandCopyIds(cardState, 'black')).toEqual([]);
+  });
 });

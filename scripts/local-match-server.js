@@ -677,6 +677,12 @@ function applyCommandPublishToSnapshot(room, body, playerKey) {
     if (normalizePlayerKey(builtAction.actor) !== playerKey) {
         return { ok: false, rejectedReason: 'SEAT_MISMATCH' };
     }
+    const pendingValidation = MatchAuthority && typeof MatchAuthority.validatePendingSelectionPublish === 'function'
+        ? MatchAuthority.validatePendingSelectionPublish(currentSnapshot, playerKey, builtAction.action)
+        : { ok: true };
+    if (!pendingValidation || pendingValidation.ok !== true) {
+        return { ok: false, rejectedReason: pendingValidation && pendingValidation.rejectedReason ? pendingValidation.rejectedReason : 'STALE_PENDING_SELECTION' };
+    }
 
     const prng = createCommandActionPrng(room, currentSnapshot);
     const result = TurnPipeline.applyTurnSafe(
@@ -743,7 +749,9 @@ function applyCommandPublishToSnapshot(room, body, playerKey) {
         snapshot: nextSnapshot,
         playbackEvents: combinedPlaybackEvents,
         playbackDiagnostics: toDebugPlaybackDiagnostics(playbackAssembly && playbackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
-        effectLogs: combinedEffectLogs
+        effectLogs: combinedEffectLogs,
+        action: builtAction.action,
+        pendingEffectId: pendingValidation && pendingValidation.pendingEffectId ? pendingValidation.pendingEffectId : null
     };
 }
 
@@ -1284,6 +1292,9 @@ function makeRoom(options) {
         roomId,
         seed,
         snapshot,
+        authoritativeStateHash: MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
+            ? MatchAuthority.computeAuthoritativeStateHash(snapshot)
+            : null,
         stateVersion: 0,
         seats: { black: false, white: false },
         seatNames: { black: '', white: '' },
@@ -1296,6 +1307,7 @@ function makeRoom(options) {
         lastAcceptedOperationBySeat: { black: null, white: null },
         eventSeq: 0,
         sseEventBuffer: [],
+        authorityLog: [],
         chatMessages: [],
         chatSeq: 0,
         streams: new Map(),
@@ -1358,6 +1370,18 @@ function applyExpiredTurnTimeoutIfNeeded(room) {
     nextSnapshot.updatedAt = nowMs;
     room.snapshot = nextSnapshot;
     room.updatedAt = nowMs;
+    if (MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function') {
+        room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
+    }
+    if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
+        MatchAuthority.appendAuthorityLog(room, {
+            kind: 'timeout_applied',
+            actionType: 'timeout_pass',
+            committedVersion: room.stateVersion,
+            stateHashAfter: room.authoritativeStateHash,
+            timeoutReason: 'turn_deadline_expired'
+        });
+    }
     refreshTurnTimer(room, { nowMs, forceRestart: true });
     broadcastSnapshot(room, {
         playerKey: timedOutSeatKey,
@@ -1630,75 +1654,68 @@ async function handlePublish(req, res) {
 
     const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
     const acceptedOperationsBySeat = ensureAcceptedOperationsBySeat(room);
+    if (!Array.isArray(room.authorityLog)) room.authorityLog = [];
+    if (!Array.isArray(room.sseEventBuffer)) room.sseEventBuffer = [];
+    if (typeof room.authoritativeStateHash === 'undefined' && MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function') {
+        room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(room.snapshot);
+    }
 
     if (!room.seats[seatKey]) {
-        writeJson(res, 403, buildPublishPayload(room, viewerSeatKey, {
+        writeJson(res, 403, buildPublishPayload(room, viewerSeatKey, MatchAuthority.buildPublishResponseOptions({
             ok: false,
             rejectedReason: 'SEAT_NOT_JOINED',
-            publishMeta: {
-                kind: 'rejected',
-                operationId,
-                actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion,
-                rejectedReason: 'SEAT_NOT_JOINED'
-            }
-        }));
+            publishKind: 'rejected',
+            operationId,
+            actionType,
+            receivedBaseVersion: baseVersion,
+            authoritativeStateVersion: room.stateVersion
+        })));
         return;
     }
 
     if (seatKey !== playerKey) {
-        writeJson(res, 403, buildPublishPayload(room, viewerSeatKey, {
+        writeJson(res, 403, buildPublishPayload(room, viewerSeatKey, MatchAuthority.buildPublishResponseOptions({
             ok: false,
             rejectedReason: 'SEAT_MISMATCH',
-            publishMeta: {
-                kind: 'rejected',
-                operationId,
-                actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion,
-                rejectedReason: 'SEAT_MISMATCH'
-            }
-        }));
+            publishKind: 'rejected',
+            operationId,
+            actionType,
+            receivedBaseVersion: baseVersion,
+            authoritativeStateVersion: room.stateVersion
+        })));
         return;
     }
 
     if (!seatToken || !room.seatTokens || room.seatTokens[seatKey] !== seatToken) {
-        writeJson(res, 403, buildPublishPayload(room, null, {
+        writeJson(res, 403, buildPublishPayload(room, null, MatchAuthority.buildPublishResponseOptions({
             ok: false,
             rejectedReason: 'SEAT_TOKEN_MISMATCH',
-            publishMeta: {
-                kind: 'rejected',
-                operationId,
-                actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion,
-                rejectedReason: 'SEAT_TOKEN_MISMATCH'
-            }
-        }));
+            publishKind: 'rejected',
+            operationId,
+            actionType,
+            receivedBaseVersion: baseVersion,
+            authoritativeStateVersion: room.stateVersion
+        })));
         return;
     }
 
     if (!(MatchAuthority && typeof MatchAuthority.hasRequiredOperationId === 'function'
         ? MatchAuthority.hasRequiredOperationId(operationId)
         : !!operationId)) {
-        writeJson(res, 409, buildPublishPayload(room, seatKey, {
+        writeJson(res, 409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
             ok: false,
             rejectedReason: 'OPERATION_ID_REQUIRED',
-            publishMeta: {
-                kind: 'rejected',
-                operationId,
-                actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion,
-                rejectedReason: 'OPERATION_ID_REQUIRED'
-            }
-        }));
+            publishKind: 'rejected',
+            operationId,
+            actionType,
+            receivedBaseVersion: baseVersion,
+            authoritativeStateVersion: room.stateVersion
+        })));
         return;
     }
 
-    const lastAcceptedOperation = MatchAuthority && typeof MatchAuthority.findAcceptedOperationBySeat === 'function'
-        ? MatchAuthority.findAcceptedOperationBySeat(room, seatKey, operationId)
+    const lastAcceptedOperation = MatchAuthority && typeof MatchAuthority.resolveAcceptedOperation === 'function'
+        ? MatchAuthority.resolveAcceptedOperation(room, seatKey, operationId, acceptedOperationsBySeat[seatKey])
         : (
             operationId
             && acceptedOperationsBySeat[seatKey]
@@ -1712,19 +1729,28 @@ async function handlePublish(req, res) {
         && typeof lastAcceptedOperation === 'object'
     ) {
         const serverTime = Date.now();
-        writeJson(res, 200, buildPublishPayload(room, seatKey, {
+        if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
+            MatchAuthority.appendAuthorityLog(room, {
+                kind: 'publish_idempotent_replay',
+                operationId,
+                actionType,
+                baseVersion,
+                committedVersion: room.stateVersion,
+                stateHashBefore: room.authoritativeStateHash,
+                dedupeOutcome: 'replay'
+            });
+        }
+        writeJson(res, 200, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
             ok: true,
             serverTime,
             idempotentReplay: true,
-            publishMeta: {
-                kind: 'idempotent_replay',
-                operationId,
-                actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion,
-                replayedStateVersion: lastAcceptedOperation.stateVersion
-            }
-        }));
+            publishKind: 'idempotent_replay',
+            operationId,
+            actionType,
+            receivedBaseVersion: baseVersion,
+            authoritativeStateVersion: room.stateVersion,
+            replayedStateVersion: lastAcceptedOperation.stateVersion
+        })));
         return;
     }
 
@@ -1732,18 +1758,26 @@ async function handlePublish(req, res) {
         const rejectedReason = MatchAuthority && typeof MatchAuthority.classifyVersionRejectionReason === 'function'
             ? MatchAuthority.classifyVersionRejectionReason(baseVersion, room.stateVersion)
             : 'VERSION_MISMATCH';
-        writeJson(res, 409, buildPublishPayload(room, seatKey, {
-            ok: false,
-            rejectedReason,
-            publishMeta: {
-                kind: 'rejected',
+        if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
+            MatchAuthority.appendAuthorityLog(room, {
+                kind: 'publish_rejected',
                 operationId,
                 actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion,
+                baseVersion,
+                committedVersion: room.stateVersion,
+                stateHashBefore: room.authoritativeStateHash,
                 rejectedReason
-            }
-        }));
+            });
+        }
+        writeJson(res, 409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
+            ok: false,
+            rejectedReason,
+            publishKind: 'rejected',
+            operationId,
+            actionType,
+            receivedBaseVersion: baseVersion,
+            authoritativeStateVersion: room.stateVersion
+        })));
         return;
     }
 
@@ -1753,18 +1787,15 @@ async function handlePublish(req, res) {
         const allowOutOfTurnNetworkDebug = isNetworkDebugAction && toPublicNetworkDebugEnabled(room);
         const allowFateWillController = MatchAuthority.isFateWillControllerForCurrentTurn(room.snapshot, playerKey);
         if (!allowOutOfTurnRematch && !allowOutOfTurnNetworkDebug && !allowFateWillController) {
-            writeJson(res, 409, buildPublishPayload(room, seatKey, {
+            writeJson(res, 409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                 ok: false,
                 rejectedReason: 'OUT_OF_TURN',
-                publishMeta: {
-                    kind: 'rejected',
-                    operationId,
-                    actionType,
-                    receivedBaseVersion: baseVersion,
-                    authoritativeStateVersion: room.stateVersion,
-                    rejectedReason: 'OUT_OF_TURN'
-                }
-            }));
+                publishKind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion
+            })));
             return;
         }
     }
@@ -1780,10 +1811,15 @@ async function handlePublish(req, res) {
         )
     );
 
+    const stateHashBefore = MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
+        ? MatchAuthority.computeAuthoritativeStateHash(room.snapshot)
+        : (room.authoritativeStateHash || null);
     let nextSnapshot;
     let serverPlaybackEvents = [];
     let serverEffectLogs = [];
     let serverPlaybackDiagnostics = null;
+    let commandAction = null;
+    let pendingEffectId = null;
     if (isRematchResetAction) {
         const rematchSeed = Date.now();
         nextSnapshot = makeInitialSnapshot(rematchSeed, buildInitialDeckSnapshotOptions(room));
@@ -1791,38 +1827,46 @@ async function handlePublish(req, res) {
     } else if (hasCommandPayload) {
         const commandResult = applyCommandPublishToSnapshot(room, body, playerKey);
         if (!commandResult.ok) {
-            writeJson(res, 409, buildPublishPayload(room, seatKey, {
+            if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
+                MatchAuthority.appendAuthorityLog(room, {
+                    kind: 'publish_rejected',
+                    operationId,
+                    actionType,
+                    baseVersion,
+                    committedVersion: room.stateVersion,
+                    stateHashBefore,
+                    pendingEffectId: commandResult.pendingEffectId || null,
+                    rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
+                });
+            }
+            writeJson(res, 409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                 ok: false,
                 rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED',
                 errorMessage: commandResult.errorMessage || null,
-                publishMeta: {
-                    kind: 'rejected',
-                    operationId,
-                    actionType,
-                    receivedBaseVersion: baseVersion,
-                    authoritativeStateVersion: room.stateVersion,
-                    rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
-                }
-            }));
+                publishKind: 'rejected',
+                operationId,
+                actionType,
+                receivedBaseVersion: baseVersion,
+                authoritativeStateVersion: room.stateVersion
+            })));
             return;
         }
         nextSnapshot = commandResult.snapshot;
         serverPlaybackEvents = Array.isArray(commandResult.playbackEvents) ? commandResult.playbackEvents : [];
         serverEffectLogs = Array.isArray(commandResult.effectLogs) ? commandResult.effectLogs : [];
         serverPlaybackDiagnostics = commandResult.playbackDiagnostics || null;
+        commandAction = commandResult.action || null;
+        pendingEffectId = commandResult.pendingEffectId || null;
     } else {
-        writeJson(res, 409, buildPublishPayload(room, seatKey, {
+        writeJson(res, 409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
             ok: false,
             rejectedReason: 'COMMAND_REQUIRED',
-            publishMeta: {
-                kind: 'rejected',
-                operationId,
-                actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion,
-                rejectedReason: 'COMMAND_REQUIRED'
-            }
-        }));
+            publishKind: 'rejected',
+            operationId,
+            actionType,
+            receivedBaseVersion: baseVersion,
+            authoritativeStateVersion: room.stateVersion
+        })));
         return;
     }
 
@@ -1831,6 +1875,9 @@ async function handlePublish(req, res) {
     nextSnapshot.updatedAt = Date.now();
     room.snapshot = nextSnapshot;
     room.updatedAt = nextSnapshot.updatedAt;
+    room.authoritativeStateHash = MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
+        ? MatchAuthority.computeAuthoritativeStateHash(nextSnapshot)
+        : null;
 
     if (operationId) {
         const acceptedEntry = {
@@ -1857,20 +1904,31 @@ async function handlePublish(req, res) {
     };
     const serverTime = Date.now();
     const preparedSnapshot = prepareSnapshotBroadcast(room, meta);
-    const responsePayload = buildPublishPayload(room, seatKey, {
+    const responsePayload = buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
         ok: true,
         serverTime,
         playbackEvents: serverPlaybackEvents,
         effectLogs: serverEffectLogs,
         playbackDiagnostics: serverPlaybackDiagnostics,
-        publishMeta: {
-            kind: 'accepted',
+        publishKind: 'accepted',
+        operationId,
+        actionType,
+        receivedBaseVersion: baseVersion,
+        authoritativeStateVersion: room.stateVersion
+    }));
+    if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
+        MatchAuthority.appendAuthorityLog(room, {
+            kind: 'publish_accepted',
             operationId,
-            actionType,
-            receivedBaseVersion: baseVersion,
-            authoritativeStateVersion: room.stateVersion
-        }
-    });
+            actionType: actionType || (commandAction && commandAction.type) || null,
+            baseVersion,
+            committedVersion: room.stateVersion,
+            stateHashBefore,
+            stateHashAfter: room.authoritativeStateHash,
+            pendingEffectId,
+            dedupeOutcome: 'accepted'
+        });
+    }
     if (typeof MatchAuthority.stripTransientChargeDeltaState === 'function') {
         MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
     }

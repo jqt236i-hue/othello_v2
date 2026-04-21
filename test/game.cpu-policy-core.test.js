@@ -3353,6 +3353,100 @@ describe('cpu-policy-core', () => {
         expect(recoveryScore).toBeGreaterThan(bonusInnerScore);
     });
 
+    test('scoreMoveForCornerEdgePlan can drop a nominally safe edge below a safer inner move', () => {
+        const board = [
+            [0, 0, 1, 0, 0, 0, -1, 0],
+            [1, 0, 1, -1, 1, -1, 0, -1],
+            [0, 0, -1, 0, -1, 0, 0, 0],
+            [1, 1, 0, 1, 0, 0, -1, 1],
+            [-1, 0, 0, 0, -1, 1, -1, -1],
+            [1, -1, 1, 0, 1, -1, 0, 0],
+            [0, 0, 1, 0, 0, -1, -1, 0],
+            [0, 1, -1, 1, 0, -1, 1, 0]
+        ];
+        const edgeMove = { row: 0, col: 4, flips: [{ row: 1, col: 4 }] };
+        const innerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+
+        const edgeScore = core.scoreMoveForCornerEdgePlan(edgeMove, {
+            level: 6,
+            board,
+            playerValue: -1,
+            ownDiscs: 12
+        });
+        const innerScore = core.scoreMoveForCornerEdgePlan(innerMove, {
+            level: 6,
+            board,
+            playerValue: -1,
+            ownDiscs: 12
+        });
+
+        expect(innerScore).toBeGreaterThan(edgeScore + 3000);
+    });
+
+    test('scoreMoveForCornerEdgePlan prefers extending a longer edge chain over creating a scattered edge pair', () => {
+        const board = Array.from({ length: 8 }, () => Array(8).fill(0));
+        board[0][0] = -1;
+        board[0][2] = 1;
+        board[0][3] = -1;
+        board[0][5] = 1;
+        board[3][3] = 1;
+        board[3][4] = -1;
+        board[4][1] = 1;
+        board[4][3] = -1;
+        board[4][4] = 1;
+
+        const chainMove = { row: 0, col: 1, flips: [{ row: 0, col: 2 }] };
+        const scatteredMove = { row: 4, col: 0, flips: [{ row: 4, col: 1 }] };
+
+        const chainScore = core.scoreMoveForCornerEdgePlan(chainMove, {
+            level: 6,
+            board,
+            playerValue: -1,
+            ownDiscs: 12
+        });
+        const scatteredScore = core.scoreMoveForCornerEdgePlan(scatteredMove, {
+            level: 6,
+            board,
+            playerValue: -1,
+            ownDiscs: 12
+        });
+
+        expect(chainScore).toBeGreaterThan(scatteredScore);
+    });
+
+    test('scoreMoveForCornerEdgePlan strongly penalizes edging next to a lone enemy edge disc', () => {
+        const loneBoard = Array.from({ length: 8 }, () => Array(8).fill(0));
+        loneBoard[0][4] = 1;
+        loneBoard[1][5] = 1;
+        loneBoard[3][3] = 1;
+        loneBoard[3][4] = -1;
+        loneBoard[4][3] = -1;
+        loneBoard[4][4] = 1;
+
+        const supportedBoard = loneBoard.map((row) => row.slice());
+        supportedBoard[0][3] = 1;
+
+        expect(SharedBoardUtils.countAdjacentLoneEdgeDiscs(loneBoard, 0, 5, 1)).toBe(1);
+        expect(SharedBoardUtils.countAdjacentLoneEdgeDiscs(supportedBoard, 0, 5, 1)).toBe(0);
+
+        const edgeMove = { row: 0, col: 5, flips: [{ row: 1, col: 5 }] };
+
+        const loneScore = core.scoreMoveForCornerEdgePlan(edgeMove, {
+            level: 6,
+            board: loneBoard,
+            playerValue: -1,
+            ownDiscs: 12
+        });
+        const supportedScore = core.scoreMoveForCornerEdgePlan(edgeMove, {
+            level: 6,
+            board: supportedBoard,
+            playerValue: -1,
+            ownDiscs: 12
+        });
+
+        expect(supportedScore).toBeGreaterThan(loneScore);
+    });
+
     test('scoreCardUseDecision lowers non-counter utility under strong enemy threat while recovery gap remains', () => {
         const lowThreat = core.scoreCardUseDecision(
             'supply_01',

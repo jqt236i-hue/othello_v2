@@ -107,7 +107,7 @@ describe('CardClone module', () => {
 
     expect(result).toEqual({ applied: false, reason: 'blocked_destination' });
     expect(addMarker).not.toHaveBeenCalled();
-    expect(cardState.pendingEffectByPlayer.black).toEqual({ type: 'CLONE_WILL', stage: 'selectTarget', cardId: 'clone_01' });
+    expect(cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({ type: 'CLONE_WILL', stage: 'selectTarget', cardId: 'clone_01' }));
     expect(cardState.markers).toHaveLength(1);
   });
 
@@ -133,7 +133,7 @@ describe('CardClone module', () => {
 
     expect(result).toEqual({ applied: false, reason: 'blocked_destination' });
     expect(addMarker).not.toHaveBeenCalled();
-    expect(cardState.pendingEffectByPlayer.white).toEqual({ type: 'SPLIT_WILL', stage: 'selectTarget', cardId: 'split_01' });
+    expect(cardState.pendingEffectByPlayer.white).toEqual(expect.objectContaining({ type: 'SPLIT_WILL', stage: 'selectTarget', cardId: 'split_01' }));
     expect(cardState.markers.find((marker) => marker.id === 's1').data.remainingOwnerTurns).toBe(5);
     expect(cardState.markers.find((marker) => marker.id === 'b1').data.remainingTurns).toBe(3);
   });

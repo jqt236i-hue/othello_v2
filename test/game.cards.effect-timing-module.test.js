@@ -260,7 +260,7 @@ describe('CardEffectTiming module', () => {
       freePlacementUsed: true,
       lastResortContinues: true
     });
-    expect(cardState.pendingEffectByPlayer.black).toEqual({ type: 'LAST_RESORT', placementsRemaining: 2 });
+    expect(cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({ type: 'LAST_RESORT', placementsRemaining: 2 }));
     expect(cardState.extraPlaceRemainingByPlayer.black).toBe(1);
   });
 

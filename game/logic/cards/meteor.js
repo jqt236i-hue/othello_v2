@@ -42,7 +42,7 @@
         let destroyed = false;
         if (cellValue !== EMPTY) {
             if (typeof destroyAt === 'function') {
-                const destroyOptions = { ignoreGuard: true };
+                const destroyOptions = { ignoreGuard: true, ignoreRegen: true };
                 if (random && typeof random.random === 'function') {
                     destroyOptions.random = random;
                 }

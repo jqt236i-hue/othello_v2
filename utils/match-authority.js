@@ -3,6 +3,7 @@
 const deepClone = require('./deepClone');
 const SharedBoardUtils = require('../shared/shared-board-utils');
 const GachaHandCatalogShared = require('../shared/gacha-hand-catalog-shared.js');
+const StateHash = require('../shared/state-hash.js');
 
 const PLAYER_KEYS = Object.freeze(['black', 'white']);
 const HIDDEN_HAND_TOKEN_PREFIX = '__hidden_hand__:';
@@ -12,6 +13,7 @@ const HAND_SKIN_ID_MAX_LENGTH = 128;
 const SSE_RESUME_BUFFER_LIMIT = 96;
 const ACCEPTED_OPERATION_HISTORY_LIMIT = 16;
 const NETWORK_PLAYER_NAME_MAX = 7;
+const AUTHORITY_LOG_LIMIT = 64;
 const VERSION_REJECTION_REASONS = Object.freeze({
     AHEAD: 'VERSION_AHEAD',
     BEHIND: 'VERSION_BEHIND',
@@ -43,6 +45,15 @@ function getCurrentPlayerKey(gameState) {
 
 function getOpponentKey(playerKey) {
     return normalizePlayerKey(playerKey) === 'white' ? 'black' : 'white';
+}
+
+function normalizePendingType(value) {
+    return String(value || '').trim().toUpperCase();
+}
+
+function normalizePendingEffectId(value) {
+    const normalized = String(value || '').trim();
+    return normalized || null;
 }
 
 function normalizeOperationId(value) {
@@ -181,6 +192,17 @@ function findAcceptedOperationBySeat(room, seatKey, operationId) {
     return null;
 }
 
+function resolveAcceptedOperation(room, seatKey, operationId, fallbackEntry) {
+    const matchedEntry = findAcceptedOperationBySeat(room, seatKey, operationId);
+    if (matchedEntry) return matchedEntry;
+    const normalizedOperationId = normalizeOperationId(operationId);
+    const normalizedFallback = normalizeAcceptedOperationEntry(fallbackEntry);
+    if (!normalizedOperationId || !normalizedFallback) return null;
+    return normalizedFallback.operationId === normalizedOperationId
+        ? normalizedFallback
+        : null;
+}
+
 function rememberAcceptedOperationBySeat(room, seatKey, entry) {
     const normalizedSeat = normalizePlayerKey(seatKey);
     const normalizedEntry = normalizeAcceptedOperationEntry(entry);
@@ -258,6 +280,45 @@ function normalizePublishMeta(value) {
 
     if (!normalized.operationId) normalized.operationId = '';
     return normalized;
+}
+
+function buildPublishResponseOptions(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const response = {
+        ok: opts.ok === true,
+        publishMeta: normalizePublishMeta({
+            kind: opts.publishKind,
+            operationId: opts.operationId,
+            actionType: opts.actionType,
+            receivedBaseVersion: opts.receivedBaseVersion,
+            authoritativeStateVersion: opts.authoritativeStateVersion,
+            replayedStateVersion: opts.replayedStateVersion,
+            rejectedReason: opts.rejectedReason
+        })
+    };
+
+    if (response.ok !== true) {
+        response.rejectedReason = opts.rejectedReason ? String(opts.rejectedReason).trim() : null;
+    }
+    if (opts.idempotentReplay === true) {
+        response.idempotentReplay = true;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'serverTime')) {
+        response.serverTime = opts.serverTime;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'errorMessage')) {
+        response.errorMessage = opts.errorMessage || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'playbackEvents')) {
+        response.playbackEvents = opts.playbackEvents;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'effectLogs')) {
+        response.effectLogs = opts.effectLogs;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'playbackDiagnostics')) {
+        response.playbackDiagnostics = opts.playbackDiagnostics || null;
+    }
+    return response;
 }
 
 function normalizeEffectLogMessages(values) {
@@ -368,6 +429,9 @@ function buildPublishResponsePayload(options) {
     }
     if (Object.prototype.hasOwnProperty.call(opts, 'roomBoardConfig')) {
         payload.roomBoardConfig = opts.roomBoardConfig;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'projectedSnapshotHash')) {
+        payload.projectedSnapshotHash = opts.projectedSnapshotHash || null;
     }
 
     const publishMeta = normalizePublishMeta(opts.publishMeta);
@@ -680,12 +744,115 @@ function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
 }
 
 function buildPublicSnapshot(room, viewerSeatKey) {
-    return projectSnapshotForViewer(room && room.snapshot ? room.snapshot : {}, viewerSeatKey || null, {
+    const shot = projectSnapshotForViewer(room && room.snapshot ? room.snapshot : {}, viewerSeatKey || null, {
         stateVersion: room ? room.stateVersion : 0,
         updatedAt: room ? room.updatedAt : Date.now(),
         projectedForSeat: viewerSeatKey || null,
         turnStartReconciled: true
     });
+    const projectedSnapshotHash = computeProjectedSnapshotHash(shot);
+    if (!shot._meta || typeof shot._meta !== 'object') {
+        shot._meta = {};
+    }
+    shot._meta.projectedSnapshotHash = projectedSnapshotHash;
+    return shot;
+}
+
+function cloneSnapshotHashSource(snapshotValue) {
+    const shot = deepClone(snapshotValue || {});
+    if (shot && typeof shot === 'object' && shot._meta && typeof shot._meta === 'object') {
+        delete shot._meta.projectedSnapshotHash;
+        delete shot._meta.authoritativeStateHash;
+    }
+    return shot;
+}
+
+function computeAuthoritativeStateHash(snapshotValue) {
+    if (!StateHash || typeof StateHash.computeStableHash !== 'function') return null;
+    return StateHash.computeStableHash(cloneSnapshotHashSource(snapshotValue));
+}
+
+function computeProjectedSnapshotHash(snapshotValue) {
+    if (!StateHash || typeof StateHash.computeStableHash !== 'function') return null;
+    return StateHash.computeStableHash(cloneSnapshotHashSource(snapshotValue));
+}
+
+function validatePendingSelectionPublish(snapshotValue, playerKey, actionValue) {
+    const action = (actionValue && typeof actionValue === 'object') ? actionValue : null;
+    const pendingSelectionState = (action && action.pendingSelectionState && typeof action.pendingSelectionState === 'object')
+        ? action.pendingSelectionState
+        : null;
+    if (!pendingSelectionState) {
+        return { ok: true };
+    }
+
+    const snapshot = (snapshotValue && typeof snapshotValue === 'object') ? snapshotValue : null;
+    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object') ? snapshot.cardState : null;
+    const pendingByPlayer = (cardState && cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object')
+        ? cardState.pendingEffectByPlayer
+        : null;
+    const expectedPending = pendingByPlayer ? pendingByPlayer[normalizePlayerKey(playerKey)] : null;
+    if (!expectedPending || !expectedPending.type) {
+        const hasCompatibilityCardContext = !!(
+            action
+            && typeof action.useCardId === 'string'
+            && String(action.useCardId).trim()
+            && typeof action.useCardOwnerKey === 'string'
+            && String(action.useCardOwnerKey).trim()
+        );
+        if (hasCompatibilityCardContext) {
+            return { ok: true, pendingEffectId: null };
+        }
+        return { ok: false, rejectedReason: 'STALE_PENDING_SELECTION' };
+    }
+
+    const requestedType = normalizePendingType(pendingSelectionState.type);
+    const expectedType = normalizePendingType(expectedPending.type);
+    if (requestedType && expectedType && requestedType !== expectedType) {
+        return { ok: false, rejectedReason: 'STALE_PENDING_SELECTION' };
+    }
+
+    const expectedPendingEffectId = normalizePendingEffectId(expectedPending.pendingEffectId);
+    const requestedPendingEffectId = normalizePendingEffectId(pendingSelectionState.pendingEffectId);
+    if (expectedPendingEffectId && requestedPendingEffectId !== expectedPendingEffectId) {
+        return { ok: false, rejectedReason: 'STALE_PENDING_SELECTION' };
+    }
+
+    return {
+        ok: true,
+        pendingEffectId: expectedPendingEffectId
+    };
+}
+
+function appendAuthorityLog(roomValue, entryValue, limitValue) {
+    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+    if (!room) return [];
+    const entry = (entryValue && typeof entryValue === 'object') ? entryValue : {};
+    const limit = Number.isFinite(Number(limitValue))
+        ? Math.max(1, Math.trunc(Number(limitValue)))
+        : AUTHORITY_LOG_LIMIT;
+    const nextEntry = {
+        timestamp: Number.isFinite(Number(entry.timestamp)) ? Number(entry.timestamp) : Date.now(),
+        kind: String(entry.kind || '').trim() || 'unknown',
+        matchId: room.roomId ? String(room.roomId).trim().toUpperCase() : null,
+        operationId: entry.operationId ? String(entry.operationId).trim() : null,
+        actionType: entry.actionType ? String(entry.actionType).trim() : null,
+        baseVersion: Number.isFinite(Number(entry.baseVersion)) ? Number(entry.baseVersion) : null,
+        committedVersion: Number.isFinite(Number(entry.committedVersion)) ? Number(entry.committedVersion) : null,
+        stateHashBefore: entry.stateHashBefore ? String(entry.stateHashBefore) : null,
+        stateHashAfter: entry.stateHashAfter ? String(entry.stateHashAfter) : null,
+        pendingEffectId: normalizePendingEffectId(entry.pendingEffectId),
+        timeoutReason: entry.timeoutReason ? String(entry.timeoutReason).trim() : null,
+        dedupeOutcome: entry.dedupeOutcome ? String(entry.dedupeOutcome).trim() : null,
+        rejectedReason: entry.rejectedReason ? String(entry.rejectedReason).trim() : null
+    };
+    const log = Array.isArray(room.authorityLog) ? room.authorityLog.slice() : [];
+    log.push(nextEntry);
+    if (log.length > limit) {
+        log.splice(0, log.length - limit);
+    }
+    room.authorityLog = log;
+    return log;
 }
 
 function normalizeSseEventId(value) {
@@ -800,6 +967,7 @@ module.exports = {
     ensureAcceptedOperationsBySeat,
     ensureAcceptedOperationHistoryBySeat,
     findAcceptedOperationBySeat,
+    resolveAcceptedOperation,
     rememberAcceptedOperationBySeat,
     classifyVersionRejectionReason,
     isVersionRejectionReason,
@@ -811,15 +979,20 @@ module.exports = {
     isFateWillControllerForCurrentTurn,
     canViewerInspectOwnerHand,
     normalizePublishMeta,
+    buildPublishResponseOptions,
     normalizeEffectLogMessages,
     appendEffectLogMessages,
     normalizeRoomBoardConfig,
     resolveRoomBoardConfig,
     buildPublishResponsePayload,
+    computeAuthoritativeStateHash,
+    computeProjectedSnapshotHash,
     stripTransientPresentationState,
     stripTransientChargeDeltaState,
     projectSnapshotForViewer,
     buildPublicSnapshot,
+    validatePendingSelectionPublish,
+    appendAuthorityLog,
     createBufferedSseEventRecord,
     appendBufferedSseEvent,
     getBufferedSseReplayEvents

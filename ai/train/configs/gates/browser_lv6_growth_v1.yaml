@@ -1,12 +1,30 @@
 schemaVersion: training_gate.v1
 name: browser_lv6_growth_v1
 description: >
-  ブラウザLv6累積成長レーン用の最軽量隔離ゲート。browser non-regression は deploy レーンに任せ、
-  このレーンでは deploy/bootstrap anchor に対する実戦前進を quick 判定だけで拾って隔離 models/runs だけ更新する。
+  ブラウザLv6累積成長レーン用の軽量隔離ゲート。browser non-regression は deploy レーンに任せ、
+  このレーンでは deploy/bootstrap anchor に対する実戦前進を quick 判定で拾いつつ、
+  追加の strength-first quality gate で大きい品質悪化と実戦退行だけ弾いて隔離 models/runs だけ更新する。
 trainCycleArgs:
-  - --no-quality-gate
+  - --quality-gate
+  - --quality-gate-games
+  - "24"
+  - --quality-gate-seed-count
+  - "3"
+  - --quality-gate-seed-stride
+  - "1000"
+  - --quality-gate-threshold
+  - "-0.005"
+  - --quality-gate-confidence-level
+  - "0.92"
+  - --quality-gate-min-lower-bound
+  - "-0.010"
+  - --quality-gate-min-seed-uplift
+  - "-0.010"
+  - --quality-gate-min-seed-pass-count
+  - "2"
+  - --quality-gate-strength-first
   - --quick-games
-  - "40"
+  - "24"
   - --final-games
   - "160"
   - --threshold
@@ -28,7 +46,7 @@ trainCycleArgs:
   - --quick-adoption-threshold
   - "0.010"
   - --quick-adoption-seed-count
-  - "1"
+  - "3"
   - --quick-adoption-seed-stride
   - "1000"
   - --quick-adoption-seed-offset
@@ -40,7 +58,7 @@ trainCycleArgs:
   - --quick-adoption-min-seed-uplift
   - "-0.050"
   - --quick-adoption-min-seed-pass-count
-  - "1"
+  - "2"
   - --final-adoption-threshold
   - "0.004"
   - --final-adoption-seed-count
@@ -64,7 +82,7 @@ trainCycleArgs:
   - --adoption-quality-weight-corner
   - "0.08"
   - --adoption-quality-weight-edge
-  - "0.05"
+  - "0.03"
   - --adoption-quality-weight-corner-recovery
   - "0.07"
   - --adoption-quality-weight-corner-recapture
@@ -77,10 +95,14 @@ trainCycleArgs:
   - "0.04"
   - --adoption-quality-weight-edge-hold
   - "0.04"
+  - --adoption-quality-weight-edge-chain
+  - "0.08"
   - --adoption-quality-weight-final-corner-share
   - "0.09"
   - --adoption-quality-weight-final-edge-share
-  - "0.04"
+  - "0.02"
+  - --adoption-quality-weight-final-longest-edge-run-share
+  - "0.06"
   - --adoption-quality-weight-bonus
   - "0.004"
   - --adoption-quality-weight-card-immediate

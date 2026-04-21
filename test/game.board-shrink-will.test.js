@@ -120,6 +120,36 @@ describe('盤面縮小 / 盤面縮小神', () => {
     expect(CardLogic.isBlockedCell(cardState, 3, -1, gameState)).toBe(true);
   });
 
+  test('盤面縮小で復活の意志付きの石を選ぶと復活せず穴になる', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    gameState.board[0][0] = Core.BLACK;
+
+    expect(CardLogic.applyRegenWill(cardState, 'black', 0, 0)).toEqual({ applied: true });
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_SHRINK_WILL',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_01',
+      selectedCount: 2,
+      maxSelections: 3,
+      selectedTargets: [{ row: 0, col: 7 }, { row: 7, col: 0 }]
+    };
+
+    const finalRes = CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 0, 0);
+    expect(finalRes).toEqual(expect.objectContaining({
+      applied: true,
+      completed: true
+    }));
+    expect(gameState.board[0][0]).toBe(Core.EMPTY);
+    expect(getMarkersAt(cardState, 0, 0).some((marker) => marker.data && marker.data.type === 'REGEN')).toBe(false);
+    expect(getMarkersAt(cardState, 0, 0).some((marker) => marker.data && marker.data.type === 'METEOR_HOLE' && marker.data.visualVariant === 'BOARD_FRAME')).toBe(true);
+    expect(CardLogic.isBlockedCell(cardState, 0, 0, gameState)).toBe(true);
+  });
+
   test('盤面縮小神は角から辺方向を選び、絶対保護を残して1列を穴化する', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();

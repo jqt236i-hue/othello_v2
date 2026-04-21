@@ -133,4 +133,23 @@ describe('CardPendingStateManager', () => {
     }
   });
 
+  test('freezes contract coverage for every pending-selection card type', () => {
+    const contractEntries = Object.entries(PendingStateManager.PENDING_SELECTION_CONTRACTS);
+    expect(contractEntries.length).toBeGreaterThan(0);
+
+    for (const [cardType, contract] of contractEntries) {
+      expect(PendingStateManager.requiresTargetSelection(cardType)).toBe(true);
+      expect(PendingStateManager.resolvePendingSelectionContract(cardType)).toBe(contract);
+      expect(PendingStateManager.shouldDeferNetworkPublishForPendingType(cardType)).toBe(true);
+      expect(PendingStateManager.shouldWaitForPlaybackIdleForPendingType(cardType)).toBe(true);
+      expect(PendingStateManager.resolvePendingSelectionDispatchKey(cardType)).toEqual(expect.any(String));
+      expect(contract).toEqual(expect.objectContaining({
+        kind: expect.any(String),
+        turnOutcome: expect.any(String),
+        deferNetworkPublish: true,
+        waitForPlaybackIdle: true
+      }));
+    }
+  });
+
 });

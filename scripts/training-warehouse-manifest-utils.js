@@ -505,6 +505,12 @@ function buildIterationWarehouseManifest(args, iterationResult) {
                 ? Number(args.onnxValSplit)
                 : null,
             onnxValSplitMode: args && args.onnxValSplitMode ? String(args.onnxValSplitMode) : null,
+            onnxValueLr: Number.isFinite(Number(args && args.onnxValueLr))
+                ? Number(args.onnxValueLr)
+                : null,
+            onnxValueHiddenSize: Number.isFinite(Number(args && args.onnxValueHiddenSize))
+                ? Number(args.onnxValueHiddenSize)
+                : null,
             hasTargetTrainingData: !!result.hasTargetTrainingData,
             gateIterationAllowed: !!gateControl.gateIterationAllowed,
             promoted: !!result.promoted,

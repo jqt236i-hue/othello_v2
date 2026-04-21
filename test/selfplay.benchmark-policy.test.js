@@ -76,8 +76,10 @@ describe('selfplay benchmark policy script', () => {
         expect(a.result.quality.A).toHaveProperty('cornerRecoveryRate');
         expect(a.result.quality.A).toHaveProperty('cornerRecaptureRate');
         expect(a.result.quality.A).toHaveProperty('edgeHoldRate');
+        expect(a.result.quality.A).toHaveProperty('avgEdgeChainSwing');
         expect(a.result.quality.A).toHaveProperty('avgCornerHoldTurnsNext3Plies');
         expect(a.result.quality.A).toHaveProperty('avgCardFutureDiscDelta3Ply');
+        expect(a.result.quality.A).toHaveProperty('finalLongestEdgeRunShare');
     });
 
     test('runBenchmark accepts model path options', async () => {

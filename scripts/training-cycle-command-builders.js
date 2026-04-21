@@ -18,6 +18,14 @@ function appendResumeArgs(args, resumeCheckpointPath, resumeOptimizer) {
     return args;
 }
 
+function isValueHeadEnabled(args) {
+    return !(args && args.trainValueHeadEnabled === false);
+}
+
+function isTargetHeadEnabled(args) {
+    return !(args && args.trainTargetHeadEnabled === false);
+}
+
 function buildAdoptionWeightArgs(args, adoptionCardRate) {
     return [
         '--a-rate', String(adoptionCardRate),
@@ -38,8 +46,10 @@ function buildAdoptionWeightArgs(args, adoptionCardRate) {
         '--quality-weight-corner-hold', String(args.adoptionQualityWeightCornerHold),
         '--quality-weight-corner-hold-turns', String(args.adoptionQualityWeightCornerHoldTurns),
         '--quality-weight-edge-hold', String(args.adoptionQualityWeightEdgeHold),
+        '--quality-weight-edge-chain', String(args.adoptionQualityWeightEdgeChain),
         '--quality-weight-final-corner-share', String(args.adoptionQualityWeightFinalCornerShare),
         '--quality-weight-final-edge-share', String(args.adoptionQualityWeightFinalEdgeShare),
+        '--quality-weight-final-longest-edge-run-share', String(args.adoptionQualityWeightFinalLongestEdgeRunShare),
         '--quality-weight-bonus', String(args.adoptionQualityWeightBonus),
         '--quality-weight-card-immediate', String(args.adoptionQualityWeightCardImmediate),
         '--quality-weight-card-future', String(args.adoptionQualityWeightCardFuture),
@@ -54,11 +64,11 @@ function buildGenerateSelfplayDataArgs(options) {
         '--seed', String(options.seed),
         '--max-plies', String(options.maxPlies),
         '--out', options.outPath,
-        '--hardcase-out', options.hardcaseOutPath,
         '--seed-family', options.seedFamily,
         '--data-lane', options.dataLane,
         '--jobs', String(options.selfplayJobs)
     ].concat(
+        options.hardcaseOutPath ? ['--hardcase-out', options.hardcaseOutPath] : [],
         options.generateCardArgs || [],
         options.selfplayDiversityArgs || [],
         options.guideModelArgs || [],
@@ -89,6 +99,9 @@ function buildPolicyTrainingCommandArgs(options) {
         '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
         '--early-stop-monitor', args.onnxEarlyStopMonitor,
         '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
+        '--lr-plateau-patience', String(args.onnxLrPlateauPatience),
+        '--lr-plateau-factor', String(args.onnxLrPlateauFactor),
+        '--lr-plateau-min-lr', String(args.onnxLrPlateauMinLr),
         '--card-no-action-weight', String(args.onnxCardNoActionWeight),
         '--card-class-balance-power', String(args.onnxCardClassBalancePower),
         '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
@@ -131,6 +144,9 @@ function buildCardTrainingCommandArgs(options) {
         '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
         '--early-stop-monitor', normalizeSpecialistEarlyStopMonitor(args.onnxEarlyStopMonitor),
         '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
+        '--lr-plateau-patience', String(args.onnxLrPlateauPatience),
+        '--lr-plateau-factor', String(args.onnxLrPlateauFactor),
+        '--lr-plateau-min-lr', String(args.onnxLrPlateauMinLr),
         '--card-no-action-weight', String(args.onnxCardNoActionWeight),
         '--card-class-balance-power', String(args.onnxCardClassBalancePower),
         '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
@@ -168,6 +184,9 @@ function buildTargetTrainingCommandArgs(options) {
         '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
         '--early-stop-monitor', normalizeSpecialistEarlyStopMonitor(args.onnxEarlyStopMonitor),
         '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
+        '--lr-plateau-patience', String(args.onnxLrPlateauPatience),
+        '--lr-plateau-factor', String(args.onnxLrPlateauFactor),
+        '--lr-plateau-min-lr', String(args.onnxLrPlateauMinLr),
         '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
         '--loser-sample-weight', String(args.onnxLoserSampleWeight),
         '--draw-sample-weight', String(args.onnxDrawSampleWeight),
@@ -185,6 +204,8 @@ function buildTargetTrainingCommandArgs(options) {
 
 function buildValueTrainingCommandArgs(options) {
     const { args, iterationPaths, resumeCheckpointPath } = options;
+    const valueLr = Number.isFinite(args.onnxValueLr) ? args.onnxValueLr : args.onnxLr;
+    const valueHiddenSize = Number.isFinite(args.onnxValueHiddenSize) ? args.onnxValueHiddenSize : args.onnxHiddenSize;
     return appendResumeArgs([
         path.resolve('ai', 'train', 'train_value_onnx.py'),
         '--input', iterationPaths.trainDataPath,
@@ -192,8 +213,8 @@ function buildValueTrainingCommandArgs(options) {
         '--meta-out', iterationPaths.valueOnnxMetaPath,
         '--epochs', String(args.onnxEpochs),
         '--batch-size', String(args.onnxBatchSize),
-        '--lr', String(args.onnxLr),
-        '--hidden-size', String(args.onnxHiddenSize),
+        '--lr', String(valueLr),
+        '--hidden-size', String(valueHiddenSize),
         '--device', args.onnxDevice,
         '--log-interval-steps', String(args.onnxLogIntervalSteps),
         '--val-split', String(args.onnxValSplit),
@@ -203,6 +224,9 @@ function buildValueTrainingCommandArgs(options) {
         '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
         '--early-stop-monitor', normalizeSpecialistEarlyStopMonitor(args.onnxEarlyStopMonitor),
         '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
+        '--lr-plateau-patience', String(args.onnxLrPlateauPatience),
+        '--lr-plateau-factor', String(args.onnxLrPlateauFactor),
+        '--lr-plateau-min-lr', String(args.onnxLrPlateauMinLr),
         '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
         '--loser-sample-weight', String(args.onnxLoserSampleWeight),
         '--draw-sample-weight', String(args.onnxDrawSampleWeight),
@@ -293,6 +317,11 @@ function buildFinalAdoptionCommandArgs(options) {
 }
 
 function buildCandidateOnnxBundleArgs(args, iterationPaths, hasTargetTrainingData) {
+    const includeTargetHead = isTargetHeadEnabled(args)
+        && !!(iterationPaths && iterationPaths.targetOnnxModelPath && iterationPaths.targetOnnxMetaPath)
+        && !!hasTargetTrainingData;
+    const includeValueHead = isValueHeadEnabled(args)
+        && !!(iterationPaths && iterationPaths.valueOnnxModelPath && iterationPaths.valueOnnxMetaPath);
     return [
         '--candidate-onnx', iterationPaths.onnxModelPath,
         '--candidate-onnx-meta', iterationPaths.onnxMetaPath,
@@ -300,17 +329,21 @@ function buildCandidateOnnxBundleArgs(args, iterationPaths, hasTargetTrainingDat
             '--candidate-card-onnx', iterationPaths.cardOnnxModelPath,
             '--candidate-card-onnx-meta', iterationPaths.cardOnnxMetaPath
         ] : []),
-        ...(hasTargetTrainingData ? [
+        ...(includeTargetHead ? [
             '--candidate-target-onnx', iterationPaths.targetOnnxModelPath,
             '--candidate-target-onnx-meta', iterationPaths.targetOnnxMetaPath
         ] : []),
-        '--candidate-value-onnx', iterationPaths.valueOnnxModelPath,
-        '--candidate-value-onnx-meta', iterationPaths.valueOnnxMetaPath
+        ...(includeValueHead ? [
+            '--candidate-value-onnx', iterationPaths.valueOnnxModelPath,
+            '--candidate-value-onnx-meta', iterationPaths.valueOnnxMetaPath
+        ] : [])
     ];
 }
 
 function buildTargetOnnxBundleArgs(args, hasTargetTrainingData) {
     const modelsDir = path.resolve(args.modelsDir);
+    const includeTargetHead = isTargetHeadEnabled(args) && !!hasTargetTrainingData;
+    const includeValueHead = isValueHeadEnabled(args);
     return [
         '--target-onnx', path.join(modelsDir, 'policy-net.onnx'),
         '--target-onnx-meta', path.join(modelsDir, 'policy-net.onnx.meta.json'),
@@ -318,12 +351,14 @@ function buildTargetOnnxBundleArgs(args, hasTargetTrainingData) {
             '--target-card-onnx', path.join(modelsDir, 'policy-card.onnx'),
             '--target-card-onnx-meta', path.join(modelsDir, 'policy-card.onnx.meta.json')
         ] : []),
-        ...(hasTargetTrainingData ? [
+        ...(includeTargetHead ? [
             '--target-target-onnx', path.join(modelsDir, 'policy-target.onnx'),
             '--target-target-onnx-meta', path.join(modelsDir, 'policy-target.onnx.meta.json')
         ] : []),
-        '--target-value-onnx', path.join(modelsDir, 'policy-value.onnx'),
-        '--target-value-onnx-meta', path.join(modelsDir, 'policy-value.onnx.meta.json')
+        ...(includeValueHead ? [
+            '--target-value-onnx', path.join(modelsDir, 'policy-value.onnx'),
+            '--target-value-onnx-meta', path.join(modelsDir, 'policy-value.onnx.meta.json')
+        ] : [])
     ];
 }
 

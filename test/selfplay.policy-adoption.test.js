@@ -58,8 +58,10 @@ describe('selfplay policy adoption check', () => {
             '--quality-weight-corner-hold', '0.25',
             '--quality-weight-corner-hold-turns', '0.2',
             '--quality-weight-edge-hold', '0.15',
+            '--quality-weight-edge-chain', '0.22',
             '--quality-weight-final-corner-share', '0.35',
             '--quality-weight-final-edge-share', '0.1',
+            '--quality-weight-final-longest-edge-run-share', '0.28',
             '--quality-weight-card-future', '0.12',
             '--baseline-model', 'data/models/policy-table.base.json',
             '--opponent-model', 'data/models/policy-table.base.json',
@@ -89,8 +91,10 @@ describe('selfplay policy adoption check', () => {
         expect(args.qualityWeightCornerHold).toBeCloseTo(0.25, 6);
         expect(args.qualityWeightCornerHoldTurns).toBeCloseTo(0.2, 6);
         expect(args.qualityWeightEdgeHold).toBeCloseTo(0.15, 6);
+        expect(args.qualityWeightEdgeChain).toBeCloseTo(0.22, 6);
         expect(args.qualityWeightFinalCornerShare).toBeCloseTo(0.35, 6);
         expect(args.qualityWeightFinalEdgeShare).toBeCloseTo(0.1, 6);
+        expect(args.qualityWeightFinalLongestEdgeRunShare).toBeCloseTo(0.28, 6);
         expect(args.qualityWeightCardFuture).toBeCloseTo(0.12, 6);
         expect(args.baselineModelPath).toContain(path.join('data', 'models', 'policy-table.base.json'));
         expect(args.opponentModelPath).toContain(path.join('data', 'models', 'policy-table.base.json'));
@@ -175,6 +179,16 @@ describe('selfplay policy adoption check', () => {
             '--candidate-model', 'data/models/policy-table.json',
             '--quality-weight-card-future', '2'
         ])).toThrow('--quality-weight-card-future must be in [0,1]');
+        expect(() => parseArgs([
+            '--games', '2',
+            '--candidate-model', 'data/models/policy-table.json',
+            '--quality-weight-edge-chain', '2'
+        ])).toThrow('--quality-weight-edge-chain must be in [0,1]');
+        expect(() => parseArgs([
+            '--games', '2',
+            '--candidate-model', 'data/models/policy-table.json',
+            '--quality-weight-final-longest-edge-run-share', '-1'
+        ])).toThrow('--quality-weight-final-longest-edge-run-share must be in [0,1]');
     });
 
     test('parseArgs applies quick gate defaults from resolved config', () => {
@@ -251,6 +265,45 @@ describe('selfplay policy adoption check', () => {
         expect(out.baselineWhiteScore).toBeCloseTo(0.7, 6);
         expect(out.candidateWhiteScore).toBeCloseTo(0.45, 6);
         expect(out.uplift).toBeLessThan(0);
+    });
+
+    test('computeAdoptionDecision can reward stronger edge chains over scattered edge gain', () => {
+        const baseline = {
+            result: {
+                score: { APercent: 0.50 },
+                quality: {
+                    A: {
+                        edgeTakeWhenAvailableRate: 0.55,
+                        avgEdgeChainSwing: 0.2,
+                        finalEdgeShare: 0.52,
+                        finalLongestEdgeRunShare: 0.25
+                    }
+                }
+            }
+        };
+        const candidate = {
+            result: {
+                score: { APercent: 0.50 },
+                quality: {
+                    A: {
+                        edgeTakeWhenAvailableRate: 0.50,
+                        avgEdgeChainSwing: 2.4,
+                        finalEdgeShare: 0.50,
+                        finalLongestEdgeRunShare: 0.75
+                    }
+                }
+            }
+        };
+
+        const out = computeAdoptionDecision(baseline, candidate, 0, 0, {
+            edge: 0.04,
+            edgeChain: 0.30,
+            finalEdgeShare: 0.02,
+            finalLongestEdgeRunShare: 0.24
+        });
+
+        expect(out.candidateQualityScore).toBeGreaterThan(out.baselineQualityScore);
+        expect(out.passed).toBe(true);
     });
 
     test('computeAdoptionDecisionAverage uses average uplift', () => {

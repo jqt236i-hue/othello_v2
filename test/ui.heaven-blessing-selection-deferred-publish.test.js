@@ -35,7 +35,7 @@ function createSnapshot(stateVersion) {
       hasUsedCardThisTurnByPlayer: { black: true, white: false },
       hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
       pendingEffectByPlayer: {
-        black: { type: 'HEAVEN_BLESSING', stage: 'selectTarget', offers: ['offer_1', 'offer_2'] },
+        black: { type: 'HEAVEN_BLESSING', stage: 'selectTarget', cardId: 'heaven_01', offers: ['offer_1', 'offer_2'] },
         white: null
       },
       lastUsedCardByPlayer: { black: null, white: null },
@@ -285,7 +285,12 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     expect(publishBodies[0].actor).toBe('black');
     expect(publishBodies[0].params).toEqual({
       player: 'black',
-      heavenBlessingCardId: 'offer_2'
+      heavenBlessingCardId: 'offer_2',
+      pendingSelectionState: {
+        type: 'HEAVEN_BLESSING',
+        stage: 'selectTarget',
+        cardId: 'heaven_01'
+      }
     });
     expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
     expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();

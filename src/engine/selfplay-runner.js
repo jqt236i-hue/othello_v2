@@ -18,6 +18,7 @@ const CpuLv6LookaheadProfile = require('../../game/ai/cpu-lv6-lookahead-profile'
 const SharedBoardUtils = require(path.resolve(__dirname, '..', '..', 'shared', 'shared-board-utils.js'));
 const SharedCardHeuristics = require(path.resolve(__dirname, '..', '..', 'shared', 'shared-card-heuristics.js'));
 const PendingTargetSelector = require('../../game/turn-handlers/pending-target-selector');
+const PendingCoordinator = require('../../game/turn/pending-coordinator');
 
 const SELFPLAY_SCHEMA_VERSION = 'selfplay.v2';
 const LEGACY_SELFPLAY_SCHEMA_VERSION = 'selfplay.v1';
@@ -114,6 +115,15 @@ function getSelfplayBoard(gameState, cardState) {
         boardExpansion: gameState.boardExpansion,
         cardState
     });
+}
+
+function readSelfplayPendingEffect(cardState, playerKey) {
+    if (PendingCoordinator && typeof PendingCoordinator.readPendingEffect === 'function') {
+        return PendingCoordinator.readPendingEffect(cardState, playerKey);
+    }
+    return (cardState && cardState.pendingEffectByPlayer)
+        ? (cardState.pendingEffectByPlayer[playerKey] || null)
+        : null;
 }
 
 function getBoardCellValue(board, row, col) {
@@ -927,6 +937,13 @@ function buildCornerPlanState(gameState, cardState, playerKey, legalMoves, usabl
             oppCorners: 0,
             ownEdges: 0,
             oppEdges: 0,
+            ownEdgeChainStrength: 0,
+            oppEdgeChainStrength: 0,
+            ownLongestEdgeRun: 0,
+            oppLongestEdgeRun: 0,
+            ownCompleteEdgeLines: 0,
+            oppCompleteEdgeLines: 0,
+            maxEdgeLineLength: 0,
             hasCornerMoveNow: false,
             hasEdgeMoveNow: false,
             cornerEmergency: false,
@@ -943,6 +960,18 @@ function buildCornerPlanState(gameState, cardState, playerKey, legalMoves, usabl
     const playerValue = toPlayerValue(playerKey);
     const cornerControl = countCornerControl(board, playerValue);
     const edgeControl = countEdgeControl(board, playerValue);
+    const ownEdgeRunSummary = (
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.summarizeEdgeRuns === 'function'
+    )
+        ? SharedBoardUtils.summarizeEdgeRuns(board, playerValue)
+        : null;
+    const oppEdgeRunSummary = (
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.summarizeEdgeRuns === 'function'
+    )
+        ? SharedBoardUtils.summarizeEdgeRuns(board, -playerValue)
+        : null;
     const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
     const hasCornerMoveNow = safeLegalMoves.some((move) => move && isCorner(move.row, move.col, board));
     const hasEdgeMoveNow = safeLegalMoves.some((move) => move && !isCorner(move.row, move.col, board) && isEdge(move.row, move.col, board));
@@ -990,6 +1019,16 @@ function buildCornerPlanState(gameState, cardState, playerKey, legalMoves, usabl
         oppCorners: cornerControl.oppCorners,
         ownEdges: edgeControl.ownEdges,
         oppEdges: edgeControl.oppEdges,
+        ownEdgeChainStrength: Number(ownEdgeRunSummary && ownEdgeRunSummary.chainStrength) || 0,
+        oppEdgeChainStrength: Number(oppEdgeRunSummary && oppEdgeRunSummary.chainStrength) || 0,
+        ownLongestEdgeRun: Number(ownEdgeRunSummary && ownEdgeRunSummary.longestRun) || 0,
+        oppLongestEdgeRun: Number(oppEdgeRunSummary && oppEdgeRunSummary.longestRun) || 0,
+        ownCompleteEdgeLines: Number(ownEdgeRunSummary && ownEdgeRunSummary.completeLineCount) || 0,
+        oppCompleteEdgeLines: Number(oppEdgeRunSummary && oppEdgeRunSummary.completeLineCount) || 0,
+        maxEdgeLineLength: Math.max(
+            Number(ownEdgeRunSummary && ownEdgeRunSummary.maxLineLength) || 0,
+            Number(oppEdgeRunSummary && oppEdgeRunSummary.maxLineLength) || 0
+        ),
         hasCornerMoveNow,
         hasEdgeMoveNow,
         cornerEmergency,
@@ -1008,7 +1047,7 @@ function buildMovePlanContext(gameState, cardState, playerKey, legalMoves, usabl
     const board = getSelfplayBoard(gameState, cardState);
     const ownKey = playerKey === 'black' ? 'black' : 'white';
     const planState = buildCornerPlanState(gameState, cardState, ownKey, legalMoves, usableCardIds);
-    const pending = cardState && cardState.pendingEffectByPlayer ? cardState.pendingEffectByPlayer[ownKey] : null;
+    const pending = readSelfplayPendingEffect(cardState, ownKey);
     return {
         level: 6,
         board,
@@ -2209,9 +2248,7 @@ function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCou
         cardState.hasDestroyedCardThisTurnByPlayer &&
         cardState.hasDestroyedCardThisTurnByPlayer[ownKey]
     );
-    const pending = cardState && cardState.pendingEffectByPlayer
-        ? cardState.pendingEffectByPlayer[ownKey]
-        : null;
+    const pending = readSelfplayPendingEffect(cardState, ownKey);
     let safeUsableCardIds = Array.isArray(usableCardIds) ? usableCardIds.slice() : null;
     if (!safeUsableCardIds) {
         try {
@@ -2405,7 +2442,7 @@ function selectCardIdToUse(cardState, gameState, playerKey, options, context) {
 function selectDestroyHandCardId(cardState, gameState, playerKey, context) {
     const ownKey = playerKey === 'black' ? 'black' : 'white';
     if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[ownKey])) return null;
-    if (cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[ownKey]) return null;
+    if (readSelfplayPendingEffect(cardState, ownKey)) return null;
     if (!CpuPolicyCore || typeof CpuPolicyCore.chooseHandDestroyTargetForCycle !== 'function') return null;
 
     const hand = cardState.hands[ownKey].slice();
@@ -2657,9 +2694,7 @@ function chooseLivingWillTarget(gameState, cardState, playerKey, rng) {
 }
 
 function chooseBoardExpansionTarget(gameState, cardState, playerKey, rng) {
-    const pending = (cardState && cardState.pendingEffectByPlayer)
-        ? cardState.pendingEffectByPlayer[playerKey]
-        : null;
+    const pending = readSelfplayPendingEffect(cardState, playerKey);
     const pendingType = pending && typeof pending.type === 'string' ? pending.type : 'BOARD_EXPANSION_WILL';
     return chooseTargetBySimulation(
         gameState,
@@ -2685,9 +2720,7 @@ function chooseBoardExpansionTarget(gameState, cardState, playerKey, rng) {
 }
 
 function chooseBoardShrinkTarget(gameState, cardState, playerKey, rng) {
-    const pending = (cardState && cardState.pendingEffectByPlayer)
-        ? cardState.pendingEffectByPlayer[playerKey]
-        : null;
+    const pending = readSelfplayPendingEffect(cardState, playerKey);
     const pendingType = pending && typeof pending.type === 'string' ? pending.type : 'BOARD_SHRINK_WILL';
     const targetGetterName = pendingType === 'BOARD_SHRINK_GOD'
         ? 'getBoardShrinkGodTargets'
@@ -3095,12 +3128,13 @@ function chooseSellCardTarget(gameState, cardState, playerKey) {
     return bestId;
 }
 
-function buildPendingSelectionAction(gameState, cardState, playerKey, pendingType, rng) {
+function buildPendingSelectionAction(gameState, cardState, playerKey, pendingType, rng, pending) {
     return PendingTargetSelector.buildPendingSelectionAction({
         gameState,
         cardState,
         playerKey,
         pendingType,
+        pending: pending || null,
         rng,
         selectors: {
             chooseSwapTarget,
@@ -3177,13 +3211,13 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
     const decisionState = snapshot || { gameState, cardState };
     const activeGameState = decisionState.gameState || gameState;
     const activeCardState = decisionState.cardState || cardState;
-    const pending = activeCardState.pendingEffectByPlayer[playerKey];
+    const pending = readSelfplayPendingEffect(activeCardState, playerKey);
     const legalMoves = getLegalMovesForAction(activeGameState, activeCardState, playerKey);
     const forcedPlacement = resolveForcedPlacementCandidates(legalMoves, options, getSelfplayBoard(activeGameState, activeCardState));
     const mustTakePriorityPlacement = !!forcedPlacement.category;
 
     if (pending && pending.stage === 'selectTarget') {
-        const pendingAction = buildPendingSelectionAction(activeGameState, activeCardState, playerKey, pending.type, rng);
+        const pendingAction = buildPendingSelectionAction(activeGameState, activeCardState, playerKey, pending.type, rng, pending);
         if (pendingAction) {
             return { action: pendingAction, legalMoves };
         }
@@ -3664,9 +3698,7 @@ function applyActionSafe(state, playerKey, action) {
 }
 
 function getPendingSelectionState(cardState, playerKey) {
-    const pending = cardState && cardState.pendingEffectByPlayer
-        ? cardState.pendingEffectByPlayer[playerKey]
-        : null;
+    const pending = readSelfplayPendingEffect(cardState, playerKey);
     if (!pending || pending.stage !== 'selectTarget') return null;
     return pending;
 }
@@ -3674,7 +3706,7 @@ function getPendingSelectionState(cardState, playerKey) {
 function buildRetryFallbackDecision(gameState, cardState, playerKey, rng, options) {
     const pending = getPendingSelectionState(cardState, playerKey);
     if (pending) {
-        const pendingAction = buildPendingSelectionAction(gameState, cardState, playerKey, pending.type, rng);
+        const pendingAction = buildPendingSelectionAction(gameState, cardState, playerKey, pending.type, rng, pending);
         if (pendingAction) {
             return {
                 action: pendingAction,
@@ -3864,6 +3896,10 @@ function runSingleGame(gameIndex, seed, options) {
             oppCornersBefore: Number(planStateBefore.oppCorners || 0),
             ownEdgesBefore: Number(planStateBefore.ownEdges || 0),
             oppEdgesBefore: Number(planStateBefore.oppEdges || 0),
+            ownEdgeChainStrengthBefore: Number(planStateBefore.ownEdgeChainStrength || 0),
+            oppEdgeChainStrengthBefore: Number(planStateBefore.oppEdgeChainStrength || 0),
+            ownLongestEdgeRunBefore: Number(planStateBefore.ownLongestEdgeRun || 0),
+            oppLongestEdgeRunBefore: Number(planStateBefore.oppLongestEdgeRun || 0),
             hasCornerMoveNow: planStateBefore.hasCornerMoveNow ? 1 : 0,
             hasEdgeMoveNow: planStateBefore.hasEdgeMoveNow ? 1 : 0,
             cornerEmergency: planStateBefore.cornerEmergency ? 1 : 0,
@@ -3944,6 +3980,10 @@ function runSingleGame(gameIndex, seed, options) {
         record.oppCornersAfter = Number(planStateAfter.oppCorners || 0);
         record.ownEdgesAfter = Number(planStateAfter.ownEdges || 0);
         record.oppEdgesAfter = Number(planStateAfter.oppEdges || 0);
+        record.ownEdgeChainStrengthAfter = Number(planStateAfter.ownEdgeChainStrength || 0);
+        record.oppEdgeChainStrengthAfter = Number(planStateAfter.oppEdgeChainStrength || 0);
+        record.ownLongestEdgeRunAfter = Number(planStateAfter.ownLongestEdgeRun || 0);
+        record.oppLongestEdgeRunAfter = Number(planStateAfter.oppLongestEdgeRun || 0);
 
         gameRecords.push(record);
     }
@@ -3956,6 +3996,19 @@ function runSingleGame(gameIndex, seed, options) {
     const resolved = resolveWinner(state.gameState);
     const finalCornerControl = countCornerControl(state.gameState.board, Core.BLACK);
     const finalEdgeControl = countEdgeControl(state.gameState.board, Core.BLACK);
+    const finalRuntimeBoard = getSelfplayBoard(state.gameState, state.cardState);
+    const finalBlackEdgeRun = (
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.summarizeEdgeRuns === 'function'
+    )
+        ? SharedBoardUtils.summarizeEdgeRuns(finalRuntimeBoard, Core.BLACK)
+        : null;
+    const finalWhiteEdgeRun = (
+        SharedBoardUtils &&
+        typeof SharedBoardUtils.summarizeEdgeRuns === 'function'
+    )
+        ? SharedBoardUtils.summarizeEdgeRuns(finalRuntimeBoard, Core.WHITE)
+        : null;
     for (const rec of gameRecords) {
         rec.winner = resolved.winner;
         rec.outcome = resolved.winner === 'draw' ? 0 : (rec.player === resolved.winner ? 1 : -1);
@@ -3975,6 +4028,12 @@ function runSingleGame(gameIndex, seed, options) {
             whiteCorners: Number(finalCornerControl.oppCorners || 0),
             blackEdges: Number(finalEdgeControl.ownEdges || 0),
             whiteEdges: Number(finalEdgeControl.oppEdges || 0),
+            blackLongestEdgeRun: Number(finalBlackEdgeRun && finalBlackEdgeRun.longestRun) || 0,
+            whiteLongestEdgeRun: Number(finalWhiteEdgeRun && finalWhiteEdgeRun.longestRun) || 0,
+            maxEdgeLineLength: Math.max(
+                Number(finalBlackEdgeRun && finalBlackEdgeRun.maxLineLength) || 0,
+                Number(finalWhiteEdgeRun && finalWhiteEdgeRun.maxLineLength) || 0
+            ),
             endedBy: maxPlyReached ? 'max_plies' : 'game_over'
         }
     };

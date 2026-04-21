@@ -194,6 +194,48 @@ describe('NetworkMatchClient queued publish', () => {
     expect(publishPayloads[1].baseVersion).toBe(11);
   });
 
+  test('stream snapshot適用後の次回publishは更新済みstateVersionをbaseVersionに使う', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+    expect(client.getStateVersion()).toBe(10);
+    expect(eventSources).toHaveLength(1);
+
+    const streamSnapshot = createSnapshot(11);
+    streamSnapshot.gameState.turnNumber = 2;
+    streamSnapshot.cardState.turnIndex = 2;
+    eventSources[0].onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        seats: { black: true, white: true },
+        stateVersion: 11,
+        snapshot: streamSnapshot,
+        playbackEvents: []
+      })
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(client.getStateVersion()).toBe(11);
+
+    const publishResult = await client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      action: createPlaceAction('black', 10)
+    });
+
+    expect(publishResult.ok).toBe(true);
+    expect(publishPayloads).toHaveLength(1);
+    expect(publishPayloads[0].baseVersion).toBe(11);
+    expect(publishPayloads[0].turnIndex).toBe(2);
+  });
+
   test('後続送信は待機中でも呼び出し時点のスナップショットを保持する', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;

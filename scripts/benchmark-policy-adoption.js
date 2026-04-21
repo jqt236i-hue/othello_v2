@@ -51,8 +51,10 @@ function parseArgs(argv) {
         qualityWeightCornerHold: 0,
         qualityWeightCornerHoldTurns: 0,
         qualityWeightEdgeHold: 0,
+        qualityWeightEdgeChain: 0,
         qualityWeightFinalCornerShare: 0,
         qualityWeightFinalEdgeShare: 0,
+        qualityWeightFinalLongestEdgeRunShare: 0,
         qualityWeightBonus: 0,
         qualityWeightCardImmediate: 0,
         qualityWeightCardFuture: 0,
@@ -101,8 +103,10 @@ function parseArgs(argv) {
         if (a === '--quality-weight-corner-hold') { args.qualityWeightCornerHold = Number(argv[++i]); specified.add('qualityWeightCornerHold'); continue; }
         if (a === '--quality-weight-corner-hold-turns') { args.qualityWeightCornerHoldTurns = Number(argv[++i]); specified.add('qualityWeightCornerHoldTurns'); continue; }
         if (a === '--quality-weight-edge-hold') { args.qualityWeightEdgeHold = Number(argv[++i]); specified.add('qualityWeightEdgeHold'); continue; }
+        if (a === '--quality-weight-edge-chain') { args.qualityWeightEdgeChain = Number(argv[++i]); specified.add('qualityWeightEdgeChain'); continue; }
         if (a === '--quality-weight-final-corner-share') { args.qualityWeightFinalCornerShare = Number(argv[++i]); specified.add('qualityWeightFinalCornerShare'); continue; }
         if (a === '--quality-weight-final-edge-share') { args.qualityWeightFinalEdgeShare = Number(argv[++i]); specified.add('qualityWeightFinalEdgeShare'); continue; }
+        if (a === '--quality-weight-final-longest-edge-run-share') { args.qualityWeightFinalLongestEdgeRunShare = Number(argv[++i]); specified.add('qualityWeightFinalLongestEdgeRunShare'); continue; }
         if (a === '--quality-weight-bonus') { args.qualityWeightBonus = Number(argv[++i]); specified.add('qualityWeightBonus'); continue; }
         if (a === '--quality-weight-card-immediate') { args.qualityWeightCardImmediate = Number(argv[++i]); specified.add('qualityWeightCardImmediate'); continue; }
         if (a === '--quality-weight-card-future') { args.qualityWeightCardFuture = Number(argv[++i]); specified.add('qualityWeightCardFuture'); continue; }
@@ -183,11 +187,17 @@ function parseArgs(argv) {
     if (!Number.isFinite(args.qualityWeightEdgeHold) || args.qualityWeightEdgeHold < 0 || args.qualityWeightEdgeHold > 1) {
         throw new Error('--quality-weight-edge-hold must be in [0,1]');
     }
+    if (!Number.isFinite(args.qualityWeightEdgeChain) || args.qualityWeightEdgeChain < 0 || args.qualityWeightEdgeChain > 1) {
+        throw new Error('--quality-weight-edge-chain must be in [0,1]');
+    }
     if (!Number.isFinite(args.qualityWeightFinalCornerShare) || args.qualityWeightFinalCornerShare < 0 || args.qualityWeightFinalCornerShare > 1) {
         throw new Error('--quality-weight-final-corner-share must be in [0,1]');
     }
     if (!Number.isFinite(args.qualityWeightFinalEdgeShare) || args.qualityWeightFinalEdgeShare < 0 || args.qualityWeightFinalEdgeShare > 1) {
         throw new Error('--quality-weight-final-edge-share must be in [0,1]');
+    }
+    if (!Number.isFinite(args.qualityWeightFinalLongestEdgeRunShare) || args.qualityWeightFinalLongestEdgeRunShare < 0 || args.qualityWeightFinalLongestEdgeRunShare > 1) {
+        throw new Error('--quality-weight-final-longest-edge-run-share must be in [0,1]');
     }
     if (!Number.isFinite(args.qualityWeightBonus) || args.qualityWeightBonus < 0 || args.qualityWeightBonus > 1) {
         throw new Error('--quality-weight-bonus must be in [0,1]');
@@ -245,8 +255,10 @@ function printHelp() {
         '      --quality-weight-corner-hold <r>     Weight for corner-hold quality [0..1] (default: 0)',
         '      --quality-weight-corner-hold-turns <r> Weight for corner-hold-turns quality [0..1] (default: 0)',
         '      --quality-weight-edge-hold <r>       Weight for edge-hold quality [0..1] (default: 0)',
+        '      --quality-weight-edge-chain <r>      Weight for contiguous-edge quality [0..1] (default: 0)',
         '      --quality-weight-final-corner-share <r> Weight for final corner share quality [0..1] (default: 0)',
         '      --quality-weight-final-edge-share <r>   Weight for final edge share quality [0..1] (default: 0)',
+        '      --quality-weight-final-longest-edge-run-share <r> Weight for final longest-edge-run share quality [0..1] (default: 0)',
         '      --quality-weight-bonus <r>           Weight for selected-bonus quality [0..1] (default: 0)',
         '      --quality-weight-card-immediate <r>  Weight for card immediate value quality [0..1] (default: 0)',
         '      --quality-weight-card-future <r>     Weight for card 3-ply future value quality [0..1] (default: 0)',
@@ -339,8 +351,10 @@ function qualityMetricsForPolicyA(result) {
             cornerHoldRate: 0,
             avgCornerHoldTurnsNext3Plies: 0,
             edgeHoldRate: 0,
+            avgEdgeChainSwing: 0,
             finalCornerShare: 0,
             finalEdgeShare: 0,
+            finalLongestEdgeRunShare: 0,
             avgCornerSwing: 0,
             avgEdgeSwing: 0,
             avgSelectedCellBonus: 0,
@@ -355,8 +369,10 @@ function qualityMetricsForPolicyA(result) {
             normCornerHold: 0,
             normCornerHoldTurns: 0,
             normEdgeHold: 0,
+            normEdgeChain: 0,
             normFinalCornerShare: 0,
             normFinalEdgeShare: 0,
+            normFinalLongestEdgeRunShare: 0,
             normCornerSwing: 0,
             normEdgeSwing: 0,
             normBonus: 0,
@@ -375,8 +391,10 @@ function qualityMetricsForPolicyA(result) {
         ? Number(q.avgCornerHoldTurnsNext3Plies)
         : 0;
     const edgeHoldRate = clamp01(q.edgeHoldRate);
+    const avgEdgeChainSwing = Number.isFinite(Number(q.avgEdgeChainSwing)) ? Number(q.avgEdgeChainSwing) : 0;
     const finalCornerShare = clamp01(q.finalCornerShare);
     const finalEdgeShare = clamp01(q.finalEdgeShare);
+    const finalLongestEdgeRunShare = clamp01(q.finalLongestEdgeRunShare);
     const avgCornerSwing = Number.isFinite(Number(q.avgCornerSwing)) ? Number(q.avgCornerSwing) : 0;
     const avgEdgeSwing = Number.isFinite(Number(q.avgEdgeSwing)) ? Number(q.avgEdgeSwing) : 0;
     const avgSelectedCellBonus = Number.isFinite(Number(q.avgSelectedCellBonus)) ? Number(q.avgSelectedCellBonus) : 0;
@@ -394,8 +412,10 @@ function qualityMetricsForPolicyA(result) {
         cornerHoldRate,
         avgCornerHoldTurnsNext3Plies,
         edgeHoldRate,
+        avgEdgeChainSwing,
         finalCornerShare,
         finalEdgeShare,
+        finalLongestEdgeRunShare,
         avgCornerSwing,
         avgEdgeSwing,
         avgSelectedCellBonus,
@@ -410,8 +430,10 @@ function qualityMetricsForPolicyA(result) {
         normCornerHold: cornerHoldRate,
         normCornerHoldTurns: clamp01(avgCornerHoldTurnsNext3Plies / 3),
         normEdgeHold: edgeHoldRate,
+        normEdgeChain: normalizeSignedMetric(avgEdgeChainSwing, 10),
         normFinalCornerShare: finalCornerShare,
         normFinalEdgeShare: finalEdgeShare,
+        normFinalLongestEdgeRunShare: finalLongestEdgeRunShare,
         normCornerSwing: normalizeSignedMetric(avgCornerSwing, 1.5),
         normEdgeSwing: normalizeSignedMetric(avgEdgeSwing, 2.5),
         normBonus: normalizeSignedMetric(avgSelectedCellBonus, 4),
@@ -431,8 +453,10 @@ function computeQualityScore(metrics, weights) {
         (metrics.normCornerHold * weights.cornerHold) +
         (metrics.normCornerHoldTurns * weights.cornerHoldTurns) +
         (metrics.normEdgeHold * weights.edgeHold) +
+        (metrics.normEdgeChain * weights.edgeChain) +
         (metrics.normFinalCornerShare * weights.finalCornerShare) +
         (metrics.normFinalEdgeShare * weights.finalEdgeShare) +
+        (metrics.normFinalLongestEdgeRunShare * weights.finalLongestEdgeRunShare) +
         (metrics.normCornerSwing * weights.cornerSwing) +
         (metrics.normEdgeSwing * weights.edgeSwing) +
         (metrics.normBonus * weights.bonus) +
@@ -455,8 +479,10 @@ function computeAdoptionDecision(baseline, candidate, threshold, whitePriority, 
         cornerHold: 0,
         cornerHoldTurns: 0,
         edgeHold: 0,
+        edgeChain: 0,
         finalCornerShare: 0,
         finalEdgeShare: 0,
+        finalLongestEdgeRunShare: 0,
         cornerSwing: 0,
         edgeSwing: 0,
         bonus: 0,
@@ -631,8 +657,10 @@ function sumConfiguredQualityWeights(options) {
         'qualityWeightCornerHold',
         'qualityWeightCornerHoldTurns',
         'qualityWeightEdgeHold',
+        'qualityWeightEdgeChain',
         'qualityWeightFinalCornerShare',
         'qualityWeightFinalEdgeShare',
+        'qualityWeightFinalLongestEdgeRunShare',
         'qualityWeightBonus',
         'qualityWeightCardImmediate',
         'qualityWeightCardFuture',
@@ -936,8 +964,10 @@ async function runOneSeed(options, seedIndex, totalSeeds, currentSeed, log, star
             cornerHold: options.qualityWeightCornerHold,
             cornerHoldTurns: options.qualityWeightCornerHoldTurns,
             edgeHold: options.qualityWeightEdgeHold,
+            edgeChain: options.qualityWeightEdgeChain,
             finalCornerShare: options.qualityWeightFinalCornerShare,
             finalEdgeShare: options.qualityWeightFinalEdgeShare,
+            finalLongestEdgeRunShare: options.qualityWeightFinalLongestEdgeRunShare,
             cornerSwing: 0,
             edgeSwing: 0,
             bonus: options.qualityWeightBonus,
@@ -1029,8 +1059,10 @@ function buildAdoptionPayload(options, perSeed, startedAt, runtime) {
             qualityWeightCornerHold: options.qualityWeightCornerHold,
             qualityWeightCornerHoldTurns: options.qualityWeightCornerHoldTurns,
             qualityWeightEdgeHold: options.qualityWeightEdgeHold,
+            qualityWeightEdgeChain: options.qualityWeightEdgeChain,
             qualityWeightFinalCornerShare: options.qualityWeightFinalCornerShare,
             qualityWeightFinalEdgeShare: options.qualityWeightFinalEdgeShare,
+            qualityWeightFinalLongestEdgeRunShare: options.qualityWeightFinalLongestEdgeRunShare,
             qualityWeightBonus: options.qualityWeightBonus,
             qualityWeightCardImmediate: options.qualityWeightCardImmediate,
             qualityWeightCardFuture: options.qualityWeightCardFuture,
@@ -1062,7 +1094,7 @@ async function runSeedEvaluationsSequential(options) {
     console.log(
         `[policy-adoption] start games=${options.games} seeds=${seeds.length} max_plies=${options.maxPlies} ` +
         `a_rate=${options.aRate} b_rate=${options.bRate} tactical_weight=${options.tacticalWeight} tactical_depth=${options.tacticalDepthOpening}/${options.tacticalDepthMid}/${options.tacticalDepthEnd} beam=${options.tacticalBeamWidth} policy_weight=${options.policyScoreWeight} heuristic_weight=${options.heuristicWeight} white_priority=${options.whitePriority} ` +
-        `q_corner=${options.qualityWeightCorner} q_edge=${options.qualityWeightEdge} q_corner_recovery=${options.qualityWeightCornerRecovery} q_corner_recapture=${options.qualityWeightCornerRecapture} q_edge_recovery=${options.qualityWeightEdgeRecovery} q_corner_hold=${options.qualityWeightCornerHold} q_corner_hold_turns=${options.qualityWeightCornerHoldTurns} q_edge_hold=${options.qualityWeightEdgeHold} q_final_corner=${options.qualityWeightFinalCornerShare} q_final_edge=${options.qualityWeightFinalEdgeShare} q_bonus=${options.qualityWeightBonus} q_card=${options.qualityWeightCardImmediate} q_card_future=${options.qualityWeightCardFuture} q_place=${options.qualityWeightPlaceDelta} ` +
+        `q_corner=${options.qualityWeightCorner} q_edge=${options.qualityWeightEdge} q_corner_recovery=${options.qualityWeightCornerRecovery} q_corner_recapture=${options.qualityWeightCornerRecapture} q_edge_recovery=${options.qualityWeightEdgeRecovery} q_corner_hold=${options.qualityWeightCornerHold} q_corner_hold_turns=${options.qualityWeightCornerHoldTurns} q_edge_hold=${options.qualityWeightEdgeHold} q_edge_chain=${options.qualityWeightEdgeChain} q_final_corner=${options.qualityWeightFinalCornerShare} q_final_edge=${options.qualityWeightFinalEdgeShare} q_final_longest_edge_run=${options.qualityWeightFinalLongestEdgeRunShare} q_bonus=${options.qualityWeightBonus} q_card=${options.qualityWeightCardImmediate} q_card_future=${options.qualityWeightCardFuture} q_place=${options.qualityWeightPlaceDelta} ` +
         `jobs=1 total_jobs=${jobPlan.totalJobs} benchmark_jobs=${jobPlan.benchmarkJobsBySeed[0] || 1} progress_every=${progressEvery} script=${__filename}`
     );
 

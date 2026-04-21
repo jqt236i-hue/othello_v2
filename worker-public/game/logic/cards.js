@@ -3426,6 +3426,11 @@
         };
     }
 
+    function buildHeavenBlessingSeedHint(cardState, playerKey) {
+        const normalizedPlayerKey = playerKey === 'white' ? 'white' : 'black';
+        return `${normalizedPlayerKey}|${cardState && Number.isFinite(Number(cardState.turnIndex)) ? Number(cardState.turnIndex) : 0}|${(cardState && cardState.hands && Array.isArray(cardState.hands[normalizedPlayerKey])) ? cardState.hands[normalizedPlayerKey].length : 0}|${(cardState && cardState.charge && Number.isFinite(cardState.charge[normalizedPlayerKey])) ? cardState.charge[normalizedPlayerKey] : 0}`;
+    }
+
     function buildHeavenBlessingOffers(cardIdToExclude, prng, seedHint) {
         const pool = (CARD_DEFS || [])
             .filter(c => c && c.enabled !== false && c.id && c.id !== cardIdToExclude)
@@ -3485,7 +3490,7 @@
 
         // Set pending effect (pre-checks must happen before mutating state)
         const cardType = getCardType(cardId);
-        const heavenSeedHint = `${chargeOwnerKey}|${cardState.turnIndex || 0}|${(cardState.hands && Array.isArray(cardState.hands[chargeOwnerKey])) ? cardState.hands[chargeOwnerKey].length : 0}|${(cardState.charge && Number.isFinite(cardState.charge[chargeOwnerKey])) ? cardState.charge[chargeOwnerKey] : 0}`;
+        const heavenSeedHint = buildHeavenBlessingSeedHint(cardState, chargeOwnerKey);
         const usagePrecheck = CardUsagePrechecksModule && typeof CardUsagePrechecksModule.validateCardUsagePreconditions === 'function'
             ? CardUsagePrechecksModule.validateCardUsagePreconditions({
                 cardType,
@@ -6617,6 +6622,8 @@
         const offerToken = parseHiddenHandToken(offer.cardId);
         const destroyedCardId = handToken && !offerToken ? offer.cardId : handCardId;
         addCardToDiscard(cardState, handCardId, removed.cardCopyId);
+        cardState.selectedCardId = null;
+        cardState.selectedCardOwnerKey = null;
         clearCardPendingEffect(cardState, playerKey);
 
         return { applied: true, destroyedCardId };
@@ -8222,6 +8229,9 @@
         getCardCost,
         getThrowChainConfig,
         getChainWillConfig,
+        buildHeavenBlessingSeedHint,
+        buildHeavenBlessingOffers,
+        buildCondemnOffers,
         canUseCard,
         destroyHandCard,
         ensureCardCopyState,
