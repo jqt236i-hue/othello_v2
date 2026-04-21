@@ -130,6 +130,15 @@
             return typeof waitForPlaybackIdle === 'function' ? waitForPlaybackIdle : null;
         }
 
+        function armBoardUpdateContext(context) {
+            const playbackState = resolvePlaybackStateModule();
+            if (!playbackState || typeof playbackState.armBoardUpdateContext !== 'function') return null;
+            try {
+                return playbackState.armBoardUpdateContext(context);
+            } catch (e) { /* ignore */ }
+            return null;
+        }
+
         function setBusyState(active) {
             const playbackState = resolvePlaybackStateModule();
             if (!playbackState || typeof playbackState !== 'object') return false;
@@ -211,6 +220,7 @@
             resolveSharedBoardUtils,
             resolveResultPresentationSync,
             resolveWaitForPlaybackIdle,
+            armBoardUpdateContext,
             setBusyState,
             clearBusyStateAndPlaybackLock,
             getPlaybackStartedAt,

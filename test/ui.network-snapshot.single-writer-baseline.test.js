@@ -57,6 +57,7 @@ describe('applySnapshot single-writer baseline', () => {
   let emittedEvents;
   let busyStateCalls;
   let syncPendingCalls;
+  let armBoardUpdateContextCalls;
 
   beforeEach(() => {
     jest.resetModules();
@@ -74,6 +75,7 @@ describe('applySnapshot single-writer baseline', () => {
     emittedEvents = [];
     busyStateCalls = [];
     syncPendingCalls = [];
+    armBoardUpdateContextCalls = [];
 
     global.emitCardStateChange = jest.fn();
     global.emitGameStateChange = jest.fn();
@@ -123,7 +125,11 @@ describe('applySnapshot single-writer baseline', () => {
       emitBoardUpdate: global.emitBoardUpdate,
       renderCardUI: global.renderCardUI,
       playbackState: {
-        setBusyState: (flags) => busyStateCalls.push(flags)
+        setBusyState: (flags) => busyStateCalls.push(flags),
+        armBoardUpdateContext: jest.fn((context) => {
+          armBoardUpdateContextCalls.push(context);
+          return context;
+        })
       }
     });
   }
@@ -168,6 +174,22 @@ describe('applySnapshot single-writer baseline', () => {
     // setBusyState(shouldKeepBusy) is called with true when playbackEvents exist
     const busyCall = busyStateCalls.find(c => c.processing === true);
     expect(busyCall).toBeTruthy();
+  });
+
+  test('playbackEvents ありの場合 diff fallback flip を抑止する board update context を arm する', () => {
+    const stateObj = { stateVersion: 10 };
+    const ctrl = createController(stateObj);
+    const snap = createSnapshot(11);
+
+    ctrl.applySnapshot(snap, {
+      playbackEvents: [{ type: 'flip', phase: 1, targets: [] }]
+    });
+
+    expect(armBoardUpdateContextCalls).toContainEqual(expect.objectContaining({
+      suppressFallbackFlip: true,
+      source: 'network_snapshot',
+      reason: 'snapshot_playback_suppress_fallback_flip'
+    }));
   });
 
   test('snapshot の pendingEffectByPlayer が cardState に反映される', () => {

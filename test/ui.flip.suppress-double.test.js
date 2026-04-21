@@ -60,7 +60,9 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
     expect(playbackState.getBoardUpdateContext()).toBeNull();
   });
 
-  test('does not apply fallback .flip while PLAYBACK_EVENTS are pending', () => {
+  test('does not apply fallback .flip when snapshot sync is allowed during pending playback', () => {
+    const playbackState = require('../ui/playback-state-manager');
+    const boardUpdateSyncRuntime = require('../ui/board-update-sync-runtime');
     const diff = require('../ui/diff-renderer');
 
     gameState.board[0][0] = BLACK;
@@ -73,6 +75,16 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
         events: [{ type: 'flip', phase: 1, targets: [{ r: 0, col: 0, ownerBefore: 'black', ownerAfter: 'white' }] }]
       }
     ];
+    boardUpdateSyncRuntime.armBoardUpdateSyncContext({
+      allowBoardUpdateDuringPlayback: true,
+      source: 'unit-test',
+      reason: 'network_snapshot_refresh'
+    });
+    playbackState.armBoardUpdateContext({
+      suppressFallbackFlip: true,
+      source: 'unit-test',
+      reason: 'network_snapshot_refresh'
+    });
 
     diff.renderBoardDiff(boardEl);
 

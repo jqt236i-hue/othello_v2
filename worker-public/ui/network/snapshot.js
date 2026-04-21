@@ -681,6 +681,19 @@
             }
         }
 
+        function armSuppressFallbackFlipDuringSnapshotPlayback(source, reason) {
+            if (!runtime || typeof runtime.armBoardUpdateContext !== 'function') return false;
+            try {
+                return !!runtime.armBoardUpdateContext({
+                    suppressFallbackFlip: true,
+                    source: source || 'network_snapshot',
+                    reason: reason || 'snapshot_playback_suppress_fallback_flip'
+                });
+            } catch (e) {
+                return false;
+            }
+        }
+
         function renderCardUiAfterPlaybackIfNeeded() {
             const pending = hasPendingPlaybackOrPresentation();
             const renderCardUI = resolveGlobalFunction('renderCardUI', cfg.renderCardUI);
@@ -801,6 +814,10 @@
 
             maybeShowResultFromSnapshot(nextVersion, opts);
             if (playbackEvents.length > 0 || shouldEmitShadowPlayback) {
+                armSuppressFallbackFlipDuringSnapshotPlayback(
+                    shouldEmitShadowPlayback ? (opts.shadowPlaybackSource || 'self_snapshot_sync') : 'network_snapshot',
+                    shouldEmitShadowPlayback ? 'snapshot_shadow_playback_suppress_fallback_flip' : 'snapshot_playback_suppress_fallback_flip'
+                );
                 armBoardUpdateDuringPlayback(
                     shouldEmitShadowPlayback ? (opts.shadowPlaybackSource || 'self_snapshot_sync') : 'network_snapshot',
                     shouldEmitShadowPlayback ? 'snapshot_shadow_playback_board_sync' : 'snapshot_playback_board_sync'
