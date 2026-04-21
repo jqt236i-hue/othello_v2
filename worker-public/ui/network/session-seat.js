@@ -317,6 +317,10 @@
             const payload = data || {};
             const state = resolveState();
 
+            if (typeof cfg.prepareSessionActivation === 'function') {
+                cfg.prepareSessionActivation(payload);
+            }
+
             state.active = true;
             state.roomId = String(payload.roomId || fallbackRoomId || '').trim().toUpperCase();
             state.seatKey = normalizePlayerKey(payload.seatKey);
@@ -355,8 +359,9 @@
             }
         }
 
-        function resetSessionState() {
+        function resetSessionState(options) {
             const state = resolveState();
+            const opts = (options && typeof options === 'object') ? options : {};
             state.active = false;
             state.roomId = '';
             state.seatKey = 'black';
@@ -370,6 +375,13 @@
             state.chatHistory = [];
             state.stateVersion = null;
             resetResultPresentationState(state);
+            setSeatGlobals(state.seatKey);
+            if (typeof cfg.onResetSessionState === 'function') {
+                cfg.onResetSessionState(state, opts);
+            }
+            if (opts.emit !== false) {
+                emitRoomStateChanged();
+            }
         }
 
         return {

@@ -90,6 +90,7 @@ function expectPresentationHelperClassicExportSurvivesLaterScriptLoads(rootPath)
 
 function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
   const sharedBoardUtilsTag = '<script src="shared/shared-board-utils.js"></script>';
+  const randomSourceTag = '<script src="game/logic/cards-internal/random-source.js"></script>';
   const selectorsTag = '<script src="game/logic/cards/selectors.js"></script>';
   const prechecksTag = '<script src="game/logic/cards-internal/card-usage-prechecks.js"></script>';
   const orchestratorTag = '<script src="game/logic/cards-internal/selector-orchestrator.js"></script>';
@@ -100,6 +101,7 @@ function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
   const cardsTag = '<script src="game/logic/cards.js"></script>';
 
   expect(html.includes(sharedBoardUtilsTag)).toBe(true);
+  expect(html.includes(randomSourceTag)).toBe(true);
   expect(html.includes(selectorsTag)).toBe(true);
   expect(html.includes(prechecksTag)).toBe(true);
   expect(html.includes(orchestratorTag)).toBe(true);
@@ -107,7 +109,8 @@ function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
   expect(html.includes(effectTimingTag)).toBe(true);
   expect(html.includes(pendingStateManagerTag)).toBe(true);
   expect(html.includes(chargeLedgerTag)).toBe(true);
-  expect(html.indexOf(selectorsTag)).toBeGreaterThan(html.indexOf(sharedBoardUtilsTag));
+  expect(html.indexOf(randomSourceTag)).toBeGreaterThan(html.indexOf(sharedBoardUtilsTag));
+  expect(html.indexOf(selectorsTag)).toBeGreaterThan(html.indexOf(randomSourceTag));
   expect(html.indexOf(prechecksTag)).toBeGreaterThan(html.indexOf(selectorsTag));
   expect(html.indexOf(orchestratorTag)).toBeGreaterThan(html.indexOf(prechecksTag));
   expect(html.indexOf(handManagerTag)).toBeGreaterThan(html.indexOf(orchestratorTag));
@@ -116,6 +119,7 @@ function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
   expect(html.indexOf(chargeLedgerTag)).toBeGreaterThan(html.indexOf(pendingStateManagerTag));
   expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(chargeLedgerTag));
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'shared/shared-board-utils.js'))).toBe(true);
+  expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/random-source.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/card-usage-prechecks.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/selector-orchestrator.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/hand-manager.js'))).toBe(true);
@@ -125,6 +129,7 @@ function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
 }
 
 function expectCardLogicModulesLoadedBeforeCards(html, rootPath) {
+  const randomSourceTag = '<script src="game/logic/cards-internal/random-source.js"></script>';
   const movementTag = '<script src="game/logic/cards/movement.js"></script>';
   const livingWillTag = '<script src="game/logic/cards/living_will.js"></script>';
   const teleportTag = '<script src="game/logic/cards/teleport.js"></script>';
@@ -133,18 +138,24 @@ function expectCardLogicModulesLoadedBeforeCards(html, rootPath) {
   const shrinkTag = '<script src="game/logic/cards/shrink.js"></script>';
   const cardsTag = '<script src="game/logic/cards.js"></script>';
 
+  expect(html.includes(randomSourceTag)).toBe(true);
   expect(html.includes(movementTag)).toBe(true);
   expect(html.includes(livingWillTag)).toBe(true);
   expect(html.includes(teleportTag)).toBe(true);
   expect(html.includes(cloneTag)).toBe(true);
   expect(html.includes(meteorTag)).toBe(true);
   expect(html.includes(shrinkTag)).toBe(true);
+  expect(html.indexOf(movementTag)).toBeGreaterThan(html.indexOf(randomSourceTag));
+  expect(html.indexOf(livingWillTag)).toBeGreaterThan(html.indexOf(randomSourceTag));
+  expect(html.indexOf(teleportTag)).toBeGreaterThan(html.indexOf(randomSourceTag));
+  expect(html.indexOf(cloneTag)).toBeGreaterThan(html.indexOf(randomSourceTag));
   expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(movementTag));
   expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(livingWillTag));
   expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(teleportTag));
   expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(cloneTag));
   expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(meteorTag));
   expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(shrinkTag));
+  expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/random-source.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards/movement.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards/living_will.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards/teleport.js'))).toBe(true);
@@ -182,25 +193,40 @@ function runClassicScriptInContext(filePath, context) {
 describe('card module script includes', () => {
   test('index.html loads network command payload before network-client.js', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const actionSchemaTag = '<script src="shared/network-action-schema.js"></script>';
     const commandPayloadTag = '<script src="ui/network/command-payload.js"></script>';
     const publishRequestTag = '<script src="ui/network/publish-request.js"></script>';
     const reconnectControllerTag = '<script src="ui/network/reconnect-controller.js"></script>';
     const publishTrackerTag = '<script src="ui/network/publish-tracker.js"></script>';
+    const snapshotRuntimeTag = '<script src="ui/network/snapshot-runtime.js"></script>';
+    const sessionSeatTag = '<script src="ui/network/session-seat.js"></script>';
+    const sessionLifecycleTag = '<script src="ui/network/session-lifecycle.js"></script>';
     const networkClientTag = '<script src="ui/network-client.js"></script>';
 
+    expect(html.includes(actionSchemaTag)).toBe(true);
     expect(html.includes(commandPayloadTag)).toBe(true);
     expect(html.includes(publishRequestTag)).toBe(true);
     expect(html.includes(reconnectControllerTag)).toBe(true);
     expect(html.includes(publishTrackerTag)).toBe(true);
+    expect(html.includes(snapshotRuntimeTag)).toBe(true);
+    expect(html.includes(sessionSeatTag)).toBe(true);
+    expect(html.includes(sessionLifecycleTag)).toBe(true);
     expect(html.includes(networkClientTag)).toBe(true);
+    expect(html.indexOf(commandPayloadTag)).toBeGreaterThan(html.indexOf(actionSchemaTag));
     expect(html.indexOf(publishRequestTag)).toBeGreaterThan(html.indexOf(commandPayloadTag));
     expect(html.indexOf(reconnectControllerTag)).toBeGreaterThan(html.indexOf(publishRequestTag));
     expect(html.indexOf(publishTrackerTag)).toBeGreaterThan(html.indexOf(reconnectControllerTag));
-    expect(html.indexOf(networkClientTag)).toBeGreaterThan(html.indexOf(publishTrackerTag));
+    expect(html.indexOf(snapshotRuntimeTag)).toBeGreaterThan(html.indexOf(publishTrackerTag));
+    expect(html.indexOf(sessionSeatTag)).toBeGreaterThan(html.indexOf(snapshotRuntimeTag));
+    expect(html.indexOf(sessionLifecycleTag)).toBeGreaterThan(html.indexOf(sessionSeatTag));
+    expect(html.indexOf(networkClientTag)).toBeGreaterThan(html.indexOf(sessionLifecycleTag));
+    expect(fs.existsSync(path.resolve(__dirname, '../shared/network-action-schema.js'))).toBe(true);
     expect(fs.existsSync(path.resolve(__dirname, '../ui/network/command-payload.js'))).toBe(true);
     expect(fs.existsSync(path.resolve(__dirname, '../ui/network/publish-request.js'))).toBe(true);
     expect(fs.existsSync(path.resolve(__dirname, '../ui/network/reconnect-controller.js'))).toBe(true);
     expect(fs.existsSync(path.resolve(__dirname, '../ui/network/publish-tracker.js'))).toBe(true);
+    expect(fs.existsSync(path.resolve(__dirname, '../ui/network/snapshot-runtime.js'))).toBe(true);
+    expect(fs.existsSync(path.resolve(__dirname, '../ui/network/session-lifecycle.js'))).toBe(true);
   });
 
   test('index.html loads network turn handoff before trap/cpu/move executor scripts', () => {

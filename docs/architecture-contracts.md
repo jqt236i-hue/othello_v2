@@ -230,6 +230,14 @@ The canonical network flow is:
 6. playback queue
 7. render / animation settlement
 
+Stable browser-side ownership for that flow is:
+
+- `ui/network-client.js` is the compatibility shell and outer facade
+- `ui/network/session-lifecycle.js` owns create / join / leave / latest-state lifecycle orchestration
+- `ui/network/session-seat.js` owns session activation, reset, and seat-bound session state
+- `ui/network/snapshot.js` owns authoritative snapshot apply and presentation reconciliation
+- `ui/network/snapshot-runtime.js` owns browser/runtime lookup and fallback wiring used by snapshot application
+
 ### 7.3 Single Visual Writer
 
 During playback, board DOM writes must be coordinated so there is a single effective board writer.
@@ -273,14 +281,15 @@ Observation-gacha cosmetics span generated catalog files, local inventory, local
 
 - `scripts/generate-observation-gacha-catalog.js` is the canonical generator for both `shared/observation-gacha-catalog.generated.js` and the hand-only compatibility output `shared/gacha-hand-catalog.generated.js`.
 - `scripts/generate-gacha-hand-catalog.js` is only a compatibility wrapper over that canonical generator.
-- `shared/observation-gacha-catalog-shared.js` and `shared/observation-gacha-catalog.generated.js` are the canonical generic observation cosmetic catalog contract.
+- `shared/observation-gacha-catalog-shared.js` and `shared/observation-gacha-catalog.generated.js` are the canonical generic observation cosmetic catalog contract, including `hand_skin`, `placement_sound`, and `background_skin`.
 - `shared/gacha-hand-catalog-shared.js` and `shared/gacha-hand-catalog.generated.js` are hand-skin-only compatibility adapters for callers that still intentionally consume `hand_skin` items only.
 - `ui/gacha/catalog-access.js` is the canonical UI-side access boundary for manifest-vs-generated observation catalog resolution.
 - `ui/placement-sound-selection.js` is the canonical local resolver for owned placement sounds, selected placement sound id, and selected placement sound file path.
+- `ui/background-skin/catalog.js`, `selection.js`, `runtime.js`, and `controller.js` are the canonical local-only boundary for known / owned background definitions, selected background id, and `body` background application.
 - `sound-engine.js` is the playback consumer of that resolved placement-sound selection and must not parse gacha inventory or observation catalog state directly.
 - `ui/gacha/gacha-item-visuals.js` is the canonical shared mixed-item preview/fallback helper for both result cards and reveal-stage rendering.
 
-The generic observation catalog is the source of truth. Hand-only catalog helpers exist only to preserve existing callers while they consume a filtered `hand_skin` view.
+The generic observation catalog is the source of truth. Hand-only catalog helpers exist only to preserve existing callers while they consume a filtered `hand_skin` view, and background selection remains local cosmetic state rather than networked gameplay state.
 
 ## 8. Authority and network contracts
 
@@ -311,6 +320,7 @@ Client projection, optimistic local state, and playback events are never canonic
 Network publishes depend on explicit version / identity contracts such as `stateVersion` and `operationId`.
 
 Those fields are part of the authority contract and must stay consistent across local server and worker implementations.
+`shared/network-action-schema.js` is the shared owner for action / seat normalization semantics consumed by browser publish shaping and game-adjacent handoff code.
 
 ### 8.4 SSE and liveness
 
@@ -323,6 +333,12 @@ Changes here must be treated as contract changes because they affect canonical s
 - `/api/match/state` remains the full authoritative recovery path when replay cannot prove continuity
 - worker timeout progression must be authority-scheduled; it must not depend on an unrelated later request arriving before expiry is applied
 - local server may use a different internal scheduler, but the externally visible timeout semantics must stay aligned with worker authority
+
+Shared backend ownership for those contracts is:
+
+- `utils/match-authority.js` owns shared room-identity, seat-token, join/leave, publish-response, and buffered-SSE payload rules
+- `scripts/local-match-server.js` and `workers/match-worker.mjs` are runtime adapters over that shared authority contract
+- runtime-specific code should stay limited to HTTP / Durable Object storage / connection management differences, not duplicate publish or seat-claim semantics
 
 ### 8.5 Publish / stream / resync precedence
 

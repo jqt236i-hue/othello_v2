@@ -8,6 +8,7 @@
     'use strict';
 
     var cardLogicModule = null;
+    var networkActionSchemaModule = null;
     var pendingCoordinatorModule = null;
     var playbackEventHelpersModule = null;
 
@@ -33,6 +34,17 @@
             pendingCoordinatorModule = root.PendingCoordinator;
         }
         return pendingCoordinatorModule;
+    }
+
+    function resolveNetworkActionSchemaModule() {
+        if (networkActionSchemaModule) return networkActionSchemaModule;
+        if (typeof require === 'function') {
+            try { networkActionSchemaModule = require('../../shared/network-action-schema'); } catch (e) { /* ignore */ }
+        }
+        if (!networkActionSchemaModule && root && root.NetworkActionSchema) {
+            networkActionSchemaModule = root.NetworkActionSchema;
+        }
+        return networkActionSchemaModule;
     }
 
     function resolvePlaybackEventHelpersModule(override) {
@@ -66,6 +78,10 @@
             try {
                 return override(value, fallback);
             } catch (e) { /* ignore */ }
+        }
+        var schema = resolveNetworkActionSchemaModule();
+        if (schema && typeof schema.normalizePlayerKey === 'function') {
+            return schema.normalizePlayerKey(value, fallback);
         }
         return defaultNormalizePlayerKey(value, fallback);
     }

@@ -324,9 +324,11 @@
     };
 
     let networkCommentaryModule = null;
+    let networkActionSchemaModule = null;
     let networkPublishRequestModule = null;
     let networkSnapshotModule = null;
     let networkSessionSeatModule = null;
+    let networkSessionLifecycleModule = null;
     let networkCommandPayloadModule = null;
     let networkActionBridgeModule = null;
     let networkApplyCoordinatorModule = null;
@@ -335,6 +337,7 @@
     let networkCommentaryController = null;
     let networkSnapshotController = null;
     let networkSessionSeatController = null;
+    let networkSessionLifecycleController = null;
     let networkActionBridgeController = null;
     let networkReconnectController = null;
     let networkPublishTrackerController = null;
@@ -342,9 +345,11 @@
 
     if (typeof require === 'function') {
         try { networkCommentaryModule = require('./network/commentary'); } catch (e) { /* ignore */ }
+        try { networkActionSchemaModule = require('../shared/network-action-schema'); } catch (e) { /* ignore */ }
         try { networkPublishRequestModule = require('./network/publish-request'); } catch (e) { /* ignore */ }
         try { networkSnapshotModule = require('./network/snapshot'); } catch (e) { /* ignore */ }
         try { networkSessionSeatModule = require('./network/session-seat'); } catch (e) { /* ignore */ }
+        try { networkSessionLifecycleModule = require('./network/session-lifecycle'); } catch (e) { /* ignore */ }
         try { networkCommandPayloadModule = require('./network/command-payload'); } catch (e) { /* ignore */ }
         try { networkActionBridgeModule = require('./network/action-bridge'); } catch (e) { /* ignore */ }
         try { networkApplyCoordinatorModule = require('./network/apply-coordinator'); } catch (e) { /* ignore */ }
@@ -366,6 +371,26 @@
             if (typeof globalThis !== 'undefined' && globalThis.NetworkCommentaryModule) {
                 networkCommentaryModule = globalThis.NetworkCommentaryModule;
                 return networkCommentaryModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        return null;
+    }
+
+    function resolveNetworkActionSchemaModule() {
+        if (networkActionSchemaModule) return networkActionSchemaModule;
+
+        try {
+            if (root && root.NetworkActionSchema) {
+                networkActionSchemaModule = root.NetworkActionSchema;
+                return networkActionSchemaModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.NetworkActionSchema) {
+                networkActionSchemaModule = globalThis.NetworkActionSchema;
+                return networkActionSchemaModule;
             }
         } catch (e) { /* ignore */ }
 
@@ -406,6 +431,26 @@
             if (typeof globalThis !== 'undefined' && globalThis.NetworkSessionSeatModule) {
                 networkSessionSeatModule = globalThis.NetworkSessionSeatModule;
                 return networkSessionSeatModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        return null;
+    }
+
+    function resolveNetworkSessionLifecycleModule() {
+        if (networkSessionLifecycleModule) return networkSessionLifecycleModule;
+
+        try {
+            if (root && root.NetworkSessionLifecycleModule) {
+                networkSessionLifecycleModule = root.NetworkSessionLifecycleModule;
+                return networkSessionLifecycleModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.NetworkSessionLifecycleModule) {
+                networkSessionLifecycleModule = globalThis.NetworkSessionLifecycleModule;
+                return networkSessionLifecycleModule;
             }
         } catch (e) { /* ignore */ }
 
@@ -568,12 +613,71 @@
             normalizePlayerKey,
             normalizeRoomId,
             playerNameMax: PLAYER_NAME_MAX,
+            prepareSessionActivation: (payload) => {
+                state.lastStreamEventId = '';
+                state.appliedStateVersion = getSnapshotStateVersion(payload && payload.snapshot);
+                clearPendingForceSyncPlaybackRecovery();
+            },
+            onResetSessionState: () => {
+                state.appliedStateVersion = null;
+                state.lastStreamEventId = '';
+                state.authoritativeMatchState.gameState = null;
+                state.authoritativeMatchState.cardState = null;
+                state.authoritativeMatchState.stateVersion = null;
+                state.authoritativeMatchState.authority = null;
+                state.authoritativeMatchState.projectedForSeat = null;
+                state.authoritativeMatchState.turnStartReconciled = false;
+                state.authoritativeMatchState.projectedSnapshotHash = null;
+                state.authoritativeMatchState.lastAppliedProjectedSnapshotHash = null;
+                resetPublishTracker();
+                clearPendingForceSyncPlaybackRecovery();
+            },
             updateTurnTimerFromPayload: (payload) => updateTurnTimerFromPayload(payload),
             ensureActionBridge: () => ensureActionBridge(),
             applySnapshot: (snapshot, options) => applySnapshot(snapshot, options),
             resetResultPresentationState: (resultState) => resetNetworkResultPresentationState(resultState)
         });
         return networkSessionSeatController;
+    }
+
+    function getNetworkSessionLifecycleController() {
+        if (networkSessionLifecycleController) return networkSessionLifecycleController;
+        const mod = resolveNetworkSessionLifecycleModule();
+        if (!mod || typeof mod.createNetworkSessionLifecycleController !== 'function') return null;
+        networkSessionLifecycleController = mod.createNetworkSessionLifecycleController({
+            getState: () => state,
+            setServerUrl,
+            normalizePlayerName,
+            normalizeRoomId,
+            roomIdPattern: ROOM_ID_RE,
+            roomIdLength: ROOM_ID_LENGTH,
+            playerNameMax: PLAYER_NAME_MAX,
+            cloneData: cloneDataForCommandPayload,
+            readSelectedHandSkinId,
+            requestJson,
+            isMatchApiMissing,
+            emitStatus,
+            readSeatClaim,
+            clearSeatClaim,
+            shouldRetryJoinWithoutStoredClaim,
+            activateSessionFromResponse,
+            resetNetworkTelemetry,
+            openStream,
+            getKnownProjectedSnapshotHash,
+            applyPayloadSessionState,
+            shouldSkipForceSyncSnapshot,
+            applySnapshotThroughCoordinator,
+            rememberPendingForceSyncPlaybackRecovery,
+            recordNetworkTelemetry,
+            getSnapshotStateVersion,
+            clearPlaybackStateForLeave,
+            clearPendingForceSyncPlaybackRecovery,
+            resetSessionState,
+            resetTurnTimerState,
+            closeStream,
+            teardownActionBridge
+        });
+        return networkSessionLifecycleController;
     }
 
     function getNetworkActionBridgeController() {
@@ -686,6 +790,13 @@
     }
 
     function normalizePlayerKey(value) {
+        try {
+            const schema = resolveNetworkActionSchemaModule();
+            if (schema && typeof schema.normalizePlayerKey === 'function') {
+                return schema.normalizePlayerKey(value, 'black');
+            }
+        } catch (e) { /* ignore */ }
+
         try {
             const helpers = resolveOwnerHelpers();
             if (helpers && typeof helpers.normalizePlayerKey === 'function') {
@@ -1779,10 +1890,39 @@
     }
 
     function activateSessionFromResponse(data, fallbackRoomId) {
-        state.lastStreamEventId = '';
-        state.appliedStateVersion = getSnapshotStateVersion(data && data.snapshot);
-        clearPendingForceSyncPlaybackRecovery();
         invokeControllerMethod(getNetworkSessionSeatController, 'activateSessionFromResponse', arguments, undefined);
+    }
+
+    function resetSessionState() {
+        invokeControllerMethod(getNetworkSessionSeatController, 'resetSessionState', arguments, () => {
+            state.active = false;
+            state.roomId = '';
+            state.seatKey = 'black';
+            state.seatToken = '';
+            state.roomSeats = { black: false, white: false };
+            state.seatNames = { black: '', white: '' };
+            state.seatHandSkins = { black: '', white: '' };
+            state.roomDeck = null;
+            state.roomBoardConfig = null;
+            state.networkDebugEnabled = false;
+            state.chatHistory = [];
+            state.stateVersion = null;
+            state.appliedStateVersion = null;
+            state.lastStreamEventId = '';
+            state.authoritativeMatchState.gameState = null;
+            state.authoritativeMatchState.cardState = null;
+            state.authoritativeMatchState.stateVersion = null;
+            state.authoritativeMatchState.authority = null;
+            state.authoritativeMatchState.projectedForSeat = null;
+            state.authoritativeMatchState.turnStartReconciled = false;
+            state.authoritativeMatchState.projectedSnapshotHash = null;
+            state.authoritativeMatchState.lastAppliedProjectedSnapshotHash = null;
+            resetPublishTracker();
+            clearPendingForceSyncPlaybackRecovery();
+            resetNetworkResultPresentationState(state);
+            setSeatGlobals('black');
+            emitRoomStateChanged();
+        });
     }
 
     function setSeatGlobals(seatKey) {
@@ -2133,170 +2273,31 @@
         return state.serverUrl;
     }
 
-    async function createRoom(options) {
-        const opts = options || {};
-        if (opts.serverUrl) setServerUrl(opts.serverUrl);
-
-        const playerName = normalizePlayerName(opts.playerName);
-        if (!playerName) {
-            emitStatus(`ニックネームを1〜${PLAYER_NAME_MAX}文字で入力してください`, true);
-            return { ok: false, reason: 'PLAYER_NAME_REQUIRED' };
-        }
-
-        const requestPayload = { playerName };
-        if (opts.networkDebugEnabled === true) {
-            requestPayload.networkDebugEnabled = true;
-        }
-        if (opts.deckCode) {
-            requestPayload.deckCode = String(opts.deckCode).trim();
-        }
-        if (opts.roomBoardConfig && typeof opts.roomBoardConfig === 'object') {
-            requestPayload.roomBoardConfig = cloneDataForCommandPayload(opts.roomBoardConfig);
-        }
-        requestPayload.selectedHandSkinId = readSelectedHandSkinId();
-
-        const res = await requestJson('POST', '/api/match/create', requestPayload);
-        if (!res.ok || !res.data || res.data.ok !== true) {
-            if (isMatchApiMissing(res)) {
-                emitStatus('ネット対戦: 対戦用API(/api/match)が見つかりません', true);
-                return { ok: false, reason: 'MATCH_API_NOT_FOUND' };
-            }
-            if (res.data && res.data.reason === 'PLAYER_NAME_REQUIRED') {
-                emitStatus(`ニックネームを1〜${PLAYER_NAME_MAX}文字で入力してください`, true);
-                return { ok: false, reason: 'PLAYER_NAME_REQUIRED' };
-            }
-            emitStatus('部屋作成に失敗しました', true);
-            return { ok: false, reason: (res.data && res.data.reason) || 'CREATE_FAILED' };
-        }
-
-        activateSessionFromResponse(Object.assign({}, res.data, { playerName }), '');
-        resetNetworkTelemetry();
-
-        openStream();
-        emitStatus(`ネット対戦: 部屋 ${state.roomId} を作成（${state.seatKey === 'black' ? '黒' : '白'}）`);
-
-        return {
-            ok: true,
-            roomId: state.roomId,
-            seatKey: state.seatKey,
-            playerName,
-            networkDebugEnabled: state.networkDebugEnabled === true
-        };
+    function createRoom(options) {
+        return invokeControllerMethod(
+            getNetworkSessionLifecycleController,
+            'createRoom',
+            arguments,
+            () => Promise.resolve({ ok: false, reason: 'SESSION_LIFECYCLE_UNAVAILABLE' })
+        );
     }
 
-    async function joinRoom(roomId, options) {
-        const opts = options || {};
-        if (opts.serverUrl) setServerUrl(opts.serverUrl);
-
-        const playerName = normalizePlayerName(opts.playerName);
-        if (!playerName) {
-            emitStatus(`ニックネームを1〜${PLAYER_NAME_MAX}文字で入力してください`, true);
-            return { ok: false, reason: 'PLAYER_NAME_REQUIRED' };
-        }
-
-        const normalizedRoomId = normalizeRoomId(roomId);
-        if (!normalizedRoomId) {
-            emitStatus('部屋番号を入力してください', true);
-            return { ok: false, reason: 'ROOM_ID_REQUIRED' };
-        }
-        if (!ROOM_ID_RE.test(normalizedRoomId)) {
-            emitStatus(`部屋番号は英数字${ROOM_ID_LENGTH}文字で入力してください`, true);
-            return { ok: false, reason: 'ROOM_ID_INVALID' };
-        }
-
-        const joinPayload = {
-            roomId: normalizedRoomId,
-            playerName,
-            selectedHandSkinId: readSelectedHandSkinId()
-        };
-        if (opts.deckCode) {
-            joinPayload.deckCode = String(opts.deckCode).trim();
-        }
-        const storedClaim = readSeatClaim(normalizedRoomId);
-        let usedStoredClaim = false;
-        if (storedClaim) {
-            joinPayload.seatKey = storedClaim.seatKey;
-            joinPayload.seatToken = storedClaim.seatToken;
-            usedStoredClaim = true;
-        }
-        let res = await requestJson('POST', '/api/match/join', joinPayload);
-        if ((!res.ok || !res.data || res.data.ok !== true) && usedStoredClaim && shouldRetryJoinWithoutStoredClaim(res)) {
-            clearSeatClaim(normalizedRoomId);
-            const retryPayload = {
-                roomId: normalizedRoomId,
-                playerName,
-                selectedHandSkinId: joinPayload.selectedHandSkinId
-            };
-            if (opts.deckCode) {
-                retryPayload.deckCode = String(opts.deckCode).trim();
-            }
-            res = await requestJson('POST', '/api/match/join', retryPayload);
-        }
-        if (!res.ok || !res.data || res.data.ok !== true) {
-            if (isMatchApiMissing(res)) {
-                emitStatus('ネット対戦: 対戦用API(/api/match)が見つかりません', true);
-                return { ok: false, reason: 'MATCH_API_NOT_FOUND' };
-            }
-            if (res.data && res.data.reason === 'PLAYER_NAME_REQUIRED') {
-                emitStatus(`ニックネームを1〜${PLAYER_NAME_MAX}文字で入力してください`, true);
-                return { ok: false, reason: 'PLAYER_NAME_REQUIRED' };
-            }
-            emitStatus('部屋参加に失敗しました', true);
-            return { ok: false, reason: (res.data && res.data.reason) || 'JOIN_FAILED' };
-        }
-
-        activateSessionFromResponse(Object.assign({}, res.data, { playerName }), normalizedRoomId);
-        resetNetworkTelemetry();
-
-        openStream();
-        emitStatus(`ネット対戦: 部屋 ${state.roomId} ${res.data.rejoined ? 'へ再参加' : 'に参加'}（${state.seatKey === 'black' ? '黒' : '白'}）`);
-
-        return {
-            ok: true,
-            roomId: state.roomId,
-            seatKey: state.seatKey,
-            playerName,
-            networkDebugEnabled: state.networkDebugEnabled === true
-        };
+    function joinRoom(roomId, options) {
+        return invokeControllerMethod(
+            getNetworkSessionLifecycleController,
+            'joinRoom',
+            arguments,
+            () => Promise.resolve({ ok: false, reason: 'SESSION_LIFECYCLE_UNAVAILABLE' })
+        );
     }
 
-    async function syncLatestState() {
-        if (!state.roomId) return { ok: false, reason: 'NO_ROOM' };
-        const path = `/api/match/state?roomId=${encodeURIComponent(state.roomId)}&seatKey=${encodeURIComponent(state.seatKey)}&seatToken=${encodeURIComponent(state.seatToken || '')}`;
-        const res = await requestJson('GET', path);
-        if (!res.ok || !res.data || res.data.ok !== true) {
-            return { ok: false, reason: (res.data && res.data.reason) || 'STATE_FETCH_FAILED' };
-        }
-        const localProjectedSnapshotHashBefore = getKnownProjectedSnapshotHash();
-        applyPayloadSessionState(res.data);
-        let appliedSnapshot = false;
-        if (res.data.snapshot) {
-            if (!shouldSkipForceSyncSnapshot(res.data.snapshot, {
-                localProjectedSnapshotHash: localProjectedSnapshotHashBefore
-            })) {
-                appliedSnapshot = applySnapshotThroughCoordinator(res.data.snapshot, {
-                    source: 'state_sync',
-                    applyOptions: { force: true }
-                });
-                if (appliedSnapshot) {
-                    rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
-                        source: 'state_sync',
-                        force: true,
-                        playbackEvents: []
-                    });
-                }
-                recordNetworkTelemetry('state_sync_snapshot_applied', {
-                    snapshotVersion: getSnapshotStateVersion(res.data.snapshot),
-                    force: true
-                });
-            } else {
-                recordNetworkTelemetry('state_sync_snapshot_skipped', {
-                    snapshotVersion: getSnapshotStateVersion(res.data.snapshot),
-                    localVersion: Number.isFinite(Number(state.stateVersion)) ? Number(state.stateVersion) : null
-                });
-            }
-        }
-        return { ok: true, appliedSnapshot };
+    function syncLatestState() {
+        return invokeControllerMethod(
+            getNetworkSessionLifecycleController,
+            'syncLatestState',
+            arguments,
+            () => Promise.resolve({ ok: false, reason: 'SESSION_LIFECYCLE_UNAVAILABLE' })
+        );
     }
 
     function getCurrentAppliedGameState() {
@@ -2327,90 +2328,13 @@
         return false;
     }
 
-    async function leaveRoom() {
-        clearPlaybackStateForLeave();
-        clearPendingForceSyncPlaybackRecovery();
-        if (!state.roomId) {
-            const controller = getNetworkSessionSeatController();
-            if (controller && typeof controller.resetSessionState === 'function') {
-                controller.resetSessionState();
-            } else {
-                state.active = false;
-                state.seatNames = { black: '', white: '' };
-                state.seatHandSkins = { black: '', white: '' };
-            }
-            resetPublishTracker();
-            resetNetworkTelemetry();
-            resetTurnTimerState();
-            closeStream();
-            state.lastStreamEventId = '';
-            teardownActionBridge();
-            return { ok: true };
-        }
-
-        const roomId = state.roomId;
-        const seatKey = state.seatKey;
-        const seatToken = state.seatToken;
-        let leaveResponse = null;
-
-        try {
-            leaveResponse = await requestJson('POST', '/api/match/leave', { roomId, seatKey, seatToken });
-        } catch (e) {
-            emitStatus('ネット対戦: 部屋の退出に失敗しました');
-            return { ok: false, reason: 'LEAVE_REQUEST_FAILED' };
-        }
-
-        const leaveReason = String(leaveResponse && leaveResponse.data && leaveResponse.data.reason ? leaveResponse.data.reason : '').trim();
-        if (!(leaveResponse && leaveResponse.ok) && leaveReason !== 'ROOM_NOT_FOUND') {
-            emitStatus(`ネット対戦: 部屋の退出に失敗しました (${leaveReason || 'LEAVE_FAILED'})`);
-            return {
-                ok: false,
-                reason: leaveReason || 'LEAVE_FAILED',
-                status: leaveResponse ? leaveResponse.status : 0
-            };
-        }
-
-        const controller = getNetworkSessionSeatController();
-        if (controller && typeof controller.resetSessionState === 'function') {
-            controller.resetSessionState();
-        } else {
-            state.active = false;
-            state.roomId = '';
-            state.seatKey = 'black';
-            state.seatToken = '';
-            state.roomSeats = { black: false, white: false };
-            state.seatNames = { black: '', white: '' };
-            state.seatHandSkins = { black: '', white: '' };
-            state.networkDebugEnabled = false;
-            state.chatHistory = [];
-            state.stateVersion = null;
-            state.appliedStateVersion = null;
-            state.authoritativeMatchState.gameState = null;
-            state.authoritativeMatchState.cardState = null;
-            state.authoritativeMatchState.stateVersion = null;
-            state.authoritativeMatchState.projectedSnapshotHash = null;
-            state.authoritativeMatchState.lastAppliedProjectedSnapshotHash = null;
-            resetPublishTracker();
-            resetNetworkResultPresentationState(state);
-        }
-        state.appliedStateVersion = null;
-        state.authoritativeMatchState.gameState = null;
-        state.authoritativeMatchState.cardState = null;
-        state.authoritativeMatchState.stateVersion = null;
-        state.authoritativeMatchState.projectedSnapshotHash = null;
-        state.authoritativeMatchState.lastAppliedProjectedSnapshotHash = null;
-        resetPublishTracker();
-        resetNetworkTelemetry();
-        resetTurnTimerState();
-        closeStream();
-        state.lastStreamEventId = '';
-        teardownActionBridge();
-        setSeatGlobals('black');
-        clearSeatClaim(roomId);
-        emitRoomStateChanged();
-
-        emitStatus('ネット対戦: 部屋から退出しました');
-        return { ok: true };
+    function leaveRoom() {
+        return invokeControllerMethod(
+            getNetworkSessionLifecycleController,
+            'leaveRoom',
+            arguments,
+            () => Promise.resolve({ ok: false, reason: 'SESSION_LIFECYCLE_UNAVAILABLE' })
+        );
     }
 
     function getCurrentSnapshotForPublish() {

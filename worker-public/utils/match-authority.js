@@ -14,12 +14,60 @@ const SSE_RESUME_BUFFER_LIMIT = 96;
 const ACCEPTED_OPERATION_HISTORY_LIMIT = 16;
 const NETWORK_PLAYER_NAME_MAX = 7;
 const AUTHORITY_LOG_LIMIT = 64;
+const ROOM_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const ROOM_ID_LENGTH = 3;
+const SEAT_TOKEN_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const SEAT_TOKEN_LENGTH = 24;
+const SSE_ID_SUFFIX_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+const SSE_ID_SUFFIX_LENGTH = 6;
 const VERSION_REJECTION_REASONS = Object.freeze({
     AHEAD: 'VERSION_AHEAD',
     BEHIND: 'VERSION_BEHIND',
     GAP: 'VERSION_GAP',
     MISMATCH: 'VERSION_MISMATCH'
 });
+
+function resolveSecureCrypto(explicitCrypto) {
+    if (explicitCrypto && typeof explicitCrypto.getRandomValues === 'function') return explicitCrypto;
+    if (typeof globalThis !== 'undefined' && globalThis.crypto && typeof globalThis.crypto.getRandomValues === 'function') {
+        return globalThis.crypto;
+    }
+    if (typeof require === 'function') {
+        try {
+            const nodeCrypto = require('crypto');
+            if (nodeCrypto && nodeCrypto.webcrypto && typeof nodeCrypto.webcrypto.getRandomValues === 'function') {
+                return nodeCrypto.webcrypto;
+            }
+        } catch (e) { /* ignore */ }
+    }
+    throw new Error('Secure crypto.getRandomValues() is required for match authority token generation.');
+}
+
+function randomFromChars(chars, length, explicitCrypto) {
+    const safeChars = String(chars || '');
+    if (!safeChars || !Number.isInteger(length) || length <= 0) return '';
+    const cryptoLike = resolveSecureCrypto(explicitCrypto);
+    const bytes = new Uint8Array(length);
+    cryptoLike.getRandomValues(bytes);
+    let out = '';
+    for (let index = 0; index < length; index += 1) {
+        out += safeChars[bytes[index] % safeChars.length];
+    }
+    return out;
+}
+
+function makeRoomId(explicitCrypto) {
+    return randomFromChars(ROOM_ID_CHARS, ROOM_ID_LENGTH, explicitCrypto);
+}
+
+function makeSeatToken(explicitCrypto) {
+    return randomFromChars(SEAT_TOKEN_CHARS, SEAT_TOKEN_LENGTH, explicitCrypto);
+}
+
+function makeSseStreamId(nowValue, explicitCrypto) {
+    const timestamp = Number.isFinite(Number(nowValue)) ? Number(nowValue) : Date.now();
+    return `sse_${timestamp}_${randomFromChars(SSE_ID_SUFFIX_CHARS, SSE_ID_SUFFIX_LENGTH, explicitCrypto)}`;
+}
 
 function parseSeatKeyOptional(value) {
     if (value === 1 || value === '1') return 'black';
@@ -391,48 +439,45 @@ function resolveRoomBoardConfig(value) {
     );
 }
 
+function assignOptionalRoomBoardConfig(target, source) {
+    if (
+        target
+        && typeof target === 'object'
+        && source
+        && typeof source === 'object'
+        && Object.prototype.hasOwnProperty.call(source, 'roomBoardConfig')
+    ) {
+        target.roomBoardConfig = source.roomBoardConfig;
+    }
+    return target;
+}
+
 function buildPublishResponsePayload(options) {
     const opts = (options && typeof options === 'object') ? options : {};
-    const hasSeats = opts.seats && typeof opts.seats === 'object';
-    const hasSeatNames = opts.seatNames && typeof opts.seatNames === 'object';
-    const hasSeatHandSkins = opts.seatHandSkins && typeof opts.seatHandSkins === 'object';
-    const publicSeatMetadata = (hasSeats || hasSeatNames || hasSeatHandSkins)
-        ? buildPublicSeatMetadata(opts)
-        : null;
-    const payload = {
+    const payload = buildRoomPayload(assignOptionalRoomBoardConfig({
         ok: opts.ok === true,
-        roomId: opts.roomId ? String(opts.roomId).trim().toUpperCase() : null,
-        stateVersion: normalizeStateVersion(opts.stateVersion),
+        roomId: opts.roomId,
+        stateVersion: opts.stateVersion,
         snapshot: (opts.snapshot && typeof opts.snapshot === 'object') ? opts.snapshot : null,
-        seats: (publicSeatMetadata && hasSeats) ? publicSeatMetadata.seats : null,
-        seatNames: (publicSeatMetadata && hasSeatNames) ? publicSeatMetadata.seatNames : null,
-        seatHandSkins: (publicSeatMetadata && hasSeatHandSkins) ? publicSeatMetadata.seatHandSkins : null,
+        seats: opts.seats,
+        seatNames: (opts.seatNames && typeof opts.seatNames === 'object')
+            ? opts.seatNames
+            : ((opts.seats && typeof opts.seats === 'object') ? { black: '', white: '' } : undefined),
+        seatHandSkins: (opts.seatHandSkins && typeof opts.seatHandSkins === 'object')
+            ? opts.seatHandSkins
+            : ((opts.seats && typeof opts.seats === 'object') ? { black: '', white: '' } : undefined),
         roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
         networkDebugEnabled: opts.networkDebugEnabled === true,
         turnTimer: (opts.turnTimer && typeof opts.turnTimer === 'object') ? opts.turnTimer : null,
         playbackEvents: Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [],
         effectLogs: normalizeEffectLogMessages(opts.effectLogs),
-        serverTime: Number.isFinite(Number(opts.serverTime)) ? Number(opts.serverTime) : Date.now()
-    };
-
-    if (payload.ok !== true) {
-        payload.rejectedReason = opts.rejectedReason ? String(opts.rejectedReason).trim() : null;
-    }
-    if (opts.idempotentReplay === true) {
-        payload.idempotentReplay = true;
-    }
-    if (Object.prototype.hasOwnProperty.call(opts, 'errorMessage')) {
-        payload.errorMessage = opts.errorMessage || null;
-    }
-    if (Object.prototype.hasOwnProperty.call(opts, 'playbackDiagnostics')) {
-        payload.playbackDiagnostics = opts.playbackDiagnostics || null;
-    }
-    if (Object.prototype.hasOwnProperty.call(opts, 'roomBoardConfig')) {
-        payload.roomBoardConfig = opts.roomBoardConfig;
-    }
-    if (Object.prototype.hasOwnProperty.call(opts, 'projectedSnapshotHash')) {
-        payload.projectedSnapshotHash = opts.projectedSnapshotHash || null;
-    }
+        serverTime: opts.serverTime,
+        rejectedReason: opts.rejectedReason,
+        idempotentReplay: opts.idempotentReplay === true,
+        errorMessage: opts.errorMessage,
+        playbackDiagnostics: opts.playbackDiagnostics,
+        projectedSnapshotHash: opts.projectedSnapshotHash
+    }, opts));
 
     const publishMeta = normalizePublishMeta(opts.publishMeta);
     if (
@@ -448,6 +493,273 @@ function buildPublishResponsePayload(options) {
     }
 
     return payload;
+}
+
+function buildRoomPayload(options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const hasSeats = opts.seats && typeof opts.seats === 'object';
+    const hasSeatNames = opts.seatNames && typeof opts.seatNames === 'object';
+    const hasSeatHandSkins = opts.seatHandSkins && typeof opts.seatHandSkins === 'object';
+    const publicSeatMetadata = (hasSeats || hasSeatNames || hasSeatHandSkins)
+        ? buildPublicSeatMetadata(opts)
+        : null;
+    const payload = {
+        ok: opts.ok === true,
+        roomId: opts.roomId ? String(opts.roomId).trim().toUpperCase() : null,
+        serverTime: Number.isFinite(Number(opts.serverTime)) ? Number(opts.serverTime) : Date.now()
+    };
+
+    if (Object.prototype.hasOwnProperty.call(opts, 'stateVersion')) {
+        payload.stateVersion = normalizeStateVersion(opts.stateVersion);
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'snapshot')) {
+        payload.snapshot = (opts.snapshot && typeof opts.snapshot === 'object') ? opts.snapshot : null;
+    }
+    if (publicSeatMetadata && hasSeats) {
+        payload.seats = publicSeatMetadata.seats;
+    }
+    if (publicSeatMetadata && hasSeatNames) {
+        payload.seatNames = publicSeatMetadata.seatNames;
+    }
+    if (publicSeatMetadata && hasSeatHandSkins) {
+        payload.seatHandSkins = publicSeatMetadata.seatHandSkins;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'roomDeck')) {
+        payload.roomDeck = opts.roomDeck;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'roomBoardConfig')) {
+        payload.roomBoardConfig = opts.roomBoardConfig;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'networkDebugEnabled')) {
+        payload.networkDebugEnabled = opts.networkDebugEnabled === true;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'turnTimer')) {
+        payload.turnTimer = (opts.turnTimer && typeof opts.turnTimer === 'object') ? opts.turnTimer : null;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'playbackEvents')) {
+        payload.playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'effectLogs')) {
+        payload.effectLogs = normalizeEffectLogMessages(opts.effectLogs);
+    }
+    if (payload.ok !== true && Object.prototype.hasOwnProperty.call(opts, 'rejectedReason')) {
+        payload.rejectedReason = opts.rejectedReason ? String(opts.rejectedReason).trim() : null;
+    }
+    if (opts.idempotentReplay === true) {
+        payload.idempotentReplay = true;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'errorMessage')) {
+        payload.errorMessage = opts.errorMessage || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'playbackDiagnostics')) {
+        payload.playbackDiagnostics = opts.playbackDiagnostics || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'projectedSnapshotHash')) {
+        payload.projectedSnapshotHash = opts.projectedSnapshotHash || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'type')) {
+        payload.type = String(opts.type || '').trim() || null;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'seatKey')) {
+        payload.seatKey = parseSeatKeyOptional(opts.seatKey);
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'playerKey')) {
+        payload.playerKey = parseSeatKeyOptional(opts.playerKey);
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'playerName')) {
+        payload.playerName = normalizeNetworkPlayerName(opts.playerName);
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'seatToken')) {
+        payload.seatToken = String(opts.seatToken || '').trim();
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'rejoined')) {
+        payload.rejoined = opts.rejoined === true;
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'selectedHandSkinId')) {
+        payload.selectedHandSkinId = normalizeSeatHandSkinId(opts.selectedHandSkinId);
+    }
+    if (Object.prototype.hasOwnProperty.call(opts, 'actionType')) {
+        payload.actionType = opts.actionType ? String(opts.actionType) : null;
+    }
+
+    return payload;
+}
+
+function buildRoomPayloadFromRoom(roomValue, options) {
+    const room = (roomValue && typeof roomValue === 'object') ? roomValue : {};
+    const opts = (options && typeof options === 'object') ? options : {};
+    const source = Object.assign({}, opts);
+    const hasRoomSeats = room.seats && typeof room.seats === 'object';
+    if (!Object.prototype.hasOwnProperty.call(source, 'roomId') && room.roomId) {
+        source.roomId = room.roomId;
+    }
+    if (!Object.prototype.hasOwnProperty.call(source, 'seats') && hasRoomSeats) {
+        source.seats = room.seats;
+    }
+    if (!Object.prototype.hasOwnProperty.call(source, 'seatNames') && hasRoomSeats) {
+        source.seatNames = (room.seatNames && typeof room.seatNames === 'object')
+            ? room.seatNames
+            : { black: '', white: '' };
+    }
+    if (!Object.prototype.hasOwnProperty.call(source, 'seatHandSkins') && hasRoomSeats) {
+        source.seatHandSkins = normalizeSeatHandSkins(room.seatHandSkins);
+    }
+    return buildRoomPayload(source);
+}
+
+function buildSnapshotPayloadFromRoom(roomValue, options) {
+    const room = (roomValue && typeof roomValue === 'object') ? roomValue : {};
+    const opts = (options && typeof options === 'object') ? options : {};
+    return buildRoomPayloadFromRoom(room, assignOptionalRoomBoardConfig({
+        ok: true,
+        stateVersion: room.stateVersion,
+        snapshot: Object.prototype.hasOwnProperty.call(opts, 'snapshot') ? opts.snapshot : null,
+        roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
+        networkDebugEnabled: opts.networkDebugEnabled === true,
+        turnTimer: opts.turnTimer,
+        playbackEvents: opts.playbackEvents,
+        effectLogs: opts.effectLogs,
+        playbackDiagnostics: opts.playbackDiagnostics,
+        operationId: opts.operationId,
+        playerKey: opts.playerKey,
+        actionType: opts.actionType,
+        serverTime: opts.serverTime
+    }, opts));
+}
+
+function buildPresencePayloadFromRoom(roomValue, options) {
+    const room = (roomValue && typeof roomValue === 'object') ? roomValue : {};
+    const opts = (options && typeof options === 'object') ? options : {};
+    return buildRoomPayloadFromRoom(room, assignOptionalRoomBoardConfig({
+        ok: true,
+        roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
+        networkDebugEnabled: opts.networkDebugEnabled === true,
+        turnTimer: opts.turnTimer,
+        type: opts.type,
+        seatKey: opts.seatKey,
+        playerName: opts.playerName,
+        rejoined: opts.rejoined,
+        serverTime: opts.serverTime
+    }, opts));
+}
+
+function buildHeartbeatPayloadFromRoom(roomValue, options) {
+    const room = (roomValue && typeof roomValue === 'object') ? roomValue : {};
+    const opts = (options && typeof options === 'object') ? options : {};
+    return buildRoomPayloadFromRoom(room, assignOptionalRoomBoardConfig({
+        ok: true,
+        stateVersion: room.stateVersion,
+        roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
+        networkDebugEnabled: opts.networkDebugEnabled === true,
+        turnTimer: opts.turnTimer,
+        serverTime: opts.serverTime
+    }, opts));
+}
+
+function buildPublishPayloadFromRoom(roomValue, options) {
+    const room = (roomValue && typeof roomValue === 'object') ? roomValue : {};
+    const opts = (options && typeof options === 'object') ? options : {};
+    return buildPublishResponsePayload(assignOptionalRoomBoardConfig({
+        ok: opts.ok === true,
+        roomId: room.roomId || null,
+        stateVersion: room.stateVersion,
+        snapshot: Object.prototype.hasOwnProperty.call(opts, 'snapshot') ? opts.snapshot : null,
+        seats: room.seats,
+        seatNames: room.seatNames,
+        seatHandSkins: room.seatHandSkins,
+        roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
+        networkDebugEnabled: opts.networkDebugEnabled === true,
+        turnTimer: opts.turnTimer,
+        playbackEvents: opts.playbackEvents,
+        effectLogs: opts.effectLogs,
+        playbackDiagnostics: opts.playbackDiagnostics,
+        serverTime: opts.serverTime,
+        rejectedReason: opts.rejectedReason,
+        idempotentReplay: opts.idempotentReplay === true,
+        errorMessage: opts.errorMessage,
+        publishMeta: opts.publishMeta || null
+    }, opts));
+}
+
+function resolveSeatForJoin(roomValue, requestedSeatKey, providedToken) {
+    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+    if (!room) return null;
+
+    const token = String(providedToken || '').trim();
+    const requested = parseSeatKeyOptional(requestedSeatKey);
+    const seats = (room.seats && typeof room.seats === 'object')
+        ? room.seats
+        : { black: false, white: false };
+    const seatTokens = (room.seatTokens && typeof room.seatTokens === 'object')
+        ? room.seatTokens
+        : null;
+
+    if (requested) {
+        if (token && seatTokens && seatTokens[requested] === token) return requested;
+        if (!seats[requested]) return requested;
+        return null;
+    }
+
+    if (token && seatTokens) {
+        if (seatTokens.black === token) return 'black';
+        if (seatTokens.white === token) return 'white';
+    }
+
+    if (!seats.black) return 'black';
+    if (!seats.white) return 'white';
+    return null;
+}
+
+function applySeatLeaveToRoom(roomValue, seatKeyValue, options) {
+    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+    const seatKey = parseSeatKeyOptional(seatKeyValue);
+    const opts = (options && typeof options === 'object') ? options : {};
+    if (!room || !seatKey) return null;
+
+    const nextUpdatedAt = Number.isFinite(Number(opts.now)) ? Number(opts.now) : Date.now();
+    const createSeatToken = (typeof opts.makeSeatToken === 'function')
+        ? opts.makeSeatToken
+        : null;
+
+    room.seats = (room.seats && typeof room.seats === 'object')
+        ? room.seats
+        : { black: false, white: false };
+    room.seatNames = (room.seatNames && typeof room.seatNames === 'object')
+        ? room.seatNames
+        : { black: '', white: '' };
+    room.seatHandSkins = normalizeSeatHandSkins(room.seatHandSkins);
+    room.seatTokens = (room.seatTokens && typeof room.seatTokens === 'object')
+        ? room.seatTokens
+        : {};
+
+    room.seats[seatKey] = false;
+    room.seatNames[seatKey] = '';
+    room.seatHandSkins[seatKey] = '';
+    if (createSeatToken) {
+        room.seatTokens[seatKey] = createSeatToken();
+    }
+    room.updatedAt = nextUpdatedAt;
+
+    return {
+        seatKey,
+        updatedAt: nextUpdatedAt,
+        seatToken: room.seatTokens[seatKey] || '',
+        seats: room.seats,
+        seatNames: room.seatNames,
+        seatHandSkins: room.seatHandSkins
+    };
+}
+
+function shouldDisposeRoom(roomValue, streamCountValue) {
+    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+    if (!room) return false;
+    const streamCount = Number.isFinite(Number(streamCountValue))
+        ? Math.max(0, Math.trunc(Number(streamCountValue)))
+        : 0;
+    return !(
+        room.seats
+        && (room.seats.black || room.seats.white)
+    ) && streamCount === 0;
 }
 
 function makeHiddenHandToken(ownerKey, handIndex) {
@@ -952,7 +1264,15 @@ module.exports = {
     OPERATION_ID_MAX_LENGTH,
     SSE_RESUME_BUFFER_LIMIT,
     NETWORK_PLAYER_NAME_MAX,
+    ROOM_ID_CHARS,
+    ROOM_ID_LENGTH,
+    SEAT_TOKEN_CHARS,
+    SEAT_TOKEN_LENGTH,
     VERSION_REJECTION_REASONS,
+    randomFromChars,
+    makeRoomId,
+    makeSeatToken,
+    makeSseStreamId,
     parseSeatKeyOptional,
     normalizePlayerKey,
     getCurrentPlayerKey,
@@ -979,12 +1299,21 @@ module.exports = {
     isFateWillControllerForCurrentTurn,
     canViewerInspectOwnerHand,
     normalizePublishMeta,
+    buildRoomPayload,
+    buildRoomPayloadFromRoom,
+    buildSnapshotPayloadFromRoom,
+    buildPresencePayloadFromRoom,
+    buildHeartbeatPayloadFromRoom,
+    buildPublishPayloadFromRoom,
     buildPublishResponseOptions,
+    resolveSeatForJoin,
     normalizeEffectLogMessages,
     appendEffectLogMessages,
     normalizeRoomBoardConfig,
     resolveRoomBoardConfig,
     buildPublishResponsePayload,
+    applySeatLeaveToRoom,
+    shouldDisposeRoom,
     computeAuthoritativeStateHash,
     computeProjectedSnapshotHash,
     stripTransientPresentationState,

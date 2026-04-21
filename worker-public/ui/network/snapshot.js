@@ -10,213 +10,107 @@
     function createNetworkSnapshotController(config) {
         const cfg = (config && typeof config === 'object') ? config : {};
         const rootRef = cfg.root || (typeof globalThis !== 'undefined' ? globalThis : null);
+        const snapshotRuntimeModule = (() => {
+            try {
+                if (rootRef && rootRef.NetworkSnapshotRuntimeModule) {
+                    return rootRef.NetworkSnapshotRuntimeModule;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof globalThis !== 'undefined' && globalThis.NetworkSnapshotRuntimeModule) {
+                    return globalThis.NetworkSnapshotRuntimeModule;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof require === 'function') {
+                    return require('./snapshot-runtime');
+                }
+            } catch (e) { /* ignore */ }
+
+            return null;
+        })();
+        const runtime = (
+            snapshotRuntimeModule
+            && typeof snapshotRuntimeModule.createNetworkSnapshotRuntime === 'function'
+        )
+            ? snapshotRuntimeModule.createNetworkSnapshotRuntime(cfg)
+            : null;
 
         function resolveState() {
+            if (runtime && typeof runtime.resolveState === 'function') {
+                return runtime.resolveState();
+            }
             return (typeof cfg.getState === 'function' && cfg.getState()) || {};
         }
 
         function resolveGlobalObject(name) {
-            try {
-                if (typeof globalThis !== 'undefined' && globalThis[name] && typeof globalThis[name] === 'object') {
-                    return globalThis[name];
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (rootRef && rootRef[name] && typeof rootRef[name] === 'object') {
-                    return rootRef[name];
-                }
-            } catch (e) { /* ignore */ }
-
+            if (runtime && typeof runtime.resolveObject === 'function') {
+                return runtime.resolveObject(name);
+            }
             return null;
         }
 
         function resolveGlobalFunction(name, injected) {
+            if (runtime && typeof runtime.resolveFunction === 'function') {
+                return runtime.resolveFunction(name, injected);
+            }
             if (typeof injected === 'function') return injected;
-
-            try {
-                if (rootRef && typeof rootRef[name] === 'function') {
-                    return rootRef[name].bind(rootRef);
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (typeof globalThis !== 'undefined' && typeof globalThis[name] === 'function') {
-                    return globalThis[name].bind(globalThis);
-                }
-            } catch (e) { /* ignore */ }
-
             return null;
         }
 
         function setGlobalFlag(name, value) {
-            try {
-                if (typeof globalThis !== 'undefined') {
-                    globalThis[name] = value;
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (rootRef) {
-                    rootRef[name] = value;
-                }
-            } catch (e) { /* ignore */ }
+            if (runtime && typeof runtime.setGlobalFlag === 'function') {
+                runtime.setGlobalFlag(name, value);
+            }
         }
 
         function setGlobalValue(name, value) {
-            try {
-                if (typeof globalThis !== 'undefined') {
-                    globalThis[name] = value;
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (rootRef) {
-                    rootRef[name] = value;
-                }
-            } catch (e) { /* ignore */ }
+            if (runtime && typeof runtime.setGlobalValue === 'function') {
+                runtime.setGlobalValue(name, value);
+            }
         }
 
         function resolvePlaybackStateModule() {
-            if (cfg.playbackState && typeof cfg.playbackState === 'object') {
-                return cfg.playbackState;
+            if (runtime && typeof runtime.resolvePlaybackStateModule === 'function') {
+                return runtime.resolvePlaybackStateModule();
             }
-
-            try {
-                if (rootRef && rootRef.PlaybackStateManager && typeof rootRef.PlaybackStateManager === 'object') {
-                    return rootRef.PlaybackStateManager;
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager && typeof globalThis.PlaybackStateManager === 'object') {
-                    return globalThis.PlaybackStateManager;
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (typeof require === 'function') {
-                    return require('../playback-state-manager');
-                }
-            } catch (e) { /* ignore */ }
-
             return null;
         }
 
         function resolveBoardUpdateDispatch() {
-            if (cfg.boardUpdateDispatch && typeof cfg.boardUpdateDispatch === 'object') {
-                return cfg.boardUpdateDispatch;
+            if (runtime && typeof runtime.resolveBoardUpdateDispatch === 'function') {
+                return runtime.resolveBoardUpdateDispatch();
             }
-
-            try {
-                if (rootRef && rootRef.BoardUpdateDispatch && typeof rootRef.BoardUpdateDispatch === 'object') {
-                    return rootRef.BoardUpdateDispatch;
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (typeof globalThis !== 'undefined' && globalThis.BoardUpdateDispatch && typeof globalThis.BoardUpdateDispatch === 'object') {
-                    return globalThis.BoardUpdateDispatch;
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (typeof require === 'function') {
-                    return require('../board-update-dispatch');
-                }
-            } catch (e) { /* ignore */ }
-
             return null;
         }
 
         function resolveBoardUpdateSyncRuntime() {
-            if (cfg.boardUpdateSyncRuntime && typeof cfg.boardUpdateSyncRuntime === 'object') {
-                return cfg.boardUpdateSyncRuntime;
+            if (runtime && typeof runtime.resolveBoardUpdateSyncRuntime === 'function') {
+                return runtime.resolveBoardUpdateSyncRuntime();
             }
-
-            try {
-                if (rootRef && rootRef.BoardUpdateSyncRuntime && typeof rootRef.BoardUpdateSyncRuntime === 'object') {
-                    return rootRef.BoardUpdateSyncRuntime;
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (typeof globalThis !== 'undefined' && globalThis.BoardUpdateSyncRuntime && typeof globalThis.BoardUpdateSyncRuntime === 'object') {
-                    return globalThis.BoardUpdateSyncRuntime;
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (typeof require === 'function') {
-                    return require('../board-update-sync-runtime');
-                }
-            } catch (e) { /* ignore */ }
-
             return null;
         }
 
         function resolveSharedBoardUtils() {
-            if (cfg.sharedBoardUtils && typeof cfg.sharedBoardUtils === 'object') {
-                return cfg.sharedBoardUtils;
+            if (runtime && typeof runtime.resolveSharedBoardUtils === 'function') {
+                return runtime.resolveSharedBoardUtils();
             }
-
-            try {
-                if (rootRef && rootRef.SharedBoardUtils && typeof rootRef.SharedBoardUtils === 'object') {
-                    return rootRef.SharedBoardUtils;
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (typeof globalThis !== 'undefined' && globalThis.SharedBoardUtils && typeof globalThis.SharedBoardUtils === 'object') {
-                    return globalThis.SharedBoardUtils;
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (typeof require === 'function') {
-                    return require('../../shared/shared-board-utils');
-                }
-            } catch (e) { /* ignore */ }
-
             return null;
         }
 
         function setBusyState(active) {
-            const playbackState = resolvePlaybackStateModule();
-            if (!playbackState || typeof playbackState !== 'object') return false;
-            if (typeof playbackState.setBusyState === 'function') {
-                playbackState.setBusyState({
-                    processing: active === true,
-                    cardAnimating: active === true
-                });
-                return true;
+            if (runtime && typeof runtime.setBusyState === 'function') {
+                return runtime.setBusyState(active);
             }
-
-            if (typeof playbackState.setProcessing === 'function') {
-                playbackState.setProcessing(active === true);
-            }
-            if (typeof playbackState.setCardAnimating === 'function') {
-                playbackState.setCardAnimating(active === true);
-            }
-            return true;
+            return false;
         }
 
         function clearBusyStateAndPlaybackLock() {
-            const playbackState = resolvePlaybackStateModule();
-            if (playbackState && typeof playbackState.abortPlayback === 'function') {
-                playbackState.abortPlayback();
-                return true;
+            if (runtime && typeof runtime.clearBusyStateAndPlaybackLock === 'function') {
+                runtime.clearBusyStateAndPlaybackLock();
             }
-            if (playbackState && typeof playbackState.clearPlaybackLock === 'function') {
-                playbackState.clearPlaybackLock();
-                return true;
-            }
-
-            setBusyState(false);
-            setGlobalFlag('isProcessing', false);
-            setGlobalFlag('isCardAnimating', false);
-            setGlobalFlag('VisualPlaybackActive', false);
-            setGlobalValue('__playbackActiveSince', null);
 
             try {
                 if (typeof document !== 'undefined') {
@@ -495,19 +389,7 @@
                 Object.assign(current, source);
                 return;
             }
-
-            try {
-                if (typeof globalThis !== 'undefined') {
-                    globalThis[targetName] = source;
-                    return;
-                }
-            } catch (e) { /* ignore */ }
-
-            try {
-                if (rootRef) {
-                    rootRef[targetName] = source;
-                }
-            } catch (e) { /* ignore */ }
+            setGlobalValue(targetName, source);
         }
 
         function emitPlaybackEvents(playbackEvents, options) {
@@ -636,34 +518,23 @@
         }
 
         function getPlaybackStartedAt() {
-            const playbackState = resolvePlaybackStateModule();
-            try {
-                if (playbackState && typeof playbackState.getPlaybackStartedAt === 'function') {
-                    const startedAt = Number(playbackState.getPlaybackStartedAt());
-                    return Number.isFinite(startedAt) ? startedAt : null;
-                }
-            } catch (e) { /* ignore */ }
-
-            const startedAt = Number(rootRef && rootRef.__playbackActiveSince);
-            return Number.isFinite(startedAt) ? startedAt : null;
+            if (runtime && typeof runtime.getPlaybackStartedAt === 'function') {
+                return runtime.getPlaybackStartedAt();
+            }
+            return null;
         }
 
         function isPlaybackEngineRunning() {
-            try {
-                if (
-                    rootRef
-                    && rootRef.AnimationEngine
-                    && typeof rootRef.AnimationEngine.isPlaying === 'boolean'
-                ) {
-                    return rootRef.AnimationEngine.isPlaying === true;
-                }
-            } catch (e) { /* ignore */ }
+            if (runtime && typeof runtime.isPlaybackEngineRunning === 'function') {
+                return runtime.isPlaybackEngineRunning();
+            }
             return null;
         }
 
         function getStalePlaybackTimeoutMs() {
-            const timeoutMs = Number(rootRef && rootRef.PASS_STALE_PLAYBACK_MS);
-            if (Number.isFinite(timeoutMs) && timeoutMs > 0) return timeoutMs;
+            if (runtime && typeof runtime.getStalePlaybackTimeoutMs === 'function') {
+                return runtime.getStalePlaybackTimeoutMs();
+            }
             return 3500;
         }
 
@@ -826,8 +697,11 @@
                     return;
                 }
 
-                const waitForPlaybackFn = (rootRef && typeof rootRef.waitForPlaybackIdle === 'function')
-                    ? rootRef.waitForPlaybackIdle
+                const waitForPlaybackFn = (
+                    runtime
+                    && typeof runtime.resolveWaitForPlaybackIdle === 'function'
+                )
+                    ? runtime.resolveWaitForPlaybackIdle()
                     : null;
                 if (typeof waitForPlaybackFn === 'function') {
                     Promise.resolve(waitForPlaybackFn()).then(() => {
@@ -881,20 +755,9 @@
         }
 
         function resolveResultPresentationSync() {
-            try {
-                const syncResultPresentation = resolveGlobalFunction('syncResultPresentationFromSnapshot', cfg.syncResultPresentationFromSnapshot);
-                if (typeof syncResultPresentation === 'function') {
-                    return syncResultPresentation;
-                }
-            } catch (e) { /* ignore */ }
-            try {
-                if (typeof require === 'function') {
-                    const resultOverlayModule = require('../result-overlay');
-                    if (resultOverlayModule && typeof resultOverlayModule.syncResultPresentationFromSnapshot === 'function') {
-                        return resultOverlayModule.syncResultPresentationFromSnapshot;
-                    }
-                }
-            } catch (e) { /* ignore */ }
+            if (runtime && typeof runtime.resolveResultPresentationSync === 'function') {
+                return runtime.resolveResultPresentationSync();
+            }
             return null;
         }
 

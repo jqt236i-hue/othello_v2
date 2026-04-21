@@ -3,12 +3,16 @@ import matchAuthority from '../utils/match-authority.js';
 import networkActionSchemaModule from '../shared/network-action-schema.js';
 import playbackEventHelpersModule from '../shared/playback-event-helpers.js';
 
-const ROOM_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const ROOM_ID_LENGTH = 3;
-const SEAT_TOKEN_CHARS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-const SEAT_TOKEN_LENGTH = 24;
-const ROOM_STORAGE_KEY = 'match_room_state_v1';
 const MatchAuthority = matchAuthority || {};
+const ROOM_ID_CHARS = String(MatchAuthority.ROOM_ID_CHARS || 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789');
+const ROOM_ID_LENGTH = Number.isFinite(Number(MatchAuthority.ROOM_ID_LENGTH))
+    ? Number(MatchAuthority.ROOM_ID_LENGTH)
+    : 3;
+const SEAT_TOKEN_CHARS = String(MatchAuthority.SEAT_TOKEN_CHARS || 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
+const SEAT_TOKEN_LENGTH = Number.isFinite(Number(MatchAuthority.SEAT_TOKEN_LENGTH))
+    ? Number(MatchAuthority.SEAT_TOKEN_LENGTH)
+    : 24;
+const ROOM_STORAGE_KEY = 'match_room_state_v1';
 const NetworkActionSchema = networkActionSchemaModule || {};
 const PlaybackEventHelpers = playbackEventHelpersModule || {};
 const PLAYER_KEYS = Array.isArray(MatchAuthority.PLAYER_KEYS) ? MatchAuthority.PLAYER_KEYS : Object.freeze(['black', 'white']);
@@ -205,22 +209,18 @@ function collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerK
     }
 }
 
-function randomFromChars(chars, length) {
-    const bytes = new Uint8Array(length);
-    crypto.getRandomValues(bytes);
-    let out = '';
-    for (let i = 0; i < length; i += 1) {
-        out += chars[bytes[i] % chars.length];
-    }
-    return out;
-}
-
 function makeRoomId() {
-    return randomFromChars(ROOM_ID_CHARS, ROOM_ID_LENGTH);
+    if (typeof MatchAuthority.makeRoomId === 'function') {
+        return MatchAuthority.makeRoomId(crypto);
+    }
+    throw new Error('MatchAuthority.makeRoomId is required');
 }
 
 function makeSeatToken() {
-    return randomFromChars(SEAT_TOKEN_CHARS, SEAT_TOKEN_LENGTH);
+    if (typeof MatchAuthority.makeSeatToken === 'function') {
+        return MatchAuthority.makeSeatToken(crypto);
+    }
+    throw new Error('MatchAuthority.makeSeatToken is required');
 }
 
 function loadCoreLogicModule() {
@@ -639,17 +639,11 @@ function reportPlaybackAssemblyDiagnostics(context, diagnostics, options = {}) {
 function buildPublishPayload(room, viewerSeatKey, options = {}) {
     const serverTime = Number.isFinite(Number(options.serverTime)) ? Number(options.serverTime) : Date.now();
     const networkDebugEnabled = toPublicNetworkDebugEnabled(room);
-    const publicSeatState = buildPublicSeatState(room);
     const payloadOptions = {
         ok: options.ok === true,
-        roomId: room && room.roomId,
-        stateVersion: room ? room.stateVersion : null,
         snapshot: Object.prototype.hasOwnProperty.call(options, 'snapshot')
             ? options.snapshot
             : toPublicSnapshot(room, viewerSeatKey),
-        seats: publicSeatState.seats,
-        seatNames: publicSeatState.seatNames,
-        seatHandSkins: publicSeatState.seatHandSkins,
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled,
@@ -669,8 +663,17 @@ function buildPublishPayload(room, viewerSeatKey, options = {}) {
     if (Object.prototype.hasOwnProperty.call(options, 'playbackDiagnostics')) {
         payloadOptions.playbackDiagnostics = toDebugPlaybackDiagnostics(options.playbackDiagnostics, networkDebugEnabled);
     }
+    if (MatchAuthority && typeof MatchAuthority.buildPublishPayloadFromRoom === 'function') {
+        return MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions);
+    }
     if (MatchAuthority && typeof MatchAuthority.buildPublishResponsePayload === 'function') {
-        return MatchAuthority.buildPublishResponsePayload(payloadOptions);
+        return MatchAuthority.buildPublishResponsePayload(Object.assign({
+            roomId: room && room.roomId,
+            stateVersion: room ? room.stateVersion : null,
+            seats: room && room.seats,
+            seatNames: room && room.seatNames,
+            seatHandSkins: room && room.seatHandSkins
+        }, payloadOptions));
     }
     return payloadOptions;
 }
@@ -1376,6 +1379,22 @@ function parseChatMessageText(value) {
 
 function buildSnapshotPayload(room, meta, viewerSeatKey) {
     const serverTime = Date.now();
+    if (MatchAuthority && typeof MatchAuthority.buildSnapshotPayloadFromRoom === 'function') {
+        return MatchAuthority.buildSnapshotPayloadFromRoom(room, {
+            snapshot: toPublicSnapshot(room, viewerSeatKey),
+            roomDeck: toPublicRoomDeck(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            turnTimer: toPublicTurnTimer(room, serverTime),
+            playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
+            effectLogs: normalizeEffectLogMessages(meta && meta.effectLogs),
+            playbackDiagnostics: toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
+            operationId: meta && meta.operationId ? String(meta.operationId) : null,
+            playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
+            actionType: meta && meta.actionType ? String(meta.actionType) : null,
+            serverTime
+        });
+    }
     return withPublicSeatState(room, {
         ok: true,
         roomId: room.roomId,
@@ -1399,6 +1418,19 @@ function buildPresencePayload(room, meta) {
     const serverTime = Date.now();
     const seatKey = meta && meta.seatKey ? normalizePlayerKey(meta.seatKey) : 'black';
     const publicSeatState = buildPublicSeatState(room);
+    if (MatchAuthority && typeof MatchAuthority.buildPresencePayloadFromRoom === 'function') {
+        return MatchAuthority.buildPresencePayloadFromRoom(room, {
+            type: meta && meta.type ? String(meta.type) : 'join',
+            seatKey,
+            playerName: normalizeNetworkPlayerName(publicSeatState.seatNames[seatKey]),
+            rejoined: !!(meta && meta.rejoined),
+            roomDeck: toPublicRoomDeck(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            turnTimer: toPublicTurnTimer(room, serverTime),
+            serverTime
+        });
+    }
     return withPublicSeatState(room, {
         ok: true,
         roomId: room.roomId,
@@ -1415,6 +1447,15 @@ function buildPresencePayload(room, meta) {
 }
 
 function buildHeartbeatPayload(room, serverTime) {
+    if (MatchAuthority && typeof MatchAuthority.buildHeartbeatPayloadFromRoom === 'function') {
+        return MatchAuthority.buildHeartbeatPayloadFromRoom(room, {
+            roomDeck: toPublicRoomDeck(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            turnTimer: toPublicTurnTimer(room, serverTime),
+            serverTime
+        });
+    }
     return withPublicSeatState(room, {
         ok: true,
         roomId: room.roomId,
@@ -1428,6 +1469,9 @@ function buildHeartbeatPayload(room, serverTime) {
 }
 
 function resolveSeatForJoin(room, requestedSeatKey, providedToken) {
+    if (MatchAuthority && typeof MatchAuthority.resolveSeatForJoin === 'function') {
+        return MatchAuthority.resolveSeatForJoin(room, requestedSeatKey, providedToken);
+    }
     const token = String(providedToken || '').trim();
     const requested = parseSeatKeyOptional(requestedSeatKey);
 
@@ -1685,7 +1729,6 @@ export class MatchRoomDurableObject {
         this.room = null;
         this.roomLoaded = false;
         this.streams = new Map();
-        this.streamSeq = 0;
         this.encoder = new TextEncoder();
         this.heartbeatTimerId = null;
         this.sseEventBuffer = Array.isArray(this.room && this.room.sseEventBuffer)
@@ -1731,7 +1774,9 @@ export class MatchRoomDurableObject {
     nextSseEventId() {
         const room = this.room;
         if (!room || typeof room !== 'object') {
-            return `sse_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            return typeof MatchAuthority.makeSseStreamId === 'function'
+                ? MatchAuthority.makeSseStreamId(Date.now(), crypto)
+                : `sse_${Date.now()}`;
         }
 
         const prevSeq = Number.isFinite(Number(room.eventSeq))
@@ -2215,9 +2260,8 @@ export class MatchRoomDurableObject {
 
         const serverTime = Date.now();
 
-        return jsonResponse(200, withPublicSeatState(this.room, {
+        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(this.room, {
             ok: true,
-            roomId: this.room.roomId,
             seatKey: 'black',
             playerName,
             seatToken: this.room.seatTokens.black,
@@ -2318,9 +2362,8 @@ export class MatchRoomDurableObject {
         });
 
         const serverTime = Date.now();
-        return jsonResponse(200, withPublicSeatState(room, {
+        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
             ok: true,
-            roomId: room.roomId,
             seatKey,
             playerName,
             seatToken,
@@ -2353,18 +2396,10 @@ export class MatchRoomDurableObject {
             });
         }
 
-        room.seats[seatKey] = false;
-        room.seatNames = room.seatNames && typeof room.seatNames === 'object'
-            ? room.seatNames
-            : { black: '', white: '' };
-        room.seatNames[seatKey] = '';
-        room.seatHandSkins = toPublicSeatHandSkins(room);
-        room.seatHandSkins[seatKey] = '';
-        room.seatTokens = room.seatTokens && typeof room.seatTokens === 'object'
-            ? room.seatTokens
-            : {};
-        room.seatTokens[seatKey] = makeSeatToken();
-        room.updatedAt = Date.now();
+        MatchAuthority.applySeatLeaveToRoom(room, seatKey, {
+            makeSeatToken,
+            now: Date.now()
+        });
         await this.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: false });
         await this.closeStreamsForSeat(seatKey);
 
@@ -2374,14 +2409,14 @@ export class MatchRoomDurableObject {
             rejoined: false
         });
 
-        if (!room.seats.black && !room.seats.white && this.streams.size === 0) {
+        if (MatchAuthority.shouldDisposeRoom(room, this.streams.size)) {
             await this.removeRoom();
         } else {
             await this.saveRoom();
         }
 
         const serverTime = Date.now();
-        return jsonResponse(200, withPublicSeatState(room, {
+        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
             ok: true,
             roomBoardConfig: toPublicRoomBoardConfig(room),
             turnTimer: toPublicTurnTimer(room, serverTime),
@@ -2423,9 +2458,8 @@ export class MatchRoomDurableObject {
         }
 
         const serverTime = Date.now();
-        return jsonResponse(200, withPublicSeatState(room, {
+        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
             ok: true,
-            roomId: room.roomId,
             seatKey,
             selectedHandSkinId,
             roomDeck: toPublicRoomDeck(room),
@@ -2757,9 +2791,8 @@ export class MatchRoomDurableObject {
 
         const serverTime = Date.now();
 
-        return jsonResponse(200, withPublicSeatState(room, {
+        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
             ok: true,
-            roomId: room.roomId,
             stateVersion: room.stateVersion,
             roomDeck: toPublicRoomDeck(room),
             roomBoardConfig: toPublicRoomBoardConfig(room),
@@ -2791,8 +2824,9 @@ export class MatchRoomDurableObject {
         const { readable, writable } = new TransformStream();
         const writer = writable.getWriter();
 
-        this.streamSeq += 1;
-        const streamId = `sse_${this.streamSeq}_${Date.now()}`;
+        const streamId = (MatchAuthority && typeof MatchAuthority.makeSseStreamId === 'function')
+            ? MatchAuthority.makeSseStreamId(Date.now(), crypto)
+            : `sse_${Date.now()}`;
         this.streams.set(streamId, { writer, seatKey: viewerSeatKey });
         this.ensureHeartbeatTimer();
         const lastEventId = String(request.headers.get('Last-Event-ID') || resumeEventId).trim();

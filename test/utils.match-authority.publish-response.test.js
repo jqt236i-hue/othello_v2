@@ -167,6 +167,86 @@ describe('match authority publish response payload', () => {
     expect(snapshot.cardState.hands.white).toEqual(['w1']);
   });
 
+  test('buildSnapshotPayloadFromRoom reuses shared room envelope fields', () => {
+    const payload = MatchAuthority.buildSnapshotPayloadFromRoom({
+      roomId: 'abc',
+      stateVersion: 7,
+      seats: { black: true, white: false },
+      seatNames: { black: '  Alpha   Beta  ', white: '  ' },
+      seatHandSkins: { black: ' fancy-hand ', white: '' }
+    }, {
+      snapshot: { stateVersion: 7, gameState: {}, cardState: {} },
+      roomDeck: { mode: 'shared', deckCode: '', deckSize: 30, source: 'room' },
+      roomBoardConfig: { rows: 8, cols: 8, standard8x8: true },
+      networkDebugEnabled: false,
+      turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black' },
+      playbackEvents: [{ type: 'observer_bubble', phase: 1 }],
+      effectLogs: ['黒: ok', '', '黒: ok'],
+      actionType: 'place',
+      playerKey: 'white',
+      serverTime: 321
+    });
+
+    expect(payload).toEqual(expect.objectContaining({
+      ok: true,
+      roomId: 'ABC',
+      stateVersion: 7,
+      seats: { black: true, white: false },
+      seatNames: { black: 'Alpha B', white: '' },
+      seatHandSkins: { black: 'fancy-hand', white: '' },
+      playbackEvents: [{ type: 'observer_bubble', phase: 1 }],
+      effectLogs: ['黒: ok'],
+      actionType: 'place',
+      playerKey: 'white',
+      serverTime: 321
+    }));
+  });
+
+  test('applySeatLeaveToRoom clears joined seat and rotates its token through shared lifecycle helper', () => {
+    const room = {
+      seats: { black: true, white: true },
+      seatNames: { black: 'くろ', white: 'しろ' },
+      seatHandSkins: { black: 'hand-black', white: 'hand-white' },
+      seatTokens: { black: 'old-token', white: 'token-white' },
+      updatedAt: 1
+    };
+
+    const result = MatchAuthority.applySeatLeaveToRoom(room, 'black', {
+      makeSeatToken: () => 'new-token',
+      now: 999
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      seatKey: 'black',
+      seatToken: 'new-token',
+      updatedAt: 999
+    }));
+    expect(room).toEqual(expect.objectContaining({
+      seats: { black: false, white: true },
+      seatNames: { black: '', white: 'しろ' },
+      seatHandSkins: { black: '', white: 'hand-white' },
+      seatTokens: { black: 'new-token', white: 'token-white' },
+      updatedAt: 999
+    }));
+    expect(room.seatHandSkins.black).toBe('');
+    expect(MatchAuthority.shouldDisposeRoom(room, 0)).toBe(false);
+    expect(MatchAuthority.shouldDisposeRoom({
+      seats: { black: false, white: false }
+    }, 0)).toBe(true);
+  });
+
+  test('resolveSeatForJoin reuses shared seat-token and open-seat precedence', () => {
+    const room = {
+      seats: { black: true, white: false },
+      seatTokens: { black: 'token-black', white: 'token-white' }
+    };
+
+    expect(MatchAuthority.resolveSeatForJoin(room, 'black', 'token-black')).toBe('black');
+    expect(MatchAuthority.resolveSeatForJoin(room, 'black', 'wrong-token')).toBe(null);
+    expect(MatchAuthority.resolveSeatForJoin(room, null, 'token-black')).toBe('black');
+    expect(MatchAuthority.resolveSeatForJoin(room, null, '')).toBe('white');
+  });
+
   test('validatePendingSelectionPublish rejects stale pendingEffectId mismatch', () => {
     const result = MatchAuthority.validatePendingSelectionPublish({
       cardState: {

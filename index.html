@@ -374,14 +374,23 @@
     <button id="deckBuilderOpenBtn" class="btn-small" type="button" aria-controls="deckBuilderOverlay" aria-expanded="false">デッキ</button>
     <button id="storyBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="storyMenuOverlay">STORY</button>
     <button id="rulesHelpBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="rules-help-panel">HELP</button>
-    <button id="handSkinBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="handSkinPanel" aria-label="手の見た目設定">SKIN</button>
+    <button id="handSkinBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="handSkinPanel" aria-label="見た目設定">SKIN</button>
 
-    <div id="handSkinPanel" aria-hidden="true" role="dialog" aria-modal="false" aria-label="手の見た目設定">
+    <div id="handSkinPanel" aria-hidden="true" role="dialog" aria-modal="false" aria-label="見た目設定">
         <div id="handSkinPanelHeader">
-            <div id="handSkinPanelTitle">手の見た目</div>
-            <button id="handSkinCloseBtn" class="btn-small" type="button" aria-label="手の見た目設定を閉じる">×</button>
+            <div id="handSkinPanelTitle">見た目</div>
+            <button id="handSkinCloseBtn" class="btn-small" type="button" aria-label="見た目設定を閉じる">×</button>
         </div>
-        <div id="handSkinOptions" role="radiogroup" aria-label="手の見た目スキン"></div>
+        <div id="appearancePanelTabs" role="tablist" aria-label="見た目種別">
+            <button id="appearanceTabHand" class="appearance-panel-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="handSkinSection">手</button>
+            <button id="appearanceTabBackground" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="backgroundSkinSection">背景</button>
+        </div>
+        <div id="handSkinSection" class="appearance-panel-section" data-appearance-section="hand">
+            <div id="handSkinOptions" role="radiogroup" aria-label="手の見た目スキン"></div>
+        </div>
+        <div id="backgroundSkinSection" class="appearance-panel-section" data-appearance-section="background" hidden>
+            <div id="backgroundSkinOptions" role="radiogroup" aria-label="背景画像"></div>
+        </div>
     </div>
 
     <div id="storyMenuOverlay" aria-hidden="true"></div>
@@ -600,7 +609,7 @@
                 <button id="gachaCloseBtn" class="btn-small" type="button" aria-label="観測ガチャを閉じる">×</button>
             </div>
             <div id="gachaModalBody">
-                <div id="gachaStatusText">観測石を集めて手の見た目や配置音を解放できます</div>
+                <div id="gachaStatusText">観測石を集めて手の見た目や配置音や背景を解放できます</div>
                 <div id="gachaActionRow">
                     <button id="gachaDetailToggleBtn" class="btn-small" type="button" aria-expanded="false"
                         aria-controls="gachaDetailsPanel">詳細</button>
@@ -673,6 +682,7 @@
     <script src="shared/stone-status-snapshot.js"></script>
     <script src="shared/shared-board-utils.js"></script>
     <script src="game/logic/markers_adapter.js"></script>
+    <script src="game/logic/cards-internal/random-source.js"></script>
     <script src="game/logic/board_ops.js"></script>
     <script src="utils/owner-helpers.js"></script>
     <script src="game/logic/core.js"></script>
@@ -794,6 +804,7 @@
     <script src="ui/gacha-reveal-player.js"></script>
     <script src="ui/leaderboard-client.js"></script>
     <script src="ui/result-overlay.js"></script>
+    <script src="shared/network-action-schema.js"></script>
     <script src="ui/network/commentary.js"></script>
     <script src="ui/network/command-payload.js"></script>
     <script src="ui/network/publish-request.js"></script>
@@ -801,8 +812,10 @@
     <script src="ui/network/apply-coordinator.js"></script>
     <script src="ui/network/reconnect-controller.js"></script>
     <script src="ui/network/publish-tracker.js"></script>
+    <script src="ui/network/snapshot-runtime.js"></script>
     <script src="ui/network/snapshot.js"></script>
     <script src="ui/network/session-seat.js"></script>
+    <script src="ui/network/session-lifecycle.js"></script>
     <script src="ui/network-client.js"></script>
 
     <script src="sound-engine.js"></script>
@@ -904,6 +917,10 @@
     <script src="ui/handlers/sound.js"></script>
     <script src="ui/handlers/rules-help.js"></script>
     <script src="ui/handlers/gacha.js"></script>
+    <script src="ui/background-skin/catalog.js"></script>
+    <script src="ui/background-skin/selection.js"></script>
+    <script src="ui/background-skin/runtime.js"></script>
+    <script src="ui/background-skin/controller.js"></script>
     <script src="ui/hand-skin/catalog.js"></script>
     <script src="ui/hand-skin/selection.js"></script>
     <script src="ui/hand-skin/runtime.js"></script>
