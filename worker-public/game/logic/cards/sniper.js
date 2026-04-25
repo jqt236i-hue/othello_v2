@@ -5,11 +5,11 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'), require('../board_ops'));
+        module.exports = factory(require('../../../shared-constants'), require('../board_ops'), require('../cards-internal/random-source'));
     } else {
-        root.CardSniper = factory(root.SharedConstants, root.BoardOps || null);
+        root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, BoardOpsModule) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, BoardOpsModule, RandomSourceModule) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
@@ -196,11 +196,14 @@
     }
 
     function resolveRandomFn(randomLike) {
+        if (RandomSourceModule && typeof RandomSourceModule.resolveRandomFunction === 'function') {
+            return RandomSourceModule.resolveRandomFunction(randomLike, null, 'CardSniper');
+        }
         if (typeof randomLike === 'function') return randomLike;
         if (randomLike && typeof randomLike.random === 'function') {
             return function () { return randomLike.random(); };
         }
-        return Math.random;
+        throw new Error('CardSniper requires an injected deterministic PRNG.');
     }
 
     function pickNearestEnemyTarget(gameState, sourceRow, sourceCol, enemyValue, randomFn) {
@@ -234,7 +237,10 @@
         const nearest = candidates.filter((c) => c.distSq === minDistSq);
         if (nearest.length <= 1) return nearest[0];
         const raw = Number(randomFn());
-        const normalized = Number.isFinite(raw) ? raw : Math.random();
+        if (!Number.isFinite(raw)) {
+            throw new Error('CardSniper received a PRNG that returned a non-finite value.');
+        }
+        const normalized = Math.max(0, Math.min(0.999999, raw));
         const idx = Math.max(0, Math.min(nearest.length - 1, Math.floor(normalized * nearest.length)));
         return nearest[idx];
     }

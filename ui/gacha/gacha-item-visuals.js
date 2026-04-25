@@ -12,7 +12,10 @@
     }
 
     function getItemKindLabel(item) {
-        return normalizeItemKind(item) === 'placement_sound' ? '配置音' : '手の見た目';
+        const normalizedKind = normalizeItemKind(item);
+        if (normalizedKind === 'placement_sound') return '配置音';
+        if (normalizedKind === 'background_skin') return '背景';
+        return '手の見た目';
     }
 
     function getItemPreviewPath(item) {

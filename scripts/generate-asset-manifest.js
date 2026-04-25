@@ -40,6 +40,8 @@ function generateManifest(options = {}) {
     const assetDirs = [
         'images/stones',
         'images/other',
+        'images/background',
+        'images/background-skin',
         'images/hand-skin',
         'images/Gacha'
     ];

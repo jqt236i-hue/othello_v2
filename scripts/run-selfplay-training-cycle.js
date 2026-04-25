@@ -1967,7 +1967,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const selfplayResumeArgs = args.selfplayResumeChunkSize > 0
         ? ['--resume-chunk-size', String(args.selfplayResumeChunkSize)]
         : [];
-    const adoptionCardRate = args.allowCardUsage ? args.cardUsageRate : 0;
+    const adoptionCardRate = selfplayCardUsageRate;
     const quickAdoptionThreshold = Number.isFinite(args.quickAdoptionThreshold) ? args.quickAdoptionThreshold : args.threshold;
     const quickAdoptionSeedCount = Number.isFinite(args.quickAdoptionSeedCount) ? args.quickAdoptionSeedCount : args.adoptionSeedCount;
     const quickAdoptionSeedStride = Number.isFinite(args.quickAdoptionSeedStride) ? args.quickAdoptionSeedStride : args.adoptionSeedStride;
@@ -2383,7 +2383,9 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             seedBankId: quickGateSeedConfig.bankId,
             seedBankPath: quickGateSeedConfig.bankPath,
             seedPurpose: quickGateSeedConfig.purpose,
+            cardUsageRate: adoptionCardRate,
             threshold: quickAdoptionThreshold,
+            tacticalWeight: args.adoptionTacticalWeight,
             seedCount: quickAdoptionSeedCount,
             seedStride: quickAdoptionSeedStride,
             confidenceLevel: quickAdoptionConfidenceLevel,
@@ -2403,7 +2405,9 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             seedBankId: qualityGateSeedConfig.bankId,
             seedBankPath: qualityGateSeedConfig.bankPath,
             seedPurpose: qualityGateSeedConfig.purpose,
+            cardUsageRate: adoptionCardRate,
             threshold: args.qualityGateThreshold,
+            tacticalWeight: args.adoptionTacticalWeight,
             confidenceLevel: args.qualityGateConfidenceLevel,
             minLowerBound: args.qualityGateMinLowerBound,
             minSeedUplift: args.qualityGateMinSeedUplift,
@@ -2418,7 +2422,9 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
             seedBankId: finalGateSeedConfig.bankId,
             seedBankPath: finalGateSeedConfig.bankPath,
             seedPurpose: finalGateSeedConfig.purpose,
+            cardUsageRate: adoptionCardRate,
             threshold: finalAdoptionThreshold,
+            tacticalWeight: args.adoptionTacticalWeight,
             seedCount: finalAdoptionSeedCount,
             seedStride: finalAdoptionSeedStride,
             confidenceLevel: finalAdoptionConfidenceLevel,

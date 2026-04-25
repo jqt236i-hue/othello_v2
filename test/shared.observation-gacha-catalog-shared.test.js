@@ -6,6 +6,7 @@ describe('observation gacha catalog shared helper', () => {
       generatedAt: '2026-04-12T00:00:00.000Z',
       files: [
         { path: 'assets/images/Gacha/N/小鬼の手.png' },
+        { path: 'assets/images/Gacha/N/background/観測できなかった夜.png' },
         { path: 'assets/images/Gacha/N/type-1-standard.mp3' },
         { path: 'assets/images/Gacha/R/not-supported.txt' }
       ]
@@ -17,6 +18,11 @@ describe('observation gacha catalog shared helper', () => {
         id: 'gacha__n__小鬼の手',
         kind: 'hand_skin',
         imagePath: 'assets/images/Gacha/N/小鬼の手.png'
+      }),
+      expect.objectContaining({
+        id: 'gacha__n__background_skin__観測できなかった夜',
+        kind: 'background_skin',
+        imagePath: 'assets/images/Gacha/N/background/観測できなかった夜.png'
       }),
       expect.objectContaining({
         id: 'gacha__n__placement_sound__type-1-standard',

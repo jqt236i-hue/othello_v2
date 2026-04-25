@@ -2,17 +2,21 @@
     if (typeof module === 'object' && module.exports) {
         let CardUtilsModule = null;
         let BoardOpsModule = null;
+        let RandomSourceModule = null;
         try {
             CardUtilsModule = require('./utils');
         } catch (e) { /* ignore */ }
         try {
             BoardOpsModule = require('../board_ops');
         } catch (e) { /* ignore */ }
-        module.exports = factory(require('../../../shared-constants'), CardUtilsModule, BoardOpsModule);
+        try {
+            RandomSourceModule = require('../cards-internal/random-source');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(require('../../../shared-constants'), CardUtilsModule, BoardOpsModule, RandomSourceModule);
     } else {
-        root.CardWillHunterKing = factory(root.SharedConstants, root.CardUtils || null, root.BoardOps || null);
+        root.CardWillHunterKing = factory(root.SharedConstants, root.CardUtils || null, root.BoardOps || null, root.CardRandomSource || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardUtilsModule, BoardOpsModule) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardUtilsModule, BoardOpsModule, RandomSourceModule) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
@@ -81,9 +85,12 @@
     }
 
     function resolveRandomSource(randomLike) {
+        if (RandomSourceModule && typeof RandomSourceModule.resolveRandomSource === 'function') {
+            return RandomSourceModule.resolveRandomSource(randomLike, null, 'CardWillHunterKing');
+        }
         if (typeof randomLike === 'function') return { random: randomLike };
         if (randomLike && typeof randomLike.random === 'function') return randomLike;
-        return { random: Math.random };
+        throw new Error('CardWillHunterKing requires an injected deterministic PRNG.');
     }
 
     function hasVisibleNonNormalStoneAt(cardState, row, col) {

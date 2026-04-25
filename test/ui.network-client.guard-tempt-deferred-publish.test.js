@@ -288,9 +288,19 @@ function createBoard(rows = 8, cols = 8) {
   return Array.from({ length: rows }, () => Array(cols).fill(0));
 }
 
+function createSnapshotMeta(stateVersion, seatKey = 'black') {
+  return {
+    authority: 'server',
+    version: stateVersion,
+    projectedForSeat: seatKey,
+    turnStartReconciled: true
+  };
+}
+
 function createLiveResponseSnapshot(stateVersion) {
   return {
     stateVersion,
+    _meta: createSnapshotMeta(stateVersion),
     gameState: cloneJson(global.gameState),
     cardState: cloneJson(global.cardState)
   };
@@ -299,6 +309,7 @@ function createLiveResponseSnapshot(stateVersion) {
 function createSnapshot(stateVersion, pendingType, cardId) {
   return {
     stateVersion,
+    _meta: createSnapshotMeta(stateVersion),
     gameState: {
       currentPlayer: 1,
       turnNumber: 11,
@@ -431,6 +442,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath
         const authoritativeSnapshot = (previewResult && previewResult.nextGameState && previewResult.nextCardState)
           ? {
             stateVersion: 21,
+            _meta: createSnapshotMeta(21),
             gameState: cloneJson(previewResult.nextGameState),
             cardState: cloneJson(previewResult.nextCardState)
           }
@@ -531,9 +543,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ modulePath
         type: pendingType,
         stage: 'selectTarget',
         cardId
-      },
-      useCardId: cardId,
-      useCardOwnerKey: 'black'
+      }
     });
     expect(publishBodies[0].snapshot).toBeUndefined();
     expect(publishBodies[0].playbackEvents).toBeUndefined();

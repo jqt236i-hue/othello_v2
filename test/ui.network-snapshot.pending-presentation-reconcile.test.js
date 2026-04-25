@@ -82,6 +82,7 @@ describe('network snapshot pending presentation reconcile', () => {
     delete global.emitGameStateChange;
     delete global.emitBoardUpdate;
     delete global.renderCardUI;
+    delete global.BoardOps;
     delete global.VisualPlaybackActive;
     delete global.__playbackActiveSince;
     delete global.isProcessing;
@@ -102,6 +103,11 @@ describe('network snapshot pending presentation reconcile', () => {
           busyStateCalls.push(flags);
           global.isProcessing = !!(flags && flags.processing === true);
           global.isCardAnimating = !!(flags && flags.cardAnimating === true);
+          if (Object.prototype.hasOwnProperty.call(flags || {}, 'playbackActive')) {
+            global.VisualPlaybackActive = !!(flags && flags.playbackActive === true);
+            playbackActive = !!(flags && flags.playbackActive === true);
+            global.__playbackActiveSince = playbackActive ? 123 : null;
+          }
         }),
         abortPlayback: jest.fn(() => {
           busyStateCalls.push({ abortPlayback: true });
@@ -202,10 +208,18 @@ describe('network snapshot pending presentation reconcile', () => {
     ]);
   });
 
-  test('undrained playback queues are cleared when snapshot playback never claims ownership', () => {
+  test('undrained playback stays locked until a later drain claims ownership', () => {
     const stateObj = { stateVersion: 10 };
     const ctrl = createController(stateObj);
 
+    global.BoardOps = {
+      emitPresentationEvent: jest.fn((cardStateRef, event) => {
+        if (!Array.isArray(cardStateRef.presentationEvents)) cardStateRef.presentationEvents = [];
+        if (!Array.isArray(cardStateRef._presentationEventsPersist)) cardStateRef._presentationEventsPersist = [];
+        cardStateRef.presentationEvents.push(event);
+        cardStateRef._presentationEventsPersist.push(event);
+      })
+    };
     global.emitBoardUpdate = jest.fn(() => true);
 
     const applied = ctrl.applySnapshot(createSnapshot(11), {
@@ -213,13 +227,16 @@ describe('network snapshot pending presentation reconcile', () => {
     });
 
     expect(applied).toBe(true);
-    expect(global.isProcessing).toBe(false);
-    expect(global.isCardAnimating).toBe(false);
-    expect(global.cardState.presentationEvents).toEqual([]);
-    expect(global.cardState._presentationEventsPersist).toEqual([]);
+    expect(global.isProcessing).toBe(true);
+    expect(global.isCardAnimating).toBe(true);
+    expect(global.VisualPlaybackActive).toBe(true);
+    expect(global.cardState.presentationEvents).toHaveLength(1);
+    expect(global.cardState.presentationEvents[0].type).toBe('PLAYBACK_EVENTS');
+    expect(global.cardState._presentationEventsPersist).toHaveLength(1);
+    expect(global.cardState._presentationEventsPersist[0].type).toBe('PLAYBACK_EVENTS');
     expect(busyStateCalls).toEqual([
       { processing: true, cardAnimating: true },
-      { processing: false, cardAnimating: false }
+      { processing: true, cardAnimating: true, playbackActive: true }
     ]);
   });
 

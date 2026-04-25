@@ -174,6 +174,28 @@ describe('applySnapshot single-writer baseline', () => {
     // setBusyState(shouldKeepBusy) is called with true when playbackEvents exist
     const busyCall = busyStateCalls.find(c => c.processing === true);
     expect(busyCall).toBeTruthy();
+    expect(busyStateCalls.find(c => c.playbackActive === true)).toBeTruthy();
+  });
+
+  test('playbackEvents ありの場合 emitBoardUpdate 前に playback lock を立てる', () => {
+    const stateObj = { stateVersion: 10 };
+    let busyAtBoardUpdate = null;
+    global.emitBoardUpdate = jest.fn(() => {
+      busyAtBoardUpdate = busyStateCalls[busyStateCalls.length - 1] || null;
+      return true;
+    });
+    const ctrl = createController(stateObj);
+
+    ctrl.applySnapshot(createSnapshot(11), {
+      playbackEvents: [{ type: 'flip', phase: 1, targets: [] }]
+    });
+
+    expect(global.emitBoardUpdate).toHaveBeenCalled();
+    expect(busyAtBoardUpdate).toEqual(expect.objectContaining({
+      processing: true,
+      cardAnimating: true,
+      playbackActive: true
+    }));
   });
 
   test('playbackEvents ありの場合 diff fallback flip を抑止する board update context を arm する', () => {

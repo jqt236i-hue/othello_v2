@@ -19,12 +19,15 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(145deg, #f5f5dc, #d4c89a);
-    border: var(--layout-size-border-thin) solid #8b7355;
+    background:
+        linear-gradient(135deg, rgba(212, 175, 55, 0.18) 0%, rgba(212, 175, 55, 0) 42%),
+        linear-gradient(135deg, #3d2e20 0%, #24160d 52%, #1a0f08 100%);
+    border: var(--layout-size-border-thin) solid #4a3828;
     border-radius: calc(4px * var(--layout-stage-scale));
     box-shadow:
         0 2px 4px rgba(0, 0, 0, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(212, 175, 55, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
     z-index: 3;
 }
 
@@ -35,8 +38,10 @@
     left: calc(-1px * var(--deck-ratio));
     width: 100%;
     height: 100%;
-    background: linear-gradient(145deg, #e8e5d0, #c9b88a);
-    border: var(--layout-size-border-thin) solid #7a6355;
+    background:
+        linear-gradient(135deg, rgba(212, 175, 55, 0.12) 0%, rgba(212, 175, 55, 0) 38%),
+        linear-gradient(135deg, #2f2218 0%, #1a100a 52%, #120907 100%);
+    border: var(--layout-size-border-thin) solid #3b2b1f;
     border-radius: calc(4px * var(--layout-stage-scale));
     z-index: 2;
     transform: translateZ(calc(-2px * var(--deck-ratio)));
@@ -49,10 +54,10 @@
     right: calc(2px * var(--layout-stage-scale));
     height: calc(2px + (6px * var(--deck-ratio)));
     background: repeating-linear-gradient(180deg,
-            #b8a67a 0px,
-            #b8a67a 1px,
-            #8b7355 1px,
-            #8b7355 2px);
+            #7b5c3d 0px,
+            #7b5c3d 1px,
+            #3b2b1f 1px,
+            #3b2b1f 2px);
     border-radius: 0 0 calc(2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale));
     z-index: 1;
     pointer-events: none;

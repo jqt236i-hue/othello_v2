@@ -48,7 +48,7 @@
         left: 50%;
         top: 50%;
         bottom: auto;
-        width: min(calc(240px * var(--layout-stage-scale)), calc(100vw - calc(20px * var(--layout-stage-scale))));
+        width: min(calc(300px * var(--layout-stage-scale)), calc(100vw - calc(20px * var(--layout-stage-scale))));
         padding: calc(10px * var(--layout-stage-scale));
     }
 

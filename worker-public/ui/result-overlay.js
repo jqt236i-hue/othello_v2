@@ -344,6 +344,17 @@ function isCpuMatchMode() {
     return resolveCurrentMatchMode() === 'cpu';
 }
 
+function isNetworkMatchMode() {
+    return resolveCurrentMatchMode() === 'network';
+}
+
+function isObservationStoneRewardEligibleMatch() {
+    if (isObserverDuelResultActive() || isStoryEncounterResultActive()) {
+        return false;
+    }
+    return isCpuMatchMode() || isNetworkMatchMode();
+}
+
 function canUseScoreStorage() {
     try {
         return typeof localStorage !== 'undefined' && !!localStorage;
@@ -629,7 +640,7 @@ function resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey
     if (!canUseObservationStoneProgress()) {
         return baseSummary;
     }
-    if (!isCpuMatchMode() || isObserverDuelResultActive() || isStoryEncounterResultActive()) {
+    if (!isObservationStoneRewardEligibleMatch()) {
         return baseSummary;
     }
 

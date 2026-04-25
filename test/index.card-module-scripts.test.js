@@ -91,6 +91,9 @@ function expectPresentationHelperClassicExportSurvivesLaterScriptLoads(rootPath)
 function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
   const sharedBoardUtilsTag = '<script src="shared/shared-board-utils.js"></script>';
   const randomSourceTag = '<script src="game/logic/cards-internal/random-source.js"></script>';
+  const stateFactoryTag = '<script src="game/logic/cards-internal/state-factory.js"></script>';
+  const moduleResolverTag = '<script src="game/logic/cards-internal/module-resolver.js"></script>';
+  const presentationHelpersTag = '<script src="game/logic/cards-internal/presentation-helpers.js"></script>';
   const selectorsTag = '<script src="game/logic/cards/selectors.js"></script>';
   const prechecksTag = '<script src="game/logic/cards-internal/card-usage-prechecks.js"></script>';
   const orchestratorTag = '<script src="game/logic/cards-internal/selector-orchestrator.js"></script>';
@@ -102,6 +105,9 @@ function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
 
   expect(html.includes(sharedBoardUtilsTag)).toBe(true);
   expect(html.includes(randomSourceTag)).toBe(true);
+  expect(html.includes(stateFactoryTag)).toBe(true);
+  expect(html.includes(moduleResolverTag)).toBe(true);
+  expect(html.includes(presentationHelpersTag)).toBe(true);
   expect(html.includes(selectorsTag)).toBe(true);
   expect(html.includes(prechecksTag)).toBe(true);
   expect(html.includes(orchestratorTag)).toBe(true);
@@ -110,7 +116,10 @@ function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
   expect(html.includes(pendingStateManagerTag)).toBe(true);
   expect(html.includes(chargeLedgerTag)).toBe(true);
   expect(html.indexOf(randomSourceTag)).toBeGreaterThan(html.indexOf(sharedBoardUtilsTag));
-  expect(html.indexOf(selectorsTag)).toBeGreaterThan(html.indexOf(randomSourceTag));
+  expect(html.indexOf(stateFactoryTag)).toBeGreaterThan(html.indexOf(randomSourceTag));
+  expect(html.indexOf(moduleResolverTag)).toBeGreaterThan(html.indexOf(stateFactoryTag));
+  expect(html.indexOf(presentationHelpersTag)).toBeGreaterThan(html.indexOf(moduleResolverTag));
+  expect(html.indexOf(selectorsTag)).toBeGreaterThan(html.indexOf(presentationHelpersTag));
   expect(html.indexOf(prechecksTag)).toBeGreaterThan(html.indexOf(selectorsTag));
   expect(html.indexOf(orchestratorTag)).toBeGreaterThan(html.indexOf(prechecksTag));
   expect(html.indexOf(handManagerTag)).toBeGreaterThan(html.indexOf(orchestratorTag));
@@ -120,6 +129,9 @@ function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
   expect(html.indexOf(cardsTag)).toBeGreaterThan(html.indexOf(chargeLedgerTag));
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'shared/shared-board-utils.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/random-source.js'))).toBe(true);
+  expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/state-factory.js'))).toBe(true);
+  expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/module-resolver.js'))).toBe(true);
+  expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/presentation-helpers.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/card-usage-prechecks.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/selector-orchestrator.js'))).toBe(true);
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/hand-manager.js'))).toBe(true);
@@ -191,6 +203,20 @@ function runClassicScriptInContext(filePath, context) {
 }
 
 describe('card module script includes', () => {
+  test('index.html loads cosmetic catalog shared before hand/background catalog modules', () => {
+    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const sharedTag = '<script src="ui/cosmetics/catalog-shared.js"></script>';
+    const backgroundCatalogTag = '<script src="ui/background-skin/catalog.js"></script>';
+    const handCatalogTag = '<script src="ui/hand-skin/catalog.js"></script>';
+
+    expect(html.includes(sharedTag)).toBe(true);
+    expect(html.includes(backgroundCatalogTag)).toBe(true);
+    expect(html.includes(handCatalogTag)).toBe(true);
+    expect(html.indexOf(backgroundCatalogTag)).toBeGreaterThan(html.indexOf(sharedTag));
+    expect(html.indexOf(handCatalogTag)).toBeGreaterThan(html.indexOf(sharedTag));
+    expect(fs.existsSync(path.resolve(__dirname, '../ui/cosmetics/catalog-shared.js'))).toBe(true);
+  });
+
   test('index.html loads network command payload before network-client.js', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     const actionSchemaTag = '<script src="shared/network-action-schema.js"></script>';
@@ -199,6 +225,9 @@ describe('card module script includes', () => {
     const reconnectControllerTag = '<script src="ui/network/reconnect-controller.js"></script>';
     const publishTrackerTag = '<script src="ui/network/publish-tracker.js"></script>';
     const snapshotRuntimeTag = '<script src="ui/network/snapshot-runtime.js"></script>';
+    const snapshotCanonicalTag = '<script src="ui/network/snapshot-canonical.js"></script>';
+    const snapshotPresentationTag = '<script src="ui/network/snapshot-presentation.js"></script>';
+    const snapshotTag = '<script src="ui/network/snapshot.js"></script>';
     const sessionSeatTag = '<script src="ui/network/session-seat.js"></script>';
     const sessionLifecycleTag = '<script src="ui/network/session-lifecycle.js"></script>';
     const networkClientTag = '<script src="ui/network-client.js"></script>';
@@ -209,6 +238,9 @@ describe('card module script includes', () => {
     expect(html.includes(reconnectControllerTag)).toBe(true);
     expect(html.includes(publishTrackerTag)).toBe(true);
     expect(html.includes(snapshotRuntimeTag)).toBe(true);
+    expect(html.includes(snapshotCanonicalTag)).toBe(true);
+    expect(html.includes(snapshotPresentationTag)).toBe(true);
+    expect(html.includes(snapshotTag)).toBe(true);
     expect(html.includes(sessionSeatTag)).toBe(true);
     expect(html.includes(sessionLifecycleTag)).toBe(true);
     expect(html.includes(networkClientTag)).toBe(true);
@@ -217,7 +249,10 @@ describe('card module script includes', () => {
     expect(html.indexOf(reconnectControllerTag)).toBeGreaterThan(html.indexOf(publishRequestTag));
     expect(html.indexOf(publishTrackerTag)).toBeGreaterThan(html.indexOf(reconnectControllerTag));
     expect(html.indexOf(snapshotRuntimeTag)).toBeGreaterThan(html.indexOf(publishTrackerTag));
-    expect(html.indexOf(sessionSeatTag)).toBeGreaterThan(html.indexOf(snapshotRuntimeTag));
+    expect(html.indexOf(snapshotCanonicalTag)).toBeGreaterThan(html.indexOf(snapshotRuntimeTag));
+    expect(html.indexOf(snapshotPresentationTag)).toBeGreaterThan(html.indexOf(snapshotCanonicalTag));
+    expect(html.indexOf(snapshotTag)).toBeGreaterThan(html.indexOf(snapshotPresentationTag));
+    expect(html.indexOf(sessionSeatTag)).toBeGreaterThan(html.indexOf(snapshotTag));
     expect(html.indexOf(sessionLifecycleTag)).toBeGreaterThan(html.indexOf(sessionSeatTag));
     expect(html.indexOf(networkClientTag)).toBeGreaterThan(html.indexOf(sessionLifecycleTag));
     expect(fs.existsSync(path.resolve(__dirname, '../shared/network-action-schema.js'))).toBe(true);
@@ -226,6 +261,9 @@ describe('card module script includes', () => {
     expect(fs.existsSync(path.resolve(__dirname, '../ui/network/reconnect-controller.js'))).toBe(true);
     expect(fs.existsSync(path.resolve(__dirname, '../ui/network/publish-tracker.js'))).toBe(true);
     expect(fs.existsSync(path.resolve(__dirname, '../ui/network/snapshot-runtime.js'))).toBe(true);
+    expect(fs.existsSync(path.resolve(__dirname, '../ui/network/snapshot-canonical.js'))).toBe(true);
+    expect(fs.existsSync(path.resolve(__dirname, '../ui/network/snapshot-presentation.js'))).toBe(true);
+    expect(fs.existsSync(path.resolve(__dirname, '../ui/network/snapshot.js'))).toBe(true);
     expect(fs.existsSync(path.resolve(__dirname, '../ui/network/session-lifecycle.js'))).toBe(true);
   });
 

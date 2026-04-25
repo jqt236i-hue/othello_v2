@@ -621,7 +621,7 @@
         if (cardState && cardState._currentActionMeta && cardState._currentActionMeta.randomSource && typeof cardState._currentActionMeta.randomSource.random === 'function') {
             return cardState._currentActionMeta.randomSource;
         }
-        return { random: () => 0 };
+        throw new Error('BoardOps requires an injected deterministic PRNG.');
     }
 
     function _resolveRandomIndex(randomSource, length) {

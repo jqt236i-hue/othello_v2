@@ -13,6 +13,7 @@ const HAND_SKIN_ID_MAX_LENGTH = 128;
 const SSE_RESUME_BUFFER_LIMIT = 96;
 const ACCEPTED_OPERATION_HISTORY_LIMIT = 16;
 const NETWORK_PLAYER_NAME_MAX = 7;
+const NETWORK_DEBUG_FILL_HAND_ACTION = 'debug_fill_hand';
 const AUTHORITY_LOG_LIMIT = 64;
 const ROOM_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const ROOM_ID_LENGTH = 3;
@@ -390,6 +391,130 @@ function appendEffectLogMessages(...lists) {
         }
     }
     return normalizeEffectLogMessages(merged);
+}
+
+function getSeatLabelJa(playerKey) {
+    return normalizePlayerKey(playerKey) === 'white' ? '白' : '黒';
+}
+
+function resolveActionCardId(action) {
+    if (!action || typeof action !== 'object') return '';
+    if (action.useCardId) return String(action.useCardId);
+    if (action.cardId) return String(action.cardId);
+    return '';
+}
+
+function resolveActionCardDisplayName(action, cardLogic) {
+    const cardId = resolveActionCardId(action);
+    if (!cardId) return '';
+    const cardDef = (cardLogic && typeof cardLogic.getCardDef === 'function')
+        ? cardLogic.getCardDef(cardId)
+        : null;
+    const displayName = cardDef && cardDef.name ? String(cardDef.name).trim() : '';
+    return displayName || cardId;
+}
+
+function buildNetworkCardUseEffectLogs(action, playerKey, cardLogic) {
+    const actionType = String(action && (action.type || action.actionType) ? (action.type || action.actionType) : '').trim().toLowerCase();
+    if (actionType !== 'use_card') return [];
+    const displayName = resolveActionCardDisplayName(action, cardLogic);
+    if (!displayName) return [];
+    return [`${getSeatLabelJa(playerKey)}がカードを使用: ${displayName}`];
+}
+
+function collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, playbackAdapter) {
+    const adapter = (playbackAdapter && typeof playbackAdapter.mapEffectLogsFromPipeline === 'function')
+        ? playbackAdapter
+        : null;
+    if (!adapter) return [];
+    try {
+        return normalizeEffectLogMessages(
+            adapter.mapEffectLogsFromPipeline(rawEvents, presentationEvents, playerKey) || []
+        );
+    } catch (e) {
+        return [];
+    }
+}
+
+function isNetworkDebugFillHandAction(value) {
+    return String(value || '').trim().toLowerCase() === NETWORK_DEBUG_FILL_HAND_ACTION;
+}
+
+function isNetworkDebugFillHandPayload(value) {
+    if (!value || typeof value !== 'object') return false;
+    if (isNetworkDebugFillHandAction(value.actionType)) return true;
+    return isNetworkDebugFillHandAction(value.action && value.action.type);
+}
+
+function resolveNetworkDebugFillHandOptions(value) {
+    if (!value || typeof value !== 'object') return {};
+    const action = value.action && typeof value.action === 'object' ? value.action : {};
+    const params = value.params && typeof value.params === 'object' ? value.params : {};
+    const rawCardIds = Array.isArray(params.cardIds) ? params.cardIds : (Array.isArray(action.cardIds) ? action.cardIds : null);
+    const rawCharge = Number.isFinite(Number(params.charge)) ? Number(params.charge) : (
+        Number.isFinite(Number(action.charge)) ? Number(action.charge) : undefined
+    );
+    const rawChargeByPlayer = (params.chargeByPlayer && typeof params.chargeByPlayer === 'object')
+        ? params.chargeByPlayer
+        : ((action.chargeByPlayer && typeof action.chargeByPlayer === 'object') ? action.chargeByPlayer : null);
+    const chargeByPlayer = rawChargeByPlayer
+        ? {
+            black: Number.isFinite(Number(rawChargeByPlayer.black)) ? Number(rawChargeByPlayer.black) : undefined,
+            white: Number.isFinite(Number(rawChargeByPlayer.white)) ? Number(rawChargeByPlayer.white) : undefined
+        }
+        : undefined;
+    return {
+        fillWhite: params.fillWhite === true || action.fillWhite === true,
+        replaceExisting: params.replaceExisting === true || action.replaceExisting === true,
+        cardIds: Array.isArray(rawCardIds) ? rawCardIds.slice() : undefined,
+        charge: rawCharge,
+        chargeByPlayer
+    };
+}
+
+function isPlainObject(value) {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function mergeWithDefaultShape(defaultValue, overrideValue) {
+    if (Array.isArray(defaultValue)) {
+        return Array.isArray(overrideValue) ? deepClone(overrideValue) : deepClone(defaultValue);
+    }
+
+    if (isPlainObject(defaultValue)) {
+        const result = deepClone(defaultValue);
+        if (!isPlainObject(overrideValue)) {
+            return result;
+        }
+        for (const [key, value] of Object.entries(overrideValue)) {
+            const baseValue = Object.prototype.hasOwnProperty.call(defaultValue, key)
+                ? defaultValue[key]
+                : undefined;
+            result[key] = mergeWithDefaultShape(baseValue, value);
+        }
+        return result;
+    }
+
+    return (typeof overrideValue === 'undefined')
+        ? deepClone(defaultValue)
+        : deepClone(overrideValue);
+}
+
+function mixTurnStartSeed(seed, value) {
+    const numeric = Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : 0;
+    const normalizedSeed = (Number(seed) >>> 0) || 1;
+    return ((normalizedSeed ^ (numeric >>> 0)) * 1664525 + 1013904223) >>> 0;
+}
+
+function createTurnStartSeed(room, snapshot, playerKey) {
+    const gameState = snapshot && snapshot.gameState;
+    const cardState = snapshot && snapshot.cardState;
+    let seed = Number.isFinite(Number(room && room.seed)) ? (Math.trunc(Number(room.seed)) >>> 0) : 1;
+    seed = mixTurnStartSeed(seed, snapshot && snapshot.stateVersion);
+    seed = mixTurnStartSeed(seed, gameState && gameState.turnNumber);
+    seed = mixTurnStartSeed(seed, cardState && cardState.turnIndex);
+    seed = mixTurnStartSeed(seed, normalizePlayerKey(playerKey) === 'white' ? 0x9E3779B1 : 0x243F6A88);
+    return seed || 1;
 }
 
 function normalizeRoomBoardConfig(value, fallbackBoard) {
@@ -1136,6 +1261,85 @@ function validatePendingSelectionPublish(snapshotValue, playerKey, actionValue) 
     };
 }
 
+function normalizeCardIdOptional(value) {
+    const normalized = String(value || '').trim();
+    return normalized || null;
+}
+
+function hasCardInHandForAuthority(cardState, ownerKey, cardId) {
+    const hands = cardState && cardState.hands && typeof cardState.hands === 'object'
+        ? cardState.hands
+        : null;
+    const hand = hands && Array.isArray(hands[ownerKey]) ? hands[ownerKey] : [];
+    const normalizedCardId = normalizeCardIdOptional(cardId);
+    if (!normalizedCardId) return false;
+    for (let index = 0; index < hand.length; index += 1) {
+        if (normalizeCardIdOptional(hand[index]) === normalizedCardId) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function hasCardInDiscardForAuthority(cardState, cardId) {
+    const discard = cardState && Array.isArray(cardState.discard) ? cardState.discard : [];
+    const normalizedCardId = normalizeCardIdOptional(cardId);
+    if (!normalizedCardId) return false;
+    for (let index = 0; index < discard.length; index += 1) {
+        if (normalizeCardIdOptional(discard[index]) === normalizedCardId) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function shouldStripCommittedPendingCardUse(cardState, playerKey, action, expectedPending) {
+    const normalizedPlayerKey = normalizePlayerKey(playerKey);
+    const normalizedUseCardId = normalizeCardIdOptional(action && action.useCardId);
+    const normalizedPendingCardId = normalizeCardIdOptional(expectedPending && expectedPending.cardId);
+    if (!normalizedUseCardId || !normalizedPendingCardId || normalizedUseCardId !== normalizedPendingCardId) {
+        return false;
+    }
+
+    const normalizedHandOwnerKey = normalizePlayerKey(action && action.useCardOwnerKey, normalizedPlayerKey);
+    const hasUsedCardThisTurn = !!(
+        cardState
+        && cardState.hasUsedCardThisTurnByPlayer
+        && cardState.hasUsedCardThisTurnByPlayer[normalizedPlayerKey] === true
+    );
+    const cardStillInHand = hasCardInHandForAuthority(cardState, normalizedHandOwnerKey, normalizedUseCardId);
+    const cardAlreadyInDiscard = hasCardInDiscardForAuthority(cardState, normalizedUseCardId);
+
+    return hasUsedCardThisTurn || cardAlreadyInDiscard || !cardStillInHand;
+}
+
+function sanitizePendingSelectionActionForAuthority(snapshotValue, playerKey, actionValue) {
+    const action = (actionValue && typeof actionValue === 'object') ? actionValue : null;
+    if (!action) return actionValue;
+
+    const pendingSelectionState = (action.pendingSelectionState && typeof action.pendingSelectionState === 'object')
+        ? action.pendingSelectionState
+        : null;
+    if (!pendingSelectionState) return actionValue;
+
+    const snapshot = (snapshotValue && typeof snapshotValue === 'object') ? snapshotValue : null;
+    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object') ? snapshot.cardState : null;
+    const pendingByPlayer = (cardState && cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object')
+        ? cardState.pendingEffectByPlayer
+        : null;
+    const expectedPending = pendingByPlayer ? pendingByPlayer[normalizePlayerKey(playerKey)] : null;
+    if (!expectedPending || !expectedPending.type) return actionValue;
+
+    if (!shouldStripCommittedPendingCardUse(cardState, playerKey, action, expectedPending)) {
+        return actionValue;
+    }
+
+    const nextAction = deepClone(action);
+    delete nextAction.useCardId;
+    delete nextAction.useCardOwnerKey;
+    return nextAction;
+}
+
 function appendAuthorityLog(roomValue, entryValue, limitValue) {
     const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
     if (!room) return [];
@@ -1264,6 +1468,7 @@ module.exports = {
     OPERATION_ID_MAX_LENGTH,
     SSE_RESUME_BUFFER_LIMIT,
     NETWORK_PLAYER_NAME_MAX,
+    NETWORK_DEBUG_FILL_HAND_ACTION,
     ROOM_ID_CHARS,
     ROOM_ID_LENGTH,
     SEAT_TOKEN_CHARS,
@@ -1309,6 +1514,18 @@ module.exports = {
     resolveSeatForJoin,
     normalizeEffectLogMessages,
     appendEffectLogMessages,
+    getSeatLabelJa,
+    resolveActionCardId,
+    resolveActionCardDisplayName,
+    buildNetworkCardUseEffectLogs,
+    collectPipelineEffectLogMessages,
+    isNetworkDebugFillHandAction,
+    isNetworkDebugFillHandPayload,
+    resolveNetworkDebugFillHandOptions,
+    isPlainObject,
+    mergeWithDefaultShape,
+    mixTurnStartSeed,
+    createTurnStartSeed,
     normalizeRoomBoardConfig,
     resolveRoomBoardConfig,
     buildPublishResponsePayload,
@@ -1321,6 +1538,7 @@ module.exports = {
     projectSnapshotForViewer,
     buildPublicSnapshot,
     validatePendingSelectionPublish,
+    sanitizePendingSelectionActionForAuthority,
     appendAuthorityLog,
     createBufferedSseEventRecord,
     appendBufferedSseEvent,

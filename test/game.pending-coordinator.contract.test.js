@@ -8,7 +8,7 @@ describe('PendingCoordinator', () => {
     delete global.ActionManager;
   });
 
-  test('applyPendingSelectionCardContext derives top-level card identity from authoritative pendingSelectionState', () => {
+  test('applyPendingSelectionCardContext keeps deferred card identity inside pendingSelectionState only', () => {
     const payload = {
       pendingSelectionState: {
         type: 'GUARD_WILL',
@@ -22,9 +22,7 @@ describe('PendingCoordinator', () => {
         type: 'GUARD_WILL',
         stage: 'selectTarget',
         cardId: 'guard_01'
-      },
-      useCardId: 'guard_01',
-      useCardOwnerKey: 'black'
+      }
     });
   });
 

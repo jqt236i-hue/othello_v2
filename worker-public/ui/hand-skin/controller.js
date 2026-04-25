@@ -55,6 +55,22 @@
         return null;
     }
 
+    function resolveBackgroundControllerModule(rootRef) {
+        const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
+        if (ctx && ctx.BackgroundSkinControllerModule) return ctx.BackgroundSkinControllerModule;
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.BackgroundSkinControllerModule) {
+                return globalThis.BackgroundSkinControllerModule;
+            }
+        } catch (e) { /* ignore */ }
+        if (typeof require === 'function') {
+            try {
+                return require('../background-skin/controller.js');
+            } catch (e) { /* ignore */ }
+        }
+        return null;
+    }
+
     function resolveUIBootstrapModule(rootRef) {
         const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
         if (ctx && ctx.UIBootstrap) return ctx.UIBootstrap;
@@ -139,24 +155,36 @@
         const catalogModule = resolveCatalogModule(rootRef);
         const selectionModule = resolveSelectionModule(rootRef);
         const runtimeModule = resolveRuntimeModule(rootRef);
+        const backgroundControllerModule = resolveBackgroundControllerModule(rootRef);
         if (!docRef || !catalogModule || !selectionModule || !runtimeModule) return null;
 
         const button = opts.button || docRef.getElementById('handSkinBtn');
         const panel = opts.panel || docRef.getElementById('handSkinPanel');
         const closeBtn = opts.closeBtn || docRef.getElementById('handSkinCloseBtn');
         const optionsEl = opts.optionsEl || docRef.getElementById('handSkinOptions');
+        const handSection = opts.handSection || docRef.getElementById('handSkinSection');
+        const backgroundSection = opts.backgroundSection || docRef.getElementById('backgroundSkinSection');
+        const handTabBtn = opts.handTabBtn || docRef.getElementById('appearanceTabHand');
+        const backgroundTabBtn = opts.backgroundTabBtn || docRef.getElementById('appearanceTabBackground');
         const handImageEl = opts.handImage || docRef.getElementById('handImage');
         if (!button || !panel || !optionsEl || !handImageEl) return null;
 
         let isOpen = false;
         let selectedSkin = null;
+        let activeTab = 'hand';
+        const backgroundControllerApi = backgroundControllerModule && typeof backgroundControllerModule.setupBackgroundSkinControls === 'function'
+            ? backgroundControllerModule.setupBackgroundSkinControls({
+                root: rootRef,
+                document: docRef
+            })
+            : null;
 
         function syncButtonLabel() {
             const label = selectedSkin
                 ? selectedSkin.label
                 : catalogModule.getHandSkinDefinition(catalogModule.DEFAULT_HAND_SKIN_ID, rootRef).label;
-            button.title = `手の見た目: ${label}`;
-            button.setAttribute('aria-label', `手の見た目設定（現在: ${label}）`);
+            button.title = `見た目: 手 ${label}`;
+            button.setAttribute('aria-label', `見た目設定（現在の手: ${label}）`);
         }
 
         function syncOptionState() {
@@ -223,8 +251,30 @@
             applySelection(nextSkinId, false);
         }
 
+        function setActiveTab(nextTab) {
+            const hasBackgroundTab = !!(backgroundControllerApi && backgroundSection && backgroundTabBtn);
+            activeTab = hasBackgroundTab && nextTab === 'background' ? 'background' : 'hand';
+            if (handSection) handSection.hidden = activeTab !== 'hand';
+            if (backgroundSection) backgroundSection.hidden = activeTab !== 'background';
+            if (handTabBtn) {
+                const selected = activeTab === 'hand';
+                handTabBtn.classList.toggle('is-active', selected);
+                handTabBtn.setAttribute('aria-selected', selected ? 'true' : 'false');
+            }
+            if (backgroundTabBtn) {
+                const selected = activeTab === 'background';
+                backgroundTabBtn.hidden = !hasBackgroundTab;
+                backgroundTabBtn.classList.toggle('is-active', selected);
+                backgroundTabBtn.setAttribute('aria-selected', selected ? 'true' : 'false');
+            }
+        }
+
         function openPanel() {
             refreshOptions(selectedSkin && selectedSkin.id);
+            if (backgroundControllerApi && typeof backgroundControllerApi.refreshOptions === 'function') {
+                backgroundControllerApi.refreshOptions();
+            }
+            setActiveTab(activeTab);
             isOpen = true;
             panel.classList.add('is-open');
             panel.setAttribute('aria-hidden', 'false');
@@ -251,6 +301,20 @@
             closeBtn.addEventListener('click', function (event) {
                 if (event && typeof event.preventDefault === 'function') event.preventDefault();
                 closePanel();
+            });
+        }
+
+        if (handTabBtn) {
+            handTabBtn.addEventListener('click', function (event) {
+                if (event && typeof event.preventDefault === 'function') event.preventDefault();
+                setActiveTab('hand');
+            });
+        }
+
+        if (backgroundTabBtn) {
+            backgroundTabBtn.addEventListener('click', function (event) {
+                if (event && typeof event.preventDefault === 'function') event.preventDefault();
+                setActiveTab('background');
             });
         }
 
@@ -285,6 +349,7 @@
         }
 
         refreshOptions(selectionModule.readStoredHandSkinId(rootRef));
+        setActiveTab('hand');
         closePanel();
 
         return {
@@ -303,6 +368,10 @@
             },
             selectSkin: function (skinId) {
                 return applySelection(skinId, true);
+            },
+            selectAppearanceTab: function (tabKey) {
+                setActiveTab(tabKey);
+                return activeTab;
             }
         };
     }

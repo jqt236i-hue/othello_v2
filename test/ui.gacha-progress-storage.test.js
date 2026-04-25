@@ -25,8 +25,9 @@ describe('gacha progress storage', () => {
     const state = mod.readState(window);
 
     expect(state.observationStones).toBe(0);
-    expect(state.version).toBe(2);
+    expect(state.version).toBe(3);
     expect(mod.listOwnedHandSkinIds(window).sort()).toEqual(['default']);
+    expect(mod.listOwnedBackgroundSkinIds(window).sort()).toEqual(['default', 'unobserved-night']);
     expect(mod.listOwnedPlacementSoundIds(window).sort()).toEqual(['default']);
   });
 
@@ -37,23 +38,33 @@ describe('gacha progress storage', () => {
     const spend = mod.spendObservationStones(window, 100);
     const apply = mod.applyPullResults(window, [
       { item: { id: 'gacha__n__小鬼の手', kind: 'hand_skin' } },
+      { item: { id: 'gacha__n__background_skin__観測できなかった夜', kind: 'background_skin' } },
       { item: { id: 'default', kind: 'placement_sound' } },
       { item: { id: 'gacha__n__placement_sound__type-1-standard', kind: 'placement_sound' } }
     ]);
 
     expect(spend.ok).toBe(true);
-    expect(apply.newlyUnlockedIds.sort()).toEqual(['gacha__n__placement_sound__type-1-standard', 'gacha__n__小鬼の手']);
+    expect(apply.newlyUnlockedIds.sort()).toEqual([
+      'gacha__n__background_skin__観測できなかった夜',
+      'gacha__n__placement_sound__type-1-standard',
+      'gacha__n__小鬼の手'
+    ]);
     expect(apply.alreadyOwnedIds).toEqual(['default']);
     expect(mod.getObservationStones(window)).toBe(150);
     expect(mod.listOwnedHandSkinIds(window)).toEqual([
       'default',
       'gacha__n__小鬼の手'
     ]);
+    expect(mod.listOwnedBackgroundSkinIds(window).sort()).toEqual([
+      'default',
+      'gacha__n__background_skin__観測できなかった夜',
+      'unobserved-night'
+    ]);
     expect(mod.listOwnedPlacementSoundIds(window).sort()).toEqual([
       'default',
       'gacha__n__placement_sound__type-1-standard'
     ]);
-    expect(mod.readState(window).totalPullCount).toBe(3);
+    expect(mod.readState(window).totalPullCount).toBe(4);
   });
 
   test('migrates renamed hand skin ids to canonical owned ids', () => {

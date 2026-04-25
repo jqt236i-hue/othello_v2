@@ -7,12 +7,13 @@
     if (typeof module === 'object' && module.exports) {
         module.exports = factory(
             require('../../../shared-constants'),
-            require('../../../shared/shared-board-utils')
+            require('../../../shared/shared-board-utils'),
+            require('../cards-internal/random-source')
         );
     } else {
-        root.CardBreeding = factory(root.SharedConstants, root.SharedBoardUtils || null);
+        root.CardBreeding = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardRandomSource || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, SharedBoardUtils) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, SharedBoardUtils, RandomSourceModule) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
@@ -247,8 +248,9 @@
     function _pickRandomTarget(targets, prng) {
         const list = Array.isArray(targets) ? targets : [];
         if (list.length === 0) return null;
-        const p = (prng && typeof prng.random === 'function') ? prng : { random: () => 0 };
-        const idx = Math.floor(p.random() * list.length);
+        const idx = (RandomSourceModule && typeof RandomSourceModule.resolveRandomIndex === 'function')
+            ? RandomSourceModule.resolveRandomIndex(list.length, prng, null, 'CardBreeding')
+            : Math.floor(prng.random() * list.length);
         return list[Math.max(0, Math.min(list.length - 1, idx))];
     }
 

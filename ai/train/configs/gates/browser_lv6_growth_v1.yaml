@@ -7,7 +7,7 @@ description: >
 trainCycleArgs:
   - --quality-gate
   - --quality-gate-games
-  - "24"
+  - "40"
   - --quality-gate-seed-count
   - "3"
   - --quality-gate-seed-stride
@@ -24,7 +24,7 @@ trainCycleArgs:
   - "2"
   - --quality-gate-strength-first
   - --quick-games
-  - "24"
+  - "80"
   - --final-games
   - "160"
   - --threshold
@@ -46,7 +46,7 @@ trainCycleArgs:
   - --quick-adoption-threshold
   - "0.010"
   - --quick-adoption-seed-count
-  - "3"
+  - "5"
   - --quick-adoption-seed-stride
   - "1000"
   - --quick-adoption-seed-offset
@@ -58,7 +58,7 @@ trainCycleArgs:
   - --quick-adoption-min-seed-uplift
   - "-0.050"
   - --quick-adoption-min-seed-pass-count
-  - "2"
+  - "3"
   - --final-adoption-threshold
   - "0.004"
   - --final-adoption-seed-count
@@ -74,9 +74,19 @@ trainCycleArgs:
   - --final-adoption-min-seed-pass-count
   - "2"
   - --adoption-policy-score-weight
-  - "1.40"
+  - "1.25"
   - --adoption-heuristic-weight
-  - "1.05"
+  - "0.95"
+  - --adoption-tactical-weight
+  - "0.825"
+  - --adoption-tactical-depth-opening
+  - "2"
+  - --adoption-tactical-depth-mid
+  - "3"
+  - --adoption-tactical-depth-end
+  - "4"
+  - --adoption-tactical-beam-width
+  - "3"
   - --adoption-white-priority
   - "0.72"
   - --adoption-quality-weight-corner

@@ -140,21 +140,33 @@
         }
 
         function setBusyState(active) {
+            const next = (active && typeof active === 'object')
+                ? {
+                    processing: active.processing === true,
+                    cardAnimating: active.cardAnimating === true,
+                    playbackActive: active.playbackActive === true,
+                    hasPlaybackActive: Object.prototype.hasOwnProperty.call(active, 'playbackActive')
+                }
+                : {
+                    processing: active === true,
+                    cardAnimating: active === true,
+                    hasPlaybackActive: false
+                };
             const playbackState = resolvePlaybackStateModule();
             if (!playbackState || typeof playbackState !== 'object') return false;
             if (typeof playbackState.setBusyState === 'function') {
-                playbackState.setBusyState({
-                    processing: active === true,
-                    cardAnimating: active === true
-                });
+                playbackState.setBusyState(next);
                 return true;
             }
 
             if (typeof playbackState.setProcessing === 'function') {
-                playbackState.setProcessing(active === true);
+                playbackState.setProcessing(next.processing);
             }
             if (typeof playbackState.setCardAnimating === 'function') {
-                playbackState.setCardAnimating(active === true);
+                playbackState.setCardAnimating(next.cardAnimating);
+            }
+            if (next.hasPlaybackActive && typeof playbackState.setPlaybackActive === 'function') {
+                playbackState.setPlaybackActive(next.playbackActive);
             }
             return true;
         }

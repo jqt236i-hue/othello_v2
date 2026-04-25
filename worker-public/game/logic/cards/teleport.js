@@ -5,11 +5,11 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'));
+        module.exports = factory(require('../../../shared-constants'), require('../cards-internal/random-source'));
     } else {
-        root.CardTeleport = factory(root.SharedConstants);
+        root.CardTeleport = factory(root.SharedConstants, root.CardRandomSource || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, RandomSourceModule) {
     'use strict';
 
     const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
@@ -17,12 +17,17 @@
         : 0;
 
     function resolveRandomSource(prng) {
-        return (prng && typeof prng.random === 'function')
-            ? prng
-            : { random: Math.random };
+        if (RandomSourceModule && typeof RandomSourceModule.resolveRandomSource === 'function') {
+            return RandomSourceModule.resolveRandomSource(prng, null, 'CardTeleport');
+        }
+        if (prng && typeof prng.random === 'function') return prng;
+        throw new Error('CardTeleport requires an injected deterministic PRNG.');
     }
 
     function resolveRandomIndex(randomSource, length) {
+        if (RandomSourceModule && typeof RandomSourceModule.resolveRandomIndex === 'function') {
+            return RandomSourceModule.resolveRandomIndex(length, randomSource, null, 'CardTeleport');
+        }
         if (!Number.isInteger(length) || length <= 0) return 0;
         const raw = Math.floor(randomSource.random() * length);
         if (!Number.isInteger(raw)) return 0;

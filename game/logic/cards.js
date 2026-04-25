@@ -7,12 +7,28 @@
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
         // Node.js
-        module.exports = factory(require('../../shared-constants'), require('../../shared/deck-spec'), require('../../shared/shared-board-utils'));
+        module.exports = factory(
+            require('../../shared-constants'),
+            require('../../shared/deck-spec'),
+            require('../../shared/shared-board-utils'),
+            require('./cards-internal/random-source'),
+            require('./cards-internal/state-factory'),
+            require('./cards-internal/module-resolver'),
+            require('./cards-internal/presentation-helpers')
+        );
     } else {
         // Browser
-        root.CardLogic = factory(root.SharedConstants, root.DeckSpecHelpers, root.SharedBoardUtils || null);
+        root.CardLogic = factory(
+            root.SharedConstants,
+            root.DeckSpecHelpers,
+            root.SharedBoardUtils || null,
+            root.CardRandomSource || null,
+            root.CardStateFactory || null,
+            root.CardModuleResolver || null,
+            root.CardPresentationHelpers || null
+        );
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, DeckSpecHelpers, SharedBoardUtils) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, DeckSpecHelpers, SharedBoardUtils, CardRandomSource, CardStateFactory, CardModuleResolver, CardPresentationHelpers) {
     'use strict';
 
     const {
@@ -36,45 +52,36 @@
         throw new Error('SharedConstants not loaded');
     }
 
-    const DestroyOutcomeContract = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../../shared/destroy-outcome-contract');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.DestroyOutcomeContract || null;
-    })();
-    const StoneStatusSnapshot = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../../shared/stone-status-snapshot');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.StoneStatusSnapshot || null;
-    })();
-    const SpecialStoneRegistry = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../../shared/special-stone-registry');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.SpecialStoneRegistry || null;
-    })();
+    if (!CardModuleResolver || typeof CardModuleResolver.resolveModule !== 'function') {
+        throw new Error('CardModuleResolver not loaded');
+    }
+    if (!CardPresentationHelpers || typeof CardPresentationHelpers.getCellVisualPresentationMeta !== 'function') {
+        throw new Error('CardPresentationHelpers not loaded');
+    }
+
+    const cardModuleRequire = (typeof require === 'function') ? require : null;
+
+    function resolveCardModule(requirePath, globalName, required) {
+        return CardModuleResolver.resolveModule({
+            requirePath,
+            globalName,
+            required: required === true,
+            label: globalName || requirePath,
+            requireFn: cardModuleRequire
+        });
+    }
+
+    function resolveRequiredCardModule(requirePath, globalName) {
+        return resolveCardModule(requirePath, globalName, true);
+    }
+
+    function resolveOptionalCardModule(requirePath, globalName) {
+        return resolveCardModule(requirePath, globalName, false);
+    }
+
+    const DestroyOutcomeContract = resolveRequiredCardModule('../../shared/destroy-outcome-contract', 'DestroyOutcomeContract');
+    const StoneStatusSnapshot = resolveRequiredCardModule('../../shared/stone-status-snapshot', 'StoneStatusSnapshot');
+    const SpecialStoneRegistry = resolveRequiredCardModule('../../shared/special-stone-registry', 'SpecialStoneRegistry');
 
     function isOverlayOnlySpecialStoneType(type) {
         if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isOverlayOnlySpecialStoneType === 'function') {
@@ -472,6 +479,37 @@
         }
     };
 
+    function resolveDeterministicRandomSource(randomLike, fallbackLike, label) {
+        if (CardRandomSource && typeof CardRandomSource.resolveRandomSource === 'function') {
+            return CardRandomSource.resolveRandomSource(randomLike, fallbackLike, label);
+        }
+        if (randomLike && typeof randomLike.random === 'function') return randomLike;
+        if (typeof randomLike === 'function') return { random: randomLike };
+        if (fallbackLike && typeof fallbackLike.random === 'function') return fallbackLike;
+        if (typeof fallbackLike === 'function') return { random: fallbackLike };
+        throw new Error(`${String(label || 'CardLogic').trim() || 'CardLogic'} requires an injected deterministic PRNG.`);
+    }
+
+    function readDeterministicRandomUnit(randomLike, fallbackLike, label) {
+        if (CardRandomSource && typeof CardRandomSource.readRandomUnit === 'function') {
+            return CardRandomSource.readRandomUnit(randomLike, fallbackLike, label);
+        }
+        const randomSource = resolveDeterministicRandomSource(randomLike, fallbackLike, label);
+        const raw = Number(randomSource.random());
+        if (!Number.isFinite(raw)) {
+            throw new Error(`${String(label || 'CardLogic').trim() || 'CardLogic'} received a PRNG that returned a non-finite value.`);
+        }
+        return Math.max(0, Math.min(0.999999, raw));
+    }
+
+    function resolveDeterministicRandomIndex(length, randomLike, fallbackLike, label) {
+        if (CardRandomSource && typeof CardRandomSource.resolveRandomIndex === 'function') {
+            return CardRandomSource.resolveRandomIndex(length, randomLike, fallbackLike, label);
+        }
+        if (!Number.isInteger(length) || length <= 0) return 0;
+        return Math.floor(readDeterministicRandomUnit(randomLike, fallbackLike, label) * length);
+    }
+
     function getDefaultDeckSize() {
         if (DeckSpecHelpers && typeof DeckSpecHelpers.getDefaultDeckSize === 'function') {
             return DeckSpecHelpers.getDefaultDeckSize();
@@ -556,47 +594,9 @@
         };
     }
 
-    const CardCostsModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards/costs');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardCosts || null;
-    })();
-
-    const CardDefsModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards/defs');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardDefs || null;
-    })();
-
-    const CardUtilsModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards/utils');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardUtils || null;
-    })();
+    const CardCostsModule = resolveRequiredCardModule('./cards/costs', 'CardCosts');
+    const CardDefsModule = resolveRequiredCardModule('./cards/defs', 'CardDefs');
+    const CardUtilsModule = resolveRequiredCardModule('./cards/utils', 'CardUtils');
 
     function getChargeLedgerContext() {
         return {
@@ -630,117 +630,29 @@
         return { changed: after !== safeBefore, before: safeBefore, after, delta: after - safeBefore };
     }
 
-    const CardExpansionModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards/expansion');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardExpansion || null;
-    })();
-
-    const CardMarkersModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards/markers');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardMarkers || null;
-    })();
-
-    const CardMovementModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards/movement');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardMovement || null;
-    })();
-
-    const CardTeleportModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards/teleport');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardTeleport || null;
-    })();
-
-    const CardCloneModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards/clone');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardClone || null;
-    })();
-
-    const CardMeteorModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards/meteor');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardMeteor || null;
-    })();
-
-    const CardShrinkModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards/shrink');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardShrink || null;
-    })();
-
-    const CardLivingWillModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards/living_will');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardLivingWill || null;
-    })();
+    const CardExpansionModule = resolveRequiredCardModule('./cards/expansion', 'CardExpansion');
+    const CardMarkersModule = resolveRequiredCardModule('./cards/markers', 'CardMarkers');
+    const CardMovementModule = resolveRequiredCardModule('./cards/movement', 'CardMovement');
+    const CardTeleportModule = resolveRequiredCardModule('./cards/teleport', 'CardTeleport');
+    const CardCloneModule = resolveRequiredCardModule('./cards/clone', 'CardClone');
+    const CardMeteorModule = resolveRequiredCardModule('./cards/meteor', 'CardMeteor');
+    const CardShrinkModule = resolveRequiredCardModule('./cards/shrink', 'CardShrink');
+    const CardLivingWillModule = resolveRequiredCardModule('./cards/living_will', 'CardLivingWill');
+    const CardTargetsModule = resolveRequiredCardModule('./cards/targets', 'CardTargets');
+    const CardFlipsModule = resolveRequiredCardModule('./cards/flips', 'CardFlips');
+    const CardChainModule = resolveRequiredCardModule('./cards/chain', 'CardChain');
+    const CardRegenModule = resolveRequiredCardModule('./cards/regen', 'CardRegen');
+    const CardTimeBombModule = resolveRequiredCardModule('./cards/time_bomb', 'CardTimeBomb');
+    const CardBreedingModule = resolveRequiredCardModule('./cards/breeding', 'CardBreeding');
+    const CardHyperactiveModule = resolveRequiredCardModule('./cards/hyperactive', 'CardHyperactive');
+    const CardUdgModule = resolveRequiredCardModule('./cards/udg', 'CardUdG');
+    const CardSniperModule = resolveRequiredCardModule('./cards/sniper', 'CardSniper');
+    const CardLightningModule = resolveRequiredCardModule('./cards/lightning', 'CardLightning');
+    const CardWillHunterKingModule = resolveRequiredCardModule('./cards/will_hunter_king', 'CardWillHunterKing');
+    const CardDestroyDragonModule = resolveRequiredCardModule('./cards/destroy_dragon', 'CardDestroyDragon');
+    const DragonEffectsModule = resolveRequiredCardModule('./effects/dragon', 'DragonEffects');
+    const DestroyOneStoneModule = resolveRequiredCardModule('./effects/destroy_one_stone', 'DestroyOneStone');
+    const SwapWithEnemyModule = resolveRequiredCardModule('./effects/swap_with_enemy', 'SwapWithEnemy');
 
     function addChargeValue(cardState, playerKey, amount, reason, meta) {
         if (CardChargeLedgerModule && typeof CardChargeLedgerModule.addChargeValue === 'function') {
@@ -771,17 +683,7 @@
     }
 
     function isGuardProtectedCell(cardState, row, col) {
-        if (CardMarkersModule && typeof CardMarkersModule.isGuardProtectedCell === 'function') {
-            return CardMarkersModule.isGuardProtectedCell(cardState, row, col);
-        }
-        return Array.isArray(cardState && cardState.markers) && cardState.markers.some((marker) => (
-            marker &&
-            marker.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
-            marker.row === row &&
-            marker.col === col &&
-            marker.data &&
-            marker.data.type === 'GUARD'
-        ));
+        return requireCardMarkersMethod('isGuardProtectedCell')(cardState, row, col);
     }
 
     function getRiboExpansionDescriptors(gameState) {
@@ -841,21 +743,10 @@
 
     function sampleRandomPositions(positions, count, prng) {
         if (!Array.isArray(positions) || positions.length === 0 || !Number.isFinite(count) || count <= 0) return [];
-        const randomSource = () => {
-            if (prng && typeof prng.random === 'function') {
-                try {
-                    return prng.random();
-                } catch (e) {
-                    return Math.random();
-                }
-            }
-            return Math.random();
-        };
         const pool = positions.slice();
         const out = [];
         while (pool.length > 0 && out.length < count) {
-            const rnd = Math.max(0, Math.min(0.999999, Number(randomSource()) || 0));
-            const index = Math.floor(rnd * pool.length);
+            const index = resolveDeterministicRandomIndex(pool.length, prng, null, 'CardLogic.sampleRandomPositions');
             out.push(pool.splice(index, 1)[0]);
         }
         return out;
@@ -1121,13 +1012,8 @@
         let sharedSpawnCount = 0;
 
         if (normalFlip && BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function' && typeof BoardOpsModule.changeAt === 'function') {
-            if (typeof module === 'object' && module.exports) {
-                const breedingMod = require('./cards/breeding');
-                if (breedingMod && typeof breedingMod.spawnAndFlipBatch === 'function') {
-                    sharedSpawnAndFlipBatch = breedingMod.spawnAndFlipBatch;
-                }
-            } else if (typeof CardBreeding !== 'undefined' && typeof CardBreeding.spawnAndFlipBatch === 'function') {
-                sharedSpawnAndFlipBatch = CardBreeding.spawnAndFlipBatch;
+            if (CardBreedingModule && typeof CardBreedingModule.spawnAndFlipBatch === 'function') {
+                sharedSpawnAndFlipBatch = CardBreedingModule.spawnAndFlipBatch;
             }
             if (sharedSpawnAndFlipBatch) {
                 const batch = sharedSpawnAndFlipBatch(
@@ -1422,88 +1308,12 @@
         return summary;
     }
 
-    const CardSelectorsModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards/selectors');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardSelectors || null;
-    })();
-
-    const CardUsagePrechecksModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards-internal/card-usage-prechecks');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardUsagePrechecks || null;
-    })();
-
-    const CardSelectorOrchestratorModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards-internal/selector-orchestrator');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardSelectorOrchestrator || null;
-    })();
-
-    const CardHandManagerModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards-internal/hand-manager');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardHandManager || null;
-    })();
-
-    const CardEffectTimingModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards-internal/effect-timing');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardEffectTiming || null;
-    })();
-    const CardWorkModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards/work_will');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardWork || null;
-    })();
+    const CardSelectorsModule = resolveRequiredCardModule('./cards/selectors', 'CardSelectors');
+    const CardUsagePrechecksModule = resolveRequiredCardModule('./cards-internal/card-usage-prechecks', 'CardUsagePrechecks');
+    const CardSelectorOrchestratorModule = resolveRequiredCardModule('./cards-internal/selector-orchestrator', 'CardSelectorOrchestrator');
+    const CardHandManagerModule = resolveRequiredCardModule('./cards-internal/hand-manager', 'CardHandManager');
+    const CardEffectTimingModule = resolveRequiredCardModule('./cards-internal/effect-timing', 'CardEffectTiming');
+    const CardWorkModule = resolveRequiredCardModule('./cards/work_will', 'CardWork');
     let CardEffectTimingModules = null;
 
     function createCardEffectTimingModules() {
@@ -1588,47 +1398,9 @@
         };
     }
 
-    const CardPendingStateManagerModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards-internal/pending-state-manager');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardPendingStateManager || null;
-    })();
-
-    const PendingCoordinatorModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../turn/pending-coordinator');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.PendingCoordinator || null;
-    })();
-
-    const CardChargeLedgerModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./cards-internal/charge-ledger');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardChargeLedger || null;
-    })();
+    const CardPendingStateManagerModule = resolveRequiredCardModule('./cards-internal/pending-state-manager', 'CardPendingStateManager');
+    const PendingCoordinatorModule = resolveOptionalCardModule('../turn/pending-coordinator', 'PendingCoordinator');
+    const CardChargeLedgerModule = resolveRequiredCardModule('./cards-internal/charge-ledger', 'CardChargeLedger');
 
     function readCardPendingEffect(cardState, playerKey) {
         if (PendingCoordinatorModule && typeof PendingCoordinatorModule.readPendingEffect === 'function') {
@@ -1660,190 +1432,64 @@
         return true;
     }
 
-    const BoardOpsModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./board_ops');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.BoardOps || null;
-    })();
+    const BoardOpsModule = resolveRequiredCardModule('./board_ops', 'BoardOps');
+    const MarkersAdapter = resolveRequiredCardModule('./markers_adapter', 'MarkersAdapter');
+    const MARKER_KINDS = (CardMarkersModule && CardMarkersModule.MARKER_KINDS)
+        || (MarkersAdapter && MarkersAdapter.MARKER_KINDS);
+    const MARKER_CATEGORIES = (CardMarkersModule && CardMarkersModule.MARKER_CATEGORIES)
+        || (MarkersAdapter && MarkersAdapter.MARKER_CATEGORIES)
+        || { BOMB: 'bomb' };
 
-    const MarkersAdapter = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./markers_adapter');
-            } catch (e) {
-                return null;
-            }
+    function requireCardMarkersMethod(name) {
+        const fn = CardMarkersModule && CardMarkersModule[name];
+        if (typeof fn !== 'function') {
+            throw new Error(`[cards.js] CardMarkers.${name} not available`);
         }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.MarkersAdapter || null;
-    })();
-    const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
-    const MARKER_CATEGORIES = (MarkersAdapter && MarkersAdapter.MARKER_CATEGORIES)
-        ? MarkersAdapter.MARKER_CATEGORIES
-        : { BOMB: 'bomb' };
+        return fn;
+    }
 
     function ensureMarkers(cardState) {
-        if (CardMarkersModule && typeof CardMarkersModule.ensureMarkers === 'function') {
-            CardMarkersModule.ensureMarkers(cardState);
-            return;
-        }
-        if (MarkersAdapter && typeof MarkersAdapter.ensureMarkers === 'function') {
-            MarkersAdapter.ensureMarkers(cardState);
-            return;
-        }
-        if (!cardState) return;
-        if (!Array.isArray(cardState.markers)) cardState.markers = [];
-        if (typeof cardState._nextMarkerId !== 'number') cardState._nextMarkerId = 1;
-        if (typeof cardState._nextCreatedSeq !== 'number') cardState._nextCreatedSeq = 1;
+        return requireCardMarkersMethod('ensureMarkers')(cardState);
     }
 
     function getMarkers(cardState) {
-        if (CardMarkersModule && typeof CardMarkersModule.getMarkers === 'function') {
-            return CardMarkersModule.getMarkers(cardState);
-        }
-        return (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
-            ? MarkersAdapter.getMarkers(cardState)
-            : (cardState && Array.isArray(cardState.markers) ? cardState.markers : []);
+        return requireCardMarkersMethod('getMarkers')(cardState);
     }
 
     function getMarkerCategory(marker) {
-        if (CardMarkersModule && typeof CardMarkersModule.getMarkerCategory === 'function') {
-            return CardMarkersModule.getMarkerCategory(marker);
-        }
-        if (MarkersAdapter && typeof MarkersAdapter.getMarkerCategory === 'function') {
-            return MarkersAdapter.getMarkerCategory(marker);
-        }
-        if (!marker || !marker.data) return null;
-        if (marker.kind === MARKER_CATEGORIES.BOMB) return MARKER_CATEGORIES.BOMB;
-        return (typeof marker.data.category === 'string' && marker.data.category)
-            ? marker.data.category
-            : null;
+        return requireCardMarkersMethod('getMarkerCategory')(marker);
     }
 
     function isBombCategoryMarker(marker) {
-        if (CardMarkersModule && typeof CardMarkersModule.isBombCategoryMarker === 'function') {
-            return CardMarkersModule.isBombCategoryMarker(marker);
-        }
-        if (MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
-            return MarkersAdapter.isBombCategoryMarker(marker);
-        }
-        return getMarkerCategory(marker) === MARKER_CATEGORIES.BOMB;
+        return requireCardMarkersMethod('isBombCategoryMarker')(marker);
     }
 
     function getBombMarkerType(marker) {
-        if (CardMarkersModule && typeof CardMarkersModule.getBombMarkerType === 'function') {
-            return CardMarkersModule.getBombMarkerType(marker);
-        }
-        if (MarkersAdapter && typeof MarkersAdapter.getBombMarkerType === 'function') {
-            return MarkersAdapter.getBombMarkerType(marker);
-        }
-        if (!isBombCategoryMarker(marker)) return null;
-        return marker && marker.data && marker.data.type ? marker.data.type : 'TIME_BOMB';
-    }
-
-    function normalizeMarkerInput(kind, data) {
-        if (CardMarkersModule && typeof CardMarkersModule.normalizeMarkerInput === 'function') {
-            return CardMarkersModule.normalizeMarkerInput(kind, data);
-        }
-        if (MarkersAdapter && typeof MarkersAdapter.normalizeMarkerInput === 'function') {
-            return MarkersAdapter.normalizeMarkerInput(kind, data);
-        }
-        const normalizedData = (data && typeof data === 'object') ? { ...data } : {};
-        const requestedKind = (typeof kind === 'string' && kind)
-            ? kind
-            : (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone');
-        const isBombInput =
-            requestedKind === MARKER_CATEGORIES.BOMB ||
-            normalizedData.category === MARKER_CATEGORIES.BOMB ||
-            normalizedData.type === 'TIME_BOMB';
-        if (isBombInput) {
-            normalizedData.category = MARKER_CATEGORIES.BOMB;
-            if (!normalizedData.type) normalizedData.type = 'TIME_BOMB';
-            return {
-                kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
-                data: normalizedData
-            };
-        }
-        return {
-            kind: requestedKind,
-            data: normalizedData
-        };
+        return requireCardMarkersMethod('getBombMarkerType')(marker);
     }
 
     function getSpecialMarkers(cardState) {
-        if (CardMarkersModule && typeof CardMarkersModule.getSpecialMarkers === 'function') {
-            return CardMarkersModule.getSpecialMarkers(cardState);
-        }
-        return (MarkersAdapter && typeof MarkersAdapter.getSpecialMarkers === 'function')
-            ? MarkersAdapter.getSpecialMarkers(cardState)
-            : getMarkers(cardState).filter(m => (
-                m &&
-                m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
-                !isBombCategoryMarker(m)
-            ));
+        return requireCardMarkersMethod('getSpecialMarkers')(cardState);
     }
 
     function getBombMarkers(cardState) {
-        if (CardMarkersModule && typeof CardMarkersModule.getBombMarkers === 'function') {
-            return CardMarkersModule.getBombMarkers(cardState);
-        }
-        return (MarkersAdapter && typeof MarkersAdapter.getBombMarkers === 'function')
-            ? MarkersAdapter.getBombMarkers(cardState)
-            : getMarkers(cardState).filter(m => isBombCategoryMarker(m));
+        return requireCardMarkersMethod('getBombMarkers')(cardState);
     }
 
     function getBlockadeMarkers(cardState) {
-        if (CardMarkersModule && typeof CardMarkersModule.getBlockadeMarkers === 'function') {
-            return CardMarkersModule.getBlockadeMarkers(cardState);
-        }
-        return getSpecialMarkers(cardState).filter(m => m && m.data && m.data.type === 'BLOCKADE');
+        return requireCardMarkersMethod('getBlockadeMarkers')(cardState);
     }
 
     function getBlockingMarkers(cardState) {
-        if (CardMarkersModule && typeof CardMarkersModule.getBlockingMarkers === 'function') {
-            return CardMarkersModule.getBlockingMarkers(cardState);
-        }
-        return getSpecialMarkers(cardState).filter(m => (
-            m &&
-            m.data &&
-            (m.data.type === 'BLOCKADE' || m.data.type === 'METEOR_HOLE' || m.data.type === 'FREEZE')
-        ));
+        return requireCardMarkersMethod('getBlockingMarkers')(cardState);
     }
 
     function isFrozenCellForCard(cardState, row, col) {
-        if (CardMarkersModule && typeof CardMarkersModule.isFrozenCellForCard === 'function') {
-            return CardMarkersModule.isFrozenCellForCard(cardState, row, col);
-        }
-        return getSpecialMarkers(cardState).some((m) => (
-            m &&
-            m.row === row &&
-            m.col === col &&
-            m.data &&
-            m.data.type === 'FREEZE'
-        ));
+        return requireCardMarkersMethod('isFrozenCellForCard')(cardState, row, col);
     }
 
     function isMeteorHoleCell(cardState, row, col) {
-        if (CardMarkersModule && typeof CardMarkersModule.isMeteorHoleCell === 'function') {
-            return CardMarkersModule.isMeteorHoleCell(cardState, row, col);
-        }
-        return getSpecialMarkers(cardState).some((m) => (
-            m &&
-            m.row === row &&
-            m.col === col &&
-            m.data &&
-            m.data.type === 'METEOR_HOLE'
-        ));
+        return requireCardMarkersMethod('isMeteorHoleCell')(cardState, row, col);
     }
 
     function isMainBoardCellForCard(row, col, boardOrConfig) {
@@ -1955,70 +1601,15 @@
     }
 
     function clearStoneIdAtForCard(cardState, gameState, row, col) {
-        if (CardMarkersModule && typeof CardMarkersModule.clearStoneIdAtForCard === 'function') {
-            return CardMarkersModule.clearStoneIdAtForCard(cardState, gameState, row, col);
-        }
-        if (!cardState) return;
-        if (isMainBoardCellForCard(row, col, gameState || cardState)) {
-            if (cardState.stoneIdMap && cardState.stoneIdMap[row]) {
-                cardState.stoneIdMap[row][col] = null;
-            }
-            return;
-        }
-        const isExpansion = getExpansionDescriptorsForCard(gameState)
-            .some((desc) => desc && desc.row === row && desc.col === col);
-        if (!isExpansion) return;
-        if (cardState.expansionStoneIdByCell && typeof cardState.expansionStoneIdByCell === 'object') {
-            delete cardState.expansionStoneIdByCell[`${row},${col}`];
-        }
+        return requireCardMarkersMethod('clearStoneIdAtForCard')(cardState, gameState, row, col);
     }
 
     function getStoneIdAtForCard(cardState, gameState, row, col) {
-        if (CardMarkersModule && typeof CardMarkersModule.getStoneIdAtForCard === 'function') {
-            return CardMarkersModule.getStoneIdAtForCard(cardState, gameState, row, col);
-        }
-        if (!cardState) return null;
-        if (isMainBoardCellForCard(row, col, gameState || cardState)) {
-            return (cardState.stoneIdMap && cardState.stoneIdMap[row])
-                ? (cardState.stoneIdMap[row][col] || null)
-                : null;
-        }
-        const isExpansion = getExpansionDescriptorsForCard(gameState)
-            .some((desc) => desc && desc.row === row && desc.col === col);
-        if (!isExpansion) return null;
-        if (!cardState.expansionStoneIdByCell || typeof cardState.expansionStoneIdByCell !== 'object') return null;
-        return cardState.expansionStoneIdByCell[`${row},${col}`] || null;
+        return requireCardMarkersMethod('getStoneIdAtForCard')(cardState, gameState, row, col);
     }
 
     function setStoneIdAtForCard(cardState, gameState, row, col, stoneId) {
-        if (CardMarkersModule && typeof CardMarkersModule.setStoneIdAtForCard === 'function') {
-            return CardMarkersModule.setStoneIdAtForCard(cardState, gameState, row, col, stoneId);
-        }
-        if (!cardState) return false;
-        if (isMainBoardCellForCard(row, col, gameState || cardState)) {
-            const boardConfig = resolveCardBoardConfig((gameState && gameState.boardConfig) || cardState);
-            if (!Array.isArray(cardState.stoneIdMap)) {
-                cardState.stoneIdMap = createStoneIdBoard(boardConfig);
-            }
-            if (!Array.isArray(cardState.stoneIdMap[row])) {
-                cardState.stoneIdMap[row] = Array.from({ length: boardConfig.cols }, () => null);
-            }
-            cardState.stoneIdMap[row][col] = stoneId || null;
-            return true;
-        }
-        const isExpansion = getExpansionDescriptorsForCard(gameState)
-            .some((desc) => desc && desc.row === row && desc.col === col);
-        if (!isExpansion) return false;
-        if (!cardState.expansionStoneIdByCell || typeof cardState.expansionStoneIdByCell !== 'object') {
-            cardState.expansionStoneIdByCell = {};
-        }
-        const key = `${row},${col}`;
-        if (stoneId == null) {
-            delete cardState.expansionStoneIdByCell[key];
-        } else {
-            cardState.expansionStoneIdByCell[key] = stoneId;
-        }
-        return true;
+        return requireCardMarkersMethod('setStoneIdAtForCard')(cardState, gameState, row, col, stoneId);
     }
 
     function isBlockedCell(cardState, row, col, gameState) {
@@ -2084,11 +1675,12 @@
                 return !isBlockedCell(cardState, cell.row, cell.col, gameState);
             });
         if (!candidates.length) return null;
-        const rng = randomSource && typeof randomSource.random === 'function'
-            ? randomSource
-            : { random: () => 0 };
-        const rawIndex = Math.floor(rng.random() * candidates.length);
-        const index = Math.max(0, Math.min(candidates.length - 1, rawIndex));
+        const index = resolveDeterministicRandomIndex(
+            candidates.length,
+            randomSource,
+            null,
+            'CardLogic.selectRandomEmptyBoardShapeDestination'
+        );
         return candidates[index] || candidates[0] || null;
     }
 
@@ -2158,29 +1750,11 @@
     }
 
     function findSpecialMarkerAt(cardState, row, col, type, owner) {
-        if (CardMarkersModule && typeof CardMarkersModule.findSpecialMarkerAt === 'function') {
-            return CardMarkersModule.findSpecialMarkerAt(cardState, row, col, type, owner);
-        }
-        if (MarkersAdapter && typeof MarkersAdapter.findSpecialMarkerAt === 'function') {
-            return MarkersAdapter.findSpecialMarkerAt(cardState, row, col, type, owner);
-        }
-        return getMarkers(cardState).find(m => (
-            m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
-            m.row === row &&
-            m.col === col &&
-            (type ? (m.data && m.data.type === type) : true) &&
-            (owner ? m.owner === owner : true)
-        ));
+        return requireCardMarkersMethod('findSpecialMarkerAt')(cardState, row, col, type, owner);
     }
 
     function findBombMarkerAt(cardState, row, col) {
-        if (CardMarkersModule && typeof CardMarkersModule.findBombMarkerAt === 'function') {
-            return CardMarkersModule.findBombMarkerAt(cardState, row, col);
-        }
-        if (MarkersAdapter && typeof MarkersAdapter.findBombMarkerAt === 'function') {
-            return MarkersAdapter.findBombMarkerAt(cardState, row, col);
-        }
-        return getMarkers(cardState).find(m => isBombCategoryMarker(m) && m.row === row && m.col === col);
+        return requireCardMarkersMethod('findBombMarkerAt')(cardState, row, col);
     }
 
     function isPositionSwapProtectedCell(cardState, row, col) {
@@ -2191,10 +1765,7 @@
     }
 
     function isFrozenCell(cardState, row, col) {
-        if (CardMarkersModule && typeof CardMarkersModule.isFrozenCellForCard === 'function') {
-            return !!CardMarkersModule.isFrozenCellForCard(cardState, row, col);
-        }
-        return !!findSpecialMarkerAt(cardState, row, col, 'FREEZE');
+        return !!isFrozenCellForCard(cardState, row, col);
     }
 
     function isAbsoluteProtectedCell(cardState, row, col) {
@@ -2206,227 +1777,60 @@
     }
 
     function removeMarkersAt(cardState, row, col, options) {
-        if (CardMarkersModule && typeof CardMarkersModule.removeMarkersAt === 'function') {
-            CardMarkersModule.removeMarkersAt(cardState, row, col, options);
-            return;
-        }
-        if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
-            MarkersAdapter.removeMarkersAt(cardState, row, col, options);
-            return;
-        }
-        if (!cardState || !Array.isArray(cardState.markers)) return;
-        const opts = options || {};
-        cardState.markers = cardState.markers.filter(m => {
-            if (m.row !== row || m.col !== col) return true;
-            if (opts.kind === MARKER_CATEGORIES.BOMB && !isBombCategoryMarker(m)) return true;
-            if (opts.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') && (m.kind !== opts.kind || isBombCategoryMarker(m))) return true;
-            if (opts.kind && opts.kind !== MARKER_CATEGORIES.BOMB && opts.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') && m.kind !== opts.kind) return true;
-            if (opts.category && getMarkerCategory(m) !== opts.category) return true;
-            if (opts.type && (!m.data || m.data.type !== opts.type)) return true;
-            if (opts.owner && m.owner !== opts.owner) return true;
-            return false;
-        });
+        return requireCardMarkersMethod('removeMarkersAt')(cardState, row, col, options);
     }
 
     function swapCellCoordinates(cardState, gameState, posA, posB) {
-        if (CardMarkersModule && typeof CardMarkersModule.swapCellCoordinates === 'function') {
-            CardMarkersModule.swapCellCoordinates(cardState, gameState, posA, posB);
-            return;
+        return requireCardMarkersMethod('swapCellCoordinates')(cardState, gameState, posA, posB);
+    }
+
+    function requireCardPresentationHelper(name) {
+        const fn = CardPresentationHelpers && CardPresentationHelpers[name];
+        if (typeof fn !== 'function') {
+            throw new Error(`[cards.js] CardPresentationHelpers.${name} not available`);
         }
-        if (!cardState || !gameState || !posA || !posB) return;
+        return fn;
+    }
 
-        const aRow = Number(posA.row);
-        const aCol = Number(posA.col);
-        const bRow = Number(posB.row);
-        const bCol = Number(posB.col);
-        if (!Number.isInteger(aRow) || !Number.isInteger(aCol) || !Number.isInteger(bRow) || !Number.isInteger(bCol)) return;
-
-        const stoneA = getStoneIdAtForCard(cardState, gameState, aRow, aCol);
-        const stoneB = getStoneIdAtForCard(cardState, gameState, bRow, bCol);
-        setStoneIdAtForCard(cardState, gameState, aRow, aCol, stoneB);
-        setStoneIdAtForCard(cardState, gameState, bRow, bCol, stoneA);
-
-        const markers = getMarkers(cardState);
-        for (const m of markers) {
-            if (!m) continue;
-            if (m.row === aRow && m.col === aCol) {
-                m.row = bRow;
-                m.col = bCol;
-            } else if (m.row === bRow && m.col === bCol) {
-                m.row = aRow;
-                m.col = aCol;
-            }
-        }
-
-        const swapPoint = (p) => {
-            if (!p || !Number.isInteger(p.row) || !Number.isInteger(p.col)) return p;
-            if (p.row === aRow && p.col === aCol) return { row: bRow, col: bCol };
-            if (p.row === bRow && p.col === bCol) return { row: aRow, col: aCol };
-            return p;
+    function getCardPresentationHelperContext() {
+        return {
+            constants: { BLACK, EMPTY },
+            StoneStatusSnapshot,
+            BoardOpsModule,
+            getSpecialMarkers,
+            findBombMarkerAt,
+            getBombMarkerType,
+            isOverlayOnlySpecialStoneType,
+            getCellValueForCard,
+            setCellValueForCard,
+            swapCellCoordinates,
+            getStoneIdAtForCard,
+            emitPresentationEvent
         };
-
-        if (cardState.workAnchorPosByPlayer) {
-            cardState.workAnchorPosByPlayer.black = swapPoint(cardState.workAnchorPosByPlayer.black);
-            cardState.workAnchorPosByPlayer.white = swapPoint(cardState.workAnchorPosByPlayer.white);
-        }
-        if (cardState.breedingSproutByOwner) {
-            for (const owner of ['black', 'white']) {
-                const arr = Array.isArray(cardState.breedingSproutByOwner[owner]) ? cardState.breedingSproutByOwner[owner] : [];
-                cardState.breedingSproutByOwner[owner] = arr.map(swapPoint);
-            }
-        }
-        if (cardState.breedingFrontierByAnchorId && typeof cardState.breedingFrontierByAnchorId === 'object') {
-            for (const key of Object.keys(cardState.breedingFrontierByAnchorId)) {
-                const arr = Array.isArray(cardState.breedingFrontierByAnchorId[key]) ? cardState.breedingFrontierByAnchorId[key] : [];
-                cardState.breedingFrontierByAnchorId[key] = arr.map(swapPoint);
-            }
-        }
     }
 
     function compactPresentationMeta(meta) {
-        if (!meta || typeof meta !== 'object') return undefined;
-        const out = {};
-        for (const [key, value] of Object.entries(meta)) {
-            if (value !== null && value !== undefined) out[key] = value;
-        }
-        return Object.keys(out).length ? out : undefined;
+        return requireCardPresentationHelper('compactPresentationMeta')(meta);
     }
 
     function getCellVisualPresentationMeta(cardState, row, col) {
-        const markersAtCell = getSpecialMarkers(cardState).filter((marker) => (
-            marker &&
-            marker.row === row &&
-            marker.col === col
-        ));
-        const bombMarker = findBombMarkerAt(cardState, row, col);
-        if (StoneStatusSnapshot && typeof StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers === 'function') {
-            return compactPresentationMeta(StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers(markersAtCell, {
-                bombMarker,
-                mode: 'raw'
-            }));
-        }
-
-        const toCounterOrNull = (value) => {
-            if (value === null || value === undefined || value === '') return null;
-            const n = Number(value);
-            if (!Number.isFinite(n)) return null;
-            return Math.max(0, Math.trunc(n));
-        };
-
-        const meta = {
-            special: null,
-            timer: null,
-            owner: null,
-            inheritedTimer: null,
-            inheritedOwner: null,
-            flipEvadeRemaining: null,
-            inheritedFlipEvadeRemaining: null,
-            destroyEvadeRemaining: null
-        };
-
-        const destroyValues = markersAtCell
-            .map((marker) => toCounterOrNull(marker && marker.data && marker.data.destroyEvadeRemaining))
-            .filter((value) => value !== null);
-        if (destroyValues.length) {
-            meta.destroyEvadeRemaining = destroyValues.reduce((sum, value) => sum + value, 0);
-        }
-
-        const inherited = markersAtCell.find((marker) => (
-            marker &&
-            marker.data &&
-            String(marker.data.type || '').toUpperCase() === 'INHERITED_HYPERACTIVE'
-        ));
-        if (inherited) {
-            meta.inheritedTimer = toCounterOrNull(inherited.data && inherited.data.remainingOwnerTurns);
-            meta.inheritedOwner = (inherited.owner !== undefined && inherited.owner !== null) ? inherited.owner : null;
-            meta.inheritedFlipEvadeRemaining = toCounterOrNull(inherited.data && inherited.data.flipEvadeRemaining);
-        }
-
-        const visualSpecial = markersAtCell.find((marker) => {
-            const type = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-            if (!type) return false;
-            return !isOverlayOnlySpecialStoneType(type);
-        });
-        if (visualSpecial) {
-            meta.special = (visualSpecial.data && visualSpecial.data.type) || null;
-            meta.timer = Number.isFinite(Number(visualSpecial.data && visualSpecial.data.remainingOwnerTurns))
-                ? Math.max(0, Math.trunc(Number(visualSpecial.data.remainingOwnerTurns)))
-                : null;
-            meta.owner = (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null;
-            meta.flipEvadeRemaining = toCounterOrNull(visualSpecial.data && visualSpecial.data.flipEvadeRemaining);
-        } else if (bombMarker) {
-            meta.special = (bombMarker.data && bombMarker.data.type) || 'TIME_BOMB';
-            meta.timer = Number.isFinite(Number(bombMarker.data && bombMarker.data.remainingTurns))
-                ? Math.max(0, Math.trunc(Number(bombMarker.data.remainingTurns)))
-                : null;
-            meta.owner = (bombMarker.owner !== undefined && bombMarker.owner !== null) ? bombMarker.owner : null;
-        }
-
-        return compactPresentationMeta(meta);
+        return requireCardPresentationHelper('getCellVisualPresentationMeta')(
+            cardState,
+            row,
+            col,
+            getCardPresentationHelperContext()
+        );
     }
 
     function swapOccupiedCellsWithPresentation(cardState, gameState, posA, posB, options = {}) {
-        if (!cardState || !gameState || !posA || !posB) return { swapped: false, reason: 'invalid_args' };
-
-        const aRow = Number(posA.row);
-        const aCol = Number(posA.col);
-        const bRow = Number(posB.row);
-        const bCol = Number(posB.col);
-        if (!Number.isInteger(aRow) || !Number.isInteger(aCol) || !Number.isInteger(bRow) || !Number.isInteger(bCol)) {
-            return { swapped: false, reason: 'invalid_args' };
-        }
-
-        const valueA = getCellValueForCard(gameState, aRow, aCol);
-        const valueB = getCellValueForCard(gameState, bRow, bCol);
-        if (valueA === null || valueB === null) return { swapped: false, reason: 'out_of_board' };
-        if (valueA === EMPTY || valueB === EMPTY) return { swapped: false, reason: 'empty' };
-
-        const stoneIdA = getStoneIdAtForCard(cardState, gameState, aRow, aCol);
-        const stoneIdB = getStoneIdAtForCard(cardState, gameState, bRow, bCol);
-        const ownerBeforeA = valueA === (BLACK || 1) ? 'black' : 'white';
-        const ownerBeforeB = valueB === (BLACK || 1) ? 'black' : 'white';
-
-        setCellValueForCard(gameState, aRow, aCol, valueB);
-        setCellValueForCard(gameState, bRow, bCol, valueA);
-        swapCellCoordinates(cardState, gameState, { row: aRow, col: aCol }, { row: bRow, col: bCol });
-
-        const firstEvent = {
-            type: 'MOVE',
-            stoneId: stoneIdA,
-            row: bRow,
-            col: bCol,
-            prevRow: aRow,
-            prevCol: aCol,
-            ownerBefore: ownerBeforeA,
-            ownerAfter: ownerBeforeA,
-            cause: options.firstCause || options.cause || null,
-            reason: options.firstReason || options.reason || null
-        };
-        const firstMeta = getCellVisualPresentationMeta(cardState, bRow, bCol);
-        if (firstMeta) firstEvent.meta = firstMeta;
-        emitPresentationEvent(cardState, firstEvent);
-
-        const secondEvent = {
-            type: 'MOVE',
-            stoneId: stoneIdB,
-            row: aRow,
-            col: aCol,
-            prevRow: bRow,
-            prevCol: bCol,
-            ownerBefore: ownerBeforeB,
-            ownerAfter: ownerBeforeB,
-            cause: options.secondCause || options.cause || null,
-            reason: options.secondReason || options.reason || null
-        };
-        const secondMeta = getCellVisualPresentationMeta(cardState, aRow, aCol);
-        if (secondMeta) secondEvent.meta = secondMeta;
-        emitPresentationEvent(cardState, secondEvent);
-
-        return {
-            swapped: true,
-            first: { row: aRow, col: aCol },
-            second: { row: bRow, col: bCol }
-        };
+        return requireCardPresentationHelper('swapOccupiedCellsWithPresentation')(
+            cardState,
+            gameState,
+            posA,
+            posB,
+            options,
+            getCardPresentationHelperContext()
+        );
     }
 
     function buildInitialBoardBonusMap(prng, boardOrConfig) {
@@ -2549,121 +1953,10 @@
      * @returns {Object} cardState
      */
     function createCardState(prng, options) {
-        const p = prng || defaultPrng;
-        const boardConfig = resolveCardBoardConfig(options && options.boardConfig);
-        const initialDeckCardIdsByPlayer = resolveInitialDeckCardIdsByPlayer(options, p);
-
-        const buildDeck = (playerKey) => {
-            const deck = Array.isArray(initialDeckCardIdsByPlayer[playerKey])
-                ? initialDeckCardIdsByPlayer[playerKey].slice()
-                : [];
-            p.shuffle(deck);
-            return deck;
-        };
-
-        const blackDeck = buildDeck('black');
-        const whiteDeck = buildDeck('white');
-        const boardBonusByCell = buildInitialBoardBonusMap(p, boardConfig);
-        const stoneIdMap = createStoneIdBoard(boardConfig);
-        const openingPlacements = getOpeningPlacementsForState(boardConfig);
-        openingPlacements.forEach((stone, index) => {
-            stoneIdMap[stone.row][stone.col] = `s${index + 1}`;
-        });
-
-        const cardState = {
-            boardConfig,
-            // Per-player decks (non-shared)
-            decks: {
-                black: blackDeck,
-                white: whiteDeck
-            },
-            // Legacy compatibility field. Do not use in new code.
-            deck: blackDeck.slice(),
-            discard: [],
-            initialDeckSize: blackDeck.length,
-            initialDeckSizeByPlayer: { black: blackDeck.length, white: whiteDeck.length },
-            reshuffleRequiresFullCycle: false,
-             hands: { black: [], white: [] },
-             turnIndex: 0,
-             lastTurnStartedFor: null,
-             _activeTurnPlayer: null,
-             turnCountByPlayer: { black: 0, white: 0 },
-              timeStopConsecutiveTurnsRemainingByPlayer: { black: 0, white: 0 },
-              observerTriviaBaseByPlayer: { black: null, white: null },
-            observerTriviaCursorByPlayer: { black: null, white: null },
-            _nextCardCopySeq: 1,
-            _handCopyIdsByPlayer: { black: [], white: [] },
-            _deckCopyIdsByPlayer: { black: [], white: [] },
-            _discardCopyIds: [],
-            _revealedHandCopyIdsByViewer: { black: [], white: [] },
-
-            // Card usage state
-            selectedCardId: null,
-            hasUsedCardThisTurnByPlayer: { black: false, white: false },
-            hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
-            pendingEffectByPlayer: { black: null, white: null },
-            activeEffectsByPlayer: { black: [], white: [] },
-
-            // Special effects state - unified markers array (future primary storage)
-            // Format: { id, row, col, kind, owner, data: {...} }
-            markers: [],
-            _nextMarkerId: 1,
-            _nextCreatedSeq: 1,
-
-            // Presentation event support (PoC)
-            presentationEvents: [],   // [{type, stoneId, row, col, ownerBefore, ownerAfter, cause, reason, meta, actionId, turnIndex, plyIndex}]
-            _nextStoneId: openingPlacements.length + 1, // opening stones reserve the initial ids
-            stoneIdMap,
-            expansionStoneIdByCell: {},
-            hyperactiveSeqCounter: 0,
-
-            // Recent usage
-            lastUsedCardByPlayer: { black: null, white: null },
-            cardUseCountByPlayer: { black: 0, white: 0 },
-            totalFlipCountByPlayer: { black: 0, white: 0 },
-            cornerCaptureCountByPlayer: { black: 0, white: 0 },
-
-            // Resources
-            charge: { black: 0, white: 0 },
-            chargeGainedTotal: { black: 0, white: 0 },
-            chargeDeltaEvents: [],
-            _nextChargeDeltaSeq: 1,
-            riboRepaymentsByPlayer: { black: [], white: [] },
-
-            // Extra actions
-            extraPlaceRemainingByPlayer: { black: 0, white: 0 },
-            infinitePlaceActiveByPlayer: { black: false, white: false },
-            multiPlaceSourceTypeByPlayer: { black: null, white: null },
-
-            // Board bonus tiles (generated once at game start)
-            boardBonusByCell,
-            boardBonusConsumedByCell: {},
-
-            // Work Will state
-            workAnchorPosByPlayer: { black: null, white: null },
-            workNextPlacementArmedByPlayer: { black: false, white: false },
-
-            // Breeding runtime state
-            // - frontier: next breeding origins per anchor id
-            // - sprout: one-turn visual tags for stones spawned by breeding
-            breedingFrontierByAnchorId: {},
-            breedingSproutByOwner: { black: [], white: [] },
-            _breedingSproutClearedTokenByOwner: { black: null, white: null },
-
-            // SALVATION_WILL: per-player list of stones destroyed on the immediately previous
-            // opponent turn. Keys represent the player who can use that history on their current
-            // turn. Each entry may include owner/wasSpecial metadata, but revival always spawns
-            // the current player's normal stone.
-            prevOpponentTurnDestroyedStonesByPlayer: { black: [], white: [] },
-
-            // FATE_WILL: maps turn-owner key to the controller key (the player who used the card).
-            // When non-null for a given turn owner, that upcoming opponent turn is operated by the
-            // controller instead. Cleared at the start of the controller's next turn (i.e. after
-            // the single controlled turn ends). Stacking/nesting is blocked.
-            fateWillControllerByTurnOwner: { black: null, white: null }
-        };
-        ensureCardCopyState(cardState);
-        return cardState;
+        if (!CardStateFactory || typeof CardStateFactory.createCardState !== 'function') {
+            throw new Error('[cards.js] CardStateFactory.createCardState not available');
+        }
+        return CardStateFactory.createCardState(prng, options, getCardStateFactoryContext());
     }
 
     /**
@@ -2672,195 +1965,10 @@
      * @returns {Object} Copied card state
      */
     function copyCardState(cs) {
-        const boardConfig = resolveCardBoardConfig((cs && cs.boardConfig) || cs);
-        const legacyDeck = Array.isArray(cs.deck) ? cs.deck.slice() : [];
-        const decks = (cs.decks && typeof cs.decks === 'object')
-            ? {
-                black: Array.isArray(cs.decks.black) ? cs.decks.black.slice() : legacyDeck.slice(),
-                white: Array.isArray(cs.decks.white) ? cs.decks.white.slice() : legacyDeck.slice()
-            }
-            : { black: legacyDeck.slice(), white: legacyDeck.slice() };
-        const initialDeckSizeByPlayer = (cs.initialDeckSizeByPlayer && typeof cs.initialDeckSizeByPlayer === 'object')
-            ? {
-                black: Number.isFinite(cs.initialDeckSizeByPlayer.black) ? cs.initialDeckSizeByPlayer.black : decks.black.length,
-                white: Number.isFinite(cs.initialDeckSizeByPlayer.white) ? cs.initialDeckSizeByPlayer.white : decks.white.length
-            }
-            : {
-                black: Number.isFinite(cs.initialDeckSize) ? cs.initialDeckSize : decks.black.length,
-                white: Number.isFinite(cs.initialDeckSize) ? cs.initialDeckSize : decks.white.length
-            };
-        const nextState = {
-            boardConfig,
-            decks,
-            // Legacy compatibility field. Do not use in new code.
-            deck: decks.black.slice(),
-            discard: cs.discard.slice(),
-            hands: {
-                black: cs.hands.black.slice(),
-                white: cs.hands.white.slice()
-             },
-             turnIndex: cs.turnIndex,
-             lastTurnStartedFor: cs.lastTurnStartedFor,
-             _activeTurnPlayer: (typeof cs._activeTurnPlayer === 'string') ? cs._activeTurnPlayer : null,
-             turnCountByPlayer: { ...cs.turnCountByPlayer },
-             timeStopConsecutiveTurnsRemainingByPlayer: {
-                 black: Number.isFinite(Number(cs && cs.timeStopConsecutiveTurnsRemainingByPlayer && cs.timeStopConsecutiveTurnsRemainingByPlayer.black))
-                    ? Math.max(0, Math.floor(Number(cs.timeStopConsecutiveTurnsRemainingByPlayer.black)))
-                    : 0,
-                white: Number.isFinite(Number(cs && cs.timeStopConsecutiveTurnsRemainingByPlayer && cs.timeStopConsecutiveTurnsRemainingByPlayer.white))
-                    ? Math.max(0, Math.floor(Number(cs.timeStopConsecutiveTurnsRemainingByPlayer.white)))
-                    : 0
-            },
-            observerTriviaBaseByPlayer: (cs.observerTriviaBaseByPlayer && typeof cs.observerTriviaBaseByPlayer === 'object')
-                ? {
-                    black: Number.isFinite(Number(cs.observerTriviaBaseByPlayer.black)) ? Number(cs.observerTriviaBaseByPlayer.black) : null,
-                    white: Number.isFinite(Number(cs.observerTriviaBaseByPlayer.white)) ? Number(cs.observerTriviaBaseByPlayer.white) : null
-                }
-                : { black: null, white: null },
-            observerTriviaCursorByPlayer: (cs.observerTriviaCursorByPlayer && typeof cs.observerTriviaCursorByPlayer === 'object')
-                ? {
-                    black: Number.isFinite(Number(cs.observerTriviaCursorByPlayer.black)) ? Number(cs.observerTriviaCursorByPlayer.black) : null,
-                    white: Number.isFinite(Number(cs.observerTriviaCursorByPlayer.white)) ? Number(cs.observerTriviaCursorByPlayer.white) : null
-                }
-                : { black: null, white: null },
-            _nextCardCopySeq: Number.isFinite(Number(cs._nextCardCopySeq))
-                ? Math.max(1, Math.floor(Number(cs._nextCardCopySeq)))
-                : 1,
-            _handCopyIdsByPlayer: (cs._handCopyIdsByPlayer && typeof cs._handCopyIdsByPlayer === 'object')
-                ? {
-                    black: Array.isArray(cs._handCopyIdsByPlayer.black) ? cs._handCopyIdsByPlayer.black.slice() : [],
-                    white: Array.isArray(cs._handCopyIdsByPlayer.white) ? cs._handCopyIdsByPlayer.white.slice() : []
-                }
-                : { black: [], white: [] },
-            _deckCopyIdsByPlayer: (cs._deckCopyIdsByPlayer && typeof cs._deckCopyIdsByPlayer === 'object')
-                ? {
-                    black: Array.isArray(cs._deckCopyIdsByPlayer.black) ? cs._deckCopyIdsByPlayer.black.slice() : [],
-                    white: Array.isArray(cs._deckCopyIdsByPlayer.white) ? cs._deckCopyIdsByPlayer.white.slice() : []
-                }
-                : { black: [], white: [] },
-            _discardCopyIds: Array.isArray(cs._discardCopyIds) ? cs._discardCopyIds.slice() : [],
-            _revealedHandCopyIdsByViewer: (cs._revealedHandCopyIdsByViewer && typeof cs._revealedHandCopyIdsByViewer === 'object')
-                ? {
-                    black: Array.isArray(cs._revealedHandCopyIdsByViewer.black) ? cs._revealedHandCopyIdsByViewer.black.slice() : [],
-                    white: Array.isArray(cs._revealedHandCopyIdsByViewer.white) ? cs._revealedHandCopyIdsByViewer.white.slice() : []
-                }
-                : { black: [], white: [] },
-
-            selectedCardId: cs.selectedCardId,
-            hasUsedCardThisTurnByPlayer: { ...cs.hasUsedCardThisTurnByPlayer },
-            hasDestroyedCardThisTurnByPlayer: {
-                black: !!(cs.hasDestroyedCardThisTurnByPlayer && cs.hasDestroyedCardThisTurnByPlayer.black),
-                white: !!(cs.hasDestroyedCardThisTurnByPlayer && cs.hasDestroyedCardThisTurnByPlayer.white)
-            },
-            pendingEffectByPlayer: {
-                black: cs.pendingEffectByPlayer.black ? { ...cs.pendingEffectByPlayer.black } : null,
-                white: cs.pendingEffectByPlayer.white ? { ...cs.pendingEffectByPlayer.white } : null
-            },
-            activeEffectsByPlayer: {
-                black: cs.activeEffectsByPlayer.black.map(e => ({ ...e })),
-                white: cs.activeEffectsByPlayer.white.map(e => ({ ...e }))
-            },
-
-            // Unified markers (new primary storage)
-            markers: (cs.markers || []).map(m => ({ ...m, data: { ...(m.data || {}) } })),
-            _nextMarkerId: cs._nextMarkerId || 1,
-            _nextCreatedSeq: cs._nextCreatedSeq || 1,
-            stoneIdMap: (cs.stoneIdMap || createStoneIdBoard(boardConfig)).map(row => row.slice()),
-            expansionStoneIdByCell: (cs.expansionStoneIdByCell && typeof cs.expansionStoneIdByCell === 'object')
-                ? { ...cs.expansionStoneIdByCell }
-                : {},
-            hyperactiveSeqCounter: cs.hyperactiveSeqCounter || 0,
-
-            lastUsedCardByPlayer: { ...cs.lastUsedCardByPlayer },
-            cardUseCountByPlayer: { ...(cs.cardUseCountByPlayer || { black: 0, white: 0 }) },
-            totalFlipCountByPlayer: { ...(cs.totalFlipCountByPlayer || { black: 0, white: 0 }) },
-            cornerCaptureCountByPlayer: { ...(cs.cornerCaptureCountByPlayer || { black: 0, white: 0 }) },
-            charge: { ...cs.charge },
-            chargeGainedTotal: { ...(cs.chargeGainedTotal || { black: 0, white: 0 }) },
-            chargeDeltaEvents: Array.isArray(cs.chargeDeltaEvents) ? cs.chargeDeltaEvents.map(e => ({ ...e })) : [],
-            _nextChargeDeltaSeq: (typeof cs._nextChargeDeltaSeq === 'number') ? cs._nextChargeDeltaSeq : 1,
-            riboRepaymentsByPlayer: {
-                black: (cs.riboRepaymentsByPlayer && Array.isArray(cs.riboRepaymentsByPlayer.black))
-                    ? cs.riboRepaymentsByPlayer.black.map((entry) => ({
-                        remainingOwnerTurns: Number.isFinite(Number(entry && entry.remainingOwnerTurns))
-                            ? Math.max(0, Math.floor(Number(entry.remainingOwnerTurns)))
-                            : RIBO_WILL_OWNER_TURNS,
-                        repaymentAmount: Number.isFinite(Number(entry && entry.repaymentAmount))
-                            ? Math.max(0, Math.floor(Number(entry.repaymentAmount)))
-                            : RIBO_WILL_REPAYMENT_AMOUNT,
-                        shortageDestroyCount: Number.isFinite(Number(entry && entry.shortageDestroyCount))
-                            ? Math.max(0, Math.floor(Number(entry.shortageDestroyCount)))
-                            : RIBO_WILL_SHORTAGE_DESTROY_COUNT
-                    }))
-                    : [],
-                white: (cs.riboRepaymentsByPlayer && Array.isArray(cs.riboRepaymentsByPlayer.white))
-                    ? cs.riboRepaymentsByPlayer.white.map((entry) => ({
-                        remainingOwnerTurns: Number.isFinite(Number(entry && entry.remainingOwnerTurns))
-                            ? Math.max(0, Math.floor(Number(entry.remainingOwnerTurns)))
-                            : RIBO_WILL_OWNER_TURNS,
-                        repaymentAmount: Number.isFinite(Number(entry && entry.repaymentAmount))
-                            ? Math.max(0, Math.floor(Number(entry.repaymentAmount)))
-                            : RIBO_WILL_REPAYMENT_AMOUNT,
-                        shortageDestroyCount: Number.isFinite(Number(entry && entry.shortageDestroyCount))
-                            ? Math.max(0, Math.floor(Number(entry.shortageDestroyCount)))
-                            : RIBO_WILL_SHORTAGE_DESTROY_COUNT
-                    }))
-                    : []
-            },
-            extraPlaceRemainingByPlayer: { ...cs.extraPlaceRemainingByPlayer },
-            infinitePlaceActiveByPlayer: {
-                black: !!(cs.infinitePlaceActiveByPlayer && cs.infinitePlaceActiveByPlayer.black),
-                white: !!(cs.infinitePlaceActiveByPlayer && cs.infinitePlaceActiveByPlayer.white)
-            },
-            multiPlaceSourceTypeByPlayer: {
-                black: (cs.multiPlaceSourceTypeByPlayer && typeof cs.multiPlaceSourceTypeByPlayer.black === 'string') ? cs.multiPlaceSourceTypeByPlayer.black : null,
-                white: (cs.multiPlaceSourceTypeByPlayer && typeof cs.multiPlaceSourceTypeByPlayer.white === 'string') ? cs.multiPlaceSourceTypeByPlayer.white : null
-            },
-            boardBonusByCell: (cs.boardBonusByCell && typeof cs.boardBonusByCell === 'object')
-                ? { ...cs.boardBonusByCell }
-                : {},
-            boardBonusConsumedByCell: (cs.boardBonusConsumedByCell && typeof cs.boardBonusConsumedByCell === 'object')
-                ? { ...cs.boardBonusConsumedByCell }
-                : {},
-            initialDeckSize: Number.isFinite(cs.initialDeckSize) ? cs.initialDeckSize : decks.black.length,
-            initialDeckSizeByPlayer,
-            reshuffleRequiresFullCycle: cs.reshuffleRequiresFullCycle !== false,
-
-            // Breeding runtime state
-            breedingFrontierByAnchorId: (cs.breedingFrontierByAnchorId && typeof cs.breedingFrontierByAnchorId === 'object')
-                ? Object.fromEntries(Object.entries(cs.breedingFrontierByAnchorId).map(([k, arr]) => [
-                    String(k),
-                    Array.isArray(arr) ? arr.map(p => ({ row: p.row, col: p.col })) : []
-                ]))
-                : {},
-            breedingSproutByOwner: {
-                black: (cs.breedingSproutByOwner && Array.isArray(cs.breedingSproutByOwner.black))
-                    ? cs.breedingSproutByOwner.black.map(p => ({ row: p.row, col: p.col }))
-                    : [],
-                white: (cs.breedingSproutByOwner && Array.isArray(cs.breedingSproutByOwner.white))
-                    ? cs.breedingSproutByOwner.white.map(p => ({ row: p.row, col: p.col }))
-                    : []
-            },
-            _breedingSproutClearedTokenByOwner: (cs._breedingSproutClearedTokenByOwner && typeof cs._breedingSproutClearedTokenByOwner === 'object')
-                ? {
-                    black: cs._breedingSproutClearedTokenByOwner.black || null,
-                    white: cs._breedingSproutClearedTokenByOwner.white || null
-                }
-                : { black: null, white: null },
-
-            prevOpponentTurnDestroyedStonesByPlayer: cloneSalvationDestroyedLedger(
-                cs.prevOpponentTurnDestroyedStonesByPlayer || cs.prevOpponentTurnDestroyedNormalByPlayer
-            ),
-
-            fateWillControllerByTurnOwner: (cs.fateWillControllerByTurnOwner && typeof cs.fateWillControllerByTurnOwner === 'object')
-                ? {
-                    black: cs.fateWillControllerByTurnOwner.black || null,
-                    white: cs.fateWillControllerByTurnOwner.white || null
-                }
-                : { black: null, white: null }
-        };
-        ensureCardCopyState(nextState);
-        return nextState;
+        if (!CardStateFactory || typeof CardStateFactory.copyCardState !== 'function') {
+            throw new Error('[cards.js] CardStateFactory.copyCardState not available');
+        }
+        return CardStateFactory.copyCardState(cs, getCardStateFactoryContext());
     }
 
     /**
@@ -2919,85 +2027,7 @@
      */
     function addMarker(cardState, kind, row, col, owner, data) {
         const markerData = attachMarkerOriginIfNeeded(cardState, kind, owner, data);
-        if (CardMarkersModule && typeof CardMarkersModule.addMarker === 'function') {
-            return CardMarkersModule.addMarker(cardState, kind, row, col, owner, markerData);
-        }
-        ensureMarkers(cardState);
-        const id = cardState._nextMarkerId || 1;
-        cardState._nextMarkerId = id + 1;
-
-        // Ensure createdSeq counter exists
-        if (typeof cardState._nextCreatedSeq === 'undefined') cardState._nextCreatedSeq = 1;
-        const createdSeq = cardState._nextCreatedSeq++;
-
-        const normalized = normalizeMarkerInput(kind, markerData);
-        const marker = {
-            id,
-            row,
-            col,
-            kind: normalized.kind,
-            owner,
-            createdSeq,
-            data: normalized.data
-        };
-
-        cardState.markers.push(marker);
-
-        // Emit a presentation event so UI can apply special visuals immediately.
-        // This avoids "one-turn late" visuals when render is skipped during playback.
-        try {
-            var BoardPresentation = (typeof require === 'function') ? require('./presentation') : null;
-            let special = null;
-            let timer = null;
-            let flipEvadeRemaining = null;
-            let destroyEvadeRemaining = null;
-            if (isBombCategoryMarker(marker)) {
-                special = getBombMarkerType(marker) || 'TIME_BOMB';
-                timer = (marker.data && typeof marker.data.remainingTurns === 'number') ? marker.data.remainingTurns : null;
-            } else if (marker.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) {
-                special = marker.data && marker.data.type ? marker.data.type : null;
-                timer = (marker.data && typeof marker.data.remainingOwnerTurns === 'number') ? marker.data.remainingOwnerTurns : null;
-                flipEvadeRemaining = Number.isFinite(Number(marker.data && marker.data.flipEvadeRemaining))
-                    ? Math.max(0, Math.trunc(Number(marker.data.flipEvadeRemaining)))
-                    : null;
-                destroyEvadeRemaining = Number.isFinite(Number(marker.data && marker.data.destroyEvadeRemaining))
-                    ? Math.max(0, Math.trunc(Number(marker.data.destroyEvadeRemaining)))
-                    : null;
-            }
-            const markerMeta = { special, timer, owner };
-            if (flipEvadeRemaining !== null) markerMeta.flipEvadeRemaining = flipEvadeRemaining;
-            if (destroyEvadeRemaining !== null) markerMeta.destroyEvadeRemaining = destroyEvadeRemaining;
-            if (special && BoardPresentation && typeof BoardPresentation.emitPresentationEvent === 'function') {
-                BoardPresentation.emitPresentationEvent(cardState, { type: 'STATUS_APPLIED', row, col, meta: markerMeta });
-            }
-
-            // Fix: When a marker is created as part of placement effects, it can occur AFTER the SPAWN event
-            // for the placed disc (BoardOps.spawnAt). In that case, the UI may briefly show a normal disc
-            // until STATUS_APPLIED runs and finds the disc.
-            //
-            // Per 03-visual-rulebook.v2 §1.6, a placed special stone must show its final PNG look immediately.
-            // Backfill the most recent matching SPAWN event's meta so the disc is created already-special.
-            if (special && cardState) {
-                const currentActionId = (cardState._currentActionMeta && cardState._currentActionMeta.actionId) || null;
-                const persist = Array.isArray(cardState._presentationEventsPersist) ? cardState._presentationEventsPersist : [];
-                const live = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents : [];
-                const patchSpawnMeta = (arr) => {
-                    for (let i = arr.length - 1; i >= 0; i--) {
-                        const ev = arr[i];
-                        if (!ev || ev.type !== 'SPAWN') continue;
-                        if (ev.row !== row || ev.col !== col) continue;
-                        if (currentActionId && ev.actionId && ev.actionId !== currentActionId) continue;
-                        ev.meta = Object.assign({}, ev.meta || {}, markerMeta);
-                        return true;
-                    }
-                    return false;
-                };
-                // Patch persisted buffer first (usually the one the UI consumes), then the live buffer (may be same refs).
-                if (!patchSpawnMeta(persist)) patchSpawnMeta(live);
-            }
-        } catch (e) { /* ignore presentation failures */ }
-
-        return marker;
+        return requireCardMarkersMethod('addMarker')(cardState, kind, row, col, owner, markerData);
     }
 
     /**
@@ -3007,18 +2037,7 @@
      * @returns {boolean} true if removed
      */
     function removeMarkerById(cardState, markerId) {
-        if (CardMarkersModule && typeof CardMarkersModule.removeMarkerById === 'function') {
-            return CardMarkersModule.removeMarkerById(cardState, markerId);
-        }
-        if (!cardState.markers) return false;
-
-        const index = cardState.markers.findIndex(m => m.id === markerId);
-        if (index === -1) return false;
-
-        const marker = cardState.markers[index];
-        cardState.markers.splice(index, 1);
-
-        return true;
+        return requireCardMarkersMethod('removeMarkerById')(cardState, markerId);
     }
 
     /**
@@ -3239,20 +2258,7 @@
     }
 
     function resolveCoreLogicForCards() {
-        if (typeof require === 'function') {
-            try {
-                return require('./core');
-            } catch (e) {
-                // fall through
-            }
-        }
-        try {
-            if (typeof CoreLogic !== 'undefined' && CoreLogic) return CoreLogic;
-        } catch (e) { /* ignore */ }
-        try {
-            if (typeof Core !== 'undefined' && Core) return Core;
-        } catch (e) { /* ignore */ }
-        return null;
+        return resolveOptionalCardModule('./core', 'CoreLogic') || resolveOptionalCardModule(null, 'Core');
     }
 
     function hasStandardLegalMoveForPlayer(cardState, gameState, playerKey) {
@@ -3704,46 +2710,39 @@
     }
 
     function getSpecialMarkerAt(cardState, row, col) {
-        if (CardMarkersModule && typeof CardMarkersModule.getSpecialMarkerAt === 'function') {
-            return CardMarkersModule.getSpecialMarkerAt(cardState, row, col);
-        }
-        if (CardUtilsModule && typeof CardUtilsModule.getSpecialMarkerAt === 'function') {
-            return CardUtilsModule.getSpecialMarkerAt(cardState, row, col);
-        }
-        const special = findSpecialMarkerAt(cardState, row, col);
-        if (special) return { kind: 'specialStone', marker: special };
-        const bomb = findBombMarkerAt(cardState, row, col);
-        if (bomb) return { kind: 'specialStone', category: MARKER_CATEGORIES.BOMB, marker: bomb };
-        return null;
+        return requireCardMarkersMethod('getSpecialMarkerAt')(cardState, row, col);
     }
 
     function isSpecialStoneAt(cardState, row, col) {
-        if (CardUtilsModule && typeof CardUtilsModule.isSpecialStoneAt === 'function') {
-            return CardUtilsModule.isSpecialStoneAt(cardState, row, col);
-        }
-        return !!getSpecialMarkerAt(cardState, row, col);
+        return requireCardMarkersMethod('isSpecialStoneAt')(cardState, row, col);
     }
 
     function getSpecialOwnerAt(cardState, row, col) {
-        if (CardUtilsModule && typeof CardUtilsModule.getSpecialOwnerAt === 'function') {
-            return CardUtilsModule.getSpecialOwnerAt(cardState, row, col);
+        return requireCardMarkersMethod('getSpecialOwnerAt')(cardState, row, col);
+    }
+
+    function callCardModuleMethod(moduleRef, methodName, args) {
+        if (!moduleRef || typeof moduleRef[methodName] !== 'function') {
+            return { called: false, value: undefined };
         }
-        const entry = getSpecialMarkerAt(cardState, row, col);
-        if (!entry) return null;
-        return entry.marker && entry.marker.owner ? entry.marker.owner : null;
+        try {
+            return { called: true, value: moduleRef[methodName](...(Array.isArray(args) ? args : [])) };
+        } catch (e) {
+            return { called: false, value: undefined };
+        }
+    }
+
+    function callCardTargetsMethod(methodName, args) {
+        return callCardModuleMethod(CardTargetsModule, methodName, args);
+    }
+
+    function callCardSelectorsMethod(methodName, args) {
+        return callCardModuleMethod(CardSelectorsModule, methodName, args);
     }
 
     function getTemptWillTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardTargets)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/targets') : globalThis.CardTargets;
-                if (mod && typeof mod.getTemptWillTargets === 'function') {
-                    return mod.getTemptWillTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardTargetsMethod('getTemptWillTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
         const opponentKey = playerKey === 'black' ? 'white' : 'black';
         const res = [];
         const hasGuardMarkerAt = (row, col) => getSpecialMarkers(cardState).some(m => (
@@ -3771,16 +2770,8 @@
     }
 
     function getTrapTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getTrapTargets === 'function') {
-                    return mod.getTrapTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getTrapTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
         const P_BLACK = BLACK || 1;
         const P_WHITE = WHITE || -1;
         const playerVal = playerKey === 'black' ? P_BLACK : P_WHITE;
@@ -3809,16 +2800,8 @@
     }
 
     function getGuardTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getGuardTargets === 'function') {
-                    return mod.getGuardTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getGuardTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
         const P_BLACK = BLACK || 1;
         const P_WHITE = WHITE || -1;
         const playerVal = playerKey === 'black' ? P_BLACK : P_WHITE;
@@ -3837,16 +2820,8 @@
     }
 
     function getLivingWillTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getLivingWillTargets === 'function') {
-                    return mod.getLivingWillTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getLivingWillTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
         const res = [];
@@ -3872,31 +2847,15 @@
     }
 
     function getHyperactiveInheritTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getHyperactiveInheritTargets === 'function') {
-                    return mod.getHyperactiveInheritTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getHyperactiveInheritTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
         return getGuardTargets(cardState, gameState, playerKey);
     }
 
     // Return targets: only your own special stones that have a numeric remainingOwnerTurns > 0
     function getExtendLifeTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getExtendLifeTargets === 'function') {
-                    return mod.getExtendLifeTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through
-            }
-        }
+        const delegated = callCardSelectorsMethod('getExtendLifeTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
         const res = [];
         for (const m of markers) {
@@ -3923,30 +2882,14 @@
     }
 
     function getTimeBombTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getTimeBombTargets === 'function') {
-                    return mod.getTimeBombTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getTimeBombTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
         return getGuardTargets(cardState, gameState, playerKey);
     }
 
     function getTeleportTargets(cardState, gameState) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getTeleportTargets === 'function') {
-                    return mod.getTeleportTargets(cardState, gameState);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getTeleportTargets', [cardState, gameState]);
+        if (delegated.called) return delegated.value;
 
         const destinations = getEmptyBoardShapeCellsForCard(cardState, gameState)
             .filter((cell) => !isBlockedCell(cardState, cell.row, cell.col, gameState));
@@ -3958,16 +2901,8 @@
     }
 
     function getCloneTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getCloneTargets === 'function') {
-                    return mod.getCloneTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getCloneTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
 
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const res = [];
@@ -3981,31 +2916,15 @@
     }
 
     function getSplitTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getSplitTargets === 'function') {
-                    return mod.getSplitTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getSplitTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
 
         return getCloneTargets(cardState, gameState, playerKey);
     }
 
     function getBoardExpansionTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getBoardExpansionTargets === 'function') {
-                    return mod.getBoardExpansionTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getBoardExpansionTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
 
         if (!gameState || !gameState.board) return [];
         const boardConfig = resolveCardBoardConfig(gameState);
@@ -4070,16 +2989,8 @@
     }
 
     function getBoardExpansionGodTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getBoardExpansionGodTargets === 'function') {
-                    return mod.getBoardExpansionGodTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getBoardExpansionGodTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
 
         if (!gameState || !gameState.board) return [];
 
@@ -4126,44 +3037,20 @@
     }
 
     function getBoardShrinkTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getBoardShrinkTargets === 'function') {
-                    return mod.getBoardShrinkTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to empty fallback
-            }
-        }
+        const delegated = callCardSelectorsMethod('getBoardShrinkTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
         return [];
     }
 
     function getBoardShrinkGodTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getBoardShrinkGodTargets === 'function') {
-                    return mod.getBoardShrinkGodTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to empty fallback
-            }
-        }
+        const delegated = callCardSelectorsMethod('getBoardShrinkGodTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
         return [];
     }
 
     function getCellTeleportDestinations(cardState, gameState) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getCellTeleportDestinations === 'function') {
-                    return mod.getCellTeleportDestinations(cardState, gameState);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getCellTeleportDestinations', [cardState, gameState]);
+        if (delegated.called) return delegated.value;
 
         if (!gameState || !gameState.board) return [];
 
@@ -4202,16 +3089,8 @@
     }
 
     function getCellTeleportTargets(cardState, gameState) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getCellTeleportTargets === 'function') {
-                    return mod.getCellTeleportTargets(cardState, gameState);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getCellTeleportTargets', [cardState, gameState]);
+        if (delegated.called) return delegated.value;
 
         const destinations = getCellTeleportDestinations(cardState, gameState);
         if (!destinations.length) return [];
@@ -4227,16 +3106,8 @@
     }
 
     function getBlockadeTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getBlockadeTargets === 'function') {
-                    return mod.getBlockadeTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getBlockadeTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
 
         if (!gameState || !gameState.board) return [];
         const res = [];
@@ -4251,16 +3122,8 @@
     }
 
     function getMeteorTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getMeteorTargets === 'function') {
-                    return mod.getMeteorTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getMeteorTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
 
         if (!gameState || !gameState.board) return [];
         const res = [];
@@ -4274,16 +3137,8 @@
     }
 
     function getFreezeTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getFreezeTargets === 'function') {
-                    return mod.getFreezeTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getFreezeTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
 
         if (!gameState || !gameState.board) return [];
         const res = [];
@@ -4297,16 +3152,8 @@
     }
 
     function getSeedTargets(cardState, gameState, playerKey) {
-        if (typeof require === 'function' || (typeof globalThis !== 'undefined' && globalThis.CardSelectors)) {
-            try {
-                const mod = (typeof require === 'function') ? require('./cards/selectors') : globalThis.CardSelectors;
-                if (mod && typeof mod.getSeedTargets === 'function') {
-                    return mod.getSeedTargets(cardState, gameState, playerKey);
-                }
-            } catch (e) {
-                // fall through to local implementation
-            }
-        }
+        const delegated = callCardSelectorsMethod('getSeedTargets', [cardState, gameState, playerKey]);
+        if (delegated.called) return delegated.value;
 
         if (!gameState || !gameState.board) return [];
         const res = [];
@@ -4698,232 +3545,44 @@
         );
     }
 
-    function getPrimaryDurationMarkerForPresentation(markersAtCell) {
-        const markers = Array.isArray(markersAtCell) ? markersAtCell.filter(Boolean) : [];
-        return markers.find((marker) => {
-            const type = marker && marker.data ? marker.data.type : null;
-            return type !== 'GUARD';
-        }) || markers[0] || null;
-    }
-
-    function emitDurationChangeStatusTick(cardState, marker, settings) {
-        if (!marker || !marker.data) return;
-        const options = (settings && typeof settings === 'object') ? settings : {};
-        const meta = {
-            special: marker.data.type || null,
-            timer: (typeof marker.data.remainingOwnerTurns === 'number') ? marker.data.remainingOwnerTurns : null,
-            owner: marker.owner || null,
-            reason: options.reason || null,
-            highlightTone: options.highlightTone || null
-        };
-        if (typeof marker.data.regenRemaining === 'number') meta.regenRemaining = marker.data.regenRemaining;
-        if (Number.isFinite(Number(marker.data.flipEvadeRemaining))) {
-            meta.flipEvadeRemaining = Math.max(0, Math.trunc(Number(marker.data.flipEvadeRemaining)));
-        }
-        if (Number.isFinite(Number(marker.data.destroyEvadeRemaining))) {
-            meta.destroyEvadeRemaining = Math.max(0, Math.trunc(Number(marker.data.destroyEvadeRemaining)));
-        }
-        emitPresentationEvent(cardState, {
-            type: 'STATUS_TICK',
-            row: marker.row,
-            col: marker.col,
-            meta
-        });
-    }
-
     function applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col) {
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/hyperactive');
-            return mod.applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col, {
-                readCardPendingEffect,
-                clearCardPendingEffect,
-                getHyperactiveInheritTargets,
-                removeMarkersAt,
-                addMarker,
-                inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
-                MARKER_KINDS
-            });
+        if (!CardHyperactiveModule || typeof CardHyperactiveModule.applyHyperactiveInheritWill !== 'function') {
+            console.warn('[cards.js] CardHyperactive applyHyperactiveInheritWill not available');
+            return { applied: false, reason: 'module_unavailable' };
         }
-        if (typeof CardHyperactive !== 'undefined' && typeof CardHyperactive.applyHyperactiveInheritWill === 'function') {
-            return CardHyperactive.applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col, {
-                readCardPendingEffect,
-                clearCardPendingEffect,
-                getHyperactiveInheritTargets,
-                removeMarkersAt,
-                addMarker,
-                inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
-                MARKER_KINDS
-            });
-        }
-        console.warn('[cards.js] CardHyperactive applyHyperactiveInheritWill not available');
-        return { applied: false, reason: 'module_unavailable' };
-    }
-
-    function applyExtendLifeSelection(cardState, gameState, playerKey, row, col, options) {
-        const settings = options && typeof options === 'object' ? options : {};
-        const pendingType = settings.pendingType || 'EXTEND_LIFE_WILL';
-        const multiplier = Number.isFinite(settings.multiplier) ? Number(settings.multiplier) : 2;
-        const getTargets = typeof settings.getTargets === 'function' ? settings.getTargets : getExtendLifeTargets;
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== pendingType || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-        const targets = getTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        const specialsAtCell = getSpecialMarkers(cardState).filter((marker) => (
-            marker &&
-            marker.row === row &&
-            marker.col === col &&
-            marker.owner === playerKey &&
-            marker.data &&
-            Number.isFinite(marker.data.remainingOwnerTurns) &&
-            Number(marker.data.remainingOwnerTurns) > 0
-        ));
-        if (!specialsAtCell.length) {
-            return { applied: false, reason: 'no_duration' };
-        }
-
-        const primaryMarker = getPrimaryDurationMarkerForPresentation(specialsAtCell);
-
-        let prev = 0;
-        let next = 0;
-        for (const special of specialsAtCell) {
-            const onePrev = Number(special.data.remainingOwnerTurns || 0);
-            const oneNext = Math.max(1, Math.trunc(onePrev * multiplier));
-            special.data.remainingOwnerTurns = oneNext;
-            if (special === primaryMarker) {
-                prev = onePrev;
-                next = oneNext;
-            }
-        }
-
-        if (primaryMarker) {
-            emitDurationChangeStatusTick(cardState, primaryMarker, {
-                reason: 'extend_life_applied',
-                highlightTone: 'positive'
-            });
-        }
-
-        clearCardPendingEffect(cardState, playerKey);
-        return {
-            applied: true,
-            row,
-            col,
-            previousRemainingOwnerTurns: prev,
-            newRemainingOwnerTurns: next,
-            multiplier,
-            cardType: pendingType
-        };
+        return CardHyperactiveModule.applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col, {
+            readCardPendingEffect,
+            clearCardPendingEffect,
+            getHyperactiveInheritTargets,
+            removeMarkersAt,
+            addMarker,
+            inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
+            MARKER_KINDS
+        });
     }
 
     // Apply EXTEND_LIFE_WILL: double remainingOwnerTurns on chosen cell's own special markers (numeric remainingOwnerTurns only)
     function applyExtendLifeWill(cardState, gameState, playerKey, row, col) {
-        if (CardMarkersModule && typeof CardMarkersModule.applyExtendLifeWill === 'function') {
-            return CardMarkersModule.applyExtendLifeWill(cardState, gameState, playerKey, row, col, {
-                getExtendLifeTargets
-            });
-        }
-        return applyExtendLifeSelection(cardState, gameState, playerKey, row, col, {
-            pendingType: 'EXTEND_LIFE_WILL',
-            multiplier: 2,
-            getTargets: getExtendLifeTargets
+        return requireCardMarkersMethod('applyExtendLifeWill')(cardState, gameState, playerKey, row, col, {
+            getExtendLifeTargets
         });
     }
 
     function applyExtendLifeGod(cardState, gameState, playerKey, row, col) {
-        if (CardMarkersModule && typeof CardMarkersModule.applyExtendLifeGod === 'function') {
-            return CardMarkersModule.applyExtendLifeGod(cardState, gameState, playerKey, row, col, {
-                getExtendLifeTargets
-            });
-        }
-        return applyExtendLifeSelection(cardState, gameState, playerKey, row, col, {
-            pendingType: 'EXTEND_LIFE_GOD',
-            multiplier: 4,
-            getTargets: getExtendLifeTargets
+        return requireCardMarkersMethod('applyExtendLifeGod')(cardState, gameState, playerKey, row, col, {
+            getExtendLifeTargets
         });
     }
 
     function applyCorrosionWill(cardState, gameState, playerKey, row, col) {
-        if (CardMarkersModule && typeof CardMarkersModule.applyCorrosionWill === 'function') {
-            return CardMarkersModule.applyCorrosionWill(cardState, gameState, playerKey, row, col, {
-                getCorrosionTargets
-            });
-        }
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'CORROSION_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending', affectedCount: 0, details: [] };
-        }
-
-        const targets = getCorrosionTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
-        if (!allowed) {
-            return { applied: false, reason: 'invalid_target', affectedCount: 0, details: [] };
-        }
-
-        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const details = [];
-        for (const marker of markers) {
-            if (!marker || marker.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) continue;
-            if (marker.row !== row || marker.col !== col) continue;
-            if (!marker.data || !Number.isFinite(marker.data.remainingOwnerTurns)) continue;
-
-            const before = Number(marker.data.remainingOwnerTurns);
-            if (before <= 0) continue;
-
-            const after = Math.max(1, Math.trunc(before / 2));
-            marker.data.remainingOwnerTurns = after;
-            details.push({
-                row: marker.row,
-                col: marker.col,
-                owner: marker.owner || null,
-                special: marker.data && marker.data.type ? marker.data.type : null,
-                previousRemainingOwnerTurns: before,
-                newRemainingOwnerTurns: after
-            });
-        }
-
-        const primaryMarker = getPrimaryDurationMarkerForPresentation(
-            markers.filter((marker) => (
-                marker &&
-                marker.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
-                marker.row === row &&
-                marker.col === col &&
-                marker.data &&
-                Number.isFinite(marker.data.remainingOwnerTurns) &&
-                Number(marker.data.remainingOwnerTurns) > 0
-            ))
-        );
-        if (primaryMarker) {
-            emitDurationChangeStatusTick(cardState, primaryMarker, {
-                reason: 'corrosion_applied',
-                highlightTone: 'negative'
-            });
-        }
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, affectedCount: details.length, details };
+        return requireCardMarkersMethod('applyCorrosionWill')(cardState, gameState, playerKey, row, col, {
+            getCorrosionTargets
+        });
     }
 
     function applyTimeBombWill(cardState, gameState, playerKey, row, col) {
-        if (typeof module === 'object' && module.exports) {
-            try {
-                const mod = require('./cards/time_bomb');
-                if (mod && typeof mod.applyTimeBombWill === 'function') {
-                    return mod.applyTimeBombWill(cardState, gameState, playerKey, row, col, {
-                        getTimeBombTargets,
-                        removeMarkersAt,
-                        addMarker,
-                        specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
-                    });
-                }
-            } catch (e) {
-                // ignore and fall back to inline implementation
-            }
-        }
-        if (typeof CardTimeBomb !== 'undefined' && typeof CardTimeBomb.applyTimeBombWill === 'function') {
-            return CardTimeBomb.applyTimeBombWill(cardState, gameState, playerKey, row, col, {
+        if (CardTimeBombModule && typeof CardTimeBombModule.applyTimeBombWill === 'function') {
+            return CardTimeBombModule.applyTimeBombWill(cardState, gameState, playerKey, row, col, {
                 getTimeBombTargets,
                 removeMarkersAt,
                 addMarker,
@@ -4997,11 +3656,12 @@
 
         if (!spawnTargets.length) return { applied: false, reason: 'no_space' };
 
-        const p = (prng && typeof prng.random === 'function') ? prng : { random: Math.random };
-        const randomIndexRaw = Math.floor(p.random() * spawnTargets.length);
-        const randomIndex = Number.isInteger(randomIndexRaw)
-            ? Math.max(0, Math.min(spawnTargets.length - 1, randomIndexRaw))
-            : 0;
+        const randomIndex = resolveDeterministicRandomIndex(
+            spawnTargets.length,
+            prng,
+            null,
+            'CardLogic.applyCloneWill'
+        );
         const selectedTarget = spawnTargets[randomIndex] || spawnTargets[0];
 
         const spawned = [];
@@ -5111,11 +3771,12 @@
 
         if (!spawnTargets.length) return { applied: false, reason: 'no_space' };
 
-        const p = (prng && typeof prng.random === 'function') ? prng : { random: Math.random };
-        const randomIndexRaw = Math.floor(p.random() * spawnTargets.length);
-        const randomIndex = Number.isInteger(randomIndexRaw)
-            ? Math.max(0, Math.min(spawnTargets.length - 1, randomIndexRaw))
-            : 0;
+        const randomIndex = resolveDeterministicRandomIndex(
+            spawnTargets.length,
+            prng,
+            null,
+            'CardLogic.applySplitWill'
+        );
         const selectedTarget = spawnTargets[randomIndex] || spawnTargets[0];
 
         const spawned = [];
@@ -5883,11 +4544,12 @@
         const destinations = _getTeleportDestinations(cardState, gameState);
         if (!destinations.length) return { applied: false, reason: 'no_destination' };
 
-        const p = (prng && typeof prng.random === 'function') ? prng : { random: Math.random };
-        const indexRaw = Math.floor(p.random() * destinations.length);
-        const index = Number.isInteger(indexRaw)
-            ? Math.max(0, Math.min(destinations.length - 1, indexRaw))
-            : 0;
+        const index = resolveDeterministicRandomIndex(
+            destinations.length,
+            prng,
+            null,
+            'CardLogic.applyTeleportWill'
+        );
         const to = destinations[index] || destinations[0];
 
         _moveMarkersForTeleport(cardState, row, col, to.row, to.col);
@@ -5945,11 +4607,12 @@
             .filter((target) => !(target && target.row === row && target.col === col));
         if (!destinations.length) return { applied: false, reason: 'no_destination' };
 
-        const p = (prng && typeof prng.random === 'function') ? prng : { random: Math.random };
-        const indexRaw = Math.floor(p.random() * destinations.length);
-        const index = Number.isInteger(indexRaw)
-            ? Math.max(0, Math.min(destinations.length - 1, indexRaw))
-            : 0;
+        const index = resolveDeterministicRandomIndex(
+            destinations.length,
+            prng,
+            null,
+            'CardLogic.applyCellTeleportWill'
+        );
         const to = destinations[index] || destinations[0];
         const createdDestination = !to.active;
 
@@ -6015,8 +4678,12 @@
 
         const maxDistance = options.reduce((m, o) => Math.max(m, Number(o && o.distance) || 0), 0);
         const bestOptions = options.filter(o => (Number(o && o.distance) || 0) === maxDistance);
-        const p = (prng && typeof prng.random === 'function') ? prng : { random: Math.random };
-        const pick = bestOptions[Math.floor(p.random() * bestOptions.length)];
+        const pick = bestOptions[resolveDeterministicRandomIndex(
+            bestOptions.length,
+            prng,
+            null,
+            'CardLogic.applyStrongWindWill'
+        )];
         const to = pick.target;
         const movedDistance = Math.abs(to.row - row) + Math.abs(to.col - col);
 
@@ -6250,6 +4917,24 @@
         };
     }
 
+    function getCardStateFactoryContext() {
+        return {
+            defaultPrng,
+            constants: {
+                RIBO_WILL_OWNER_TURNS,
+                RIBO_WILL_REPAYMENT_AMOUNT,
+                RIBO_WILL_SHORTAGE_DESTROY_COUNT
+            },
+            resolveCardBoardConfig,
+            resolveInitialDeckCardIdsByPlayer,
+            buildInitialBoardBonusMap,
+            createStoneIdBoard,
+            getOpeningPlacementsForState,
+            cloneSalvationDestroyedLedger,
+            ensureCardCopyState
+        };
+    }
+
     function getCardEffectTimingContext() {
         return {
             defaultPrng,
@@ -6444,14 +5129,8 @@
      * Apply REGEN_WILL (next placed stone becomes regen stone)
      */
     function applyRegenWill(cardState, playerKey, row, col) {
-        // Delegate to module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/regen');
-            return mod.applyRegenWill(cardState, playerKey, row, col, { addMarker, BLACK, WHITE });
-        }
-        // Browser: use global
-        if (typeof CardRegen !== 'undefined' && typeof CardRegen.applyRegenWill === 'function') {
-            return CardRegen.applyRegenWill(cardState, playerKey, row, col, { addMarker, BLACK, WHITE });
+        if (CardRegenModule && typeof CardRegenModule.applyRegenWill === 'function') {
+            return CardRegenModule.applyRegenWill(cardState, playerKey, row, col, { addMarker, BLACK, WHITE });
         }
         console.warn('[cards.js] CardRegen.applyRegenWill not available');
         return { applied: false };
@@ -6463,19 +5142,8 @@
      * Delegates to cards/regen.js module.
      */
     function applyRegenAfterFlips(cardState, gameState, flips, flipperKey, skipCapture) {
-        // Delegate to module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/regen');
-            return mod.applyRegenAfterFlips(cardState, gameState, flips, flipperKey, skipCapture, {
-                getCardContext,
-                clearBombAt,
-                removeMarkersAt,
-                BoardOps: BoardOpsModule
-            });
-        }
-        // Browser: use global
-        if (typeof CardRegen !== 'undefined' && typeof CardRegen.applyRegenAfterFlips === 'function') {
-            return CardRegen.applyRegenAfterFlips(cardState, gameState, flips, flipperKey, skipCapture, {
+        if (CardRegenModule && typeof CardRegenModule.applyRegenAfterFlips === 'function') {
+            return CardRegenModule.applyRegenAfterFlips(cardState, gameState, flips, flipperKey, skipCapture, {
                 getCardContext,
                 clearBombAt,
                 removeMarkersAt,
@@ -6630,14 +5298,8 @@
     }
 
     function getDirectionalChainFlips(gameState, row, col, ownerVal, dir, context) {
-        // Delegate to module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/flips');
-            return mod.getDirectionalChainFlips(gameState, row, col, ownerVal, dir, context);
-        }
-        // Browser: use global
-        if (typeof CardFlips !== 'undefined' && typeof CardFlips.getDirectionalChainFlips === 'function') {
-            return CardFlips.getDirectionalChainFlips(gameState, row, col, ownerVal, dir, context);
+        if (CardFlipsModule && typeof CardFlipsModule.getDirectionalChainFlips === 'function') {
+            return CardFlipsModule.getDirectionalChainFlips(gameState, row, col, ownerVal, dir, context);
         }
         console.warn('[cards.js] CardFlips.getDirectionalChainFlips not available');
         return [];
@@ -6722,11 +5384,12 @@
         const maxScore = candidates.reduce((max, one) => Math.max(max, Number(one && one.score) || 0), 0);
         const topCandidates = candidates.filter((one) => (Number(one && one.score) || 0) === maxScore);
 
-        const randomSource = (prng && typeof prng.random === 'function') ? prng : { random: Math.random };
-        const rawIndex = Math.floor(randomSource.random() * topCandidates.length);
-        const index = Number.isInteger(rawIndex)
-            ? Math.max(0, Math.min(topCandidates.length - 1, rawIndex))
-            : 0;
+        const index = resolveDeterministicRandomIndex(
+            topCandidates.length,
+            prng,
+            null,
+            'CardLogic.applyChainChoice'
+        );
         const chosen = topCandidates[index] || topCandidates[0];
 
         return {
@@ -6784,16 +5447,8 @@
             return { applied: true, flips: appliedFlips, chosen: chosenSteps[chosenSteps.length - 1] || null, chosenSteps };
         }
 
-        // Delegate to chain module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/chain');
-            if (mod && typeof mod.findChainChoice === 'function') {
-                return runChainLinks(mod.findChainChoice);
-            }
-        }
-        // Browser: use global
-        if (typeof CardChain !== 'undefined' && typeof CardChain.findChainChoice === 'function') {
-            return runChainLinks(CardChain.findChainChoice);
+        if (CardChainModule && typeof CardChainModule.findChainChoice === 'function') {
+            return runChainLinks(CardChainModule.findChainChoice);
         }
         console.warn('[cards.js] CardChain module not available');
         return { applied: false, flips: [], chosen: null };
@@ -6807,14 +5462,8 @@
     * Delegates to cards/time_bomb.js module.
     */
     function tickBombs(cardState, gameState, playerKey) {
-        // Delegate to module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/time_bomb');
-            return mod.tickBombs(cardState, gameState, playerKey, { BoardOps: BoardOpsModule, destroyAt });
-        }
-        // Browser: use global
-        if (typeof CardTimeBomb !== 'undefined' && typeof CardTimeBomb.tickBombs === 'function') {
-            return CardTimeBomb.tickBombs(cardState, gameState, playerKey, { BoardOps: BoardOpsModule, destroyAt });
+        if (CardTimeBombModule && typeof CardTimeBombModule.tickBombs === 'function') {
+            return CardTimeBombModule.tickBombs(cardState, gameState, playerKey, { BoardOps: BoardOpsModule, destroyAt });
         }
         console.warn('[cards.js] CardTimeBomb module not available');
         return { exploded: [], destroyed: [] };
@@ -6825,14 +5474,8 @@
      */
     function tickBombAt(cardState, gameState, bomb, activeKey) {
         if (!bomb) return { exploded: [], destroyed: [], removed: false };
-        if (typeof module === 'object' && module.exports) {
-            try {
-                const mod = require('./cards/time_bomb');
-                if (mod && typeof mod.tickBombAt === 'function') return mod.tickBombAt(cardState, gameState, bomb, activeKey, { BoardOps: BoardOpsModule, destroyAt });
-            } catch (e) { /* ignore */ }
-        }
-        if (typeof CardTimeBomb !== 'undefined' && typeof CardTimeBomb.tickBombAt === 'function') {
-            return CardTimeBomb.tickBombAt(cardState, gameState, bomb, activeKey, { BoardOps: BoardOpsModule, destroyAt });
+        if (CardTimeBombModule && typeof CardTimeBombModule.tickBombAt === 'function') {
+            return CardTimeBombModule.tickBombAt(cardState, gameState, bomb, activeKey, { BoardOps: BoardOpsModule, destroyAt });
         }
         // Fallback: emulate tick for single bomb
         const bombs = getBombMarkers(cardState);
@@ -6895,14 +5538,8 @@
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         };
-        // Delegate to effects module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./effects/dragon');
-            return mod.processDragonEffects(cardState, gameState, playerKey, dragonDeps);
-        }
-        // Browser: use global
-        if (typeof DragonEffects !== 'undefined' && typeof DragonEffects.processDragonEffects === 'function') {
-            return DragonEffects.processDragonEffects(cardState, gameState, playerKey, dragonDeps);
+        if (DragonEffectsModule && typeof DragonEffectsModule.processDragonEffects === 'function') {
+            return DragonEffectsModule.processDragonEffects(cardState, gameState, playerKey, dragonDeps);
         }
         // Fallback: no-op
         console.warn('[cards.js] DragonEffects module not available');
@@ -6922,14 +5559,8 @@
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         };
-        // Delegate to effects module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./effects/dragon');
-            return mod.processDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
-        }
-        // Browser: use global
-        if (typeof DragonEffects !== 'undefined' && typeof DragonEffects.processDragonEffectsAtAnchor === 'function') {
-            return DragonEffects.processDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
+        if (DragonEffectsModule && typeof DragonEffectsModule.processDragonEffectsAtAnchor === 'function') {
+            return DragonEffectsModule.processDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
         }
         // Fallback: no-op
         console.warn('[cards.js] DragonEffects module not available');
@@ -6943,16 +5574,8 @@
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         }, opts);
-        if (typeof module === 'object' && module.exports) {
-            try {
-                const mod = require('./effects/dragon');
-                if (mod && typeof mod.processDragonEffectsAtTurnStartAnchor === 'function') {
-                    return mod.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
-                }
-            } catch (e) { /* ignore */ }
-        }
-        if (typeof DragonEffects !== 'undefined' && typeof DragonEffects.processDragonEffectsAtTurnStartAnchor === 'function') {
-            return DragonEffects.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
+        if (DragonEffectsModule && typeof DragonEffectsModule.processDragonEffectsAtTurnStartAnchor === 'function') {
+            return DragonEffectsModule.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
         }
         console.warn('[cards.js] DragonEffects turn-start anchor processor not available');
         return { moved: [], converted: [], destroyed: [], anchors: [] };
@@ -6970,14 +5593,8 @@
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         };
-        // Delegate to module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/udg');
-            return mod.processUltimateDestroyGodEffects(cardState, gameState, playerKey, deps);
-        }
-        // Browser: use global
-        if (typeof CardUdG !== 'undefined' && typeof CardUdG.processUltimateDestroyGodEffects === 'function') {
-            return CardUdG.processUltimateDestroyGodEffects(cardState, gameState, playerKey, deps);
+        if (CardUdgModule && typeof CardUdgModule.processUltimateDestroyGodEffects === 'function') {
+            return CardUdgModule.processUltimateDestroyGodEffects(cardState, gameState, playerKey, deps);
         }
         console.warn('[cards.js] CardUdG module not available');
         return { destroyed: [], anchors: [], expired: [] };
@@ -6996,13 +5613,8 @@
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         }, opts);
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/udg');
-            return mod.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
-        }
-        // Browser: use global
-        if (typeof CardUdG !== 'undefined' && typeof CardUdG.processUltimateDestroyGodEffectsAtAnchor === 'function') {
-            return CardUdG.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
+        if (CardUdgModule && typeof CardUdgModule.processUltimateDestroyGodEffectsAtAnchor === 'function') {
+            return CardUdgModule.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
         }
         console.warn('[cards.js] CardUdG module not available');
         return { destroyed: [] };
@@ -7015,58 +5627,15 @@
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         }, opts);
-        if (typeof module === 'object' && module.exports) {
-            try {
-                const mod = require('./cards/udg');
-                if (mod && typeof mod.processUltimateDestroyGodEffectsAtTurnStartAnchor === 'function') {
-                    return mod.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
-                }
-            } catch (e) { /* ignore */ }
-        }
-        if (typeof CardUdG !== 'undefined' && typeof CardUdG.processUltimateDestroyGodEffectsAtTurnStartAnchor === 'function') {
-            return CardUdG.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
+        if (CardUdgModule && typeof CardUdgModule.processUltimateDestroyGodEffectsAtTurnStartAnchor === 'function') {
+            return CardUdgModule.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
         }
         console.warn('[cards.js] CardUdG turn-start anchor processor not available');
         return { moved: [], destroyed: [], anchors: [], expired: [] };
     }
 
-    let cachedSniperModule = undefined;
     function resolveSniperModule() {
-        if (cachedSniperModule !== undefined) return cachedSniperModule;
-        cachedSniperModule = null;
-        if (!(typeof module === 'object' && module.exports && typeof require === 'function')) {
-            return cachedSniperModule;
-        }
-
-        const normalize = (mod) => {
-            if (!mod || typeof mod !== 'object') return null;
-            if (mod.default && typeof mod.default === 'object') {
-                mod = Object.assign({}, mod.default, mod);
-            }
-            if (
-                typeof mod.processSniperWillEffects === 'function' ||
-                typeof mod.processSniperWillEffectsAtTurnStartAnchor === 'function'
-            ) {
-                return mod;
-            }
-            return null;
-        };
-
-        try {
-            cachedSniperModule = normalize(require('./cards/sniper'));
-        } catch (e) {
-            cachedSniperModule = null;
-        }
-        if (cachedSniperModule) return cachedSniperModule;
-
-        try {
-            const pathMod = require('path');
-            const absPath = pathMod.resolve(__dirname, 'cards', 'sniper.js');
-            cachedSniperModule = normalize(require(absPath));
-        } catch (e) {
-            cachedSniperModule = null;
-        }
-        return cachedSniperModule;
+        return CardSniperModule || null;
     }
 
     function processSniperWillEffects(cardState, gameState, playerKey, prng) {
@@ -7078,24 +5647,11 @@
                 random: prng || defaultPrng
             });
         }
-        if (typeof CardSniper !== 'undefined' && typeof CardSniper.processSniperWillEffects === 'function') {
-            return CardSniper.processSniperWillEffects(cardState, gameState, playerKey, {
-                destroyAt,
-                BoardOps: BoardOpsModule,
-                random: prng || defaultPrng
-            });
-        }
         console.warn('[cards.js] CardSniper module not available');
         return { destroyed: [], anchors: [], expired: [] };
     }
 
     function processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prngOrOpts) {
-        const normalizeRandomSource = (value, fallback) => {
-            if (value && typeof value.random === 'function') return value;
-            if (typeof value === 'function') return { random: value };
-            return fallback;
-        };
-        const fallbackRandom = { random: Math.random };
         const hasOptionShape = !!(prngOrOpts && typeof prngOrOpts === 'object' && (
             Object.prototype.hasOwnProperty.call(prngOrOpts, 'random') ||
             Object.prototype.hasOwnProperty.call(prngOrOpts, 'decrementRemainingOwnerTurns') ||
@@ -7112,56 +5668,21 @@
         )
             ? prngOrOpts.random
             : prngOrOpts;
-        deps.random = normalizeRandomSource(randomCandidate, fallbackRandom);
+        deps.random = resolveDeterministicRandomSource(
+            randomCandidate,
+            deps.random,
+            'CardLogic.processSniperWillEffectsAtTurnStartAnchor'
+        );
 
         const mod = resolveSniperModule();
         if (mod && typeof mod.processSniperWillEffectsAtTurnStartAnchor === 'function') {
             return mod.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
         }
-        if (typeof CardSniper !== 'undefined' && typeof CardSniper.processSniperWillEffectsAtTurnStartAnchor === 'function') {
-            return CardSniper.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
-        }
         console.warn('[cards.js] CardSniper turn-start anchor processor not available');
         return { destroyed: [], expired: [] };
     }
-    let cachedLightningModule = undefined;
     function resolveLightningModule() {
-        if (cachedLightningModule !== undefined) return cachedLightningModule;
-        cachedLightningModule = null;
-        if (!(typeof module === 'object' && module.exports && typeof require === 'function')) {
-            return cachedLightningModule;
-        }
-
-        const normalize = (mod) => {
-            if (!mod || typeof mod !== 'object') return null;
-            if (mod.default && typeof mod.default === 'object') {
-                mod = Object.assign({}, mod.default, mod);
-            }
-            if (
-                typeof mod.processLightningWillEffects === 'function' ||
-                typeof mod.processLightningWillEffectsAtAnchor === 'function' ||
-                typeof mod.processLightningWillEffectsAtTurnStartAnchor === 'function'
-            ) {
-                return mod;
-            }
-            return null;
-        };
-
-        try {
-            cachedLightningModule = normalize(require('./cards/lightning'));
-        } catch (e) {
-            cachedLightningModule = null;
-        }
-        if (cachedLightningModule) return cachedLightningModule;
-
-        try {
-            const pathMod = require('path');
-            const absPath = pathMod.resolve(__dirname, 'cards', 'lightning.js');
-            cachedLightningModule = normalize(require(absPath));
-        } catch (e) {
-            cachedLightningModule = null;
-        }
-        return cachedLightningModule;
+        return CardLightningModule || null;
     }
 
     function processLightningWillEffects(cardState, gameState, playerKey, prng) {
@@ -7173,24 +5694,11 @@
                 random: prng || defaultPrng
             });
         }
-        if (typeof CardLightning !== 'undefined' && typeof CardLightning.processLightningWillEffects === 'function') {
-            return CardLightning.processLightningWillEffects(cardState, gameState, playerKey, {
-                destroyAt,
-                BoardOps: BoardOpsModule,
-                random: prng || defaultPrng
-            });
-        }
         console.warn('[cards.js] CardLightning module not available');
         return { destroyed: [], anchors: [], expired: [] };
     }
 
     function processLightningWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, prngOrOpts) {
-        const normalizeRandomSource = (value, fallback) => {
-            if (value && typeof value.random === 'function') return value;
-            if (typeof value === 'function') return { random: value };
-            return fallback;
-        };
-        const fallbackRandom = { random: Math.random };
         const hasOptionShape = !!(prngOrOpts && typeof prngOrOpts === 'object' && (
             Object.prototype.hasOwnProperty.call(prngOrOpts, 'random') ||
             Object.prototype.hasOwnProperty.call(prngOrOpts, 'decrementRemainingOwnerTurns') ||
@@ -7207,7 +5715,11 @@
         )
             ? prngOrOpts.random
             : prngOrOpts;
-        deps.random = normalizeRandomSource(randomCandidate, fallbackRandom);
+        deps.random = resolveDeterministicRandomSource(
+            randomCandidate,
+            deps.random,
+            'CardLogic.processLightningWillEffectsAtAnchor'
+        );
 
         const mod = resolveLightningModule();
         if (mod && typeof mod.processLightningWillEffectsAtAnchor === 'function') {
@@ -7215,12 +5727,6 @@
         }
         if (mod && typeof mod.processLightningWillEffectsAtTurnStartAnchor === 'function') {
             return mod.processLightningWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
-        }
-        if (typeof CardLightning !== 'undefined' && typeof CardLightning.processLightningWillEffectsAtAnchor === 'function') {
-            return CardLightning.processLightningWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
-        }
-        if (typeof CardLightning !== 'undefined' && typeof CardLightning.processLightningWillEffectsAtTurnStartAnchor === 'function') {
-            return CardLightning.processLightningWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
         }
         console.warn('[cards.js] CardLightning anchor processor not available');
         return { destroyed: [], expired: [] };
@@ -7230,49 +5736,11 @@
         return processLightningWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, prngOrOpts);
     }
 
-    let cachedWillHunterKingModule = undefined;
     function resolveWillHunterKingModule() {
-        if (cachedWillHunterKingModule !== undefined) return cachedWillHunterKingModule;
-        cachedWillHunterKingModule = null;
-        if (!(typeof module === 'object' && module.exports && typeof require === 'function')) {
-            return cachedWillHunterKingModule;
-        }
-
-        const normalize = (mod) => {
-            if (!mod || typeof mod !== 'object') return null;
-            if (mod.default && typeof mod.default === 'object') {
-                mod = Object.assign({}, mod.default, mod);
-            }
-            if (typeof mod.processWillHunterKingEffectsAtTurnStartAnchor === 'function') {
-                return mod;
-            }
-            return null;
-        };
-
-        try {
-            cachedWillHunterKingModule = normalize(require('./cards/will_hunter_king'));
-        } catch (e) {
-            cachedWillHunterKingModule = null;
-        }
-        if (cachedWillHunterKingModule) return cachedWillHunterKingModule;
-
-        try {
-            const pathMod = require('path');
-            const absPath = pathMod.resolve(__dirname, 'cards', 'will_hunter_king.js');
-            cachedWillHunterKingModule = normalize(require(absPath));
-        } catch (e) {
-            cachedWillHunterKingModule = null;
-        }
-        return cachedWillHunterKingModule;
+        return CardWillHunterKingModule || null;
     }
 
     function processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prngOrOpts) {
-        const normalizeRandomSource = (value, fallback) => {
-            if (value && typeof value.random === 'function') return value;
-            if (typeof value === 'function') return { random: value };
-            return fallback;
-        };
-        const fallbackRandom = { random: Math.random };
         const hasOptionShape = !!(prngOrOpts && typeof prngOrOpts === 'object' && (
             Object.prototype.hasOwnProperty.call(prngOrOpts, 'random') ||
             Object.prototype.hasOwnProperty.call(prngOrOpts, 'decrementRemainingOwnerTurns') ||
@@ -7288,26 +5756,21 @@
         )
             ? prngOrOpts.random
             : prngOrOpts;
-        deps.random = normalizeRandomSource(randomCandidate, fallbackRandom);
+        deps.random = resolveDeterministicRandomSource(
+            randomCandidate,
+            deps.random,
+            'CardLogic.processWillHunterKingEffectsAtTurnStartAnchor'
+        );
 
         const mod = resolveWillHunterKingModule();
         if (mod && typeof mod.processWillHunterKingEffectsAtTurnStartAnchor === 'function') {
             return mod.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
-        }
-        if (typeof CardWillHunterKing !== 'undefined' && typeof CardWillHunterKing.processWillHunterKingEffectsAtTurnStartAnchor === 'function') {
-            return CardWillHunterKing.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
         }
         console.warn('[cards.js] CardWillHunterKing turn-start anchor processor not available');
         return { moved: [], destroyed: [], expired: [] };
     }
 
     function processObserverWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prngOrOpts) {
-        const normalizeRandomSource = (value, fallback) => {
-            if (value && typeof value.random === 'function') return value;
-            if (typeof value === 'function') return { random: value };
-            return fallback;
-        };
-        const fallbackRandom = { random: Math.random };
         const hasOptionShape = !!(prngOrOpts && typeof prngOrOpts === 'object' && (
             Object.prototype.hasOwnProperty.call(prngOrOpts, 'random') ||
             Object.prototype.hasOwnProperty.call(prngOrOpts, 'decrementRemainingOwnerTurns')
@@ -7322,7 +5785,11 @@
         )
             ? prngOrOpts.random
             : prngOrOpts;
-        opts.random = normalizeRandomSource(randomCandidate, fallbackRandom);
+        opts.random = resolveDeterministicRandomSource(
+            randomCandidate,
+            opts.random,
+            'CardLogic.processObserverWillEffectsAtTurnStartAnchor'
+        );
 
         const result = {
             activated: false,
@@ -7411,20 +5878,8 @@
     }
 
     function processDestroyDragonEffects(cardState, gameState, playerKey, prng) {
-        if (typeof module === 'object' && module.exports) {
-            try {
-                const mod = require('./cards/destroy_dragon');
-                if (mod && typeof mod.processDestroyDragonEffects === 'function') {
-                    return mod.processDestroyDragonEffects(cardState, gameState, playerKey, {
-                        destroyAt,
-                        BoardOps: BoardOpsModule,
-                        random: prng || defaultPrng
-                    });
-                }
-            } catch (e) { /* ignore */ }
-        }
-        if (typeof CardDestroyDragon !== 'undefined' && typeof CardDestroyDragon.processDestroyDragonEffects === 'function') {
-            return CardDestroyDragon.processDestroyDragonEffects(cardState, gameState, playerKey, {
+        if (CardDestroyDragonModule && typeof CardDestroyDragonModule.processDestroyDragonEffects === 'function') {
+            return CardDestroyDragonModule.processDestroyDragonEffects(cardState, gameState, playerKey, {
                 destroyAt,
                 BoardOps: BoardOpsModule,
                 random: prng || defaultPrng
@@ -7440,36 +5895,16 @@
             BoardOps: BoardOpsModule,
             random: defaultPrng
         }, opts || {});
-        if (typeof module === 'object' && module.exports) {
-            try {
-                const mod = require('./cards/destroy_dragon');
-                if (mod && typeof mod.processDestroyDragonEffectsAtAnchor === 'function') {
-                    return mod.processDestroyDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
-                }
-            } catch (e) { /* ignore */ }
-        }
-        if (typeof CardDestroyDragon !== 'undefined' && typeof CardDestroyDragon.processDestroyDragonEffectsAtAnchor === 'function') {
-            return CardDestroyDragon.processDestroyDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
+        if (CardDestroyDragonModule && typeof CardDestroyDragonModule.processDestroyDragonEffectsAtAnchor === 'function') {
+            return CardDestroyDragonModule.processDestroyDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
         }
         console.warn('[cards.js] CardDestroyDragon anchor processor not available');
         return { destroyed: [], expired: [] };
     }
 
     function processDestroyDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prng) {
-        if (typeof module === 'object' && module.exports) {
-            try {
-                const mod = require('./cards/destroy_dragon');
-                if (mod && typeof mod.processDestroyDragonEffectsAtTurnStartAnchor === 'function') {
-                    return mod.processDestroyDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, {
-                        destroyAt,
-                        BoardOps: BoardOpsModule,
-                        random: prng || defaultPrng
-                    });
-                }
-            } catch (e) { /* ignore */ }
-        }
-        if (typeof CardDestroyDragon !== 'undefined' && typeof CardDestroyDragon.processDestroyDragonEffectsAtTurnStartAnchor === 'function') {
-            return CardDestroyDragon.processDestroyDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, {
+        if (CardDestroyDragonModule && typeof CardDestroyDragonModule.processDestroyDragonEffectsAtTurnStartAnchor === 'function') {
+            return CardDestroyDragonModule.processDestroyDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, {
                 destroyAt,
                 BoardOps: BoardOpsModule,
                 random: prng || defaultPrng
@@ -7479,7 +5914,6 @@
         return { destroyed: [], expired: [] };
     }
 
-
     /**
       * Process Breeding effects (Stone spawning)
       * @param {Object} cardState
@@ -7487,16 +5921,10 @@
      * @param {string} playerKey
      * @param {Object} prng
      * @returns {Object} { spawned: [...], destroyed: [...], flipped: [...] }
-     */
+    */
     function getFlipsWithContextLocal(state, row, col, player, context = {}) {
-        // Delegate to module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/flips');
-            return mod.getFlipsWithContext(state, row, col, player, context);
-        }
-        // Browser: use global
-        if (typeof CardFlips !== 'undefined' && typeof CardFlips.getFlipsWithContext === 'function') {
-            return CardFlips.getFlipsWithContext(state, row, col, player, context);
+        if (CardFlipsModule && typeof CardFlipsModule.getFlipsWithContext === 'function') {
+            return CardFlipsModule.getFlipsWithContext(state, row, col, player, context);
         }
         console.warn('[cards.js] CardFlips module not available');
         return [];
@@ -7515,23 +5943,8 @@
     }
 
     function moveHyperactiveOnce(cardState, gameState, entry, prng) {
-        // Delegate to module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/hyperactive');
-            return mod.moveHyperactiveOnce(cardState, gameState, entry, prng, {
-                defaultPrng: defaultPrng,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                clearHyperactiveAtPositions,
-                clearBombAt,
-                isBlockedCell,
-                getCardContext,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
-        }
-        // Browser: use global
-        if (typeof CardHyperactive !== 'undefined' && typeof CardHyperactive.moveHyperactiveOnce === 'function') {
-            return CardHyperactive.moveHyperactiveOnce(cardState, gameState, entry, prng, {
+        if (CardHyperactiveModule && typeof CardHyperactiveModule.moveHyperactiveOnce === 'function') {
+            return CardHyperactiveModule.moveHyperactiveOnce(cardState, gameState, entry, prng, {
                 defaultPrng: defaultPrng,
                 getFlipsWithContext: getFlipsWithContextLocal,
                 clearHyperactiveAtPositions,
@@ -7548,23 +5961,8 @@
 
 
     function processHyperactiveMoves(cardState, gameState, prng) {
-        // Delegate to module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/hyperactive');
-            return mod.processHyperactiveMoves(cardState, gameState, prng, {
-                defaultPrng: defaultPrng,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                clearBombAt,
-                clearHyperactiveAtPositions,
-                isBlockedCell,
-                getCardContext,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
-        }
-        // Browser: use global
-        if (typeof CardHyperactive !== 'undefined' && typeof CardHyperactive.processHyperactiveMoves === 'function') {
-            return CardHyperactive.processHyperactiveMoves(cardState, gameState, prng, {
+        if (CardHyperactiveModule && typeof CardHyperactiveModule.processHyperactiveMoves === 'function') {
+            return CardHyperactiveModule.processHyperactiveMoves(cardState, gameState, prng, {
                 defaultPrng: defaultPrng,
                 getFlipsWithContext: getFlipsWithContextLocal,
                 clearBombAt,
@@ -7581,29 +5979,8 @@
 
 
     function processHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, options = {}) {
-        // Delegate to module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/hyperactive');
-            return mod.processHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
-                defaultPrng: defaultPrng,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                clearBombAt,
-                clearHyperactiveAtPositions,
-                isBlockedCell,
-                isAbsoluteProtectedCell,
-                isFrozenCell,
-                getCardContext,
-                BoardOps: BoardOpsModule,
-                swapOccupiedCellsWithPresentation,
-                destroyAt,
-                currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
-                inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
-                expectedSpecialType: options.expectedSpecialType || null
-            });
-        }
-        // Browser: use global
-        if (typeof CardHyperactive !== 'undefined' && typeof CardHyperactive.processHyperactiveMoveAtAnchor === 'function') {
-            return CardHyperactive.processHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
+        if (CardHyperactiveModule && typeof CardHyperactiveModule.processHyperactiveMoveAtAnchor === 'function') {
+            return CardHyperactiveModule.processHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
                 defaultPrng: defaultPrng,
                 getFlipsWithContext: getFlipsWithContextLocal,
                 clearBombAt,
@@ -7637,14 +6014,8 @@
             currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
             robotVacuumTurns: ROBOT_VACUUM_TURNS
         };
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/hyperactive');
-            if (mod && typeof mod.processRobotVacuumMoveAtAnchor === 'function') {
-                return mod.processRobotVacuumMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps);
-            }
-        }
-        if (typeof CardHyperactive !== 'undefined' && typeof CardHyperactive.processRobotVacuumMoveAtAnchor === 'function') {
-            return CardHyperactive.processRobotVacuumMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps);
+        if (CardHyperactiveModule && typeof CardHyperactiveModule.processRobotVacuumMoveAtAnchor === 'function') {
+            return CardHyperactiveModule.processRobotVacuumMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps);
         }
         console.warn('[cards.js] CardHyperactive robot-vacuum module not available');
         return { moved: [], destroyed: [], flipped: [], ownerKey: playerKey, sucked: [], expired: [], suckedCount: 0 };
@@ -7662,14 +6033,8 @@
             destroyAt,
             currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey
         };
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/hyperactive');
-            if (mod && typeof mod.processGluttonousMoveAtAnchor === 'function') {
-                return mod.processGluttonousMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps);
-            }
-        }
-        if (typeof CardHyperactive !== 'undefined' && typeof CardHyperactive.processGluttonousMoveAtAnchor === 'function') {
-            return CardHyperactive.processGluttonousMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps);
+        if (CardHyperactiveModule && typeof CardHyperactiveModule.processGluttonousMoveAtAnchor === 'function') {
+            return CardHyperactiveModule.processGluttonousMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps);
         }
         console.warn('[cards.js] CardHyperactive gluttonous module not available');
         return { moved: [], destroyed: [], flipped: [], ownerKey: playerKey, ate: [] };
@@ -7686,21 +6051,8 @@
             return null;
         }).filter((cell) => !!cell);
 
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/hyperactive');
-            if (mod && typeof mod.resolveHyperactiveFlipEvasion === 'function') {
-                return mod.resolveHyperactiveFlipEvasion(cardState, gameState, fallbackFlips, ownerAfterKey, prng, {
-                    defaultPrng: defaultPrng,
-                    clearHyperactiveAtPositions,
-                    isBlockedCell,
-                    BoardOps: BoardOpsModule,
-                    destroyAt
-                });
-            }
-        }
-
-        if (typeof CardHyperactive !== 'undefined' && typeof CardHyperactive.resolveHyperactiveFlipEvasion === 'function') {
-            return CardHyperactive.resolveHyperactiveFlipEvasion(cardState, gameState, fallbackFlips, ownerAfterKey, prng, {
+        if (CardHyperactiveModule && typeof CardHyperactiveModule.resolveHyperactiveFlipEvasion === 'function') {
+            return CardHyperactiveModule.resolveHyperactiveFlipEvasion(cardState, gameState, fallbackFlips, ownerAfterKey, prng, {
                 defaultPrng: defaultPrng,
                 clearHyperactiveAtPositions,
                 isBlockedCell,
@@ -7714,21 +6066,8 @@
     }
 
     function processInstantHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng) {
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/hyperactive');
-            return mod.processInstantHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
-                defaultPrng: defaultPrng,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                clearBombAt,
-                clearHyperactiveAtPositions,
-                isBlockedCell,
-                getCardContext,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
-        }
-        if (typeof CardHyperactive !== 'undefined' && typeof CardHyperactive.processInstantHyperactiveMoveAtAnchor === 'function') {
-            return CardHyperactive.processInstantHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
+        if (CardHyperactiveModule && typeof CardHyperactiveModule.processInstantHyperactiveMoveAtAnchor === 'function') {
+            return CardHyperactiveModule.processInstantHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
                 defaultPrng: defaultPrng,
                 getFlipsWithContext: getFlipsWithContextLocal,
                 clearBombAt,
@@ -7744,26 +6083,8 @@
     }
 
     function processUltimateHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, options = {}) {
-        // Delegate to module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/hyperactive');
-            return mod.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
-                defaultPrng: defaultPrng,
-                currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
-                ultimateHyperactiveTurns: ULTIMATE_HYPERACTIVE_TURNS,
-                clearUltimateAtPositions: clearHyperactiveAtPositions,
-                clearHyperactiveAtPositions,
-                clearBombAt,
-                isBlockedCell,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                getCardContext,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
-        }
-        // Browser: use global
-        if (typeof CardHyperactive !== 'undefined' && typeof CardHyperactive.processUltimateHyperactiveMoveAtAnchor === 'function') {
-            return CardHyperactive.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
+        if (CardHyperactiveModule && typeof CardHyperactiveModule.processUltimateHyperactiveMoveAtAnchor === 'function') {
+            return CardHyperactiveModule.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
                 defaultPrng: defaultPrng,
                 currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
                 ultimateHyperactiveTurns: ULTIMATE_HYPERACTIVE_TURNS,
@@ -7783,22 +6104,8 @@
 
 
     function processBreedingEffects(cardState, gameState, playerKey, prng) {
-        // Delegate to cards/breeding.js module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/breeding');
-            return mod.processBreedingEffects(cardState, gameState, playerKey, prng, {
-                defaultPrng: defaultPrng,
-                getCardContext,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                clearBombAt,
-                clearHyperactiveAtPositions,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
-        }
-        // Browser: use global
-        if (typeof CardBreeding !== 'undefined' && typeof CardBreeding.processBreedingEffects === 'function') {
-            return CardBreeding.processBreedingEffects(cardState, gameState, playerKey, prng, {
+        if (CardBreedingModule && typeof CardBreedingModule.processBreedingEffects === 'function') {
+            return CardBreedingModule.processBreedingEffects(cardState, gameState, playerKey, prng, {
                 defaultPrng: defaultPrng,
                 getCardContext,
                 getFlipsWithContext: getFlipsWithContextLocal,
@@ -7818,22 +6125,8 @@
      * Delegates to cards/breeding.js module.
      */
     function processBreedingEffectsAtAnchor(cardState, gameState, playerKey, row, col, prng) {
-        // Delegate to module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./cards/breeding');
-            return mod.processBreedingEffectsAtAnchor(cardState, gameState, playerKey, row, col, prng, {
-                defaultPrng: defaultPrng,
-                getCardContext,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                clearBombAt,
-                clearHyperactiveAtPositions,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
-        }
-        // Browser: use global
-        if (typeof CardBreeding !== 'undefined' && typeof CardBreeding.processBreedingEffectsAtAnchor === 'function') {
-            return CardBreeding.processBreedingEffectsAtAnchor(cardState, gameState, playerKey, row, col, prng, {
+        if (CardBreedingModule && typeof CardBreedingModule.processBreedingEffectsAtAnchor === 'function') {
+            return CardBreedingModule.processBreedingEffectsAtAnchor(cardState, gameState, playerKey, row, col, prng, {
                 defaultPrng: defaultPrng,
                 getCardContext,
                 getFlipsWithContext: getFlipsWithContextLocal,
@@ -7848,24 +6141,8 @@
     }
 
     function processBreedingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prng) {
-        if (typeof module === 'object' && module.exports) {
-            try {
-                const mod = require('./cards/breeding');
-                if (mod && typeof mod.processBreedingEffectsAtTurnStartAnchor === 'function') {
-                    return mod.processBreedingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prng, {
-                        defaultPrng: defaultPrng,
-                        getCardContext,
-                        getFlipsWithContext: getFlipsWithContextLocal,
-                        clearBombAt,
-                        clearHyperactiveAtPositions,
-                        BoardOps: BoardOpsModule,
-                        destroyAt
-                    });
-                }
-            } catch (e) { /* ignore */ }
-        }
-        if (typeof CardBreeding !== 'undefined' && typeof CardBreeding.processBreedingEffectsAtTurnStartAnchor === 'function') {
-            return CardBreeding.processBreedingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prng, {
+        if (CardBreedingModule && typeof CardBreedingModule.processBreedingEffectsAtTurnStartAnchor === 'function') {
+            return CardBreedingModule.processBreedingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prng, {
                 defaultPrng: defaultPrng,
                 getCardContext,
                 getFlipsWithContext: getFlipsWithContextLocal,
@@ -7883,16 +6160,10 @@
     /**
      * Apply DESTROY_ONE_STONE
      * Delegates to effects/destroy_one_stone.js module.
-     */
+    */
     function applyDestroyEffectDetailed(cardState, gameState, playerKey, row, col) {
-        // Delegate to effect module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./effects/destroy_one_stone');
-            return mod.applyDestroyOneStone(cardState, gameState, playerKey, row, col, { BoardOps: BoardOpsModule, destroyAt });
-        }
-        // Browser: use global
-        if (typeof DestroyOneStone !== 'undefined' && typeof DestroyOneStone.applyDestroyOneStone === 'function') {
-            return DestroyOneStone.applyDestroyOneStone(cardState, gameState, playerKey, row, col, { BoardOps: BoardOpsModule, destroyAt });
+        if (DestroyOneStoneModule && typeof DestroyOneStoneModule.applyDestroyOneStone === 'function') {
+            return DestroyOneStoneModule.applyDestroyOneStone(cardState, gameState, playerKey, row, col, { BoardOps: BoardOpsModule, destroyAt });
         }
         console.warn('[cards.js] DestroyOneStone module not available');
         return createDestroyOutcome();
@@ -7909,32 +6180,15 @@
      */
     function applySwapEffect(cardState, gameState, playerKey, row, col) {
         const cardContext = getCardContext(cardState);
-        // Delegate to effect module
-        if (typeof module === 'object' && module.exports) {
-            const mod = require('./effects/swap_with_enemy');
-            const core = require('./core');
-            const r = mod.applySwapWithEnemy(cardState, gameState, playerKey, row, col, {
+        if (SwapWithEnemyModule && typeof SwapWithEnemyModule.applySwapWithEnemy === 'function') {
+            const coreModule = resolveOptionalCardModule('./core', 'CoreLogic') || resolveOptionalCardModule(null, 'Core');
+            const r = SwapWithEnemyModule.applySwapWithEnemy(cardState, gameState, playerKey, row, col, {
                 BoardOps: BoardOpsModule,
                 clearHyperactiveAtPositions,
                 clearBombAt,
                 emitPresentationEvent,
                 cardContext,
-                Core: core
-            });
-            return !!r.swapped;
-        }
-        // Browser: use global
-        if (typeof SwapWithEnemy !== 'undefined' && typeof SwapWithEnemy.applySwapWithEnemy === 'function') {
-            const browserCore = (typeof CoreLogic !== 'undefined')
-                ? CoreLogic
-                : (typeof Core !== 'undefined' ? Core : null);
-            const r = SwapWithEnemy.applySwapWithEnemy(cardState, gameState, playerKey, row, col, {
-                BoardOps: BoardOpsModule,
-                clearHyperactiveAtPositions,
-                clearBombAt,
-                emitPresentationEvent,
-                cardContext,
-                Core: browserCore
+                Core: coreModule
             });
             return !!r.swapped;
         }
@@ -8086,32 +6340,15 @@
 
     // Presentation event helpers (PoC)
     function allocateStoneId(cardState) {
-        if (!cardState) return null;
-        if (cardState._nextStoneId === undefined || cardState._nextStoneId === null) cardState._nextStoneId = 1;
-        const id = 's' + String(cardState._nextStoneId++);
-        return id;
+        return requireCardPresentationHelper('allocateStoneId')(cardState, getCardPresentationHelperContext());
     }
 
     function emitPresentationEvent(cardState, ev) {
-        if (!cardState) return;
-        // BoardOps central emitter fills action meta (actionId, turnIndex, plyIndex)
-        if (BoardOpsModule && typeof BoardOpsModule.emitPresentationEvent === 'function') {
-            BoardOpsModule.emitPresentationEvent(cardState, ev);
-            return;
-        }
-        // BoardOps not available; rely on centralized presentation helper to warn once if needed.
+        return requireCardPresentationHelper('emitPresentationEvent')(cardState, ev, getCardPresentationHelperContext());
     }
 
     function flushPresentationEvents(cardState) {
-        if (!cardState || !cardState.presentationEvents) return [];
-        const out = cardState.presentationEvents.slice();
-        // Persist only when BoardOps is not available (BoardOps already persists on emit).
-        if (!(BoardOpsModule && typeof BoardOpsModule.emitPresentationEvent === 'function')) {
-            if (!cardState._presentationEventsPersist) cardState._presentationEventsPersist = [];
-            cardState._presentationEventsPersist.push(...out);
-        }
-        cardState.presentationEvents.length = 0;
-        return out;
+        return requireCardPresentationHelper('flushPresentationEvents')(cardState, getCardPresentationHelperContext());
     }
 
     /**

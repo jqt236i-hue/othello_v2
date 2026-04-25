@@ -44,6 +44,24 @@
         return Number.isInteger(BOARD_SIZE) ? BOARD_SIZE : 8;
     }
 
+    function resolveMarkerBoardConfig(boardOrConfig) {
+        if (boardOrConfig && Number.isInteger(boardOrConfig.rows) && Number.isInteger(boardOrConfig.cols)) {
+            return { rows: boardOrConfig.rows, cols: boardOrConfig.cols };
+        }
+        const board = Array.isArray(boardOrConfig)
+            ? boardOrConfig
+            : (boardOrConfig && Array.isArray(boardOrConfig.board)
+                ? boardOrConfig.board
+                : (boardOrConfig && Array.isArray(boardOrConfig.stoneIdMap) ? boardOrConfig.stoneIdMap : null));
+        const rows = Array.isArray(board) && board.length > 0
+            ? board.length
+            : getBoardSize();
+        const cols = Array.isArray(board) && Array.isArray(board[0]) && board[0].length > 0
+            ? board[0].length
+            : rows;
+        return { rows, cols };
+    }
+
     function getPresentationHelper() {
         if (PresentationModule && typeof PresentationModule.emitPresentationEvent === 'function') {
             return PresentationModule;
@@ -90,12 +108,12 @@
         });
     }
 
-    function isMainBoardCellForCard(row, col) {
+    function isMainBoardCellForCard(row, col, boardOrConfig) {
         if (CardExpansionModule && typeof CardExpansionModule.isMainBoardCellForCard === 'function') {
-            return CardExpansionModule.isMainBoardCellForCard(row, col);
+            return CardExpansionModule.isMainBoardCellForCard(row, col, boardOrConfig);
         }
-        const boardSize = getBoardSize();
-        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < boardSize && col >= 0 && col < boardSize;
+        const config = resolveMarkerBoardConfig(boardOrConfig);
+        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < config.rows && col >= 0 && col < config.cols;
     }
 
     function getExpansionDescriptorsForCard(gameState) {
@@ -286,9 +304,6 @@
     }
 
     function getSpecialMarkerAt(cardState, row, col) {
-        if (CardUtilsModule && typeof CardUtilsModule.getSpecialMarkerAt === 'function') {
-            return CardUtilsModule.getSpecialMarkerAt(cardState, row, col);
-        }
         const special = getSpecialMarkers(cardState).find((marker) => (
             marker &&
             marker.row === row &&
@@ -302,23 +317,17 @@
     }
 
     function isSpecialStoneAt(cardState, row, col) {
-        if (CardUtilsModule && typeof CardUtilsModule.isSpecialStoneAt === 'function') {
-            return CardUtilsModule.isSpecialStoneAt(cardState, row, col);
-        }
         return !!getSpecialMarkerAt(cardState, row, col);
     }
 
     function getSpecialOwnerAt(cardState, row, col) {
-        if (CardUtilsModule && typeof CardUtilsModule.getSpecialOwnerAt === 'function') {
-            return CardUtilsModule.getSpecialOwnerAt(cardState, row, col);
-        }
         const entry = getSpecialMarkerAt(cardState, row, col);
         return entry && entry.marker ? entry.marker.owner : null;
     }
 
     function clearStoneIdAtForCard(cardState, gameState, row, col) {
         if (!cardState) return;
-        if (isMainBoardCellForCard(row, col)) {
+        if (isMainBoardCellForCard(row, col, gameState || cardState)) {
             if (cardState.stoneIdMap && cardState.stoneIdMap[row]) {
                 cardState.stoneIdMap[row][col] = null;
             }
@@ -332,7 +341,7 @@
 
     function getStoneIdAtForCard(cardState, gameState, row, col) {
         if (!cardState) return null;
-        if (isMainBoardCellForCard(row, col)) {
+        if (isMainBoardCellForCard(row, col, gameState || cardState)) {
             return (cardState.stoneIdMap && cardState.stoneIdMap[row])
                 ? (cardState.stoneIdMap[row][col] || null)
                 : null;
@@ -344,13 +353,13 @@
 
     function setStoneIdAtForCard(cardState, gameState, row, col, stoneId) {
         if (!cardState) return false;
-        const boardSize = getBoardSize();
-        if (isMainBoardCellForCard(row, col)) {
+        const boardConfig = resolveMarkerBoardConfig((gameState && gameState.boardConfig) || gameState || cardState);
+        if (isMainBoardCellForCard(row, col, gameState || cardState)) {
             if (!Array.isArray(cardState.stoneIdMap)) {
-                cardState.stoneIdMap = Array.from({ length: boardSize }, () => Array(boardSize).fill(null));
+                cardState.stoneIdMap = Array.from({ length: boardConfig.rows }, () => Array(boardConfig.cols).fill(null));
             }
             if (!Array.isArray(cardState.stoneIdMap[row])) {
-                cardState.stoneIdMap[row] = Array(boardSize).fill(null);
+                cardState.stoneIdMap[row] = Array(boardConfig.cols).fill(null);
             }
             cardState.stoneIdMap[row][col] = stoneId || null;
             return true;

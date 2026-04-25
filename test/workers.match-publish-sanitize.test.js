@@ -560,12 +560,15 @@ function runCommandPublishSniperTurnStartScenario() {
   return runPublishScenario(runner);
 }
 
-function runCommandPublishDebugFillScenario(networkDebugEnabled, seatKey) {
+function runCommandPublishDebugFillScenario(networkDebugEnabled, seatKey, options) {
+  const opts = options && typeof options === 'object' ? options : {};
+  const serializedOptions = JSON.stringify(opts);
   const runner = [
     "(async () => {",
     "  const modulePath = process.argv[1];",
     `  const networkDebugEnabled = ${networkDebugEnabled ? 'true' : 'false'};`,
     `  const seatKey = ${JSON.stringify(seatKey || 'white')};`,
+    `  const options = ${serializedOptions};`,
     "  const nowMs = Date.now();",
     "  const initialTurnStartedAt = nowMs - 1000;",
     "  const initialTurnDeadlineAt = nowMs + 120000;",
@@ -620,8 +623,8 @@ function runCommandPublishDebugFillScenario(networkDebugEnabled, seatKey) {
     "    operationId: `op_debug_fill_${seatKey}` ,",
     "    actionType: 'debug_fill_hand',",
     "    actor: seatKey,",
-    "    params: {},",
-    "    action: { type: 'debug_fill_hand', playerKey: seatKey }",
+    "    params: options.params || {},",
+    "    action: Object.assign({ type: 'debug_fill_hand', playerKey: seatKey }, options.action || {})",
     "  });",
     "  const payload = await response.json();",
     "  await durableObject.loadRoom();",
@@ -1294,6 +1297,26 @@ describe('match worker publish sanitize', () => {
     expect(Array.isArray(result.broadcastMeta && result.broadcastMeta.playbackEvents)).toBe(true);
     expect(result.broadcastMeta.playbackEvents).toEqual([]);
     expect(result.internalTurnTimer).toMatchObject(result.expectedTurnTimer);
+  });
+
+  test('network debug room では debug fill hand command で requested cards only に置き換えられる', () => {
+    const result = runCommandPublishDebugFillScenario(true, 'white', {
+      params: {
+        cardIds: ['condemn_01'],
+        replaceExisting: true
+      },
+      action: {
+        cardIds: ['condemn_01'],
+        replaceExisting: true
+      }
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.payload.ok).toBe(true);
+    expect(result.internalCardState.hands.black).toEqual([]);
+    expect(result.internalCardState.hands.white).toEqual(['condemn_01']);
+    expect(result.internalCardState.debugHandFilled).toBe(true);
+    expect(result.internalCardState.debugNoDraw).toBe(true);
   });
 
   test('network debug room でない場合は debug fill hand command を拒否する', () => {

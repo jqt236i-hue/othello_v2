@@ -52,14 +52,12 @@ describe('NetworkCommandPayloadModule', () => {
           type: 'HEAVEN_BLESSING',
           stage: 'selectTarget',
           cardId: 'heaven_01'
-        },
-        useCardId: 'heaven_01',
-        useCardOwnerKey: 'black'
+        }
       }
     });
   });
 
-  test('adds top-level card use context from authoritative pendingSelectionState', () => {
+  test('does not add top-level card use context from authoritative pendingSelectionState', () => {
     const payload = NetworkCommandPayloadModule.buildPublishCommandPayload({
       action: {
         type: 'place',
@@ -90,9 +88,7 @@ describe('NetworkCommandPayloadModule', () => {
           selectedTargets: [{ row: 0, col: 0 }],
           selectedCount: 1,
           maxSelections: 2
-        },
-        useCardId: 'board_expand_god_01',
-        useCardOwnerKey: 'black'
+        }
       }
     });
   });

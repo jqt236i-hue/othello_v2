@@ -14,15 +14,31 @@
         return acc;
     }, {}));
     const ITEM_KIND_HAND_SKIN = 'hand_skin';
+    const ITEM_KIND_BACKGROUND_SKIN = 'background_skin';
     const ITEM_KIND_PLACEMENT_SOUND = 'placement_sound';
     const ITEM_KIND_ORDER = Object.freeze({
         [ITEM_KIND_HAND_SKIN]: 0,
-        [ITEM_KIND_PLACEMENT_SOUND]: 1
+        [ITEM_KIND_BACKGROUND_SKIN]: 1,
+        [ITEM_KIND_PLACEMENT_SOUND]: 2
     });
-    const IMAGE_EXTENSIONS = Object.freeze(['.png', '.jpg', '.jpeg', '.webp']);
+    const IMAGE_EXTENSIONS = Object.freeze(['.png', '.jpg', '.jpeg', '.webp', '.svg']);
     const SOUND_EXTENSIONS = Object.freeze(['.mp3', '.ogg', '.wav', '.m4a']);
     const IMAGE_EXTENSION_SET = new Set(IMAGE_EXTENSIONS);
     const SOUND_EXTENSION_SET = new Set(SOUND_EXTENSIONS);
+    const ITEM_KIND_PATH_ALIASES = Object.freeze({
+        [ITEM_KIND_HAND_SKIN]: ITEM_KIND_HAND_SKIN,
+        hand: ITEM_KIND_HAND_SKIN,
+        hands: ITEM_KIND_HAND_SKIN,
+        [ITEM_KIND_BACKGROUND_SKIN]: ITEM_KIND_BACKGROUND_SKIN,
+        background: ITEM_KIND_BACKGROUND_SKIN,
+        backgrounds: ITEM_KIND_BACKGROUND_SKIN,
+        bg: ITEM_KIND_BACKGROUND_SKIN,
+        [ITEM_KIND_PLACEMENT_SOUND]: ITEM_KIND_PLACEMENT_SOUND,
+        sound: ITEM_KIND_PLACEMENT_SOUND,
+        sounds: ITEM_KIND_PLACEMENT_SOUND,
+        se: ITEM_KIND_PLACEMENT_SOUND,
+        audio: ITEM_KIND_PLACEMENT_SOUND
+    });
     const LEGACY_ITEM_ID_ALIASES = Object.freeze({
         'gacha__n__hand': 'gacha__n__人の手',
         'gacha__n__hand.png': 'gacha__n__人の手',
@@ -42,8 +58,17 @@
     function normalizeCatalogItemKind(value) {
         const normalized = String(value || '').trim().toLowerCase();
         if (normalized === ITEM_KIND_HAND_SKIN) return ITEM_KIND_HAND_SKIN;
+        if (normalized === ITEM_KIND_BACKGROUND_SKIN) return ITEM_KIND_BACKGROUND_SKIN;
         if (normalized === ITEM_KIND_PLACEMENT_SOUND) return ITEM_KIND_PLACEMENT_SOUND;
         return null;
+    }
+
+    function normalizeCatalogItemKindAlias(value) {
+        const normalized = String(value || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+        if (!normalized) return null;
+        return Object.prototype.hasOwnProperty.call(ITEM_KIND_PATH_ALIASES, normalized)
+            ? ITEM_KIND_PATH_ALIASES[normalized]
+            : null;
     }
 
     function normalizeCatalogItemId(value) {
@@ -62,6 +87,9 @@
         if (normalizedKind === ITEM_KIND_HAND_SKIN) {
             return normalizeCatalogItemId(`gacha__${normalizedRarity.toLowerCase()}__${normalizedLabel}`.replace(/\s+/g, '_'));
         }
+        if (normalizedKind === ITEM_KIND_BACKGROUND_SKIN) {
+            return `gacha__${normalizedRarity.toLowerCase()}__background_skin__${normalizedLabel}`.replace(/\s+/g, '_');
+        }
         return `gacha__${normalizedRarity.toLowerCase()}__placement_sound__${normalizedLabel}`.replace(/\s+/g, '_');
     }
 
@@ -70,6 +98,20 @@
         if (IMAGE_EXTENSION_SET.has(normalizedExtension)) return ITEM_KIND_HAND_SKIN;
         if (SOUND_EXTENSION_SET.has(normalizedExtension)) return ITEM_KIND_PLACEMENT_SOUND;
         return null;
+    }
+
+    function resolveCatalogItemKindFromPathSegments(pathSegments) {
+        const safeSegments = Array.isArray(pathSegments) ? pathSegments : [];
+        for (let index = 0; index < safeSegments.length; index += 1) {
+            const normalizedKind = normalizeCatalogItemKindAlias(safeSegments[index]);
+            if (normalizedKind) return normalizedKind;
+        }
+        return null;
+    }
+
+    function isImageCatalogItemKind(kind) {
+        const normalizedKind = normalizeCatalogItemKind(kind);
+        return normalizedKind === ITEM_KIND_HAND_SKIN || normalizedKind === ITEM_KIND_BACKGROUND_SKIN;
     }
 
     function extractCatalogParts(assetPath) {
@@ -88,13 +130,20 @@
         const nestedPath = remainder.slice(slashIndex + 1);
         if (!nestedPath || nestedPath.endsWith('/')) return null;
 
-        const fileName = nestedPath.split('/').pop();
+        const pathSegments = nestedPath.split('/').filter(Boolean);
+        const fileName = pathSegments.pop();
         const dotIndex = fileName.lastIndexOf('.');
         if (dotIndex <= 0) return null;
 
         const extension = fileName.slice(dotIndex).toLowerCase();
-        const kind = resolveCatalogItemKindFromExtension(extension);
+        const extensionKind = resolveCatalogItemKindFromExtension(extension);
+        const explicitKind = resolveCatalogItemKindFromPathSegments(pathSegments);
+        const kind = explicitKind || extensionKind;
         if (!kind) return null;
+        if (explicitKind === ITEM_KIND_PLACEMENT_SOUND && extensionKind !== ITEM_KIND_PLACEMENT_SOUND) return null;
+        if (explicitKind && explicitKind !== ITEM_KIND_PLACEMENT_SOUND && !isImageCatalogItemKind(kind)) return null;
+        if (explicitKind === ITEM_KIND_BACKGROUND_SKIN && extensionKind !== ITEM_KIND_HAND_SKIN) return null;
+        if (explicitKind === ITEM_KIND_HAND_SKIN && extensionKind !== ITEM_KIND_HAND_SKIN) return null;
 
         const label = fileName.slice(0, dotIndex).trim();
         if (!label) return null;
@@ -104,8 +153,8 @@
             kind,
             label,
             assetPath: normalizedPath,
-            imagePath: kind === ITEM_KIND_HAND_SKIN ? normalizedPath : '',
-            previewImagePath: kind === ITEM_KIND_HAND_SKIN ? normalizedPath : '',
+            imagePath: isImageCatalogItemKind(kind) ? normalizedPath : '',
+            previewImagePath: isImageCatalogItemKind(kind) ? normalizedPath : '',
             soundPath: kind === ITEM_KIND_PLACEMENT_SOUND ? normalizedPath : ''
         };
     }
@@ -113,7 +162,9 @@
     function createCatalogItemFromAssetPath(assetPath) {
         const parts = extractCatalogParts(assetPath);
         if (!parts) return null;
-        const noteSuffix = parts.kind === ITEM_KIND_PLACEMENT_SOUND ? ' / 配置音' : '';
+        const noteSuffix = parts.kind === ITEM_KIND_PLACEMENT_SOUND
+            ? ' / 配置音'
+            : (parts.kind === ITEM_KIND_BACKGROUND_SKIN ? ' / 背景' : '');
         return {
             id: createCatalogItemId(parts.rarity, parts.label, parts.kind),
             label: parts.label,
@@ -191,12 +242,15 @@
         IMAGE_EXTENSIONS,
         SOUND_EXTENSIONS,
         ITEM_KIND_HAND_SKIN,
+        ITEM_KIND_BACKGROUND_SKIN,
         ITEM_KIND_PLACEMENT_SOUND,
         normalizeRarity,
         normalizeCatalogItemKind,
+        normalizeCatalogItemKindAlias,
         normalizeCatalogItemId,
         createCatalogItemId,
         resolveCatalogItemKindFromExtension,
+        resolveCatalogItemKindFromPathSegments,
         extractCatalogParts,
         createCatalogItemFromAssetPath,
         collectCatalogItemsFromPaths,

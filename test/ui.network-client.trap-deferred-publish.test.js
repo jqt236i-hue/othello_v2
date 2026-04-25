@@ -245,9 +245,7 @@ describe('NetworkMatchClient trap deferred publish', () => {
         type: 'TRAP_WILL',
         stage: 'selectTarget',
         cardId: 'trap_01'
-      },
-      useCardId: 'trap_01',
-      useCardOwnerKey: 'black'
+      }
     });
     expect(publishBodies[0].snapshot).toBeUndefined();
     expect(publishBodies[0].playbackEvents).toBeUndefined();

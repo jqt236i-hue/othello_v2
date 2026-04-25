@@ -54,6 +54,41 @@
         return marker;
     }
 
+    function normalizeRequestedDebugHandCardIds(defs, requestedCardIds) {
+        if (!Array.isArray(requestedCardIds)) return null;
+        const allowedIds = new Set();
+        for (const card of defs) {
+            const cardId = card && card.id ? String(card.id) : '';
+            if (!cardId) continue;
+            allowedIds.add(cardId);
+        }
+        const normalized = [];
+        const seen = new Set();
+        for (const rawCardId of requestedCardIds) {
+            const cardId = String(rawCardId || '').trim();
+            if (!cardId || seen.has(cardId) || !allowedIds.has(cardId)) continue;
+            seen.add(cardId);
+            normalized.push(cardId);
+        }
+        return normalized;
+    }
+
+    function normalizeDebugChargeValue(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return null;
+        return Math.max(0, Math.min(99, Math.trunc(numeric)));
+    }
+
+    function resolveDebugFillCharge(opts, playerKey) {
+        const options = (opts && typeof opts === 'object') ? opts : {};
+        const byPlayer = (options.chargeByPlayer && typeof options.chargeByPlayer === 'object')
+            ? options.chargeByPlayer
+            : null;
+        const byPlayerCharge = byPlayer ? normalizeDebugChargeValue(byPlayer[playerKey]) : null;
+        if (byPlayerCharge !== null) return byPlayerCharge;
+        return normalizeDebugChargeValue(options.charge);
+    }
+
     function fillDebugHand(cardState, opts) {
         if (!cardState || !cardState.hands) return false;
         const defs = CARD_DEFS || (typeof globalThis !== 'undefined' ? globalThis.CARD_DEFS : null);
@@ -66,21 +101,46 @@
         const shouldFillWhite = requestedPlayerKey === 'white'
             ? true
             : !!(opts && opts.fillWhite);
-        const cardIds = [];
-        const seenCardIds = new Set();
-        for (const card of defs) {
-            const cardId = card && card.id ? String(card.id) : '';
-            if (!cardId || seenCardIds.has(cardId)) continue;
-            seenCardIds.add(cardId);
-            cardIds.push(cardId);
+        const requestedCardIds = normalizeRequestedDebugHandCardIds(defs, opts && opts.cardIds);
+        if (Array.isArray(opts && opts.cardIds) && (!requestedCardIds || requestedCardIds.length <= 0)) {
+            return false;
         }
-        for (const cardId of cardIds) {
-            if (fillBlack && !cardState.hands.black.includes(cardId)) {
-                cardState.hands.black.push(cardId);
+        const replaceExisting = !!(opts && opts.replaceExisting);
+        const cardIds = Array.isArray(requestedCardIds) && requestedCardIds.length > 0
+            ? requestedCardIds
+            : defs.reduce((list, card) => {
+                const cardId = card && card.id ? String(card.id) : '';
+                if (!cardId || list.indexOf(cardId) !== -1) return list;
+                list.push(cardId);
+                return list;
+            }, []);
+
+        if (!cardState.charge || typeof cardState.charge !== 'object') {
+            cardState.charge = { black: 0, white: 0 };
+        }
+        if (!Object.prototype.hasOwnProperty.call(cardState.charge, 'black')) cardState.charge.black = 0;
+        if (!Object.prototype.hasOwnProperty.call(cardState.charge, 'white')) cardState.charge.white = 0;
+
+        function applyFillForPlayer(playerKey) {
+            const currentHand = Array.isArray(cardState.hands[playerKey]) ? cardState.hands[playerKey] : [];
+            const nextHand = replaceExisting ? [] : currentHand.slice();
+            for (const cardId of cardIds) {
+                if (!nextHand.includes(cardId)) {
+                    nextHand.push(cardId);
+                }
             }
-            if (shouldFillWhite && cardState.hands.white && !cardState.hands.white.includes(cardId)) {
-                cardState.hands.white.push(cardId);
+            cardState.hands[playerKey] = nextHand;
+            const charge = resolveDebugFillCharge(opts, playerKey);
+            if (charge !== null) {
+                cardState.charge[playerKey] = charge;
             }
+        }
+
+        if (fillBlack) {
+            applyFillForPlayer('black');
+        }
+        if (shouldFillWhite) {
+            applyFillForPlayer('white');
         }
         cardState.debugHandFilled = true;
         cardState.debugNoDraw = true;

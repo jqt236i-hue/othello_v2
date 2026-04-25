@@ -2,7 +2,7 @@ const { JSDOM } = require('jsdom');
 const OverlayViewModule = require('../ui/gacha/gacha-overlay-view.js');
 
 describe('gacha overlay view', () => {
-  test('renders both hand-image rewards and placement-sound fallback tiles', () => {
+  test('renders hand, background, and placement-sound rewards with the correct visuals', () => {
     const dom = new JSDOM(`<!DOCTYPE html><body>
       <button id="gachaOpenBtn"></button>
       <div id="gachaOverlay"></div>
@@ -36,6 +36,16 @@ describe('gacha overlay view', () => {
       {
         rarity: 'N',
         item: {
+          id: 'gacha__n__background_skin__観測できなかった夜',
+          kind: 'background_skin',
+          label: '観測できなかった夜',
+          imagePath: 'assets/images/Gacha/N/background/観測できなかった夜.png',
+          previewImagePath: 'assets/images/Gacha/N/background/観測できなかった夜.png'
+        }
+      },
+      {
+        rarity: 'N',
+        item: {
           id: 'gacha__n__placement_sound__type-1-standard',
           kind: 'placement_sound',
           label: 'type-1-standard',
@@ -46,16 +56,20 @@ describe('gacha overlay view', () => {
     ], ['gacha__n__placement_sound__type-1-standard']);
 
     const cards = Array.from(dom.window.document.querySelectorAll('.gacha-result-card'));
-    expect(cards).toHaveLength(2);
+    expect(cards).toHaveLength(3);
     expect(cards[0].querySelector('.gacha-result-image')).toBeTruthy();
     expect(cards[0].querySelector('.gacha-result-fallback').hidden).toBe(true);
     expect(cards[0].querySelector('.gacha-result-kind').textContent).toBe('手の見た目');
 
-    expect(cards[1].querySelector('.gacha-result-image').hidden).toBe(true);
-    expect(cards[1].querySelector('.gacha-result-fallback').hidden).toBe(false);
-    expect(cards[1].querySelector('.gacha-item-fallback-icon').textContent).toBe('SOUND');
-    expect(cards[1].querySelector('.gacha-result-kind').textContent).toBe('配置音');
-    expect(cards[1].querySelector('.gacha-result-status').textContent).toBe('NEW');
+    expect(cards[1].querySelector('.gacha-result-image').hidden).toBe(false);
+    expect(cards[1].querySelector('.gacha-result-fallback').hidden).toBe(true);
+    expect(cards[1].querySelector('.gacha-result-kind').textContent).toBe('背景');
+
+    expect(cards[2].querySelector('.gacha-result-image').hidden).toBe(true);
+    expect(cards[2].querySelector('.gacha-result-fallback').hidden).toBe(false);
+    expect(cards[2].querySelector('.gacha-item-fallback-icon').textContent).toBe('SOUND');
+    expect(cards[2].querySelector('.gacha-result-kind').textContent).toBe('配置音');
+    expect(cards[2].querySelector('.gacha-result-status').textContent).toBe('NEW');
 
     dom.window.close();
   });

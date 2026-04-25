@@ -220,6 +220,7 @@ describe('DESTROY_DRAGON_WILL（破壊龍）', () => {
 
   test('ターン開始フェーズで破壊と期限切れイベントを発行する', () => {
     const { cardState, gameState } = createStates(0.2);
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
     gameState.board[4][4] = Shared.BLACK;
     gameState.board[4][5] = Shared.WHITE;
@@ -232,22 +233,27 @@ describe('DESTROY_DRAGON_WILL（破壊龍）', () => {
       data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 1 }
     });
 
-    const events = [];
-    TurnPipelinePhases.applyTurnStartPhase(
-      CardLogic,
-      { BLACK: Shared.BLACK, WHITE: Shared.WHITE },
-      cardState,
-      gameState,
-      'black',
-      events,
-      createPrng(0.2)
-    );
+    try {
+      const events = [];
+      TurnPipelinePhases.applyTurnStartPhase(
+        CardLogic,
+        { BLACK: Shared.BLACK, WHITE: Shared.WHITE },
+        cardState,
+        gameState,
+        'black',
+        events,
+        createPrng(0.2)
+      );
 
-    const eventTypes = new Set(events.map((e) => e && e.type));
-    expect(eventTypes.has('destroy_dragon_destroyed_start')).toBe(true);
-    expect(eventTypes.has('destroy_dragon_expired_start')).toBe(true);
-    expect(gameState.board[4][5]).toBe(Shared.EMPTY);
-    expect(gameState.board[4][4]).toBe(Shared.BLACK);
+      const eventTypes = new Set(events.map((e) => e && e.type));
+      expect(eventTypes.has('destroy_dragon_destroyed_start')).toBe(true);
+      expect(eventTypes.has('destroy_dragon_expired_start')).toBe(true);
+      expect(gameState.board[4][5]).toBe(Shared.EMPTY);
+      expect(gameState.board[4][4]).toBe(Shared.BLACK);
+      expect(warnSpy).not.toHaveBeenCalledWith(expect.stringContaining('CardDestroyDragon turn-start anchor processor not available'));
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   test('破壊龍は反転保護リストに含まれる', () => {

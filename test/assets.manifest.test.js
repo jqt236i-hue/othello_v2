@@ -28,6 +28,8 @@ describe('assets manifest', () => {
       'manifest should include default hand image asset'
     );
     [
+      'assets/images/background/default.png',
+      'assets/images/background-skin/観測の机.png',
       'assets/images/hand-skin/lv1-2.png',
       'assets/images/hand-skin/lv3-5.png',
       'assets/images/hand-skin/lv4.png',

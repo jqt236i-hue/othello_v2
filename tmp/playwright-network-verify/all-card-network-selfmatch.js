@@ -1,3 +1,17 @@
+// ネット対戦 全カード self-match 検証ハーネス
+//
+// 実行: `node tmp/playwright-network-verify/all-card-network-selfmatch.js`
+//   - 必要環境: Playwright がインストール済み (`npx playwright install chromium`)
+//   - 結果は `tmp/playwright-network-verify/artifacts/all-card-network-results.json`
+//     の `summary.{total, ok, failed}` を確認する
+//   - 期待値: `total === ok` (現行ベースラインは 77/77)
+//
+// 個別カードだけ流したい時は CARD_IDS 環境変数で id を絞れる。
+//   例) CARD_IDS=swap_01,position_swap_01 node tmp/playwright-network-verify/all-card-network-selfmatch.js
+//
+// 重要: ページ上では必ず `MatchMode.setMode('network', { force: true })` を
+// 強制適用する (ensureNetworkMatchMode 参照)。これを外すと cpu モードに
+// 戻り、pending publish 経路の検証が破綻する。
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
@@ -23,6 +37,55 @@ const WHITE_HAND_FALLBACK = ENABLED_CARDS
 
 function deepClone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+async function installEpisodeTelemetry(page) {
+  await page.evaluate(() => {
+    if (window.__episodeTelemetryInstalled === true) return;
+    window.__episodeTelemetry = { episodes: [] };
+    const root = window.boardEl || document.getElementById('board');
+    if (!root) return;
+    const observer = new MutationObserver((mutations) => {
+      const tel = window.__episodeTelemetry;
+      if (!tel) return;
+      mutations.forEach((m) => {
+        if (!m || m.type !== 'attributes' || m.attributeName !== 'class') return;
+        const target = m.target;
+        if (!(target instanceof HTMLElement)) return;
+        if (!target.classList || !target.classList.contains('disc')) return;
+        const oldHadFlip = (m.oldValue || '').split(/\s+/).includes('flip');
+        const nowHasFlip = target.classList.contains('flip');
+        if (!oldHadFlip && nowHasFlip) {
+          const cell = target.closest('.cell');
+          tel.episodes.push({
+            row: cell ? Number(cell.dataset.row) : null,
+            col: cell ? Number(cell.dataset.col) : null,
+            at: Date.now()
+          });
+        }
+      });
+    });
+    observer.observe(root, { subtree: true, attributes: true, attributeOldValue: true, attributeFilter: ['class'] });
+    window.__episodeTelemetryInstalled = true;
+  });
+}
+
+async function resetEpisodeTelemetry(page) {
+  await page.evaluate(() => {
+    if (window.__episodeTelemetry) window.__episodeTelemetry.episodes = [];
+  });
+}
+
+async function readEpisodeTelemetry(page) {
+  return await page.evaluate(() => {
+    const eps = (window.__episodeTelemetry && window.__episodeTelemetry.episodes) || [];
+    const perCell = {};
+    eps.forEach((e) => {
+      const k = `${e.row},${e.col}`;
+      perCell[k] = (perCell[k] || 0) + 1;
+    });
+    return { total: eps.length, perCell, distinctCells: Object.keys(perCell).length };
+  });
 }
 
 function ensureDir(targetPath) {
@@ -229,6 +292,25 @@ async function waitForAppReady(page, url) {
   });
 }
 
+async function ensureNetworkMatchMode(page) {
+  await page.evaluate(async () => {
+    try {
+      if (window.MatchMode && typeof window.MatchMode.setMode === 'function') {
+        await window.MatchMode.setMode('network', { force: true, silentLog: true });
+      }
+    } catch (e) { /* ignore */ }
+    try {
+      window.MATCH_MODE = 'network';
+      window.__MATCH_MODE = 'network';
+    } catch (e) { /* ignore */ }
+    try {
+      if (typeof window.getCurrentMatchMode !== 'function') {
+        window.getCurrentMatchMode = () => window.MATCH_MODE || 'cpu';
+      }
+    } catch (e) { /* ignore */ }
+  });
+}
+
 async function waitForIdle(page, timeoutMs = 25000) {
   await page.waitForFunction(() => {
     const playbackBusy = !!(
@@ -310,7 +392,14 @@ async function waitForPagesSynced(blackPage, whitePage, timeoutMs = 25000) {
     const synced = blackState.stateVersion === whiteState.stateVersion
       && blackState.currentPlayerKey === whiteState.currentPlayerKey
       && blackState.turnNumber === whiteState.turnNumber
-      && blackState.boardHash === whiteState.boardHash;
+      && blackState.boardHash === whiteState.boardHash
+      && serializePendingSelection(blackState) === serializePendingSelection(whiteState)
+      && (blackState.pendingCardId || null) === (whiteState.pendingCardId || null)
+      && (
+        (Number.isFinite(Number(blackState.pendingSourceHandIndex)) ? Number(blackState.pendingSourceHandIndex) : null)
+        ===
+        (Number.isFinite(Number(whiteState.pendingSourceHandIndex)) ? Number(whiteState.pendingSourceHandIndex) : null)
+      );
     if (synced) {
       return { blackState, whiteState };
     }
@@ -394,13 +483,17 @@ async function waitForPendingSelectionProgress(actingPage, otherPage, beforeStat
       otherPage ? readClientState(otherPage) : Promise.resolve(null)
     ]);
     if (didObservableStateAdvance(beforeState, actingState)) {
+      const otherObservable = !!(otherState && didObservableStateAdvance(beforeState, otherState));
+      if (!otherObservable) {
+        return { kind: 'local_pending', afterState: actingState };
+      }
       return { kind: 'observable', afterState: actingState };
     }
     if (didLocalPendingSelectionProgress(beforeState, actingState)) {
-      return { kind: 'selection', afterState: actingState };
+      return { kind: 'local_pending', afterState: actingState };
     }
     if (otherState && serializePendingSelection(beforeState) !== serializePendingSelection(otherState)) {
-      return { kind: 'selection', afterState: otherState };
+      return { kind: 'other_pending', afterState: otherState };
     }
     await sleep(100);
   }
@@ -491,16 +584,64 @@ async function chooseBoardTarget(actingPage, otherPage) {
     const currentPlayerKey = (typeof getPlayerKey === 'function')
       ? getPlayerKey(window.gameState.currentPlayer)
       : (window.gameState.currentPlayer === 1 ? 'black' : 'white');
+    const pendingByPlayer = (window.cardState && window.cardState.pendingEffectByPlayer) || {};
+    const pendingOwnerKey = pendingByPlayer.black
+      ? 'black'
+      : (pendingByPlayer.white ? 'white' : currentPlayerKey);
+    const pendingForCurrentPlayer = pendingByPlayer[currentPlayerKey] || null;
+    const pendingType = pendingForCurrentPlayer && pendingForCurrentPlayer.type ? pendingForCurrentPlayer.type : null;
+    const dispatchKey = (typeof window.PendingCoordinator !== 'undefined'
+      && window.PendingCoordinator
+      && typeof window.PendingCoordinator.resolvePendingSelectionDispatchKey === 'function')
+      ? (window.PendingCoordinator.resolvePendingSelectionDispatchKey(pendingType) || null)
+      : null;
+    const hasHandler = dispatchKey
+      ? ({
+          destroy: typeof window.handleDestroySelection === 'function',
+          strong_wind: typeof window.handleStrongWindSelection === 'function',
+          super_buoyancy: typeof window.handleSuperBuoyancySelection === 'function',
+          super_gravity: typeof window.handleSuperGravitySelection === 'function',
+          teleport: typeof window.handleTeleportSelection === 'function',
+          cell_teleport: typeof window.handleTeleportSelection === 'function',
+          tempt: typeof window.handleTemptSelection === 'function',
+          capture: typeof window.handleCaptureSelection === 'function',
+          trap: typeof window.handleTrapSelection === 'function',
+          guard: typeof window.handleGuardSelection === 'function',
+          living_will: typeof window.handleLivingWillSelection === 'function',
+          hyperactive_inherit: typeof window.handleHyperactiveInheritSelection === 'function',
+          extend_life: typeof window.handleExtendLifeSelection === 'function',
+          corrosion: typeof window.handleCorrosionSelection === 'function',
+          time_bomb: typeof window.handleTimeBombSelection === 'function',
+          swap_with_enemy: typeof window.handleSwapSelection === 'function',
+          position_swap: typeof window.handlePositionSwapSelection === 'function',
+          board_expansion: typeof window.handleBoardExpansionSelection === 'function',
+          board_shrink: typeof window.handleBoardShrinkSelection === 'function',
+          blockade: typeof window.handleBlockadeSelection === 'function',
+          meteor: typeof window.handleMeteorSelection === 'function',
+          freeze: typeof window.handleFreezeSelection === 'function',
+          seed: typeof window.handleSeedSelection === 'function',
+          clone: typeof window.handleCloneSelection === 'function',
+          split: typeof window.handleSplitSelection === 'function'
+        }[dispatchKey] === true)
+      : false;
     const targets = (window.CardLogic && typeof window.CardLogic.getSelectableTargets === 'function')
-      ? (window.CardLogic.getSelectableTargets(window.cardState, window.gameState, currentPlayerKey) || [])
+      ? (window.CardLogic.getSelectableTargets(window.cardState, window.gameState, pendingOwnerKey) || [])
+      : [];
+    const normalizedTargets = Array.isArray(targets)
+      ? targets
+          .map((target) => {
+            if (!target) return null;
+            const row = Number(target.row);
+            const col = Number(target.col);
+            if (!Number.isFinite(row) || !Number.isFinite(col)) return null;
+            return { row: Math.trunc(row), col: Math.trunc(col) };
+          })
+          .filter((target) => target && Number.isInteger(target.row) && Number.isInteger(target.col))
       : [];
     return {
-      ok: Array.isArray(targets) && targets.length > 0,
-      targets: Array.isArray(targets)
-        ? targets
-            .filter((target) => target && Number.isInteger(target.row) && Number.isInteger(target.col))
-            .map((target) => ({ row: target.row, col: target.col }))
-        : []
+      ok: normalizedTargets.length > 0,
+      reason: `no_targets owner=${pendingOwnerKey} current=${currentPlayerKey} pendingCurrent=${!!pendingForCurrentPlayer} type=${pendingType || 'none'} dispatch=${dispatchKey || 'none'} handler=${hasHandler}`,
+      targets: normalizedTargets
     };
   });
   if (!choice || choice.ok !== true || !Array.isArray(choice.targets) || choice.targets.length === 0) {
@@ -508,16 +649,72 @@ async function chooseBoardTarget(actingPage, otherPage) {
   }
   const orderedTargets = orderPendingTargets(beforeState, choice.targets);
   for (const target of orderedTargets) {
-    await actingPage.evaluate(({ row, col }) => {
+    const dispatchResult = await actingPage.evaluate(async ({ row, col }) => {
+      const currentPlayerKey = (typeof getPlayerKey === 'function')
+        ? getPlayerKey(window.gameState.currentPlayer)
+        : (window.gameState.currentPlayer === 1 ? 'black' : 'white');
+      const pendingByPlayer = (window.cardState && window.cardState.pendingEffectByPlayer) || {};
+      const pending = pendingByPlayer[currentPlayerKey] || null;
+      const dispatchKey = (pending && pending.type && typeof window.PendingCoordinator !== 'undefined'
+        && window.PendingCoordinator
+        && typeof window.PendingCoordinator.resolvePendingSelectionDispatchKey === 'function')
+        ? (window.PendingCoordinator.resolvePendingSelectionDispatchKey(pending.type) || null)
+        : null;
+      const handlers = {
+        destroy: window.handleDestroySelection,
+        strong_wind: window.handleStrongWindSelection,
+        super_buoyancy: window.handleSuperBuoyancySelection,
+        super_gravity: window.handleSuperGravitySelection,
+        teleport: window.handleTeleportSelection,
+        cell_teleport: window.handleTeleportSelection,
+        tempt: window.handleTemptSelection,
+        capture: window.handleCaptureSelection,
+        trap: window.handleTrapSelection,
+        guard: window.handleGuardSelection,
+        living_will: window.handleLivingWillSelection,
+        hyperactive_inherit: window.handleHyperactiveInheritSelection,
+        extend_life: window.handleExtendLifeSelection,
+        corrosion: window.handleCorrosionSelection,
+        time_bomb: window.handleTimeBombSelection,
+        swap_with_enemy: window.handleSwapSelection,
+        position_swap: window.handlePositionSwapSelection,
+        board_expansion: window.handleBoardExpansionSelection,
+        board_shrink: window.handleBoardShrinkSelection,
+        blockade: window.handleBlockadeSelection,
+        meteor: window.handleMeteorSelection,
+        freeze: window.handleFreezeSelection,
+        seed: window.handleSeedSelection,
+        clone: window.handleCloneSelection,
+        split: window.handleSplitSelection
+      };
+      const handler = dispatchKey ? handlers[dispatchKey] : null;
+      if (typeof handler === 'function') {
+        let attempt = 0;
+        while (attempt < 40) {
+          const result = handler(row, col, currentPlayerKey);
+          const resolved = (result && typeof result.then === 'function') ? await result : result;
+          const busy = !!(resolved && resolved.ok === false && resolved.reason === 'busy');
+          if (!busy) {
+            return { dispatched: 'handler', result: resolved || null, retries: attempt };
+          }
+          attempt += 1;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        return { dispatched: 'handler', result: { ok: false, reason: 'busy_timeout' }, retries: attempt };
+      }
       window.handleCellClick(row, col);
+      return { dispatched: 'click', result: null, retries: 0 };
     }, target);
+    if (dispatchResult && dispatchResult.result && dispatchResult.result.ok === false && dispatchResult.result.reason === 'busy_timeout') {
+      continue;
+    }
     const progress = await waitForPendingSelectionProgress(actingPage, otherPage, beforeState, 9000);
     if (progress) {
       return {
         action: 'pending_target',
         row: target.row,
         col: target.col,
-        localOnlyProgress: progress.kind === 'local_pending',
+        localOnlyProgress: progress.kind !== 'observable',
         afterState: progress.afterState || null
       };
     }
@@ -780,6 +977,10 @@ async function main() {
           blackPage.waitForFunction(() => window.NetworkMatchClient.hasTwoPlayers() === true, { timeout: 15000 }),
           whitePage.waitForFunction(() => window.NetworkMatchClient.hasTwoPlayers() === true, { timeout: 15000 })
         ]);
+        await Promise.all([
+          ensureNetworkMatchMode(blackPage),
+          ensureNetworkMatchMode(whitePage)
+        ]);
         await waitForPagesSynced(blackPage, whitePage);
 
         let baselineSnapshot = null;
@@ -792,8 +993,17 @@ async function main() {
 
         patchSnapshotForCard(createRes.roomId, baselineSnapshot, cardDef);
         await syncBothPages(blackPage, whitePage);
+        await Promise.all([
+          ensureNetworkMatchMode(blackPage),
+          ensureNetworkMatchMode(whitePage)
+        ]);
         const preState = await readClientState(blackPage);
         cardRecord.preStateVersion = preState.stateVersion;
+
+        await installEpisodeTelemetry(blackPage);
+        await installEpisodeTelemetry(whitePage);
+        await resetEpisodeTelemetry(blackPage);
+        await resetEpisodeTelemetry(whitePage);
 
         await useCard(blackPage, cardDef.id);
         await waitForPagesSyncedAfterAction(blackPage, whitePage, preState);
@@ -801,6 +1011,11 @@ async function main() {
         await performFollowupAction(blackPage, whitePage, cardRecord.actionLog);
 
         const synced = await waitForPagesSynced(blackPage, whitePage);
+        await sleep(800);
+        cardRecord.flipEpisodes = {
+          black: await readEpisodeTelemetry(blackPage),
+          white: await readEpisodeTelemetry(whitePage)
+        };
         cardRecord.status = 'ok';
         cardRecord.finalStateVersion = synced.blackState.stateVersion;
         cardRecord.finalCurrentPlayerKey = synced.blackState.currentPlayerKey;

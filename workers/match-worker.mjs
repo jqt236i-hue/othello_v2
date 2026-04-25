@@ -33,7 +33,7 @@ const NETWORK_TURN_LIMIT_SECONDS = 120;
 const NETWORK_TURN_LIMIT_MS = NETWORK_TURN_LIMIT_SECONDS * 1000;
 const SSE_HEARTBEAT_INTERVAL_MS = 10000;
 const SSE_WRITE_TIMEOUT_MS = 10000;
-const NETWORK_DEBUG_FILL_HAND_ACTION = 'debug_fill_hand';
+const NETWORK_DEBUG_FILL_HAND_ACTION = MatchAuthority.NETWORK_DEBUG_FILL_HAND_ACTION || 'debug_fill_hand';
 const OPERATION_ID_MAX_LENGTH = Number.isFinite(Number(MatchAuthority.OPERATION_ID_MAX_LENGTH))
     ? Number(MatchAuthority.OPERATION_ID_MAX_LENGTH)
     : 128;
@@ -167,46 +167,23 @@ function appendEffectLogMessages(...lists) {
 }
 
 function getSeatLabelJa(playerKey) {
-    return normalizePlayerKey(playerKey) === 'white' ? '白' : '黒';
+    return MatchAuthority.getSeatLabelJa(playerKey);
 }
 
 function resolveActionCardId(action) {
-    if (!action || typeof action !== 'object') return '';
-    if (action.useCardId) return String(action.useCardId);
-    if (action.cardId) return String(action.cardId);
-    return '';
+    return MatchAuthority.resolveActionCardId(action);
 }
 
 function resolveActionCardDisplayName(action, cardLogic) {
-    const cardId = resolveActionCardId(action);
-    if (!cardId) return '';
-    const cardDef = (cardLogic && typeof cardLogic.getCardDef === 'function')
-        ? cardLogic.getCardDef(cardId)
-        : null;
-    const displayName = cardDef && cardDef.name ? String(cardDef.name).trim() : '';
-    return displayName || cardId;
+    return MatchAuthority.resolveActionCardDisplayName(action, cardLogic);
 }
 
 function buildNetworkCardUseEffectLogs(action, playerKey, cardLogic) {
-    const actionType = String(action && (action.type || action.actionType) ? (action.type || action.actionType) : '').trim().toLowerCase();
-    if (actionType !== 'use_card') return [];
-    const displayName = resolveActionCardDisplayName(action, cardLogic);
-    if (!displayName) return [];
-    return [`${getSeatLabelJa(playerKey)}がカードを使用: ${displayName}`];
+    return MatchAuthority.buildNetworkCardUseEffectLogs(action, playerKey, cardLogic);
 }
 
 function collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, playbackAdapter) {
-    const adapter = (playbackAdapter && typeof playbackAdapter.mapEffectLogsFromPipeline === 'function')
-        ? playbackAdapter
-        : null;
-    if (!adapter) return [];
-    try {
-        return normalizeEffectLogMessages(
-            adapter.mapEffectLogsFromPipeline(rawEvents, presentationEvents, playerKey) || []
-        );
-    } catch (e) {
-        return [];
-    }
+    return MatchAuthority.collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, playbackAdapter);
 }
 
 function makeRoomId() {
@@ -296,13 +273,15 @@ function normalizeRoomId(value) {
 }
 
 function isNetworkDebugFillHandAction(value) {
-    return String(value || '').trim().toLowerCase() === NETWORK_DEBUG_FILL_HAND_ACTION;
+    return MatchAuthority.isNetworkDebugFillHandAction(value);
 }
 
 function isNetworkDebugFillHandPayload(value) {
-    if (!value || typeof value !== 'object') return false;
-    if (isNetworkDebugFillHandAction(value.actionType)) return true;
-    return isNetworkDebugFillHandAction(value.action && value.action.type);
+    return MatchAuthority.isNetworkDebugFillHandPayload(value);
+}
+
+function resolveNetworkDebugFillHandOptions(value) {
+    return MatchAuthority.resolveNetworkDebugFillHandOptions(value);
 }
 
 function normalizeNetworkPlayerName(value) {
@@ -427,49 +406,12 @@ async function makeInitialSnapshot(seed, options) {
     };
 }
 
-function isPlainObject(value) {
-    return !!value && typeof value === 'object' && !Array.isArray(value);
-}
-
 function mergeWithDefaultShape(defaultValue, overrideValue) {
-    if (Array.isArray(defaultValue)) {
-        return Array.isArray(overrideValue) ? deepClone(overrideValue) : deepClone(defaultValue);
-    }
-
-    if (isPlainObject(defaultValue)) {
-        const result = deepClone(defaultValue);
-        if (!isPlainObject(overrideValue)) {
-            return result;
-        }
-        for (const [key, value] of Object.entries(overrideValue)) {
-            const baseValue = Object.prototype.hasOwnProperty.call(defaultValue, key)
-                ? defaultValue[key]
-                : undefined;
-            result[key] = mergeWithDefaultShape(baseValue, value);
-        }
-        return result;
-    }
-
-    return (typeof overrideValue === 'undefined')
-        ? deepClone(defaultValue)
-        : deepClone(overrideValue);
-}
-
-function mixSeed(seed, value) {
-    const numeric = Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : 0;
-    const normalizedSeed = (Number(seed) >>> 0) || 1;
-    return ((normalizedSeed ^ (numeric >>> 0)) * 1664525 + 1013904223) >>> 0;
+    return MatchAuthority.mergeWithDefaultShape(defaultValue, overrideValue);
 }
 
 function createWorkerTurnStartSeed(room, snapshot, playerKey) {
-    const gameState = snapshot && snapshot.gameState;
-    const cardState = snapshot && snapshot.cardState;
-    let seed = Number.isFinite(Number(room && room.seed)) ? (Math.trunc(Number(room.seed)) >>> 0) : 1;
-    seed = mixSeed(seed, snapshot && snapshot.stateVersion);
-    seed = mixSeed(seed, gameState && gameState.turnNumber);
-    seed = mixSeed(seed, cardState && cardState.turnIndex);
-    seed = mixSeed(seed, playerKey === 'white' ? 0x9E3779B1 : 0x243F6A88);
-    return seed || 1;
+    return MatchAuthority.createTurnStartSeed(room, snapshot, playerKey);
 }
 
 function createWorkerTurnStartPrng(room, snapshot, playerKey, SeededPRNG) {
@@ -791,7 +733,10 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
             return { ok: false, rejectedReason: 'DEBUG_ACTIONS_UNAVAILABLE' };
         }
 
-        const applied = DebugActions.fillDebugHand(currentSnapshot.cardState, { playerKey });
+        const applied = DebugActions.fillDebugHand(
+            currentSnapshot.cardState,
+            Object.assign({ playerKey }, resolveNetworkDebugFillHandOptions(body))
+        );
         if (!applied) {
             return { ok: false, rejectedReason: 'DEBUG_FILL_HAND_FAILED' };
         }
@@ -831,6 +776,9 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
     if (!pendingValidation || pendingValidation.ok !== true) {
         return { ok: false, rejectedReason: pendingValidation && pendingValidation.rejectedReason ? pendingValidation.rejectedReason : 'STALE_PENDING_SELECTION' };
     }
+    const resolvedAction = MatchAuthority && typeof MatchAuthority.sanitizePendingSelectionActionForAuthority === 'function'
+        ? MatchAuthority.sanitizePendingSelectionActionForAuthority(currentSnapshot, playerKey, builtAction.action)
+        : builtAction.action;
 
     const { TurnPipeline, SeededPRNG, TurnPipelineUIAdapter, CardLogic } = await loadTurnPipelineModules();
     if (!TurnPipeline || typeof TurnPipeline.applyTurnSafe !== 'function') {
@@ -842,7 +790,7 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
         currentSnapshot.cardState,
         currentSnapshot.gameState,
         playerKey,
-        builtAction.action,
+        resolvedAction,
         prng,
         {
             currentStateVersion: currentTurnIndex,
@@ -880,7 +828,7 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
         ? result.presentationEvents
         : ((result.cardState && Array.isArray(result.cardState.presentationEvents)) ? result.cardState.presentationEvents : []);
     const actionEffectLogs = appendEffectLogMessages(
-        buildNetworkCardUseEffectLogs(builtAction.action, playerKey, CardLogic),
+        buildNetworkCardUseEffectLogs(resolvedAction, playerKey, CardLogic),
         collectPipelineEffectLogMessages(result.events, actionPresentationEvents, playerKey, TurnPipelineUIAdapter)
     );
 
@@ -909,7 +857,7 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
         playbackEvents: combinedPlaybackEvents,
         playbackDiagnostics: toDebugPlaybackDiagnostics(playbackAssembly && playbackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
         effectLogs: combinedEffectLogs,
-        action: builtAction.action,
+        action: resolvedAction,
         pendingEffectId: pendingValidation && pendingValidation.pendingEffectId ? pendingValidation.pendingEffectId : null
     };
 }

@@ -15,178 +15,64 @@
             imagePath: 'assets/images/hand-skin/勇者の手.png'
         })
     ]);
-    const DEFAULT_HAND_SKIN_ID = BASE_HAND_SKINS[0].id;
 
-    function resolveRootRef(rootRef) {
-        if (rootRef && typeof rootRef === 'object') return rootRef;
+    function resolveCosmeticCatalogSharedModule() {
         try {
-            if (typeof globalThis !== 'undefined' && globalThis) return globalThis;
-        } catch (e) { /* ignore */ }
-        return null;
-    }
-
-    function resolveObservationCatalogAccessModule(rootRef) {
-        const ctx = resolveRootRef(rootRef);
-        if (ctx && ctx.ObservationGachaCatalogAccessModule) return ctx.ObservationGachaCatalogAccessModule;
-        try {
-            if (typeof globalThis !== 'undefined' && globalThis.ObservationGachaCatalogAccessModule) {
-                return globalThis.ObservationGachaCatalogAccessModule;
+            if (typeof globalThis !== 'undefined' && globalThis.CosmeticCatalogSharedModule) {
+                return globalThis.CosmeticCatalogSharedModule;
             }
         } catch (e) { /* ignore */ }
         if (typeof require === 'function') {
             try {
-                return require('../gacha/catalog-access.js');
+                return require('../cosmetics/catalog-shared.js');
             } catch (e) { /* ignore */ }
         }
         return null;
     }
 
-    function resolveObservationCatalogSharedModule(rootRef) {
-        const ctx = resolveRootRef(rootRef);
-        if (ctx && ctx.ObservationGachaCatalogSharedModule) return ctx.ObservationGachaCatalogSharedModule;
-        try {
-            if (typeof globalThis !== 'undefined' && globalThis.ObservationGachaCatalogSharedModule) {
-                return globalThis.ObservationGachaCatalogSharedModule;
-            }
-        } catch (e) { /* ignore */ }
-        if (typeof require === 'function') {
-            try {
-                return require('../../shared/observation-gacha-catalog-shared.js');
-            } catch (e) { /* ignore */ }
-        }
-        return null;
+    const sharedModule = resolveCosmeticCatalogSharedModule();
+    if (!sharedModule || typeof sharedModule.createOwnedCosmeticCatalogApi !== 'function') {
+        throw new Error('[hand-skin/catalog] missing CosmeticCatalogSharedModule');
     }
 
-    function resolveGachaProgressStorageModule(rootRef) {
-        const ctx = resolveRootRef(rootRef);
-        if (ctx && ctx.GachaProgressStorageModule) return ctx.GachaProgressStorageModule;
-        if (ctx && ctx.GachaProgressStorage) return ctx.GachaProgressStorage;
-        try {
-            if (typeof globalThis !== 'undefined' && globalThis.GachaProgressStorageModule) {
-                return globalThis.GachaProgressStorageModule;
-            }
-            if (typeof globalThis !== 'undefined' && globalThis.GachaProgressStorage) {
-                return globalThis.GachaProgressStorage;
-            }
-        } catch (e) { /* ignore */ }
-        if (typeof require === 'function') {
-            try {
-                return require('../storage/gacha-progress.js');
-            } catch (e) { /* ignore */ }
-        }
-        return null;
-    }
+    const catalogApi = sharedModule.createOwnedCosmeticCatalogApi({
+        kind: 'hand_skin',
+        baseItems: BASE_HAND_SKINS,
+        defaultId: BASE_HAND_SKINS[0].id,
+        includePreviewImagePath: false,
+        listOwnedMethodName: 'listOwnedHandSkinIds',
+        isOwnedMethodName: 'isHandSkinOwned'
+    });
+
+    const HAND_SKINS = catalogApi.ALL_ITEMS;
+    const DEFAULT_HAND_SKIN_ID = catalogApi.DEFAULT_ID;
 
     function normalizeCatalogHandSkinId(value, rootRef) {
-        const normalized = String(value || '').trim();
-        if (!normalized) return '';
-        const sharedModule = resolveObservationCatalogSharedModule(rootRef);
-        if (sharedModule && typeof sharedModule.normalizeCatalogItemId === 'function') {
-            return sharedModule.normalizeCatalogItemId(normalized);
-        }
-        return normalized;
-    }
-
-    function buildHandSkinDefinitions(items, rootRef) {
-        return (Array.isArray(items) ? items : [])
-            .map((item) => {
-                if (!item || typeof item !== 'object') return null;
-                const id = normalizeCatalogHandSkinId(item.id, rootRef);
-                const label = String(item.label || '').trim();
-                const imagePath = String(item.previewImagePath || item.imagePath || item.assetPath || '').trim();
-                if (!id || !label || !imagePath) return null;
-                return Object.freeze({
-                    id,
-                    label,
-                    note: String(item.note || `レアリティ ${String(item.rarity || '').trim()}`).trim(),
-                    imagePath,
-                    rarity: String(item.rarity || '').trim().toUpperCase()
-                });
-            })
-            .filter(Boolean);
-    }
-
-    function getDynamicHandSkins(rootRef, options) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const accessModule = resolveObservationCatalogAccessModule(rootRef);
-        if (!accessModule || typeof accessModule.getObservationCatalogItemsByKind !== 'function') {
-            return [];
-        }
-        const items = accessModule.getObservationCatalogItemsByKind('hand_skin', Object.assign({}, opts, {
-            root: resolveRootRef(rootRef)
-        }));
-        return buildHandSkinDefinitions(items, rootRef);
+        return catalogApi.normalizeCatalogItemId(value, rootRef);
     }
 
     function getAllHandSkins(rootRef, options) {
-        const byId = new Map();
-        BASE_HAND_SKINS.forEach((skin) => {
-            byId.set(skin.id, skin);
-        });
-        getDynamicHandSkins(rootRef, options).forEach((skin) => {
-            if (!byId.has(skin.id)) {
-                byId.set(skin.id, skin);
-            }
-        });
-        return Array.from(byId.values());
-    }
-
-    const HAND_SKINS = Object.freeze(getAllHandSkins());
-
-    function getBaseHandSkinIds() {
-        return BASE_HAND_SKINS.map((skin) => skin.id);
-    }
-
-    function getKnownHandSkinDefinition(skinId, rootRef, options) {
-        const normalizedId = normalizeCatalogHandSkinId(skinId, rootRef);
-        if (!normalizedId) return null;
-        return getAllHandSkins(rootRef, options).find((skin) => skin.id === normalizedId) || null;
-    }
-
-    function normalizeKnownHandSkinId(value, rootRef, options) {
-        const definition = getKnownHandSkinDefinition(value, rootRef, options);
-        return definition ? definition.id : DEFAULT_HAND_SKIN_ID;
+        return catalogApi.getAllItems(rootRef, options);
     }
 
     function listOwnedHandSkinIds(rootRef) {
-        const storageModule = resolveGachaProgressStorageModule(rootRef);
-        if (storageModule && typeof storageModule.listOwnedHandSkinIds === 'function') {
-            const owned = storageModule.listOwnedHandSkinIds(rootRef);
-            if (Array.isArray(owned) && owned.length) return owned;
-        }
-        return getBaseHandSkinIds();
+        return catalogApi.listOwnedIds(rootRef);
     }
 
     function isHandSkinOwned(rootRef, skinId) {
-        const normalized = normalizeCatalogHandSkinId(skinId, rootRef);
-        if (!normalized) return false;
-        const storageModule = resolveGachaProgressStorageModule(rootRef);
-        if (storageModule && typeof storageModule.isHandSkinOwned === 'function') {
-            return storageModule.isHandSkinOwned(rootRef, normalized);
-        }
-        return getBaseHandSkinIds().includes(normalized);
+        return catalogApi.isOwned(rootRef, skinId);
     }
 
     function getOwnedHandSkins(rootRef) {
-        const ownedSet = new Set(listOwnedHandSkinIds(rootRef));
-        const skins = getAllHandSkins(rootRef).filter((skin) => ownedSet.has(skin.id));
-        if (!skins.some((skin) => skin.id === DEFAULT_HAND_SKIN_ID)) {
-            return BASE_HAND_SKINS.slice(0, 1);
-        }
-        return skins;
+        return catalogApi.getOwnedItems(rootRef);
     }
 
     function normalizeHandSkinId(value, rootRef, options) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const normalized = normalizeKnownHandSkinId(value, rootRef, opts);
-        if (opts.allowUnowned === true) return normalized;
-        if (rootRef && !isHandSkinOwned(rootRef, normalized)) return DEFAULT_HAND_SKIN_ID;
-        return normalized;
+        return catalogApi.normalizeSelectedId(value, rootRef, options);
     }
 
     function getHandSkinDefinition(skinId, rootRef, options) {
-        const normalizedId = normalizeHandSkinId(skinId, rootRef, options);
-        return getKnownHandSkinDefinition(normalizedId, rootRef, options) || BASE_HAND_SKINS[0];
+        return catalogApi.getDefinition(skinId, rootRef, options);
     }
 
     return {

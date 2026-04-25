@@ -5,11 +5,11 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'), require('../../../shared/shared-board-utils'));
+        module.exports = factory(require('../../../shared-constants'), require('../../../shared/shared-board-utils'), require('../cards-internal/random-source'));
     } else {
-        root.CardHyperactive = factory(root.SharedConstants, root.SharedBoardUtils || null);
+        root.CardHyperactive = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardRandomSource || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, SharedBoardUtils) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, SharedBoardUtils, RandomSourceModule) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
@@ -28,6 +28,16 @@
     const EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
     const ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
     const OVERLAY_ONLY_SPECIAL_TYPES = new Set(['GUARD', 'INHERITED_HYPERACTIVE', 'LIVING_WILL']);
+
+    function resolveDeterministicPrng(prng, deps, label) {
+        const fallback = deps && deps.defaultPrng;
+        if (RandomSourceModule && typeof RandomSourceModule.resolveRandomSource === 'function') {
+            return RandomSourceModule.resolveRandomSource(prng, fallback, label);
+        }
+        if (prng && typeof prng.random === 'function') return prng;
+        if (fallback && typeof fallback.random === 'function') return fallback;
+        throw new Error(`${String(label || 'CardHyperactive').trim() || 'CardHyperactive'} requires an injected deterministic PRNG.`);
+    }
 
     function toCounterOrNull(value) {
         if (value === null || value === undefined || value === '') return null;
@@ -473,7 +483,7 @@
 
     function pickRobotVacuumApproachTarget(candidates, enemyPoints, prng) {
         if (!Array.isArray(candidates) || candidates.length === 0) return null;
-        const randomSource = (prng && typeof prng.random === 'function') ? prng : { random: () => 0 };
+        const randomSource = resolveDeterministicPrng(prng, null, 'CardHyperactive.pickRobotVacuumApproachTarget');
         const enemies = Array.isArray(enemyPoints) ? enemyPoints : [];
 
         if (enemies.length === 0) {
@@ -797,7 +807,7 @@
             return { remainingFlips: [], moved, destroyed, evaded: [] };
         }
 
-        const p = prng || (deps.defaultPrng || { random: () => 0 });
+        const p = resolveDeterministicPrng(prng, deps, 'CardHyperactive.consumeFlipEvadeMarkers');
         const isBlockedCell = (deps && typeof deps.isBlockedCell === 'function')
             ? deps.isBlockedCell
             : (() => false);
@@ -1083,7 +1093,7 @@
     }
 
     function moveHyperactiveOnce(cardState, gameState, entry, prng, deps = {}) {
-        const p = prng || (deps.defaultPrng || { random: () => 0 });
+        const p = resolveDeterministicPrng(prng, deps, 'CardHyperactive.moveHyperactiveOnce');
         const destroyAt = deps.destroyAt || ((cs, gs, r, c) => {
             const cell = getBoardCell(gs, r, c);
             if (cell === null || cell === undefined || cell === EMPTY) return false;
@@ -1546,7 +1556,7 @@
     }
 
     function processUltimateHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps = {}) {
-        const p = prng || (deps.defaultPrng || { random: () => 0 });
+        const p = resolveDeterministicPrng(prng, deps, 'CardHyperactive.processUltimateHyperactiveMoveAtAnchor');
         const entry = (cardState.markers || []).find(s =>
             s &&
             s.kind === 'specialStone' &&
@@ -1695,7 +1705,7 @@
     }
 
     function moveRobotVacuumOnce(cardState, gameState, entry, prng, deps = {}) {
-        const p = prng || (deps.defaultPrng || { random: () => 0 });
+        const p = resolveDeterministicPrng(prng, deps, 'CardHyperactive.moveRobotVacuumOnce');
         const destroyAt = deps.destroyAt || ((cs, gs, r, c) => {
             const cell = getBoardCell(gs, r, c);
             if (cell === null || cell === undefined || cell === EMPTY) return false;
@@ -1838,9 +1848,7 @@
             };
         }
 
-        const p = (prng && typeof prng.random === 'function')
-            ? prng
-            : ((deps.defaultPrng && typeof deps.defaultPrng.random === 'function') ? deps.defaultPrng : { random: () => 0 });
+        const p = resolveDeterministicPrng(prng, deps, 'CardHyperactive.processGluttonousMoveAtAnchor');
         const clearHyperactiveAtPositions = deps.clearHyperactiveAtPositions || ((cs, positions) => {
             if (!cs.markers) return;
             cs.markers = cs.markers.filter(m => !(
@@ -2060,9 +2068,7 @@
 
         const ownerKey = entry.owner;
         const ownerVal = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const randomSource = (prng && typeof prng.random === 'function')
-            ? prng
-            : ((deps.defaultPrng && typeof deps.defaultPrng.random === 'function') ? deps.defaultPrng : { random: () => 0 });
+        const randomSource = resolveDeterministicPrng(prng, deps, 'CardHyperactive.processRobotVacuumMoveAtAnchor');
         const currentTurnPlayerKey = (typeof deps.currentTurnPlayerKey === 'string' && deps.currentTurnPlayerKey)
             ? deps.currentTurnPlayerKey
             : playerKey;

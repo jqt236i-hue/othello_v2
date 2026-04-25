@@ -31,9 +31,9 @@ trainCycleArgs:
   - --max-hours
   - "300"
   - --train-games
-  - "10000"
+  - "7000"
   - --eval-games
-  - "500"
+  - "240"
   - --selfplay-jobs
   - "10"
   - --adoption-jobs
@@ -41,7 +41,7 @@ trainCycleArgs:
   - --seed
   - "1"
   - --max-plies
-  - "220"
+  - "180"
   - --with-cards
   - --no-selfplay-hardcases
   - --card-usage-rate
@@ -49,50 +49,52 @@ trainCycleArgs:
   - --selfplay-policy-mix-rate
   - "1.0"
   - --selfplay-policy-model-pool-size
-  - "2"
+  - "1"
   - --selfplay-policy-pool-sampling
-  - recency
+  - uniform
   - --selfplay-policy-pool-recency-decay
-  - "2.0"
+  - "1.0"
   - --selfplay-policy-current-anchor-rate
-  - "0.70"
+  - "1.0"
   - --selfplay-card-usage-rate-jitter
-  - "0.08"
+  - "0.01"
+  - --selfplay-card-usage-rate-schedule
+  - "0.28@1,0.36@4,0.46@8,0.56@12,0.60@16"
   - --selfplay-tactical-weight-min
-  - "0.95"
+  - "0.70"
   - --selfplay-tactical-weight-max
-  - "1.25"
+  - "0.95"
   - --selfplay-tactical-depth-opening
-  - "4"
+  - "2"
   - --selfplay-tactical-depth-mid
-  - "6"
+  - "3"
   - --selfplay-tactical-depth-end
-  - "7"
-  - --selfplay-tactical-beam-width
   - "4"
+  - --selfplay-tactical-beam-width
+  - "3"
   - --selfplay-policy-score-weight-min
-  - "1.6"
+  - "1.10"
   - --selfplay-policy-score-weight-max
-  - "2.2"
+  - "1.60"
   - --selfplay-heuristic-weight-min
-  - "0.75"
+  - "0.85"
   - --selfplay-heuristic-weight-max
   - "1.0"
   - --selfplay-teacher-committee-weight-min
-  - "48"
+  - "0"
   - --selfplay-teacher-committee-weight-max
-  - "72"
+  - "0"
   - --selfplay-teacher-committee-consensus-bonus-min
-  - "620"
+  - "0"
   - --selfplay-teacher-committee-consensus-bonus-max
-  - "1080"
-  - --selfplay-use-promoted-model-only
+  - "0"
+  - --selfplay-use-candidate-every-iteration
   - --onnx-epochs
   - "9999"
   - --onnx-batch-size
   - "2048"
   - --onnx-lr
-  - "0.00035"
+  - "0.00025"
   - --onnx-hidden-size
   - "384"
   - --onnx-device
@@ -100,11 +102,11 @@ trainCycleArgs:
   - --onnx-val-split
   - "0.15"
   - --onnx-early-stop-patience
-  - "24"
+  - "20"
   - --onnx-early-stop-min-delta
   - "0.00004"
   - --onnx-early-stop-min-epochs
-  - "120"
+  - "96"
   - --onnx-early-stop-monitor
   - val_loss
   - --onnx-early-stop-smoothing-window
@@ -149,4 +151,4 @@ trainCycleArgs:
   - "0.18"
   - --onnx-edge-balance-sample-boost
   - "0.08"
-  - --carry-over-checkpoint-promoted-only
+  - --carry-over-checkpoint

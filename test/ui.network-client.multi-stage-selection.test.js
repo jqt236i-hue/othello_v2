@@ -16,9 +16,19 @@ function createBoard(rows = 8, cols = 8) {
   return Array.from({ length: rows }, () => Array(cols).fill(0));
 }
 
+function createSnapshotMeta(stateVersion, seatKey = 'black') {
+  return {
+    authority: 'server',
+    version: stateVersion,
+    projectedForSeat: seatKey,
+    turnStartReconciled: true
+  };
+}
+
 function createSnapshot(stateVersion, pendingState, gameStateOverrides = {}) {
   return {
     stateVersion,
+    _meta: createSnapshotMeta(stateVersion),
     gameState: {
       currentPlayer: 1,
       turnNumber: 12,
@@ -465,6 +475,7 @@ describe.each(CASES)('$label authoritative multi-stage contract', ({
       const previewResult = runTurnMock.mock.results[0] && runTurnMock.mock.results[0].value;
       return {
         stateVersion: 61,
+        _meta: createSnapshotMeta(61),
         gameState: cloneJson(previewResult.nextGameState),
         cardState: cloneJson(previewResult.nextCardState)
       };
@@ -510,8 +521,8 @@ describe.each(CASES)('$label authoritative multi-stage contract', ({
       expect(publishBodies[0].params.pendingSelectionState).toEqual(expect.objectContaining({
         cardId: initialPending.cardId
       }));
-      expect(publishBodies[0].params.useCardId).toBe(initialPending.cardId);
-      expect(publishBodies[0].params.useCardOwnerKey).toBe('black');
+      expect(publishBodies[0].params.useCardId).toBeUndefined();
+      expect(publishBodies[0].params.useCardOwnerKey).toBeUndefined();
     }
     expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
     expect(global.gameState.turnNumber).toBe(13);

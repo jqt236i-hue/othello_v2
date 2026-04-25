@@ -202,6 +202,52 @@ describe('match authority publish response payload', () => {
     }));
   });
 
+  test('sanitizePendingSelectionActionForAuthority strips redundant use-card fields once authority already committed the card', () => {
+    const action = {
+      type: 'place',
+      playerKey: 'white',
+      temptTarget: { row: 3, col: 3 },
+      useCardId: 'tempt_01',
+      useCardOwnerKey: 'white',
+      pendingSelectionState: {
+        type: 'TEMPT_WILL',
+        stage: 'selectTarget',
+        cardId: 'tempt_01',
+        pendingEffectId: 'pending_7_1'
+      }
+    };
+    const sanitized = MatchAuthority.sanitizePendingSelectionActionForAuthority({
+      cardState: {
+        hands: { black: [], white: [] },
+        discard: ['tempt_01'],
+        hasUsedCardThisTurnByPlayer: { black: false, white: true },
+        pendingEffectByPlayer: {
+          black: null,
+          white: {
+            type: 'TEMPT_WILL',
+            stage: 'selectTarget',
+            cardId: 'tempt_01',
+            pendingEffectId: 'pending_7_1'
+          }
+        }
+      }
+    }, 'white', action);
+
+    expect(action.useCardId).toBe('tempt_01');
+    expect(action.useCardOwnerKey).toBe('white');
+    expect(sanitized).toEqual({
+      type: 'place',
+      playerKey: 'white',
+      temptTarget: { row: 3, col: 3 },
+      pendingSelectionState: {
+        type: 'TEMPT_WILL',
+        stage: 'selectTarget',
+        cardId: 'tempt_01',
+        pendingEffectId: 'pending_7_1'
+      }
+    });
+  });
+
   test('applySeatLeaveToRoom clears joined seat and rotates its token through shared lifecycle helper', () => {
     const room = {
       seats: { black: true, white: true },
@@ -332,6 +378,102 @@ describe('match authority publish response payload', () => {
       '白: 破壊を無効化',
       '黒: 反転保護を付与'
     ]);
+  });
+
+  test('builds network card-use effect logs from shared card display resolution', () => {
+    const cardLogic = {
+      getCardDef: jest.fn((cardId) => (cardId === 'guard_01' ? { name: '守りの意思' } : null))
+    };
+
+    expect(MatchAuthority.buildNetworkCardUseEffectLogs({
+      type: 'use_card',
+      useCardId: 'guard_01'
+    }, 'white', cardLogic)).toEqual(['白がカードを使用: 守りの意思']);
+
+    expect(MatchAuthority.buildNetworkCardUseEffectLogs({
+      actionType: 'use_card',
+      cardId: 'unknown_card'
+    }, 'black', cardLogic)).toEqual(['黒がカードを使用: unknown_card']);
+
+    expect(MatchAuthority.buildNetworkCardUseEffectLogs({ type: 'place', useCardId: 'guard_01' }, 'white', cardLogic)).toEqual([]);
+  });
+
+  test('collects pipeline effect logs through shared normalization and adapter isolation', () => {
+    const adapter = {
+      mapEffectLogsFromPipeline: jest.fn(() => ['黒: 追加', '黒: 追加', '', '白: 反応'])
+    };
+
+    expect(MatchAuthority.collectPipelineEffectLogMessages(
+      [{ type: 'raw' }],
+      [{ type: 'presentation' }],
+      'black',
+      adapter
+    )).toEqual(['黒: 追加', '白: 反応']);
+
+    expect(MatchAuthority.collectPipelineEffectLogMessages([], [], 'black', {
+      mapEffectLogsFromPipeline: () => {
+        throw new Error('adapter failed');
+      }
+    })).toEqual([]);
+  });
+
+  test('normalizes debug fill hand payload options from params before action fallback', () => {
+    expect(MatchAuthority.isNetworkDebugFillHandPayload({
+      actionType: 'DEBUG_FILL_HAND'
+    })).toBe(true);
+
+    expect(MatchAuthority.resolveNetworkDebugFillHandOptions({
+      action: {
+        type: 'debug_fill_hand',
+        fillWhite: true,
+        replaceExisting: false,
+        cardIds: ['fallback'],
+        charge: 3,
+        chargeByPlayer: { black: 1, white: 2 }
+      },
+      params: {
+        replaceExisting: true,
+        cardIds: ['override'],
+        charge: 7,
+        chargeByPlayer: { black: '8', white: '9' }
+      }
+    })).toEqual({
+      fillWhite: true,
+      replaceExisting: true,
+      cardIds: ['override'],
+      charge: 7,
+      chargeByPlayer: { black: 8, white: 9 }
+    });
+  });
+
+  test('merges card state defaults and derives stable turn-start seeds in shared authority code', () => {
+    expect(MatchAuthority.mergeWithDefaultShape({
+      charge: { black: 0, white: 0 },
+      hands: { black: [], white: [] },
+      selectedCardId: null
+    }, {
+      charge: { black: 5 },
+      hands: { black: ['guard_01'] },
+      extra: { ok: true }
+    })).toEqual({
+      charge: { black: 5, white: 0 },
+      hands: { black: ['guard_01'], white: [] },
+      selectedCardId: null,
+      extra: { ok: true }
+    });
+
+    const snapshot = {
+      stateVersion: 12,
+      gameState: { turnNumber: 4 },
+      cardState: { turnIndex: 3 }
+    };
+    const first = MatchAuthority.createTurnStartSeed({ seed: 1234 }, snapshot, 'black');
+    expect(MatchAuthority.createTurnStartSeed({ seed: 1234 }, snapshot, 'black')).toBe(first);
+    expect(MatchAuthority.createTurnStartSeed({ seed: 1234 }, snapshot, 'white')).not.toBe(first);
+    expect(MatchAuthority.createTurnStartSeed({ seed: 1234 }, {
+      ...snapshot,
+      stateVersion: 13
+    }, 'black')).not.toBe(first);
   });
 
   test('treats blank operationId as missing after normalization', () => {

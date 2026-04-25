@@ -1774,9 +1774,28 @@ describe('selfplay training cycle script', () => {
                     baselineModelPath: path.join(modelsDir, 'policy-table.json')
                 },
                 paths: p,
-                quickAdoptionConfig: { seed: 201001, seedCount: 3, seedList: [201001, 202001, 203001] },
-                qualityGateConfig: { enabled: false, seed: 251001, seedCount: 3, seedList: [251001, 252001, 253001] },
-                finalAdoptionConfig: { seed: 501001, seedCount: 3, seedList: [501001, 502001, 503001] },
+                quickAdoptionConfig: {
+                    seed: 201001,
+                    seedCount: 3,
+                    seedList: [201001, 202001, 203001],
+                    cardUsageRate: 0.3,
+                    tacticalWeight: 0.825
+                },
+                qualityGateConfig: {
+                    enabled: false,
+                    seed: 251001,
+                    seedCount: 3,
+                    seedList: [251001, 252001, 253001],
+                    cardUsageRate: 0.3,
+                    tacticalWeight: 0.825
+                },
+                finalAdoptionConfig: {
+                    seed: 501001,
+                    seedCount: 3,
+                    seedList: [501001, 502001, 503001],
+                    cardUsageRate: 0.3,
+                    tacticalWeight: 0.825
+                },
                 onnxGateConfig: { enabled: true, seed: 801001, seedCount: 2, seedList: [801001, 801501] },
                 hasTargetTrainingData: true,
                 promoted: false,
@@ -1795,6 +1814,10 @@ describe('selfplay training cycle script', () => {
             expect(manifest.lineage.seeds.qualityGateSeed).toBe(251001);
             expect(manifest.lineage.seeds.onnxGateSeed).toBe(801001);
             expect(manifest.lineage.gateConfig.onnx.seedList).toEqual([801001, 801501]);
+            expect(manifest.lineage.gateConfig.quick.cardUsageRate).toBeCloseTo(0.3, 6);
+            expect(manifest.lineage.gateConfig.quick.tacticalWeight).toBeCloseTo(0.825, 6);
+            expect(manifest.lineage.gateConfig.quality.cardUsageRate).toBeCloseTo(0.3, 6);
+            expect(manifest.lineage.gateConfig.final.tacticalWeight).toBeCloseTo(0.825, 6);
             expect(manifest.datasets.train.selfplay.summaryExists).toBe(true);
             expect(manifest.gates.quick.seedSchedule.scheduledSeeds).toEqual([201001, 202001, 203001]);
             expect(manifest.gates.onnx.seedSchedule.completedSeeds).toEqual([801001, 801501]);

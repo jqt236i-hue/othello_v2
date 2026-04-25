@@ -334,6 +334,7 @@
     let networkApplyCoordinatorModule = null;
     let networkReconnectControllerModule = null;
     let networkPublishTrackerModule = null;
+    let cardLogicModule = null;
     let networkCommentaryController = null;
     let networkSnapshotController = null;
     let networkSessionSeatController = null;
@@ -557,6 +558,33 @@
         return null;
     }
 
+    function resolveCardLogicModule() {
+        if (cardLogicModule) return cardLogicModule;
+
+        try {
+            if (typeof require === 'function') {
+                cardLogicModule = require('../game/logic/cards');
+                if (cardLogicModule) return cardLogicModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        try {
+            if (root && root.CardLogic) {
+                cardLogicModule = root.CardLogic;
+                return cardLogicModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.CardLogic) {
+                cardLogicModule = globalThis.CardLogic;
+                return cardLogicModule;
+            }
+        } catch (e) { /* ignore */ }
+
+        return null;
+    }
+
     function resolveNetworkPublishRequestModule() {
         if (networkPublishRequestModule) return networkPublishRequestModule;
 
@@ -688,6 +716,7 @@
             root,
             isActive: () => state.active,
             normalizePlayerKey,
+            cardLogicModule: resolveCardLogicModule(),
             queueCommandPublish: (playerKey, action, options) => queueCommandPublish(playerKey, action, options),
             shouldDeferNetworkPublishForPendingType
         });
@@ -1047,9 +1076,18 @@
         return computeForceSyncPlaybackRecoverySignature(currentSnapshot);
     }
 
+    // The actor already played `requestMeta.playbackEvents` locally before publishing
+    // (both the use_card immediate path with usedSnapshotFallback=true and the
+    // post-action publish path that runs `originalRunTurnWithAdapter` first). When
+    // the server's authoritative response echoes the same events back, replaying
+    // them visibly produces a 2x animation. The reliable signal is
+    // `requestedPlaybackEvents.length > 0` — actor pre-played, so suppress.
+    // For publish-response we additionally require the response snapshot signature
+    // to match the actor's current state, which guarantees the response is the
+    // echo of the same action and not a divergent server correction.
     function shouldApplyPublishResponseAsShadowPlayback(trackedPublish, snapshot, playbackEvents) {
         if (!trackedPublish || typeof trackedPublish !== 'object') return false;
-        if (!trackedPublish.requestMeta || trackedPublish.requestMeta.usedSnapshotFallback !== true) return false;
+        if (!trackedPublish.requestMeta) return false;
         const requestedPlaybackEvents = getTrackedPublishRequestedPlaybackEvents(trackedPublish);
         if (!Array.isArray(requestedPlaybackEvents) || requestedPlaybackEvents.length === 0) return false;
         if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
@@ -1057,6 +1095,21 @@
         if (!snapshotSignature) return false;
         const currentSignature = computeCurrentPlaybackRecoverySignature();
         return !!currentSignature && currentSignature === snapshotSignature;
+    }
+
+    // SSE stream variant: when the actor already drained playback locally
+    // (any path that produced `requestMeta.playbackEvents`), the broadcast
+    // snapshot would replay the same animations. Route those through shadow
+    // playback so the actor does not see the same card-use / flip animation
+    // twice. trackedPublish presence (matched by operationId in the SSE payload)
+    // guarantees this is the echo of this actor's own action.
+    function shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish, playbackEvents) {
+        if (!trackedPublish || typeof trackedPublish !== 'object') return false;
+        if (!trackedPublish.requestMeta) return false;
+        const requestedPlaybackEvents = getTrackedPublishRequestedPlaybackEvents(trackedPublish);
+        if (!Array.isArray(requestedPlaybackEvents) || requestedPlaybackEvents.length === 0) return false;
+        if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
+        return true;
     }
 
     function clearPendingForceSyncPlaybackRecovery() {
@@ -2157,11 +2210,18 @@
             const isSelfOperation = !!trackedPublish;
             const isTerminalResultSnapshot = isTerminalSnapshotForResult(snapshot);
 
+            const shouldShadowStreamPlayback = isSelfOperation
+                && shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish, playbackEvents);
+            const streamPlaybackEvents = shouldShadowStreamPlayback ? [] : playbackEvents;
+            const streamShadowPlaybackEvents = shouldShadowStreamPlayback ? playbackEvents : [];
+            const streamShadowPlaybackSource = shouldShadowStreamPlayback ? 'stream_self_shadow' : undefined;
             let applied = applySnapshotThroughCoordinator(snapshot, {
                 source: 'stream',
                 trackedPublish,
                 applyOptions: {
-                    playbackEvents,
+                    playbackEvents: streamPlaybackEvents,
+                    shadowPlaybackEvents: streamShadowPlaybackEvents,
+                    shadowPlaybackSource: streamShadowPlaybackSource,
                     force: false,
                     skipResultOverlay: isSelfOperation && !isTerminalResultSnapshot
                 }
@@ -2169,7 +2229,9 @@
             const recoveredForcedPlayback = !applied && shouldRecoverForceSyncedStreamPlayback(snapshot, playbackEvents)
                 ? applySnapshot(snapshot, {
                     force: true,
-                    playbackEvents,
+                    playbackEvents: streamPlaybackEvents,
+                    shadowPlaybackEvents: streamShadowPlaybackEvents,
+                    shadowPlaybackSource: streamShadowPlaybackSource,
                     skipResultOverlay: isSelfOperation && !isTerminalResultSnapshot
                 })
                 : false;
@@ -2192,6 +2254,13 @@
                 consumePendingForceSyncPlaybackRecovery(snapshotVersion);
                 if (isSelfOperation && isTerminalResultSnapshot) {
                     markTrackedPublishResultPresented(trackedPublish, snapshot);
+                }
+                if (shouldShadowStreamPlayback) {
+                    recordNetworkTelemetry('stream_self_snapshot_shadow_playback', {
+                        operationId,
+                        snapshotVersion,
+                        playbackEventCount: playbackEvents.length
+                    });
                 }
                 const emittedEffectLogCount = emitPayloadEffectLogs(payload);
                 if (emittedEffectLogCount === 0) {

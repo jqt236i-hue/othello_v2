@@ -5,11 +5,11 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'), require('../board_ops'));
+        module.exports = factory(require('../../../shared-constants'), require('../board_ops'), require('../cards-internal/random-source'));
     } else {
-        root.CardDestroyDragon = factory(root.SharedConstants, root.BoardOps || null);
+        root.CardDestroyDragon = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, BoardOpsModule) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, BoardOpsModule, RandomSourceModule) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
@@ -199,11 +199,14 @@
     }
 
     function resolveRandomFn(randomLike) {
+        if (RandomSourceModule && typeof RandomSourceModule.resolveRandomFunction === 'function') {
+            return RandomSourceModule.resolveRandomFunction(randomLike, null, 'CardDestroyDragon');
+        }
         if (typeof randomLike === 'function') return randomLike;
         if (randomLike && typeof randomLike.random === 'function') {
             return function () { return randomLike.random(); };
         }
-        return Math.random;
+        throw new Error('CardDestroyDragon requires an injected deterministic PRNG.');
     }
 
     function pickRandomAdjacentEnemyTarget(gameState, sourceRow, sourceCol, enemyValue, randomFn) {
@@ -214,7 +217,10 @@
         });
         if (!candidates.length) return null;
         const raw = Number(randomFn());
-        const normalized = Number.isFinite(raw) ? raw : Math.random();
+        if (!Number.isFinite(raw)) {
+            throw new Error('CardDestroyDragon received a PRNG that returned a non-finite value.');
+        }
+        const normalized = Math.max(0, Math.min(0.999999, raw));
         const idx = Math.max(0, Math.min(candidates.length - 1, Math.floor(normalized * candidates.length)));
         return candidates[idx] || null;
     }

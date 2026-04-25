@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-04-20T15:50:01.567Z",
+  "startedAt": "2026-04-23T07:14:46.945Z",
   "cards": [
     {
       "id": "chest_01",
@@ -16,11 +16,33 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 4
+          "row": 2,
+          "col": 2
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 324,
+          "perCell": {
+            "3,4": 144,
+            "2,4": 72,
+            "4,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 216,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "4,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 4
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -44,6 +66,32 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 252,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36,
+            "0,1": 36,
+            "0,2": 36
+          },
+          "distinctCells": 6
+        },
+        "white": {
+          "total": 396,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72,
+            "0,1": 72,
+            "0,2": 72
+          },
+          "distinctCells": 6
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -63,6 +111,18 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 0,
+          "perCell": {},
+          "distinctCells": 0
+        },
+        "white": {
+          "total": 0,
+          "perCell": {},
+          "distinctCells": 0
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -86,6 +146,30 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 288,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 72,
+            "4,2": 72,
+            "5,2": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 468,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 144,
+            "4,2": 144,
+            "5,2": 72
+          },
+          "distinctCells": 5
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -109,6 +193,24 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -132,6 +234,22 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 108
+          },
+          "distinctCells": 1
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 108
+          },
+          "distinctCells": 1
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -150,11 +268,31 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 5
+          "row": 3,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "4,2": 36,
+            "0,7": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "4,2": 36,
+            "0,7": 36
+          },
+          "distinctCells": 3
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -170,12 +308,12 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "4L3",
+            "roomId": "X4S",
             "seatKey": "black",
-            "stateVersion": 2,
-            "currentPlayerKey": "black",
-            "controllerKey": "black",
-            "turnNumber": 20,
+            "stateVersion": 4,
+            "currentPlayerKey": "white",
+            "controllerKey": "white",
+            "turnNumber": 21,
             "gameOver": false,
             "pendingType": null,
             "pendingStage": null,
@@ -185,8 +323,8 @@
             "pendingSourceHandIndex": null,
             "pendingSelectedCount": 0,
             "pendingSelectedTargets": [],
-            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
-            "lastUsedBlack": null,
+            "boardHash": "[[1,-1,-1,0,0,0,0,-1],[1,-1,0,0,-1,0,0,0],[1,-1,0,0,0,0,0,0],[1,0,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,-1,0,0,0,0,0],[-1,0,0,0,-1,0,0,-1]]",
+            "lastUsedBlack": "swap_01",
             "lastUsedWhite": null
           }
         },
@@ -194,17 +332,29 @@
           "ok": true,
           "action": "place",
           "row": 2,
-          "col": 4
-        },
-        {
-          "ok": true,
-          "action": "place",
-          "row": 1,
-          "col": 4
+          "col": 3
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 4,
+      "flipEpisodes": {
+        "black": {
+          "total": 72,
+          "perCell": {
+            "0,0": 36,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "0,0": 36,
+            "3,3": 72
+          },
+          "distinctCells": 2
+        }
+      },
+      "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -217,11 +367,11 @@
           "action": "pending_target",
           "row": 0,
           "col": 0,
-          "localOnlyProgress": false,
+          "localOnlyProgress": true,
           "afterState": {
-            "roomId": "WKD",
+            "roomId": "42Z",
             "seatKey": "black",
-            "stateVersion": 2,
+            "stateVersion": 3,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -238,11 +388,7 @@
             "pendingSelectedCount": 0,
             "pendingSelectedTargets": [],
             "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
-            "lastUsedBlack": {
-              "id": "position_swap_01",
-              "name": "入替の意志",
-              "desc": "盤面上の石2つを選び、位置を入れ替える。通常石・特殊石・爆弾を問わず対象にできる。"
-            },
+            "lastUsedBlack": "position_swap_01",
             "lastUsedWhite": null
           }
         },
@@ -252,9 +398,9 @@
           "col": 7,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "WKD",
+            "roomId": "42Z",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -286,7 +432,31 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 252,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 72,
+            "3,3": 36,
+            "4,2": 36,
+            "1,5": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 216,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 36,
+            "4,2": 36,
+            "1,5": 36
+          },
+          "distinctCells": 5
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -303,12 +473,28 @@
         },
         {
           "ok": true,
-          "action": "place",
-          "row": 2,
-          "col": 3
+          "action": "pass"
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 216,
+          "perCell": {
+            "3,4": 144,
+            "4,4": 72
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 72,
+            "4,4": 36
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -324,9 +510,9 @@
           "col": 2,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "6KK",
+            "roomId": "AKF",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -358,7 +544,29 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 252,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72
+          },
+          "distinctCells": 4
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -373,9 +581,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "HN6",
+            "roomId": "QLG",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -407,7 +615,33 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 254,
+          "perCell": {
+            "0,0": 2,
+            "0,2": 72,
+            "0,1": 72,
+            "3,3": 36,
+            "4,3": 36,
+            "6,2": 36
+          },
+          "distinctCells": 6
+        },
+        "white": {
+          "total": 290,
+          "perCell": {
+            "0,0": 2,
+            "0,2": 36,
+            "0,1": 36,
+            "3,3": 72,
+            "4,3": 72,
+            "6,2": 72
+          },
+          "distinctCells": 6
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -422,9 +656,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "2EJ",
+            "roomId": "PE7",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -456,7 +690,29 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 252,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72
+          },
+          "distinctCells": 4
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -471,12 +727,12 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "W2Q",
+            "roomId": "HZ3",
             "seatKey": "black",
-            "stateVersion": 2,
-            "currentPlayerKey": "black",
-            "controllerKey": "black",
-            "turnNumber": 20,
+            "stateVersion": 4,
+            "currentPlayerKey": "white",
+            "controllerKey": "white",
+            "turnNumber": 21,
             "gameOver": false,
             "pendingType": null,
             "pendingStage": null,
@@ -486,26 +742,38 @@
             "pendingSourceHandIndex": null,
             "pendingSelectedCount": 0,
             "pendingSelectedTargets": [],
-            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
-            "lastUsedBlack": null,
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,-1,0,0,0],[1,-1,-1,0,0,0,0,0],[1,0,0,0,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,-1,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,0,0,0,0,0,0,-1]]",
+            "lastUsedBlack": "trap_01",
             "lastUsedWhite": null
           }
         },
         {
           "ok": true,
           "action": "place",
-          "row": 2,
-          "col": 4
-        },
-        {
-          "ok": true,
-          "action": "place",
-          "row": 1,
-          "col": 5
+          "row": 3,
+          "col": 2
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 4,
+      "flipEpisodes": {
+        "black": {
+          "total": 72,
+          "perCell": {
+            "4,2": 36,
+            "5,2": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 144,
+          "perCell": {
+            "4,2": 72,
+            "5,2": 72
+          },
+          "distinctCells": 2
+        }
+      },
+      "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -520,9 +788,9 @@
           "col": 1,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "5ES",
+            "roomId": "DDJ",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -549,12 +817,38 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 4
+          "row": 2,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 396,
+          "perCell": {
+            "1,1": 72,
+            "3,4": 144,
+            "2,4": 72,
+            "3,3": 36,
+            "6,1": 36,
+            "6,2": 36
+          },
+          "distinctCells": 6
+        },
+        "white": {
+          "total": 360,
+          "perCell": {
+            "1,1": 36,
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 72,
+            "6,1": 72,
+            "6,2": 72
+          },
+          "distinctCells": 6
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -569,9 +863,9 @@
           "col": 1,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "NPS",
+            "roomId": "RNJ",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -603,7 +897,31 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36,
+            "1,5": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 180,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36,
+            "1,5": 36
+          },
+          "distinctCells": 5
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -626,6 +944,30 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 216,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36,
+            "7,7": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 324,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72,
+            "7,7": 72
+          },
+          "distinctCells": 5
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -644,11 +986,31 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 5
+          "row": 3,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "4,2": 36,
+            "7,7": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 180,
+          "perCell": {
+            "3,4": 36,
+            "4,2": 72,
+            "7,7": 72
+          },
+          "distinctCells": 3
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -667,11 +1029,33 @@
         {
           "ok": true,
           "action": "place",
-          "row": 2,
+          "row": 1,
           "col": 5
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 36,
+            "4,2": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 180,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 36,
+            "4,2": 36
+          },
+          "distinctCells": 4
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -687,9 +1071,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "ZFB",
+            "roomId": "QBH",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -721,7 +1105,31 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 216,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36,
+            "0,7": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 324,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72,
+            "0,7": 72
+          },
+          "distinctCells": 5
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -736,9 +1144,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "L9Z",
+            "roomId": "A3N",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -765,12 +1173,32 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 5
+          "row": 2,
+          "col": 2
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 252,
+          "perCell": {
+            "3,4": 144,
+            "4,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "4,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 3
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -782,17 +1210,34 @@
         {
           "ok": true,
           "action": "place",
-          "row": 2,
-          "col": 4
+          "row": 3,
+          "col": 2
         },
         {
           "ok": true,
           "action": "place",
-          "row": 3,
+          "row": 2,
           "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 72,
+          "perCell": {
+            "4,1": 72
+          },
+          "distinctCells": 1
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "4,1": 36,
+            "3,3": 72
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -812,10 +1257,30 @@
           "ok": true,
           "action": "place",
           "row": 2,
-          "col": 5
+          "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 144,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 36,
+            "0,7": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 180,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72,
+            "0,7": 72
+          },
+          "distinctCells": 3
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -834,11 +1299,37 @@
         {
           "ok": true,
           "action": "place",
-          "row": 2,
+          "row": 1,
           "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 396,
+          "perCell": {
+            "3,4": 72,
+            "4,2": 108,
+            "2,3": 72,
+            "3,3": 72,
+            "4,1": 36,
+            "4,3": 36
+          },
+          "distinctCells": 6
+        },
+        "white": {
+          "total": 576,
+          "perCell": {
+            "3,4": 36,
+            "4,2": 108,
+            "2,3": 144,
+            "3,3": 144,
+            "4,1": 72,
+            "4,3": 72
+          },
+          "distinctCells": 6
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -862,6 +1353,30 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 252,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 72,
+            "3,3": 36,
+            "4,2": 36,
+            "1,5": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 396,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 144,
+            "3,3": 72,
+            "4,2": 72,
+            "1,5": 72
+          },
+          "distinctCells": 5
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -877,9 +1392,9 @@
           "col": 3,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "KCB",
+            "roomId": "9VQ",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -892,7 +1407,7 @@
             "pendingSourceHandIndex": null,
             "pendingSelectedCount": 0,
             "pendingSelectedTargets": [],
-            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,1,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,1,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
             "lastUsedBlack": "clone_01",
             "lastUsedWhite": null
           }
@@ -911,7 +1426,31 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 252,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 72,
+            "3,3": 36,
+            "4,2": 36,
+            "1,5": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 396,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 144,
+            "3,3": 72,
+            "4,2": 72,
+            "1,5": 72
+          },
+          "distinctCells": 5
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -926,9 +1465,9 @@
           "col": 3,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "8HT",
+            "roomId": "XPB",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -941,7 +1480,7 @@
             "pendingSourceHandIndex": null,
             "pendingSelectedCount": 0,
             "pendingSelectedTargets": [],
-            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,1,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,1,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
             "lastUsedBlack": "split_01",
             "lastUsedWhite": null
           }
@@ -949,18 +1488,36 @@
         {
           "ok": true,
           "action": "place",
-          "row": 2,
-          "col": 4
+          "row": 3,
+          "col": 2
         },
         {
           "ok": true,
           "action": "place",
           "row": 1,
-          "col": 5
+          "col": 4
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "4,1": 72,
+            "2,4": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "4,1": 36,
+            "2,4": 72
+          },
+          "distinctCells": 2
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -975,9 +1532,9 @@
           "col": 3,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "ZUF",
+            "roomId": "FG9",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -1004,12 +1561,34 @@
         {
           "ok": true,
           "action": "place",
-          "row": 2,
-          "col": 2
+          "row": 1,
+          "col": 4
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 252,
+          "perCell": {
+            "3,4": 108,
+            "4,4": 72,
+            "2,4": 36,
+            "7,7": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 288,
+          "perCell": {
+            "3,4": 108,
+            "4,4": 36,
+            "2,4": 72,
+            "7,7": 72
+          },
+          "distinctCells": 4
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -1024,9 +1603,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "NME",
+            "roomId": "8E2",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -1039,7 +1618,7 @@
             "pendingSourceHandIndex": null,
             "pendingSelectedCount": 0,
             "pendingSelectedTargets": [],
-            "boardHash": "[[0,-1,-1,0,-1,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
+            "boardHash": "[[0,-1,-1,0,0,0,0,-1],[1,-1,-1,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
             "lastUsedBlack": "teleport_01",
             "lastUsedWhite": null
           }
@@ -1058,7 +1637,27 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 36,
+            "7,7": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 180,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72,
+            "7,7": 72
+          },
+          "distinctCells": 3
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -1073,9 +1672,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "3SN",
+            "roomId": "6R2",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -1102,12 +1701,32 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 5
+          "row": 2,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 72,
+            "2,3": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 252,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 144,
+            "2,3": 72
+          },
+          "distinctCells": 3
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -1124,10 +1743,34 @@
         },
         {
           "ok": true,
-          "action": "pass"
+          "action": "place",
+          "row": 3,
+          "col": 2
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72,
+            "4,2": 36,
+            "5,2": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 216,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 36,
+            "4,2": 72,
+            "5,2": 72
+          },
+          "distinctCells": 4
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1151,6 +1794,22 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 108
+          },
+          "distinctCells": 1
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 108
+          },
+          "distinctCells": 1
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1169,11 +1828,29 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 6
+          "row": 2,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1189,9 +1866,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "V44",
+            "roomId": "S5H",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -1218,12 +1895,36 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 5
+          "row": 2,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 288,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 72,
+            "3,3": 72,
+            "6,1": 36,
+            "6,2": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 360,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 36,
+            "3,3": 144,
+            "6,1": 72,
+            "6,2": 72
+          },
+          "distinctCells": 5
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -1241,11 +1942,29 @@
         {
           "ok": true,
           "action": "place",
-          "row": 2,
-          "col": 2
+          "row": 4,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 72,
+          "perCell": {
+            "3,4": 36,
+            "5,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 72,
+          "perCell": {
+            "3,4": 36,
+            "5,3": 36
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1265,10 +1984,28 @@
           "ok": true,
           "action": "place",
           "row": 2,
-          "col": 5
+          "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1292,6 +2029,24 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1315,6 +2070,24 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 72,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1333,11 +2106,29 @@
         {
           "ok": true,
           "action": "place",
-          "row": 3,
+          "row": 2,
           "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1357,10 +2148,32 @@
           "ok": true,
           "action": "place",
           "row": 2,
-          "col": 3
+          "col": 2
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 288,
+          "perCell": {
+            "3,4": 144,
+            "4,4": 72,
+            "3,3": 36,
+            "0,7": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 252,
+          "perCell": {
+            "3,4": 72,
+            "4,4": 36,
+            "3,3": 72,
+            "0,7": 72
+          },
+          "distinctCells": 4
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1384,6 +2197,30 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 216,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36,
+            "7,7": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 324,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72,
+            "7,7": 72
+          },
+          "distinctCells": 5
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1402,11 +2239,33 @@
         {
           "ok": true,
           "action": "place",
-          "row": 2,
-          "col": 3
+          "row": 1,
+          "col": 5
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 252,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72
+          },
+          "distinctCells": 4
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1425,11 +2284,31 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 5
+          "row": 2,
+          "col": 2
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "4,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 144,
+          "perCell": {
+            "3,4": 36,
+            "4,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 3
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1448,11 +2327,33 @@
         {
           "ok": true,
           "action": "place",
-          "row": 2,
-          "col": 3
+          "row": 1,
+          "col": 5
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 252,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72
+          },
+          "distinctCells": 4
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1476,6 +2377,30 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 216,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36,
+            "0,7": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 180,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36,
+            "0,7": 36
+          },
+          "distinctCells": 5
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1499,6 +2424,24 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 72,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1522,6 +2465,26 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 216,
+          "perCell": {
+            "1,1": 108,
+            "2,1": 72,
+            "1,2": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 144,
+          "perCell": {
+            "1,1": 72,
+            "2,1": 36,
+            "1,2": 36
+          },
+          "distinctCells": 3
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1546,11 +2509,35 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 4
+          "row": 2,
+          "col": 2
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 288,
+          "perCell": {
+            "3,4": 72,
+            "4,1": 72,
+            "2,4": 72,
+            "3,2": 36,
+            "4,2": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 252,
+          "perCell": {
+            "3,4": 36,
+            "4,1": 36,
+            "2,4": 36,
+            "3,2": 72,
+            "4,2": 72
+          },
+          "distinctCells": 5
+        }
+      },
       "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
@@ -1571,12 +2558,30 @@
         },
         {
           "ok": true,
-          "action": "place",
-          "row": 2,
-          "col": 3
+          "action": "pass"
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 144,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 144,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36
+          },
+          "distinctCells": 3
+        }
+      },
       "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
@@ -1595,11 +2600,31 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 5
+          "row": 2,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 144,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 36,
+            "0,7": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 180,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72,
+            "0,7": 72
+          },
+          "distinctCells": 3
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1626,6 +2651,30 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 432,
+          "perCell": {
+            "3,4": 180,
+            "2,4": 108,
+            "4,4": 72,
+            "4,2": 36,
+            "3,3": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 432,
+          "perCell": {
+            "3,4": 144,
+            "2,4": 108,
+            "4,4": 36,
+            "4,2": 72,
+            "3,3": 72
+          },
+          "distinctCells": 5
+        }
+      },
       "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
@@ -1649,6 +2698,24 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1672,6 +2739,24 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 72,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 72,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1690,11 +2775,29 @@
         {
           "ok": true,
           "action": "place",
-          "row": 3,
-          "col": 2
+          "row": 2,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1714,10 +2817,30 @@
           "ok": true,
           "action": "place",
           "row": 2,
-          "col": 3
+          "col": 2
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "4,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 144,
+          "perCell": {
+            "3,4": 36,
+            "4,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 3
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -1733,9 +2856,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "986",
+            "roomId": "BDF",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -1767,7 +2890,29 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 252,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72
+          },
+          "distinctCells": 4
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -1782,9 +2927,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "9D5",
+            "roomId": "EFR",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -1811,12 +2956,36 @@
         {
           "ok": true,
           "action": "place",
-          "row": 2,
-          "col": 3
+          "row": 1,
+          "col": 5
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 252,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 72,
+            "4,1": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 396,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 144,
+            "4,1": 72
+          },
+          "distinctCells": 5
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -1831,9 +3000,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "KK6",
+            "roomId": "CFJ",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -1860,12 +3029,36 @@
         {
           "ok": true,
           "action": "place",
-          "row": 2,
-          "col": 3
+          "row": 1,
+          "col": 5
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 216,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36,
+            "1,5": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 180,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36,
+            "1,5": 36
+          },
+          "distinctCells": 5
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -1880,9 +3073,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "A79",
+            "roomId": "L25",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -1909,12 +3102,32 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 5
+          "row": 2,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 216,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 108,
+            "3,3": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 216,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 108,
+            "3,3": 72
+          },
+          "distinctCells": 3
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -1929,9 +3142,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "299",
+            "roomId": "8DM",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -1963,7 +3176,29 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 144,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36
+          },
+          "distinctCells": 4
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -1981,11 +3216,31 @@
         {
           "ok": true,
           "action": "place",
-          "row": 3,
-          "col": 2
+          "row": 2,
+          "col": 5
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 216,
+          "perCell": {
+            "3,4": 108,
+            "3,3": 72,
+            "6,1": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 216,
+          "perCell": {
+            "3,4": 108,
+            "3,3": 36,
+            "6,1": 72
+          },
+          "distinctCells": 3
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -2009,6 +3264,26 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 144,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 36,
+            "7,7": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 180,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72,
+            "7,7": 72
+          },
+          "distinctCells": 3
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -2032,6 +3307,26 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 36,
+            "0,7": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 180,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72,
+            "0,7": 72
+          },
+          "distinctCells": 3
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -2051,10 +3346,30 @@
           "ok": true,
           "action": "place",
           "row": 2,
-          "col": 5
+          "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 108,
+            "3,3": 36,
+            "0,7": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 252,
+          "perCell": {
+            "3,4": 108,
+            "3,3": 72,
+            "0,7": 72
+          },
+          "distinctCells": 3
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -2070,9 +3385,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "3CU",
+            "roomId": "ZS4",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -2104,7 +3419,29 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 144,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 36,
+            "4,3": 36,
+            "6,2": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 252,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72,
+            "4,3": 72,
+            "6,2": 72
+          },
+          "distinctCells": 4
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -2117,11 +3454,11 @@
           "action": "pending_target",
           "row": 0,
           "col": 0,
-          "localOnlyProgress": false,
+          "localOnlyProgress": true,
           "afterState": {
-            "roomId": "W2C",
+            "roomId": "AN7",
             "seatKey": "black",
-            "stateVersion": 2,
+            "stateVersion": 3,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -2140,11 +3477,7 @@
               }
             ],
             "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
-            "lastUsedBlack": {
-              "id": "board_expand_god_01",
-              "name": "盤面拡張神",
-              "desc": "初期8x8の角マスから拡張可能な角を最大2つ選び、その外側3〜6マス（各角3マスずつ、直交2方向+斜め）に拡張セルを追加する。"
-            },
+            "lastUsedBlack": "board_expand_god_01",
             "lastUsedWhite": null
           }
         },
@@ -2154,9 +3487,9 @@
           "col": 7,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "W2C",
+            "roomId": "AN7",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -2183,12 +3516,32 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 5
+          "row": 2,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 144,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 3
+        },
+        "white": {
+          "total": 216,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 108,
+            "3,3": 72
+          },
+          "distinctCells": 3
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -2201,11 +3554,11 @@
           "action": "pending_target",
           "row": 0,
           "col": 0,
-          "localOnlyProgress": false,
+          "localOnlyProgress": true,
           "afterState": {
-            "roomId": "A85",
+            "roomId": "UA8",
             "seatKey": "black",
-            "stateVersion": 2,
+            "stateVersion": 3,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -2224,11 +3577,7 @@
               }
             ],
             "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
-            "lastUsedBlack": {
-              "id": "board_shrink_01",
-              "name": "盤面縮小",
-              "desc": "現在の盤面外周の角/辺から3マスを順に選び、3つ目の選択時に同時に穴化する。盤面拡張マスも対象にできるが、絶対保護石のあるマスは穴化されない。"
-            },
+            "lastUsedBlack": "board_shrink_01",
             "lastUsedWhite": null
           }
         },
@@ -2236,11 +3585,11 @@
           "action": "pending_target",
           "row": 0,
           "col": 1,
-          "localOnlyProgress": false,
+          "localOnlyProgress": true,
           "afterState": {
-            "roomId": "A85",
+            "roomId": "UA8",
             "seatKey": "black",
-            "stateVersion": 2,
+            "stateVersion": 3,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -2263,11 +3612,7 @@
               }
             ],
             "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
-            "lastUsedBlack": {
-              "id": "board_shrink_01",
-              "name": "盤面縮小",
-              "desc": "現在の盤面外周の角/辺から3マスを順に選び、3つ目の選択時に同時に穴化する。盤面拡張マスも対象にできるが、絶対保護石のあるマスは穴化されない。"
-            },
+            "lastUsedBlack": "board_shrink_01",
             "lastUsedWhite": null
           }
         },
@@ -2277,9 +3622,9 @@
           "col": 2,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "A85",
+            "roomId": "UA8",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -2311,7 +3656,29 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 252,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72
+          },
+          "distinctCells": 4
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -2324,11 +3691,11 @@
           "action": "pending_target",
           "row": 0,
           "col": 0,
-          "localOnlyProgress": false,
+          "localOnlyProgress": true,
           "afterState": {
-            "roomId": "E2R",
+            "roomId": "4XE",
             "seatKey": "black",
-            "stateVersion": 2,
+            "stateVersion": 3,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -2345,11 +3712,7 @@
             "pendingSelectedCount": 0,
             "pendingSelectedTargets": [],
             "boardHash": "[[-1,-1,-1,0,0,0,0,-1],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,1,-1,0,0,0],[1,-1,1,-1,1,0,0,0],[1,-1,0,0,0,0,0,0],[1,-1,0,0,0,0,0,0],[-1,-1,0,0,0,0,0,-1]]",
-            "lastUsedBlack": {
-              "id": "board_shrink_god_01",
-              "name": "盤面縮小神",
-              "desc": "現在の盤面外周の角を1つ選び、その角から伸びる辺1列を選ぶ。盤面拡張マスを含め、選んだ辺1列を同時に穴化するが、絶対保護石のあるマスは残る。"
-            },
+            "lastUsedBlack": "board_shrink_god_01",
             "lastUsedWhite": null
           }
         },
@@ -2359,9 +3722,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "E2R",
+            "roomId": "4XE",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -2388,12 +3751,34 @@
         {
           "ok": true,
           "action": "place",
-          "row": 2,
-          "col": 3
+          "row": 1,
+          "col": 4
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 288,
+          "perCell": {
+            "3,4": 108,
+            "4,2": 72,
+            "4,4": 72,
+            "2,4": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "4,2": 36,
+            "4,4": 36,
+            "2,4": 36
+          },
+          "distinctCells": 4
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -2408,9 +3793,9 @@
           "col": 3,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "BJS",
+            "roomId": "86H",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -2442,7 +3827,31 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 216,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36,
+            "1,5": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 324,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72,
+            "1,5": 72
+          },
+          "distinctCells": 5
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -2457,9 +3866,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "A73",
+            "roomId": "AWJ",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -2486,12 +3895,36 @@
         {
           "ok": true,
           "action": "place",
-          "row": 2,
+          "row": 1,
           "col": 5
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 216,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36,
+            "1,5": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 324,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72,
+            "1,5": 72
+          },
+          "distinctCells": 5
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -2506,9 +3939,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "9HV",
+            "roomId": "XUD",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -2535,12 +3968,30 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 5
+          "row": 2,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 2
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -2558,11 +4009,29 @@
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 4
+          "row": 2,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 72,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -2576,16 +4045,34 @@
           "ok": true,
           "action": "place",
           "row": 2,
-          "col": 4
+          "col": 3
         },
         {
           "ok": true,
           "action": "place",
-          "row": 1,
-          "col": 4
+          "row": 2,
+          "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 108,
+          "perCell": {
+            "3,4": 72,
+            "3,3": 36
+          },
+          "distinctCells": 2
+        },
+        "white": {
+          "total": 108,
+          "perCell": {
+            "3,4": 36,
+            "3,3": 72
+          },
+          "distinctCells": 2
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -2601,9 +4088,9 @@
           "col": 0,
           "localOnlyProgress": false,
           "afterState": {
-            "roomId": "7UK",
+            "roomId": "44U",
             "seatKey": "black",
-            "stateVersion": 3,
+            "stateVersion": 4,
             "currentPlayerKey": "black",
             "controllerKey": "black",
             "turnNumber": 20,
@@ -2635,7 +4122,29 @@
         }
       ],
       "preStateVersion": 2,
-      "finalStateVersion": 5,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 252,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72
+          },
+          "distinctCells": 4
+        }
+      },
+      "finalStateVersion": 6,
       "finalCurrentPlayerKey": "black"
     },
     {
@@ -2653,11 +4162,33 @@
         {
           "ok": true,
           "action": "place",
-          "row": 5,
-          "col": 4
+          "row": 1,
+          "col": 5
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 180,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 36,
+            "3,3": 36,
+            "4,2": 36
+          },
+          "distinctCells": 4
+        },
+        "white": {
+          "total": 252,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 72,
+            "4,2": 72
+          },
+          "distinctCells": 4
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -2677,10 +4208,34 @@
           "ok": true,
           "action": "place",
           "row": 3,
-          "col": 7
+          "col": 3
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 324,
+          "perCell": {
+            "0,3": 72,
+            "0,2": 72,
+            "0,1": 72,
+            "1,4": 72,
+            "2,4": 36
+          },
+          "distinctCells": 5
+        },
+        "white": {
+          "total": 216,
+          "perCell": {
+            "0,3": 36,
+            "0,2": 36,
+            "0,1": 36,
+            "1,4": 36,
+            "2,4": 72
+          },
+          "distinctCells": 5
+        }
+      },
       "finalStateVersion": 5,
       "finalCurrentPlayerKey": "black"
     },
@@ -2716,6 +4271,36 @@
         }
       ],
       "preStateVersion": 2,
+      "flipEpisodes": {
+        "black": {
+          "total": 612,
+          "perCell": {
+            "3,4": 72,
+            "2,4": 144,
+            "3,3": 108,
+            "4,2": 108,
+            "0,2": 72,
+            "1,4": 36,
+            "4,1": 36,
+            "4,3": 36
+          },
+          "distinctCells": 8
+        },
+        "white": {
+          "total": 576,
+          "perCell": {
+            "3,4": 36,
+            "2,4": 72,
+            "3,3": 108,
+            "4,2": 108,
+            "0,2": 36,
+            "1,4": 72,
+            "4,1": 72,
+            "4,3": 72
+          },
+          "distinctCells": 8
+        }
+      },
       "finalStateVersion": 7,
       "finalCurrentPlayerKey": "black"
     }
@@ -2725,5 +4310,5 @@
     "ok": 77,
     "failed": 0
   },
-  "finishedAt": "2026-04-20T16:05:32.864Z"
+  "finishedAt": "2026-04-23T07:48:44.968Z"
 }

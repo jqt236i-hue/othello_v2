@@ -5,11 +5,11 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'));
+        module.exports = factory(require('../../../shared-constants'), require('../cards-internal/random-source'));
     } else {
-        root.DragonEffects = factory(root.SharedConstants);
+        root.DragonEffects = factory(root.SharedConstants, root.CardRandomSource || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, RandomSourceModule) {
     'use strict';
 
     const { BLACK, WHITE } = SharedConstants || {};
@@ -208,9 +208,13 @@
             candidates.push({ row: cell.row, col: cell.col });
         }
         if (!candidates.length) return null;
-        const randomSource = deps && deps.randomSource && typeof deps.randomSource.random === 'function'
-            ? deps.randomSource
-            : { random: () => 0 };
+        const randomSource = (RandomSourceModule && typeof RandomSourceModule.resolveRandomSource === 'function')
+            ? RandomSourceModule.resolveRandomSource(
+                deps && deps.randomSource,
+                null,
+                'DragonEffects.selectRandomEmptyDestination'
+            )
+            : deps.randomSource;
         const rawIndex = Math.floor(randomSource.random() * candidates.length);
         const index = Math.max(0, Math.min(candidates.length - 1, rawIndex));
         return candidates[index] || candidates[0] || null;

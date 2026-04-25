@@ -95,6 +95,22 @@
         return (def && def.type) ? String(def.type) : null;
     }
 
+    function hasCardInHand(cardStateValue, playerKey, cardId, fallbackNormalizePlayerKey) {
+        if (!cardStateValue || !cardId) return false;
+        var normalizedPlayerKey = normalizePlayerKey(playerKey, 'black', fallbackNormalizePlayerKey);
+        var hands = cardStateValue && cardStateValue.hands && typeof cardStateValue.hands === 'object'
+            ? cardStateValue.hands
+            : null;
+        var hand = hands && Array.isArray(hands[normalizedPlayerKey]) ? hands[normalizedPlayerKey] : null;
+        if (!hand) return false;
+        for (var index = 0; index < hand.length; index += 1) {
+            if (String(hand[index]) === String(cardId)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function buildPendingCardUsePlaybackEvents(playerKey, cardId, cardType, options) {
         if (!cardId) return [];
 
@@ -226,7 +242,7 @@
                         var cardType = resolveCardTypeForId(cardId, {
                             cardLogicModule: cfg.cardLogicModule
                         });
-                        if (!cardType) {
+                        if (!cardType && !hasCardInHand(cardStateArg, playerKey, cardId, cfg.normalizePlayerKey)) {
                             return {
                                 ok: false,
                                 rejectedReason: 'PENDING_CARD_TYPE_UNRESOLVED',

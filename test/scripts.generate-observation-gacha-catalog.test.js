@@ -38,12 +38,36 @@ describe('generate observation gacha catalog', () => {
 
     expect(result.observationCatalog.items).toEqual(expect.arrayContaining([
       expect.objectContaining({
+        id: 'gacha__n__background_skin__観測できなかった夜',
+        label: '観測できなかった夜',
+        rarity: 'N',
+        kind: 'background_skin',
+        imagePath: 'assets/images/Gacha/N/background/観測できなかった夜.png',
+        previewImagePath: 'assets/images/Gacha/N/background/観測できなかった夜.png'
+      }),
+      expect.objectContaining({
+        id: 'gacha__sr__background_skin__宇宙の観測',
+        label: '宇宙の観測',
+        rarity: 'SR',
+        kind: 'background_skin',
+        imagePath: 'assets/images/Gacha/SR/background/宇宙の観測.png',
+        previewImagePath: 'assets/images/Gacha/SR/background/宇宙の観測.png'
+      }),
+      expect.objectContaining({
         id: 'gacha__n__placement_sound__type-1-standard',
         label: 'type-1-standard',
         rarity: 'N',
         kind: 'placement_sound',
         assetPath: 'assets/images/Gacha/N/type-1-standard.mp3',
         soundPath: 'assets/images/Gacha/N/type-1-standard.mp3'
+      })
+    ]));
+    expect(result.handCatalog.items).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 'gacha__n__background_skin__観測できなかった夜'
+      }),
+      expect.objectContaining({
+        id: 'gacha__sr__background_skin__宇宙の観測'
       })
     ]));
   });

@@ -1,6 +1,6 @@
 {
-  "version": "2026-04-21",
-  "generatedAt": "2026-04-21T04:20:04.943Z",
+  "version": "2026-04-25",
+  "generatedAt": "2026-04-25T14:53:51.309Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -275,6 +275,26 @@
       "sha256": "2ecd16bbbbe9664cf3190619a89492c2a2c085889ca0475c157dc865c5af6b29"
     },
     {
+      "path": "assets/images/background/default.png",
+      "sha256": "30f184b41c53264bbca5fab5f06ba3beaa730400112acfef62bdc722cfb2e7a4"
+    },
+    {
+      "path": "assets/images/background/宇宙の観測.png",
+      "sha256": "7a52c0ff947e9c7b70938540f110218d38b2abc54ee0f0d8a836be1fcb5b3260"
+    },
+    {
+      "path": "assets/images/background/観測の机.png",
+      "sha256": "2fe28ec2347fb703dd25ab5c2dca5644a5b3c6b8652e1ecb93cc4e38b82481e9"
+    },
+    {
+      "path": "assets/images/background-skin/default-table.svg",
+      "sha256": "e8406e699ad055993587d0542a65b07c08ae2feeffb8f0570a597a51508c489c"
+    },
+    {
+      "path": "assets/images/background-skin/観測の机.png",
+      "sha256": "2fe28ec2347fb703dd25ab5c2dca5644a5b3c6b8652e1ecb93cc4e38b82481e9"
+    },
+    {
       "path": "assets/images/hand-skin/lv1-2.png",
       "sha256": "610b5ac7f026c7a0345f3c7894ac37027b891e820825b44bbb6f46a67a67bf3b"
     },
@@ -295,8 +315,16 @@
       "sha256": "31dbec8c481d7c27d4e6206159d12cd0ae82e8b65263b5dad89a5ad15662af6e"
     },
     {
+      "path": "assets/images/Gacha/EXR/background/観測の意志.png",
+      "sha256": "2045f8e313765c8bed2f8c93cf41adb98a11c84a157d1a4131949e6ce4376302"
+    },
+    {
       "path": "assets/images/Gacha/EXR/意志.png",
       "sha256": "f1eb934b000b028ef0d383a392033fe22b98f1b2f28bdbeca968b79a652b14bb"
+    },
+    {
+      "path": "assets/images/Gacha/N/background/観測できなかった夜.png",
+      "sha256": "8219b27eb83e360731643269a5df4dd11a118177bab5c3e5ad6353bd3eaf9ba0"
     },
     {
       "path": "assets/images/Gacha/N/type-1-standard.mp3",
@@ -331,6 +359,14 @@
       "sha256": "4e3838f64a8af90fe8da5f612d58a5c9cb5d88cb90d26448874d1f54f53dec8e"
     },
     {
+      "path": "assets/images/Gacha/R/background/観測の森.png",
+      "sha256": "d6b48b6049b2c11e06545e44f33953ef7c5c420f14a62dafdaa08571ad499e67"
+    },
+    {
+      "path": "assets/images/Gacha/R/background/観測の部屋.png",
+      "sha256": "526d78fec4ed0c0083e5518e4f78d4575c0bb4a96a29e3339405513c4ad1d9c5"
+    },
+    {
       "path": "assets/images/Gacha/R/支配の手.png",
       "sha256": "9782e236b3f2632360cccfbd69bc9ccabf137d3fbc3af0ca3156efc22b92435c"
     },
@@ -339,12 +375,24 @@
       "sha256": "90896d78cd0f6a5aebb246ddce2c939f7f49ad7debb28d2b0e7af21a27c6204a"
     },
     {
+      "path": "assets/images/Gacha/SR/background/宇宙の観測.png",
+      "sha256": "7a52c0ff947e9c7b70938540f110218d38b2abc54ee0f0d8a836be1fcb5b3260"
+    },
+    {
       "path": "assets/images/Gacha/SR/虹の手.png",
       "sha256": "ca8938488e7924460c62fc7eae8eddb37dab897a51306d17e62139e20552dd81"
     },
     {
+      "path": "assets/images/Gacha/SSR/background/カードオセロ.png",
+      "sha256": "02fd3856ba8aedcdb68f14edd0077e28e868faac064a11bddd3668a61687179e"
+    },
+    {
       "path": "assets/images/Gacha/SSR/邪悪な手.png",
       "sha256": "6dde01b2b0434eb0c717d157a92ac76d4928f6e7c08eef68428d065282b9eed5"
+    },
+    {
+      "path": "assets/images/Gacha/UR/background/最高の観測.png",
+      "sha256": "968962b0020cc5a719c3df546c238e799d56a3c7537213843c5622140a437d1d"
     },
     {
       "path": "assets/images/Gacha/UR/ラグドールの手.png",

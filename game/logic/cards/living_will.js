@@ -2,17 +2,21 @@
     if (typeof module === 'object' && module.exports) {
         let CardMarkersModule = null;
         let CardWorkModule = null;
+        let RandomSourceModule = null;
         try {
             CardMarkersModule = require('./markers');
         } catch (e) { /* ignore */ }
         try {
             CardWorkModule = require('./work_will');
         } catch (e) { /* ignore */ }
-        module.exports = factory(require('../../../shared-constants'), CardMarkersModule, CardWorkModule);
+        try {
+            RandomSourceModule = require('../cards-internal/random-source');
+        } catch (e) { /* ignore */ }
+        module.exports = factory(require('../../../shared-constants'), CardMarkersModule, CardWorkModule, RandomSourceModule);
     } else {
-        root.CardLivingWill = factory(root.SharedConstants, root.CardMarkers || null, root.CardWork || null);
+        root.CardLivingWill = factory(root.SharedConstants, root.CardMarkers || null, root.CardWork || null, root.CardRandomSource || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardMarkersModule, CardWorkModule) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardMarkersModule, CardWorkModule, RandomSourceModule) {
     'use strict';
 
     const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
@@ -233,9 +237,16 @@
     }
 
     function getDefaultPrng(deps) {
+        if (RandomSourceModule && typeof RandomSourceModule.resolveRandomSource === 'function') {
+            return RandomSourceModule.resolveRandomSource(
+                deps && deps.random,
+                deps && deps.defaultPrng,
+                'CardLivingWill'
+            );
+        }
         if (deps && deps.random && typeof deps.random.random === 'function') return deps.random;
         if (deps && deps.defaultPrng && typeof deps.defaultPrng.random === 'function') return deps.defaultPrng;
-        return { random: Math.random };
+        throw new Error('CardLivingWill requires an injected deterministic PRNG.');
     }
 
     function getNumericDefault(value, fallback) {

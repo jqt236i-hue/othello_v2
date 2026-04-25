@@ -5,11 +5,11 @@
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        module.exports = factory(require('../../../shared-constants'), require('./flips'));
+        module.exports = factory(require('../../../shared-constants'), require('./flips'), require('../cards-internal/random-source'));
     } else {
-        root.CardChain = factory(root.SharedConstants, root.CardFlips);
+        root.CardChain = factory(root.SharedConstants, root.CardFlips, root.CardRandomSource || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardFlips) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardFlips, RandomSourceModule) {
     'use strict';
 
     const { DIRECTIONS } = SharedConstants || {};
@@ -31,8 +31,6 @@
      * @returns {{applied:boolean, flips:Array<{row,col}>, chosen:Object|null}}
      */
     function findChainChoice(gameState, primaryFlips, ownerVal, context = {}, prng) {
-        const p = prng || { random: () => 0 };
-
         const candidatePoints = [];
         const seen = new Set();
         for (const f of (primaryFlips || [])) {
@@ -69,7 +67,9 @@
         for (const c of candidates) if (c.score > maxScore) maxScore = c.score;
 
         const top = candidates.filter(c => c.score === maxScore);
-        const pickedIndex = Math.floor(p.random() * top.length);
+        const pickedIndex = (RandomSourceModule && typeof RandomSourceModule.resolveRandomIndex === 'function')
+            ? RandomSourceModule.resolveRandomIndex(top.length, prng, null, 'CardChain')
+            : Math.floor(prng.random() * top.length);
         const chosen = top[pickedIndex];
 
         return { applied: true, flips: chosen.flips, chosen };

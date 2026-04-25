@@ -197,15 +197,25 @@ describe('result overlay seat perspective', () => {
     }
   });
 
-  test('network対戦では観測石報酬行を表示しない', () => {
+  test('network対戦勝利時も観測石報酬を表示して保存する', () => {
     window.MATCH_MODE = 'network';
     window.NetworkMatchClient = { getSeatKey: () => 'white' };
     global.countDiscs.mockReturnValue({ black: 24, white: 40 });
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
 
-    const mod = require('../ui/result-overlay.js');
-    mod.showResultOverlay();
+    try {
+      const mod = require('../ui/result-overlay.js');
+      const storageModule = require('../ui/storage/gacha-progress.js');
+      mod.showResultOverlay();
 
-    expect(document.querySelector('.result-observation-stones')).toBeNull();
+      const rewardLine = document.querySelector('.result-observation-stones');
+      expect(rewardLine && rewardLine.textContent).toContain('観測石 +200');
+      expect(rewardLine && rewardLine.textContent).toContain('基本100');
+      expect(rewardLine && rewardLine.textContent).toContain('追加100');
+      expect(storageModule.getObservationStones(window)).toBe(200);
+    } finally {
+      randomSpy.mockRestore();
+    }
   });
 
   test('結果表示 state helper は version/unversioned の表示済みフラグを初期化する', () => {

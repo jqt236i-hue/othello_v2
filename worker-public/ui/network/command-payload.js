@@ -120,20 +120,6 @@
             });
             return params;
         }
-
-        var pendingSelectionState = (params && params.pendingSelectionState && typeof params.pendingSelectionState === 'object')
-            ? params.pendingSelectionState
-            : null;
-        var deferredCardId = pendingSelectionState && typeof pendingSelectionState.cardId === 'string'
-            ? String(pendingSelectionState.cardId).trim()
-            : '';
-        if (!deferredCardId) return params;
-        if (!params.useCardId) {
-            params.useCardId = deferredCardId;
-        }
-        if (!params.useCardOwnerKey) {
-            params.useCardOwnerKey = actor;
-        }
         return params;
     }
 

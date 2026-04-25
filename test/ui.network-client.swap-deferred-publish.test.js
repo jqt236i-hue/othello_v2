@@ -252,9 +252,7 @@ describe('NetworkMatchClient swap deferred publish', () => {
         type: 'SWAP_WITH_ENEMY',
         stage: 'selectTarget',
         cardId: 'swap_01'
-      },
-      useCardId: 'swap_01',
-      useCardOwnerKey: 'black'
+      }
     });
     expect(publishBodies[0].snapshot).toBeUndefined();
     expect(publishBodies[0].playbackEvents).toBeUndefined();

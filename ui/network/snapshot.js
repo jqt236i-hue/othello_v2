@@ -37,6 +37,55 @@
         )
             ? snapshotRuntimeModule.createNetworkSnapshotRuntime(cfg)
             : null;
+        const snapshotCanonicalModule = (() => {
+            try {
+                if (rootRef && rootRef.NetworkSnapshotCanonicalModule) {
+                    return rootRef.NetworkSnapshotCanonicalModule;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof globalThis !== 'undefined' && globalThis.NetworkSnapshotCanonicalModule) {
+                    return globalThis.NetworkSnapshotCanonicalModule;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof require === 'function') {
+                    return require('./snapshot-canonical');
+                }
+            } catch (e) { /* ignore */ }
+
+            return null;
+        })();
+        const snapshotPresentationModule = (() => {
+            try {
+                if (rootRef && rootRef.NetworkSnapshotPresentationModule) {
+                    return rootRef.NetworkSnapshotPresentationModule;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof globalThis !== 'undefined' && globalThis.NetworkSnapshotPresentationModule) {
+                    return globalThis.NetworkSnapshotPresentationModule;
+                }
+            } catch (e) { /* ignore */ }
+
+            try {
+                if (typeof require === 'function') {
+                    return require('./snapshot-presentation');
+                }
+            } catch (e) { /* ignore */ }
+
+            return null;
+        })();
+
+        if (!snapshotCanonicalModule || typeof snapshotCanonicalModule.inspectAuthoritativeSnapshot !== 'function') {
+            throw new Error('NetworkSnapshotCanonicalModule is required before ui/network/snapshot.js');
+        }
+        if (!snapshotPresentationModule || typeof snapshotPresentationModule.reconcilePresentationQueues !== 'function') {
+            throw new Error('NetworkSnapshotPresentationModule is required before ui/network/snapshot.js');
+        }
 
         function resolveState() {
             if (runtime && typeof runtime.resolveState === 'function') {
@@ -102,9 +151,38 @@
 
         function setBusyState(active) {
             if (runtime && typeof runtime.setBusyState === 'function') {
-                return runtime.setBusyState(active);
+                if (active === true) {
+                    return runtime.setBusyState({
+                        processing: true,
+                        cardAnimating: true,
+                        playbackActive: true
+                    });
+                }
+                return runtime.setBusyState(false);
             }
             return false;
+        }
+
+        function armPlaybackLockForIncomingPlayback() {
+            const playbackState = resolvePlaybackStateModule();
+            if (playbackState && typeof playbackState.setBusyState === 'function') {
+                playbackState.setBusyState({
+                    processing: true,
+                    cardAnimating: true,
+                    playbackActive: true
+                });
+                if (typeof playbackState.setPlaybackStartedAt === 'function') {
+                    playbackState.setPlaybackStartedAt(null);
+                } else {
+                    setGlobalValue('__playbackActiveSince', null);
+                }
+                return true;
+            }
+            setGlobalFlag('isProcessing', true);
+            setGlobalFlag('isCardAnimating', true);
+            setGlobalFlag('VisualPlaybackActive', true);
+            setGlobalValue('__playbackActiveSince', null);
+            return true;
         }
 
         function clearBusyStateAndPlaybackLock() {
@@ -133,170 +211,36 @@
         }
 
         function normalizeSeatKey(value) {
-            const normalized = String(value || '').trim().toLowerCase();
-            if (normalized === 'black' || normalized === 'white') return normalized;
-            return null;
+            return snapshotCanonicalModule.normalizeSeatKey(value);
         }
 
         function getSnapshotMeta(snapshot) {
-            if (!snapshot || typeof snapshot !== 'object' || !snapshot._meta || typeof snapshot._meta !== 'object') {
-                return null;
-            }
-            const meta = snapshot._meta;
-            const rawVersion = meta.version;
-            return {
-                authority: String(meta.authority || '').trim().toLowerCase(),
-                version: (rawVersion === null || typeof rawVersion === 'undefined' || (typeof rawVersion === 'string' && rawVersion.trim() === ''))
-                    ? null
-                    : (Number.isFinite(Number(rawVersion)) ? Number(rawVersion) : null),
-                projectedForSeat: normalizeSeatKey(meta.projectedForSeat),
-                turnStartReconciled: meta.turnStartReconciled !== false
-            };
+            return snapshotCanonicalModule.getSnapshotMeta(snapshot);
         }
 
         function getSnapshotVersion(snapshot) {
-            const meta = getSnapshotMeta(snapshot);
-            if (meta && meta.version !== null) return meta.version;
-            return Number.isFinite(Number(snapshot && snapshot.stateVersion))
-                ? Number(snapshot.stateVersion)
-                : null;
+            return snapshotCanonicalModule.getSnapshotVersion(snapshot);
         }
 
         function shouldRejectSnapshotByAuthority(snapshot, state, opts) {
-            const meta = getSnapshotMeta(snapshot);
-            if (!meta) {
-                emitTelemetry('snapshot_authority_metadata_missing', {
-                    force: opts && opts.force === true
-                });
-                return true;
+            const inspection = snapshotCanonicalModule.inspectAuthoritativeSnapshot(snapshot, {
+                force: opts && opts.force === true,
+                localSeatKey: state && state.seatKey,
+                skipVersionChecks: true
+            });
+            if (inspection && inspection.ok === true) return false;
+            if (inspection && inspection.telemetryType) {
+                emitTelemetry(inspection.telemetryType, inspection.telemetryDetails || {});
             }
-            if (meta.authority !== 'server') {
-                emitTelemetry('snapshot_authority_rejected', {
-                    authority: meta.authority || null
-                });
-                return true;
-            }
-            const localSeatKey = normalizeSeatKey(state && state.seatKey);
-            if (meta.projectedForSeat && localSeatKey && meta.projectedForSeat !== localSeatKey) {
-                emitTelemetry('snapshot_projection_mismatch_rejected', {
-                    projectedForSeat: meta.projectedForSeat,
-                    localSeatKey
-                });
-                return true;
-            }
-            return false;
-        }
-
-        function normalizeChargeValue(value) {
-            return Number.isFinite(Number(value))
-                ? Math.trunc(Number(value))
-                : 0;
-        }
-
-        function normalizeChargePlayerKey(value) {
-            return (value === 'white' || value === -1 || value === '-1')
-                ? 'white'
-                : 'black';
-        }
-
-        function normalizeChargeState(charge) {
-            const nextCharge = (charge && typeof charge === 'object')
-                ? Object.assign({}, charge)
-                : {};
-            nextCharge.black = normalizeChargeValue(nextCharge.black);
-            nextCharge.white = normalizeChargeValue(nextCharge.white);
-            return nextCharge;
-        }
-
-        function normalizeChargeDeltaEvent(event, fallbackSeq) {
-            if (!event || typeof event !== 'object') return null;
-            const nextEvent = Object.assign({}, event);
-            nextEvent.seq = Number.isFinite(Number(nextEvent.seq))
-                ? Math.trunc(Number(nextEvent.seq))
-                : fallbackSeq;
-            nextEvent.player = normalizeChargePlayerKey(nextEvent.player);
-            nextEvent.before = normalizeChargeValue(nextEvent.before);
-            nextEvent.after = normalizeChargeValue(nextEvent.after);
-            nextEvent.delta = Number.isFinite(Number(nextEvent.delta))
-                ? normalizeChargeValue(nextEvent.delta)
-                : (nextEvent.after - nextEvent.before);
-            const popupKind = String(nextEvent.popupKind || '').trim().toLowerCase();
-            const sourceType = (typeof nextEvent.sourceType === 'string') ? nextEvent.sourceType.trim() : '';
-            if (popupKind === 'board') {
-                const anchorRow = Number(nextEvent.anchorRow);
-                const anchorCol = Number(nextEvent.anchorCol);
-                if (Number.isFinite(anchorRow) && Number.isFinite(anchorCol)) {
-                    nextEvent.popupKind = 'board';
-                    nextEvent.anchorRow = Math.trunc(anchorRow);
-                    nextEvent.anchorCol = Math.trunc(anchorCol);
-                    if (sourceType) nextEvent.sourceType = sourceType;
-                    else delete nextEvent.sourceType;
-                } else {
-                    delete nextEvent.popupKind;
-                    delete nextEvent.anchorRow;
-                    delete nextEvent.anchorCol;
-                    delete nextEvent.sourceType;
-                }
-            } else {
-                delete nextEvent.popupKind;
-                delete nextEvent.anchorRow;
-                delete nextEvent.anchorCol;
-                delete nextEvent.sourceType;
-            }
-            return nextEvent;
+            return true;
         }
 
         function normalizeChargeDeltaEventList(events) {
-            if (!Array.isArray(events)) return [];
-            const normalizedEvents = [];
-            for (let index = 0; index < events.length; index += 1) {
-                const normalizedEvent = normalizeChargeDeltaEvent(events[index], index + 1);
-                if (normalizedEvent) normalizedEvents.push(normalizedEvent);
-            }
-            return normalizedEvents;
-        }
-
-        function normalizeChargeDataForSnapshot(cardState) {
-            if (!cardState || typeof cardState !== 'object') return cardState;
-            cardState.charge = normalizeChargeState(cardState.charge);
-            cardState.chargeDeltaEvents = normalizeChargeDeltaEventList(cardState.chargeDeltaEvents);
-            return cardState;
+            return snapshotCanonicalModule.normalizeChargeDeltaEventList(events);
         }
 
         function buildMissingChargeDeltaEvents(previousCardState, nextCardState, options) {
-            const opts = (options && typeof options === 'object') ? options : {};
-            if (opts.force === true) return [];
-            if (!nextCardState || typeof nextCardState !== 'object') return [];
-            if (Array.isArray(nextCardState.chargeDeltaEvents) && nextCardState.chargeDeltaEvents.length > 0) return [];
-
-            const previousCharge = (previousCardState && previousCardState.charge && typeof previousCardState.charge === 'object')
-                ? previousCardState.charge
-                : null;
-            const nextCharge = (nextCardState.charge && typeof nextCardState.charge === 'object')
-                ? nextCardState.charge
-                : null;
-            if (!previousCharge || !nextCharge) return [];
-
-            const events = [];
-            let seq = 1;
-            const playerKeys = ['black', 'white'];
-            for (let index = 0; index < playerKeys.length; index += 1) {
-                const playerKey = playerKeys[index];
-                const before = normalizeChargeValue(previousCharge[playerKey]);
-                const after = normalizeChargeValue(nextCharge[playerKey]);
-                const delta = after - before;
-                if (delta === 0) continue;
-                events.push({
-                    seq,
-                    player: playerKey,
-                    before,
-                    after,
-                    delta,
-                    reason: 'network_snapshot_charge_sync'
-                });
-                seq += 1;
-            }
-            return events;
+            return snapshotCanonicalModule.buildMissingChargeDeltaEvents(previousCardState, nextCardState, options);
         }
 
         function setTransientChargeDeltaEvents(events) {
@@ -344,39 +288,11 @@
         }
 
         function sanitizeIncomingSnapshot(snapshot) {
-            if (!snapshot || typeof snapshot !== 'object') {
-                return { ok: false, reason: 'invalid_snapshot' };
+            const result = snapshotCanonicalModule.sanitizeIncomingSnapshot(snapshot, { cloneData });
+            if (result && result.transientStateStripped) {
+                emitTelemetry('snapshot_transient_state_stripped', result.transientStateStripped);
             }
-            if (!snapshot.gameState || typeof snapshot.gameState !== 'object') {
-                return { ok: false, reason: 'invalid_game_state' };
-            }
-            if (!snapshot.cardState || typeof snapshot.cardState !== 'object') {
-                return { ok: false, reason: 'invalid_card_state' };
-            }
-
-            const gameState = snapshot.gameState;
-            const cardState = snapshot.cardState;
-            const liveQueueCount = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0;
-            const persistentQueueCount = Array.isArray(cardState._presentationEventsPersist) ? cardState._presentationEventsPersist.length : 0;
-            const hadCurrentActionMeta = Object.prototype.hasOwnProperty.call(cardState, '_currentActionMeta');
-            const hadResultShown = Object.prototype.hasOwnProperty.call(gameState, '__resultShown');
-
-            if (liveQueueCount > 0 || persistentQueueCount > 0 || hadCurrentActionMeta || hadResultShown) {
-                emitTelemetry('snapshot_transient_state_stripped', {
-                    liveQueueCount,
-                    persistentQueueCount,
-                    hadCurrentActionMeta,
-                    hadResultShown
-                });
-            }
-
-            cardState.presentationEvents = [];
-            cardState._presentationEventsPersist = [];
-            delete cardState._currentActionMeta;
-            delete gameState.__resultShown;
-            normalizeChargeDataForSnapshot(cardState);
-
-            return { ok: true, snapshot };
+            return result;
         }
 
         function replaceObjectState(targetName, nextValue) {
@@ -412,64 +328,11 @@
         }
 
         function clearTransientPresentationQueues(cardStateRef) {
-            if (!cardStateRef || typeof cardStateRef !== 'object') return;
-            if (!Array.isArray(cardStateRef.presentationEvents)) cardStateRef.presentationEvents = [];
-            else cardStateRef.presentationEvents.length = 0;
-            if (!Array.isArray(cardStateRef._presentationEventsPersist)) cardStateRef._presentationEventsPersist = [];
-            else cardStateRef._presentationEventsPersist.length = 0;
+            snapshotPresentationModule.clearTransientPresentationQueues(cardStateRef);
         }
 
         function captureTransientPresentationQueues(cardStateRef) {
-            if (!cardStateRef || typeof cardStateRef !== 'object') {
-                return {
-                    presentationEvents: [],
-                    persistentEvents: [],
-                    hasPending: false
-                };
-            }
-
-            const presentationEvents = Array.isArray(cardStateRef.presentationEvents)
-                ? cloneData(cardStateRef.presentationEvents)
-                : [];
-            const persistentEvents = Array.isArray(cardStateRef._presentationEventsPersist)
-                ? cloneData(cardStateRef._presentationEventsPersist)
-                : [];
-
-            return {
-                presentationEvents,
-                persistentEvents,
-                hasPending: presentationEvents.length > 0 || persistentEvents.length > 0
-            };
-        }
-
-        function restoreTransientPresentationQueues(cardStateRef, queues) {
-            if (!cardStateRef || typeof cardStateRef !== 'object') return;
-            const source = queues && typeof queues === 'object' ? queues : {};
-            cardStateRef.presentationEvents = Array.isArray(source.presentationEvents)
-                ? source.presentationEvents.slice()
-                : [];
-            cardStateRef._presentationEventsPersist = Array.isArray(source.persistentEvents)
-                ? source.persistentEvents.slice()
-                : [];
-        }
-
-        function getTransientPresentationQueueSignature(source) {
-            const ref = (source && typeof source === 'object') ? source : {};
-            const presentationEvents = Array.isArray(ref.presentationEvents)
-                ? ref.presentationEvents
-                : [];
-            const persistentEvents = Array.isArray(ref.persistentEvents)
-                ? ref.persistentEvents
-                : (Array.isArray(ref._presentationEventsPersist) ? ref._presentationEventsPersist : []);
-
-            try {
-                return JSON.stringify({
-                    presentationEvents,
-                    persistentEvents
-                });
-            } catch (e) {
-                return null;
-            }
+            return snapshotPresentationModule.captureTransientPresentationQueues(cardStateRef, cloneData);
         }
 
         function isVisualPlaybackActive() {
@@ -487,10 +350,7 @@
             if (playbackState && typeof playbackState.hasPendingPresentationEvents === 'function') {
                 return playbackState.hasPendingPresentationEvents(source);
             }
-            const ref = (source && typeof source === 'object') ? source : {};
-            const pendingPersist = Array.isArray(ref._presentationEventsPersist) ? ref._presentationEventsPersist.length > 0 : false;
-            const pendingLive = Array.isArray(ref.presentationEvents) ? ref.presentationEvents.length > 0 : false;
-            return pendingPersist || pendingLive;
+            return snapshotPresentationModule.hasPendingPresentationEvents(source);
         }
 
         function readBusyStateSnapshot() {
@@ -539,122 +399,53 @@
         }
 
         function reconcilePresentationQueues(cardStateRef, options) {
-            const opts = (options && typeof options === 'object') ? options : {};
-            const preservedQueues = opts.preservedQueues || {
-                presentationEvents: [],
-                persistentEvents: [],
-                hasPending: false
-            };
-            const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
-            const shadowPlaybackEvents = Array.isArray(opts.shadowPlaybackEvents) ? opts.shadowPlaybackEvents : [];
-            const dropPreservedQueues = opts.dropPreservedQueues === true;
-            const hasPendingPreservedQueues = preservedQueues.hasPending === true;
-            const hasPlaybackEvents = playbackEvents.length > 0;
-            const shouldEmitShadowPlayback = !hasPlaybackEvents
-                && (!hasPendingPreservedQueues || dropPreservedQueues)
-                && shadowPlaybackEvents.length > 0;
-            const restoredPreservedQueues = !hasPlaybackEvents
-                && !shouldEmitShadowPlayback
-                && hasPendingPreservedQueues
-                && !dropPreservedQueues;
-
-            if (hasPlaybackEvents || shouldEmitShadowPlayback || dropPreservedQueues) {
-                clearTransientPresentationQueues(cardStateRef);
-            } else if (restoredPreservedQueues) {
-                restoreTransientPresentationQueues(cardStateRef, preservedQueues);
-            } else {
-                clearTransientPresentationQueues(cardStateRef);
-            }
-
-            return {
-                hasPlaybackEvents,
-                shouldEmitShadowPlayback,
-                // Shadow playback with suppressPlayback=true returns immediately
-                // without running AnimationEngine, so it should not keep busy.
-                shouldKeepBusy: hasPlaybackEvents || (hasPendingPreservedQueues && !dropPreservedQueues),
-                restoredPreservedQueues,
-                restoredQueueSignature: restoredPreservedQueues
-                    ? getTransientPresentationQueueSignature(preservedQueues)
-                    : null
-            };
+            return snapshotPresentationModule.reconcilePresentationQueues(cardStateRef, options);
         }
 
         function shouldReleaseRestoredQueueBusyState(cardStateRef, presentationState, busyStateBeforeSnapshot) {
-            if (!presentationState || presentationState.restoredPreservedQueues !== true) return false;
-            const hadBusyBeforeSnapshot = !!(
-                busyStateBeforeSnapshot
-                && (
-                    busyStateBeforeSnapshot.processing === true
-                    || busyStateBeforeSnapshot.cardAnimating === true
-                    || busyStateBeforeSnapshot.playbackActive === true
-                )
-            );
-            // If the system was already busy before this snapshot, only skip
-            // the release when the animation engine is actively playing or
-            // its state is unknown.  When the engine is provably idle, the
-            // pre-existing busy flags are stale — fall through to the
-            // signature / queue-consumption checks instead of bailing out
-            // unconditionally.
-            if (hadBusyBeforeSnapshot) {
-                const enginePlaying = isPlaybackEngineRunning();
-                if (enginePlaying !== false) return false;
-                // enginePlaying === false: engine is definitely idle.
-                // The pre-snapshot busy flags are stale; continue to the
-                // queue-consumption checks below to decide release.
-            }
-            if (isVisualPlaybackActive()) return false;
-
-            const currentQueues = captureTransientPresentationQueues(cardStateRef);
-            if (!currentQueues.hasPending) return true;
-
-            const currentSignature = getTransientPresentationQueueSignature(currentQueues);
-            return !!presentationState.restoredQueueSignature
-                && currentSignature === presentationState.restoredQueueSignature;
+            return snapshotPresentationModule.shouldReleaseRestoredQueueBusyState({
+                cardStateRef,
+                presentationState,
+                busyStateBeforeSnapshot,
+                isPlaybackEngineRunning,
+                isVisualPlaybackActive,
+                cloneData
+            });
         }
 
         function shouldReleaseStalePlaybackLockAfterSnapshot(cardStateRef, presentationState) {
-            if (!presentationState || presentationState.shouldKeepBusy === true) return false;
-            if (isVisualPlaybackActive() !== true) return false;
-
-            const currentQueues = captureTransientPresentationQueues(cardStateRef);
-            if (currentQueues.hasPending) return false;
-
-            const playbackRunning = isPlaybackEngineRunning();
-            if (playbackRunning === false) return true;
-            if (playbackRunning === true) return false;
-
-            const startedAt = getPlaybackStartedAt();
-            if (startedAt === null) return false;
-            return (Date.now() - startedAt) > getStalePlaybackTimeoutMs();
+            return snapshotPresentationModule.shouldReleaseStalePlaybackLockAfterSnapshot({
+                cardStateRef,
+                presentationState,
+                isVisualPlaybackActive,
+                isPlaybackEngineRunning,
+                getPlaybackStartedAt,
+                stalePlaybackTimeoutMs: getStalePlaybackTimeoutMs(),
+                cloneData
+            });
         }
 
         function shouldReleaseUnclaimedPlaybackBusyState(cardStateRef, playbackEvents) {
-            if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
-            if (isVisualPlaybackActive() === true) return false;
-
-            const currentQueues = captureTransientPresentationQueues(cardStateRef);
-            if (currentQueues.hasPending) return false;
-
-            return isPlaybackEngineRunning() !== true;
+            return snapshotPresentationModule.shouldReleaseUnclaimedPlaybackBusyState({
+                cardStateRef,
+                playbackEvents,
+                isVisualPlaybackActive,
+                isPlaybackEngineRunning,
+                getPlaybackStartedAt,
+                cloneData
+            });
         }
 
         function shouldClearUndrainedPlaybackQueues(cardStateRef, playbackEvents, options) {
-            const opts = (options && typeof options === 'object') ? options : {};
-            if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
-            // Force-applied same-version recovery intentionally keeps the batch
-            // queued so later stream playback recovery can consume it once.
-            if (opts.force === true) return false;
-            if (isVisualPlaybackActive() === true) return false;
-            if (isPlaybackEngineRunning() === true) return false;
-
-            const currentQueues = captureTransientPresentationQueues(cardStateRef);
-            if (!currentQueues.hasPending) return false;
-
-            const queueEntries = []
-                .concat(Array.isArray(currentQueues.presentationEvents) ? currentQueues.presentationEvents : [])
-                .concat(Array.isArray(currentQueues.persistentEvents) ? currentQueues.persistentEvents : []);
-            if (queueEntries.length === 0) return false;
-            return queueEntries.every((entry) => entry && entry.type === 'PLAYBACK_EVENTS');
+            return snapshotPresentationModule.shouldClearUndrainedPlaybackQueues({
+                cardStateRef,
+                playbackEvents,
+                force: options && options.force === true,
+                isVisualPlaybackActive,
+                isPlaybackEngineRunning,
+                getPlaybackStartedAt,
+                cloneData
+            });
         }
 
         function hasPendingPlaybackOrPresentation() {
@@ -742,19 +533,38 @@
                 if (emitGameStateChange) emitGameStateChange();
             } catch (e) { /* ignore */ }
             try {
-                const boardUpdateDispatch = resolveBoardUpdateDispatch();
-                if (boardUpdateDispatch && typeof boardUpdateDispatch.requestBoardUpdate === 'function') {
-                    boardUpdateRequested = boardUpdateDispatch.requestBoardUpdate({
-                        emitBoardUpdate: cfg.emitBoardUpdate,
-                        renderBoard: cfg.renderBoard
-                    }) === true;
+                const injectedEmitBoardUpdate = (typeof cfg.emitBoardUpdate === 'function')
+                    ? cfg.emitBoardUpdate
+                    : null;
+                const injectedRenderBoard = (typeof cfg.renderBoard === 'function')
+                    ? cfg.renderBoard
+                    : null;
+                if (injectedEmitBoardUpdate) {
+                    injectedEmitBoardUpdate({
+                        source: 'network_snapshot',
+                        reason: 'snapshot_refresh'
+                    });
+                    boardUpdateRequested = true;
+                } else if (injectedRenderBoard) {
+                    injectedRenderBoard();
+                    boardUpdateRequested = true;
                 } else {
-                    const emitBoardUpdate = resolveGlobalFunction('emitBoardUpdate', cfg.emitBoardUpdate);
-                    const renderBoard = resolveGlobalFunction('renderBoard', cfg.renderBoard);
-                    if (emitBoardUpdate) boardUpdateRequested = emitBoardUpdate() === true;
-                    else if (renderBoard) {
-                        renderBoard();
-                        boardUpdateRequested = true;
+                    const boardUpdateDispatch = resolveBoardUpdateDispatch();
+                    if (boardUpdateDispatch && typeof boardUpdateDispatch.requestBoardUpdate === 'function') {
+                        boardUpdateRequested = boardUpdateDispatch.requestBoardUpdate({
+                            emitBoardUpdate: cfg.emitBoardUpdate,
+                            renderBoard: cfg.renderBoard,
+                            source: 'network_snapshot',
+                            reason: 'snapshot_refresh'
+                        }) === true;
+                    } else {
+                        const emitBoardUpdate = resolveGlobalFunction('emitBoardUpdate', cfg.emitBoardUpdate);
+                        const renderBoard = resolveGlobalFunction('renderBoard', cfg.renderBoard);
+                        if (emitBoardUpdate) boardUpdateRequested = emitBoardUpdate() === true;
+                        else if (renderBoard) {
+                            renderBoard();
+                            boardUpdateRequested = true;
+                        }
                     }
                 }
             } catch (e) { /* ignore */ }
@@ -801,8 +611,17 @@
 
             setBusyState(presentationState.shouldKeepBusy === true);
             if (playbackEvents.length > 0) {
+                armBoardUpdateDuringPlayback(
+                    'network_snapshot',
+                    'snapshot_playback_event_emit_board_sync'
+                );
+                armPlaybackLockForIncomingPlayback();
                 emitPlaybackEvents(playbackEvents, { source: 'network_snapshot' });
             } else if (shouldEmitShadowPlayback) {
+                armBoardUpdateDuringPlayback(
+                    opts.shadowPlaybackSource || 'self_snapshot_sync',
+                    'snapshot_shadow_playback_event_emit_board_sync'
+                );
                 emitPlaybackEvents(shadowPlaybackEvents, {
                     source: opts.shadowPlaybackSource || 'self_snapshot_sync',
                     suppressPlayback: true
@@ -833,12 +652,12 @@
                 clearTransientPresentationQueues(cardStateRef);
             } else if (refreshState && refreshState.boardUpdateRequested === true && shouldClearUndrainedPlaybackQueues(cardStateRef, playbackEvents, opts)) {
                 clearTransientPresentationQueues(cardStateRef);
-                setBusyState(false);
+                clearBusyStateAndPlaybackLock();
             } else if (shouldReleaseUnclaimedPlaybackBusyState(cardStateRef, playbackEvents)) {
-                setBusyState(false);
+                clearBusyStateAndPlaybackLock();
             } else if (shouldReleaseRestoredQueueBusyState(cardStateRef, presentationState, busyStateBeforeSnapshot)) {
                 clearTransientPresentationQueues(cardStateRef);
-                setBusyState(false);
+                clearBusyStateAndPlaybackLock();
             }
             if (shouldReleaseStalePlaybackLockAfterSnapshot(cardStateRef, presentationState)) {
                 clearBusyStateAndPlaybackLock();
@@ -977,7 +796,7 @@
                 return false;
             }
 
-            const applyContext = applyAuthoritativeSnapshotState(snapshot, opts, nextVersion, snapshotMeta);
+            const applyContext = applyAuthoritativeSnapshotState(sanitizedSnapshot.snapshot, opts, nextVersion, snapshotMeta);
             finalizeSnapshotPresentation(nextVersion, opts, applyContext);
             return true;
         }

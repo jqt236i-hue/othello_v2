@@ -2218,7 +2218,10 @@
                 // On use, gain random charge [1..3] and clear pending (no placement dependency).
                 const pendingType = getPendingEffectTypeForActionPhase(CardLogic, cardState, playerKey);
                 if (pendingType === 'TREASURE_BOX') {
-                    const rnd = (p && typeof p.random === 'function') ? p.random() : Math.random();
+                    if (!(p && typeof p.random === 'function')) {
+                        throw new Error('TurnPipelinePhases.applyCardUsagePhase TREASURE_BOX requires an injected deterministic PRNG.');
+                    }
+                    const rnd = p.random();
                     const gained = 1 + Math.floor(Math.max(0, Math.min(0.999999, rnd)) * 3);
                     addChargeWithTotal(cardState, playerKey, gained);
                     clearPendingForActionPhase(cardState, playerKey);

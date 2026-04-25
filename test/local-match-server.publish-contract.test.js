@@ -214,6 +214,53 @@ describe('local match server publish contract', () => {
     }
   });
 
+  test('network debug fill hand can replace the acting seat hand with requested cards only', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', {
+        playerName: 'くろ',
+        networkDebugEnabled: true
+      });
+      expect(created.status).toBe(200);
+
+      const response = await requestJson(port, 'POST', '/api/match/publish', {
+        roomId: created.data.roomId,
+        seatKey: 'black',
+        playerKey: 'black',
+        seatToken: created.data.seatToken,
+        baseVersion: Number(created.data.stateVersion),
+        operationId: 'op_debug_targeted_fill',
+        actionType: 'debug_fill_hand',
+        actor: 'black',
+        params: {
+          cardIds: ['heaven_01'],
+          replaceExisting: true
+        },
+        action: {
+          type: 'debug_fill_hand',
+          playerKey: 'black',
+          cardIds: ['heaven_01'],
+          replaceExisting: true
+        }
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.data.ok).toBe(true);
+      expect(response.data.snapshot.cardState.hands.black).toEqual(['heaven_01']);
+      expect(response.data.snapshot.cardState.debugHandFilled).toBe(true);
+      expect(response.data.snapshot.cardState.debugNoDraw).toBe(true);
+      expect(response.data.publishMeta).toEqual(expect.objectContaining({
+        kind: 'accepted',
+        actionType: 'debug_fill_hand',
+        operationId: 'op_debug_targeted_fill'
+      }));
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('missing operationId publish is rejected before command handling', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);
@@ -319,7 +366,7 @@ describe('local match server publish contract', () => {
     }
   });
 
-  test('deferred tempt publish can steal robot vacuum once card-use context is included in command payload', async () => {
+  test('authoritative tempt follow-up strips redundant card-use context and can steal robot vacuum', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);
 
@@ -339,10 +386,21 @@ describe('local match server publish contract', () => {
         snapshot.cardState.turnIndex = 7;
         snapshot.cardState.lastTurnStartedFor = 'white';
         snapshot.cardState.charge.black = 30;
-        snapshot.cardState.charge.white = 30;
+        snapshot.cardState.charge.white = 7;
         snapshot.cardState.hands.black = [];
-        snapshot.cardState.hands.white = ['tempt_01'];
-        snapshot.cardState.pendingEffectByPlayer = { black: null, white: null };
+        snapshot.cardState.hands.white = [];
+        snapshot.cardState.pendingEffectByPlayer = {
+          black: null,
+          white: {
+            type: 'TEMPT_WILL',
+            stage: 'selectTarget',
+            cardId: 'tempt_01',
+            pendingEffectId: 'pending_7_1'
+          }
+        };
+        snapshot.cardState.hasUsedCardThisTurnByPlayer = { black: false, white: true };
+        snapshot.cardState.lastUsedCardByPlayer = { black: null, white: 'tempt_01' };
+        snapshot.cardState.discard = ['tempt_01'];
         snapshot.cardState.markers = [{
           kind: 'specialStone',
           row: 3,
@@ -373,7 +431,8 @@ describe('local match server publish contract', () => {
           pendingSelectionState: {
             type: 'TEMPT_WILL',
             stage: 'selectTarget',
-            cardId: 'tempt_01'
+            cardId: 'tempt_01',
+            pendingEffectId: 'pending_7_1'
           },
           useCardId: 'tempt_01',
           useCardOwnerKey: 'white'

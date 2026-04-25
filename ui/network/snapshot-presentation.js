@@ -197,7 +197,8 @@
         if (
             typeof opts.isVisualPlaybackActive === 'function'
             && opts.isVisualPlaybackActive() === true
-            && (playbackRunning === true || Number.isFinite(Number(startedAt)))
+            && playbackRunning === true
+            && Number.isFinite(Number(startedAt))
         ) {
             return false;
         }
@@ -222,7 +223,8 @@
         if (
             typeof opts.isVisualPlaybackActive === 'function'
             && opts.isVisualPlaybackActive() === true
-            && (playbackRunning === true || Number.isFinite(Number(startedAt)))
+            && playbackRunning === true
+            && Number.isFinite(Number(startedAt))
         ) {
             return false;
         }

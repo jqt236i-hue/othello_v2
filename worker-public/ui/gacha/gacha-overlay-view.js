@@ -108,14 +108,15 @@
 
         const intro = docRef.createElement('div');
         intro.className = 'gacha-details-copy';
-        intro.textContent = '観測石100で1回、1000で10連。手の見た目と配置音が排出され、重複時は所持済みとして表示し、観測石の補填はありません。';
+        intro.textContent = '観測石100で1回、1000で10連。手の見た目・配置音・背景が排出され、重複時は所持済みとして表示し、観測石の補填はありません。';
         detailsPanel.appendChild(intro);
 
         const handCount = catalogItems.filter((item) => itemVisuals.normalizeItemKind(item) === 'hand_skin').length;
+        const backgroundCount = catalogItems.filter((item) => itemVisuals.normalizeItemKind(item) === 'background_skin').length;
         const soundCount = catalogItems.filter((item) => itemVisuals.normalizeItemKind(item) === 'placement_sound').length;
         const kindSummary = docRef.createElement('div');
         kindSummary.className = 'gacha-details-note';
-        kindSummary.textContent = `排出内容: 手の見た目 ${handCount}種 / 配置音 ${soundCount}種`;
+        kindSummary.textContent = `排出内容: 手の見た目 ${handCount}種 / 背景 ${backgroundCount}種 / 配置音 ${soundCount}種`;
         detailsPanel.appendChild(kindSummary);
 
         const rateList = docRef.createElement('div');

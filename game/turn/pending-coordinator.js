@@ -319,25 +319,7 @@
     }
 
     function applyPendingSelectionCardContext(target, playerKey, pendingLike, options) {
-        var normalizedPlayerKey = normalizePlayerKey(playerKey);
         var payload = (target && typeof target === 'object') ? target : {};
-        var source = (pendingLike && typeof pendingLike === 'object')
-            ? pendingLike
-            : ((payload.pendingSelectionState && typeof payload.pendingSelectionState === 'object')
-                ? payload.pendingSelectionState
-                : null);
-        var cardId = source && typeof source.cardId === 'string'
-            ? String(source.cardId).trim()
-            : '';
-        if (!cardId) {
-            return payload;
-        }
-        if (!payload.useCardId) {
-            payload.useCardId = cardId;
-        }
-        if (!payload.useCardOwnerKey) {
-            payload.useCardOwnerKey = normalizedPlayerKey;
-        }
         return payload;
     }
 
