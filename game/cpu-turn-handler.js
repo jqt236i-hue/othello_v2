@@ -1,5 +1,19 @@
 // CPU turn orchestration extracted from turn-manager
 
+// TimerService DI
+let cpuTurnTimerService = null;
+function setCpuTurnTimerService(service) { cpuTurnTimerService = service; }
+function getCpuTurnTimerService() {
+    if (cpuTurnTimerService) return cpuTurnTimerService;
+    try {
+        const { createTimerService } = require('./timer-service');
+        cpuTurnTimerService = createTimerService('browser');
+        return cpuTurnTimerService;
+    } catch (e) {
+        return null;
+    }
+}
+
 // Timers abstraction (injected by UI)
 (function () {
 let timers = null;
@@ -848,7 +862,8 @@ function createPresentationRuntime(dependencies) {
         const payload = (ev && typeof ev === 'object') ? ev : {};
         const opts = (options && typeof options === 'object') ? options : {};
         const delay = Number.isFinite(payload.delayMs) ? payload.delayMs : 0;
-        const scheduleFn = (typeof opts.setTimeout === 'function') ? opts.setTimeout : setTimeout;
+        const timerService = getCpuTurnTimerService();
+        const scheduleFn = (typeof opts.setTimeout === 'function') ? opts.setTimeout : (timerService ? timerService.setTimeout.bind(timerService) : setTimeout);
         const cpuTurnFn = (typeof opts.processCpuTurn === 'function') ? opts.processCpuTurn : processScheduledCpuTurn;
 
         return scheduleFn(function () {
@@ -1036,8 +1051,15 @@ function resetCpuTurnHandlerState() {
     _cpuRetryPendingByPlayer.white = null;
     resetPendingSelectRetryState('black');
     resetPendingSelectRetryState('white');
+    const timerService = getCpuTurnTimerService();
     for (const tid of _scheduledRetryTimerIds) {
-        try { clearTimeout(tid); } catch (e) { /* ignore */ }
+        try {
+            if (timerService) {
+                timerService.clearTimeout(tid);
+            } else {
+                clearTimeout(tid);
+            }
+        } catch (e) { /* ignore */ }
     }
     _scheduledRetryTimerIds.clear();
 }
@@ -1187,7 +1209,7 @@ function hasUsableWaitMs(t) {
 }
 
 function scheduleRetry(fn, delayMs = getAnimationRetryDelayMs()) {
-    // 1) Prefer module-scoped injected timers when a real impl is present.
+    // 1) Prefer legacy module-scoped injected timers when a real impl is present.
     if (hasUsableWaitMs(timers)) {
         try {
             timers.waitMs(delayMs).then(() => { try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); } });
@@ -1195,7 +1217,18 @@ function scheduleRetry(fn, delayMs = getAnimationRetryDelayMs()) {
         } catch (e) { /* fall through */ }
     }
 
-    // 2) Fallback to setTimeout
+    // 2) Prefer TimerService when available.
+    const timerService = getCpuTurnTimerService();
+    if (timerService) {
+        const tid = timerService.setTimeout(() => {
+            _scheduledRetryTimerIds.delete(tid);
+            try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); }
+        }, delayMs);
+        _scheduledRetryTimerIds.add(tid);
+        return;
+    }
+
+    // 3) Fallback to global setTimeout
     const tid = setTimeout(() => {
         _scheduledRetryTimerIds.delete(tid);
         try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); }
@@ -1619,13 +1652,13 @@ async function runCpuTurn(playerKey, { autoMode = false } = {}) {
                 return;
             }
             const cornersBeforeMove = countOwnedBasicCornersSafe(gameState, playerKey);
-            playHandAnimation(selfColor, move.row, move.col, () => {
-                executeMove(move);
-                const cornersAfterMove = countOwnedBasicCornersSafe(gameState, playerKey);
-                if (cornersAfterMove > cornersBeforeMove) {
-                    emitCpuCommentary('turn_start', playerKey, { level });
-                }
-            }, { cpu: true, cpuLevel: level, ownerKey: playerKey });
+            if (!Array.isArray(cardState.presentationEvents)) cardState.presentationEvents = [];
+            cardState.presentationEvents.push({ type: 'PLAY_HAND_ANIMATION', player: playerKey, row: move.row, col: move.col });
+            executeMove(move);
+            const cornersAfterMove = countOwnedBasicCornersSafe(gameState, playerKey);
+            if (cornersAfterMove > cornersBeforeMove) {
+                emitCpuCommentary('turn_start', playerKey, { level });
+            }
         };
 
         if (extraDelayMs > 0) {
@@ -1667,6 +1700,7 @@ if (typeof module !== 'undefined' && module.exports) {
         processAutoBlackTurn,
         setTimers,
         getTimers,
+        setCpuTurnTimerService,
         scheduleRetry,
         getPendingTypeHandlers,
         runCpuTurn,
@@ -1694,16 +1728,19 @@ try {
         } else {
             let tries = 0;
             const maxTries = 50; // ~5 seconds @ 100ms
-            const tid = setInterval(() => {
+            const timerService = getCpuTurnTimerService();
+            const schedulePoll = timerService ? timerService.setInterval.bind(timerService) : setInterval;
+            const clearPoll = timerService ? timerService.clearInterval.bind(timerService) : clearInterval;
+            const tid = schedulePoll(() => {
                 tries += 1;
                 try {
                     if (globalThis.UIBootstrap && typeof globalThis.UIBootstrap.registerUIGlobals === 'function') {
                         globalThis.UIBootstrap.registerUIGlobals({ processCpuTurn, processAutoBlackTurn, GamePresentationRuntime: presentationRuntime });
-                        clearInterval(tid);
+                        clearPoll(tid);
                         return;
                     }
                 } catch (e) { /* ignore during polling */ }
-                if (tries >= maxTries) clearInterval(tid);
+                if (tries >= maxTries) clearPoll(tid);
             }, 100);
         }
     }

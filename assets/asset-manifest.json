@@ -1,6 +1,6 @@
 {
-  "version": "2026-04-25",
-  "generatedAt": "2026-04-25T14:53:51.309Z",
+  "version": "2026-04-26",
+  "generatedAt": "2026-04-26T15:27:37.055Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -276,7 +276,7 @@
     },
     {
       "path": "assets/images/background/default.png",
-      "sha256": "30f184b41c53264bbca5fab5f06ba3beaa730400112acfef62bdc722cfb2e7a4"
+      "sha256": "2fb2f1e18045a943a56c9a406fadb460b5ba8739e8fd7de7b04d379066f2eb99"
     },
     {
       "path": "assets/images/background/宇宙の観測.png",
@@ -288,7 +288,7 @@
     },
     {
       "path": "assets/images/background-skin/default-table.svg",
-      "sha256": "e8406e699ad055993587d0542a65b07c08ae2feeffb8f0570a597a51508c489c"
+      "sha256": "c360360b46fe834cbf442e38c36c00a1b568b4658e65c928d99bfd20fe703152"
     },
     {
       "path": "assets/images/background-skin/観測の机.png",

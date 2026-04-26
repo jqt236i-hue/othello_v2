@@ -16,6 +16,7 @@ const CpuPolicyCore = require('../../game/ai/cpu-policy-core');
 const CpuPolicyTableRuntime = require('../../game/ai/policy-table-runtime');
 const CpuLv6LookaheadProfile = require('../../game/ai/cpu-lv6-lookahead-profile');
 const SharedBoardUtils = require(path.resolve(__dirname, '..', '..', 'shared', 'shared-board-utils.js'));
+const OthelloCore = require(path.resolve(__dirname, '..', '..', 'shared', 'othello-core.js'));
 const SharedCardHeuristics = require(path.resolve(__dirname, '..', '..', 'shared', 'shared-card-heuristics.js'));
 const PendingTargetSelector = require('../../game/turn-handlers/pending-target-selector');
 const PendingCoordinator = require('../../game/turn/pending-coordinator');
@@ -298,46 +299,23 @@ function isCSquare(row, col, boardOrSize) {
 }
 
 function getFlipsBasic(board, row, col, playerValue) {
+    if (OthelloCore && typeof OthelloCore.getFlipsBasic === 'function') {
+        return OthelloCore.getFlipsBasic(board, row, col, playerValue);
+    }
     if (SharedBoardUtils && typeof SharedBoardUtils.getFlipsBasic === 'function') {
         return SharedBoardUtils.getFlipsBasic(board, row, col, playerValue);
     }
-    if (!Array.isArray(board) || !Array.isArray(board[row])) return [];
-    if (board[row][col] !== 0) return [];
-    const dirs = [
-        [-1, -1], [-1, 0], [-1, 1],
-        [0, -1],           [0, 1],
-        [1, -1],  [1, 0],  [1, 1]
-    ];
-    const out = [];
-    for (const d of dirs) {
-        const temp = [];
-        let r = row + d[0];
-        let c = col + d[1];
-        while (r >= 0 && c >= 0 && r < board.length && c < board.length && board[r][c] === -playerValue) {
-            temp.push({ row: r, col: c });
-            r += d[0];
-            c += d[1];
-        }
-        if (temp.length > 0 && r >= 0 && c >= 0 && r < board.length && c < board.length && board[r][c] === playerValue) {
-            out.push(...temp);
-        }
-    }
-    return out;
+    return [];
 }
 
 function getLegalMovesBasic(board, playerValue) {
+    if (OthelloCore && typeof OthelloCore.getLegalMovesBasic === 'function') {
+        return OthelloCore.getLegalMovesBasic(board, playerValue);
+    }
     if (SharedBoardUtils && typeof SharedBoardUtils.getLegalMovesBasic === 'function') {
         return SharedBoardUtils.getLegalMovesBasic(board, playerValue);
     }
-    if (!Array.isArray(board)) return [];
-    const moves = [];
-    for (let row = 0; row < board.length; row++) {
-        for (let col = 0; col < board[row].length; col++) {
-            const flips = getFlipsBasic(board, row, col, playerValue);
-            if (flips.length > 0) moves.push({ row, col, flips });
-        }
-    }
-    return moves;
+    return [];
 }
 
 function scoreMove(move, rng, context) {

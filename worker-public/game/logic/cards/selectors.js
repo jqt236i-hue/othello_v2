@@ -12,7 +12,7 @@
 }(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardUtils, SharedBoardUtils) {
     'use strict';
 
-    const { EMPTY } = SharedConstants || {};
+    const { EMPTY, ORTHOGONAL_DIRECTIONS } = SharedConstants || {};
 
     if (EMPTY === undefined) {
         throw new Error('SharedConstants not loaded');
@@ -337,18 +337,12 @@
 
     // Return strong-wind targets: any non-empty stone that has at least one movable orthogonal direction.
     function getStrongWindTargets(cardState, gameState) {
-        const dirs = [
-            { dr: -1, dc: 0 },
-            { dr: 1, dc: 0 },
-            { dr: 0, dc: -1 },
-            { dr: 0, dc: 1 }
-        ];
         const res = [];
         forEachBoardShapeCell(gameState, (r, c, owner) => {
             if (owner === EMPTY) return;
             let movable = false;
-            for (const d of dirs) {
-                if (_getStrongWindDirectionDestination(cardState, gameState, r, c, d.dr, d.dc)) {
+            for (const d of ORTHOGONAL_DIRECTIONS) {
+                if (_getStrongWindDirectionDestination(cardState, gameState, r, c, d[0], d[1])) {
                     movable = true;
                     break;
                 }

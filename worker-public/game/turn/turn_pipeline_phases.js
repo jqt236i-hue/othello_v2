@@ -1336,14 +1336,14 @@
 
     function handOffCompletedTurn(Core, CardLogic, cardState, gameState, playerKey, turnNumberAfterCompletion) {
         if (!Core || !gameState) return { continued: false, remaining: 0 };
-        const player = playerKey === 'black' ? Core.BLACK : Core.WHITE;
+        const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
         const turnNumber = Number.isFinite(Number(turnNumberAfterCompletion))
             ? Number(turnNumberAfterCompletion)
             : (Number(gameState.turnNumber || 0) + 1);
         advanceGameRoundAfterCompletedTurn(Core, gameState, playerKey);
         const timeStopRes = consumeTimeStopCompletedTurn(CardLogic, cardState, playerKey);
         if (timeStopRes.continueTurn === true) {
-            gameState.currentPlayer = player;
+            gameState.currentPlayer = playerValue;
             gameState.consecutivePasses = 0;
             gameState.turnNumber = turnNumber;
             if (cardState) {
@@ -1351,7 +1351,7 @@
             }
             return { continued: true, remaining: Number(timeStopRes.remaining) || 0 };
         }
-        gameState.currentPlayer = -player;
+        gameState.currentPlayer = -playerValue;
         gameState.consecutivePasses = 0;
         gameState.turnNumber = turnNumber;
         return { continued: false, remaining: 0 };
@@ -2591,12 +2591,12 @@
 
     function hasContinuationMovesForPendingType(Core, CardLogic, cardState, gameState, playerKey, pendingType) {
         const ctx = resolveSafeCardContext(CardLogic, cardState);
-        const player = playerKey === 'black' ? Core.BLACK : Core.WHITE;
+        const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
         if (pendingType === 'LAST_RESORT' && typeof Core.getFreePlacementMoves === 'function') {
-            const moves = Core.getFreePlacementMoves(gameState, player, ctx);
+            const moves = Core.getFreePlacementMoves(gameState, playerValue, ctx);
             return Array.isArray(moves) && moves.length > 0;
         }
-        const moves = Core.getLegalMoves(gameState, player, ctx);
+        const moves = Core.getLegalMoves(gameState, playerValue, ctx);
         return Array.isArray(moves) && moves.length > 0;
     }
 
@@ -2660,9 +2660,9 @@
             : 0;
         try {
             if (action.type === 'pass') {
-                const player = playerKey === 'black' ? Core.BLACK : Core.WHITE;
+                const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
                 const ctx = resolveSafeCardContext(CardLogic, cardState);
-                const legalMoves = Core.getLegalMoves(gameState, player, ctx);
+                const legalMoves = Core.getLegalMoves(gameState, playerValue, ctx);
                 if (legalMoves.length > 0) {
                     throw new Error('Illegal pass: legal moves available');
                 }
@@ -2672,7 +2672,7 @@
                 Object.assign(gameState, newState);
                 const timeStopPassRes = consumeTimeStopCompletedTurn(CardLogic, cardState, playerKey);
                 if (timeStopPassRes.continueTurn === true) {
-                    gameState.currentPlayer = player;
+                    gameState.currentPlayer = playerValue;
                     gameState.consecutivePasses = 0;
                     if (cardState) {
                         cardState.lastTurnStartedFor = null;
@@ -3252,7 +3252,7 @@
 
             // Determine flips using a safe context helper when possible
             const ctx = resolveSafeCardContext(CardLogic, cardState);
-            const player = playerKey === 'black' ? Core.BLACK : Core.WHITE;
+            const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
 
             const blockedCells = (ctx && Array.isArray(ctx.blockedCells)) ? ctx.blockedCells : [];
             const blockedSet = blockedCells.length ? new Set(blockedCells.map(p => `${p.row},${p.col}`)) : null;
@@ -3265,7 +3265,7 @@
             const pendingType = getPendingEffectTypeForActionPhase(CardLogic, cardState, playerKey);
             if (pendingType === 'SWAP_WITH_ENEMY') {
                 const targetCell = getActionCellOwner(gameState, action.row, action.col);
-                if (targetCell === -player) {
+                if (targetCell === -playerValue) {
                     const swapped = CardLogic.applySwapEffect(cardState, gameState, playerKey, action.row, action.col);
                     events.push({ type: 'swap_selected', player: playerKey, row: action.row, col: action.col, swapped });
                     if (!swapped) {
@@ -3284,7 +3284,7 @@
             let tabooReverseResult = null;
 
             if (pendingType === 'TABOO_REVERSE_WILL' && typeof CardLogic.pickTabooReverseFlips === 'function') {
-                const normalFlips = Core.getFlipsWithContext(gameState, action.row, action.col, player, ctx);
+                const normalFlips = Core.getFlipsWithContext(gameState, action.row, action.col, playerValue, ctx);
                 tabooReverseResult = CardLogic.pickTabooReverseFlips(cardState, gameState, playerKey, action.row, action.col, p);
                 if (tabooReverseResult && tabooReverseResult.applied && Array.isArray(tabooReverseResult.flips) && tabooReverseResult.flips.length > 0) {
                     flips = tabooReverseResult.flips.map((one) => [one.row, one.col]);
@@ -3293,7 +3293,7 @@
                     flips = normalFlips;
                 }
             } else {
-                flips = Core.getFlipsWithContext(gameState, action.row, action.col, player, ctx);
+                flips = Core.getFlipsWithContext(gameState, action.row, action.col, playerValue, ctx);
             }
             let flipCount = flips.length;
 
@@ -3740,7 +3740,7 @@
             }
 
             if (keepTurnForContinuation) {
-                gameState.currentPlayer = player;
+                gameState.currentPlayer = playerValue;
                 gameState.consecutivePasses = 0;
                 gameState.turnNumber = turnNumberBeforePlace;
             } else {

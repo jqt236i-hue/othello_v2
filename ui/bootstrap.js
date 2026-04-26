@@ -783,24 +783,8 @@
     syncDebugLogAvailability();
 
     // DI: Install game-side implementations (timers, UI helpers)
-    function installGameDI() {
-        if (_gameDIInstallResult) return _gameDIInstallResult;
-        try {
-            classListAddSafe('stone-shadow-enabled');
-        } catch (e) { /* ignore */ }
-        try { ensureStoneBaseImagesReady({ timeoutMs: 5000 }); } catch (e) { /* ignore */ }
-        try { preloadSpecialStoneVisuals(); } catch (e) { /* ignore */ }
-
-        // Ensure BoardOps is available globally for presentation/event wiring
-        try {
-            if (typeof globalThis !== 'undefined' && !globalThis.BoardOps) {
-                const boardOps = require('../game/logic/board_ops');
-                if (boardOps) globalThis.BoardOps = boardOps;
-            }
-        } catch (e) { /* ignore in non-module UI contexts */ }
-
-        // Timers implementation using browser timing APIs
-        const timersImpl = {
+    function _makeTimersImpl() {
+        return {
             waitMs: (ms) => new Promise((resolve) => {
                 try {
                     if (typeof window !== 'undefined' && typeof window.setTimeout === 'function') return window.setTimeout(resolve, ms);
@@ -815,6 +799,27 @@
                 } catch (e) { setTimeout(resolve, 0); }
             })
         };
+    }
+
+    function _connect(uiPath, gamePath, mapFn, timersImpl) {
+        try {
+            const uiMod = require(uiPath);
+            const gameMod = require(gamePath);
+            if (gameMod && typeof gameMod.setUIImpl === 'function') {
+                const impl = mapFn ? mapFn(uiMod, timersImpl) : uiMod;
+                gameMod.setUIImpl(impl || {});
+            }
+        } catch (e) { /* ignore missing modules in headless contexts */ }
+    }
+
+    function installCoreDI() {
+        try {
+            classListAddSafe('stone-shadow-enabled');
+        } catch (e) { /* ignore */ }
+        try { ensureStoneBaseImagesReady({ timeoutMs: 5000 }); } catch (e) { /* ignore */ }
+        try { preloadSpecialStoneVisuals(); } catch (e) { /* ignore */ }
+
+        const timersImpl = _makeTimersImpl();
 
         // Inject into game/timers when available (one-time)
         try {
@@ -829,20 +834,87 @@
             }
         } catch (e) { /* ignore in non-module UI contexts */ }
 
-        // Helper to connect UI modules to their game counterparts
-        const connect = (uiPath, gamePath, mapFn) => {
-            try {
-                const uiMod = require(uiPath);
-                const gameMod = require(gamePath);
-                if (gameMod && typeof gameMod.setUIImpl === 'function') {
-                    const impl = mapFn ? mapFn(uiMod, timersImpl) : uiMod;
-                    gameMod.setUIImpl(impl || {});
-                }
-            } catch (e) { /* ignore missing modules in headless contexts */ }
-        };
+        return timersImpl;
+    }
 
+    function installCardDI() {
+        // Trap placement flash stays in UI and is invoked from game via DI.
+        _connect('./animation-utils', '../game/card-effects/trap', (uiMod) => ({
+            playTrapPlacementFlash: uiMod.playTrapPlacementFlash
+        }));
+
+        configurePendingSelectionFlowBridge();
+
+        // Action log storage adapter (UI-only localStorage access)
+        try {
+            const am = require('../game/schema/action_manager');
+            const storage = require('./storage/action-log');
+            if (am && typeof am.setStorageAdapter === 'function' && storage) {
+                am.setStorageAdapter(storage);
+            }
+        } catch (e) { /* ignore */ }
+
+        // Special-effects UI hooks: many modules accept setUIImpl; wire basic helpers
+        const specialModules = ['../game/special-effects/breeding', '../game/special-effects/dragons', '../game/special-effects/hyperactive'];
+        for (const p of specialModules) {
+            try {
+                const m = require(p);
+                if (m && typeof m.setUIImpl === 'function') {
+                    m.setUIImpl({ /* currently no-op placeholders; UI modules provide visuals */ });
+                }
+            } catch (e) { /* ignore */ }
+        }
+    }
+
+    function installNetworkDI() {
+        // Early registration: if the CPU turn handler is available on the game side, register its
+        // processCpuTurn/processAutoBlackTurn to UIBootstrap so UI consumers can schedule CPU
+        // turns immediately without waiting for other bootstrap steps. This avoids boot-order
+        // races where a SCHEDULE_CPU_TURN event would otherwise go unhandled.
+        try {
+            const cpu = require('../game/cpu-turn-handler');
+            if (cpu) {
+                const cpuGlobals = {};
+                if (typeof cpu.processCpuTurn === 'function') cpuGlobals.processCpuTurn = cpu.processCpuTurn;
+                if (typeof cpu.processAutoBlackTurn === 'function') cpuGlobals.processAutoBlackTurn = cpu.processAutoBlackTurn;
+                if (Object.keys(cpuGlobals).length) {
+                    try { registerUIGlobals(cpuGlobals); } catch (e) { /* ignore */ }
+                    try { if (typeof globalThis !== 'undefined') { if (cpuGlobals.processCpuTurn) globalThis.processCpuTurn = cpuGlobals.processCpuTurn; if (cpuGlobals.processAutoBlackTurn) globalThis.processAutoBlackTurn = cpuGlobals.processAutoBlackTurn; } } catch (e) { /* ignore */ }
+                }
+            }
+        } catch (e) { /* ignore */ }
+
+        // Commentary broker initialization
+        try {
+            const commentaryBroker = require('./commentary-broker');
+            if (commentaryBroker && typeof commentaryBroker.initBroker === 'function') {
+                commentaryBroker.initBroker({
+                    root: (typeof globalThis !== 'undefined') ? globalThis : null,
+                    addLog,
+                    getShowHeroSpeechBubble: () => {
+                        try {
+                            if (typeof window !== 'undefined' && typeof window.showHeroSpeechBubble === 'function') {
+                                return window.showHeroSpeechBubble;
+                            }
+                        } catch (e) { /* ignore */ }
+                        return null;
+                    },
+                    getShowCpuSpeechBubble: () => {
+                        try {
+                            if (typeof window !== 'undefined' && typeof window.showCpuSpeechBubble === 'function') {
+                                return window.showCpuSpeechBubble;
+                            }
+                        } catch (e) { /* ignore */ }
+                        return null;
+                    }
+                });
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    function installUIDI(timersImpl) {
         // Move visuals
-        connect('./move-executor-visuals', '../game/move-executor-visuals', (uiMod) => ({
+        _connect('./move-executor-visuals', '../game/move-executor-visuals', (uiMod) => ({
             applyFlipAnimations: uiMod.applyFlipAnimations,
             setDiscColorAt: uiMod.setDiscColorAt,
             removeBombOverlayAt: uiMod.removeBombOverlayAt,
@@ -860,10 +932,10 @@
             hasPlaybackEngine: uiMod.hasPlaybackEngine,
             applyPendingSpecialstoneVisual: uiMod.applyPendingSpecialstoneVisual,
             runMoveVisualSequence: uiMod.runMoveVisualSequence
-        }));
+        }), timersImpl);
 
         // Provide scheduling helper to game/move-executor so CPU turns are delayed to allow visuals to complete
-        connect('./move-executor-visuals', '../game/move-executor', (uiMod, timers) => ({
+        _connect('./move-executor-visuals', '../game/move-executor', (uiMod, timers) => ({
             scheduleCpuTurn: (ms, cb) => { return timers.waitMs(ms || 0).then(cb); },
             now: () => Date.now(),
             // Let game/move-executor await the UI playback lifecycle (AnimationEngine / visual writer)
@@ -884,20 +956,15 @@
                     return false;
                 }
             }
-        }));
+        }), timersImpl);
 
         // Visual effects map
-        connect('./visual-effects-map', '../game/visual-effects-map', (uiMod) => ({
+        _connect('./visual-effects-map', '../game/visual-effects-map', (uiMod) => ({
             applyStoneVisualEffect: uiMod.applyStoneVisualEffect,
             removeStoneVisualEffect: uiMod.removeStoneVisualEffect,
             getSupportedEffectKeys: uiMod.getSupportedEffectKeys,
             __setSpecialStoneScaleImpl__: uiMod.__setSpecialStoneScaleImpl__ || function(scale) { if (typeof window !== 'undefined' && window.setSpecialStoneScale) window.setSpecialStoneScale(scale); }
-        }));
-
-        // Trap placement flash stays in UI and is invoked from game via DI.
-        connect('./animation-utils', '../game/card-effects/trap', (uiMod) => ({
-            playTrapPlacementFlash: uiMod.playTrapPlacementFlash
-        }));
+        }), timersImpl);
 
         // Turn manager helpers (readCpuSmartness / scheduleCpuTurn / isDocumentHidden / pulseDeckUI)
         try {
@@ -928,45 +995,15 @@
                 });
             }
         } catch (e) { /* ignore */ }
+    }
 
-        configurePendingSelectionFlowBridge();
+    function installGameDI() {
+        if (_gameDIInstallResult) return _gameDIInstallResult;
 
-        // Early registration: if the CPU turn handler is available on the game side, register its
-        // processCpuTurn/processAutoBlackTurn to UIBootstrap so UI consumers can schedule CPU
-        // turns immediately without waiting for other bootstrap steps. This avoids boot-order
-        // races where a SCHEDULE_CPU_TURN event would otherwise go unhandled.
-        try {
-            const cpu = require('../game/cpu-turn-handler');
-            if (cpu) {
-                const cpuGlobals = {};
-                if (typeof cpu.processCpuTurn === 'function') cpuGlobals.processCpuTurn = cpu.processCpuTurn;
-                if (typeof cpu.processAutoBlackTurn === 'function') cpuGlobals.processAutoBlackTurn = cpu.processAutoBlackTurn;
-                if (Object.keys(cpuGlobals).length) {
-                    try { registerUIGlobals(cpuGlobals); } catch (e) { /* ignore */ }
-                    try { if (typeof globalThis !== 'undefined') { if (cpuGlobals.processCpuTurn) globalThis.processCpuTurn = cpuGlobals.processCpuTurn; if (cpuGlobals.processAutoBlackTurn) globalThis.processAutoBlackTurn = cpuGlobals.processAutoBlackTurn; } } catch (e) { /* ignore */ }
-                }
-            }
-        } catch (e) { /* ignore */ }
-
-        // Action log storage adapter (UI-only localStorage access)
-        try {
-            const am = require('../game/schema/action_manager');
-            const storage = require('./storage/action-log');
-            if (am && typeof am.setStorageAdapter === 'function' && storage) {
-                am.setStorageAdapter(storage);
-            }
-        } catch (e) { /* ignore */ }
-
-        // Special-effects UI hooks: many modules accept setUIImpl; wire basic helpers
-        const specialModules = ['../game/special-effects/breeding', '../game/special-effects/dragons', '../game/special-effects/hyperactive'];
-        for (const p of specialModules) {
-            try {
-                const m = require(p);
-                if (m && typeof m.setUIImpl === 'function') {
-                    m.setUIImpl({ /* currently no-op placeholders; UI modules provide visuals */ });
-                }
-            } catch (e) { /* ignore */ }
-        }
+        const timersImpl = installCoreDI();
+        installCardDI();
+        installNetworkDI();
+        installUIDI(timersImpl);
 
         function preloadAssets(manifest, opts = {}) {
             opts = Object.assign({ timeoutMs: 5000 }, opts || {});
@@ -989,36 +1026,6 @@
             });
         }
 
-        /**
-         * Apply an asset manifest received from server as part of game init.
-         * policy = { mode: 'compat'|'strict' } - compat allows fallback, strict rejects on failure
-         * Returns an object: { status: 'ok'|'fallback'|'error', details }
-         */
-        try {
-            const commentaryBroker = require('./commentary-broker');
-            if (commentaryBroker && typeof commentaryBroker.initBroker === 'function') {
-                commentaryBroker.initBroker({
-                    root: (typeof globalThis !== 'undefined') ? globalThis : null,
-                    addLog,
-                    getShowHeroSpeechBubble: () => {
-                        try {
-                            if (typeof window !== 'undefined' && typeof window.showHeroSpeechBubble === 'function') {
-                                return window.showHeroSpeechBubble;
-                            }
-                        } catch (e) { /* ignore */ }
-                        return null;
-                    },
-                    getShowCpuSpeechBubble: () => {
-                        try {
-                            if (typeof window !== 'undefined' && typeof window.showCpuSpeechBubble === 'function') {
-                                return window.showCpuSpeechBubble;
-                            }
-                        } catch (e) { /* ignore */ }
-                        return null;
-                    }
-                });
-            }
-        } catch (e) { /* ignore */ }
         _gameDIInstallResult = { timersImpl, registerUIGlobals, preloadAssets, preloadSpecialStoneVisuals };
         return _gameDIInstallResult;
     }

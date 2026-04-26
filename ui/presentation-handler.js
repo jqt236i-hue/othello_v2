@@ -78,6 +78,10 @@
         return null;
     }
 
+    function resolveBoardUtils() {
+        return resolveModuleOrGlobal('../shared/board-utils', 'BoardUtils');
+    }
+
     function resolveCommentaryBroker() {
         if (commentaryBroker) return commentaryBroker;
         commentaryBroker = resolveModuleOrGlobal('./commentary-broker', 'CommentaryBroker');
@@ -172,6 +176,10 @@
     }
 
     function countDiscsFromBoard(board) {
+        const boardUtils = resolveBoardUtils();
+        if (boardUtils && typeof boardUtils.countDiscs === 'function') {
+            return boardUtils.countDiscs(board);
+        }
         const helpers = resolveCommentaryContextHelpers();
         if (helpers && typeof helpers.countDiscsFromBoard === 'function') {
             return helpers.countDiscsFromBoard(board);

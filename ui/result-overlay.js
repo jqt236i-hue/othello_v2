@@ -71,6 +71,17 @@ const ResultOverlayBoardUtilsModule = (() => {
     } catch (e) { /* ignore */ }
     return null;
 })();
+const ResultOverlayBoardUtilsNewModule = (() => {
+    if (typeof require === 'function') {
+        try {
+            return require('../shared/board-utils');
+        } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.BoardUtils) return globalThis.BoardUtils;
+    } catch (e) { /* ignore */ }
+    return null;
+})();
 
 function createEmptyResultPresentationState() {
     return {
@@ -108,12 +119,11 @@ function normalizeDiscCounts(counts) {
 
 function countDiscsFromBoardState(gameStateRef) {
     const stateRef = (gameStateRef && typeof gameStateRef === 'object') ? gameStateRef : null;
-    if (ResultOverlayBoardUtilsModule && typeof ResultOverlayBoardUtilsModule.countDiscsByPlayer === 'function') {
-        return normalizeDiscCounts(ResultOverlayBoardUtilsModule.countDiscsByPlayer(stateRef));
-    }
-
-    const counts = { black: 0, white: 0 };
     const board = stateRef && Array.isArray(stateRef.board) ? stateRef.board : [];
+    if (ResultOverlayBoardUtilsNewModule && typeof ResultOverlayBoardUtilsNewModule.countDiscs === 'function') {
+        return normalizeDiscCounts(ResultOverlayBoardUtilsNewModule.countDiscs(board));
+    }
+    const counts = { black: 0, white: 0 };
     for (let row = 0; row < board.length; row += 1) {
         const boardRow = Array.isArray(board[row]) ? board[row] : [];
         for (let col = 0; col < boardRow.length; col += 1) {

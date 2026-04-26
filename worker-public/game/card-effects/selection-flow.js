@@ -266,26 +266,6 @@
         return undefined;
     }
 
-    function readLegacyBusyFlag(flagName, fallbackValue) {
-        try {
-            if (root && typeof root === 'object' && typeof root[flagName] !== 'undefined') {
-                return root[flagName] === true;
-            }
-            if (root && root.window && typeof root.window === 'object' && typeof root.window[flagName] !== 'undefined') {
-                return root.window[flagName] === true;
-            }
-        } catch (e) { /* ignore */ }
-        try {
-            if (typeof globalThis !== 'undefined' && globalThis && typeof globalThis[flagName] !== 'undefined') {
-                return globalThis[flagName] === true;
-            }
-            if (typeof globalThis !== 'undefined' && globalThis && globalThis.window && typeof globalThis.window === 'object' && typeof globalThis.window[flagName] !== 'undefined') {
-                return globalThis.window[flagName] === true;
-            }
-        } catch (e) { /* ignore */ }
-        return fallbackValue === true;
-    }
-
     function setSelectionProcessing(nextValue) {
         const playbackState = getPlaybackStateManager();
         const normalized = nextValue === true;
@@ -345,8 +325,8 @@
         const playbackState = getPlaybackStateManager();
         if (!playbackState || typeof playbackState !== 'object') {
             return {
-                processing: localSelectionBusyState.processing === true || readLegacyBusyFlag('isProcessing', false),
-                cardAnimating: localSelectionBusyState.cardAnimating === true || readLegacyBusyFlag('isCardAnimating', false)
+                processing: localSelectionBusyState.processing === true,
+                cardAnimating: localSelectionBusyState.cardAnimating === true
             };
         }
 
