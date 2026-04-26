@@ -219,7 +219,7 @@ function isFreePlacementPendingTypeForMoveGeneration(pendingType) {
 function generateMovesForPlayer(player, pending, protection, perma) {
     const legal = getLegalMoves(gameState, protection, perma);
     if (!pending) {
-        return legal.map(m => ({ ...m, effectUsed: null, player }));
+        return legal.map(m => ({ ...m, effectUsed: null, player, playerValue: player }));
     }
 
     const pendingType = pending.type;
@@ -237,7 +237,7 @@ function generateMovesForPlayer(player, pending, protection, perma) {
         return generateSwapMoves(player, legal, protection, perma);
     }
 
-    return legal.map(m => ({ ...m, effectUsed: pendingType, player }));
+    return legal.map(m => ({ ...m, effectUsed: pendingType, player, playerValue: player }));
 }
 
 function generateTabooReverseMoves(player, legal) {
@@ -247,7 +247,7 @@ function generateTabooReverseMoves(player, legal) {
     for (const m of (legal || [])) {
         if (!m || !Number.isInteger(m.row) || !Number.isInteger(m.col)) continue;
         const key = `${m.row},${m.col}`;
-        moveMap.set(key, { ...m, effectUsed, player });
+        moveMap.set(key, { ...m, effectUsed, player, playerValue: player });
     }
 
     if (typeof CardLogic === 'undefined' || !CardLogic || typeof CardLogic.getTabooReverseCandidates !== 'function') {
@@ -267,7 +267,7 @@ function generateTabooReverseMoves(player, legal) {
         const flips = Array.isArray(best && best.flips)
             ? best.flips.map(p => [p.row, p.col])
             : [];
-        moveMap.set(key, { row, col, flips, effectUsed, player });
+        moveMap.set(key, { row, col, flips, effectUsed, player, playerValue: player });
     };
 
     for (let r = 0; r < gameState.board.length; r++) {
@@ -303,7 +303,7 @@ function generateFreePlacementMoves(player, protection, perma, effectType) {
                 if (CardLogic.isBlockedCell(cardState, r, c, gameState)) continue;
             }
             const flips = getFlips(gameState, r, c, player, protection, perma);
-            moves.push({ row: r, col: c, flips, effectUsed, player });
+            moves.push({ row: r, col: c, flips, effectUsed, player, playerValue: player });
         }
     }
     const expansionCells = getExpansionCellsForMoveGeneration(gameState);
@@ -315,7 +315,7 @@ function generateFreePlacementMoves(player, protection, perma, effectType) {
             }
         }
         const flips = getFlips(gameState, expansion.row, expansion.col, player, protection, perma);
-        moves.push({ row: expansion.row, col: expansion.col, flips, effectUsed, player });
+        moves.push({ row: expansion.row, col: expansion.col, flips, effectUsed, player, playerValue: player });
     }
     return moves;
 }
@@ -344,7 +344,7 @@ function generateSwapMoves(player, legal, protection, perma) {
                 const clonedState = deepCloneState(gameState);
                 setCellValueForMoveGeneration(clonedState, r, c, EMPTY);
                 const swapFlips = getFlips(clonedState, r, c, player, protection, perma);
-                moves.push({ row: r, col: c, flips: swapFlips, effectUsed: 'SWAP_WITH_ENEMY', player });
+                moves.push({ row: r, col: c, flips: swapFlips, effectUsed: 'SWAP_WITH_ENEMY', player, playerValue: player });
             }
         }
     }
@@ -366,7 +366,7 @@ function generateSwapMoves(player, legal, protection, perma) {
         const clonedState = deepCloneState(gameState);
         if (!setCellValueForMoveGeneration(clonedState, expansion.row, expansion.col, EMPTY)) continue;
         const swapFlips = getFlips(clonedState, expansion.row, expansion.col, player, protection, perma);
-        moves.push({ row: expansion.row, col: expansion.col, flips: swapFlips, effectUsed: 'SWAP_WITH_ENEMY', player });
+        moves.push({ row: expansion.row, col: expansion.col, flips: swapFlips, effectUsed: 'SWAP_WITH_ENEMY', player, playerValue: player });
     }
 
     return moves;

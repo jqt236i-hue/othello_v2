@@ -696,14 +696,14 @@
 
     function collectRiboDestroyableOwnStonePositions(cardState, gameState, playerKey) {
         const out = [];
-        const ownerValue = playerKey === 'black' ? BLACK : WHITE;
+        const playerValue = playerKey === 'black' ? BLACK : WHITE;
         const boardConfig = resolveCardBoardConfig(gameState);
         const board = gameState && Array.isArray(gameState.board) ? gameState.board : [];
 
         for (let row = 0; row < boardConfig.rows; row++) {
             const boardRow = Array.isArray(board[row]) ? board[row] : [];
             for (let col = 0; col < boardConfig.cols; col++) {
-                if (boardRow[col] !== ownerValue) continue;
+                if (boardRow[col] !== playerValue) continue;
                 if (isGuardProtectedCell(cardState, row, col)) continue;
                 out.push({ row, col });
             }
@@ -711,7 +711,7 @@
 
         const expansionCells = getRiboExpansionDescriptors(gameState);
         for (const cell of expansionCells) {
-            if (!cell || cell.owner !== ownerValue) continue;
+            if (!cell || cell.owner !== playerValue) continue;
             if (isGuardProtectedCell(cardState, cell.row, cell.col)) continue;
             out.push({ row: cell.row, col: cell.col });
         }
@@ -901,9 +901,9 @@
             return { triggered: [], fizzled: [] };
         }
 
-        const ownerValue = playerKey === 'black' ? BLACK : WHITE;
+        const playerValue = playerKey === 'black' ? BLACK : WHITE;
         const cellValue = getCellValueForCard(gameState, row, col);
-        if (cellValue !== ownerValue) {
+        if (cellValue !== playerValue) {
             if (marker.id !== undefined && marker.id !== null) {
                 removeMarkerById(cardState, marker.id);
             } else {
@@ -1060,8 +1060,8 @@
                         spawnMeta
                     );
                 } else {
-                    const ownerValue = playerKey === 'white' ? WHITE : BLACK;
-                    const wroteCell = setCellValueForCard(gameState, target.row, target.col, ownerValue);
+                    const playerValue = playerKey === 'white' ? WHITE : BLACK;
+                    const wroteCell = setCellValueForCard(gameState, target.row, target.col, playerValue);
                     if (wroteCell) {
                         const stoneId = allocateStoneId(cardState);
                         setStoneIdAtForCard(cardState, gameState, target.row, target.col, stoneId);
@@ -1711,10 +1711,10 @@
     }
 
     function countOccupiedCornersForPlayer(cardState, gameState, playerKey) {
-        const ownerVal = playerKey === 'white' ? WHITE : BLACK;
+        const playerValue = playerKey === 'white' ? WHITE : BLACK;
         return getCurrentCornerCellsForCard(cardState, gameState)
             .reduce((count, cell) => (
-                getCellValueForCard(gameState, cell.row, cell.col) === ownerVal ? count + 1 : count
+                getCellValueForCard(gameState, cell.row, cell.col) === playerValue ? count + 1 : count
             ), 0);
     }
 
@@ -3071,34 +3071,34 @@
         for (const trap of specials) {
             const row = trap.row;
             const col = trap.col;
-            const ownerKey = trap.owner === 'white' ? 'white' : 'black';
-            const opponentKey = ownerKey === 'black' ? 'white' : 'black';
-            const ownerVal = ownerKey === 'black' ? P_BLACK : P_WHITE;
+            const trapPlayerKey = trap.owner === 'white' ? 'white' : 'black';
+            const opponentKey = trapPlayerKey === 'black' ? 'white' : 'black';
+            const trapPlayerValue = trapPlayerKey === 'black' ? P_BLACK : P_WHITE;
             const activeVal = activePlayerKey === 'black' ? P_BLACK : P_WHITE;
             const cellVal = getCellValueForCard(gameState, row, col);
 
             if (cellVal === EMPTY) {
-                removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: ownerKey });
-                res.disarmed.push({ row, col, owner: ownerKey, reason: 'empty' });
+                removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: trapPlayerKey });
+                res.disarmed.push({ row, col, owner: trapPlayerKey, reason: 'empty' });
                 continue;
             }
 
-            if (cellVal === ownerVal) {
-                if (expireOnOwnerTurnStart && activePlayerKey === ownerKey) {
+            if (cellVal === trapPlayerValue) {
+                if (expireOnOwnerTurnStart && activePlayerKey === trapPlayerKey) {
                     // Reveal just before destroy so both sides can read the trap icon at expiry.
                     emitPresentationEvent(cardState, {
                         type: 'STATUS_APPLIED',
                         row,
                         col,
-                        meta: { special: 'TRAP_REVEAL', owner: ownerKey, reason: 'trap_expired_reveal' }
+                        meta: { special: 'TRAP_REVEAL', owner: trapPlayerKey, reason: 'trap_expired_reveal' }
                     });
                     if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-                        BoardOpsModule.destroyAt(cardState, gameState, row, col, 'TRAP_WILL', 'trap_expired', { special: 'TRAP_REVEAL', owner: ownerKey });
+                        BoardOpsModule.destroyAt(cardState, gameState, row, col, 'TRAP_WILL', 'trap_expired', { special: 'TRAP_REVEAL', owner: trapPlayerKey });
                     } else {
                         setCellValueForCard(gameState, row, col, EMPTY);
-                        removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: ownerKey });
+                        removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: trapPlayerKey });
                     }
-                    res.expired.push({ row, col, owner: ownerKey });
+                    res.expired.push({ row, col, owner: trapPlayerKey });
                 }
                 continue;
             }
@@ -3200,8 +3200,8 @@
     }
 
     function transferCellMarkerOwnership(cardState, row, col, playerKey) {
-        const ownerKey = playerKey === 'white' ? 'white' : 'black';
-        const ownerColor = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
+        const normalizedPlayerKey = playerKey === 'white' ? 'white' : 'black';
+        const playerValue = normalizedPlayerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const markersAtCell = getMarkers(cardState).filter((marker) => (
             marker &&
             marker.row === row &&
@@ -3212,19 +3212,19 @@
 
         for (const marker of markersAtCell) {
             transferred = true;
-            marker.owner = ownerKey;
+            marker.owner = normalizedPlayerKey;
             const markerData = (marker.data && typeof marker.data === 'object') ? marker.data : null;
             if (!markerData) continue;
             if (String(markerData.type || '').toUpperCase() === 'WORK') {
                 hadWork = true;
             }
             if (Object.prototype.hasOwnProperty.call(markerData, 'expiresForPlayer')) {
-                markerData.expiresForPlayer = ownerKey;
+                markerData.expiresForPlayer = normalizedPlayerKey;
             }
             if (Object.prototype.hasOwnProperty.call(markerData, 'ownerColor')) {
                 markerData.ownerColor = typeof markerData.ownerColor === 'number'
-                    ? ownerColor
-                    : ownerKey;
+                    ? playerValue
+                    : normalizedPlayerKey;
             }
         }
 
@@ -5263,7 +5263,7 @@
             return { applied: false, flips: [], chosen: null };
         }
 
-        const ownerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
+        const playerValue = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const context = getCardContext(cardState);
         const p = prng || defaultPrng;
 
@@ -5273,7 +5273,7 @@
             let sourceFlips = Array.isArray(primaryFlips) ? primaryFlips.slice() : [];
             const maxLinks = resolveChainWillMaxLinks(gameState, chainConfig);
             for (let i = 0; i < maxLinks; i++) {
-                const res = findChainChoiceFn(gameState, sourceFlips, ownerVal, context, p);
+                const res = findChainChoiceFn(gameState, sourceFlips, playerValue, context, p);
                 if (!res || !res.applied || !Array.isArray(res.flips) || res.flips.length === 0) break;
                 const chainLink = i + 1;
                 const appliedThisLink = [];
@@ -5283,7 +5283,7 @@
                         const changeRes = BoardOpsModule.changeAt(cardState, gameState, pos.row, pos.col, playerKey, CHAIN_WILL_EVENT_CAUSE, 'chain_flip', { chainLink });
                         changed = !!(changeRes && changeRes.changed);
                     } else {
-                        gameState.board[pos.row][pos.col] = ownerVal;
+                        gameState.board[pos.row][pos.col] = playerValue;
                     }
                     if (!changed) continue;
                     clearBombAt(cardState, pos.row, pos.col);
@@ -5624,12 +5624,12 @@
         });
         if (!marker) return result;
 
-        const ownerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
+        const playerValue = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const boardRow = Array.isArray(gameState.board) ? gameState.board[row] : null;
         const cellValue = Array.isArray(boardRow) ? boardRow[col] : null;
 
         result.activated = true;
-        if (cellValue !== ownerVal) {
+        if (cellValue !== playerValue) {
             removeMarkersAt(cardState, row, col, {
                 kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
                 type: 'OBSERVER',

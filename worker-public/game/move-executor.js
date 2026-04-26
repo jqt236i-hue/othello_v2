@@ -59,8 +59,9 @@ function normalizeMoveExecutorPlayerKey(value, fallbackValue) {
 }
 
 function resolveMoveExecutorTurnOwnerKey(move) {
-    const currentTurnOwner = gameState ? gameState.currentPlayer : null;
-    return normalizeMoveExecutorPlayerKey(move && move.player, currentTurnOwner);
+    const currentPlayerValue = gameState ? gameState.currentPlayer : null;
+    const movePlayerValue = move && (move.playerValue !== undefined ? move.playerValue : move.player);
+    return normalizeMoveExecutorPlayerKey(movePlayerValue, currentPlayerValue);
 }
 
 function resolveMoveExecutorAuthPlayerKey(turnOwnerKey) {

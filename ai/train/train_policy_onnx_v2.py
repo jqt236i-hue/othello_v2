@@ -26,10 +26,11 @@ from torch.nn import functional as F
 
 import onnx_trainer_common as trainer_common
 import train_policy_table as policy_table
-from models.cnn_resnet_policy import build_cnn_model
+from models.cnn_resnet_policy_v2 import build_cnn_model_v2
+from models.hand_encoder import build_hand_features_for_record
 
 
-MODEL_SCHEMA_VERSION = "policy_cnn_onnx.v1"
+MODEL_SCHEMA_VERSION = "policy_cnn_onnx.v2"
 BOARD_SIZE = 8
 PADDED_BOARD_MIN = -1
 PADDED_BOARD_MAX = 8
@@ -84,11 +85,12 @@ NO_CARD_ACTION_INDEX = CARD_ACTION_INDEX.get(NO_CARD_ACTION_ID)
 
 @dataclass
 class DatasetBundle:
-    x_board: torch.Tensor          # (N, 2, 10, 10)
+    x_board: torch.Tensor          # (N, 5, 10, 10)
     x_aux: torch.Tensor            # (N, 16)
+    x_hand: torch.Tensor           # (N, 5, 11) [card_id_idx, cost_norm, type_onehot(9)]
     y_place: torch.Tensor          # (N,)
     y_card: torch.Tensor           # (N,)
-    y_value: torch.Tensor          # (N,)
+    y_value: torch.Tensor          # (N,)  # WDL labels: 0=loss, 1=draw, 2=win
     sample_weight: torch.Tensor    # (N,)
     split_group_keys: list[str | None]
     records_read: int
@@ -153,6 +155,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--hidden-channels", type=int, default=32, help="CNN base channels (default: 32).")
     p.add_argument("--num-res-blocks", type=int, default=3, help="ResNet blocks (default: 3).")
     p.add_argument("--value-loss-weight", type=float, default=1.0, help="Weight for value MSE loss (default: 1.0).")
+    p.add_argument(
+        "--nonvalidity-penalty",
+        type=float,
+        default=0.0,
+        help="Penalty weight for illegal move probability mass (default: 0=off).",
+    )
     p.add_argument(
         "--early-stop-monitor",
         default="val_loss",
@@ -454,11 +462,19 @@ def card_target_index(rec: dict) -> int | None:
     return None
 
 
-def value_target(rec: dict) -> float:
-    """Return a scalar value target in [-1, 1] from the record outcome."""
+def value_target(rec: dict) -> int:
+    """Return WDL label: 0=loss, 1=draw, 2=win.
+
+    CrossEntropyLoss expects class indices starting from 0.
+    """
     outcome = rec.get("outcome")
     if isinstance(outcome, (int, float)):
-        return clamp_float(float(outcome), -1.0, 1.0)
+        val = clamp_float(float(outcome), -1.0, 1.0)
+        if val > 0.5:
+            return 2  # win
+        if val < -0.5:
+            return 0  # loss
+        return 1  # draw
 
     winner = rec.get("winner")
     player = rec.get("player")
@@ -466,11 +482,11 @@ def value_target(rec: dict) -> float:
         winner_norm = winner.strip().lower()
         player_norm = player.strip().lower()
         if winner_norm == "draw":
-            return 0.0
+            return 1
         if winner_norm == player_norm:
-            return 1.0
-        return -1.0
-    return 0.0
+            return 2
+        return 0
+    return 1
 
 
 def sample_weight_for_record(
@@ -570,6 +586,7 @@ def load_dataset(
 ) -> DatasetBundle:
     x_boards: list[list[list[list[float]]]] = []
     x_auxs: list[list[float]] = []
+    x_hands: list[list[list[float]]] = []
     y_place: list[int] = []
     y_card: list[int] = []
     y_value: list[float] = []
@@ -598,6 +615,7 @@ def load_dataset(
 
             x_boards.append(build_board_tensor(rec))
             x_auxs.append(build_aux_vector(rec))
+            x_hands.append(build_hand_features_for_record(rec.get("handCards")))
             y_place.append(place_t if place_t is not None else IGNORE_INDEX)
             y_card.append(card_t if card_t is not None else IGNORE_INDEX)
             y_value.append(value_target(rec))
@@ -641,14 +659,16 @@ def load_dataset(
 
     x_board_tensor = torch.tensor(x_boards, dtype=torch.float32)
     x_aux_tensor = torch.tensor(x_auxs, dtype=torch.float32)
+    x_hand_tensor = torch.tensor(x_hands, dtype=torch.float32)
     y_place_tensor = torch.tensor(y_place, dtype=torch.long)
     y_card_tensor = torch.tensor(y_card, dtype=torch.long)
-    y_value_tensor = torch.tensor(y_value, dtype=torch.float32)
+    y_value_tensor = torch.tensor(y_value, dtype=torch.long)
     sample_weight_tensor = torch.tensor(sample_weight, dtype=torch.float32)
 
     return DatasetBundle(
-        x=x_board_tensor,
+        x_board=x_board_tensor,
         x_aux=x_aux_tensor,
+        x_hand=x_hand_tensor,
         y_place=y_place_tensor,
         y_card=y_card_tensor,
         y_value=y_value_tensor,
@@ -704,6 +724,7 @@ def train_model(
     corner_balance_sample_boost: float = 0.0,
     edge_balance_sample_boost: float = 0.0,
     economy_balance_sample_boost: float = 0.0,
+    nonvalidity_penalty: float = 0.0,
 ) -> tuple[nn.Module, torch.optim.Optimizer, TrainSummary, str | None, list[dict], dict[str, Any]]:
     if epochs < 1:
         raise ValueError("--epochs must be >= 1")
@@ -749,6 +770,8 @@ def train_model(
         raise ValueError("--edge-balance-sample-boost must be >= 0")
     if economy_balance_sample_boost < 0:
         raise ValueError("--economy-balance-sample-boost must be >= 0")
+    if nonvalidity_penalty < 0:
+        raise ValueError("--nonvalidity-penalty must be >= 0")
 
     trainer_common.validate_lr_plateau_args(
         lr_plateau_patience=lr_plateau_patience,
@@ -769,18 +792,20 @@ def train_model(
     if device == "cuda":
         torch.cuda.manual_seed_all(seed)
 
-    model = build_cnn_model(
+    model = build_cnn_model_v2(
         board_channels=5,
         aux_dim=AUX_FEATURE_DIM,
+        hand_size=5,
         hidden_channels=hidden_channels,
         num_res_blocks=num_res_blocks,
         policy_output_dim=PLACE_OUTPUT_DIM,
         card_output_dim=CARD_ACTION_DIM,
-        use_value_head=True,
+        use_wdl_head=True,
     ).to(device)
 
-    x_board = data.x.to(device)
+    x_board = data.x_board.to(device)
     x_aux = data.x_aux.to(device)
+    x_hand = data.x_hand.to(device)
     y_place = data.y_place.to(device)
     y_card = data.y_card.to(device)
     y_value = data.y_value.to(device)
@@ -788,7 +813,7 @@ def train_model(
 
     opt = torch.optim.Adam(model.parameters(), lr=lr)
     loss_place_fn = nn.CrossEntropyLoss(ignore_index=IGNORE_INDEX)
-    loss_value_fn = nn.MSELoss()
+    loss_wdl_fn = nn.CrossEntropyLoss()
 
     resumed_from = trainer_common.apply_resume_checkpoint(
         "train_policy_onnx_v2", model, opt, resume_checkpoint, resume_optimizer, device,
@@ -805,6 +830,7 @@ def train_model(
 
     x_board_train = x_board[train_idx]
     x_aux_train = x_aux[train_idx]
+    x_hand_train = x_hand[train_idx]
     y_place_train = y_place[train_idx]
     y_card_train = y_card[train_idx]
     y_value_train = y_value[train_idx]
@@ -812,6 +838,7 @@ def train_model(
 
     x_board_val = x_board[val_idx] if val_idx.shape[0] > 0 else None
     x_aux_val = x_aux[val_idx] if val_idx.shape[0] > 0 else None
+    x_hand_val = x_hand[val_idx] if val_idx.shape[0] > 0 else None
     y_place_val = y_place[val_idx] if val_idx.shape[0] > 0 else None
     y_card_val = y_card[val_idx] if val_idx.shape[0] > 0 else None
     y_value_val = y_value[val_idx] if val_idx.shape[0] > 0 else None
@@ -849,6 +876,7 @@ def train_model(
         perm = torch.randperm(train_n, device=device)
         x_board_epoch = x_board_train[perm]
         x_aux_epoch = x_aux_train[perm]
+        x_hand_epoch = x_hand_train[perm]
         y_place_epoch = y_place_train[perm]
         y_card_epoch = y_card_train[perm]
         y_value_epoch = y_value_train[perm]
@@ -856,7 +884,7 @@ def train_model(
 
         epoch_loss_sum = 0.0
         epoch_place_loss_sum = 0.0
-        epoch_value_loss_sum = 0.0
+        epoch_wdl_loss_sum = 0.0
         epoch_card_loss_sum = 0.0
         epoch_card_loss_batches = 0
         epoch_samples = 0
@@ -864,28 +892,29 @@ def train_model(
         epoch_place_samples = 0
         epoch_card_correct = 0
         epoch_card_samples = 0
-        epoch_value_mse_sum = 0.0
-        epoch_value_samples = 0
+        epoch_wdl_correct = 0
+        epoch_wdl_samples = 0
 
         for i in range(0, train_n, batch_size):
             xb_board = x_board_epoch[i : i + batch_size]
             xb_aux = x_aux_epoch[i : i + batch_size]
+            xb_hand = x_hand_epoch[i : i + batch_size]
             yb_place = y_place_epoch[i : i + batch_size]
             yb_card = y_card_epoch[i : i + batch_size]
             yb_value = y_value_epoch[i : i + batch_size]
             wb = sample_weight_epoch[i : i + batch_size]
 
-            outputs = model(xb_board, xb_aux)
+            outputs = model(xb_board, xb_aux, xb_hand)
             if isinstance(outputs, tuple):
                 place_logits = outputs[0]
-                value_pred = outputs[1] if model.use_value_head else None
+                wdl_logits = outputs[1] if model.use_wdl_head else None
                 card_logits = outputs[2] if model.card_output_dim > 0 else None
             else:
                 place_logits = outputs
-                value_pred = None
+                wdl_logits = None
                 card_logits = None
 
-            # Place loss
+            # Place loss with optional nonvalidity penalty
             place_loss_raw = F.cross_entropy(
                 place_logits, yb_place, ignore_index=IGNORE_INDEX, reduction="none"
             )
@@ -894,24 +923,39 @@ def train_model(
             place_weight_sum = torch.clamp(place_weight.sum(), min=1.0)
             place_loss = torch.sum(place_loss_raw * place_weight) / place_weight_sum
 
+            # Nonvalidity penalty: suppress probability mass on illegal moves
+            if nonvalidity_penalty > 0:
+                # Build legal mask from target indices (simplified)
+                legal_mask = torch.zeros_like(place_logits)
+                valid_indices = yb_place[place_mask]
+                if valid_indices.numel() > 0:
+                    batch_indices = torch.nonzero(place_mask, as_tuple=False).squeeze(-1)
+                    legal_mask[batch_indices, valid_indices] = 1.0
+                illegal_probs = F.softmax(place_logits, dim=-1) * (1.0 - legal_mask)
+                nonvalidity_loss = nonvalidity_penalty * illegal_probs.sum(dim=-1).mean()
+                place_loss = place_loss + nonvalidity_loss
+
             loss = place_loss
             total_weight_sum = place_weight_sum
 
-            # Value loss
-            if value_pred is not None and value_loss_weight > 0:
-                value_mask = yb_place != IGNORE_INDEX  # Only train value on place actions
+            # WDL loss
+            if wdl_logits is not None and value_loss_weight > 0:
+                value_mask = yb_place != IGNORE_INDEX  # Only train WDL on place actions
                 if value_mask.any():
-                    value_loss_raw = F.mse_loss(
-                        value_pred.squeeze(-1), yb_value, reduction="none"
+                    wdl_loss_raw = F.cross_entropy(
+                        wdl_logits, yb_value, reduction="none"
                     )
                     value_weight = wb * value_mask.to(wb.dtype)
                     value_weight_sum = torch.clamp(value_weight.sum(), min=1.0)
-                    value_loss = torch.sum(value_loss_raw * value_weight) / value_weight_sum
-                    loss = loss + value_loss * value_loss_weight
+                    wdl_loss = torch.sum(wdl_loss_raw * value_weight) / value_weight_sum
+                    loss = loss + wdl_loss * value_loss_weight
                     total_weight_sum = total_weight_sum + value_weight_sum
                     with torch.no_grad():
-                        epoch_value_mse_sum += float(value_loss.item()) * float(value_weight_sum.item())
-                        epoch_value_samples += int(value_mask.sum().item())
+                        epoch_wdl_loss_sum += float(wdl_loss.item()) * float(value_weight_sum.item())
+                        epoch_wdl_samples += int(value_mask.sum().item())
+                        # WDL accuracy
+                        wdl_pred = wdl_logits.argmax(dim=-1)
+                        epoch_wdl_correct += int((wdl_pred == yb_value)[value_mask].sum().item())
 
             # Card loss
             if card_logits is not None and loss_card_fn is not None:
@@ -955,21 +999,23 @@ def train_model(
 
         train_loss = epoch_loss_sum / max(1, epoch_samples)
         train_place_loss = epoch_place_loss_sum / max(1, epoch_samples)
-        train_value_mse = epoch_value_mse_sum / max(1, epoch_value_samples) if epoch_value_samples > 0 else None
+        train_wdl_loss = epoch_wdl_loss_sum / max(1, epoch_wdl_samples) if epoch_wdl_samples > 0 else None
         train_card_loss = epoch_card_loss_sum / max(1, epoch_card_loss_batches) if epoch_card_loss_batches > 0 else None
         train_place_acc = epoch_place_correct / max(1, epoch_place_samples)
         train_card_acc = epoch_card_correct / max(1, epoch_card_samples) if epoch_card_samples > 0 else None
-        train_total_samples = epoch_place_samples + epoch_card_samples
-        train_total_correct = epoch_place_correct + epoch_card_correct
+        train_wdl_acc = epoch_wdl_correct / max(1, epoch_wdl_samples) if epoch_wdl_samples > 0 else None
+        train_total_samples = epoch_place_samples + epoch_card_samples + epoch_wdl_samples
+        train_total_correct = epoch_place_correct + epoch_card_correct + epoch_wdl_correct
         train_acc = train_total_correct / max(1, train_total_samples)
 
         val_loss = None
         val_place_loss = None
-        val_value_mse = None
+        val_wdl_loss = None
         val_card_loss = None
         val_acc = None
         val_place_acc = None
         val_card_acc = None
+        val_wdl_acc = None
 
         if (
             x_board_val is not None
@@ -977,28 +1023,30 @@ def train_model(
             and int(y_place_val.shape[0]) > 0
         ):
             with torch.no_grad():
-                outputs_val = model(x_board_val, x_aux_val)
+                outputs_val = model(x_board_val, x_aux_val, x_hand_val)
                 if isinstance(outputs_val, tuple):
                     val_place_logits = outputs_val[0]
-                    val_value_pred = outputs_val[1] if model.use_value_head else None
+                    val_wdl_logits = outputs_val[1] if model.use_wdl_head else None
                     val_card_logits = outputs_val[2] if model.card_output_dim > 0 else None
                 else:
                     val_place_logits = outputs_val
-                    val_value_pred = None
+                    val_wdl_logits = None
                     val_card_logits = None
 
                 val_place_loss_t = loss_place_fn(val_place_logits, y_place_val)
                 total_val_loss = val_place_loss_t
 
-                if val_value_pred is not None and value_loss_weight > 0 and y_value_val is not None:
+                if val_wdl_logits is not None and value_loss_weight > 0 and y_value_val is not None:
                     val_value_mask = y_place_val != IGNORE_INDEX
                     if val_value_mask.any():
-                        val_value_loss_t = F.mse_loss(
-                            val_value_pred.squeeze(-1)[val_value_mask],
+                        val_wdl_loss_t = F.cross_entropy(
+                            val_wdl_logits[val_value_mask],
                             y_value_val[val_value_mask],
                         )
-                        total_val_loss = total_val_loss + val_value_loss_t * value_loss_weight
-                        val_value_mse = float(val_value_loss_t.item())
+                        total_val_loss = total_val_loss + val_wdl_loss_t * value_loss_weight
+                        val_wdl_loss = float(val_wdl_loss_t.item())
+                        val_wdl_pred = val_wdl_logits.argmax(dim=-1)
+                        val_wdl_acc = float((val_wdl_pred == y_value_val)[val_value_mask].float().mean().item())
 
                 if val_card_logits is not None and loss_card_fn is not None and y_card_val is not None:
                     val_card_loss_t = loss_card_fn(val_card_logits, y_card_val)
@@ -1016,9 +1064,10 @@ def train_model(
                 val_place_acc = val_place_correct / max(1, val_place_samples)
                 if val_card_samples > 0:
                     val_card_acc = val_card_correct / max(1, val_card_samples)
-                val_total_samples = val_place_samples + val_card_samples
-                val_total_correct = val_place_correct + val_card_correct
-                val_acc = val_total_correct / max(1, val_total_samples)
+                val_total_samples = val_place_samples + val_card_samples + (val_value_mask.sum().item() if val_wdl_logits is not None else 0)
+                val_total_correct = val_place_correct + val_card_correct + (val_wdl_pred == y_value_val)[val_value_mask].sum().item() if val_wdl_logits is not None else val_place_correct + val_card_correct
+                if val_total_samples > 0:
+                    val_acc = val_total_correct / val_total_samples
 
         monitor_raw_value = train_loss
         if monitor == "val_loss" and val_loss is not None:
@@ -1195,29 +1244,31 @@ def train_model(
 
 
 def export_onnx(model: nn.Module, onnx_out: str) -> None:
-    """Export the two-input CNN model to ONNX."""
+    """Export the three-input CNN model to ONNX."""
     os.makedirs(os.path.dirname(onnx_out) or ".", exist_ok=True)
     model.eval()
-    dummy_board = torch.zeros((1, 2, PADDED_BOARD_SIZE, PADDED_BOARD_SIZE), dtype=torch.float32)
+    dummy_board = torch.zeros((1, 5, PADDED_BOARD_SIZE, PADDED_BOARD_SIZE), dtype=torch.float32)
     dummy_aux = torch.zeros((1, AUX_FEATURE_DIM), dtype=torch.float32)
+    dummy_hand = torch.zeros((1, 5, 11), dtype=torch.float32)
 
-    input_names = ["board", "aux"]
+    input_names = ["board", "aux", "hand"]
     output_names = ["place_logits"]
     dynamic_axes = {
         "board": {0: "batch"},
         "aux": {0: "batch"},
+        "hand": {0: "batch"},
         "place_logits": {0: "batch"},
     }
-    if model.use_value_head:
-        output_names.append("value")
-        dynamic_axes["value"] = {0: "batch"}
+    if model.use_wdl_head:
+        output_names.append("wdl_logits")
+        dynamic_axes["wdl_logits"] = {0: "batch"}
     if model.card_output_dim > 0:
         output_names.append("card_logits")
         dynamic_axes["card_logits"] = {0: "batch"}
 
     torch.onnx.export(
         model.cpu(),
-        (dummy_board, dummy_aux),
+        (dummy_board, dummy_aux, dummy_hand),
         onnx_out,
         input_names=input_names,
         output_names=output_names,
@@ -1235,7 +1286,7 @@ def write_meta(
     split_summary: dict[str, Any] | None,
 ) -> None:
     feature_spec = [
-        "board_10x10_own_opp_planes",
+        "board_10x10_5ch",
         "legal_moves_norm",
         "disc_diff_before_norm",
         "own_charge_norm",
@@ -1252,6 +1303,9 @@ def write_meta(
         "corner_hold_mode_flag",
         "high_bonus_move_available_flag",
         "max_legal_move_bonus_norm",
+        "hand_card_id_embedding",
+        "hand_card_cost",
+        "hand_card_type_onehot",
     ]
     if CARD_ACTION_DIM > 0:
         feature_spec += ["hand_card_counts_norm", "usable_card_mask"]
@@ -1271,17 +1325,20 @@ def write_meta(
         "schemaVersion": MODEL_SCHEMA_VERSION,
         "inputName": "board",
         "auxInputName": "aux",
+        "handInputName": "hand",
         "outputName": "place_logits",
         "outputNames": ["place_logits"]
-            + (["value"] if True else [])
+            + (["wdl_logits"] if True else [])
             + (["card_logits"] if CARD_ACTION_DIM > 0 else []),
         "placeOutputName": "place_logits",
-        "valueOutputName": "value",
+        "wdlOutputName": "wdl_logits",
         "cardOutputName": "card_logits" if CARD_ACTION_DIM > 0 else None,
         "boardSize": BOARD_SIZE,
         "paddedBoardSize": PADDED_BOARD_SIZE,
-        "boardChannels": 2,
+        "boardChannels": 5,
         "auxDim": AUX_FEATURE_DIM,
+        "handDim": 11,
+        "handSize": 5,
         "placeOutputDim": PLACE_OUTPUT_DIM,
         "cardOutputDim": CARD_ACTION_DIM,
         "actionSpace": "place_padded10+card_choice",
@@ -1302,10 +1359,10 @@ def write_meta(
             "trainAccuracy": train_summary.overall_acc,
             "trainPlaceAccuracy": train_summary.place_acc,
             "trainCardAccuracy": train_summary.card_acc,
-            "trainValueMse": train_summary.value_mse,
+            "trainWdlLoss": train_summary.value_mse,
             "trainPlaceSamples": train_summary.place_samples,
             "trainCardSamples": train_summary.card_samples,
-            "trainValueSamples": train_summary.value_samples,
+            "trainWdlSamples": train_summary.value_samples,
         },
     }
     trainer_common.write_json_payload(path, payload)
@@ -1332,6 +1389,7 @@ def main() -> int:
         corner_balance_sample_boost=float(args.corner_balance_sample_boost),
         edge_balance_sample_boost=float(args.edge_balance_sample_boost),
         economy_balance_sample_boost=float(args.economy_balance_sample_boost),
+        nonvalidity_penalty=float(args.nonvalidity_penalty),
     )
 
     model, optimizer, train_summary, resumed_from, epoch_metrics, split_summary = train_model(
