@@ -15,6 +15,9 @@
     const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
         ? Number(SharedConstants.EMPTY)
         : 0;
+    const ORTHOGONAL_DIRECTIONS = (SharedConstants && SharedConstants.ORTHOGONAL_DIRECTIONS)
+        ? SharedConstants.ORTHOGONAL_DIRECTIONS
+        : [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
     function resolveRandomSource(prng) {
         if (RandomSourceModule && typeof RandomSourceModule.resolveRandomSource === 'function') {
@@ -99,17 +102,11 @@
         const hasBoardShapeCellForCard = deps.hasBoardShapeCellForCard || (() => false);
         const getCellValueForCard = deps.getCellValueForCard || (() => null);
         const isBlockedCell = deps.isBlockedCell || (() => false);
-        const dirs = [
-            { dr: -1, dc: 0 },
-            { dr: 1, dc: 0 },
-            { dr: 0, dc: -1 },
-            { dr: 0, dc: 1 }
-        ];
         const options = [];
 
-        for (const direction of dirs) {
-            const nextRow = row + direction.dr;
-            const nextCol = col + direction.dc;
+        for (const direction of ORTHOGONAL_DIRECTIONS) {
+            const nextRow = row + direction[0];
+            const nextCol = col + direction[1];
             if (!hasBoardShapeCellForCard(cardState, gameState, nextRow, nextCol)) continue;
             if (getCellValueForCard(gameState, nextRow, nextCol) !== EMPTY) continue;
             if (isBlockedCell(cardState, nextRow, nextCol, gameState)) continue;
@@ -117,8 +114,8 @@
             let targetRow = nextRow;
             let targetCol = nextCol;
             while (true) {
-                const probeRow = targetRow + direction.dr;
-                const probeCol = targetCol + direction.dc;
+                const probeRow = targetRow + direction[0];
+                const probeCol = targetCol + direction[1];
                 if (!hasBoardShapeCellForCard(cardState, gameState, probeRow, probeCol)) break;
                 if (getCellValueForCard(gameState, probeRow, probeCol) !== EMPTY) break;
                 if (isBlockedCell(cardState, probeRow, probeCol, gameState)) break;

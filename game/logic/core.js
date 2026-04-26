@@ -7,7 +7,7 @@
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
         // Node.js: Assume shared-constants is up two levels
-        module.exports = factory(require('../../shared-constants'), require('../../shared/shared-board-utils'));
+        module.exports = factory(require('../../shared-constants'), require('../../shared/shared-board-utils'), require('../../shared/board-utils'));
     } else {
         // Browser: Assume SharedConstants is global
         const core = factory(root.SharedConstants, root.SharedBoardUtils || null);
@@ -17,11 +17,12 @@
             root.Core = core;
         }
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, SharedBoardUtils) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, SharedBoardUtils, BoardUtilsModule) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY, DIRECTIONS } = SharedConstants || {};
     const BoardUtils = SharedBoardUtils || null;
+    const NewBoardUtils = BoardUtilsModule || null;
 
     // Check if constants are loaded
     if (BLACK === undefined) {
@@ -551,10 +552,16 @@
      */
     function countDiscs(state) {
         let black = 0, white = 0;
-        forEachMainBoardCell(state, (row, col, value) => {
-            if (value === BLACK) black += 1;
-            else if (value === WHITE) white += 1;
-        });
+        if (NewBoardUtils && typeof NewBoardUtils.countDiscs === 'function') {
+            const counts = NewBoardUtils.countDiscs(state.board);
+            black = counts.black;
+            white = counts.white;
+        } else {
+            forEachMainBoardCell(state, (row, col, value) => {
+                if (value === BLACK) black += 1;
+                else if (value === WHITE) white += 1;
+            });
+        }
         const expansionCells = getExpansionCells(state);
         for (const expansion of expansionCells) {
             if (!expansion) continue;

@@ -23,6 +23,20 @@ if (!SharedBoardUtils) {
     } catch (e) { /* ignore */ }
 }
 
+let OthelloCore = null;
+try {
+    if (typeof require === 'function') {
+        OthelloCore = require('../../shared/othello-core');
+    }
+} catch (e) { /* ignore */ }
+if (!OthelloCore) {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.OthelloCore) {
+            OthelloCore = globalThis.OthelloCore;
+        }
+    } catch (e) { /* ignore */ }
+}
+
 let _model = null;
 let _config = {
     enabled: true,
@@ -292,41 +306,29 @@ function applyMoveToBoard(board, move, playerKey) {
 }
 
 function getFlipsBasic(board, row, col, playerValue) {
+    if (OthelloCore && typeof OthelloCore.getFlipsBasic === 'function') {
+        return OthelloCore.getFlipsBasic(board, row, col, playerValue);
+    }
     if (SharedBoardUtils && typeof SharedBoardUtils.getFlipsBasic === 'function') {
         return SharedBoardUtils.getFlipsBasic(board, row, col, playerValue);
     }
-    if (!Array.isArray(board) || !Array.isArray(board[row])) return [];
-    if (board[row][col] !== 0) return [];
-    const dirs = [
-        [-1, -1], [-1, 0], [-1, 1],
-        [0, -1],           [0, 1],
-        [1, -1],  [1, 0],  [1, 1]
-    ];
-    const out = [];
-    for (const d of dirs) {
-        const temp = [];
-        let r = row + d[0];
-        let c = col + d[1];
-        while (r >= 0 && c >= 0 && r < board.length && c < board.length && board[r][c] === -playerValue) {
-            temp.push({ row: r, col: c });
-            r += d[0];
-            c += d[1];
-        }
-        if (temp.length > 0 && r >= 0 && c >= 0 && r < board.length && c < board.length && board[r][c] === playerValue) {
-            out.push(...temp);
-        }
-    }
-    return out;
+    return [];
 }
 
 function getLegalMovesBasic(board, playerValue) {
+    if (OthelloCore && typeof OthelloCore.getLegalMovesBasic === 'function') {
+        return OthelloCore.getLegalMovesBasic(board, playerValue);
+    }
     if (SharedBoardUtils && typeof SharedBoardUtils.getLegalMovesBasic === 'function') {
         return SharedBoardUtils.getLegalMovesBasic(board, playerValue);
     }
-    if (!Array.isArray(board)) return [];
     const moves = [];
+    if (!Array.isArray(board)) return moves;
     for (let r = 0; r < board.length; r++) {
-        for (let c = 0; c < board[r].length; c++) {
+        const row = board[r];
+        if (!Array.isArray(row)) continue;
+        for (let c = 0; c < row.length; c++) {
+            if (row[c] !== 0) continue;
             const flips = getFlipsBasic(board, r, c, playerValue);
             if (flips.length > 0) moves.push({ row: r, col: c, flips });
         }

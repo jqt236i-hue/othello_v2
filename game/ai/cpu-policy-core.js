@@ -13,6 +13,14 @@ const SharedBoardUtils = (() => {
     }
 })();
 
+const OthelloCore = (() => {
+    try {
+        return require('../../shared/othello-core');
+    } catch (e) {
+        return null;
+    }
+})();
+
 const SharedCardHeuristics = (() => {
     try {
         return require('../../shared/shared-card-heuristics');
@@ -3399,47 +3407,23 @@ function inBoard(board, row, col) {
 }
 
 function getFlipsBasic(board, row, col, playerValue) {
+    if (OthelloCore && typeof OthelloCore.getFlipsBasic === 'function') {
+        return OthelloCore.getFlipsBasic(board, row, col, playerValue);
+    }
     if (SharedBoardUtils && typeof SharedBoardUtils.getFlipsBasic === 'function') {
         return SharedBoardUtils.getFlipsBasic(board, row, col, playerValue);
     }
-    if (!inBoard(board, row, col)) return [];
-    if (board[row][col] !== 0) return [];
-    const dirs = [
-        [-1, -1], [-1, 0], [-1, 1],
-        [0, -1],           [0, 1],
-        [1, -1],  [1, 0],  [1, 1]
-    ];
-    const out = [];
-    for (const d of dirs) {
-        const temp = [];
-        let r = row + d[0];
-        let c = col + d[1];
-        while (inBoard(board, r, c) && board[r][c] === -playerValue) {
-            temp.push({ row: r, col: c });
-            r += d[0];
-            c += d[1];
-        }
-        if (temp.length > 0 && inBoard(board, r, c) && board[r][c] === playerValue) {
-            out.push(...temp);
-        }
-    }
-    return out;
+    return [];
 }
 
 function getLegalMovesBasic(board, playerValue) {
+    if (OthelloCore && typeof OthelloCore.getLegalMovesBasic === 'function') {
+        return OthelloCore.getLegalMovesBasic(board, playerValue);
+    }
     if (SharedBoardUtils && typeof SharedBoardUtils.getLegalMovesBasic === 'function') {
         return SharedBoardUtils.getLegalMovesBasic(board, playerValue);
     }
-    if (!Array.isArray(board)) return [];
-    const out = [];
-    for (let r = 0; r < board.length; r++) {
-        const row = Array.isArray(board[r]) ? board[r] : [];
-        for (let c = 0; c < row.length; c++) {
-            const flips = getFlipsBasic(board, r, c, playerValue);
-            if (flips.length > 0) out.push({ row: r, col: c, flips });
-        }
-    }
-    return out;
+    return [];
 }
 
 function applyMoveToBoard(board, move, playerValue) {

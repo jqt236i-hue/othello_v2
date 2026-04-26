@@ -1,10 +1,11 @@
 (function (root, factory) {
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = factory(root || globalThis);
+        const BoardUtils = (() => { try { return require('../shared/board-utils'); } catch (e) { return null; } })();
+        module.exports = factory(root || globalThis, BoardUtils);
     } else {
         root.NetworkTurnHandoff = factory(root);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : this, function (root) {
+}(typeof globalThis !== 'undefined' ? globalThis : this, function (root, BoardUtils) {
     'use strict';
 
     let networkActionSchema = null;
@@ -345,11 +346,17 @@
         }
         let black = 0;
         let white = 0;
-        for (const row of gameStateRef.board) {
-            if (!Array.isArray(row)) continue;
-            for (const cell of row) {
-                if (cell === 1 || cell === '1') black += 1;
-                else if (cell === -1 || cell === '-1') white += 1;
+        if (BoardUtils && typeof BoardUtils.countDiscs === 'function') {
+            const counts = BoardUtils.countDiscs(gameStateRef.board);
+            black = counts.black;
+            white = counts.white;
+        } else {
+            for (const row of gameStateRef.board) {
+                if (!Array.isArray(row)) continue;
+                for (const cell of row) {
+                    if (cell === 1 || cell === '1') black += 1;
+                    else if (cell === -1 || cell === '-1') white += 1;
+                }
             }
         }
         const expansionCells = gameStateRef.boardExpansion && Array.isArray(gameStateRef.boardExpansion.cells)

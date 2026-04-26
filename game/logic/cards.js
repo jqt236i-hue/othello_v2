@@ -79,9 +79,9 @@
         return resolveCardModule(requirePath, globalName, false);
     }
 
-    const DestroyOutcomeContract = resolveRequiredCardModule('../../shared/destroy-outcome-contract', 'DestroyOutcomeContract');
-    const StoneStatusSnapshot = resolveRequiredCardModule('../../shared/stone-status-snapshot', 'StoneStatusSnapshot');
-    const SpecialStoneRegistry = resolveRequiredCardModule('../../shared/special-stone-registry', 'SpecialStoneRegistry');
+    const DestroyOutcomeContract = (function() { try { return require('../../shared/destroy-outcome-contract'); } catch (e) { return null; } })();
+    const StoneStatusSnapshot = (function() { try { return require('../../shared/stone-status-snapshot'); } catch (e) { return null; } })();
+    const SpecialStoneRegistry = (function() { try { return require('../../shared/special-stone-registry'); } catch (e) { return null; } })();
 
     function isOverlayOnlySpecialStoneType(type) {
         if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isOverlayOnlySpecialStoneType === 'function') {
@@ -594,9 +594,9 @@
         };
     }
 
-    const CardCostsModule = resolveRequiredCardModule('./cards/costs', 'CardCosts');
-    const CardDefsModule = resolveRequiredCardModule('./cards/defs', 'CardDefs');
-    const CardUtilsModule = resolveRequiredCardModule('./cards/utils', 'CardUtils');
+    const CardCostsModule = (function() { try { return require('./cards/costs'); } catch (e) { return null; } })();
+    const CardDefsModule = (function() { try { return require('./cards/defs'); } catch (e) { return null; } })();
+    const CardUtilsModule = (function() { try { return require('./cards/utils'); } catch (e) { return null; } })();
 
     function getChargeLedgerContext() {
         return {
@@ -630,29 +630,29 @@
         return { changed: after !== safeBefore, before: safeBefore, after, delta: after - safeBefore };
     }
 
-    const CardExpansionModule = resolveRequiredCardModule('./cards/expansion', 'CardExpansion');
-    const CardMarkersModule = resolveRequiredCardModule('./cards/markers', 'CardMarkers');
-    const CardMovementModule = resolveRequiredCardModule('./cards/movement', 'CardMovement');
-    const CardTeleportModule = resolveRequiredCardModule('./cards/teleport', 'CardTeleport');
-    const CardCloneModule = resolveRequiredCardModule('./cards/clone', 'CardClone');
-    const CardMeteorModule = resolveRequiredCardModule('./cards/meteor', 'CardMeteor');
-    const CardShrinkModule = resolveRequiredCardModule('./cards/shrink', 'CardShrink');
-    const CardLivingWillModule = resolveRequiredCardModule('./cards/living_will', 'CardLivingWill');
-    const CardTargetsModule = resolveRequiredCardModule('./cards/targets', 'CardTargets');
-    const CardFlipsModule = resolveRequiredCardModule('./cards/flips', 'CardFlips');
-    const CardChainModule = resolveRequiredCardModule('./cards/chain', 'CardChain');
-    const CardRegenModule = resolveRequiredCardModule('./cards/regen', 'CardRegen');
-    const CardTimeBombModule = resolveRequiredCardModule('./cards/time_bomb', 'CardTimeBomb');
-    const CardBreedingModule = resolveRequiredCardModule('./cards/breeding', 'CardBreeding');
-    const CardHyperactiveModule = resolveRequiredCardModule('./cards/hyperactive', 'CardHyperactive');
-    const CardUdgModule = resolveRequiredCardModule('./cards/udg', 'CardUdG');
-    const CardSniperModule = resolveRequiredCardModule('./cards/sniper', 'CardSniper');
-    const CardLightningModule = resolveRequiredCardModule('./cards/lightning', 'CardLightning');
-    const CardWillHunterKingModule = resolveRequiredCardModule('./cards/will_hunter_king', 'CardWillHunterKing');
-    const CardDestroyDragonModule = resolveRequiredCardModule('./cards/destroy_dragon', 'CardDestroyDragon');
-    const DragonEffectsModule = resolveRequiredCardModule('./effects/dragon', 'DragonEffects');
-    const DestroyOneStoneModule = resolveRequiredCardModule('./effects/destroy_one_stone', 'DestroyOneStone');
-    const SwapWithEnemyModule = resolveRequiredCardModule('./effects/swap_with_enemy', 'SwapWithEnemy');
+    const CardExpansionModule = (function() { try { return require('./cards/expansion'); } catch (e) { return null; } })();
+    const CardMarkersModule = (function() { try { return require('./cards/markers'); } catch (e) { return null; } })();
+    const CardMovementModule = (function() { try { return require('./cards/movement'); } catch (e) { return null; } })();
+    const CardTeleportModule = (function() { try { return require('./cards/teleport'); } catch (e) { return null; } })();
+    const CardCloneModule = (function() { try { return require('./cards/clone'); } catch (e) { return null; } })();
+    const CardMeteorModule = (function() { try { return require('./cards/meteor'); } catch (e) { return null; } })();
+    const CardShrinkModule = (function() { try { return require('./cards/shrink'); } catch (e) { return null; } })();
+    const CardLivingWillModule = (function() { try { return require('./cards/living_will'); } catch (e) { return null; } })();
+    const CardTargetsModule = (function() { try { return require('./cards/targets'); } catch (e) { return null; } })();
+    const CardFlipsModule = (function() { try { return require('./cards/flips'); } catch (e) { return null; } })();
+    const CardChainModule = (function() { try { return require('./cards/chain'); } catch (e) { return null; } })();
+    const CardRegenModule = (function() { try { return require('./cards/regen'); } catch (e) { return null; } })();
+    const CardTimeBombModule = (function() { try { return require('./cards/time_bomb'); } catch (e) { return null; } })();
+    const CardBreedingModule = (function() { try { return require('./cards/breeding'); } catch (e) { return null; } })();
+    const CardHyperactiveModule = (function() { try { return require('./cards/hyperactive'); } catch (e) { return null; } })();
+    const CardUdgModule = (function() { try { return require('./cards/udg'); } catch (e) { return null; } })();
+    const CardSniperModule = (function() { try { return require('./cards/sniper'); } catch (e) { return null; } })();
+    const CardLightningModule = (function() { try { return require('./cards/lightning'); } catch (e) { return null; } })();
+    const CardWillHunterKingModule = (function() { try { return require('./cards/will_hunter_king'); } catch (e) { return null; } })();
+    const CardDestroyDragonModule = (function() { try { return require('./cards/destroy_dragon'); } catch (e) { return null; } })();
+    const DragonEffectsModule = (function() { try { return require('./effects/dragon'); } catch (e) { return null; } })();
+    const DestroyOneStoneModule = (function() { try { return require('./effects/destroy_one_stone'); } catch (e) { return null; } })();
+    const SwapWithEnemyModule = (function() { try { return require('./effects/swap_with_enemy'); } catch (e) { return null; } })();
 
     function addChargeValue(cardState, playerKey, amount, reason, meta) {
         if (CardChargeLedgerModule && typeof CardChargeLedgerModule.addChargeValue === 'function') {
@@ -1308,12 +1308,12 @@
         return summary;
     }
 
-    const CardSelectorsModule = resolveRequiredCardModule('./cards/selectors', 'CardSelectors');
-    const CardUsagePrechecksModule = resolveRequiredCardModule('./cards-internal/card-usage-prechecks', 'CardUsagePrechecks');
-    const CardSelectorOrchestratorModule = resolveRequiredCardModule('./cards-internal/selector-orchestrator', 'CardSelectorOrchestrator');
-    const CardHandManagerModule = resolveRequiredCardModule('./cards-internal/hand-manager', 'CardHandManager');
-    const CardEffectTimingModule = resolveRequiredCardModule('./cards-internal/effect-timing', 'CardEffectTiming');
-    const CardWorkModule = resolveRequiredCardModule('./cards/work_will', 'CardWork');
+    const CardSelectorsModule = (function() { try { return require('./cards/selectors'); } catch (e) { return null; } })();
+    const CardUsagePrechecksModule = (function() { try { return require('./cards-internal/card-usage-prechecks'); } catch (e) { return null; } })();
+    const CardSelectorOrchestratorModule = (function() { try { return require('./cards-internal/selector-orchestrator'); } catch (e) { return null; } })();
+    const CardHandManagerModule = (function() { try { return require('./cards-internal/hand-manager'); } catch (e) { return null; } })();
+    const CardEffectTimingModule = (function() { try { return require('./cards-internal/effect-timing'); } catch (e) { return null; } })();
+    const CardWorkModule = (function() { try { return require('./cards/work_will'); } catch (e) { return null; } })();
     let CardEffectTimingModules = null;
 
     function createCardEffectTimingModules() {
@@ -1398,9 +1398,9 @@
         };
     }
 
-    const CardPendingStateManagerModule = resolveRequiredCardModule('./cards-internal/pending-state-manager', 'CardPendingStateManager');
-    const PendingCoordinatorModule = resolveOptionalCardModule('../turn/pending-coordinator', 'PendingCoordinator');
-    const CardChargeLedgerModule = resolveRequiredCardModule('./cards-internal/charge-ledger', 'CardChargeLedger');
+    const CardPendingStateManagerModule = (function() { try { return require('./cards-internal/pending-state-manager'); } catch (e) { return null; } })();
+    const PendingCoordinatorModule = (function() { try { return require('../turn/pending-coordinator'); } catch (e) { return null; } })();
+    const CardChargeLedgerModule = (function() { try { return require('./cards-internal/charge-ledger'); } catch (e) { return null; } })();
 
     function readCardPendingEffect(cardState, playerKey) {
         if (PendingCoordinatorModule && typeof PendingCoordinatorModule.readPendingEffect === 'function') {
@@ -1432,8 +1432,8 @@
         return true;
     }
 
-    const BoardOpsModule = resolveRequiredCardModule('./board_ops', 'BoardOps');
-    const MarkersAdapter = resolveRequiredCardModule('./markers_adapter', 'MarkersAdapter');
+    const BoardOpsModule = (function() { try { return require('./board_ops'); } catch (e) { return null; } })();
+    const MarkersAdapter = (function() { try { return require('./markers_adapter'); } catch (e) { return null; } })();
     const MARKER_KINDS = (CardMarkersModule && CardMarkersModule.MARKER_KINDS)
         || (MarkersAdapter && MarkersAdapter.MARKER_KINDS);
     const MARKER_CATEGORIES = (CardMarkersModule && CardMarkersModule.MARKER_CATEGORIES)
@@ -2258,7 +2258,7 @@
     }
 
     function resolveCoreLogicForCards() {
-        return resolveOptionalCardModule('./core', 'CoreLogic') || resolveOptionalCardModule(null, 'Core');
+        return (function() { try { return require('./core'); } catch (e) { return null; } })() || resolveOptionalCardModule(null, 'Core');
     }
 
     function hasStandardLegalMoveForPlayer(cardState, gameState, playerKey) {
@@ -6181,7 +6181,7 @@
     function applySwapEffect(cardState, gameState, playerKey, row, col) {
         const cardContext = getCardContext(cardState);
         if (SwapWithEnemyModule && typeof SwapWithEnemyModule.applySwapWithEnemy === 'function') {
-            const coreModule = resolveOptionalCardModule('./core', 'CoreLogic') || resolveOptionalCardModule(null, 'Core');
+            const coreModule = (function() { try { return require('./core'); } catch (e) { return null; } })() || resolveOptionalCardModule(null, 'Core');
             const r = SwapWithEnemyModule.applySwapWithEnemy(cardState, gameState, playerKey, row, col, {
                 BoardOps: BoardOpsModule,
                 clearHyperactiveAtPositions,

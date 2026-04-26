@@ -32,6 +32,10 @@
         [1, -1], [1, 0], [1, 1]
     ];
 
+    const ORTHOGONAL_DIRECTIONS = [
+        [-1, 0], [1, 0], [0, -1], [0, 1]
+    ];
+
     // ===== GAME CONSTANTS (canonicalized) =====
     // These constants are the single source of truth for core game parameters.
     const BOARD_SIZE = 8;
@@ -408,6 +412,7 @@
         WHITE,
         EMPTY,
         DIRECTIONS,
+        ORTHOGONAL_DIRECTIONS,
         BOARD_SIZE,
         DEFAULT_BOARD_ROWS,
         DEFAULT_BOARD_COLS,
@@ -444,6 +449,7 @@
         window.WHITE = WHITE;
         window.EMPTY = EMPTY;
         window.DIRECTIONS = DIRECTIONS;
+        window.ORTHOGONAL_DIRECTIONS = ORTHOGONAL_DIRECTIONS;
         window.CARD_DEFS = CARD_DEFS;
         window.CARD_TYPE_BY_ID = CARD_TYPE_BY_ID;
         window.CARD_TYPES = CARD_TYPES;

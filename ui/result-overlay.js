@@ -71,6 +71,17 @@ const ResultOverlayBoardUtilsModule = (() => {
     } catch (e) { /* ignore */ }
     return null;
 })();
+const ResultOverlayBoardUtilsNewModule = (() => {
+    if (typeof require === 'function') {
+        try {
+            return require('../shared/board-utils');
+        } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.BoardUtils) return globalThis.BoardUtils;
+    } catch (e) { /* ignore */ }
+    return null;
+})();
 
 function createEmptyResultPresentationState() {
     return {
@@ -108,6 +119,10 @@ function normalizeDiscCounts(counts) {
 
 function countDiscsFromBoardState(gameStateRef) {
     const stateRef = (gameStateRef && typeof gameStateRef === 'object') ? gameStateRef : null;
+    if (ResultOverlayBoardUtilsNewModule && typeof ResultOverlayBoardUtilsNewModule.countDiscs === 'function') {
+        const counts = ResultOverlayBoardUtilsNewModule.countDiscs(stateRef && stateRef.board);
+        return normalizeDiscCounts(counts);
+    }
     if (ResultOverlayBoardUtilsModule && typeof ResultOverlayBoardUtilsModule.countDiscsByPlayer === 'function') {
         return normalizeDiscCounts(ResultOverlayBoardUtilsModule.countDiscsByPlayer(stateRef));
     }
