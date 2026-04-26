@@ -297,13 +297,21 @@ if (typeof isCardAnimating === 'undefined') { setTurnManagerBusyState({ cardAnim
 if (typeof cpuSmartness === 'undefined') { try { globalThis.cpuSmartness = { black: 1, white: 1 }; } catch (e) { this.cpuSmartness = { black: 1, white: 1 }; } }
 var resetGameGeneration = 0;
 
-// Timers abstraction (injected by UI if desired)
-if (typeof timers === 'undefined') { try { globalThis.timers = globalThis.timers || null; } catch (e) { this.timers = this.timers || null; } }
-if (typeof require === 'function') {
-    try { globalThis.timers = require('./timers'); } catch (e) { /* ignore */ }
+// TimerService DI
+let turnManagerTimerService = null;
+function setTurnManagerTimerService(service) { turnManagerTimerService = service; }
+function getTurnManagerTimerService() {
+    if (turnManagerTimerService) return turnManagerTimerService;
+    try {
+        const { createTimerService } = require('./timer-service');
+        turnManagerTimerService = createTimerService('browser');
+        return turnManagerTimerService;
+    } catch (e) {
+        return null;
+    }
 }
 
-// Prefer shared scheduling helper when available; fallback to a minimal impl using global timers or setTimeout
+// Prefer shared scheduling helper when available; fallback to TimerService or setTimeout
 let scheduleRetry = null;
 if (typeof require === 'function') {
     try { const tu = require('./timer-utils'); if (tu && typeof tu.scheduleRetry === 'function') scheduleRetry = tu.scheduleRetry; } catch (e) { /* ignore */ }
@@ -316,6 +324,11 @@ if (!scheduleRetry) {
                 return;
             }
         } catch (e) { /* ignore */ }
+        const timerService = getTurnManagerTimerService();
+        if (timerService) {
+            timerService.setTimeout(fn, delayMs);
+            return;
+        }
         setTimeout(fn, delayMs);
     };
 }
@@ -333,15 +346,6 @@ function hasQueuedPresentationEventsForTurnManager() {
     return false;
 }
 function handleCellClick(row, col) {
-    // Initialize Audio Context on FIRST interaction (defensive: SoundEngine may not be loaded in some builds)
-    try {
-        if (typeof SoundEngine !== 'undefined' && typeof SoundEngine.init === 'function') {
-            SoundEngine.init();
-        }
-    } catch (e) {
-        console.warn('[SoundEngine] init failed or SoundEngine not available', e && e.message ? e.message : e);
-    }
-
     if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
         debugLog(`[CELL-CLICK] User clicked (${row},${col})`, 'debug', {
             currentPlayer: gameState.currentPlayer,
@@ -405,12 +409,10 @@ function handleCellClick(row, col) {
         return;
     }
 
-    // Notify UI that a hand animation will be played (UI should play animation based on this event)
-    try { emitPresentationEventViaBoardOps({ type: 'PLAY_HAND_ANIMATION', player: playerKey, row, col }); } catch (e) { /* do not block move on presentation failures */ }
-
-    playHandAnimation(gameState.currentPlayer, row, col, () => {
-        executeMove(move);
-    }, { cpu: false, ownerKey: currentPlayerKey });
+    // Hand animation is handled by the UI's PlaybackEngine through pipeline playback events
+    if (!Array.isArray(cardState.presentationEvents)) cardState.presentationEvents = [];
+    cardState.presentationEvents.push({ type: 'PLAY_HAND_ANIMATION', player: playerKey, row, col });
+    executeMove(move);
 }
 
 function isAnimationInProgress() {
@@ -1100,6 +1102,7 @@ if (typeof module !== 'undefined' && module.exports) {
         stopActionSaveInterval,
         watchdogPing,
         canLocalUserOperateCurrentTurn,
+        setTurnManagerTimerService,
         // Expose helper for testing / minimal UI integrations
         requestUIRender
     };

@@ -8,6 +8,20 @@ function setUIImpl(obj) {
     __uiImpl_move_executor = Object.assign({}, prev, obj || {});
 }
 
+// TimerService DI
+let moveExecutorTimerService = null;
+function setMoveExecutorTimerService(service) { moveExecutorTimerService = service; }
+function getMoveExecutorTimerService() {
+    if (moveExecutorTimerService) return moveExecutorTimerService;
+    try {
+        const { createTimerService } = require('./timer-service');
+        moveExecutorTimerService = createTimerService('browser');
+        return moveExecutorTimerService;
+    } catch (e) {
+        return null;
+    }
+}
+
 let moveExecutorNetworkTurnHandoff = null;
 if (typeof require === 'function') {
     try { moveExecutorNetworkTurnHandoff = require('./network-turn-handoff'); } catch (e) { /* ignore */ }
@@ -121,25 +135,6 @@ function getTimeNow() {
         return __uiImpl_move_executor.now();
     }
     return null;
-}
-
-function requestMoveExecutorCardUiSync(reason) {
-    const rootRef = (typeof globalThis !== 'undefined') ? globalThis : null;
-    if (rootRef && typeof rootRef.requestCardUiSync === 'function') {
-        return rootRef.requestCardUiSync(reason, { deferUntilIdle: false });
-    }
-    try {
-        if (typeof requestCardUiSync === 'function') {
-            return requestCardUiSync(reason, { deferUntilIdle: false });
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof renderCardUI === 'function') {
-            renderCardUI();
-            return true;
-        }
-    } catch (e) { /* ignore */ }
-    return false;
 }
 
 function shouldRunScheduledCpuTurn(expected) {
@@ -347,7 +342,8 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
             let cardStateNotified = false;
             try { if (typeof emitCardStateChange === 'function') cardStateNotified = emitCardStateChange() === true; } catch (e) { /* ignore */ }
             if (!hasHandRemovePlayback && !cardStateNotified) {
-                requestMoveExecutorCardUiSync('move-executor:no-playback-fallback');
+                if (!Array.isArray(cardState.presentationEvents)) cardState.presentationEvents = [];
+                cardState.presentationEvents.push({ type: 'cardAnimation', animationType: 'handSync', payload: { reason: 'move-executor:no-playback-fallback' } });
             }
         }
     }
@@ -419,9 +415,11 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
 
                 try {
                     const globalCpu = (typeof globalThis !== 'undefined' && typeof globalThis.processCpuTurn === 'function') ? globalThis.processCpuTurn : null;
+                    const timerService = getMoveExecutorTimerService();
+                    const scheduleFn = timerService ? timerService.setTimeout.bind(timerService) : setTimeout;
                     if (globalCpu) {
                         debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] global processCpuTurn available; scheduling via setTimeout', { delay: delayMs });
-                        setTimeout(() => {
+                        scheduleFn(() => {
                             if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
                                 setMoveExecutorProcessing(false);
                                 debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale global CPU callback', expectedCpuSchedule);
@@ -436,7 +434,7 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
                     }
 
                         debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduleCpuTurn/processCpuTurn unavailable; retrying late global lookup');
-                        setTimeout(() => {
+                        scheduleFn(() => {
                             if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
                                 setMoveExecutorProcessing(false);
                                 debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale late CPU callback', expectedCpuSchedule);
@@ -502,7 +500,8 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         executeMove,
         executeMoveViaPipeline,
-        setUIImpl
+        setUIImpl,
+        setMoveExecutorTimerService
     };
 }
 

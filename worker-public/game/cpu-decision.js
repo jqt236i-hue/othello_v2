@@ -848,9 +848,25 @@ function logCpuOnnxLatencyDegrade(level, playerKey, operationKey, reason) {
     );
 }
 
+let cpuExecutionMode = 'browser';
+function setCpuExecutionMode(mode) { cpuExecutionMode = mode === 'headless' ? 'headless' : 'browser'; }
+
+let cpuTimerService = null;
+function setCpuTimerService(service) { cpuTimerService = service; }
+function getCpuTimerService() {
+    if (cpuTimerService) return cpuTimerService;
+    try {
+        const { createTimerService } = require('./timer-service');
+        cpuTimerService = createTimerService('browser');
+        return cpuTimerService;
+    } catch (e) {
+        return null;
+    }
+}
+
 function resolveLv6LookaheadTimeCaps(playerKey) {
     const isWhite = String(playerKey || '') === 'white';
-    const isBrowserUi = (typeof window !== 'undefined' && typeof document !== 'undefined');
+    const isBrowserUi = cpuExecutionMode !== 'headless';
     const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
     const shared = resolveCpuLv6SharedProfile();
     if (capabilityModule && typeof capabilityModule.resolveCpuLv6LookaheadTimeCaps === 'function') {
@@ -1670,7 +1686,9 @@ async function waitForCpuSelectionPlaybackIdle(playbackEvents) {
 
 function scheduleCpuSelectionWhiteTurn(delayMs, expectedTurnNumber) {
     const safeDelay = Number.isFinite(delayMs) ? delayMs : 0;
-    const tid = setTimeout(() => {
+    const timerService = getCpuTimerService();
+    if (!timerService) return;
+    const tid = timerService.setTimeout(() => {
         const activePlayerKey = resolvePlayerKeyFromTurnValue(gameState ? gameState.currentPlayer : null);
         const currentTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
         if (activePlayerKey !== 'white') return;
@@ -4594,23 +4612,22 @@ async function awaitCpuPromiseWithinBudget(promiseFactory, budgetMs, timeoutValu
     if (typeof promiseFactory !== 'function') return null;
     if (
         !Number.isFinite(budgetMs) ||
-        budgetMs <= 0 ||
-        typeof setTimeout !== 'function' ||
-        typeof clearTimeout !== 'function'
+        budgetMs <= 0
     ) {
         return promiseFactory();
     }
-    let timeoutId = null;
-    try {
-        return await Promise.race([
-            Promise.resolve().then(() => promiseFactory()),
-            new Promise((resolve) => {
-                timeoutId = setTimeout(() => resolve(timeoutValue), budgetMs);
-            })
-        ]);
-    } finally {
-        if (timeoutId !== null) clearTimeout(timeoutId);
+    const timerService = getCpuTimerService();
+    if (!timerService) {
+        return promiseFactory();
     }
+    return new Promise((resolve) => {
+        let timeoutId = null;
+        promiseFactory().then((result) => {
+            if (timeoutId !== null) timerService.clearTimeout(timeoutId);
+            resolve(result);
+        });
+        timeoutId = timerService.setTimeout(() => resolve(timeoutValue), budgetMs);
+    });
 }
 
 function resolveCurrentLegalMovesCountForPlayer(playerKey) {
@@ -6116,7 +6133,9 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectSplitWillWithPolicy,
         cpuSelectTemptWillWithPolicy,
         computeCpuAction,
-        setCpuRng
+        setCpuRng,
+        setCpuTimerService,
+        setCpuExecutionMode
     };
 }
 

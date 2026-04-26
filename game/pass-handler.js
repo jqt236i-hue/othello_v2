@@ -4,6 +4,20 @@
 
 const PASS_HANDLER_VERSION = '2.0'; // TurnPipeline-only version
 
+// TimerService DI
+let passHandlerTimerService = null;
+function setPassHandlerTimerService(service) { passHandlerTimerService = service; }
+function getPassHandlerTimerService() {
+    if (passHandlerTimerService) return passHandlerTimerService;
+    try {
+        const { createTimerService } = require('./timer-service');
+        passHandlerTimerService = createTimerService('browser');
+        return passHandlerTimerService;
+    } catch (e) {
+        return null;
+    }
+}
+
 // Timers abstraction (injected by UI)
 let timers = null;
 let OwnerHelpersModule = null;
@@ -111,6 +125,12 @@ function scheduleWithDelay(delayMs, callback, immediateWithoutTimers) {
     const safeDelay = Number.isFinite(delayMs) ? delayMs : 0;
     if (hasUsableWaitMs(timers)) {
         timers.waitMs(safeDelay).then(callback);
+        return;
+    }
+    const timerService = getPassHandlerTimerService();
+    if (timerService) {
+        const tid = timerService.setTimeout(callback, safeDelay);
+        if (tid && typeof tid.unref === 'function') tid.unref();
         return;
     }
     if (immediateWithoutTimers) {
@@ -590,7 +610,8 @@ if (typeof module !== 'undefined' && module.exports) {
         handleBlackPassWhenNoMoves,
         processPassTurn,
         hasUsableCardFor,
-        ensureCurrentPlayerCanActOrPass
+        ensureCurrentPlayerCanActOrPass,
+        setPassHandlerTimerService
     };
 }
 try {
