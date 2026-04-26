@@ -14,7 +14,8 @@
             require('./cards-internal/random-source'),
             require('./cards-internal/state-factory'),
             require('./cards-internal/module-resolver'),
-            require('./cards-internal/presentation-helpers')
+            require('./cards-internal/presentation-helpers'),
+            require('../cards/state-manager')
         );
     } else {
         // Browser
@@ -28,7 +29,7 @@
             root.CardPresentationHelpers || null
         );
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, DeckSpecHelpers, SharedBoardUtils, CardRandomSource, CardStateFactory, CardModuleResolver, CardPresentationHelpers) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, DeckSpecHelpers, SharedBoardUtils, CardRandomSource, CardStateFactory, CardModuleResolver, CardPresentationHelpers, CardStateManager) {
     'use strict';
 
     const {
@@ -518,22 +519,10 @@
     }
 
     function buildDefaultDeckCardIds(prng) {
-        if (DeckSpecHelpers && typeof DeckSpecHelpers.sampleDefaultDeckCardIds === 'function') {
-            return DeckSpecHelpers.sampleDefaultDeckCardIds(prng);
+        if (!CardStateManager || typeof CardStateManager.createDefaultDeck !== 'function') {
+            throw new Error('[cards.js] CardStateManager.createDefaultDeck not available');
         }
-
-        const seen = new Set();
-        const deck = [];
-        (CARD_DEFS || []).forEach((cardDef) => {
-            if (!cardDef || !cardDef.id || cardDef.enabled === false) return;
-            if (seen.has(cardDef.id)) return;
-            seen.add(cardDef.id);
-            deck.push(cardDef.id);
-        });
-        if (prng && typeof prng.shuffle === 'function') {
-            prng.shuffle(deck);
-        }
-        return deck.slice(0, getDefaultDeckSize());
+        return CardStateManager.createDefaultDeck(prng);
     }
 
     function expandInitialDeckSpec(deckSpec) {
@@ -613,21 +602,10 @@
     }
 
     function setChargeValue(cardState, playerKey, nextValue, reason, meta) {
-        if (CardChargeLedgerModule && typeof CardChargeLedgerModule.setChargeValue === 'function') {
-            return CardChargeLedgerModule.setChargeValue(cardState, playerKey, nextValue, reason, getChargeLedgerContext(), meta);
+        if (!CardStateManager || typeof CardStateManager.normalizeCharge !== 'function') {
+            throw new Error('[cards.js] CardStateManager.normalizeCharge not available');
         }
-        if (CardUtilsModule && typeof CardUtilsModule.setChargeWithDelta === 'function') {
-            return CardUtilsModule.setChargeWithDelta(cardState, playerKey, nextValue, reason, meta);
-        }
-        if (!cardState) return { changed: false, before: 0, after: 0, delta: 0 };
-        if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
-        const before = Number(cardState.charge[playerKey] || 0);
-        const safeBefore = Number.isFinite(before) ? before : 0;
-        const requested = Number(nextValue);
-        const safeRequested = Number.isFinite(requested) ? requested : safeBefore;
-        const after = Math.max(0, Math.min(CHARGE_MAX || 99, safeRequested));
-        cardState.charge[playerKey] = after;
-        return { changed: after !== safeBefore, before: safeBefore, after, delta: after - safeBefore };
+        return CardStateManager.normalizeCharge(cardState, playerKey, nextValue, reason, meta);
     }
 
     const CardExpansionModule = (function() { try { return require('./cards/expansion'); } catch (e) { return null; } })();
@@ -655,19 +633,10 @@
     const SwapWithEnemyModule = (function() { try { return require('./effects/swap_with_enemy'); } catch (e) { return null; } })();
 
     function addChargeValue(cardState, playerKey, amount, reason, meta) {
-        if (CardChargeLedgerModule && typeof CardChargeLedgerModule.addChargeValue === 'function') {
-            return CardChargeLedgerModule.addChargeValue(cardState, playerKey, amount, reason, getChargeLedgerContext(), meta);
+        if (!CardStateManager || typeof CardStateManager.addCharge !== 'function') {
+            throw new Error('[cards.js] CardStateManager.addCharge not available');
         }
-        if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
-            return CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, reason, meta);
-        }
-        if (!cardState) return { changed: false, before: 0, after: 0, delta: 0 };
-        if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
-        const before = Number(cardState.charge[playerKey] || 0);
-        const safeBefore = Number.isFinite(before) ? before : 0;
-        const add = Number(amount);
-        const safeAdd = Number.isFinite(add) ? add : 0;
-        return setChargeValue(cardState, playerKey, safeBefore + safeAdd, reason, meta);
+        return CardStateManager.addCharge(cardState, playerKey, amount, reason, meta);
     }
 
     function ensureRiboRepaymentsByPlayer(cardState) {
@@ -1453,7 +1422,10 @@
     }
 
     function getMarkers(cardState) {
-        return requireCardMarkersMethod('getMarkers')(cardState);
+        if (!CardStateManager || typeof CardStateManager.getMarkers !== 'function') {
+            throw new Error('[cards.js] CardStateManager.getMarkers not available');
+        }
+        return CardStateManager.getMarkers(cardState);
     }
 
     function getMarkerCategory(marker) {
@@ -2026,8 +1998,11 @@
      * @returns {Object} The created marker
      */
     function addMarker(cardState, kind, row, col, owner, data) {
+        if (!CardStateManager || typeof CardStateManager.addMarker !== 'function') {
+            throw new Error('[cards.js] CardStateManager.addMarker not available');
+        }
         const markerData = attachMarkerOriginIfNeeded(cardState, kind, owner, data);
-        return requireCardMarkersMethod('addMarker')(cardState, kind, row, col, owner, markerData);
+        return CardStateManager.addMarker(cardState, kind, row, col, owner, markerData);
     }
 
     /**
@@ -2037,7 +2012,10 @@
      * @returns {boolean} true if removed
      */
     function removeMarkerById(cardState, markerId) {
-        return requireCardMarkersMethod('removeMarkerById')(cardState, markerId);
+        if (!CardStateManager || typeof CardStateManager.removeMarker !== 'function') {
+            throw new Error('[cards.js] CardStateManager.removeMarker not available');
+        }
+        return CardStateManager.removeMarker(cardState, markerId);
     }
 
     /**
@@ -2048,10 +2026,10 @@
      * @returns {string|null} Drawn card ID
      */
     function commitDraw(cardState, playerKey, prng) {
-        if (!CardHandManagerModule || typeof CardHandManagerModule.commitDraw !== 'function') {
-            throw new Error('[cards.js] CardHandManager.commitDraw not available');
+        if (!CardStateManager || typeof CardStateManager.drawCard !== 'function') {
+            throw new Error('[cards.js] CardStateManager.drawCard not available');
         }
-        return CardHandManagerModule.commitDraw(cardState, playerKey, prng || defaultPrng, getCardHandManagerContext());
+        return CardStateManager.drawCard(cardState, playerKey, prng || defaultPrng);
     }
 
     function ensureCardCopyState(cardState) {
@@ -2090,10 +2068,10 @@
     }
 
     function addCardToHand(cardState, playerKey, cardId, opts) {
-        if (!CardHandManagerModule || typeof CardHandManagerModule.addCardToHand !== 'function') {
-            throw new Error('[cards.js] CardHandManager.addCardToHand not available');
+        if (!CardStateManager || typeof CardStateManager.addToHand !== 'function') {
+            throw new Error('[cards.js] CardStateManager.addToHand not available');
         }
-        return CardHandManagerModule.addCardToHand(cardState, playerKey, cardId, getCardHandManagerContext(), opts);
+        return CardStateManager.addToHand(cardState, playerKey, cardId, opts);
     }
 
     function addCardToDiscard(cardState, cardId, cardCopyId) {
@@ -2104,10 +2082,10 @@
     }
 
     function removeHandCardAt(cardState, playerKey, handIndex) {
-        if (!CardHandManagerModule || typeof CardHandManagerModule.removeHandCardAt !== 'function') {
-            throw new Error('[cards.js] CardHandManager.removeHandCardAt not available');
+        if (!CardStateManager || typeof CardStateManager.removeFromHand !== 'function') {
+            throw new Error('[cards.js] CardStateManager.removeFromHand not available');
         }
-        return CardHandManagerModule.removeHandCardAt(cardState, playerKey, handIndex, getCardHandManagerContext());
+        return CardStateManager.removeFromHand(cardState, playerKey, handIndex);
     }
 
     function clearHandToDiscard(cardState, playerKey) {
