@@ -1106,14 +1106,22 @@
         scheduleControlPanelLayoutSync();
     }
 
+    function _getGameState() {
+        try {
+            return (typeof gameState !== 'undefined' && gameState) ? gameState : (root && root.gameState ? root.gameState : null);
+        } catch (e) { return null; }
+    }
+
+    function _getCardState() {
+        try {
+            return (typeof cardState !== 'undefined' && cardState) ? cardState : (root && root.cardState ? root.cardState : null);
+        } catch (e) { return null; }
+    }
+
     function hasRenderableState() {
         try {
-            const gs = (typeof gameState !== 'undefined' && gameState)
-                ? gameState
-                : (root && root.gameState ? root.gameState : null);
-            const cs = (typeof cardState !== 'undefined' && cardState)
-                ? cardState
-                : (root && root.cardState ? root.cardState : null);
+            const gs = _getGameState();
+            const cs = _getCardState();
             if (!gs || !Array.isArray(gs.board) || gs.board.length <= 0) return false;
             if (!Array.isArray(gs.board[0]) || gs.board[0].length <= 0) return false;
             if (!cs || typeof cs !== 'object') return false;
