@@ -1,4 +1,4 @@
-(function (root, factory) {
+(function (root: any, factory) {
     if (typeof module !== 'undefined' && module.exports) {
         let cardCatalog = null;
         try {
@@ -8,12 +8,52 @@
     } else {
         root.StoryDeckSpecHelpers = factory(root.SharedConstants, root.CardCatalog || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardCatalog) {
+}(typeof self !== 'undefined' ? self : this as Record<string, unknown>, function (SharedConstants: unknown, CardCatalog: unknown) {
     'use strict';
+
+    interface CardDef {
+        id: string;
+        enabled?: boolean;
+        name?: string;
+        name_ja?: string;
+        desc?: string;
+        desc_ja?: string;
+        [key: string]: unknown;
+    }
+
+    interface DeckEntry {
+        cardId: string;
+        count: number;
+    }
+
+    interface StoryDeckSpec {
+        version: number;
+        catalogVersion: number;
+        ruleSetId: string;
+        cards: DeckEntry[];
+    }
+
+    interface NormalizeOptions {
+        requireFullDeck?: boolean;
+        ruleSetId?: string;
+    }
+
+    interface StoryDeckError extends Error {
+        code: string;
+        details?: unknown;
+    }
+
+    interface RuleSet {
+        id: string;
+        label: string;
+        deckSize: number;
+        duplicateLimit: number | null;
+        description: string;
+    }
 
     const STORY_DECK_SPEC_VERSION = 1;
 
-    const RULE_SETS = Object.freeze({
+    const RULE_SETS: Readonly<Record<string, Readonly<RuleSet>>> = Object.freeze({
         FREE_30: Object.freeze({
             id: 'free30',
             label: '自由30',
@@ -32,8 +72,8 @@
 
     const DEFAULT_RULE_SET_ID = RULE_SETS.FREE_30.id;
 
-    function createStoryDeckError(code, message, details) {
-        const error = new Error(String(message || code || 'STORY_DECK_ERROR'));
+    function createStoryDeckError(code: string, message: string, details?: unknown): StoryDeckError {
+        const error = new Error(String(message || code || 'STORY_DECK_ERROR')) as StoryDeckError;
         error.code = String(code || 'STORY_DECK_ERROR');
         if (typeof details !== 'undefined') {
             error.details = details;
@@ -41,36 +81,38 @@
         return error;
     }
 
-    function getCatalogCardMap() {
-        const map = new Map();
-        const catalogCards = Array.isArray(CardCatalog && CardCatalog.cards) ? CardCatalog.cards : [];
+    function getCatalogCardMap(): Map<string, CardDef> {
+        const map = new Map<string, CardDef>();
+        const catalogCards = Array.isArray(CardCatalog && (CardCatalog as { cards?: unknown[] }).cards) ? (CardCatalog as { cards: unknown[] }).cards : [];
         catalogCards.forEach((cardDef) => {
-            if (!cardDef || !cardDef.id) return;
-            map.set(String(cardDef.id).trim(), cardDef);
+            const def = cardDef as CardDef;
+            if (!def || !def.id) return;
+            map.set(String(def.id).trim(), def);
         });
         return map;
     }
 
-    function getRawCardDefs() {
-        const baseDefs = Array.isArray(SharedConstants && SharedConstants.CARD_DEFS)
-            ? SharedConstants.CARD_DEFS
+    function getRawCardDefs(): CardDef[] {
+        const baseDefs = Array.isArray(SharedConstants && (SharedConstants as { CARD_DEFS?: unknown[] }).CARD_DEFS)
+            ? (SharedConstants as { CARD_DEFS: unknown[] }).CARD_DEFS
             : [];
         const catalogCardMap = getCatalogCardMap();
 
         return baseDefs.map((cardDef) => {
-            const cardId = String(cardDef && cardDef.id || '').trim();
+            const def = cardDef as CardDef;
+            const cardId = String(def && def.id || '').trim();
             const catalogDef = cardId ? catalogCardMap.get(cardId) : null;
-            return Object.assign({}, cardDef, {
-                name: cardDef && cardDef.name ? cardDef.name : (catalogDef && (catalogDef.name || catalogDef.name_ja) ? (catalogDef.name || catalogDef.name_ja) : ''),
-                name_ja: cardDef && cardDef.name_ja ? cardDef.name_ja : (catalogDef && (catalogDef.name_ja || catalogDef.name) ? (catalogDef.name_ja || catalogDef.name) : ''),
-                desc: cardDef && cardDef.desc ? cardDef.desc : (catalogDef && (catalogDef.desc || catalogDef.desc_ja) ? (catalogDef.desc || catalogDef.desc_ja) : ''),
-                desc_ja: cardDef && cardDef.desc_ja ? cardDef.desc_ja : (catalogDef && (catalogDef.desc_ja || catalogDef.desc) ? (catalogDef.desc_ja || catalogDef.desc) : '')
+            return Object.assign({}, def, {
+                name: def && def.name ? def.name : (catalogDef && (catalogDef.name || catalogDef.name_ja) ? (catalogDef.name || catalogDef.name_ja) : ''),
+                name_ja: def && def.name_ja ? def.name_ja : (catalogDef && (catalogDef.name_ja || catalogDef.name) ? (catalogDef.name_ja || catalogDef.name) : ''),
+                desc: def && def.desc ? def.desc : (catalogDef && (catalogDef.desc || catalogDef.desc_ja) ? (catalogDef.desc || catalogDef.desc_ja) : ''),
+                desc_ja: def && def.desc_ja ? def.desc_ja : (catalogDef && (catalogDef.desc_ja || catalogDef.desc) ? (catalogDef.desc_ja || catalogDef.desc) : '')
             });
         });
     }
 
-    function getCatalogVersion() {
-        const explicit = Number(CardCatalog && CardCatalog.version);
+    function getCatalogVersion(): number {
+        const explicit = Number(CardCatalog && (CardCatalog as { version?: unknown }).version);
         if (Number.isFinite(explicit) && explicit >= 1) {
             return Math.trunc(explicit);
         }
@@ -78,15 +120,15 @@
     }
 
     function buildCatalogCache() {
-        const enabledDefs = [];
-        const enabledById = new Map();
-        const enabledByLowerId = new Map();
+        const enabledDefs: CardDef[] = [];
+        const enabledById = new Map<string, CardDef>();
+        const enabledByLowerId = new Map<string, CardDef>();
 
         getRawCardDefs().forEach((cardDef) => {
             if (!cardDef || !cardDef.id || cardDef.enabled === false) return;
             const cardId = String(cardDef.id).trim();
             if (!cardId || enabledById.has(cardId)) return;
-            const normalizedDef = Object.assign({}, cardDef, { id: cardId });
+            const normalizedDef: CardDef = Object.assign({}, cardDef, { id: cardId });
             enabledDefs.push(normalizedDef);
             enabledById.set(cardId, normalizedDef);
             enabledByLowerId.set(cardId.toLowerCase(), normalizedDef);
@@ -103,15 +145,15 @@
         return buildCatalogCache();
     }
 
-    function getEnabledCardDefs() {
+    function getEnabledCardDefs(): CardDef[] {
         return getCatalogCache().enabledDefs.slice();
     }
 
-    function normalizeCardId(value) {
+    function normalizeCardId(value: unknown): string {
         return String(value || '').trim();
     }
 
-    function resolveEnabledCatalogCard(cardId) {
+    function resolveEnabledCatalogCard(cardId: unknown): CardDef | null {
         const normalized = normalizeCardId(cardId);
         if (!normalized) return null;
         const cache = getCatalogCache();
@@ -120,17 +162,17 @@
             || null;
     }
 
-    function listRuleSets() {
+    function listRuleSets(): RuleSet[] {
         return Object.keys(RULE_SETS).map((key) => RULE_SETS[key]);
     }
 
-    function getRuleSet(ruleSetId) {
+    function getRuleSet(ruleSetId: unknown): RuleSet | null {
         const normalized = String(ruleSetId || '').trim();
         if (!normalized) return RULE_SETS.FREE_30;
         return listRuleSets().find((ruleSet) => ruleSet.id === normalized) || null;
     }
 
-    function ensureRuleSet(ruleSetId) {
+    function ensureRuleSet(ruleSetId: unknown): RuleSet {
         const ruleSet = getRuleSet(ruleSetId);
         if (!ruleSet) {
             throw createStoryDeckError('RULE_SET_UNKNOWN', `未対応のルールセットです: ${String(ruleSetId || '').trim() || '(empty)'}`);
@@ -138,8 +180,8 @@
         return ruleSet;
     }
 
-    function aggregateCardEntries(inputCards) {
-        const countsByCardId = new Map();
+    function aggregateCardEntries(inputCards: unknown[]): Map<string, number> {
+        const countsByCardId = new Map<string, number>();
         const list = Array.isArray(inputCards) ? inputCards : null;
 
         if (!list) {
@@ -153,8 +195,9 @@
             if (typeof entry === 'string') {
                 rawCardId = entry;
             } else if (entry && typeof entry === 'object') {
-                rawCardId = entry.cardId || entry.id || '';
-                count = Object.prototype.hasOwnProperty.call(entry, 'count') ? Number(entry.count) : 1;
+                const obj = entry as Record<string, unknown>;
+                rawCardId = String(obj.cardId || obj.id || '');
+                count = Object.prototype.hasOwnProperty.call(obj, 'count') ? Number(obj.count) : 1;
             } else {
                 throw createStoryDeckError('STORY_DECK_ENTRY_INVALID', `cards[${index}] の形式が不正です`);
             }
@@ -174,25 +217,25 @@
         return countsByCardId;
     }
 
-    function sortDeckCards(cards) {
-        const orderMap = new Map();
+    function sortDeckCards(cards: DeckEntry[]): DeckEntry[] {
+        const orderMap = new Map<string, number>();
         getEnabledCardDefs().forEach((cardDef, index) => {
             orderMap.set(cardDef.id, index);
         });
 
         return cards.slice().sort((left, right) => {
-            const leftOrder = orderMap.has(left.cardId) ? orderMap.get(left.cardId) : Number.MAX_SAFE_INTEGER;
-            const rightOrder = orderMap.has(right.cardId) ? orderMap.get(right.cardId) : Number.MAX_SAFE_INTEGER;
+            const leftOrder = orderMap.has(left.cardId) ? orderMap.get(left.cardId)! : Number.MAX_SAFE_INTEGER;
+            const rightOrder = orderMap.has(right.cardId) ? orderMap.get(right.cardId)! : Number.MAX_SAFE_INTEGER;
             if (leftOrder !== rightOrder) return leftOrder - rightOrder;
             return String(left.cardId).localeCompare(String(right.cardId), 'en');
         });
     }
 
-    function normalizeStoryDeckSpec(input, options) {
+    function normalizeStoryDeckSpec(input: unknown, options?: NormalizeOptions): StoryDeckSpec {
         const opts = (options && typeof options === 'object') ? options : {};
         const requireFullDeck = opts.requireFullDeck !== false;
         const raw = (input && typeof input === 'object' && !Array.isArray(input))
-            ? input
+            ? input as Record<string, unknown>
             : { cards: Array.isArray(input) ? input : [] };
 
         const version = Object.prototype.hasOwnProperty.call(raw, 'version')
@@ -219,12 +262,12 @@
             : (Object.prototype.hasOwnProperty.call(opts, 'ruleSetId') ? opts.ruleSetId : DEFAULT_RULE_SET_ID);
         const ruleSet = ensureRuleSet(ruleSetId);
 
-        const countsByCardId = aggregateCardEntries(raw.cards);
-        const cards = [];
+        const countsByCardId = aggregateCardEntries(raw.cards as unknown[]);
+        const cards: DeckEntry[] = [];
         let totalCount = 0;
 
         countsByCardId.forEach((count, cardId) => {
-            if (Number.isInteger(ruleSet.duplicateLimit) && count > ruleSet.duplicateLimit) {
+            if (Number.isInteger(ruleSet.duplicateLimit as number) && count > (ruleSet.duplicateLimit as number)) {
                 throw createStoryDeckError(
                     'CARD_DUPLICATE_LIMIT',
                     `同一カードは ${ruleSet.duplicateLimit} 枚までです: ${cardId}`,
@@ -257,21 +300,21 @@
         };
     }
 
-    function safeNormalizeStoryDeckSpec(input, options) {
+    function safeNormalizeStoryDeckSpec(input: unknown, options?: NormalizeOptions): { ok: boolean; deckSpec: StoryDeckSpec | null; error: StoryDeckError | null } {
         try {
             return { ok: true, deckSpec: normalizeStoryDeckSpec(input, options), error: null };
         } catch (error) {
-            return { ok: false, deckSpec: null, error };
+            return { ok: false, deckSpec: null, error: error as StoryDeckError };
         }
     }
 
-    function createStoryDeckSpecFromCardIds(cardIds, options) {
+    function createStoryDeckSpecFromCardIds(cardIds: unknown[], options?: NormalizeOptions): StoryDeckSpec {
         return normalizeStoryDeckSpec(Array.isArray(cardIds) ? cardIds : [], options);
     }
 
-    function expandStoryDeckSpec(deckSpec) {
+    function expandStoryDeckSpec(deckSpec: unknown): string[] {
         const normalized = normalizeStoryDeckSpec(deckSpec);
-        const cardIds = [];
+        const cardIds: string[] = [];
         normalized.cards.forEach((entry) => {
             for (let index = 0; index < entry.count; index += 1) {
                 cardIds.push(entry.cardId);
@@ -280,7 +323,7 @@
         return cardIds;
     }
 
-    function summarizeStoryDeckSpec(deckSpec, options) {
+    function summarizeStoryDeckSpec(deckSpec: unknown, options?: NormalizeOptions) {
         const normalized = normalizeStoryDeckSpec(deckSpec, Object.assign({}, options || {}, { requireFullDeck: false }));
         const ruleSet = ensureRuleSet(normalized.ruleSetId);
         const deckSize = normalized.cards.reduce((sum, entry) => sum + Number(entry.count || 0), 0);

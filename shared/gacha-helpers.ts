@@ -1,14 +1,45 @@
-(function (root, factory) {
+(function (root: any, factory) {
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = factory();
     } else {
         root.GachaHelpersModule = factory();
     }
-}(typeof self !== 'undefined' ? self : this, function () {
+}(typeof self !== 'undefined' ? self : this as Record<string, unknown>, function () {
     'use strict';
 
-    const CONFIGURED_RARITIES = Object.freeze(['EXR', 'UR', 'SSR', 'SR', 'R', 'N']);
-    const RARITY_WEIGHTS = Object.freeze({
+    interface RarityWeights {
+        [key: string]: number;
+    }
+
+    interface RaritySummary {
+        counts: Record<string, number>;
+        totalItems: number;
+        availableRarities: string[];
+        missingRarities: string[];
+        configuredRarities: string[];
+    }
+
+    interface WeightedEntry {
+        value: string;
+        weight: number;
+    }
+
+    interface GachaResult {
+        rarity: string;
+        item: unknown;
+        summary: RaritySummary;
+    }
+
+    interface RarityRateInfo {
+        rarity: string;
+        itemCount: number;
+        available: boolean;
+        configuredRateBasisPoints: number;
+        effectiveRateBasisPoints: number;
+    }
+
+    const CONFIGURED_RARITIES: readonly string[] = Object.freeze(['EXR', 'UR', 'SSR', 'SR', 'R', 'N']);
+    const RARITY_WEIGHTS: Readonly<RarityWeights> = Object.freeze({
         EXR: 1,
         UR: 60,
         SSR: 239,
@@ -23,7 +54,7 @@
     const OBSERVATION_STONE_REWARD_BONUS_MAX = 3000;
     const OBSERVATION_STONE_REWARD_BONUS_STEP = 10;
 
-    function clampRandom(value) {
+    function clampRandom(value: unknown): number {
         const numeric = Number(value);
         if (!Number.isFinite(numeric)) return 0;
         if (numeric <= 0) return 0;
@@ -31,29 +62,29 @@
         return numeric;
     }
 
-    function resolveRandomValue(randomFn) {
+    function resolveRandomValue(randomFn: unknown): number {
         try {
-            const fn = (typeof randomFn === 'function') ? randomFn : Math.random;
+            const fn = (typeof randomFn === 'function') ? randomFn as () => number : Math.random;
             return clampRandom(fn());
         } catch (e) {
             return 0;
         }
     }
 
-    function normalizeRarity(value) {
+    function normalizeRarity(value: unknown): string | null {
         const normalized = String(value || '').trim().toUpperCase();
         return CONFIGURED_RARITIES.includes(normalized) ? normalized : null;
     }
 
-    function summarizeRarityAvailability(items) {
-        const counts = {};
+    function summarizeRarityAvailability(items: unknown[]): RaritySummary {
+        const counts: Record<string, number> = {};
         CONFIGURED_RARITIES.forEach((rarity) => {
             counts[rarity] = 0;
         });
 
         const safeItems = Array.isArray(items) ? items : [];
         safeItems.forEach((item) => {
-            const rarity = normalizeRarity(item && item.rarity);
+            const rarity = normalizeRarity(item && typeof item === 'object' ? (item as Record<string, unknown>).rarity : null);
             if (!rarity) return;
             counts[rarity] += 1;
         });
@@ -70,7 +101,7 @@
         };
     }
 
-    function pickWeightedValue(entries, randomFn) {
+    function pickWeightedValue(entries: WeightedEntry[], randomFn: unknown): string | null {
         const safeEntries = Array.isArray(entries)
             ? entries.filter((entry) => entry && Number(entry.weight) > 0)
             : [];
@@ -88,11 +119,11 @@
         return safeEntries[safeEntries.length - 1].value;
     }
 
-    function rollGachaRarity(options) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const summary = opts.summary || summarizeRarityAvailability(opts.items);
+    function rollGachaRarity(options: unknown): string | null {
+        const opts = (options && typeof options === 'object') ? options as Record<string, unknown> : {};
+        const summary = (opts.summary as RaritySummary) || summarizeRarityAvailability(opts.items as unknown[]);
         const availableRarities = Array.isArray(opts.availableRarities)
-            ? opts.availableRarities.map((rarity) => normalizeRarity(rarity)).filter(Boolean)
+            ? (opts.availableRarities as unknown[]).map((rarity) => normalizeRarity(rarity)).filter(Boolean) as string[]
             : summary.availableRarities;
         const uniqueAvailableRarities = Array.from(new Set(availableRarities));
         if (!uniqueAvailableRarities.length) return null;
@@ -104,19 +135,19 @@
         return pickWeightedValue(weightedEntries, opts.randomFn);
     }
 
-    function selectCatalogItemByRarity(items, rarity, randomFn) {
+    function selectCatalogItemByRarity(items: unknown[], rarity: unknown, randomFn: unknown): unknown | null {
         const normalizedRarity = normalizeRarity(rarity);
         if (!normalizedRarity) return null;
 
-        const matches = (Array.isArray(items) ? items : []).filter((item) => normalizeRarity(item && item.rarity) === normalizedRarity);
+        const matches = (Array.isArray(items) ? items : []).filter((item) => normalizeRarity(item && typeof item === 'object' ? (item as Record<string, unknown>).rarity : null) === normalizedRarity);
         if (!matches.length) return null;
 
         const index = Math.floor(resolveRandomValue(randomFn) * matches.length);
         return matches[Math.min(index, matches.length - 1)] || null;
     }
 
-    function rollObservationGacha(items, options) {
-        const opts = (options && typeof options === 'object') ? options : {};
+    function rollObservationGacha(items: unknown[], options: unknown): GachaResult | null {
+        const opts = (options && typeof options === 'object') ? options as Record<string, unknown> : {};
         const summary = summarizeRarityAvailability(items);
         const rarity = rollGachaRarity({
             summary,
@@ -135,29 +166,29 @@
         };
     }
 
-    function rollHandGacha(items, options) {
+    function rollHandGacha(items: unknown[], options: unknown): GachaResult | null {
         return rollObservationGacha(items, options);
     }
 
-    function normalizePositiveInteger(value, fallback) {
+    function normalizePositiveInteger(value: unknown, fallback: unknown): number {
         const numeric = Number(value);
         if (!Number.isFinite(numeric)) return Math.max(1, Math.floor(Number(fallback) || 1));
         return Math.max(1, Math.floor(numeric));
     }
 
-    function getObservationBonusStepCount(minBonus, maxBonus, bonusStep) {
+    function getObservationBonusStepCount(minBonus: unknown, maxBonus: unknown, bonusStep: unknown): number {
         const minValue = Math.max(0, Math.floor(Number(minBonus) || 0));
         const maxValue = Math.max(minValue, Math.floor(Number(maxBonus) || 0));
         const stepValue = normalizePositiveInteger(bonusStep, OBSERVATION_STONE_REWARD_BONUS_STEP);
         return Math.floor((maxValue - minValue) / stepValue);
     }
 
-    function getObservationBonusTotalWeight(minBonus, maxBonus, bonusStep) {
+    function getObservationBonusTotalWeight(minBonus: unknown, maxBonus: unknown, bonusStep: unknown): number {
         const stepCount = getObservationBonusStepCount(minBonus, maxBonus, bonusStep);
         return ((stepCount + 1) * (stepCount + 2)) / 2;
     }
 
-    function rollObservationBonus(randomFn) {
+    function rollObservationBonus(randomFn: unknown): number {
         const minBonus = OBSERVATION_STONE_REWARD_BONUS_MIN;
         const maxBonus = OBSERVATION_STONE_REWARD_BONUS_MAX;
         const bonusStep = normalizePositiveInteger(
@@ -176,21 +207,21 @@
         return minBonus + (stepCount * bonusStep);
     }
 
-    function formatRateBasisPoints(rateBasisPoints) {
+    function formatRateBasisPoints(rateBasisPoints: unknown): string {
         const numeric = Number(rateBasisPoints);
         if (!Number.isFinite(numeric)) return '0.00%';
         return `${(numeric / 100).toFixed(2)}%`;
     }
 
-    function computeEffectiveRarityRates(summary) {
+    function computeEffectiveRarityRates(summary: unknown): RarityRateInfo[] {
         const state = summary || summarizeRarityAvailability([]);
-        const availableRarities = Array.isArray(state.availableRarities) ? state.availableRarities : [];
+        const availableRarities = Array.isArray((state as RaritySummary).availableRarities) ? (state as RaritySummary).availableRarities : [];
         const effectiveTotalWeight = availableRarities.reduce((sum, rarity) => sum + (RARITY_WEIGHTS[rarity] || 0), 0);
 
         return CONFIGURED_RARITIES.map((rarity) => {
             const configuredRateBasisPoints = RARITY_WEIGHTS[rarity] || 0;
-            const itemCount = state.counts && Number.isFinite(Number(state.counts[rarity]))
-                ? Math.max(0, Math.floor(Number(state.counts[rarity])))
+            const itemCount = (state as RaritySummary).counts && Number.isFinite(Number((state as RaritySummary).counts[rarity]))
+                ? Math.max(0, Math.floor(Number((state as RaritySummary).counts[rarity])))
                 : 0;
             const available = itemCount > 0;
             const effectiveRateBasisPoints = available && effectiveTotalWeight > 0

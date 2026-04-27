@@ -1,4 +1,4 @@
-(function (root, factory) {
+(function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
         let SharedBoardUtilsModule = null;
         try {
@@ -8,28 +8,94 @@
     } else {
         root.CpuLv6RuntimeCapability = factory(root.SharedBoardUtils || null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (SharedBoardUtilsModule) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as Record<string, unknown>), function (SharedBoardUtilsModule: unknown) {
     'use strict';
 
-    function normalizeCpuLv6DecisionMode(mode) {
+    interface BrowserProfile {
+        browser?: { [key: string]: unknown };
+        teacher?: { [key: string]: unknown };
+        moveDecisionMode?: string;
+        cardDecisionMode?: string;
+        onnxRuntimeGuard?: { [key: string]: unknown };
+        lookaheadTimeCaps?: LookaheadTimeCaps;
+        lookaheadWeights?: LookaheadWeights;
+        pendingSelectionOnnxMaxMs?: number;
+        [key: string]: unknown;
+    }
+
+    interface LookaheadTimeCaps {
+        whiteUi?: TimeCapConfig;
+        whiteHeadless?: TimeCapConfig;
+        black?: TimeCapConfig;
+    }
+
+    interface TimeCapConfig {
+        moveCapMs: number;
+        endgameCapMs: number;
+        quiescenceMoveCapMs: number;
+        quiescenceEndgameCapMs: number;
+        quiescenceEndgameMinMs: number;
+    }
+
+    interface LookaheadWeights {
+        onnxRefinePriorWeight?: number;
+        policyLookaheadPriorWeight?: number;
+        searchWeight?: number;
+    }
+
+    interface RuntimeCapability {
+        browserProfile: BrowserProfile | null;
+        moveDecisionMode: string;
+        cardDecisionMode: string;
+        primaryMoveSource: string;
+        primaryCardSource: string;
+        usesOnnxMoveDecision: boolean;
+        usesOnnxCardDecision: boolean;
+        usesPolicyTableLookaheadMoveDecision: boolean;
+        usesPolicyTableCoreCardDecision: boolean;
+        shouldLoadPrimaryOnnxRuntime: boolean;
+        hasAuxiliaryTargetHead: boolean;
+        hasAuxiliaryValueHead: boolean;
+        onnxRuntimeGuard: OnnxRuntimeGuard;
+    }
+
+    interface OnnxRuntimeGuard {
+        minSamples: number;
+        maxAverageLatencyMs: number;
+        maxP95LatencyMs: number;
+        maxMaxLatencyMs: number;
+        moveBudgetMs: number;
+        cardBudgetMs: number;
+        pendingSelectionBudgetMs: number;
+    }
+
+    interface CapabilityOptions {
+        forcePrimaryOnnx?: boolean;
+        guardOverrides?: { [key: string]: number };
+        legacyPendingSelectionBudgetMs?: number;
+        playerKey?: string;
+        isBrowserUi?: boolean;
+    }
+
+    function normalizeCpuLv6DecisionMode(mode: unknown): string {
         return String(mode || '').trim().toLowerCase();
     }
 
-    function resolveCpuLv6BrowserProfile(sharedProfile) {
-        const shared = sharedProfile && typeof sharedProfile === 'object' ? sharedProfile : null;
+    function resolveCpuLv6BrowserProfile(sharedProfile: unknown): BrowserProfile | null {
+        const shared = sharedProfile && typeof sharedProfile === 'object' ? sharedProfile as BrowserProfile : null;
         return shared && shared.browser && typeof shared.browser === 'object'
-            ? shared.browser
+            ? shared
             : null;
     }
 
-    function resolveCpuLv6TeacherProfile(sharedProfile) {
-        const shared = sharedProfile && typeof sharedProfile === 'object' ? sharedProfile : null;
+    function resolveCpuLv6TeacherProfile(sharedProfile: unknown): BrowserProfile | null {
+        const shared = sharedProfile && typeof sharedProfile === 'object' ? sharedProfile as BrowserProfile : null;
         return shared && shared.teacher && typeof shared.teacher === 'object'
-            ? shared.teacher
+            ? shared
             : null;
     }
 
-    function usesOnnxMoveDecisionMode(mode) {
+    function usesOnnxMoveDecisionMode(mode: unknown): boolean {
         const normalized = normalizeCpuLv6DecisionMode(mode);
         if (!normalized) return true;
         return normalized !== 'policy-table-lookahead' &&
@@ -37,13 +103,18 @@
             normalized !== 'policy-table-core';
     }
 
-    function usesOnnxCardDecisionMode(mode) {
+    function usesOnnxCardDecisionMode(mode: unknown): boolean {
         const normalized = normalizeCpuLv6DecisionMode(mode);
         if (!normalized) return true;
         return normalized !== 'policy-table-core';
     }
 
-    function readGuardNumber(overrides, configured, key, fallback) {
+    function readGuardNumber(
+        overrides: { [key: string]: number } | null,
+        configured: { [key: string]: unknown } | null,
+        key: string,
+        fallback: number
+    ): number {
         const overrideValue = Number(overrides && overrides[key]);
         if (Number.isFinite(overrideValue)) return overrideValue;
         const configuredValue = Number(configured && configured[key]);
@@ -51,12 +122,12 @@
         return fallback;
     }
 
-    function resolveCpuLv6OnnxRuntimeGuard(sharedProfile, options) {
+    function resolveCpuLv6OnnxRuntimeGuard(sharedProfile: unknown, options: unknown): OnnxRuntimeGuard {
         const browserProfile = resolveCpuLv6BrowserProfile(sharedProfile);
         const configured = browserProfile && browserProfile.onnxRuntimeGuard && typeof browserProfile.onnxRuntimeGuard === 'object'
-            ? browserProfile.onnxRuntimeGuard
+            ? browserProfile.onnxRuntimeGuard as { [key: string]: unknown }
             : null;
-        const opts = options && typeof options === 'object' ? options : {};
+        const opts = options && typeof options === 'object' ? options as CapabilityOptions : {};
         const overrides = opts.guardOverrides && typeof opts.guardOverrides === 'object'
             ? opts.guardOverrides
             : null;
@@ -78,9 +149,9 @@
         };
     }
 
-    function resolveCpuLv6BrowserRuntimeCapability(sharedProfile, options) {
+    function resolveCpuLv6BrowserRuntimeCapability(sharedProfile: unknown, options: unknown): RuntimeCapability {
         const browserProfile = resolveCpuLv6BrowserProfile(sharedProfile);
-        const opts = options && typeof options === 'object' ? options : {};
+        const opts = options && typeof options === 'object' ? options as CapabilityOptions : {};
         const moveDecisionMode = normalizeCpuLv6DecisionMode(browserProfile && browserProfile.moveDecisionMode);
         const cardDecisionMode = normalizeCpuLv6DecisionMode(browserProfile && browserProfile.cardDecisionMode);
         const usesOnnxMoveDecision = usesOnnxMoveDecisionMode(moveDecisionMode);
@@ -112,12 +183,12 @@
         };
     }
 
-    function resolveCpuLv6LookaheadTimeCaps(sharedProfile, options) {
+    function resolveCpuLv6LookaheadTimeCaps(sharedProfile: unknown, options: unknown): TimeCapConfig {
         const browserProfile = resolveCpuLv6BrowserProfile(sharedProfile);
         const configuredCaps = browserProfile && browserProfile.lookaheadTimeCaps && typeof browserProfile.lookaheadTimeCaps === 'object'
-            ? browserProfile.lookaheadTimeCaps
+            ? browserProfile.lookaheadTimeCaps as LookaheadTimeCaps
             : null;
-        const opts = options && typeof options === 'object' ? options : {};
+        const opts = options && typeof options === 'object' ? options as CapabilityOptions : {};
         const playerKey = String(opts.playerKey || '').trim();
         const isWhite = playerKey === 'white';
         const isBrowserUi = opts.isBrowserUi === true;
@@ -154,10 +225,10 @@
         };
     }
 
-    function resolveCpuLv6LookaheadWeights(sharedProfile) {
+    function resolveCpuLv6LookaheadWeights(sharedProfile: unknown): Required<LookaheadWeights> {
         const browserProfile = resolveCpuLv6BrowserProfile(sharedProfile);
         const configured = browserProfile && browserProfile.lookaheadWeights && typeof browserProfile.lookaheadWeights === 'object'
-            ? browserProfile.lookaheadWeights
+            ? browserProfile.lookaheadWeights as LookaheadWeights
             : null;
         return {
             onnxRefinePriorWeight: Number(configured && configured.onnxRefinePriorWeight) || 66,
@@ -166,10 +237,13 @@
         };
     }
 
-    function isStandardBoardCpuPolicyCompatible(board) {
+    function isStandardBoardCpuPolicyCompatible(board: unknown): boolean {
         try {
-            if (SharedBoardUtilsModule && typeof SharedBoardUtilsModule.isStandardBoard8x8 === 'function') {
-                return SharedBoardUtilsModule.isStandardBoard8x8(board);
+            if (
+                SharedBoardUtilsModule &&
+                typeof (SharedBoardUtilsModule as { isStandardBoard8x8?: (b: unknown) => boolean }).isStandardBoard8x8 === 'function'
+            ) {
+                return (SharedBoardUtilsModule as { isStandardBoard8x8: (b: unknown) => boolean }).isStandardBoard8x8(board);
             }
         } catch (e) { /* ignore */ }
         if (!Array.isArray(board) || board.length !== 8) return false;

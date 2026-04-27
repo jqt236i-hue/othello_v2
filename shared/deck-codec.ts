@@ -1,16 +1,26 @@
-(function (root, factory) {
+/**
+ * @file deck-codec.ts
+ * @description Deck encoding/decoding utilities
+ */
+
+(function (root: any, factory: (deckSpecHelpers: any) => any) {
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = factory(require('./deck-spec'));
     } else {
         root.DeckCodecModule = factory(root.DeckSpecHelpers);
     }
-}(typeof self !== 'undefined' ? self : this, function (DeckSpecHelpers) {
+}(typeof self !== 'undefined' ? self : this, function (DeckSpecHelpers: any) {
     'use strict';
 
     const CODEC_VERSION = 1;
 
-    function createDeckCodeError(code, message, details) {
-        const error = new Error(String(message || code || 'DECK_CODE_ERROR'));
+    interface DeckCodeError extends Error {
+        code: string;
+        details?: unknown;
+    }
+
+    function createDeckCodeError(code: string, message?: string, details?: unknown): DeckCodeError {
+        const error = new Error(String(message || code || 'DECK_CODE_ERROR')) as DeckCodeError;
         error.code = String(code || 'DECK_CODE_ERROR');
         if (typeof details !== 'undefined') {
             error.details = details;
@@ -18,29 +28,46 @@
         return error;
     }
 
-    function ensureDeckSpecHelpers() {
+    function ensureDeckSpecHelpers(): any {
         if (!DeckSpecHelpers || typeof DeckSpecHelpers.normalizeDeckSpec !== 'function') {
             throw createDeckCodeError('DECK_SPEC_HELPERS_MISSING', 'DeckSpecHelpers が読み込まれていません');
         }
         return DeckSpecHelpers;
     }
 
-    function getDeckCodeHeader(deckSpec) {
+    function getDeckCodeHeader(deckSpec: Record<string, unknown>): string {
         const helpers = ensureDeckSpecHelpers();
         const catalogVersion = Number(deckSpec && deckSpec.catalogVersion) || helpers.getCatalogVersion();
         return `D${CODEC_VERSION}C${catalogVersion}:`;
     }
 
-    function encodeDeckSpec(deckSpec) {
+    interface DeckEntry {
+        cardId: string;
+        count: number;
+    }
+
+    interface DeckSpec {
+        version: number;
+        catalogVersion: number;
+        cards: DeckEntry[];
+    }
+
+    function encodeDeckSpec(deckSpec: DeckSpec): string {
         const helpers = ensureDeckSpecHelpers();
         const normalized = helpers.normalizeDeckSpec(deckSpec);
         const body = normalized.cards
-            .map((entry) => `${entry.cardId}${entry.count > 1 ? `*${entry.count}` : ''}`)
+            .map((entry: DeckEntry) => `${entry.cardId}${entry.count > 1 ? `*${entry.count}` : ''}`)
             .join('.');
         return `${getDeckCodeHeader(normalized)}${body}`;
     }
 
-    function parseDeckCode(deckCode) {
+    interface ParsedDeckCode {
+        version: number;
+        catalogVersion: number;
+        body: string;
+    }
+
+    function parseDeckCode(deckCode: unknown): ParsedDeckCode {
         const raw = String(deckCode || '').trim();
         if (!raw) {
             throw createDeckCodeError('DECK_CODE_REQUIRED', 'deckCode が空です');
@@ -68,15 +95,15 @@
         };
     }
 
-    function decodeDeckCode(deckCode) {
+    function decodeDeckCode(deckCode: unknown): DeckSpec {
         const helpers = ensureDeckSpecHelpers();
         const parsed = parseDeckCode(deckCode);
-        const tokens = parsed.body.split('.').map((token) => token.trim()).filter((token) => token);
+        const tokens = parsed.body.split('.').map((token: string) => token.trim()).filter((token: string) => token);
         if (tokens.length === 0) {
             throw createDeckCodeError('DECK_CODE_EMPTY', 'deckCode にカード情報がありません');
         }
 
-        const cards = tokens.map((token) => {
+        const cards = tokens.map((token: string) => {
             const match = token.match(/^([A-Za-z0-9_-]+)(?:\*(\d+))?$/);
             if (!match) {
                 throw createDeckCodeError('DECK_CODE_TOKEN_INVALID', `deckCode の token が不正です: ${token}`);
@@ -94,11 +121,17 @@
         });
     }
 
-    function safeDecodeDeckCode(deckCode) {
+    interface SafeDecodeResult {
+        ok: boolean;
+        deckSpec: DeckSpec | null;
+        error: DeckCodeError | null;
+    }
+
+    function safeDecodeDeckCode(deckCode: unknown): SafeDecodeResult {
         try {
             return { ok: true, deckSpec: decodeDeckCode(deckCode), error: null };
         } catch (error) {
-            return { ok: false, deckSpec: null, error };
+            return { ok: false, deckSpec: null, error: error as DeckCodeError };
         }
     }
 

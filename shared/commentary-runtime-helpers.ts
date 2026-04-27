@@ -1,4 +1,4 @@
-(function (root, factory) {
+(function (root: any, factory) {
     if (typeof module !== 'undefined' && module.exports) {
         let CommentaryContextHelpers = null;
         try {
@@ -8,13 +8,26 @@
     } else {
         root.CommentaryRuntimeHelpers = factory(root.CommentaryContextHelpers || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (CommentaryContextHelpers) {
+}(typeof self !== 'undefined' ? self : this as Record<string, unknown>, function (CommentaryContextHelpers: unknown) {
     'use strict';
 
-    function normalizePlayerKey(value, fallbackKey) {
+    interface CommentaryRuntime {
+        requestCommentary: (...args: unknown[]) => unknown;
+    }
+
+    interface PlaybackEvent {
+        cardId?: string;
+        type?: string;
+        targets?: Array<{ cardId?: string }>;
+    }
+
+    function normalizePlayerKey(value: unknown, fallbackKey: unknown): string {
         try {
-            if (CommentaryContextHelpers && typeof CommentaryContextHelpers.normalizePlayerKey === 'function') {
-                return CommentaryContextHelpers.normalizePlayerKey(value, fallbackKey);
+            if (
+                CommentaryContextHelpers &&
+                typeof (CommentaryContextHelpers as { normalizePlayerKey?: (v: unknown, f: unknown) => string }).normalizePlayerKey === 'function'
+            ) {
+                return (CommentaryContextHelpers as { normalizePlayerKey: (v: unknown, f: unknown) => string }).normalizePlayerKey(value, fallbackKey);
             }
         } catch (e) { /* ignore */ }
 
@@ -23,12 +36,12 @@
         return fallbackKey === 'white' ? 'white' : 'black';
     }
 
-    function hasCommentaryRuntime(runtime) {
-        return !!(runtime && typeof runtime.requestCommentary === 'function');
+    function hasCommentaryRuntime(runtime: unknown): boolean {
+        return !!(runtime && typeof (runtime as CommentaryRuntime).requestCommentary === 'function');
     }
 
-    function resolveFromGlobal(globalName, rootRef) {
-        const candidates = [];
+    function resolveFromGlobal(globalName: string, rootRef: unknown): unknown | null {
+        const candidates: unknown[] = [];
         if (rootRef) candidates.push(rootRef);
         try {
             if (typeof globalThis !== 'undefined' && globalThis && globalThis !== rootRef) {
@@ -38,37 +51,37 @@
 
         for (const candidate of candidates) {
             try {
-                const resolved = candidate && candidate[globalName];
+                const resolved = candidate && (candidate as Record<string, unknown>)[globalName];
                 if (resolved) return resolved;
             } catch (e) { /* ignore */ }
         }
         return null;
     }
 
-    function resolveCommentaryRuntimeFromGlobal(rootRef) {
+    function resolveCommentaryRuntimeFromGlobal(rootRef: unknown): CommentaryRuntime | null {
         const runtime = resolveFromGlobal('CpuCommentaryRuntime', rootRef);
-        if (hasCommentaryRuntime(runtime)) return runtime;
+        if (hasCommentaryRuntime(runtime)) return runtime as CommentaryRuntime;
         return null;
     }
 
-    function resolveCommentaryRuntimeByRequire(moduleIds, requireFn) {
-        const ids = Array.isArray(moduleIds) ? moduleIds : [];
+    function resolveCommentaryRuntimeByRequire(moduleIds: unknown, requireFn: unknown): CommentaryRuntime | null {
+        const ids = Array.isArray(moduleIds) ? moduleIds as string[] : [];
         const loader = typeof requireFn === 'function'
-            ? requireFn
-            : (typeof require === 'function' ? require : null);
+            ? requireFn as (id: string) => unknown
+            : (typeof require === 'function' ? require as (id: string) => unknown : null);
         if (!loader) return null;
 
         for (const moduleId of ids) {
             try {
                 const runtime = loader(moduleId);
-                if (hasCommentaryRuntime(runtime)) return runtime;
+                if (hasCommentaryRuntime(runtime)) return runtime as CommentaryRuntime;
             } catch (e) { /* ignore */ }
         }
         return null;
     }
 
-    function extractCardIdFromPlaybackEvents(playbackEvents) {
-        const events = Array.isArray(playbackEvents) ? playbackEvents : [];
+    function extractCardIdFromPlaybackEvents(playbackEvents: unknown): string | null {
+        const events = Array.isArray(playbackEvents) ? playbackEvents as PlaybackEvent[] : [];
         for (const ev of events) {
             if (!ev || typeof ev !== 'object') continue;
             if (ev.cardId) return String(ev.cardId);
@@ -82,7 +95,7 @@
         return null;
     }
 
-    function resolveCommentaryEventType(actionType, cardId) {
+    function resolveCommentaryEventType(actionType: unknown, cardId: unknown): string {
         const type = String(actionType || '').toLowerCase();
         if (type === 'pass') return 'pass';
         if (type === 'use_card') return 'card_used';
@@ -90,18 +103,18 @@
         return 'turn_start';
     }
 
-    function normalizeSpeakerRole(value, fallbackRole) {
+    function normalizeSpeakerRole(value: unknown, fallbackRole: unknown): string {
         const role = String(value || '').trim().toLowerCase();
         if (role === 'cpu' || role === 'hero') return role;
         return String(fallbackRole || '').trim().toLowerCase() === 'hero' ? 'hero' : 'cpu';
     }
 
-    function getSpeakerPrefix(playerKey, speakerRole) {
+    function getSpeakerPrefix(playerKey: unknown, speakerRole: unknown): string {
         if (normalizeSpeakerRole(speakerRole, 'cpu') === 'hero') return '勇者';
         return normalizePlayerKey(playerKey, 'black') === 'white' ? '白CPU' : '黒CPU';
     }
 
-    function getCpuSpeakerPrefix(playerKey) {
+    function getCpuSpeakerPrefix(playerKey: unknown): string {
         return getSpeakerPrefix(playerKey, 'cpu');
     }
 

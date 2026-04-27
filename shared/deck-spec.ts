@@ -1,4 +1,4 @@
-(function (root, factory) {
+(function (root: any, factory) {
     if (typeof module !== 'undefined' && module.exports) {
         let cardCatalog = null;
         try {
@@ -8,16 +8,46 @@
     } else {
         root.DeckSpecHelpers = factory(root.SharedConstants, root.CardCatalog || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, CardCatalog) {
+}(typeof self !== 'undefined' ? self : this as Record<string, unknown>, function (SharedConstants: unknown, CardCatalog: unknown) {
     'use strict';
+
+    interface CardDef {
+        id: string;
+        enabled?: boolean;
+        [key: string]: unknown;
+    }
+
+    interface DeckEntry {
+        cardId: string;
+        count: number;
+    }
+
+    interface DeckSpec {
+        version: number;
+        catalogVersion: number;
+        cards: DeckEntry[];
+    }
+
+    interface NormalizeOptions {
+        requireFullDeck?: boolean;
+    }
+
+    interface DeckSpecError extends Error {
+        code: string;
+        details?: unknown;
+    }
+
+    interface ShufflePrng {
+        shuffle: (array: unknown[]) => unknown[];
+    }
 
     const DECK_SPEC_VERSION = 1;
     const DEFAULT_DECK_SIZE = 30;
     const CUSTOM_DECK_SIZE = 30;
     const MAX_DUPLICATES_PER_CARD = 3;
 
-    function createDeckSpecError(code, message, details) {
-        const error = new Error(String(message || code || 'DECK_SPEC_ERROR'));
+    function createDeckSpecError(code: string, message: string, details?: unknown): DeckSpecError {
+        const error = new Error(String(message || code || 'DECK_SPEC_ERROR')) as DeckSpecError;
         error.code = String(code || 'DECK_SPEC_ERROR');
         if (typeof details !== 'undefined') {
             error.details = details;
@@ -25,14 +55,14 @@
         return error;
     }
 
-    function getRawCardDefs() {
-        return Array.isArray(SharedConstants && SharedConstants.CARD_DEFS)
-            ? SharedConstants.CARD_DEFS
+    function getRawCardDefs(): unknown[] {
+        return Array.isArray(SharedConstants && (SharedConstants as { CARD_DEFS?: unknown[] }).CARD_DEFS)
+            ? (SharedConstants as { CARD_DEFS: unknown[] }).CARD_DEFS
             : [];
     }
 
-    function getCatalogVersion() {
-        const explicit = Number(CardCatalog && CardCatalog.version);
+    function getCatalogVersion(): number {
+        const explicit = Number(CardCatalog && (CardCatalog as { version?: unknown }).version);
         if (Number.isFinite(explicit) && explicit >= 1) {
             return Math.trunc(explicit);
         }
@@ -40,19 +70,20 @@
     }
 
     function buildCatalogCache() {
-        const allDefs = [];
-        const enabledDefs = [];
-        const allById = new Map();
-        const allByLowerId = new Map();
-        const enabledById = new Map();
-        const enabledByLowerId = new Map();
+        const allDefs: CardDef[] = [];
+        const enabledDefs: CardDef[] = [];
+        const allById = new Map<string, CardDef>();
+        const allByLowerId = new Map<string, CardDef>();
+        const enabledById = new Map<string, CardDef>();
+        const enabledByLowerId = new Map<string, CardDef>();
 
         getRawCardDefs().forEach((cardDef) => {
-            if (!cardDef || !cardDef.id) return;
-            const cardId = String(cardDef.id).trim();
+            const def = cardDef as CardDef;
+            if (!def || !def.id) return;
+            const cardId = String(def.id).trim();
             if (!cardId || allById.has(cardId)) return;
 
-            const normalizedDef = Object.assign({}, cardDef, { id: cardId });
+            const normalizedDef: CardDef = Object.assign({}, def, { id: cardId });
             allDefs.push(normalizedDef);
             allById.set(cardId, normalizedDef);
             allByLowerId.set(cardId.toLowerCase(), normalizedDef);
@@ -77,46 +108,46 @@
         return buildCatalogCache();
     }
 
-    function getEnabledCardDefs() {
+    function getEnabledCardDefs(): CardDef[] {
         return getCatalogCache().enabledDefs.slice();
     }
 
-    function getEnabledCardDefMap() {
+    function getEnabledCardDefMap(): Map<string, CardDef> {
         return new Map(getCatalogCache().enabledById);
     }
 
-    function getEnabledCardIds() {
+    function getEnabledCardIds(): string[] {
         return getEnabledCardDefs().map((cardDef) => cardDef.id);
     }
 
-    function getEnabledCardCount() {
+    function getEnabledCardCount(): number {
         return getEnabledCardIds().length;
     }
 
-    function getStandardDeckCardIds() {
+    function getStandardDeckCardIds(): string[] {
         return getEnabledCardIds();
     }
 
-    function getStandardDeckSize() {
+    function getStandardDeckSize(): number {
         return getStandardDeckCardIds().length;
     }
 
-    function getDefaultDeckSize() {
+    function getDefaultDeckSize(): number {
         return DEFAULT_DECK_SIZE;
     }
 
-    function getShuffleOnlyPrng(prng) {
-        if (prng && typeof prng.shuffle === 'function') {
-            return prng;
+    function getShuffleOnlyPrng(prng: unknown): ShufflePrng {
+        if (prng && typeof (prng as ShufflePrng).shuffle === 'function') {
+            return prng as ShufflePrng;
         }
         return {
-            shuffle(array) {
+            shuffle(array: unknown[]) {
                 return array;
             }
         };
     }
 
-    function sampleDefaultDeckCardIds(prng) {
+    function sampleDefaultDeckCardIds(prng: unknown): string[] {
         const enabledCardIds = getEnabledCardIds();
         if (enabledCardIds.length < DEFAULT_DECK_SIZE) {
             throw createDeckSpecError(
@@ -134,15 +165,15 @@
         return sampled.slice(0, DEFAULT_DECK_SIZE);
     }
 
-    function createDefaultDeckSpec(prng) {
+    function createDefaultDeckSpec(prng: unknown): DeckSpec {
         return normalizeDeckSpec(sampleDefaultDeckCardIds(prng));
     }
 
-    function normalizeCardId(value) {
+    function normalizeCardId(value: unknown): string {
         return String(value || '').trim();
     }
 
-    function resolveCatalogCard(cardId) {
+    function resolveCatalogCard(cardId: unknown): CardDef | null {
         const normalized = normalizeCardId(cardId);
         if (!normalized) return null;
 
@@ -152,7 +183,7 @@
             || null;
     }
 
-    function resolveEnabledCatalogCard(cardId) {
+    function resolveEnabledCatalogCard(cardId: unknown): CardDef | null {
         const normalized = normalizeCardId(cardId);
         if (!normalized) return null;
 
@@ -162,8 +193,8 @@
             || null;
     }
 
-    function aggregateCardEntries(inputCards) {
-        const countsByCardId = new Map();
+    function aggregateCardEntries(inputCards: unknown[]): Map<string, number> {
+        const countsByCardId = new Map<string, number>();
         const list = Array.isArray(inputCards) ? inputCards : null;
 
         if (!list) {
@@ -177,8 +208,9 @@
             if (typeof entry === 'string') {
                 rawCardId = entry;
             } else if (entry && typeof entry === 'object') {
-                rawCardId = entry.cardId || entry.id || '';
-                count = Object.prototype.hasOwnProperty.call(entry, 'count') ? Number(entry.count) : 1;
+                const obj = entry as Record<string, unknown>;
+                rawCardId = String(obj.cardId || obj.id || '');
+                count = Object.prototype.hasOwnProperty.call(obj, 'count') ? Number(obj.count) : 1;
             } else {
                 throw createDeckSpecError('DECK_ENTRY_INVALID', `cards[${index}] の形式が不正です`);
             }
@@ -201,25 +233,25 @@
         return countsByCardId;
     }
 
-    function sortDeckCards(cards) {
-        const orderMap = new Map();
+    function sortDeckCards(cards: DeckEntry[]): DeckEntry[] {
+        const orderMap = new Map<string, number>();
         getEnabledCardDefs().forEach((cardDef, index) => {
             orderMap.set(cardDef.id, index);
         });
 
         return cards.slice().sort((left, right) => {
-            const leftOrder = orderMap.has(left.cardId) ? orderMap.get(left.cardId) : Number.MAX_SAFE_INTEGER;
-            const rightOrder = orderMap.has(right.cardId) ? orderMap.get(right.cardId) : Number.MAX_SAFE_INTEGER;
+            const leftOrder = orderMap.has(left.cardId) ? orderMap.get(left.cardId)! : Number.MAX_SAFE_INTEGER;
+            const rightOrder = orderMap.has(right.cardId) ? orderMap.get(right.cardId)! : Number.MAX_SAFE_INTEGER;
             if (leftOrder !== rightOrder) return leftOrder - rightOrder;
             return String(left.cardId).localeCompare(String(right.cardId), 'en');
         });
     }
 
-    function normalizeDeckSpec(input, options) {
+    function normalizeDeckSpec(input: unknown, options?: NormalizeOptions): DeckSpec {
         const opts = (options && typeof options === 'object') ? options : {};
         const requireFullDeck = opts.requireFullDeck !== false;
         const raw = (input && typeof input === 'object' && !Array.isArray(input))
-            ? input
+            ? input as Record<string, unknown>
             : { cards: Array.isArray(input) ? input : [] };
 
         const version = Object.prototype.hasOwnProperty.call(raw, 'version')
@@ -241,8 +273,8 @@
             );
         }
 
-        const countsByCardId = aggregateCardEntries(raw.cards);
-        const cards = [];
+        const countsByCardId = aggregateCardEntries(raw.cards as unknown[]);
+        const cards: DeckEntry[] = [];
         let totalCount = 0;
 
         countsByCardId.forEach((count, cardId) => {
@@ -274,21 +306,21 @@
         };
     }
 
-    function safeNormalizeDeckSpec(input, options) {
+    function safeNormalizeDeckSpec(input: unknown, options?: NormalizeOptions): { ok: boolean; deckSpec: DeckSpec | null; error: DeckSpecError | null } {
         try {
             return { ok: true, deckSpec: normalizeDeckSpec(input, options), error: null };
         } catch (error) {
-            return { ok: false, deckSpec: null, error };
+            return { ok: false, deckSpec: null, error: error as DeckSpecError };
         }
     }
 
-    function createDeckSpecFromCardIds(cardIds, options) {
+    function createDeckSpecFromCardIds(cardIds: unknown[], options?: NormalizeOptions): DeckSpec {
         return normalizeDeckSpec(Array.isArray(cardIds) ? cardIds : [], options);
     }
 
-    function expandDeckSpec(deckSpec) {
+    function expandDeckSpec(deckSpec: unknown): string[] {
         const normalized = normalizeDeckSpec(deckSpec);
-        const cardIds = [];
+        const cardIds: string[] = [];
         normalized.cards.forEach((entry) => {
             for (let index = 0; index < entry.count; index += 1) {
                 cardIds.push(entry.cardId);
@@ -297,7 +329,7 @@
         return cardIds;
     }
 
-    function summarizeDeckSpec(deckSpec, options) {
+    function summarizeDeckSpec(deckSpec: unknown, options?: NormalizeOptions) {
         const normalized = normalizeDeckSpec(deckSpec, Object.assign({}, options || {}, { requireFullDeck: false }));
         const deckSize = normalized.cards.reduce((sum, entry) => sum + Number(entry.count || 0), 0);
         return {

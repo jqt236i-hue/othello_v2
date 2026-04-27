@@ -1,4 +1,4 @@
-(function (root, factory) {
+(function (root: any, factory) {
     if (typeof module !== 'undefined' && module.exports) {
         let SpecialStoneRegistry = null;
         try {
@@ -8,67 +8,130 @@
     } else {
         root.StoneStatusSnapshot = factory(root.SpecialStoneRegistry || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SpecialStoneRegistry) {
+}(typeof self !== 'undefined' ? self : this as Record<string, unknown>, function (SpecialStoneRegistry: unknown) {
     'use strict';
 
-    function normalizeSpecialStoneType(rawType) {
-        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.normalizeSpecialStoneType === 'function') {
-            return SpecialStoneRegistry.normalizeSpecialStoneType(rawType);
+    interface SpecialStoneInfo {
+        name?: string;
+        desc?: string;
+        timerClass?: string;
+        mobility?: boolean;
+        ghost?: boolean;
+        flipProtected?: boolean;
+        destroyProtected?: boolean;
+        overlayOnlyVisual?: boolean;
+        tagFlipEvadeDefault?: number;
+        tagDestroyEvadeDefault?: number;
+        visualFlipEvadeDefault?: number;
+    }
+
+    interface StatusSnapshot {
+        rawType: unknown;
+        type: string | null;
+        info: Readonly<SpecialStoneInfo> | null;
+        name: string;
+        description: string;
+        timerClass: string;
+        displayTimer: number | null;
+        hasGuard: boolean;
+        hasGhost: boolean;
+        hasMobility: boolean;
+        hasFlipProtection: boolean;
+        hasDestroyProtection: boolean;
+        hasFlipEvade: boolean;
+        hasDestroyEvade: boolean;
+        flipEvadeRemaining: number | null;
+        destroyEvadeRemaining: number | null;
+    }
+
+    interface MarkerData {
+        type?: string;
+        destroyEvadeRemaining?: unknown;
+        remainingOwnerTurns?: unknown;
+        remainingTurns?: unknown;
+        flipEvadeRemaining?: unknown;
+        regenRemaining?: unknown;
+    }
+
+    interface Marker {
+        row: number;
+        col: number;
+        kind: string;
+        data?: MarkerData;
+        owner?: unknown;
+    }
+
+    interface VisualStatus {
+        special: string | null;
+        timer: number | null;
+        owner: unknown | null;
+        inheritedTimer: number | null;
+        inheritedOwner: unknown | null;
+        flipEvadeRemaining: number | null;
+        inheritedFlipEvadeRemaining: number | null;
+        destroyEvadeRemaining: number | null;
+        livingWillAura: boolean;
+    }
+
+    function normalizeSpecialStoneType(rawType: unknown): string | null {
+        if (SpecialStoneRegistry && typeof (SpecialStoneRegistry as { normalizeSpecialStoneType?: (v: unknown) => string | null }).normalizeSpecialStoneType === 'function') {
+            return (SpecialStoneRegistry as { normalizeSpecialStoneType: (v: unknown) => string | null }).normalizeSpecialStoneType(rawType);
         }
         if (rawType === null || typeof rawType === 'undefined') return null;
         const asString = String(rawType).trim();
         return asString ? asString.toUpperCase() : null;
     }
 
-    function getSpecialStoneInfo(rawType) {
-        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneInfo === 'function') {
-            return SpecialStoneRegistry.getSpecialStoneInfo(rawType);
+    function getSpecialStoneInfo(rawType: unknown): Readonly<SpecialStoneInfo> | null {
+        if (SpecialStoneRegistry && typeof (SpecialStoneRegistry as { getSpecialStoneInfo?: (v: unknown) => Readonly<SpecialStoneInfo> | null }).getSpecialStoneInfo === 'function') {
+            return (SpecialStoneRegistry as { getSpecialStoneInfo: (v: unknown) => Readonly<SpecialStoneInfo> | null }).getSpecialStoneInfo(rawType);
         }
         return null;
     }
 
-    function isOverlayOnlySpecialStoneType(rawType) {
-        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isOverlayOnlySpecialStoneType === 'function') {
-            return SpecialStoneRegistry.isOverlayOnlySpecialStoneType(rawType);
+    function isOverlayOnlySpecialStoneType(rawType: unknown): boolean {
+        if (SpecialStoneRegistry && typeof (SpecialStoneRegistry as { isOverlayOnlySpecialStoneType?: (v: unknown) => boolean }).isOverlayOnlySpecialStoneType === 'function') {
+            return (SpecialStoneRegistry as { isOverlayOnlySpecialStoneType: (v: unknown) => boolean }).isOverlayOnlySpecialStoneType(rawType);
         }
         const type = normalizeSpecialStoneType(rawType);
         return type === 'GUARD' || type === 'INHERITED_HYPERACTIVE' || type === 'LIVING_WILL';
     }
 
-    function getSpecialStoneTimerClass(rawType, fallback) {
-        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneTimerClass === 'function') {
-            return SpecialStoneRegistry.getSpecialStoneTimerClass(rawType, fallback);
+    function getSpecialStoneTimerClass(rawType: unknown, fallback?: unknown): string {
+        if (SpecialStoneRegistry && typeof (SpecialStoneRegistry as { getSpecialStoneTimerClass?: (v: unknown, f?: unknown) => string }).getSpecialStoneTimerClass === 'function') {
+            return (SpecialStoneRegistry as { getSpecialStoneTimerClass: (v: unknown, f?: unknown) => string }).getSpecialStoneTimerClass(rawType, fallback);
         }
-        return fallback !== undefined ? fallback : 'special-timer';
+        return fallback !== undefined ? String(fallback) : 'special-timer';
     }
 
-    function toCounterOrNull(value) {
+    function toCounterOrNull(value: unknown): number | null {
         if (value === null || value === undefined || value === '') return null;
         const n = Number(value);
         if (!Number.isFinite(n)) return null;
         return Math.max(0, Math.trunc(n));
     }
 
-    function isInheritedHyperactiveType(type) {
+    function isInheritedHyperactiveType(type: unknown): boolean {
         return normalizeSpecialStoneType(type) === 'INHERITED_HYPERACTIVE';
     }
 
-    function isLivingWillType(type) {
+    function isLivingWillType(type: unknown): boolean {
         return normalizeSpecialStoneType(type) === 'LIVING_WILL';
     }
 
-    function resolveDisplayTimerValue(typeOrInput, timerValue, regenRemainingValue) {
-        let rawType = typeOrInput;
-        let rawTimer = timerValue;
-        let rawRegenRemaining = regenRemainingValue;
+    function resolveDisplayTimerValue(typeOrInput: unknown, timerValue?: unknown, regenRemainingValue?: unknown): number | null {
+        let rawType: unknown = typeOrInput;
+        let rawTimer: unknown = timerValue;
+        let rawRegenRemaining: unknown = regenRemainingValue;
 
         if (typeOrInput && typeof typeOrInput === 'object') {
-            rawType = typeOrInput.type || typeOrInput.special || null;
+            const obj = typeOrInput as Record<string, unknown>;
+            rawType = obj.type || obj.special || null;
             if (rawTimer === undefined) {
-                if (Object.prototype.hasOwnProperty.call(typeOrInput, 'timer')) rawTimer = typeOrInput.timer;
-                else if (Object.prototype.hasOwnProperty.call(typeOrInput, 'remainingOwnerTurns')) rawTimer = typeOrInput.remainingOwnerTurns;
+                if (Object.prototype.hasOwnProperty.call(obj, 'timer')) rawTimer = obj.timer;
+                else if (Object.prototype.hasOwnProperty.call(obj, 'remainingOwnerTurns')) rawTimer = obj.remainingOwnerTurns;
             }
-            if (rawRegenRemaining === undefined) rawRegenRemaining = typeOrInput.regenRemaining;
+            if (rawRegenRemaining === undefined) rawRegenRemaining = obj.regenRemaining;
         }
 
         const type = normalizeSpecialStoneType(rawType);
@@ -80,9 +143,9 @@
         return null;
     }
 
-    function createSpecialStoneStatusSnapshot(input, options) {
-        const source = (input && typeof input === 'object') ? input : {};
-        const mode = (options && options.mode) || 'raw';
+    function createSpecialStoneStatusSnapshot(input: unknown, options: unknown): StatusSnapshot {
+        const source = (input && typeof input === 'object') ? input as Record<string, unknown> : {};
+        const mode = (options && typeof options === 'object' && (options as Record<string, unknown>).mode) || 'raw';
         const rawType = source.type || source.special || null;
         const type = normalizeSpecialStoneType(rawType);
         const info = getSpecialStoneInfo(type);
@@ -128,23 +191,24 @@
         };
     }
 
-    function buildSpecialStoneStatusTags(inputs, options) {
+    function buildSpecialStoneStatusTags(inputs: unknown[], options: unknown): string[] {
         const items = Array.isArray(inputs) ? inputs : [];
         const snapshots = items
             .map((input) => createSpecialStoneStatusSnapshot(input, { mode: 'info' }))
             .filter((snapshot) => !!(snapshot && snapshot.type));
         const nonOverlaySnapshots = snapshots.filter((snapshot) => !isOverlayOnlySpecialStoneType(snapshot && snapshot.type));
-        const primaryInput = options && options.primary
-            ? options.primary
+        const opts = options && typeof options === 'object' ? options as Record<string, unknown> : {};
+        const primaryInput = opts.primary
+            ? opts.primary
             : (items.length > 0 ? items[0] : null);
         const primarySnapshot = primaryInput
             ? createSpecialStoneStatusSnapshot(primaryInput, { mode: 'info' })
             : null;
-        const livingWillAura = !!((options && options.livingWillAura) || snapshots.some((snapshot) => isLivingWillType(snapshot && snapshot.type)));
-        const tags = [];
+        const livingWillAura = !!((opts && opts.livingWillAura) || snapshots.some((snapshot) => isLivingWillType(snapshot && snapshot.type)));
+        const tags: string[] = [];
 
-        if (options && options.hasGuard) tags.push('守る意志適用中');
-        if ((!options || options.includeSpecialStone !== false) && nonOverlaySnapshots.length > 0) tags.push('特殊石');
+        if (opts && opts.hasGuard) tags.push('守る意志適用中');
+        if ((!opts || opts.includeSpecialStone !== false) && nonOverlaySnapshots.length > 0) tags.push('特殊石');
         if (livingWillAura) tags.push('生きる意志付与');
         if (primarySnapshot && primarySnapshot.hasGhost) tags.push('幽体');
         if (snapshots.some((snapshot) => snapshot.hasMobility)) tags.push('多動状態');
@@ -156,9 +220,9 @@
         return Array.from(new Set(tags));
     }
 
-    function resolveStoneVisualStatusFromMarkers(markersAtCell, options) {
-        const markers = Array.isArray(markersAtCell) ? markersAtCell.filter(Boolean) : [];
-        const out = {
+    function resolveStoneVisualStatusFromMarkers(markersAtCell: unknown[], options: unknown): VisualStatus {
+        const markers = Array.isArray(markersAtCell) ? markersAtCell.filter(Boolean) as Marker[] : [];
+        const out: VisualStatus = {
             special: null,
             timer: null,
             owner: null,
@@ -172,7 +236,7 @@
 
         const destroyValues = markers
             .map((marker) => toCounterOrNull(marker && marker.data && marker.data.destroyEvadeRemaining))
-            .filter((value) => value !== null);
+            .filter((value): value is number => value !== null);
         if (destroyValues.length > 0) {
             out.destroyEvadeRemaining = destroyValues.reduce((sum, value) => sum + value, 0);
         }
@@ -208,7 +272,7 @@
                 destroyEvadeRemaining: out.destroyEvadeRemaining !== null
                     ? out.destroyEvadeRemaining
                     : (visualSpecial.data && visualSpecial.data.destroyEvadeRemaining)
-            }, { mode: (options && options.mode) || 'raw' });
+            }, { mode: (options && typeof options === 'object' && (options as Record<string, unknown>).mode) || 'raw' });
             out.special = snapshot.type || null;
             out.timer = snapshot.displayTimer;
             out.owner = (visualSpecial.owner !== undefined && visualSpecial.owner !== null) ? visualSpecial.owner : null;
@@ -217,7 +281,8 @@
             return out;
         }
 
-        const bombMarker = options && options.bombMarker;
+        const opts = options && typeof options === 'object' ? options as Record<string, unknown> : {};
+        const bombMarker = opts.bombMarker as Marker | undefined;
         if (bombMarker) {
             const snapshot = createSpecialStoneStatusSnapshot({
                 type: (bombMarker.data && bombMarker.data.type) || 'TIME_BOMB',

@@ -1,19 +1,41 @@
-(function (root, factory) {
+(function (root: any, factory) {
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = factory();
     } else {
         root.SpecialStoneRegistry = factory();
     }
-}(typeof self !== 'undefined' ? self : this, function () {
+}(typeof self !== 'undefined' ? self : this as Record<string, unknown>, function () {
     'use strict';
 
-    const SPECIAL_STONE_TYPE_ALIASES = Object.freeze({
+    interface SpecialStoneInfo {
+        name: string;
+        desc: string;
+        flipProtected?: boolean;
+        destroyProtected?: boolean;
+        timerClass?: string;
+        mobility?: boolean;
+        ghost?: boolean;
+        overlayOnlyVisual?: boolean;
+        tagFlipEvadeDefault?: number;
+        tagDestroyEvadeDefault?: number;
+        visualFlipEvadeDefault?: number;
+    }
+
+    interface SpecialStoneRegistryMap {
+        [key: string]: Readonly<SpecialStoneInfo>;
+    }
+
+    interface TypeAliases {
+        [key: string]: string;
+    }
+
+    const SPECIAL_STONE_TYPE_ALIASES: Readonly<TypeAliases> = Object.freeze({
         EXTREME_HYPERACTIVE_WILL: 'EXTREME_HYPERACTIVE',
         TRAP_REVEAL: 'TRAP',
         ULTIMATE_HYPERACTIVE_GOD: 'ULTIMATE_HYPERACTIVE'
     });
 
-    const SPECIAL_STONE_REGISTRY = Object.freeze({
+    const SPECIAL_STONE_REGISTRY: Readonly<SpecialStoneRegistryMap> = Object.freeze({
         PROTECTED: Object.freeze({
             name: '弱い石',
             desc: '次の自分ターン開始まで反転されない。',
@@ -206,7 +228,7 @@
         })
     });
 
-    function normalizeSpecialStoneType(rawType) {
+    function normalizeSpecialStoneType(rawType: unknown): string | null {
         if (rawType === null || typeof rawType === 'undefined') return null;
         const asString = String(rawType).trim();
         if (!asString) return null;
@@ -214,34 +236,34 @@
         return SPECIAL_STONE_TYPE_ALIASES[upper] || upper;
     }
 
-    function getSpecialStoneInfo(rawType) {
+    function getSpecialStoneInfo(rawType: unknown): Readonly<SpecialStoneInfo> | null {
         const type = normalizeSpecialStoneType(rawType);
         if (!type) return null;
         return SPECIAL_STONE_REGISTRY[type] || null;
     }
 
-    function getSpecialStoneDisplayName(rawType, fallback) {
+    function getSpecialStoneDisplayName(rawType: unknown, fallback?: unknown): string {
         const info = getSpecialStoneInfo(rawType);
         if (info && info.name) return info.name;
-        if (fallback !== undefined) return fallback;
+        if (fallback !== undefined) return String(fallback);
         return rawType ? String(rawType) : '';
     }
 
-    function getSpecialStoneDescription(rawType, fallback) {
+    function getSpecialStoneDescription(rawType: unknown, fallback?: unknown): string {
         const info = getSpecialStoneInfo(rawType);
         if (info && info.desc) return info.desc;
-        if (fallback !== undefined) return fallback;
+        if (fallback !== undefined) return String(fallback);
         return '';
     }
 
-    function getSpecialStoneTimerClass(rawType, fallback) {
+    function getSpecialStoneTimerClass(rawType: unknown, fallback?: unknown): string {
         const info = getSpecialStoneInfo(rawType);
         if (info && info.timerClass) return info.timerClass;
-        if (fallback !== undefined) return fallback;
+        if (fallback !== undefined) return String(fallback);
         return 'special-timer';
     }
 
-    function isOverlayOnlySpecialStoneType(rawType) {
+    function isOverlayOnlySpecialStoneType(rawType: unknown): boolean {
         const info = getSpecialStoneInfo(rawType);
         return !!(info && info.overlayOnlyVisual === true);
     }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Shared board utilities – geometry, bounds, cell queries, and canonicalisation.
  *
@@ -8,44 +7,122 @@
  *   with a hidden metadata property.
  */
 
-(function (root, factory) {
+(function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
         module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'));
     } else {
         root.SharedBoardUtils = factory(root.SharedConstants, null, null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (SharedConstants, BoardUtilsModule, OthelloCoreModule) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown) {
     'use strict';
+
+    interface BoardConfig {
+        rows: number;
+        cols: number;
+        standard8x8: boolean;
+        baseBounds: Bounds;
+        outerBounds: Bounds;
+    }
+
+    interface Bounds {
+        minRow: number;
+        maxRow: number;
+        minCol: number;
+        maxCol: number;
+    }
+
+    interface CellCoord {
+        row: number;
+        col: number;
+    }
+
+    interface DiscCounts {
+        black: number;
+        white: number;
+    }
+
+    interface BoardShapeMeta {
+        minRow: number;
+        maxRow: number;
+        minCol: number;
+        maxCol: number;
+        playableKeys: Set<string>;
+        meteorHoleKeys: Set<string>;
+        expansionCells: Array<{ side: string; row: number; col: number; owner: number }>;
+        expansionOwnerByKey: Record<string, number>;
+        standard8x8: boolean;
+        coordinateCache: CellCoord[] | null;
+        cornerKeyCache: Set<string> | null;
+        xKeyCache: Set<string> | null;
+        cKeyCache: Set<string> | null;
+    }
+
+    interface CornerEdgeLineDescriptor {
+        key: string;
+        canonicalKey: string;
+        corner: CellCoord;
+        direction: CellCoord;
+        directionTarget: CellCoord;
+        cells: CellCoord[];
+    }
+
+    interface EdgeRunSummary {
+        totalLines: number;
+        maxLineLength: number;
+        totalLineCells: number;
+        totalOwnedCells: number;
+        chainStrength: number;
+        longestRun: number;
+        longestRunShare: number;
+        completeLineCount: number;
+        segmentCount: number;
+        loneDiscCount: number;
+    }
+
+    interface EnvelopeMatrix {
+        matrix: string[][];
+        size: number;
+        minRow: number;
+        minCol: number;
+    }
+
+    interface CanonicalResult {
+        boardKey: string;
+        transformId: number;
+        size: number;
+        minRow: number;
+        minCol: number;
+    }
 
     const BoardUtils = BoardUtilsModule || null;
     const OthelloCore = OthelloCoreModule || null;
     const BOARD_SHAPE_META_KEY = '__sharedBoardShapeMeta';
-    const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
-        ? Number(SharedConstants.EMPTY)
+    const EMPTY: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { EMPTY?: unknown }).EMPTY))
+        ? Number((SharedConstants as { EMPTY?: unknown }).EMPTY)
         : 0;
-    const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
-        ? Number(SharedConstants.BLACK)
+    const BLACK: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { BLACK?: unknown }).BLACK))
+        ? Number((SharedConstants as { BLACK?: unknown }).BLACK)
         : 1;
-    const WHITE = Number.isFinite(Number(SharedConstants && SharedConstants.WHITE))
-        ? Number(SharedConstants.WHITE)
+    const WHITE: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { WHITE?: unknown }).WHITE))
+        ? Number((SharedConstants as { WHITE?: unknown }).WHITE)
         : -1;
-    const DEFAULT_BOARD_ROWS = Number.isFinite(Number(SharedConstants && SharedConstants.DEFAULT_BOARD_ROWS))
-        ? Math.max(1, Math.floor(Number(SharedConstants.DEFAULT_BOARD_ROWS)))
+    const DEFAULT_BOARD_ROWS: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { DEFAULT_BOARD_ROWS?: unknown }).DEFAULT_BOARD_ROWS))
+        ? Math.max(1, Math.floor(Number((SharedConstants as { DEFAULT_BOARD_ROWS?: unknown }).DEFAULT_BOARD_ROWS)))
         : 8;
-    const DEFAULT_BOARD_COLS = Number.isFinite(Number(SharedConstants && SharedConstants.DEFAULT_BOARD_COLS))
-        ? Math.max(1, Math.floor(Number(SharedConstants.DEFAULT_BOARD_COLS)))
+    const DEFAULT_BOARD_COLS: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { DEFAULT_BOARD_COLS?: unknown }).DEFAULT_BOARD_COLS))
+        ? Math.max(1, Math.floor(Number((SharedConstants as { DEFAULT_BOARD_COLS?: unknown }).DEFAULT_BOARD_COLS)))
         : 8;
-    const MIN_BOARD_ROWS = Number.isFinite(Number(SharedConstants && SharedConstants.MIN_BOARD_ROWS))
-        ? Math.max(1, Math.floor(Number(SharedConstants.MIN_BOARD_ROWS)))
+    const MIN_BOARD_ROWS: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { MIN_BOARD_ROWS?: unknown }).MIN_BOARD_ROWS))
+        ? Math.max(1, Math.floor(Number((SharedConstants as { MIN_BOARD_ROWS?: unknown }).MIN_BOARD_ROWS)))
         : 4;
-    const MAX_BOARD_ROWS = Number.isFinite(Number(SharedConstants && SharedConstants.MAX_BOARD_ROWS))
-        ? Math.max(MIN_BOARD_ROWS, Math.floor(Number(SharedConstants.MAX_BOARD_ROWS)))
+    const MAX_BOARD_ROWS: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { MAX_BOARD_ROWS?: unknown }).MAX_BOARD_ROWS))
+        ? Math.max(MIN_BOARD_ROWS, Math.floor(Number((SharedConstants as { MAX_BOARD_ROWS?: unknown }).MAX_BOARD_ROWS)))
         : DEFAULT_BOARD_ROWS;
-    const MIN_BOARD_COLS = Number.isFinite(Number(SharedConstants && SharedConstants.MIN_BOARD_COLS))
-        ? Math.max(1, Math.floor(Number(SharedConstants.MIN_BOARD_COLS)))
+    const MIN_BOARD_COLS: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { MIN_BOARD_COLS?: unknown }).MIN_BOARD_COLS))
+        ? Math.max(1, Math.floor(Number((SharedConstants as { MIN_BOARD_COLS?: unknown }).MIN_BOARD_COLS)))
         : 4;
-    const MAX_BOARD_COLS = Number.isFinite(Number(SharedConstants && SharedConstants.MAX_BOARD_COLS))
-        ? Math.max(MIN_BOARD_COLS, Math.floor(Number(SharedConstants.MAX_BOARD_COLS)))
+    const MAX_BOARD_COLS: number = Number.isFinite(Number(SharedConstants && (SharedConstants as { MAX_BOARD_COLS?: unknown }).MAX_BOARD_COLS))
+        ? Math.max(MIN_BOARD_COLS, Math.floor(Number((SharedConstants as { MAX_BOARD_COLS?: unknown }).MAX_BOARD_COLS)))
         : Math.max(DEFAULT_BOARD_COLS, DEFAULT_BOARD_ROWS);
     const MAIN_BOARD_SIZE = DEFAULT_BOARD_ROWS;
     const OUTER_MIN = -1;
@@ -53,24 +130,24 @@
     const PADDED_BOARD_MIN = OUTER_MIN;
     const PADDED_BOARD_MAX = OUTER_MAX;
     const PADDED_BOARD_SIZE = (PADDED_BOARD_MAX - PADDED_BOARD_MIN) + 1;
-    const DIRECTIONS = (SharedConstants && SharedConstants.DIRECTIONS)
-        ? SharedConstants.DIRECTIONS
+    const DIRECTIONS: number[][] = (SharedConstants && (SharedConstants as { DIRECTIONS?: number[][] }).DIRECTIONS)
+        ? (SharedConstants as { DIRECTIONS: number[][] }).DIRECTIONS
         : [
             [-1, -1], [-1, 0], [-1, 1],
             [0, -1],           [0, 1],
             [1, -1],  [1, 0],  [1, 1]
         ];
 
-    function toBoardCellKey(row, col) {
+    function toBoardCellKey(row: number, col: number): string {
         return `${row},${col}`;
     }
 
-    function normalizeOwner(value) {
-        if (value === 1 || value === -1) return value;
+    function normalizeOwner(value: unknown): number {
+        if (value === 1 || value === -1) return value as number;
         return EMPTY;
     }
 
-    function clampBoardDimension(value, fallbackValue, minValue, maxValue) {
+    function clampBoardDimension(value: unknown, fallbackValue: unknown, minValue: number, maxValue: number): number {
         const fallback = Number.isFinite(Number(fallbackValue))
             ? Math.floor(Number(fallbackValue))
             : minValue;
@@ -80,7 +157,7 @@
         return Math.max(minValue, Math.min(maxValue, numeric));
     }
 
-    function getBoardDimensionBounds(axis) {
+    function getBoardDimensionBounds(axis: string): { min: number; max: number } {
         const normalizedAxis = axis === 'col' || axis === 'cols' || axis === 'column'
             ? 'col'
             : 'row';
@@ -96,7 +173,7 @@
         };
     }
 
-    function normalizeBoardDimensionValue(value, fallbackValue, axis) {
+    function normalizeBoardDimensionValue(value: unknown, fallbackValue: unknown, axis: string): number {
         const bounds = getBoardDimensionBounds(axis);
         const normalizedAxis = axis === 'col' || axis === 'cols' || axis === 'column'
             ? 'col'
@@ -110,7 +187,7 @@
         return clampBoardDimension(value, fallback, bounds.min, bounds.max);
     }
 
-    function stepBoardDimensionValue(value, direction, fallbackValue, axis) {
+    function stepBoardDimensionValue(value: unknown, direction: unknown, fallbackValue: unknown, axis: string): number {
         const normalizedDirection = Number(direction);
         const baseValue = normalizeBoardDimensionValue(value, fallbackValue, axis);
         if (!Number.isFinite(normalizedDirection) || normalizedDirection === 0) {
@@ -120,43 +197,37 @@
         return normalizeBoardDimensionValue(baseValue + step, baseValue, axis);
     }
 
-    function isNumericBoardDimensionArg(value) {
+    function isNumericBoardDimensionArg(value: unknown): boolean {
         if (value === null || typeof value === 'undefined') return false;
         if (Array.isArray(value)) return false;
         if (typeof value === 'object') return false;
         return Number.isFinite(Number(value));
     }
 
-    function deriveBoardDimsFromBoard(board) {
+    function deriveBoardDimsFromBoard(board: unknown): { rows: number; cols: number } | null {
         if (!Array.isArray(board) || board.length <= 0) return null;
         let cols = 0;
-        for (const row of board) {
+        for (const row of board as unknown[][]) {
             if (Array.isArray(row)) cols = Math.max(cols, row.length);
         }
         if (cols <= 0) return null;
         return {
-            rows: board.length,
+            rows: (board as unknown[][]).length,
             cols
         };
     }
 
-    function readBoundsSpan(bounds, axis) {
+    function readBoundsSpan(bounds: unknown, axis: string): number | null {
         if (!bounds || typeof bounds !== 'object') return null;
         const minKey = axis === 'col' ? 'minCol' : 'minRow';
         const maxKey = axis === 'col' ? 'maxCol' : 'maxRow';
-        const min = Number(bounds[minKey]);
-        const max = Number(bounds[maxKey]);
+        const min = Number((bounds as Record<string, unknown>)[minKey]);
+        const max = Number((bounds as Record<string, unknown>)[maxKey]);
         if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
         return Math.max(1, Math.floor(max - min + 1));
     }
 
-    /**
-     * Build a canonical BoardConfig from row/col counts.
-     * @param {number|null|undefined} rows
-     * @param {number|null|undefined} cols
-     * @returns {BoardConfig}
-     */
-    function buildBoardConfig(rows, cols) {
+    function buildBoardConfig(rows: unknown, cols: unknown): BoardConfig {
         const normalizedRows = clampBoardDimension(rows, DEFAULT_BOARD_ROWS, MIN_BOARD_ROWS, MAX_BOARD_ROWS);
         const fallbackCols = Number.isFinite(Number(cols))
             ? Number(cols)
@@ -181,44 +252,41 @@
         };
     }
 
-    /**
-     * @param {Object|Board|null|undefined} rawConfig
-     * @param {Board|null|undefined} fallbackBoard
-     * @returns {BoardConfig}
-     */
-    function normalizeBoardConfig(rawConfig, fallbackBoard) {
+    function normalizeBoardConfig(rawConfig: unknown, fallbackBoard: unknown): BoardConfig {
         let candidate = rawConfig;
-        let board = Array.isArray(fallbackBoard) ? fallbackBoard : null;
+        let board = Array.isArray(fallbackBoard) ? fallbackBoard as unknown[][] : null;
 
         if (Array.isArray(candidate)) {
-            board = candidate;
+            board = candidate as unknown[][];
             candidate = null;
         }
 
         if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
-            if (Array.isArray(candidate.board)) board = candidate.board;
-            if (candidate.boardConfig && typeof candidate.boardConfig === 'object') {
-                candidate = candidate.boardConfig;
+            const obj = candidate as Record<string, unknown>;
+            if (Array.isArray(obj.board)) board = obj.board as unknown[][];
+            if (obj.boardConfig && typeof obj.boardConfig === 'object') {
+                candidate = obj.boardConfig;
             }
         }
 
         const derived = deriveBoardDimsFromBoard(board);
-        let rows = null;
-        let cols = null;
+        let rows: unknown = null;
+        let cols: unknown = null;
 
         if (candidate && typeof candidate === 'object' && !Array.isArray(candidate)) {
-            rows = candidate.rows;
-            cols = candidate.cols;
-            if (!Number.isFinite(Number(rows))) rows = readBoundsSpan(candidate.baseBounds, 'row');
-            if (!Number.isFinite(Number(cols))) cols = readBoundsSpan(candidate.baseBounds, 'col');
-            if (!Number.isFinite(Number(rows)) && candidate.outerBounds) {
-                const outerMinRow = Number(candidate.outerBounds.minRow);
-                const outerMaxRow = Number(candidate.outerBounds.maxRow);
+            const obj = candidate as Record<string, unknown>;
+            rows = obj.rows;
+            cols = obj.cols;
+            if (!Number.isFinite(Number(rows))) rows = readBoundsSpan(obj.baseBounds, 'row');
+            if (!Number.isFinite(Number(cols))) cols = readBoundsSpan(obj.baseBounds, 'col');
+            if (!Number.isFinite(Number(rows)) && obj.outerBounds) {
+                const outerMinRow = Number((obj.outerBounds as Bounds).minRow);
+                const outerMaxRow = Number((obj.outerBounds as Bounds).maxRow);
                 if (Number.isFinite(outerMinRow) && Number.isFinite(outerMaxRow)) rows = Math.max(1, Math.floor(outerMaxRow - outerMinRow - 1));
             }
-            if (!Number.isFinite(Number(cols)) && candidate.outerBounds) {
-                const outerMinCol = Number(candidate.outerBounds.minCol);
-                const outerMaxCol = Number(candidate.outerBounds.maxCol);
+            if (!Number.isFinite(Number(cols)) && obj.outerBounds) {
+                const outerMinCol = Number((obj.outerBounds as Bounds).minCol);
+                const outerMaxCol = Number((obj.outerBounds as Bounds).maxCol);
                 if (Number.isFinite(outerMinCol) && Number.isFinite(outerMaxCol)) cols = Math.max(1, Math.floor(outerMaxCol - outerMinCol - 1));
             }
         }
@@ -229,29 +297,30 @@
         return buildBoardConfig(rows, cols);
     }
 
-    function extractBoardConfigSource(value) {
+    function extractBoardConfigSource(value: unknown): unknown {
         if (Array.isArray(value)) return value;
         if (!value || typeof value !== 'object') return null;
-        if (value.roomBoardConfig && typeof value.roomBoardConfig === 'object') return value.roomBoardConfig;
-        if (Array.isArray(value.board)) return value;
-        if (value.boardConfig && typeof value.boardConfig === 'object') return value;
+        const obj = value as Record<string, unknown>;
+        if (obj.roomBoardConfig && typeof obj.roomBoardConfig === 'object') return obj.roomBoardConfig;
+        if (Array.isArray(obj.board)) return value;
+        if (obj.boardConfig && typeof obj.boardConfig === 'object') return value;
         if (
-            isNumericBoardDimensionArg(value.rows)
-            || isNumericBoardDimensionArg(value.cols)
-            || (value.baseBounds && typeof value.baseBounds === 'object')
-            || (value.outerBounds && typeof value.outerBounds === 'object')
+            isNumericBoardDimensionArg(obj.rows)
+            || isNumericBoardDimensionArg(obj.cols)
+            || (obj.baseBounds && typeof obj.baseBounds === 'object')
+            || (obj.outerBounds && typeof obj.outerBounds === 'object')
         ) {
             return value;
         }
         return null;
     }
 
-    function maybeResolveBoardConfig(value) {
+    function maybeResolveBoardConfig(value: unknown): BoardConfig | null {
         const source = extractBoardConfigSource(value);
         return source ? resolveBoardConfig(source) : null;
     }
 
-    function readBoardGeometry(value) {
+    function readBoardGeometry(value: unknown): { rows: number; cols: number } | null {
         const config = maybeResolveBoardConfig(value);
         if (!config) return null;
         const rows = Number(config.rows);
@@ -263,7 +332,11 @@
         };
     }
 
-    function compareBoardGeometry(previousValue, nextValue) {
+    function compareBoardGeometry(previousValue: unknown, nextValue: unknown): {
+        previous: { rows: number; cols: number } | null;
+        next: { rows: number; cols: number } | null;
+        changed: boolean;
+    } {
         const previous = readBoardGeometry(previousValue);
         const next = readBoardGeometry(nextValue);
         return {
@@ -277,13 +350,7 @@
         };
     }
 
-    /**
-     * Resolve loose board/config arguments into a canonical BoardConfig.
-     * @param {Board|Object|number|null|undefined} boardOrConfig
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {BoardConfig}
-     */
-    function resolveBoardConfig(boardOrConfig, maybeCols) {
+    function resolveBoardConfig(boardOrConfig: unknown, maybeCols?: unknown): BoardConfig {
         if (typeof boardOrConfig === 'undefined' || boardOrConfig === null) {
             return buildBoardConfig(DEFAULT_BOARD_ROWS, DEFAULT_BOARD_COLS);
         }
@@ -297,28 +364,29 @@
             return buildBoardConfig(boardOrConfig, maybeCols);
         }
         if (boardOrConfig && typeof boardOrConfig === 'object' && !Array.isArray(boardOrConfig)) {
-            const candidate = (boardOrConfig.boardConfig && typeof boardOrConfig.boardConfig === 'object')
-                ? boardOrConfig.boardConfig
-                : boardOrConfig;
-            const boardFallback = Array.isArray(boardOrConfig.board)
-                ? boardOrConfig.board
-                : (Array.isArray(candidate.board) ? candidate.board : null);
+            const obj = boardOrConfig as Record<string, unknown>;
+            const candidate = (obj.boardConfig && typeof obj.boardConfig === 'object')
+                ? obj.boardConfig as Record<string, unknown>
+                : obj;
+            const boardFallback = Array.isArray(obj.board)
+                ? obj.board as unknown[][]
+                : (Array.isArray(candidate.board) ? candidate.board as unknown[][] : null);
             const derived = deriveBoardDimsFromBoard(boardFallback);
-            let rows = candidate.rows;
-            let cols = candidate.cols;
+            let rows: unknown = candidate.rows;
+            let cols: unknown = candidate.cols;
 
             if (!isNumericBoardDimensionArg(rows)) rows = readBoundsSpan(candidate.baseBounds, 'row');
             if (!isNumericBoardDimensionArg(cols)) cols = readBoundsSpan(candidate.baseBounds, 'col');
             if (!isNumericBoardDimensionArg(rows) && candidate.outerBounds) {
-                const outerMinRow = Number(candidate.outerBounds.minRow);
-                const outerMaxRow = Number(candidate.outerBounds.maxRow);
+                const outerMinRow = Number((candidate.outerBounds as Bounds).minRow);
+                const outerMaxRow = Number((candidate.outerBounds as Bounds).maxRow);
                 if (Number.isFinite(outerMinRow) && Number.isFinite(outerMaxRow)) {
                     rows = Math.max(1, Math.floor(outerMaxRow - outerMinRow - 1));
                 }
             }
             if (!isNumericBoardDimensionArg(cols) && candidate.outerBounds) {
-                const outerMinCol = Number(candidate.outerBounds.minCol);
-                const outerMaxCol = Number(candidate.outerBounds.maxCol);
+                const outerMinCol = Number((candidate.outerBounds as Bounds).minCol);
+                const outerMaxCol = Number((candidate.outerBounds as Bounds).maxCol);
                 if (Number.isFinite(outerMinCol) && Number.isFinite(outerMaxCol)) {
                     cols = Math.max(1, Math.floor(outerMaxCol - outerMinCol - 1));
                 }
@@ -327,53 +395,26 @@
             if (!isNumericBoardDimensionArg(cols) && derived) cols = derived.cols;
             return buildBoardConfig(rows, cols);
         }
-        return normalizeBoardConfig(boardOrConfig);
+        return normalizeBoardConfig(boardOrConfig, undefined);
     }
 
-    /**
-     * @param {Board|Object|number|null|undefined} boardOrConfig
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {Bounds}
-     */
-    function resolveBaseBoardBounds(boardOrConfig, maybeCols) {
+    function resolveBaseBoardBounds(boardOrConfig: unknown, maybeCols?: unknown): Bounds {
         return resolveBoardConfig(boardOrConfig, maybeCols).baseBounds;
     }
 
-    /**
-     * @param {Board|Object|number|null|undefined} boardOrConfig
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {Bounds}
-     */
-    function resolveOuterBounds(boardOrConfig, maybeCols) {
+    function resolveOuterBounds(boardOrConfig: unknown, maybeCols?: unknown): Bounds {
         return resolveBoardConfig(boardOrConfig, maybeCols).outerBounds;
     }
 
-    /**
-     * @param {Board|Object|number|null|undefined} boardOrConfig
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {number}
-     */
-    function getBoardRows(boardOrConfig, maybeCols) {
+    function getBoardRows(boardOrConfig: unknown, maybeCols?: unknown): number {
         return resolveBoardConfig(boardOrConfig, maybeCols).rows;
     }
 
-    /**
-     * @param {Board|Object|number|null|undefined} boardOrConfig
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {number}
-     */
-    function getBoardCols(boardOrConfig, maybeCols) {
+    function getBoardCols(boardOrConfig: unknown, maybeCols?: unknown): number {
         return resolveBoardConfig(boardOrConfig, maybeCols).cols;
     }
 
-    /**
-     * @param {number} row
-     * @param {number} col
-     * @param {Board|Object|number|null|undefined} boardOrConfig
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {boolean}
-     */
-    function isMainBoardCell(row, col, boardOrConfig, maybeCols) {
+    function isMainBoardCell(row: number, col: number, boardOrConfig: unknown, maybeCols?: unknown): boolean {
         if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
         const bounds = resolveBaseBoardBounds(boardOrConfig, maybeCols);
         return (
@@ -384,14 +425,9 @@
         );
     }
 
-    /**
-     * @param {Board|Object|number|null|undefined} boardOrConfig
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {CellCoord[]}
-     */
-    function collectMainBoardCoordinates(boardOrConfig, maybeCols) {
+    function collectMainBoardCoordinates(boardOrConfig: unknown, maybeCols?: unknown): CellCoord[] {
         const config = resolveBoardConfig(boardOrConfig, maybeCols);
-        const coords = [];
+        const coords: CellCoord[] = [];
         for (let row = 0; row < config.rows; row++) {
             for (let col = 0; col < config.cols; col++) {
                 coords.push({ row, col });
@@ -400,13 +436,7 @@
         return coords;
     }
 
-    /**
-     * @param {Board|Object|number|null|undefined} boardOrConfig
-     * @param {number|null|undefined} [maybeCols]
-     * @param {number|null|undefined} [maybeFillValue]
-     * @returns {Board}
-     */
-    function createEmptyBoard(boardOrConfig, maybeCols, maybeFillValue) {
+    function createEmptyBoard(boardOrConfig: unknown, maybeCols?: unknown, maybeFillValue?: unknown): number[][] {
         const looksLikeConfigObject = !!(boardOrConfig && typeof boardOrConfig === 'object');
         const useNumericArgs = !looksLikeConfigObject
             && Number.isFinite(Number(boardOrConfig))
@@ -416,15 +446,10 @@
             : resolveBoardConfig(boardOrConfig);
         const fillValue = useNumericArgs ? maybeFillValue : maybeCols;
         const normalizedFillValue = (typeof fillValue === 'undefined') ? EMPTY : fillValue;
-        return Array.from({ length: config.rows }, () => Array.from({ length: config.cols }, () => normalizedFillValue));
+        return Array.from({ length: config.rows }, () => Array.from({ length: config.cols }, () => normalizedFillValue as number));
     }
 
-    /**
-     * @param {Board|Object|number|null|undefined} boardOrConfig
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {CellCoord}
-     */
-    function getOpeningAnchor(boardOrConfig, maybeCols) {
+    function getOpeningAnchor(boardOrConfig: unknown, maybeCols?: unknown): CellCoord {
         const config = resolveBoardConfig(boardOrConfig, maybeCols);
         return {
             row: Math.floor((config.rows - 2) / 2),
@@ -432,16 +457,11 @@
         };
     }
 
-    /**
-     * @param {Board|Object|number|null|undefined} boardOrConfig
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {Array<{row:number,col:number,owner:PlayerValue}>}
-     */
-    function getOpeningPlacements(boardOrConfig, maybeCols) {
+    function getOpeningPlacements(boardOrConfig: unknown, maybeCols?: unknown): Array<{ row: number; col: number; owner: number }> {
         const config = resolveBoardConfig(boardOrConfig, maybeCols);
         const anchor = getOpeningAnchor(config);
         if (config.rows === 7 && config.cols === 7) {
-            const placements = [];
+            const placements: Array<{ row: number; col: number; owner: number }> = [];
             for (let rowOffset = 0; rowOffset < 3; rowOffset += 1) {
                 for (let colOffset = 0; colOffset < 3; colOffset += 1) {
                     if (rowOffset === 1 && colOffset === 1) continue;
@@ -462,39 +482,27 @@
         ];
     }
 
-    /**
-     * @param {Board|Object|number|null|undefined} boardOrConfig
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {CellCoord[]}
-     */
-    function getOpeningCells(boardOrConfig, maybeCols) {
+    function getOpeningCells(boardOrConfig: unknown, maybeCols?: unknown): CellCoord[] {
         return getOpeningPlacements(boardOrConfig, maybeCols).map((placement) => ({
             row: placement.row,
             col: placement.col
         }));
     }
 
-    function isRawCellInBounds(board, row, col) {
+    function isRawCellInBounds(board: unknown, row: number, col: number): boolean {
         return (
             Array.isArray(board) &&
             Number.isInteger(row) &&
             Number.isInteger(col) &&
             row >= 0 &&
-            row < board.length &&
-            Array.isArray(board[row]) &&
+            row < (board as unknown[][]).length &&
+            Array.isArray((board as unknown[][])[row]) &&
             col >= 0 &&
-            col < board[row].length
+            col < (board as unknown[][])[row].length
         );
     }
 
-    /**
-     * @param {number} row
-     * @param {number} col
-     * @param {Board|Object|number|null|undefined} boardOrConfig
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {boolean}
-     */
-    function isExpansionCoordinate(row, col, boardOrConfig, maybeCols) {
+    function isExpansionCoordinate(row: number, col: number, boardOrConfig: unknown, maybeCols?: unknown): boolean {
         if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
         const outerBounds = resolveOuterBounds(boardOrConfig, maybeCols);
         if (
@@ -508,7 +516,7 @@
         return !isMainBoardCell(row, col, boardOrConfig, maybeCols);
     }
 
-    function isPaddedBoardCoordinate(row, col) {
+    function isPaddedBoardCoordinate(row: number, col: number): boolean {
         return (
             Number.isInteger(row) &&
             Number.isInteger(col) &&
@@ -519,12 +527,12 @@
         );
     }
 
-    function toPaddedBoardIndex(row, col) {
+    function toPaddedBoardIndex(row: number, col: number): number {
         if (!isPaddedBoardCoordinate(row, col)) return -1;
         return ((row - PADDED_BOARD_MIN) * PADDED_BOARD_SIZE) + (col - PADDED_BOARD_MIN);
     }
 
-    function fromPaddedBoardIndex(index) {
+    function fromPaddedBoardIndex(index: number): CellCoord | null {
         if (!Number.isInteger(index) || index < 0 || index >= (PADDED_BOARD_SIZE * PADDED_BOARD_SIZE)) return null;
         const rowOffset = Math.floor(index / PADDED_BOARD_SIZE);
         const colOffset = index % PADDED_BOARD_SIZE;
@@ -534,8 +542,8 @@
         };
     }
 
-    function resolveExpansionSide(side, row, col, boardOrConfig, maybeCols) {
-        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
+    function resolveExpansionSide(side: unknown, row: number, col: number, boardOrConfig: unknown, maybeCols?: unknown): string | null {
+        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side as string;
         const outerBounds = resolveOuterBounds(boardOrConfig, maybeCols);
         if (col === outerBounds.minCol) return 'left';
         if (col === outerBounds.maxCol) return 'right';
@@ -544,11 +552,12 @@
         return null;
     }
 
-    function normalizeExpansionCell(cell, boardOrConfig) {
+    function normalizeExpansionCell(cell: unknown, boardOrConfig: unknown): { side: string; row: number; col: number; owner: number } | null {
         if (!cell || typeof cell !== 'object') return null;
-        const row = Number(cell.row);
-        let col = Number(cell.col);
-        const side = resolveExpansionSide(cell.side, row, col, boardOrConfig);
+        const obj = cell as Record<string, unknown>;
+        const row = Number(obj.row);
+        let col = Number(obj.col);
+        const side = resolveExpansionSide(obj.side, row, col, boardOrConfig);
         const outerBounds = resolveOuterBounds(boardOrConfig);
         if (!Number.isInteger(row)) return null;
         if (!Number.isInteger(col)) {
@@ -557,39 +566,35 @@
         }
         if (!Number.isInteger(col) || !isExpansionCoordinate(row, col, boardOrConfig)) return null;
         return {
-            side: resolveExpansionSide(side, row, col, boardOrConfig),
+            side: resolveExpansionSide(side, row, col, boardOrConfig) as string,
             row,
             col,
-            owner: normalizeOwner(cell.owner)
+            owner: normalizeOwner(obj.owner)
         };
     }
 
-    /**
-     * @param {Object} boardExpansion
-     * @param {Board|Object|number|null|undefined} boardOrConfig
-     * @returns {Array<{side:string,row:number,col:number,owner:PlayerValue}>}
-     */
-    function collectExpansionDescriptors(boardExpansion, boardOrConfig) {
+    function collectExpansionDescriptors(boardExpansion: unknown, boardOrConfig: unknown): Array<{ side: string; row: number; col: number; owner: number }> {
         if (!boardExpansion || typeof boardExpansion !== 'object') return [];
-        const out = [];
-        const push = (raw) => {
+        const out: Array<{ side: string; row: number; col: number; owner: number }> = [];
+        const obj = boardExpansion as Record<string, unknown>;
+        const push = (raw: unknown): void => {
             const normalized = normalizeExpansionCell(raw, boardOrConfig);
             if (!normalized) return;
             if (out.some((one) => one.row === normalized.row && one.col === normalized.col)) return;
             out.push(normalized);
         };
-        if (Array.isArray(boardExpansion.cells)) {
-            for (const cell of boardExpansion.cells) push(cell);
-        } else if (boardExpansion.active === true) {
+        if (Array.isArray(obj.cells)) {
+            for (const cell of obj.cells) push(cell);
+        } else if (obj.active === true) {
             push(boardExpansion);
         }
         return out;
     }
 
-    function resolveBoardShapeSource(boardOrConfig) {
+    function resolveBoardShapeSource(boardOrConfig: unknown): { board: unknown[][] | null; boardExpansion: Record<string, unknown> | null } {
         if (Array.isArray(boardOrConfig)) {
             return {
-                board: boardOrConfig,
+                board: boardOrConfig as unknown[][],
                 boardExpansion: null
             };
         }
@@ -599,15 +604,16 @@
                 boardExpansion: null
             };
         }
+        const obj = boardOrConfig as Record<string, unknown>;
         return {
-            board: Array.isArray(boardOrConfig.board) ? boardOrConfig.board : null,
-            boardExpansion: (boardOrConfig.boardExpansion && typeof boardOrConfig.boardExpansion === 'object')
-                ? boardOrConfig.boardExpansion
+            board: Array.isArray(obj.board) ? obj.board as unknown[][] : null,
+            boardExpansion: (obj.boardExpansion && typeof obj.boardExpansion === 'object')
+                ? obj.boardExpansion as Record<string, unknown>
                 : null
         };
     }
 
-    function getAttachedExpansionDescriptors(board) {
+    function getAttachedExpansionDescriptors(board: unknown): Array<{ side: string; row: number; col: number; owner: number }> {
         const meta = getBoardShapeMeta(board);
         if (!meta || !Array.isArray(meta.expansionCells)) return [];
         return meta.expansionCells.map((cell) => ({
@@ -618,12 +624,7 @@
         }));
     }
 
-    /**
-     * Iterate every playable cell (main + expansion) on a board shape.
-     * @param {Board|Object|null|undefined} boardOrConfig
-     * @param {Function} visitor
-     */
-    function forEachBoardShapeCell(boardOrConfig, visitor) {
+    function forEachBoardShapeCell(boardOrConfig: unknown, visitor: (row: number, col: number, value: unknown, side: string | null) => void): void {
         if (typeof visitor !== 'function') return;
         const source = resolveBoardShapeSource(boardOrConfig);
         const board = source.board;
@@ -644,24 +645,20 @@
         }
     }
 
-    /**
-     * @param {Board|Object|null|undefined} boardOrConfig
-     * @returns {DiscCounts}
-     */
-    function countDiscsByPlayer(boardOrConfig) {
-        const counts = { black: 0, white: 0 };
-        forEachBoardShapeCell(boardOrConfig, function countOwnedCell(row, col, value) {
+    function countDiscsByPlayer(boardOrConfig: unknown): DiscCounts {
+        const counts: DiscCounts = { black: 0, white: 0 };
+        forEachBoardShapeCell(boardOrConfig, function countOwnedCell(_row: number, _col: number, value: unknown) {
             if (Number(value) === BLACK) counts.black += 1;
             else if (Number(value) === WHITE) counts.white += 1;
         });
         return counts;
     }
 
-    function countDiscs(boardOrConfig) {
-        if (BoardUtils && typeof BoardUtils.countDiscs === 'function') {
-            return BoardUtils.countDiscs(boardOrConfig);
+    function countDiscs(boardOrConfig: unknown): DiscCounts {
+        if (BoardUtils && typeof (BoardUtils as { countDiscs?: (b: unknown) => DiscCounts }).countDiscs === 'function') {
+            return (BoardUtils as { countDiscs: (b: unknown) => DiscCounts }).countDiscs(boardOrConfig);
         }
-        const board = Array.isArray(boardOrConfig) ? boardOrConfig : (boardOrConfig && Array.isArray(boardOrConfig.board) ? boardOrConfig.board : null);
+        const board = Array.isArray(boardOrConfig) ? boardOrConfig as unknown[][] : (boardOrConfig && typeof boardOrConfig === 'object' && Array.isArray((boardOrConfig as Record<string, unknown>).board) ? (boardOrConfig as Record<string, unknown>).board as unknown[][] : null);
         if (!Array.isArray(board)) return { black: 0, white: 0 };
         let black = 0;
         let white = 0;
@@ -676,39 +673,42 @@
         return { black, white };
     }
 
-    function collectMeteorHoleKeys(cardState) {
-        const out = new Set();
-        const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+    function collectMeteorHoleKeys(cardState: unknown): Set<string> {
+        const out = new Set<string>();
+        const obj = cardState as { markers?: unknown[] } | null;
+        const markers = obj && Array.isArray(obj.markers) ? obj.markers : [];
         for (const marker of markers) {
-            if (!marker || marker.kind !== 'specialStone') continue;
-            if (!marker.data || String(marker.data.type || '').toUpperCase() !== 'METEOR_HOLE') continue;
-            const row = Number(marker.row);
-            const col = Number(marker.col);
+            const m = marker as { kind?: string; data?: { type?: string }; row?: number; col?: number } | null;
+            if (!m || m.kind !== 'specialStone') continue;
+            if (!m.data || String(m.data.type || '').toUpperCase() !== 'METEOR_HOLE') continue;
+            const row = Number(m.row);
+            const col = Number(m.col);
             if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
             out.add(toBoardCellKey(row, col));
         }
         return out;
     }
 
-    function cloneMeta(meta) {
+    function cloneMeta(meta: unknown): BoardShapeMeta | null {
         if (!meta || typeof meta !== 'object') return null;
+        const obj = meta as BoardShapeMeta;
         return {
-            minRow: Number.isInteger(meta.minRow) ? meta.minRow : 0,
-            maxRow: Number.isInteger(meta.maxRow) ? meta.maxRow : -1,
-            minCol: Number.isInteger(meta.minCol) ? meta.minCol : 0,
-            maxCol: Number.isInteger(meta.maxCol) ? meta.maxCol : -1,
-            playableKeys: new Set(meta.playableKeys instanceof Set ? Array.from(meta.playableKeys) : []),
-            meteorHoleKeys: new Set(meta.meteorHoleKeys instanceof Set ? Array.from(meta.meteorHoleKeys) : []),
-            expansionCells: Array.isArray(meta.expansionCells)
-                ? meta.expansionCells.map((cell) => ({
+            minRow: Number.isInteger(obj.minRow) ? obj.minRow : 0,
+            maxRow: Number.isInteger(obj.maxRow) ? obj.maxRow : -1,
+            minCol: Number.isInteger(obj.minCol) ? obj.minCol : 0,
+            maxCol: Number.isInteger(obj.maxCol) ? obj.maxCol : -1,
+            playableKeys: new Set(obj.playableKeys instanceof Set ? Array.from(obj.playableKeys) : []),
+            meteorHoleKeys: new Set(obj.meteorHoleKeys instanceof Set ? Array.from(obj.meteorHoleKeys) : []),
+            expansionCells: Array.isArray(obj.expansionCells)
+                ? obj.expansionCells.map((cell) => ({
                     side: cell.side,
                     row: cell.row,
                     col: cell.col,
                     owner: normalizeOwner(cell.owner)
                 }))
                 : [],
-            expansionOwnerByKey: Object.assign(Object.create(null), meta.expansionOwnerByKey || null),
-            standard8x8: meta.standard8x8 === true,
+            expansionOwnerByKey: Object.assign(Object.create(null), obj.expansionOwnerByKey || null),
+            standard8x8: obj.standard8x8 === true,
             coordinateCache: null,
             cornerKeyCache: null,
             xKeyCache: null,
@@ -716,54 +716,35 @@
         };
     }
 
-    /**
-     * Attach metadata to a board array via a hidden property.
-     * @param {Board} board
-     * @param {Object} meta
-     * @returns {Board}
-     */
-    function setBoardShapeMeta(board, meta) {
-        if (!Array.isArray(board)) return board;
+    function setBoardShapeMeta(board: unknown, meta: unknown): unknown[][] {
+        if (!Array.isArray(board)) return board as unknown[][];
         Object.defineProperty(board, BOARD_SHAPE_META_KEY, {
             value: meta,
             writable: true,
             configurable: true
         });
-        return board;
+        return board as unknown[][];
     }
 
-    /**
-     * Read the hidden shape metadata attached to a board.
-     * @param {Board} board
-     * @returns {Object|null}
-     */
-    function getBoardShapeMeta(board) {
+    function getBoardShapeMeta(board: unknown): BoardShapeMeta | null {
         if (!Array.isArray(board)) return null;
-        const meta = board[BOARD_SHAPE_META_KEY];
-        return meta && typeof meta === 'object' ? meta : null;
+        const meta = (board as unknown as Record<string, unknown>)[BOARD_SHAPE_META_KEY];
+        return meta && typeof meta === 'object' ? meta as BoardShapeMeta : null;
     }
 
-    /**
-     * Build shape metadata from a raw board and optional expansion/hole state.
-     * @param {Board} board
-     * @param {Object} [options]
-     * @param {BoardConfig} [options.boardConfig]
-     * @param {Object} [options.boardExpansion]
-     * @param {CardState} [options.cardState]
-     * @returns {Object|null}
-     */
-    function buildShapeMeta(board, options) {
+    function buildShapeMeta(board: unknown, options?: unknown): BoardShapeMeta | null {
         if (!Array.isArray(board)) return null;
-        const boardConfig = resolveBoardConfig((options && options.boardConfig) || board);
-        const expansionCells = collectExpansionDescriptors(options && options.boardExpansion, boardConfig);
-        const meteorHoleKeys = collectMeteorHoleKeys(options && options.cardState);
-        const playableKeys = new Set();
+        const opts = options && typeof options === 'object' ? options as Record<string, unknown> : {};
+        const boardConfig = resolveBoardConfig((opts.boardConfig) || board);
+        const expansionCells = collectExpansionDescriptors(opts.boardExpansion, boardConfig);
+        const meteorHoleKeys = collectMeteorHoleKeys(opts.cardState);
+        const playableKeys = new Set<string>();
         let minRow = Infinity;
         let maxRow = -Infinity;
         let minCol = Infinity;
         let maxCol = -Infinity;
 
-        const addCoord = (row, col) => {
+        const addCoord = (row: number, col: number): void => {
             const key = toBoardCellKey(row, col);
             if (meteorHoleKeys.has(key)) return;
             playableKeys.add(key);
@@ -773,8 +754,8 @@
             if (col > maxCol) maxCol = col;
         };
 
-        for (let row = 0; row < board.length; row++) {
-            const line = Array.isArray(board[row]) ? board[row] : [];
+        for (let row = 0; row < (board as unknown[][]).length; row++) {
+            const line = Array.isArray((board as unknown[][])[row]) ? (board as unknown[][])[row] : [];
             for (let col = 0; col < line.length; col++) {
                 addCoord(row, col);
             }
@@ -788,14 +769,14 @@
             maxCol = -1;
         }
 
-        const expansionOwnerByKey = Object.create(null);
+        const expansionOwnerByKey: Record<string, number> = Object.create(null);
         for (const cell of expansionCells) {
             expansionOwnerByKey[toBoardCellKey(cell.row, cell.col)] = normalizeOwner(cell.owner);
         }
 
         const standard8x8 =
-            board.length === DEFAULT_BOARD_ROWS &&
-            board.every((row) => Array.isArray(row) && row.length === DEFAULT_BOARD_COLS) &&
+            (board as unknown[][]).length === DEFAULT_BOARD_ROWS &&
+            (board as unknown[][]).every((row) => Array.isArray(row) && row.length === DEFAULT_BOARD_COLS) &&
             expansionCells.length === 0 &&
             meteorHoleKeys.size === 0;
 
@@ -816,49 +797,26 @@
         };
     }
 
-    /**
-     * Attach (or refresh) shape metadata on a board array.
-     * @param {Board} board
-     * @param {Object} [options]
-     * @returns {Board}
-     */
-    function attachBoardShape(board, options) {
-        if (!Array.isArray(board)) return board;
-        if (!options && getBoardShapeMeta(board)) return board;
+    function attachBoardShape(board: unknown, options?: unknown): unknown[][] {
+        if (!Array.isArray(board)) return board as unknown[][];
+        if (!options && getBoardShapeMeta(board)) return board as unknown[][];
         return setBoardShapeMeta(board, buildShapeMeta(board, options || null));
     }
 
-    /**
-     * Copy shape metadata from one board array to another.
-     * @param {Board} fromBoard
-     * @param {Board} toBoard
-     * @returns {Board}
-     */
-    function copyBoardShape(fromBoard, toBoard) {
-        if (!Array.isArray(toBoard)) return toBoard;
+    function copyBoardShape(fromBoard: unknown, toBoard: unknown): unknown[][] {
+        if (!Array.isArray(toBoard)) return toBoard as unknown[][];
         const meta = getBoardShapeMeta(fromBoard);
-        if (!meta) return toBoard;
+        if (!meta) return toBoard as unknown[][];
         return setBoardShapeMeta(toBoard, cloneMeta(meta));
     }
 
-    /**
-     * Deep-clone a board array including its shape metadata.
-     * @param {Board} board
-     * @returns {Board}
-     */
-    function cloneBoard(board) {
+    function cloneBoard(board: unknown): unknown[][] {
         if (!Array.isArray(board)) return [];
-        const cloned = board.map((row) => Array.isArray(row) ? row.slice() : []);
+        const cloned = (board as unknown[][]).map((row) => Array.isArray(row) ? row.slice() : []);
         return copyBoardShape(board, cloned);
     }
 
-    /**
-     * Resolve playable bounds for a board or config pair.
-     * @param {Board|number|null|undefined} boardOrRows
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {Bounds|null}
-     */
-    function resolveBoardBounds(boardOrRows, maybeCols) {
+    function resolveBoardBounds(boardOrRows: unknown, maybeCols?: unknown): Bounds | null {
         if (Array.isArray(boardOrRows)) {
             const meta = getBoardShapeMeta(boardOrRows);
             if (meta) {
@@ -871,7 +829,7 @@
             }
             if (boardOrRows.length <= 0) return null;
             let maxCol = -1;
-            for (const row of boardOrRows) {
+            for (const row of boardOrRows as unknown[][]) {
                 if (Array.isArray(row) && row.length > 0) {
                     maxCol = Math.max(maxCol, row.length - 1);
                 }
@@ -888,44 +846,30 @@
         };
     }
 
-    /**
-     * @param {Board} board
-     * @returns {boolean}
-     */
-    function isStandardBoard8x8(board) {
+    function isStandardBoard8x8(board: unknown): boolean {
         const meta = getBoardShapeMeta(board);
         if (meta) return meta.standard8x8 === true;
         if (!Array.isArray(board) || board.length !== DEFAULT_BOARD_ROWS) return false;
-        for (const row of board) {
+        for (const row of board as unknown[][]) {
             if (!Array.isArray(row) || row.length !== DEFAULT_BOARD_COLS) return false;
         }
         return true;
     }
 
-    /**
-     * @param {Board} board
-     * @param {number} row
-     * @param {number} col
-     * @returns {boolean}
-     */
-    function hasPlayableCell(board, row, col) {
+    function hasPlayableCell(board: unknown, row: number, col: number): boolean {
         if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return false;
         const meta = getBoardShapeMeta(board);
         if (!meta) return isRawCellInBounds(board, row, col);
         return meta.playableKeys.has(toBoardCellKey(row, col));
     }
 
-    /**
-     * @param {Board} board
-     * @returns {CellCoord[]}
-     */
-    function collectBoardCoordinates(board) {
+    function collectBoardCoordinates(board: unknown): CellCoord[] {
         if (!Array.isArray(board)) return [];
         const meta = getBoardShapeMeta(board);
         if (!meta) {
-            const coords = [];
-            for (let row = 0; row < board.length; row++) {
-                const line = Array.isArray(board[row]) ? board[row] : [];
+            const coords: CellCoord[] = [];
+            for (let row = 0; row < (board as unknown[][]).length; row++) {
+                const line = Array.isArray((board as unknown[][])[row]) ? (board as unknown[][])[row] : [];
                 for (let col = 0; col < line.length; col++) {
                     coords.push({ row, col });
                 }
@@ -946,38 +890,23 @@
         return coords;
     }
 
-    /**
-     * Read a cell value, respecting expansion descriptors.
-     * @param {Board} board
-     * @param {number} row
-     * @param {number} col
-     * @returns {PlayerValue|0|null}
-     */
-    function getCellValue(board, row, col) {
+    function getCellValue(board: unknown, row: number, col: number): number | null {
         if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return null;
         const meta = getBoardShapeMeta(board);
         if (meta && !meta.playableKeys.has(toBoardCellKey(row, col))) return null;
-        if (isRawCellInBounds(board, row, col)) return board[row][col];
+        if (isRawCellInBounds(board, row, col)) return (board as unknown[][])[row][col] as number;
         if (!meta) return null;
         const key = toBoardCellKey(row, col);
         if (!Object.prototype.hasOwnProperty.call(meta.expansionOwnerByKey, key)) return null;
         return normalizeOwner(meta.expansionOwnerByKey[key]);
     }
 
-    /**
-     * Write a cell value, updating expansion metadata when necessary.
-     * @param {Board} board
-     * @param {number} row
-     * @param {number} col
-     * @param {number} value
-     * @returns {boolean}
-     */
-    function setCellValue(board, row, col, value) {
+    function setCellValue(board: unknown, row: number, col: number, value: number): boolean {
         if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return false;
         if (isRawCellInBounds(board, row, col)) {
             const meta = getBoardShapeMeta(board);
             if (meta && !meta.playableKeys.has(toBoardCellKey(row, col))) return false;
-            board[row][col] = normalizeOwner(value);
+            (board as unknown[][])[row][col] = normalizeOwner(value);
             return true;
         }
         const meta = getBoardShapeMeta(board);
@@ -994,11 +923,7 @@
         return true;
     }
 
-    /**
-     * @param {Board} board
-     * @returns {number}
-     */
-    function countBoardEmpties(board) {
+    function countBoardEmpties(board: unknown): number {
         if (!Array.isArray(board)) return 0;
         let empties = 0;
         for (const cell of collectBoardCoordinates(board)) {
@@ -1007,7 +932,7 @@
         return empties;
     }
 
-    function buildCornerKeySet(board) {
+    function buildCornerKeySet(board: unknown): Set<string> {
         const meta = getBoardShapeMeta(board);
         if (meta && meta.cornerKeyCache instanceof Set) return meta.cornerKeyCache;
         const coords = collectBoardCoordinates(board);
@@ -1018,7 +943,7 @@
             { vertical: 1, horizontal: -1 },
             { vertical: 1, horizontal: 1 }
         ];
-        const corners = new Set();
+        const corners = new Set<string>();
         for (const cell of coords) {
             for (const quadrant of quadrants) {
                 const verticalKey = toBoardCellKey(cell.row + quadrant.vertical, cell.col);
@@ -1032,26 +957,18 @@
         return corners;
     }
 
-    /**
-     * @param {Board} board
-     * @returns {CellCoord[]}
-     */
-    function getCornerCells(board) {
+    function getCornerCells(board: unknown): CellCoord[] {
         return collectBoardCoordinates(board).filter((cell) => buildCornerKeySet(board).has(toBoardCellKey(cell.row, cell.col)));
     }
 
-    /**
-     * @param {Board} board
-     * @returns {CellCoord[]}
-     */
-    function getPerimeterCells(board) {
+    function getPerimeterCells(board: unknown): CellCoord[] {
         return collectBoardCoordinates(board).filter((cell) => isEdgeCell(cell.row, cell.col, board));
     }
 
-    function getCornerEdgeLineDescriptors(board) {
+    function getCornerEdgeLineDescriptors(board: unknown): CornerEdgeLineDescriptor[] {
         if (!Array.isArray(board)) return [];
         const corners = getCornerCells(board);
-        const lines = [];
+        const lines: CornerEdgeLineDescriptor[] = [];
         const directions = [
             { row: -1, col: 0 },
             { row: 1, col: 0 },
@@ -1067,7 +984,7 @@
                 if (!hasPlayableCell(board, nextRow, nextCol)) continue;
                 if (!isEdgeCell(nextRow, nextCol, board)) continue;
 
-                const cells = [{ row: corner.row, col: corner.col }];
+                const cells: CellCoord[] = [{ row: corner.row, col: corner.col }];
                 let currentRow = nextRow;
                 let currentCol = nextCol;
                 while (hasPlayableCell(board, currentRow, currentCol) && isEdgeCell(currentRow, currentCol, board)) {
@@ -1095,10 +1012,10 @@
         return lines;
     }
 
-    function collectUniqueCornerEdgeLines(board) {
+    function collectUniqueCornerEdgeLines(board: unknown): CornerEdgeLineDescriptor[] {
         if (!Array.isArray(board)) return [];
-        const seen = new Set();
-        const lines = [];
+        const seen = new Set<string>();
+        const lines: CornerEdgeLineDescriptor[] = [];
         for (const descriptor of getCornerEdgeLineDescriptors(board)) {
             if (!descriptor || !Array.isArray(descriptor.cells) || descriptor.cells.length <= 1) continue;
             const canonicalKey = typeof descriptor.canonicalKey === 'string' && descriptor.canonicalKey
@@ -1111,8 +1028,8 @@
         return lines;
     }
 
-    function summarizeEdgeRuns(board, playerValue) {
-        const out = {
+    function summarizeEdgeRuns(board: unknown, playerValue: number): EdgeRunSummary {
+        const out: EdgeRunSummary = {
             totalLines: 0,
             maxLineLength: 0,
             totalLineCells: 0,
@@ -1141,7 +1058,7 @@
             let currentRunLength = 0;
             let runStartIndex = -1;
 
-            const finalizeRun = () => {
+            const finalizeRun = (): void => {
                 if (currentRunLength <= 0) return;
                 out.chainStrength += (currentRunLength * currentRunLength);
                 out.segmentCount += 1;
@@ -1178,13 +1095,13 @@
         return out;
     }
 
-    function countAdjacentLoneEdgeDiscs(board, row, col, playerValue) {
+    function countAdjacentLoneEdgeDiscs(board: unknown, row: number, col: number, playerValue: number): number {
         if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return 0;
         if (!isEdgeCell(row, col, board) || isCornerCell(row, col, board)) return 0;
         const owner = normalizeOwner(playerValue);
         if (!owner) return 0;
 
-        const seen = new Set();
+        const seen = new Set<string>();
         let count = 0;
         const lines = collectUniqueCornerEdgeLines(board);
         for (const line of lines) {
@@ -1217,14 +1134,7 @@
         return count;
     }
 
-    /**
-     * @param {number} row
-     * @param {number} col
-     * @param {Board|number|null|undefined} boardOrRows
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {boolean}
-     */
-    function isCornerCell(row, col, boardOrRows, maybeCols) {
+    function isCornerCell(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): boolean {
         if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
         if (Array.isArray(boardOrRows)) {
             if (!hasPlayableCell(boardOrRows, row, col)) return false;
@@ -1247,14 +1157,7 @@
         );
     }
 
-    /**
-     * @param {number} row
-     * @param {number} col
-     * @param {Board|number|null|undefined} boardOrRows
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {boolean}
-     */
-    function isEdgeCell(row, col, boardOrRows, maybeCols) {
+    function isEdgeCell(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): boolean {
         if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
         if (Array.isArray(boardOrRows)) {
             if (!hasPlayableCell(boardOrRows, row, col)) return false;
@@ -1287,7 +1190,7 @@
         );
     }
 
-    function buildRiskCellSets(board) {
+    function buildRiskCellSets(board: unknown): { xKeys: Set<string>; cKeys: Set<string> } {
         const meta = getBoardShapeMeta(board);
         if (meta && meta.xKeyCache instanceof Set && meta.cKeyCache instanceof Set) {
             return { xKeys: meta.xKeyCache, cKeys: meta.cKeyCache };
@@ -1300,8 +1203,8 @@
             { vertical: 1, horizontal: -1 },
             { vertical: 1, horizontal: 1 }
         ];
-        const xKeys = new Set();
-        const cKeys = new Set();
+        const xKeys = new Set<string>();
+        const cKeys = new Set<string>();
 
         for (const cell of coords) {
             for (const quadrant of quadrants) {
@@ -1328,7 +1231,7 @@
         return { xKeys, cKeys };
     }
 
-    function getCornerProximity(row, col, boardOrRows, maybeCols) {
+    function getCornerProximity(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): { kind: string; corner: [number, number] } | null {
         if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
         if (Array.isArray(boardOrRows)) {
             if (!hasPlayableCell(boardOrRows, row, col)) return null;
@@ -1403,22 +1306,15 @@
         return null;
     }
 
-    function isCorner(row, col, boardOrRows, maybeCols) {
+    function isCorner(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): boolean {
         return isCornerCell(row, col, boardOrRows, maybeCols);
     }
 
-    function isEdge(row, col, boardOrRows, maybeCols) {
+    function isEdge(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): boolean {
         return isEdgeCell(row, col, boardOrRows, maybeCols);
     }
 
-    /**
-     * @param {number} row
-     * @param {number} col
-     * @param {Board|number|null|undefined} boardOrRows
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {boolean}
-     */
-    function isXSquare(row, col, boardOrRows, maybeCols) {
+    function isXSquare(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): boolean {
         if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
         if (Array.isArray(boardOrRows)) {
             if (!hasPlayableCell(boardOrRows, row, col)) return false;
@@ -1432,14 +1328,7 @@
         );
     }
 
-    /**
-     * @param {number} row
-     * @param {number} col
-     * @param {Board|number|null|undefined} boardOrRows
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {boolean}
-     */
-    function isCSquare(row, col, boardOrRows, maybeCols) {
+    function isCSquare(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): boolean {
         if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
         if (Array.isArray(boardOrRows)) {
             if (!hasPlayableCell(boardOrRows, row, col)) return false;
@@ -1454,14 +1343,7 @@
         return nearTopBottom || nearLeftRight;
     }
 
-    /**
-     * @param {number} row
-     * @param {number} col
-     * @param {Board|number|null|undefined} boardOrRows
-     * @param {number|null|undefined} [maybeCols]
-     * @returns {'unknown'|'corner'|'x'|'c'|'edge'|'inner'}
-     */
-    function getCellType(row, col, boardOrRows, maybeCols) {
+    function getCellType(row: number, col: number, boardOrRows: unknown, maybeCols?: unknown): 'unknown' | 'corner' | 'x' | 'c' | 'edge' | 'inner' {
         if (!Number.isInteger(row) || !Number.isInteger(col)) return 'unknown';
         if (isCorner(row, col, boardOrRows, maybeCols)) return 'corner';
         if (isXSquare(row, col, boardOrRows, maybeCols)) return 'x';
@@ -1470,23 +1352,15 @@
         return 'inner';
     }
 
-    /**
-     * Basic Othello flip computation (no special stones).
-     * @param {Board} board
-     * @param {number} row
-     * @param {number} col
-     * @param {PlayerValue} playerValue
-     * @returns {CellCoord[]}
-     */
-    function getFlipsBasic(board, row, col, playerValue) {
-        if (OthelloCore && typeof OthelloCore.getFlipsBasic === 'function') {
-            return OthelloCore.getFlipsBasic(board, row, col, playerValue);
+    function getFlipsBasic(board: unknown, row: number, col: number, playerValue: number): CellCoord[] {
+        if (OthelloCore && typeof (OthelloCore as { getFlipsBasic?: (b: unknown, r: number, c: number, p: number) => CellCoord[] }).getFlipsBasic === 'function') {
+            return (OthelloCore as { getFlipsBasic: (b: unknown, r: number, c: number, p: number) => CellCoord[] }).getFlipsBasic(board, row, col, playerValue);
         }
         if (!hasPlayableCell(board, row, col)) return [];
         if (getCellValue(board, row, col) !== EMPTY) return [];
-        const out = [];
+        const out: CellCoord[] = [];
         for (const dir of DIRECTIONS) {
-            const temp = [];
+            const temp: CellCoord[] = [];
             let currentRow = row + dir[0];
             let currentCol = col + dir[1];
             while (hasPlayableCell(board, currentRow, currentCol) && getCellValue(board, currentRow, currentCol) === -playerValue) {
@@ -1505,18 +1379,12 @@
         return out;
     }
 
-    /**
-     * Compute all legal basic Othello moves for a player.
-     * @param {Board} board
-     * @param {PlayerValue} playerValue
-     * @returns {LegalMove[]}
-     */
-    function getLegalMovesBasic(board, playerValue) {
-        if (OthelloCore && typeof OthelloCore.getLegalMovesBasic === 'function') {
-            return OthelloCore.getLegalMovesBasic(board, playerValue);
+    function getLegalMovesBasic(board: unknown, playerValue: number): Array<{ row: number; col: number; flips: CellCoord[] }> {
+        if (OthelloCore && typeof (OthelloCore as { getLegalMovesBasic?: (b: unknown, p: number) => Array<{ row: number; col: number; flips: CellCoord[] }> }).getLegalMovesBasic === 'function') {
+            return (OthelloCore as { getLegalMovesBasic: (b: unknown, p: number) => Array<{ row: number; col: number; flips: CellCoord[] }> }).getLegalMovesBasic(board, playerValue);
         }
         if (!Array.isArray(board)) return [];
-        const moves = [];
+        const moves: Array<{ row: number; col: number; flips: CellCoord[] }> = [];
         for (const cell of collectBoardCoordinates(board)) {
             const flips = getFlipsBasic(board, cell.row, cell.col, playerValue);
             if (flips.length > 0) {
@@ -1526,12 +1394,7 @@
         return moves;
     }
 
-    /**
-     * @param {Board} board
-     * @param {PlayerValue} playerValue
-     * @returns {{ownCorners:number, oppCorners:number}}
-     */
-    function countCornerControl(board, playerValue) {
+    function countCornerControl(board: unknown, playerValue: number): { ownCorners: number; oppCorners: number } {
         if (!Array.isArray(board)) return { ownCorners: 0, oppCorners: 0 };
         let ownCorners = 0;
         let oppCorners = 0;
@@ -1543,12 +1406,7 @@
         return { ownCorners, oppCorners };
     }
 
-    /**
-     * @param {Board} board
-     * @param {PlayerValue} playerValue
-     * @returns {{ownEdges:number, oppEdges:number}}
-     */
-    function countEdgeControl(board, playerValue) {
+    function countEdgeControl(board: unknown, playerValue: number): { ownEdges: number; oppEdges: number } {
         if (!Array.isArray(board)) return { ownEdges: 0, oppEdges: 0 };
         let ownEdges = 0;
         let oppEdges = 0;
@@ -1561,14 +1419,14 @@
         return { ownEdges, oppEdges };
     }
 
-    function toCellChar(value) {
+    function toCellChar(value: unknown): string {
         if (value === 1) return 'B';
         if (value === -1) return 'W';
         if (value === 0) return '.';
         return '#';
     }
 
-    function transformCoord(row, col, size, transformId) {
+    function transformCoord(row: number, col: number, size: number, transformId: number): CellCoord {
         if (transformId === 0) return { row, col };
         if (transformId === 1) return { row: col, col: size - 1 - row };
         if (transformId === 2) return { row: size - 1 - row, col: size - 1 - col };
@@ -1580,7 +1438,7 @@
         return { row, col };
     }
 
-    function buildEnvelopeMatrix(board) {
+    function buildEnvelopeMatrix(board: unknown): EnvelopeMatrix {
         const bounds = resolveBoardBounds(board);
         if (!bounds || bounds.maxRow < bounds.minRow || bounds.maxCol < bounds.minCol) {
             return { matrix: [], size: 0, minRow: 0, minCol: 0 };
@@ -1602,12 +1460,12 @@
         };
     }
 
-    function encodeEnvelopeMatrix(matrix) {
+    function encodeEnvelopeMatrix(matrix: string[][]): string {
         if (!Array.isArray(matrix) || matrix.length <= 0) return '';
         return matrix.map((row) => Array.isArray(row) ? row.join('') : '').join('/');
     }
 
-    function transformMatrix(matrix, transformId) {
+    function transformMatrix(matrix: string[][], transformId: number): string[][] {
         if (!Array.isArray(matrix) || matrix.length <= 0) return [];
         const size = matrix.length;
         const out = Array.from({ length: size }, () => Array.from({ length: size }, () => '#'));
@@ -1620,21 +1478,11 @@
         return out;
     }
 
-    /**
-     * Encode a board to its canonical string representation.
-     * @param {Board} board
-     * @returns {string}
-     */
-    function encodeBoard(board) {
+    function encodeBoard(board: unknown): string {
         return encodeEnvelopeMatrix(buildEnvelopeMatrix(board).matrix);
     }
 
-    /**
-     * Return the lexicographically smallest board encoding and its transform.
-     * @param {Board} board
-     * @returns {{boardKey:string, transformId:number, size:number, minRow:number, minCol:number}}
-     */
-    function canonicalizeBoard(board) {
+    function canonicalizeBoard(board: unknown): CanonicalResult {
         const envelope = buildEnvelopeMatrix(board);
         const raw = encodeEnvelopeMatrix(envelope.matrix);
         if (!raw) {
@@ -1646,7 +1494,7 @@
                 minCol: envelope.minCol
             };
         }
-        let best = null;
+        let best: string | null = null;
         let bestTransform = 0;
         for (let transformId = 0; transformId < 8; transformId++) {
             const encoded = encodeEnvelopeMatrix(transformMatrix(envelope.matrix, transformId));
@@ -1664,7 +1512,7 @@
         };
     }
 
-    function mapCoordToCanonical(row, col, board, transformId) {
+    function mapCoordToCanonical(row: number, col: number, board: unknown, transformId: number): CellCoord | null {
         if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
         const envelope = buildEnvelopeMatrix(board);
         if (envelope.size <= 0) return null;
@@ -1681,18 +1529,18 @@
         return transformCoord(relativeRow, relativeCol, envelope.size, transformId);
     }
 
-    function makeCanonicalActionKey(move, board, transformId) {
-        if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return '';
-        const mapped = mapCoordToCanonical(Number(move.row), Number(move.col), board, Number(transformId) || 0);
+    function makeCanonicalActionKey(move: unknown, board: unknown, transformId: number): string {
+        if (!move || !Number.isFinite((move as { row?: number }).row) || !Number.isFinite((move as { col?: number }).col)) return '';
+        const mapped = mapCoordToCanonical(Number((move as { row: number }).row), Number((move as { col: number }).col), board, Number(transformId) || 0);
         if (!mapped) return '';
         return `place:${mapped.row}:${mapped.col}`;
     }
 
-    function normalizePosArgs(posOrRow, maybeCol) {
+    function normalizePosArgs(posOrRow: unknown, maybeCol?: unknown): CellCoord {
         if (posOrRow && typeof posOrRow === 'object') {
             return {
-                row: Number(posOrRow.row),
-                col: Number(posOrRow.col)
+                row: Number((posOrRow as { row?: number }).row),
+                col: Number((posOrRow as { col?: number }).col)
             };
         }
         return {
@@ -1701,7 +1549,7 @@
         };
     }
 
-    function resolveNotationArgs(posOrRow, maybeCol, maybeBoardOrConfig) {
+    function resolveNotationArgs(posOrRow: unknown, maybeCol: unknown, maybeBoardOrConfig: unknown): { pos: CellCoord; boardOrConfig: unknown } {
         const objectPosWithBoardContext = !!(
             posOrRow &&
             typeof posOrRow === 'object' &&
@@ -1715,14 +1563,7 @@
         };
     }
 
-    /**
-     * Format a position as Japanese text (e.g. "D3", "上外A").
-     * @param {Object|number} posOrRow
-     * @param {number|null|undefined} [maybeCol]
-     * @param {Board|Object|null|undefined} [maybeBoardOrConfig]
-     * @returns {string}
-     */
-    function formatPosTextJa(posOrRow, maybeCol, maybeBoardOrConfig) {
+    function formatPosTextJa(posOrRow: unknown, maybeCol?: unknown, maybeBoardOrConfig?: unknown): string {
         const resolved = resolveNotationArgs(posOrRow, maybeCol, maybeBoardOrConfig);
         const pos = resolved.pos;
         const config = resolveBoardConfig(resolved.boardOrConfig);
@@ -1749,14 +1590,7 @@
         return `(${row},${col})`;
     }
 
-    /**
-     * Format a position as ASCII notation (e.g. "d3", "top-a").
-     * @param {Object|number} posOrRow
-     * @param {number|null|undefined} [maybeCol]
-     * @param {Board|Object|null|undefined} [maybeBoardOrConfig]
-     * @returns {string}
-     */
-    function posToNotation(posOrRow, maybeCol, maybeBoardOrConfig) {
+    function posToNotation(posOrRow: unknown, maybeCol?: unknown, maybeBoardOrConfig?: unknown): string {
         const resolved = resolveNotationArgs(posOrRow, maybeCol, maybeBoardOrConfig);
         const pos = resolved.pos;
         const config = resolveBoardConfig(resolved.boardOrConfig);
