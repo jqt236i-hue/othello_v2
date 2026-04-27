@@ -640,6 +640,11 @@
     const SwapWithEnemyModule = (function() { try { return require('./effects/swap_with_enemy'); } catch (e) { return null; } })();
     const CardProtectModule = (function() { try { return require('../cards/effects/protect'); } catch (e) { return null; } })();
     const CardTrapModule = (function() { try { return require('../cards/effects/trap'); } catch (e) { return null; } })();
+    const CardOwnershipEffectsModule = resolveOptionalCardModule('../cards/effects/ownership', 'CardOwnershipEffects');
+    const CardBoardExpansionApplyModule = resolveOptionalCardModule('../cards/effects/board-expansion-apply', 'CardBoardExpansionApply');
+    const CardStatusCellsModule = resolveOptionalCardModule('../cards/effects/status-cells', 'CardStatusCellsEffects');
+    const CardHandEffectsModule = resolveOptionalCardModule('../cards/effects/hand-effects', 'CardHandEffects');
+    const CardPositionSwapModule = resolveOptionalCardModule('../cards/effects/position-swap', 'CardPositionSwapEffects');
 
     function addChargeValue(cardState, playerKey, amount, reason, meta) {
         if (!CardStateManager || typeof CardStateManager.addCharge !== 'function') {
@@ -3142,233 +3147,56 @@
     }
 
     function applyTemptWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'TEMPT_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-
-        const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        if (!isSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
-        if (getSpecialOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
-        if (getCellValueForCard(gameState, row, col) === EMPTY) return { applied: false, reason: 'empty' };
-        const guarded = getSpecialMarkers(cardState).some(m => (
-            m &&
-            m.row === row &&
-            m.col === col &&
-            m.data &&
-            m.data.type === 'GUARD'
-        ));
-        if (guarded) return { applied: false, reason: 'guarded' };
-        if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
-
-        // Use BoardOps.changeAt if available
-        if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
-            BoardOpsModule.changeAt(cardState, gameState, row, col, playerKey, 'TEMPT_WILL', 'tempt_applied');
-        } else {
-            const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-            setCellValueForCard(gameState, row, col, playerVal);
-        }
-
-        // Transfer ownership metadata while preserving remaining turns/counters.
-        const transferResult = transferCellMarkerOwnership(cardState, row, col, playerKey);
-        const wasWork = !!(transferResult && transferResult.hadWork);
-
-        // If this was a WORK anchor, STEAL ends the effect immediately.
-        if (wasWork) {
-            // Clear anchor position for previous owner
-            if (cardState.workAnchorPosByPlayer && cardState.workAnchorPosByPlayer[opponentKey]) {
-                cardState.workAnchorPosByPlayer[opponentKey] = null;
-            }
-            // Remove special WORK entries and any unified markers
-            removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'WORK' });
-            // Use centralized presentation event emission so action meta is filled consistently
-            emitPresentationEvent(cardState, {
-                type: 'WORK_REMOVED',
-                row,
-                col,
-                ownerBefore: opponentKey,
-                ownerAfter: playerKey,
-                cause: 'TEMPT_WILL',
-                reason: 'anchor_lost',
-                removed: true,
-                meta: { reason: 'anchor_lost' }
+        if (CardOwnershipEffectsModule && typeof CardOwnershipEffectsModule.applyTemptWill === 'function') {
+            return CardOwnershipEffectsModule.applyTemptWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                isSpecialStoneAt,
+                getSpecialOwnerAt,
+                getCellValueForCard,
+                getSpecialMarkers,
+                isAbsoluteProtectedCell,
+                BoardOpsModule,
+                setCellValueForCard,
+                removeMarkersAt,
+                emitPresentationEvent,
+                clearCardPendingEffect,
+                getMarkers,
+                MARKER_KINDS
             });
         }
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function transferCellMarkerOwnership(cardState, row, col, playerKey) {
-        const normalizedPlayerKey = playerKey === 'white' ? 'white' : 'black';
-        const playerValue = normalizedPlayerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const markersAtCell = getMarkers(cardState).filter((marker) => (
-            marker &&
-            marker.row === row &&
-            marker.col === col
-        ));
-        let transferred = false;
-        let hadWork = false;
-
-        for (const marker of markersAtCell) {
-            transferred = true;
-            marker.owner = normalizedPlayerKey;
-            const markerData = (marker.data && typeof marker.data === 'object') ? marker.data : null;
-            if (!markerData) continue;
-            if (String(markerData.type || '').toUpperCase() === 'WORK') {
-                hadWork = true;
-            }
-            if (Object.prototype.hasOwnProperty.call(markerData, 'expiresForPlayer')) {
-                markerData.expiresForPlayer = normalizedPlayerKey;
-            }
-            if (Object.prototype.hasOwnProperty.call(markerData, 'ownerColor')) {
-                markerData.ownerColor = typeof markerData.ownerColor === 'number'
-                    ? playerValue
-                    : normalizedPlayerKey;
-            }
+        if (CardOwnershipEffectsModule && typeof CardOwnershipEffectsModule.transferCellMarkerOwnership === 'function') {
+            return CardOwnershipEffectsModule.transferCellMarkerOwnership(cardState, row, col, playerKey, { getMarkers });
         }
-
-        return { transferred, hadWork };
+        return { transferred: false, hadWork: false, reason: 'deps_missing' };
     }
 
     function applyCaptureWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'CAPTURE_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-
-        const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        if (!isSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
-        if (getSpecialOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
-        if (getCellValueForCard(gameState, row, col) === EMPTY) return { applied: false, reason: 'empty' };
-        const guarded = getSpecialMarkers(cardState).some(m => (
-            m &&
-            m.row === row &&
-            m.col === col &&
-            m.data &&
-            m.data.type === 'GUARD'
-        ));
-        if (guarded) return { applied: false, reason: 'guarded' };
-        if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
-
-        const markerEntry = getSpecialMarkerAt(cardState, row, col);
-        const captureSource = resolveCaptureSourceInfo(markerEntry);
-        if (!captureSource || !captureSource.sourceCardId) {
-            return { applied: false, reason: 'missing_source_card' };
-        }
-        const livingWillMarker = CardLivingWillModule && typeof CardLivingWillModule.findLivingWillMarkerAt === 'function'
-            ? CardLivingWillModule.findLivingWillMarkerAt(cardState, row, col)
-            : null;
-
-        const insertIndex = Number.isInteger(pending.sourceHandIndex)
-            ? Math.max(0, pending.sourceHandIndex)
-            : ((cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])) ? cardState.hands[playerKey].length : 0);
-        const added = !livingWillMarker
-            ? addCardToHand(cardState, playerKey, captureSource.sourceCardId, {
-                insertIndex,
-                ignoreHandLimit: true
-            })
-            : null;
-        if (!livingWillMarker && !added) return { applied: false, reason: 'hand_add_failed' };
-
-        const stoneId = getStoneIdAtForCard(cardState, gameState, row, col);
-        const targetValue = getCellValueForCard(gameState, row, col);
-        const ownerBefore = targetValue === (BLACK || 1) ? 'black' : 'white';
-        const wasWork = !!(markerEntry && markerEntry.marker && markerEntry.marker.data && markerEntry.marker.data.type === 'WORK');
-        const removedSpecialType = captureSource.sourceSpecialType
-            || (markerEntry && markerEntry.marker && markerEntry.marker.data && markerEntry.marker.data.type)
-            || null;
-
-        clearStoneIdAtForCard(cardState, gameState, row, col);
-        setCellValueForCard(gameState, row, col, EMPTY);
-        removeMarkersAt(cardState, row, col);
-
-        if (!wasWork) {
-            emitPresentationEvent(cardState, {
-                type: 'STATUS_REMOVED',
-                row,
-                col,
-                cause: 'CAPTURE_WILL',
-                reason: 'captured_to_hand',
-                meta: {
-                    special: removedSpecialType,
-                    owner: ownerBefore,
-                    reason: 'captured_to_hand'
-                }
+        if (CardOwnershipEffectsModule && typeof CardOwnershipEffectsModule.applyCaptureWill === 'function') {
+            return CardOwnershipEffectsModule.applyCaptureWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                isSpecialStoneAt,
+                getSpecialOwnerAt,
+                getCellValueForCard,
+                getSpecialMarkers,
+                isAbsoluteProtectedCell,
+                getSpecialMarkerAt,
+                resolveCaptureSourceInfo,
+                CardLivingWillModule,
+                addCardToHand,
+                getStoneIdAtForCard,
+                clearStoneIdAtForCard,
+                setCellValueForCard,
+                removeMarkersAt,
+                emitPresentationEvent,
+                clearCardPendingEffect,
+                getLivingWillModuleContext
             });
         }
-
-        if (wasWork && cardState.workAnchorPosByPlayer && cardState.workAnchorPosByPlayer[opponentKey]) {
-            cardState.workAnchorPosByPlayer[opponentKey] = null;
-            emitPresentationEvent(cardState, {
-                type: 'WORK_REMOVED',
-                row,
-                col,
-                ownerBefore: opponentKey,
-                ownerAfter: playerKey,
-                cause: 'CAPTURE_WILL',
-                reason: 'captured_to_hand',
-                removed: true,
-                meta: { reason: 'captured_to_hand' }
-            });
-        }
-
-        if (livingWillMarker && CardLivingWillModule && typeof CardLivingWillModule.restoreFromLivingWillSnapshot === 'function') {
-            const livingWillRestore = CardLivingWillModule.restoreFromLivingWillSnapshot(
-                cardState,
-                gameState,
-                livingWillMarker,
-                {
-                    triggerKind: 'capture',
-                    sourceRow: row,
-                    sourceCol: col,
-                    cause: 'CAPTURE_WILL',
-                    reason: 'captured_to_hand'
-                },
-                getLivingWillModuleContext()
-            );
-            clearCardPendingEffect(cardState, playerKey);
-            return {
-                applied: true,
-                target: { row, col },
-                livingWillRevived: !!(livingWillRestore && livingWillRestore.restored),
-                sourceSpecialType: captureSource.sourceSpecialType || null,
-                stoneId: stoneId || null
-            };
-        }
-
-        emitPresentationEvent(cardState, {
-            type: 'HAND_ADD',
-            player: playerKey,
-            cardId: captureSource.sourceCardId,
-            count: 1,
-            reason: 'capture_will',
-            meta: {
-                owner: playerKey,
-                reason: 'capture_will',
-                sourceType: captureSource.sourceCardType || null,
-                sourceCardId: captureSource.sourceCardId,
-                sourceName: captureSource.sourceCardName || null,
-                sourceSpecialType: captureSource.sourceSpecialType || null,
-                sourceRow: row,
-                sourceCol: col,
-                sourceOwner: ownerBefore,
-                stoneId: stoneId || null,
-                insertIndex: added.handIndex
-            }
-        });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return {
-            applied: true,
-            target: { row, col },
-            capturedCardId: captureSource.sourceCardId,
-            capturedCardType: captureSource.sourceCardType || null,
-            capturedCardName: captureSource.sourceCardName || null,
-            sourceSpecialType: captureSource.sourceSpecialType || null,
-            stoneId: stoneId || null,
-            insertIndex: added.handIndex
-        };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function applyGuardWill(cardState, gameState, playerKey, row, col) {
@@ -3726,119 +3554,38 @@
     }
 
     function applyBoardExpansionWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'BOARD_EXPANSION_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
+        if (CardBoardExpansionApplyModule && typeof CardBoardExpansionApplyModule.applyBoardExpansionWill === 'function') {
+            return CardBoardExpansionApplyModule.applyBoardExpansionWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getBoardExpansionTargets,
+                ensureMutableBoardExpansionForCard,
+                getExpansionDescriptorsForCard,
+                resolveExpansionSideForCard,
+                normalizeExpansionOwnerForCard,
+                syncLegacyExpansionFieldsForCard,
+                clearCardPendingEffect
+            });
         }
-        const targets = getBoardExpansionTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        const side = col === 0 ? 'left' : (col === 7 ? 'right' : null);
-        if (!side || !Number.isInteger(row) || row < 0 || row >= 8) {
-            return { applied: false, reason: 'invalid_target' };
-        }
-
-        const boardExpansion = ensureMutableBoardExpansionForCard(gameState);
-        const cells = getExpansionDescriptorsForCard(gameState);
-        const targetCol = side === 'left' ? -1 : 8;
-        const alreadyExists = cells.some((cell) => cell && cell.row === row && cell.col === targetCol);
-        if (alreadyExists) return { applied: false, reason: 'already_expanded' };
-
-        cells.push({ side, row, col: targetCol, owner: EMPTY });
-
-        boardExpansion.cells = cells.map((cell) => ({
-            side: resolveExpansionSideForCard(cell.side, cell.row, cell.col),
-            row: cell.row,
-            col: cell.col,
-            owner: normalizeExpansionOwnerForCard(cell.owner)
-        }));
-        syncLegacyExpansionFieldsForCard(boardExpansion);
-
-        boardExpansion.usedByPlayer[playerKey] = true;
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, side, row, col: targetCol };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function applyBoardExpansionGod(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'BOARD_EXPANSION_GOD' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-
-        const targets = getBoardExpansionGodTargets(cardState, gameState, playerKey);
-        const allowed = targets.some((target) => target && target.row === row && target.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        const maxSelections = getBoardExpansionGodRequiredSelectionCount(cardState, gameState, playerKey);
-        if (maxSelections <= 0) return { applied: false, reason: 'invalid_target' };
-        const selectedTargets = getBoardExpansionGodPendingSelectionsForCard(pending);
-        const nextSelections = selectedTargets.concat({ row, col }).map((target) => ({ row: target.row, col: target.col }));
-
-        if (nextSelections.length < maxSelections) {
-            pending.selectedTargets = nextSelections;
-            pending.selectedCount = pending.selectedTargets.length;
-            pending.maxSelections = maxSelections;
-            return {
-                applied: true,
-                completed: false,
-                selectedCount: pending.selectedCount,
-                maxSelections,
-                remainingSelections: maxSelections - pending.selectedCount,
-                target: { row, col },
-                selectedTargets: pending.selectedTargets.map((target) => ({ row: target.row, col: target.col }))
-            };
-        }
-
-        const boardExpansion = ensureMutableBoardExpansionForCard(gameState);
-        const cells = getExpansionDescriptorsForCard(gameState);
-        const occupied = new Set(cells.map((cell) => `${cell.row},${cell.col}`));
-        const additions = [];
-        const additionKeys = new Set();
-        for (const target of nextSelections) {
-            const targetAdditions = getBoardExpansionGodAdditionsForCard(target.row, target.col);
-            if (!targetAdditions || targetAdditions.length !== 3) {
-                return { applied: false, reason: 'invalid_target' };
-            }
-            for (const cell of targetAdditions) {
-                const key = `${cell.row},${cell.col}`;
-                if (occupied.has(key) || additionKeys.has(key)) {
-                    return { applied: false, reason: 'already_expanded' };
-                }
-                additionKeys.add(key);
-                additions.push({ row: cell.row, col: cell.col });
-            }
-        }
-
-        for (const cell of additions) {
-            cells.push({
-                side: resolveExpansionSideForCard(null, cell.row, cell.col),
-                row: cell.row,
-                col: cell.col,
-                owner: EMPTY
+        if (CardBoardExpansionApplyModule && typeof CardBoardExpansionApplyModule.applyBoardExpansionGod === 'function') {
+            return CardBoardExpansionApplyModule.applyBoardExpansionGod(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getBoardExpansionGodTargets,
+                getBoardExpansionGodRequiredSelectionCount,
+                getBoardExpansionGodPendingSelectionsForCard,
+                ensureMutableBoardExpansionForCard,
+                getExpansionDescriptorsForCard,
+                getBoardExpansionGodAdditionsForCard,
+                resolveExpansionSideForCard,
+                normalizeExpansionOwnerForCard,
+                syncLegacyExpansionFieldsForCard,
+                clearCardPendingEffect
             });
         }
-
-        boardExpansion.cells = cells.map((cell) => ({
-            side: resolveExpansionSideForCard(cell.side, cell.row, cell.col),
-            row: cell.row,
-            col: cell.col,
-            owner: normalizeExpansionOwnerForCard(cell.owner)
-        }));
-        syncLegacyExpansionFieldsForCard(boardExpansion);
-
-        boardExpansion.usedByPlayer[playerKey] = true;
-
-        clearCardPendingEffect(cardState, playerKey);
-        return {
-            applied: true,
-            completed: true,
-            source: { row, col },
-            sources: nextSelections.map((target) => ({ row: target.row, col: target.col })),
-            selectedTargets: nextSelections.map((target) => ({ row: target.row, col: target.col })),
-            added: additions.map((cell) => ({ row: cell.row, col: cell.col }))
-        };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function applyBoardShrinkWill(cardState, gameState, playerKey, row, col) {
@@ -3884,25 +3631,18 @@
     }
 
     function applyBlockadeWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'BLOCKADE_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
+        if (CardStatusCellsModule && typeof CardStatusCellsModule.applyBlockadeWill === 'function') {
+            return CardStatusCellsModule.applyBlockadeWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getBlockadeTargets,
+                removeMarkersAt,
+                addMarker,
+                clearCardPendingEffect,
+                MARKER_KINDS,
+                BLOCKADE_TURNS
+            });
         }
-        const targets = getBlockadeTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        removeMarkersAt(cardState, row, col, {
-            kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
-            type: 'BLOCKADE'
-        });
-        addMarker(cardState, 'specialStone', row, col, playerKey, {
-            type: 'BLOCKADE',
-            remainingOwnerTurns: BLOCKADE_TURNS
-        });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, row, col };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function applyMeteorWill(cardState, gameState, playerKey, row, col, prng) {
@@ -3974,47 +3714,33 @@
     }
 
     function applyFreezeWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'FREEZE_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
+        if (CardStatusCellsModule && typeof CardStatusCellsModule.applyFreezeWill === 'function') {
+            return CardStatusCellsModule.applyFreezeWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getFreezeTargets,
+                removeMarkersAt,
+                addMarker,
+                clearCardPendingEffect,
+                MARKER_KINDS,
+                FREEZE_TURNS
+            });
         }
-        const targets = getFreezeTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        removeMarkersAt(cardState, row, col, {
-            kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
-            type: 'FREEZE'
-        });
-        addMarker(cardState, 'specialStone', row, col, playerKey, {
-            type: 'FREEZE',
-            remainingOwnerTurns: FREEZE_TURNS
-        });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, row, col };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function applySeedWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'SEED_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
+        if (CardStatusCellsModule && typeof CardStatusCellsModule.applySeedWill === 'function') {
+            return CardStatusCellsModule.applySeedWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getSeedTargets,
+                removeMarkersAt,
+                addMarker,
+                clearCardPendingEffect,
+                MARKER_KINDS,
+                SEED_WILL_TURNS
+            });
         }
-        const targets = getSeedTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        removeMarkersAt(cardState, row, col, {
-            kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
-            type: 'SEED'
-        });
-        addMarker(cardState, 'specialStone', row, col, playerKey, {
-            type: 'SEED',
-            remainingOwnerTurns: SEED_WILL_TURNS
-        });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, row, col };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function getLossWillRemovableCount(cardState) {
@@ -5057,33 +4783,15 @@
      * @returns {{applied:boolean, reason?:string, selectedCardId?:string, vanished?:string[]}}
      */
     function applyHeavenBlessingChoice(cardState, playerKey, selectedCardId) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'HEAVEN_BLESSING' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'pending_not_found' };
+        if (CardHandEffectsModule && typeof CardHandEffectsModule.applyHeavenBlessingChoice === 'function') {
+            return CardHandEffectsModule.applyHeavenBlessingChoice(cardState, playerKey, selectedCardId, {
+                readCardPendingEffect,
+                clearCardPendingEffect,
+                addCardToHand,
+                MAX_HAND_SIZE
+            });
         }
-
-        const offers = Array.isArray(pending.offers) ? pending.offers.slice() : [];
-        if (!offers.length) {
-            clearCardPendingEffect(cardState, playerKey);
-            return { applied: false, reason: 'offers_not_found' };
-        }
-        if (!selectedCardId || !offers.includes(selectedCardId)) {
-            return { applied: false, reason: 'invalid_target' };
-        }
-        if (!cardState.hands || !Array.isArray(cardState.hands[playerKey])) {
-            return { applied: false, reason: 'invalid_hand' };
-        }
-        if (cardState.hands[playerKey].length >= MAX_HAND_SIZE) {
-            return { applied: false, reason: 'hand_full' };
-        }
-
-        const added = addCardToHand(cardState, playerKey, selectedCardId);
-        if (!added) {
-            return { applied: false, reason: 'hand_full' };
-        }
-        const vanished = offers.filter(id => id !== selectedCardId);
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, selectedCardId, vanished };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     /**
@@ -5094,28 +4802,14 @@
      * @returns {{applied:boolean, reason?:string, opponentKey?:string, revealedCount?:number}}
      */
     function applyRevealHandWill(cardState, playerKey) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'REVEAL_HAND_WILL' || pending.stage !== null) {
-            return { applied: false, reason: 'pending_not_found' };
+        if (CardHandEffectsModule && typeof CardHandEffectsModule.applyRevealHandWill === 'function') {
+            return CardHandEffectsModule.applyRevealHandWill(cardState, playerKey, {
+                readCardPendingEffect,
+                clearCardPendingEffect,
+                revealCurrentHandToViewer
+            });
         }
-
-        const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey])) ? cardState.hands[opponentKey] : null;
-        if (!opponentHand) {
-            return { applied: false, reason: 'invalid_hand' };
-        }
-        if (opponentHand.length <= 0) {
-            clearCardPendingEffect(cardState, playerKey);
-            return { applied: false, reason: 'opponent_hand_empty', opponentKey, revealedCount: 0 };
-        }
-
-        const revealedCopyIds = revealCurrentHandToViewer(cardState, playerKey, opponentKey);
-        clearCardPendingEffect(cardState, playerKey);
-        return {
-            applied: true,
-            opponentKey,
-            revealedCount: revealedCopyIds.length
-        };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     /**
@@ -5127,53 +4821,15 @@
      * @returns {{applied:boolean, reason?:string, destroyedCardId?:string}}
      */
     function applyCondemnWill(cardState, playerKey, targetIndex) {
-        const parseHiddenHandToken = (value) => {
-            if (typeof value !== 'string') return null;
-            const m = /^__hidden_hand__:(black|white):(\d+)$/.exec(value);
-            if (!m) return null;
-            return { owner: m[1], handIndex: Number(m[2]) };
-        };
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'CONDEMN_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'pending_not_found' };
+        if (CardHandEffectsModule && typeof CardHandEffectsModule.applyCondemnWill === 'function') {
+            return CardHandEffectsModule.applyCondemnWill(cardState, playerKey, targetIndex, {
+                readCardPendingEffect,
+                clearCardPendingEffect,
+                removeHandCardAt,
+                addCardToDiscard
+            });
         }
-
-        const offers = Array.isArray(pending.offers) ? pending.offers.slice() : [];
-        if (!offers.length) {
-            clearCardPendingEffect(cardState, playerKey);
-            return { applied: false, reason: 'offers_not_found' };
-        }
-
-        if (!Number.isInteger(targetIndex)) {
-            return { applied: false, reason: 'invalid_target' };
-        }
-        const offer = offers.find(o => o && Number.isInteger(o.handIndex) && o.handIndex === targetIndex);
-        if (!offer || !offer.cardId) {
-            return { applied: false, reason: 'invalid_target' };
-        }
-
-        const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey])) ? cardState.hands[opponentKey] : null;
-        if (!opponentHand) {
-            return { applied: false, reason: 'invalid_hand' };
-        }
-        if (targetIndex < 0 || targetIndex >= opponentHand.length) {
-            return { applied: false, reason: 'invalid_target' };
-        }
-        const removed = removeHandCardAt(cardState, opponentKey, targetIndex);
-        if (!removed) {
-            return { applied: false, reason: 'invalid_target' };
-        }
-        const handCardId = removed.cardId;
-        const handToken = parseHiddenHandToken(handCardId);
-        const offerToken = parseHiddenHandToken(offer.cardId);
-        const destroyedCardId = handToken && !offerToken ? offer.cardId : handCardId;
-        addCardToDiscard(cardState, handCardId, removed.cardCopyId);
-        cardState.selectedCardId = null;
-        cardState.selectedCardOwnerKey = null;
-        clearCardPendingEffect(cardState, playerKey);
-
-        return { applied: true, destroyedCardId };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function getDirectionalChainFlips(gameState, row, col, ownerVal, dir, context) {
@@ -6011,48 +5667,16 @@
     }
 
     function applyPositionSwapWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'POSITION_SWAP_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
+        if (CardPositionSwapModule && typeof CardPositionSwapModule.applyPositionSwapWill === 'function') {
+            return CardPositionSwapModule.applyPositionSwapWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getCellValueForCard,
+                isPositionSwapProtectedCell,
+                swapOccupiedCellsWithPresentation,
+                clearCardPendingEffect
+            });
         }
-        const cellValue = getCellValueForCard(gameState, row, col);
-        if (cellValue === null) return { applied: false, reason: 'out_of_board' };
-        if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
-        if (isPositionSwapProtectedCell(cardState, row, col)) return { applied: false, reason: 'swap_protected' };
-
-        const first = pending.firstTarget ? { row: pending.firstTarget.row, col: pending.firstTarget.col } : null;
-        if (!first) {
-            pending.firstTarget = { row, col };
-            return { applied: true, completed: false, firstTarget: { row, col } };
-        }
-
-        if (first.row === row && first.col === col) {
-            return { applied: false, reason: 'same_target' };
-        }
-        const firstValue = getCellValueForCard(gameState, first.row, first.col);
-        if (firstValue === null) {
-            pending.firstTarget = { row, col };
-            return { applied: true, completed: false, firstTarget: { row, col } };
-        }
-        if (firstValue === EMPTY) {
-            pending.firstTarget = { row, col };
-            return { applied: true, completed: false, firstTarget: { row, col } };
-        }
-        if (isPositionSwapProtectedCell(cardState, first.row, first.col)) {
-            pending.firstTarget = { row, col };
-            return { applied: true, completed: false, firstTarget: { row, col } };
-        }
-
-        const swapResult = swapOccupiedCellsWithPresentation(cardState, gameState, first, { row, col }, {
-            cause: 'POSITION_SWAP_WILL',
-            reason: 'position_swap'
-        });
-        if (!swapResult || !swapResult.swapped) {
-            return { applied: false, reason: (swapResult && swapResult.reason) || 'swap_failed' };
-        }
-        clearCardPendingEffect(cardState, playerKey);
-
-        return { applied: true, completed: true, from: first, to: { row, col } };
+        return { applied: false, reason: 'deps_missing' };
     }
 
 
