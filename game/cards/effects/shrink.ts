@@ -3,22 +3,12 @@
  * @description Board Shrink effects wrapper (delegates to game/logic/cards/shrink.js)
  */
 
-import type { CardState, GameState, PlayerKey } from '../../../src/types';
-import * as ShrinkModule from '../../logic/cards/shrink';
+import ShrinkModule = require('../../logic/cards/shrink');
 
-interface ShrinkExports {
-  applyBoardShrinkWill: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    row: number,
-    col: number,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
-}
-
-const exports: ShrinkExports = {
-  applyBoardShrinkWill: ShrinkModule.applyBoardShrinkWill
+const exports: any = {
+  applyBoardShrinkWill: ShrinkModule.applyBoardShrinkWill,
+  applyBoardShrinkGod: ShrinkModule.applyBoardShrinkGod,
+  BOARD_SHRINK_SELECTION_COUNT: ShrinkModule.BOARD_SHRINK_SELECTION_COUNT
 };
 
 export = exports;

@@ -623,6 +623,7 @@
     const CardCloneModule = (function() { try { return require('./cards/clone'); } catch (e) { return null; } })();
     /** @type {any} */
     const CardMeteorModule = (function() { try { return require('./cards/meteor'); } catch (e) { return null; } })();
+    /** @type {any} */
     const CardShrinkModule = (function() { try { return require('./cards/shrink'); } catch (e) { return null; } })();
     const CardLivingWillModule = (function() { try { return require('./cards/living_will'); } catch (e) { return null; } })();
     const CardTargetsModule = (function() { try { return require('./cards/targets'); } catch (e) { return null; } })();
