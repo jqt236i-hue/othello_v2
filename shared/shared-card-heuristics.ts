@@ -1,4 +1,9 @@
-(function (root, factory) {
+/**
+ * @file shared-card-heuristics.ts
+ * @description Shared card heuristics for CPU and UI
+ */
+
+(function (root: any, factory: () => any) {
     if (typeof module === 'object' && module.exports) {
         module.exports = factory();
     } else {
@@ -7,7 +12,7 @@
 }(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function () {
     'use strict';
 
-    const DEFAULT_CORNER_RECOVERY_CARD_TYPES = new Set([
+    const DEFAULT_CORNER_RECOVERY_CARD_TYPES: Set<string> = new Set([
         'DESTROY_ONE_STONE',
         'SWAP_WITH_ENEMY',
         'POSITION_SWAP_WILL',
@@ -19,7 +24,7 @@
         'ULTIMATE_REVERSE_DRAGON'
     ]);
 
-    const DEFAULT_CORNER_HOLD_CARD_TYPES = new Set([
+    const DEFAULT_CORNER_HOLD_CARD_TYPES: Set<string> = new Set([
         'PROTECTED_NEXT_STONE',
         'PERMA_PROTECT_NEXT_STONE',
         'GUARD_WILL',
@@ -28,7 +33,7 @@
         'BLOCKADE_WILL'
     ]);
 
-    const DEFAULT_CHARGE_RAMP_CARD_TYPES = new Set([
+    const DEFAULT_CHARGE_RAMP_CARD_TYPES: Set<string> = new Set([
         'TREASURE_BOX',
         'GOLD_STONE',
         'RAINBOW_STONE',
@@ -38,14 +43,14 @@
         'WORK_WILL'
     ]);
 
-    function normalizeType(cardType) {
+    function normalizeType(cardType: unknown): string {
         return String(cardType || '').trim();
     }
 
-    function createExtendedTypeSet(baseTypes, extraTypes) {
-        const out = new Set();
+    function createExtendedTypeSet(baseTypes: Iterable<unknown> | null | undefined, extraTypes: Iterable<unknown> | null | undefined): Set<string> {
+        const out = new Set<string>();
 
-        const addTypes = (values) => {
+        const addTypes = (values: Iterable<unknown> | null | undefined) => {
             if (!values) return;
             for (const value of values) {
                 const normalized = normalizeType(value);
@@ -58,17 +63,17 @@
         return out;
     }
 
-    function isRecoveryCardType(cardType) {
+    function isRecoveryCardType(cardType: unknown): boolean {
         const type = normalizeType(cardType);
         return !!type && DEFAULT_CORNER_RECOVERY_CARD_TYPES.has(type);
     }
 
-    function isHoldCardType(cardType) {
+    function isHoldCardType(cardType: unknown): boolean {
         const type = normalizeType(cardType);
         return !!type && DEFAULT_CORNER_HOLD_CARD_TYPES.has(type);
     }
 
-    function isChargeRampCardType(cardType) {
+    function isChargeRampCardType(cardType: unknown): boolean {
         const type = normalizeType(cardType);
         return !!type && DEFAULT_CHARGE_RAMP_CARD_TYPES.has(type);
     }

@@ -1,4 +1,9 @@
-(function (root, factory) {
+/**
+ * @file state-hash.ts
+ * @description State hash computation utility
+ */
+
+(function (root: any, factory: () => any) {
     if (typeof module === 'object' && module.exports) {
         module.exports = factory();
     } else {
@@ -7,7 +12,7 @@
 }(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
-    function stableStringify(value) {
+    function stableStringify(value: unknown): string {
         if (value === null) return 'null';
         if (typeof value === 'number') {
             return Number.isFinite(value) ? String(value) : 'null';
@@ -18,26 +23,27 @@
             return 'null';
         }
         if (Array.isArray(value)) {
-            return '[' + value.map(function (entry) {
+            return '[' + value.map(function (entry: unknown) {
                 return stableStringify(entry);
             }).join(',') + ']';
         }
         if (typeof value === 'object') {
-            var keys = Object.keys(value).sort();
-            var segments = [];
+            var keys = Object.keys(value as Record<string, unknown>).sort();
+            var segments: string[] = [];
             for (var index = 0; index < keys.length; index += 1) {
                 var key = keys[index];
-                if (typeof value[key] === 'undefined' || typeof value[key] === 'function' || typeof value[key] === 'symbol') {
+                var val = (value as Record<string, unknown>)[key];
+                if (typeof val === 'undefined' || typeof val === 'function' || typeof val === 'symbol') {
                     continue;
                 }
-                segments.push(JSON.stringify(key) + ':' + stableStringify(value[key]));
+                segments.push(JSON.stringify(key) + ':' + stableStringify(val));
             }
             return '{' + segments.join(',') + '}';
         }
         return JSON.stringify(String(value));
     }
 
-    function computeStableHash(value) {
+    function computeStableHash(value: unknown): string {
         var text = stableStringify(value);
         var hash = 2166136261;
         for (var index = 0; index < text.length; index += 1) {
