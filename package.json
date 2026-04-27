@@ -4,6 +4,9 @@
   "description": "Card Othello Game",
   "main": "index.html",
   "scripts": {
+    "typecheck": "tsc --noEmit",
+    "typecheck:watch": "tsc --noEmit --watch",
+    "build:ts": "tsc",
     "serve": "node scripts/serve-with-fallback.js",
     "match:server": "node scripts/local-match-server.js",
     "match:server:net": "node scripts/local-match-server.js --host 0.0.0.0 --port 8787",
@@ -65,6 +68,11 @@
   },
   "jest": {
     "testEnvironment": "node",
+    "preset": "ts-jest",
+    "transform": {
+      "^.+\\.(ts|tsx)$": "ts-jest",
+      "^.+\\.(js|jsx)$": "babel-jest"
+    },
     "setupFiles": [
       "<rootDir>/tests/jest.setup.js"
     ],
@@ -72,19 +80,31 @@
       "<rootDir>/tests/jest.afterenv.js"
     ],
     "collectCoverageFrom": [
-      "game/**/*.js",
+      "game/**/*.(js|ts)",
       "!**/vendor/**"
     ],
     "testPathIgnorePatterns": [
       "<rootDir>/01-CARD-OTHELLO/"
+    ],
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json",
+      "node"
     ]
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.6.0",
     "http-server": "^14.1.1",
     "jest": "^29.6.1",
     "jsdom": "^22.1.0",
     "pixelmatch": "^7.1.0",
     "playwright": "^1.57.0",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "ts-jest": "^29.4.9",
+    "typescript": "^6.0.3"
   }
 }
