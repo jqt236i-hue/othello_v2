@@ -627,19 +627,23 @@
     const CardMeteorModule = (function() { try { return require('./cards/meteor'); } catch (e) { return null; } })();
     /** @type {any} */
     const CardShrinkModule = (function() { try { return require('./cards/shrink'); } catch (e) { return null; } })();
+    /** @type {any} */
     const CardLivingWillModule = (function() { try { return require('./cards/living_will'); } catch (e) { return null; } })();
     const CardTargetsModule = (function() { try { return require('./cards/targets'); } catch (e) { return null; } })();
     const CardFlipsModule = (function() { try { return require('./cards/flips'); } catch (e) { return null; } })();
     const CardChainModule = (function() { try { return require('./cards/chain'); } catch (e) { return null; } })();
     const CardRegenModule = (function() { try { return require('./cards/regen'); } catch (e) { return null; } })();
     const CardTimeBombModule = (function() { try { return require('./cards/time_bomb'); } catch (e) { return null; } })();
+    /** @type {any} */
     const CardBreedingModule = (function() { try { return require('./cards/breeding'); } catch (e) { return null; } })();
     const CardHyperactiveModule = (function() { try { return require('./cards/hyperactive'); } catch (e) { return null; } })();
     const CardUdgModule = (function() { try { return require('./cards/udg'); } catch (e) { return null; } })();
+    /** @type {any} */
     const CardSniperModule = (function() { try { return require('./cards/sniper'); } catch (e) { return null; } })();
     const CardLightningModule = (function() { try { return require('./cards/lightning'); } catch (e) { return null; } })();
     /** @type {any} */
     const CardWillHunterKingModule = (function() { try { return require('./cards/will_hunter_king'); } catch (e) { return null; } })();
+    /** @type {any} */
     const CardDestroyDragonModule = (function() { try { return require('./cards/destroy_dragon'); } catch (e) { return null; } })();
     const DragonEffectsModule = (function() { try { return require('./effects/dragon'); } catch (e) { return null; } })();
     const DestroyOneStoneModule = (function() { try { return require('./effects/destroy_one_stone'); } catch (e) { return null; } })();
@@ -1290,6 +1294,7 @@
         return summary;
     }
 
+    /** @type {any} */
     const CardSelectorsModule = (function() { try { return require('./cards/selectors'); } catch (e) { return null; } })();
     const CardUsagePrechecksModule = (function() { try { return require('./cards-internal/card-usage-prechecks'); } catch (e) { return null; } })();
     const CardSelectorOrchestratorModule = (function() { try { return require('./cards-internal/selector-orchestrator'); } catch (e) { return null; } })();

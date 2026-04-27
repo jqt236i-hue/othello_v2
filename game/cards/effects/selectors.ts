@@ -3,6 +3,6 @@
  * @description Selector orchestrator wrapper (delegates to game/logic/cards/selectors.js)
  */
 
-import * as SelectorsModule from '../../logic/cards/selectors';
+import SelectorsModule = require('../../logic/cards/selectors');
 
 export = SelectorsModule;
