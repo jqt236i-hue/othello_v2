@@ -5,7 +5,7 @@
 
 'use strict';
 
-const { GumbelMCTS } = require('../game/ai/gumbel-mcts');
+const { GumbelMCTS } = require('../gumbel-mcts');
 
 describe('GumbelMCTS', () => {
     const mockGameInterface = {

@@ -5,7 +5,7 @@
 
 'use strict';
 
-const { EndgameSolver } = require('../game/ai/endgame-solver');
+const { EndgameSolver } = require('../endgame-solver');
 
 describe('EndgameSolver', () => {
     const mockGameInterface = {
@@ -27,6 +27,7 @@ describe('EndgameSolver', () => {
         }),
         nextPlayer: (playerKey) => playerKey === 'black' ? 'white' : 'black',
         getDiscCounts: (state) => ({ black: state.score || 0, white: 0 }),
+        countFlips: () => 1,
     };
 
     test('can be instantiated', () => {
