@@ -1,9 +1,9 @@
 /**
- * @file protect.js
+ * @file protect.ts
  * @description Protection effects: Strong Will, Absolute Protect, Guard Will
  */
 
-'use strict';
+import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
 const SharedConstants = require('../../../shared-constants');
 const { BLACK, WHITE } = SharedConstants || {};
@@ -12,14 +12,14 @@ const DEFAULT_STRONG_WILL_PROMOTION_OWNER_TURNS = 10;
 const DEFAULT_GUARD_WILL_TURNS = 3;
 const DEFAULT_GUARDIAN_GOD_TURNS = 10;
 
-function applyStrongWill(cardState, playerKey, row, col, deps) {
+function applyStrongWill(cardState: CardState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const getSpecialMarkers = deps && deps.getSpecialMarkers;
     const addMarker = deps && deps.addMarker;
     if (typeof getSpecialMarkers !== 'function' || typeof addMarker !== 'function') {
         return { applied: false, reason: 'deps_missing' };
     }
 
-    const existingMarker = getSpecialMarkers(cardState).find((marker) => (
+    const existingMarker = getSpecialMarkers(cardState).find((marker: any) => (
         marker &&
         marker.row === row &&
         marker.col === col &&
@@ -30,7 +30,7 @@ function applyStrongWill(cardState, playerKey, row, col, deps) {
         return { applied: true, alreadyAbsolute: true };
     }
 
-    const markerData = existingMarker && existingMarker.data ? { ...existingMarker.data } : {};
+    const markerData: any = existingMarker && existingMarker.data ? { ...existingMarker.data } : {};
     markerData.type = 'PERMA_PROTECTED';
     markerData.strongWillPromotionOwnerTurnStarts = Number.isFinite(Number(markerData.strongWillPromotionOwnerTurnStarts))
         ? Math.max(0, Math.trunc(Number(markerData.strongWillPromotionOwnerTurnStarts)))
@@ -47,14 +47,14 @@ function applyStrongWill(cardState, playerKey, row, col, deps) {
     return { applied: true };
 }
 
-function applyAbsoluteProtect(cardState, playerKey, row, col, deps) {
+function applyAbsoluteProtect(cardState: CardState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const getSpecialMarkers = deps && deps.getSpecialMarkers;
     const addMarker = deps && deps.addMarker;
     if (typeof getSpecialMarkers !== 'function' || typeof addMarker !== 'function') {
         return { applied: false, reason: 'deps_missing' };
     }
 
-    const existingMarker = getSpecialMarkers(cardState).find((marker) => (
+    const existingMarker = getSpecialMarkers(cardState).find((marker: any) => (
         marker &&
         marker.row === row &&
         marker.col === col &&
@@ -62,7 +62,7 @@ function applyAbsoluteProtect(cardState, playerKey, row, col, deps) {
         (marker.data.type === 'ABSOLUTE_PROTECTED' || marker.data.type === 'PERMA_PROTECTED')
     ));
     if (existingMarker) {
-        const markerData = existingMarker.data ? { ...existingMarker.data } : {};
+        const markerData: any = existingMarker.data ? { ...existingMarker.data } : {};
         markerData.type = 'ABSOLUTE_PROTECTED';
         delete markerData.strongWillPromotionOwnerTurnStarts;
         delete markerData.strongWillPromotionThreshold;
@@ -76,7 +76,7 @@ function applyAbsoluteProtect(cardState, playerKey, row, col, deps) {
     return { applied: true };
 }
 
-function applyGuardWill(cardState, gameState, playerKey, row, col, deps) {
+function applyGuardWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const getGuardTargets = deps && deps.getGuardTargets;
     const removeMarkersAt = deps && deps.removeMarkersAt;
@@ -99,7 +99,7 @@ function applyGuardWill(cardState, gameState, playerKey, row, col, deps) {
         return { applied: false, reason: 'not_pending' };
     }
     const targets = getGuardTargets(cardState, gameState, playerKey);
-    const allowed = targets.some(t => t.row === row && t.col === col);
+    const allowed = targets.some((t: any) => t.row === row && t.col === col);
     if (!allowed) return { applied: false, reason: 'invalid_target' };
 
     const remainingOwnerTurns = pending.type === 'GUARDIAN_GOD'
@@ -119,7 +119,7 @@ function applyGuardWill(cardState, gameState, playerKey, row, col, deps) {
     return { applied: true, row, col };
 }
 
-module.exports = {
+export = {
     applyStrongWill,
     applyAbsoluteProtect,
     applyGuardWill

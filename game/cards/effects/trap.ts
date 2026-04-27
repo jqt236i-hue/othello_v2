@@ -1,16 +1,16 @@
 /**
- * @file trap.js
+ * @file trap.ts
  * @description Trap Will effects
  */
 
-'use strict';
+import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
 const SharedConstants = require('../../../shared-constants');
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 
 const DEFAULT_TRAP_WILL_STEAL_MAX = 20;
 
-function applyTrapWill(cardState, gameState, playerKey, row, col, deps) {
+function applyTrapWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const getTrapTargets = deps && deps.getTrapTargets;
     const isAbsoluteProtectedCell = deps && deps.isAbsoluteProtectedCell;
@@ -34,7 +34,7 @@ function applyTrapWill(cardState, gameState, playerKey, row, col, deps) {
         return { applied: false, reason: 'not_pending' };
     }
     const targets = getTrapTargets(cardState, gameState, playerKey);
-    const allowed = targets.some(t => t.row === row && t.col === col);
+    const allowed = targets.some((t: any) => t.row === row && t.col === col);
     if (!allowed) return { applied: false, reason: 'invalid_target' };
     if (typeof isAbsoluteProtectedCell === 'function' && isAbsoluteProtectedCell(cardState, row, col)) {
         return { applied: false, reason: 'absolute_protected' };
@@ -53,10 +53,10 @@ function applyTrapWill(cardState, gameState, playerKey, row, col, deps) {
     return { applied: true, row, col };
 }
 
-function processTrapEffects(cardState, gameState, activePlayerKey, options, deps) {
+function processTrapEffects(cardState: CardState, gameState: GameState, activePlayerKey: PlayerKey, options: any, deps: any): Record<string, any> {
     const opts = options || {};
     const expireOnOwnerTurnStart = !!opts.expireOnOwnerTurnStart;
-    const res = { triggered: [], expired: [], disarmed: [] };
+    const res: Record<string, any> = { triggered: [], expired: [], disarmed: [] };
     if (!cardState || !gameState || !gameState.board) return res;
 
     const getSpecialMarkers = deps && deps.getSpecialMarkers;
@@ -78,7 +78,7 @@ function processTrapEffects(cardState, gameState, activePlayerKey, options, deps
         return res;
     }
 
-    const specials = getSpecialMarkers(cardState).filter(m => m && m.data && m.data.type === 'TRAP');
+    const specials = getSpecialMarkers(cardState).filter((m: any) => m && m.data && m.data.type === 'TRAP');
     if (!specials.length) return res;
 
     for (const trap of specials) {
@@ -121,7 +121,7 @@ function processTrapEffects(cardState, gameState, activePlayerKey, options, deps
 
         if (activePlayerKey === opponentKey && cellVal === activeVal) {
             const victimKey = opponentKey;
-            const victimCharge = Math.max(0, Number(cardState.charge[victimKey] || 0));
+            const victimCharge = Math.max(0, Number(cardState.charges[victimKey] || 0));
             const stolenCharge = Math.min(TRAP_WILL_STEAL_MAX, victimCharge);
             const remainingCharge = Math.max(0, victimCharge - stolenCharge);
             if (typeof setChargeValue === 'function') {
@@ -167,7 +167,7 @@ function processTrapEffects(cardState, gameState, activePlayerKey, options, deps
     return res;
 }
 
-module.exports = {
+export = {
     applyTrapWill,
     processTrapEffects
 };

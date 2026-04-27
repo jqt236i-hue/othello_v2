@@ -1,4 +1,6 @@
-(function (root, factory) {
+import type { CardState, GameState, PlayerKey } from '../../../src/types';
+
+(function (root: any, factory: any) {
     if (typeof module === 'object' && module.exports) {
         module.exports = factory();
     } else {
@@ -7,7 +9,7 @@
 }(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function () {
     'use strict';
 
-function applyStatusCellWill(cardState, gameState, playerKey, row, col, config, deps) {
+function applyStatusCellWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, config: any, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const removeMarkersAt = deps && deps.removeMarkersAt;
     const addMarker = deps && deps.addMarker;
@@ -30,7 +32,7 @@ function applyStatusCellWill(cardState, gameState, playerKey, row, col, config, 
         return { applied: false, reason: 'not_pending' };
     }
     const targets = getTargets(cardState, gameState, playerKey);
-    const allowed = targets.some(t => t.row === row && t.col === col);
+    const allowed = targets.some((t: any) => t.row === row && t.col === col);
     if (!allowed) return { applied: false, reason: 'invalid_target' };
 
     removeMarkersAt(cardState, row, col, {
@@ -46,7 +48,7 @@ function applyStatusCellWill(cardState, gameState, playerKey, row, col, config, 
     return { applied: true, row, col };
 }
 
-function applyBlockadeWill(cardState, gameState, playerKey, row, col, deps) {
+function applyBlockadeWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     return applyStatusCellWill(cardState, gameState, playerKey, row, col, {
         pendingType: 'BLOCKADE_WILL',
         markerType: 'BLOCKADE',
@@ -55,7 +57,7 @@ function applyBlockadeWill(cardState, gameState, playerKey, row, col, deps) {
     }, deps);
 }
 
-function applyFreezeWill(cardState, gameState, playerKey, row, col, deps) {
+function applyFreezeWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     return applyStatusCellWill(cardState, gameState, playerKey, row, col, {
         pendingType: 'FREEZE_WILL',
         markerType: 'FREEZE',
@@ -64,7 +66,7 @@ function applyFreezeWill(cardState, gameState, playerKey, row, col, deps) {
     }, deps);
 }
 
-function applySeedWill(cardState, gameState, playerKey, row, col, deps) {
+function applySeedWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     return applyStatusCellWill(cardState, gameState, playerKey, row, col, {
         pendingType: 'SEED_WILL',
         markerType: 'SEED',

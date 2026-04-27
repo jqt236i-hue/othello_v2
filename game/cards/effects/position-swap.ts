@@ -1,15 +1,17 @@
-(function (root, factory) {
+import type { CardState, GameState, PlayerKey } from '../../../src/types';
+
+(function (root: any, factory: any) {
     if (typeof module === 'object' && module.exports) {
         module.exports = factory(require('../../../shared-constants'));
     } else {
         root.CardPositionSwapEffects = factory(root.SharedConstants);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (SharedConstants) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (SharedConstants: any) {
     'use strict';
 
     const { EMPTY } = SharedConstants || {};
 
-function applyPositionSwapWill(cardState, gameState, playerKey, row, col, deps) {
+function applyPositionSwapWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const getCellValueForCard = deps && deps.getCellValueForCard;
     const isPositionSwapProtectedCell = deps && deps.isPositionSwapProtectedCell;

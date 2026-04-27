@@ -1,15 +1,17 @@
-(function (root, factory) {
+import type { CardState, GameState, PlayerKey } from '../../../src/types';
+
+(function (root: any, factory: any) {
     if (typeof module === 'object' && module.exports) {
         module.exports = factory(require('../../../shared-constants'));
     } else {
         root.CardOwnershipEffects = factory(root.SharedConstants);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (SharedConstants) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (SharedConstants: any) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 
-function transferCellMarkerOwnership(cardState, row, col, playerKey, deps) {
+function transferCellMarkerOwnership(cardState: CardState, row: number, col: number, playerKey: PlayerKey, deps: any): Record<string, any> {
     const getMarkers = deps && deps.getMarkers;
     if (typeof getMarkers !== 'function') {
         return { transferred: false, hadWork: false, reason: 'deps_missing' };
@@ -17,7 +19,7 @@ function transferCellMarkerOwnership(cardState, row, col, playerKey, deps) {
 
     const normalizedPlayerKey = playerKey === 'white' ? 'white' : 'black';
     const playerValue = normalizedPlayerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-    const markersAtCell = getMarkers(cardState).filter((marker) => (
+    const markersAtCell = getMarkers(cardState).filter((marker: any) => (
         marker &&
         marker.row === row &&
         marker.col === col
@@ -46,7 +48,7 @@ function transferCellMarkerOwnership(cardState, row, col, playerKey, deps) {
     return { transferred, hadWork };
 }
 
-function applyTemptWill(cardState, gameState, playerKey, row, col, deps) {
+function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const isSpecialStoneAt = deps && deps.isSpecialStoneAt;
     const getSpecialOwnerAt = deps && deps.getSpecialOwnerAt;
@@ -82,7 +84,7 @@ function applyTemptWill(cardState, gameState, playerKey, row, col, deps) {
     if (!isSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
     if (getSpecialOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
     if (getCellValueForCard(gameState, row, col) === EMPTY) return { applied: false, reason: 'empty' };
-    const guarded = getSpecialMarkers(cardState).some(m => (
+    const guarded = getSpecialMarkers(cardState).some((m: any) => (
         m &&
         m.row === row &&
         m.col === col &&
@@ -107,8 +109,9 @@ function applyTemptWill(cardState, gameState, playerKey, row, col, deps) {
     const wasWork = !!(transferResult && transferResult.hadWork);
 
     if (wasWork) {
-        if (cardState.workAnchorPosByPlayer && cardState.workAnchorPosByPlayer[opponentKey]) {
-            cardState.workAnchorPosByPlayer[opponentKey] = null;
+        const cardStateAny = cardState as any;
+        if (cardStateAny.workAnchorPosByPlayer && cardStateAny.workAnchorPosByPlayer[opponentKey]) {
+            cardStateAny.workAnchorPosByPlayer[opponentKey] = null;
         }
         removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'WORK' });
         emitPresentationEvent(cardState, {
@@ -128,7 +131,7 @@ function applyTemptWill(cardState, gameState, playerKey, row, col, deps) {
     return { applied: true };
 }
 
-function applyCaptureWill(cardState, gameState, playerKey, row, col, deps) {
+function applyCaptureWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const isSpecialStoneAt = deps && deps.isSpecialStoneAt;
     const getSpecialOwnerAt = deps && deps.getSpecialOwnerAt;
@@ -175,7 +178,7 @@ function applyCaptureWill(cardState, gameState, playerKey, row, col, deps) {
     if (!isSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
     if (getSpecialOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
     if (getCellValueForCard(gameState, row, col) === EMPTY) return { applied: false, reason: 'empty' };
-    const guarded = getSpecialMarkers(cardState).some(m => (
+    const guarded = getSpecialMarkers(cardState).some((m: any) => (
         m &&
         m.row === row &&
         m.col === col &&
@@ -234,8 +237,11 @@ function applyCaptureWill(cardState, gameState, playerKey, row, col, deps) {
         });
     }
 
-    if (wasWork && cardState.workAnchorPosByPlayer && cardState.workAnchorPosByPlayer[opponentKey]) {
-        cardState.workAnchorPosByPlayer[opponentKey] = null;
+    if (wasWork) {
+        const cardStateAny = cardState as any;
+        if (cardStateAny.workAnchorPosByPlayer && cardStateAny.workAnchorPosByPlayer[opponentKey]) {
+            cardStateAny.workAnchorPosByPlayer[opponentKey] = null;
+        }
         emitPresentationEvent(cardState, {
             type: 'WORK_REMOVED',
             row,

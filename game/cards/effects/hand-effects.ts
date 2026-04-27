@@ -1,13 +1,11 @@
-(function (root, factory) {
-    if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
-    } else {
-        root.CardHandEffects = factory();
-    }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function () {
-    'use strict';
+/**
+ * @file hand-effects.ts
+ * @description Hand effects: Heaven Blessing, Reveal Hand, Condemn
+ */
 
-function applyHeavenBlessingChoice(cardState, playerKey, selectedCardId, deps) {
+import type { CardState, PlayerKey } from '../../../src/types';
+
+function applyHeavenBlessingChoice(cardState: CardState, playerKey: PlayerKey, selectedCardId: string, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
     const addCardToHand = deps && deps.addCardToHand;
@@ -45,12 +43,12 @@ function applyHeavenBlessingChoice(cardState, playerKey, selectedCardId, deps) {
     if (!added) {
         return { applied: false, reason: 'hand_full' };
     }
-    const vanished = offers.filter(id => id !== selectedCardId);
+    const vanished = offers.filter((id: string) => id !== selectedCardId);
     clearCardPendingEffect(cardState, playerKey);
     return { applied: true, selectedCardId, vanished };
 }
 
-function applyRevealHandWill(cardState, playerKey, deps) {
+function applyRevealHandWill(cardState: CardState, playerKey: PlayerKey, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
     const revealCurrentHandToViewer = deps && deps.revealCurrentHandToViewer;
@@ -87,14 +85,14 @@ function applyRevealHandWill(cardState, playerKey, deps) {
     };
 }
 
-function parseHiddenHandToken(value) {
+function parseHiddenHandToken(value: any): { owner: PlayerKey; handIndex: number } | null {
     if (typeof value !== 'string') return null;
     const m = /^__hidden_hand__:(black|white):(\d+)$/.exec(value);
     if (!m) return null;
-    return { owner: m[1], handIndex: Number(m[2]) };
+    return { owner: m[1] as PlayerKey, handIndex: Number(m[2]) };
 }
 
-function applyCondemnWill(cardState, playerKey, targetIndex, deps) {
+function applyCondemnWill(cardState: CardState, playerKey: PlayerKey, targetIndex: number, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
     const removeHandCardAt = deps && deps.removeHandCardAt;
@@ -123,7 +121,7 @@ function applyCondemnWill(cardState, playerKey, targetIndex, deps) {
     if (!Number.isInteger(targetIndex)) {
         return { applied: false, reason: 'invalid_target' };
     }
-    const offer = offers.find(o => o && Number.isInteger(o.handIndex) && o.handIndex === targetIndex);
+    const offer = offers.find((o: any) => o && Number.isInteger(o.handIndex) && o.handIndex === targetIndex);
     if (!offer || !offer.cardId) {
         return { applied: false, reason: 'invalid_target' };
     }
@@ -152,9 +150,9 @@ function applyCondemnWill(cardState, playerKey, targetIndex, deps) {
     return { applied: true, destroyedCardId };
 }
 
-    return {
-        applyHeavenBlessingChoice,
-        applyRevealHandWill,
-        applyCondemnWill
-    };
-}));
+export = {
+    applyHeavenBlessingChoice,
+    applyRevealHandWill,
+    parseHiddenHandToken,
+    applyCondemnWill
+};
