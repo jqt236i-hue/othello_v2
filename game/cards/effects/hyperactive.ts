@@ -7,7 +7,7 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import HyperactiveModule = require('../../logic/cards/hyperactive');
 
 
-const exports = {
+const exports: any = {
   applyHyperactiveInheritWill: HyperactiveModule.applyHyperactiveInheritWill
 };
 
