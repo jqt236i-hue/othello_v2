@@ -1,33 +1,41 @@
 /**
- * @file othello-core.js
+ * @file othello-core.ts
  * @description Core Othello game logic functions (shared across browser and headless)
  */
 
+import { Board, BoardValue, PlayerValue, CellPosition, Direction } from '../src/types';
+
 const SharedConstants = require('../shared-constants');
 
-const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
-  ? Number(SharedConstants.EMPTY)
+const EMPTY: BoardValue = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
+  ? Number(SharedConstants.EMPTY) as BoardValue
   : 0;
-const DIRECTIONS = (SharedConstants && SharedConstants.DIRECTIONS) || [
+const DIRECTIONS: Direction[] = (SharedConstants && SharedConstants.DIRECTIONS) || [
   [-1, -1], [-1, 0], [-1, 1],
   [0, -1],           [0, 1],
   [1, -1],  [1, 0],  [1, 1]
 ];
 
+interface FlipResult {
+  row: number;
+  col: number;
+}
+
+interface LegalMove {
+  row: number;
+  col: number;
+  flips: FlipResult[];
+}
+
 /**
  * Get flips for a basic Othello move (8 directions).
- * @param {Array} board - 2D array representing the board.
- * @param {number} row - Row index.
- * @param {number} col - Column index.
- * @param {number} playerValue - Player value (1 or -1).
- * @returns {Array} Array of flipped positions as {row, col} objects.
  */
-function getFlipsBasic(board, row, col, playerValue) {
+function getFlipsBasic(board: Board, row: number, col: number, playerValue: PlayerValue): FlipResult[] {
   if (!Array.isArray(board) || !Array.isArray(board[row])) return [];
   if (board[row][col] !== EMPTY) return [];
-  const out = [];
+  const out: FlipResult[] = [];
   for (const [dr, dc] of DIRECTIONS) {
-    const temp = [];
+    const temp: FlipResult[] = [];
     let r = row + dr;
     let c = col + dc;
     while (
@@ -53,13 +61,10 @@ function getFlipsBasic(board, row, col, playerValue) {
 
 /**
  * Get all legal moves for a player.
- * @param {Array} board - 2D array representing the board.
- * @param {number} playerValue - Player value (1 or -1).
- * @returns {Array} Array of legal moves as {row, col, flips} objects.
  */
-function getLegalMovesBasic(board, playerValue) {
+function getLegalMovesBasic(board: Board, playerValue: PlayerValue): LegalMove[] {
   if (!Array.isArray(board)) return [];
-  const moves = [];
+  const moves: LegalMove[] = [];
   for (let row = 0; row < board.length; row++) {
     for (let col = 0; col < board[row].length; col++) {
       const flips = getFlipsBasic(board, row, col, playerValue);
@@ -73,23 +78,15 @@ function getLegalMovesBasic(board, playerValue) {
 
 /**
  * Get legal moves for a player (alias for getLegalMovesBasic).
- * @param {Array} board - 2D array representing the board.
- * @param {number} playerValue - Player value (1 or -1).
- * @returns {Array} Array of legal moves.
  */
-function getLegalMovesForPlayer(board, playerValue) {
+function getLegalMovesForPlayer(board: Board, playerValue: PlayerValue): LegalMove[] {
   return getLegalMovesBasic(board, playerValue);
 }
 
 /**
  * Check if a move is valid.
- * @param {Array} board - 2D array representing the board.
- * @param {number} row - Row index.
- * @param {number} col - Column index.
- * @param {number} playerValue - Player value (1 or -1).
- * @returns {boolean} True if the move is valid.
  */
-function isValidMove(board, row, col, playerValue) {
+function isValidMove(board: Board, row: number, col: number, playerValue: PlayerValue): boolean {
   if (!Array.isArray(board) || !Array.isArray(board[row])) return false;
   if (board[row][col] !== EMPTY) return false;
   for (const [dr, dc] of DIRECTIONS) {
@@ -117,7 +114,7 @@ function isValidMove(board, row, col, playerValue) {
   return false;
 }
 
-module.exports = {
+export {
   getFlipsBasic,
   getLegalMovesBasic,
   getLegalMovesForPlayer,

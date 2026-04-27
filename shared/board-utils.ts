@@ -1,26 +1,26 @@
 /**
- * @file board-utils.js
+ * @file board-utils.ts
  * @description Board utility functions shared across modules
  */
 
+import { Board, BoardValue, PlayerValue, DiscCount } from '../src/types';
+
 const SharedConstants = require('../shared-constants');
 
-const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
-  ? Number(SharedConstants.EMPTY)
+const EMPTY: BoardValue = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
+  ? Number(SharedConstants.EMPTY) as BoardValue
   : 0;
-const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
-  ? Number(SharedConstants.BLACK)
+const BLACK: BoardValue = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
+  ? Number(SharedConstants.BLACK) as BoardValue
   : 1;
-const WHITE = Number.isFinite(Number(SharedConstants && SharedConstants.WHITE))
-  ? Number(SharedConstants.WHITE)
+const WHITE: BoardValue = Number.isFinite(Number(SharedConstants && SharedConstants.WHITE))
+  ? Number(SharedConstants.WHITE) as BoardValue
   : -1;
 
 /**
  * Count discs on the board.
- * @param {Array} board - 2D array representing the board.
- * @returns {{black: number, white: number}} Disc counts.
  */
-function countDiscs(board) {
+function countDiscs(board: Board): DiscCount {
   const rows = Array.isArray(board) ? board : [];
   let black = 0;
   let white = 0;
@@ -37,11 +37,8 @@ function countDiscs(board) {
 
 /**
  * Count discs by player value.
- * @param {Array} board - 2D array representing the board.
- * @param {number} playerValue - Player value (1 for black, -1 for white).
- * @returns {{own: number, opp: number, empties: number}} Counts for own, opponent, and empty cells.
  */
-function countDiscsByPlayer(board, playerValue) {
+function countDiscsByPlayer(board: Board, playerValue: PlayerValue): { own: number; opp: number; empties: number } {
   if (!Array.isArray(board)) return { own: 0, opp: 0, empties: 0 };
   let own = 0;
   let opp = 0;
@@ -60,10 +57,8 @@ function countDiscsByPlayer(board, playerValue) {
 
 /**
  * Get board dimensions.
- * @param {Array} board - 2D array representing the board.
- * @returns {{rows: number, cols: number}|null} Board size or null.
  */
-function getBoardSize(board) {
+function getBoardSize(board: Board): { rows: number; cols: number } | null {
   if (!Array.isArray(board) || board.length <= 0) return null;
   let cols = 0;
   for (const row of board) {
@@ -73,7 +68,7 @@ function getBoardSize(board) {
   return { rows: board.length, cols };
 }
 
-module.exports = {
+export = {
   countDiscs,
   countDiscsByPlayer,
   getBoardSize

@@ -1,11 +1,15 @@
 /**
- * @file player-encoding.js
+ * @file player-encoding.ts
  * @description Centralized player key encoding/decoding utilities.
  * Provides canonical mappings between player string keys ('black'/'white')
  * and numeric values (1/-1), with normalization for various input types.
  */
 
-(function (root, factory) {
+import { PlayerKey, PlayerValue } from '../src/types';
+
+declare const require: any;
+
+(function (root: any, factory: (sharedConstants: any) => any) {
     if (typeof module === 'object' && module.exports) {
         let SharedConstantsModule = null;
         try {
@@ -15,26 +19,22 @@
     } else {
         const globalScope = (typeof globalThis !== 'undefined') ? globalThis
             : (typeof self !== 'undefined' ? self : (typeof window !== 'undefined' ? window : {}));
-        root.PlayerEncoding = factory(globalScope.SharedConstants || null);
+        root.PlayerEncoding = factory((globalScope as any).SharedConstants || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants: any) {
     'use strict';
 
-    const BLACK = (SharedConstants && Number.isFinite(Number(SharedConstants.BLACK)))
-        ? Number(SharedConstants.BLACK)
+    const BLACK: PlayerValue = (SharedConstants && Number.isFinite(Number(SharedConstants.BLACK)))
+        ? Number(SharedConstants.BLACK) as PlayerValue
         : 1;
-    const WHITE = (SharedConstants && Number.isFinite(Number(SharedConstants.WHITE)))
-        ? Number(SharedConstants.WHITE)
+    const WHITE: PlayerValue = (SharedConstants && Number.isFinite(Number(SharedConstants.WHITE)))
+        ? Number(SharedConstants.WHITE) as PlayerValue
         : -1;
 
     /**
      * Parse a seat key value to 'black' or 'white' if possible.
-     * Handles numeric values (1, -1), string representations ('1', '-1'),
-     * and direct color names ('black', 'white').
-     * @param {*} value
-     * @returns {string|null} 'black', 'white', or null
      */
-    function parseSeatKeyOptional(value) {
+    function parseSeatKeyOptional(value: unknown): PlayerKey | null {
         if (value === 1 || value === '1') return 'black';
         if (value === -1 || value === '-1') return 'white';
 
@@ -49,12 +49,8 @@
 
     /**
      * Normalize a player key value to 'black' or 'white'.
-     * Falls back to the provided fallbackValue, defaulting to 'black'.
-     * @param {*} value - The value to normalize
-     * @param {*} fallbackValue - Fallback value if normalization fails
-     * @returns {string} 'black' or 'white'
      */
-    function normalizePlayerKey(value, fallbackValue) {
+    function normalizePlayerKey(value: unknown, fallbackValue?: unknown): PlayerKey {
         const parsed = parseSeatKeyOptional(value);
         if (parsed) return parsed;
         const fallback = parseSeatKeyOptional(fallbackValue);
@@ -63,46 +59,36 @@
 
     /**
      * Get the player string key from a numeric player value.
-     * @param {number} playerValue - BLACK (1) or WHITE (-1)
-     * @returns {string} 'black' or 'white'
      */
-    function getPlayerKey(playerValue) {
+    function getPlayerKey(playerValue: PlayerValue): PlayerKey {
         return playerValue === BLACK ? 'black' : 'white';
     }
 
     /**
      * Get the numeric owner value from a player string key.
-     * @param {string} playerKey - 'black' or 'white'
-     * @returns {number} 1 for 'black', -1 for 'white'
      */
-    function getOwner(playerKey) {
+    function getOwner(playerKey: PlayerKey): PlayerValue {
         return playerKey === 'black' ? BLACK : WHITE;
     }
 
     /**
      * Convert a player string key to a numeric player value.
-     * @param {string} playerKey - 'black' or 'white'
-     * @returns {number} 1 for 'black', -1 for 'white'
      */
-    function playerKeyToValue(playerKey) {
+    function playerKeyToValue(playerKey: PlayerKey): PlayerValue {
         return playerKey === 'black' ? BLACK : WHITE;
     }
 
     /**
      * Convert a numeric player value to a player string key.
-     * @param {number} playerValue - BLACK (1) or WHITE (-1)
-     * @returns {string} 'black' or 'white'
      */
-    function playerValueToKey(playerValue) {
+    function playerValueToKey(playerValue: PlayerValue): PlayerKey {
         return playerValue === BLACK ? 'black' : 'white';
     }
 
     /**
      * Check if a value is a valid player key.
-     * @param {*} value
-     * @returns {boolean}
      */
-    function isValidPlayerKey(value) {
+    function isValidPlayerKey(value: unknown): value is PlayerKey {
         return value === 'black' || value === 'white';
     }
 
