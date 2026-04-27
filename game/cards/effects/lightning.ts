@@ -4,30 +4,10 @@
  */
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
-import * as LightningModule from '../../logic/cards/lightning';
+import LightningModule = require('../../logic/cards/lightning');
 
-interface LightningExports {
-  processLightningWillEffects: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
-  processLightningWillEffectsAtAnchor: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
-  processLightningWillEffectsAtTurnStartAnchor: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
-}
 
-const exports: LightningExports = {
+const exports = {
   processLightningWillEffects: LightningModule.processLightningWillEffects,
   processLightningWillEffectsAtAnchor: LightningModule.processLightningWillEffectsAtAnchor,
   processLightningWillEffectsAtTurnStartAnchor: LightningModule.processLightningWillEffectsAtTurnStartAnchor

@@ -4,30 +4,10 @@
  */
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
-import * as BreedingModule from '../../logic/cards/breeding';
+import BreedingModule = require('../../logic/cards/breeding');
 
-interface BreedingExports {
-  processBreedingEffects: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
-  processBreedingEffectsAtAnchor: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
-  processBreedingEffectsAtTurnStartAnchor: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
-}
 
-const exports: BreedingExports = {
+const exports = {
   processBreedingEffects: BreedingModule.processBreedingEffects,
   processBreedingEffectsAtAnchor: BreedingModule.processBreedingEffectsAtAnchor,
   processBreedingEffectsAtTurnStartAnchor: BreedingModule.processBreedingEffectsAtTurnStartAnchor

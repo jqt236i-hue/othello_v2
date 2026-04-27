@@ -4,30 +4,10 @@
  */
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
-import * as DestroyDragonModule from '../../logic/cards/destroy_dragon';
+import DestroyDragonModule = require('../../logic/cards/destroy_dragon');
 
-interface DestroyDragonExports {
-  processDestroyDragonEffects: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
-  processDestroyDragonEffectsAtAnchor: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
-  processDestroyDragonEffectsAtTurnStartAnchor: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
-}
 
-const exports: DestroyDragonExports = {
+const exports = {
   processDestroyDragonEffects: DestroyDragonModule.processDestroyDragonEffects,
   processDestroyDragonEffectsAtAnchor: DestroyDragonModule.processDestroyDragonEffectsAtAnchor,
   processDestroyDragonEffectsAtTurnStartAnchor: DestroyDragonModule.processDestroyDragonEffectsAtTurnStartAnchor

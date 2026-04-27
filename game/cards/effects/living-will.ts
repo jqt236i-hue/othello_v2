@@ -4,26 +4,10 @@
  */
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
-import * as LivingWillModule from '../../logic/cards/living_will';
+import LivingWillModule = require('../../logic/cards/living_will');
 
-interface LivingWillExports {
-  applyLivingWill: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    row: number,
-    col: number,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
-  applyLivingWillAfterFlips: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
-}
 
-const exports: LivingWillExports = {
+const exports = {
   applyLivingWill: LivingWillModule.applyLivingWill,
   applyLivingWillAfterFlips: LivingWillModule.applyLivingWillAfterFlips
 };

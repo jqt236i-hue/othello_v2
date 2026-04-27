@@ -4,20 +4,10 @@
  */
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
-import * as HyperactiveModule from '../../logic/cards/hyperactive';
+import HyperactiveModule = require('../../logic/cards/hyperactive');
 
-interface HyperactiveExports {
-  applyHyperactiveInheritWill: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    row: number,
-    col: number,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
-}
 
-const exports: HyperactiveExports = {
+const exports = {
   applyHyperactiveInheritWill: HyperactiveModule.applyHyperactiveInheritWill
 };
 
