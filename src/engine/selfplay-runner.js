@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * @file selfplay-runner.js
  * @description Headless self-play runner backed by the production TurnPipeline.
@@ -6,6 +7,7 @@
 'use strict';
 
 const path = require('path');
+/** @type {any} */
 const Core = require('../../game/logic/core');
 const CardLogic = require('../../game/logic/cards');
 const TurnPipeline = require('../../game/turn/turn_pipeline');

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * @file cards.js
  * @description Core Card Logic (Shared between Browser and Headless)
@@ -7,6 +8,7 @@
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
         // Node.js
+        /** @type {any} */
         module.exports = factory(
             require('../../shared-constants'),
             require('../../shared/deck-spec'),

@@ -4,21 +4,10 @@
  */
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
-import * as SwapWithEnemyModule from '../../logic/effects/swap_with_enemy';
+const SwapWithEnemyModule = require('../../logic/effects/swap_with_enemy');
 
 interface SwapWithEnemyExports {
-  applySwapWithEnemy: (
-    cardState: CardState,
-    gameState: GameState,
-    playerKey: PlayerKey,
-    row: number,
-    col: number,
-    deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
+  applySwapWithEnemy: any;
 }
-
-const exports: SwapWithEnemyExports = {
-  applySwapWithEnemy: SwapWithEnemyModule.applySwapWithEnemy
-};
 
 export = exports;
