@@ -621,6 +621,7 @@
     const CardMovementModule = (function() { try { return require('./cards/movement'); } catch (e) { return null; } })();
     /** @type {any} */
     const CardTeleportModule = (function() { try { return require('./cards/teleport'); } catch (e) { return null; } })();
+    /** @type {any} */
     const CardCloneModule = (function() { try { return require('./cards/clone'); } catch (e) { return null; } })();
     /** @type {any} */
     const CardMeteorModule = (function() { try { return require('./cards/meteor'); } catch (e) { return null; } })();
