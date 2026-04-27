@@ -64,8 +64,50 @@ class WDLValueHead(nn.Module):
         return torch.sum(probs * values, dim=-1, keepdim=True)
 
 
+class HistoryBoardEncoder(nn.Module):
+    """Encode T=8 board history into a compressed feature tensor.
+
+    Stacks history_length boards as channels, then compresses via Conv2d.
+    """
+
+    def __init__(self, history_length: int = 8, board_channels: int = 5) -> None:
+        super().__init__()
+        self.history_length = history_length
+        self.board_channels = board_channels
+        # Compress history_length * board_channels down to board_channels * 2
+        self.history_conv = nn.Conv2d(
+            board_channels * history_length,
+            board_channels * 2,
+            kernel_size=3,
+            padding=1,
+            bias=False,
+        )
+        self.bn = nn.BatchNorm2d(board_channels * 2)
+
+    def forward(self, history_boards: torch.Tensor) -> torch.Tensor:
+        """Forward pass.
+
+        Parameters
+        ----------
+        history_boards: (batch, history_length, board_channels, 10, 10)
+
+        Returns
+        -------
+        (batch, board_channels * 2, 10, 10)
+        """
+        batch_size = history_boards.size(0)
+        # Flatten history into channels
+        x = history_boards.view(
+            batch_size,
+            self.history_length * self.board_channels,
+            history_boards.size(3),
+            history_boards.size(4),
+        )
+        return F.relu(self.bn(self.history_conv(x)))
+
+
 class CnnResNetPolicyV2(nn.Module):
-    """Lightweight CNN+ResNet with hand encoder and WDL value head.
+    """Lightweight CNN+ResNet with hand encoder, history encoder, and WDL value head.
 
     Parameters
     ----------
@@ -87,6 +129,9 @@ class CnnResNetPolicyV2(nn.Module):
         Set to 0 to disable the optional card-action head.
     use_wdl_head:
         When False the WDL head is omitted.
+    history_length:
+        Board history length (T). Default 1 (no history).
+        When > 1, expects 4D history input during forward.
     """
 
     def __init__(
@@ -100,6 +145,7 @@ class CnnResNetPolicyV2(nn.Module):
         policy_output_dim: int = 100,
         card_output_dim: int = 0,
         use_wdl_head: bool = True,
+        history_length: int = 1,
     ) -> None:
         super().__init__()
         self.board_size = board_size
@@ -111,10 +157,19 @@ class CnnResNetPolicyV2(nn.Module):
         self.policy_output_dim = policy_output_dim
         self.card_output_dim = card_output_dim
         self.use_wdl_head = use_wdl_head
+        self.history_length = history_length
+
+        # ----- History encoder (optional, active when history_length > 1) -----
+        if history_length > 1:
+            self.history_encoder = HistoryBoardEncoder(history_length, board_channels)
+            tower_input_channels = board_channels * 2
+        else:
+            self.history_encoder = None
+            tower_input_channels = board_channels
 
         # ----- Board tower -----
         self.conv_initial = nn.Conv2d(
-            board_channels, hidden_channels, kernel_size=3, padding=1, bias=False
+            tower_input_channels, hidden_channels, kernel_size=3, padding=1, bias=False
         )
         self.bn_initial = nn.BatchNorm2d(hidden_channels)
         self.res_blocks = nn.ModuleList(
@@ -146,18 +201,26 @@ class CnnResNetPolicyV2(nn.Module):
             self.card_fc2 = nn.Linear(64, card_output_dim)
 
     def forward(
-        self, board: torch.Tensor, aux: torch.Tensor, hand: torch.Tensor | None = None
+        self,
+        board: torch.Tensor,
+        aux: torch.Tensor,
+        hand: torch.Tensor | None = None,
+        history_boards: torch.Tensor | None = None,
     ) -> torch.Tensor | tuple[torch.Tensor, ...]:
         """Forward pass.
 
         Parameters
         ----------
         board:
-            (N, board_channels, board_size, board_size)
+            (N, board_channels, board_size, board_size) — current board.
+            If history_boards is None, this is fed directly to the board tower.
         aux:
             (N, aux_dim)
         hand:
             (N, hand_size, 11) or None.  If None, a zero hand is assumed.
+        history_boards:
+            (N, history_length, board_channels, board_size, board_size) or None.
+            When provided, board is ignored and history_boards are encoded first.
 
         Returns
         -------
@@ -167,8 +230,12 @@ class CnnResNetPolicyV2(nn.Module):
         """
         batch_size = board.size(0)
 
-        # Board tower
-        x = F.relu(self.bn_initial(self.conv_initial(board)))
+        # Board tower (with optional history)
+        if self.history_encoder is not None and history_boards is not None:
+            x = self.history_encoder(history_boards)
+        else:
+            x = board
+        x = F.relu(self.bn_initial(self.conv_initial(x)))
         for block in self.res_blocks:
             x = block(x)
         x_board = F.adaptive_avg_pool2d(x, (1, 1)).view(batch_size, self.board_flat_dim)
@@ -218,6 +285,7 @@ def build_cnn_model_v2(
     policy_output_dim: int = 100,
     card_output_dim: int = 0,
     use_wdl_head: bool = True,
+    history_length: int = 1,
 ) -> CnnResNetPolicyV2:
     """Factory helper that creates a ``CnnResNetPolicyV2``."""
     return CnnResNetPolicyV2(
@@ -230,11 +298,13 @@ def build_cnn_model_v2(
         policy_output_dim=policy_output_dim,
         card_output_dim=card_output_dim,
         use_wdl_head=use_wdl_head,
+        history_length=history_length,
     )
 
 
 if __name__ == "__main__":
-    # Quick smoke test
+    # Quick smoke test without history
+    print("=== Test without history ===")
     model = build_cnn_model_v2(card_output_dim=5, use_wdl_head=True)
     print(f"Parameters: {model.count_parameters():,}")
     board = torch.zeros(2, 5, 10, 10)
@@ -245,3 +315,14 @@ if __name__ == "__main__":
     print(f"Policy shape: {out[0].shape}")
     print(f"WDL shape:    {out[1].shape}")
     print(f"Card shape:   {out[2].shape}")
+
+    # Quick smoke test with T=8 history
+    print("\n=== Test with T=8 history ===")
+    model_hist = build_cnn_model_v2(card_output_dim=5, use_wdl_head=True, history_length=8)
+    print(f"Parameters: {model_hist.count_parameters():,}")
+    history = torch.zeros(2, 8, 5, 10, 10)
+    out2 = model_hist(board, aux, hand, history_boards=history)
+    print(f"Output tuple length: {len(out2)}")
+    print(f"Policy shape: {out2[0].shape}")
+    print(f"WDL shape:    {out2[1].shape}")
+    print(f"Card shape:   {out2[2].shape}")

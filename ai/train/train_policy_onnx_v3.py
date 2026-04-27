@@ -88,7 +88,6 @@ class DatasetBundle:
     x_board: torch.Tensor          # (N, 5, 10, 10)
     x_aux: torch.Tensor            # (N, 16)
     x_hand: torch.Tensor           # (N, 5, 11) [card_id_idx, cost_norm, type_onehot(9)]
-    x_history: torch.Tensor | None # (N, T, 5, 10, 10) or None
     y_place: torch.Tensor          # (N,)
     y_card: torch.Tensor           # (N,)
     y_value: torch.Tensor          # (N,)  # WDL labels: 0=loss, 1=draw, 2=win
@@ -166,12 +165,6 @@ def parse_args() -> argparse.Namespace:
         "--early-stop-monitor",
         default="val_loss",
         help="Metric for early stopping: val_loss/train_loss/val_place_loss/train_place_loss (default: val_loss).",
-    )
-    p.add_argument(
-        "--history-length",
-        type=int,
-        default=1,
-        help="Board history length T. Use 1 to disable history input (default: 1).",
     )
     return p.parse_args()
 
@@ -337,46 +330,6 @@ def build_board_tensor(rec: dict) -> list[list[list[float]]]:
         tensor[3][i][size - 1] = 1.0
 
     return tensor
-
-
-def build_board_tensor_with_history(rec: dict, history_length: int = 8) -> list[list[list[list[float]]]] | None:
-    """Build a T x 5 x 10 x 10 history tensor from the record.
-
-    Looks for 'boardHistory' field in the record.  If missing, returns None.
-    Each history entry should be a board string in the same format as 'board'.
-    Pads with zeros if history is shorter than history_length.
-    """
-    history_raw = rec.get("boardHistory")
-    if not isinstance(history_raw, list) or len(history_raw) == 0:
-        return None
-
-    # Build tensors for available history steps
-    history_tensors = []
-    for board_str in history_raw[-history_length:]:
-        if not isinstance(board_str, str):
-            continue
-        # Create a mock record with just the board field
-        mock_rec = {"board": board_str, "player": rec.get("player", "white")}
-        tensor = build_board_tensor(mock_rec)
-        history_tensors.append(tensor)
-
-    # Pad with zeros if needed
-    empty_tensor = [[[0.0 for _ in range(PADDED_BOARD_SIZE)] for _ in range(PADDED_BOARD_SIZE)] for _ in range(5)]
-    while len(history_tensors) < history_length:
-        history_tensors.insert(0, empty_tensor)
-
-    return history_tensors
-
-
-def build_empty_board_history(history_length: int) -> list[list[list[list[float]]]]:
-    """Build a zero-filled T x 5 x 10 x 10 history tensor."""
-    return [
-        [
-            [[0.0 for _ in range(PADDED_BOARD_SIZE)] for _ in range(PADDED_BOARD_SIZE)]
-            for _ in range(5)
-        ]
-        for _ in range(history_length)
-    ]
 
 
 def build_aux_vector(rec: dict) -> list[float]:
@@ -630,12 +583,10 @@ def load_dataset(
     corner_balance_sample_boost: float = 0.0,
     edge_balance_sample_boost: float = 0.0,
     economy_balance_sample_boost: float = 0.0,
-    history_length: int = 1,
 ) -> DatasetBundle:
     x_boards: list[list[list[list[float]]]] = []
     x_auxs: list[list[float]] = []
     x_hands: list[list[list[float]]] = []
-    x_histories: list[list[list[list[list[float]]]]] | None = [] if history_length > 1 else None
     y_place: list[int] = []
     y_card: list[int] = []
     y_value: list[float] = []
@@ -665,9 +616,6 @@ def load_dataset(
             x_boards.append(build_board_tensor(rec))
             x_auxs.append(build_aux_vector(rec))
             x_hands.append(build_hand_features_for_record(rec.get("handCards")))
-            if x_histories is not None:
-                hist = build_board_tensor_with_history(rec, history_length)
-                x_histories.append(hist if hist is not None else build_empty_board_history(history_length))
             y_place.append(place_t if place_t is not None else IGNORE_INDEX)
             y_card.append(card_t if card_t is not None else IGNORE_INDEX)
             y_value.append(value_target(rec))
@@ -712,11 +660,6 @@ def load_dataset(
     x_board_tensor = torch.tensor(x_boards, dtype=torch.float32)
     x_aux_tensor = torch.tensor(x_auxs, dtype=torch.float32)
     x_hand_tensor = torch.tensor(x_hands, dtype=torch.float32)
-    x_history_tensor = (
-        torch.tensor(x_histories, dtype=torch.float32)
-        if x_histories is not None
-        else None
-    )
     y_place_tensor = torch.tensor(y_place, dtype=torch.long)
     y_card_tensor = torch.tensor(y_card, dtype=torch.long)
     y_value_tensor = torch.tensor(y_value, dtype=torch.long)
@@ -726,7 +669,6 @@ def load_dataset(
         x_board=x_board_tensor,
         x_aux=x_aux_tensor,
         x_hand=x_hand_tensor,
-        x_history=x_history_tensor,
         y_place=y_place_tensor,
         y_card=y_card_tensor,
         y_value=y_value_tensor,
@@ -783,7 +725,6 @@ def train_model(
     edge_balance_sample_boost: float = 0.0,
     economy_balance_sample_boost: float = 0.0,
     nonvalidity_penalty: float = 0.0,
-    history_length: int = 1,
 ) -> tuple[nn.Module, torch.optim.Optimizer, TrainSummary, str | None, list[dict], dict[str, Any]]:
     if epochs < 1:
         raise ValueError("--epochs must be >= 1")
@@ -860,13 +801,11 @@ def train_model(
         policy_output_dim=PLACE_OUTPUT_DIM,
         card_output_dim=CARD_ACTION_DIM,
         use_wdl_head=True,
-        history_length=history_length,
     ).to(device)
 
     x_board = data.x_board.to(device)
     x_aux = data.x_aux.to(device)
     x_hand = data.x_hand.to(device)
-    x_history = data.x_history.to(device) if data.x_history is not None else None
     y_place = data.y_place.to(device)
     y_card = data.y_card.to(device)
     y_value = data.y_value.to(device)
@@ -892,7 +831,6 @@ def train_model(
     x_board_train = x_board[train_idx]
     x_aux_train = x_aux[train_idx]
     x_hand_train = x_hand[train_idx]
-    x_history_train = x_history[train_idx] if x_history is not None else None
     y_place_train = y_place[train_idx]
     y_card_train = y_card[train_idx]
     y_value_train = y_value[train_idx]
@@ -901,7 +839,6 @@ def train_model(
     x_board_val = x_board[val_idx] if val_idx.shape[0] > 0 else None
     x_aux_val = x_aux[val_idx] if val_idx.shape[0] > 0 else None
     x_hand_val = x_hand[val_idx] if val_idx.shape[0] > 0 else None
-    x_history_val = x_history[val_idx] if (x_history is not None and val_idx.shape[0] > 0) else None
     y_place_val = y_place[val_idx] if val_idx.shape[0] > 0 else None
     y_card_val = y_card[val_idx] if val_idx.shape[0] > 0 else None
     y_value_val = y_value[val_idx] if val_idx.shape[0] > 0 else None
@@ -940,7 +877,6 @@ def train_model(
         x_board_epoch = x_board_train[perm]
         x_aux_epoch = x_aux_train[perm]
         x_hand_epoch = x_hand_train[perm]
-        x_history_epoch = x_history_train[perm] if x_history_train is not None else None
         y_place_epoch = y_place_train[perm]
         y_card_epoch = y_card_train[perm]
         y_value_epoch = y_value_train[perm]
@@ -963,16 +899,12 @@ def train_model(
             xb_board = x_board_epoch[i : i + batch_size]
             xb_aux = x_aux_epoch[i : i + batch_size]
             xb_hand = x_hand_epoch[i : i + batch_size]
-            xb_history = x_history_epoch[i : i + batch_size] if x_history_epoch is not None else None
             yb_place = y_place_epoch[i : i + batch_size]
             yb_card = y_card_epoch[i : i + batch_size]
             yb_value = y_value_epoch[i : i + batch_size]
             wb = sample_weight_epoch[i : i + batch_size]
 
-            if xb_history is not None:
-                outputs = model(xb_board, xb_aux, xb_hand, history_boards=xb_history)
-            else:
-                outputs = model(xb_board, xb_aux, xb_hand)
+            outputs = model(xb_board, xb_aux, xb_hand)
             if isinstance(outputs, tuple):
                 place_logits = outputs[0]
                 wdl_logits = outputs[1] if model.use_wdl_head else None
@@ -1091,10 +1023,7 @@ def train_model(
             and int(y_place_val.shape[0]) > 0
         ):
             with torch.no_grad():
-                if x_history_val is not None:
-                    outputs_val = model(x_board_val, x_aux_val, x_hand_val, history_boards=x_history_val)
-                else:
-                    outputs_val = model(x_board_val, x_aux_val, x_hand_val)
+                outputs_val = model(x_board_val, x_aux_val, x_hand_val)
                 if isinstance(outputs_val, tuple):
                     val_place_logits = outputs_val[0]
                     val_wdl_logits = outputs_val[1] if model.use_wdl_head else None
@@ -1315,30 +1244,21 @@ def train_model(
 
 
 def export_onnx(model: nn.Module, onnx_out: str) -> None:
-    """Export the CNN model to ONNX (3 or 4 inputs depending on history)."""
+    """Export the three-input CNN model to ONNX."""
     os.makedirs(os.path.dirname(onnx_out) or ".", exist_ok=True)
     model.eval()
     dummy_board = torch.zeros((1, 5, PADDED_BOARD_SIZE, PADDED_BOARD_SIZE), dtype=torch.float32)
     dummy_aux = torch.zeros((1, AUX_FEATURE_DIM), dtype=torch.float32)
     dummy_hand = torch.zeros((1, 5, 11), dtype=torch.float32)
 
-    inputs = (dummy_board, dummy_aux, dummy_hand)
     input_names = ["board", "aux", "hand"]
+    output_names = ["place_logits"]
     dynamic_axes = {
         "board": {0: "batch"},
         "aux": {0: "batch"},
         "hand": {0: "batch"},
         "place_logits": {0: "batch"},
     }
-
-    # Add history input if model was trained with T > 1
-    if hasattr(model, "history_length") and model.history_length > 1:
-        dummy_history = torch.zeros((1, model.history_length, 5, PADDED_BOARD_SIZE, PADDED_BOARD_SIZE), dtype=torch.float32)
-        inputs = (dummy_board, dummy_aux, dummy_hand, dummy_history)
-        input_names.append("history")
-        dynamic_axes["history"] = {0: "batch"}
-
-    output_names = ["place_logits"]
     if model.use_wdl_head:
         output_names.append("wdl_logits")
         dynamic_axes["wdl_logits"] = {0: "batch"}
@@ -1348,7 +1268,7 @@ def export_onnx(model: nn.Module, onnx_out: str) -> None:
 
     torch.onnx.export(
         model.cpu(),
-        inputs,
+        (dummy_board, dummy_aux, dummy_hand),
         onnx_out,
         input_names=input_names,
         output_names=output_names,
@@ -1469,7 +1389,6 @@ def main() -> int:
         corner_balance_sample_boost=float(args.corner_balance_sample_boost),
         edge_balance_sample_boost=float(args.edge_balance_sample_boost),
         economy_balance_sample_boost=float(args.economy_balance_sample_boost),
-        history_length=max(1, int(args.history_length)),
         nonvalidity_penalty=float(args.nonvalidity_penalty),
     )
 
@@ -1512,7 +1431,6 @@ def main() -> int:
         corner_balance_sample_boost=float(args.corner_balance_sample_boost),
         edge_balance_sample_boost=float(args.edge_balance_sample_boost),
         economy_balance_sample_boost=float(args.economy_balance_sample_boost),
-        history_length=max(1, int(args.history_length)),
     )
 
     export_onnx(model, args.onnx_out)
