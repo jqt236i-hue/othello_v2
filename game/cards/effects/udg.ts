@@ -7,7 +7,7 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import UdgModule = require('../../logic/cards/udg');
 
 
-const exports = {
+const exports: any = {
   processUltimateDestroyGodEffects: UdgModule.processUltimateDestroyGodEffects,
   processUltimateDestroyGodEffectsAtAnchor: UdgModule.processUltimateDestroyGodEffectsAtAnchor,
   processUltimateDestroyGodEffectsAtTurnStartAnchor: UdgModule.processUltimateDestroyGodEffectsAtTurnStartAnchor

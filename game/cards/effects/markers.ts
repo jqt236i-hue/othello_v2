@@ -4,7 +4,7 @@
  */
 
 import type { CardState, PlayerKey } from '../../../src/types';
-import * as MarkersModule from '../../logic/cards/markers';
+import MarkersModule = require('../../logic/cards/markers');
 
 interface MarkersExports {
   MARKER_KINDS: Record<string, string>;
@@ -31,7 +31,7 @@ interface MarkersExports {
   clearStoneIdAtForCard: (cardState: CardState, gameState: any, row: number, col: number) => void;
   getStoneIdAtForCard: (cardState: CardState, gameState: any, row: number, col: number) => string | null;
   setStoneIdAtForCard: (cardState: CardState, gameState: any, row: number, col: number, stoneId: string | null) => void;
-  swapCellCoordinates: (cardState: CardState, fromRow: number, fromCol: number, toRow: number, toCol: number) => void;
+  swapCellCoordinates: (cardState: CardState, gameState: any, posA: { row: number; col: number }, posB: { row: number; col: number }) => void;
   addMarker: (cardState: CardState, kind: string, row: number, col: number, owner: PlayerKey, data?: any) => void;
   removeMarkerById: (cardState: CardState, markerId: number) => boolean;
   applyExtendLifeWill: (cardState: CardState, gameState: any, playerKey: PlayerKey, row: number, col: number, deps?: any) => Record<string, unknown>;
