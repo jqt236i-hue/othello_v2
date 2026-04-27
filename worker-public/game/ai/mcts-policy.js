@@ -14,6 +14,7 @@
 'use strict';
 
 const { MCTSTree } = require('./mcts-core');
+const { GumbelMCTS } = require('./gumbel-mcts');
 
 let CoreLogic = null;
 try {
@@ -337,18 +338,29 @@ async function searchWithMcts(state, cardState, playerKey, opts) {
     const numSimulations = Number.isFinite(options.numSimulations)
         ? Math.max(1, Math.floor(options.numSimulations))
         : 100; // intentionally small for browser latency
-
-    const tree = new MCTSTree({
-        gameInterface: _gameInterface,
-        network: _network,
-        numSimulations,
-        c_puct: 1.5,
-        temperature: 1.0,
-        fpuReduction: 0.2,
-    });
+    const useGumbel = options.useGumbel === true;
 
     try {
-        const result = await tree.search(state, cardState, playerKey);
+        let result;
+        if (useGumbel) {
+            const tree = new GumbelMCTS({
+                gameInterface: _gameInterface,
+                network: _network,
+                numSimulations,
+                maxActions: Number.isFinite(options.maxActions) ? options.maxActions : 8,
+            });
+            result = await tree.search(state, cardState, playerKey);
+        } else {
+            const tree = new MCTSTree({
+                gameInterface: _gameInterface,
+                network: _network,
+                numSimulations,
+                c_puct: 1.5,
+                temperature: 1.0,
+                fpuReduction: 0.2,
+            });
+            result = await tree.search(state, cardState, playerKey);
+        }
         if (!Array.isArray(result) || result.length === 0) return null;
         result.sort((a, b) => b.visitCount - a.visitCount);
         return result[0].action;

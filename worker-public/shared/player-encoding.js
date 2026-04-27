@@ -80,6 +80,24 @@
     }
 
     /**
+     * Convert a player string key to a numeric player value.
+     * @param {string} playerKey - 'black' or 'white'
+     * @returns {number} 1 for 'black', -1 for 'white'
+     */
+    function playerKeyToValue(playerKey) {
+        return playerKey === 'black' ? BLACK : WHITE;
+    }
+
+    /**
+     * Convert a numeric player value to a player string key.
+     * @param {number} playerValue - BLACK (1) or WHITE (-1)
+     * @returns {string} 'black' or 'white'
+     */
+    function playerValueToKey(playerValue) {
+        return playerValue === BLACK ? 'black' : 'white';
+    }
+
+    /**
      * Check if a value is a valid player key.
      * @param {*} value
      * @returns {boolean}
@@ -93,6 +111,8 @@
         normalizePlayerKey,
         getPlayerKey,
         getOwner,
+        playerKeyToValue,
+        playerValueToKey,
         isValidPlayerKey
     };
 }));

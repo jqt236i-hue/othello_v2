@@ -14,7 +14,11 @@
             require('./cards-internal/random-source'),
             require('./cards-internal/state-factory'),
             require('./cards-internal/module-resolver'),
-            require('./cards-internal/presentation-helpers')
+            require('./cards-internal/presentation-helpers'),
+            require('../cards/state-manager'),
+            require('../cards/effect-resolver'),
+            require('../cards/timing-processor'),
+            require('../cards/target-resolver')
         );
     } else {
         // Browser
@@ -25,10 +29,14 @@
             root.CardRandomSource || null,
             root.CardStateFactory || null,
             root.CardModuleResolver || null,
-            root.CardPresentationHelpers || null
+            root.CardPresentationHelpers || null,
+            root.CardStateManager || null,
+            root.CardEffectResolver || null,
+            root.CardTimingProcessor || null,
+            root.CardTargetResolver || null
         );
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, DeckSpecHelpers, SharedBoardUtils, CardRandomSource, CardStateFactory, CardModuleResolver, CardPresentationHelpers) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, DeckSpecHelpers, SharedBoardUtils, CardRandomSource, CardStateFactory, CardModuleResolver, CardPresentationHelpers, CardStateManager, CardEffectResolverModule, CardTimingProcessorModule, TargetResolver) {
     'use strict';
 
     const {
@@ -518,22 +526,10 @@
     }
 
     function buildDefaultDeckCardIds(prng) {
-        if (DeckSpecHelpers && typeof DeckSpecHelpers.sampleDefaultDeckCardIds === 'function') {
-            return DeckSpecHelpers.sampleDefaultDeckCardIds(prng);
+        if (!CardStateManager || typeof CardStateManager.createDefaultDeck !== 'function') {
+            throw new Error('[cards.js] CardStateManager.createDefaultDeck not available');
         }
-
-        const seen = new Set();
-        const deck = [];
-        (CARD_DEFS || []).forEach((cardDef) => {
-            if (!cardDef || !cardDef.id || cardDef.enabled === false) return;
-            if (seen.has(cardDef.id)) return;
-            seen.add(cardDef.id);
-            deck.push(cardDef.id);
-        });
-        if (prng && typeof prng.shuffle === 'function') {
-            prng.shuffle(deck);
-        }
-        return deck.slice(0, getDefaultDeckSize());
+        return CardStateManager.createDefaultDeck(prng);
     }
 
     function expandInitialDeckSpec(deckSpec) {
@@ -613,21 +609,10 @@
     }
 
     function setChargeValue(cardState, playerKey, nextValue, reason, meta) {
-        if (CardChargeLedgerModule && typeof CardChargeLedgerModule.setChargeValue === 'function') {
-            return CardChargeLedgerModule.setChargeValue(cardState, playerKey, nextValue, reason, getChargeLedgerContext(), meta);
+        if (!CardStateManager || typeof CardStateManager.normalizeCharge !== 'function') {
+            throw new Error('[cards.js] CardStateManager.normalizeCharge not available');
         }
-        if (CardUtilsModule && typeof CardUtilsModule.setChargeWithDelta === 'function') {
-            return CardUtilsModule.setChargeWithDelta(cardState, playerKey, nextValue, reason, meta);
-        }
-        if (!cardState) return { changed: false, before: 0, after: 0, delta: 0 };
-        if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
-        const before = Number(cardState.charge[playerKey] || 0);
-        const safeBefore = Number.isFinite(before) ? before : 0;
-        const requested = Number(nextValue);
-        const safeRequested = Number.isFinite(requested) ? requested : safeBefore;
-        const after = Math.max(0, Math.min(CHARGE_MAX || 99, safeRequested));
-        cardState.charge[playerKey] = after;
-        return { changed: after !== safeBefore, before: safeBefore, after, delta: after - safeBefore };
+        return CardStateManager.normalizeCharge(cardState, playerKey, nextValue, reason, meta);
     }
 
     const CardExpansionModule = (function() { try { return require('./cards/expansion'); } catch (e) { return null; } })();
@@ -653,21 +638,19 @@
     const DragonEffectsModule = (function() { try { return require('./effects/dragon'); } catch (e) { return null; } })();
     const DestroyOneStoneModule = (function() { try { return require('./effects/destroy_one_stone'); } catch (e) { return null; } })();
     const SwapWithEnemyModule = (function() { try { return require('./effects/swap_with_enemy'); } catch (e) { return null; } })();
+    const CardProtectModule = (function() { try { return require('../cards/effects/protect'); } catch (e) { return null; } })();
+    const CardTrapModule = (function() { try { return require('../cards/effects/trap'); } catch (e) { return null; } })();
+    const CardOwnershipEffectsModule = resolveOptionalCardModule('../cards/effects/ownership', 'CardOwnershipEffects');
+    const CardBoardExpansionApplyModule = resolveOptionalCardModule('../cards/effects/board-expansion-apply', 'CardBoardExpansionApply');
+    const CardStatusCellsModule = resolveOptionalCardModule('../cards/effects/status-cells', 'CardStatusCellsEffects');
+    const CardHandEffectsModule = resolveOptionalCardModule('../cards/effects/hand-effects', 'CardHandEffects');
+    const CardPositionSwapModule = resolveOptionalCardModule('../cards/effects/position-swap', 'CardPositionSwapEffects');
 
     function addChargeValue(cardState, playerKey, amount, reason, meta) {
-        if (CardChargeLedgerModule && typeof CardChargeLedgerModule.addChargeValue === 'function') {
-            return CardChargeLedgerModule.addChargeValue(cardState, playerKey, amount, reason, getChargeLedgerContext(), meta);
+        if (!CardStateManager || typeof CardStateManager.addCharge !== 'function') {
+            throw new Error('[cards.js] CardStateManager.addCharge not available');
         }
-        if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
-            return CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, reason, meta);
-        }
-        if (!cardState) return { changed: false, before: 0, after: 0, delta: 0 };
-        if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
-        const before = Number(cardState.charge[playerKey] || 0);
-        const safeBefore = Number.isFinite(before) ? before : 0;
-        const add = Number(amount);
-        const safeAdd = Number.isFinite(add) ? add : 0;
-        return setChargeValue(cardState, playerKey, safeBefore + safeAdd, reason, meta);
+        return CardStateManager.addCharge(cardState, playerKey, amount, reason, meta);
     }
 
     function ensureRiboRepaymentsByPlayer(cardState) {
@@ -718,14 +701,14 @@
 
     function collectRiboDestroyableOwnStonePositions(cardState, gameState, playerKey) {
         const out = [];
-        const ownerValue = playerKey === 'black' ? BLACK : WHITE;
+        const playerValue = playerKey === 'black' ? BLACK : WHITE;
         const boardConfig = resolveCardBoardConfig(gameState);
         const board = gameState && Array.isArray(gameState.board) ? gameState.board : [];
 
         for (let row = 0; row < boardConfig.rows; row++) {
             const boardRow = Array.isArray(board[row]) ? board[row] : [];
             for (let col = 0; col < boardConfig.cols; col++) {
-                if (boardRow[col] !== ownerValue) continue;
+                if (boardRow[col] !== playerValue) continue;
                 if (isGuardProtectedCell(cardState, row, col)) continue;
                 out.push({ row, col });
             }
@@ -733,7 +716,7 @@
 
         const expansionCells = getRiboExpansionDescriptors(gameState);
         for (const cell of expansionCells) {
-            if (!cell || cell.owner !== ownerValue) continue;
+            if (!cell || cell.owner !== playerValue) continue;
             if (isGuardProtectedCell(cardState, cell.row, cell.col)) continue;
             out.push({ row: cell.row, col: cell.col });
         }
@@ -923,9 +906,9 @@
             return { triggered: [], fizzled: [] };
         }
 
-        const ownerValue = playerKey === 'black' ? BLACK : WHITE;
+        const playerValue = playerKey === 'black' ? BLACK : WHITE;
         const cellValue = getCellValueForCard(gameState, row, col);
-        if (cellValue !== ownerValue) {
+        if (cellValue !== playerValue) {
             if (marker.id !== undefined && marker.id !== null) {
                 removeMarkerById(cardState, marker.id);
             } else {
@@ -1082,8 +1065,8 @@
                         spawnMeta
                     );
                 } else {
-                    const ownerValue = playerKey === 'white' ? WHITE : BLACK;
-                    const wroteCell = setCellValueForCard(gameState, target.row, target.col, ownerValue);
+                    const playerValue = playerKey === 'white' ? WHITE : BLACK;
+                    const wroteCell = setCellValueForCard(gameState, target.row, target.col, playerValue);
                     if (wroteCell) {
                         const stoneId = allocateStoneId(cardState);
                         setStoneIdAtForCard(cardState, gameState, target.row, target.col, stoneId);
@@ -1165,14 +1148,7 @@
     }
 
     function getReinforcementWillTargets(cardState, gameState, playerKey) {
-        if (!gameState || !Array.isArray(gameState.board)) return [];
-        return collectRandomBoardSpawnablePositions(cardState, gameState, (cell) => {
-            const row = Number(cell && cell.row);
-            const col = Number(cell && cell.col);
-            if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-            if (!isInnerPlayableCellForReinforcement(cardState, gameState, row, col)) return false;
-            return isAdjacentToAnyStoneForReinforcement(cardState, gameState, row, col);
-        });
+        return getReinforcementTargets(cardState, gameState, playerKey);
     }
 
     function canUseReinforcementWillForPlayer(cardState, gameState, playerKey) {
@@ -1453,7 +1429,10 @@
     }
 
     function getMarkers(cardState) {
-        return requireCardMarkersMethod('getMarkers')(cardState);
+        if (!CardStateManager || typeof CardStateManager.getMarkers !== 'function') {
+            throw new Error('[cards.js] CardStateManager.getMarkers not available');
+        }
+        return CardStateManager.getMarkers(cardState);
     }
 
     function getMarkerCategory(marker) {
@@ -1737,10 +1716,10 @@
     }
 
     function countOccupiedCornersForPlayer(cardState, gameState, playerKey) {
-        const ownerVal = playerKey === 'white' ? WHITE : BLACK;
+        const playerValue = playerKey === 'white' ? WHITE : BLACK;
         return getCurrentCornerCellsForCard(cardState, gameState)
             .reduce((count, cell) => (
-                getCellValueForCard(gameState, cell.row, cell.col) === ownerVal ? count + 1 : count
+                getCellValueForCard(gameState, cell.row, cell.col) === playerValue ? count + 1 : count
             ), 0);
     }
 
@@ -2026,8 +2005,11 @@
      * @returns {Object} The created marker
      */
     function addMarker(cardState, kind, row, col, owner, data) {
+        if (!CardStateManager || typeof CardStateManager.addMarker !== 'function') {
+            throw new Error('[cards.js] CardStateManager.addMarker not available');
+        }
         const markerData = attachMarkerOriginIfNeeded(cardState, kind, owner, data);
-        return requireCardMarkersMethod('addMarker')(cardState, kind, row, col, owner, markerData);
+        return CardStateManager.addMarker(cardState, kind, row, col, owner, markerData);
     }
 
     /**
@@ -2037,7 +2019,10 @@
      * @returns {boolean} true if removed
      */
     function removeMarkerById(cardState, markerId) {
-        return requireCardMarkersMethod('removeMarkerById')(cardState, markerId);
+        if (!CardStateManager || typeof CardStateManager.removeMarker !== 'function') {
+            throw new Error('[cards.js] CardStateManager.removeMarker not available');
+        }
+        return CardStateManager.removeMarker(cardState, markerId);
     }
 
     /**
@@ -2048,10 +2033,10 @@
      * @returns {string|null} Drawn card ID
      */
     function commitDraw(cardState, playerKey, prng) {
-        if (!CardHandManagerModule || typeof CardHandManagerModule.commitDraw !== 'function') {
-            throw new Error('[cards.js] CardHandManager.commitDraw not available');
+        if (!CardStateManager || typeof CardStateManager.drawCard !== 'function') {
+            throw new Error('[cards.js] CardStateManager.drawCard not available');
         }
-        return CardHandManagerModule.commitDraw(cardState, playerKey, prng || defaultPrng, getCardHandManagerContext());
+        return CardStateManager.drawCard(cardState, playerKey, prng || defaultPrng);
     }
 
     function ensureCardCopyState(cardState) {
@@ -2090,10 +2075,10 @@
     }
 
     function addCardToHand(cardState, playerKey, cardId, opts) {
-        if (!CardHandManagerModule || typeof CardHandManagerModule.addCardToHand !== 'function') {
-            throw new Error('[cards.js] CardHandManager.addCardToHand not available');
+        if (!CardStateManager || typeof CardStateManager.addToHand !== 'function') {
+            throw new Error('[cards.js] CardStateManager.addToHand not available');
         }
-        return CardHandManagerModule.addCardToHand(cardState, playerKey, cardId, getCardHandManagerContext(), opts);
+        return CardStateManager.addToHand(cardState, playerKey, cardId, opts);
     }
 
     function addCardToDiscard(cardState, cardId, cardCopyId) {
@@ -2104,10 +2089,10 @@
     }
 
     function removeHandCardAt(cardState, playerKey, handIndex) {
-        if (!CardHandManagerModule || typeof CardHandManagerModule.removeHandCardAt !== 'function') {
-            throw new Error('[cards.js] CardHandManager.removeHandCardAt not available');
+        if (!CardStateManager || typeof CardStateManager.removeFromHand !== 'function') {
+            throw new Error('[cards.js] CardStateManager.removeFromHand not available');
         }
-        return CardHandManagerModule.removeHandCardAt(cardState, playerKey, handIndex, getCardHandManagerContext());
+        return CardStateManager.removeFromHand(cardState, playerKey, handIndex);
     }
 
     function clearHandToDiscard(cardState, playerKey) {
@@ -2483,175 +2468,78 @@
             opts = arguments[5];
         }
 
-        const chargeOwnerKey = playerKey;
-        const handKey = (typeof handOwnerKey === 'string' && handOwnerKey) ? handOwnerKey : playerKey;
-
-        const idx = cardState.hands[handKey].indexOf(cardId);
-        if (idx === -1) return false;
-
-        const cost = getCardCost(cardId);
-        if (!(opts && opts.ignoreCost)) {
-            if (cardState.charge[chargeOwnerKey] < cost) return false;
+        if (!CardEffectResolverModule || typeof CardEffectResolverModule.applyCardUsage !== 'function') {
+            throw new Error('[cards.js] CardEffectResolver.applyCardUsage not available');
         }
 
-        // Set pending effect (pre-checks must happen before mutating state)
-        const cardType = getCardType(cardId);
-        const heavenSeedHint = buildHeavenBlessingSeedHint(cardState, chargeOwnerKey);
-        const usagePrecheck = CardUsagePrechecksModule && typeof CardUsagePrechecksModule.validateCardUsagePreconditions === 'function'
-            ? CardUsagePrechecksModule.validateCardUsagePreconditions({
-                cardType,
-                cardId,
-                cardState,
-                gameState,
-                playerKey: chargeOwnerKey,
-                handKey,
-                turnIndex: cardState.turnIndex,
-                riboUnlockTurnIndex: RIBO_WILL_UNLOCK_TURN_INDEX,
-                prng: opts && opts.prng,
-                heavenSeedHint,
-                hasStandardLegalMoveForPlayer,
-                canUseLastResortForPlayer,
-                canUseEqualityWillForPlayer,
-                canUseReinforcementWillForPlayer,
-                canUseTimeStopGodForPlayer,
-                countOpponentOccupiedCornersForPlayer,
-                buildHeavenBlessingOffers,
-                buildCondemnOffers,
-                getTemptWillTargets,
-                getCaptureWillTargets,
-                getStrongWindTargets,
-                getSuperBuoyancyTargets,
-                getSuperGravityTargets,
-                getTrapTargets,
-                getGuardTargets,
-                getLivingWillTargets,
-                getHyperactiveInheritTargets,
-                getExtendLifeTargets,
-                getCorrosionTargets,
-                getTimeBombTargets,
-                getTeleportTargets,
-                getCellTeleportTargets,
-                getCloneTargets,
-                getSplitTargets,
-                getPositionSwapTargets: (nextCardState, nextGameState, nextPlayerKey) => getSelectableTargets({
-                    ...nextCardState,
-                    pendingEffectByPlayer: {
-                        ...(nextCardState.pendingEffectByPlayer || { black: null, white: null }),
-                        [nextPlayerKey]: { type: 'POSITION_SWAP_WILL', stage: 'selectTarget' }
-                    }
-                }, nextGameState, nextPlayerKey),
-                getBoardExpansionTargets,
-                getBoardExpansionGodTargets,
-                getBoardShrinkTargets,
-                getBoardShrinkGodTargets,
-                getBlockadeTargets,
-                getMeteorTargets,
-                getFreezeTargets,
-                getSeedTargets,
-                getTimeStopGodDestroyableCount,
-                timeStopGodSelfDestroyCount: TIME_STOP_GOD_SELF_DESTROY_COUNT,
-                getLossWillRemovableCount,
-                getSalvationWillTargetCount,
-                getReinforcementWillTargetCount
-            })
-            : null;
-        if (!usagePrecheck || usagePrecheck.ok !== true) return false;
-        const heavenOffers = Array.isArray(usagePrecheck.heavenOffers) ? usagePrecheck.heavenOffers : null;
-        const condemnOffers = Array.isArray(usagePrecheck.condemnOffers) ? usagePrecheck.condemnOffers : null;
-
-        let removedCard = null;
-        if (!(opts && opts.noConsume)) {
-            removedCard = removeHandCardAt(cardState, handKey, idx);
-            if (!removedCard || removedCard.cardId !== cardId) return false;
-            addCardToDiscard(cardState, removedCard.cardId, removedCard.cardCopyId);
-            // Consume charge
-            addChargeValue(cardState, chargeOwnerKey, -cost, 'card_use_cost');
-            // Set used flag
-            cardState.hasUsedCardThisTurnByPlayer[chargeOwnerKey] = true;
-            cardState.cardUseCountByPlayer = cardState.cardUseCountByPlayer || { black: 0, white: 0 };
-            cardState.cardUseCountByPlayer[chargeOwnerKey] = (cardState.cardUseCountByPlayer[chargeOwnerKey] || 0) + 1;
-        }
-        cardState.lastUsedCardByPlayer[chargeOwnerKey] = cardId;
-
-        const pendingOffers = heavenOffers || condemnOffers || undefined;
-        const needsSelection = !!(
-            CardPendingStateManagerModule
-            && typeof CardPendingStateManagerModule.requiresTargetSelection === 'function'
-            && CardPendingStateManagerModule.requiresTargetSelection(cardType)
-        );
-        writeCardPendingEffect(
-            cardState,
-            chargeOwnerKey,
-            CardPendingStateManagerModule && typeof CardPendingStateManagerModule.createPendingEffectState === 'function'
-                ? CardPendingStateManagerModule.createPendingEffectState({
-                    cardType,
-                    cardId,
-                    sourceHandIndex: removedCard ? removedCard.handIndex : undefined,
-                    needsSelection,
-                    offers: pendingOffers
-                })
-                : {
-                    type: cardType,
-                    cardId,
-                    sourceHandIndex: removedCard ? removedCard.handIndex : undefined,
-                    stage: needsSelection ? 'selectTarget' : null,
-                    offers: pendingOffers,
-                    selectedCount: (cardType === 'BOARD_EXPANSION_GOD' || cardType === 'BOARD_SHRINK_WILL') ? 0 : undefined,
-                    maxSelections: cardType === 'BOARD_EXPANSION_GOD'
-                        ? 2
-                        : (cardType === 'BOARD_SHRINK_WILL' ? getBoardShrinkSelectionCount() : undefined),
-                    selectedTargets: (cardType === 'BOARD_EXPANSION_GOD' || cardType === 'BOARD_SHRINK_WILL') ? [] : undefined,
-                    placementsRemaining: cardType === 'LAST_RESORT' ? 3 : undefined
+        return CardEffectResolverModule.applyCardUsage(cardState, playerKey, cardId, {
+            gameState,
+            handOwnerKey,
+            opts,
+            getCardCost,
+            getCardType,
+            buildHeavenBlessingSeedHint,
+            buildHeavenBlessingOffers,
+            buildCondemnOffers,
+            hasStandardLegalMoveForPlayer,
+            canUseLastResortForPlayer,
+            canUseEqualityWillForPlayer,
+            canUseReinforcementWillForPlayer,
+            canUseTimeStopGodForPlayer,
+            countOpponentOccupiedCornersForPlayer,
+            getTemptWillTargets,
+            getCaptureWillTargets,
+            getStrongWindTargets,
+            getSuperBuoyancyTargets,
+            getSuperGravityTargets,
+            getTrapTargets,
+            getGuardTargets,
+            getLivingWillTargets,
+            getHyperactiveInheritTargets,
+            getExtendLifeTargets,
+            getCorrosionTargets,
+            getTimeBombTargets,
+            getTeleportTargets,
+            getCellTeleportTargets,
+            getCloneTargets,
+            getSplitTargets,
+            getPositionSwapTargets: (nextCardState, nextGameState, nextPlayerKey) => getSelectableTargets({
+                ...nextCardState,
+                pendingEffectByPlayer: {
+                    ...(nextCardState.pendingEffectByPlayer || { black: null, white: null }),
+                    [nextPlayerKey]: { type: 'POSITION_SWAP_WILL', stage: 'selectTarget' }
                 }
-        );
-
-        if (cardType === 'BOARD_EXPANSION_GOD' && readCardPendingEffect(cardState, chargeOwnerKey)) {
-            const boardExpansionGodPending = readCardPendingEffect(cardState, chargeOwnerKey);
-            const requiredSelections = getBoardExpansionGodRequiredSelectionCount(cardState, gameState, chargeOwnerKey);
-            boardExpansionGodPending.selectedCount = 0;
-            boardExpansionGodPending.maxSelections = requiredSelections > 0 ? requiredSelections : 1;
-            boardExpansionGodPending.selectedTargets = Array.isArray(boardExpansionGodPending.selectedTargets)
-                ? boardExpansionGodPending.selectedTargets
-                : [];
-        }
-
-        if (cardType === 'BOARD_SHRINK_WILL' && readCardPendingEffect(cardState, chargeOwnerKey)) {
-            const boardShrinkPending = readCardPendingEffect(cardState, chargeOwnerKey);
-            boardShrinkPending.selectedCount = 0;
-            boardShrinkPending.maxSelections = getBoardShrinkSelectionCount();
-            boardShrinkPending.selectedTargets = Array.isArray(boardShrinkPending.selectedTargets)
-                ? boardShrinkPending.selectedTargets
-                : [];
-        }
-
-        // Special handling for WORK_WILL: arm next placement for this player
-        if (cardType === 'WORK_WILL') {
-            if (!cardState.workNextPlacementArmedByPlayer) cardState.workNextPlacementArmedByPlayer = { black: false, white: false };
-            cardState.workNextPlacementArmedByPlayer[chargeOwnerKey] = true;
-            workDebugLog(cardState, '[WORK_DEBUG] Card played: WORK_WILL armed for', chargeOwnerKey);
-        }
-
-        const usedCardDef = getCardDef(cardId);
-
-        // Emit a presentation event for card-use transport animation (UI playback).
-        try {
-            emitPresentationEvent(cardState, {
-                type: 'CARD_USED',
-                player: chargeOwnerKey,
-                cardId: cardId,
-                meta: {
-                    owner: handKey,
-                    cost: Number.isFinite(cost) ? cost : null,
-                    name: (usedCardDef && usedCardDef.name) ? usedCardDef.name : null,
-                    cardType: (usedCardDef && usedCardDef.type) ? usedCardDef.type : null
-                }
-            });
-        } catch (e) { /* ignore presentation emission failures */ }
-
-        addGeneratedThrowChainCard(cardState, handKey, cardId, cardType);
-        addGeneratedChainWillCard(cardState, handKey, cardId, cardType);
-
-        return true;
+            }, nextGameState, nextPlayerKey),
+            getBoardExpansionTargets,
+            getBoardExpansionGodTargets,
+            getBoardShrinkTargets,
+            getBoardShrinkGodTargets,
+            getBlockadeTargets,
+            getMeteorTargets,
+            getFreezeTargets,
+            getSeedTargets,
+            getTimeStopGodDestroyableCount,
+            getLossWillRemovableCount,
+            getSalvationWillTargetCount,
+            getReinforcementWillTargetCount,
+            removeHandCardAt,
+            addCardToDiscard,
+            addChargeValue,
+            writeCardPendingEffect,
+            readCardPendingEffect,
+            getBoardExpansionGodRequiredSelectionCount,
+            getBoardShrinkSelectionCount,
+            workDebugLog,
+            emitPresentationEvent,
+            addGeneratedThrowChainCard,
+            addGeneratedChainWillCard,
+            getCardDef,
+            getCardDisplayName,
+            CardPendingStateManagerModule,
+            CardUsagePrechecksModule,
+            TIME_STOP_GOD_SELF_DESTROY_COUNT,
+            RIBO_WILL_UNLOCK_TURN_INDEX
+        });
     }
 
     /**
@@ -2662,51 +2550,21 @@
      * @returns {{canceled: boolean, reason?: string, cardId?: string}}
      */
     function cancelPendingSelection(cardState, playerKey, opts) {
-        if (CardPendingStateManagerModule && typeof CardPendingStateManagerModule.cancelPendingSelection === 'function') {
-            const result = CardPendingStateManagerModule.cancelPendingSelection(cardState, playerKey, opts, {
-                helpers: {
-                    getCardDef,
-                    addChargeValue,
-                    moveDiscardCardToHandByCardId
-                }
-            });
-            if (result && result.canceled) {
-                clearCardPendingEffect(cardState, playerKey);
-            }
-            return result;
+        if (!CardEffectResolverModule || typeof CardEffectResolverModule.cancelPendingSelection !== 'function') {
+            throw new Error('[cards.js] CardEffectResolver.cancelPendingSelection not available');
         }
-        if (!cardState || !cardState.pendingEffectByPlayer) return { canceled: false, reason: 'no_state' };
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.stage !== 'selectTarget') return { canceled: false, reason: 'not_pending' };
-        if (!(CardPendingStateManagerModule && typeof CardPendingStateManagerModule.isCancellablePendingType === 'function' && CardPendingStateManagerModule.isCancellablePendingType(pending.type))) {
-            return { canceled: false, reason: 'not_cancellable' };
+        const result = CardEffectResolverModule.cancelPendingSelection(cardState, playerKey, opts, {
+            CardPendingStateManagerModule,
+            getCardDef,
+            addChargeValue,
+            moveDiscardCardToHandByCardId,
+            readCardPendingEffect,
+            clearCardPendingEffect
+        });
+        if (result && result.canceled) {
+            clearCardPendingEffect(cardState, playerKey);
         }
-
-        const cardId = pending.cardId;
-        const cardDef = cardId ? getCardDef(cardId) : null;
-        const cost = cardDef ? cardDef.cost : 0;
-        const refundCost = !(opts && opts.refundCost === false);
-        const resetUsage = !(opts && opts.resetUsage === false);
-        const noConsume = !!(opts && opts.noConsume);
-
-        if (refundCost && !noConsume) {
-            addChargeValue(cardState, playerKey, cost, 'card_cancel_refund');
-        }
-        if (resetUsage && !noConsume) {
-            cardState.hasUsedCardThisTurnByPlayer[playerKey] = false;
-        }
-        if (!noConsume) {
-            cardState.cardUseCountByPlayer = cardState.cardUseCountByPlayer || { black: 0, white: 0 };
-            cardState.cardUseCountByPlayer[playerKey] = Math.max(0, (cardState.cardUseCountByPlayer[playerKey] || 0) - 1);
-        }
-
-        if (cardId) {
-            const handKey = cardState.hands[playerKey] ? playerKey : 'black';
-            moveDiscardCardToHandByCardId(cardState, handKey, cardId, { ignoreHandLimit: true });
-        }
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { canceled: true, cardId };
+        return result;
     }
 
     function getSpecialMarkerAt(cardState, row, col) {
@@ -2769,54 +2627,116 @@
         return targets.filter((target) => !!resolveCaptureSourceInfo(getSpecialMarkerAt(cardState, target.row, target.col)));
     }
 
-    function getTrapTargets(cardState, gameState, playerKey) {
-        const delegated = callCardSelectorsMethod('getTrapTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-        const P_BLACK = BLACK || 1;
-        const P_WHITE = WHITE || -1;
-        const playerVal = playerKey === 'black' ? P_BLACK : P_WHITE;
-        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const res = [];
-        for (const cell of getOccupiedBoardShapeCellsForCard(cardState, gameState)) {
-            const row = cell.row;
-            const col = cell.col;
-            if (getCellValueForCard(gameState, row, col) !== playerVal) continue;
-            const hasBomb = markers.some(m => m && m.row === row && m.col === col && isBombCategoryMarker(m));
-            if (hasBomb) continue;
-            if (isAbsoluteProtectedCell(cardState, row, col)) continue;
-            const hasOwnTrap = markers.some(m => (
-                m &&
-                m.row === row &&
-                m.col === col &&
-                m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
-                m.owner === playerKey &&
-                m.data &&
-                m.data.type === 'TRAP'
-            ));
-            if (hasOwnTrap) continue;
-            res.push({ row, col });
+    function getTemptTargets(cardState, gameState, playerKey) {
+        if (TargetResolver && typeof TargetResolver.getTemptTargets === 'function') {
+            return TargetResolver.getTemptTargets(cardState, gameState, playerKey);
         }
-        return res;
+        return [];
+    }
+
+    function getCaptureTargets(cardState, gameState, playerKey) {
+        if (TargetResolver && typeof TargetResolver.getCaptureTargets === 'function') {
+            return TargetResolver.getCaptureTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
+    function getDestroyTargets(cardState, gameState) {
+        if (TargetResolver && typeof TargetResolver.getDestroyTargets === 'function') {
+            return TargetResolver.getDestroyTargets(cardState, gameState);
+        }
+        return [];
+    }
+
+    function getSwapTargets(cardState, gameState, playerKey) {
+        if (TargetResolver && typeof TargetResolver.getSwapTargets === 'function') {
+            return TargetResolver.getSwapTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
+    function getPositionSwapTargets(cardState, gameState, playerKey, pending) {
+        if (TargetResolver && typeof TargetResolver.getPositionSwapTargets === 'function') {
+            return TargetResolver.getPositionSwapTargets(cardState, gameState, playerKey, pending);
+        }
+        return [];
+    }
+
+    function getBreedingTargets(cardState, gameState, playerKey) {
+        if (TargetResolver && typeof TargetResolver.getBreedingTargets === 'function') {
+            return TargetResolver.getBreedingTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
+    function getSniperTargets(cardState, gameState, playerKey) {
+        if (TargetResolver && typeof TargetResolver.getSniperTargets === 'function') {
+            return TargetResolver.getSniperTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
+    function getLightningTargets(cardState, gameState, playerKey) {
+        if (TargetResolver && typeof TargetResolver.getLightningTargets === 'function') {
+            return TargetResolver.getLightningTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
+    function getCrossBombTargets(cardState, gameState, playerKey) {
+        if (TargetResolver && typeof TargetResolver.getCrossBombTargets === 'function') {
+            return TargetResolver.getCrossBombTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
+    function getXBombTargets(cardState, gameState, playerKey) {
+        if (TargetResolver && typeof TargetResolver.getXBombTargets === 'function') {
+            return TargetResolver.getXBombTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
+    function getReinforcementTargets(cardState, gameState, playerKey) {
+        if (TargetResolver && typeof TargetResolver.getReinforcementTargets === 'function') {
+            return TargetResolver.getReinforcementTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
+    function getEqualityTargets(cardState, gameState, playerKey) {
+        if (TargetResolver && typeof TargetResolver.getEqualityTargets === 'function') {
+            return TargetResolver.getEqualityTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
+    function getCornerTributeTargets(cardState, gameState, playerKey) {
+        if (TargetResolver && typeof TargetResolver.getCornerTributeTargets === 'function') {
+            return TargetResolver.getCornerTributeTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
+    function getLastResortTargets(cardState, gameState, playerKey) {
+        if (TargetResolver && typeof TargetResolver.getLastResortTargets === 'function') {
+            return TargetResolver.getLastResortTargets(cardState, gameState, playerKey);
+        }
+        return [];
+    }
+
+    function getTrapTargets(cardState, gameState, playerKey) {
+        if (TargetResolver && typeof TargetResolver.getTrapTargets === 'function') {
+            return TargetResolver.getTrapTargets(cardState, gameState, playerKey);
+        }
+        return [];
     }
 
     function getGuardTargets(cardState, gameState, playerKey) {
-        const delegated = callCardSelectorsMethod('getGuardTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-        const P_BLACK = BLACK || 1;
-        const P_WHITE = WHITE || -1;
-        const playerVal = playerKey === 'black' ? P_BLACK : P_WHITE;
-        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const res = [];
-        for (const cell of getOccupiedBoardShapeCellsForCard(cardState, gameState)) {
-            const row = cell.row;
-            const col = cell.col;
-            if (getCellValueForCard(gameState, row, col) !== playerVal) continue;
-            const hasBomb = markers.some(m => m && m.row === row && m.col === col && isBombCategoryMarker(m));
-            if (hasBomb) continue;
-            if (isAbsoluteProtectedCell(cardState, row, col)) continue;
-            res.push({ row, col });
+        if (TargetResolver && typeof TargetResolver.getGuardTargets === 'function') {
+            return TargetResolver.getGuardTargets(cardState, gameState, playerKey);
         }
-        return res;
+        return [];
     }
 
     function getLivingWillTargets(cardState, gameState, playerKey) {
@@ -2882,75 +2802,38 @@
     }
 
     function getTimeBombTargets(cardState, gameState, playerKey) {
-        const delegated = callCardSelectorsMethod('getTimeBombTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-        return getGuardTargets(cardState, gameState, playerKey);
+        if (TargetResolver && typeof TargetResolver.getTimeBombTargets === 'function') {
+            return TargetResolver.getTimeBombTargets(cardState, gameState, playerKey);
+        }
+        return [];
     }
 
     function getTeleportTargets(cardState, gameState) {
-        const delegated = callCardSelectorsMethod('getTeleportTargets', [cardState, gameState]);
-        if (delegated.called) return delegated.value;
-
-        const destinations = getEmptyBoardShapeCellsForCard(cardState, gameState)
-            .filter((cell) => !isBlockedCell(cardState, cell.row, cell.col, gameState));
-        const hasDestination = destinations.length > 0;
-        if (!hasDestination) return [];
-
-        return getOccupiedBoardShapeCellsForCard(cardState, gameState)
-            .filter((cell) => !isAbsoluteProtectedCell(cardState, cell.row, cell.col));
+        if (TargetResolver && typeof TargetResolver.getTeleportTargets === 'function') {
+            return TargetResolver.getTeleportTargets(cardState, gameState);
+        }
+        return [];
     }
 
     function getCloneTargets(cardState, gameState, playerKey) {
-        const delegated = callCardSelectorsMethod('getCloneTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-
-        const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const res = [];
-        for (const cell of getOccupiedBoardShapeCellsForCard(cardState, gameState)) {
-            if (getCellValueForCard(gameState, cell.row, cell.col) !== playerVal) continue;
-            if (collectEmptyNeighborCellsForCard(cardState, gameState, cell.row, cell.col).length === 0) continue;
-            res.push({ row: cell.row, col: cell.col });
+        if (TargetResolver && typeof TargetResolver.getCloneTargets === 'function') {
+            return TargetResolver.getCloneTargets(cardState, gameState, playerKey);
         }
-
-        return res;
+        return [];
     }
 
     function getSplitTargets(cardState, gameState, playerKey) {
-        const delegated = callCardSelectorsMethod('getSplitTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-
-        return getCloneTargets(cardState, gameState, playerKey);
+        if (TargetResolver && typeof TargetResolver.getSplitTargets === 'function') {
+            return TargetResolver.getSplitTargets(cardState, gameState, playerKey);
+        }
+        return [];
     }
 
     function getBoardExpansionTargets(cardState, gameState, playerKey) {
-        const delegated = callCardSelectorsMethod('getBoardExpansionTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-
-        if (!gameState || !gameState.board) return [];
-        const boardConfig = resolveCardBoardConfig(gameState);
-
-        const blockedEdgeTargets = new Set();
-        const expansionCells = getExpansionDescriptorsForCard(gameState);
-        for (const cell of expansionCells) {
-            if (!cell) continue;
-            if (cell.col === boardConfig.outerBounds.minCol && Number.isInteger(cell.row) && cell.row >= 0 && cell.row < boardConfig.rows) {
-                blockedEdgeTargets.add(`${cell.row},0`);
-            }
-            if (cell.col === boardConfig.outerBounds.maxCol && Number.isInteger(cell.row) && cell.row >= 0 && cell.row < boardConfig.rows) {
-                blockedEdgeTargets.add(`${cell.row},${boardConfig.baseBounds.maxCol}`);
-            }
+        if (TargetResolver && typeof TargetResolver.getBoardExpansionTargets === 'function') {
+            return TargetResolver.getBoardExpansionTargets(cardState, gameState, playerKey);
         }
-
-        const res = [];
-        for (let r = 0; r < boardConfig.rows; r++) {
-            if (!blockedEdgeTargets.has(`${r},0`)) {
-                res.push({ row: r, col: 0, side: 'left' });
-            }
-            if (!blockedEdgeTargets.has(`${r},${boardConfig.baseBounds.maxCol}`)) {
-                res.push({ row: r, col: boardConfig.baseBounds.maxCol, side: 'right' });
-            }
-        }
-        return res;
+        return [];
     }
 
     function getBoardExpansionGodCornerDescriptorsForCard(gameState) {
@@ -3037,8 +2920,9 @@
     }
 
     function getBoardShrinkTargets(cardState, gameState, playerKey) {
-        const delegated = callCardSelectorsMethod('getBoardShrinkTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
+        if (TargetResolver && typeof TargetResolver.getBoardShrinkTargets === 'function') {
+            return TargetResolver.getBoardShrinkTargets(cardState, gameState, playerKey);
+        }
         return [];
     }
 
@@ -3089,85 +2973,52 @@
     }
 
     function getCellTeleportTargets(cardState, gameState) {
-        const delegated = callCardSelectorsMethod('getCellTeleportTargets', [cardState, gameState]);
-        if (delegated.called) return delegated.value;
-
-        const destinations = getCellTeleportDestinations(cardState, gameState);
-        if (!destinations.length) return [];
-
-        const res = [];
-        for (const cell of getCurrentBoardShapeCellsForCard(cardState, gameState)) {
-            if (!cell) continue;
-            if (getCellValueForCard(gameState, cell.row, cell.col) === EMPTY) continue;
-            if (isMeteorHoleCell(cardState, cell.row, cell.col)) continue;
-            res.push({ row: cell.row, col: cell.col });
+        if (TargetResolver && typeof TargetResolver.getCellTeleportTargets === 'function') {
+            return TargetResolver.getCellTeleportTargets(cardState, gameState);
         }
-        return res;
+        return [];
     }
 
     function getBlockadeTargets(cardState, gameState, playerKey) {
-        const delegated = callCardSelectorsMethod('getBlockadeTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-
-        if (!gameState || !gameState.board) return [];
-        const res = [];
-        for (const cell of getCurrentBoardShapeCellsForCard(cardState, gameState)) {
-            if (!cell) continue;
-            if (getCellValueForCard(gameState, cell.row, cell.col) !== EMPTY) continue;
-            if (isBlockedCell(cardState, cell.row, cell.col, gameState)) continue;
-            if (hasSeedMarkerAt(cardState, cell.row, cell.col)) continue;
-            res.push({ row: cell.row, col: cell.col });
+        if (TargetResolver && typeof TargetResolver.getBlockadeTargets === 'function') {
+            return TargetResolver.getBlockadeTargets(cardState, gameState, playerKey);
         }
-        return res;
+        return [];
     }
 
     function getMeteorTargets(cardState, gameState, playerKey) {
-        const delegated = callCardSelectorsMethod('getMeteorTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-
-        if (!gameState || !gameState.board) return [];
-        const res = [];
-        for (const cell of getCurrentBoardShapeCellsForCard(cardState, gameState)) {
-            if (!cell) continue;
-            if (isMeteorHoleCell(cardState, cell.row, cell.col)) continue;
-            if (isAbsoluteProtectedCell(cardState, cell.row, cell.col)) continue;
-            res.push({ row: cell.row, col: cell.col });
+        if (TargetResolver && typeof TargetResolver.getMeteorTargets === 'function') {
+            return TargetResolver.getMeteorTargets(cardState, gameState, playerKey);
         }
-        return res;
+        return [];
     }
 
     function getFreezeTargets(cardState, gameState, playerKey) {
-        const delegated = callCardSelectorsMethod('getFreezeTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-
-        if (!gameState || !gameState.board) return [];
-        const res = [];
-        for (const cell of getCurrentBoardShapeCellsForCard(cardState, gameState)) {
-            if (!cell) continue;
-            if (isBlockedCell(cardState, cell.row, cell.col, gameState)) continue;
-            if (hasSeedMarkerAt(cardState, cell.row, cell.col)) continue;
-            res.push({ row: cell.row, col: cell.col });
+        if (TargetResolver && typeof TargetResolver.getFreezeTargets === 'function') {
+            return TargetResolver.getFreezeTargets(cardState, gameState, playerKey);
         }
-        return res;
+        return [];
     }
 
     function getSeedTargets(cardState, gameState, playerKey) {
-        const delegated = callCardSelectorsMethod('getSeedTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-
-        if (!gameState || !gameState.board) return [];
-        const res = [];
-        for (const cell of getCurrentBoardShapeCellsForCard(cardState, gameState)) {
-            if (!cell) continue;
-            if (getCellValueForCard(gameState, cell.row, cell.col) !== EMPTY) continue;
-            if (isBlockedCell(cardState, cell.row, cell.col, gameState)) continue;
-            if (hasSeedMarkerAt(cardState, cell.row, cell.col)) continue;
-            res.push({ row: cell.row, col: cell.col });
+        if (TargetResolver && typeof TargetResolver.getSeedTargets === 'function') {
+            return TargetResolver.getSeedTargets(cardState, gameState, playerKey);
         }
-        return res;
+        return [];
     }
 
     function applyTrapWill(cardState, gameState, playerKey, row, col) {
+        if (CardTrapModule && typeof CardTrapModule.applyTrapWill === 'function') {
+            return CardTrapModule.applyTrapWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getTrapTargets,
+                isAbsoluteProtectedCell,
+                removeMarkersAt,
+                addMarker,
+                clearCardPendingEffect,
+                MARKER_KINDS
+            });
+        }
         const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || pending.type !== 'TRAP_WILL' || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
@@ -3192,6 +3043,26 @@
     }
 
     function processTrapEffects(cardState, gameState, activePlayerKey, options) {
+        if (CardTrapModule && typeof CardTrapModule.processTrapEffects === 'function') {
+            return CardTrapModule.processTrapEffects(cardState, gameState, activePlayerKey, options, {
+                getSpecialMarkers,
+                getCellValueForCard,
+                setCellValueForCard,
+                removeMarkersAt,
+                setChargeValue,
+                addChargeWithTotal,
+                clearHandToDiscard,
+                destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
+                    ? (cs, gs, r, c, cause, reason, meta) => BoardOpsModule.destroyAt(cs, gs, r, c, cause, reason, meta)
+                    : null,
+                emitPresentationEvent,
+                MARKER_KINDS,
+                EMPTY,
+                TRAP_WILL_STEAL_MAX,
+                BLACK,
+                WHITE
+            });
+        }
         const opts = options || {};
         const expireOnOwnerTurnStart = !!opts.expireOnOwnerTurnStart;
         const res = { triggered: [], expired: [], disarmed: [] };
@@ -3205,34 +3076,34 @@
         for (const trap of specials) {
             const row = trap.row;
             const col = trap.col;
-            const ownerKey = trap.owner === 'white' ? 'white' : 'black';
-            const opponentKey = ownerKey === 'black' ? 'white' : 'black';
-            const ownerVal = ownerKey === 'black' ? P_BLACK : P_WHITE;
+            const trapPlayerKey = trap.owner === 'white' ? 'white' : 'black';
+            const opponentKey = trapPlayerKey === 'black' ? 'white' : 'black';
+            const trapPlayerValue = trapPlayerKey === 'black' ? P_BLACK : P_WHITE;
             const activeVal = activePlayerKey === 'black' ? P_BLACK : P_WHITE;
             const cellVal = getCellValueForCard(gameState, row, col);
 
             if (cellVal === EMPTY) {
-                removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: ownerKey });
-                res.disarmed.push({ row, col, owner: ownerKey, reason: 'empty' });
+                removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: trapPlayerKey });
+                res.disarmed.push({ row, col, owner: trapPlayerKey, reason: 'empty' });
                 continue;
             }
 
-            if (cellVal === ownerVal) {
-                if (expireOnOwnerTurnStart && activePlayerKey === ownerKey) {
+            if (cellVal === trapPlayerValue) {
+                if (expireOnOwnerTurnStart && activePlayerKey === trapPlayerKey) {
                     // Reveal just before destroy so both sides can read the trap icon at expiry.
                     emitPresentationEvent(cardState, {
                         type: 'STATUS_APPLIED',
                         row,
                         col,
-                        meta: { special: 'TRAP_REVEAL', owner: ownerKey, reason: 'trap_expired_reveal' }
+                        meta: { special: 'TRAP_REVEAL', owner: trapPlayerKey, reason: 'trap_expired_reveal' }
                     });
                     if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-                        BoardOpsModule.destroyAt(cardState, gameState, row, col, 'TRAP_WILL', 'trap_expired', { special: 'TRAP_REVEAL', owner: ownerKey });
+                        BoardOpsModule.destroyAt(cardState, gameState, row, col, 'TRAP_WILL', 'trap_expired', { special: 'TRAP_REVEAL', owner: trapPlayerKey });
                     } else {
                         setCellValueForCard(gameState, row, col, EMPTY);
-                        removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: ownerKey });
+                        removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: trapPlayerKey });
                     }
-                    res.expired.push({ row, col, owner: ownerKey });
+                    res.expired.push({ row, col, owner: trapPlayerKey });
                 }
                 continue;
             }
@@ -3276,236 +3147,71 @@
     }
 
     function applyTemptWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'TEMPT_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-
-        const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        if (!isSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
-        if (getSpecialOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
-        if (getCellValueForCard(gameState, row, col) === EMPTY) return { applied: false, reason: 'empty' };
-        const guarded = getSpecialMarkers(cardState).some(m => (
-            m &&
-            m.row === row &&
-            m.col === col &&
-            m.data &&
-            m.data.type === 'GUARD'
-        ));
-        if (guarded) return { applied: false, reason: 'guarded' };
-        if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
-
-        // Use BoardOps.changeAt if available
-        if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
-            BoardOpsModule.changeAt(cardState, gameState, row, col, playerKey, 'TEMPT_WILL', 'tempt_applied');
-        } else {
-            const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-            setCellValueForCard(gameState, row, col, playerVal);
-        }
-
-        // Transfer ownership metadata while preserving remaining turns/counters.
-        const transferResult = transferCellMarkerOwnership(cardState, row, col, playerKey);
-        const wasWork = !!(transferResult && transferResult.hadWork);
-
-        // If this was a WORK anchor, STEAL ends the effect immediately.
-        if (wasWork) {
-            // Clear anchor position for previous owner
-            if (cardState.workAnchorPosByPlayer && cardState.workAnchorPosByPlayer[opponentKey]) {
-                cardState.workAnchorPosByPlayer[opponentKey] = null;
-            }
-            // Remove special WORK entries and any unified markers
-            removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'WORK' });
-            // Use centralized presentation event emission so action meta is filled consistently
-            emitPresentationEvent(cardState, {
-                type: 'WORK_REMOVED',
-                row,
-                col,
-                ownerBefore: opponentKey,
-                ownerAfter: playerKey,
-                cause: 'TEMPT_WILL',
-                reason: 'anchor_lost',
-                removed: true,
-                meta: { reason: 'anchor_lost' }
+        if (CardOwnershipEffectsModule && typeof CardOwnershipEffectsModule.applyTemptWill === 'function') {
+            return CardOwnershipEffectsModule.applyTemptWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                isSpecialStoneAt,
+                getSpecialOwnerAt,
+                getCellValueForCard,
+                getSpecialMarkers,
+                isAbsoluteProtectedCell,
+                BoardOpsModule,
+                setCellValueForCard,
+                removeMarkersAt,
+                emitPresentationEvent,
+                clearCardPendingEffect,
+                getMarkers,
+                MARKER_KINDS
             });
         }
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function transferCellMarkerOwnership(cardState, row, col, playerKey) {
-        const ownerKey = playerKey === 'white' ? 'white' : 'black';
-        const ownerColor = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const markersAtCell = getMarkers(cardState).filter((marker) => (
-            marker &&
-            marker.row === row &&
-            marker.col === col
-        ));
-        let transferred = false;
-        let hadWork = false;
-
-        for (const marker of markersAtCell) {
-            transferred = true;
-            marker.owner = ownerKey;
-            const markerData = (marker.data && typeof marker.data === 'object') ? marker.data : null;
-            if (!markerData) continue;
-            if (String(markerData.type || '').toUpperCase() === 'WORK') {
-                hadWork = true;
-            }
-            if (Object.prototype.hasOwnProperty.call(markerData, 'expiresForPlayer')) {
-                markerData.expiresForPlayer = ownerKey;
-            }
-            if (Object.prototype.hasOwnProperty.call(markerData, 'ownerColor')) {
-                markerData.ownerColor = typeof markerData.ownerColor === 'number'
-                    ? ownerColor
-                    : ownerKey;
-            }
+        if (CardOwnershipEffectsModule && typeof CardOwnershipEffectsModule.transferCellMarkerOwnership === 'function') {
+            return CardOwnershipEffectsModule.transferCellMarkerOwnership(cardState, row, col, playerKey, { getMarkers });
         }
-
-        return { transferred, hadWork };
+        return { transferred: false, hadWork: false, reason: 'deps_missing' };
     }
 
     function applyCaptureWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'CAPTURE_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-
-        const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        if (!isSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
-        if (getSpecialOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
-        if (getCellValueForCard(gameState, row, col) === EMPTY) return { applied: false, reason: 'empty' };
-        const guarded = getSpecialMarkers(cardState).some(m => (
-            m &&
-            m.row === row &&
-            m.col === col &&
-            m.data &&
-            m.data.type === 'GUARD'
-        ));
-        if (guarded) return { applied: false, reason: 'guarded' };
-        if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
-
-        const markerEntry = getSpecialMarkerAt(cardState, row, col);
-        const captureSource = resolveCaptureSourceInfo(markerEntry);
-        if (!captureSource || !captureSource.sourceCardId) {
-            return { applied: false, reason: 'missing_source_card' };
-        }
-        const livingWillMarker = CardLivingWillModule && typeof CardLivingWillModule.findLivingWillMarkerAt === 'function'
-            ? CardLivingWillModule.findLivingWillMarkerAt(cardState, row, col)
-            : null;
-
-        const insertIndex = Number.isInteger(pending.sourceHandIndex)
-            ? Math.max(0, pending.sourceHandIndex)
-            : ((cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])) ? cardState.hands[playerKey].length : 0);
-        const added = !livingWillMarker
-            ? addCardToHand(cardState, playerKey, captureSource.sourceCardId, {
-                insertIndex,
-                ignoreHandLimit: true
-            })
-            : null;
-        if (!livingWillMarker && !added) return { applied: false, reason: 'hand_add_failed' };
-
-        const stoneId = getStoneIdAtForCard(cardState, gameState, row, col);
-        const targetValue = getCellValueForCard(gameState, row, col);
-        const ownerBefore = targetValue === (BLACK || 1) ? 'black' : 'white';
-        const wasWork = !!(markerEntry && markerEntry.marker && markerEntry.marker.data && markerEntry.marker.data.type === 'WORK');
-        const removedSpecialType = captureSource.sourceSpecialType
-            || (markerEntry && markerEntry.marker && markerEntry.marker.data && markerEntry.marker.data.type)
-            || null;
-
-        clearStoneIdAtForCard(cardState, gameState, row, col);
-        setCellValueForCard(gameState, row, col, EMPTY);
-        removeMarkersAt(cardState, row, col);
-
-        if (!wasWork) {
-            emitPresentationEvent(cardState, {
-                type: 'STATUS_REMOVED',
-                row,
-                col,
-                cause: 'CAPTURE_WILL',
-                reason: 'captured_to_hand',
-                meta: {
-                    special: removedSpecialType,
-                    owner: ownerBefore,
-                    reason: 'captured_to_hand'
-                }
+        if (CardOwnershipEffectsModule && typeof CardOwnershipEffectsModule.applyCaptureWill === 'function') {
+            return CardOwnershipEffectsModule.applyCaptureWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                isSpecialStoneAt,
+                getSpecialOwnerAt,
+                getCellValueForCard,
+                getSpecialMarkers,
+                isAbsoluteProtectedCell,
+                getSpecialMarkerAt,
+                resolveCaptureSourceInfo,
+                CardLivingWillModule,
+                addCardToHand,
+                getStoneIdAtForCard,
+                clearStoneIdAtForCard,
+                setCellValueForCard,
+                removeMarkersAt,
+                emitPresentationEvent,
+                clearCardPendingEffect,
+                getLivingWillModuleContext
             });
         }
-
-        if (wasWork && cardState.workAnchorPosByPlayer && cardState.workAnchorPosByPlayer[opponentKey]) {
-            cardState.workAnchorPosByPlayer[opponentKey] = null;
-            emitPresentationEvent(cardState, {
-                type: 'WORK_REMOVED',
-                row,
-                col,
-                ownerBefore: opponentKey,
-                ownerAfter: playerKey,
-                cause: 'CAPTURE_WILL',
-                reason: 'captured_to_hand',
-                removed: true,
-                meta: { reason: 'captured_to_hand' }
-            });
-        }
-
-        if (livingWillMarker && CardLivingWillModule && typeof CardLivingWillModule.restoreFromLivingWillSnapshot === 'function') {
-            const livingWillRestore = CardLivingWillModule.restoreFromLivingWillSnapshot(
-                cardState,
-                gameState,
-                livingWillMarker,
-                {
-                    triggerKind: 'capture',
-                    sourceRow: row,
-                    sourceCol: col,
-                    cause: 'CAPTURE_WILL',
-                    reason: 'captured_to_hand'
-                },
-                getLivingWillModuleContext()
-            );
-            clearCardPendingEffect(cardState, playerKey);
-            return {
-                applied: true,
-                target: { row, col },
-                livingWillRevived: !!(livingWillRestore && livingWillRestore.restored),
-                sourceSpecialType: captureSource.sourceSpecialType || null,
-                stoneId: stoneId || null
-            };
-        }
-
-        emitPresentationEvent(cardState, {
-            type: 'HAND_ADD',
-            player: playerKey,
-            cardId: captureSource.sourceCardId,
-            count: 1,
-            reason: 'capture_will',
-            meta: {
-                owner: playerKey,
-                reason: 'capture_will',
-                sourceType: captureSource.sourceCardType || null,
-                sourceCardId: captureSource.sourceCardId,
-                sourceName: captureSource.sourceCardName || null,
-                sourceSpecialType: captureSource.sourceSpecialType || null,
-                sourceRow: row,
-                sourceCol: col,
-                sourceOwner: ownerBefore,
-                stoneId: stoneId || null,
-                insertIndex: added.handIndex
-            }
-        });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return {
-            applied: true,
-            target: { row, col },
-            capturedCardId: captureSource.sourceCardId,
-            capturedCardType: captureSource.sourceCardType || null,
-            capturedCardName: captureSource.sourceCardName || null,
-            sourceSpecialType: captureSource.sourceSpecialType || null,
-            stoneId: stoneId || null,
-            insertIndex: added.handIndex
-        };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function applyGuardWill(cardState, gameState, playerKey, row, col) {
+        if (CardProtectModule && typeof CardProtectModule.applyGuardWill === 'function') {
+            return CardProtectModule.applyGuardWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getGuardTargets,
+                removeMarkersAt,
+                addMarker,
+                clearCardPendingEffect,
+                MARKER_KINDS,
+                GUARD_WILL_TURNS,
+                GUARDIAN_GOD_TURNS
+            });
+        }
         const pending = readCardPendingEffect(cardState, playerKey);
         if (!pending || (pending.type !== 'GUARD_WILL' && pending.type !== 'GUARDIAN_GOD') || pending.stage !== 'selectTarget') {
             return { applied: false, reason: 'not_pending' };
@@ -3848,119 +3554,38 @@
     }
 
     function applyBoardExpansionWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'BOARD_EXPANSION_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
+        if (CardBoardExpansionApplyModule && typeof CardBoardExpansionApplyModule.applyBoardExpansionWill === 'function') {
+            return CardBoardExpansionApplyModule.applyBoardExpansionWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getBoardExpansionTargets,
+                ensureMutableBoardExpansionForCard,
+                getExpansionDescriptorsForCard,
+                resolveExpansionSideForCard,
+                normalizeExpansionOwnerForCard,
+                syncLegacyExpansionFieldsForCard,
+                clearCardPendingEffect
+            });
         }
-        const targets = getBoardExpansionTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        const side = col === 0 ? 'left' : (col === 7 ? 'right' : null);
-        if (!side || !Number.isInteger(row) || row < 0 || row >= 8) {
-            return { applied: false, reason: 'invalid_target' };
-        }
-
-        const boardExpansion = ensureMutableBoardExpansionForCard(gameState);
-        const cells = getExpansionDescriptorsForCard(gameState);
-        const targetCol = side === 'left' ? -1 : 8;
-        const alreadyExists = cells.some((cell) => cell && cell.row === row && cell.col === targetCol);
-        if (alreadyExists) return { applied: false, reason: 'already_expanded' };
-
-        cells.push({ side, row, col: targetCol, owner: EMPTY });
-
-        boardExpansion.cells = cells.map((cell) => ({
-            side: resolveExpansionSideForCard(cell.side, cell.row, cell.col),
-            row: cell.row,
-            col: cell.col,
-            owner: normalizeExpansionOwnerForCard(cell.owner)
-        }));
-        syncLegacyExpansionFieldsForCard(boardExpansion);
-
-        boardExpansion.usedByPlayer[playerKey] = true;
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, side, row, col: targetCol };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function applyBoardExpansionGod(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'BOARD_EXPANSION_GOD' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-
-        const targets = getBoardExpansionGodTargets(cardState, gameState, playerKey);
-        const allowed = targets.some((target) => target && target.row === row && target.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        const maxSelections = getBoardExpansionGodRequiredSelectionCount(cardState, gameState, playerKey);
-        if (maxSelections <= 0) return { applied: false, reason: 'invalid_target' };
-        const selectedTargets = getBoardExpansionGodPendingSelectionsForCard(pending);
-        const nextSelections = selectedTargets.concat({ row, col }).map((target) => ({ row: target.row, col: target.col }));
-
-        if (nextSelections.length < maxSelections) {
-            pending.selectedTargets = nextSelections;
-            pending.selectedCount = pending.selectedTargets.length;
-            pending.maxSelections = maxSelections;
-            return {
-                applied: true,
-                completed: false,
-                selectedCount: pending.selectedCount,
-                maxSelections,
-                remainingSelections: maxSelections - pending.selectedCount,
-                target: { row, col },
-                selectedTargets: pending.selectedTargets.map((target) => ({ row: target.row, col: target.col }))
-            };
-        }
-
-        const boardExpansion = ensureMutableBoardExpansionForCard(gameState);
-        const cells = getExpansionDescriptorsForCard(gameState);
-        const occupied = new Set(cells.map((cell) => `${cell.row},${cell.col}`));
-        const additions = [];
-        const additionKeys = new Set();
-        for (const target of nextSelections) {
-            const targetAdditions = getBoardExpansionGodAdditionsForCard(target.row, target.col);
-            if (!targetAdditions || targetAdditions.length !== 3) {
-                return { applied: false, reason: 'invalid_target' };
-            }
-            for (const cell of targetAdditions) {
-                const key = `${cell.row},${cell.col}`;
-                if (occupied.has(key) || additionKeys.has(key)) {
-                    return { applied: false, reason: 'already_expanded' };
-                }
-                additionKeys.add(key);
-                additions.push({ row: cell.row, col: cell.col });
-            }
-        }
-
-        for (const cell of additions) {
-            cells.push({
-                side: resolveExpansionSideForCard(null, cell.row, cell.col),
-                row: cell.row,
-                col: cell.col,
-                owner: EMPTY
+        if (CardBoardExpansionApplyModule && typeof CardBoardExpansionApplyModule.applyBoardExpansionGod === 'function') {
+            return CardBoardExpansionApplyModule.applyBoardExpansionGod(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getBoardExpansionGodTargets,
+                getBoardExpansionGodRequiredSelectionCount,
+                getBoardExpansionGodPendingSelectionsForCard,
+                ensureMutableBoardExpansionForCard,
+                getExpansionDescriptorsForCard,
+                getBoardExpansionGodAdditionsForCard,
+                resolveExpansionSideForCard,
+                normalizeExpansionOwnerForCard,
+                syncLegacyExpansionFieldsForCard,
+                clearCardPendingEffect
             });
         }
-
-        boardExpansion.cells = cells.map((cell) => ({
-            side: resolveExpansionSideForCard(cell.side, cell.row, cell.col),
-            row: cell.row,
-            col: cell.col,
-            owner: normalizeExpansionOwnerForCard(cell.owner)
-        }));
-        syncLegacyExpansionFieldsForCard(boardExpansion);
-
-        boardExpansion.usedByPlayer[playerKey] = true;
-
-        clearCardPendingEffect(cardState, playerKey);
-        return {
-            applied: true,
-            completed: true,
-            source: { row, col },
-            sources: nextSelections.map((target) => ({ row: target.row, col: target.col })),
-            selectedTargets: nextSelections.map((target) => ({ row: target.row, col: target.col })),
-            added: additions.map((cell) => ({ row: cell.row, col: cell.col }))
-        };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function applyBoardShrinkWill(cardState, gameState, playerKey, row, col) {
@@ -4006,25 +3631,18 @@
     }
 
     function applyBlockadeWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'BLOCKADE_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
+        if (CardStatusCellsModule && typeof CardStatusCellsModule.applyBlockadeWill === 'function') {
+            return CardStatusCellsModule.applyBlockadeWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getBlockadeTargets,
+                removeMarkersAt,
+                addMarker,
+                clearCardPendingEffect,
+                MARKER_KINDS,
+                BLOCKADE_TURNS
+            });
         }
-        const targets = getBlockadeTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        removeMarkersAt(cardState, row, col, {
-            kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
-            type: 'BLOCKADE'
-        });
-        addMarker(cardState, 'specialStone', row, col, playerKey, {
-            type: 'BLOCKADE',
-            remainingOwnerTurns: BLOCKADE_TURNS
-        });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, row, col };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function applyMeteorWill(cardState, gameState, playerKey, row, col, prng) {
@@ -4096,47 +3714,33 @@
     }
 
     function applyFreezeWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'FREEZE_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
+        if (CardStatusCellsModule && typeof CardStatusCellsModule.applyFreezeWill === 'function') {
+            return CardStatusCellsModule.applyFreezeWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getFreezeTargets,
+                removeMarkersAt,
+                addMarker,
+                clearCardPendingEffect,
+                MARKER_KINDS,
+                FREEZE_TURNS
+            });
         }
-        const targets = getFreezeTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        removeMarkersAt(cardState, row, col, {
-            kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
-            type: 'FREEZE'
-        });
-        addMarker(cardState, 'specialStone', row, col, playerKey, {
-            type: 'FREEZE',
-            remainingOwnerTurns: FREEZE_TURNS
-        });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, row, col };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function applySeedWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'SEED_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
+        if (CardStatusCellsModule && typeof CardStatusCellsModule.applySeedWill === 'function') {
+            return CardStatusCellsModule.applySeedWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getSeedTargets,
+                removeMarkersAt,
+                addMarker,
+                clearCardPendingEffect,
+                MARKER_KINDS,
+                SEED_WILL_TURNS
+            });
         }
-        const targets = getSeedTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        removeMarkersAt(cardState, row, col, {
-            kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
-            type: 'SEED'
-        });
-        addMarker(cardState, 'specialStone', row, col, playerKey, {
-            type: 'SEED',
-            remainingOwnerTurns: SEED_WILL_TURNS
-        });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, row, col };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function getLossWillRemovableCount(cardState) {
@@ -4869,52 +4473,45 @@
     }
 
     function getCardHandManagerContext() {
-        return {
-            constants: {
-                CARD_DEFS,
-                CARD_TYPE_BY_ID,
-                MAX_HAND_SIZE,
-                RIBO_WILL_UNLOCK_TURN_INDEX
-            },
-            helpers: {
-                hasStandardLegalMoveForPlayer,
-                canUseLastResortForPlayer,
-                canUseEqualityWillForPlayer,
-                canUseReinforcementWillForPlayer,
-                canUseTimeStopGodForPlayer,
-                countOpponentOccupiedCornersForPlayer,
-                getTemptWillTargets,
-                getCaptureWillTargets,
-                getStrongWindTargets,
-                getSuperBuoyancyTargets,
-                getSuperGravityTargets,
-                getTrapTargets,
-                getGuardTargets,
-                getLivingWillTargets,
-                getHyperactiveInheritTargets,
-                getExtendLifeTargets,
-                getCorrosionTargets,
-                getTimeBombTargets,
-                getTeleportTargets,
-                getCellTeleportTargets,
-                getCloneTargets,
-                getSplitTargets,
-                getReinforcementWillTargets,
-                getOccupiedBoardShapeCellsForCard,
-                getBoardExpansionTargets,
-                getBoardExpansionGodTargets,
-                getBoardShrinkTargets,
-                getBoardShrinkGodTargets,
-                getBlockadeTargets,
-                getMeteorTargets,
-                getFreezeTargets
-            },
-            modules: {
-                CardDefsModule,
-                CardCostsModule,
-                CardSelectorsModule
-            }
-        };
+        if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+            throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+        }
+        return CardEffectResolverModule.getCardHandManagerContext({
+            hasStandardLegalMoveForPlayer,
+            canUseLastResortForPlayer,
+            canUseEqualityWillForPlayer,
+            canUseReinforcementWillForPlayer,
+            canUseTimeStopGodForPlayer,
+            countOpponentOccupiedCornersForPlayer,
+            getTemptWillTargets,
+            getCaptureWillTargets,
+            getStrongWindTargets,
+            getSuperBuoyancyTargets,
+            getSuperGravityTargets,
+            getTrapTargets,
+            getGuardTargets,
+            getLivingWillTargets,
+            getHyperactiveInheritTargets,
+            getExtendLifeTargets,
+            getCorrosionTargets,
+            getTimeBombTargets,
+            getTeleportTargets,
+            getCellTeleportTargets,
+            getCloneTargets,
+            getSplitTargets,
+            getReinforcementWillTargets,
+            getOccupiedBoardShapeCellsForCard,
+            getBoardExpansionTargets,
+            getBoardExpansionGodTargets,
+            getBoardShrinkTargets,
+            getBoardShrinkGodTargets,
+            getBlockadeTargets,
+            getMeteorTargets,
+            getFreezeTargets,
+            CardDefsModule,
+            CardCostsModule,
+            CardSelectorsModule
+        });
     }
 
     function getCardStateFactoryContext() {
@@ -4936,61 +4533,56 @@
     }
 
     function getCardEffectTimingContext() {
-        return {
+        if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardEffectTimingContext !== 'function') {
+            throw new Error('[cards.js] CardEffectResolver.getCardEffectTimingContext not available');
+        }
+        return CardEffectResolverModule.getCardEffectTimingContext({
             defaultPrng,
-            constants: {
-                BLACK,
-                WHITE,
-                EMPTY,
-                DRAW_INTERVAL,
-                FLIP_CHARGE_MULTIPLIER_EFFECTS,
-                NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS,
-                ULTIMATE_DRAGON_TURNS,
-                ULTIMATE_DESTROY_GOD_TURNS,
-                ULTIMATE_HYPERACTIVE_TURNS,
-                EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT,
-                EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT,
-                ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT,
-                ULTIMATE_HYPERACTIVE_DESTROY_EVADE_LIMIT,
-                AFTERIMAGE_WILL_FLIP_EVADE_LIMIT,
-                AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT,
-                SNIPER_WILL_TURNS,
-                DESTROY_DRAGON_TURNS,
-                LIGHTNING_WILL_TURNS,
-                OBSERVER_WILL_TURNS,
-                GHOST_WILL_TURNS,
-                SEED_WILL_TURNS,
-                WILL_HUNTER_KING_TURNS,
-                ROBOT_VACUUM_TURNS,
-                TIME_STOP_GOD_TURNS,
-                DOUBLE_PLACE_EXTRA,
-                THROW_CHAIN_CONFIG_BY_TYPE,
-                MARKER_KINDS
-            },
-            helpers: {
-                ensureHandDestroyFlags: _ensureHandDestroyFlags,
-                processRiboWillTurnStartEffects,
-                commitDraw,
-                getSpecialMarkers,
-                getCardContext,
-                removeMarkersAt,
-                isFrozenCellForCard,
-                emitPresentationEvent,
-                addChargeValue,
-                addChargeWithTotal,
-                addMarker,
-                applyStrongWill,
-                applyAbsoluteProtect,
-                applyRegenWill,
-                workDebugLog,
-                workDebugError,
-                hasBoardShapeCellForCard,
-                getCellValueForCard,
-                setCellValueForCard,
-                clearStoneIdAtForCard
-            },
-            modules: getCardEffectTimingModules()
-        };
+            _ensureHandDestroyFlags,
+            processRiboWillTurnStartEffects,
+            commitDraw,
+            getSpecialMarkers,
+            getCardContext,
+            removeMarkersAt,
+            isFrozenCellForCard,
+            emitPresentationEvent,
+            addChargeValue,
+            addChargeWithTotal,
+            addMarker,
+            applyStrongWill,
+            applyAbsoluteProtect,
+            applyRegenWill,
+            workDebugLog,
+            workDebugError,
+            hasBoardShapeCellForCard,
+            getCellValueForCard,
+            setCellValueForCard,
+            clearStoneIdAtForCard,
+            CardWorkModule,
+            CardLivingWillModule,
+            BoardOpsModule,
+            ULTIMATE_DRAGON_TURNS,
+            ULTIMATE_DESTROY_GOD_TURNS,
+            ULTIMATE_HYPERACTIVE_TURNS,
+            EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT,
+            EXTREME_HYPERACTIVE_DESTROY_EVADE_LIMIT,
+            AFTERIMAGE_WILL_FLIP_EVADE_LIMIT,
+            AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT,
+            SNIPER_WILL_TURNS,
+            DESTROY_DRAGON_TURNS,
+            LIGHTNING_WILL_TURNS,
+            OBSERVER_WILL_TURNS,
+            GHOST_WILL_TURNS,
+            SEED_WILL_TURNS,
+            WILL_HUNTER_KING_TURNS,
+            ROBOT_VACUUM_TURNS,
+            TIME_STOP_GOD_TURNS,
+            DOUBLE_PLACE_EXTRA,
+            THROW_CHAIN_CONFIG_BY_TYPE,
+            MARKER_KINDS,
+            FLIP_CHARGE_MULTIPLIER_EFFECTS,
+            NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS
+        });
     }
 
     /**
@@ -5000,10 +4592,10 @@
      * @param {Object} [prng]
      */
     function onTurnStart(cardState, playerKey, gameState, prng) {
-        if (!CardEffectTimingModule || typeof CardEffectTimingModule.onTurnStart !== 'function') {
-            throw new Error('[cards.js] CardEffectTiming.onTurnStart not available');
+        if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.onTurnStart !== 'function') {
+            throw new Error('[cards.js] CardTimingProcessor.onTurnStart not available');
         }
-        return CardEffectTimingModule.onTurnStart(
+        return CardTimingProcessorModule.onTurnStart(
             cardState,
             playerKey,
             gameState,
@@ -5040,10 +4632,10 @@
     }
 
     function applyPlacementEffects(cardState, gameState, playerKey, row, col, flipCount) {
-        if (!CardEffectTimingModule || typeof CardEffectTimingModule.applyPlacementEffects !== 'function') {
-            throw new Error('[cards.js] CardEffectTiming.applyPlacementEffects not available');
+        if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.applyPlacementEffects !== 'function') {
+            throw new Error('[cards.js] CardTimingProcessor.applyPlacementEffects not available');
         }
-        return CardEffectTimingModule.applyPlacementEffects(
+        return CardTimingProcessorModule.applyPlacementEffects(
             cardState,
             gameState,
             playerKey,
@@ -5074,6 +4666,13 @@
     }
 
     function applyStrongWill(cardState, playerKey, row, col) {
+        if (CardProtectModule && typeof CardProtectModule.applyStrongWill === 'function') {
+            return CardProtectModule.applyStrongWill(cardState, playerKey, row, col, {
+                getSpecialMarkers,
+                addMarker,
+                STRONG_WILL_PROMOTION_OWNER_TURNS
+            });
+        }
         const existingMarker = getSpecialMarkers(cardState).find((marker) => (
             marker &&
             marker.row === row &&
@@ -5103,6 +4702,12 @@
     }
 
     function applyAbsoluteProtect(cardState, playerKey, row, col) {
+        if (CardProtectModule && typeof CardProtectModule.applyAbsoluteProtect === 'function') {
+            return CardProtectModule.applyAbsoluteProtect(cardState, playerKey, row, col, {
+                getSpecialMarkers,
+                addMarker
+            });
+        }
         const existingMarker = getSpecialMarkers(cardState).find((marker) => (
             marker &&
             marker.row === row &&
@@ -5178,33 +4783,15 @@
      * @returns {{applied:boolean, reason?:string, selectedCardId?:string, vanished?:string[]}}
      */
     function applyHeavenBlessingChoice(cardState, playerKey, selectedCardId) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'HEAVEN_BLESSING' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'pending_not_found' };
+        if (CardHandEffectsModule && typeof CardHandEffectsModule.applyHeavenBlessingChoice === 'function') {
+            return CardHandEffectsModule.applyHeavenBlessingChoice(cardState, playerKey, selectedCardId, {
+                readCardPendingEffect,
+                clearCardPendingEffect,
+                addCardToHand,
+                MAX_HAND_SIZE
+            });
         }
-
-        const offers = Array.isArray(pending.offers) ? pending.offers.slice() : [];
-        if (!offers.length) {
-            clearCardPendingEffect(cardState, playerKey);
-            return { applied: false, reason: 'offers_not_found' };
-        }
-        if (!selectedCardId || !offers.includes(selectedCardId)) {
-            return { applied: false, reason: 'invalid_target' };
-        }
-        if (!cardState.hands || !Array.isArray(cardState.hands[playerKey])) {
-            return { applied: false, reason: 'invalid_hand' };
-        }
-        if (cardState.hands[playerKey].length >= MAX_HAND_SIZE) {
-            return { applied: false, reason: 'hand_full' };
-        }
-
-        const added = addCardToHand(cardState, playerKey, selectedCardId);
-        if (!added) {
-            return { applied: false, reason: 'hand_full' };
-        }
-        const vanished = offers.filter(id => id !== selectedCardId);
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, selectedCardId, vanished };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     /**
@@ -5215,28 +4802,14 @@
      * @returns {{applied:boolean, reason?:string, opponentKey?:string, revealedCount?:number}}
      */
     function applyRevealHandWill(cardState, playerKey) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'REVEAL_HAND_WILL' || pending.stage !== null) {
-            return { applied: false, reason: 'pending_not_found' };
+        if (CardHandEffectsModule && typeof CardHandEffectsModule.applyRevealHandWill === 'function') {
+            return CardHandEffectsModule.applyRevealHandWill(cardState, playerKey, {
+                readCardPendingEffect,
+                clearCardPendingEffect,
+                revealCurrentHandToViewer
+            });
         }
-
-        const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey])) ? cardState.hands[opponentKey] : null;
-        if (!opponentHand) {
-            return { applied: false, reason: 'invalid_hand' };
-        }
-        if (opponentHand.length <= 0) {
-            clearCardPendingEffect(cardState, playerKey);
-            return { applied: false, reason: 'opponent_hand_empty', opponentKey, revealedCount: 0 };
-        }
-
-        const revealedCopyIds = revealCurrentHandToViewer(cardState, playerKey, opponentKey);
-        clearCardPendingEffect(cardState, playerKey);
-        return {
-            applied: true,
-            opponentKey,
-            revealedCount: revealedCopyIds.length
-        };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     /**
@@ -5248,53 +4821,15 @@
      * @returns {{applied:boolean, reason?:string, destroyedCardId?:string}}
      */
     function applyCondemnWill(cardState, playerKey, targetIndex) {
-        const parseHiddenHandToken = (value) => {
-            if (typeof value !== 'string') return null;
-            const m = /^__hidden_hand__:(black|white):(\d+)$/.exec(value);
-            if (!m) return null;
-            return { owner: m[1], handIndex: Number(m[2]) };
-        };
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'CONDEMN_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'pending_not_found' };
+        if (CardHandEffectsModule && typeof CardHandEffectsModule.applyCondemnWill === 'function') {
+            return CardHandEffectsModule.applyCondemnWill(cardState, playerKey, targetIndex, {
+                readCardPendingEffect,
+                clearCardPendingEffect,
+                removeHandCardAt,
+                addCardToDiscard
+            });
         }
-
-        const offers = Array.isArray(pending.offers) ? pending.offers.slice() : [];
-        if (!offers.length) {
-            clearCardPendingEffect(cardState, playerKey);
-            return { applied: false, reason: 'offers_not_found' };
-        }
-
-        if (!Number.isInteger(targetIndex)) {
-            return { applied: false, reason: 'invalid_target' };
-        }
-        const offer = offers.find(o => o && Number.isInteger(o.handIndex) && o.handIndex === targetIndex);
-        if (!offer || !offer.cardId) {
-            return { applied: false, reason: 'invalid_target' };
-        }
-
-        const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey])) ? cardState.hands[opponentKey] : null;
-        if (!opponentHand) {
-            return { applied: false, reason: 'invalid_hand' };
-        }
-        if (targetIndex < 0 || targetIndex >= opponentHand.length) {
-            return { applied: false, reason: 'invalid_target' };
-        }
-        const removed = removeHandCardAt(cardState, opponentKey, targetIndex);
-        if (!removed) {
-            return { applied: false, reason: 'invalid_target' };
-        }
-        const handCardId = removed.cardId;
-        const handToken = parseHiddenHandToken(handCardId);
-        const offerToken = parseHiddenHandToken(offer.cardId);
-        const destroyedCardId = handToken && !offerToken ? offer.cardId : handCardId;
-        addCardToDiscard(cardState, handCardId, removed.cardCopyId);
-        cardState.selectedCardId = null;
-        cardState.selectedCardOwnerKey = null;
-        clearCardPendingEffect(cardState, playerKey);
-
-        return { applied: true, destroyedCardId };
+        return { applied: false, reason: 'deps_missing' };
     }
 
     function getDirectionalChainFlips(gameState, row, col, ownerVal, dir, context) {
@@ -5345,34 +4880,10 @@
     }
 
     function getTabooReverseCandidates(cardState, gameState, playerKey, row, col) {
-        if (!gameState || !Array.isArray(gameState.board)) return [];
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return [];
-
-        const targetValue = getCellValueForCard(gameState, row, col);
-        if (targetValue !== EMPTY) return [];
-
-        const context = getCardContext(cardState);
-        const blockedCells = (context && Array.isArray(context.blockedCells)) ? context.blockedCells : [];
-        const blockedSet = blockedCells.length
-            ? new Set(blockedCells.map((p) => `${p.row},${p.col}`))
-            : null;
-        if (blockedSet && blockedSet.has(`${row},${col}`)) return [];
-
-        const ownerKey = playerKey === 'white' ? 'white' : 'black';
-        const ownerVal = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-
-        const candidates = [];
-        for (const direction of (DIRECTIONS || [])) {
-            if (!Array.isArray(direction) || direction.length !== 2) continue;
-            const flips = getTabooReverseDirectionalFlips(gameState, row, col, ownerVal, direction, context);
-            if (!Array.isArray(flips) || flips.length === 0) continue;
-            candidates.push({
-                direction: [direction[0], direction[1]],
-                flips,
-                score: flips.length
-            });
+        if (TargetResolver && typeof TargetResolver.getTabooReverseCandidates === 'function') {
+            return TargetResolver.getTabooReverseCandidates(cardState, gameState, playerKey, row, col);
         }
-        return candidates;
+        return [];
     }
 
     function pickTabooReverseFlips(cardState, gameState, playerKey, row, col, prng) {
@@ -5408,7 +4919,7 @@
             return { applied: false, flips: [], chosen: null };
         }
 
-        const ownerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
+        const playerValue = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const context = getCardContext(cardState);
         const p = prng || defaultPrng;
 
@@ -5418,7 +4929,7 @@
             let sourceFlips = Array.isArray(primaryFlips) ? primaryFlips.slice() : [];
             const maxLinks = resolveChainWillMaxLinks(gameState, chainConfig);
             for (let i = 0; i < maxLinks; i++) {
-                const res = findChainChoiceFn(gameState, sourceFlips, ownerVal, context, p);
+                const res = findChainChoiceFn(gameState, sourceFlips, playerValue, context, p);
                 if (!res || !res.applied || !Array.isArray(res.flips) || res.flips.length === 0) break;
                 const chainLink = i + 1;
                 const appliedThisLink = [];
@@ -5428,7 +4939,7 @@
                         const changeRes = BoardOpsModule.changeAt(cardState, gameState, pos.row, pos.col, playerKey, CHAIN_WILL_EVENT_CAUSE, 'chain_flip', { chainLink });
                         changed = !!(changeRes && changeRes.changed);
                     } else {
-                        gameState.board[pos.row][pos.col] = ownerVal;
+                        gameState.board[pos.row][pos.col] = playerValue;
                     }
                     if (!changed) continue;
                     clearBombAt(cardState, pos.row, pos.col);
@@ -5462,65 +4973,30 @@
     * Delegates to cards/time_bomb.js module.
     */
     function tickBombs(cardState, gameState, playerKey) {
-        if (CardTimeBombModule && typeof CardTimeBombModule.tickBombs === 'function') {
-            return CardTimeBombModule.tickBombs(cardState, gameState, playerKey, { BoardOps: BoardOpsModule, destroyAt });
+        if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.tickBombs !== 'function') {
+            throw new Error('[cards.js] CardTimingProcessor.tickBombs not available');
         }
-        console.warn('[cards.js] CardTimeBomb module not available');
-        return { exploded: [], destroyed: [] };
+        return CardTimingProcessorModule.tickBombs(cardState, gameState, playerKey, {
+            BoardOpsModule,
+            destroyAt
+        });
     }
 
     /**
      * Tick a single bomb (by object) at turn start. Delegates to time_bomb_single if available.
      */
     function tickBombAt(cardState, gameState, bomb, activeKey) {
-        if (!bomb) return { exploded: [], destroyed: [], removed: false };
-        if (CardTimeBombModule && typeof CardTimeBombModule.tickBombAt === 'function') {
-            return CardTimeBombModule.tickBombAt(cardState, gameState, bomb, activeKey, { BoardOps: BoardOpsModule, destroyAt });
+        if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.tickBombAt !== 'function') {
+            throw new Error('[cards.js] CardTimingProcessor.tickBombAt not available');
         }
-        // Fallback: emulate tick for single bomb
-        const bombs = getBombMarkers(cardState);
-        const idx = bombs.findIndex(b => (bomb.id && b.id === bomb.id) || (b.row === bomb.row && b.col === bomb.col && b.owner === bomb.owner && b.createdSeq === bomb.createdSeq));
-        if (idx === -1) return { exploded: [], destroyed: [], removed: false };
-        const b = bombs[idx];
-        if (activeKey && b.owner !== activeKey) return { exploded: [], destroyed: [], removed: false };
-        if (b.data && b.data.placedTurn === cardState.turnIndex) return { exploded: [], destroyed: [], removed: false };
-        if (!b.data) b.data = {};
-        b.data.remainingTurns = (typeof b.data.remainingTurns === 'number') ? b.data.remainingTurns - 1 : -1;
-        if (b.data.remainingTurns <= 0) {
-            const exploded = [{ row: b.row, col: b.col }];
-            const destroyed = [];
-            const targets = [];
-            const forbiddenEvadeCells = [];
-            for (let dr = -1; dr <= 1; dr++) {
-                for (let dc = -1; dc <= 1; dc++) {
-                    const r = b.row + dr;
-                    const c = b.col + dc;
-                    if (r < 0 || r >= 8 || c < 0 || c >= 8) continue;
-                    forbiddenEvadeCells.push({ row: r, col: c });
-                    if (gameState.board[r][c] === EMPTY) continue;
-                    targets.push({ row: r, col: c });
-                }
-            }
-            for (const target of targets) {
-                let destroyedRes = false;
-                if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-                    const res = BoardOpsModule.destroyAt(cardState, gameState, target.row, target.col, 'TIME_BOMB', 'bomb_explosion', {
-                        forbiddenEvadeCells
-                    });
-                    destroyedRes = !!(res && res.destroyed);
-                } else {
-                    destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
-                }
-                if (destroyedRes) destroyed.push({ row: target.row, col: target.col });
-            }
-            if (typeof removeMarkerById === 'function' && b.id !== undefined) {
-                removeMarkerById(cardState, b.id);
-            } else {
-                removeMarkersAt(cardState, b.row, b.col, { category: MARKER_CATEGORIES.BOMB, owner: b.owner });
-            }
-            return { exploded, destroyed, removed: true };
-        }
-        return { exploded: [], destroyed: [], removed: false };
+        return CardTimingProcessorModule.tickBombAt(cardState, gameState, bomb, activeKey, {
+            BoardOpsModule,
+            destroyAt,
+            removeMarkerById,
+            removeMarkersAt,
+            getBombMarkers,
+            MARKER_CATEGORIES
+        });
     }
 
 
@@ -5532,18 +5008,15 @@
      * @returns {Object} { converted: [...], destroyed: [...] }
      */
     function processDragonEffects(cardState, gameState, playerKey) {
-        const dragonDeps = {
-            BoardOps: BoardOpsModule,
+        if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.processDragonEffects !== 'function') {
+            throw new Error('[cards.js] CardTimingProcessor.processDragonEffects not available');
+        }
+        return CardTimingProcessorModule.processDragonEffects(cardState, gameState, playerKey, {
+            BoardOpsModule,
             getCardContext,
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
-        };
-        if (DragonEffectsModule && typeof DragonEffectsModule.processDragonEffects === 'function') {
-            return DragonEffectsModule.processDragonEffects(cardState, gameState, playerKey, dragonDeps);
-        }
-        // Fallback: no-op
-        console.warn('[cards.js] DragonEffects module not available');
-        return { converted: [], destroyed: [], anchors: [] };
+        });
     }
 
 
@@ -5587,17 +5060,15 @@
      * Delegates to cards/udg.js module.
      */
     function processUltimateDestroyGodEffects(cardState, gameState, playerKey) {
-        const deps = {
+        if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.processUltimateDestroyGodEffects !== 'function') {
+            throw new Error('[cards.js] CardTimingProcessor.processUltimateDestroyGodEffects not available');
+        }
+        return CardTimingProcessorModule.processUltimateDestroyGodEffects(cardState, gameState, playerKey, {
             destroyAt,
-            BoardOps: BoardOpsModule,
+            BoardOpsModule,
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
-        };
-        if (CardUdgModule && typeof CardUdgModule.processUltimateDestroyGodEffects === 'function') {
-            return CardUdgModule.processUltimateDestroyGodEffects(cardState, gameState, playerKey, deps);
-        }
-        console.warn('[cards.js] CardUdG module not available');
-        return { destroyed: [], anchors: [], expired: [] };
+        });
     }
 
 
@@ -5809,12 +5280,12 @@
         });
         if (!marker) return result;
 
-        const ownerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
+        const playerValue = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const boardRow = Array.isArray(gameState.board) ? gameState.board[row] : null;
         const cellValue = Array.isArray(boardRow) ? boardRow[col] : null;
 
         result.activated = true;
-        if (cellValue !== ownerVal) {
+        if (cellValue !== playerValue) {
             removeMarkersAt(cardState, row, col, {
                 kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
                 type: 'OBSERVER',
@@ -5961,20 +5432,19 @@
 
 
     function processHyperactiveMoves(cardState, gameState, prng) {
-        if (CardHyperactiveModule && typeof CardHyperactiveModule.processHyperactiveMoves === 'function') {
-            return CardHyperactiveModule.processHyperactiveMoves(cardState, gameState, prng, {
-                defaultPrng: defaultPrng,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                clearBombAt,
-                clearHyperactiveAtPositions,
-                isBlockedCell,
-                getCardContext,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
+        if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.processHyperactiveMoves !== 'function') {
+            throw new Error('[cards.js] CardTimingProcessor.processHyperactiveMoves not available');
         }
-        console.warn('[cards.js] CardHyperactive module not available');
-        return { moved: [], destroyed: [], flipped: [], flippedByOwner: { black: [], white: [] } };
+        return CardTimingProcessorModule.processHyperactiveMoves(cardState, gameState, prng, {
+            defaultPrng,
+            getFlipsWithContextLocal,
+            clearBombAt,
+            clearHyperactiveAtPositions,
+            isBlockedCell,
+            getCardContext,
+            BoardOpsModule,
+            destroyAt
+        });
     }
 
 
@@ -6197,48 +5667,16 @@
     }
 
     function applyPositionSwapWill(cardState, gameState, playerKey, row, col) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'POSITION_SWAP_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
+        if (CardPositionSwapModule && typeof CardPositionSwapModule.applyPositionSwapWill === 'function') {
+            return CardPositionSwapModule.applyPositionSwapWill(cardState, gameState, playerKey, row, col, {
+                readCardPendingEffect,
+                getCellValueForCard,
+                isPositionSwapProtectedCell,
+                swapOccupiedCellsWithPresentation,
+                clearCardPendingEffect
+            });
         }
-        const cellValue = getCellValueForCard(gameState, row, col);
-        if (cellValue === null) return { applied: false, reason: 'out_of_board' };
-        if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
-        if (isPositionSwapProtectedCell(cardState, row, col)) return { applied: false, reason: 'swap_protected' };
-
-        const first = pending.firstTarget ? { row: pending.firstTarget.row, col: pending.firstTarget.col } : null;
-        if (!first) {
-            pending.firstTarget = { row, col };
-            return { applied: true, completed: false, firstTarget: { row, col } };
-        }
-
-        if (first.row === row && first.col === col) {
-            return { applied: false, reason: 'same_target' };
-        }
-        const firstValue = getCellValueForCard(gameState, first.row, first.col);
-        if (firstValue === null) {
-            pending.firstTarget = { row, col };
-            return { applied: true, completed: false, firstTarget: { row, col } };
-        }
-        if (firstValue === EMPTY) {
-            pending.firstTarget = { row, col };
-            return { applied: true, completed: false, firstTarget: { row, col } };
-        }
-        if (isPositionSwapProtectedCell(cardState, first.row, first.col)) {
-            pending.firstTarget = { row, col };
-            return { applied: true, completed: false, firstTarget: { row, col } };
-        }
-
-        const swapResult = swapOccupiedCellsWithPresentation(cardState, gameState, first, { row, col }, {
-            cause: 'POSITION_SWAP_WILL',
-            reason: 'position_swap'
-        });
-        if (!swapResult || !swapResult.swapped) {
-            return { applied: false, reason: (swapResult && swapResult.reason) || 'swap_failed' };
-        }
-        clearCardPendingEffect(cardState, playerKey);
-
-        return { applied: true, completed: true, from: first, to: { row, col } };
+        return { applied: false, reason: 'deps_missing' };
     }
 
 
@@ -6248,69 +5686,15 @@
     * @returns {Object} { protectedStones, permaProtectedStones, bombs, blockedCells }
      */
     function getCardContext(cardState) {
-        const specials = getSpecialMarkers(cardState);
-        const protectedStones = specials
-            .filter(s => s.data && s.data.type === 'PROTECTED')
-            .map(s => ({ row: s.row, col: s.col, owner: s.owner }));
-        const absoluteProtectedStones = specials
-            .filter((s) => s.data && s.data.type === 'ABSOLUTE_PROTECTED')
-            .map((s) => ({
-                row: s.row,
-                col: s.col,
-                owner: s.owner === 'black' ? (BLACK || 1) : (WHITE || -1)
-            }));
-
-        // PERMA_PROTECTED, ABSOLUTE_PROTECTED, DRAGON, BREEDING, UDG, LIGHTNING, GLUTTONOUS, and GUARD stones are immune to flipping.
-        const permaProtectedStones = specials
-            .filter(s => {
-                if (!s.data) return false;
-                if (
-                    s.data.type === 'ABSOLUTE_PROTECTED' ||
-                    s.data.type === 'PERMA_PROTECTED' ||
-                    s.data.type === 'DRAGON' ||
-                    s.data.type === 'BREEDING' ||
-                    s.data.type === 'DESTROY_DRAGON' ||
-                    s.data.type === 'LIGHTNING' ||
-                    s.data.type === 'GLUTTONOUS' ||
-                    s.data.type === 'ULTIMATE_DESTROY_GOD' ||
-                    s.data.type === 'GUARD' ||
-                    s.data.type === 'FREEZE'
-                ) {
-                    return true;
-                }
-                if (isFrozenCellForCard(cardState, s.row, s.col)) return true;
-                return false;
-            })
-            .map(s => ({
-                row: s.row,
-                col: s.col,
-                owner: s.owner === 'black' ? BLACK : WHITE
-            }));
-
-        const bombs = getBombMarkers(cardState).map(b => ({
-            row: b.row,
-            col: b.col,
-            remainingTurns: b.data ? b.data.remainingTurns : undefined,
-            owner: b.owner,
-            placedTurn: b.data ? b.data.placedTurn : undefined,
-            createdSeq: b.createdSeq
-        }));
-
-        const blockedCells = getBlockingMarkers(cardState).map(m => ({
-            row: m.row,
-            col: m.col,
-            type: m.data ? m.data.type : null,
-            remainingOwnerTurns: m.data ? m.data.remainingOwnerTurns : undefined,
-            owner: m.owner
-        }));
-
-        return {
-            protectedStones,
-            absoluteProtectedStones,
-            permaProtectedStones,
-            bombs,
-            blockedCells
-        };
+        if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardContext !== 'function') {
+            throw new Error('[cards.js] CardEffectResolver.getCardContext not available');
+        }
+        return CardEffectResolverModule.getCardContext(cardState, {
+            getSpecialMarkers,
+            getBombMarkers,
+            getBlockingMarkers,
+            isFrozenCellForCard
+        });
     }
 
     /**
@@ -6320,12 +5704,14 @@
      * @param {string} playerKey - 'black' or 'white'
      */
     function onTurnEnd(cardState, gameState, playerKey) {
-        // Protection expiration is now handled exclusively in onTurnStart
-        // to ensure it lasts until the start of the owner's next turn.
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (pending && isChainWillCardType(pending.type)) {
-            clearCardPendingEffect(cardState, playerKey);
+        if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.onTurnEnd !== 'function') {
+            throw new Error('[cards.js] CardTimingProcessor.onTurnEnd not available');
         }
+        return CardTimingProcessorModule.onTurnEnd(cardState, gameState, playerKey, {
+            readCardPendingEffect,
+            clearCardPendingEffect,
+            isChainWillCardType
+        });
     }
 
     /**
@@ -6383,52 +5769,10 @@
      * @returns {Array<{row:number,col:number}>}
      */
     function getSelectableTargets(cardState, gameState, playerKey) {
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending) return [];
-        if (!CardSelectorOrchestratorModule || typeof CardSelectorOrchestratorModule.getSelectableTargetsForPending !== 'function') {
-            return [];
+        if (TargetResolver && typeof TargetResolver.getSelectableTargets === 'function') {
+            return TargetResolver.getSelectableTargets(cardState, gameState, playerKey);
         }
-
-        return CardSelectorOrchestratorModule.getSelectableTargetsForPending({
-            cardState,
-            gameState,
-            playerKey,
-            pending,
-            selectorsModule: CardSelectorsModule,
-            constants: { BLACK, WHITE, EMPTY },
-            helpers: {
-                getCurrentBoardShapeCellsForCard,
-                getCellValueForCard,
-                getExpansionDescriptorsForCard,
-                isPositionSwapProtectedCell
-            },
-            localSelectors: {
-                getStrongWindTargets,
-                getSuperBuoyancyTargets,
-                getSuperGravityTargets,
-                getTemptWillTargets,
-                getCaptureWillTargets,
-                getTrapTargets,
-                getGuardTargets,
-                getLivingWillTargets,
-                getHyperactiveInheritTargets,
-                getTimeBombTargets,
-                getTeleportTargets,
-                getCellTeleportTargets,
-                getCloneTargets,
-                getSplitTargets,
-                getBoardExpansionTargets,
-                getBoardExpansionGodTargets,
-                getBoardShrinkTargets,
-                getBoardShrinkGodTargets,
-                getExtendLifeTargets,
-                getCorrosionTargets,
-                getBlockadeTargets,
-                getMeteorTargets,
-                getFreezeTargets,
-                getSeedTargets
-            }
-        });
+        return [];
     }
 
     return {
@@ -6583,6 +5927,11 @@
         cancelPendingSelection,
         getTemptWillTargets,
         getCaptureWillTargets,
+        getTemptTargets,
+        getCaptureTargets,
+        getDestroyTargets,
+        getSwapTargets,
+        getPositionSwapTargets,
         getExtendLifeTargets,
         getCorrosionTargets,
         getGuardTargets,
@@ -6592,6 +5941,7 @@
         getCellTeleportTargets,
         getCloneTargets,
         getSplitTargets,
+        getBreedingTargets,
         getBoardExpansionTargets,
         getBoardExpansionGodTargets,
         getBoardShrinkTargets,
@@ -6600,6 +5950,14 @@
         getMeteorTargets,
         getFreezeTargets,
         getSeedTargets,
+        getSniperTargets,
+        getLightningTargets,
+        getCrossBombTargets,
+        getXBombTargets,
+        getReinforcementTargets,
+        getEqualityTargets,
+        getCornerTributeTargets,
+        getLastResortTargets,
         getCurrentCornerCellsForCard,
         countOccupiedCornersForPlayer,
         isBlockedCell,

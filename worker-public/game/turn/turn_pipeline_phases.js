@@ -3740,7 +3740,7 @@
             }
 
             if (keepTurnForContinuation) {
-                gameState.currentPlayer = playerValue;
+                gameState.currentPlayer = player;
                 gameState.consecutivePasses = 0;
                 gameState.turnNumber = turnNumberBeforePlace;
             } else {
