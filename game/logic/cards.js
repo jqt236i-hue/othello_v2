@@ -617,6 +617,7 @@
 
     const CardExpansionModule = (function() { try { return require('./cards/expansion'); } catch (e) { return null; } })();
     const CardMarkersModule = (function() { try { return require('./cards/markers'); } catch (e) { return null; } })();
+    /** @type {any} */
     const CardMovementModule = (function() { try { return require('./cards/movement'); } catch (e) { return null; } })();
     /** @type {any} */
     const CardTeleportModule = (function() { try { return require('./cards/teleport'); } catch (e) { return null; } })();
@@ -636,6 +637,7 @@
     const CardUdgModule = (function() { try { return require('./cards/udg'); } catch (e) { return null; } })();
     const CardSniperModule = (function() { try { return require('./cards/sniper'); } catch (e) { return null; } })();
     const CardLightningModule = (function() { try { return require('./cards/lightning'); } catch (e) { return null; } })();
+    /** @type {any} */
     const CardWillHunterKingModule = (function() { try { return require('./cards/will_hunter_king'); } catch (e) { return null; } })();
     const CardDestroyDragonModule = (function() { try { return require('./cards/destroy_dragon'); } catch (e) { return null; } })();
     const DragonEffectsModule = (function() { try { return require('./effects/dragon'); } catch (e) { return null; } })();
