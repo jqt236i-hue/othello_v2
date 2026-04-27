@@ -3,6 +3,6 @@
  * @description Target helpers wrapper (delegates to game/logic/cards/targets.js)
  */
 
-import * as TargetsModule from '../../logic/cards/targets';
+import TargetsModule = require('../../logic/cards/targets');
 
 export = TargetsModule;

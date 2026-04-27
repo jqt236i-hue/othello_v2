@@ -1,13 +1,39 @@
 /**
- * @file context.js
+ * @file context.ts
  * @description Helper to obtain card-related context for CoreLogic and move generation.
  * Provides a safe fallback when CardLogic is not available (e.g., during early bootstrap or tests).
  */
 
-function mapBombMarkers(cardState) {
+import { CardState } from '../../src/types';
+
+interface MarkerData {
+    row: number;
+    col: number;
+    remainingTurns?: number;
+    owner: string | number;
+    placedTurn?: number;
+    createdSeq?: number;
+}
+
+interface BlockedMarkerData {
+    row: number;
+    col: number;
+    type: string | null;
+    remainingOwnerTurns?: number;
+    owner: string | number;
+}
+
+interface SafeCardContext {
+    protectedStones: Array<{row: number; col: number}>;
+    permaProtectedStones: Array<{row: number; col: number}>;
+    bombs: MarkerData[];
+    blockedCells: BlockedMarkerData[];
+}
+
+function mapBombMarkers(cardState: CardState | null | undefined): MarkerData[] {
     if (!cardState) return [];
-    if (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.getBombMarkers === 'function') {
-        return MarkersAdapter.getBombMarkers(cardState).map(m => ({
+    if (typeof (globalThis as any).MarkersAdapter !== 'undefined' && (globalThis as any).MarkersAdapter && typeof (globalThis as any).MarkersAdapter.getBombMarkers === 'function') {
+        return (globalThis as any).MarkersAdapter.getBombMarkers(cardState).map((m: any) => ({
             row: m.row,
             col: m.col,
             remainingTurns: m.data ? m.data.remainingTurns : undefined,
@@ -19,16 +45,16 @@ function mapBombMarkers(cardState) {
     return [];
 }
 
-function mapBlockedMarkers(cardState) {
+function mapBlockedMarkers(cardState: CardState | null | undefined): BlockedMarkerData[] {
     if (!cardState || !Array.isArray(cardState.markers)) return [];
     return cardState.markers
-        .filter(m => (
+        .filter((m: any) => (
             m &&
             m.kind === 'specialStone' &&
             m.data &&
             (m.data.type === 'BLOCKADE' || m.data.type === 'METEOR_HOLE' || m.data.type === 'FREEZE')
         ))
-        .map(m => ({
+        .map((m: any) => ({
             row: m.row,
             col: m.col,
             type: m.data ? m.data.type : null,
@@ -37,12 +63,16 @@ function mapBlockedMarkers(cardState) {
         }));
 }
 
-function getSafeCardContext(cardState, protectedStones, permaProtectedStones) {
+function getSafeCardContext(
+    cardState: CardState | null | undefined,
+    protectedStones?: Array<{row: number; col: number}>,
+    permaProtectedStones?: Array<{row: number; col: number}>
+): SafeCardContext {
     // Prefer CardLogic when available
-    if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardContext === 'function') {
+    if (typeof (globalThis as any).CardLogic !== 'undefined' && (globalThis as any).CardLogic && typeof (globalThis as any).CardLogic.getCardContext === 'function') {
         try {
-            return CardLogic.getCardContext(cardState);
-        } catch (e) {
+            return (globalThis as any).CardLogic.getCardContext(cardState);
+        } catch (e: any) {
             console.warn('[getSafeCardContext] CardLogic.getCardContext threw — falling back to safe context:', e && e.message);
         }
     }
@@ -54,7 +84,7 @@ function getSafeCardContext(cardState, protectedStones, permaProtectedStones) {
             if (cardsImpl && typeof cardsImpl.getCardContext === 'function') {
                 return cardsImpl.getCardContext(cardState);
             }
-        } catch (e) { /* ignore */ }
+        } catch (_e) { /* ignore */ }
     }
 
     // Last-resort safe fallback
@@ -66,11 +96,9 @@ function getSafeCardContext(cardState, protectedStones, permaProtectedStones) {
     };
 }
 
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        getSafeCardContext,
-        mapBombMarkers,
-        mapBlockedMarkers,
-        mapBlockadeMarkers: mapBlockedMarkers
-    };
-}
+export = {
+    getSafeCardContext,
+    mapBombMarkers,
+    mapBlockedMarkers,
+    mapBlockadeMarkers: mapBlockedMarkers
+};

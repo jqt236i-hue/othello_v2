@@ -618,8 +618,10 @@
     const CardExpansionModule = (function() { try { return require('./cards/expansion'); } catch (e) { return null; } })();
     const CardMarkersModule = (function() { try { return require('./cards/markers'); } catch (e) { return null; } })();
     const CardMovementModule = (function() { try { return require('./cards/movement'); } catch (e) { return null; } })();
+    /** @type {any} */
     const CardTeleportModule = (function() { try { return require('./cards/teleport'); } catch (e) { return null; } })();
     const CardCloneModule = (function() { try { return require('./cards/clone'); } catch (e) { return null; } })();
+    /** @type {any} */
     const CardMeteorModule = (function() { try { return require('./cards/meteor'); } catch (e) { return null; } })();
     const CardShrinkModule = (function() { try { return require('./cards/shrink'); } catch (e) { return null; } })();
     const CardLivingWillModule = (function() { try { return require('./cards/living_will'); } catch (e) { return null; } })();
@@ -3114,7 +3116,7 @@
                 const stolenCharge = Math.min(TRAP_WILL_STEAL_MAX, victimCharge);
                 const remainingCharge = Math.max(0, victimCharge - stolenCharge);
                 setChargeValue(cardState, victimKey, remainingCharge, 'trap_stolen_charge');
-                const gainedCharge = addChargeWithTotal(cardState, ownerKey, stolenCharge);
+                const gainedCharge = addChargeWithTotal(cardState, trapPlayerKey, stolenCharge);
 
                 const clearResult = clearHandToDiscard(cardState, victimKey);
                 const destroyedCards = Array.isArray(clearResult && clearResult.destroyedCards)
@@ -3122,11 +3124,11 @@
                     : [];
                 const destroyedCount = destroyedCards.length;
 
-                removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: ownerKey });
+                removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: trapPlayerKey });
                 res.triggered.push({
                     row,
                     col,
-                    owner: ownerKey,
+                    owner: trapPlayerKey,
                     victim: victimKey,
                     stolenCharge,
                     gainedCharge,
@@ -3139,8 +3141,8 @@
                 continue;
             }
 
-            removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: ownerKey });
-            res.disarmed.push({ row, col, owner: ownerKey, reason: 'changed_without_trigger' });
+            removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: trapPlayerKey });
+            res.disarmed.push({ row, col, owner: trapPlayerKey, reason: 'changed_without_trigger' });
         }
 
         return res;

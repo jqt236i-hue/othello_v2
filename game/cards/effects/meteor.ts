@@ -4,7 +4,7 @@
  */
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
-import * as MeteorModule from '../../logic/cards/meteor';
+import MeteorModule = require('../../logic/cards/meteor');
 
 interface MeteorExports {
   applyMeteorWill: (
@@ -14,7 +14,7 @@ interface MeteorExports {
     row: number,
     col: number,
     deps?: Record<string, unknown>
-  ) => Record<string, unknown>;
+  ) => any;
 }
 
 const exports: MeteorExports = {

@@ -4,7 +4,7 @@
  */
 
 import type { GameState } from '../../../src/types';
-import * as ChainModule from '../../logic/cards/chain';
+import ChainModule = require('../../logic/cards/chain');
 
 interface ChainExports {
   findChainChoice: (
