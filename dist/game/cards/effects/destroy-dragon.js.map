@@ -1,0 +1,1 @@
+{"version":3,"file":"destroy-dragon.js","sourceRoot":"","sources":["../../../../game/cards/effects/destroy-dragon.ts"],"names":[],"mappings":";AAAA;;;GAGG;AAGH,wEAAyE;AAGzE,MAAM,OAAO,GAAG;IACd,2BAA2B,EAAE,mBAAmB,CAAC,2BAA2B;IAC5E,mCAAmC,EAAE,mBAAmB,CAAC,mCAAmC;IAC5F,4CAA4C,EAAE,mBAAmB,CAAC,4CAA4C;CAC/G,CAAC;AAEF,iBAAS,OAAO,CAAC"}

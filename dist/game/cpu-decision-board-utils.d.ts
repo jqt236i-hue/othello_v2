@@ -1,0 +1,31 @@
+declare function countBoardEmpties(board: any): any;
+declare function isStandardBoard8x8(board: any): boolean;
+declare function resolveBoardBounds(boardOrRows: any, maybeCols: any): any;
+declare function isCornerCell(row: any, col: any, boardOrRows: any, maybeCols: any): any;
+declare function isEdgeCell(row: any, col: any, boardOrRows: any, maybeCols: any): any;
+declare function getBoardBonusValueAt(row: any, col: any, cardStateOverride: any): number;
+declare function countCornerControl(board: any, playerValue: any): any;
+declare function countEdgeControl(board: any, playerValue: any): any;
+declare function isRecoveryCardType(cardType: any): any;
+declare function isHoldCardType(cardType: any): any;
+declare function isChargeRampCardType(cardType: any): any;
+declare function resolveCardType(cardId: any, cardDef: any, cardLogicOverride: any): any;
+declare const _default: {
+    DEFAULT_CORNER_RECOVERY_CARD_TYPES: Set<string>;
+    DEFAULT_CORNER_HOLD_CARD_TYPES: Set<string>;
+    DEFAULT_CHARGE_RAMP_CARD_TYPES: Set<string>;
+    countBoardEmpties: typeof countBoardEmpties;
+    isStandardBoard8x8: typeof isStandardBoard8x8;
+    resolveBoardBounds: typeof resolveBoardBounds;
+    isCornerCell: typeof isCornerCell;
+    isEdgeCell: typeof isEdgeCell;
+    getBoardBonusValueAt: typeof getBoardBonusValueAt;
+    countCornerControl: typeof countCornerControl;
+    countEdgeControl: typeof countEdgeControl;
+    isRecoveryCardType: typeof isRecoveryCardType;
+    isHoldCardType: typeof isHoldCardType;
+    isChargeRampCardType: typeof isChargeRampCardType;
+    resolveCardType: typeof resolveCardType;
+};
+export = _default;
+//# sourceMappingURL=cpu-decision-board-utils.d.ts.map

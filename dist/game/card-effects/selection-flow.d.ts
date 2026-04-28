@@ -1,0 +1,90 @@
+export function resolvePendingSelectionContract(pendingType: any): any;
+export function isSelectionOnlyEndTurnPendingType(pendingType: any): any;
+export function shouldDeferNetworkPublishForPendingType(pendingType: any): any;
+export function shouldWaitForPlaybackIdleForPendingType(pendingType: any): any;
+export function setSelectionProcessing(nextValue: any): boolean;
+export function setSelectionCardAnimating(nextValue: any): boolean;
+export function setSelectionBusy(nextValue: any): boolean;
+export function createPendingSelectionAction(playerKey: any, pendingType: any, actionPayload: any, options: any): any;
+export function readPendingSelectionAction(playerKey: any): any;
+export function syncPendingSelectionActionCache(pendingEffectByPlayer: any): any;
+export function waitForSelectionPlaybackIdle(playbackEvents: any): Promise<any>;
+export function finalizePendingSelectionFlow(options: any): Promise<boolean>;
+export function setSignalBridge(bridge: any): any;
+export function clearSignalBridge(): boolean;
+export function applySelectionStateResult(result: any, options: any): {
+    cardState: any;
+    gameState: any;
+};
+export function emitSelectionPlaybackEvents(playbackEvents: any, meta: any, cardStateValue: any): boolean;
+export function executePendingSelection(options: any): Promise<{
+    ok: boolean;
+    reason: string;
+    result?: undefined;
+    pendingType?: undefined;
+    action?: undefined;
+    appliedSelection?: undefined;
+    playbackEvents?: undefined;
+    publishedByNetwork?: undefined;
+    publishResult?: undefined;
+    intermediatePreviewApplied?: undefined;
+} | {
+    ok: boolean;
+    reason: string;
+    result: any;
+    pendingType?: undefined;
+    action?: undefined;
+    appliedSelection?: undefined;
+    playbackEvents?: undefined;
+    publishedByNetwork?: undefined;
+    publishResult?: undefined;
+    intermediatePreviewApplied?: undefined;
+} | {
+    ok: boolean;
+    pendingType: string;
+    action: any;
+    result: any;
+    appliedSelection: boolean;
+    playbackEvents: never[];
+    publishedByNetwork: boolean;
+    reason?: undefined;
+    publishResult?: undefined;
+    intermediatePreviewApplied?: undefined;
+} | {
+    ok: boolean;
+    pendingType: string;
+    action: any;
+    result: any;
+    publishResult: any;
+    appliedSelection: boolean;
+    playbackEvents: never[];
+    publishedByNetwork: boolean;
+    reason?: undefined;
+    intermediatePreviewApplied?: undefined;
+} | {
+    ok: boolean;
+    pendingType: string;
+    action: any;
+    result: any;
+    appliedSelection: boolean;
+    playbackEvents: any;
+    intermediatePreviewApplied: boolean;
+    reason?: undefined;
+    publishedByNetwork?: undefined;
+    publishResult?: undefined;
+} | {
+    ok: boolean;
+    pendingType: string;
+    action: any;
+    result: any;
+    appliedSelection: any;
+    playbackEvents: any;
+    reason?: undefined;
+    publishedByNetwork?: undefined;
+    publishResult?: undefined;
+    intermediatePreviewApplied?: undefined;
+}>;
+export function capturePendingSelectionSnapshot(gameStateValue: any, cardStateValue: any): any;
+export function publishPendingSelectionSnapshot(meta: any): any;
+export declare let PENDING_SELECTION_CONTRACTS: any;
+//# sourceMappingURL=selection-flow.d.ts.map

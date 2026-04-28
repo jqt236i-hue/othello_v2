@@ -1,0 +1,1 @@
+{"version":3,"file":"living-will.js","sourceRoot":"","sources":["../../../../../../game/cards/game/cards/effects/living-will.js"],"names":[],"mappings":"AAAA,YAAY,CAAC;AACb;;;GAGG;AACH,MAAM,gBAAgB,GAAG,OAAO,CAAC,+BAA+B,CAAC,CAAC;AAClE,MAAM,OAAO,GAAG;IACZ,eAAe,EAAE,gBAAgB,CAAC,eAAe;IACjD,yBAAyB,EAAE,gBAAgB,CAAC,yBAAyB;CACxE,CAAC;AACF,MAAM,CAAC,OAAO,GAAG,OAAO,CAAC"}

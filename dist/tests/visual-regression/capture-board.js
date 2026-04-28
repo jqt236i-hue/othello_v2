@@ -1,0 +1,109 @@
+"use strict";
+const { chromium } = require('playwright');
+const fs = require('fs');
+const path = require('path');
+function finalizeScreenshot(tempPath, outputPath) {
+    try {
+        fs.rmSync(outputPath, { force: true });
+    }
+    catch (e) { }
+    fs.copyFileSync(tempPath, outputPath);
+    try {
+        fs.rmSync(tempPath, { force: true });
+    }
+    catch (e) { }
+}
+(async () => {
+    const url = process.env.TEST_URL || 'http://localhost:8081/?debug=1';
+    const outDir = path.resolve(__dirname);
+    if (!fs.existsSync(outDir))
+        fs.mkdirSync(outDir, { recursive: true });
+    // Start a minimal static server on port 8123 (local only)
+    const http = require('http');
+    const urlModule = require('url');
+    const pathModule = require('path');
+    const root = pathModule.resolve(__dirname, '..', '..');
+    // Use an ephemeral port by default or honor VIS_PORT env when provided (avoids EADDRINUSE in CI/local runs)
+    const port = process.env.VIS_PORT ? parseInt(process.env.VIS_PORT, 10) : 0;
+    const server = http.createServer((req, res) => {
+        const u = urlModule.parse(req.url);
+        let p = decodeURIComponent(u.pathname);
+        if (p === '/')
+            p = '/index.html';
+        const filePath = pathModule.join(root, p);
+        const stream = require('fs').createReadStream(filePath);
+        stream.on('error', (err) => {
+            res.statusCode = 404;
+            res.end('Not found');
+        });
+        const ext = pathModule.extname(filePath).toLowerCase();
+        const typeMap = { '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.json': 'application/json' };
+        res.setHeader('Content-Type', typeMap[ext] || 'application/octet-stream');
+        stream.pipe(res);
+    });
+    await new Promise((resolve, reject) => {
+        server.listen(port, '127.0.0.1', () => { const actualPort = server.address().port; console.log('[viz] local static server started on', actualPort); resolve(); });
+    });
+    const browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1024 } });
+    const localUrl = `http://127.0.0.1:${server.address().port}/?debug=1&noanim=1`;
+    console.log('[viz] navigating to', localUrl);
+    await page.goto(localUrl, { waitUntil: 'load' });
+    // Wait for game to initialize
+    await page.waitForTimeout(2000);
+    // Ensure debug actions are loaded and apply visual test board
+    try {
+        await page.evaluate(async () => {
+            if (typeof window.ensureDebugActionsLoaded === 'function') {
+                return new Promise((resolve) => {
+                    window.ensureDebugActionsLoaded(() => {
+                        try {
+                            if (typeof DebugActions !== 'undefined' && DebugActions && typeof DebugActions.applyVisualTestBoard === 'function') {
+                                DebugActions.applyVisualTestBoard(window.gameState, window.cardState);
+                            }
+                        }
+                        catch (e) { }
+                        resolve();
+                    });
+                });
+            }
+            else if (typeof DebugActions !== 'undefined' && DebugActions && typeof DebugActions.applyVisualTestBoard === 'function') {
+                DebugActions.applyVisualTestBoard(window.gameState, window.cardState);
+            }
+        });
+    }
+    catch (e) {
+        console.warn('[viz] applyVisualTestBoard failed', e);
+    }
+    // Force render and wait for animations
+    try {
+        await page.evaluate(() => { if (typeof window.forceFullRender === 'function' && window.boardEl)
+            window.forceFullRender(window.boardEl); });
+    }
+    catch (e) { }
+    try {
+        await page.waitForFunction(() => document.documentElement.classList.contains('stone-images-loaded'), { timeout: 5000 });
+    }
+    catch (e) { }
+    await page.waitForTimeout(500);
+    // take screenshot of board element
+    const board = await page.$('#board');
+    if (!board) {
+        console.error('[viz] Could not find #board element');
+        await browser.close();
+        process.exit(2);
+    }
+    const outputPath = path.join(outDir, 'baseline-board.png');
+    const tempPath = path.join(outDir, `baseline-board.capture.${process.pid}.png`);
+    try {
+        fs.rmSync(tempPath, { force: true });
+    }
+    catch (e) { }
+    await board.screenshot({ path: tempPath });
+    finalizeScreenshot(tempPath, outputPath);
+    console.log('[viz] saved', outputPath);
+    await browser.close();
+    // ensure the static server is closed cleanly
+    await new Promise((resolve) => server.close(resolve));
+})();
+//# sourceMappingURL=capture-board.js.map

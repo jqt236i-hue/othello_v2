@@ -1,0 +1,30 @@
+declare function buildGenerateSelfplayDataArgs(options: any): any[];
+declare function buildPolicyTrainingCommandArgs(options: any): any;
+declare function buildCardTrainingCommandArgs(options: any): any;
+declare function buildTargetTrainingCommandArgs(options: any): any;
+declare function buildValueTrainingCommandArgs(options: any): any;
+declare function buildQuickAdoptionCommandArgs(options: any): any[];
+declare function buildQualityGateCommandArgs(options: any): any[];
+declare function buildFinalAdoptionCommandArgs(options: any): any[];
+declare function buildCandidateOnnxBundleArgs(args: any, iterationPaths: any, hasTargetTrainingData: any): any[];
+declare function buildTargetOnnxBundleArgs(args: any, hasTargetTrainingData: any): string[];
+declare function buildOnnxGateCommandArgs(options: any): any[];
+declare function buildPromotionTargetBundleArgs(args: any, hasTargetTrainingData: any): string[];
+declare function buildPromotionCommandArgs(args: any, iterationPaths: any, adoptionResultPath: any, hasTargetTrainingData: any): any[];
+declare const _default: {
+    buildGenerateSelfplayDataArgs: typeof buildGenerateSelfplayDataArgs;
+    buildPolicyTrainingCommandArgs: typeof buildPolicyTrainingCommandArgs;
+    buildCardTrainingCommandArgs: typeof buildCardTrainingCommandArgs;
+    buildTargetTrainingCommandArgs: typeof buildTargetTrainingCommandArgs;
+    buildValueTrainingCommandArgs: typeof buildValueTrainingCommandArgs;
+    buildQuickAdoptionCommandArgs: typeof buildQuickAdoptionCommandArgs;
+    buildQualityGateCommandArgs: typeof buildQualityGateCommandArgs;
+    buildFinalAdoptionCommandArgs: typeof buildFinalAdoptionCommandArgs;
+    buildCandidateOnnxBundleArgs: typeof buildCandidateOnnxBundleArgs;
+    buildTargetOnnxBundleArgs: typeof buildTargetOnnxBundleArgs;
+    buildOnnxGateCommandArgs: typeof buildOnnxGateCommandArgs;
+    buildPromotionTargetBundleArgs: typeof buildPromotionTargetBundleArgs;
+    buildPromotionCommandArgs: typeof buildPromotionCommandArgs;
+};
+export = _default;
+//# sourceMappingURL=training-cycle-command-builders.d.ts.map

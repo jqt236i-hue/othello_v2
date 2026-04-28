@@ -1,0 +1,185 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
+const os = __importStar(require("os"));
+const generate_selfplay_data_js_1 = require("../scripts/generate-selfplay-data.js");
+const cpuLv6SharedProfile = __importStar(require("../constants/cpu-lv6-shared-profile.js"));
+describe('selfplay generate data script', () => {
+    test('parseArgs defaults align standalone selfplay with shared Lv6 teacher profile', () => {
+        const teacher = cpuLv6SharedProfile.teacher;
+        const args = (0, generate_selfplay_data_js_1.parseArgs)([]);
+        expect(args.policyMixRate).toBeCloseTo(teacher.policyMixRate, 6);
+        expect(args.policyCurrentAnchorRate).toBeCloseTo(teacher.policyCurrentAnchorRate, 6);
+        expect(args.tacticalWeightMin).toBeCloseTo(teacher.tacticalWeightMin, 6);
+        expect(args.tacticalWeightMax).toBeCloseTo(teacher.tacticalWeightMax, 6);
+        expect(args.tacticalDepthOpening).toBe(teacher.tacticalDepthOpening);
+        expect(args.tacticalDepthMid).toBe(teacher.tacticalDepthMid);
+        expect(args.tacticalDepthEnd).toBe(teacher.tacticalDepthEnd);
+        expect(args.tacticalBeamWidth).toBe(teacher.tacticalBeamWidth);
+        expect(args.teacherCommitteeWeightMin).toBeCloseTo(teacher.teacherCommitteeWeightMin, 6);
+        expect(args.teacherCommitteeWeightMax).toBeCloseTo(teacher.teacherCommitteeWeightMax, 6);
+        expect(args.teacherCommitteeConsensusBonusMin).toBeCloseTo(teacher.teacherCommitteeConsensusBonusMin, 6);
+        expect(args.teacherCommitteeConsensusBonusMax).toBeCloseTo(teacher.teacherCommitteeConsensusBonusMax, 6);
+        expect(args.policyScoreWeightMin).toBeCloseTo(teacher.policyScoreWeightMin, 6);
+        expect(args.policyScoreWeightMax).toBeCloseTo(teacher.policyScoreWeightMax, 6);
+        expect(args.heuristicWeightMin).toBeCloseTo(teacher.heuristicWeightMin, 6);
+        expect(args.heuristicWeightMax).toBeCloseTo(teacher.heuristicWeightMax, 6);
+    });
+    test('parseArgs accepts existing --policy-model path', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-selfplay-'));
+        const modelPath = path.join(tempDir, 'policy-table.json');
+        fs.writeFileSync(modelPath, JSON.stringify({ schemaVersion: 'policy_table.v2', states: {} }), 'utf8');
+        try {
+            const args = (0, generate_selfplay_data_js_1.parseArgs)(['--policy-model', modelPath]);
+            expect(args.policyModelPath).toBe(path.resolve(process.cwd(), modelPath));
+        }
+        finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+    test('parseArgs rejects missing --policy-model path', () => {
+        expect(() => (0, generate_selfplay_data_js_1.parseArgs)(['--policy-model', 'missing-policy-model.json'])).toThrow('--policy-model not found:');
+    });
+    test('parseArgs accepts --policy-model-pool and normalizes paths', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-selfplay-pool-'));
+        const modelA = path.join(tempDir, 'pool-a.json');
+        const modelB = path.join(tempDir, 'pool-b.json');
+        fs.writeFileSync(modelA, JSON.stringify({ schemaVersion: 'policy_table.v2', states: {} }), 'utf8');
+        fs.writeFileSync(modelB, JSON.stringify({ schemaVersion: 'policy_table.v2', states: {} }), 'utf8');
+        try {
+            const args = (0, generate_selfplay_data_js_1.parseArgs)(['--policy-model-pool', `${modelA},${modelB}`]);
+            expect(args.policyModelPoolPaths).toEqual([
+                path.resolve(process.cwd(), modelA),
+                path.resolve(process.cwd(), modelB)
+            ]);
+        }
+        finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+    test('parseArgs rejects missing --policy-model-pool paths', () => {
+        expect(() => (0, generate_selfplay_data_js_1.parseArgs)(['--policy-model-pool', 'missing-a.json'])).toThrow('--policy-model-pool not found:');
+    });
+    test('parseArgs accepts imperfect-information diversity controls', () => {
+        const args = (0, generate_selfplay_data_js_1.parseArgs)([
+            '--policy-mix-rate', '0.72',
+            '--card-usage-rate-jitter', '0.18',
+            '--tactical-weight-min', '0.7',
+            '--tactical-weight-max', '1.6',
+            '--tactical-depth-opening', '4',
+            '--tactical-depth-mid', '8',
+            '--tactical-depth-end', '12',
+            '--tactical-beam-width', '8',
+            '--worker-retries', '2.9',
+            '--resume-chunk-size', '1000.9',
+            '--reuse-completed-chunks'
+        ]);
+        expect(args.policyMixRate).toBeCloseTo(0.72, 6);
+        expect(args.cardUsageRateJitter).toBeCloseTo(0.18, 6);
+        expect(args.tacticalWeightMin).toBeCloseTo(0.7, 6);
+        expect(args.tacticalWeightMax).toBeCloseTo(1.6, 6);
+        expect(args.tacticalDepthOpening).toBe(4);
+        expect(args.tacticalDepthMid).toBe(8);
+        expect(args.tacticalDepthEnd).toBe(12);
+        expect(args.tacticalBeamWidth).toBe(8);
+        expect(args.workerRetries).toBe(2);
+        expect(args.resumeChunkSize).toBe(1000);
+        expect(args.reuseCompletedChunks).toBe(true);
+    });
+    test('parseArgs validates diversity control ranges', () => {
+        expect(() => (0, generate_selfplay_data_js_1.parseArgs)(['--policy-mix-rate', '1.1'])).toThrow('--policy-mix-rate must be in [0,1]');
+        expect(() => (0, generate_selfplay_data_js_1.parseArgs)(['--card-usage-rate-jitter', '-0.1'])).toThrow('--card-usage-rate-jitter must be in [0,1]');
+        expect(() => (0, generate_selfplay_data_js_1.parseArgs)(['--tactical-weight-min', '-1'])).toThrow('--tactical-weight-min must be >= 0');
+        expect(() => (0, generate_selfplay_data_js_1.parseArgs)(['--tactical-weight-max', '-1'])).toThrow('--tactical-weight-max must be >= 0');
+        expect(() => (0, generate_selfplay_data_js_1.parseArgs)(['--tactical-weight-min', '1.2', '--tactical-weight-max', '0.8'])).toThrow('--tactical-weight-max must be >= --tactical-weight-min');
+        expect(() => (0, generate_selfplay_data_js_1.parseArgs)(['--tactical-depth-opening', '-1'])).toThrow('--tactical-depth-opening must be >= 0');
+        expect(() => (0, generate_selfplay_data_js_1.parseArgs)(['--tactical-depth-mid', '-1'])).toThrow('--tactical-depth-mid must be >= 0');
+        expect(() => (0, generate_selfplay_data_js_1.parseArgs)(['--tactical-depth-end', '-1'])).toThrow('--tactical-depth-end must be >= 0');
+        expect(() => (0, generate_selfplay_data_js_1.parseArgs)(['--tactical-beam-width', '-1'])).toThrow('--tactical-beam-width must be >= 0');
+        expect(() => (0, generate_selfplay_data_js_1.parseArgs)(['--worker-retries', '-1'])).toThrow('--worker-retries must be >= 0');
+        expect(() => (0, generate_selfplay_data_js_1.parseArgs)(['--resume-chunk-size', '-1'])).toThrow('--resume-chunk-size must be >= 0');
+    });
+    test('parseArgs applies resolved profile defaults and derives hardcase split output', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'othello-selfplay-resolved-'));
+        const modelPath = path.join(tempDir, 'bootstrap-policy.json');
+        const resolvedConfigPath = path.join(tempDir, 'resolved-config.json');
+        fs.writeFileSync(modelPath, JSON.stringify({ schemaVersion: 'policy_table.v2', states: {} }), 'utf8');
+        fs.writeFileSync(resolvedConfigPath, JSON.stringify({
+            bootstrap: {
+                bootstrapPolicyModelPath: modelPath
+            },
+            command: {
+                args: [
+                    'scripts/run-selfplay-training-cycle.js',
+                    '--train-games', '321',
+                    '--selfplay-jobs', '7',
+                    '--selfplay-resume-chunk-size', '1000',
+                    '--card-usage-rate', '0.44',
+                    '--selfplay-policy-score-weight-min', '1.6',
+                    '--selfplay-policy-score-weight-max', '2.2',
+                    '--selfplay-heuristic-weight-min', '0.75',
+                    '--selfplay-heuristic-weight-max', '1.0',
+                    '--no-cards'
+                ]
+            }
+        }, null, 2), 'utf8');
+        try {
+            const outPath = path.join(tempDir, 'train.ndjson');
+            const args = (0, generate_selfplay_data_js_1.parseArgs)([
+                '--resolved-config', resolvedConfigPath,
+                '--out', outPath,
+                '--seed-family', 'train'
+            ]);
+            expect(args.games).toBe(321);
+            expect(args.jobs).toBe(7);
+            expect(args.resumeChunkSize).toBe(1000);
+            expect(args.allowCardUsage).toBe(false);
+            expect(args.cardUsageRate).toBeCloseTo(0.44, 6);
+            expect(args.policyScoreWeightMin).toBeCloseTo(1.6, 6);
+            expect(args.policyScoreWeightMax).toBeCloseTo(2.2, 6);
+            expect(args.heuristicWeightMin).toBeCloseTo(0.75, 6);
+            expect(args.heuristicWeightMax).toBeCloseTo(1.0, 6);
+            expect(args.policyModelPath).toBe(path.resolve(process.cwd(), modelPath));
+            expect(args.dataLane).toBe('train-main');
+            expect(args.hardcaseOut).toBe(path.join(path.dirname(outPath), 'train.hardcase.ndjson'));
+        }
+        finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+});
+//# sourceMappingURL=selfplay.generate-data.test.js.map

@@ -1,0 +1,1 @@
+//# sourceMappingURL=special-stone-registry.d.ts.map

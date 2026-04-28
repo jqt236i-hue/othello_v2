@@ -1,0 +1,80 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const playwright_1 = require("playwright");
+const e2e_runtime_helpers_js_1 = require("./e2e-runtime-helpers.js");
+function startServer(port = 0) {
+    return (0, e2e_runtime_helpers_js_1.startStaticServer)(port);
+}
+describe('CPU auto-response E2E', () => {
+    let serverProc;
+    let browser;
+    let serverPort = null;
+    beforeAll(async () => {
+        serverProc = startServer(0);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        serverPort = serverProc.address().port;
+        browser = await playwright_1.chromium.launch();
+    }, 30000);
+    afterAll(async () => {
+        await (0, e2e_runtime_helpers_js_1.stopPlaywrightBrowser)(browser, 10000);
+        browser = null;
+        await (0, e2e_runtime_helpers_js_1.stopStaticServer)(serverProc);
+        serverProc = null;
+    }, 30000);
+    test('player move triggers CPU turn and CPU performs an action', async () => {
+        const page = await browser.newPage();
+        const consoles = [];
+        page.on('console', msg => {
+            try {
+                consoles.push({ type: msg.type(), text: msg.text() });
+            }
+            catch (e) { /* ignore */ }
+        });
+        await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
+        // Wait for board initialised
+        await page.waitForFunction(() => !!(window.gameState && Array.isArray(window.gameState.board) && window.gameState.board.length === 8), { timeout: 10000 });
+        // Click Reset to ensure known starting state
+        await page.click('button:has-text("リセット")');
+        await page.waitForTimeout(300);
+        // Ensure a legal cell exists and click it
+        await page.waitForSelector('#board .cell.legal, #board .cell.legal-free', { timeout: 5000 });
+        // Record disc counts before move
+        const before = await page.$$eval('#board .disc.black, #board .disc.white', els => els.length);
+        await page.locator('#board .cell.legal, #board .cell.legal-free').first().click();
+        // Wait for human move to be applied (disc count increases or currentPlayer flips to white)
+        await page.waitForFunction((beforeCount) => {
+            try {
+                const b = document.querySelectorAll('#board .disc.black, #board .disc.white').length;
+                if (typeof window.gameState !== 'undefined' && window.gameState.currentPlayer === -1)
+                    return true;
+                return b > beforeCount;
+            }
+            catch (e) {
+                return false;
+            }
+        }, { timeout: 2000 }, before).catch(() => { });
+        // Wait for either a CPU console message or for currentPlayer to revert to black (1)
+        let cpuObserved = false;
+        try {
+            // wait for console message that contains [CPU]
+            await page.waitForEvent('console', { timeout: 10000, predicate: m => m.text().includes('[CPU]') });
+            cpuObserved = true;
+        }
+        catch (e) {
+            // If no explicit CPU log, fallback to checking gameState.currentPlayer flip back to black
+            try {
+                await page.waitForFunction(() => (window.gameState && window.gameState.currentPlayer === 1), { timeout: 10000 });
+                cpuObserved = true;
+            }
+            catch (err) {
+                cpuObserved = false;
+            }
+        }
+        // Also check disc count eventually increased (either by human or CPU)
+        const after = await page.$$eval('#board .disc.black, #board .disc.white', els => els.length);
+        expect(after).toBeGreaterThanOrEqual(before);
+        expect(cpuObserved).toBe(true);
+        await page.close();
+    }, 30000);
+});
+//# sourceMappingURL=cpu_auto_response.e2e.test.js.map

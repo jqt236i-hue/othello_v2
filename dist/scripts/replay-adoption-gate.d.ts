@@ -1,0 +1,72 @@
+#!/usr/bin/env node
+declare function parseArgs(argv: string[]): {
+    gatePayloadPath: null;
+    gateType: null;
+    seedBankPath: null;
+    candidateModelPath: null;
+    baselineModelPath: null;
+    opponentModelPath: null;
+    out: null;
+    verbose: boolean;
+    help: boolean;
+};
+declare function inferReplayGateType(payload: any, overrideGateType: any, gatePayloadPath: any): string;
+declare function buildReplayOptions(payload: any, args: any): {
+    gateType: string;
+    seedSchedule: any;
+    options: {
+        games: any;
+        seed: any;
+        seedCount: any;
+        seedStride: any;
+        jobs: any;
+        progressEvery: any;
+        maxPlies: any;
+        threshold: any;
+        confidenceLevel: any;
+        minLowerBound: any;
+        minSeedUplift: any;
+        minSeedPassCount: any;
+        aRate: any;
+        bRate: any;
+        tacticalWeight: any;
+        tacticalDepthOpening: any;
+        tacticalDepthMid: any;
+        tacticalDepthEnd: any;
+        tacticalBeamWidth: any;
+        policyScoreWeight: any;
+        heuristicWeight: any;
+        whitePriority: any;
+        qualityGateStrengthFirst: boolean;
+        qualityWeightCorner: any;
+        qualityWeightEdge: any;
+        qualityWeightCornerRecovery: any;
+        qualityWeightCornerRecapture: any;
+        qualityWeightEdgeRecovery: any;
+        qualityWeightCornerHold: any;
+        qualityWeightCornerHoldTurns: any;
+        qualityWeightEdgeHold: any;
+        qualityWeightEdgeChain: any;
+        qualityWeightFinalCornerShare: any;
+        qualityWeightFinalEdgeShare: any;
+        qualityWeightFinalLongestEdgeRunShare: any;
+        qualityWeightBonus: any;
+        qualityWeightCardImmediate: any;
+        qualityWeightCardFuture: any;
+        qualityWeightPlaceDelta: any;
+        baselineModelPath: any;
+        opponentModelPath: any;
+        candidateModelPath: any;
+        gatePhase: string;
+        verbose: boolean;
+    };
+};
+declare function replayGate(args: any, dependencies: any): Promise<any>;
+declare const _default: {
+    parseArgs: typeof parseArgs;
+    inferReplayGateType: typeof inferReplayGateType;
+    buildReplayOptions: typeof buildReplayOptions;
+    replayGate: typeof replayGate;
+};
+export = _default;
+//# sourceMappingURL=replay-adoption-gate.d.ts.map

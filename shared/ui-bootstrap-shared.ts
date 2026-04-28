@@ -70,7 +70,7 @@
         return resolveOptionalModule({
             root,
             globalName: 'UIBootstrap',
-            requirePath: '../ui/bootstrap',
+            requirePath: '../../ui/bootstrap',
             validate: (candidate): boolean => !!candidate && (
                 typeof (candidate as UIBootstrapAPI).installGameDI === 'function'
                 || typeof (candidate as UIBootstrapAPI).registerUIGlobals === 'function'
@@ -83,7 +83,7 @@
         return resolveOptionalModule({
             root,
             globalName: 'PlaybackRuntime',
-            requirePath: '../ui/playback-runtime',
+            requirePath: '../../ui/playback-runtime',
             validate: (candidate): boolean => !!candidate && typeof candidate === 'object'
         }) as object | null;
     }
@@ -92,7 +92,7 @@
         return resolveOptionalModule({
             root,
             globalName: 'PlaybackStateManager',
-            requirePath: '../ui/playback-state-manager',
+            requirePath: '../../ui/playback-state-manager',
             validate: (candidate): boolean => !!candidate && typeof candidate === 'object'
         }) as object | null;
     }

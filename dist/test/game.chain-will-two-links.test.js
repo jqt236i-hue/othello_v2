@@ -1,0 +1,71 @@
+"use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+const Shared = __importStar(require("../shared-constants.js"));
+const CardLogic = __importStar(require("../game/logic/cards.js"));
+const TurnPipeline = __importStar(require("../game/turn/turn_pipeline.js"));
+const chain_test_helpers_js_1 = require("./helpers/chain-test-helpers.js");
+describe('TRIPLE_CHAIN_WILL two-link chaining', () => {
+    test('chains up to 2 times and stops even if a 3rd chain is available', () => {
+        const { cardState, gameState } = (0, chain_test_helpers_js_1.makeState)(CardLogic, Shared);
+        cardState.pendingEffectByPlayer.black = { type: 'TRIPLE_CHAIN_WILL', cardId: 'triple_chain_01', stage: null };
+        (0, chain_test_helpers_js_1.placeStones)(gameState, [
+            // Primary flip for placement at (0,0): only (0,1) flips to black.
+            [0, 1, Shared.WHITE],
+            [0, 2, Shared.BLACK],
+            // 1st chain candidate from (0,1): down flips (1,1) because (2,1) is black.
+            [1, 1, Shared.WHITE],
+            [2, 1, Shared.BLACK],
+            // 2nd chain candidate from (1,1): right flips (1,2) because (1,3) is black.
+            [1, 2, Shared.WHITE],
+            [1, 3, Shared.BLACK],
+            // 3rd chain would be possible from (1,2) if unlimited: down flips (2,2) with (3,2) black.
+            // The new spec requires stopping before this.
+            [2, 2, Shared.WHITE],
+            [3, 2, Shared.BLACK]
+        ]);
+        const prng = { random: () => 0, shuffle: (arr) => arr };
+        const res = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 0, col: 0 }, prng);
+        expect(res.gameState.board[0][1]).toBe(Shared.BLACK);
+        expect(res.gameState.board[1][1]).toBe(Shared.BLACK); // chain 1
+        expect(res.gameState.board[1][2]).toBe(Shared.BLACK); // chain 2
+        expect(res.gameState.board[2][2]).toBe(Shared.WHITE); // chain 3 must not execute
+        const chainEvent = res.events.find((e) => e && e.type === 'chain_flipped');
+        expect(chainEvent).toBeTruthy();
+        expect(chainEvent.details).toEqual(expect.arrayContaining([{ row: 1, col: 1 }, { row: 1, col: 2 }]));
+        expect(chainEvent.details).toHaveLength(2);
+    });
+});
+//# sourceMappingURL=game.chain-will-two-links.test.js.map

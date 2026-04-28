@@ -1,0 +1,22 @@
+export function applyFlipAnimations(flipsToAnimate: any): any;
+export function setDiscColorAt(row: any, col: any, color: any): any;
+export function removeBombOverlayAt(row: any, col: any): any;
+export function clearAllStoneVisualEffectsAt(row: any, col: any): any;
+export function syncDiscVisualToCurrentState(row: any, col: any): any;
+export function getFlipAnimMs(): number;
+export function getPhaseGapMs(): number;
+export function getTurnTransitionGapMs(): number;
+export function animateFlipsWithDeferredColor(flips: any, fromColor: any, toColor: any): Promise<any>;
+export function animateRegenBack(regenedPositions: any, flipperColor: any): Promise<any>;
+export function animateFadeOutAt(row: any, col: any, options: any): Promise<any>;
+export function animateDestroyAt(row: any, col: any, options: any): Promise<any>;
+export function animateHyperactiveMove(from: any, to: any, options: any): Promise<any>;
+export function animateHyperactiveMoveChain(moves: any): Promise<any>;
+export function hasPlaybackEngine(): boolean;
+export function playDrawAnimation(player: any, drawnCardId: any): Promise<any>;
+export function updateDeckVisual(): Promise<any>;
+export function applyPendingSpecialstoneVisual(move: any, pendingType: any): any;
+export function runMoveVisualSequence(move: any, hadSelection: any, phases: any, effects: any, immediate: any): Promise<any>;
+export function setUIImpl(obj: any): void;
+export function clearUIImpl(): void;
+//# sourceMappingURL=move-executor-visuals.d.ts.map

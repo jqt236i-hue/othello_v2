@@ -1,0 +1,147 @@
+'use strict';
+
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+  ? __non_webpack_require__
+  : require;
+
+interface SkinDefinition {
+  id: string;
+  label: string;
+  note?: string;
+  imagePath?: string;
+  cssBackground?: string;
+  [key: string]: any;
+}
+
+function resolveModule(rootRef: any, key: string, requirePath: string): any {
+  const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
+  if (ctx && ctx[key]) return ctx[key];
+  try {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) return (globalThis as any)[key];
+  } catch (e) { /* ignore */ }
+  try {
+    return _require(requirePath);
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function resolveDocument(rootRef: any): Document | null {
+  if (rootRef && rootRef.document) return rootRef.document;
+  if (typeof document !== 'undefined') return document;
+  return null;
+}
+
+function createOptionButton(docRef: Document, skin: SkinDefinition): HTMLButtonElement {
+  const button = docRef.createElement('button');
+  button.type = 'button';
+  button.className = 'background-skin-option';
+  button.setAttribute('role', 'radio');
+  button.setAttribute('aria-checked', 'false');
+  button.setAttribute('data-background-skin-id', skin.id);
+  button.setAttribute('aria-label', '背景 ' + skin.label);
+
+  const preview = docRef.createElement(skin.imagePath ? 'img' : 'span') as HTMLElement;
+  preview.className = 'background-skin-option-preview';
+  if (skin.imagePath) {
+    (preview as HTMLImageElement).src = skin.imagePath;
+    (preview as HTMLImageElement).alt = '';
+    (preview as HTMLImageElement).loading = 'lazy';
+    (preview as HTMLImageElement).decoding = 'async';
+    (preview as HTMLImageElement).draggable = false;
+  } else if (skin.cssBackground) {
+    preview.style.backgroundImage = skin.cssBackground;
+  }
+  button.appendChild(preview);
+
+  const copy = docRef.createElement('span');
+  copy.className = 'background-skin-option-copy';
+  const label = docRef.createElement('span');
+  label.className = 'background-skin-option-label';
+  label.textContent = skin.label;
+  copy.appendChild(label);
+  const note = docRef.createElement('span');
+  note.className = 'background-skin-option-note';
+  note.textContent = skin.note || '';
+  copy.appendChild(note);
+  button.appendChild(copy);
+  return button;
+}
+
+interface ControllerApi {
+  refreshOptions: (preferredSkinId?: string) => void;
+  getSelectedSkinId: () => string;
+  selectSkin: (skinId: string) => SkinDefinition | null;
+}
+
+function setupBackgroundSkinControls(options?: any): ControllerApi | null {
+  const opts = (options && typeof options === 'object') ? options : {};
+  const rootRef = opts.root || (typeof window !== 'undefined' ? window : null);
+  const docRef = opts.document || resolveDocument(rootRef);
+  const catalogModule = resolveModule(rootRef, 'BackgroundSkinCatalogModule', './catalog.js');
+  const selectionModule = resolveModule(rootRef, 'BackgroundSkinSelectionModule', './selection.js');
+  const runtimeModule = resolveModule(rootRef, 'BackgroundSkinRuntimeModule', './runtime.js');
+  if (!docRef || !catalogModule || !selectionModule || !runtimeModule) return null;
+
+  const optionsEl = opts.optionsEl || docRef.getElementById('backgroundSkinOptions');
+  if (!optionsEl) return null;
+  let selectedSkin: SkinDefinition | null = null;
+
+  function syncOptionState() {
+    Array.from(optionsEl.querySelectorAll('.background-skin-option')).forEach((optionButton: any) => {
+      const active = !!(selectedSkin && optionButton.getAttribute('data-background-skin-id') === selectedSkin.id);
+      optionButton.classList.toggle('is-selected', active);
+      optionButton.setAttribute('aria-checked', active ? 'true' : 'false');
+    });
+  }
+
+  function applySelection(skinId: string, persist: boolean): SkinDefinition | null {
+    const definition = catalogModule.getBackgroundSkinDefinition(skinId, rootRef);
+    if (!definition) return null;
+    selectedSkin = definition;
+    runtimeModule.syncDisplayedBackgroundSkin(rootRef, definition.id);
+    syncOptionState();
+    if (persist === true) selectionModule.writeStoredBackgroundSkinId(rootRef, definition.id);
+    return definition;
+  }
+
+  function renderOptions() {
+    optionsEl.innerHTML = '';
+    catalogModule.getOwnedBackgroundSkins(rootRef).forEach((skin: SkinDefinition) => {
+      const optionButton = createOptionButton(docRef, skin);
+      optionButton.addEventListener('click', function (event: Event) {
+        if (event && typeof (event as any).preventDefault === 'function') (event as any).preventDefault();
+        applySelection(skin.id, true);
+      });
+      optionsEl.appendChild(optionButton);
+    });
+  }
+
+  function refreshOptions(preferredSkinId?: string) {
+    renderOptions();
+    const nextSkinId = catalogModule.normalizeBackgroundSkinId(
+      preferredSkinId || (selectedSkin && selectedSkin.id) || selectionModule.readStoredBackgroundSkinId(rootRef),
+      rootRef
+    );
+    applySelection(nextSkinId, false);
+  }
+
+  refreshOptions(selectionModule.readStoredBackgroundSkinId(rootRef));
+
+  return {
+    refreshOptions,
+    getSelectedSkinId: function () {
+      return selectedSkin ? selectedSkin.id : catalogModule.DEFAULT_BACKGROUND_SKIN_ID;
+    },
+    selectSkin: function (skinId: string) {
+      return applySelection(skinId, true);
+    }
+  };
+}
+
+const BackgroundSkinController = {
+  setupBackgroundSkinControls
+};
+
+export = BackgroundSkinController;

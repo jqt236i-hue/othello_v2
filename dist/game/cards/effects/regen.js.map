@@ -1,0 +1,1 @@
+{"version":3,"file":"regen.js","sourceRoot":"","sources":["../../../../game/cards/effects/regen.ts"],"names":[],"mappings":";AAAA;;;GAGG;AAGH,uDAAwD;AAGxD,MAAM,OAAO,GAAG;IACd,cAAc,EAAE,WAAW,CAAC,cAAc;IAC1C,oBAAoB,EAAE,WAAW,CAAC,oBAAoB;CACvD,CAAC;AAEF,iBAAS,OAAO,CAAC"}

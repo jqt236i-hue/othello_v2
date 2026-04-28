@@ -1,0 +1,30 @@
+declare function positionCpuSpeechBubble(): void;
+declare function hideCpuSpeechBubble(): void;
+declare function hideHeroSpeechBubble(): void;
+declare function clearRoundDisplayBonus(updateAfterClear?: boolean): void;
+declare function showRoundBonusDisplay(payload: any): void;
+declare function updateRoundDisplay(): void;
+declare function showCpuSpeechBubble(text: string, options?: any): void;
+declare function showHeroSpeechBubble(text: string, options?: any): void;
+declare function updateFateWillBanner(): void;
+declare function updateStatus(): void;
+declare function updateCpuCharacter(): void;
+declare function showResult(): any;
+declare function showResultOverlay(): any;
+declare const StatusDisplayModule: {
+    showCpuSpeechBubble: typeof showCpuSpeechBubble;
+    hideCpuSpeechBubble: typeof hideCpuSpeechBubble;
+    positionCpuSpeechBubble: typeof positionCpuSpeechBubble;
+    showHeroSpeechBubble: typeof showHeroSpeechBubble;
+    hideHeroSpeechBubble: typeof hideHeroSpeechBubble;
+    showRoundBonusDisplay: typeof showRoundBonusDisplay;
+    clearRoundDisplayBonus: typeof clearRoundDisplayBonus;
+    updateCpuCharacter: typeof updateCpuCharacter;
+    updateStatus: typeof updateStatus;
+    updateFateWillBanner: typeof updateFateWillBanner;
+    updateRoundDisplay: typeof updateRoundDisplay;
+    showResult: typeof showResult;
+    showResultOverlay: typeof showResultOverlay;
+};
+export = StatusDisplayModule;
+//# sourceMappingURL=status-display.d.ts.map
