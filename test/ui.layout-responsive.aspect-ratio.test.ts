@@ -69,13 +69,13 @@ describe('responsive layout rules for narrow aspect ratio', () => {
   });
 
   test('card detail panel anchor sync exists for landscape layout', () => {
-    const jsPath = path.join(__dirname, '..', 'cards', 'card-interaction.js');
-    const js = fs.readFileSync(jsPath, 'utf8');
+    const tsPath = path.join(__dirname, '..', 'cards', 'card-interaction.ts');
+    const ts = fs.readFileSync(tsPath, 'utf8');
 
-    expect(js).toMatch(/_syncCardDetailLandscapeAnchorReserve/);
-    expect(js).toMatch(/ResizeObserver/);
-    expect(js).toMatch(/--card-detail-landscape-bottom-reserve/);
-    expect(js).toMatch(/width\s*>=\s*901/);
+    expect(ts).toMatch(/_syncCardDetailLandscapeAnchorReserve/);
+    expect(ts).toMatch(/ResizeObserver/);
+    expect(ts).toMatch(/--card-detail-landscape-bottom-reserve/);
+    expect(ts).toMatch(/width\s*>=\s*901/);
   });
 
   test('core UI styles avoid direct fixed px declarations', () => {

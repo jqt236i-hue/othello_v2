@@ -79,7 +79,7 @@ function createRendererContext(options = {}) {
     };
   }
 
-  const rendererCode = fs.readFileSync(path.resolve(__dirname, '../cards/card-renderer.js'), 'utf8');
+  const rendererCode = fs.readFileSync(path.resolve(__dirname, '../cards/card-renderer.ts'), 'utf8');
   window.eval(rendererCode);
 
   return dom;

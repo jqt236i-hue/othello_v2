@@ -30,17 +30,18 @@
     "noFallthroughCasesInSwitch": false,
     "types": ["node", "jest"]
   },
-  "include": [
-    "game/**/*",
-    "ui/**/*",
-    "shared/**/*",
-    "workers/**/*",
-    "scripts/**/*",
-    "cards/**/*",
-    "test/**/*",
-    "tests/**/*",
-    "src/**/*"
-  ],
+    "include": [
+      "game/**/*",
+      "ui/**/*",
+      "shared/**/*",
+      "workers/**/*",
+      "scripts/**/*",
+      "cards/**/*",
+      "test/**/*",
+      "tests/**/*",
+      "src/**/*",
+      "utils/**/*.ts"
+    ],
   "exclude": [
     "node_modules",
     "worker-public",
