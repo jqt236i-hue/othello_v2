@@ -1,3 +1,2 @@
-export = SelectorsModule;
-declare const SelectorsModule: any;
+export {};
 //# sourceMappingURL=selectors.d.ts.map

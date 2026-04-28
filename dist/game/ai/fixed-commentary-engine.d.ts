@@ -1,22 +1,24 @@
-export function isEnabled(): boolean;
-export function setConfig(nextConfig: any): {
-    mode: string;
-    enabled: boolean;
-    maxChars: number;
-    regularTurnInterval: number;
-    unchangedThreshold: number;
-    behindThreshold: number;
+declare const engine: {
+    isEnabled: () => boolean;
+    setConfig: (nextConfig: any) => {
+        mode: string;
+        enabled: boolean;
+        maxChars: number;
+        regularTurnInterval: number;
+        unchangedThreshold: number;
+        behindThreshold: number;
+    };
+    getStatus: () => {
+        mode: string;
+        enabled: boolean;
+        maxChars: number;
+        regularTurnInterval: number;
+        unchangedThreshold: number;
+        behindThreshold: number;
+    };
+    requestCommentary: (context: any) => Promise<string | null>;
+    resetState: () => void;
+    _buildCommentaryForTest: (context: any) => string;
 };
-export function getStatus(): {
-    mode: string;
-    enabled: boolean;
-    maxChars: number;
-    regularTurnInterval: number;
-    unchangedThreshold: number;
-    behindThreshold: number;
-};
-export function requestCommentary(context: any): Promise<string | null>;
-export function resetState(): void;
-declare function buildCommentary(context: any): string;
-export { buildCommentary as _buildCommentaryForTest };
+export = engine;
 //# sourceMappingURL=fixed-commentary-engine.d.ts.map

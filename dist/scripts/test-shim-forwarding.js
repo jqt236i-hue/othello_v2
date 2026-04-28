@@ -38,7 +38,7 @@ const _require = (typeof __non_webpack_require__ !== 'undefined')
     ? __non_webpack_require__
     : require;
 const uiBootPath = path.resolve(__dirname, '..', '..', 'ui', 'bootstrap.js');
-const sharedPath = path.resolve(__dirname, '..', '..', 'shared', 'ui-bootstrap-shared.ts');
+const sharedPath = path.resolve(__dirname, '..', '..', 'shared', 'ui-bootstrap-shared.js');
 const calls = [];
 // Ensure any existing module is cleared
 try {
@@ -63,4 +63,3 @@ const s = require(sharedPath);
 s.registerUIGlobals({ testKey: 'value' });
 console.log('calls.length=', calls.length, 'last=', calls[calls.length - 1]);
 process.exit(calls.length >= 1 && calls[calls.length - 1].testKey === 'value' ? 0 : 2);
-//# sourceMappingURL=test-shim-forwarding.js.map

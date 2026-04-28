@@ -1,19 +1,10 @@
+// @ts-nocheck
 'use strict';
-function _require(id) {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
-    : (typeof self !== 'undefined' ? self.SharedConstants : undefined);
-const RandomSourceModule = (typeof module === 'object' && module.exports)
-    ? _require('../cards-internal/random-source')
-    : (typeof self !== 'undefined' ? self.CardRandomSource : null);
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+const SharedConstants = _require('../../../shared-constants');
+const RandomSourceModule = _require('../cards-internal/random-source');
 const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
     ? Number(SharedConstants.BLACK)
     : 1;

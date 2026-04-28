@@ -1473,14 +1473,16 @@ async function runWorkerMain() {
         }
     }));
     if (typeof process.send === 'function') {
-        process.send({
-            type: 'result',
-            payload: {
-                shardIndex,
-                outPath: result.outPath,
-                hardcaseOutPath: result.hardcaseOutPath,
-                summary: result.summary
-            }
+        await new Promise((resolve) => {
+            process.send({
+                type: 'result',
+                payload: {
+                    shardIndex,
+                    outPath: result.outPath,
+                    hardcaseOutPath: result.hardcaseOutPath,
+                    summary: result.summary
+                }
+            }, resolve);
         });
     }
 }

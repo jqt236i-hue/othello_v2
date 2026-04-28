@@ -1,3 +1,7 @@
+"use strict";
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
 /**
  * @file policy-onnx-runtime-v2.js
  * @description ONNX runtime helper for CNN+ResNet v2 models with hand encoder and WDL head.
@@ -12,7 +16,6 @@
  *   wdl_logits:   (1, 3)  float32  [Win, Draw, Loss]
  *   card_logits:  (1, card_action_dim) float32 (optional)
  */
-'use strict';
 const ort = require('onnxruntime-node');
 let _session = null;
 let _meta = null;

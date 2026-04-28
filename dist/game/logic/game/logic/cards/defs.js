@@ -1,4 +1,9 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const _require = (typeof __non_webpack_require__ !== "undefined")
+    ? __non_webpack_require__
+    : require;
+"use strict";
 /**
  * @file defs.ts
  * @description Card definition helpers (Shared between Browser and Headless)

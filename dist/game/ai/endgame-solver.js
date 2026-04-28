@@ -1,3 +1,13 @@
+"use strict";
+function _require(id) {
+    if (typeof __non_webpack_require__ !== 'undefined') {
+        return __non_webpack_require__(id);
+    }
+    if (typeof require === 'function') {
+        return require(id);
+    }
+    throw new Error('Unable to require ' + id);
+}
 /**
  * @file endgame-solver.js
  * @description Endgame solver using Minimax + Alpha-Beta pruning.
@@ -8,7 +18,6 @@
  *
  * Reference: Edex/Egaroucid endgame solving techniques.
  */
-'use strict';
 class EndgameSolver {
     constructor(maxDepth = 20) {
         this.maxDepth = maxDepth;

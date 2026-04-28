@@ -155,4 +155,3 @@
     }
     catch (e) { /* ignore */ }
 })();
-//# sourceMappingURL=ui-bootstrap-shared.js.map

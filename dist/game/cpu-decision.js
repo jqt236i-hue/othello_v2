@@ -1,6 +1,10 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
 /**
- * @file cpu-decision.js
+ * @file cpu-decision.ts
  * @description CPU意思決定モジュール
  *
  * AISystemを利用してレベル別のCPU行動を実行する。
@@ -55,28 +59,28 @@ function setCpuRng(rng) { cpuRng = rng || cpuRng; }
 let CpuPolicyCore = null;
 if (typeof require === 'function') {
     try {
-        CpuPolicyCore = require('./ai/cpu-policy-core');
+        CpuPolicyCore = _require('./ai/cpu-policy-core');
     }
     catch (e) { /* ignore */ }
 }
 let CpuPolicyTableRuntime = null;
 if (typeof require === 'function') {
     try {
-        CpuPolicyTableRuntime = require('./ai/policy-table-runtime');
+        CpuPolicyTableRuntime = _require('./ai/policy-table-runtime');
     }
     catch (e) { /* ignore */ }
 }
 let CpuPolicyOnnxRuntime = null;
 if (typeof require === 'function') {
     try {
-        CpuPolicyOnnxRuntime = require('./ai/policy-onnx-runtime');
+        CpuPolicyOnnxRuntime = _require('./ai/policy-onnx-runtime');
     }
     catch (e) { /* ignore */ }
 }
 let SharedBoardUtilsModule = null;
 if (typeof require === 'function') {
     try {
-        SharedBoardUtilsModule = require('../shared/shared-board-utils');
+        SharedBoardUtilsModule = _require('../shared/shared-board-utils');
     }
     catch (e) { /* ignore */ }
 }
@@ -91,7 +95,7 @@ if (!SharedBoardUtilsModule) {
 let CpuLv6RuntimeCapabilityModule = null;
 if (typeof require === 'function') {
     try {
-        CpuLv6RuntimeCapabilityModule = require('../shared/cpu-lv6-runtime-capability');
+        CpuLv6RuntimeCapabilityModule = _require('../shared/cpu-lv6-runtime-capability');
     }
     catch (e) { /* ignore */ }
 }
@@ -122,7 +126,7 @@ function resolveModuleReference(currentValue, options) {
     }
     if (opts.requirePath && typeof require === 'function') {
         try {
-            resolvedModule = require(opts.requirePath);
+            resolvedModule = _require(opts.requirePath);
         }
         catch (e) { /* ignore */ }
         if (isValid(resolvedModule))
@@ -148,28 +152,28 @@ function resolveSharedBoardUtilsModule() {
 let PendingTargetSelector = null;
 if (typeof require === 'function') {
     try {
-        PendingTargetSelector = require('./turn-handlers/pending-target-selector');
+        PendingTargetSelector = _require('./turn-handlers/pending-target-selector');
     }
     catch (e) { /* ignore */ }
 }
 var PendingSelectionFlow = null;
 if (typeof require === 'function') {
     try {
-        PendingSelectionFlow = require('./card-effects/selection-flow');
+        PendingSelectionFlow = _require('./card-effects/selection-flow');
     }
     catch (e) { /* ignore */ }
 }
 let cpuDecisionNetworkTurnHandoff = null;
 if (typeof require === 'function') {
     try {
-        cpuDecisionNetworkTurnHandoff = require('./network-turn-handoff');
+        cpuDecisionNetworkTurnHandoff = _require('./network-turn-handoff');
     }
     catch (e) { /* ignore */ }
 }
 let CpuPendingCoordinator = null;
 if (typeof require === 'function') {
     try {
-        CpuPendingCoordinator = require('./turn/pending-coordinator');
+        CpuPendingCoordinator = _require('./turn/pending-coordinator');
     }
     catch (e) { /* ignore */ }
 }
@@ -243,7 +247,7 @@ function clearCpuPendingEffect(playerKey, stateRef) {
 const CpuDecisionBoardUtilsModule = (() => {
     if (typeof require === 'function') {
         try {
-            return require('./cpu-decision-board-utils');
+            return _require('./cpu-decision-board-utils');
         }
         catch (e) { /* ignore */ }
     }
@@ -696,7 +700,7 @@ function resolveCpuLv6SharedProfile() {
     catch (e) { /* ignore */ }
     try {
         if (typeof require === 'function') {
-            const loaded = require('../constants/cpu-lv6-shared-profile.js');
+            const loaded = _require('../constants/cpu-lv6-shared-profile.js');
             if (loaded && typeof loaded === 'object')
                 return loaded;
         }
@@ -883,7 +887,7 @@ function getCpuTimerService() {
     if (cpuTimerService)
         return cpuTimerService;
     try {
-        const { createTimerService } = require('./timer-service');
+        const { createTimerService } = _require('./timer-service');
         cpuTimerService = createTimerService('browser');
         return cpuTimerService;
     }
@@ -1521,7 +1525,7 @@ function selectCardByLevel6Consensus(playerKey, level, legalMovesCount, legalMov
 function emitPresentationEventForCpu(ev) {
     try {
         if (typeof require === 'function') {
-            const pres = require('./logic/presentation');
+            const pres = _require('./logic/presentation');
             if (pres && typeof pres.emitPresentationEvent === 'function') {
                 return !!pres.emitPresentationEvent(cardState, ev);
             }
@@ -5975,7 +5979,7 @@ if (typeof global !== 'undefined') {
 }
 // Register via UIBootstrap when available, fallback to globalThis for legacy global access
 try {
-    const uiBootstrap = require('../shared/ui-bootstrap-shared');
+    const uiBootstrap = _require('../shared/ui-bootstrap-shared');
     if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function')
         uiBootstrap.registerUIGlobals({ computeCpuAction });
 }

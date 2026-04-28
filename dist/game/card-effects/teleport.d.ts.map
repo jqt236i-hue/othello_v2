@@ -1,1 +1,1 @@
-{"version":3,"file":"teleport.d.ts","sourceRoot":"","sources":["../../../game/card-effects/teleport.js"],"names":[],"mappings":"AAyBA,0FAeC"}
+{"version":3,"file":"teleport.d.ts","sourceRoot":"","sources":["../../../game/card-effects/teleport.ts"],"names":[],"mappings":"AAqDA,OAAO,EAAE,CAAC"}

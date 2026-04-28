@@ -1,9 +1,8 @@
 "use strict";
-/**
- * @file trap.ts
- * @description Trap Will effects
- */
-const SharedConstants = require('../../../shared-constants');
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+const SharedConstants = _require('../../../shared-constants');
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 const DEFAULT_TRAP_WILL_STEAL_MAX = 20;
 function applyTrapWill(cardState, gameState, playerKey, row, col, deps) {
@@ -150,8 +149,9 @@ function processTrapEffects(cardState, gameState, activePlayerKey, options, deps
     }
     return res;
 }
-module.exports = {
+const TrapEffects = {
     applyTrapWill,
     processTrapEffects
 };
+module.exports = TrapEffects;
 //# sourceMappingURL=trap.js.map

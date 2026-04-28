@@ -1,1 +1,1 @@
-{"version":3,"file":"auto.d.ts","sourceRoot":"","sources":["../../game/auto.js"],"names":[],"mappings":"AAgBA,+BAIC;AAED,gCAGC;AAED,+BAEC;AAjBD,qCAEC;AAiBD,6CAEC;AAED,wCAEC"}
+{"version":3,"file":"auto.d.ts","sourceRoot":"","sources":["../../game/auto.ts"],"names":[],"mappings":"AAgEA,OAAO,EAAE,CAAC"}

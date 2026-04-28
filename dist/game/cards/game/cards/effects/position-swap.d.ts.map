@@ -1,1 +1,1 @@
-{"version":3,"file":"position-swap.d.ts","sourceRoot":"","sources":["../../../../../../game/cards/game/cards/effects/position-swap.js"],"names":[],"mappings":"AAYI;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAsDC"}
+{"version":3,"file":"position-swap.d.ts","sourceRoot":"","sources":["../../../../../../game/cards/game/cards/effects/position-swap.ts"],"names":[],"mappings":"AA+EA,OAAO,EAAE,CAAC"}

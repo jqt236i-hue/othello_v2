@@ -1,86 +1,46 @@
-export class TwoLayerMCTS {
-    /**
-     * @param {object} opts
-     * @param {object} opts.gameInterface
-     * @param {object} opts.network
-     * @param {number} [opts.cardSimulations] - Sims per card option (default 50)
-     * @param {number} [opts.placementSimulations] - Sims for placement MCTS (default 50)
-     * @param {number} [opts.maxCardOptions] - Max card options to evaluate (default 6)
-     * @param {number} [opts.c_puct] - PUCT constant (default 1.5)
-     * @param {number} [opts.temperature] - Temperature for final selection (default 1.0)
-     */
-    constructor({ gameInterface, network, cardSimulations, placementSimulations, maxCardOptions, c_puct, temperature, }: {
-        gameInterface: object;
-        network: object;
-        cardSimulations?: number | undefined;
-        placementSimulations?: number | undefined;
-        maxCardOptions?: number | undefined;
-        c_puct?: number | undefined;
-        temperature?: number | undefined;
-    });
-    gameInterface: object;
-    network: object;
+/**
+ * @file mcts-two-layer.ts
+ * @description Two-layer MCTS (Duelyst-style IMC) for Card Othello.
+ *
+ * Layer 1: Card selection (NO_CARD or use a card)
+ * Layer 2: Placement search (standard MCTS after card effect)
+ *
+ * This allows the model to evaluate card+placement combinations jointly
+ * instead of deciding the card only at the root.
+ */
+declare class TwoLayerMCTS {
+    gameInterface: any;
+    network: any;
     cardSimulations: number;
     placementSimulations: number;
     maxCardOptions: number;
     c_puct: number;
     temperature: number;
-    /** @type {Map<string, MCTSNode>} */
-    nodeMap: Map<string, MCTSNode>;
-    /**
-     * Run two-layer MCTS search.
-     *
-     * @param {object} rootState
-     * @param {object|null} rootCardState
-     * @param {string} rootPlayerKey
-     * @returns {Promise<{cardId: string|null, placement: object|null}>}
-     */
-    search(rootState: object, rootCardState: object | null, rootPlayerKey: string): Promise<{
+    nodeMap: Map<string, any>;
+    constructor({ gameInterface, network, cardSimulations, placementSimulations, maxCardOptions, c_puct, temperature, }: {
+        gameInterface: any;
+        network: any;
+        cardSimulations?: number;
+        placementSimulations?: number;
+        maxCardOptions?: number;
+        c_puct?: number;
+        temperature?: number;
+    });
+    search(rootState: any, rootCardState: any, rootPlayerKey: string): Promise<{
         cardId: string | null;
-        placement: object | null;
+        placement: any;
     }>;
-    /**
-     * Get available card options including NO_CARD.
-     * @param {object|null} cardState
-     * @param {string} playerKey
-     * @returns {Array<string|null>}
-     */
-    _getCardOptions(cardState: object | null, playerKey: string): Array<string | null>;
-    /**
-     * Evaluate a card option by running placement MCTS after the card effect.
-     * @param {string|null} cardId
-     * @param {object} state
-     * @param {object|null} cardState
-     * @param {string} playerKey
-     * @returns {Promise<number>} Expected value from current player's perspective
-     */
-    _evaluateCardOption(cardId: string | null, state: object, cardState: object | null, playerKey: string): Promise<number>;
-    /**
-     * Run standard placement-only MCTS.
-     * @param {object} state
-     * @param {object|null} cardState
-     * @param {string} playerKey
-     * @returns {Promise<object|null>} Best placement action
-     */
-    _runPlacementMCTS(state: object, cardState: object | null, playerKey: string): Promise<object | null>;
-    /**
-     * Apply a card effect to the game state.
-     * @param {object} state
-     * @param {object|null} cardState
-     * @param {string} cardId
-     * @param {string} playerKey
-     * @returns {{state: object, cardState: object|null}}
-     */
-    _applyCard(state: object, cardState: object | null, cardId: string, playerKey: string): {
-        state: object;
-        cardState: object | null;
+    _getCardOptions(cardState: any, playerKey: string): (string | null)[];
+    _evaluateCardOption(cardId: string | null, state: any, cardState: any, playerKey: string): Promise<number>;
+    _runPlacementMCTS(state: any, cardState: any, playerKey: string): Promise<any>;
+    _applyCard(state: any, cardState: any, cardId: string, playerKey: string): {
+        state: any;
+        cardState: any;
     };
-    /**
-     * Compute opportunity cost of using a card.
-     * @param {string|null} cardId
-     * @returns {number}
-     */
     _opportunityCost(cardId: string | null): number;
 }
-import { MCTSNode } from "./mcts-core";
+declare const _default: {
+    TwoLayerMCTS: typeof TwoLayerMCTS;
+};
+export = _default;
 //# sourceMappingURL=mcts-two-layer.d.ts.map

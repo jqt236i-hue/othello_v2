@@ -1,1 +1,1 @@
-{"version":3,"file":"destroy-dragon.d.ts","sourceRoot":"","sources":["../../../../game/cards/effects/destroy-dragon.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAMH,QAAA,MAAM,OAAO;;;;;;;;;;;;;;CAIZ,CAAC;AAEF,SAAS,OAAO,CAAC"}
+{"version":3,"file":"destroy-dragon.d.ts","sourceRoot":"","sources":["../../../../game/cards/effects/destroy-dragon.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAMH,QAAA,MAAM,OAAO;;;;CAIZ,CAAC;AAEF,SAAS,OAAO,CAAC"}

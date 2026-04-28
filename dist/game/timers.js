@@ -1,4 +1,8 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const _require = (typeof __non_webpack_require__ !== "undefined")
+    ? __non_webpack_require__
+    : require;
 // Timers abstraction for game/ to avoid direct use of browser timing APIs
 // UI layer can inject real implementations via setTimerImpl
 let _impl = {};

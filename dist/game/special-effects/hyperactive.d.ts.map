@@ -1,1 +1,1 @@
-{"version":3,"file":"hyperactive.d.ts","sourceRoot":"","sources":["../../../game/special-effects/hyperactive.ts"],"names":[],"mappings":"AA8CA;;;;;;;GAOG;AACH,iBAAe,kCAAkC,CAAC,MAAM,KAAA,EAAE,iBAAiB,OAAO,EAAE,iBAAiB,OAAO,iBA4P3G;AAED;;;;;;;GAOG;AACH,iBAAe,sCAAsC,CAAC,MAAM,KAAA,EAAE,GAAG,KAAA,EAAE,GAAG,KAAA,EAAE,iBAAiB,OAAO,iBA6I/F;;;;;AAED,kBAGE"}
+{"version":3,"file":"hyperactive.d.ts","sourceRoot":"","sources":["../../../game/special-effects/hyperactive.ts"],"names":[],"mappings":"AAYA,SAAS,OAAO,CAAC"}

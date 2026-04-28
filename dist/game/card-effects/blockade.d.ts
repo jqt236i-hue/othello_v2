@@ -1,2 +1,2 @@
-export function handleBlockadeSelection(row: any, col: any, playerKey: any): Promise<any>;
+export {};
 //# sourceMappingURL=blockade.d.ts.map

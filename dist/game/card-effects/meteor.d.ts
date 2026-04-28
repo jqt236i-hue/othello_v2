@@ -1,2 +1,2 @@
-export function handleMeteorSelection(row: any, col: any, playerKey: any): Promise<any>;
+export {};
 //# sourceMappingURL=meteor.d.ts.map

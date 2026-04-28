@@ -1,1 +1,1 @@
-{"version":3,"file":"effect-resolver.d.ts","sourceRoot":"","sources":["../../../game/cards/effect-resolver.js"],"names":[],"mappings":"AA4EI;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAoFC;AAED;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EA+IC;AAED;;;;;;EAyEC;AAED;;GAEG;AACH,gGA8PC;AAED;;GAEG;AACH,kGAiEC"}
+{"version":3,"file":"effect-resolver.d.ts","sourceRoot":"","sources":["../../../game/cards/effect-resolver.ts"],"names":[],"mappings":"AAYA,SAAS,OAAO,CAAC"}

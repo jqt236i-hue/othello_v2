@@ -1,3 +1,4 @@
+declare function setUIImpl(obj: any): void;
 /**
  * Process breeding effects (Stone spawning)
  * @async
@@ -5,7 +6,7 @@
  * @param {Object} [precomputedResult] - Optional pre-computed result from logic layer
  * @returns {Promise<void>}
  */
-export function processBreedingEffectsAtTurnStart(player: number, precomputedEvents?: null): Promise<void>;
+declare function processBreedingEffectsAtTurnStart(player: any, precomputedEvents?: null): Promise<void>;
 /**
  * Placement-turn immediate activation for a newly placed breeding anchor.
  * Runs AFTER normal flip animations, and before turn ends.
@@ -14,6 +15,11 @@ export function processBreedingEffectsAtTurnStart(player: number, precomputedEve
  * @param {number} col
  * @param {Object} [precomputedResult]
  */
-export function processBreedingImmediateAtPlacement(player: number, row: number, col: number, precomputedResult?: Object): Promise<void>;
-export function setUIImpl(obj: any): void;
+declare function processBreedingImmediateAtPlacement(player: any, row: any, col: any, precomputedResult?: null): Promise<void>;
+declare const _default: {
+    processBreedingEffectsAtTurnStart: typeof processBreedingEffectsAtTurnStart;
+    processBreedingImmediateAtPlacement: typeof processBreedingImmediateAtPlacement;
+    setUIImpl: typeof setUIImpl;
+};
+export = _default;
 //# sourceMappingURL=breeding.d.ts.map

@@ -1,4 +1,13 @@
 "use strict";
+function _require(id) {
+    if (typeof __non_webpack_require__ !== 'undefined') {
+        return __non_webpack_require__(id);
+    }
+    if (typeof require === 'function') {
+        return require(id);
+    }
+    throw new Error('Unable to require ' + id);
+}
 /**
  * @file targets.ts
  * @description Card target selection helpers (Shared between Browser and Headless)
@@ -8,7 +17,7 @@ function _require(id) {
         return __non_webpack_require__(id);
     }
     if (typeof require === 'function') {
-        return require(id);
+        return _require(id);
     }
     throw new Error('Unable to require ' + id);
 }
@@ -181,7 +190,7 @@ function getTemptWillTargets(cardState, gameState, playerKey) {
         m.data &&
         m.data.type === 'GUARD');
     // Prefer CardUtils if available (handles bombs and special stones uniformly)
-    const CardUtils = (typeof require === 'function') ? require('./utils') : (typeof globalThis !== 'undefined' ? globalThis.CardUtils : null);
+    const CardUtils = (typeof require === 'function') ? _require('./utils') : (typeof globalThis !== 'undefined' ? globalThis.CardUtils : null);
     forEachBoardShapeCell(gameState, (r, c) => {
         if (isGuarded(r, c))
             return;

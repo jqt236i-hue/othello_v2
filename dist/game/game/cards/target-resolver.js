@@ -1,28 +1,12 @@
-'use strict';
-function _require(id) {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../shared-constants')
-    : (typeof self !== 'undefined' ? self.SharedConstants : undefined);
-const BoardUtils = (typeof module === 'object' && module.exports)
-    ? _require('../../shared/shared-board-utils')
-    : (typeof self !== 'undefined' ? self.SharedBoardUtils : null);
-const Markers = (typeof module === 'object' && module.exports)
-    ? _require('../logic/cards/markers')
-    : (typeof self !== 'undefined' ? self.CardMarkers : {});
-const Selectors = (typeof module === 'object' && module.exports)
-    ? _require('../logic/cards/selectors')
-    : (typeof self !== 'undefined' ? self.CardSelectors : {});
-const Targets = (typeof module === 'object' && module.exports)
-    ? _require('../logic/cards/targets')
-    : (typeof self !== 'undefined' ? self.CardTargets : {});
+"use strict";
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+const SharedConstants = _require('../../shared-constants');
+const BoardUtils = _require('../../shared/shared-board-utils');
+const Markers = _require('../logic/cards/markers');
+const Selectors = _require('../logic/cards/selectors');
+const Targets = _require('../logic/cards/targets');
 const { BLACK, WHITE, EMPTY, DIRECTIONS } = SharedConstants || {};
 // ---- Helpers ----
 function resolveBoardConfig(gameState) {
@@ -1177,6 +1161,37 @@ function getBoardShrinkGodTargets(cardState, gameState, playerKey) {
     }
     return [];
 }
+module.exports = {
+    getTrapTargets,
+    getTeleportTargets,
+    getBoardExpansionTargets,
+    getBoardShrinkTargets,
+    getTabooReverseCandidates,
+    getSelectableTargets,
+    getDestroyTargets,
+    getSwapTargets,
+    getGuardTargets,
+    getCaptureTargets,
+    getTemptTargets,
+    getPositionSwapTargets,
+    getSeedTargets,
+    getCloneTargets,
+    getSplitTargets,
+    getBreedingTargets,
+    getMeteorTargets,
+    getFreezeTargets,
+    getBlockadeTargets,
+    getCellTeleportTargets,
+    getSniperTargets,
+    getTimeBombTargets,
+    getLightningTargets,
+    getCrossBombTargets,
+    getXBombTargets,
+    getReinforcementTargets,
+    getEqualityTargets,
+    getCornerTributeTargets,
+    getLastResortTargets
+};
 module.exports = {
     getTrapTargets,
     getTeleportTargets,

@@ -1,4 +1,8 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const _require = (typeof __non_webpack_require__ !== "undefined")
+    ? __non_webpack_require__
+    : require;
 // game-core-logic.js
 // Wrapper for CoreLogic (Shared between Browser and Headless)
 // This file maintains the legacy global function interface for browser compatibility.

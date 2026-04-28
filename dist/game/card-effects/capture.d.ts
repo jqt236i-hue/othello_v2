@@ -1,2 +1,2 @@
-export function handleCaptureSelection(row: any, col: any, playerKey: any): Promise<any>;
+export {};
 //# sourceMappingURL=capture.d.ts.map

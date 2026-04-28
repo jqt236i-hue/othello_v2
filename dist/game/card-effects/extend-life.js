@@ -1,4 +1,8 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const _require = (typeof __non_webpack_require__ !== "undefined")
+    ? __non_webpack_require__
+    : require;
 /**
  * @file extend-life.js
  * @description 延命系カード UI handler — selection -> pipeline adapter

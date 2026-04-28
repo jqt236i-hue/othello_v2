@@ -1,27 +1,17 @@
+// @ts-nocheck
 /**
- * @file gumbel-mcts.js
+ * @file gumbel-mcts.ts
  * @description Gumbel AlphaZero MCTS with Sequential Halving.
  *
  * Based on "Policy Improvement by Planning with Gumbel" (Danihelka et al., 2022).
  * Designed for low-simulation environments (2-500 sims).
- *
- * Usage:
- *   const { GumbelMCTS } = require('./gumbel-mcts');
- *   const tree = new GumbelMCTS({ gameInterface, network, numSimulations: 100, maxActions: 8 });
- *   const moveDistribution = await tree.search(rootState, rootCardState, 'black');
  */
 'use strict';
-const { MCTSNode } = require('./mcts-core');
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+const { MCTSNode } = _require('./mcts-core');
 class GumbelMCTS {
-    /**
-     * @param {object} opts
-     * @param {object} opts.gameInterface
-     * @param {object} opts.network
-     * @param {number} [opts.numSimulations]
-     * @param {number} [opts.maxActions] - Top-k actions for Sequential Halving (default 8)
-     * @param {number} [opts.c_visit] - UCB constant for local search (default 50.0)
-     * @param {number} [opts.c_scale] - UCB scale (default 1.0)
-     */
     constructor({ gameInterface, network, numSimulations = 100, maxActions = 8, c_visit = 50.0, c_scale = 1.0, }) {
         this.gameInterface = gameInterface;
         this.network = network;
@@ -29,14 +19,8 @@ class GumbelMCTS {
         this.maxActions = maxActions;
         this.c_visit = c_visit;
         this.c_scale = c_scale;
-        /** @type {Map<string, MCTSNode>} */
         this.nodeMap = new Map();
     }
-    /**
-     * Sample Gumbel noise for Gumbel-Top-k trick.
-     * @param {number} n
-     * @returns {Float32Array}
-     */
     _sampleGumbel(n) {
         const noise = new Float32Array(n);
         for (let i = 0; i < n; i++) {
@@ -45,14 +29,6 @@ class GumbelMCTS {
         }
         return noise;
     }
-    /**
-     * Run Gumbel AlphaZero search.
-     *
-     * @param {object} rootState
-     * @param {object|null} rootCardState
-     * @param {string} rootPlayerKey
-     * @returns {Promise<Array<{action:object, visitCount:number, prior:number, value:number, probability:number}>>}
-     */
     async search(rootState, rootCardState, rootPlayerKey) {
         const rootHash = this.gameInterface.hashState(rootState, rootCardState, rootPlayerKey);
         let root = this.nodeMap.get(rootHash);
@@ -75,7 +51,7 @@ class GumbelMCTS {
         }));
         scoredChildren.sort((a, b) => b.score - a.score);
         const k = Math.min(this.maxActions, scoredChildren.length);
-        const topChildren = scoredChildren.slice(0, k).map(s => s.child);
+        const topChildren = scoredChildren.slice(0, k).map((s) => s.child);
         // 2. Sequential Halving
         const budget = this.numSimulations;
         let remainingBudget = budget;
@@ -97,14 +73,6 @@ class GumbelMCTS {
         // 3. Compute improved policy from visit counts
         return this._computeImprovedPolicy(root);
     }
-    /**
-     * Simulate a single playout from a child node.
-     * @param {MCTSNode} child
-     * @param {object} rootState
-     * @param {object|null} rootCardState
-     * @param {string} rootPlayerKey
-     * @returns {Promise<number>} Value from root player's perspective
-     */
     async _simulate(child, rootState, rootCardState, rootPlayerKey) {
         let state = this.gameInterface.copyState(rootState);
         let cardState = rootCardState ? this.gameInterface.copyCardState(rootCardState) : null;
@@ -132,18 +100,13 @@ class GumbelMCTS {
         }
         return -node.value;
     }
-    /**
-     * Compute improved policy from visit counts.
-     * @param {MCTSNode} root
-     * @returns {Array<{action:object, visitCount:number, prior:number, value:number, probability:number}>}
-     */
     _computeImprovedPolicy(root) {
-        const visits = root.children.map(c => c.visitCount);
+        const visits = root.children.map((c) => c.visitCount);
         const totalVisits = visits.reduce((a, b) => a + b, 0);
         if (totalVisits === 0) {
             // Fallback to priors
             const totalPrior = root.children.reduce((sum, c) => sum + c.prior, 0);
-            return root.children.map(child => ({
+            return root.children.map((child) => ({
                 action: child.action,
                 visitCount: 0,
                 prior: child.prior,
@@ -151,7 +114,7 @@ class GumbelMCTS {
                 probability: totalPrior > 0 ? child.prior / totalPrior : 1.0 / root.children.length,
             }));
         }
-        return root.children.map(child => ({
+        return root.children.map((child) => ({
             action: child.action,
             visitCount: child.visitCount,
             prior: child.prior,
@@ -159,13 +122,6 @@ class GumbelMCTS {
             probability: child.visitCount / totalVisits,
         }));
     }
-    /**
-     * Expand a leaf node using the neural network.
-     * @param {MCTSNode} node
-     * @param {object} state
-     * @param {object|null} cardState
-     * @returns {Promise<number>} Value estimate from current player's perspective
-     */
     async _expandNode(node, state, cardState) {
         const netResult = await this.network.evaluate(state, cardState, node.playerKey);
         const policy = netResult.policy;

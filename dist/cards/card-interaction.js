@@ -1,4 +1,7 @@
 "use strict";
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
 // ===== Card UI State & Interaction (Refactored to use CardLogic) =====
 if (typeof CardLogic === 'undefined') {
     console.error('CardLogic is not loaded. Please include game/logic/cards.js');
@@ -2994,4 +2997,15 @@ window.cancelPendingDestroy = cancelPendingDestroy;
 window.cancelPendingSelection = cancelPendingSelection;
 _initCardDetailLandscapeAnchorSync();
 _bindCardDetailTagAutoDismiss();
+module.exports = {
+    fillDebugHand,
+    updateCardDetailPanel,
+    onCardClick,
+    destroySelectedHandCard,
+    useSelectedCard,
+    toggleCardDetailExpanded,
+    passCurrentTurn,
+    cancelPendingDestroy,
+    cancelPendingSelection
+};
 //# sourceMappingURL=card-interaction.js.map

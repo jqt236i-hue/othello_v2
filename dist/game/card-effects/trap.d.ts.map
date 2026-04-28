@@ -1,1 +1,1 @@
-{"version":3,"file":"trap.d.ts","sourceRoot":"","sources":["../../../game/card-effects/trap.js"],"names":[],"mappings":"AAyBA,sFAYC;AA9BD,0CAEC"}
+{"version":3,"file":"trap.d.ts","sourceRoot":"","sources":["../../../game/card-effects/trap.ts"],"names":[],"mappings":"AAkDA,OAAO,EAAE,CAAC"}

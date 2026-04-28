@@ -1,2 +1,2 @@
-export function processExpiredProtectionsAtTurnEnd(player: any): Promise<void>;
+export {};
 //# sourceMappingURL=protections.d.ts.map

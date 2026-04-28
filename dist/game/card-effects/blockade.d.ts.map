@@ -1,1 +1,1 @@
-{"version":3,"file":"blockade.d.ts","sourceRoot":"","sources":["../../../game/card-effects/blockade.js"],"names":[],"mappings":"AAoBA,0FAYC"}
+{"version":3,"file":"blockade.d.ts","sourceRoot":"","sources":["../../../game/card-effects/blockade.ts"],"names":[],"mappings":"AA6CA,OAAO,EAAE,CAAC"}

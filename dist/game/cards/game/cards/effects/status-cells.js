@@ -1,5 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const _require = (typeof __non_webpack_require__ !== "undefined")
+    ? __non_webpack_require__
+    : require;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
         module.exports = factory();

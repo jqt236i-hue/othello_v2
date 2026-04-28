@@ -1,1 +1,1 @@
-{"version":3,"file":"dragons.d.ts","sourceRoot":"","sources":["../../../game/special-effects/dragons.ts"],"names":[],"mappings":"AAmDA;;;;;GAKG;AACH,iBAAe,wCAAwC,CAAC,MAAM,KAAA,EAAE,iBAAiB,OAAO,iBAqLvF;AAED;;;;;;;GAOG;AACH,iBAAe,gDAAgD,CAAC,MAAM,KAAA,EAAE,GAAG,KAAA,EAAE,GAAG,KAAA,EAAE,iBAAiB,OAAO,iBAqGzG;;;;;AAED,kBAGE"}
+{"version":3,"file":"dragons.d.ts","sourceRoot":"","sources":["../../../game/special-effects/dragons.ts"],"names":[],"mappings":"AAYA,SAAS,OAAO,CAAC"}

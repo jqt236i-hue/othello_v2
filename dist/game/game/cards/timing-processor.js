@@ -1,4 +1,13 @@
 "use strict";
+function _require(id) {
+    if (typeof __non_webpack_require__ !== 'undefined') {
+        return __non_webpack_require__(id);
+    }
+    if (typeof require === 'function') {
+        return require(id);
+    }
+    throw new Error('Unable to require ' + id);
+}
 /**
  * @file timing-processor.ts
  * @description Turn timing and periodic effect processors
@@ -8,7 +17,7 @@ function _require(id) {
         return __non_webpack_require__(id);
     }
     if (typeof require === 'function') {
-        return require(id);
+        return _require(id);
     }
     throw new Error('Unable to require ' + id);
 }

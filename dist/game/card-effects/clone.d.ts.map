@@ -1,1 +1,1 @@
-{"version":3,"file":"clone.d.ts","sourceRoot":"","sources":["../../../game/card-effects/clone.js"],"names":[],"mappings":"AAuDA,uFASC;AAED,uFASC"}
+{"version":3,"file":"clone.d.ts","sourceRoot":"","sources":["../../../game/card-effects/clone.ts"],"names":[],"mappings":"AAwFA,OAAO,EAAE,CAAC"}

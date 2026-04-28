@@ -1,1 +1,1 @@
-{"version":3,"file":"udg.d.ts","sourceRoot":"","sources":["../../../game/special-effects/udg.js"],"names":[],"mappings":"AAAA;;;GAGG;AAEH;;;;;GAKG;AACH,8DAHW,MAAM,uDACJ,OAAO,CAAC,IAAI,CAAC,CAoEzB;AAED;;;;;;;GAOG;AACH,sEALW,MAAM,OACN,MAAM,OACN,MAAM,sBACN,MAAM,iBAehB"}
+{"version":3,"file":"udg.d.ts","sourceRoot":"","sources":["../../../game/special-effects/udg.ts"],"names":[],"mappings":"AAoHA,OAAO,EAAE,CAAC"}

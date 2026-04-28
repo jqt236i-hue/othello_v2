@@ -106,7 +106,8 @@ function processTrapEffects(cardState, gameState, activePlayerKey, options, deps
         }
         if (activePlayerKey === opponentKey && cellVal === activeVal) {
             const victimKey = opponentKey;
-            const victimCharge = Math.max(0, Number(cardState.charges[victimKey] || 0));
+            const legacyChargeState = cardState;
+            const victimCharge = Math.max(0, Number(legacyChargeState.charge?.[victimKey] || 0));
             const stolenCharge = Math.min(TRAP_WILL_STEAL_MAX, victimCharge);
             const remainingCharge = Math.max(0, victimCharge - stolenCharge);
             if (typeof setChargeValue === 'function') {

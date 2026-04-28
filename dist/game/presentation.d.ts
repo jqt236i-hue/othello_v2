@@ -1,3 +1,2 @@
-export function emitPresentationEvent(cardState: any, ev: any): boolean;
-export function flushPersistedEvents(): boolean;
+export {};
 //# sourceMappingURL=presentation.d.ts.map

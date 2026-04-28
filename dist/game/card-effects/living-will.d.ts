@@ -1,2 +1,2 @@
-export function handleLivingWillSelection(row: any, col: any, playerKey: any): Promise<any>;
+export {};
 //# sourceMappingURL=living-will.d.ts.map

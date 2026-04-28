@@ -54,4 +54,3 @@ if (!ok) {
 }
 console.log('\nAll checks passed.');
 process.exit(0);
-//# sourceMappingURL=run-all-checks.js.map

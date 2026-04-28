@@ -1,1 +1,1 @@
-{"version":3,"file":"meteor.d.ts","sourceRoot":"","sources":["../../../../../../game/logic/game/logic/cards/meteor.js"],"names":[],"mappings":"AAoBA;;;;;;;;;;;;EAwDC"}
+{"version":3,"file":"meteor.d.ts","sourceRoot":"","sources":["../../../../../../game/logic/game/logic/cards/meteor.ts"],"names":[],"mappings":"AAwFA,OAAO,EAAE,CAAC"}

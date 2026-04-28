@@ -1,20 +1,9 @@
+// @ts-nocheck
 "use strict";
-/**
- * @file shrink.ts
- * @description Board shrink helpers (Shared between Browser and Headless)
- */
-function _require(id) {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
-    : (typeof self !== 'undefined' ? self.SharedConstants : undefined);
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+const SharedConstants = _require('../../../shared-constants');
 const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
     ? Number(SharedConstants.EMPTY)
     : 0;

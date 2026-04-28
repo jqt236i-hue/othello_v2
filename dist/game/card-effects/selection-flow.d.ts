@@ -1,23 +1,25 @@
-export function resolvePendingSelectionContract(pendingType: any): any;
-export function isSelectionOnlyEndTurnPendingType(pendingType: any): any;
-export function shouldDeferNetworkPublishForPendingType(pendingType: any): any;
-export function shouldWaitForPlaybackIdleForPendingType(pendingType: any): any;
-export function setSelectionProcessing(nextValue: any): boolean;
-export function setSelectionCardAnimating(nextValue: any): boolean;
-export function setSelectionBusy(nextValue: any): boolean;
-export function createPendingSelectionAction(playerKey: any, pendingType: any, actionPayload: any, options: any): any;
-export function readPendingSelectionAction(playerKey: any): any;
-export function syncPendingSelectionActionCache(pendingEffectByPlayer: any): any;
-export function waitForSelectionPlaybackIdle(playbackEvents: any): Promise<any>;
-export function finalizePendingSelectionFlow(options: any): Promise<boolean>;
-export function setSignalBridge(bridge: any): any;
-export function clearSignalBridge(): boolean;
-export function applySelectionStateResult(result: any, options: any): {
+declare function setSignalBridge(bridge: any): any;
+declare function clearSignalBridge(): boolean;
+declare function resolvePendingSelectionContract(pendingType: any): any;
+declare function isSelectionOnlyEndTurnPendingType(pendingType: any): any;
+declare function shouldDeferNetworkPublishForPendingType(pendingType: any): any;
+declare function shouldWaitForPlaybackIdleForPendingType(pendingType: any): any;
+declare function readPendingSelectionAction(playerKey: any): any;
+declare function syncPendingSelectionActionCache(pendingEffectByPlayer: any): any;
+declare function capturePendingSelectionSnapshot(gameStateValue: any, cardStateValue: any): any;
+declare function publishPendingSelectionSnapshot(meta: any): any;
+declare function setSelectionProcessing(nextValue: any): boolean;
+declare function setSelectionCardAnimating(nextValue: any): boolean;
+declare function setSelectionBusy(nextValue: any): boolean;
+declare function waitForSelectionPlaybackIdle(playbackEvents: any): Promise<any>;
+declare function createPendingSelectionAction(playerKey: any, pendingType: any, actionPayload: any, options: any): any;
+declare function finalizePendingSelectionFlow(options: any): Promise<boolean>;
+declare function applySelectionStateResult(result: any, options: any): {
     cardState: any;
     gameState: any;
 };
-export function emitSelectionPlaybackEvents(playbackEvents: any, meta: any, cardStateValue: any): boolean;
-export function executePendingSelection(options: any): Promise<{
+declare function emitSelectionPlaybackEvents(playbackEvents: any, meta: any, cardStateValue: any): boolean;
+declare function executePendingSelection(options: any): Promise<{
     ok: boolean;
     reason: string;
     result?: undefined;
@@ -84,7 +86,27 @@ export function executePendingSelection(options: any): Promise<{
     publishResult?: undefined;
     intermediatePreviewApplied?: undefined;
 }>;
-export function capturePendingSelectionSnapshot(gameStateValue: any, cardStateValue: any): any;
-export function publishPendingSelectionSnapshot(meta: any): any;
-export declare let PENDING_SELECTION_CONTRACTS: any;
+declare const _default: {
+    PENDING_SELECTION_CONTRACTS: any;
+    resolvePendingSelectionContract: typeof resolvePendingSelectionContract;
+    isSelectionOnlyEndTurnPendingType: typeof isSelectionOnlyEndTurnPendingType;
+    shouldDeferNetworkPublishForPendingType: typeof shouldDeferNetworkPublishForPendingType;
+    shouldWaitForPlaybackIdleForPendingType: typeof shouldWaitForPlaybackIdleForPendingType;
+    setSelectionProcessing: typeof setSelectionProcessing;
+    setSelectionCardAnimating: typeof setSelectionCardAnimating;
+    setSelectionBusy: typeof setSelectionBusy;
+    createPendingSelectionAction: typeof createPendingSelectionAction;
+    readPendingSelectionAction: typeof readPendingSelectionAction;
+    syncPendingSelectionActionCache: typeof syncPendingSelectionActionCache;
+    waitForSelectionPlaybackIdle: typeof waitForSelectionPlaybackIdle;
+    finalizePendingSelectionFlow: typeof finalizePendingSelectionFlow;
+    setSignalBridge: typeof setSignalBridge;
+    clearSignalBridge: typeof clearSignalBridge;
+    applySelectionStateResult: typeof applySelectionStateResult;
+    emitSelectionPlaybackEvents: typeof emitSelectionPlaybackEvents;
+    executePendingSelection: typeof executePendingSelection;
+    capturePendingSelectionSnapshot: typeof capturePendingSelectionSnapshot;
+    publishPendingSelectionSnapshot: typeof publishPendingSelectionSnapshot;
+};
+export = _default;
 //# sourceMappingURL=selection-flow.d.ts.map

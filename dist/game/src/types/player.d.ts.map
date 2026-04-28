@@ -1,1 +1,1 @@
-{"version":3,"file":"player.d.ts","sourceRoot":"","sources":["../../../../game/src/types/player.js"],"names":[],"mappings":";AAQA,mDAEC;AACD,gEAEC;AACD,wDAEC"}
+{"version":3,"file":"player.d.ts","sourceRoot":"","sources":["../../../../game/src/types/player.ts"],"names":[],"mappings":"AAyBA,OAAO,EAAE,CAAC"}

@@ -1,1 +1,1 @@
-{"version":3,"file":"pending-coordinator.d.ts","sourceRoot":"","sources":["../../../game/turn/pending-coordinator.js"],"names":[],"mappings":"AAsKI,uEAIC;AAED,0EAGC;AAgBD;;;;;;;;;;EA2BC;AAED;;;;;;;;EAeC;AA+MD,8DAOC;AAED,gEAEC;AA7UD,sEAEC;AAED,4EAEC;AAED,4EAEC;AAdD,uEAEC;AA0MD,mHAGC;AA/LD,gGAWC;AAED,gEAQC;AAED,qEAGC;AAED,4DAIC;AA4FD;;;EAgDC;AAED,mHAOC;AAkED,sHAuCC;AAED;;;;;;;;;;EAoBC"}
+{"version":3,"file":"pending-coordinator.d.ts","sourceRoot":"","sources":["../../../game/turn/pending-coordinator.ts"],"names":[],"mappings":"AAWA,SAAS,mBAAmB,CAAC"}

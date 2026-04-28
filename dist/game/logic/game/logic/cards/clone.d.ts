@@ -1,4 +1,4 @@
-export function applyCloneWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, deps?: {}): {
+declare function applyCloneWill(cardState: any, gameState: any, playerKey: string, row: number, col: number, prng: any, deps?: any): {
     applied: boolean;
     reason: any;
     spawnResult?: undefined;
@@ -9,15 +9,12 @@ export function applyCloneWill(cardState: any, gameState: any, playerKey: any, r
 } | {
     applied: boolean;
     source: {
-        row: any;
-        col: any;
+        row: number;
+        col: number;
     };
-    spawned: {
-        row: any;
-        col: any;
-    }[];
+    spawned: any[];
 };
-export function applySplitWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, deps?: {}): {
+declare function applySplitWill(cardState: any, gameState: any, playerKey: string, row: number, col: number, prng: any, deps?: any): {
     applied: boolean;
     reason: any;
     spawnResult?: undefined;
@@ -28,21 +25,15 @@ export function applySplitWill(cardState: any, gameState: any, playerKey: any, r
 } | {
     applied: boolean;
     source: {
-        row: any;
-        col: any;
+        row: number;
+        col: number;
     };
-    spawned: {
-        row: any;
-        col: any;
-    }[];
-    durationChanges: {
-        row: any;
-        col: any;
-        owner: string;
-        special: any;
-        durationKey: string;
-        previousDuration: number;
-        nextDuration: any;
-    }[];
+    spawned: any[];
+    durationChanges: any[];
 };
+declare const _default: {
+    applyCloneWill: typeof applyCloneWill;
+    applySplitWill: typeof applySplitWill;
+};
+export = _default;
 //# sourceMappingURL=clone.d.ts.map

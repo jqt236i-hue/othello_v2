@@ -1,12 +1,13 @@
 "use strict";
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
 // ===== Card Rendering =====
-var PlaybackStateModule = null;
-if (typeof require === 'function') {
-    try {
-        PlaybackStateModule = require('../ui/playback-state-manager');
-    }
-    catch (e) { /* ignore */ }
+let PlaybackStateModule = null;
+try {
+    PlaybackStateModule = _require('../ui/playback-state-manager');
 }
+catch (e) { /* ignore */ }
 if (!PlaybackStateModule) {
     try {
         if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager)
@@ -14,13 +15,11 @@ if (!PlaybackStateModule) {
     }
     catch (e) { /* ignore */ }
 }
-var OwnerHelpersModule = null;
-if (typeof require === 'function') {
-    try {
-        OwnerHelpersModule = require('../utils/owner-helpers');
-    }
-    catch (e) { /* ignore */ }
+let OwnerHelpersModule = null;
+try {
+    OwnerHelpersModule = _require('../utils/owner-helpers');
 }
+catch (e) { /* ignore */ }
 if (!OwnerHelpersModule) {
     try {
         if (typeof globalThis !== 'undefined' && globalThis.OwnerHelpers)
@@ -28,13 +27,11 @@ if (!OwnerHelpersModule) {
     }
     catch (e) { /* ignore */ }
 }
-var HandAnimationUtilsModule = null;
-if (typeof require === 'function') {
-    try {
-        HandAnimationUtilsModule = require('../ui/animation-utils');
-    }
-    catch (e) { /* ignore */ }
+let HandAnimationUtilsModule = null;
+try {
+    HandAnimationUtilsModule = _require('../ui/animation-utils');
 }
+catch (e) { /* ignore */ }
 if (!HandAnimationUtilsModule) {
     try {
         if (typeof globalThis !== 'undefined' && globalThis.HandAnimationUtilsModule)
@@ -1464,4 +1461,15 @@ try {
     }
 }
 catch (e) { /* ignore */ }
+module.exports = {
+    getCardCostTier,
+    applyCardSpecialArtToFace,
+    createCardFaceElement,
+    consumeChargeDeltaEventList,
+    consumeChargeDeltaEvents,
+    consumeTransientNetworkChargeDeltaEvents,
+    consumeChargeDeltaSourcesForRender,
+    drainVisibleChargeDeltaPopups,
+    renderCardUI
+};
 //# sourceMappingURL=card-renderer.js.map

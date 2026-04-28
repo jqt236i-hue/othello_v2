@@ -1,7 +1,10 @@
 "use strict";
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
 // Auto-generated from cards/catalog.json - do not edit directly.
 // Use: node scripts/generate-catalog.js to regenerate.
-window.CardCatalog = {
+const CardCatalog = {
     "version": 1,
     "notes": "Source of truth for card display name (ja) <-> code/type. Keep this in sync with SharedConstants/CARD_DEFS.",
     "cards": [
@@ -843,4 +846,5 @@ window.CardCatalog = {
         }
     ]
 };
+module.exports = CardCatalog;
 //# sourceMappingURL=catalog.js.map

@@ -1,4 +1,9 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const _require = (typeof __non_webpack_require__ !== "undefined")
+    ? __non_webpack_require__
+    : require;
+"use strict";
 /**
  * @file flips.ts
  * @description Flip helpers wrapper (delegates to game/logic/cards/flips.js)

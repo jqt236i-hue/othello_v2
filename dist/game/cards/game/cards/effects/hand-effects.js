@@ -1,8 +1,7 @@
 "use strict";
-/**
- * @file hand-effects.ts
- * @description Hand effects: Heaven Blessing, Reveal Hand, Condemn
- */
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
 function applyHeavenBlessingChoice(cardState, playerKey, selectedCardId, deps) {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
     const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
@@ -72,7 +71,7 @@ function applyRevealHandWill(cardState, playerKey, deps) {
 function parseHiddenHandToken(value) {
     if (typeof value !== 'string')
         return null;
-    const m = /^__hidden_hand__:(black|white):(\d+)$/.exec(value);
+    const m = /^__hidden_hand__:(black|white):(d+)$/.exec(value);
     if (!m)
         return null;
     return { owner: m[1], handIndex: Number(m[2]) };
@@ -126,10 +125,11 @@ function applyCondemnWill(cardState, playerKey, targetIndex, deps) {
     clearCardPendingEffect(cardState, playerKey);
     return { applied: true, destroyedCardId };
 }
-module.exports = {
+const HandEffects = {
     applyHeavenBlessingChoice,
     applyRevealHandWill,
     parseHiddenHandToken,
     applyCondemnWill
 };
+module.exports = HandEffects;
 //# sourceMappingURL=hand-effects.js.map

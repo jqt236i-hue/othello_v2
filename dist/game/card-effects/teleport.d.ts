@@ -1,2 +1,2 @@
-export function handleTeleportSelection(row: any, col: any, playerKey: any): Promise<any>;
+export {};
 //# sourceMappingURL=teleport.d.ts.map

@@ -1,4 +1,4 @@
-export function applyTeleportWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, deps?: {}): {
+declare function applyTeleportWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, deps?: {}): {
     applied: boolean;
     reason: string;
     from?: undefined;
@@ -12,7 +12,7 @@ export function applyTeleportWill(cardState: any, gameState: any, playerKey: any
     to: any;
     reason?: undefined;
 };
-export function applyCellTeleportWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, deps?: {}): {
+declare function applyCellTeleportWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, deps?: {}): {
     applied: boolean;
     reason: string;
     from?: undefined;
@@ -31,4 +31,9 @@ export function applyCellTeleportWill(cardState: any, gameState: any, playerKey:
     createdDestination: boolean;
     reason?: undefined;
 };
+declare const _default: {
+    applyTeleportWill: typeof applyTeleportWill;
+    applyCellTeleportWill: typeof applyCellTeleportWill;
+};
+export = _default;
 //# sourceMappingURL=teleport.d.ts.map

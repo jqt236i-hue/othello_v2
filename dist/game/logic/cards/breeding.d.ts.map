@@ -1,1 +1,1 @@
-{"version":3,"file":"breeding.d.ts","sourceRoot":"","sources":["../../../../game/logic/cards/breeding.js"],"names":[],"mappings":"AAqYI;;;;;EAoBC;AAED;;;;EAgCC;AAED;;;;;EAEC;AA/LD;;;;;;;;;;;;EAmDC"}
+{"version":3,"file":"breeding.d.ts","sourceRoot":"","sources":["../../../../game/logic/cards/breeding.ts"],"names":[],"mappings":"AAWA,SAAS,QAAQ,CAAC"}

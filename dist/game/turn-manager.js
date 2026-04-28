@@ -1,4 +1,7 @@
 "use strict";
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
 /**
  * @file turn-manager.js
  * Core turn wiring: user input, animation gate checks, player key helpers, and game reset entrypoint.
@@ -7,7 +10,7 @@
 var getAnimationTiming;
 if (typeof require === 'function') {
     try {
-        ({ getAnimationTiming } = require('../constants/animation-constants'));
+        ({ getAnimationTiming } = _require('../constants/animation-constants'));
     }
     catch (e) { /* ignore */ }
 }
@@ -21,12 +24,7 @@ const DOUBLE_PLACE_PASS_DELAY_MS = 250;
 const BLACK_PASS_DELAY_MS = 1000;
 // Presentation emission via centralized helper
 var BoardPresentation = null;
-if (typeof require === 'function') {
-    try {
-        BoardPresentation = require('./logic/presentation');
-    }
-    catch (e) { /* ignore */ }
-}
+BoardPresentation = __require('./logic/presentation');
 if (!BoardPresentation && typeof globalThis !== 'undefined' && globalThis.PresentationHelper) {
     BoardPresentation = globalThis.PresentationHelper;
 }
@@ -34,12 +32,7 @@ if (!BoardPresentation && typeof globalThis !== 'undefined' && globalThis.Presen
 var TurnPipelineUIAdapter = (typeof globalThis !== 'undefined' && globalThis.TurnPipelineUIAdapter)
     ? globalThis.TurnPipelineUIAdapter
     : null;
-if (typeof require === 'function') {
-    try {
-        TurnPipelineUIAdapter = require('./turn/pipeline_ui_adapter');
-    }
-    catch (e) { /* ignore */ }
-}
+TurnPipelineUIAdapter = __require('./turn/pipeline_ui_adapter');
 if (!TurnPipelineUIAdapter && typeof globalThis !== 'undefined' && globalThis.TurnPipelineUIAdapter) {
     TurnPipelineUIAdapter = globalThis.TurnPipelineUIAdapter;
 }
@@ -49,12 +42,7 @@ function getTurnPipelineUIAdapter() {
     if (TurnPipelineUIAdapter) {
         return TurnPipelineUIAdapter;
     }
-    if (typeof require === 'function') {
-        try {
-            TurnPipelineUIAdapter = require('./turn/pipeline_ui_adapter');
-        }
-        catch (e) { /* ignore */ }
-    }
+    TurnPipelineUIAdapter = __require('./turn/pipeline_ui_adapter');
     if (!TurnPipelineUIAdapter && typeof globalThis !== 'undefined' && globalThis.TurnPipelineUIAdapter) {
         TurnPipelineUIAdapter = globalThis.TurnPipelineUIAdapter;
     }
@@ -71,12 +59,7 @@ function getCpuTurnHandlerModule() {
         }
     }
     catch (e) { /* ignore */ }
-    if (typeof require === 'function') {
-        try {
-            CpuTurnHandlerModule = require('./cpu-turn-handler');
-        }
-        catch (e) { /* ignore */ }
-    }
+    CpuTurnHandlerModule = __require('./cpu-turn-handler');
     return CpuTurnHandlerModule;
 }
 function resetCpuTurnSchedulingStateForTurnManager() {
@@ -86,12 +69,7 @@ function resetCpuTurnSchedulingStateForTurnManager() {
     }
 }
 var OwnerHelpersModule = null;
-if (typeof require === 'function') {
-    try {
-        OwnerHelpersModule = require('../utils/owner-helpers');
-    }
-    catch (e) { /* ignore */ }
-}
+OwnerHelpersModule = __require('../utils/owner-helpers');
 if (!OwnerHelpersModule && typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) {
     OwnerHelpersModule = globalThis.OwnerHelpers;
 }
@@ -281,7 +259,7 @@ function releaseStalePlaybackLockForTurnManager(options) {
 }
 function emitPresentationEventViaBoardOps(ev) {
     try {
-        const pres = (typeof require === 'function') ? require('./logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
+        const pres = (typeof require === 'function') ? _require('./logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
         if (pres && typeof pres.emitPresentationEvent === 'function')
             return pres.emitPresentationEvent(cardState, ev);
     }
@@ -341,7 +319,7 @@ function getTurnManagerTimerService() {
     if (turnManagerTimerService)
         return turnManagerTimerService;
     try {
-        const { createTimerService } = require('./timer-service');
+        const { createTimerService } = _require('./timer-service');
         turnManagerTimerService = createTimerService('browser');
         return turnManagerTimerService;
     }
@@ -351,14 +329,9 @@ function getTurnManagerTimerService() {
 }
 // Prefer shared scheduling helper when available; fallback to TimerService or setTimeout
 let scheduleRetry = null;
-if (typeof require === 'function') {
-    try {
-        const tu = require('./timer-utils');
-        if (tu && typeof tu.scheduleRetry === 'function')
-            scheduleRetry = tu.scheduleRetry;
-    }
-    catch (e) { /* ignore */ }
-}
+const tu = __require('./timer-utils');
+if (tu && typeof tu.scheduleRetry === 'function')
+    scheduleRetry = tu.scheduleRetry;
 if (!scheduleRetry) {
     scheduleRetry = (fn, delayMs) => {
         try {
@@ -627,12 +600,7 @@ function resolvePendingCoordinatorForTurnManager() {
     if (PendingCoordinatorForTurnManager && typeof PendingCoordinatorForTurnManager === 'object') {
         return PendingCoordinatorForTurnManager;
     }
-    if (typeof require === 'function') {
-        try {
-            PendingCoordinatorForTurnManager = require('./turn/pending-coordinator');
-        }
-        catch (e) { /* ignore */ }
-    }
+    PendingCoordinatorForTurnManager = __require('./turn/pending-coordinator');
     if (!PendingCoordinatorForTurnManager && typeof globalThis !== 'undefined' && globalThis.PendingCoordinator) {
         PendingCoordinatorForTurnManager = globalThis.PendingCoordinator;
     }
@@ -1081,7 +1049,7 @@ async function onTurnStart(player) {
     }
     // 5. Update UI — queue a STATE_UPDATED presentation event; UI should consume and perform actual emits/renders
     try {
-        const Notifier = require('./turn/notifier');
+        const Notifier = _require('./turn/notifier');
         Notifier.notifyUI(cardState, gameState, { stateChanged: true, cardStateChanged: true, render: true });
     }
     catch (e) {
@@ -1173,7 +1141,7 @@ function watchdogPing(nowMs) {
 // Legacy code previously exported helpers directly onto global scope. That behavior has been
 // moved to UI layer (e.g., `ui/bootstrap.js`) which may attach these or call into the
 // functions exported by this module. The functions remain available via CommonJS via
-// `require('../game/turn-manager')`. 
+// `_require('../game/turn-manager')`. 
 // Periodic action save moved to UI
 // Module exports for tests / commonjs
 if (typeof module !== 'undefined' && module.exports) {
@@ -1202,7 +1170,7 @@ try {
     }
     // Also register with UIBootstrap if available for more canonical UI registration
     try {
-        const uiBootstrap = require('../shared/ui-bootstrap-shared');
+        const uiBootstrap = _require('../shared/ui-bootstrap-shared');
         if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function')
             uiBootstrap.registerUIGlobals({ resetGame });
     }
@@ -1217,4 +1185,17 @@ function startActionSaveInterval() {
 function stopActionSaveInterval() {
     // No-op
 }
+module.exports = {
+    resetGame,
+    onTurnStart,
+    handleCellClick,
+    isAnimationInProgress,
+    setUIImpl,
+    startActionSaveInterval,
+    stopActionSaveInterval,
+    watchdogPing,
+    canLocalUserOperateCurrentTurn,
+    setTurnManagerTimerService,
+    requestUIRender
+};
 //# sourceMappingURL=turn-manager.js.map

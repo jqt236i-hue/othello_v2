@@ -1,1 +1,1 @@
-{"version":3,"file":"context.d.ts","sourceRoot":"","sources":["../../../../game/game/logic/context.js"],"names":[],"mappings":"AAqCA,yGA2BC;AA/DD;;;;GAIG;AACH,oDAcC;AACD,uDAeC"}
+{"version":3,"file":"context.d.ts","sourceRoot":"","sources":["../../../../game/game/logic/context.ts"],"names":[],"mappings":"AA+EA,OAAO,EAAE,CAAC"}

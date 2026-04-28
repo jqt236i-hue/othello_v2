@@ -1,2 +1,2 @@
-export function handleGuardSelection(row: any, col: any, playerKey: any): Promise<any>;
+export {};
 //# sourceMappingURL=guard.d.ts.map

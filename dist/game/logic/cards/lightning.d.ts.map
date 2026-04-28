@@ -1,1 +1,1 @@
-{"version":3,"file":"lightning.d.ts","sourceRoot":"","sources":["../../../../game/logic/cards/lightning.js"],"names":[],"mappings":"AA+QI;;;;EA0FC;AAED;;;EA6FC;AAED;;;EAEC"}
+{"version":3,"file":"lightning.d.ts","sourceRoot":"","sources":["../../../../game/logic/cards/lightning.ts"],"names":[],"mappings":"AAWA,SAAS,SAAS,CAAC"}

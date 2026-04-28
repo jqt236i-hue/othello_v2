@@ -1,2 +1,2 @@
-export function getCardCost(cardId: any): any;
+export {};
 //# sourceMappingURL=costs.d.ts.map

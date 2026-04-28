@@ -1,11 +1,4 @@
-declare const POLICY_ONNX_MODEL_SCHEMA_VERSION: "policy_onnx.v1";
-export const DEFAULT_MODEL_URL: "data/models/policy-net.onnx";
-export const DEFAULT_META_URL: "data/models/policy-net.onnx.meta.json";
-export const DEFAULT_TARGET_MODEL_URL: "data/models/policy-target.onnx";
-export const DEFAULT_TARGET_META_URL: "data/models/policy-target.onnx.meta.json";
-export const DEFAULT_VALUE_MODEL_URL: "data/models/policy-value.onnx";
-export const DEFAULT_VALUE_META_URL: "data/models/policy-value.onnx.meta.json";
-export function configure(config: any): {
+declare function configure(config: any): {
     enabled: boolean;
     minLevel: number;
     loaded: boolean;
@@ -46,7 +39,11 @@ export function configure(config: any): {
         perOperation: any;
     };
 };
-export function getStatus(): {
+declare function clearModel(): void;
+declare function hasModel(): boolean;
+declare function hasTargetModel(): boolean;
+declare function hasValueModel(): boolean;
+declare function getStatus(): {
     enabled: boolean;
     minLevel: number;
     loaded: boolean;
@@ -87,21 +84,44 @@ export function getStatus(): {
         perOperation: any;
     };
 };
-export function clearModel(): void;
-export function hasModel(): boolean;
-export function hasTargetModel(): boolean;
-export function hasValueModel(): boolean;
-export function loadFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any): Promise<boolean>;
-export function loadCardModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any): Promise<boolean>;
-export function loadTargetModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any): Promise<boolean>;
-export function loadValueModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any): Promise<boolean>;
-export function chooseMove(candidateMoves: any, context: any): Promise<any>;
-export function chooseCard(usableCardIds: any, context: any): Promise<string | null>;
-export function choosePendingTarget(candidateTargets: any, context: any): Promise<any>;
-export function evaluatePosition(context: any): Promise<number | null>;
-export function __setLoadedForTest(session: any, meta: any): void;
-export function __setCardModelForTest(session: any, meta: any): void;
-export function __setTargetModelForTest(session: any, meta: any): void;
-export function __setValueModelForTest(session: any, meta: any): void;
-export { POLICY_ONNX_MODEL_SCHEMA_VERSION as MODEL_SCHEMA_VERSION };
+declare function loadFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any): Promise<boolean>;
+declare function loadCardModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any): Promise<boolean>;
+declare function loadTargetModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any): Promise<boolean>;
+declare function loadValueModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any): Promise<boolean>;
+declare function chooseMove(candidateMoves: any, context: any): Promise<any>;
+declare function chooseCard(usableCardIds: any, context: any): Promise<string | null>;
+declare function choosePendingTarget(candidateTargets: any, context: any): Promise<any>;
+declare function evaluatePosition(context: any): Promise<number | null>;
+declare function __setLoadedForTest(session: any, meta: any): void;
+declare function __setCardModelForTest(session: any, meta: any): void;
+declare function __setTargetModelForTest(session: any, meta: any): void;
+declare function __setValueModelForTest(session: any, meta: any): void;
+declare const Api: {
+    MODEL_SCHEMA_VERSION: string;
+    DEFAULT_MODEL_URL: string;
+    DEFAULT_META_URL: string;
+    DEFAULT_TARGET_MODEL_URL: string;
+    DEFAULT_TARGET_META_URL: string;
+    DEFAULT_VALUE_MODEL_URL: string;
+    DEFAULT_VALUE_META_URL: string;
+    configure: typeof configure;
+    getStatus: typeof getStatus;
+    clearModel: typeof clearModel;
+    hasModel: typeof hasModel;
+    hasTargetModel: typeof hasTargetModel;
+    hasValueModel: typeof hasValueModel;
+    loadFromUrl: typeof loadFromUrl;
+    loadCardModelFromUrl: typeof loadCardModelFromUrl;
+    loadTargetModelFromUrl: typeof loadTargetModelFromUrl;
+    loadValueModelFromUrl: typeof loadValueModelFromUrl;
+    chooseMove: typeof chooseMove;
+    chooseCard: typeof chooseCard;
+    choosePendingTarget: typeof choosePendingTarget;
+    evaluatePosition: typeof evaluatePosition;
+    __setLoadedForTest: typeof __setLoadedForTest;
+    __setCardModelForTest: typeof __setCardModelForTest;
+    __setTargetModelForTest: typeof __setTargetModelForTest;
+    __setValueModelForTest: typeof __setValueModelForTest;
+};
+export = Api;
 //# sourceMappingURL=policy-onnx-runtime.d.ts.map

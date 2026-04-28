@@ -1,3 +1,7 @@
+"use strict";
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
 'use strict';
 const _require = (typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require);
 function createNetworkSnapshotController(config) {

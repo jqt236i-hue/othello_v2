@@ -1,5 +1,6 @@
+// @ts-nocheck
 /**
- * @file mcts-two-layer.js
+ * @file mcts-two-layer.ts
  * @description Two-layer MCTS (Duelyst-style IMC) for Card Othello.
  *
  * Layer 1: Card selection (NO_CARD or use a card)
@@ -9,18 +10,11 @@
  * instead of deciding the card only at the root.
  */
 'use strict';
-const { MCTSTree, MCTSNode } = require('./mcts-core');
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+const { MCTSTree, MCTSNode } = _require('./mcts-core');
 class TwoLayerMCTS {
-    /**
-     * @param {object} opts
-     * @param {object} opts.gameInterface
-     * @param {object} opts.network
-     * @param {number} [opts.cardSimulations] - Sims per card option (default 50)
-     * @param {number} [opts.placementSimulations] - Sims for placement MCTS (default 50)
-     * @param {number} [opts.maxCardOptions] - Max card options to evaluate (default 6)
-     * @param {number} [opts.c_puct] - PUCT constant (default 1.5)
-     * @param {number} [opts.temperature] - Temperature for final selection (default 1.0)
-     */
     constructor({ gameInterface, network, cardSimulations = 50, placementSimulations = 50, maxCardOptions = 6, c_puct = 1.5, temperature = 1.0, }) {
         this.gameInterface = gameInterface;
         this.network = network;
@@ -29,17 +23,8 @@ class TwoLayerMCTS {
         this.maxCardOptions = maxCardOptions;
         this.c_puct = c_puct;
         this.temperature = temperature;
-        /** @type {Map<string, MCTSNode>} */
         this.nodeMap = new Map();
     }
-    /**
-     * Run two-layer MCTS search.
-     *
-     * @param {object} rootState
-     * @param {object|null} rootCardState
-     * @param {string} rootPlayerKey
-     * @returns {Promise<{cardId: string|null, placement: object|null}>}
-     */
     async search(rootState, rootCardState, rootPlayerKey) {
         // Layer 1: Enumerate card options
         const cardOptions = this._getCardOptions(rootCardState, rootPlayerKey);
@@ -68,12 +53,6 @@ class TwoLayerMCTS {
         const placement = await this._runPlacementMCTS(afterCard.state, afterCard.cardState, rootPlayerKey);
         return { cardId: bestCard, placement };
     }
-    /**
-     * Get available card options including NO_CARD.
-     * @param {object|null} cardState
-     * @param {string} playerKey
-     * @returns {Array<string|null>}
-     */
     _getCardOptions(cardState, playerKey) {
         if (!cardState || !cardState.hand) {
             return [null]; // Only NO_CARD
@@ -87,14 +66,6 @@ class TwoLayerMCTS {
         }
         return options;
     }
-    /**
-     * Evaluate a card option by running placement MCTS after the card effect.
-     * @param {string|null} cardId
-     * @param {object} state
-     * @param {object|null} cardState
-     * @param {string} playerKey
-     * @returns {Promise<number>} Expected value from current player's perspective
-     */
     async _evaluateCardOption(cardId, state, cardState, playerKey) {
         let nextState = state;
         let nextCardState = cardState;
@@ -126,13 +97,6 @@ class TwoLayerMCTS {
         const topResult = result[0];
         return topResult.value - this._opportunityCost(cardId);
     }
-    /**
-     * Run standard placement-only MCTS.
-     * @param {object} state
-     * @param {object|null} cardState
-     * @param {string} playerKey
-     * @returns {Promise<object|null>} Best placement action
-     */
     async _runPlacementMCTS(state, cardState, playerKey) {
         const tree = new MCTSTree({
             gameInterface: this.gameInterface,
@@ -148,14 +112,6 @@ class TwoLayerMCTS {
         result.sort((a, b) => b.visitCount - a.visitCount);
         return result[0].action;
     }
-    /**
-     * Apply a card effect to the game state.
-     * @param {object} state
-     * @param {object|null} cardState
-     * @param {string} cardId
-     * @param {string} playerKey
-     * @returns {{state: object, cardState: object|null}}
-     */
     _applyCard(state, cardState, cardId, playerKey) {
         // Delegates to gameInterface if available, otherwise does nothing
         if (this.gameInterface.applyCardEffect) {
@@ -166,18 +122,13 @@ class TwoLayerMCTS {
         const newCardState = cardState ? this.gameInterface.copyCardState(cardState) : null;
         if (newCardState && newCardState.hand && newCardState.hand[playerKey]) {
             const hand = newCardState.hand[playerKey];
-            const idx = hand.findIndex(c => c && c.id === cardId);
+            const idx = hand.findIndex((c) => c && c.id === cardId);
             if (idx >= 0) {
                 hand.splice(idx, 1);
             }
         }
         return { state: newState, cardState: newCardState };
     }
-    /**
-     * Compute opportunity cost of using a card.
-     * @param {string|null} cardId
-     * @returns {number}
-     */
     _opportunityCost(cardId) {
         if (!cardId || cardId === '__no_card__')
             return 0;

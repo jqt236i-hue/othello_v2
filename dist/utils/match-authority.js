@@ -1,8 +1,14 @@
-'use strict';
-const deepClone = require('./deepClone');
-const SharedBoardUtils = require('../shared/shared-board-utils');
-const GachaHandCatalogShared = require('../shared/gacha-hand-catalog-shared.js');
-const StateHash = require('../shared/state-hash.js');
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+const deepClone_1 = __importDefault(require("./deepClone"));
+const shared_board_utils_1 = __importDefault(require("../shared/shared-board-utils"));
+const gacha_hand_catalog_shared_js_1 = __importDefault(require("../shared/gacha-hand-catalog-shared.js"));
+const state_hash_js_1 = __importDefault(require("../shared/state-hash.js"));
 const PLAYER_KEYS = Object.freeze(['black', 'white']);
 const HIDDEN_HAND_TOKEN_PREFIX = '__hidden_hand__:';
 const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):(\d+)$/;
@@ -33,7 +39,7 @@ function resolveSecureCrypto(explicitCrypto) {
     }
     if (typeof require === 'function') {
         try {
-            const nodeCrypto = require('crypto');
+            const nodeCrypto = _require('crypto');
             if (nodeCrypto && nodeCrypto.webcrypto && typeof nodeCrypto.webcrypto.getRandomValues === 'function') {
                 return nodeCrypto.webcrypto;
             }
@@ -107,8 +113,8 @@ function normalizeSeatHandSkinId(value) {
     const normalized = String(value || '').trim();
     if (!normalized)
         return '';
-    const canonical = (GachaHandCatalogShared && typeof GachaHandCatalogShared.normalizeCatalogItemId === 'function')
-        ? GachaHandCatalogShared.normalizeCatalogItemId(normalized)
+    const canonical = (gacha_hand_catalog_shared_js_1.default && typeof gacha_hand_catalog_shared_js_1.default.normalizeCatalogItemId === 'function')
+        ? gacha_hand_catalog_shared_js_1.default.normalizeCatalogItemId(normalized)
         : normalized;
     return Array.from(canonical).slice(0, HAND_SKIN_ID_MAX_LENGTH).join('');
 }
@@ -451,10 +457,10 @@ function isPlainObject(value) {
 }
 function mergeWithDefaultShape(defaultValue, overrideValue) {
     if (Array.isArray(defaultValue)) {
-        return Array.isArray(overrideValue) ? deepClone(overrideValue) : deepClone(defaultValue);
+        return Array.isArray(overrideValue) ? (0, deepClone_1.default)(overrideValue) : (0, deepClone_1.default)(defaultValue);
     }
     if (isPlainObject(defaultValue)) {
-        const result = deepClone(defaultValue);
+        const result = (0, deepClone_1.default)(defaultValue);
         if (!isPlainObject(overrideValue)) {
             return result;
         }
@@ -467,8 +473,8 @@ function mergeWithDefaultShape(defaultValue, overrideValue) {
         return result;
     }
     return (typeof overrideValue === 'undefined')
-        ? deepClone(defaultValue)
-        : deepClone(overrideValue);
+        ? (0, deepClone_1.default)(defaultValue)
+        : (0, deepClone_1.default)(overrideValue);
 }
 function mixTurnStartSeed(seed, value) {
     const numeric = Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : 0;
@@ -487,9 +493,9 @@ function createTurnStartSeed(room, snapshot, playerKey) {
 }
 function normalizeRoomBoardConfig(value, fallbackBoard) {
     const source = (value !== null && typeof value !== 'undefined') ? value : fallbackBoard;
-    if (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardConfig === 'function') {
-        const normalized = SharedBoardUtils.resolveBoardConfig(source);
-        return normalized ? deepClone(normalized) : null;
+    if (shared_board_utils_1.default && typeof shared_board_utils_1.default.resolveBoardConfig === 'function') {
+        const normalized = shared_board_utils_1.default.resolveBoardConfig(source);
+        return normalized ? (0, deepClone_1.default)(normalized) : null;
     }
     const fallback = Array.isArray(source)
         ? source
@@ -1003,7 +1009,7 @@ function canViewerInspectOwnerHand(snapshot, viewerSeatKey, ownerSeatKey) {
     return getFateWillControllerKey(snapshot, owner) === viewer;
 }
 function projectSnapshotForViewer(snapshotValue, viewerSeatKey, metadata) {
-    const shot = deepClone(snapshotValue || {});
+    const shot = (0, deepClone_1.default)(snapshotValue || {});
     const meta = (metadata && typeof metadata === 'object') ? metadata : {};
     if (Number.isFinite(Number(meta.stateVersion))) {
         shot.stateVersion = Number(meta.stateVersion);
@@ -1125,7 +1131,7 @@ function buildPublicSnapshot(room, viewerSeatKey) {
     return shot;
 }
 function cloneSnapshotHashSource(snapshotValue) {
-    const shot = deepClone(snapshotValue || {});
+    const shot = (0, deepClone_1.default)(snapshotValue || {});
     if (shot && typeof shot === 'object' && shot._meta && typeof shot._meta === 'object') {
         delete shot._meta.projectedSnapshotHash;
         delete shot._meta.authoritativeStateHash;
@@ -1133,14 +1139,14 @@ function cloneSnapshotHashSource(snapshotValue) {
     return shot;
 }
 function computeAuthoritativeStateHash(snapshotValue) {
-    if (!StateHash || typeof StateHash.computeStableHash !== 'function')
+    if (!state_hash_js_1.default || typeof state_hash_js_1.default.computeStableHash !== 'function')
         return null;
-    return StateHash.computeStableHash(cloneSnapshotHashSource(snapshotValue));
+    return state_hash_js_1.default.computeStableHash(cloneSnapshotHashSource(snapshotValue));
 }
 function computeProjectedSnapshotHash(snapshotValue) {
-    if (!StateHash || typeof StateHash.computeStableHash !== 'function')
+    if (!state_hash_js_1.default || typeof state_hash_js_1.default.computeStableHash !== 'function')
         return null;
-    return StateHash.computeStableHash(cloneSnapshotHashSource(snapshotValue));
+    return state_hash_js_1.default.computeStableHash(cloneSnapshotHashSource(snapshotValue));
 }
 function validatePendingSelectionPublish(snapshotValue, playerKey, actionValue) {
     const action = (actionValue && typeof actionValue === 'object') ? actionValue : null;
@@ -1248,7 +1254,7 @@ function sanitizePendingSelectionActionForAuthority(snapshotValue, playerKey, ac
     if (!shouldStripCommittedPendingCardUse(cardState, playerKey, action, expectedPending)) {
         return actionValue;
     }
-    const nextAction = deepClone(action);
+    const nextAction = (0, deepClone_1.default)(action);
     delete nextAction.useCardId;
     delete nextAction.useCardOwnerKey;
     return nextAction;
@@ -1306,14 +1312,14 @@ function createBufferedSseEventRecord(options) {
             const normalizedViewer = parseSeatKeyOptional(viewerKey);
             if (!normalizedViewer)
                 continue;
-            payloadByViewer[normalizedViewer] = deepClone(viewerPayload || {});
+            payloadByViewer[normalizedViewer] = (0, deepClone_1.default)(viewerPayload || {});
         }
         if (Object.keys(payloadByViewer).length > 0) {
             record.payloadByViewer = payloadByViewer;
         }
     }
     if (!record.payloadByViewer) {
-        record.payload = deepClone(opts.payload || {});
+        record.payload = (0, deepClone_1.default)(opts.payload || {});
     }
     return record;
 }
@@ -1367,12 +1373,12 @@ function getBufferedSseReplayEvents(bufferValue, lastEventIdValue, viewerSeatKey
         replayEvents.push({
             eventId: normalizeSseEventId(entry.id),
             eventName: String(entry.event || '').trim() || 'message',
-            payload: deepClone(payload || {})
+            payload: (0, deepClone_1.default)(payload || {})
         });
     }
     return replayEvents;
 }
-module.exports = {
+const matchAuthority = {
     PLAYER_KEYS,
     OPERATION_ID_MAX_LENGTH,
     SSE_RESUME_BUFFER_LIMIT,
@@ -1453,4 +1459,5 @@ module.exports = {
     appendBufferedSseEvent,
     getBufferedSseReplayEvents
 };
+module.exports = matchAuthority;
 //# sourceMappingURL=match-authority.js.map

@@ -1,4 +1,8 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const _require = (typeof __non_webpack_require__ !== "undefined")
+    ? __non_webpack_require__
+    : require;
 // Minimal event schema and validator for Protocol v0
 // Required fields: type, phase, targets, createdSeq, turnIndex, eventIndex
 function validateEvent(evt) {

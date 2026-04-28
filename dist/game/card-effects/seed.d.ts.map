@@ -1,1 +1,1 @@
-{"version":3,"file":"seed.d.ts","sourceRoot":"","sources":["../../../game/card-effects/seed.js"],"names":[],"mappings":"AAoBA,sFAYC"}
+{"version":3,"file":"seed.d.ts","sourceRoot":"","sources":["../../../game/card-effects/seed.ts"],"names":[],"mappings":"AA6CA,OAAO,EAAE,CAAC"}

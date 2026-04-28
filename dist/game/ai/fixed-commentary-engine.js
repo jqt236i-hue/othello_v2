@@ -1,61 +1,43 @@
 "use strict";
-(function (root, factory) {
-    if (typeof module === 'object' && module.exports) {
-        module.exports = factory();
-    }
-    else {
-        root.FixedCommentaryEngine = factory();
-    }
-}(typeof self !== 'undefined' ? self : this, function () {
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+function createEngine() {
     let Data = null;
     let CommentaryContextHelpers = null;
     let CommentaryRuntimeHelpers = null;
     let OwnerHelpersModule = null;
-    if (typeof require === 'function') {
+    try {
+        Data = _require('../../data/dialogue/fixed-commentary-data');
+    }
+    catch (e) {
+        Data = null;
+    }
+    if (!Data) {
         try {
-            Data = require('../../data/dialogue/fixed-commentary-data');
+            Data = _require('../..//data/dialogue/fixed-commentary-data');
         }
         catch (e) {
             Data = null;
         }
-        if (!Data) {
-            try {
-                Data = require('../..//data/dialogue/fixed-commentary-data');
-            }
-            catch (e) {
-                Data = null;
-            }
-        }
-        try {
-            CommentaryContextHelpers = require('../../shared/commentary-context-helpers');
-        }
-        catch (e) {
-            CommentaryContextHelpers = null;
-        }
-        try {
-            CommentaryRuntimeHelpers = require('../../shared/commentary-runtime-helpers');
-        }
-        catch (e) {
-            CommentaryRuntimeHelpers = null;
-        }
-        try {
-            OwnerHelpersModule = require('../../utils/owner-helpers');
-        }
-        catch (e) {
-            OwnerHelpersModule = null;
-        }
     }
-    if (!Data && typeof globalThis !== 'undefined') {
-        Data = globalThis.FixedCommentaryData || null;
+    try {
+        CommentaryContextHelpers = _require('../../shared/commentary-context-helpers');
     }
-    if (!CommentaryContextHelpers && typeof globalThis !== 'undefined') {
-        CommentaryContextHelpers = globalThis.CommentaryContextHelpers || null;
+    catch (e) {
+        CommentaryContextHelpers = null;
     }
-    if (!CommentaryRuntimeHelpers && typeof globalThis !== 'undefined') {
-        CommentaryRuntimeHelpers = globalThis.CommentaryRuntimeHelpers || null;
+    try {
+        CommentaryRuntimeHelpers = _require('../../shared/commentary-runtime-helpers');
     }
-    if (!OwnerHelpersModule && typeof globalThis !== 'undefined') {
-        OwnerHelpersModule = globalThis.OwnerHelpers || null;
+    catch (e) {
+        CommentaryRuntimeHelpers = null;
+    }
+    try {
+        OwnerHelpersModule = _require('../../utils/owner-helpers');
+    }
+    catch (e) {
+        OwnerHelpersModule = null;
     }
     const DEFAULT_DATA = {
         CARD_TYPE_LABELS: {},
@@ -877,5 +859,7 @@
         resetState,
         _buildCommentaryForTest: buildCommentary
     };
-}));
+}
+const engine = createEngine();
+module.exports = engine;
 //# sourceMappingURL=fixed-commentary-engine.js.map

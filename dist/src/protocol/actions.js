@@ -1,4 +1,8 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const _require = (typeof __non_webpack_require__ !== "undefined")
+    ? __non_webpack_require__
+    : require;
 // Minimal actions definition and helper utilities for tests
 // Actions should be plain objects describing an input from a player.
 function isValidAction(action) {

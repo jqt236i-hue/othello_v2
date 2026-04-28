@@ -1,1 +1,1 @@
-{"version":3,"file":"regen.d.ts","sourceRoot":"","sources":["../../../../game/logic/cards/regen.js"],"names":[],"mappings":"AAuJI;;EAyCC;AAuMD;;;EA2BC;AAED;;;;;;;;;;;;EAqBC;AAvPD,iFASC"}
+{"version":3,"file":"regen.d.ts","sourceRoot":"","sources":["../../../../game/logic/cards/regen.ts"],"names":[],"mappings":"AAWA,SAAS,KAAK,CAAC"}

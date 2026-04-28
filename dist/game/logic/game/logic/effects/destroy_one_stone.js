@@ -1,33 +1,16 @@
+// @ts-nocheck
 "use strict";
-/**
- * @file destroy_one_stone.ts
- * @description DESTROY_ONE_STONE helper - UMD module for browser and Node.js
- */
-function _require(id) {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
-const BoardOpsModule = (typeof module === 'object' && module.exports)
-    ? _require('../board_ops')
-    : (typeof self !== 'undefined' ? self.BoardOps : undefined);
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+const BoardOpsModule = _require('../board_ops');
 const DestroyOutcomeContract = (() => {
-    if (typeof require === 'function') {
-        try {
-            return _require('../../../shared/destroy-outcome-contract');
-        }
-        catch (_e) {
-            return null;
-        }
+    try {
+        return _require('../../../shared/destroy-outcome-contract');
     }
-    if (typeof globalThis !== 'undefined' && globalThis.DestroyOutcomeContract) {
-        return globalThis.DestroyOutcomeContract;
+    catch (_e) {
+        return null;
     }
-    return null;
 })();
 const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS)
     || Object.freeze({
@@ -188,7 +171,7 @@ function isDestroyResolved(result) {
     return !!(result && (result.destroyed || result.regenerated || result.evaded || result.blockedByGhost || result.proliferated));
 }
 function applyDestroyOneStone(cardState, gameState, playerKey, row, col, deps = {}) {
-    const result = createDestroyOutcome();
+    const result = createDestroyOutcome({});
     if (!gameState)
         return result;
     const BoardOps = deps.BoardOps || BoardOpsModule;

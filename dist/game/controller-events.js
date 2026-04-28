@@ -1,19 +1,14 @@
 "use strict";
-// ===== Controller Event Helpers =====
-/**
- * Emit a game event with optional fallback handlers
- * @param {string} eventType - The event type (from GameEvents.EVENT_TYPES)
- * @param {Array<Function>} fallbackHandlers - Functions to call if event system is unavailable
- * @param {*} data - Optional event payload
- */
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
 function emitGameEvent(eventType, fallbackHandlers = [], data) {
-    if (typeof GameEvents !== 'undefined' && GameEvents.gameEvents && eventType) {
-        GameEvents.gameEvents.emit(eventType, data);
+    if (typeof globalThis.GameEvents !== 'undefined' && globalThis.GameEvents.gameEvents && eventType) {
+        globalThis.GameEvents.gameEvents.emit(eventType, data);
         return true;
     }
     else {
         let handled = false;
-        // Fallback: call provided handler functions if event system is unavailable
         fallbackHandlers.forEach(handler => {
             if (typeof handler === 'function') {
                 handled = true;
@@ -60,32 +55,32 @@ function emitNamedControllerEvent(eventName, eventType, data, options) {
     }
 }
 function emitBoardUpdate(options) {
-    const eventType = (typeof GameEvents !== 'undefined' && GameEvents.EVENT_TYPES)
-        ? GameEvents.EVENT_TYPES.BOARD_UPDATED
+    const eventType = (typeof globalThis.GameEvents !== 'undefined' && globalThis.GameEvents.EVENT_TYPES)
+        ? globalThis.GameEvents.EVENT_TYPES.BOARD_UPDATED
         : null;
     return emitNamedControllerEvent('BOARD_UPDATED', eventType, null, options);
 }
 function emitGameStateChange() {
-    const eventType = (typeof GameEvents !== 'undefined' && GameEvents.EVENT_TYPES)
-        ? GameEvents.EVENT_TYPES.GAME_STATE_CHANGED
+    const eventType = (typeof globalThis.GameEvents !== 'undefined' && globalThis.GameEvents.EVENT_TYPES)
+        ? globalThis.GameEvents.EVENT_TYPES.GAME_STATE_CHANGED
         : null;
     return emitGameEvent(eventType, []);
 }
 function emitCardStateChange(options) {
-    const eventType = (typeof GameEvents !== 'undefined' && GameEvents.EVENT_TYPES)
-        ? GameEvents.EVENT_TYPES.CARD_STATE_CHANGED
+    const eventType = (typeof globalThis.GameEvents !== 'undefined' && globalThis.GameEvents.EVENT_TYPES)
+        ? globalThis.GameEvents.EVENT_TYPES.CARD_STATE_CHANGED
         : null;
     return emitNamedControllerEvent('CARD_STATE_CHANGED', eventType, null, options);
 }
 function emitGameReset(data) {
-    const eventType = (typeof GameEvents !== 'undefined' && GameEvents.EVENT_TYPES)
-        ? GameEvents.EVENT_TYPES.GAME_RESET
+    const eventType = (typeof globalThis.GameEvents !== 'undefined' && globalThis.GameEvents.EVENT_TYPES)
+        ? globalThis.GameEvents.EVENT_TYPES.GAME_RESET
         : null;
     return emitGameEvent(eventType, [], data || null);
 }
 function emitLogAdded(message, kind) {
-    const eventType = (typeof GameEvents !== 'undefined' && GameEvents.EVENT_TYPES)
-        ? GameEvents.EVENT_TYPES.LOG_ADDED
+    const eventType = (typeof globalThis.GameEvents !== 'undefined' && globalThis.GameEvents.EVENT_TYPES)
+        ? globalThis.GameEvents.EVENT_TYPES.LOG_ADDED
         : null;
     const messagePayload = (message && typeof message === 'object') ? message : null;
     const resolvedKind = messagePayload
@@ -109,16 +104,15 @@ function emitEffectLog(message) {
 function emitNormalLog(message) {
     emitLogAdded(message, 'normal');
 }
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        emitGameEvent,
-        emitBoardUpdate,
-        emitGameStateChange,
-        emitCardStateChange,
-        emitGameReset,
-        emitLogAdded,
-        emitEffectLog,
-        emitNormalLog
-    };
-}
+const ControllerEvents = {
+    emitGameEvent,
+    emitBoardUpdate,
+    emitGameStateChange,
+    emitCardStateChange,
+    emitGameReset,
+    emitLogAdded,
+    emitEffectLog,
+    emitNormalLog
+};
+module.exports = ControllerEvents;
 //# sourceMappingURL=controller-events.js.map

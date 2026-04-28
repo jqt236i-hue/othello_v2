@@ -1,8 +1,11 @@
+"use strict";
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
 /**
  * @file cpu-lv6-lookahead-profile.js
  * @description Shared Lv6 lookahead profile helpers for browser/headless parity.
  */
-'use strict';
 let BoardUtils = null;
 if (typeof require === 'function') {
     try {

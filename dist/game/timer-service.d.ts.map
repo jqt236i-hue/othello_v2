@@ -1,1 +1,1 @@
-{"version":3,"file":"timer-service.d.ts","sourceRoot":"","sources":["../../game/timer-service.js"],"names":[],"mappings":"AAAA;;;GAGG;AAEH;IACE,2BAEC;IADC,aAAgB;IAGlB;;MAYC;IAED,4BAKC;IAED;;MAWC;IAED,6BAIC;CACF;AAED,4DAEC"}
+{"version":3,"file":"timer-service.d.ts","sourceRoot":"","sources":["../../game/timer-service.ts"],"names":[],"mappings":"AAgEA,OAAO,EAAE,CAAC"}

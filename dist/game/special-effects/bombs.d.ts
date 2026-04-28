@@ -1,17 +1,8 @@
-/**
- * @file bombs.js
- * @description Bomb handling (tick + explosion UI)
- */
-/**
- * Process all bombs: decrement turn counters and explode those that reach 0
- * @async
- * @returns {Promise<void>}
- */
-export function processBombs(precomputedEvents?: null): Promise<void>;
-/**
- * Handle UI for bomb explosion
- * @param {number} row
- * @param {number} col
- */
-export function explodeBombUI(row: number, col: number): Promise<void>;
+declare function processBombs(precomputedEvents?: any): Promise<void>;
+declare function explodeBombUI(row: number, col: number): Promise<void>;
+declare const Bombs: {
+    processBombs: typeof processBombs;
+    explodeBombUI: typeof explodeBombUI;
+};
+export = Bombs;
 //# sourceMappingURL=bombs.d.ts.map

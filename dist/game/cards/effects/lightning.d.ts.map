@@ -1,1 +1,1 @@
-{"version":3,"file":"lightning.d.ts","sourceRoot":"","sources":["../../../../game/cards/effects/lightning.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAMH,QAAA,MAAM,OAAO;;;;;;;;;;;;;;CAIZ,CAAC;AAEF,SAAS,OAAO,CAAC"}
+{"version":3,"file":"lightning.d.ts","sourceRoot":"","sources":["../../../../game/cards/effects/lightning.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAMH,QAAA,MAAM,OAAO;;;;CAIZ,CAAC;AAEF,SAAS,OAAO,CAAC"}

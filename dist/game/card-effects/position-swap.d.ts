@@ -1,2 +1,2 @@
-export function handlePositionSwapSelection(row: any, col: any, playerKey: any): Promise<any>;
+export {};
 //# sourceMappingURL=position-swap.d.ts.map

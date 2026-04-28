@@ -1,1 +1,1 @@
-{"version":3,"file":"snapshot.d.ts","sourceRoot":"","sources":["../../../ui/network/snapshot.ts"],"names":[],"mappings":"AAKA,iBAAS,+BAA+B,CAAC,MAAM,EAAE,GAAG,GAAG,GAAG,CAmzBzD;AAED,QAAA,MAAM,qBAAqB;;CAE1B,CAAC;AAEF,SAAS,qBAAqB,CAAC"}
+{"version":3,"file":"snapshot.d.ts","sourceRoot":"","sources":["../../../ui/network/snapshot.ts"],"names":[],"mappings":"AAcA,iBAAS,+BAA+B,CAAC,MAAM,EAAE,GAAG,GAAG,GAAG,CAmzBzD;AAED,QAAA,MAAM,qBAAqB;;CAE1B,CAAC;AAEF,SAAS,qBAAqB,CAAC"}

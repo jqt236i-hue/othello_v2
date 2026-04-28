@@ -1,2 +1,2 @@
-export function handleFreezeSelection(row: any, col: any, playerKey: any): Promise<any>;
+export {};
 //# sourceMappingURL=freeze.d.ts.map

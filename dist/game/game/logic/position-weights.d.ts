@@ -1,7 +1,15 @@
-export const POSITION_WEIGHTS: number[][];
-export function getPositionScore(row: any, col: any, boardOrRows: any, maybeCols: any): number;
-export function isCorner(row: any, col: any, boardOrRows: any, maybeCols: any): any;
-export function isEdge(row: any, col: any, boardOrRows: any, maybeCols: any): any;
-export function isXSquare(row: any, col: any, boardOrRows: any, maybeCols: any): any;
-export function isCSquare(row: any, col: any, boardOrRows: any, maybeCols: any): any;
+declare function getPositionScore(row: number, col: number, boardOrRows?: any, maybeCols?: number): number;
+declare function isCorner(row: number, col: number, boardOrRows?: any, maybeCols?: number): boolean;
+declare function isEdge(row: number, col: number, boardOrRows?: any, maybeCols?: number): boolean;
+declare function isXSquare(row: number, col: number, boardOrRows?: any, maybeCols?: number): boolean;
+declare function isCSquare(row: number, col: number, boardOrRows?: any, maybeCols?: number): boolean;
+declare const PositionWeights: {
+    POSITION_WEIGHTS: number[][];
+    getPositionScore: typeof getPositionScore;
+    isCorner: typeof isCorner;
+    isEdge: typeof isEdge;
+    isXSquare: typeof isXSquare;
+    isCSquare: typeof isCSquare;
+};
+export = PositionWeights;
 //# sourceMappingURL=position-weights.d.ts.map

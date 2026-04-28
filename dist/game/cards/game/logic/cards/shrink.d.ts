@@ -1,9 +1,5 @@
-export const BOARD_SHRINK_SELECTION_COUNT: 3;
-export function getBoardShrinkPendingSelectionsForCard(pending: any): {
-    row: any;
-    col: any;
-}[];
-export function applyBoardShrinkWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, deps: any): {
+declare function getBoardShrinkPendingSelectionsForCard(pending: any): any[];
+declare function applyBoardShrinkWill(cardState: any, gameState: any, playerKey: string, row: number, col: number, deps: any): {
     applied: boolean;
     reason: string;
     completed?: undefined;
@@ -22,8 +18,8 @@ export function applyBoardShrinkWill(cardState: any, gameState: any, playerKey: 
     maxSelections: number;
     remainingSelections: number;
     target: {
-        row: any;
-        col: any;
+        row: number;
+        col: number;
     };
     selectedTargets: any;
     reason?: undefined;
@@ -34,29 +30,22 @@ export function applyBoardShrinkWill(cardState: any, gameState: any, playerKey: 
     applied: boolean;
     completed: boolean;
     source: {
-        row: any;
-        col: any;
+        row: number;
+        col: number;
     };
     selectedTargets: {
         row: any;
         col: any;
     }[];
-    changedTargets: {
-        row: any;
-        col: any;
-    }[];
-    skippedTargets: {
-        row: any;
-        col: any;
-        reason: any;
-    }[];
+    changedTargets: any[];
+    skippedTargets: any[];
     reason?: undefined;
     selectedCount?: undefined;
     maxSelections?: undefined;
     remainingSelections?: undefined;
     target?: undefined;
 };
-export function applyBoardShrinkGod(cardState: any, gameState: any, playerKey: any, row: any, col: any, deps: any): {
+declare function applyBoardShrinkGod(cardState: any, gameState: any, playerKey: string, row: number, col: number, deps: any): {
     applied: boolean;
     reason: string;
     completed?: undefined;
@@ -70,12 +59,12 @@ export function applyBoardShrinkGod(cardState: any, gameState: any, playerKey: a
     applied: boolean;
     completed: boolean;
     target: {
-        row: any;
-        col: any;
+        row: number;
+        col: number;
     };
     firstTarget: {
-        row: any;
-        col: any;
+        row: number;
+        col: number;
     };
     reason?: undefined;
     lineKey?: undefined;
@@ -90,20 +79,20 @@ export function applyBoardShrinkGod(cardState: any, gameState: any, playerKey: a
         col: any;
     };
     target: {
-        row: any;
-        col: any;
+        row: number;
+        col: number;
     };
     lineKey: any;
     lineTargets: any;
-    changedTargets: {
-        row: any;
-        col: any;
-    }[];
-    skippedTargets: {
-        row: any;
-        col: any;
-        reason: any;
-    }[];
+    changedTargets: any[];
+    skippedTargets: any[];
     reason?: undefined;
 };
+declare const _default: {
+    BOARD_SHRINK_SELECTION_COUNT: number;
+    getBoardShrinkPendingSelectionsForCard: typeof getBoardShrinkPendingSelectionsForCard;
+    applyBoardShrinkWill: typeof applyBoardShrinkWill;
+    applyBoardShrinkGod: typeof applyBoardShrinkGod;
+};
+export = _default;
 //# sourceMappingURL=shrink.d.ts.map

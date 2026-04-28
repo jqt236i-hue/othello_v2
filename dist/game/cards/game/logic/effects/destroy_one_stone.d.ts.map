@@ -1,1 +1,1 @@
-{"version":3,"file":"destroy_one_stone.d.ts","sourceRoot":"","sources":["../../../../../../game/cards/game/logic/effects/destroy_one_stone.js"],"names":[],"mappings":"AA6LA,yHAgEC"}
+{"version":3,"file":"destroy_one_stone.d.ts","sourceRoot":"","sources":["../../../../../../game/cards/game/logic/effects/destroy_one_stone.ts"],"names":[],"mappings":"AAgMA,iBAAS,oBAAoB,CAAC,SAAS,EAAE,GAAG,EAAE,SAAS,EAAE,GAAG,EAAE,SAAS,EAAE,MAAM,EAAE,GAAG,EAAE,MAAM,EAAE,GAAG,EAAE,MAAM,EAAE,IAAI,GAAE,GAAQ,OAgExH;;;;AAED,kBAEE"}

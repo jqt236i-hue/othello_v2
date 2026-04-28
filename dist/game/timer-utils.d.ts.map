@@ -1,1 +1,1 @@
-{"version":3,"file":"timer-utils.d.ts","sourceRoot":"","sources":["../../game/timer-utils.js"],"names":[],"mappings":"AAWA,6EAmBC"}
+{"version":3,"file":"timer-utils.d.ts","sourceRoot":"","sources":["../../game/timer-utils.ts"],"names":[],"mappings":"AAyCA,OAAO,EAAE,CAAC"}

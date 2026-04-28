@@ -1,1 +1,1 @@
-{"version":3,"file":"meteor.d.ts","sourceRoot":"","sources":["../../../game/card-effects/meteor.js"],"names":[],"mappings":"AAoBA,wFAYC"}
+{"version":3,"file":"meteor.d.ts","sourceRoot":"","sources":["../../../game/card-effects/meteor.ts"],"names":[],"mappings":"AA6CA,OAAO,EAAE,CAAC"}

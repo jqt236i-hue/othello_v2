@@ -1,17 +1,7 @@
 "use strict";
-/**
- * @file position-weights.ts
- * @description 盤面位置評価マトリックス（ブラウザ/Headless共通）
- */
-function _require(id) {
-    if (typeof __non_webpack_require__ !== 'undefined') {
-        return __non_webpack_require__(id);
-    }
-    if (typeof require === 'function') {
-        return require(id);
-    }
-    throw new Error('Unable to require ' + id);
-}
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
 const BoardUtils = (typeof module === 'object' && module.exports)
     ? _require('../../shared/shared-board-utils')
     : (typeof self !== 'undefined' ? self.SharedBoardUtils : null);
@@ -119,7 +109,7 @@ function isCSquare(row, col, boardOrRows, maybeCols) {
     return (((row === bounds.minRow || row === bounds.maxRow) && (col === (bounds.minCol + 1) || col === (bounds.maxCol - 1))) ||
         ((row === (bounds.minRow + 1) || row === (bounds.maxRow - 1)) && (col === bounds.minCol || col === bounds.maxCol)));
 }
-module.exports = {
+const PositionWeights = {
     POSITION_WEIGHTS,
     getPositionScore,
     isCorner,
@@ -127,4 +117,5 @@ module.exports = {
     isXSquare,
     isCSquare
 };
+module.exports = PositionWeights;
 //# sourceMappingURL=position-weights.js.map

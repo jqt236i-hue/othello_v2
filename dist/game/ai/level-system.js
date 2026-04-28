@@ -1,4 +1,8 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const _require = (typeof __non_webpack_require__ !== "undefined")
+    ? __non_webpack_require__
+    : require;
 /**
  * Minimal AISystem (game/ai/level-system.js)
  * Purpose: Provide a simple, deterministic AISystem implementation so that the

@@ -1,3 +1,2 @@
-export = Api;
-declare const Api: any;
+export {};
 //# sourceMappingURL=cpu-commentary-runtime.d.ts.map

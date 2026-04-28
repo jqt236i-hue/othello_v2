@@ -1,4 +1,9 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const _require = (typeof __non_webpack_require__ !== "undefined")
+    ? __non_webpack_require__
+    : require;
+"use strict";
 /**
  * @file swap-with-enemy.ts
  * @description Swap With Enemy effects wrapper (delegates to game/logic/effects/swap_with_enemy.js)

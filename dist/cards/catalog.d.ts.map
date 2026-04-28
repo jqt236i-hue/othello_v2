@@ -1,1 +1,1 @@
-{"version":3,"file":"catalog.d.ts","sourceRoot":"","sources":["../../cards/catalog.js"],"names":[],"mappings":""}
+{"version":3,"file":"catalog.d.ts","sourceRoot":"","sources":["../../cards/catalog.ts"],"names":[],"mappings":"AAWA,QAAA,MAAM,WAAW;;;;;;;;;;;;;;;;;;;;;;;;CAy0BhB,CAAC;AAGF,SAAS,WAAW,CAAC"}

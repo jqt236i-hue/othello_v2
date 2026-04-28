@@ -1,2 +1,2 @@
-export const __esModule: boolean;
+export {};
 //# sourceMappingURL=index.d.ts.map

@@ -1,3 +1,7 @@
+"use strict";
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
 'use strict';
 const DEFAULT_SCENARIO_ID = 'chapter0';
 const SCENARIO_KINDS = deepFreeze({

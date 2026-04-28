@@ -1,2 +1,2 @@
-export function handleTimeBombSelection(row: any, col: any, playerKey: any): Promise<any>;
+export {};
 //# sourceMappingURL=time-bomb.d.ts.map

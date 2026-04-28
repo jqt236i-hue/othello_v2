@@ -1,3 +1,7 @@
+"use strict";
+const _require = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
 /**
  * @file mcts-policy.js
  * @description Neural-guided MCTS integration for CPU Lv6 (Phase 1).
@@ -10,7 +14,6 @@
  * The module exposes ``searchWithMcts()`` which returns the best action
  * after the requested number of simulations.
  */
-'use strict';
 const { MCTSTree } = require('./mcts-core');
 const { GumbelMCTS } = require('./gumbel-mcts');
 let CoreLogic = null;
@@ -358,9 +361,10 @@ async function searchWithMcts(state, cardState, playerKey, opts) {
         return null;
     }
 }
-module.exports = { searchWithMcts, _gameInterface, _network };
 // Browser global
 if (typeof globalThis !== 'undefined') {
     globalThis.CpuMctsPolicy = { searchWithMcts, _gameInterface, _network };
 }
+;
+module.exports = { searchWithMcts, _gameInterface, _network };
 //# sourceMappingURL=mcts-policy.js.map

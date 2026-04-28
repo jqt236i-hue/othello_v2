@@ -1,2 +1,2 @@
-export function isValidAction(action: any): boolean;
+export {};
 //# sourceMappingURL=actions.d.ts.map

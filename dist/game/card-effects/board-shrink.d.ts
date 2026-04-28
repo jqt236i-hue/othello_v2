@@ -1,2 +1,2 @@
-export function handleBoardShrinkSelection(row: any, col: any, playerKey: any): Promise<any>;
+export {};
 //# sourceMappingURL=board-shrink.d.ts.map
