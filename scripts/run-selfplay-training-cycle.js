@@ -1,3 +1,1 @@
-"use strict";
-/** @type {any} */
-module.exports = require('../dist/scripts/run-selfplay-training-cycle');
+module.exports = require("../dist/scripts/run-selfplay-training-cycle");

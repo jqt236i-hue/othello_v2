@@ -7,6 +7,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
-clearCardPendingEffect(cardState, playerKey);
+/** @type {any} */
+('../../dist/game/cards/effect-resolver');
 
-export = effect_resolver;
+export = require;

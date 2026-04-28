@@ -2574,6 +2574,7 @@ function main() {
         ? startedAt + Math.floor(args.maxHours * 60 * 60 * 1000)
         : null;
     const iterations = [];
+    let startIteration = 1;
     let guideModelPath = args.bootstrapPolicyModelPath || null;
     let guideModelPoolPaths = buildInitialGuideModelPoolPaths(
         args.modelsDir,
@@ -2586,13 +2587,50 @@ function main() {
     );
     let resumeCheckpointPaths = cloneResumeCheckpointPaths(args.resumeCheckpointPaths);
     let anchorModelPath = guideModelPath || null;
+    if (args.summaryOut && fs.existsSync(args.summaryOut)) {
+        try {
+            const existingSummary = JSON.parse(fs.readFileSync(args.summaryOut, 'utf8'));
+            const summaryRunTag = existingSummary && existingSummary.config && typeof existingSummary.config.runTag === 'string'
+                ? existingSummary.config.runTag
+                : null;
+            const existingIterations = Array.isArray(existingSummary && existingSummary.iterations)
+                ? existingSummary.iterations
+                : [];
+            if (summaryRunTag === args.runTag && existingIterations.length > 0) {
+                iterations.push(...existingIterations);
+                const lastIteration = Number(existingIterations[existingIterations.length - 1] && existingIterations[existingIterations.length - 1].iteration);
+                startIteration = Number.isFinite(lastIteration) && lastIteration >= 1
+                    ? Math.floor(lastIteration) + 1
+                    : existingIterations.length + 1;
+                if (existingSummary.latestGuideModelPath) {
+                    guideModelPath = existingSummary.latestGuideModelPath;
+                }
+                if (Array.isArray(existingSummary.latestGuideModelPoolPaths) && existingSummary.latestGuideModelPoolPaths.length > 0) {
+                    guideModelPoolPaths = existingSummary.latestGuideModelPoolPaths.slice();
+                }
+                resumeCheckpointPaths = resolveCarryOverResumeCheckpointPaths({
+                    resumeCheckpointPaths: existingSummary.latestResumeCheckpointPaths || existingSummary.resumeCheckpointPaths || null,
+                    resumeCheckpointPath: existingSummary.latestResumeCheckpointPath || null
+                });
+                if (existingSummary.latestAnchorModelPath) {
+                    anchorModelPath = existingSummary.latestAnchorModelPath;
+                }
+                if (!args.restartFromStep && existingSummary.failure && typeof existingSummary.failure.step === 'string') {
+                    args.restartFromStep = existingSummary.failure.step;
+                }
+                console.log(`[training-cycle] resumed summary=${args.summaryOut} start_iteration=${startIteration}`);
+            }
+        } catch (err) {
+            console.warn(`[training-cycle] resume summary load failed path=${args.summaryOut} error=${err && err.message ? err.message : err}`);
+        }
+    }
     if (resolveAdoptionBaselineMode(args) === 'anchor' && !anchorModelPath) {
         throw new Error('--adoption-use-anchor-baseline requires an initial bootstrap policy model');
     }
     let stoppedByTimeBudget = false;
     let stopReason = null;
     let failureDetail = null;
-    for (let i = 1; i <= args.iterations; i++) {
+    for (let i = startIteration; i <= args.iterations; i++) {
         const remainingMs = getRemainingMs(deadlineMs);
         if (remainingMs !== null && remainingMs <= 0) {
             stoppedByTimeBudget = true;

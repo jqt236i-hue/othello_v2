@@ -7,6 +7,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
-return pickRandomLine(getSpecialStoneBubbleSpeechLines(type, scenario), prng);
+/** @type {any} */
+('../../dist/game/turn/turn_pipeline_phase_helpers');
 
-export = turn_pipeline_phase_helpers;
+export = require;

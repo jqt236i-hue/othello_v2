@@ -7,7 +7,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 const uiBootPath = path.resolve(__dirname, '..', '..', 'ui', 'bootstrap.js');
-const sharedPath = path.resolve(__dirname, '..', '..', 'shared', 'ui-bootstrap-shared.ts');
+const sharedPath = path.resolve(__dirname, '..', '..', 'shared', 'ui-bootstrap-shared.js');
 
 const calls: any[] = [];
 // Ensure any existing module is cleared
