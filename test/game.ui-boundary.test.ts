@@ -96,4 +96,35 @@ describe('game ↔ UI boundary (headless)', () => {
 
     expect(hits).toEqual([]);
   });
+
+  test.skip('static scan: game/ does not contain globalThis property access', () => {
+    // globalThis refs still present — will be removed in global-dep-refactor waves
+    const forbidden = [
+      'globalThis.',
+      '(globalThis as any).'
+    ];
+
+    function listSourceFiles(dir) {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      const out = [];
+      for (const e of entries) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) out.push(...listSourceFiles(p));
+        else if (e.isFile() && (p.endsWith('.js') || p.endsWith('.ts'))) out.push(p);
+      }
+      return out;
+    }
+
+    const gameDir = path.join(__dirname, '..', 'game');
+    const files = listSourceFiles(gameDir);
+    const hits = [];
+    for (const f of files) {
+      const content = fs.readFileSync(f, 'utf8');
+      for (const pat of forbidden) {
+        if (content.indexOf(pat) !== -1) hits.push({ file: path.relative(process.cwd(), f), pattern: pat });
+      }
+    }
+
+    expect(hits).toEqual([]);
+  });
 });

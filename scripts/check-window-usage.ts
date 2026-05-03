@@ -38,6 +38,7 @@ function walk(dir: string): string[] {
 
 const files = walk(root).filter(f => f.endsWith('.js'));
 const violations: { file: string; line: number; label: string }[] = [];
+const globalThisRefs: { file: string; line: number; label: string }[] = [];
 for (const f of files) {
     const rel = path.relative(root, f).replace(/\\/g, '/');
     if (!shouldCheck(rel)) continue;
@@ -58,6 +59,29 @@ for (const f of files) {
             violations.push({ file: rel, line, label });
         }
     }
+    // globalThis detection (warnings only — not yet enforced)
+    const globalThisPatterns = [
+        { re: /\bglobalThis\./g, label: 'globalThis.' },
+        { re: /\(globalThis as any\)\./g, label: '(globalThis as any).' }
+    ];
+    for (const { re, label } of globalThisPatterns) {
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(content)) !== null) {
+            const pos = m.index;
+            const before = content.slice(0, pos);
+            const line = before.split('\n').length;
+            globalThisRefs.push({ file: rel, line, label });
+        }
+    }
+}
+
+// Print globalThis references first (always, even if violations exist)
+if (globalThisRefs.length > 0) {
+    console.log('\n[globalThis-check] globalThis references found in game/:');
+    globalThisRefs.forEach(v => console.log(` - ${v.file}:${v.line} (${v.label})`));
+    console.log(`\n[globalThis-check] ${globalThisRefs.length} references found in game/ (these will be reduced over time)`);
+} else {
+    console.log('[globalThis-check] No globalThis references found in game/.');
 }
 
 if (violations.length > 0) {
