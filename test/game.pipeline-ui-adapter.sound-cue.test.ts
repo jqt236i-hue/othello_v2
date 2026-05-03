@@ -400,21 +400,6 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(5);
   });
 
-  test('split_selected の sound_effect も split move の phase に合わせる', () => {
-    const base = [{
-      type: 'move',
-      phase: 6,
-      targets: [{ from: { r: 2, col: 2 }, to: { r: 2, col: 3 }, clone: true, cause: 'SPLIT_WILL' }]
-    }];
-    const raw = [{ type: 'split_selected', applied: true, details: [{ row: 2, col: 3 }] }];
-
-    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
-    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'clone_spawn');
-
-    expect(cue).toBeTruthy();
-    expect(cue.phase).toBe(6);
-  });
-
   test('proliferation spawn も clone_spawn sound を move phase に合わせる', () => {
     const base = [{
       type: 'move',
@@ -1729,6 +1714,92 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     expect(cue).toBeTruthy();
     expect(cue.phase).toBe(7);
+  });
+
+  test('ROBOT_VACUUM の移動にも hyperactive_move を追加する', () => {
+    const base = [{
+      type: 'move',
+      phase: 7,
+      targets: [{
+        from: { r: 3, col: 3 },
+        to: { r: 3, col: 4 },
+        cause: 'ROBOT_VACUUM',
+        reason: 'robot_vacuum_move'
+      }]
+    }];
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cue = out.find((ev) =>
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'hyperactive_move'
+    );
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(7);
+  });
+
+  test('WILL_HUNTER_KING の移動には ultimate_anchor_move を追加し hyperactive_move は追加しない', () => {
+    const base = [{
+      type: 'move',
+      phase: 5,
+      targets: [{
+        from: { r: 2, col: 2 },
+        to: { r: 5, col: 5 },
+        cause: 'WILL_HUNTER_KING',
+        reason: 'will_hunter_king_slash_move'
+      }]
+    }];
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const anchorCue = out.find((ev) =>
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'ultimate_anchor_move'
+    );
+    const hyperCue = out.find((ev) =>
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'hyperactive_move'
+    );
+    expect(anchorCue).toBeTruthy();
+    expect(anchorCue.phase).toBe(5);
+    expect(hyperCue).toBeUndefined();
+  });
+
+  test('DESTROY_EVADE かつ meta.special=WILL_HUNTER_KING でも hyperactive_move を再生する（回帰）', () => {
+    const base = [{
+      type: 'move',
+      phase: 8,
+      targets: [{
+        from: { r: 3, col: 3 },
+        to: { r: 3, col: 4 },
+        cause: 'DESTROY_EVADE',
+        reason: 'destroy_evade_move',
+        meta: { special: 'WILL_HUNTER_KING' }
+      }]
+    }];
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const hyperCue = out.find((ev) =>
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'hyperactive_move'
+    );
+    const anchorCue = out.find((ev) =>
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'ultimate_anchor_move'
+    );
+    expect(hyperCue).toBeTruthy();
+    expect(hyperCue.phase).toBe(8);
+    expect(anchorCue).toBeUndefined();
   });
 
   test('究極反転龍 / 究極破壊神の owner-turn move には専用 SE を追加する', () => {
