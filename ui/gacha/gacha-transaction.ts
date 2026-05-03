@@ -40,7 +40,7 @@ function resolveGachaProgressStorageModule(): any {
     return _require('../storage/gacha-progress.js');
   } catch (e) { /* ignore */ }
   try {
-    if (typeof globalThis !== 'undefined' && (globalThis as any).GachaProgressStorage) return (globalThis as any).GachaProgressStorage;
+    if (typeof globalThis !== 'undefined' && (globalThis as any).GachaProgressStorageModule) return (globalThis as any).GachaProgressStorageModule;
   } catch (e) { /* ignore */ }
   return null;
 }
