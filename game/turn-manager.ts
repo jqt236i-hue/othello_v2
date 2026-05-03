@@ -45,6 +45,7 @@ if (typeof require === 'function') {
     try { ({ getAnimationTiming } = _require('../constants/animation-constants')); } catch (e) { /* ignore */ }
 }
 const FLIP_ANIMATION_DURATION_MS = (typeof getAnimationTiming === 'function' ? getAnimationTiming('FLIP_ANIMATION_DURATION') : 600) || 600;
+// @compat - __BENCH_FAST_MODE set by test scripts / run-ui-level-match.ts via globalThis
 const CPU_TURN_DELAY_MS = (typeof globalThis !== 'undefined' && globalThis.__BENCH_FAST_MODE === true) ? 0 : 600;
 const ANIMATION_RETRY_DELAY_MS = 80;
 const DOUBLE_PLACE_PASS_DELAY_MS = 250;
@@ -66,6 +67,7 @@ function resetCpuTurnSchedulingStateForTurnManager() {
 
 function getPlaybackStateForTurnManager() {
     try {
+        // globalThis read — UI/bootstrap dependency, keep
         if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) {
             return globalThis.PlaybackStateManager;
         }
@@ -81,8 +83,7 @@ function readTurnManagerProcessing() {
     const localProcessing = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isProcessing !== 'undefined')
         ? __uiImpl.isProcessing
         : (typeof isProcessing !== 'undefined' ? isProcessing : false);
-    const globalProcessing = (typeof globalThis !== 'undefined') ? !!globalThis.isProcessing : false;
-    return localProcessing || globalProcessing;
+    return localProcessing;
 }
 
 function readTurnManagerCardAnimating() {
@@ -93,8 +94,7 @@ function readTurnManagerCardAnimating() {
     const localCardAnimating = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isCardAnimating !== 'undefined')
         ? __uiImpl.isCardAnimating
         : (typeof isCardAnimating !== 'undefined' ? isCardAnimating : false);
-    const globalCardAnimating = (typeof globalThis !== 'undefined') ? !!globalThis.isCardAnimating : false;
-    return localCardAnimating || globalCardAnimating;
+    return localCardAnimating;
 }
 
 function setTurnManagerBusyState(options) {
@@ -163,7 +163,7 @@ function isVisualPlaybackActiveForTurnManager() {
     if (playbackState && typeof playbackState.getPlaybackActive === 'function') {
         return playbackState.getPlaybackActive() === true;
     }
-    return (typeof globalThis !== 'undefined') ? (globalThis.VisualPlaybackActive === true) : false;
+    return VisualPlaybackActive === true;
 }
 
 function clearPlaybackLockForTurnManager() {
@@ -187,16 +187,15 @@ function getPlaybackStartedAtForTurnManager() {
         return Number.isFinite(startedAt) ? startedAt : null;
     }
     try {
-        if (typeof globalThis !== 'undefined') {
-            const startedAt = Number(globalThis.__playbackActiveSince);
-            return Number.isFinite(startedAt) ? startedAt : null;
-        }
+        const startedAt = Number(__playbackActiveSince);
+        return Number.isFinite(startedAt) ? startedAt : null;
     } catch (e) { /* ignore */ }
     return null;
 }
 
 function isPlaybackRunningForTurnManager() {
     try {
+        // globalThis read — UI/bootstrap dependency, keep
         if (
             typeof globalThis !== 'undefined' &&
             globalThis.AnimationEngine &&
@@ -208,14 +207,11 @@ function isPlaybackRunningForTurnManager() {
     return null;
 }
 
+// @compat - PASS_STALE_PLAYBACK_MS local constant (was previously read from globalThis)
+const PASS_STALE_PLAYBACK_MS = 3500;
+
 function getStalePlaybackTimeoutMsForTurnManager() {
-    try {
-        if (typeof globalThis !== 'undefined') {
-            const timeoutMs = Number(globalThis.PASS_STALE_PLAYBACK_MS);
-            if (Number.isFinite(timeoutMs) && timeoutMs > 0) return timeoutMs;
-        }
-    } catch (e) { /* ignore */ }
-    return 3500;
+    return PASS_STALE_PLAYBACK_MS;
 }
 
 function isStalePlaybackLockForTurnManager(options) {
@@ -246,6 +242,7 @@ function emitPresentationEventViaBoardOps(ev) {
         if (BoardPresentation && typeof BoardPresentation.emitPresentationEvent === 'function') return BoardPresentation.emitPresentationEvent(cardState, ev);
     } catch (e) { /* ignore */ }
     try {
+        // globalThis read — UI/bootstrap dependency, keep
         const ops = (typeof globalThis !== 'undefined' && globalThis.BoardOps && typeof globalThis.BoardOps.emitPresentationEvent === 'function')
             ? globalThis.BoardOps
             : null;
@@ -323,6 +320,7 @@ function handleCellClick(row, col) {
 
 
     // Auto mode owns progression; ignore manual board input.
+    // globalThis read — UI/bootstrap dependency, keep
     if (typeof globalThis !== 'undefined' && globalThis.AUTO_MODE_ACTIVE === true) return;
 
     const playerKey = getPlayerKey(gameState.currentPlayer);
@@ -421,6 +419,7 @@ function isHumanVsHumanModeEnabled() {
     const debugHvH = !!(__uiImpl_turn_manager && __uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN);
     let matchMode = null;
     try {
+        // globalThis read — UI/bootstrap dependency, keep
         matchMode = (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function')
             ? globalThis.getCurrentMatchMode()
             : (typeof globalThis !== 'undefined' ? globalThis.MATCH_MODE : null);
@@ -435,6 +434,7 @@ function isNetworkModeForTurnManager() {
         }
     } catch (e) { /* ignore */ }
     try {
+        // globalThis read — UI/bootstrap dependency, keep
         const matchMode = (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function')
             ? globalThis.getCurrentMatchMode()
             : (typeof globalThis !== 'undefined' ? globalThis.MATCH_MODE : null);
@@ -450,12 +450,15 @@ function resolveNetworkLocalPlayerKey() {
         }
     } catch (e) { /* ignore */ }
     try {
-        if (typeof globalThis !== 'undefined') {
-            if (globalThis.NetworkMatchClient && typeof globalThis.NetworkMatchClient.getSeatKey === 'function') {
-                const seatKey = globalThis.NetworkMatchClient.getSeatKey();
-                if (seatKey === 'white' || seatKey === 'black') return seatKey;
-            }
-            const directKeys = [globalThis.LOCAL_PLAYER_KEY, globalThis.__LOCAL_PLAYER_KEY, globalThis.BOARD_VIEWER_KEY];
+        const nmClient = getNetworkMatchClientForTurnManager();
+        if (nmClient && typeof nmClient.getSeatKey === 'function') {
+            const seatKey = nmClient.getSeatKey();
+            if (seatKey === 'white' || seatKey === 'black') return seatKey;
+        }
+        // LOCAL_PLAYER_KEY / BOARD_VIEWER_KEY via DI (setUIImpl)
+        const impl = __uiImpl_turn_manager;
+        if (impl) {
+            const directKeys = [impl.LOCAL_PLAYER_KEY, impl.__LOCAL_PLAYER_KEY, impl.BOARD_VIEWER_KEY];
             for (const key of directKeys) {
                 if (key === 'white' || key === 'black') return key;
             }
@@ -484,6 +487,16 @@ function canLocalUserOperateCurrentTurn() {
     return currentPlayerKey === localPlayerKey;
 }
 
+// globalThis read — UI/bootstrap dependency, keep (consolidated accessor)
+function getNetworkMatchClientForTurnManager() {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.NetworkMatchClient) {
+            return globalThis.NetworkMatchClient;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
 function createNetworkResetAction(playerKey) {
     const normalizedPlayerKey = playerKey === 'white' ? 'white' : 'black';
     return {
@@ -496,12 +509,12 @@ function publishNetworkResetSnapshot() {
     try {
         if (!isNetworkModeForTurnManager()) return;
 
-        if (typeof globalThis === 'undefined' || !globalThis.NetworkMatchClient) return;
-        if (typeof globalThis.NetworkMatchClient.publishSnapshot !== 'function') return;
-        if (typeof globalThis.NetworkMatchClient.isActive === 'function' && !globalThis.NetworkMatchClient.isActive()) return;
+        const client = getNetworkMatchClientForTurnManager();
+        if (!client || typeof client.publishSnapshot !== 'function') return;
+        if (typeof client.isActive === 'function' && !client.isActive()) return;
 
         const playerKey = resolveNetworkLocalPlayerKey();
-        globalThis.NetworkMatchClient.publishSnapshot({
+        client.publishSnapshot({
             playerKey,
             actionType: 'reset_game',
             action: createNetworkResetAction(playerKey),
@@ -990,6 +1003,7 @@ async function onTurnStart(player) {
             cardState.hands.black.push(...cardState.hands.white);
             cardState.hands.white = [];
             // Update UI again to reflect transfer
+            // globalThis read — UI/bootstrap dependency, keep
             if (typeof globalThis !== 'undefined' && typeof globalThis.requestCardUiSync === 'function') {
                 globalThis.requestCardUiSync('turn-manager:shared-hand-debug');
             } else if (typeof renderCardUI === 'function') {
