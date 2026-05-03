@@ -5,23 +5,33 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+const SharedConstants = _require('../../shared-constants');
+const MarkersAdapter = _require('../logic/markers_adapter');
+const TurnPipelinePhases = _require('../turn/turn_pipeline_phases');
+const CardLogic = _require('../logic/cards');
+const Core = _require('../logic/core');
+const ControllerEvents = _require('../controller-events');
+const LOG_MESSAGES = _require('../log-messages');
+const { getPlayerKey } = _require('../card-effects/helpers');
+const GameControllerSlim = _require('../game-controller-slim');
+
 async function processBombs(precomputedEvents: any = null): Promise<void> {
-    const bombMarkers = (typeof (globalThis as any).MarkersAdapter !== 'undefined' && (globalThis as any).MarkersAdapter && typeof (globalThis as any).MarkersAdapter.getBombMarkers === 'function')
-        ? (globalThis as any).MarkersAdapter.getBombMarkers((globalThis as any).cardState)
-        : ((globalThis as any).cardState && (globalThis as any).cardState.markers ? (globalThis as any).cardState.markers.filter((m: any) => m.kind === 'specialStone' && m.data && m.data.category === 'bomb') : []);
+    const bombMarkers = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.getBombMarkers === 'function')
+        ? MarkersAdapter.getBombMarkers(cardState)
+        : (cardState && cardState.markers ? cardState.markers.filter((m: any) => m.kind === 'specialStone' && m.data && m.data.category === 'bomb') : []);
     if (!bombMarkers || bombMarkers.length === 0) return;
 
     const bombOwnerValByPos = new Map<string, number>();
     for (const b of bombMarkers) {
-        const ownerVal = b.owner === 'black' ? (globalThis as any).BLACK : (globalThis as any).WHITE;
+        const ownerVal = b.owner === 'black' ? SharedConstants.BLACK : SharedConstants.WHITE;
         bombOwnerValByPos.set(String(b.row) + ',' + String(b.col), ownerVal);
     }
 
-    const activeKey = (typeof (globalThis as any).getPlayerKey === 'function') ? (globalThis as any).getPlayerKey((globalThis as any).gameState.currentPlayer) : ((globalThis as any).gameState.currentPlayer === (globalThis as any).BLACK ? 'black' : 'white');
+    const activeKey = (typeof getPlayerKey === 'function') ? getPlayerKey(gameState.currentPlayer) : (gameState.currentPlayer === SharedConstants.BLACK ? 'black' : 'white');
     const events = Array.isArray(precomputedEvents) ? precomputedEvents.slice() : [];
     if (events.length === 0) {
-        if (typeof (globalThis as any).TurnPipelinePhases !== 'undefined' && typeof (globalThis as any).TurnPipelinePhases.applyTurnStartPhase === 'function') {
-            (globalThis as any).TurnPipelinePhases.applyTurnStartPhase((globalThis as any).CardLogic, (globalThis as any).Core, (globalThis as any).cardState, (globalThis as any).gameState, activeKey, events);
+        if (typeof TurnPipelinePhases !== 'undefined' && typeof TurnPipelinePhases.applyTurnStartPhase === 'function') {
+            TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, activeKey, events);
         } else {
             console.error('[PROCESS-BOMBS] TurnPipelinePhases.applyTurnStartPhase not available; skipping bomb processing');
             return;
@@ -30,11 +40,11 @@ async function processBombs(precomputedEvents: any = null): Promise<void> {
 
     const bombEvents = events.filter((e: any) => e.type === 'bombs_exploded');
     if (!bombEvents || bombEvents.length === 0) {
-        try { if (typeof (globalThis as any).emitGameStateChange === 'function') (globalThis as any).emitGameStateChange(); } catch (e) { /* ignore */ }
+        try { if (typeof ControllerEvents.emitGameStateChange === 'function') ControllerEvents.emitGameStateChange(); } catch (e) { /* ignore */ }
         return;
     }
 
-    const hasPlayback = (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackEngine && typeof (globalThis as any).PlaybackEngine.playPresentationEvents === 'function');
+    const hasPlayback = (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackEngine && typeof (globalThis as any).PlaybackEngine.playPresentationEvents === 'function'); // globalThis — UI/bootstrap dependency, keep
 
     const alreadyAnimated = new Set<string>();
 
@@ -43,11 +53,11 @@ async function processBombs(precomputedEvents: any = null): Promise<void> {
         if (!result || !result.exploded || result.exploded.length === 0) continue;
 
         for (const pos of result.exploded) {
-            if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.bombExploded((globalThis as any).posToNotation(pos.row, pos.col)));
+            if (typeof ControllerEvents.emitLogAdded === 'function') ControllerEvents.emitLogAdded(LOG_MESSAGES.bombExploded(GameControllerSlim.posToNotation(pos.row, pos.col)));
         }
 
         if (hasPlayback) {
-            try { if (typeof (globalThis as any).emitBoardUpdate === 'function') (globalThis as any).emitBoardUpdate(); } catch (e) { /* ignore */ }
+            try { if (typeof ControllerEvents.emitBoardUpdate === 'function') ControllerEvents.emitBoardUpdate(); } catch (e) { /* ignore */ }
             continue;
         }
 
@@ -59,31 +69,33 @@ async function processBombs(precomputedEvents: any = null): Promise<void> {
             alreadyAnimated.add(key);
 
             if (explodedKeySet.has(key)) {
-                batch.push((globalThis as any).animateFadeOutAt(pos.row, pos.col, {
+                // globalThis — UI/bootstrap dependency, keep
+                batch.push((globalThis as any).animateFadeOutAt(pos.row, pos.col, { // globalThis — UI/bootstrap dependency, keep
                     createGhost: true,
                     color: bombOwnerValByPos.get(key)
                 }));
             } else {
-                batch.push((globalThis as any).animateFadeOutAt(pos.row, pos.col));
+                // globalThis — UI/bootstrap dependency, keep
+                batch.push((globalThis as any).animateFadeOutAt(pos.row, pos.col)); // globalThis — UI/bootstrap dependency, keep
             }
         }
         if (batch.length > 0) await Promise.all(batch);
     }
 
     if (!hasPlayback) {
-        try { if (typeof (globalThis as any).emitBoardUpdate === 'function') (globalThis as any).emitBoardUpdate(); } catch (e) { /* ignore */ }
-        try { if (typeof (globalThis as any).emitGameStateChange === 'function') (globalThis as any).emitGameStateChange(); } catch (e) { /* ignore */ }
+        try { if (typeof ControllerEvents.emitBoardUpdate === 'function') ControllerEvents.emitBoardUpdate(); } catch (e) { /* ignore */ }
+        try { if (typeof ControllerEvents.emitGameStateChange === 'function') ControllerEvents.emitGameStateChange(); } catch (e) { /* ignore */ }
     }
 }
 
 async function explodeBombUI(row: number, col: number): Promise<void> {
-    if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.bombExploded((globalThis as any).posToNotation(row, col)));
+    if (typeof ControllerEvents.emitLogAdded === 'function') ControllerEvents.emitLogAdded(LOG_MESSAGES.bombExploded(GameControllerSlim.posToNotation(row, col)));
 
     const hasCellAt = (targetRow: number, targetCol: number): boolean => {
         if (targetRow >= 0 && targetRow < 8 && targetCol >= 0 && targetCol < 8) return true;
 
-        const expansion = (typeof (globalThis as any).gameState !== 'undefined' && (globalThis as any).gameState && (globalThis as any).gameState.boardExpansion && typeof (globalThis as any).gameState.boardExpansion === 'object')
-            ? (globalThis as any).gameState.boardExpansion
+        const expansion = (typeof gameState !== 'undefined' && gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
+            ? gameState.boardExpansion
             : null;
         if (!expansion) return false;
 
@@ -111,10 +123,10 @@ async function explodeBombUI(row: number, col: number): Promise<void> {
         }
     }
 
-    if (typeof (globalThis as any).AnimationEngine !== 'undefined' && (globalThis as any).AnimationEngine && typeof (globalThis as any).AnimationEngine.play === 'function') {
-        await (globalThis as any).AnimationEngine.play([{ type: 'destroy', phase: 3, targets }]);
+    if (typeof (globalThis as any).AnimationEngine !== 'undefined' && (globalThis as any).AnimationEngine && typeof (globalThis as any).AnimationEngine.play === 'function') { // globalThis — UI/bootstrap dependency, keep
+        await (globalThis as any).AnimationEngine.play([{ type: 'destroy', phase: 3, targets }]); // globalThis — UI/bootstrap dependency, keep
     } else {
-        const tasks = targets.map((t: any) => (globalThis as any).animateDestroyAt(t.r, t.col));
+        const tasks = targets.map((t: any) => (globalThis as any).animateDestroyAt(t.r, t.col)); // globalThis — UI/bootstrap dependency, keep
         await Promise.all(tasks);
     }
 }

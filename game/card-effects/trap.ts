@@ -16,13 +16,7 @@ function setUIImpl(obj) {
     __uiImpl_trap = Object.assign({}, __uiImpl_trap || {}, obj || {});
 }
 
-var PendingSelectionFlow;
-if (typeof require === 'function') {
-    try { PendingSelectionFlow = require('./selection-flow'); } catch (e) { /* ignore */ }
-}
-if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow) {
-    PendingSelectionFlow = globalThis.PendingSelectionFlow;
-}
+const PendingSelectionFlow = _require('./selection-flow');
 
 function getTrapSelectedEvent(result) {
     return result && Array.isArray(result.rawEvents)

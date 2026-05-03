@@ -10,13 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  * @description Teleport Will card handlers
  */
 
-var PendingSelectionFlow;
-if (typeof require === 'function') {
-    try { PendingSelectionFlow = require('./selection-flow'); } catch (e) { /* ignore */ }
-}
-if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow) {
-    PendingSelectionFlow = globalThis.PendingSelectionFlow;
-}
+const PendingSelectionFlow = _require('./selection-flow');
 
 function getTeleportSelectionPrompt(pendingType) {
     return pendingType === 'CELL_TELEPORT_WILL'

@@ -10,13 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  * @description 延命系カード UI handler — selection -> pipeline adapter
  */
 
-var PendingSelectionFlow;
-if (typeof require === 'function') {
-    try { PendingSelectionFlow = require('./selection-flow'); } catch (e) { /* ignore */ }
-}
-if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow) {
-    PendingSelectionFlow = globalThis.PendingSelectionFlow;
-}
+const PendingSelectionFlow = _require('./selection-flow');
 
 function getExtendLifeSelectedEvent(result) {
     return result && Array.isArray(result.rawEvents)

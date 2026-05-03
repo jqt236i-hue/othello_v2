@@ -5,17 +5,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-let PendingSelectionFlow: any;
-try { PendingSelectionFlow = _require('./selection-flow'); } catch (e) { /* ignore */ }
-if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && (globalThis as any).PendingSelectionFlow) {
-    PendingSelectionFlow = (globalThis as any).PendingSelectionFlow;
-}
-
-let DestroyOutcomeContract: any;
-try { DestroyOutcomeContract = _require('../../shared/destroy-outcome-contract'); } catch (e) { /* ignore */ }
-if (!DestroyOutcomeContract && typeof globalThis !== 'undefined' && (globalThis as any).DestroyOutcomeContract) {
-    DestroyOutcomeContract = (globalThis as any).DestroyOutcomeContract;
-}
+// Imports replacing globalThis references
+const PendingSelectionFlow = (function() {
+    try { return _require('./selection-flow'); } catch (e) { return null; }
+})();
+const DestroyOutcomeContract = (function() {
+    try { return _require('../../shared/destroy-outcome-contract'); } catch (e) { return null; }
+})();
+const ControllerEvents = _require('../controller-events');
+const { emitLogAdded } = ControllerEvents;
+const LOG_MESSAGES = _require('../log-messages');
+const GameControllerSlim = _require('../game-controller-slim');
+const CardLogic = _require('../logic/cards');
+const CardSystem = _require('../../card-system');
 
 const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
     DESTROYED: 'destroyed',
@@ -48,15 +50,15 @@ function isDestroyOutcomeResolved(result: any): boolean {
 }
 
 function getDestroySelectPrompt(): string {
-    if (typeof (globalThis as any).LOG_MESSAGES !== 'undefined' && (globalThis as any).LOG_MESSAGES && typeof (globalThis as any).LOG_MESSAGES.destroySelectPrompt === 'function') {
-        return (globalThis as any).LOG_MESSAGES.destroySelectPrompt();
+    if (typeof LOG_MESSAGES !== 'undefined' && LOG_MESSAGES && typeof LOG_MESSAGES.destroySelectPrompt === 'function') {
+        return LOG_MESSAGES.destroySelectPrompt();
     }
     return '破壊する石を選んでください';
 }
 
 function getDestroyRejectedMessage(context: any): string {
-    if (context && context.result && context.result.ok === false && typeof (globalThis as any).LOG_MESSAGES !== 'undefined' && (globalThis as any).LOG_MESSAGES && typeof (globalThis as any).LOG_MESSAGES.destroyFailed === 'function') {
-        return (globalThis as any).LOG_MESSAGES.destroyFailed();
+    if (context && context.result && context.result.ok === false && typeof LOG_MESSAGES !== 'undefined' && LOG_MESSAGES && typeof LOG_MESSAGES.destroyFailed === 'function') {
+        return LOG_MESSAGES.destroyFailed();
     }
     return getDestroySelectPrompt();
 }
@@ -69,46 +71,48 @@ function wasDestroySelectionApplied(result: any): boolean {
 }
 
 function emitDestroyAppliedLog(context: any, playerKey: string, row: number, col: number): void {
-    if (typeof (globalThis as any).emitLogAdded !== 'function') return;
+    if (typeof emitLogAdded !== 'function') return;
     const selected = context && context.result && Array.isArray(context.result.rawEvents)
         ? context.result.rawEvents.find((event: any) => event && event.type === 'destroy_selected')
         : null;
     const outcomeKind = getDestroyOutcomeKind(selected);
     const playerLabel = playerKey === 'black' ? '黒' : '白';
-    const posText = (globalThis as any).posToNotation(row, col);
+    const posText = GameControllerSlim.posToNotation(row, col);
     if (outcomeKind === DESTROY_OUTCOME_KINDS.PROLIFERATED) {
-        (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.destroyProliferated(playerLabel, posText));
+        emitLogAdded(LOG_MESSAGES.destroyProliferated(playerLabel, posText));
         return;
     }
     if (outcomeKind === DESTROY_OUTCOME_KINDS.REGENERATED) {
-        (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.destroyRegenerated(playerLabel, posText));
+        emitLogAdded(LOG_MESSAGES.destroyRegenerated(playerLabel, posText));
         return;
     }
     if (outcomeKind === DESTROY_OUTCOME_KINDS.LIVING_WILL_RESTORED) {
-        (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.destroyLivingWillRestored(playerLabel, posText));
+        emitLogAdded(LOG_MESSAGES.destroyLivingWillRestored(playerLabel, posText));
         return;
     }
     if (outcomeKind === DESTROY_OUTCOME_KINDS.GHOST_BLOCKED) {
-        (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.destroyGhostBlocked(playerLabel, posText));
+        emitLogAdded(LOG_MESSAGES.destroyGhostBlocked(playerLabel, posText));
         return;
     }
     if (outcomeKind === DESTROY_OUTCOME_KINDS.EVADED_MOVE) {
-        (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.destroyEvaded(playerLabel, posText));
+        emitLogAdded(LOG_MESSAGES.destroyEvaded(playerLabel, posText));
         return;
     }
-    if (typeof (globalThis as any).LOG_MESSAGES !== 'undefined' && (globalThis as any).LOG_MESSAGES && typeof (globalThis as any).LOG_MESSAGES.destroyApplied === 'function') {
-        (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.destroyApplied(playerLabel, posText));
+    if (typeof LOG_MESSAGES !== 'undefined' && LOG_MESSAGES && typeof LOG_MESSAGES.destroyApplied === 'function') {
+        emitLogAdded(LOG_MESSAGES.destroyApplied(playerLabel, posText));
         return;
     }
-    (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.destroyDefault(playerLabel, posText));
+    emitLogAdded(LOG_MESSAGES.destroyDefault(playerLabel, posText));
 }
 
 async function handleDestroySelection(row: number, col: number, playerKey: string): Promise<any> {
-    if (typeof (globalThis as any).CardLogic !== 'undefined' && (globalThis as any).CardLogic && typeof (globalThis as any).CardLogic.getSelectableTargets === 'function') {
-        const targets = (globalThis as any).CardLogic.getSelectableTargets((globalThis as any).cardState, (globalThis as any).gameState, playerKey) || [];
+    if (CardLogic && typeof CardLogic.getSelectableTargets === 'function') {
+        // @compat - gameState is a runtime global set by game-controller-slim; no module export available
+        const gameState = (typeof globalThis !== 'undefined' && (globalThis as any).gameState) ? (globalThis as any).gameState : null;
+        const targets = CardLogic.getSelectableTargets(CardSystem.cardState, gameState, playerKey) || [];
         const allowed = targets.some((target: any) => target && target.row === row && target.col === col);
         if (!allowed) {
-            if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded(getDestroySelectPrompt());
+            if (typeof emitLogAdded === 'function') emitLogAdded(getDestroySelectPrompt());
             return;
         }
     }

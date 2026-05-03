@@ -10,13 +10,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  * @description Clone Will card handlers
  */
 
-var PendingSelectionFlow;
-if (typeof require === 'function') {
-    try { PendingSelectionFlow = require('./selection-flow'); } catch (e) { /* ignore */ }
-}
-if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow) {
-    PendingSelectionFlow = globalThis.PendingSelectionFlow;
-}
+const PendingSelectionFlow = _require('./selection-flow');
 
 function getCloneSelectedEvent(result, rawEventType) {
     return result && Array.isArray(result.rawEvents)
@@ -71,19 +65,8 @@ async function handleCloneSelection(row, col, playerKey) {
     });
 }
 
-async function handleSplitSelection(row, col, playerKey) {
-    return handleCloneLikeSelection(row, col, playerKey, {
-        pendingType: 'SPLIT_WILL',
-        actionTargetKey: 'splitTarget',
-        selectedEventType: 'split_selected',
-        selectionFailLog: '周囲に空きがある自分の石を選んでください',
-        playbackCause: 'SPLIT_WILL',
-        successLogBuilder: (spawnedCount) => `分裂の意志: ${spawnedCount}個を生成（持続ターン半減）`
-    });
-}
-
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { handleCloneSelection, handleSplitSelection };
+    module.exports = { handleCloneSelection };
 }
 
 export {};

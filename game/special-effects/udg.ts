@@ -22,7 +22,7 @@ async function processUltimateDestroyGodsAtTurnStart(player, precomputedResult =
         : (cardState && cardState.markers ? cardState.markers.filter(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_DESTROY_GOD') : []);
     if (!udgs.length) return;
 
-    const hasPlayback = (typeof globalThis !== 'undefined' && globalThis.PlaybackEngine && typeof globalThis.PlaybackEngine.playPresentationEvents === 'function');
+    const hasPlayback = (typeof globalThis !== 'undefined' && globalThis.PlaybackEngine && typeof globalThis.PlaybackEngine.playPresentationEvents === 'function'); // globalThis - UI/bootstrap dependency
 
     const playerKey = player === BLACK ? 'black' : 'white';
     // Prefer precomputed result (from pipeline). If not provided, try to extract from events.

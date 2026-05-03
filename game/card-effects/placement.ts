@@ -5,6 +5,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+// Imports replacing globalThis references
+const cardEffectsHelpers = _require('./helpers');
+const { getPlayerKey, getPlayerDisplayName } = cardEffectsHelpers;
+const CardSystem = _require('../../card-system');
+const ControllerEvents = _require('../controller-events');
+const { emitLogAdded } = ControllerEvents;
+const LOG_MESSAGES = _require('../log-messages');
+const { isDebugLogAvailable, safeDebugLog } = _require('../../is-env-capable');
+
 let cachedPendingCoordinator: any = null;
 
 function resolvePendingCoordinator(): any {
@@ -19,10 +28,10 @@ function resolvePendingCoordinator(): any {
 
 function readPlacementPendingType(move: any): string | null {
     if (!move) return null;
-    const playerKey = typeof (globalThis as any).getPlayerKey === 'function' ? (globalThis as any).getPlayerKey(move.player) : null;
+    const playerKey = typeof getPlayerKey === 'function' ? getPlayerKey(move.player) : null;
     if (!playerKey) return null;
-    const activeCardState = (typeof (globalThis as any).cardState !== 'undefined' && (globalThis as any).cardState && typeof (globalThis as any).cardState === 'object')
-        ? (globalThis as any).cardState
+    const activeCardState = (CardSystem.cardState && typeof CardSystem.cardState === 'object')
+        ? CardSystem.cardState
         : null;
     if (!activeCardState) return null;
 
@@ -37,63 +46,63 @@ function readPlacementPendingType(move: any): string | null {
 
 function logPlacementEffects(effects: any, player: any): void {
     if (!effects) return;
-    const ownerName = (globalThis as any).getPlayerDisplayName(player);
+    const ownerName = getPlayerDisplayName(player);
 
     if (effects.rainbowStoneUsed) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.rainbowCharge(effects.chargeGained));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.rainbowCharge(effects.chargeGained));
     }
     if (effects.silverStoneUsed) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.silverCharge(effects.chargeGained));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.silverCharge(effects.chargeGained));
     }
     if (effects.goldStoneUsed) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.goldCharge(effects.chargeGained));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.goldCharge(effects.chargeGained));
     }
     if (effects.crystalStoneUsed) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.crystalCharge(effects.crystalStoneGain || 0));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.crystalCharge(effects.crystalStoneGain || 0));
     }
     if (effects.plunderAmount > 0) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.plunderPoints(effects.plunderAmount));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.plunderPoints(effects.plunderAmount));
     }
     if (effects.protected) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.protectNext(ownerName));
-        if ((globalThis as any).isDebugLogAvailable && (globalThis as any).isDebugLogAvailable()) {
-            (globalThis as any).debugLog('[EFFECT] Protected stone formed (UI-only)', 'info');
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.protectNext(ownerName));
+        if (isDebugLogAvailable()) {
+            safeDebugLog('[EFFECT] Protected stone formed (UI-only)', 'info');
         }
     }
     if (effects.permaProtected) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.permaProtectNext(ownerName));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.permaProtectNext(ownerName));
     }
     if (effects.bombPlaced) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.timeBombPlaced(ownerName));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.timeBombPlaced(ownerName));
     }
     if (effects.dragonPlaced) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.dragonPlaced(ownerName));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.dragonPlaced(ownerName));
     }
     if (effects.destroyDragonPlaced) {
-        if (typeof (globalThis as any).emitLogAdded === 'function' && typeof (globalThis as any).LOG_MESSAGES.destroyDragonPlaced === 'function') {
-            (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.destroyDragonPlaced(ownerName));
+        if (typeof emitLogAdded === 'function' && typeof LOG_MESSAGES.destroyDragonPlaced === 'function') {
+            emitLogAdded(LOG_MESSAGES.destroyDragonPlaced(ownerName));
         }
     }
     if (effects.ultimateDestroyGodPlaced) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.udgPlaced(ownerName));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.udgPlaced(ownerName));
     }
     if (effects.ultimateHyperactivePlaced) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.ultimateHyperactivePlaced(ownerName));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.ultimateHyperactivePlaced(ownerName));
     }
     if (effects.escapeHyperactivePlaced) {
-        if (typeof (globalThis as any).emitLogAdded === 'function' && typeof (globalThis as any).LOG_MESSAGES.escapeHyperactivePlaced === 'function') {
-            (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.escapeHyperactivePlaced(ownerName));
+        if (typeof emitLogAdded === 'function' && typeof LOG_MESSAGES.escapeHyperactivePlaced === 'function') {
+            emitLogAdded(LOG_MESSAGES.escapeHyperactivePlaced(ownerName));
         }
     } else if (effects.extremeHyperactivePlaced) {
-        if (typeof (globalThis as any).emitLogAdded === 'function' && typeof (globalThis as any).LOG_MESSAGES.extremeHyperactivePlaced === 'function') {
-            (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.extremeHyperactivePlaced(ownerName));
+        if (typeof emitLogAdded === 'function' && typeof LOG_MESSAGES.extremeHyperactivePlaced === 'function') {
+            emitLogAdded(LOG_MESSAGES.extremeHyperactivePlaced(ownerName));
         }
     } else if (effects.hyperactivePlaced) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.hyperactivePlaced(ownerName));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.hyperactivePlaced(ownerName));
     }
     if (effects.doublePlaceActivated) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') {
-            (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.doublePlaceActivated(
+        if (typeof emitLogAdded === 'function') {
+            emitLogAdded(LOG_MESSAGES.doublePlaceActivated(
                 effects.multiPlaceActivatedName,
                 effects.multiPlaceRemaining,
                 effects.multiPlaceInfinite
@@ -109,24 +118,24 @@ function applyProtectionAfterMove(move: any, effects: any): any {
         return null;
     }
 
-    const ownerName = (globalThis as any).getPlayerDisplayName(move.player);
+    const ownerName = getPlayerDisplayName(move.player);
 
     logPlacementEffects(effects, move.player);
 
     if (effects.protected) {
-        if ((globalThis as any).isDebugLogAvailable && (globalThis as any).isDebugLogAvailable()) {
-            (globalThis as any).debugLog('[EFFECT] Protected stone formed at (' + move.row + ',' + move.col + ')', 'info');
+        if (isDebugLogAvailable()) {
+            safeDebugLog('[EFFECT] Protected stone formed at (' + move.row + ',' + move.col + ')', 'info');
         }
     }
 
     if (effects.regenTriggered && effects.regenTriggered > 0) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.regenTriggered(effects.regenTriggered));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.regenTriggered(effects.regenTriggered));
     }
     if (effects.regenCapture && effects.regenCapture > 0) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.regenCapture(effects.regenCapture));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.regenCapture(effects.regenCapture));
     }
     if (effects.breedingSpawned && effects.breedingSpawned > 0) {
-        if (typeof (globalThis as any).emitLogAdded === 'function') (globalThis as any).emitLogAdded((globalThis as any).LOG_MESSAGES.breedingSpawned((globalThis as any).getPlayerName(move.player), effects.breedingSpawned));
+        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.breedingSpawned(getPlayerDisplayName(move.player), effects.breedingSpawned));
     }
 
     effects.pendingType = effects.pendingType || readPlacementPendingType(move);

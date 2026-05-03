@@ -26,6 +26,12 @@ if (typeof require === 'function') {
 }
 const waitMs = (ms) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
 
+// Animation timing import (replacing globalThis.getAnimationTiming)
+let _getAnimationTiming_baked: ((key: string) => number) | null = null;
+if (typeof require === 'function') {
+    try { ({ getAnimationTiming: _getAnimationTiming_baked } = _require('../../constants/animation-constants')); } catch (e) { /* ignore */ }
+}
+
 function _isNoAnim() {
     try {
         if (__uiImpl_breeding && __uiImpl_breeding.DISABLE_ANIMATIONS === true) return true;
@@ -45,7 +51,7 @@ function _isNoAnim() {
 async function processBreedingEffectsAtTurnStart(player, precomputedEvents = null) {
     const playerKey = player === BLACK ? 'black' : 'white';
 
-    const hasPlayback = (typeof globalThis !== 'undefined' && globalThis.PlaybackEngine && typeof globalThis.PlaybackEngine.playPresentationEvents === 'function');
+    const hasPlayback = (typeof globalThis !== 'undefined' && globalThis.PlaybackEngine && typeof globalThis.PlaybackEngine.playPresentationEvents === 'function'); // globalThis - UI/bootstrap dependency
 
     // Prefer a precomputed result from pipeline events if provided
     let result = null;
@@ -101,14 +107,7 @@ async function processBreedingEffectsAtTurnStart(player, precomputedEvents = nul
     // Flip animations for stones affected by the spawned stone
     if (result.flipped.length > 0) {
         // Flip animations are UI responsibilities. Preserve pacing but do not perform DOM changes here.
-        let _getAnimationTiming_breeding = null;
-        if (typeof require === 'function') {
-            try { ({ getAnimationTiming: _getAnimationTiming_breeding } = _require('../../constants/animation-constants')); } catch (e) { /* ignore */ }
-        }
-        if (typeof _getAnimationTiming_breeding !== 'function' && typeof globalThis !== 'undefined' && typeof globalThis.getAnimationTiming === 'function') {
-            _getAnimationTiming_breeding = globalThis.getAnimationTiming;
-        }
-        const delay = (typeof _getAnimationTiming_breeding === 'function' ? _getAnimationTiming_breeding('FLIP_ANIMATION_DURATION') : undefined) || 800;
+        const delay = (typeof _getAnimationTiming_baked === 'function' ? _getAnimationTiming_baked('FLIP_ANIMATION_DURATION') : undefined) || 800;
         await waitMs(delay);
     }
 
@@ -154,14 +153,7 @@ async function processBreedingImmediateAtPlacement(player, row, col, precomputed
 
     // Flip animation for affected stones: UI responsibility. Preserve pacing.
     if (result.flipped.length > 0) {
-        let _getAnimationTiming_breeding = null;
-        if (typeof require === 'function') {
-            try { ({ getAnimationTiming: _getAnimationTiming_breeding } = _require('../../constants/animation-constants')); } catch (e) { /* ignore */ }
-        }
-        if (typeof _getAnimationTiming_breeding !== 'function' && typeof globalThis !== 'undefined' && typeof globalThis.getAnimationTiming === 'function') {
-            _getAnimationTiming_breeding = globalThis.getAnimationTiming;
-        }
-        const delay = (typeof _getAnimationTiming_breeding === 'function' ? _getAnimationTiming_breeding('FLIP_ANIMATION_DURATION') : undefined) || 800;
+        const delay = (typeof _getAnimationTiming_baked === 'function' ? _getAnimationTiming_baked('FLIP_ANIMATION_DURATION') : undefined) || 800;
         await waitMs(delay);
     }
 
@@ -173,8 +165,9 @@ export = {
     processBreedingImmediateAtPlacement,
     setUIImpl
 };
+// @compat - globalThis writes for legacy code that hasn't migrated to import/export
 if (typeof globalThis !== 'undefined') {
-    try { (globalThis as any).processBreedingEffectsAtTurnStart = processBreedingEffectsAtTurnStart; } catch (e) {}
-    try { (globalThis as any).processBreedingImmediateAtPlacement = processBreedingImmediateAtPlacement; } catch (e) {}
-    try { (globalThis as any).setBreedingUIImpl = setUIImpl; } catch (e) {}
+    try { (globalThis as any).processBreedingEffectsAtTurnStart = processBreedingEffectsAtTurnStart; } catch (e) { /* ignore */ }
+    try { (globalThis as any).processBreedingImmediateAtPlacement = processBreedingImmediateAtPlacement; } catch (e) { /* ignore */ }
+    try { (globalThis as any).setBreedingUIImpl = setUIImpl; } catch (e) { /* ignore */ }
 }

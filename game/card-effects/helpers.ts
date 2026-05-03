@@ -10,13 +10,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  * @description Shared helpers for card effects
  */
 
-let CardEffectsOwnerHelpersModule = null;
-if (typeof require === 'function') {
-    try { CardEffectsOwnerHelpersModule = require('../../utils/owner-helpers'); } catch (e) { /* ignore */ }
-}
-if (!CardEffectsOwnerHelpersModule && typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) {
-    CardEffectsOwnerHelpersModule = globalThis.OwnerHelpers;
-}
+// Imports replacing globalThis references
+const { BLACK, WHITE } = _require('../../shared-constants');
+const CardSystem = _require('../../card-system');
+const MarkersAdapter = (function() {
+    try { return _require('../logic/markers_adapter'); } catch (e) { return null; }
+})();
+const VisualEffectsMap = (function() {
+    try { return _require('../visual-effects-map'); } catch (e) { return null; }
+})();
+
+const CardEffectsOwnerHelpersModule = (function() {
+    try { return _require('../../utils/owner-helpers'); } catch (e) { return null; }
+})();
 
 // Map player const to string key
 function getPlayerKey(player) {
@@ -42,11 +48,11 @@ function getOwner(player) {
  * @returns {Array} 保護石リスト [{row, col, remainingTurns}]
  */
 function getActiveProtectionForPlayer(player) {
-    if (!cardState || !cardState.markers) return [];
+    if (!CardSystem.cardState || !CardSystem.cardState.markers) return [];
     const playerKey = getPlayerKey(player);
-    const markers = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.getSpecialMarkers === 'function')
-        ? MarkersAdapter.getSpecialMarkers(cardState)
-        : (cardState.markers || []).filter(m => m.kind === 'specialStone');
+    const markers = (MarkersAdapter && typeof MarkersAdapter.getSpecialMarkers === 'function')
+        ? MarkersAdapter.getSpecialMarkers(CardSystem.cardState)
+        : (CardSystem.cardState.markers || []).filter(m => m.kind === 'specialStone');
     return markers.filter(m =>
         m.owner === playerKey && m.data && m.data.type === 'PROTECTED'
     );
@@ -58,23 +64,11 @@ function getActiveProtectionForPlayer(player) {
  * @returns {string|null} Effect key for applyStoneVisualEffect
  */
 function getEffectKeyForType(type) {
-    try {
-        if (typeof require === 'function') {
-            const mod = require('../visual-effects-map');
-            if (mod && typeof mod.getEffectKeyForSpecialType === 'function') {
-                return mod.getEffectKeyForSpecialType(type);
-            }
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (
-            typeof globalThis !== 'undefined' &&
-            globalThis.GameVisualEffectsMap &&
-            typeof globalThis.GameVisualEffectsMap.getEffectKeyForSpecialType === 'function'
-        ) {
-            return globalThis.GameVisualEffectsMap.getEffectKeyForSpecialType(type);
-        }
-    } catch (e) { /* ignore */ }
+    if (VisualEffectsMap && typeof VisualEffectsMap.getEffectKeyForSpecialType === 'function') {
+        try {
+            return VisualEffectsMap.getEffectKeyForSpecialType(type);
+        } catch (e) { /* ignore */ }
+    }
     return null;
 }
 
@@ -88,6 +82,7 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
+// @compat - globalThis writes for legacy browser/script-tag compatibility
 if (typeof globalThis !== 'undefined') {
     try { globalThis.getPlayerKey = getPlayerKey; } catch (e) { /* ignore */ }
     try { globalThis.getPlayerDisplayName = getPlayerDisplayName; } catch (e) { /* ignore */ }
