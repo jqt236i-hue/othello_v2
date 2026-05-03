@@ -686,7 +686,6 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
 
     const CARD_EFFECT_SPAWN_PROFILES = Object.freeze([
         Object.freeze({
-            cause: 'EQUALITY_WILL',
             reasonPrefix: 'equality_will_spawn',
             rawResolvedType: 'equality_will_resolved',
             soundSourceType: 'equality_will_spawn',
@@ -1928,7 +1927,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             cause === 'GLUTTONOUS_WILL' ||
             cause === 'ULTIMATE_HYPERACTIVE' ||
             cause === 'ULTIMATE_HYPERACTIVE_GOD' ||
-            cause === 'WILL_HUNTER_KING' ||
+            cause === 'ROBOT_VACUUM' ||
             isFlipEvadeMove ||
             isDestroyEvadeMove ||
             reason.indexOf('hyperactive') >= 0 ||
@@ -1942,8 +1941,10 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return (
             cause === 'ULTIMATE_REVERSE_DRAGON' ||
             cause === 'ULTIMATE_DESTROY_GOD' ||
+            cause === 'WILL_HUNTER_KING' ||
             reason.indexOf('ultimate_reverse_dragon_move') === 0 ||
-            reason.indexOf('ultimate_destroy_god_move') === 0
+            reason.indexOf('ultimate_destroy_god_move') === 0 ||
+            reason.indexOf('will_hunter_king_slash_move') === 0
         );
     }
 
@@ -2307,7 +2308,9 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                     ev.type !== 'dragon_moved_start' &&
                     ev.type !== 'dragon_moved_immediate' &&
                     ev.type !== 'udg_moved_start' &&
-                    ev.type !== 'udg_moved_immediate'
+                    ev.type !== 'udg_moved_immediate' &&
+                    ev.type !== 'will_hunter_king_moved_start' &&
+                    ev.type !== 'will_hunter_king_moved_immediate'
                 ) {
                     return sum;
                 }
@@ -2334,7 +2337,9 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                     ev.type !== 'hyperactive_moved_start' &&
                     ev.type !== 'hyperactive_moved_immediate' &&
                     ev.type !== 'ultimate_hyperactive_moved_start' &&
-                    ev.type !== 'ultimate_hyperactive_moved_immediate'
+                    ev.type !== 'ultimate_hyperactive_moved_immediate' &&
+                    ev.type !== 'robot_vacuum_moved_start' &&
+                    ev.type !== 'robot_vacuum_moved_immediate'
                 ) {
                     return sum;
                 }
@@ -3125,13 +3130,6 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                 case 'corrosion_will_resolved':
                     push(`腐食の意志: 特殊石${Number(ev.affectedCount) || 0}個の持続ターンを半減`);
                     break;
-                case 'equality_will_resolved': {
-                    const flippedCount = Number(ev.flippedCount) || 0;
-                    let line = `平等の意志: 通常石${Number(ev.spawnedCount) || 0}個を生成`;
-                    if (flippedCount > 0) line += `、${flippedCount}枚を反転`;
-                    push(line);
-                    break;
-                }
                 case 'reinforcement_will_resolved':
                     push(`増援の意志: 通常石${Number(ev.spawnedCount) || 0}個を配置${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
                     break;
