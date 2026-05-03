@@ -57,23 +57,19 @@ if (typeof require === 'function') {
     try { cpuLv6RuntimeCapability = _require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
 }
 
+// ===== Module-level DI (replaces globalThis reads for bootstrap flags) =====
+let __uiImpl_cpu: Record<string, any> = {};
+function setCpuUIImpl(obj: any): void {
+    __uiImpl_cpu = Object.assign({}, __uiImpl_cpu, obj || {});
+}
+const ANIMATION_RETRY_DELAY_MS = 80;
+
 // Local safe constants to avoid ReferenceError for undeclared globals in test environments
 const CONST_BLACK = (typeof BLACK !== 'undefined') ? BLACK : ((typeof global !== 'undefined' && typeof global.BLACK !== 'undefined') ? global.BLACK : 1);
 const CONST_WHITE = (typeof WHITE !== 'undefined') ? WHITE : ((typeof global !== 'undefined' && typeof global.WHITE !== 'undefined') ? global.WHITE : -1);
 
 function getAnimationRetryDelayMs() {
-    const fallback = 200;
-    try {
-        if (typeof ANIMATION_RETRY_DELAY_MS !== 'undefined' && Number.isFinite(ANIMATION_RETRY_DELAY_MS)) {
-            return ANIMATION_RETRY_DELAY_MS;
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && Number.isFinite(globalThis.ANIMATION_RETRY_DELAY_MS)) {
-            return globalThis.ANIMATION_RETRY_DELAY_MS;
-        }
-    } catch (e) { /* ignore */ }
-    return fallback;
+    return ANIMATION_RETRY_DELAY_MS;
 }
 
 function getActiveProtectionSafe(playerValue) {
@@ -113,23 +109,11 @@ function getCurrentTurnNumberSafe() {
 
 function resolveCpuCardLogic() {
     if (cpuCardLogic && typeof cpuCardLogic === 'object') return cpuCardLogic;
-    try {
-        if (typeof globalThis !== 'undefined' && globalThis.CardLogic && typeof globalThis.CardLogic === 'object') {
-            cpuCardLogic = globalThis.CardLogic;
-            return cpuCardLogic;
-        }
-    } catch (e) { /* ignore */ }
     return null;
 }
 
 function resolvePendingCoordinatorForCpu() {
     if (pendingCoordinator && typeof pendingCoordinator === 'object') return pendingCoordinator;
-    try {
-        if (typeof globalThis !== 'undefined' && globalThis.PendingCoordinator && typeof globalThis.PendingCoordinator === 'object') {
-            pendingCoordinator = globalThis.PendingCoordinator;
-            return pendingCoordinator;
-        }
-    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -194,9 +178,11 @@ function resolveCpuControlledTurnOwnerKey(): PlayerKey | null {
 }
 
 function isHumanVsHumanModeEnabled() {
-    const debugHvH = (typeof globalThis !== 'undefined' && globalThis.DEBUG_HUMAN_VS_HUMAN === true);
+    // @compat - DEBUG_HUMAN_VS_HUMAN injected via setCpuUIImpl DI
+    const debugHvH = !!(__uiImpl_cpu && __uiImpl_cpu.DEBUG_HUMAN_VS_HUMAN);
     let matchMode = null;
     try {
+        // globalThis read — UI/bootstrap dependency, keep
         matchMode = (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function')
             ? globalThis.getCurrentMatchMode()
             : (typeof globalThis !== 'undefined' ? globalThis.MATCH_MODE : null);
@@ -205,6 +191,7 @@ function isHumanVsHumanModeEnabled() {
 }
 
 function getPlaybackStateForCpuTurn() {
+    // @compat - globalThis read, UI/bootstrap dependency (PlaybackStateManager)
     try {
         if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) {
             return globalThis.PlaybackStateManager;
@@ -218,8 +205,9 @@ function readCpuProcessing() {
     if (playbackState && typeof playbackState.getProcessing === 'function') {
         return playbackState.getProcessing() === true;
     }
+    // @compat - fallback to free variable (injected by turn-manager or bootstrap)
     if (typeof isProcessing !== 'undefined') return isProcessing === true;
-    return (typeof globalThis !== 'undefined') ? !!globalThis.isProcessing : false;
+    return false;
 }
 
 function setCpuProcessing(active) {
@@ -229,11 +217,6 @@ function setCpuProcessing(active) {
         playbackState.setProcessing(next);
     }
     try { isProcessing = next; } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined') {
-            globalThis.isProcessing = next;
-        }
-    } catch (e) { /* ignore */ }
     return next;
 }
 
@@ -261,6 +244,7 @@ function debugCpuTrace(message, meta) {
 }
 
 function isCpuFastBenchModeEnabled() {
+    // @compat - globalThis read, set by test scripts / run-ui-level-match.ts via globalThis.__BENCH_FAST_MODE
     try {
         return typeof globalThis !== 'undefined' && globalThis.__BENCH_FAST_MODE === true;
     } catch (e) { /* ignore */ }
@@ -268,11 +252,6 @@ function isCpuFastBenchModeEnabled() {
 }
 
 function resolveCpuLv6SharedProfile() {
-    try {
-        if (typeof globalThis !== 'undefined' && globalThis.CPU_LV6_SHARED_PROFILE && typeof globalThis.CPU_LV6_SHARED_PROFILE === 'object') {
-            return globalThis.CPU_LV6_SHARED_PROFILE;
-        }
-    } catch (e) { /* ignore */ }
     try {
         if (typeof require === 'function') {
             const shared = _require('../constants/cpu-lv6-shared-profile.js');
@@ -284,8 +263,9 @@ function resolveCpuLv6SharedProfile() {
 
 function readExplicitCpuLv6SharedProfile() {
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.CPU_LV6_SHARED_PROFILE && typeof globalThis.CPU_LV6_SHARED_PROFILE === 'object') {
-            return globalThis.CPU_LV6_SHARED_PROFILE;
+        if (typeof require === 'function') {
+            const shared = _require('../constants/cpu-lv6-shared-profile.js');
+            if (shared && typeof shared === 'object') return shared;
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -299,13 +279,14 @@ function resolveCpuLv6RuntimeCapabilityModule() {
         return cpuLv6RuntimeCapability;
     }
     try {
-        if (
-            typeof globalThis !== 'undefined' &&
-            globalThis.CpuLv6RuntimeCapability &&
-            typeof globalThis.CpuLv6RuntimeCapability.resolveCpuLv6BrowserRuntimeCapability === 'function'
-        ) {
-            cpuLv6RuntimeCapability = globalThis.CpuLv6RuntimeCapability;
-            return cpuLv6RuntimeCapability;
+        if (typeof require === 'function') {
+            cpuLv6RuntimeCapability = _require('../shared/cpu-lv6-runtime-capability');
+            if (
+                cpuLv6RuntimeCapability &&
+                typeof cpuLv6RuntimeCapability.resolveCpuLv6BrowserRuntimeCapability === 'function'
+            ) {
+                return cpuLv6RuntimeCapability;
+            }
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -322,12 +303,7 @@ function shouldUseOnnxCardDecision(level) {
     if (!Number.isFinite(level) || level < 6) return true;
     const capability = resolveCpuLv6BrowserRuntimeCapability();
     if (capability) return capability.usesOnnxCardDecision === true;
-    let shared = null;
-    try {
-        if (typeof globalThis !== 'undefined' && globalThis.CPU_LV6_SHARED_PROFILE && typeof globalThis.CPU_LV6_SHARED_PROFILE === 'object') {
-            shared = globalThis.CPU_LV6_SHARED_PROFILE;
-        }
-    } catch (e) { /* ignore */ }
+    const shared = resolveCpuLv6SharedProfile();
     const mode = String(shared && shared.browser && shared.browser.cardDecisionMode || '').trim().toLowerCase();
     return mode !== 'policy-table-core';
 }
@@ -353,6 +329,7 @@ function resolveLv6MinThinkMs(playerKey, level, autoMode) {
             return Math.floor(configured);
         }
     } catch (e) { /* ignore */ }
+    // @compat - globalThis.CPU_LV6_MIN_THINK_MS is a browser-level window override; keep as fallback
     try {
         if (typeof globalThis !== 'undefined' && Number.isFinite(globalThis.CPU_LV6_MIN_THINK_MS)) {
             return Math.max(0, Math.floor(Number(globalThis.CPU_LV6_MIN_THINK_MS)));
@@ -366,6 +343,7 @@ function resolveCpuCommentaryRuntime() {
     if (runtimeHelpers && typeof runtimeHelpers.hasCommentaryRuntime === 'function' && runtimeHelpers.hasCommentaryRuntime(cpuCommentaryRuntime)) {
         return cpuCommentaryRuntime;
     }
+    // Use resolveCommentaryRuntimeByRequire instead of resolveCommentaryRuntimeFromGlobal(globalThis)
     if (runtimeHelpers && typeof runtimeHelpers.resolveCommentaryRuntimeByRequire === 'function' && typeof require === 'function') {
         const requiredRuntime = runtimeHelpers.resolveCommentaryRuntimeByRequire(['./ai/cpu-commentary-runtime'], require);
         if (requiredRuntime) {
@@ -373,20 +351,16 @@ function resolveCpuCommentaryRuntime() {
             return cpuCommentaryRuntime;
         }
     }
-    if (runtimeHelpers && typeof runtimeHelpers.resolveCommentaryRuntimeFromGlobal === 'function') {
-        const globalRuntime = runtimeHelpers.resolveCommentaryRuntimeFromGlobal(typeof globalThis !== 'undefined' ? globalThis : null);
-        if (globalRuntime) {
-            cpuCommentaryRuntime = globalRuntime;
-            return cpuCommentaryRuntime;
-        }
-    }
     if (cpuCommentaryRuntime && typeof cpuCommentaryRuntime.requestCommentary === 'function') {
         return cpuCommentaryRuntime;
     }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.CpuCommentaryRuntime && typeof globalThis.CpuCommentaryRuntime.requestCommentary === 'function') {
-            cpuCommentaryRuntime = globalThis.CpuCommentaryRuntime;
-            return cpuCommentaryRuntime;
+        if (typeof require === 'function') {
+            const direct = _require('./ai/cpu-commentary-runtime');
+            if (direct && typeof direct.requestCommentary === 'function') {
+                cpuCommentaryRuntime = direct;
+                return cpuCommentaryRuntime;
+            }
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -395,9 +369,9 @@ function resolveCpuCommentaryRuntime() {
 function resolveCommentaryContextHelpers() {
     if (commentaryContextHelpers) return commentaryContextHelpers;
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.CommentaryContextHelpers) {
-            commentaryContextHelpers = globalThis.CommentaryContextHelpers;
-            return commentaryContextHelpers;
+        if (typeof require === 'function') {
+            commentaryContextHelpers = _require('../shared/commentary-context-helpers');
+            if (commentaryContextHelpers) return commentaryContextHelpers;
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -406,9 +380,9 @@ function resolveCommentaryContextHelpers() {
 function resolveCommentaryRuntimeHelpers() {
     if (commentaryRuntimeHelpers) return commentaryRuntimeHelpers;
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.CommentaryRuntimeHelpers) {
-            commentaryRuntimeHelpers = globalThis.CommentaryRuntimeHelpers;
-            return commentaryRuntimeHelpers;
+        if (typeof require === 'function') {
+            commentaryRuntimeHelpers = _require('../shared/commentary-runtime-helpers');
+            if (commentaryRuntimeHelpers) return commentaryRuntimeHelpers;
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -916,8 +890,8 @@ const presentationRuntime = createPresentationRuntime({
     resolveCpuCommentaryRuntime,
     formatCommentaryResult: formatPresentationCommentaryResult,
     isHumanVsHumanModeEnabled,
-    flushPresentationEvents: (state) => ((typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.flushPresentationEvents === 'function')
-        ? CardLogic.flushPresentationEvents(state)
+    flushPresentationEvents: (state) => ((cpuCardLogic && typeof cpuCardLogic.flushPresentationEvents === 'function')
+        ? cpuCardLogic.flushPresentationEvents(state)
         : []),
     processCpuTurn: () => processCpuTurn()
 });
@@ -927,7 +901,7 @@ async function maybeUseCardFromOnnx(playerKey: PlayerKey, level: number, legalMo
     if (!shouldUseOnnxCardDecision(level)) return none;
     if (typeof selectCardFromOnnxPolicyAsync !== 'function') return none;
     if (typeof applyCardChoice !== 'function') return none;
-    if (typeof CardLogic === 'undefined' || !CardLogic || !cardState || !gameState) return none;
+    if (!cpuCardLogic || !cardState || !gameState) return none;
     if (
         cardState &&
         cardState.hasUsedCardThisTurnByPlayer &&
@@ -937,8 +911,8 @@ async function maybeUseCardFromOnnx(playerKey: PlayerKey, level: number, legalMo
     }
     try {
         let usable = [];
-        if (typeof CardLogic.getUsableCardIds === 'function') {
-            usable = CardLogic.getUsableCardIds(cardState, gameState, playerKey) || [];
+        if (cpuCardLogic && typeof cpuCardLogic.getUsableCardIds === 'function') {
+            usable = cpuCardLogic.getUsableCardIds(cardState, gameState, playerKey) || [];
         }
         if (!Array.isArray(usable) || usable.length === 0) return none;
         const safeMoves = Array.isArray(legalMoves) ? legalMoves : [];
@@ -1029,10 +1003,10 @@ function isUiAnimationBusy() {
             return true;
         }
     }
+    // @compat - isCardAnimating / VisualPlaybackActive as free variables (module-level in turn-manager)
     const localCard = (typeof isCardAnimating !== 'undefined') ? !!isCardAnimating : false;
-    const winCard = (typeof globalThis !== 'undefined') ? !!globalThis.isCardAnimating : false;
-    const winPlayback = (typeof globalThis !== 'undefined') ? (globalThis.VisualPlaybackActive === true) : false;
-    return localCard || winCard || winPlayback;
+    const winPlayback = (typeof VisualPlaybackActive !== 'undefined') ? (VisualPlaybackActive === true) : false;
+    return localCard || winPlayback;
 }
 const _cpuRetryPendingByPlayer = { black: null, white: null };
 const _pendingSelectRetryStateByPlayer = {
@@ -1148,29 +1122,21 @@ function scheduleRunCpuTurn(playerKey, options, delayMs) {
 function resolveProcessPassTurn() {
     if (typeof processPassTurn === 'function') return processPassTurn;
     if (passHandler && typeof passHandler.processPassTurn === 'function') return passHandler.processPassTurn;
-    try {
-        if (typeof globalThis !== 'undefined' && globalThis && typeof globalThis.processPassTurn === 'function') {
-            return globalThis.processPassTurn;
-        }
-    } catch (e) { /* ignore */ }
     return null;
 }
 
 function resolveApplyCardChoiceFn() {
     if (typeof applyCardChoice === 'function') return applyCardChoice;
-    if (typeof globalThis !== 'undefined' && globalThis && typeof globalThis.applyCardChoice === 'function') {
-        return globalThis.applyCardChoice;
-    }
     return null;
 }
 
 function getUsableCardIdsForCpuRetry(playerKey) {
-    if (typeof CardLogic === 'undefined' || !CardLogic) return [];
-    if (typeof CardLogic.getUsableCardIds === 'function') {
-        const usable = CardLogic.getUsableCardIds(cardState, gameState, playerKey);
+    if (!cpuCardLogic) return [];
+    if (typeof cpuCardLogic.getUsableCardIds === 'function') {
+        const usable = cpuCardLogic.getUsableCardIds(cardState, gameState, playerKey);
         return Array.isArray(usable) ? usable.slice() : [];
     }
-    if (typeof CardLogic.hasUsableCard === 'function' && CardLogic.hasUsableCard(cardState, gameState, playerKey)) {
+    if (typeof cpuCardLogic.hasUsableCard === 'function' && cpuCardLogic.hasUsableCard(cardState, gameState, playerKey)) {
         const hand = (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey]))
             ? cardState.hands[playerKey]
             : [];
@@ -1195,8 +1161,8 @@ function tryApplyAnyUsableCard(playerKey) {
     const usableIds = getUsableCardIdsForCpuRetry(playerKey);
     if (!usableIds.length) return false;
     for (const cardId of usableIds) {
-        const cardDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
-            ? CardLogic.getCardDef(cardId)
+        const cardDef = (cpuCardLogic && typeof cpuCardLogic.getCardDef === 'function')
+            ? cpuCardLogic.getCardDef(cardId)
             : null;
         if (applyChoice(playerKey, { cardId, cardDef })) {
             return true;
@@ -1273,8 +1239,7 @@ function getPendingDispatchHandlers(playerKey) {
         meteor: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectMeteorWillWithPolicy === 'function' ? cpuSelectMeteorWillWithPolicy : null, playerKey); },
         freeze: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectFreezeWillWithPolicy === 'function' ? cpuSelectFreezeWillWithPolicy : null, playerKey); },
         seed: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectSeedWillWithPolicy === 'function' ? cpuSelectSeedWillWithPolicy : null, playerKey); },
-        clone: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectCloneWillWithPolicy === 'function' ? cpuSelectCloneWillWithPolicy : null, playerKey); },
-        split: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectSplitWillWithPolicy === 'function' ? cpuSelectSplitWillWithPolicy : null, playerKey); }
+        clone: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectCloneWillWithPolicy === 'function' ? cpuSelectCloneWillWithPolicy : null, playerKey); }
     };
 }
 
@@ -1310,8 +1275,7 @@ function getPendingTypeHandlers(playerKey: PlayerKey) {
         METEOR_WILL: dispatchHandlers.meteor,
         FREEZE_WILL: dispatchHandlers.freeze,
         SEED_WILL: dispatchHandlers.seed,
-        CLONE_WILL: dispatchHandlers.clone,
-        SPLIT_WILL: dispatchHandlers.split
+        CLONE_WILL: dispatchHandlers.clone
     };
 }
 
@@ -1397,6 +1361,17 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             hasUsedCard: cardState.hasUsedCardThisTurnByPlayer[playerKey],
             pendingEffect: !!readCpuPendingSelection(playerKey)
         });
+    }
+
+    // Re-entrancy guard: prevent multiple concurrent runCpuTurn invocations
+    // which can happen when processCpuTurn fires during a card-use resume window
+    if (readCpuProcessing()) {
+        debugCpuTrace('[AI] runCpuTurn deferred: processing already active', {
+            playerKey,
+            autoMode
+        });
+        scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
+        return;
     }
 
     setCpuProcessing(true);
@@ -1546,8 +1521,8 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
         const candidateMoves = generateMovesForPlayer(selfColor, pending, protection, perma);
 
         if (!candidateMoves.length) {
-            const stillUsableCard = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.hasUsableCard === 'function')
-                ? !!CardLogic.hasUsableCard(cardState, gameState, playerKey)
+            const stillUsableCard = (cpuCardLogic && typeof cpuCardLogic.hasUsableCard === 'function')
+                ? !!cpuCardLogic.hasUsableCard(cardState, gameState, playerKey)
                 : false;
             if (stillUsableCard) {
                 const expectedRetryTurnNumber = getCurrentTurnNumberSafe();
@@ -1692,12 +1667,24 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
                 playerKey
             });
         }
+        // Clear stuck pending to prevent infinite retry loop
+        const stuckPending = readCpuPendingSelection(playerKey);
+        if (stuckPending) {
+            debugCpuTrace('[AI] clearing stuck pending after CPU error', {
+                playerKey,
+                pendingType: stuckPending.type || 'unknown',
+                error: error && error.message ? error.message : String(error)
+            });
+            clearCpuPendingSelection(playerKey);
+        }
         setCpuProcessing(false);
         // If it's a critical logic error, we might want to skip the turn or alert the user
         if (typeof emitLogAdded === 'function') {
             emitLogAdded(`${selfName}の思考中にエラーが発生しました`);
         }
         resetPendingSelectRetryState(playerKey);
+        // Schedule retry so the game doesn't freeze permanently
+        scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
     }
 }
 
@@ -1707,6 +1694,7 @@ export = {
     setTimers,
     getTimers,
     setCpuTurnTimerService,
+    setCpuUIImpl,
     scheduleRetry,
     getPendingTypeHandlers,
     runCpuTurn,
@@ -1751,11 +1739,11 @@ try {
     }
 } catch (e) { /* ignore */ }
 
-// Also expose to globalThis for immediate fallback in browser contexts
+// @compat - Legacy entry points; expose to globalThis for immediate fallback in browser contexts
 try {
     if (typeof globalThis !== 'undefined') {
-        try { globalThis.processCpuTurn = processCpuTurn; } catch (e) {}
-        try { globalThis.processAutoBlackTurn = processAutoBlackTurn; } catch (e) {}
-        try { globalThis.GamePresentationRuntime = presentationRuntime; } catch (e) {}
+        try { globalThis.processCpuTurn = processCpuTurn; } catch (e) {} // @compat
+        try { globalThis.processAutoBlackTurn = processAutoBlackTurn; } catch (e) {} // @compat
+        try { globalThis.GamePresentationRuntime = presentationRuntime; } catch (e) {} // @compat
     }
 } catch (e) { /* ignore */ }
