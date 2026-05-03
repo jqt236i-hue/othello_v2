@@ -56,7 +56,7 @@ function resolveCosmeticCatalogSharedModule(): CosmeticCatalogSharedModule | nul
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('../cosmetics/catalog-shared.js') ?? null;
+      return _require('../cosmetics/catalog-shared') ?? null;
     } catch (e) { /* ignore */ }
   }
   return null;

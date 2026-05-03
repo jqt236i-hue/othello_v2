@@ -240,14 +240,6 @@ window.CardCatalog = {
       "display_type_ja": "繁栄"
     },
     {
-      "id": "split_01",
-      "name_ja": "分裂の意志",
-      "type": "SPLIT_WILL",
-      "cost": 12,
-      "desc_ja": "盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を分裂生成する。生成では反転しない。特殊石の残り持続ターンは元石・生成石とも半分になる。周囲に空きがない石は対象外。",
-      "display_type_ja": "繁栄"
-    },
-    {
       "id": "seed_01",
       "name_ja": "種まきの意志",
       "type": "SEED_WILL",
@@ -503,7 +495,7 @@ window.CardCatalog = {
       "name_ja": "延命の意志",
       "type": "EXTEND_LIFE_WILL",
       "cost": 4,
-      "desc_ja": "盤面上の自分の特殊石1つを選び、その持続ターン(remainingOwnerTurns)を2倍にする。",
+      "desc_ja": "盤面上の自分の特殊石1つを選び、その持続ターンを2倍にする。",
       "display_type_ja": "守護"
     },
     {
@@ -511,7 +503,7 @@ window.CardCatalog = {
       "name_ja": "延命神",
       "type": "EXTEND_LIFE_GOD",
       "cost": 10,
-      "desc_ja": "盤面上の自分の特殊石1つを選び、その持続ターン(remainingOwnerTurns)を4倍にする。",
+      "desc_ja": "盤面上の自分の特殊石1つを選び、その持続ターンを4倍にする。",
       "display_type_ja": "守護"
     },
     {
@@ -519,7 +511,7 @@ window.CardCatalog = {
       "name_ja": "腐食の意志",
       "type": "CORROSION_WILL",
       "cost": 2,
-      "desc_ja": "盤面上の特殊石1つを選び、その持続ターン(remainingOwnerTurns)を半減させる。対象がない場合は使用不可。",
+      "desc_ja": "盤面上の特殊石1つを選び、その持続ターンを半減させる。対象がない場合は使用不可。",
       "display_type_ja": "執行"
     },
     {

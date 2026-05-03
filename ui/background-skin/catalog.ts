@@ -60,7 +60,7 @@ function resolveCosmeticCatalogSharedModule(): CosmeticCatalogSharedModule | nul
     }
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
-    try { return _require('../cosmetics/catalog-shared.js'); } catch (e) { /* ignore */ }
+    try { return _require('../cosmetics/catalog-shared'); } catch (e) { /* ignore */ }
   }
   return null;
 }

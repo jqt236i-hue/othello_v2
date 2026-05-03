@@ -81,10 +81,10 @@ try {
     if (typeof window !== 'undefined' && (window as any).CardCatalog && Array.isArray((window as any).CardCatalog.cards)) {
         catalogCards = (window as any).CardCatalog.cards.map((c: any) => ({
             id: c.id,
-            name: c.name,
+            name: c.name || c.name_ja || '',
             type: c.type,
             cost: c.cost,
-            desc: c.desc,
+            desc: c.desc || c.desc_ja || '',
             display_type_ja: c.display_type_ja,
             enabled: c.enabled
         }));
@@ -178,7 +178,6 @@ const CARD_DEFS_FALLBACK = [
     { id: 'breeding_01', name: '繁殖の意志', type: 'BREEDING_WILL', cost: 16, desc: '次に置く石を繁殖化。配置時+自ターン開始時周囲に石を1個生成。(5ターン)' },
     { id: 'proliferation_01', name: '増殖の意志', type: 'PROLIFERATION_WILL', cost: 4, desc: '次に置く石を増殖石化。破壊される時はその破壊を受けず、周囲8マスの空きへランダム1個増殖する。空きがなければ通常どおり破壊。各増殖石は所有者ターン10回持続し、期限切れでは消えずに通常石へ戻る。増殖で生まれた石も親の残りターンを引き継がず毎回10ターン。反転されると増殖状態を失って普通に反転する。' },
     { id: 'clone_01', name: '複製の意志', type: 'CLONE_WILL', cost: 16, desc: '盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を複製する。生成では反転しない。特殊石は残り持続ターンなどを引き継ぐ。周囲に空きがない石は対象外。' },
-    { id: 'split_01', name: '分裂の意志', type: 'SPLIT_WILL', cost: 12, desc: '盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を分裂生成する。生成では反転しない。特殊石の残り持続ターンは元石・生成石とも半分になる。周囲に空きがない石は対象外。' },
     { id: 'teleport_01', name: 'テレポート', type: 'TELEPORT_WILL', cost: 10, desc: '盤面上の石1つを選び、ランダムな空きマスへテレポートさせる。対象は敵味方・通常石・特殊石を問わない。' },
     { id: 'cell_teleport_01', name: 'マステレポート', type: 'CELL_TELEPORT_WILL', cost: 18, desc: 'マスを1つ選び、盤面外側へランダムテレポートさせ、元マスを穴化。' },
     { id: 'cross_bomb_01', name: '十字爆弾', type: 'CROSS_BOMB', cost: 18, desc: '次に置く石を十字爆弾化。通常反転後に即起爆し、中心と縦横2マス（中心含む十字）の石を爆破する。' },
@@ -338,7 +337,6 @@ export const CARD_TYPES = [
     'BREEDING_WILL',
     'PROLIFERATION_WILL',
     'CLONE_WILL',
-    'SPLIT_WILL',
     'SEED_WILL',
     'TELEPORT_WILL',
     'CELL_TELEPORT_WILL',
@@ -406,6 +404,7 @@ export const STRONG_WILL_PROMOTION_OWNER_TURNS = 10;
 
 // Destroy fade duration (ms)
 // Used by UI animation utilities to align JS waiting with CSS animation time
+// Canonical value also in constants/animation-constants.ts → ANIMATION_TIMINGS.DESTROY_FADE_MS
 export const DESTROY_FADE_MS = 500;
 
 // Card info
