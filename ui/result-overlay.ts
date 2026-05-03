@@ -65,7 +65,7 @@ const ResultOverlayGachaProgressModule = (() => {
         } catch (e) { /* ignore */ }
     }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.GachaProgressStorage) return globalThis.GachaProgressStorage;
+        if (typeof globalThis !== 'undefined' && globalThis.GachaProgressStorageModule) return globalThis.GachaProgressStorageModule;
     } catch (e) { /* ignore */ }
     return null;
 })();
