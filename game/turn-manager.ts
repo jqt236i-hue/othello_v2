@@ -7,6 +7,33 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+// ===== Explicit imports (replacing free variable references) =====
+const { BLACK, WHITE } = _require('../shared-constants');
+const ControllerEvents = _require('./controller-events');
+const { emitBoardUpdate, emitGameStateChange, emitCardStateChange, emitLogAdded, emitGameReset, emitEffectLog } = ControllerEvents;
+const cardEffectsHelpers = _require('./card-effects/helpers');
+const { getActiveProtectionForPlayer } = cardEffectsHelpers;
+const { getFlipBlockers } = _require('./special-effects/helpers');
+const CardLogic = _require('./logic/cards');
+const Core = _require('./logic/core');
+const { createGameState, isGameOver } = Core;
+const TurnPipelinePhases = _require('./turn/turn_pipeline_phases');
+const { isDebugLogAvailable } = _require('../is-env-capable');
+const { ensureCurrentPlayerCanActOrPass } = _require('./pass-handler');
+const OwnerHelpersModule = _require('../utils/owner-helpers');
+const MoveGeneratorModule = _require('./move-generator');
+const BoardPresentation = _require('./logic/presentation');
+const TurnPipelineUIAdapter = _require('./turn/pipeline_ui_adapter');
+const PendingCoordinatorForTurnManager = _require('./turn/pending-coordinator');
+const ActionManagerModule = _require('./schema/action_manager');
+const BombsModule = _require('./special-effects/bombs');
+const UDGModule = _require('./special-effects/udg');
+const DragonsModule = _require('./special-effects/dragons');
+const BreedingModule = _require('./special-effects/breeding');
+const HyperactiveModule = _require('./special-effects/hyperactive');
+const { resetCpuTurnHandlerState } = _require('./cpu-turn-handler');
+// Note: debugLog is a global function set by UI bootstrap; use with typeof guard
+
 /**
  * @file turn-manager.js
  * Core turn wiring: user input, animation gate checks, player key helpers, and game reset entrypoint.
@@ -17,68 +44,24 @@ var getAnimationTiming;
 if (typeof require === 'function') {
     try { ({ getAnimationTiming } = _require('../constants/animation-constants')); } catch (e) { /* ignore */ }
 }
-if (typeof getAnimationTiming !== 'function' && typeof globalThis !== 'undefined' && typeof globalThis.getAnimationTiming === 'function') {
-    getAnimationTiming = globalThis.getAnimationTiming;
-}
 const FLIP_ANIMATION_DURATION_MS = (typeof getAnimationTiming === 'function' ? getAnimationTiming('FLIP_ANIMATION_DURATION') : 600) || 600;
 const CPU_TURN_DELAY_MS = (typeof globalThis !== 'undefined' && globalThis.__BENCH_FAST_MODE === true) ? 0 : 600;
 const ANIMATION_RETRY_DELAY_MS = 80;
 const DOUBLE_PLACE_PASS_DELAY_MS = 250;
 const BLACK_PASS_DELAY_MS = 1000;
 
-// Presentation emission via centralized helper
-var BoardPresentation = null;
-BoardPresentation = __require('./logic/presentation'); 
-if (!BoardPresentation && typeof globalThis !== 'undefined' && globalThis.PresentationHelper) {
-    BoardPresentation = globalThis.PresentationHelper;
-}
-// TurnPipeline UI adapter (for mapping presentation events to playback events)
-var TurnPipelineUIAdapter = (typeof globalThis !== 'undefined' && globalThis.TurnPipelineUIAdapter)
-    ? globalThis.TurnPipelineUIAdapter
-    : null;
-TurnPipelineUIAdapter = __require('./turn/pipeline_ui_adapter'); 
-if (!TurnPipelineUIAdapter && typeof globalThis !== 'undefined' && globalThis.TurnPipelineUIAdapter) {
-    TurnPipelineUIAdapter = globalThis.TurnPipelineUIAdapter;
-}
-var CpuTurnHandlerModule = null;
-var PendingCoordinatorForTurnManager = null;
-
+// BoardPresentation and TurnPipelineUIAdapter are imported directly at top of file
+// TurnPipelineUIAdapter accessor (returns imported module)
 function getTurnPipelineUIAdapter() {
-    if (TurnPipelineUIAdapter) {
-        return TurnPipelineUIAdapter;
-    }
-    TurnPipelineUIAdapter = __require('./turn/pipeline_ui_adapter'); 
-    if (!TurnPipelineUIAdapter && typeof globalThis !== 'undefined' && globalThis.TurnPipelineUIAdapter) {
-        TurnPipelineUIAdapter = globalThis.TurnPipelineUIAdapter;
-    }
     return TurnPipelineUIAdapter;
 }
 
-function getCpuTurnHandlerModule() {
-    if (CpuTurnHandlerModule && typeof CpuTurnHandlerModule === 'object') {
-        return CpuTurnHandlerModule;
-    }
-    try {
-        if (typeof resetCpuTurnHandlerState === 'function') {
-            CpuTurnHandlerModule = { resetCpuTurnHandlerState };
-            return CpuTurnHandlerModule;
-        }
-    } catch (e) { /* ignore */ }
-    CpuTurnHandlerModule = __require('./cpu-turn-handler'); 
-    return CpuTurnHandlerModule;
-}
-
+// resetCpuTurnHandlerState is imported directly at top of file
 function resetCpuTurnSchedulingStateForTurnManager() {
-    const cpuTurnHandler = getCpuTurnHandlerModule();
-    if (cpuTurnHandler && typeof cpuTurnHandler.resetCpuTurnHandlerState === 'function') {
-        cpuTurnHandler.resetCpuTurnHandlerState();
+    if (resetCpuTurnHandlerState) {
+        // resetCpuTurnHandlerState imported directly
+        resetCpuTurnHandlerState();
     }
-}
-
-var OwnerHelpersModule = null;
-OwnerHelpersModule = __require('../utils/owner-helpers'); 
-if (!OwnerHelpersModule && typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) {
-    OwnerHelpersModule = globalThis.OwnerHelpers;
 }
 
 function getPlaybackStateForTurnManager() {
@@ -154,19 +137,16 @@ function setTurnManagerBusyState(options) {
     try {
         if (hasCardAnimating) isCardAnimating = nextCardAnimating;
     } catch (e) { /* ignore */ }
+    // Write to module-level variables instead of globalThis
     try {
-        if (typeof globalThis !== 'undefined') {
-            if (hasProcessing) globalThis.isProcessing = nextProcessing;
-            if (hasCardAnimating) globalThis.isCardAnimating = nextCardAnimating;
-            if (hasPlaybackActive) {
-                globalThis.VisualPlaybackActive = nextPlaybackActive;
-                if (nextPlaybackActive) {
-                    if (!Number.isFinite(Number(globalThis.__playbackActiveSince))) {
-                        globalThis.__playbackActiveSince = Date.now();
-                    }
-                } else {
-                    globalThis.__playbackActiveSince = null;
+        if (hasPlaybackActive) {
+            VisualPlaybackActive = nextPlaybackActive;
+            if (nextPlaybackActive) {
+                if (!Number.isFinite(Number(__playbackActiveSince))) {
+                    __playbackActiveSince = Date.now();
                 }
+            } else {
+                __playbackActiveSince = null;
             }
         }
     } catch (e) { /* ignore */ }
@@ -262,8 +242,8 @@ function releaseStalePlaybackLockForTurnManager(options) {
 
 function emitPresentationEventViaBoardOps(ev) {
     try {
-        const pres = (typeof require === 'function') ? _require('./logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
-        if (pres && typeof pres.emitPresentationEvent === 'function') return pres.emitPresentationEvent(cardState, ev);
+        // BoardPresentation is imported directly at top of file
+        if (BoardPresentation && typeof BoardPresentation.emitPresentationEvent === 'function') return BoardPresentation.emitPresentationEvent(cardState, ev);
     } catch (e) { /* ignore */ }
     try {
         const ops = (typeof globalThis !== 'undefined' && globalThis.BoardOps && typeof globalThis.BoardOps.emitPresentationEvent === 'function')
@@ -278,22 +258,18 @@ function emitPresentationEventViaBoardOps(ev) {
     return false;
 } 
 
-// Configuration and UI-DI
-if (typeof __uiImpl_turn_manager === 'undefined') { try { globalThis.__uiImpl_turn_manager = globalThis.__uiImpl_turn_manager || {}; } catch (e) { this.__uiImpl_turn_manager = this.__uiImpl_turn_manager || {}; } }
+// Configuration and UI-DI (module-level config, no globalThis writes)
+let __uiImpl_turn_manager = {};
 function setUIImpl(obj) {
-    try {
-        const prev = globalThis.__uiImpl_turn_manager || {};
-        globalThis.__uiImpl_turn_manager = Object.assign({}, prev, obj || {});
-    } catch (e) {
-        const prev = this.__uiImpl_turn_manager || {};
-        this.__uiImpl_turn_manager = Object.assign({}, prev, obj || {});
-    }
+    __uiImpl_turn_manager = Object.assign({}, __uiImpl_turn_manager, obj || {});
 }
 
-// Module-scoped UI locks (local state; UI may mirror these via UI bootstrap if desired)
-if (typeof isProcessing === 'undefined') { setTurnManagerBusyState({ processing: false }); }
-if (typeof isCardAnimating === 'undefined') { setTurnManagerBusyState({ cardAnimating: false }); }
-if (typeof cpuSmartness === 'undefined') { try { globalThis.cpuSmartness = { black: 1, white: 1 }; } catch (e) { this.cpuSmartness = { black: 1, white: 1 }; } }
+// Module-scoped UI locks (local state; replaces globalThis writes)
+let isProcessing;
+let isCardAnimating;
+let VisualPlaybackActive;
+let __playbackActiveSince;
+let cpuSmartness = { black: 1, white: 1 }; // @compat - read by some modules via globalThis, keep until Wave F
 var resetGameGeneration = 0;
 
 // TimerService DI
@@ -312,15 +288,9 @@ function getTurnManagerTimerService() {
 
 // Prefer shared scheduling helper when available; fallback to TimerService or setTimeout
 let scheduleRetry = null;
-const tu = __require('./timer-utils'); if (tu && typeof tu.scheduleRetry === 'function') scheduleRetry = tu.scheduleRetry; 
+const tu = _require('./timer-utils'); if (tu && typeof tu.scheduleRetry === 'function') scheduleRetry = tu.scheduleRetry; 
 if (!scheduleRetry) {
     scheduleRetry = (fn, delayMs) => {
-        try {
-            if (globalThis && globalThis.timers && typeof globalThis.timers.waitMs === 'function') {
-                globalThis.timers.waitMs(delayMs).then(fn);
-                return;
-            }
-        } catch (e) { /* ignore */ }
         const timerService = getTurnManagerTimerService();
         if (timerService) {
             timerService.setTimeout(fn, delayMs);
@@ -343,7 +313,7 @@ function hasQueuedPresentationEventsForTurnManager() {
     return false;
 }
 function handleCellClick(row, col) {
-    if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
+    if (isDebugLogAvailable()) {
         debugLog(`[CELL-CLICK] User clicked (${row},${col})`, 'debug', {
             currentPlayer: gameState.currentPlayer,
             isAnimationInProgress: isAnimationInProgress()
@@ -381,10 +351,11 @@ function handleCellClick(row, col) {
     if (!isHumanTurn) return;
 
     const protection = getActiveProtectionForPlayer(gameState.currentPlayer);
-    const perma = (typeof getFlipBlockers === 'function') ? getFlipBlockers() : [];
-    const move = findMoveForCell(gameState.currentPlayer, row, col, pending, protection, perma);
+    const perma = getFlipBlockers();  // getFlipBlockers imported directly
+    const _findMoveForCell = MoveGeneratorModule && MoveGeneratorModule.findMoveForCell;
+    const move = _findMoveForCell ? _findMoveForCell(gameState.currentPlayer, row, col, pending, protection, perma) : null;
     if (!move) {
-        if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
+        if (isDebugLogAvailable()) {
             debugLog(`[MOVE] Invalid move attempted at (${row},${col})`, 'warn', {
                 currentPlayer: gameState.currentPlayer,
                 hasPending: !!pending
@@ -393,7 +364,7 @@ function handleCellClick(row, col) {
         return;
     }
 
-    if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
+    if (isDebugLogAvailable()) {
         debugLog(`[MOVE] Valid move found at (${row},${col})`, 'info', {
             flips: move.flips ? move.flips.length : 0,
             currentPlayer: gameState.currentPlayer,
@@ -557,8 +528,8 @@ function getPlayerKey(player) {
     if (normalized === 'white' || normalized === '-1') return 'white';
 
     try {
-        if (typeof BLACK !== 'undefined' && player === BLACK) return 'black';
-        if (typeof WHITE !== 'undefined' && player === WHITE) return 'white';
+        if (player === BLACK) return 'black';
+        if (player === WHITE) return 'white';
     } catch (e) { /* ignore */ }
     return 'black';
 }
@@ -569,19 +540,11 @@ function getPlayerName(player) {
 
 // Request a UI render via event (no direct UI calls)
 function requestUIRender() {
-    if (typeof emitBoardUpdate === 'function') {
-        try { emitBoardUpdate(); } catch (e) { /* ignore UI errors */ }
-    }
+    try { emitBoardUpdate(); } catch (e) { /* ignore UI errors */ }
 }
 
 function resolvePendingCoordinatorForTurnManager() {
-    if (PendingCoordinatorForTurnManager && typeof PendingCoordinatorForTurnManager === 'object') {
-        return PendingCoordinatorForTurnManager;
-    }
-    PendingCoordinatorForTurnManager = __require('./turn/pending-coordinator'); 
-    if (!PendingCoordinatorForTurnManager && typeof globalThis !== 'undefined' && globalThis.PendingCoordinator) {
-        PendingCoordinatorForTurnManager = globalThis.PendingCoordinator;
-    }
+    // PendingCoordinatorForTurnManager is imported directly at top of file
     return (PendingCoordinatorForTurnManager && typeof PendingCoordinatorForTurnManager === 'object')
         ? PendingCoordinatorForTurnManager
         : null;
@@ -654,8 +617,6 @@ function resolveBoardPendingSelectionHandlerForTurnManager(dispatchKey) {
         return (typeof handleSeedSelection === 'function') ? handleSeedSelection : null;
     case 'clone':
         return (typeof handleCloneSelection === 'function') ? handleCloneSelection : null;
-    case 'split':
-        return (typeof handleSplitSelection === 'function') ? handleSplitSelection : null;
     default:
         return null;
     }
@@ -767,8 +728,8 @@ function resetGame() {
     } catch (e) {
         // In test environments without PRNG, allow fallback to a minimal cardState via CardLogic
         console.warn('[resetGame] initCardState failed (test environment):', e.message);
-        if (typeof CardLogic !== 'undefined' && typeof CardLogic.createCardState === 'function') {
-            const prngStub = { next: () => 0.5, _seed: 1 };
+        if (typeof CardLogic.createCardState === 'function') {  // CardLogic imported directly
+            const prngStub = { next: () => 0.5, _seed: 1, shuffle: (array: any[]) => array };
             const newState = CardLogic.createCardState(prngStub, cardInitOptions);
             // Wipe and copy properties to maintain global reference pattern
             if (typeof cardState !== 'undefined') {
@@ -781,9 +742,9 @@ function resetGame() {
     }
 
     // Reset ActionManager for new game
-    if (typeof ActionManager !== 'undefined' && ActionManager.ActionManager) {
-        ActionManager.ActionManager.reset();
-        try { ActionManager.ActionManager.clearStorage(); } catch (e) { /* ignore */ }
+    if (ActionManagerModule && ActionManagerModule.ActionManager) {
+        ActionManagerModule.ActionManager.reset();
+        try { ActionManagerModule.ActionManager.clearStorage(); } catch (e) { /* ignore */ }
         console.log('[resetGame] ActionManager reset and cleared storage');
     }
 
@@ -793,18 +754,12 @@ function resetGame() {
     }
 
     try {
-        if (typeof emitGameReset === 'function') {
-            emitGameReset({
-                turnNumber: 0
-            });
-        }
+        emitGameReset({ turnNumber: 0 });
     } catch (e) { /* ignore */ }
 
-    if (typeof emitLogAdded === 'function') {
-        emitLogAdded(`ゲーム開始 (黒: Lv${cpuSmartness.black}, 白: Lv${cpuSmartness.white})`, 'normal');
-    }
-    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-    try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
+    emitLogAdded(`ゲーム開始 (黒: Lv${cpuSmartness.black}, 白: Lv${cpuSmartness.white})`, 'normal');
+    try { emitBoardUpdate(); } catch (e) { /* ignore */ }
+    try { emitGameStateChange(); } catch (e) { /* ignore */ }
 
     const runTurnStartAfterReset = () => {
         if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.onTurnStart === 'function') {
@@ -842,13 +797,13 @@ function resetGame() {
                 if (!isCurrentResetGeneration()) return;
                 setTurnManagerBusyState({ processing: false });
                 runTurnStartAndPublishResetSnapshot();
-                if (typeof emitLogAdded === 'function') emitLogAdded('カード配布完了', 'normal');
+                emitLogAdded('カード配布完了', 'normal');
 
             })
             .catch((err) => {
                 if (!isCurrentResetGeneration()) return;
                 console.error('Deal animation error:', err);
-                if (typeof emitLogAdded === 'function') emitLogAdded('エラー: カード配布に失敗しました', 'normal');
+                emitLogAdded('エラー: カード配布に失敗しました', 'normal');
             })
             .finally(() => {
                 if (!isCurrentResetGeneration()) return;
@@ -865,7 +820,7 @@ function resetGame() {
             processing: false
         });
         runTurnStartAndPublishResetSnapshot();
-        if (typeof emitLogAdded === 'function') emitLogAdded('カード配布完了', 'normal');
+        emitLogAdded('カード配布完了', 'normal');
     }
 
 }
@@ -885,7 +840,7 @@ async function onTurnStart(player) {
     // Record hand size before turn start to detect if a draw happened
     const handSizeBefore = cardState.hands[playerKey].length;
 
-    if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
+    if (isDebugLogAvailable()) {
         debugLog(`[TURN-START] onTurnStart called for ${playerKey}, handBefore: ${handSizeBefore}, turnCount: ${cardState.turnCountByPlayer[playerKey]}`, 'info');
     }
 
@@ -894,9 +849,9 @@ async function onTurnStart(player) {
     // so that the *pipeline* (not UI) is the single writer of rule state.
     const _startEvents = [];
     let turnStartPlaybackEvents = [];
-    if (typeof TurnPipelinePhases !== 'undefined' && typeof TurnPipelinePhases.applyTurnStartPhase === 'function') {
+    if (typeof TurnPipelinePhases.applyTurnStartPhase === 'function') {  // TurnPipelinePhases imported directly
         try {
-            if (typeof Core === 'undefined') {
+            if (!Core) {
                 console.error('[CRITICAL][onTurnStart] Core is undefined; TurnPipelinePhases.applyTurnStartPhase may fail');
             }
             // Provide runtime PRNG to pipeline so start-of-turn effects that need randomness can run in browser
@@ -906,13 +861,13 @@ async function onTurnStart(player) {
             // Convert any presentation events emitted during turn-start into PlaybackEvents
             const adapter = getTurnPipelineUIAdapter();
             if (adapter && typeof adapter.mapToPlaybackEvents === 'function'
-                && typeof CardLogic !== 'undefined' && typeof CardLogic.flushPresentationEvents === 'function') {
+                && typeof CardLogic.flushPresentationEvents === 'function') {  // CardLogic imported directly
                 const pres = CardLogic.flushPresentationEvents(cardState) || [];
                 turnStartPlaybackEvents = adapter.mapToPlaybackEvents(pres, cardState, gameState) || [];
                 if (typeof adapter.appendSoundEffectPlaybackEvents === 'function') {
                     turnStartPlaybackEvents = adapter.appendSoundEffectPlaybackEvents(turnStartPlaybackEvents, _startEvents, pres) || turnStartPlaybackEvents;
                 }
-                if (typeof adapter.mapEffectLogsFromPipeline === 'function' && typeof emitEffectLog === 'function') {
+                if (typeof adapter.mapEffectLogsFromPipeline === 'function') {  // emitEffectLog imported directly
                     const effectMsgs = adapter.mapEffectLogsFromPipeline(_startEvents, pres, playerKey) || [];
                     for (const m of effectMsgs) {
                         if (m) emitEffectLog(m);
@@ -932,7 +887,7 @@ async function onTurnStart(player) {
     const handSizeAfter = cardState.hands[playerKey].length;
     const newTurnCount = cardState.turnCountByPlayer[playerKey];
 
-    if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
+    if (isDebugLogAvailable()) {
         debugLog(`[TURN-START] After turn-start phase: handAfter: ${handSizeAfter}, newTurnCount: ${newTurnCount}`, 'info');
     }
 
@@ -940,7 +895,7 @@ async function onTurnStart(player) {
 
     // 2. Log
     const turnCount = gameState.turnNumber + 1;
-    if (typeof emitLogAdded === 'function') emitLogAdded(`== ${getPlayerName(player)}のターン (${turnCount}手目) ==`, 'normal');
+    emitLogAdded(`== ${getPlayerName(player)}のターン (${turnCount}手目) ==`, 'normal');
 
     // 3. Draw Animation (if draw happened during the turn-start phase)
     if (handSizeAfter > handSizeBefore) {
@@ -949,7 +904,7 @@ async function onTurnStart(player) {
         try {
             const drawnCardId = cardState.hands[playerKey][cardState.hands[playerKey].length - 1];
             if (drawnCardId !== null && drawnCardId !== undefined) {
-                if (typeof emitLogAdded === 'function') emitLogAdded(`${getPlayerName(player)}がドローしました`, 'normal');
+                emitLogAdded(`${getPlayerName(player)}がドローしました`, 'normal');
                 const drawPresentation = { type: 'DRAW_CARD', player: playerKey, cardId: drawnCardId, count: 1 };
                 const adapter = getTurnPipelineUIAdapter();
                 if (adapter && typeof adapter.mapToPlaybackEvents === 'function') {
@@ -986,20 +941,21 @@ async function onTurnStart(player) {
         // Ensure UI consumes the playback events
         requestUIRender();
     }
-    if (typeof processBombs === 'function') {
-        await processBombs(_startEvents);
+    // processBombs etc. are accessed via imported modules
+    if (typeof BombsModule.processBombs === 'function') {
+        await BombsModule.processBombs(_startEvents);
     }
-    if (typeof processUltimateDestroyGodsAtTurnStart === 'function') {
-        await processUltimateDestroyGodsAtTurnStart(player, null, _startEvents);
+    if (typeof UDGModule.processUltimateDestroyGodsAtTurnStart === 'function') {
+        await UDGModule.processUltimateDestroyGodsAtTurnStart(player, null, _startEvents);
     }
-    if (typeof processUltimateReverseDragonsAtTurnStart === 'function') {
-        await processUltimateReverseDragonsAtTurnStart(player, _startEvents);
+    if (typeof DragonsModule.processUltimateReverseDragonsAtTurnStart === 'function') {
+        await DragonsModule.processUltimateReverseDragonsAtTurnStart(player, _startEvents);
     }
-    if (typeof processBreedingEffectsAtTurnStart === 'function') {
-        await processBreedingEffectsAtTurnStart(player, _startEvents);
+    if (typeof BreedingModule.processBreedingEffectsAtTurnStart === 'function') {
+        await BreedingModule.processBreedingEffectsAtTurnStart(player, _startEvents);
     }
-    if (typeof processHyperactiveMovesAtTurnStart === 'function') {
-        await processHyperactiveMovesAtTurnStart(player, null, _startEvents);
+    if (typeof HyperactiveModule.processHyperactiveMovesAtTurnStart === 'function') {
+        await HyperactiveModule.processHyperactiveMovesAtTurnStart(player, null, _startEvents);
     }
 
     // 5. Update UI — queue a STATE_UPDATED presentation event; UI should consume and perform actual emits/renders
@@ -1008,12 +964,12 @@ async function onTurnStart(player) {
         Notifier.notifyUI(cardState, gameState, { stateChanged: true, cardStateChanged: true, render: true });
     } catch (e) {
         // As a safe fallback in unusual environments, keep the old behavior
-        try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e2) {}
-        try { if (typeof emitCardStateChange === 'function') emitCardStateChange(); } catch (e2) {}
+        try { emitGameStateChange(); } catch (e2) {}
+        try { emitCardStateChange(); } catch (e2) {}
         requestUIRender();
     }
 
-    if (typeof isGameOver === 'function' && isGameOver(gameState)) {
+    if (isGameOver(gameState)) {  // isGameOver imported from Core
         if (typeof showResult === 'function') showResult();
         setTurnManagerBusyState({ processing: false });
         return {
@@ -1023,8 +979,8 @@ async function onTurnStart(player) {
 
     // Human-side safety: if no legal move and no usable card, force pass progression.
     // CPU side already has its own pass path, so limit this check to black / HvH.
-    if ((player === BLACK || isHumanVsHumanModeEnabled()) && typeof ensureCurrentPlayerCanActOrPass === 'function') {
-        try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
+    if (player === BLACK || isHumanVsHumanModeEnabled()) {
+        try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }  // ensureCurrentPlayerCanActOrPass imported directly
     }
 
     // 7. DEBUG: Shared Hand Logic (opt-in only)
@@ -1069,8 +1025,8 @@ function watchdogPing(nowMs) {
             });
             clearPlaybackLockForTurnManager();
             lastFlagActiveTime = null;
-            if (typeof emitLogAdded === 'function') emitLogAdded('警告: 処理が長時間停滞したため強制解除しました', 'normal');
-            try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+            emitLogAdded('警告: 処理が長時間停滞したため強制解除しました', 'normal');
+            try { emitBoardUpdate(); } catch (e) { /* ignore */ }
         }
     } else {
         lastFlagActiveTime = null;
@@ -1103,12 +1059,13 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
-// Ensure resetGame is available to legacy UI handlers that call it directly (e.g., init.js click handlers)
+// @compat - legacy UI entry points; keep until Wave F (entry-browser.js provides these via Object.assign(window, mod))
 try {
     if (typeof globalThis !== 'undefined') {
         try { globalThis.resetGame = resetGame; } catch (e) { /* ignore */ }
+        try { globalThis.handleCellClick = handleCellClick; } catch (e) { /* ignore */ }
     }
-    // Also register with UIBootstrap if available for more canonical UI registration
+    // @compat - registerUIGlobals notification; keep until Wave F
     try {
         const uiBootstrap = _require('../shared/ui-bootstrap-shared');
         if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function') uiBootstrap.registerUIGlobals({ resetGame });
