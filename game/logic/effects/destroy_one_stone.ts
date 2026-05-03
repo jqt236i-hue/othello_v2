@@ -17,22 +17,16 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const BoardOpsModule = (typeof module === 'object' && module.exports)
-    ? _require('../board_ops')
-    : (typeof self !== 'undefined' ? (self as any).BoardOps : undefined);
+const BoardOpsModule = (() => {
+    try { return _require('../board_ops'); } catch (e) { return undefined; }
+})();
 
 const DestroyOutcomeContract = (() => {
-    if (typeof require === 'function') {
-        try {
-            return _require('../../../shared/destroy-outcome-contract');
-        } catch (_e) {
-            return null;
-        }
+    try {
+        return _require('../../../shared/destroy-outcome-contract');
+    } catch (_e) {
+        return null;
     }
-    if (typeof globalThis !== 'undefined' && (globalThis as any).DestroyOutcomeContract) {
-        return (globalThis as any).DestroyOutcomeContract;
-    }
-    return null;
 })();
 
 const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS)

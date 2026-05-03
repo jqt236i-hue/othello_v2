@@ -85,10 +85,6 @@ const MODULE_SELECTOR_HANDLERS: Record<string, SelectorConfig> = Object.freeze({
         method: 'getCloneTargets',
         args: (context) => [context.cardState, context.gameState, context.playerKey]
     },
-    SPLIT_WILL: {
-        method: 'getSplitTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
     BOARD_EXPANSION_WILL: {
         method: 'getBoardExpansionTargets',
         args: (context) => [context.cardState, context.gameState, context.playerKey]
@@ -150,7 +146,6 @@ const LOCAL_SELECTOR_HANDLERS: Record<string, (context: SelectorContext) => any[
     TELEPORT_WILL: (context) => invokeLocal(context, 'getTeleportTargets', [context.cardState, context.gameState]),
     CELL_TELEPORT_WILL: (context) => invokeLocal(context, 'getCellTeleportTargets', [context.cardState, context.gameState]),
     CLONE_WILL: (context) => invokeLocal(context, 'getCloneTargets', [context.cardState, context.gameState, context.playerKey]),
-    SPLIT_WILL: (context) => invokeLocal(context, 'getSplitTargets', [context.cardState, context.gameState, context.playerKey]),
     BOARD_EXPANSION_WILL: (context) => invokeLocal(context, 'getBoardExpansionTargets', [context.cardState, context.gameState, context.playerKey]),
     BOARD_EXPANSION_GOD: (context) => invokeLocal(context, 'getBoardExpansionGodTargets', [context.cardState, context.gameState, context.playerKey]),
     BOARD_SHRINK_WILL: (context) => invokeLocal(context, 'getBoardShrinkTargets', [context.cardState, context.gameState, context.playerKey]),

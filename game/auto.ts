@@ -54,9 +54,6 @@ if (typeof module !== 'undefined' && module.exports) {
     setIntervalMs,
     getIntervalMs
   };
-} else if (typeof globalThis !== 'undefined') {
-  // Browser/global attach for UI handlers
-  try { globalThis.autoSimple = { enable, disable, toggle, isEnabled, setIntervalMs, getIntervalMs }; } catch (e) { /* ignore */ }
 }
 })();
 

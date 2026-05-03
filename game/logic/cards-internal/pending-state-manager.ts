@@ -72,7 +72,6 @@ const PENDING_SELECTION_CONTRACT_DEFINITIONS: Record<string, PendingSelectionDef
     EXTEND_LIFE_GOD: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'extend_life' },
     CORROSION_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'corrosion' },
     CLONE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'clone' },
-    SPLIT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'split' },
     BLOCKADE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'blockade' },
     BOARD_EXPANSION_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'board_expansion' },
     BOARD_EXPANSION_GOD: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'board_expansion' },

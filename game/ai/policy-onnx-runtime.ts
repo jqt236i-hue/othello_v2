@@ -24,17 +24,8 @@ const LEGACY_BOARD_FEATURE_DIM = LEGACY_BOARD_SIZE * LEGACY_BOARD_SIZE;
 const MAX_HAND_SIZE = 5;
 let SharedBoardUtils = null;
 try {
-    if (typeof require === 'function') {
-        SharedBoardUtils = require('../../shared/shared-board-utils');
-    }
+    SharedBoardUtils = _require('../../shared/shared-board-utils');
 } catch (e) { /* ignore */ }
-if (!SharedBoardUtils) {
-    try {
-        if (typeof globalThis !== 'undefined' && globalThis.SharedBoardUtils) {
-            SharedBoardUtils = globalThis.SharedBoardUtils;
-        }
-    } catch (e) { /* ignore */ }
-}
 const PADDED_BOARD_MIN = SharedBoardUtils && Number.isFinite(Number(SharedBoardUtils.PADDED_BOARD_MIN))
     ? Number(SharedBoardUtils.PADDED_BOARD_MIN)
     : -1;
@@ -47,18 +38,8 @@ const PADDED_BOARD_SIZE = SharedBoardUtils && Number.isFinite(Number(SharedBoard
 const PADDED_BOARD_FEATURE_DIM = PADDED_BOARD_SIZE * PADDED_BOARD_SIZE;
 const CHARGE_MAX_NORMALIZER = (() => {
     try {
-        if (typeof require === 'function') {
-            const shared = require('../../shared-constants');
-            if (shared && Number.isFinite(Number(shared.CHARGE_MAX))) return Number(shared.CHARGE_MAX);
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && Number.isFinite(Number(globalThis.CHARGE_MAX))) {
-            return Number(globalThis.CHARGE_MAX);
-        }
-        if (typeof globalThis !== 'undefined' && globalThis.SharedConstants && Number.isFinite(Number(globalThis.SharedConstants.CHARGE_MAX))) {
-            return Number(globalThis.SharedConstants.CHARGE_MAX);
-        }
+        const shared = _require('../../shared-constants');
+        if (shared && Number.isFinite(Number(shared.CHARGE_MAX))) return Number(shared.CHARGE_MAX);
     } catch (e) { /* ignore */ }
     return 99;
 })();
@@ -320,18 +301,14 @@ function getStatus() {
     };
 }
 
-function resolveOrtApi(requireSession) {
-    try {
-        if (
-            typeof globalThis !== 'undefined' &&
-            globalThis.ort &&
-            typeof globalThis.ort.Tensor === 'function' &&
-            (
-                requireSession !== true ||
-                typeof globalThis.ort.InferenceSession === 'function'
-            )
-        ) return globalThis.ort;
-    } catch (e) { /* ignore */ }
+let _ort: any = null;
+try { _ort = _require('onnxruntime-web'); } catch (e) { /* ignore */ }
+
+function resolveOrtApi(requireSession: any): any {
+    if (_ort && typeof _ort.Tensor === 'function' &&
+        (requireSession !== true || typeof _ort.InferenceSession === 'function')) {
+        return _ort;
+    }
     return null;
 }
 
@@ -1221,7 +1198,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
 try {
     if (typeof globalThis !== 'undefined') {
-        globalThis.CpuPolicyOnnxRuntime = Api;
+        globalThis.CpuPolicyOnnxRuntime = Api; // @compat - backward-compat export
     }
 } catch (e) { /* ignore */ }
 

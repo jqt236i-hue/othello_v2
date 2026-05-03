@@ -27,36 +27,18 @@ const { GumbelMCTS } = require('./gumbel-mcts');
 
 let CoreLogic = null;
 try {
-    if (typeof require === 'function') {
-        CoreLogic = require('../logic/core');
-    }
+    CoreLogic = _require('../logic/core');
 } catch (e) { /* ignore */ }
-if (!CoreLogic && typeof globalThis !== 'undefined' && globalThis.Core) {
-    CoreLogic = globalThis.Core;
-}
-if (!CoreLogic && typeof globalThis !== 'undefined' && globalThis.CoreLogic) {
-    CoreLogic = globalThis.CoreLogic;
-}
 
 let CardLogic = null;
 try {
-    if (typeof require === 'function') {
-        CardLogic = require('../logic/cards');
-    }
+    CardLogic = _require('../logic/cards');
 } catch (e) { /* ignore */ }
-if (!CardLogic && typeof globalThis !== 'undefined' && globalThis.CardLogic) {
-    CardLogic = globalThis.CardLogic;
-}
 
 let CpuPolicyOnnxRuntime = null;
 try {
-    if (typeof require === 'function') {
-        CpuPolicyOnnxRuntime = require('./policy-onnx-runtime');
-    }
+    CpuPolicyOnnxRuntime = _require('./policy-onnx-runtime');
 } catch (e) { /* ignore */ }
-if (!CpuPolicyOnnxRuntime && typeof globalThis !== 'undefined' && globalThis.CpuPolicyOnnxRuntime) {
-    CpuPolicyOnnxRuntime = globalThis.CpuPolicyOnnxRuntime;
-}
 
 function getPlayerValue(playerKey) {
     if (CoreLogic && CoreLogic.BLACK !== undefined) {
@@ -385,5 +367,5 @@ export = { searchWithMcts, _gameInterface, _network };
 
 // Browser global
 if (typeof globalThis !== 'undefined') {
-    globalThis.CpuMctsPolicy = { searchWithMcts, _gameInterface, _network };
+    globalThis.CpuMctsPolicy = { searchWithMcts, _gameInterface, _network }; // @compat - backward-compat export
 };

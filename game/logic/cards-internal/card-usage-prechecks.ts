@@ -162,8 +162,6 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             return validateSelectionTargets(context, 'getCellTeleportTargets', 1) ? result : buildFailureResult();
         case 'CLONE_WILL':
             return validateSelectionTargets(context, 'getCloneTargets', 1) ? result : buildFailureResult();
-        case 'SPLIT_WILL':
-            return validateSelectionTargets(context, 'getSplitTargets', 1) ? result : buildFailureResult();
         case 'POSITION_SWAP_WILL':
             return validateSelectionTargets(context, 'getPositionSwapTargets', 2) ? result : buildFailureResult();
         case 'BOARD_EXPANSION_WILL':

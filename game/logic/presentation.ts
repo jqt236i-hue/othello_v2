@@ -1,3 +1,15 @@
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+function _require(id: string): any {
+    if (typeof __non_webpack_require__ !== 'undefined') {
+        return __non_webpack_require__(id);
+    }
+    if (typeof require === 'function') {
+        return require(id);
+    }
+    throw new Error('Unable to require ' + id);
+}
+
 interface PresentationEvent {
     type: string;
     [key: string]: any;
@@ -12,7 +24,7 @@ let warnedNoBoardOps = false;
 
 function emitPresentationEvent(cardState: CardState | null, ev: PresentationEvent): boolean {
     try {
-        const root = (typeof globalThis !== 'undefined' ? globalThis : undefined) as any;
+        const root = (typeof globalThis !== 'undefined' ? globalThis : undefined) as any; // globalThis — bootstrap DI
         if (root && root.BoardOps && typeof root.BoardOps.emitPresentationEvent === 'function') {
             root.BoardOps.emitPresentationEvent(cardState, ev);
             return true;
@@ -39,20 +51,21 @@ function emitPresentationEvent(cardState: CardState | null, ev: PresentationEven
 
 function flushPersistedEvents(): boolean {
     try {
-        const root = (typeof globalThis !== 'undefined' ? globalThis : undefined) as any;
+        const root = (typeof globalThis !== 'undefined' ? globalThis : undefined) as any; // globalThis — bootstrap DI
         if (!(root && root.BoardOps && typeof root.BoardOps.emitPresentationEvent === 'function')) return false;
         let flushedCount = 0;
         const cardStateRef = root && root.cardState ? root.cardState : null;
 
-        if (typeof (globalThis as any).CardLogic !== 'undefined' && typeof (globalThis as any).CardLogic.flushPresentationEvents === 'function') {
-            try {
-                const events = (globalThis as any).CardLogic.flushPresentationEvents(cardStateRef) || [];
+        try {
+            const CardLogic = _require('./cards');
+            if (CardLogic && typeof CardLogic.flushPresentationEvents === 'function') {
+                const events = CardLogic.flushPresentationEvents(cardStateRef) || [];
                 for (const ev of events) {
                     try { root.BoardOps.emitPresentationEvent(cardStateRef, ev); } catch (_e) { /* ignore */ }
                 }
                 flushedCount += events.length;
-            } catch (_e) { /* ignore and continue */ }
-        }
+            }
+        } catch (_e) { /* ignore and continue */ }
 
         if (cardStateRef && Array.isArray(cardStateRef._presentationEventsPersist) && cardStateRef._presentationEventsPersist.length) {
             const persisted = cardStateRef._presentationEventsPersist.slice();

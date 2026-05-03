@@ -7,111 +7,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
-    const MarkersAdapter = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../logic/markers_adapter');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.MarkersAdapter || null;
-    })();
+    const MarkersAdapter = (() => { try { return _require('../logic/markers_adapter'); } catch (e) { return null; } })();
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
-    const OwnerHelpersModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../../utils/owner-helpers');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.OwnerHelpers || null;
-    })();
-    const SharedBoardUtils = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../../shared/shared-board-utils');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.SharedBoardUtils || null;
-    })();
-    const PlaybackEventHelpers = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../../shared/playback-event-helpers');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.PlaybackEventHelpers || null;
-    })();
-    const TurnPipelinePhaseHelpers = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./turn_pipeline_phase_helpers');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.TurnPipelinePhaseHelpers || null;
-    })();
-    const DestroyOutcomeContract = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../../shared/destroy-outcome-contract');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.DestroyOutcomeContract || null;
-    })();
-    const SpecialStoneRegistry = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../../shared/special-stone-registry');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.SpecialStoneRegistry || null;
-    })();
-    const StoneStatusSnapshot = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../../shared/stone-status-snapshot');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.StoneStatusSnapshot || null;
-    })();
+    const OwnerHelpersModule = (() => { try { return _require('../../utils/owner-helpers'); } catch (e) { return null; } })();
+    const SharedBoardUtils = (() => { try { return _require('../../shared/shared-board-utils'); } catch (e) { return null; } })();
+    const PlaybackEventHelpers = (() => { try { return _require('../../shared/playback-event-helpers'); } catch (e) { return null; } })();
+    const TurnPipelinePhaseHelpers = (() => { try { return _require('./turn_pipeline_phase_helpers'); } catch (e) { return null; } })();
+    const DestroyOutcomeContract = (() => { try { return _require('../../shared/destroy-outcome-contract'); } catch (e) { return null; } })();
+    const SpecialStoneRegistry = (() => { try { return _require('../../shared/special-stone-registry'); } catch (e) { return null; } })();
+    const StoneStatusSnapshot = (() => { try { return _require('../../shared/stone-status-snapshot'); } catch (e) { return null; } })();
 
     const REGEN_CAUSE = 'REGEN';
     const REGEN_TRIGGER_REASON = 'regen_triggered';
@@ -840,7 +744,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
     function _isCloneLikeSpawnPresentationEvent(ev, spawnMeta) {
         const spawnCause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
         return (
-            (spawnCause === 'CLONE_WILL' || spawnCause === 'SPLIT_WILL' || spawnCause === 'PROLIFERATION_WILL') &&
+            (spawnCause === 'CLONE_WILL' || spawnCause === 'PROLIFERATION_WILL') &&
             spawnMeta &&
             Number.isInteger(spawnMeta.fromRow) &&
             Number.isInteger(spawnMeta.fromCol)
@@ -2587,13 +2491,12 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             ctx.base,
             (ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => {
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                return !!(t && t.clone === true) || cause === 'CLONE_WILL' || cause === 'SPLIT_WILL' || cause === 'PROLIFERATION_WILL';
+                return !!(t && t.clone === true) || cause === 'CLONE_WILL' || cause === 'PROLIFERATION_WILL';
             }),
             ctx.fallbackPhase
         );
         if (
             _hasRawEvent(ctx.raw, 'clone_selected', (ev) => !!(ev && ev.applied)) ||
-            _hasRawEvent(ctx.raw, 'split_selected', (ev) => !!(ev && ev.applied)) ||
             ctx.pres.some((ev) => (
                 ev &&
                 ev.type === 'SPAWN' &&
@@ -3277,9 +3180,6 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                 case 'clone_selected':
                     if (ev.applied) push(`複製の意志: ${_toPosText(ev.target)}から${_detailCount(ev)}個を生成`);
                     break;
-                case 'split_selected':
-                    if (ev.applied) push(`分裂の意志: ${_toPosText(ev.target)}から${_detailCount(ev)}個を生成（持続ターン半減）`);
-                    break;
                 case 'board_expansion_first_selected':
                     if (ev.applied) push(`盤面拡張神: 1つ目に${_toPosText(ev.target)}を選択`);
                     break;
@@ -3465,7 +3365,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }
 
         // Attempt to pass the current game PRNG (when available in browser env) to ensure deterministic rule logic
-        const runtimePrng = (typeof getGamePrng === 'function') ? getGamePrng() : (typeof globalThis !== 'undefined' && typeof globalThis.getGamePrng === 'function') ? globalThis.getGamePrng() : undefined;
+        const runtimePrng = (typeof getGamePrng === 'function') ? getGamePrng() : (typeof globalThis !== 'undefined' && typeof globalThis.getGamePrng === 'function') ? globalThis.getGamePrng() : undefined; // globalThis — UI/bootstrap dependency
         const result = (typeof turnPipeline.applyTurnSafe === 'function')
             ? turnPipeline.applyTurnSafe(cardState, gameState, playerKey, action, runtimePrng, options)
             : turnPipeline.applyTurn(cardState, gameState, playerKey, action, runtimePrng, options);
@@ -3543,13 +3443,4 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    return {
-        mapToPlaybackEvents,
-        normalizePlaybackEvents,
-        appendSoundEffectPlaybackEvents,
-        mapEffectLogsFromPipeline,
-        mapNormalLogsFromPipeline,
-        clearDeferredGeneratedThrowChainPlayback,
-        runTurnWithAdapter
-    };
 export = { mapToPlaybackEvents, normalizePlaybackEvents, appendSoundEffectPlaybackEvents, mapEffectLogsFromPipeline, mapNormalLogsFromPipeline, clearDeferredGeneratedThrowChainPlayback, runTurnWithAdapter };

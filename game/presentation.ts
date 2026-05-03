@@ -9,7 +9,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 let warnedNoBoardOps = false;
 function emitPresentationEvent(cardState, ev) {
     try {
-        const root = (typeof globalThis !== 'undefined' ? globalThis : undefined);
+        const root = (typeof globalThis !== 'undefined' ? globalThis : undefined); // globalThis — bootstrap DI
         if (root && root.BoardOps && typeof root.BoardOps.emitPresentationEvent === 'function') {
             root.BoardOps.emitPresentationEvent(cardState, ev);
             return true;
@@ -36,14 +36,15 @@ function emitPresentationEvent(cardState, ev) {
 }
 function flushPersistedEvents() {
     try {
-        const root = (typeof globalThis !== 'undefined' ? globalThis : undefined);
+        const root = (typeof globalThis !== 'undefined' ? globalThis : undefined); // globalThis — bootstrap DI
         if (!(root && root.BoardOps && typeof root.BoardOps.emitPresentationEvent === 'function'))
             return false;
         let flushedCount = 0;
         const cardStateRef = root && root.cardState ? root.cardState : null;
-        if (typeof globalThis.CardLogic !== 'undefined' && typeof globalThis.CardLogic.flushPresentationEvents === 'function') {
-            try {
-                const events = globalThis.CardLogic.flushPresentationEvents(cardStateRef) || [];
+        try {
+            const CardLogic = _require('./logic/cards');
+            if (CardLogic && typeof CardLogic.flushPresentationEvents === 'function') {
+                const events = CardLogic.flushPresentationEvents(cardStateRef) || [];
                 for (const ev of events) {
                     try {
                         root.BoardOps.emitPresentationEvent(cardStateRef, ev);
@@ -52,8 +53,8 @@ function flushPersistedEvents() {
                 }
                 flushedCount += events.length;
             }
-            catch (_e) { /* ignore and continue */ }
         }
+        catch (_e) { /* ignore and continue */ }
         if (cardStateRef && Array.isArray(cardStateRef._presentationEventsPersist) && cardStateRef._presentationEventsPersist.length) {
             const persisted = cardStateRef._presentationEventsPersist.slice();
             cardStateRef._presentationEventsPersist.length = 0;

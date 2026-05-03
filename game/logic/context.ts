@@ -6,6 +6,18 @@
 
 import { CardState } from '../../src/types';
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+function _require(id: string): any {
+    if (typeof __non_webpack_require__ !== 'undefined') {
+        return __non_webpack_require__(id);
+    }
+    if (typeof require === 'function') {
+        return require(id);
+    }
+    throw new Error('Unable to require ' + id);
+}
+
 interface MarkerData {
     row: number;
     col: number;
@@ -32,16 +44,19 @@ interface SafeCardContext {
 
 function mapBombMarkers(cardState: CardState | null | undefined): MarkerData[] {
     if (!cardState) return [];
-    if (typeof (globalThis as any).MarkersAdapter !== 'undefined' && (globalThis as any).MarkersAdapter && typeof (globalThis as any).MarkersAdapter.getBombMarkers === 'function') {
-        return (globalThis as any).MarkersAdapter.getBombMarkers(cardState).map((m: any) => ({
-            row: m.row,
-            col: m.col,
-            remainingTurns: m.data ? m.data.remainingTurns : undefined,
-            owner: m.owner,
-            placedTurn: m.data ? m.data.placedTurn : undefined,
-            createdSeq: m.createdSeq
-        }));
-    }
+    try {
+        const MarkersAdapter = _require('./markers_adapter');
+        if (MarkersAdapter && typeof MarkersAdapter.getBombMarkers === 'function') {
+            return MarkersAdapter.getBombMarkers(cardState).map((m: any) => ({
+                row: m.row,
+                col: m.col,
+                remainingTurns: m.data ? m.data.remainingTurns : undefined,
+                owner: m.owner,
+                placedTurn: m.data ? m.data.placedTurn : undefined,
+                createdSeq: m.createdSeq
+            }));
+        }
+    } catch (_e) { /* ignore */ }
     return [];
 }
 
@@ -69,22 +84,13 @@ function getSafeCardContext(
     permaProtectedStones?: Array<{row: number; col: number}>
 ): SafeCardContext {
     // Prefer CardLogic when available
-    if (typeof (globalThis as any).CardLogic !== 'undefined' && (globalThis as any).CardLogic && typeof (globalThis as any).CardLogic.getCardContext === 'function') {
-        try {
-            return (globalThis as any).CardLogic.getCardContext(cardState);
-        } catch (e: any) {
-            console.warn('[getSafeCardContext] CardLogic.getCardContext threw — falling back to safe context:', e && e.message);
+    try {
+        const cardsImpl = _require('./cards');
+        if (cardsImpl && typeof cardsImpl.getCardContext === 'function') {
+            return cardsImpl.getCardContext(cardState);
         }
-    }
-
-    // Try requiring the local game logic implementation
-    if (typeof require === 'function') {
-        try {
-            const cardsImpl = require('./cards');
-            if (cardsImpl && typeof cardsImpl.getCardContext === 'function') {
-                return cardsImpl.getCardContext(cardState);
-            }
-        } catch (_e) { /* ignore */ }
+    } catch (e: any) {
+        console.warn('[getSafeCardContext] CardLogic.getCardContext threw — falling back to safe context:', e && e.message);
     }
 
     // Last-resort safe fallback

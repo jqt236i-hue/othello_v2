@@ -67,24 +67,10 @@ const isEdgeCell = (BoardUtils && typeof BoardUtils.isEdgeCell === 'function')
     };
 
 function resolveCpuLv6SharedProfile() {
-    try {
-        if (typeof globalThis !== 'undefined' && globalThis.CPU_LV6_SHARED_PROFILE && typeof globalThis.CPU_LV6_SHARED_PROFILE === 'object') {
-            return globalThis.CPU_LV6_SHARED_PROFILE;
-        }
-    } catch (e) { /* ignore */ }
     return sharedProfile && typeof sharedProfile === 'object' ? sharedProfile : null;
 }
 
 function resolveCpuLv6RuntimeCapabilityModule() {
-    try {
-        if (
-            typeof globalThis !== 'undefined' &&
-            globalThis.CpuLv6RuntimeCapability &&
-            typeof globalThis.CpuLv6RuntimeCapability.resolveCpuLv6BrowserRuntimeCapability === 'function'
-        ) {
-            return globalThis.CpuLv6RuntimeCapability;
-        }
-    } catch (e) { /* ignore */ }
     return CpuLv6RuntimeCapabilityModule && typeof CpuLv6RuntimeCapabilityModule === 'object'
         ? CpuLv6RuntimeCapabilityModule
         : null;

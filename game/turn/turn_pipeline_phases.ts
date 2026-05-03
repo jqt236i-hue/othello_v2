@@ -7,19 +7,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
-    const MarkersAdapter = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../logic/markers_adapter');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.MarkersAdapter || null;
-    })();
+    const MarkersAdapter = (() => { try { return _require('../logic/markers_adapter'); } catch (e) { return null; } })();
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
     function isBombCategoryMarker(marker) {
         if (MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
@@ -32,45 +20,9 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             marker.data.category === 'bomb'
         );
     }
-    const CardUtilsModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../logic/cards/utils');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.CardUtils || null;
-    })();
-    const SharedConstantsModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../../shared-constants');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.SharedConstants || null;
-    })();
-    const DestroyOutcomeContract = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../../shared/destroy-outcome-contract');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.DestroyOutcomeContract || null;
-    })();
+    const CardUtilsModule = (() => { try { return _require('../logic/cards/utils'); } catch (e) { return null; } })();
+    const SharedConstantsModule = (() => { try { return _require('../../shared-constants'); } catch (e) { return null; } })();
+    const DestroyOutcomeContract = (() => { try { return _require('../../shared/destroy-outcome-contract'); } catch (e) { return null; } })();
     const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
         DESTROYED: 'destroyed',
         REGENERATED: 'regenerated',
@@ -187,46 +139,10 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
     const CHARGE_MAX = Number.isFinite(Number(SharedConstantsModule && SharedConstantsModule.CHARGE_MAX))
         ? Number(SharedConstantsModule.CHARGE_MAX)
         : 99;
-    const OwnerHelpersModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('../../utils/owner-helpers');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.OwnerHelpers || null;
-    })();
+    const OwnerHelpersModule = (() => { try { return _require('../../utils/owner-helpers'); } catch (e) { return null; } })();
 
-    const PhaseHelpersModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./turn_pipeline_phase_helpers');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.TurnPipelinePhaseHelpers || null;
-    })();
-    const PendingCoordinatorModule = (() => {
-        if (typeof require === 'function') {
-            try {
-                return require('./pending-coordinator');
-            } catch (e) {
-                return null;
-            }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.PendingCoordinator || null;
-    })();
+    const PhaseHelpersModule = (() => { try { return _require('./turn_pipeline_phase_helpers'); } catch (e) { return null; } })();
+    const PendingCoordinatorModule = (() => { try { return _require('./pending-coordinator'); } catch (e) { return null; } })();
 
     const FALLBACK_OBSERVER_BUBBLE_SPEECH = Object.freeze({
         placeLines: Object.freeze(['観測最高！']),
@@ -2575,7 +2491,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
     function resolveSafeCardContext(CardLogic, cardState) {
         let ctx = null;
         try {
-            const ctxHelper = (typeof require === 'function') ? require('../logic/context') : (typeof globalThis !== 'undefined' ? globalThis.GameLogicContext : null);
+            const ctxHelper = (() => { try { return _require('../logic/context'); } catch (e) { return null; } })();
             if (ctxHelper && typeof ctxHelper.getSafeCardContext === 'function') {
                 ctx = ctxHelper.getSafeCardContext(cardState);
             }
@@ -3088,28 +3004,6 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                 return;
             } else if (pending && pending.type === 'CLONE_WILL' && action.cloneTarget == null) {
                 throw new Error('CLONE_WILL requires cloneTarget before placement');
-            }
-            if (pending && pending.type === 'SPLIT_WILL' && action.splitTarget) {
-                const res = CardLogic.applySplitWill(
-                    cardState,
-                    gameState,
-                    playerKey,
-                    action.splitTarget.row,
-                    action.splitTarget.col,
-                    prng
-                );
-                events.push({
-                    type: 'split_selected',
-                    player: playerKey,
-                    target: action.splitTarget,
-                    applied: !!(res && res.applied),
-                    details: (res && Array.isArray(res.spawned)) ? res.spawned : [],
-                    spawned: (res && Array.isArray(res.spawned)) ? res.spawned : [],
-                    durationChanges: (res && Array.isArray(res.durationChanges)) ? res.durationChanges : []
-                });
-                return;
-            } else if (pending && pending.type === 'SPLIT_WILL' && action.splitTarget == null) {
-                throw new Error('SPLIT_WILL requires splitTarget before placement');
             }
             if (pending && (pending.type === 'BOARD_EXPANSION_WILL' || pending.type === 'BOARD_EXPANSION_GOD') && action.expansionTarget) {
                 const isGodExpansion = pending.type === 'BOARD_EXPANSION_GOD';

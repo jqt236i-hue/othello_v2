@@ -279,7 +279,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
     function isEnabled() {
         try {
             if (typeof globalThis !== 'undefined') {
-                const forced = toBool(globalThis.CPU_TALK_ENABLED);
+                const forced = toBool(globalThis.CPU_TALK_ENABLED); // @compat - test flag
                 if (forced !== null) return forced;
             }
         } catch (e) { /* ignore */ }
@@ -437,17 +437,9 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         if (fallbackCardTypeMap) return fallbackCardTypeMap;
         fallbackCardTypeMap = {};
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.CARD_TYPE_BY_ID && typeof globalThis.CARD_TYPE_BY_ID === 'object') {
-                fallbackCardTypeMap = Object.assign({}, globalThis.CARD_TYPE_BY_ID);
-                return fallbackCardTypeMap;
-            }
-        } catch (e) { /* ignore */ }
-        try {
-            if (typeof require === 'function') {
-                const Shared = require('../../shared-constants');
-                if (Shared && Shared.CARD_TYPE_BY_ID) {
-                    fallbackCardTypeMap = Object.assign({}, Shared.CARD_TYPE_BY_ID);
-                }
+            const Shared = _require('../../shared-constants');
+            if (Shared && Shared.CARD_TYPE_BY_ID) {
+                fallbackCardTypeMap = Object.assign({}, Shared.CARD_TYPE_BY_ID);
             }
         } catch (e) { /* ignore */ }
         return fallbackCardTypeMap;
@@ -459,8 +451,9 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         if (!cardId) return '';
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.CardLogic && typeof globalThis.CardLogic.getCardType === 'function') {
-                const t = globalThis.CardLogic.getCardType(cardId);
+            const CardLogic = _require('../logic/cards');
+            if (CardLogic && typeof CardLogic.getCardType === 'function') {
+                const t = CardLogic.getCardType(cardId);
                 if (typeof t === 'string' && t) return t;
             }
         } catch (e) { /* ignore */ }

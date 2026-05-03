@@ -8,13 +8,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 (function () {
 let Engine = null;
 
-if (typeof require === 'function') {
-    try { Engine = require('./fixed-commentary-engine'); } catch (e) { Engine = null; }
-}
-
-if (!Engine && typeof globalThis !== 'undefined') {
-    Engine = globalThis.FixedCommentaryEngine || null;
-}
+try { Engine = _require('./fixed-commentary-engine'); } catch (e) { Engine = null; }
 
 const fallback = {
     isEnabled: () => false,
@@ -32,7 +26,7 @@ if (typeof module !== 'undefined' && module.exports) {
 
 try {
     if (typeof globalThis !== 'undefined') {
-        globalThis.CpuCommentaryRuntime = Api;
+        globalThis.CpuCommentaryRuntime = Api; // @compat - backward-compat export
     }
 } catch (e) { /* ignore */ }
 })();

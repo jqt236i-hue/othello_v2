@@ -615,7 +615,6 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (type === 'SUPER_BUOYANCY_WILL' && !requireLocalTargets(context, 'getSuperBuoyancyTargets', [cardState, gameState], 1)) continue;
             if (type === 'SUPER_GRAVITY_WILL' && !requireLocalTargets(context, 'getSuperGravityTargets', [cardState, gameState], 1)) continue;
             if (type === 'CLONE_WILL' && !requireLocalTargets(context, 'getCloneTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'SPLIT_WILL' && !requireLocalTargets(context, 'getSplitTargets', [cardState, gameState, playerKey], 1)) continue;
 
             if (type === 'POSITION_SWAP_WILL') {
                 const getOccupiedBoardShapeCellsForCard = helpers.getOccupiedBoardShapeCellsForCard;
@@ -648,7 +647,6 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (type === 'TELEPORT_WILL' && !requireModuleTargets(context, 'getTeleportTargets', [cardState, gameState], 1)) continue;
             if (type === 'CELL_TELEPORT_WILL' && !requireModuleTargets(context, 'getCellTeleportTargets', [cardState, gameState], 1)) continue;
             if (type === 'CLONE_WILL' && !requireModuleTargets(context, 'getCloneTargets', [cardState, gameState, playerKey], 1)) continue;
-            if (type === 'SPLIT_WILL' && !requireModuleTargets(context, 'getSplitTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'BOARD_EXPANSION_GOD' && !requireModuleTargets(context, 'getBoardExpansionGodTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'BOARD_SHRINK_WILL' && !requireModuleTargets(context, 'getBoardShrinkTargets', [cardState, gameState, playerKey], 3)) continue;
             if (type === 'BOARD_SHRINK_GOD' && !requireModuleTargets(context, 'getBoardShrinkGodTargets', [cardState, gameState, playerKey], 1)) continue;

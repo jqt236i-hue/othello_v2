@@ -26,39 +26,26 @@ try {
     SharedBoardUtilsModule = _require('../../shared/shared-board-utils');
 } catch (e) { /* ignore */ }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../shared-constants')
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+const SharedConstants = (() => {
+    try { return _require('../../shared-constants'); } catch (e) { return undefined; }
+})();
 
 const { EMPTY } = SharedConstants || {};
 const BoardUtils = SharedBoardUtilsModule || null;
 
-function getGlobalScope(): any {
-    return (typeof globalThis !== 'undefined')
-        ? globalThis
-        : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-}
-
 function getCardExpansionModule(): any {
-    if (CardExpansionModule) return CardExpansionModule;
-    const globalScope = getGlobalScope();
-    return globalScope.CardExpansion || null;
+    return CardExpansionModule || null;
 }
 
 function getCardMarkersModule(): any {
-    if (CardMarkersModule) return CardMarkersModule;
-    const globalScope = getGlobalScope();
-    return globalScope.CardMarkers || null;
+    return CardMarkersModule || null;
 }
 
 function getSpecialStoneRegistryModule(): any {
-    if (typeof require === 'function') {
-        try {
-            return _require('../../shared/special-stone-registry');
-        } catch (e) { /* ignore */ }
-    }
-    const globalScope = getGlobalScope();
-    return globalScope.SpecialStoneRegistry || null;
+    try {
+        return _require('../../shared/special-stone-registry');
+    } catch (e) { /* ignore */ }
+    return null;
 }
 
 function isOverlayOnlySpecialStoneType(type: string): boolean {
@@ -71,66 +58,44 @@ function isOverlayOnlySpecialStoneType(type: string): boolean {
 }
 
 function getCardRegenModule(): any {
-    if (typeof require === 'function') {
-        try {
-            return _require('./cards/regen');
-        } catch (e) {
-            // Browser globals are checked below.
-        }
-    }
-    const globalScope = getGlobalScope();
-    return globalScope.CardRegen || null;
+    try {
+        return _require('./cards/regen');
+    } catch (e) { /* ignore */ }
+    return null;
 }
 
 function getCardLivingWillModule(): any {
-    if (typeof require === 'function') {
-        try {
-            return _require('./cards/living_will');
-        } catch (e) {
-            // Browser globals are checked below.
-        }
-    }
-    const globalScope = getGlobalScope();
-    return globalScope.CardLivingWill || null;
+    try {
+        return _require('./cards/living_will');
+    } catch (e) { /* ignore */ }
+    return null;
 }
 
 const MarkersAdapter = ((): any => {
-    if (typeof require === 'function') {
-        try {
-            return _require('./markers_adapter');
-        } catch (e) {
-            return null;
-        }
+    try {
+        return _require('./markers_adapter');
+    } catch (e) {
+        return null;
     }
-    const globalScope = getGlobalScope();
-    return globalScope.MarkersAdapter || null;
 })();
 
 const MARKER_KINDS = (CardMarkersModule && CardMarkersModule.MARKER_KINDS)
     || (MarkersAdapter && MarkersAdapter.MARKER_KINDS);
 
 const DestroyOutcomeContract = ((): any => {
-    if (typeof require === 'function') {
-        try {
-            return _require('../../shared/destroy-outcome-contract');
-        } catch (e) {
-            return null;
-        }
+    try {
+        return _require('../../shared/destroy-outcome-contract');
+    } catch (e) {
+        return null;
     }
-    const globalScope = getGlobalScope();
-    return globalScope.DestroyOutcomeContract || null;
 })();
 
 const StoneStatusSnapshot = ((): any => {
-    if (typeof require === 'function') {
-        try {
-            return _require('../../shared/stone-status-snapshot');
-        } catch (e) {
-            return null;
-        }
+    try {
+        return _require('../../shared/stone-status-snapshot');
+    } catch (e) {
+        return null;
     }
-    const globalScope = getGlobalScope();
-    return globalScope.StoneStatusSnapshot || null;
 })();
 
 const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS)
@@ -181,7 +146,7 @@ function createDestroyOutcome(kindOrResult: string | any, details?: any): any {
 function isBoardOpsDebugEnabled(cardState: any): boolean {
     if (cardState && cardState.debugBoardOpsLog === true) return true;
     try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_BOARDOPS_LOG === true) return true;
+        if (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_BOARDOPS_LOG === true) return true; // globalThis — test-only debug flag
     } catch (e) { /* ignore */ }
     return false;
 }

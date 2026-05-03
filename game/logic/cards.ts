@@ -403,7 +403,7 @@ const {
     function isWorkDebugEnabled(cardState: any) {
         if (cardState && cardState.debugWorkLog === true) return true;
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.DEBUG_WORK_LOG === true) return true;
+            if (typeof globalThis !== 'undefined' && globalThis.DEBUG_WORK_LOG === true) return true; // globalThis — test-only debug flag
         } catch (e) { /* ignore */ }
         return false;
     }
@@ -609,7 +609,9 @@ const {
     }
 
     const CardExpansionModule = (function() { try { return _require('./cards/expansion'); } catch (e) { return null; } })();
-    const CardMarkersModule = (function() { try { return _require('./cards/markers'); } catch (e) { return null; } })();
+    const CardMarkersModule = (function() {
+        try { return _require('./cards/markers'); } catch (e) { return null; }
+    })();
     /** @type {any} */
     const CardMovementModule = (function() { try { return _require('./cards/movement'); } catch (e) { return null; } })();
     /** @type {any} */
@@ -1291,7 +1293,9 @@ const {
     const CardSelectorsModule = (function() { try { return _require('./cards/selectors'); } catch (e) { return null; } })();
     const CardUsagePrechecksModule = (function() { try { return _require('./cards-internal/card-usage-prechecks'); } catch (e) { return null; } })();
     const CardSelectorOrchestratorModule = (function() { try { return _require('./cards-internal/selector-orchestrator'); } catch (e) { return null; } })();
-    const CardHandManagerModule = (function() { try { return _require('./cards-internal/hand-manager'); } catch (e) { return null; } })();
+    const CardHandManagerModule = (function() {
+        try { return _require('./cards-internal/hand-manager'); } catch (e) { return null; }
+    })();
     const CardEffectTimingModule = (function() { try { return _require('./cards-internal/effect-timing'); } catch (e) { return null; } })();
     const CardWorkModule = (function() { try { return _require('./cards/work_will'); } catch (e) { return null; } })();
     let CardEffectTimingModules = null;
@@ -2506,7 +2510,6 @@ const {
             getTeleportTargets,
             getCellTeleportTargets,
             getCloneTargets,
-            getSplitTargets,
             getPositionSwapTargets: (nextCardState, nextGameState, nextPlayerKey) => getSelectableTargets({
                 ...nextCardState,
                 pendingEffectByPlayer: {
@@ -2822,13 +2825,6 @@ const {
     function getCloneTargets(cardState: any, gameState: any, playerKey: any) {
         if (TargetResolver && typeof TargetResolver.getCloneTargets === 'function') {
             return TargetResolver.getCloneTargets(cardState, gameState, playerKey);
-        }
-        return [];
-    }
-
-    function getSplitTargets(cardState: any, gameState: any, playerKey: any) {
-        if (TargetResolver && typeof TargetResolver.getSplitTargets === 'function') {
-            return TargetResolver.getSplitTargets(cardState, gameState, playerKey);
         }
         return [];
     }
@@ -3444,117 +3440,6 @@ const {
             };
         }
         return null;
-    }
-
-    function applySplitWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
-        if (CardCloneModule && typeof CardCloneModule.applySplitWill === 'function') {
-            return CardCloneModule.applySplitWill(cardState, gameState, playerKey, row, col, prng, {
-                getSplitTargets,
-                getCellValueForCard,
-                getSpecialMarkers,
-                getBombMarkers,
-                collectEmptyNeighborCellsForCard,
-                spawnAt: BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function'
-                    ? BoardOpsModule.spawnAt
-                    : null,
-                setCellValueForCard,
-                addMarker
-            });
-        }
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'SPLIT_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-
-        const targets = getSplitTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        const sourceVal = getCellValueForCard(gameState, row, col);
-        const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        if (sourceVal !== playerVal) return { applied: false, reason: 'not_owner_stone' };
-
-        const sourceSpecials = getSpecialMarkers(cardState).filter(m => m && m.row === row && m.col === col);
-        const sourceBombs = getBombMarkers(cardState).filter(m => m && m.row === row && m.col === col);
-
-        const spawnTargets = collectEmptyNeighborCellsForCard(cardState, gameState, row, col);
-
-        if (!spawnTargets.length) return { applied: false, reason: 'no_space' };
-
-        const randomIndex = resolveDeterministicRandomIndex(
-            spawnTargets.length,
-            prng,
-            null,
-            'CardLogic.applySplitWill'
-        );
-        const selectedTarget = spawnTargets[randomIndex] || spawnTargets[0];
-
-        const spawned = [];
-        const target = selectedTarget;
-        if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
-            const spawnResult = BoardOpsModule.spawnAt(cardState, gameState, target.row, target.col, playerKey, 'SPLIT_WILL', 'split_spawn', {
-                fromRow: row,
-                fromCol: col,
-                cloneVisual: true
-            });
-            if (!spawnResult || spawnResult.spawned !== true) {
-                return {
-                    applied: false,
-                    reason: (spawnResult && typeof spawnResult.reason === 'string' && spawnResult.reason)
-                        ? spawnResult.reason
-                        : 'spawn_failed'
-                };
-            }
-        } else {
-            const wroteCell = setCellValueForCard(gameState, target.row, target.col, playerVal);
-            if (wroteCell !== true) return { applied: false, reason: 'spawn_failed' };
-        }
-
-        const durationChanges = [];
-        for (const sm of sourceSpecials) {
-            const owner = sm.owner === 'white' ? 'white' : 'black';
-            const sourceData = cloneMarkerData(sm.data || {});
-            const duration = halveDurationOnMarkerDataForSplit(sourceData, 'specialStone');
-            sm.data = sourceData;
-            addMarker(cardState, 'specialStone', target.row, target.col, owner, cloneMarkerData(sourceData));
-            if (duration) {
-                durationChanges.push({
-                    row,
-                    col,
-                    owner,
-                    special: sourceData.type || null,
-                    durationKey: duration.durationKey,
-                    previousDuration: duration.previousDuration,
-                    nextDuration: duration.nextDuration
-                });
-            }
-        }
-        for (const bm of sourceBombs) {
-            const owner = bm.owner === 'white' ? 'white' : 'black';
-            const sourceData = cloneMarkerData(bm.data || {});
-            const duration = halveDurationOnMarkerDataForSplit(sourceData, MARKER_CATEGORIES.BOMB);
-            bm.data = sourceData;
-            addMarker(cardState, 'specialStone', target.row, target.col, owner, Object.assign(
-                {},
-                cloneMarkerData(sourceData),
-                { category: MARKER_CATEGORIES.BOMB, type: (sourceData && sourceData.type) || 'TIME_BOMB' }
-            ));
-            if (duration) {
-                durationChanges.push({
-                    row,
-                    col,
-                    owner,
-                    special: 'TIME_BOMB',
-                    durationKey: duration.durationKey,
-                    previousDuration: duration.previousDuration,
-                    nextDuration: duration.nextDuration
-                });
-            }
-        }
-        spawned.push({ row: target.row, col: target.col });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, source: { row, col }, spawned, durationChanges };
     }
 
     function applyBoardExpansionWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
@@ -4502,7 +4387,6 @@ const {
             getTeleportTargets,
             getCellTeleportTargets,
             getCloneTargets,
-            getSplitTargets,
             getReinforcementWillTargets,
             getOccupiedBoardShapeCellsForCard,
             getBoardExpansionTargets,
@@ -5871,7 +5755,6 @@ const cardsApi: any = {
         applyTeleportWill,
         applyCellTeleportWill,
         applyCloneWill,
-        applySplitWill,
         applyBoardExpansionWill,
         applyBoardExpansionGod,
         applyBoardShrinkWill,
@@ -5945,7 +5828,6 @@ const cardsApi: any = {
         getTeleportTargets,
         getCellTeleportTargets,
         getCloneTargets,
-        getSplitTargets,
         getBreedingTargets,
         getBoardExpansionTargets,
         getBoardExpansionGodTargets,

@@ -28,9 +28,4 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { setTimerImpl, waitMs, requestFrame, hasTimerImpl };
 }
 
-    // Global fallback (without touching DOM APIs)
-if (typeof globalThis !== 'undefined') {
-    try { globalThis.GameTimers = { setTimerImpl, waitMs, requestFrame, hasTimerImpl }; } catch (e) { /* ignore */ }
-}
-
 export {};
