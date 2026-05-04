@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -14,29 +13,29 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 
 
-let BoardUtils = null;
+let BoardUtils: any = null;
 if (typeof require === 'function') {
-    try { BoardUtils = require('../cpu-decision-board-utils'); } catch (e) { /* ignore */ }
+    try { BoardUtils = require('../cpu-decision-board-utils'); } catch (e: any) { /* ignore */ }
 }
 
-let sharedProfile = null;
+let sharedProfile: any = null;
 if (typeof require === 'function') {
-    try { sharedProfile = require('../../constants/cpu-lv6-shared-profile.js'); } catch (e) { /* ignore */ }
+    try { sharedProfile = require('../../constants/cpu-lv6-shared-profile.js'); } catch (e: any) { /* ignore */ }
 }
 
-let CpuPolicyCore = null;
+let CpuPolicyCore: any = null;
 if (typeof require === 'function') {
-    try { CpuPolicyCore = require('./cpu-policy-core'); } catch (e) { /* ignore */ }
+    try { CpuPolicyCore = require('./cpu-policy-core'); } catch (e: any) { /* ignore */ }
 }
 
-let CpuLv6RuntimeCapabilityModule = null;
+let CpuLv6RuntimeCapabilityModule: any = null;
 if (typeof require === 'function') {
-    try { CpuLv6RuntimeCapabilityModule = require('../../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
+    try { CpuLv6RuntimeCapabilityModule = require('../../shared/cpu-lv6-runtime-capability'); } catch (e: any) { /* ignore */ }
 }
 
 const countBoardEmpties = (BoardUtils && typeof BoardUtils.countBoardEmpties === 'function')
     ? BoardUtils.countBoardEmpties
-    : function countBoardEmptiesFallback(board) {
+    : function countBoardEmptiesFallback(board: any) {
         if (!Array.isArray(board)) return 0;
         let empties = 0;
         for (let r = 0; r < board.length; r++) {
@@ -50,7 +49,7 @@ const countBoardEmpties = (BoardUtils && typeof BoardUtils.countBoardEmpties ===
 
 const isCornerCell = (BoardUtils && typeof BoardUtils.isCornerCell === 'function')
     ? BoardUtils.isCornerCell
-    : function isCornerCellFallback(row, col, board) {
+    : function isCornerCellFallback(row: any, col: any, board: any) {
         if (!Array.isArray(board) || board.length <= 0) return false;
         const maxRow = board.length - 1;
         const maxCol = Array.isArray(board[0]) ? board[0].length - 1 : maxRow;
@@ -59,7 +58,7 @@ const isCornerCell = (BoardUtils && typeof BoardUtils.isCornerCell === 'function
 
 const isEdgeCell = (BoardUtils && typeof BoardUtils.isEdgeCell === 'function')
     ? BoardUtils.isEdgeCell
-    : function isEdgeCellFallback(row, col, board) {
+    : function isEdgeCellFallback(row: any, col: any, board: any) {
         if (!Array.isArray(board) || board.length <= 0) return false;
         const maxRow = board.length - 1;
         const maxCol = Array.isArray(board[0]) ? board[0].length - 1 : maxRow;
@@ -98,10 +97,10 @@ function resolveCpuLv6TeacherProfile() {
         : null;
 }
 
-function normalizeTeacherLookaheadOverrides(runtimeOverrides) {
+function normalizeTeacherLookaheadOverrides(runtimeOverrides: any) {
     if (!runtimeOverrides || typeof runtimeOverrides !== 'object') return null;
 
-    const normalized = {};
+    const normalized: any = {};
     if (Number.isFinite(runtimeOverrides.tacticalDepthOpening)) {
         normalized.tacticalDepthOpening = Math.max(1, Math.floor(Number(runtimeOverrides.tacticalDepthOpening)));
     }
@@ -118,7 +117,7 @@ function normalizeTeacherLookaheadOverrides(runtimeOverrides) {
     return Object.keys(normalized).length > 0 ? normalized : null;
 }
 
-function resolveLv6LookaheadTimeCaps(playerKey, runtimeMode) {
+function resolveLv6LookaheadTimeCaps(playerKey: any, runtimeMode: any) {
     const isWhite = String(playerKey || '') === 'white';
     const mode = String(runtimeMode || '').trim().toLowerCase();
     if (mode === 'teacher') {
@@ -173,7 +172,7 @@ function resolveLv6LookaheadTimeCaps(playerKey, runtimeMode) {
     };
 }
 
-function buildLv6LookaheadOptions(level, board, legalMovesCount, playerKey, runtimeMode, runtimeOverrides) {
+function buildLv6LookaheadOptions(level: any, board: any, legalMovesCount: any, playerKey: any, runtimeMode: any, runtimeOverrides: any) {
     if (!Number.isFinite(level) || level < 6) return {};
     const mode = String(runtimeMode || '').trim().toLowerCase();
     const teacherProfile = mode === 'teacher' ? resolveCpuLv6TeacherProfile() : null;
@@ -353,12 +352,12 @@ function resolveLv6LookaheadWeights() {
     };
 }
 
-function isSameMoveByCoord(a, b) {
+function isSameMoveByCoord(a: any, b: any) {
     if (!a || !b) return false;
     return Number(a.row) === Number(b.row) && Number(a.col) === Number(b.col);
 }
 
-function resolveCandidateMoveByCoord(candidateMoves, move) {
+function resolveCandidateMoveByCoord(candidateMoves: any, move: any) {
     if (!Array.isArray(candidateMoves) || !move) return null;
     for (const one of candidateMoves) {
         if (isSameMoveByCoord(one, move)) return one;
@@ -366,7 +365,7 @@ function resolveCandidateMoveByCoord(candidateMoves, move) {
     return null;
 }
 
-function getBoardBonusValueAt(row, col, boardBonusByCell, boardBonusConsumedByCell) {
+function getBoardBonusValueAt(row: any, col: any, boardBonusByCell: any, boardBonusConsumedByCell: any) {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return 0;
     const key = `${row},${col}`;
     if (boardBonusConsumedByCell && boardBonusConsumedByCell[key] === true) return 0;
@@ -374,7 +373,7 @@ function getBoardBonusValueAt(row, col, boardBonusByCell, boardBonusConsumedByCe
     return Number.isFinite(raw) && raw > 0 ? raw : 0;
 }
 
-function shouldRespectPendingPlacementPlanStrictly(pendingType) {
+function shouldRespectPendingPlacementPlanStrictly(pendingType: any) {
     if (!pendingType || !CpuPolicyCore || typeof CpuPolicyCore.getMovePlanProfileForCardType !== 'function') {
         return false;
     }
@@ -396,7 +395,7 @@ function shouldRespectPendingPlacementPlanStrictly(pendingType) {
     );
 }
 
-function maybeOverrideWithStrictPendingPlacement(selectedMove, candidateMoves, pendingType, movePlanScoreFn, board, boardBonusByCell, boardBonusConsumedByCell) {
+function maybeOverrideWithStrictPendingPlacement(selectedMove: any, candidateMoves: any, pendingType: any, movePlanScoreFn: any, board: any, boardBonusByCell: any, boardBonusConsumedByCell: any) {
     if (!selectedMove || !Array.isArray(candidateMoves) || candidateMoves.length <= 1) return selectedMove;
     if (typeof movePlanScoreFn !== 'function') return selectedMove;
     if (!shouldRespectPendingPlacementPlanStrictly(pendingType)) return selectedMove;

@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -8,7 +7,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 (function () {
 let Engine = null;
 
-try { Engine = _require('./fixed-commentary-engine'); } catch (e) { Engine = null; }
+try { Engine = _require('./fixed-commentary-engine'); } catch (e: any) { Engine = null; }
 
 const fallback = {
     isEnabled: () => false,
@@ -26,9 +25,9 @@ if (typeof module !== 'undefined' && module.exports) {
 
 try {
     if (typeof globalThis !== 'undefined') {
-        globalThis.CpuCommentaryRuntime = Api; // @compat - backward-compat export
+        (globalThis as any).CpuCommentaryRuntime = Api; // @compat - backward-compat export
     }
-} catch (e) { /* ignore */ }
+} catch (e: any) { /* ignore */ }
 })();
 
 export {};

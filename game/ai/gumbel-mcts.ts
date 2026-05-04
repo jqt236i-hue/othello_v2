@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * @file gumbel-mcts.ts
  * @description Gumbel AlphaZero MCTS with Sequential Halving.

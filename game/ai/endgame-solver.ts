@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 function _require(id: string): any {
@@ -25,6 +24,10 @@ function _require(id: string): any {
 
 
 class EndgameSolver {
+    maxDepth: number;
+    transpositionTable: Map<string, any>;
+    nodeCount: number;
+
     constructor(maxDepth = 20) {
         this.maxDepth = maxDepth;
         this.transpositionTable = new Map();
@@ -40,14 +43,14 @@ class EndgameSolver {
      * @param {object} gameInterface
      * @returns {{value: number, bestAction: object|null}}
      */
-    solve(state, cardState, playerKey, gameInterface) {
+    solve(state: any, cardState: any, playerKey: any, gameInterface: any) {
         this.transpositionTable.clear();
         this.nodeCount = 0;
         const result = this._solveRecursive(state, cardState, playerKey, gameInterface, 0, -Infinity, Infinity);
         return result;
     }
 
-    _solveRecursive(state, cardState, playerKey, gameInterface, depth, alpha, beta) {
+    _solveRecursive(state: any, cardState: any, playerKey: any, gameInterface: any, depth: any, alpha: any, beta: any): any {
         this.nodeCount++;
 
         // Check terminal
@@ -80,7 +83,7 @@ class EndgameSolver {
         }
 
         let bestValue = -Infinity;
-        let bestAction = null;
+        let bestAction: any = null;
 
         // Move ordering: try captures and corners first
         const orderedActions = this._orderMoves(actions, state, playerKey, gameInterface);
@@ -108,9 +111,9 @@ class EndgameSolver {
         return result;
     }
 
-    _orderMoves(actions, state, playerKey, gameInterface) {
+    _orderMoves(actions: any, state: any, playerKey: any, gameInterface: any) {
         // Simple move ordering: corners first, then edges, then others
-        const scored = actions.map(action => {
+        const scored = actions.map((action: any) => {
             let score = 0;
             if (action.type === 'place') {
                 const { row, col } = action;
@@ -128,11 +131,11 @@ class EndgameSolver {
             }
             return { action, score };
         });
-        scored.sort((a, b) => b.score - a.score);
-        return scored.map(s => s.action);
+        scored.sort((a: any, b: any) => b.score - a.score);
+        return scored.map((s: any) => s.action);
     }
 
-    _heuristicEvaluate(state, cardState, playerKey, gameInterface) {
+    _heuristicEvaluate(state: any, cardState: any, playerKey: any, gameInterface: any) {
         // Simple heuristic: disc difference normalized
         if (gameInterface.getDiscCounts) {
             const counts = gameInterface.getDiscCounts(state);
@@ -143,7 +146,7 @@ class EndgameSolver {
         return 0;
     }
 
-    _hashState(state, cardState, playerKey) {
+    _hashState(state: any, cardState: any, playerKey: any) {
         const boardStr = JSON.stringify(state && state.board);
         const chargeStr = cardState ? JSON.stringify(cardState.charge) : '';
         return `${boardStr}|${chargeStr}|${playerKey}`;
@@ -151,6 +154,11 @@ class EndgameSolver {
 }
 
 class HybridSolver {
+    mcts: any;
+    solver: EndgameSolver;
+    emptiesThreshold: number;
+    gameInterface: any;
+
     /**
      * @param {object} opts
      * @param {object} opts.mctsModel
@@ -158,7 +166,7 @@ class HybridSolver {
      * @param {number} [opts.emptiesThreshold]
      * @param {object} opts.gameInterface
      */
-    constructor({ mctsModel, endgameSolver, emptiesThreshold = 15, gameInterface }) {
+    constructor({ mctsModel, endgameSolver, emptiesThreshold = 15, gameInterface }: { mctsModel: any; endgameSolver: any; emptiesThreshold?: number; gameInterface: any }) {
         this.mcts = mctsModel;
         this.solver = endgameSolver;
         this.emptiesThreshold = emptiesThreshold;
@@ -172,7 +180,7 @@ class HybridSolver {
      * @param {string} playerKey
      * @returns {Promise<object>} Best action
      */
-    async search(state, cardState, playerKey) {
+    async search(state: any, cardState: any, playerKey: any) {
         const empties = this._countEmptyCells(state);
         const cardsRemaining = this._countCardsRemaining(cardState);
 
@@ -186,7 +194,7 @@ class HybridSolver {
         return this.mcts.search(state, cardState, playerKey);
     }
 
-    _countEmptyCells(state) {
+    _countEmptyCells(state: any) {
         if (!state || !state.board) return 0;
         let count = 0;
         for (const row of state.board) {
@@ -197,7 +205,7 @@ class HybridSolver {
         return count;
     }
 
-    _countCardsRemaining(cardState) {
+    _countCardsRemaining(cardState: any) {
         if (!cardState || !cardState.deck) return 0;
         let count = 0;
         for (const player of ['black', 'white']) {

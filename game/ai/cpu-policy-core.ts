@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -393,7 +392,7 @@ const LOW_CHARGE_DESTROY_MAX_CHARGE = 50;
 
 // Explicit per-card baseline bias so every catalog card type is scored intentionally.
 // Positive: generally usable/safer. Negative: volatile or high opportunity cost.
-const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
+const CARD_TYPE_BASE_SCORE_BONUS: Record<string, number> = Object.freeze({
     BLOCKADE_WILL: 8,
     BOARD_EXPANSION_GOD: -3,
     BOARD_EXPANSION_WILL: -2,
@@ -568,7 +567,7 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
 
 // Per-card deltas layered on top of the broad role groups above so all active card
 // types can be tuned explicitly without duplicating the whole group matrix.
-const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
+const CARD_TYPE_USAGE_STYLE_OVERRIDES: Record<string, any> = Object.freeze({
     BLOCKADE_WILL: { lowMobilityBias: 4, endgameBias: 4, cornerNowBias: -2 },
     BOARD_EXPANSION_GOD: { trailingBias: 6, handPressureBias: 6, cornerNowBias: -6 },
     BOARD_EXPANSION_WILL: { trailingBias: 4, handPressureBias: 4, cornerNowBias: -6 },
@@ -852,7 +851,7 @@ function buildCardTypeUsageStyle() {
 
 const CARD_TYPE_USAGE_STYLE = buildCardTypeUsageStyle();
 
-const CARD_MOVE_PLAN_ARCHETYPE_BASE = Object.freeze({
+const CARD_MOVE_PLAN_ARCHETYPE_BASE: Record<string, any> = Object.freeze({
     anchorProtect: Object.freeze({
         placementWeight: 2,
         cornerBias: 3,
@@ -967,7 +966,7 @@ const CARD_MOVE_PLAN_ARCHETYPE_BASE = Object.freeze({
     })
 });
 
-const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
+const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES: Record<string, any> = Object.freeze({
     BLOCKADE_WILL: { archetype: 'controlBoard', placementWeight: 0, oppAdjBias: 2, emptyAdjBias: 1 },
     BOARD_EXPANSION_GOD: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 4, edgeBias: 3, emptyAdjBias: 3 },
     BOARD_EXPANSION_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 2, edgeBias: 4, emptyAdjBias: 3 },
@@ -1363,7 +1362,7 @@ function buildCardDecisionContext(context: any) {
         if (!Number.isFinite(ctx.ownEdges)) ownEdges = edgeStat.ownEdges;
         if (!Number.isFinite(ctx.oppEdges)) oppEdges = edgeStat.oppEdges;
     }
-    if (!Number.isFinite(empties)) empties = 0;
+    if (empties === null) empties = 0;
     if (!Number.isFinite(ownDiscs) || !Number.isFinite(oppDiscs)) {
         const est = estimateOwnOppDiscs(discDiff, empties, totalCells);
         if (!Number.isFinite(ownDiscs)) ownDiscs = est.own;
@@ -1460,7 +1459,7 @@ function scoreCardUseDecision(cardId: any, cardDef: any, context: any) {
         score += 10;
     }
 
-    const shouldUse = score > (ctx.minUseScore || 0);
+    const shouldUse = score > ((ctx as any).minUseScore || 0);
     return { score, shouldUse };
 }
 
@@ -1489,10 +1488,10 @@ function scoreMoveHeuristic(move: any, context: any) {
     const ctx = buildCardDecisionContext(context);
     let score = flips * 100;
 
-    if (ctx.isCorner) score += 1000;
-    if (ctx.isEdge) score += 500;
-    if (ctx.isXSquare) score -= 300;
-    if (ctx.isCSquare) score -= 150;
+    if ((ctx as any).isCorner) score += 1000;
+    if ((ctx as any).isEdge) score += 500;
+    if ((ctx as any).isXSquare) score -= 300;
+    if ((ctx as any).isCSquare) score -= 150;
 
     return score;
 }

@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -13,21 +12,21 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  * This is intentionally small and self-contained: it picks the first legal move
  * and does not mutate UI or rule state.
  */
-(function (root) {
+(function (root: any) {
     const AISystem = {
-        selectMove(gameState, cardState, candidateMoves, level = 1, ctx = null) {
+        selectMove(gameState: any, cardState: any, candidateMoves: any, level = 1, ctx: any = null) {
             if (!candidateMoves || !candidateMoves.length) return null;
             // deterministic: choose first candidate move
             return candidateMoves[0];
         },
-        selectCardToUse(cardState, gameState, playerKey, level, legalMoves, ctx) {
+        selectCardToUse(cardState: any, gameState: any, playerKey: any, level: any, legalMoves: any, ctx: any) {
             // default: do not use a card
             return null;
         }
     };
 
     // Expose to global (browser) for script-tag builds
-    try { if (typeof root !== 'undefined' && typeof root.AISystem === 'undefined') root.AISystem = AISystem; } catch (e) { /* ignore */ }
+    try { if (typeof root !== 'undefined' && typeof root.AISystem === 'undefined') root.AISystem = AISystem; } catch (e: any) { /* ignore */ }
 
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = AISystem;

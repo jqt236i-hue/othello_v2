@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
@@ -112,7 +111,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         })
     });
 
-    let fallbackCardTypeMap = null;
+    let fallbackCardTypeMap: any = null;
 
     function createPlayerState() {
         return {
@@ -134,7 +133,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         };
     }
 
-    function normalizeSpeakerRole(value) {
+    function normalizeSpeakerRole(value: any) {
         try {
             if (CommentaryRuntimeHelpers && typeof CommentaryRuntimeHelpers.normalizeSpeakerRole === 'function') {
                 return CommentaryRuntimeHelpers.normalizeSpeakerRole(value, 'cpu');
@@ -143,11 +142,11 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return String(value || '').trim().toLowerCase() === 'hero' ? 'hero' : 'cpu';
     }
 
-    function buildSpeakerStateKey(speakerRole, playerKey) {
+    function buildSpeakerStateKey(speakerRole: any, playerKey: any) {
         return `${normalizeSpeakerRole(speakerRole)}:${normalizePlayerKey(playerKey)}`;
     }
 
-    function getSpeakerState(speakerRole, playerKey) {
+    function getSpeakerState(speakerRole: any, playerKey: any) {
         const stateKey = buildSpeakerStateKey(speakerRole, playerKey);
         if (!perSpeakerState[stateKey]) {
             perSpeakerState[stateKey] = createPlayerState();
@@ -163,7 +162,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         }
     }
 
-    function clampCornerCount(value) {
+    function clampCornerCount(value: any) {
         const num = Number(value);
         if (!Number.isFinite(num)) return 0;
         if (num <= 0) return 0;
@@ -171,7 +170,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return Math.floor(num);
     }
 
-    function classifyCornerGainEvent(isOwnSide, streak, reachedAll, reachedFirst) {
+    function classifyCornerGainEvent(isOwnSide: any, streak: any, reachedAll: any, reachedFirst: any) {
         if (isOwnSide) {
             if (reachedAll) return 'corner_all_owned';
             if (reachedFirst) return 'corner_first_owned';
@@ -186,7 +185,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return '';
     }
 
-    function resolveCornerEventType(playerState, corners) {
+    function resolveCornerEventType(playerState: any, corners: any) {
         const ownNow = clampCornerCount(corners && corners.own);
         const oppNow = clampCornerCount(corners && corners.opp);
 
@@ -236,25 +235,25 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return eventType;
     }
 
-    function isCornerOwnedEventType(eventType) {
+    function isCornerOwnedEventType(eventType: any) {
         return eventType === 'corner_first_owned' ||
             eventType === 'corner_streak_two_owned' ||
             eventType === 'corner_streak_three_owned' ||
             eventType === 'corner_all_owned';
     }
 
-    function isCornerLostEventType(eventType) {
+    function isCornerLostEventType(eventType: any) {
         return eventType === 'corner_first_lost' ||
             eventType === 'corner_streak_two_lost' ||
             eventType === 'corner_streak_three_lost' ||
             eventType === 'corner_all_lost';
     }
 
-    function isCornerEventType(eventType) {
+    function isCornerEventType(eventType: any) {
         return isCornerOwnedEventType(eventType) || isCornerLostEventType(eventType);
     }
 
-    function toBool(value) {
+    function toBool(value: any) {
         if (value === true || value === 1 || value === '1') return true;
         if (value === false || value === 0 || value === '0') return false;
         if (typeof value === 'string') {
@@ -265,7 +264,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return null;
     }
 
-    function readQueryFlag(name) {
+    function readQueryFlag(name: any) {
         try {
             if (typeof location === 'undefined' || !location.search) return null;
             const params = new URLSearchParams(location.search);
@@ -279,7 +278,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
     function isEnabled() {
         try {
             if (typeof globalThis !== 'undefined') {
-                const forced = toBool(globalThis.CPU_TALK_ENABLED); // @compat - test flag
+                const forced = toBool((globalThis as any).CPU_TALK_ENABLED); // @compat - test flag
                 if (forced !== null) return forced;
             }
         } catch (e) { /* ignore */ }
@@ -292,7 +291,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return !!config.enabled;
     }
 
-    function setConfig(nextConfig) {
+    function setConfig(nextConfig: any) {
         if (!nextConfig || typeof nextConfig !== 'object') return getStatus();
         Object.assign(config, nextConfig);
         return getStatus();
@@ -309,7 +308,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         };
     }
 
-    function normalizePlayerKey(value) {
+    function normalizePlayerKey(value: any) {
         try {
             if (CommentaryContextHelpers && typeof CommentaryContextHelpers.normalizePlayerKey === 'function') {
                 return CommentaryContextHelpers.normalizePlayerKey(value, 'white');
@@ -323,7 +322,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return value === 'black' ? 'black' : 'white';
     }
 
-    function normalizePhase(value, turnNumber, occupiedCells) {
+    function normalizePhase(value: any, turnNumber: any, occupiedCells: any) {
         const key = String(value || '').toLowerCase();
         if (key === 'opening' || key === 'middle' || key === 'endgame') return key;
         const turn = Number(turnNumber || 0);
@@ -344,13 +343,13 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return 3;
     }
 
-    function normalizeCpuCommentaryLevel(value) {
+    function normalizeCpuCommentaryLevel(value: any) {
         const raw = Number(value);
         if (!Number.isFinite(raw)) return getDefaultCpuCommentaryLevel();
         return Math.max(1, Math.floor(raw));
     }
 
-    function resolveCpuCommentaryTier(level) {
+    function resolveCpuCommentaryTier(level: any) {
         try {
             if (DB && typeof DB.resolveCpuCommentaryTier === 'function') {
                 const resolved = DB.resolveCpuCommentaryTier(level);
@@ -364,7 +363,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return 'goblin';
     }
 
-    function resolveCpuCommentaryLevel(context) {
+    function resolveCpuCommentaryLevel(context: any) {
         const ctx = context && typeof context === 'object' ? context : {};
         return normalizeCpuCommentaryLevel(
             ctx.level !== undefined ? ctx.level
@@ -372,7 +371,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         );
     }
 
-    function countCornersFromBoard(board, playerKey) {
+    function countCornersFromBoard(board: any, playerKey: any) {
         if (!Array.isArray(board) || board.length < 8) return { own: 0, opp: 0 };
         const ownVal = playerKey === 'black' ? 1 : -1;
         const oppVal = -ownVal;
@@ -389,14 +388,14 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return { own, opp };
     }
 
-    function normalizeCounts(context) {
+    function normalizeCounts(context: any) {
         const counts = context && context.counts ? context.counts : {};
         const black = Number.isFinite(Number(counts.black)) ? Number(counts.black) : 0;
         const white = Number.isFinite(Number(counts.white)) ? Number(counts.white) : 0;
         return { black, white };
     }
 
-    function normalizeCorners(context, playerKey) {
+    function normalizeCorners(context: any, playerKey: any) {
         const corners = context && context.corners ? context.corners : null;
         if (corners && Number.isFinite(Number(corners.own)) && Number.isFinite(Number(corners.opp))) {
             return { own: Number(corners.own), opp: Number(corners.opp) };
@@ -407,7 +406,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return { own: 0, opp: 0 };
     }
 
-    function resolveAdvantage(context, playerKey, counts, corners) {
+    function resolveAdvantage(context: any, playerKey: any, counts: any, corners: any) {
         const direct = String(context && context.advantage || '').toLowerCase();
         if (direct === 'ahead' || direct === 'behind' || direct === 'even') return direct;
 
@@ -445,7 +444,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return fallbackCardTypeMap;
     }
 
-    function resolveCardType(context) {
+    function resolveCardType(context: any) {
         if (context && context.cardType) return String(context.cardType);
         const cardId = context && context.cardId ? String(context.cardId) : '';
         if (!cardId) return '';
@@ -462,14 +461,14 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return map[cardId] || '';
     }
 
-    function pushRecent(playerState, line) {
+    function pushRecent(playerState: any, line: any) {
         playerState.recent.push(line);
         if (playerState.recent.length > config.recentKeep) {
             playerState.recent.splice(0, playerState.recent.length - config.recentKeep);
         }
     }
 
-    function pickRandomLine(playerState, lines) {
+    function pickRandomLine(playerState: any, lines: any) {
         const pool = (Array.isArray(lines) ? lines : []).filter((line) => typeof line === 'string' && line.trim());
         if (!pool.length) return '';
 
@@ -482,7 +481,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return line;
     }
 
-    function pickRandomLineFromPools(playerState, pools) {
+    function pickRandomLineFromPools(playerState: any, pools: any) {
         const recentSet = new Set(playerState.recent || []);
         const allPools = [];
         const freshPools = [];
@@ -504,7 +503,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return pickRandomLine(playerState, selected);
     }
 
-    function sanitize(line, maxChars) {
+    function sanitize(line: any, maxChars: any) {
         const text = String(line || '').replace(/\s+/g, ' ').trim();
         if (!text) return '';
         const chars = Array.from(text);
@@ -532,9 +531,9 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
             .replace(/[。！!？?]+$/g, '');
     }
 
-    function resolveTonePrefix(eventType, advantage, speakerRole, level) {
+    function resolveTonePrefix(eventType: any, advantage: any, speakerRole: any, level: any) {
         if (speakerRole === 'cpu') {
-            const prefixes = CPU_TONE_PREFIXES[resolveCpuCommentaryTier(level)] || CPU_TONE_PREFIXES.boss;
+            const prefixes = (CPU_TONE_PREFIXES as any)[resolveCpuCommentaryTier(level)] || CPU_TONE_PREFIXES.boss;
             if (eventType === 'card_used') return prefixes.card_used;
             if (eventType === 'card_used_by_enemy') return prefixes.card_used_by_enemy;
             if (eventType === 'card_targeted') return prefixes.card_targeted;
@@ -558,7 +557,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return 'よし、';
     }
 
-    function applyToneConsistency(line, eventType, advantage, speakerRole, level) {
+    function applyToneConsistency(line: any, eventType: any, advantage: any, speakerRole: any, level: any) {
         const raw = String(line || '').trim();
         if (!raw) return '';
         const body = raw
@@ -571,7 +570,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return `${prefix}${body}${end}`;
     }
 
-    function resolveEventType(context, playerState, discDiff) {
+    function resolveEventType(context: any, playerState: any, discDiff: any) {
         let eventType = String(context && context.eventType || 'turn_start').toLowerCase();
         if (eventType === 'card_used_by_enemy') return eventType;
         if (eventType === 'card_used') return eventType;
@@ -590,7 +589,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return 'turn_start';
     }
 
-    function isAdvantageReversed(playerState, currentAdvantage) {
+    function isAdvantageReversed(playerState: any, currentAdvantage: any) {
         const prev = String(playerState && playerState.lastAdvantage || '').toLowerCase();
         const next = String(currentAdvantage || '').toLowerCase();
         if (!prev || !next) return false;
@@ -599,7 +598,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return false;
     }
 
-    function shouldEmitRegularTurnLine(playerState, turnNumber) {
+    function shouldEmitRegularTurnLine(playerState: any, turnNumber: any) {
         const intervalRaw = Number(config.regularTurnInterval);
         const interval = Math.max(1, Math.floor(Number.isFinite(intervalRaw) ? intervalRaw : 2));
         if (interval <= 1) {
@@ -624,7 +623,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return ((playerState.regularTurnCallCount - 1) % interval) === 0;
     }
 
-    function chooseTurnStartLine(playerState, phase, advantage, level) {
+    function chooseTurnStartLine(playerState: any, phase: any, advantage: any, level: any) {
         if (advantage === 'ahead') {
             return pickCpuPoolLine(
                 playerState,
@@ -643,24 +642,24 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         );
     }
 
-    function resolveLinePool(primaryLines, fallbackLines) {
+    function resolveLinePool(primaryLines: any, fallbackLines: any) {
         if (Array.isArray(primaryLines) && primaryLines.length) return primaryLines;
         if (Array.isArray(fallbackLines) && fallbackLines.length) return fallbackLines;
         return [];
     }
 
-    function resolveLineFactory(primaryFactory, fallbackFactory) {
+    function resolveLineFactory(primaryFactory: any, fallbackFactory: any) {
         if (typeof primaryFactory === 'function') return primaryFactory;
         if (typeof fallbackFactory === 'function') return fallbackFactory;
         return function () { return []; };
     }
 
-    function resolveCpuPool(sharedLines, legacyLines, fallbackLines) {
+    function resolveCpuPool(sharedLines: any, legacyLines: any, fallbackLines: any) {
         if (Array.isArray(sharedLines) && sharedLines.length) return sharedLines;
         return resolveLinePool(legacyLines, fallbackLines);
     }
 
-    function resolveCpuFixedPool(getter, sharedLines, legacyLines, fallbackLines, level) {
+    function resolveCpuFixedPool(getter: any, sharedLines: any, legacyLines: any, fallbackLines: any, level: any) {
         if (typeof getter === 'function') {
             const lines = getter(level);
             if (Array.isArray(lines) && lines.length) return lines;
@@ -668,11 +667,11 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return resolveCpuPool(sharedLines, legacyLines, fallbackLines);
     }
 
-    function pickCpuPoolLine(playerState, lines) {
+    function pickCpuPoolLine(playerState: any, lines: any) {
         return pickRandomLine(playerState, Array.isArray(lines) ? lines : []);
     }
 
-    function chooseHeroLine(playerState, eventType, advantage, context) {
+    function chooseHeroLine(playerState: any, eventType: any, advantage: any, context: any) {
         if (isCornerOwnedEventType(eventType)) {
             return pickRandomLine(
                 playerState,
@@ -704,7 +703,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return pickRandomLine(playerState, resolveLinePool(DB.heroChatterLines, DEFAULT_DATA.heroChatterLines));
     }
 
-    function chooseCpuLine(playerState, eventType, phase, advantage, context, level) {
+    function chooseCpuLine(playerState: any, eventType: any, phase: any, advantage: any, context: any, level: any) {
         if (eventType === 'game_start') {
             return pickCpuPoolLine(
                 playerState,
@@ -781,7 +780,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return chooseTurnStartLine(playerState, phase, advantage, level);
     }
 
-    function buildCommentary(context) {
+    function buildCommentary(context: any) {
         const ctx = context && typeof context === 'object' ? context : {};
         const playerKey = normalizePlayerKey(ctx.playerKey);
         const speakerRole = normalizeSpeakerRole(ctx.speakerRole);
@@ -836,7 +835,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return sanitize(unified, Number(config.maxChars));
     }
 
-    function requestCommentary(context) {
+    function requestCommentary(context: any) {
         if (!isEnabled()) return Promise.resolve(null);
         const line = buildCommentary(context || {});
         return Promise.resolve(line || null);
