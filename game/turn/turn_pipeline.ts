@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * @file turn_pipeline.ts
  * @description Pure turn driver used by headless tests.

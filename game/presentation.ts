@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -7,9 +6,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 
 "use strict";
 let warnedNoBoardOps = false;
-function emitPresentationEvent(cardState, ev) {
+function emitPresentationEvent(cardState: any, ev: any): boolean {
     try {
-        const root = (typeof globalThis !== 'undefined' ? globalThis : undefined); // globalThis — bootstrap DI
+        const root: any = (typeof globalThis !== 'undefined' ? globalThis : undefined); // globalThis — bootstrap DI
         if (root && root.BoardOps && typeof root.BoardOps.emitPresentationEvent === 'function') {
             root.BoardOps.emitPresentationEvent(cardState, ev);
             return true;
@@ -34,13 +33,13 @@ function emitPresentationEvent(cardState, ev) {
     catch (_e) { /* ignore persistence failures */ }
     return false;
 }
-function flushPersistedEvents() {
+function flushPersistedEvents(): boolean {
     try {
-        const root = (typeof globalThis !== 'undefined' ? globalThis : undefined); // globalThis — bootstrap DI
+        const root: any = (typeof globalThis !== 'undefined' ? globalThis : undefined); // globalThis — bootstrap DI
         if (!(root && root.BoardOps && typeof root.BoardOps.emitPresentationEvent === 'function'))
             return false;
         let flushedCount = 0;
-        const cardStateRef = root && root.cardState ? root.cardState : null;
+        const cardStateRef: any = root && root.cardState ? root.cardState : null;
         try {
             const CardLogic = _require('./logic/cards');
             if (CardLogic && typeof CardLogic.flushPresentationEvents === 'function') {

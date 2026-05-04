@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * @file cards.ts
  * @description Core Card Logic (Shared between Browser and Headless)
@@ -92,7 +91,7 @@ const {
         return typeUpper === 'GUARD' || typeUpper === 'INHERITED_HYPERACTIVE' || typeUpper === 'LIVING_WILL';
     }
 
-    function resolveCardBoardConfig(boardOrConfig: any) {
+    function resolveCardBoardConfig(boardOrConfig?: any) {
         if (BoardUtils && typeof BoardUtils.resolveBoardConfig === 'function') {
             return BoardUtils.resolveBoardConfig(boardOrConfig);
         }
@@ -157,7 +156,7 @@ const {
         if (BoardUtils && typeof BoardUtils.getOpeningCells === 'function') {
             return BoardUtils.getOpeningCells(boardOrConfig);
         }
-        return getOpeningPlacementsForState(boardOrConfig).map((stone) => ({
+        return getOpeningPlacementsForState(boardOrConfig).map((stone: any) => ({
             row: stone.row,
             col: stone.col
         }));
@@ -165,7 +164,7 @@ const {
 
     function cloneSalvationDestroyedEntries(entries: any) {
         if (!Array.isArray(entries)) return [];
-        return entries.map((entry) => ({
+        return entries.map((entry: any) => ({
             row: entry && entry.row,
             col: entry && entry.col,
             owner: (entry && (entry.owner === 'black' || entry.owner === 'white')) ? entry.owner : null,
@@ -253,7 +252,7 @@ const {
         RAINBOW_STONE: { multiplier: 6, effectFlag: 'rainbowStoneUsed', destroyReason: 'rainbow_stone_sacrifice' },
         SILVER_STONE: { multiplier: 3, effectFlag: 'silverStoneUsed', destroyReason: 'silver_stone_sacrifice' }
     });
-    const ENABLED_CARD_ID_SET = new Set((CARD_DEFS || []).reduce((out, cardDef) => {
+    const ENABLED_CARD_ID_SET = new Set((CARD_DEFS || []).reduce((out: any[], cardDef: any) => {
         if (cardDef && cardDef.id && cardDef.enabled !== false) {
             out.push(cardDef.id);
         }
@@ -313,10 +312,10 @@ const {
     ]);
 
     function buildCardProgressionConfigByType(sequence: any) {
-        return Object.freeze((Array.isArray(sequence) ? sequence : []).reduce((map, entry) => {
-            const cardDef = (CARD_DEFS || []).find((one) => one && one.type === entry.type) || null;
+        return Object.freeze((Array.isArray(sequence) ? sequence : []).reduce((map: any, entry: any) => {
+            const cardDef = (CARD_DEFS || []).find((one: any) => one && one.type === entry.type) || null;
             const nextDef = entry.nextType
-                ? ((CARD_DEFS || []).find((one) => one && one.type === entry.nextType) || null)
+                ? ((CARD_DEFS || []).find((one: any) => one && one.type === entry.nextType) || null)
                 : null;
             map[entry.type] = Object.freeze(Object.assign({}, entry, {
                 infinite: entry.totalPlacements === Infinity || entry.totalChains === Infinity || entry.extraLinks === Infinity,
@@ -333,8 +332,8 @@ const {
 
     const THROW_CHAIN_CONFIG_BY_TYPE = buildCardProgressionConfigByType(THROW_CHAIN_SEQUENCE);
     const CHAIN_WILL_CONFIG_BY_TYPE = buildCardProgressionConfigByType(CHAIN_WILL_SEQUENCE);
-    const CHAIN_WILL_CARD_TYPES = Object.freeze(CHAIN_WILL_SEQUENCE.map((entry) => entry.type));
-    const CHAIN_WILL_CARD_TYPE_SET = new Set(CHAIN_WILL_CARD_TYPES);
+    const CHAIN_WILL_CARD_TYPES = Object.freeze(CHAIN_WILL_SEQUENCE.map((entry: any) => entry.type));
+    const CHAIN_WILL_CARD_TYPE_SET: Set<string> = new Set(CHAIN_WILL_CARD_TYPES);
 
     function getThrowChainConfig(cardType: any) {
         const type = String(cardType || '');
@@ -396,14 +395,14 @@ const {
             const boardConfig = resolveCardBoardConfig(gameState);
             return Math.max(1, boardConfig.rows * boardConfig.cols);
         }
-        const totalCells = board.reduce((sum, row) => sum + (Array.isArray(row) ? row.length : 0), 0);
+        const totalCells = board.reduce((sum: any, row: any) => sum + (Array.isArray(row) ? row.length : 0), 0);
         return Math.max(1, totalCells);
     }
 
     function isWorkDebugEnabled(cardState: any) {
         if (cardState && cardState.debugWorkLog === true) return true;
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.DEBUG_WORK_LOG === true) return true; // globalThis — test-only debug flag
+            if (typeof globalThis !== 'undefined' && (globalThis as { [key: string]: any }).DEBUG_WORK_LOG === true) return true; // globalThis — test-only debug flag
         } catch (e) { /* ignore */ }
         return false;
     }
@@ -418,7 +417,7 @@ const {
         try { if (typeof console !== 'undefined' && console.error) console.error.apply(console, Array.prototype.slice.call(arguments, 1)); } catch (e) { /* ignore */ }
     }
 
-    function destroyAt(cardState: any, gameState: any, row: any, col: any, meta: any) {
+    function destroyAt(cardState: any, gameState: any, row: any, col: any, meta?: any) {
         if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
             const res = BoardOpsModule.destroyAt(
                 cardState,
@@ -446,7 +445,7 @@ const {
         return !!(result && (result.destroyed || result.regenerated || result.livingWillRevived || result.evaded || result.blockedByGhost || result.proliferated));
     }
 
-    function createDestroyOutcome(kindOrResult: any, details: any) {
+    function createDestroyOutcome(kindOrResult?: any, details?: any) {
         if (DestroyOutcomeContract && typeof DestroyOutcomeContract.createDestroyOutcome === 'function') {
             return DestroyOutcomeContract.createDestroyOutcome(kindOrResult, details);
         }
@@ -474,7 +473,7 @@ const {
     // Default methods: shuffle is pass-through (so existing tests that build decks don't break),
     // but random() will throw to force DI of a deterministic PRNG for rule logic.
     const defaultPrng = {
-        shuffle: (array) => array,
+        shuffle: (array: any) => array,
         random: () => {
             throw new Error('PRNG.random() called without injected PRNG. Inject a deterministic PRNG for rule logic.');
         }
@@ -535,7 +534,7 @@ const {
 
     function normalizeInitialDeckCardIds(deckCardIds: any) {
         if (!Array.isArray(deckCardIds)) return null;
-        return deckCardIds.map((cardId, index) => {
+        return deckCardIds.map((cardId: any, index: any) => {
             const normalizedCardId = String(cardId || '').trim();
             if (!normalizedCardId || !ENABLED_CARD_ID_SET.has(normalizedCardId)) {
                 throw new Error(`Invalid initial deck card id at index ${index}: ${normalizedCardId || '(empty)'}`);
@@ -601,7 +600,7 @@ const {
         };
     }
 
-    function setChargeValue(cardState: any, playerKey: any, nextValue: any, reason: any, meta: any) {
+    function setChargeValue(cardState: any, playerKey: any, nextValue: any, reason: any, meta?: any) {
         if (!CardStateManager || typeof CardStateManager.normalizeCharge !== 'function') {
             throw new Error('[cards.js] CardStateManager.normalizeCharge not available');
         }
@@ -651,7 +650,7 @@ const {
     const CardHandEffectsModule = resolveOptionalCardModule('../cards/effects/hand-effects', 'CardHandEffects');
     const CardPositionSwapModule = resolveOptionalCardModule('../cards/effects/position-swap', 'CardPositionSwapEffects');
 
-    function addChargeValue(cardState: any, playerKey: any, amount: any, reason: any, meta: any) {
+    function addChargeValue(cardState: any, playerKey: any, amount: any, reason: any, meta?: any) {
         if (!CardStateManager || typeof CardStateManager.addCharge !== 'function') {
             throw new Error('[cards.js] CardStateManager.addCharge not available');
         }
@@ -741,7 +740,7 @@ const {
     }
 
     function collectTimeStopGodDestroyableOwnStonePositions(cardState: any, gameState: any, playerKey: any) {
-        return collectRiboDestroyableOwnStonePositions(cardState, gameState, playerKey).filter((pos) => {
+        return collectRiboDestroyableOwnStonePositions(cardState, gameState, playerKey).filter((pos: any) => {
             if (!pos) return false;
             if (isFrozenCellForCard(cardState, pos.row, pos.col)) return false;
             const marker = findSpecialMarkerAt(cardState, pos.row, pos.col);
@@ -967,7 +966,7 @@ const {
 
     function collectRandomBoardSpawnablePositions(cardState: any, gameState: any, predicate: any) {
         return getEmptyBoardShapeCellsForCard(cardState, gameState)
-            .filter((cell) => {
+            .filter((cell: any) => {
                 if (!cell) return false;
                 if (isBlockedCell(cardState, cell.row, cell.col, gameState)) return false;
                 if (typeof predicate === 'function' && predicate(cell) !== true) return false;
@@ -986,7 +985,7 @@ const {
         );
         const spawnMetaFactory = (typeof options.spawnMetaFactory === 'function')
             ? options.spawnMetaFactory
-            : ((spawnIndex) => ({
+            : ((spawnIndex: any) =>({
                 owner: playerKey,
                 requestedCount: normalizedRequestedCount,
                 spawnIndex
@@ -1024,7 +1023,7 @@ const {
                         changeCause: cause,
                         changeReason: options.flipReason || 'breeding_flip',
                         BoardOps: {
-                            spawnAt: (innerCardState, innerGameState, row, col, ownerKey, spawnCause, spawnReason) => {
+                            spawnAt: (innerCardState: any, innerGameState: any, row: any, col: any, ownerKey: any, spawnCause: any, spawnReason: any) => {
                                 sharedSpawnCount += 1;
                                 const spawnIndex = sharedSpawnCount;
                                 return BoardOpsModule.spawnAt(
@@ -1038,7 +1037,7 @@ const {
                                     spawnMetaFactory(spawnIndex, { row, col })
                                 );
                             },
-                            changeAt: (innerCardState, innerGameState, row, col, ownerKey, flipCause, flipReason, meta) => (
+                            changeAt: (innerCardState: any, innerGameState: any, row: any, col: any, ownerKey: any, flipCause: any, flipReason: any, meta: any) => (
                                 BoardOpsModule.changeAt(innerCardState, innerGameState, row, col, ownerKey, flipCause, flipReason, meta)
                             )
                         }
@@ -1055,8 +1054,8 @@ const {
             flipped = [];
             for (const target of targets) {
                 if (!target) continue;
-                const spawnIndex = spawned.length + 1;
-                const spawnMeta = spawnMetaFactory(spawnIndex, target);
+                const spawnIndex: number = spawned.length + 1;
+                const spawnMeta: any = spawnMetaFactory(spawnIndex, target);
                 let spawnRes = null;
                 if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
                     spawnRes = BoardOpsModule.spawnAt(
@@ -1119,7 +1118,7 @@ const {
             {
                 normalFlip: true,
                 flipReason: 'equality_will_flip',
-                spawnMetaFactory: (spawnIndex) => ({
+                spawnMetaFactory: (spawnIndex: any) => ({
                     owner: playerKey,
                     requestedCount: EQUALITY_WILL_MAX_SPAWNS,
                     spawnIndex
@@ -1136,7 +1135,7 @@ const {
             [row, col - 1],
             [row, col + 1]
         ];
-        return orthogonal.every((pos) => hasBoardShapeCellForCard(cardState, gameState, pos[0], pos[1]));
+        return orthogonal.every((pos: any) => hasBoardShapeCellForCard(cardState, gameState, pos[0], pos[1]));
     }
 
     function isAdjacentToAnyStoneForReinforcement(cardState: any, gameState: any, row: any, col: any) {
@@ -1165,7 +1164,7 @@ const {
         if (!pending || pending.type !== 'REINFORCEMENT_WILL') {
             return { applied: false, reason: 'not_pending', requestedCount: 0, spawnedCount: 0, spawned: [], flippedCount: 0, flipped: [] };
         }
-        const targetSet = new Set(getReinforcementWillTargets(cardState, gameState, playerKey).map((cell) => `${cell.row},${cell.col}`));
+        const targetSet = new Set(getReinforcementWillTargets(cardState, gameState, playerKey).map((cell: any) => `${cell.row},${cell.col}`));
         if (targetSet.size <= 0) {
             clearCardPendingEffect(cardState, playerKey);
             return { applied: false, reason: 'no_targets', requestedCount: REINFORCEMENT_WILL_SPAWN_COUNT, spawnedCount: 0, spawned: [], flippedCount: 0, flipped: [] };
@@ -1181,8 +1180,8 @@ const {
             {
                 normalFlip: true,
                 flipReason: 'reinforcement_will_flip',
-                targetFilter: (cell) => targetSet.has(`${cell.row},${cell.col}`),
-                spawnMetaFactory: (spawnIndex) => ({
+                targetFilter: (cell: any) => targetSet.has(`${cell.row},${cell.col}`),
+                spawnMetaFactory: (spawnIndex: any) => ({
                     owner: playerKey,
                     requestedCount: REINFORCEMENT_WILL_SPAWN_COUNT,
                     spawnIndex
@@ -1196,7 +1195,7 @@ const {
     function processRiboWillTurnStartEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
         const riboByPlayer = ensureRiboRepaymentsByPlayer(cardState);
         const active = Array.isArray(riboByPlayer[playerKey]) ? riboByPlayer[playerKey] : [];
-        const summary = {
+        const summary: { entries: any[]; totalRepaid: number; totalDestroyed: number; completedCount: number } = {
             entries: [],
             totalRepaid: 0,
             totalDestroyed: 0,
@@ -1221,7 +1220,10 @@ const {
                 ? Number(cardState.charge[playerKey])
                 : 0;
             const remainingAfter = Math.max(0, remainingOwnerTurns - 1);
-            const entry = {
+            const entry: {
+                repaymentAmount: any; shortageDestroyCount: any; remainingOwnerTurnsBefore: number; remainingOwnerTurnsAfter: number;
+                chargeBefore: number; chargeAfter: number; repaid: number; shortage: boolean; destroyed: any[]; destroyedCount: number; completed: boolean;
+            } = {
                 repaymentAmount,
                 shortageDestroyCount,
                 remainingOwnerTurnsBefore: remainingOwnerTurns,
@@ -1298,7 +1300,7 @@ const {
     })();
     const CardEffectTimingModule = (function() { try { return _require('./cards-internal/effect-timing'); } catch (e) { return null; } })();
     const CardWorkModule = (function() { try { return _require('./cards/work_will'); } catch (e) { return null; } })();
-    let CardEffectTimingModules = null;
+    let CardEffectTimingModules: any = null;
 
     function createCardEffectTimingModules() {
         const specialStoneKind = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
@@ -1306,7 +1308,7 @@ const {
             CardWorkModule,
             CardLivingWillModule,
             PlunderWillModule: Object.freeze({
-                applyPlunderWill(cardState, playerKey, flipCount) {
+                applyPlunderWill(cardState: any, playerKey: any, flipCount: any) {
                     const opponentKey = playerKey === 'black' ? 'white' : 'black';
                     const opponentCharge = (cardState && cardState.charge && Number.isFinite(Number(cardState.charge[opponentKey])))
                         ? Number(cardState.charge[opponentKey])
@@ -1322,7 +1324,7 @@ const {
                 }
             }),
             ProtectedNextStoneModule: Object.freeze({
-                applyProtectedNextStone(cardState, playerKey, row, col) {
+                applyProtectedNextStone(cardState: any, playerKey: any, row: any, col: any) {
                     addMarker(cardState, specialStoneKind, row, col, playerKey, {
                         type: 'PROTECTED',
                         expiresForPlayer: playerKey
@@ -1331,7 +1333,7 @@ const {
                 }
             }),
             PermaProtectNextStoneModule: Object.freeze({
-                applyPermaProtectNextStone(cardState, playerKey, row, col) {
+                applyPermaProtectNextStone(cardState: any, playerKey: any, row: any, col: any) {
                     return applyStrongWill(cardState, playerKey, row, col);
                 }
             }),
@@ -1406,7 +1408,7 @@ const {
         return cardState.pendingEffectByPlayer[playerKey];
     }
 
-    function clearCardPendingEffect(cardState: any, playerKey: any, options: any) {
+    function clearCardPendingEffect(cardState: any, playerKey: any, options?: any) {
         if (PendingCoordinatorModule && typeof PendingCoordinatorModule.clearPendingEffect === 'function') {
             const result = PendingCoordinatorModule.clearPendingEffect(cardState, playerKey, options);
             return !!(result && result.ok);
@@ -1604,9 +1606,9 @@ const {
         const colNum = Number(col);
         if (!Number.isInteger(rowNum) || !Number.isInteger(colNum)) return false;
         const isExpansionCell = getExpansionDescriptorsForCard(gameState)
-            .some((desc) => desc && desc.row === rowNum && desc.col === colNum);
+            .some((desc: any) => desc && desc.row === rowNum && desc.col === colNum);
         if (!isExpansionCell && !isMainBoardCellForCard(rowNum, colNum, gameState)) return false;
-        return getBlockingMarkers(cardState).some(m => m.row === rowNum && m.col === colNum);
+        return getBlockingMarkers(cardState).some((m: any) => m.row === rowNum && m.col === colNum);
     }
 
     function toBoardCellKey(row: any, col: any) {
@@ -1624,7 +1626,7 @@ const {
         if (hasMeteorHoleAtForCard(cardState, rowNum, colNum)) return false;
         if (isMainBoardCellForCard(rowNum, colNum, gameState)) return true;
         return getExpansionDescriptorsForCard(gameState)
-            .some((desc) => desc && desc.row === rowNum && desc.col === colNum);
+            .some((desc: any) => desc && desc.row === rowNum && desc.col === colNum);
     }
 
     function getCurrentBoardShapeCellsForCard(cardState: any, gameState: any) {
@@ -1646,17 +1648,17 @@ const {
 
     function getOccupiedBoardShapeCellsForCard(cardState: any, gameState: any) {
         return getCurrentBoardShapeCellsForCard(cardState, gameState)
-            .filter((cell) => getCellValueForCard(gameState, cell.row, cell.col) !== EMPTY);
+            .filter((cell: any) => getCellValueForCard(gameState, cell.row, cell.col) !== EMPTY);
     }
 
     function getEmptyBoardShapeCellsForCard(cardState: any, gameState: any) {
         return getCurrentBoardShapeCellsForCard(cardState, gameState)
-            .filter((cell) => getCellValueForCard(gameState, cell.row, cell.col) === EMPTY);
+            .filter((cell: any) => getCellValueForCard(gameState, cell.row, cell.col) === EMPTY);
     }
 
     function selectRandomEmptyBoardShapeDestination(cardState: any, gameState: any, fromRow: any, fromCol: any, randomSource: any) {
         const candidates = getEmptyBoardShapeCellsForCard(cardState, gameState)
-            .filter((cell) => {
+            .filter((cell: any) => {
                 if (!cell) return false;
                 if (cell.row === fromRow && cell.col === fromCol) return false;
                 return !isBlockedCell(cardState, cell.row, cell.col, gameState);
@@ -1708,7 +1710,7 @@ const {
     function getCurrentCornerCellsForCard(cardState: any, gameState: any) {
         const cells = getCurrentBoardShapeCellsForCard(cardState, gameState);
         if (cells.length === 0) return [];
-        const cellKeys = new Set(cells.map((cell) => toBoardCellKey(cell.row, cell.col)));
+        const cellKeys = new Set(cells.map((cell: any) => toBoardCellKey(cell.row, cell.col)));
         const quadrants = [
             { vertical: -1, horizontal: -1 },
             { vertical: -1, horizontal: 1 },
@@ -1716,7 +1718,7 @@ const {
             { vertical: 1, horizontal: 1 }
         ];
 
-        return cells.filter((cell) => quadrants.some((quadrant) => {
+        return cells.filter((cell: any) => quadrants.some((quadrant: any) => {
             const verticalKey = toBoardCellKey(cell.row + quadrant.vertical, cell.col);
             const horizontalKey = toBoardCellKey(cell.row, cell.col + quadrant.horizontal);
             return !cellKeys.has(verticalKey) && !cellKeys.has(horizontalKey);
@@ -1726,7 +1728,7 @@ const {
     function countOccupiedCornersForPlayer(cardState: any, gameState: any, playerKey: any) {
         const playerValue = playerKey === 'white' ? WHITE : BLACK;
         return getCurrentCornerCellsForCard(cardState, gameState)
-            .reduce((count, cell) => (
+            .reduce((count: any, cell: any) => (
                 getCellValueForCard(gameState, cell.row, cell.col) === playerValue ? count + 1 : count
             ), 0);
     }
@@ -1736,7 +1738,7 @@ const {
         return countOccupiedCornersForPlayer(cardState, gameState, opponentKey);
     }
 
-    function findSpecialMarkerAt(cardState: any, row: any, col: any, type: any, owner: any) {
+    function findSpecialMarkerAt(cardState: any, row: any, col: any, type?: any, owner?: any) {
         return requireCardMarkersMethod('findSpecialMarkerAt')(cardState, row, col, type, owner);
     }
 
@@ -1763,7 +1765,7 @@ const {
         return !!findSpecialMarkerAt(cardState, row, col, 'SEED');
     }
 
-    function removeMarkersAt(cardState: any, row: any, col: any, options: any) {
+    function removeMarkersAt(cardState: any, row: any, col: any, options?: any) {
         return requireCardMarkersMethod('removeMarkersAt')(cardState, row, col, options);
     }
 
@@ -1880,7 +1882,7 @@ const {
             1,
             (baseConfig.rows * baseConfig.cols) - baseBlocked.size
         );
-        const baseBonusTotal = dist.reduce((sum, item) => {
+        const baseBonusTotal = dist.reduce((sum: any, item: any) => {
             const count = Number(item && item.count);
             return sum + (Number.isInteger(count) && count > 0 ? count : 0);
         }, 0);
@@ -1888,7 +1890,7 @@ const {
             cells.length,
             Math.max(0, Math.round((cells.length * baseBonusTotal) / basePlayableCellCount))
         );
-        const validDist = dist.reduce((out, item, index) => {
+        const validDist = dist.reduce((out: any, item: any, index: any) => {
             if (!item) return out;
             const value = Number(item.value);
             const count = Number(item.count);
@@ -1897,8 +1899,8 @@ const {
             out.push({ value, count, index });
             return out;
         }, []);
-        const validDistTotal = validDist.reduce((sum, item) => sum + item.count, 0);
-        const scaledDist = validDist.map((item) => {
+        const validDistTotal = validDist.reduce((sum: any, item: any) => sum + item.count, 0);
+        const scaledDist = validDist.map((item: any) => {
             const exact = validDistTotal > 0 ? ((item.count * targetBonusTotal) / validDistTotal) : 0;
             return {
                 value: item.value,
@@ -1907,8 +1909,8 @@ const {
                 index: item.index
             };
         });
-        let remaining = Math.max(0, targetBonusTotal - scaledDist.reduce((sum, item) => sum + item.count, 0));
-        const priority = scaledDist.slice().sort((a, b) => {
+        let remaining = Math.max(0, targetBonusTotal - scaledDist.reduce((sum: any, item: any) => sum + item.count, 0));
+        const priority = scaledDist.slice().sort((a: any, b: any) => {
             if (b.fraction !== a.fraction) return b.fraction - a.fraction;
             return a.index - b.index;
         });
@@ -1925,7 +1927,7 @@ const {
         prng.shuffle(values);
 
         const assignCount = Math.min(cells.length, values.length);
-        const out = {};
+        const out: Record<string, any> = {};
         for (let i = 0; i < assignCount; i++) {
             const pos = cells[i];
             out[`${pos.row},${pos.col}`] = values[i];
@@ -2082,7 +2084,7 @@ const {
         return CardHandManagerModule.revealCurrentHandToViewer(cardState, viewerKey, ownerKey, getCardHandManagerContext());
     }
 
-    function addCardToHand(cardState: any, playerKey: any, cardId: any, opts: any) {
+    function addCardToHand(cardState: any, playerKey: any, cardId: any, opts?: any) {
         if (!CardStateManager || typeof CardStateManager.addToHand !== 'function') {
             throw new Error('[cards.js] CardStateManager.addToHand not available');
         }
@@ -2192,7 +2194,7 @@ const {
         const specialType = (typeof markerData.type === 'string' && markerData.type)
             ? markerData.type
             : null;
-        return specialType ? (CAPTURE_SOURCE_CARD_TYPE_BY_SPECIAL_TYPE[specialType] || null) : null;
+        return specialType ? ((CAPTURE_SOURCE_CARD_TYPE_BY_SPECIAL_TYPE as Record<string, string | undefined>)[specialType] || null) : null;
     }
 
     function resolveCaptureSourceInfo(markerEntry: any) {
@@ -2432,8 +2434,8 @@ const {
 
     function buildHeavenBlessingOffers(cardIdToExclude: any, prng: any, seedHint: any) {
         const pool = (CARD_DEFS || [])
-            .filter(c => c && c.enabled !== false && c.id && c.id !== cardIdToExclude)
-            .map(c => c.id);
+            .filter((c: any) => c && c.enabled !== false && c.id && c.id !== cardIdToExclude)
+            .map((c: any) => c.id);
         if (pool.length === 0) return [];
 
         const randomSource = (prng && typeof prng.random === 'function')
@@ -2452,7 +2454,7 @@ const {
         if (!cardState || !cardState.hands) return [];
         const opponentKey = playerKey === 'black' ? 'white' : 'black';
         const hand = Array.isArray(cardState.hands[opponentKey]) ? cardState.hands[opponentKey] : [];
-        return hand.map((cardId, handIndex) => ({ handIndex, cardId }));
+        return hand.map((cardId: any, handIndex: any) => ({ handIndex, cardId }));
     }
 
     /**
@@ -2510,7 +2512,7 @@ const {
             getTeleportTargets,
             getCellTeleportTargets,
             getCloneTargets,
-            getPositionSwapTargets: (nextCardState, nextGameState, nextPlayerKey) => getSelectableTargets({
+            getPositionSwapTargets: (nextCardState: any, nextGameState: any, nextPlayerKey: any) => getSelectableTargets({
                 ...nextCardState,
                 pendingEffectByPlayer: {
                     ...(nextCardState.pendingEffectByPlayer || { black: null, white: null }),
@@ -2610,7 +2612,7 @@ const {
         if (delegated.called) return delegated.value;
         const opponentKey = playerKey === 'black' ? 'white' : 'black';
         const res = [];
-        const hasGuardMarkerAt = (row, col) => getSpecialMarkers(cardState).some(m => (
+        const hasGuardMarkerAt = (row: any, col: any) => getSpecialMarkers(cardState).some((m: any) => (
             m &&
             m.row === row &&
             m.col === col &&
@@ -2631,7 +2633,7 @@ const {
 
     function getCaptureWillTargets(cardState: any, gameState: any, playerKey: any) {
         const targets = getTemptWillTargets(cardState, gameState, playerKey);
-        return targets.filter((target) => !!resolveCaptureSourceInfo(getSpecialMarkerAt(cardState, target.row, target.col)));
+        return targets.filter((target: any) => !!resolveCaptureSourceInfo(getSpecialMarkerAt(cardState, target.row, target.col)));
     }
 
     function getTemptTargets(cardState: any, gameState: any, playerKey: any) {
@@ -2756,10 +2758,10 @@ const {
             const row = cell.row;
             const col = cell.col;
             if (getCellValueForCard(gameState, row, col) !== playerVal) continue;
-            const hasBomb = markers.some(m => m && m.row === row && m.col === col && isBombCategoryMarker(m));
+            const hasBomb = markers.some((m: any) => m && m.row === row && m.col === col && isBombCategoryMarker(m));
             if (hasBomb) continue;
             if (isAbsoluteProtectedCell(cardState, row, col)) continue;
-            const hasLivingWill = markers.some(m => (
+            const hasLivingWill = markers.some((m: any) => (
                 m &&
                 m.row === row &&
                 m.col === col &&
@@ -2784,11 +2786,11 @@ const {
         const delegated = callCardSelectorsMethod('getExtendLifeTargets', [cardState, gameState, playerKey]);
         if (delegated.called) return delegated.value;
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const res = [];
+        const res: any[] = [];
         for (const m of markers) {
             if (!m || m.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) continue;
             if (m.owner !== playerKey) continue;
-            const rem = (m.data && Number.isFinite(m.data.remainingOwnerTurns)) ? Number(m.data.remainingOwnerTurns) : null;
+            const rem: any = (m.data && Number.isFinite(m.data.remainingOwnerTurns)) ? Number(m.data.remainingOwnerTurns) : null;
             if (!Number.isFinite(rem) || rem <= 0) continue;
             res.push({ row: m.row, col: m.col });
         }
@@ -2798,10 +2800,10 @@ const {
     // Return targets: all timed special stones that have a numeric remainingOwnerTurns > 0
     function getCorrosionTargets(cardState: any, gameState: any, playerKey: any) {
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const res = [];
+        const res: any[] = [];
         for (const m of markers) {
             if (!m || m.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) continue;
-            const rem = (m.data && Number.isFinite(m.data.remainingOwnerTurns)) ? Number(m.data.remainingOwnerTurns) : null;
+            const rem: any = (m.data && Number.isFinite(m.data.remainingOwnerTurns)) ? Number(m.data.remainingOwnerTurns) : null;
             if (!Number.isFinite(rem) || rem <= 0) continue;
             res.push({ row: m.row, col: m.col });
         }
@@ -2878,18 +2880,18 @@ const {
         if (!gameState || !gameState.board) return [];
 
         const occupied = new Set(
-            getExpansionDescriptorsForCard(gameState).map((cell) => `${cell.row},${cell.col}`)
+            getExpansionDescriptorsForCard(gameState).map((cell: any) => `${cell.row},${cell.col}`)
         );
         const pending = readCardPendingEffect(cardState, playerKey);
         const selectedKeys = new Set(
-            getBoardExpansionGodPendingSelectionsForCard(pending).map((target) => `${target.row},${target.col}`)
+            getBoardExpansionGodPendingSelectionsForCard(pending).map((target: any) => `${target.row},${target.col}`)
         );
 
         const res = [];
         for (const corner of getBoardExpansionGodCornerDescriptorsForCard(gameState)) {
             if (!corner || !Array.isArray(corner.cells)) continue;
             if (selectedKeys.has(`${corner.row},${corner.col}`)) continue;
-            const hasOccupied = corner.cells.some((cell) => occupied.has(`${cell.row},${cell.col}`));
+            const hasOccupied = corner.cells.some((cell: any) => occupied.has(`${cell.row},${cell.col}`));
             if (hasOccupied) continue;
             res.push({ row: corner.row, col: corner.col });
         }
@@ -2944,9 +2946,9 @@ const {
             activeByKey.set(`${cell.row},${cell.col}`, cell);
         }
 
-        const res = [];
+        const res: any[] = [];
         const seen = new Set();
-        const pushCandidate = (row, col, side) => {
+        const pushCandidate = (row: any, col: any, side: any) => {
             const key = `${row},${col}`;
             if (seen.has(key)) return;
             seen.add(key);
@@ -3024,7 +3026,7 @@ const {
             return { applied: false, reason: 'not_pending' };
         }
         const targets = getTrapTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
+        const allowed = targets.some((t: any) => t.row === row && t.col === col);
         if (!allowed) return { applied: false, reason: 'invalid_target' };
         if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
 
@@ -3053,7 +3055,7 @@ const {
                 addChargeWithTotal,
                 clearHandToDiscard,
                 destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
-                    ? (cs, gs, r, c, cause, reason, meta) => BoardOpsModule.destroyAt(cs, gs, r, c, cause, reason, meta)
+                    ? (cs: any, gs: any, r: any, c: any, cause: any, reason: any, meta: any) => BoardOpsModule.destroyAt(cs, gs, r, c, cause, reason, meta)
                     : null,
                 emitPresentationEvent,
                 MARKER_KINDS,
@@ -3065,12 +3067,12 @@ const {
         }
         const opts = options || {};
         const expireOnOwnerTurnStart = !!opts.expireOnOwnerTurnStart;
-        const res = { triggered: [], expired: [], disarmed: [] };
+        const res: { triggered: any[]; expired: any[]; disarmed: any[] } = { triggered: [], expired: [], disarmed: [] };
         if (!cardState || !gameState || !gameState.board) return res;
 
         const P_BLACK = BLACK || 1;
         const P_WHITE = WHITE || -1;
-        const specials = getSpecialMarkers(cardState).filter(m => m && m.data && m.data.type === 'TRAP');
+        const specials = getSpecialMarkers(cardState).filter((m: any) => m && m.data && m.data.type === 'TRAP');
         if (!specials.length) return res;
 
         for (const trap of specials) {
@@ -3217,7 +3219,7 @@ const {
             return { applied: false, reason: 'not_pending' };
         }
         const targets = getGuardTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
+        const allowed = targets.some((t: any) => t.row === row && t.col === col);
         if (!allowed) return { applied: false, reason: 'invalid_target' };
 
         const remainingOwnerTurns = pending.type === 'GUARDIAN_GOD'
@@ -3300,7 +3302,7 @@ const {
             return { applied: false, reason: 'not_pending' };
         }
         const targets = getTimeBombTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
+        const allowed = targets.some((t: any) => t.row === row && t.col === col);
         if (!allowed) return { applied: false, reason: 'invalid_target' };
         if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
         removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone' });
@@ -3348,15 +3350,15 @@ const {
         }
 
         const targets = getCloneTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
+        const allowed = targets.some((t: any) => t.row === row && t.col === col);
         if (!allowed) return { applied: false, reason: 'invalid_target' };
 
         const sourceVal = getCellValueForCard(gameState, row, col);
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         if (sourceVal !== playerVal) return { applied: false, reason: 'not_owner_stone' };
 
-        const sourceSpecials = getSpecialMarkers(cardState).filter(m => m && m.row === row && m.col === col);
-        const sourceBombs = getBombMarkers(cardState).filter(m => m && m.row === row && m.col === col);
+        const sourceSpecials = getSpecialMarkers(cardState).filter((m: any) => m && m.row === row && m.col === col);
+        const sourceBombs = getBombMarkers(cardState).filter((m: any) => m && m.row === row && m.col === col);
 
         const spawnTargets = collectEmptyNeighborCellsForCard(cardState, gameState, row, col);
 
@@ -3555,7 +3557,7 @@ const {
             return { applied: false, reason: 'not_pending' };
         }
         const targets = getMeteorTargets(cardState, gameState, playerKey);
-        const allowed = targets.some(t => t.row === row && t.col === col);
+        const allowed = targets.some((t: any) => t.row === row && t.col === col);
         if (!allowed) return { applied: false, reason: 'invalid_target' };
 
         if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
@@ -3637,16 +3639,16 @@ const {
         const specials = getSpecialMarkers(cardState);
         const guardedCells = new Set(
             specials
-                .filter((marker) => (
+                .filter((marker: any) => (
                     marker &&
                     marker.data &&
                     marker.data.type === 'GUARD' &&
                     Number.isInteger(marker.row) &&
                     Number.isInteger(marker.col)
                 ))
-                .map((marker) => `${marker.row},${marker.col}`)
+                .map((marker: any) => `${marker.row},${marker.col}`)
         );
-        const removableSpecials = specials.filter((marker) => {
+        const removableSpecials = specials.filter((marker: any) => {
             if (!marker) return false;
             if (marker.data && marker.data.type === 'METEOR_HOLE') return false;
             if (marker.data && marker.data.type === 'ABSOLUTE_PROTECTED') return false;
@@ -3654,7 +3656,7 @@ const {
             return !guardedCells.has(`${marker.row},${marker.col}`);
         });
         const bombs = getBombMarkers(cardState);
-        const removableBombs = bombs.filter((marker) => {
+        const removableBombs = bombs.filter((marker: any) => {
             if (!marker) return false;
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
             if (isAbsoluteProtectedCell(cardState, marker.row, marker.col)) return false;
@@ -3673,17 +3675,17 @@ const {
         const specials = getSpecialMarkers(cardState);
         const guardedCells = new Set(
             specials
-                .filter((marker) => (
+                .filter((marker: any) => (
                     marker &&
                     marker.data &&
                     marker.data.type === 'GUARD' &&
                     Number.isInteger(marker.row) &&
                     Number.isInteger(marker.col)
                 ))
-                .map((marker) => `${marker.row},${marker.col}`)
+                .map((marker: any) => `${marker.row},${marker.col}`)
         );
 
-        const removableSpecials = specials.filter((marker) => {
+        const removableSpecials = specials.filter((marker: any) => {
             if (!marker) return false;
             if (marker.data && marker.data.type === 'METEOR_HOLE') return false;
             if (marker.data && marker.data.type === 'ABSOLUTE_PROTECTED') return false;
@@ -3692,19 +3694,19 @@ const {
         });
 
         const bombs = getBombMarkers(cardState);
-        const removableBombs = bombs.filter((marker) => {
+        const removableBombs = bombs.filter((marker: any) => {
             if (!marker) return false;
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
             if (isAbsoluteProtectedCell(cardState, marker.row, marker.col)) return false;
             return !guardedCells.has(`${marker.row},${marker.col}`);
         });
 
-        const removed = removableSpecials.map((marker) => ({
+        const removed = removableSpecials.map((marker: any) => ({
             row: marker.row,
             col: marker.col,
             owner: marker.owner || null,
             type: (marker.data && marker.data.type) || null
-        })).concat(removableBombs.map((marker) => ({
+        })).concat(removableBombs.map((marker: any) => ({
             row: marker.row,
             col: marker.col,
             owner: marker.owner || null,
@@ -3723,7 +3725,7 @@ const {
         }
 
         const specialKind = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
-        cardState.markers = cardState.markers.filter((marker) => {
+        cardState.markers = cardState.markers.filter((marker: any) => {
             if (!(marker && (marker.kind === specialKind || isBombCategoryMarker(marker)))) return true;
             if (!isBombCategoryMarker(marker)) {
                 if (marker.data && marker.data.type === 'METEOR_HOLE') return true;
@@ -3813,7 +3815,7 @@ const {
             {
                 normalFlip: true,
                 flipReason: 'salvation_flip',
-                spawnMetaFactory: (spawnIndex) => ({
+                spawnMetaFactory: (spawnIndex: any) => ({
                     owner: playerKey,
                     requestedCount,
                     spawnIndex
@@ -3987,7 +3989,7 @@ const {
 
     function _getTeleportDestinations(cardState: any, gameState: any) {
         return getEmptyBoardShapeCellsForCard(cardState, gameState)
-            .filter((cell) => !isBlockedCell(cardState, cell.row, cell.col, gameState));
+            .filter((cell: any) => !isBlockedCell(cardState, cell.row, cell.col, gameState));
     }
 
     function _moveMarkersForTeleport(cardState: any, fromRow: any, fromCol: any, toRow: any, toCol: any) {
@@ -4031,7 +4033,7 @@ const {
         if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
 
         const targets = getTeleportTargets(cardState, gameState);
-        const allowed = targets.some(t => t.row === row && t.col === col);
+        const allowed = targets.some((t: any) => t.row === row && t.col === col);
         if (!allowed) return { applied: false, reason: 'invalid_target' };
 
         const destinations = _getTeleportDestinations(cardState, gameState);
@@ -4089,7 +4091,7 @@ const {
         }
 
         const targets = getCellTeleportTargets(cardState, gameState);
-        const allowed = targets.some((target) => target && target.row === row && target.col === col);
+        const allowed = targets.some((target: any) => target && target.row === row && target.col === col);
         if (!allowed) return { applied: false, reason: 'invalid_target' };
 
         const cellValue = getCellValueForCard(gameState, row, col);
@@ -4097,7 +4099,7 @@ const {
         if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
 
         const destinations = getCellTeleportDestinations(cardState, gameState)
-            .filter((target) => !(target && target.row === row && target.col === col));
+            .filter((target: any) => !(target && target.row === row && target.col === col));
         if (!destinations.length) return { applied: false, reason: 'no_destination' };
 
         const index = resolveDeterministicRandomIndex(
@@ -4169,7 +4171,7 @@ const {
         const options = _getStrongWindMoveOptions(cardState, gameState, row, col);
         if (!options.length) return { applied: false, reason: 'no_move_options' };
 
-        const maxDistance = options.reduce((m, o) => Math.max(m, Number(o && o.distance) || 0), 0);
+        const maxDistance = options.reduce((m: any, o: any) => Math.max(m, Number(o && o.distance) || 0), 0);
         const bestOptions = options.filter(o => (Number(o && o.distance) || 0) === maxDistance);
         const pick = bestOptions[resolveDeterministicRandomIndex(
             bestOptions.length,
@@ -4216,7 +4218,7 @@ const {
         if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
 
         const targets = targetGetter ? targetGetter(cardState, gameState) : [];
-        const allowed = targets.some((t) => t && t.row === row && t.col === col);
+        const allowed = targets.some((t: any) => t && t.row === row && t.col === col);
         if (!allowed) return { applied: false, reason: 'invalid_target' };
 
         const plan = _collectVerticalCrushMovePlan(cardState, gameState, row, col, direction);
@@ -4502,7 +4504,7 @@ const {
      * @param {number} flipCount
      * @returns {Object} Applied effects info
      */
-    function addChargeWithTotal(cardState: any, playerKey: any, amount: any, meta: any) {
+    function addChargeWithTotal(cardState: any, playerKey: any, amount: any, meta?: any) {
         if (CardChargeLedgerModule && typeof CardChargeLedgerModule.addChargeWithTotal === 'function') {
             return CardChargeLedgerModule.addChargeWithTotal(cardState, playerKey, amount, getChargeLedgerContext(), meta);
         }
@@ -4545,10 +4547,10 @@ const {
         if (gameState.board[row][col] !== playerVal) return false;
 
         const specials = getSpecialMarkers(cardState);
-        if (specials.some(s => s.row === row && s.col === col)) return false;
+        if (specials.some((s: any) => s.row === row && s.col === col)) return false;
 
         const bombs = getBombMarkers(cardState);
-        if (bombs.some(b => b.row === row && b.col === col)) return false;
+        if (bombs.some((b: any) => b.row === row && b.col === col)) return false;
 
         return true;
     }
@@ -4561,7 +4563,7 @@ const {
                 STRONG_WILL_PROMOTION_OWNER_TURNS
             });
         }
-        const existingMarker = getSpecialMarkers(cardState).find((marker) => (
+        const existingMarker = getSpecialMarkers(cardState).find((marker: any) => (
             marker &&
             marker.row === row &&
             marker.col === col &&
@@ -4596,7 +4598,7 @@ const {
                 addMarker
             });
         }
-        const existingMarker = getSpecialMarkers(cardState).find((marker) => (
+        const existingMarker = getSpecialMarkers(cardState).find((marker: any) => (
             marker &&
             marker.row === row &&
             marker.col === col &&
@@ -4733,10 +4735,10 @@ const {
         const absoluteProtectedStones = context.absoluteProtectedStones || [];
 
         const blockedSet = blockedCells.length
-            ? new Set(blockedCells.map(p => `${p.row},${p.col}`))
+            ? new Set(blockedCells.map((p: any) => `${p.row},${p.col}`))
             : null;
         const absoluteSet = absoluteProtectedStones.length
-            ? new Set(absoluteProtectedStones.map((p) => `${p.row},${p.col}`))
+            ? new Set(absoluteProtectedStones.map((p: any) => `${p.row},${p.col}`))
             : null;
 
         const [dr, dc] = direction;
@@ -4780,8 +4782,8 @@ const {
             return { applied: false, flips: [], direction: null, score: 0 };
         }
 
-        const maxScore = candidates.reduce((max, one) => Math.max(max, Number(one && one.score) || 0), 0);
-        const topCandidates = candidates.filter((one) => (Number(one && one.score) || 0) === maxScore);
+        const maxScore = candidates.reduce((max: any, one: any) => Math.max(max, Number(one && one.score) || 0), 0);
+        const topCandidates = candidates.filter((one: any) => (Number(one && one.score) || 0) === maxScore);
 
         const index = resolveDeterministicRandomIndex(
             topCandidates.length,
@@ -4793,7 +4795,7 @@ const {
 
         return {
             applied: true,
-            flips: (chosen.flips || []).map((pos) => ({ row: pos.row, col: pos.col })),
+            flips: (chosen.flips || []).map((pos: any) => ({ row: pos.row, col: pos.col })),
             direction: chosen.direction ? [chosen.direction[0], chosen.direction[1]] : null,
             score: Number(chosen.score) || 0
         };
@@ -5150,7 +5152,13 @@ const {
             'CardLogic.processObserverWillEffectsAtTurnStartAnchor'
         );
 
-        const result = {
+        const result: {
+            activated: boolean;
+            triggered: boolean;
+            gained: number;
+            remainingOwnerTurns: number | null;
+            expired: any[];
+        } = {
             activated: false,
             triggered: false,
             gained: 0,
@@ -5160,7 +5168,7 @@ const {
 
         if (!cardState || !gameState) return result;
 
-        const marker = getSpecialMarkers(cardState).find((entry) => {
+        const marker = getSpecialMarkers(cardState).find((entry: any) => {
             if (!entry || entry.row !== row || entry.col !== col) return false;
             if (entry.owner !== playerKey) return false;
             const data = entry.data || {};
@@ -5291,9 +5299,9 @@ const {
 
 
     function clearHyperactiveAtPositions(cardState: any, positions: any) {
-        const removeSet = new Set(positions.map(p => `${p.row},${p.col}`));
+        const removeSet = new Set(positions.map((p: any) => `${p.row},${p.col}`));
         if (!cardState || !Array.isArray(cardState.markers)) return;
-        cardState.markers = cardState.markers.filter(m => {
+        cardState.markers = cardState.markers.filter((m: any) => {
             if (m.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) return true;
             if (!m.data || (m.data.type !== 'HYPERACTIVE' && m.data.type !== 'ESCAPE_HYPERACTIVE' && m.data.type !== 'INHERITED_HYPERACTIVE' && m.data.type !== 'EXTREME_HYPERACTIVE' && m.data.type !== 'ROBOT_VACUUM' && m.data.type !== 'GLUTTONOUS' && m.data.type !== 'ULTIMATE_HYPERACTIVE' && m.data.type !== 'SNIPER' && m.data.type !== 'OBSERVER')) return true;
             if (findSpecialMarkerAt(cardState, m.row, m.col, 'GHOST')) return true;
@@ -5399,7 +5407,7 @@ const {
     }
 
     function resolveHyperactiveFlipEvasion(cardState: any, gameState: any, flipCells: any, ownerAfterKey: any, prng: any) {
-        const fallbackFlips = (Array.isArray(flipCells) ? flipCells : []).map((cell) => {
+        const fallbackFlips = (Array.isArray(flipCells) ? flipCells : []).map((cell: any) => {
             if (Array.isArray(cell) && Number.isInteger(cell[0]) && Number.isInteger(cell[1])) {
                 return [cell[0], cell[1]];
             }
@@ -5407,7 +5415,7 @@ const {
                 return [cell.row, cell.col];
             }
             return null;
-        }).filter((cell) => !!cell);
+        }).filter((cell: any) => !!cell);
 
         if (CardHyperactiveModule && typeof CardHyperactiveModule.resolveHyperactiveFlipEvasion === 'function') {
             return CardHyperactiveModule.resolveHyperactiveFlipEvasion(cardState, gameState, fallbackFlips, ownerAfterKey, prng, {

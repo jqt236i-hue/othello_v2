@@ -1,10 +1,9 @@
-// @ts-nocheck
 /**
  * @file regen.js
  * @description REGEN effect helpers (Shared between Browser and Headless)
  */
 
-const CardRegen = (function (root, factory) {
+const CardRegen = (function (root: any, factory: any) {
     if (typeof module === 'object' && module.exports) {
         let CardMarkersModule = null;
         try {
@@ -18,13 +17,13 @@ const CardRegen = (function (root, factory) {
     } else {
         return (root.CardRegen = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardMarkers || null));
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, SharedBoardUtils, CardMarkersModule) {
+}(typeof self !== 'undefined' ? self : {}, function (SharedConstants: any, SharedBoardUtils: any, CardMarkersModule: any) {
     'use strict';
 
     const { BLACK, WHITE, DIRECTIONS, EMPTY } = SharedConstants || {};
     const REGEN_REVIVE_LIMIT = 3;
 
-    function getGlobalScope() {
+    function getGlobalScope(): any {
         return (typeof globalThis !== 'undefined')
             ? globalThis
             : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
@@ -40,7 +39,7 @@ const CardRegen = (function (root, factory) {
         throw new Error('SharedConstants (BLACK/WHITE/DIRECTIONS) required');
     }
 
-    function resolveBoardBounds(gameState) {
+    function resolveBoardBounds(gameState: any) {
         if (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardBounds === 'function') {
             return SharedBoardUtils.resolveBoardBounds(gameState && gameState.board);
         }
@@ -56,7 +55,7 @@ const CardRegen = (function (root, factory) {
         return { minRow: 0, maxRow: board.length - 1, minCol: 0, maxCol };
     }
 
-    function isMainBoardCell(gameState, row, col) {
+    function isMainBoardCell(gameState: any, row: any, col: any) {
         const bounds = resolveBoardBounds(gameState);
         return !!(
             bounds &&
@@ -69,7 +68,7 @@ const CardRegen = (function (root, factory) {
         );
     }
 
-    function resolveExpansionSide(side, row, col, gameState) {
+    function resolveExpansionSide(side: any, row: any, col: any, gameState: any) {
         const bounds = resolveBoardBounds(gameState);
         if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
         if (!bounds) return null;
@@ -80,7 +79,7 @@ const CardRegen = (function (root, factory) {
         return null;
     }
 
-    function getExpansionCellRef(gameState, row, col) {
+    function getExpansionCellRef(gameState: any, row: any, col: any) {
         const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
             ? gameState.boardExpansion
             : null;
@@ -112,7 +111,7 @@ const CardRegen = (function (root, factory) {
         return null;
     }
 
-    function getCellValue(gameState, row, col) {
+    function getCellValue(gameState: any, row: any, col: any) {
         if (isMainBoardCell(gameState, row, col)) {
             return (gameState && Array.isArray(gameState.board) && Array.isArray(gameState.board[row]))
                 ? gameState.board[row][col]
@@ -122,7 +121,7 @@ const CardRegen = (function (root, factory) {
         return ref ? Number(ref.cell.owner) : null;
     }
 
-    function setCellValue(gameState, row, col, value) {
+    function setCellValue(gameState: any, row: any, col: any, value: any) {
         if (isMainBoardCell(gameState, row, col)) {
             if (!gameState || !Array.isArray(gameState.board) || !Array.isArray(gameState.board[row])) return false;
             gameState.board[row][col] = value;
@@ -150,8 +149,8 @@ const CardRegen = (function (root, factory) {
         return true;
     }
 
-    function applyRegenWill(cardState, playerKey, row, col, deps = {}) {
-        const addMarker = deps.addMarker || ((cs, kind, r, c, owner, data) => {
+    function applyRegenWill(cardState: any, playerKey: any, row: any, col: any, deps: any = {}) {
+        const addMarker = deps.addMarker || ((cs: any, kind: any, r: any, c: any, owner: any, data: any) => {
             const cardMarkers = getCardMarkersModule();
             if (cardMarkers && typeof cardMarkers.addMarker === 'function') {
                 cardMarkers.addMarker(cs, kind, r, c, owner, {
@@ -193,7 +192,7 @@ const CardRegen = (function (root, factory) {
         return { applied: true };
     }
 
-    function findActiveRegenMarkerAt(cardState, row, col) {
+    function findActiveRegenMarkerAt(cardState: any, row: any, col: any) {
         const markers = Array.isArray(cardState && cardState.markers) ? cardState.markers : [];
         for (const marker of markers) {
             if (!marker || marker.kind !== 'specialStone' || marker.row !== row || marker.col !== col) continue;
@@ -204,10 +203,10 @@ const CardRegen = (function (root, factory) {
         return null;
     }
 
-    function _getRegenCardContext(cardState, deps = {}) {
+    function _getRegenCardContext(cardState: any, deps: any = {}) {
         const getCardContext = deps.getCardContext || (() => ({
-            protectedStones: (cardState.markers ? cardState.markers.filter(m => m.kind === 'specialStone' && m.data && m.data.type === 'PROTECTED').map(m => ({ row: m.row, col: m.col })) : []),
-            permaProtectedStones: (cardState.markers ? cardState.markers.filter(m => {
+            protectedStones: (cardState.markers ? cardState.markers.filter((m: any) => m.kind === 'specialStone' && m.data && m.data.type === 'PROTECTED').map((m: any) => ({ row: m.row, col: m.col })) : []),
+            permaProtectedStones: (cardState.markers ? cardState.markers.filter((m: any) => {
                 if (!(m && m.kind === 'specialStone' && m.data)) return false;
                 if (m.data.type === 'PERMA_PROTECTED' || m.data.type === 'DRAGON' || m.data.type === 'BREEDING' || m.data.type === 'ULTIMATE_DESTROY_GOD' || m.data.type === 'GUARD') {
                     return true;
@@ -215,23 +214,23 @@ const CardRegen = (function (root, factory) {
                 if (m.data.type !== 'ULTIMATE_HYPERACTIVE') return false;
                 const remaining = Number(m.data.remainingOwnerTurns);
                 return !Number.isFinite(remaining) || remaining > 0;
-            }).map(m => ({ row: m.row, col: m.col })) : [])
+            }).map((m: any) => ({ row: m.row, col: m.col })) : [])
         }));
-        const clearBombAt = deps.clearBombAt || ((cs, r, c) => {
+        const clearBombAt = deps.clearBombAt || ((cs: any, r: any, c: any) => {
             const cardMarkers = getCardMarkersModule();
             if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
                 cardMarkers.removeMarkersAt(cs, r, c, { category: 'bomb' });
                 return;
             }
-            if (cs.markers) cs.markers = cs.markers.filter(m => !(m.kind === 'specialStone' && m.data && m.data.category === 'bomb' && m.row === r && m.col === c));
+            if (cs.markers) cs.markers = cs.markers.filter((m: any) => !(m.kind === 'specialStone' && m.data && m.data.category === 'bomb' && m.row === r && m.col === c));
         });
         const context = getCardContext(cardState);
-        const blockedSet = context.blockedCells ? new Set(context.blockedCells.map(p => `${p.row},${p.col}`)) : null;
-        const protSet = context.protectedStones ? new Set(context.protectedStones.map(p => `${p.row},${p.col}`)) : null;
-        const permaSet = context.permaProtectedStones ? new Set(context.permaProtectedStones.map(p => `${p.row},${p.col}`)) : null;
+        const blockedSet = context.blockedCells ? new Set(context.blockedCells.map((p: any) => `${p.row},${p.col}`)) : null;
+        const protSet = context.protectedStones ? new Set(context.protectedStones.map((p: any) => `${p.row},${p.col}`)) : null;
+        const permaSet = context.permaProtectedStones ? new Set(context.permaProtectedStones.map((p: any) => `${p.row},${p.col}`)) : null;
         return {
             clearBombAt,
-            isBlocked(r, c) {
+            isBlocked(r: any, c: any) {
                 const key = `${r},${c}`;
                 if (blockedSet && blockedSet.has(key)) return true;
                 if (protSet && protSet.has(key)) return true;
@@ -241,7 +240,7 @@ const CardRegen = (function (root, factory) {
         };
     }
 
-    function _removeConsumedRegenMarker(cardState, row, col, owner, deps = {}) {
+    function _removeConsumedRegenMarker(cardState: any, row: any, col: any, owner: any, deps: any = {}) {
         if (typeof deps.removeMarkersAt === 'function') {
             deps.removeMarkersAt(cardState, row, col, {
                 kind: 'specialStone',
@@ -260,7 +259,7 @@ const CardRegen = (function (root, factory) {
             return;
         }
         if (Array.isArray(cardState.markers)) {
-            cardState.markers = cardState.markers.filter(m => !(
+            cardState.markers = cardState.markers.filter((m: any) => !(
                 m &&
                 m.kind === 'specialStone' &&
                 m.row === row &&
@@ -271,7 +270,7 @@ const CardRegen = (function (root, factory) {
         }
     }
 
-    function _emitRegenConsumedStatus(cardState, row, col, deps = {}) {
+    function _emitRegenConsumedStatus(cardState: any, row: any, col: any, deps: any = {}) {
         const boardOps = deps.BoardOps || null;
         if (boardOps && typeof boardOps.emitPresentationEvent === 'function') {
             boardOps.emitPresentationEvent(cardState, {
@@ -285,7 +284,7 @@ const CardRegen = (function (root, factory) {
         }
     }
 
-    function _captureFromRegenOrigin(cardState, gameState, row, col, regenOwner, ownerColor, ctx, deps = {}) {
+    function _captureFromRegenOrigin(cardState: any, gameState: any, row: any, col: any, regenOwner: any, ownerColor: any, ctx: any, deps: any = {}) {
         const captureFlips = [];
         for (const [dr, dc] of DIRECTIONS) {
             const line = [];
@@ -317,7 +316,7 @@ const CardRegen = (function (root, factory) {
         return captureFlips;
     }
 
-    function _emitForcedRegenChange(cardState, gameState, row, col, ownerKey, ownerColor, nextRemaining, deps = {}) {
+    function _emitForcedRegenChange(cardState: any, gameState: any, row: any, col: any, ownerKey: any, ownerColor: any, nextRemaining: any, deps: any = {}) {
         setCellValue(gameState, row, col, ownerColor);
         const boardOps = deps.BoardOps || null;
         if (boardOps && typeof boardOps.emitPresentationEvent === 'function') {
@@ -339,7 +338,7 @@ const CardRegen = (function (root, factory) {
         }
     }
 
-    function _triggerRegenAtPosition(cardState, gameState, row, col, triggerKind, skipCapture, deps = {}, ctx, consumedRegenKeys) {
+    function _triggerRegenAtPosition(cardState: any, gameState: any, row: any, col: any, triggerKind: any, skipCapture: any, deps: any = {}, ctx: any, consumedRegenKeys: any) {
         const regen = findActiveRegenMarkerAt(cardState, row, col);
         if (!regen) return { triggered: false, regened: [], captureFlips: [] };
         const ownerColor = regen.owner === 'black' ? (BLACK || 1) : (WHITE || -1);
@@ -390,13 +389,13 @@ const CardRegen = (function (root, factory) {
         };
     }
 
-    function applyRegenAfterFlips(cardState, gameState, flips, flipperKey, skipCapture, deps = {}) {
-        const regened = [];
-        const captureFlips = [];
+    function applyRegenAfterFlips(cardState: any, gameState: any, flips: any, flipperKey: any, skipCapture: any, deps: any = {}) {
+        const regened: Array<{row: number; col: number}> = [];
+        const captureFlips: Array<{row: number; col: number}> = [];
         if (!flips || !flips.length) return { regened, captureFlips };
         const consumedRegenKeys = new Set();
         const ctx = _getRegenCardContext(cardState, deps);
-        const toObj = (p) => (typeof p.row === 'number' ? p : { row: p[0], col: p[1] });
+        const toObj = (p: any) => (typeof p.row === 'number' ? p : { row: p[0], col: p[1] });
 
         for (const raw of flips) {
             const pos = toObj(raw);
@@ -419,7 +418,7 @@ const CardRegen = (function (root, factory) {
         return { regened, captureFlips };
     }
 
-    function applyRegenAfterDestroy(cardState, gameState, row, col, triggerMeta, deps = {}) {
+    function applyRegenAfterDestroy(cardState: any, gameState: any, row: any, col: any, triggerMeta: any, deps: any = {}) {
         const consumedRegenKeys = new Set();
         const ctx = _getRegenCardContext(cardState, deps);
         const result = _triggerRegenAtPosition(

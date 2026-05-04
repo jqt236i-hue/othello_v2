@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
@@ -23,7 +22,7 @@ const Targets = CardTargets || {};
 
     // ---- Helpers ----
 
-    function resolveBoardConfig(gameState) {
+    function resolveBoardConfig(gameState: any) {
         if (BoardUtils && typeof BoardUtils.resolveBoardConfig === 'function') {
             return BoardUtils.resolveBoardConfig(gameState);
         }
@@ -38,7 +37,7 @@ const Targets = CardTargets || {};
         };
     }
 
-    function isMainBoardCell(row, col, gameState) {
+    function isMainBoardCell(row: any, col: any, gameState: any) {
         if (BoardUtils && typeof BoardUtils.isMainBoardCell === 'function') {
             return BoardUtils.isMainBoardCell(row, col, gameState);
         }
@@ -46,7 +45,7 @@ const Targets = CardTargets || {};
         return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < config.rows && col >= 0 && col < config.cols;
     }
 
-    function getCellValue(gameState, row, col) {
+    function getCellValue(gameState: any, row: any, col: any) {
         if (BoardUtils && typeof BoardUtils.getCellValue === 'function') {
             return BoardUtils.getCellValue(gameState && gameState.board, row, col);
         }
@@ -64,7 +63,7 @@ const Targets = CardTargets || {};
         return null;
     }
 
-    function getExpansionCells(gameState) {
+    function getExpansionCells(gameState: any) {
         if (BoardUtils && typeof BoardUtils.collectExpansionDescriptors === 'function') {
             return BoardUtils.collectExpansionDescriptors(gameState && gameState.boardExpansion, gameState);
         }
@@ -73,8 +72,8 @@ const Targets = CardTargets || {};
             : null;
         if (!expansion) return [];
         const config = resolveBoardConfig(gameState);
-        const cells = [];
-        const pushCell = (source) => {
+        const cells: any[] = [];
+        const pushCell = (source: any) => {
             let side = null;
             let row = null;
             let col = null;
@@ -107,7 +106,7 @@ const Targets = CardTargets || {};
         return cells;
     }
 
-    function forEachBoardShapeCell(gameState, visitor) {
+    function forEachBoardShapeCell(gameState: any, visitor: any) {
         if (typeof visitor !== 'function') return;
         if (BoardUtils && typeof BoardUtils.forEachBoardShapeCell === 'function') {
             BoardUtils.forEachBoardShapeCell(gameState, visitor);
@@ -127,16 +126,16 @@ const Targets = CardTargets || {};
         }
     }
 
-    function hasBoardShapeCell(gameState, row, col) {
+    function hasBoardShapeCell(gameState: any, row: any, col: any) {
         return getCellValue(gameState, row, col) !== null;
     }
 
-    function isBlockedCell(cardState, row, col) {
+    function isBlockedCell(cardState: any, row: any, col: any) {
         if (Markers && typeof Markers.getBlockingMarkers === 'function') {
-            return Markers.getBlockingMarkers(cardState).some(m => m.row === row && m.col === col);
+            return Markers.getBlockingMarkers(cardState).some((m: any) => m.row === row && m.col === col);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        return markers.some(m => (
+        return markers.some((m: any) => (
             m &&
             m.kind === 'specialStone' &&
             m.row === row &&
@@ -146,12 +145,12 @@ const Targets = CardTargets || {};
         ));
     }
 
-    function isAbsoluteProtectedCell(cardState, row, col) {
+    function isAbsoluteProtectedCell(cardState: any, row: any, col: any) {
         if (Markers && typeof Markers.findSpecialMarkerAt === 'function') {
             return !!Markers.findSpecialMarkerAt(cardState, row, col, 'ABSOLUTE_PROTECTED');
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        return markers.some(m => (
+        return markers.some((m: any) => (
             m &&
             m.kind === 'specialStone' &&
             m.row === row &&
@@ -161,12 +160,12 @@ const Targets = CardTargets || {};
         ));
     }
 
-    function isFrozenCell(cardState, row, col) {
+    function isFrozenCell(cardState: any, row: any, col: any) {
         if (Markers && typeof Markers.isFrozenCellForCard === 'function') {
             return !!Markers.isFrozenCellForCard(cardState, row, col);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        return markers.some(m => (
+        return markers.some((m: any) => (
             m &&
             m.kind === 'specialStone' &&
             m.row === row &&
@@ -176,12 +175,12 @@ const Targets = CardTargets || {};
         ));
     }
 
-    function isMeteorHoleCell(cardState, row, col) {
+    function isMeteorHoleCell(cardState: any, row: any, col: any) {
         if (Markers && typeof Markers.isMeteorHoleCell === 'function') {
             return !!Markers.isMeteorHoleCell(cardState, row, col);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        return markers.some(m => (
+        return markers.some((m: any) => (
             m &&
             m.kind === 'specialStone' &&
             m.row === row &&
@@ -191,12 +190,12 @@ const Targets = CardTargets || {};
         ));
     }
 
-    function isGuardProtectedCell(cardState, row, col) {
+    function isGuardProtectedCell(cardState: any, row: any, col: any) {
         if (Markers && typeof Markers.isGuardProtectedCell === 'function') {
             return !!Markers.isGuardProtectedCell(cardState, row, col);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        return markers.some(m => (
+        return markers.some((m: any) => (
             m &&
             m.kind === 'specialStone' &&
             m.row === row &&
@@ -206,12 +205,12 @@ const Targets = CardTargets || {};
         ));
     }
 
-    function hasSeedMarkerAt(cardState, row, col) {
+    function hasSeedMarkerAt(cardState: any, row: any, col: any) {
         if (Markers && typeof Markers.findSpecialMarkerAt === 'function') {
             return !!Markers.findSpecialMarkerAt(cardState, row, col, 'SEED');
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        return markers.some(m => (
+        return markers.some((m: any) => (
             m &&
             m.kind === 'specialStone' &&
             m.row === row &&
@@ -221,12 +220,12 @@ const Targets = CardTargets || {};
         ));
     }
 
-    function isSpecialStoneAt(cardState, row, col) {
+    function isSpecialStoneAt(cardState: any, row: number, col: number) {
         if (Markers && typeof Markers.isSpecialStoneAt === 'function') {
             return !!Markers.isSpecialStoneAt(cardState, row, col);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        return markers.some(m => (
+        return markers.some((m: any) => (
             m &&
             m.kind === 'specialStone' &&
             m.row === row &&
@@ -234,12 +233,12 @@ const Targets = CardTargets || {};
         ));
     }
 
-    function getSpecialOwnerAt(cardState, row, col) {
+    function getSpecialOwnerAt(cardState: any, row: number, col: number) {
         if (Markers && typeof Markers.getSpecialOwnerAt === 'function') {
             return Markers.getSpecialOwnerAt(cardState, row, col);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const marker = markers.find(m => (
+        const marker = markers.find((m: any) => (
             m &&
             m.kind === 'specialStone' &&
             m.row === row &&
@@ -248,7 +247,7 @@ const Targets = CardTargets || {};
         return marker ? marker.owner : null;
     }
 
-    function isBombCategoryMarker(marker) {
+    function isBombCategoryMarker(marker: any) {
         if (Markers && typeof Markers.isBombCategoryMarker === 'function') {
             return Markers.isBombCategoryMarker(marker);
         }
@@ -260,28 +259,28 @@ const Targets = CardTargets || {};
         );
     }
 
-    function getSpecialMarkers(cardState) {
+    function getSpecialMarkers(cardState: any) {
         if (Markers && typeof Markers.getSpecialMarkers === 'function') {
             return Markers.getSpecialMarkers(cardState);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        return markers.filter(m => m && m.kind === 'specialStone');
+        return markers.filter((m: any) => m && m.kind === 'specialStone');
     }
 
-    function getBombMarkers(cardState) {
+    function getBombMarkers(cardState: any) {
         if (Markers && typeof Markers.getBombMarkers === 'function') {
             return Markers.getBombMarkers(cardState);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        return markers.filter(m => m && m.kind === 'specialStone' && m.data && m.data.category === 'bomb');
+        return markers.filter((m: any) => m && m.kind === 'specialStone' && m.data && m.data.category === 'bomb');
     }
 
-    function findSpecialMarkerAt(cardState, row, col, type, owner) {
+    function findSpecialMarkerAt(cardState: any, row: any, col: any, type?: any, owner?: any) {
         if (Markers && typeof Markers.findSpecialMarkerAt === 'function') {
             return Markers.findSpecialMarkerAt(cardState, row, col, type, owner);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        return markers.find(m => (
+        return markers.find((m: any) => (
             m &&
             m.kind === 'specialStone' &&
             m.row === row &&
@@ -291,12 +290,12 @@ const Targets = CardTargets || {};
         )) || null;
     }
 
-    function toBoardCellKey(row, col) {
+    function toBoardCellKey(row: number, col: number) {
         return `${row},${col}`;
     }
 
-    function getCurrentBoardShapeCells(cardState, gameState) {
-        const cells = [];
+    function getCurrentBoardShapeCells(cardState: any, gameState: any) {
+        const cells: any[] = [];
         const config = resolveBoardConfig(gameState);
         for (let row = 0; row < config.rows; row++) {
             for (let col = 0; col < config.cols; col++) {
@@ -312,25 +311,25 @@ const Targets = CardTargets || {};
         return cells;
     }
 
-    function getOccupiedBoardShapeCells(cardState, gameState) {
+    function getOccupiedBoardShapeCells(cardState: any, gameState: any) {
         return getCurrentBoardShapeCells(cardState, gameState)
-            .filter((cell) => getCellValue(gameState, cell.row, cell.col) !== EMPTY);
+            .filter((cell: any) => getCellValue(gameState, cell.row, cell.col) !== EMPTY);
     }
 
-    function getEmptyBoardShapeCells(cardState, gameState) {
+    function getEmptyBoardShapeCells(cardState: any, gameState: any) {
         return getCurrentBoardShapeCells(cardState, gameState)
-            .filter((cell) => getCellValue(gameState, cell.row, cell.col) === EMPTY);
+            .filter((cell: any) => getCellValue(gameState, cell.row, cell.col) === EMPTY);
     }
 
-    function isPositionSwapProtectedCell(cardState, row, col) {
+    function isPositionSwapProtectedCell(cardState: any, row: number, col: number) {
         return !!(
             findSpecialMarkerAt(cardState, row, col, 'GLUTTONOUS') ||
             findSpecialMarkerAt(cardState, row, col, 'ABSOLUTE_PROTECTED')
         );
     }
 
-    function collectEmptyNeighborCells(cardState, gameState, row, col) {
-        const neighbors = [];
+    function collectEmptyNeighborCells(cardState: any, gameState: any, row: any, col: any) {
+        const neighbors: any[] = [];
         const seen = new Set();
         for (let dr = -1; dr <= 1; dr++) {
             for (let dc = -1; dc <= 1; dc++) {
@@ -349,17 +348,17 @@ const Targets = CardTargets || {};
         return neighbors;
     }
 
-    function getCardContext(cardState) {
+    function getCardContext(cardState: any) {
         const specials = getSpecialMarkers(cardState);
         const absoluteProtectedStones = specials
-            .filter((s) => s.data && s.data.type === 'ABSOLUTE_PROTECTED')
-            .map((s) => ({
+            .filter((s: any) => s.data && s.data.type === 'ABSOLUTE_PROTECTED')
+            .map((s: any) => ({
                 row: s.row,
                 col: s.col,
                 owner: s.owner === 'black' ? (BLACK || 1) : (WHITE || -1)
             }));
 
-        const blockedCells = [];
+        const blockedCells: any[] = [];
         for (const m of specials) {
             if (!m || !m.data) continue;
             if (m.data.type === 'BLOCKADE' || m.data.type === 'METEOR_HOLE' || m.data.type === 'FREEZE') {
@@ -373,15 +372,15 @@ const Targets = CardTargets || {};
         };
     }
 
-    function getTabooReverseDirectionalFlips(gameState, row, col, ownerVal, direction, context) {
+    function getTabooReverseDirectionalFlips(gameState: any, row: any, col: any, ownerVal: any, direction: any, context: any) {
         const blockedCells = context && context.blockedCells ? context.blockedCells : [];
         const absoluteProtectedStones = context && context.absoluteProtectedStones ? context.absoluteProtectedStones : [];
 
         const blockedSet = blockedCells.length
-            ? new Set(blockedCells.map(p => `${p.row},${p.col}`))
+            ? new Set(blockedCells.map((p: any) => `${p.row},${p.col}`))
             : null;
         const absoluteSet = absoluteProtectedStones.length
-            ? new Set(absoluteProtectedStones.map((p) => `${p.row},${p.col}`))
+            ? new Set(absoluteProtectedStones.map((p: any) => `${p.row},${p.col}`))
             : null;
 
         const [dr, dc] = direction;
@@ -412,23 +411,23 @@ const Targets = CardTargets || {};
         return flips;
     }
 
-    function countDiscsByPlayer(gameState, playerKey) {
+    function countDiscsByPlayer(gameState: any, playerKey: any) {
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         let own = 0;
         let opp = 0;
-        forEachBoardShapeCell(gameState, (r, c, value) => {
+        forEachBoardShapeCell(gameState, (r: any, c: any, value: any) => {
             if (value === playerVal) own += 1;
             else if (value === -playerVal) opp += 1;
         });
         return { own, opp };
     }
 
-    function getDiscDisadvantageForPlayer(gameState, playerKey) {
+    function getDiscDisadvantageForPlayer(gameState: any, playerKey: any) {
         const counts = countDiscsByPlayer(gameState, playerKey);
         return Math.max(0, counts.opp - counts.own);
     }
 
-    function hasStandardLegalMoveForPlayer(cardState, gameState, playerKey) {
+    function hasStandardLegalMoveForPlayer(cardState: any, gameState: any, playerKey: any) {
         // Fallback: check if there is any empty cell with at least one opponent neighbor
         // and a self stone beyond it in any direction.
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
@@ -461,7 +460,7 @@ const Targets = CardTargets || {};
         return false;
     }
 
-    function getBoardExpansionGodCornerDescriptors(gameState) {
+    function getBoardExpansionGodCornerDescriptors(gameState: any) {
         const config = resolveBoardConfig(gameState);
         const lastRow = config.baseBounds.maxRow;
         const lastCol = config.baseBounds.maxCol;
@@ -509,9 +508,9 @@ const Targets = CardTargets || {};
         ];
     }
 
-    function getBoardExpansionWillCellDescriptors(gameState) {
+    function getBoardExpansionWillCellDescriptors(gameState: any) {
         const config = resolveBoardConfig(gameState);
-        const cells = [];
+        const cells: any[] = [];
         for (let row = 0; row < config.rows; row++) {
             cells.push({ row, col: config.outerBounds.minCol, side: 'left' });
             cells.push({ row, col: config.outerBounds.maxCol, side: 'right' });
@@ -519,7 +518,7 @@ const Targets = CardTargets || {};
         return cells;
     }
 
-    function resolveExpansionSide(side, row, col, gameState) {
+    function resolveExpansionSide(side: any, row: any, col: any, gameState: any) {
         if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
         const config = resolveBoardConfig(gameState);
         if (col === config.outerBounds.minCol) return 'left';
@@ -529,11 +528,11 @@ const Targets = CardTargets || {};
         return null;
     }
 
-    function normalizeExpansionOwner(owner) {
+    function normalizeExpansionOwner(owner: any) {
         return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
     }
 
-    function isInnerPlayableCellForReinforcement(cardState, gameState, row, col) {
+    function isInnerPlayableCellForReinforcement(cardState: any, gameState: any, row: any, col: any) {
         if (!hasBoardShapeCell(gameState, row, col)) return false;
         const orthogonal = [
             [row - 1, col],
@@ -544,7 +543,7 @@ const Targets = CardTargets || {};
         return orthogonal.every((pos) => hasBoardShapeCell(gameState, pos[0], pos[1]));
     }
 
-    function isAdjacentToAnyStoneForReinforcement(cardState, gameState, row, col) {
+    function isAdjacentToAnyStoneForReinforcement(cardState: any, gameState: any, row: any, col: any) {
         for (let dr = -1; dr <= 1; dr++) {
             for (let dc = -1; dc <= 1; dc++) {
                 if (dr === 0 && dc === 0) continue;
@@ -559,21 +558,21 @@ const Targets = CardTargets || {};
 
     // ---- 29 Target Functions ----
 
-    function getTrapTargets(cardState, gameState, playerKey) {
+    function getTrapTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getTrapTargets === 'function') {
             return Selectors.getTrapTargets(cardState, gameState, playerKey);
         }
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const res = [];
+        const res: any[] = [];
         for (const cell of getOccupiedBoardShapeCells(cardState, gameState)) {
             const row = cell.row;
             const col = cell.col;
             if (getCellValue(gameState, row, col) !== playerVal) continue;
-            const hasBomb = markers.some(m => m && m.row === row && m.col === col && isBombCategoryMarker(m));
+            const hasBomb = markers.some((m: any) => m && m.row === row && m.col === col && isBombCategoryMarker(m));
             if (hasBomb) continue;
             if (isAbsoluteProtectedCell(cardState, row, col)) continue;
-            const hasOwnTrap = markers.some(m => (
+            const hasOwnTrap = markers.some((m: any) => (
                 m &&
                 m.row === row &&
                 m.col === col &&
@@ -588,18 +587,18 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getTeleportTargets(cardState, gameState) {
+    function getTeleportTargets(cardState: any, gameState: any) {
         if (typeof Selectors.getTeleportTargets === 'function') {
             return Selectors.getTeleportTargets(cardState, gameState);
         }
         const destinations = getEmptyBoardShapeCells(cardState, gameState)
-            .filter((cell) => !isBlockedCell(cardState, cell.row, cell.col));
+            .filter((cell: any) => !isBlockedCell(cardState, cell.row, cell.col));
         if (!destinations.length) return [];
         return getOccupiedBoardShapeCells(cardState, gameState)
-            .filter((cell) => !isAbsoluteProtectedCell(cardState, cell.row, cell.col));
+            .filter((cell: any) => !isAbsoluteProtectedCell(cardState, cell.row, cell.col));
     }
 
-    function getBoardExpansionTargets(cardState, gameState, playerKey) {
+    function getBoardExpansionTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getBoardExpansionTargets === 'function') {
             return Selectors.getBoardExpansionTargets(cardState, gameState, playerKey);
         }
@@ -616,7 +615,7 @@ const Targets = CardTargets || {};
                 blockedEdgeTargets.add(`${cell.row},${config.baseBounds.maxCol}`);
             }
         }
-        const res = [];
+        const res: any[] = [];
         for (let r = 0; r < config.rows; r++) {
             if (!blockedEdgeTargets.has(`${r},0`)) {
                 res.push({ row: r, col: 0, side: 'left' });
@@ -628,14 +627,14 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getBoardShrinkTargets(cardState, gameState, playerKey) {
+    function getBoardShrinkTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getBoardShrinkTargets === 'function') {
             return Selectors.getBoardShrinkTargets(cardState, gameState, playerKey);
         }
         return [];
     }
 
-    function getTabooReverseCandidates(cardState, gameState, playerKey, row, col) {
+    function getTabooReverseCandidates(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         if (!gameState || !Array.isArray(gameState.board)) return [];
         if (!Number.isInteger(row) || !Number.isInteger(col)) return [];
 
@@ -645,7 +644,7 @@ const Targets = CardTargets || {};
         const context = getCardContext(cardState);
         const blockedCells = (context && Array.isArray(context.blockedCells)) ? context.blockedCells : [];
         const blockedSet = blockedCells.length
-            ? new Set(blockedCells.map((p) => `${p.row},${p.col}`))
+            ? new Set(blockedCells.map((p: any) => `${p.row},${p.col}`))
             : null;
         if (blockedSet && blockedSet.has(`${row},${col}`)) return [];
 
@@ -665,7 +664,7 @@ const Targets = CardTargets || {};
         return candidates;
     }
 
-    function getSelectableTargets(cardState, gameState, playerKey) {
+    function getSelectableTargets(cardState: any, gameState: any, playerKey: any) {
         const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
         if (!pending) return [];
 
@@ -749,15 +748,15 @@ const Targets = CardTargets || {};
         return [];
     }
 
-    function getDestroyTargets(cardState, gameState) {
+    function getDestroyTargets(cardState: any, gameState: any) {
         if (typeof Selectors.getDestroyTargets === 'function') {
             return Selectors.getDestroyTargets(cardState, gameState);
         }
-        const res = [];
+        const res: any[] = [];
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        forEachBoardShapeCell(gameState, (r, c, owner) => {
+        forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
             if (owner === EMPTY) return;
-            const guarded = markers.some(m =>
+            const guarded = markers.some((m: any) =>
                 m &&
                 m.kind === 'specialStone' &&
                 m.row === r &&
@@ -772,14 +771,14 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getSwapTargets(cardState, gameState, playerKey) {
+    function getSwapTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getSwapTargets === 'function') {
             return Selectors.getSwapTargets(cardState, gameState, playerKey);
         }
-        const res = [];
+        const res: any[] = [];
         const opVal = playerKey === 'black' ? WHITE : BLACK;
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const isHiddenTrapForPlayer = (m) => (
+        const isHiddenTrapForPlayer = (m: any) => (
             m &&
             m.kind === 'specialStone' &&
             m.data &&
@@ -788,9 +787,9 @@ const Targets = CardTargets || {};
             m.owner !== playerKey
         );
 
-        forEachBoardShapeCell(gameState, (r, c, owner) => {
+        forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
             if (owner !== opVal) return;
-            const hasSpecialOrBomb = markers.some(m => {
+            const hasSpecialOrBomb = markers.some((m: any) => {
                 if (!m || m.row !== r || m.col !== c) return false;
                 if (m.kind !== 'specialStone') return false;
                 if (isHiddenTrapForPlayer(m)) return false;
@@ -809,18 +808,18 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getGuardTargets(cardState, gameState, playerKey) {
+    function getGuardTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getGuardTargets === 'function') {
             return Selectors.getGuardTargets(cardState, gameState, playerKey);
         }
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const res = [];
+        const res: any[] = [];
         for (const cell of getOccupiedBoardShapeCells(cardState, gameState)) {
             const row = cell.row;
             const col = cell.col;
             if (getCellValue(gameState, row, col) !== playerVal) continue;
-            const hasBomb = markers.some(m => m && m.row === row && m.col === col && isBombCategoryMarker(m));
+            const hasBomb = markers.some((m: any) => m && m.row === row && m.col === col && isBombCategoryMarker(m));
             if (hasBomb) continue;
             if (isAbsoluteProtectedCell(cardState, row, col)) continue;
             res.push({ row, col });
@@ -828,26 +827,26 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getCaptureTargets(cardState, gameState, playerKey) {
+    function getCaptureTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Targets.getCaptureWillTargets === 'function') {
             return Targets.getCaptureWillTargets(cardState, gameState, playerKey);
         }
         // Fallback: same as tempt targets filtered by capturable source
         const temptTargets = getTemptTargets(cardState, gameState, playerKey);
-        return temptTargets.filter((target) => {
+        return temptTargets.filter((target: any) => {
             const marker = findSpecialMarkerAt(cardState, target.row, target.col);
             return !!marker;
         });
     }
 
-    function getTemptTargets(cardState, gameState, playerKey) {
+    function getTemptTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Targets.getTemptWillTargets === 'function') {
             return Targets.getTemptWillTargets(cardState, gameState, playerKey);
         }
         const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        const res = [];
+        const res: any[] = [];
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const isGuarded = (r, c) => markers.some(m =>
+        const isGuarded = (r: any, c: any) => markers.some((m: any) =>
             m &&
             m.kind === 'specialStone' &&
             m.row === r &&
@@ -855,7 +854,7 @@ const Targets = CardTargets || {};
             m.data &&
             m.data.type === 'GUARD'
         );
-        forEachBoardShapeCell(gameState, (r, c) => {
+        forEachBoardShapeCell(gameState, (r: any, c: any) => {
             if (isGuarded(r, c)) return;
             if (!isSpecialStoneAt(cardState, r, c)) return;
             if (getSpecialOwnerAt(cardState, r, c) !== opponentKey) return;
@@ -865,13 +864,13 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getPositionSwapTargets(cardState, gameState, playerKey, pending) {
+    function getPositionSwapTargets(cardState: any, gameState: any, playerKey: any, pending: any) {
         if (typeof Selectors.getPositionSwapTargets === 'function') {
             return Selectors.getPositionSwapTargets(cardState, gameState, playerKey, pending);
         }
-        const res = [];
+        const res: any[] = [];
         const first = pending && pending.firstTarget ? pending.firstTarget : null;
-        forEachBoardShapeCell(gameState, (r, c, owner) => {
+        forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
             if (owner === EMPTY) return;
             if (first && first.row === r && first.col === c) return;
             if (isPositionSwapProtectedCell(cardState, r, c)) return;
@@ -880,13 +879,13 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getSeedTargets(cardState, gameState, playerKey) {
+    function getSeedTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getSeedTargets === 'function') {
             return Selectors.getSeedTargets(cardState, gameState);
         }
         if (!gameState || !gameState.board) return [];
-        const res = [];
-        forEachBoardShapeCell(gameState, (r, c, owner) => {
+        const res: any[] = [];
+        forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
             if (owner !== EMPTY) return;
             if (isBlockedCell(cardState, r, c)) return;
             if (hasSeedMarkerAt(cardState, r, c)) return;
@@ -895,12 +894,12 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getCloneTargets(cardState, gameState, playerKey) {
+    function getCloneTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getCloneTargets === 'function') {
             return Selectors.getCloneTargets(cardState, gameState, playerKey);
         }
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const res = [];
+        const res: any[] = [];
         for (const cell of getOccupiedBoardShapeCells(cardState, gameState)) {
             if (getCellValue(gameState, cell.row, cell.col) !== playerVal) continue;
             if (collectEmptyNeighborCells(cardState, gameState, cell.row, cell.col).length === 0) continue;
@@ -909,22 +908,22 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getSplitTargets(cardState, gameState, playerKey) {
+    function getSplitTargets(cardState: any, gameState: any, playerKey: any) {
         return getCloneTargets(cardState, gameState, playerKey);
     }
 
-    function getBreedingTargets(cardState, gameState, playerKey) {
+    function getBreedingTargets(cardState: any, gameState: any, playerKey: any) {
         // BREEDING_WILL is a next-stone effect; no board targets to select.
         return [];
     }
 
-    function getMeteorTargets(cardState, gameState, playerKey) {
+    function getMeteorTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getMeteorTargets === 'function') {
             return Selectors.getMeteorTargets(cardState, gameState);
         }
         if (!gameState || !gameState.board) return [];
-        const res = [];
-        forEachBoardShapeCell(gameState, (r, c) => {
+        const res: any[] = [];
+        forEachBoardShapeCell(gameState, (r: any, c: any) => {
             if (isMeteorHoleCell(cardState, r, c)) return;
             if (isAbsoluteProtectedCell(cardState, r, c)) return;
             res.push({ row: r, col: c });
@@ -932,13 +931,13 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getFreezeTargets(cardState, gameState, playerKey) {
+    function getFreezeTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getFreezeTargets === 'function') {
             return Selectors.getFreezeTargets(cardState, gameState);
         }
         if (!gameState || !gameState.board) return [];
-        const res = [];
-        forEachBoardShapeCell(gameState, (r, c) => {
+        const res: any[] = [];
+        forEachBoardShapeCell(gameState, (r: any, c: any) => {
             if (isBlockedCell(cardState, r, c)) return;
             if (hasSeedMarkerAt(cardState, r, c)) return;
             res.push({ row: r, col: c });
@@ -946,13 +945,13 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getBlockadeTargets(cardState, gameState, playerKey) {
+    function getBlockadeTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getBlockadeTargets === 'function') {
             return Selectors.getBlockadeTargets(cardState, gameState);
         }
         if (!gameState || !gameState.board) return [];
-        const res = [];
-        forEachBoardShapeCell(gameState, (r, c, owner) => {
+        const res: any[] = [];
+        forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
             if (owner !== EMPTY) return;
             if (isBlockedCell(cardState, r, c)) return;
             if (hasSeedMarkerAt(cardState, r, c)) return;
@@ -961,7 +960,7 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getCellTeleportTargets(cardState, gameState) {
+    function getCellTeleportTargets(cardState: any, gameState: any) {
         if (typeof Selectors.getCellTeleportTargets === 'function') {
             return Selectors.getCellTeleportTargets(cardState, gameState);
         }
@@ -974,9 +973,9 @@ const Targets = CardTargets || {};
             activeByKey.set(`${cell.row},${cell.col}`, cell);
         }
 
-        const destinations = [];
+        const destinations: any[] = [];
         const seen = new Set();
-        const pushCandidate = (row, col, side) => {
+        const pushCandidate = (row: any, col: any, side: any) => {
             const key = `${row},${col}`;
             if (seen.has(key)) return;
             seen.add(key);
@@ -1001,8 +1000,8 @@ const Targets = CardTargets || {};
 
         if (!destinations.length) return [];
 
-        const res = [];
-        forEachBoardShapeCell(gameState, (r, c, owner) => {
+        const res: any[] = [];
+        forEachBoardShapeCell(gameState, (r: any, c: any, owner: any) => {
             if (owner === EMPTY) return;
             if (isMeteorHoleCell(cardState, r, c)) return;
             res.push({ row: r, col: c });
@@ -1010,37 +1009,37 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getSniperTargets(cardState, gameState, playerKey) {
+    function getSniperTargets(cardState: any, gameState: any, playerKey: any) {
         // SNIPER_WILL is a next-stone effect; no board targets to select.
         return [];
     }
 
-    function getTimeBombTargets(cardState, gameState, playerKey) {
+    function getTimeBombTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getTimeBombTargets === 'function') {
             return Selectors.getTimeBombTargets(cardState, gameState, playerKey);
         }
         return getGuardTargets(cardState, gameState, playerKey);
     }
 
-    function getLightningTargets(cardState, gameState, playerKey) {
+    function getLightningTargets(cardState: any, gameState: any, playerKey: any) {
         // LIGHTNING_WILL is a next-stone effect; no board targets to select.
         return [];
     }
 
-    function getCrossBombTargets(cardState, gameState, playerKey) {
+    function getCrossBombTargets(cardState: any, gameState: any, playerKey: any) {
         // CROSS_BOMB is a next-stone effect; no board targets to select.
         return [];
     }
 
-    function getXBombTargets(cardState, gameState, playerKey) {
+    function getXBombTargets(cardState: any, gameState: any, playerKey: any) {
         // X_BOMB is a next-stone effect; no board targets to select.
         return [];
     }
 
-    function getReinforcementTargets(cardState, gameState, playerKey) {
+    function getReinforcementTargets(cardState: any, gameState: any, playerKey: any) {
         if (!gameState || !Array.isArray(gameState.board)) return [];
         return getEmptyBoardShapeCells(cardState, gameState)
-            .filter((cell) => {
+            .filter((cell: any) => {
                 const row = Number(cell && cell.row);
                 const col = Number(cell && cell.col);
                 if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
@@ -1049,39 +1048,39 @@ const Targets = CardTargets || {};
             });
     }
 
-    function getEqualityTargets(cardState, gameState, playerKey) {
+    function getEqualityTargets(cardState: any, gameState: any, playerKey: any) {
         // EQUALITY_WILL spawns on empty cells; return all empty spawnable cells.
         return getEmptyBoardShapeCells(cardState, gameState)
-            .filter((cell) => !isBlockedCell(cardState, cell.row, cell.col));
+            .filter((cell: any) => !isBlockedCell(cardState, cell.row, cell.col));
     }
 
-    function getCornerTributeTargets(cardState, gameState, playerKey) {
+    function getCornerTributeTargets(cardState: any, gameState: any, playerKey: any) {
         // CORNER_TRIBUTE has no board targets; it is a condition-only card.
         return [];
     }
 
-    function getLastResortTargets(cardState, gameState, playerKey) {
+    function getLastResortTargets(cardState: any, gameState: any, playerKey: any) {
         // LAST_RESORT places stones on empty cells when no legal moves and losing.
         return getEmptyBoardShapeCells(cardState, gameState);
     }
 
     // Additional helpers that are also target-related and used by getSelectableTargets
 
-    function getLivingWillTargets(cardState, gameState, playerKey) {
+    function getLivingWillTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getLivingWillTargets === 'function') {
             return Selectors.getLivingWillTargets(cardState, gameState, playerKey);
         }
         const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const res = [];
+        const res: any[] = [];
         for (const cell of getOccupiedBoardShapeCells(cardState, gameState)) {
             const row = cell.row;
             const col = cell.col;
             if (getCellValue(gameState, row, col) !== playerVal) continue;
-            const hasBomb = markers.some(m => m && m.row === row && m.col === col && isBombCategoryMarker(m));
+            const hasBomb = markers.some((m: any) => m && m.row === row && m.col === col && isBombCategoryMarker(m));
             if (hasBomb) continue;
             if (isAbsoluteProtectedCell(cardState, row, col)) continue;
-            const hasLivingWill = markers.some(m => (
+            const hasLivingWill = markers.some((m: any) => (
                 m &&
                 m.row === row &&
                 m.col === col &&
@@ -1095,52 +1094,52 @@ const Targets = CardTargets || {};
         return res;
     }
 
-    function getHyperactiveInheritTargets(cardState, gameState, playerKey) {
+    function getHyperactiveInheritTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getHyperactiveInheritTargets === 'function') {
             return Selectors.getHyperactiveInheritTargets(cardState, gameState, playerKey);
         }
         return getGuardTargets(cardState, gameState, playerKey);
     }
 
-    function getExtendLifeTargets(cardState, gameState, playerKey) {
+    function getExtendLifeTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getExtendLifeTargets === 'function') {
             return Selectors.getExtendLifeTargets(cardState, gameState, playerKey);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const res = [];
+        const res: any[] = [];
         for (const m of markers) {
             if (!m || m.kind !== 'specialStone') continue;
             if (m.owner !== playerKey) continue;
             const rem = (m.data && Number.isFinite(m.data.remainingOwnerTurns)) ? Number(m.data.remainingOwnerTurns) : null;
-            if (!Number.isFinite(rem) || rem <= 0) continue;
+            if (rem === null || !Number.isFinite(rem) || rem <= 0) continue;
             res.push({ row: m.row, col: m.col });
         }
         return res;
     }
 
-    function getCorrosionTargets(cardState, gameState, playerKey) {
+    function getCorrosionTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getCorrosionTargets === 'function') {
             return Selectors.getCorrosionTargets(cardState, gameState, playerKey);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const res = [];
+        const res: any[] = [];
         for (const m of markers) {
             if (!m || m.kind !== 'specialStone') continue;
             const rem = (m.data && Number.isFinite(m.data.remainingOwnerTurns)) ? Number(m.data.remainingOwnerTurns) : null;
-            if (!Number.isFinite(rem) || rem <= 0) continue;
+            if (rem === null || !Number.isFinite(rem) || rem <= 0) continue;
             res.push({ row: m.row, col: m.col });
         }
         return res;
     }
 
-    function getBoardExpansionGodTargets(cardState, gameState, playerKey) {
+    function getBoardExpansionGodTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getBoardExpansionGodTargets === 'function') {
             return Selectors.getBoardExpansionGodTargets(cardState, gameState, playerKey);
         }
         if (!gameState || !gameState.board) return [];
 
         const expansionCells = getExpansionCells(gameState);
-        const occupied = new Set(expansionCells.map((cell) => `${cell.row},${cell.col}`));
+        const occupied = new Set(expansionCells.map((cell: any) => `${cell.row},${cell.col}`));
         const pending = cardState && cardState.pendingEffectByPlayer
             ? cardState.pendingEffectByPlayer[playerKey]
             : null;
@@ -1159,55 +1158,23 @@ const Targets = CardTargets || {};
             selectedKeys.add(`${target.row},${target.col}`);
         }
 
-        const res = [];
+        const res: any[] = [];
         for (const corner of getBoardExpansionGodCornerDescriptors(gameState)) {
             if (!corner || !Array.isArray(corner.cells)) continue;
             if (selectedKeys.has(`${corner.row},${corner.col}`)) continue;
-            const hasOccupied = corner.cells.some((cell) => occupied.has(`${cell.row},${cell.col}`));
+            const hasOccupied = corner.cells.some((cell: any) => occupied.has(`${cell.row},${cell.col}`));
             if (hasOccupied) continue;
             res.push({ row: corner.row, col: corner.col });
         }
         return res;
     }
 
-    function getBoardShrinkGodTargets(cardState, gameState, playerKey) {
+    function getBoardShrinkGodTargets(cardState: any, gameState: any, playerKey: any) {
         if (typeof Selectors.getBoardShrinkGodTargets === 'function') {
             return Selectors.getBoardShrinkGodTargets(cardState, gameState, playerKey);
         }
         return [];
     }
-
-    return {
-        getTrapTargets,
-        getTeleportTargets,
-        getBoardExpansionTargets,
-        getBoardShrinkTargets,
-        getTabooReverseCandidates,
-        getSelectableTargets,
-        getDestroyTargets,
-        getSwapTargets,
-        getGuardTargets,
-        getCaptureTargets,
-        getTemptTargets,
-        getPositionSwapTargets,
-        getSeedTargets,
-        getCloneTargets,
-        getSplitTargets,
-        getBreedingTargets,
-        getMeteorTargets,
-        getFreezeTargets,
-        getBlockadeTargets,
-        getCellTeleportTargets,
-        getSniperTargets,
-        getTimeBombTargets,
-        getLightningTargets,
-        getCrossBombTargets,
-        getXBombTargets,
-        getReinforcementTargets,
-        getEqualityTargets,
-        getCornerTributeTargets,
-        getLastResortTargets
-    };
 
 export = {
     getTrapTargets,

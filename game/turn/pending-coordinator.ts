@@ -1,22 +1,21 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-const pendingCoordinatorModule = (function (root) {
+const pendingCoordinatorModule = (function (root: any) {
     'use strict';
 
-    var cachedPendingStateManager = null;
-    var cachedOwnerHelpers = null;
-    var cachedCardLogic = null;
-    var pendingSelectionActionByPlayer = {
+    var cachedPendingStateManager: any = null;
+    var cachedOwnerHelpers: any = null;
+    var cachedCardLogic: any = null;
+    var pendingSelectionActionByPlayer: Record<string, any> = {
         black: null,
         white: null
     };
 
-    function resolveCachedModule(cacheRef, requirePath, globalKey) {
+    function resolveCachedModule(cacheRef: any, requirePath: any, globalKey: any) {
         if (cacheRef && typeof cacheRef === 'object') {
             return cacheRef;
         }
@@ -57,7 +56,7 @@ const pendingCoordinatorModule = (function (root) {
         return cachedCardLogic;
     }
 
-    function callPendingStateManager(methodName, args, fallbackValue) {
+    function callPendingStateManager(methodName: any, args: any, fallbackValue: any) {
         var pendingStateManager = getPendingStateManager();
         if (!pendingStateManager || typeof pendingStateManager[methodName] !== 'function') {
             return fallbackValue;
@@ -65,7 +64,7 @@ const pendingCoordinatorModule = (function (root) {
         return pendingStateManager[methodName].apply(pendingStateManager, args || []);
     }
 
-    function normalizePlayerKey(playerKey) {
+    function normalizePlayerKey(playerKey: any) {
         var ownerHelpers = getOwnerHelpers();
         if (ownerHelpers && typeof ownerHelpers.normalizePlayerKey === 'function') {
             return ownerHelpers.normalizePlayerKey(playerKey, 'black');
@@ -73,11 +72,11 @@ const pendingCoordinatorModule = (function (root) {
         return String(playerKey || '').trim().toLowerCase() === 'white' ? 'white' : 'black';
     }
 
-    function normalizePendingType(cardType) {
+    function normalizePendingType(cardType: any) {
         return String(cardType || '').trim().toUpperCase();
     }
 
-    function cloneData(value) {
+    function cloneData(value: any) {
         try {
             if (root && typeof root.structuredClone === 'function') {
                 return root.structuredClone(value);
@@ -86,7 +85,7 @@ const pendingCoordinatorModule = (function (root) {
         return JSON.parse(JSON.stringify(value));
     }
 
-    function clonePendingSelectionAction(action) {
+    function clonePendingSelectionAction(action: any) {
         if (!action || typeof action !== 'object') return null;
         try {
             return cloneData(action);
@@ -95,7 +94,7 @@ const pendingCoordinatorModule = (function (root) {
         }
     }
 
-    function ensurePendingStateByPlayer(cardState) {
+    function ensurePendingStateByPlayer(cardState: any) {
         if (!cardState || typeof cardState !== 'object') return null;
         if (!cardState.pendingEffectByPlayer || typeof cardState.pendingEffectByPlayer !== 'object') {
             cardState.pendingEffectByPlayer = { black: null, white: null };
@@ -109,27 +108,27 @@ const pendingCoordinatorModule = (function (root) {
         return cardState.pendingEffectByPlayer;
     }
 
-    function resolvePendingSelectionContract(cardType) {
+    function resolvePendingSelectionContract(cardType: any) {
         return callPendingStateManager('resolvePendingSelectionContract', [cardType], null);
     }
 
-    function resolvePendingSelectionDispatchKey(cardType) {
+    function resolvePendingSelectionDispatchKey(cardType: any) {
         return callPendingStateManager('resolvePendingSelectionDispatchKey', [cardType], null);
     }
 
-    function isSelectionOnlyEndTurnPendingType(cardType) {
+    function isSelectionOnlyEndTurnPendingType(cardType: any) {
         return callPendingStateManager('isSelectionOnlyEndTurnPendingType', [cardType], false);
     }
 
-    function shouldDeferNetworkPublishForPendingType(cardType) {
+    function shouldDeferNetworkPublishForPendingType(cardType: any) {
         return callPendingStateManager('shouldDeferNetworkPublishForPendingType', [cardType], false);
     }
 
-    function shouldWaitForPlaybackIdleForPendingType(cardType) {
+    function shouldWaitForPlaybackIdleForPendingType(cardType: any) {
         return callPendingStateManager('shouldWaitForPlaybackIdleForPendingType', [cardType], false);
     }
 
-    function storePendingSelectionAction(playerKey, action, pendingType) {
+    function storePendingSelectionAction(playerKey: any, action: any, pendingType: any) {
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
         if (!action || typeof action !== 'object') {
             pendingSelectionActionByPlayer[normalizedPlayerKey] = null;
@@ -142,7 +141,7 @@ const pendingCoordinatorModule = (function (root) {
         return readPendingSelectionAction(normalizedPlayerKey);
     }
 
-    function readPendingSelectionAction(playerKey) {
+    function readPendingSelectionAction(playerKey: any) {
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
         var storedEntry = pendingSelectionActionByPlayer[normalizedPlayerKey];
         var action = storedEntry && typeof storedEntry === 'object' && storedEntry.action && typeof storedEntry.action === 'object'
@@ -152,7 +151,7 @@ const pendingCoordinatorModule = (function (root) {
         return clonePendingSelectionAction(action);
     }
 
-    function clearPendingSelectionAction(playerKey) {
+    function clearPendingSelectionAction(playerKey: any) {
         pendingSelectionActionByPlayer[normalizePlayerKey(playerKey)] = null;
         return true;
     }
@@ -163,18 +162,18 @@ const pendingCoordinatorModule = (function (root) {
         return true;
     }
 
-    function readPendingEffect(cardState, playerKey) {
+    function readPendingEffect(cardState: any, playerKey: any) {
         var pendingByPlayer = ensurePendingStateByPlayer(cardState);
         if (!pendingByPlayer) return null;
         return pendingByPlayer[normalizePlayerKey(playerKey)] || null;
     }
 
-    function getPendingEffectType(cardState, playerKey) {
+    function getPendingEffectType(cardState: any, playerKey: any) {
         var pending = readPendingEffect(cardState, playerKey);
         return pending && pending.type ? pending.type : null;
     }
 
-    function allocatePendingEffectId(cardState) {
+    function allocatePendingEffectId(cardState: any) {
         var baseTurnIndex = cardState && Number.isFinite(Number(cardState.turnIndex))
             ? Math.max(0, Math.trunc(Number(cardState.turnIndex)))
             : 0;
@@ -188,7 +187,7 @@ const pendingCoordinatorModule = (function (root) {
         return 'pending_' + String(baseTurnIndex) + '_' + String(nextSeq);
     }
 
-    function writePendingEffect(cardState, playerKey, pendingEffect, options) {
+    function writePendingEffect(cardState: any, playerKey: any, pendingEffect: any, options: any) {
         var pendingByPlayer = ensurePendingStateByPlayer(cardState);
         if (!pendingByPlayer) {
             return { ok: false, reason: 'invalid_card_state' };
@@ -217,7 +216,7 @@ const pendingCoordinatorModule = (function (root) {
         };
     }
 
-    function clearPendingEffect(cardState, playerKey, options) {
+    function clearPendingEffect(cardState: any, playerKey: any, options: any) {
         var pendingByPlayer = ensurePendingStateByPlayer(cardState);
         if (!pendingByPlayer) {
             return { ok: false, reason: 'invalid_card_state' };
@@ -234,7 +233,7 @@ const pendingCoordinatorModule = (function (root) {
         };
     }
 
-    function resolvePendingSyncContext(value) {
+    function resolvePendingSyncContext(value: any) {
         if (!value || typeof value !== 'object') {
             return {
                 pendingByPlayer: null,
@@ -253,17 +252,17 @@ const pendingCoordinatorModule = (function (root) {
         };
     }
 
-    function syncPendingSelectionActionCache(pendingState, options) {
+    function syncPendingSelectionActionCache(pendingState: any, options: any) {
         var syncContext = resolvePendingSyncContext(pendingState);
         var pendingByPlayer = syncContext.pendingByPlayer;
         var expectedTurnIndex = syncContext.turnIndex;
         var opts = (options && typeof options === 'object') ? options : {};
         var preservePlayerKeys = Array.isArray(opts.preservePlayerKeys)
-            ? opts.preservePlayerKeys.map(function (value) {
+            ? opts.preservePlayerKeys.map(function (value: any) {
                 return normalizePlayerKey(value);
             })
             : [];
-        var summary = {
+        var summary: { cleared: string[]; retained: string[] } = {
             cleared: [],
             retained: []
         };
@@ -303,7 +302,7 @@ const pendingCoordinatorModule = (function (root) {
         return summary;
     }
 
-    function shouldRetainPendingSelectionAction(cardStateValue, playerKey, pendingType) {
+    function shouldRetainPendingSelectionAction(cardStateValue: any, playerKey: any, pendingType: any) {
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
         var pendingByPlayer = cardStateValue && cardStateValue.pendingEffectByPlayer;
         var pending = pendingByPlayer && pendingByPlayer[normalizedPlayerKey];
@@ -312,23 +311,23 @@ const pendingCoordinatorModule = (function (root) {
         return normalizePendingType(pending.type) === normalizePendingType(pendingType);
     }
 
-    function clonePendingSelectionTransportTarget(target) {
+    function clonePendingSelectionTransportTarget(target: any) {
         if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
         return { row: target.row, col: target.col };
     }
 
-    function applyPendingSelectionCardContext(target, playerKey, pendingLike, options) {
+    function applyPendingSelectionCardContext(target: any, playerKey: any, pendingLike: any, options: any) {
         var payload = (target && typeof target === 'object') ? target : {};
         return payload;
     }
 
-    function buildPendingSelectionTransportState(pendingType, pending) {
+    function buildPendingSelectionTransportState(pendingType: any, pending: any) {
         var normalizedPendingType = normalizePendingType(pendingType || (pending && pending.type));
         if (!normalizedPendingType || !pending || normalizePendingType(pending.type) !== normalizedPendingType) {
             return null;
         }
 
-        var transportState = {
+        var transportState: Record<string, any> = {
             type: normalizedPendingType,
             stage: typeof pending.stage === 'string' && pending.stage ? pending.stage : 'selectTarget'
         };
@@ -356,9 +355,9 @@ const pendingCoordinatorModule = (function (root) {
 
         if (normalizedPendingType === 'BOARD_EXPANSION_GOD' || normalizedPendingType === 'BOARD_SHRINK_WILL') {
             var selectedTargets = Array.isArray(pending.selectedTargets)
-                ? pending.selectedTargets.map(function (target) {
+                ? pending.selectedTargets.map(function (target: any) {
                     return clonePendingSelectionTransportTarget(target);
-                }).filter(function (target) {
+                }).filter(function (target: any) {
                     return !!target;
                 })
                 : [];
@@ -376,7 +375,7 @@ const pendingCoordinatorModule = (function (root) {
         return transportState;
     }
 
-    function createPendingSelectionAction(playerKey, pendingType, actionPayload, options) {
+    function createPendingSelectionAction(playerKey: any, pendingType: any, actionPayload: any, options: any) {
         var opts = (options && typeof options === 'object') ? options : {};
         var normalizedPayload = Object.assign({}, actionPayload || {});
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
@@ -400,7 +399,7 @@ const pendingCoordinatorModule = (function (root) {
                 && root.ActionManager
                 && root.ActionManager.ActionManager
                 && typeof root.ActionManager.ActionManager.createAction === 'function'
-                    ? function (type, ownerKey, payload) {
+                    ? function (type: any, ownerKey: any, payload: any) {
                         return root.ActionManager.ActionManager.createAction(type, ownerKey, payload);
                     }
                     : null
@@ -417,7 +416,7 @@ const pendingCoordinatorModule = (function (root) {
         return action;
     }
 
-    function clearPendingSelectionFailureState(cardState, playerKey, options) {
+    function clearPendingSelectionFailureState(cardState: any, playerKey: any, options: any) {
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
         var opts = (options && typeof options === 'object') ? options : {};
         var shouldClearPendingEffect = opts.clearPendingEffect === true;
@@ -439,7 +438,7 @@ const pendingCoordinatorModule = (function (root) {
         };
     }
 
-    function requiresPendingTarget(cardType) {
+    function requiresPendingTarget(cardType: any) {
         var pendingStateManager = getPendingStateManager();
         return !!(
             pendingStateManager
@@ -448,7 +447,7 @@ const pendingCoordinatorModule = (function (root) {
         );
     }
 
-    function getPendingSelectionContract(cardType) {
+    function getPendingSelectionContract(cardType: any) {
         return resolvePendingSelectionContract(cardType);
     }
 

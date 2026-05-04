@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 function _require(id: string): any {
@@ -11,6 +10,16 @@ function _require(id: string): any {
   throw new Error('Unable to require ' + id);
 }
 
+// Globals injected at runtime by UI
+declare var __uiImpl: any;
+declare var AnimationEngine: any;
+declare var CardLogic: any;
+
+// Module-level variable for injected UI visuals implementation
+let __uiImpl_move_exec_visuals: any = {};
+
+// getMoveExecutorVisuals exists for the export (historically referenced)
+const getMoveExecutorVisuals: any = undefined;
 
 // Visual helpers and animation sequence for move execution
 
@@ -39,7 +48,7 @@ function _isNoAnim() {
     return false;
 }
 
-function applyFlipAnimations(flipsToAnimate) {
+function applyFlipAnimations(flipsToAnimate: any) {
     // Delegate to injected UI implementation if present
     if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.applyFlipAnimations === 'function') {
         return __uiImpl.applyFlipAnimations(flipsToAnimate);
@@ -47,28 +56,28 @@ function applyFlipAnimations(flipsToAnimate) {
     return undefined;
 }
 
-function setDiscColorAt(row, col, color) {
+function setDiscColorAt(row: any, col: any, color: any) {
     if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.setDiscColorAt === 'function') {
         return __uiImpl.setDiscColorAt(row, col, color);
     }
     return undefined;
 }
 
-function removeBombOverlayAt(row, col) {
+function removeBombOverlayAt(row: any, col: any) {
     if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.removeBombOverlayAt === 'function') {
         return __uiImpl.removeBombOverlayAt(row, col);
     }
     return undefined;
 }
 
-function clearAllStoneVisualEffectsAt(row, col) {
+function clearAllStoneVisualEffectsAt(row: any, col: any) {
     if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.clearAllStoneVisualEffectsAt === 'function') {
         return __uiImpl.clearAllStoneVisualEffectsAt(row, col);
     }
     return undefined;
 }
 
-function syncDiscVisualToCurrentState(row, col) {
+function syncDiscVisualToCurrentState(row: any, col: any) {
     if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.syncDiscVisualToCurrentState === 'function') {
         return __uiImpl.syncDiscVisualToCurrentState(row, col);
     }
@@ -95,18 +104,18 @@ function getTurnTransitionGapMs() {
 }
 
 // Timers abstraction injection - use game/timers when available instead of direct timers
-let timers = null;
+let timers: any = null;
 try { timers = _require('../timers'); } catch (e) { /* ignore */ }
-const _waitMs = (ms) => (timers && typeof timers.waitMs === 'function') ? timers.waitMs(ms) : Promise.resolve();
+const _waitMs = (ms: number) => (timers && typeof timers.waitMs === 'function') ? timers.waitMs(ms) : Promise.resolve();
 
-async function animateFlipsWithDeferredColor(flips, fromColor, toColor) {
+async function animateFlipsWithDeferredColor(flips: any, fromColor: any, toColor: any) {
     if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.animateFlipsWithDeferredColor === 'function') {
         return __uiImpl.animateFlipsWithDeferredColor(flips, fromColor, toColor);
     }
     return undefined;
 }
 
-async function animateRegenBack(regenedPositions, flipperColor) {
+async function animateRegenBack(regenedPositions: any, flipperColor: any) {
     if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.animateRegenBack === 'function') {
         return __uiImpl.animateRegenBack(regenedPositions, flipperColor);
     }
@@ -114,7 +123,7 @@ async function animateRegenBack(regenedPositions, flipperColor) {
 }
 
 // Game-side wrappers for common UI animations (safe no-op when UI not present)
-async function animateFadeOutAt(row, col, options) {
+async function animateFadeOutAt(row: any, col: any, options: any) {
     if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.animateFadeOutAt === 'function') {
         return __uiImpl_move_exec_visuals.animateFadeOutAt(row, col, options);
     }
@@ -122,7 +131,7 @@ async function animateFadeOutAt(row, col, options) {
     return _waitMs(delay);
 }
 
-async function animateDestroyAt(row, col, options) {
+async function animateDestroyAt(row: any, col: any, options: any) {
     if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.animateDestroyAt === 'function') {
         return __uiImpl_move_exec_visuals.animateDestroyAt(row, col, options);
     }
@@ -130,14 +139,14 @@ async function animateDestroyAt(row, col, options) {
     return _waitMs(delay);
 }
 
-async function animateHyperactiveMove(from, to, options) {
+async function animateHyperactiveMove(from: any, to: any, options?: any) {
     if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.animateHyperactiveMove === 'function') {
         return __uiImpl_move_exec_visuals.animateHyperactiveMove(from, to, options);
     }
     return Promise.resolve();
 }
 
-async function animateHyperactiveMoveChain(moves) {
+async function animateHyperactiveMoveChain(moves: any) {
     if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.animateHyperactiveMoveChain === 'function') {
         return __uiImpl_move_exec_visuals.animateHyperactiveMoveChain(moves);
     }
@@ -158,7 +167,7 @@ function hasPlaybackEngine() {
     return false;
 }
 
-async function playDrawAnimation(player, drawnCardId) {
+async function playDrawAnimation(player: any, drawnCardId: any) {
     if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.playDrawAnimation === 'function') {
         return __uiImpl_move_exec_visuals.playDrawAnimation(player, drawnCardId);
     }
@@ -172,14 +181,14 @@ async function updateDeckVisual() {
     return Promise.resolve();
 }
 
-function applyPendingSpecialstoneVisual(move, pendingType) {
+function applyPendingSpecialstoneVisual(move: any, pendingType: any) {
     if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.applyPendingSpecialstoneVisual === 'function') {
         return __uiImpl.applyPendingSpecialstoneVisual(move, pendingType);
     }
     return undefined;
 }
 
-async function runMoveVisualSequence(move, hadSelection, phases, effects, immediate) {
+async function runMoveVisualSequence(move: any, hadSelection: any, phases: any, effects: any, immediate: any) {
     // Delegate to injected UI implementation if present. Ensure we are not delegating to ourselves (avoid infinite recursion).
     if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.runMoveVisualSequence === 'function' && __uiImpl.runMoveVisualSequence !== runMoveVisualSequence) {
         return __uiImpl.runMoveVisualSequence(move, hadSelection, phases, effects, immediate);
@@ -189,8 +198,7 @@ async function runMoveVisualSequence(move, hadSelection, phases, effects, immedi
 
 // Expose to Node.js requires; game/ side is intentionally DOM-free and delegates to UI at runtime
 // Provide a small DI boundary so UI can inject implementations for visual helpers.
-let __uiImpl_move_exec_visuals = {};
-function setUIImpl(obj) { __uiImpl_move_exec_visuals = obj || {}; }
+function setUIImpl(obj: any) { __uiImpl_move_exec_visuals = obj || {}; }
 function clearUIImpl() { __uiImpl_move_exec_visuals = {}; }
 
 // CommonJS (Node/tests) export. In browser script-tag mode, `module` is undefined.

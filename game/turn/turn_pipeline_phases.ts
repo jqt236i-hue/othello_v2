@@ -1,15 +1,12 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-import type { CardState, GameState, PlayerKey } from '../../src/types';
-
     const MarkersAdapter = (() => { try { return _require('../logic/markers_adapter'); } catch (e) { return null; } })();
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
-    function isBombCategoryMarker(marker) {
+    function isBombCategoryMarker(marker: any) {
         if (MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
             return MarkersAdapter.isBombCategoryMarker(marker);
         }
@@ -32,7 +29,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         EVADED_MOVE: 'evaded_move'
     });
 
-    function createDestroyOutcome(kindOrResult, details) {
+    function createDestroyOutcome(kindOrResult: any, details: any) {
         if (DestroyOutcomeContract && typeof DestroyOutcomeContract.createDestroyOutcome === 'function') {
             return DestroyOutcomeContract.createDestroyOutcome(kindOrResult, details);
         }
@@ -62,38 +59,39 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return outcome;
     }
 
-    function isDestroyOutcomeResolved(result) {
+    function isDestroyOutcomeResolved(result: any) {
         if (DestroyOutcomeContract && typeof DestroyOutcomeContract.isDestroyOutcomeResolved === 'function') {
             return DestroyOutcomeContract.isDestroyOutcomeResolved(result);
         }
         return !!(result && (result.destroyed || result.regenerated || result.livingWillRevived || result.evaded || result.blockedByGhost || result.proliferated));
     }
 
-    function applyPostFlipRevives(CardLogic, cardState, gameState, flips, ownerKey) {
+    function applyPostFlipRevives(CardLogic: any, cardState: any, gameState: any, flips: any, ownerKey: any) {
         const regenRes = (CardLogic && typeof CardLogic.applyRegenAfterFlips === 'function')
             ? CardLogic.applyRegenAfterFlips(cardState, gameState, flips, ownerKey)
             : { regened: [], captureFlips: [] };
-        const livingWillInputs = []
-            .concat(Array.isArray(flips) ? flips : [])
-            .concat(regenRes && Array.isArray(regenRes.captureFlips) ? regenRes.captureFlips : []);
+        const livingWillInputs: any[] = [
+            ...(Array.isArray(flips) ? flips : []),
+            ...(regenRes && Array.isArray(regenRes.captureFlips) ? regenRes.captureFlips : [])
+        ];
         const livingWillRes = (CardLogic && typeof CardLogic.applyLivingWillAfterFlips === 'function')
             ? CardLogic.applyLivingWillAfterFlips(cardState, gameState, livingWillInputs, ownerKey)
             : { restored: [] };
         return { regenRes, livingWillRes };
     }
 
-    function normalizePendingTypeForActionPhase(pendingType) {
+    function normalizePendingTypeForActionPhase(pendingType: any) {
         return String(pendingType || '').trim().toUpperCase();
     }
 
-    function matchesPendingTypeForActionPhase(pending, expectedType) {
+    function matchesPendingTypeForActionPhase(pending: any, expectedType: any) {
         const normalizedPendingType = normalizePendingTypeForActionPhase(pending && pending.type);
         if (!normalizedPendingType) return false;
         const expectedTypes = Array.isArray(expectedType) ? expectedType : [expectedType];
-        return expectedTypes.some((type) => normalizePendingTypeForActionPhase(type) === normalizedPendingType);
+        return expectedTypes.some((type: any) => normalizePendingTypeForActionPhase(type) === normalizedPendingType);
     }
 
-    function requirePendingActionValue(pending, expectedType, value, errorMessage) {
+    function requirePendingActionValue(pending: any, expectedType: any, value: any, errorMessage: any) {
         if (!matchesPendingTypeForActionPhase(pending, expectedType)) return false;
         if (value == null) {
             throw new Error(errorMessage);
@@ -101,7 +99,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return true;
     }
 
-    function readPendingForActionPhase(cardState, playerKey) {
+    function readPendingForActionPhase(cardState: any, playerKey: any) {
         if (PendingCoordinatorModule && typeof PendingCoordinatorModule.readPendingEffect === 'function') {
             return PendingCoordinatorModule.readPendingEffect(cardState, playerKey);
         }
@@ -110,7 +108,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             : null;
     }
 
-    function getPendingEffectTypeForActionPhase(CardLogic, cardState, playerKey) {
+    function getPendingEffectTypeForActionPhase(CardLogic: any, cardState: any, playerKey: any) {
         if (PendingCoordinatorModule && typeof PendingCoordinatorModule.getPendingEffectType === 'function') {
             return PendingCoordinatorModule.getPendingEffectType(cardState, playerKey);
         }
@@ -121,7 +119,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return pending ? pending.type : null;
     }
 
-    function clearPendingForActionPhase(cardState, playerKey) {
+    function clearPendingForActionPhase(cardState: any, playerKey: any) {
         if (PendingCoordinatorModule && typeof PendingCoordinatorModule.clearPendingEffect === 'function') {
             return PendingCoordinatorModule.clearPendingEffect(cardState, playerKey, {
                 clearSelectionAction: true
@@ -153,7 +151,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         lostLine: 'あああああああああああああ'
     });
 
-    function getLegacySpecialStoneBubbleSpeech(type) {
+    function getLegacySpecialStoneBubbleSpeech(type: any) {
         const key = String(type || '').trim().toUpperCase();
         if (key === 'OBSERVER') {
             return {
@@ -214,7 +212,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         typeof PhaseHelpersModule.OBSERVER_CARD_ONE_LINERS === 'object'
     ) ? PhaseHelpersModule.OBSERVER_CARD_ONE_LINERS : Object.freeze({});
 
-    function resolveStrongWillDisplayTimer(markerData) {
+    function resolveStrongWillDisplayTimer(markerData: any) {
         if (!markerData || String(markerData.type || '').toUpperCase() !== 'PERMA_PROTECTED') return undefined;
         const rawThreshold = Number(markerData.strongWillPromotionThreshold);
         const thresholdFallback = Number(SharedConstantsModule && SharedConstantsModule.STRONG_WILL_PROMOTION_OWNER_TURNS);
@@ -226,18 +224,18 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return Math.max(0, threshold - progress);
     }
 
-    function resolveSpecialStatusTimer(markerData) {
+    function resolveSpecialStatusTimer(markerData: any) {
         const remainingOwnerTurns = Number(markerData && markerData.remainingOwnerTurns);
         if (Number.isFinite(remainingOwnerTurns)) return Math.max(0, Math.trunc(remainingOwnerTurns));
         return resolveStrongWillDisplayTimer(markerData);
     }
 
-    function cloneDeferredPendingSelectionValue(value) {
+    function cloneDeferredPendingSelectionValue(value: any): any {
         if (Array.isArray(value)) {
-            return value.map((item) => cloneDeferredPendingSelectionValue(item));
+            return value.map((item: any) => cloneDeferredPendingSelectionValue(item));
         }
         if (!value || typeof value !== 'object') return value;
-        const cloned = {};
+        const cloned: Record<string, any> = {};
         const keys = Object.keys(value);
         for (let index = 0; index < keys.length; index += 1) {
             const key = keys[index];
@@ -246,7 +244,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return cloned;
     }
 
-    function hydrateDeferredPendingSelectionState(pending, action) {
+    function hydrateDeferredPendingSelectionState(pending: any, action: any) {
         if (!pending || !action || !action.pendingSelectionState || typeof action.pendingSelectionState !== 'object') {
             return false;
         }
@@ -274,7 +272,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         typeof PhaseHelpersModule.pickRandomLine === 'function'
     )
         ? PhaseHelpersModule.pickRandomLine
-        : function pickRandomLineFallback(lines, prng) {
+        : function pickRandomLineFallback(lines: any, prng: any) {
             if (!Array.isArray(lines) || lines.length === 0) return null;
             const source = (prng && typeof prng.random === 'function') ? prng : Math;
             let value = Number(source.random());
@@ -285,7 +283,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             return lines[Math.max(0, Math.min(lines.length - 1, index))] || null;
         };
 
-    function emitSpeechBubblePresentation(CardLogic, cardState, payload, buildEvent) {
+    function emitSpeechBubblePresentation(CardLogic: any, cardState: any, payload: any, buildEvent: any) {
         if (!CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return;
         if (typeof buildEvent !== 'function') return;
         const data = payload || {};
@@ -297,8 +295,8 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         CardLogic.emitPresentationEvent(cardState, ev);
     }
 
-    function emitObserverBubblePresentation(CardLogic, cardState, payload) {
-        emitSpeechBubblePresentation(CardLogic, cardState, payload, function buildObserverBubbleEvent(data, row, col) {
+    function emitObserverBubblePresentation(CardLogic: any, cardState: any, payload: any) {
+        emitSpeechBubblePresentation(CardLogic, cardState, payload, function buildObserverBubbleEvent(data: any, row: any, col: any) {
             return {
                 type: 'OBSERVER_BUBBLE',
                 player: data.player || null,
@@ -316,12 +314,12 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         typeof PhaseHelpersModule.resolveWorkIncomeLine === 'function'
     )
         ? PhaseHelpersModule.resolveWorkIncomeLine
-        : function resolveWorkIncomeLineFallback(gained) {
+        : function resolveWorkIncomeLineFallback(gained: any) {
             return `布石+${Number(gained) || 0} 労働の成果だ`;
         };
 
-    function emitWorkBubblePresentation(CardLogic, cardState, payload) {
-        emitSpeechBubblePresentation(CardLogic, cardState, payload, function buildWorkBubbleEvent(data, row, col) {
+    function emitWorkBubblePresentation(CardLogic: any, cardState: any, payload: any) {
+        emitSpeechBubblePresentation(CardLogic, cardState, payload, function buildWorkBubbleEvent(data: any, row: any, col: any) {
             const gained = Number(data.gained) || 0;
             const incomeStep = Number.isFinite(Number(data.incomeStep))
                 ? Math.max(1, Math.min(5, Math.trunc(Number(data.incomeStep))))
@@ -353,7 +351,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         typeof PhaseHelpersModule.getSpecialStoneBubbleSpeechLines === 'function'
     )
         ? PhaseHelpersModule.getSpecialStoneBubbleSpeechLines
-        : function getSpecialStoneBubbleSpeechLinesFallback(type, scenario) {
+        : function getSpecialStoneBubbleSpeechLinesFallback(type: any, scenario: any) {
             const speech = getSpecialStoneBubbleSpeech(type);
             if (!speech) return null;
             const scenarioKey = String(scenario || '').trim().toLowerCase();
@@ -374,11 +372,11 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         typeof PhaseHelpersModule.pickSpecialStoneBubbleSpeechLine === 'function'
     )
         ? PhaseHelpersModule.pickSpecialStoneBubbleSpeechLine
-        : function pickSpecialStoneBubbleSpeechLineFallback(type, scenario, prng) {
+        : function pickSpecialStoneBubbleSpeechLineFallback(type: any, scenario: any, prng: any) {
             return pickRandomLine(getSpecialStoneBubbleSpeechLines(type, scenario), prng);
         };
 
-    const LEGACY_SPECIAL_STONE_BUBBLE_TYPES = Object.freeze({
+    const LEGACY_SPECIAL_STONE_BUBBLE_TYPES: Record<string, boolean | undefined> = Object.freeze({
         OBSERVER: true,
         WORK: true
     });
@@ -406,28 +404,28 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         Object.freeze({ flag: 'hyperactivePlaced', special: 'HYPERACTIVE' })
     ]);
 
-    function normalizeSpecialStoneBubbleType(type) {
+    function normalizeSpecialStoneBubbleType(type: any) {
         const key = String(type || '').trim().toUpperCase();
         return key || null;
     }
 
-    function normalizeSpecialStoneBubbleScenarioKey(scenario) {
+    function normalizeSpecialStoneBubbleScenarioKey(scenario: any) {
         const key = String(scenario || '').trim().toLowerCase();
         return key || null;
     }
 
-    function isLegacySpecialStoneBubbleType(type) {
+    function isLegacySpecialStoneBubbleType(type: any) {
         const key = normalizeSpecialStoneBubbleType(type);
         return !!(key && LEGACY_SPECIAL_STONE_BUBBLE_TYPES[key]);
     }
 
-    function hasDurationEndMarker(reason, cause) {
+    function hasDurationEndMarker(reason: any, cause: any) {
         const reasonLower = String(reason || '').toLowerCase();
         const causeLower = String(cause || '').toLowerCase();
         return reasonLower === 'duration_end' || reasonLower.indexOf('duration') >= 0 || reasonLower.indexOf('expire') >= 0 || causeLower.indexOf('expire') >= 0;
     }
 
-    function resolveSpecialStoneBubblePlayer(payload) {
+    function resolveSpecialStoneBubblePlayer(payload: any) {
         const data = (payload && typeof payload === 'object') ? payload : {};
         return normalizePlayerKey(
             data.player !== undefined ? data.player
@@ -438,7 +436,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         );
     }
 
-    function buildSpecialStoneBubbleKey(special, scenario, row, col, player) {
+    function buildSpecialStoneBubbleKey(special: any, scenario: any, row: any, col: any, player: any) {
         const typeKey = normalizeSpecialStoneBubbleType(special);
         const scenarioKey = normalizeSpecialStoneBubbleScenarioKey(scenario);
         const rowKey = Number(row);
@@ -448,7 +446,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return `${rowKey},${colKey}:${ownerKey}:${typeKey}:${scenarioKey}`;
     }
 
-    function createSpecialStoneBubbleTracker(cardState, sinceIndex) {
+    function createSpecialStoneBubbleTracker(cardState: any, sinceIndex: any) {
         const tracker = new Set();
         const pres = (cardState && Array.isArray(cardState.presentationEvents)) ? cardState.presentationEvents : [];
         const start = Number.isFinite(Number(sinceIndex)) ? Math.max(0, Math.trunc(Number(sinceIndex))) : 0;
@@ -467,7 +465,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return tracker;
     }
 
-    function emitSpecialStoneBubblePresentation(CardLogic, cardState, payload, options) {
+    function emitSpecialStoneBubblePresentation(CardLogic: any, cardState: any, payload: any, options: any) {
         if (!CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return false;
         const data = (payload && typeof payload === 'object') ? payload : {};
         const opts = (options && typeof options === 'object') ? options : {};
@@ -506,7 +504,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             reason,
             cause,
             meta
-        }, function buildSpecialStoneBubbleEvent(bubbleData, bubbleRow, bubbleCol) {
+        }, function buildSpecialStoneBubbleEvent(bubbleData: any, bubbleRow: any, bubbleCol: any) {
             return {
                 type: 'SPECIAL_STONE_BUBBLE',
                 special,
@@ -525,7 +523,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return true;
     }
 
-    function resolvePlacedSpecialStoneType(effects) {
+    function resolvePlacedSpecialStoneType(effects: any) {
         const data = (effects && typeof effects === 'object') ? effects : null;
         if (!data) return null;
         for (let index = 0; index < SPECIAL_STONE_PLACEMENT_EFFECT_SPECS.length; index += 1) {
@@ -537,7 +535,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return null;
     }
 
-    function emitSpecialStonePlacementBubbleFromEffects(CardLogic, cardState, playerKey, row, col, effects, prng) {
+    function emitSpecialStonePlacementBubbleFromEffects(CardLogic: any, cardState: any, playerKey: any, row: any, col: any, effects: any, prng: any) {
         const special = resolvePlacedSpecialStoneType(effects);
         if (!special) return false;
         return emitSpecialStoneBubblePresentation(CardLogic, cardState, {
@@ -550,7 +548,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }, { prng });
     }
 
-    function emitChargeBubblePresentation(CardLogic, cardState, payload) {
+    function emitChargeBubblePresentation(CardLogic: any, cardState: any, payload: any) {
         if (!CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return;
         const data = payload || {};
         const row = Number(data.row);
@@ -574,7 +572,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         });
     }
 
-    function snapshotWorkMarkers(cardState) {
+    function snapshotWorkMarkers(cardState: any) {
         const markers = (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
             ? MarkersAdapter.getMarkers(cardState)
             : (cardState && Array.isArray(cardState.markers) ? cardState.markers : []);
@@ -598,18 +596,18 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return out;
     }
 
-    function getRemovedWorkMarkers(beforeSnapshot, afterSnapshot) {
+    function getRemovedWorkMarkers(beforeSnapshot: any, afterSnapshot: any) {
         const before = Array.isArray(beforeSnapshot) ? beforeSnapshot : [];
         const after = Array.isArray(afterSnapshot) ? afterSnapshot : [];
-        const afterSet = new Set(after.map((item) => item && item.key).filter((key) => !!key));
-        return before.filter((item) => {
+        const afterSet = new Set(after.map((item: any) => item && item.key).filter((key: any) => !!key));
+        return before.filter((item: any) => {
             if (!item || !item.key) return false;
             if (!Number.isInteger(item.row) || !Number.isInteger(item.col)) return false;
             return !afterSet.has(item.key);
         });
     }
 
-    function isWorkDurationEndPresentationEvent(ev) {
+    function isWorkDurationEndPresentationEvent(ev: any) {
         if (!ev || !ev.type) return false;
         if (ev.type === 'WORK_INCOME') {
             if (ev.removed !== true) return false;
@@ -623,7 +621,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return hasDurationEndMarker(reason, cause);
     }
 
-    function hasWorkRemovedPresentationEventAt(cardState, row, col, sinceIndex) {
+    function hasWorkRemovedPresentationEventAt(cardState: any, row: any, col: any, sinceIndex: any) {
         const pres = (cardState && Array.isArray(cardState.presentationEvents)) ? cardState.presentationEvents : [];
         const start = Number.isFinite(Number(sinceIndex)) ? Math.max(0, Math.trunc(Number(sinceIndex))) : 0;
         for (let i = start; i < pres.length; i++) {
@@ -634,7 +632,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return false;
     }
 
-    function emitWorkRemovedPresentationFromSnapshots(CardLogic, cardState, beforeSnapshot, options) {
+    function emitWorkRemovedPresentationFromSnapshots(CardLogic: any, cardState: any, beforeSnapshot: any, options: any) {
         if (!CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return;
         const opts = options || {};
         const afterSnapshot = snapshotWorkMarkers(cardState);
@@ -663,7 +661,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }
     }
 
-    function snapshotObserverMarkers(cardState) {
+    function snapshotObserverMarkers(cardState: any) {
         const markers = (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
             ? MarkersAdapter.getMarkers(cardState)
             : (cardState && Array.isArray(cardState.markers) ? cardState.markers : []);
@@ -687,18 +685,18 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return out;
     }
 
-    function getRemovedObserverMarkers(beforeSnapshot, afterSnapshot) {
+    function getRemovedObserverMarkers(beforeSnapshot: any, afterSnapshot: any) {
         const before = Array.isArray(beforeSnapshot) ? beforeSnapshot : [];
         const after = Array.isArray(afterSnapshot) ? afterSnapshot : [];
-        const afterSet = new Set(after.map((item) => item && item.key).filter((key) => !!key));
-        return before.filter((item) => {
+        const afterSet = new Set(after.map((item: any) => item && item.key).filter((key: any) => !!key));
+        return before.filter((item: any) => {
             if (!item || !item.key) return false;
             if (!Number.isInteger(item.row) || !Number.isInteger(item.col)) return false;
             return !afterSet.has(item.key);
         });
     }
 
-    function emitObserverLostBubbleFromSnapshots(CardLogic, cardState, beforeSnapshot, reason) {
+    function emitObserverLostBubbleFromSnapshots(CardLogic: any, cardState: any, beforeSnapshot: any, reason: any) {
         const afterSnapshot = snapshotObserverMarkers(cardState);
         const removed = getRemovedObserverMarkers(beforeSnapshot, afterSnapshot);
         const first = removed[0] || null;
@@ -712,12 +710,12 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         });
     }
 
-    function isGenericSpecialStoneBubbleType(type) {
+    function isGenericSpecialStoneBubbleType(type: any) {
         const key = normalizeSpecialStoneBubbleType(type);
         return !!key && !isLegacySpecialStoneBubbleType(key);
     }
 
-    function snapshotSpecialStoneSpeechMarkers(cardState) {
+    function snapshotSpecialStoneSpeechMarkers(cardState: any) {
         const markers = (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
             ? MarkersAdapter.getMarkers(cardState)
             : (cardState && Array.isArray(cardState.markers) ? cardState.markers : []);
@@ -749,22 +747,22 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return out;
     }
 
-    function getRemovedSpecialStoneSpeechMarkers(beforeSnapshot, afterSnapshot) {
+    function getRemovedSpecialStoneSpeechMarkers(beforeSnapshot: any, afterSnapshot: any) {
         const before = Array.isArray(beforeSnapshot) ? beforeSnapshot : [];
         const after = Array.isArray(afterSnapshot) ? afterSnapshot : [];
-        const afterSet = new Set(after.map((item) => item && item.key).filter((key) => !!key));
-        return before.filter((item) => {
+        const afterSet = new Set(after.map((item: any) => item && item.key).filter((key: any) => !!key));
+        return before.filter((item: any) => {
             if (!item || !item.key || !item.type) return false;
             if (!Number.isInteger(item.row) || !Number.isInteger(item.col)) return false;
             return !afterSet.has(item.key);
         });
     }
 
-    function isDurationEndSpecialStoneBubbleReason(reason, cause) {
+    function isDurationEndSpecialStoneBubbleReason(reason: any, cause: any) {
         return hasDurationEndMarker(reason, cause);
     }
 
-    function isEscapeExplosionSpecialStoneBubbleReason(reason, cause) {
+    function isEscapeExplosionSpecialStoneBubbleReason(reason: any, cause: any) {
         const reasonText = String(reason || '').toLowerCase();
         const causeText = String(cause || '').toLowerCase();
         return reasonText.indexOf('escape_no_candidates_explosion') >= 0 ||
@@ -773,7 +771,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             causeText.indexOf('no_candidates_explosion') >= 0;
     }
 
-    function isProliferationTriggeredSpecialStoneBubbleEvent(ev, reason, cause) {
+    function isProliferationTriggeredSpecialStoneBubbleEvent(ev: any, reason: any, cause: any) {
         const reasonText = String(reason || '').toLowerCase();
         const causeText = String(cause || '').toLowerCase();
         return !!(
@@ -783,7 +781,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         );
     }
 
-    function findMatchingSpecialStoneStatusRemovedEvent(presentationEvents, item) {
+    function findMatchingSpecialStoneStatusRemovedEvent(presentationEvents: any, item: any) {
         const events = Array.isArray(presentationEvents) ? presentationEvents : [];
         if (!item || !item.type) return null;
         for (let index = 0; index < events.length; index += 1) {
@@ -797,7 +795,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return null;
     }
 
-    function hasMatchingSpecialStoneStatusAppliedEvent(presentationEvents, itemOrSpecial, rowValue, colValue) {
+    function hasMatchingSpecialStoneStatusAppliedEvent(presentationEvents: any, itemOrSpecial: any, rowValue: any, colValue: any) {
         const events = Array.isArray(presentationEvents) ? presentationEvents : [];
         const item = (itemOrSpecial && typeof itemOrSpecial === 'object')
             ? itemOrSpecial
@@ -815,7 +813,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return false;
     }
 
-    function hasMatchingSpecialStoneMovedFromPhaseEvent(phaseEvents, item) {
+    function hasMatchingSpecialStoneMovedFromPhaseEvent(phaseEvents: any, item: any) {
         const events = Array.isArray(phaseEvents) ? phaseEvents : [];
         if (!item || !item.type) return false;
         const specialType = String(item.type || '').trim().toUpperCase();
@@ -837,7 +835,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return false;
     }
 
-    function hasEscapeExplosionPresentationEventAt(presentationEvents, item) {
+    function hasEscapeExplosionPresentationEventAt(presentationEvents: any, item: any) {
         const events = Array.isArray(presentationEvents) ? presentationEvents : [];
         if (!item) return false;
         for (let index = 0; index < events.length; index += 1) {
@@ -851,7 +849,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return false;
     }
 
-    function hasRegenTriggeredPresentationEventAt(presentationEvents, row, col) {
+    function hasRegenTriggeredPresentationEventAt(presentationEvents: any, row: any, col: any) {
         const events = Array.isArray(presentationEvents) ? presentationEvents : [];
         for (let index = 0; index < events.length; index += 1) {
             const ev = events[index];
@@ -863,7 +861,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return false;
     }
 
-    function isLivingWillRestorePresentationEvent(ev) {
+    function isLivingWillRestorePresentationEvent(ev: any) {
         if (!ev || (ev.type !== 'SPAWN' && ev.type !== 'CHANGE')) return false;
         const meta = (ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
         const cause = String((ev.cause || (meta && meta.cause) || '')).trim().toUpperCase();
@@ -871,7 +869,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return !!((meta && meta.livingWillRevived === true) || (cause === 'LIVING_WILL' && reason === 'living_will_restored'));
     }
 
-    function findMatchingLivingWillRestorePresentationEvent(presentationEvents, itemOrSpecial, rowValue, colValue) {
+    function findMatchingLivingWillRestorePresentationEvent(presentationEvents: any, itemOrSpecial: any, rowValue: any, colValue: any) {
         const events = Array.isArray(presentationEvents) ? presentationEvents : [];
         const item = (itemOrSpecial && typeof itemOrSpecial === 'object')
             ? itemOrSpecial
@@ -893,7 +891,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return null;
     }
 
-    function emitBoardChargeBubblePresentation(CardLogic, cardState, payload) {
+    function emitBoardChargeBubblePresentation(CardLogic: any, cardState: any, payload: any) {
         const data = (payload && typeof payload === 'object') ? payload : null;
         if (!data) return;
         const gained = Number(data.gained);
@@ -908,13 +906,13 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         });
     }
 
-    function buildBoardChargeDeltaMeta(row, col, sourceType) {
+    function buildBoardChargeDeltaMeta(row: any, col: any, sourceType: any) {
         const anchorRow = Number(row);
         const anchorCol = Number(col);
         if (!Number.isInteger(anchorRow) || !Number.isInteger(anchorCol)) {
             throw new Error('TurnPipelinePhases board charge popup requires integer anchorRow/anchorCol');
         }
-        const meta = {
+        const meta: Record<string, any> = {
             popupKind: 'board',
             anchorRow,
             anchorCol
@@ -925,7 +923,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return meta;
     }
 
-    function resolveBoardChargeAnchor(options) {
+    function resolveBoardChargeAnchor(options: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const moved = Array.isArray(opts.moved) ? opts.moved : [];
         for (let index = moved.length - 1; index >= 0; index--) {
@@ -953,7 +951,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         throw new Error('TurnPipelinePhases board charge popup requires a resolved anchor');
     }
 
-    function resolveBoardChargeGainContext(options) {
+    function resolveBoardChargeGainContext(options: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const anchor = resolveBoardChargeAnchor(opts);
         return {
@@ -965,7 +963,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    function applyResolvedBoardChargeGain(cardState, playerKey, amount, context) {
+    function applyResolvedBoardChargeGain(cardState: any, playerKey: any, amount: any, context: any) {
         const ctx = (context && typeof context === 'object') ? context : {};
         const anchor = (ctx.anchor && Number.isInteger(Number(ctx.anchor.row)) && Number.isInteger(Number(ctx.anchor.col)))
             ? { row: Number(ctx.anchor.row), col: Number(ctx.anchor.col) }
@@ -986,7 +984,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    function clonePendingRoundBonusPayload(value) {
+    function clonePendingRoundBonusPayload(value: any) {
         if (!value || typeof value !== 'object') return null;
         const roundNumber = Number.isFinite(Number(value.roundNumber))
             ? Math.max(1, Math.trunc(Number(value.roundNumber)))
@@ -998,7 +996,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return { roundNumber, amount };
     }
 
-    function ensureGameRoundState(Core, gameState) {
+    function ensureGameRoundState(Core: any, gameState: any) {
         if (!gameState || typeof gameState !== 'object') return gameState;
         if (Core && typeof Core.ensureRoundState === 'function') {
             return Core.ensureRoundState(gameState);
@@ -1018,7 +1016,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return gameState;
     }
 
-    function resolveRoundBonusAmountForGame(Core, roundNumber) {
+    function resolveRoundBonusAmountForGame(Core: any, roundNumber: any) {
         if (Core && typeof Core.resolveRoundBonusAmount === 'function') {
             return Core.resolveRoundBonusAmount(roundNumber);
         }
@@ -1029,7 +1027,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return Math.max(0, Math.floor(normalizedRound / 2));
     }
 
-    function advanceGameRoundAfterCompletedTurn(Core, gameState, playerKey, options) {
+    function advanceGameRoundAfterCompletedTurn(Core: any, gameState: any, playerKey: any, options: any) {
         if (Core && typeof Core.advanceRoundAfterCompletedTurn === 'function') {
             return Core.advanceRoundAfterCompletedTurn(gameState, playerKey, options);
         }
@@ -1066,7 +1064,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    function consumePendingRoundBonusFromGame(Core, gameState) {
+    function consumePendingRoundBonusFromGame(Core: any, gameState: any) {
         if (Core && typeof Core.consumePendingRoundBonus === 'function') {
             return Core.consumePendingRoundBonus(gameState);
         }
@@ -1077,7 +1075,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return pending;
     }
 
-    function emitRoundBonusBannerPresentation(CardLogic, cardState, payload) {
+    function emitRoundBonusBannerPresentation(CardLogic: any, cardState: any, payload: any) {
         if (!CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return;
         const data = (payload && typeof payload === 'object') ? payload : null;
         const roundNumber = Number.isFinite(Number(data && data.roundNumber))
@@ -1096,7 +1094,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         });
     }
 
-    function applyPendingRoundBonusAtTurnStart(CardLogic, Core, cardState, gameState, events) {
+    function applyPendingRoundBonusAtTurnStart(CardLogic: any, Core: any, cardState: any, gameState: any, events: any) {
         ensureGameRoundState(Core, gameState);
         const pending = consumePendingRoundBonusFromGame(Core, gameState);
         if (!pending) return null;
@@ -1137,7 +1135,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    function applyPlacementBoardBonusGain(CardLogic, cardState, playerKey, row, col, amount, flipCount) {
+    function applyPlacementBoardBonusGain(CardLogic: any, cardState: any, playerKey: any, row: any, col: any, amount: any, flipCount: any) {
         const gained = addChargeWithTotal(cardState, playerKey, amount, {
             reason: 'board_bonus_gain',
             popupKind: 'board',
@@ -1157,7 +1155,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return gained;
     }
 
-    function buildPlacementChargeBubblePayload(playerKey, row, col, flipCount, boardBonusGained, effects) {
+    function buildPlacementChargeBubblePayload(playerKey: any, row: any, col: any, flipCount: any, boardBonusGained: any, effects: any) {
         const flipGain = Number(effects && effects.chargeGained) || 0;
         const mergedBoardBonus = flipCount > 0 ? (Number(boardBonusGained) || 0) : 0;
         const totalGain = flipGain + mergedBoardBonus;
@@ -1171,7 +1169,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    function addChargeWithTotal(cardState, playerKey, amount, options) {
+    function addChargeWithTotal(cardState: any, playerKey: any, amount: any, options: any) {
         if (!cardState || !amount) return 0;
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
         if (!cardState.chargeGainedTotal) cardState.chargeGainedTotal = { black: 0, white: 0 };
@@ -1183,7 +1181,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             ? opts.reason.trim()
             : 'turn_start_effect';
         const deltaMeta = (opts && opts.popupKind === 'board')
-            ? buildBoardChargeDeltaMeta(boardAnchor.row, boardAnchor.col, opts.sourceType)
+            ? buildBoardChargeDeltaMeta(boardAnchor!.row, boardAnchor!.col, opts.sourceType)
             : null;
         const deltaRes = (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function')
             ? CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, reason, deltaMeta)
@@ -1202,7 +1200,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return added;
     }
 
-    function awardBoardChargeGain(CardLogic, cardState, playerKey, amount, options) {
+    function awardBoardChargeGain(CardLogic: any, cardState: any, playerKey: any, amount: any, options: any) {
         const context = resolveBoardChargeGainContext(options);
         const gainResult = applyResolvedBoardChargeGain(cardState, playerKey, amount, context);
         if (gainResult.gained > 0) {
@@ -1218,7 +1216,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return gainResult.gained;
     }
 
-    function transferChargeBetweenPlayers(cardState, fromPlayerKey, toPlayerKey, amount, reasonKey) {
+    function transferChargeBetweenPlayers(cardState: any, fromPlayerKey: any, toPlayerKey: any, amount: any, reasonKey: any) {
         if (!cardState || !amount) return 0;
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
 
@@ -1229,7 +1227,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         const movable = Math.min(requested, fromCharge, toRoom);
         if (movable <= 0) return 0;
 
-        const gained = addChargeWithTotal(cardState, toPlayerKey, movable);
+        const gained = addChargeWithTotal(cardState, toPlayerKey, movable, null);
         if (gained <= 0) return 0;
 
         if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
@@ -1240,20 +1238,20 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return gained;
     }
 
-    function consumeTimeStopCompletedTurn(CardLogic, cardState, playerKey) {
+    function consumeTimeStopCompletedTurn(CardLogic: any, cardState: any, playerKey: any) {
         if (!CardLogic || typeof CardLogic.consumeTimeStopConsecutiveTurn !== 'function') {
             return { consumed: false, remaining: 0, continueTurn: false };
         }
         return CardLogic.consumeTimeStopConsecutiveTurn(cardState, playerKey) || { consumed: false, remaining: 0, continueTurn: false };
     }
 
-    function handOffCompletedTurn(Core, CardLogic, cardState, gameState, playerKey, turnNumberAfterCompletion) {
+    function handOffCompletedTurn(Core: any, CardLogic: any, cardState: any, gameState: any, playerKey: any, turnNumberAfterCompletion: any) {
         if (!Core || !gameState) return { continued: false, remaining: 0 };
         const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
         const turnNumber = Number.isFinite(Number(turnNumberAfterCompletion))
             ? Number(turnNumberAfterCompletion)
             : (Number(gameState.turnNumber || 0) + 1);
-        advanceGameRoundAfterCompletedTurn(Core, gameState, playerKey);
+        advanceGameRoundAfterCompletedTurn(Core, gameState, playerKey, null);
         const timeStopRes = consumeTimeStopCompletedTurn(CardLogic, cardState, playerKey);
         if (timeStopRes.continueTurn === true) {
             gameState.currentPlayer = playerValue;
@@ -1270,13 +1268,13 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return { continued: false, remaining: 0 };
     }
 
-    function handOffTurnAfterSelection(Core, CardLogic, cardState, gameState, playerKey) {
+    function handOffTurnAfterSelection(Core: any, CardLogic: any, cardState: any, gameState: any, playerKey: any) {
         if (!Core || !gameState) return;
         const turnNumberBeforeAction = Number(gameState.turnNumber || 0);
         handOffCompletedTurn(Core, CardLogic, cardState, gameState, playerKey, turnNumberBeforeAction + 1);
     }
 
-    function pushTrapEvents(events, trapRes) {
+    function pushTrapEvents(events: any, trapRes: any) {
         if (!events || !trapRes) return;
         if (Array.isArray(trapRes.triggered) && trapRes.triggered.length > 0) {
             events.push({ type: 'trap_triggered', details: trapRes.triggered.slice() });
@@ -1289,7 +1287,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }
     }
 
-    function normalizePlayerKey(player) {
+    function normalizePlayerKey(player: any) {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
             const normalized = OwnerHelpersModule.normalizePlayerKeyOptional(player);
             if (normalized) return normalized;
@@ -1299,9 +1297,9 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return null;
     }
 
-    function createSpecialStoneBubbleEmitter(CardLogic, cardState, prng, fallbackPlayer, tracker) {
+    function createSpecialStoneBubbleEmitter(CardLogic: any, cardState: any, prng: any, fallbackPlayer: any, tracker: any) {
         const emitted = tracker instanceof Set ? tracker : new Set();
-        return function emitSpecialStoneBubble(data) {
+        return function emitSpecialStoneBubble(data: any) {
             const payload = (data && typeof data === 'object') ? data : null;
             if (!payload) return false;
             const special = String(payload.special || '').trim().toUpperCase();
@@ -1332,7 +1330,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    function emitSpecialStoneBubblesFromPhase(CardLogic, cardState, options) {
+    function emitSpecialStoneBubblesFromPhase(CardLogic: any, cardState: any, options: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const presentationEvents = Array.isArray(opts.presentationEvents) ? opts.presentationEvents : [];
         const phaseEvents = Array.isArray(opts.events) ? opts.events : [];
@@ -1551,8 +1549,8 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             if (findMatchingSpecialStoneStatusRemovedEvent(presentationEvents, item)) continue;
             if (hasMatchingSpecialStoneMovedFromPhaseEvent(phaseEvents, item)) continue;
             if (item.type === 'REGEN' && hasRegenTriggeredPresentationEventAt(presentationEvents, item.row, item.col)) continue;
-            if (findMatchingLivingWillRestorePresentationEvent(presentationEvents, item)) continue;
-            if (hasMatchingSpecialStoneStatusAppliedEvent(presentationEvents, item)) continue;
+            if (findMatchingLivingWillRestorePresentationEvent(presentationEvents, item, undefined, undefined)) continue;
+            if (hasMatchingSpecialStoneStatusAppliedEvent(presentationEvents, item, undefined, undefined)) continue;
             const scenario = hasEscapeExplosionPresentationEventAt(presentationEvents, item) && getSpecialStoneBubbleSpeechLines(item.type, 'escape_exploded')
                 ? 'escape_exploded'
                 : 'destroy';
@@ -1567,12 +1565,12 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }
     }
 
-    function isFrozenCell(cardState, row, col) {
+    function isFrozenCell(cardState: any, row: any, col: any) {
         if (CardUtilsModule && typeof CardUtilsModule.isFrozenCell === 'function') {
             return !!CardUtilsModule.isFrozenCell(cardState, row, col);
         }
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        return markers.some((m) => (
+        return markers.some((m: any) => (
             m &&
             m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
             Number(m.row) === Number(row) &&
@@ -1582,14 +1580,14 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         ));
     }
 
-    function emitHandRemovePresentation(CardLogic, cardState, payload) {
+    function emitHandRemovePresentation(CardLogic: any, cardState: any, payload: any) {
         if (!CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return;
         const data = payload || {};
         const playerKey = normalizePlayerKey(data.player);
         const count = Math.max(0, Math.trunc(Number(data.count) || 0));
         if (!playerKey || count <= 0) return;
 
-        const ev = {
+        const ev: Record<string, any> = {
             type: 'HAND_REMOVE',
             player: playerKey,
             count,
@@ -1603,7 +1601,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         CardLogic.emitPresentationEvent(cardState, ev);
     }
 
-    function emitTrapHandRemoveEvents(CardLogic, cardState, trapRes) {
+    function emitTrapHandRemoveEvents(CardLogic: any, cardState: any, trapRes: any) {
         const triggered = (trapRes && Array.isArray(trapRes.triggered)) ? trapRes.triggered : [];
         if (!triggered.length) return;
 
@@ -1619,7 +1617,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }
     }
 
-    function applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, events, prng) {
+    function applyTurnStartPhase(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any, prng: any) {
         const p = prng || undefined;
 
         if (PendingCoordinatorModule && typeof PendingCoordinatorModule.syncPendingSelectionActionCache === 'function') {
@@ -1637,8 +1635,8 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                     : null;
                 cardState.prevOpponentTurnDestroyedStonesByPlayer = legacySalvationLedger
                     ? {
-                        black: Array.isArray(legacySalvationLedger.black) ? legacySalvationLedger.black.map((entry) => ({ ...entry })) : [],
-                        white: Array.isArray(legacySalvationLedger.white) ? legacySalvationLedger.white.map((entry) => ({ ...entry })) : []
+                        black: Array.isArray(legacySalvationLedger.black) ? legacySalvationLedger.black.map((entry: any) => ({ ...entry })) : [],
+                        white: Array.isArray(legacySalvationLedger.white) ? legacySalvationLedger.white.map((entry: any) => ({ ...entry })) : []
                     }
                     : { black: [], white: [] };
             }
@@ -1717,16 +1715,16 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                 ? MarkersAdapter.getMarkers(cardState)
                 : (cardState.markers || []);
             const markers = sourceMarkers
-                .map(m => ({
+                .map((m: any) => ({
                     isBomb: isBombCategoryMarker(m),
                     marker: m,
                     createdSeq: (m.createdSeq || 0)
                 }))
-                .sort((a, b) => (a.createdSeq || 0) - (b.createdSeq || 0));
+                .sort((a: any, b: any) => (a.createdSeq || 0) - (b.createdSeq || 0));
 
             const observerMarkersBeforeStart = snapshotObserverMarkers(cardState);
-            const hyperAggregated = { moved: [], destroyed: [], flipped: [], flippedByOwner: { black: [], white: [] } };
-            const observerStartSummary = { triggered: [], lost: [], durationEnd: [] };
+            const hyperAggregated: { moved: any[]; destroyed: any[]; flipped: any[]; flippedByOwner: Record<string, any[]> } = { moved: [], destroyed: [], flipped: [], flippedByOwner: { black: [], white: [] } };
+            const observerStartSummary: { triggered: any[]; lost: any[]; durationEnd: any[] } = { triggered: [], lost: [], durationEnd: [] };
 
             for (const m of markers) {
                 if (m.isBomb) {
@@ -1775,9 +1773,9 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                         }
                         if (res && res.expired && res.expired.length) {
                             events.push({ type: 'observer_expired_start', details: res.expired });
-                            const lost = res.expired.filter((item) => item && item.reason === 'anchor_lost');
+                            const lost = res.expired.filter((item: any) => item && item.reason === 'anchor_lost');
                             if (lost.length) observerStartSummary.lost.push(...lost);
-                            const durationEnd = res.expired.filter((item) => item && item.reason === 'duration_end');
+                            const durationEnd = res.expired.filter((item: any) => item && item.reason === 'duration_end');
                             if (durationEnd.length) observerStartSummary.durationEnd.push(...durationEnd);
                         }
                     } else if (t === 'TIME_STOP' && owner === playerKey && typeof CardLogic.processTimeStopEffectsAtTurnStartAnchor === 'function') {
@@ -1934,7 +1932,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             const regenTriggered = [];
             const regenCaptureFlips = [];
             const livingWillTriggered = [];
-            const regenCaptureByOwner = { black: [], white: [] };
+            const regenCaptureByOwner: Record<string, any[]> = { black: [], white: [] };
             for (const ownerKey of ['black', 'white']) {
                 const flips = hyperByOwner[ownerKey] || [];
                 if (!flips.length) continue;
@@ -1981,11 +1979,11 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                 emitTrapHandRemoveEvents(CardLogic, cardState, trapRes);
             }
 
-            const durationEndSet = new Set((observerStartSummary.durationEnd || []).map((item) => `${item.row},${item.col}:${item.owner || ''}`));
+            const durationEndSet = new Set((observerStartSummary.durationEnd || []).map((item: any) => `${item.row},${item.col}:${item.owner || ''}`));
             const removedAtStart = getRemovedObserverMarkers(observerMarkersBeforeStart, snapshotObserverMarkers(cardState))
-                .filter((item) => !durationEndSet.has(`${item.row},${item.col}:${item.owner || ''}`));
+                .filter((item: any) => !durationEndSet.has(`${item.row},${item.col}:${item.owner || ''}`));
             if (removedAtStart.length) {
-                observerStartSummary.lost.push(...removedAtStart.map((item) => ({
+                observerStartSummary.lost.push(...removedAtStart.map((item: any) => ({
                     row: item.row,
                     col: item.col,
                     owner: item.owner || null,
@@ -2024,15 +2022,15 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                 : [];
             const workDurationEndSet = new Set(
                 newPresentationEvents
-                    .filter((ev) => isWorkDurationEndPresentationEvent(ev))
-                    .map((ev) => {
+                    .filter((ev: any) => isWorkDurationEndPresentationEvent(ev))
+                    .map((ev: any) => {
                         const row = Number(ev && ev.row);
                         const col = Number(ev && ev.col);
                         if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
                         const owner = normalizePlayerKey((ev && ev.player) || (ev && ev.owner) || (ev && ev.meta && ev.meta.owner));
                         return `${row},${col}:${owner || ''}`;
                     })
-                    .filter((key) => !!key)
+                    .filter((key: any) => !!key)
             );
 
             emitWorkRemovedPresentationFromSnapshots(CardLogic, cardState, workMarkersBeforeStart, {
@@ -2095,7 +2093,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }
     }
 
-    function applyCardUsagePhase(CardLogic, cardState, gameState, playerKey, action, events, prng) {
+    function applyCardUsagePhase(CardLogic: any, cardState: any, gameState: any, playerKey: any, action: any, events: any, prng: any) {
         const p = prng || undefined;
         const observerMarkersBeforeUsage = snapshotObserverMarkers(cardState);
         const workMarkersBeforeUsage = snapshotWorkMarkers(cardState);
@@ -2136,7 +2134,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                     }
                     const rnd = p.random();
                     const gained = 1 + Math.floor(Math.max(0, Math.min(0.999999, rnd)) * 3);
-                    addChargeWithTotal(cardState, playerKey, gained);
+                    addChargeWithTotal(cardState, playerKey, gained, null);
                     clearPendingForActionPhase(cardState, playerKey);
                     events.push({ type: 'treasure_box_gain', player: playerKey, gained });
                 }
@@ -2488,7 +2486,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }
     }
 
-    function resolveSafeCardContext(CardLogic, cardState) {
+    function resolveSafeCardContext(CardLogic: any, cardState: any) {
         let ctx = null;
         try {
             const ctxHelper = (() => { try { return _require('../logic/context'); } catch (e) { return null; } })();
@@ -2502,7 +2500,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return ctx;
     }
 
-    function hasContinuationMovesForPendingType(Core, CardLogic, cardState, gameState, playerKey, pendingType) {
+    function hasContinuationMovesForPendingType(Core: any, CardLogic: any, cardState: any, gameState: any, playerKey: any, pendingType: any) {
         const ctx = resolveSafeCardContext(CardLogic, cardState);
         const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
         if (pendingType === 'LAST_RESORT' && typeof Core.getFreePlacementMoves === 'function') {
@@ -2513,7 +2511,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return Array.isArray(moves) && moves.length > 0;
     }
 
-    function clearMultiPlaceStateForPlayer(cardState, playerKey) {
+    function clearMultiPlaceStateForPlayer(cardState: any, playerKey: any) {
         if (!cardState) return;
         if (!cardState.extraPlaceRemainingByPlayer) cardState.extraPlaceRemainingByPlayer = { black: 0, white: 0 };
         if (!cardState.infinitePlaceActiveByPlayer) cardState.infinitePlaceActiveByPlayer = { black: false, white: false };
@@ -2523,7 +2521,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         cardState.multiPlaceSourceTypeByPlayer[playerKey] = null;
     }
 
-    function getActionCellOwner(gameState, row, col) {
+    function getActionCellOwner(gameState: any, row: any, col: any) {
         if (!gameState) return null;
 
         const boardRow = Array.isArray(gameState.board) ? gameState.board[row] : null;
@@ -2552,14 +2550,14 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return null;
     }
 
-    function applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events) {
+    function applyTrapEffectsAfterSelection(CardLogic: any, cardState: any, gameState: any, playerKey: any, events: any) {
         if (!CardLogic || typeof CardLogic.processTrapEffects !== 'function') return;
         const trapRes = CardLogic.processTrapEffects(cardState, gameState, playerKey, { expireOnOwnerTurnStart: false });
         pushTrapEvents(events, trapRes);
         emitTrapHandRemoveEvents(CardLogic, cardState, trapRes);
     }
 
-    function applyActionPhase(CardLogic, Core, cardState, gameState, playerKey, action, events, prng, BoardOps) {
+    function applyActionPhase(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, action: any, events: any, prng: any, BoardOps: any) {
         const p = prng || undefined;
 
         const observerMarkersBeforeAction = snapshotObserverMarkers(cardState);
@@ -2636,7 +2634,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                         action.destroyTarget.row,
                         action.destroyTarget.col
                     ) };
-                const normalizedDestroyResult = createDestroyOutcome(destroyResult);
+                const normalizedDestroyResult = createDestroyOutcome(destroyResult, null);
                 const applied = isDestroyOutcomeResolved(normalizedDestroyResult);
                 events.push({
                     type: 'destroy_selected',
@@ -3146,7 +3144,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             const playerValue = playerKey === 'black' ? Core.BLACK : Core.WHITE;
 
             const blockedCells = (ctx && Array.isArray(ctx.blockedCells)) ? ctx.blockedCells : [];
-            const blockedSet = blockedCells.length ? new Set(blockedCells.map(p => `${p.row},${p.col}`)) : null;
+            const blockedSet = blockedCells.length ? new Set(blockedCells.map((p: any) => `${p.row},${p.col}`)) : null;
             if (blockedSet && blockedSet.has(`${action.row},${action.col}`)) {
                 throw new Error('Illegal move: blocked cell');
             }
@@ -3178,7 +3176,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                 const normalFlips = Core.getFlipsWithContext(gameState, action.row, action.col, playerValue, ctx);
                 tabooReverseResult = CardLogic.pickTabooReverseFlips(cardState, gameState, playerKey, action.row, action.col, p);
                 if (tabooReverseResult && tabooReverseResult.applied && Array.isArray(tabooReverseResult.flips) && tabooReverseResult.flips.length > 0) {
-                    flips = tabooReverseResult.flips.map((one) => [one.row, one.col]);
+                    flips = tabooReverseResult.flips.map((one: any) => [one.row, one.col]);
                     tabooReverseApplied = true;
                 } else {
                     flips = normalFlips;
@@ -3209,7 +3207,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             if (BoardOps && typeof BoardOps.spawnAt === 'function') {
                 const spawnCause = (pendingType === 'FREE_PLACEMENT' || pendingType === 'LAST_RESORT') ? 'FREE_PLACEMENT' : 'SYSTEM';
                 const spawnReason = (pendingType === 'FREE_PLACEMENT' || pendingType === 'LAST_RESORT') ? 'free_placement_place' : 'standard_place';
-                const spawnMeta = {};
+                const spawnMeta: Record<string, any> = {};
                 if (pendingType === 'GOLD_STONE') {
                     spawnMeta.special = 'GOLD';
                     spawnMeta.owner = playerKey;
@@ -3263,8 +3261,8 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                 const movedList = Array.isArray(flipEvadeResult.moved) ? flipEvadeResult.moved : [];
                 const destroyedList = Array.isArray(flipEvadeResult.destroyed) ? flipEvadeResult.destroyed : [];
 
-                const ultimateMoved = movedList.filter((detail) => String(detail && detail.specialType ? detail.specialType : '').toUpperCase() === 'ULTIMATE_HYPERACTIVE');
-                const hyperMoved = movedList.filter((detail) => String(detail && detail.specialType ? detail.specialType : '').toUpperCase() !== 'ULTIMATE_HYPERACTIVE');
+                const ultimateMoved = movedList.filter((detail: any) => String(detail && detail.specialType ? detail.specialType : '').toUpperCase() === 'ULTIMATE_HYPERACTIVE');
+                const hyperMoved = movedList.filter((detail: any) => String(detail && detail.specialType ? detail.specialType : '').toUpperCase() !== 'ULTIMATE_HYPERACTIVE');
                 if (hyperMoved.length) {
                     events.push({ type: 'hyperactive_moved_immediate', details: hyperMoved });
                 }
@@ -3272,8 +3270,8 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                     events.push({ type: 'ultimate_hyperactive_moved_immediate', details: ultimateMoved });
                 }
 
-                const ultimateDestroyed = destroyedList.filter((detail) => String(detail && detail.specialType ? detail.specialType : '').toUpperCase() === 'ULTIMATE_HYPERACTIVE');
-                const hyperDestroyed = destroyedList.filter((detail) => String(detail && detail.specialType ? detail.specialType : '').toUpperCase() !== 'ULTIMATE_HYPERACTIVE');
+                const ultimateDestroyed = destroyedList.filter((detail: any) => String(detail && detail.specialType ? detail.specialType : '').toUpperCase() === 'ULTIMATE_HYPERACTIVE');
+                const hyperDestroyed = destroyedList.filter((detail: any) => String(detail && detail.specialType ? detail.specialType : '').toUpperCase() !== 'ULTIMATE_HYPERACTIVE');
                 if (hyperDestroyed.length) {
                     events.push({ type: 'hyperactive_destroyed_immediate', details: hyperDestroyed });
                 }
@@ -3341,7 +3339,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                 }
             }
             if (!tabooReverseApplied && flips.length > 0 && typeof CardLogic.clearHyperactiveAtPositions === 'function') {
-                const flippedPositions = flips.map(([r, c]) => ({ row: r, col: c }));
+                const flippedPositions = flips.map(([r, c]: [any, any]) => ({ row: r, col: c }));
                 CardLogic.clearHyperactiveAtPositions(cardState, flippedPositions);
             }
 
@@ -3354,7 +3352,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                     events.push({ type: 'regen_triggered', details: regenRes.regened });
                 }
                 if (regenRes.captureFlips && regenRes.captureFlips.length) {
-                    flips.push(...regenRes.captureFlips.map(p2 => [p2.row, p2.col]));
+                    flips.push(...regenRes.captureFlips.map((p2: any) => [p2.row, p2.col]));
                     flipCount = flips.length;
                     events.push({ type: 'regen_capture_flipped', details: regenRes.captureFlips });
                 }
@@ -3367,7 +3365,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             if (typeof CardLogic.applyChainWillAfterMove === 'function') {
                 const chainRes = CardLogic.applyChainWillAfterMove(cardState, gameState, playerKey, flips, p);
                 if (chainRes && chainRes.flips && chainRes.flips.length) {
-                    flips.push(...chainRes.flips.map(pos => [pos.row, pos.col]));
+                    flips.push(...chainRes.flips.map((pos: any) => [pos.row, pos.col]));
                     flipCount = flips.length;
                     events.push({ type: 'chain_flipped', details: chainRes.flips });
                 }
@@ -3381,7 +3379,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                         events.push({ type: 'regen_triggered', details: regenRes2.regened });
                     }
                     if (regenRes2.captureFlips && regenRes2.captureFlips.length) {
-                        flips.push(...regenRes2.captureFlips.map(p3 => [p3.row, p3.col]));
+                        flips.push(...regenRes2.captureFlips.map((p3: any) => [p3.row, p3.col]));
                         flipCount = flips.length;
                         events.push({ type: 'regen_capture_flipped', details: regenRes2.captureFlips });
                     }

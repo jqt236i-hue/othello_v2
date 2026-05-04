@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -7,7 +6,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
-/** @type {any} */
-('../../dist/game/cards/effect-resolver');
+// eslint-disable-next-line @typescript-eslint/no-unused-expressions
+('../../dist/game/cards/effect-resolver') as unknown as void;
 
-export = require;
+export = _require;

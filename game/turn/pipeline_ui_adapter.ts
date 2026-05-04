@@ -1,11 +1,17 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
+declare function emitEffectLog(message: any): void;
+declare function emitNormalLog(message: any): void;
+declare function emitLogAdded(message: any, kind?: string): void;
+declare function getGamePrng(): any;
+declare function emitEffectLog(message: any): void;
+declare function emitNormalLog(message: any): void;
+declare function emitLogAdded(message: any, kind?: string): void;
+declare function getGamePrng(): any;
+declare const ActionManager: any;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
-
-import type { CardState, GameState, PlayerKey } from '../../src/types';
 
     const MarkersAdapter = (() => { try { return _require('../logic/markers_adapter'); } catch (e) { return null; } })();
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
@@ -102,24 +108,24 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         && TurnPipelinePhaseHelpers.WORK_INCOME_LINES_BY_STEP
         && typeof TurnPipelinePhaseHelpers.WORK_INCOME_LINES_BY_STEP === 'object'
     ) ? TurnPipelinePhaseHelpers.WORK_INCOME_LINES_BY_STEP : DEFAULT_WORK_INCOME_BUBBLE_TEXT_BY_STEP;
-    const MULTI_PLACE_LABEL_BY_TYPE = Object.freeze({
+    const MULTI_PLACE_LABEL_BY_TYPE: Record<string, string> = Object.freeze({
         DOUBLE_PLACE: '二連投石',
         TRIPLE_PLACE: '三連投石',
         QUAD_PLACE: '四連投石',
         INFINITE_PLACE: '無限投石',
         LAST_RESORT: '最後の切り札'
     });
-    const deferredGeneratedThrowChainPlaybackByPlayer = {
+    const deferredGeneratedThrowChainPlaybackByPlayer: Record<string, any[]> = {
         black: [],
         white: []
     };
 
-    function _clearDeferredGeneratedThrowChainPlaybackForPlayer(ownerKey) {
+    function _clearDeferredGeneratedThrowChainPlaybackForPlayer(ownerKey: any) {
         if (ownerKey !== 'black' && ownerKey !== 'white') return;
         deferredGeneratedThrowChainPlaybackByPlayer[ownerKey] = [];
     }
 
-    function clearDeferredGeneratedThrowChainPlayback(playerKey) {
+    function clearDeferredGeneratedThrowChainPlayback(playerKey: any) {
         const ownerKey = _normalizePlayerKey(playerKey);
         if (ownerKey) {
             _clearDeferredGeneratedThrowChainPlaybackForPlayer(ownerKey);
@@ -129,14 +135,14 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         _clearDeferredGeneratedThrowChainPlaybackForPlayer('white');
     }
 
-    function _getMultiPlaceLabel(type, fallbackLabel) {
+    function _getMultiPlaceLabel(type: any, fallbackLabel: any) {
         const fallback = String(fallbackLabel || '').trim();
         if (fallback) return fallback;
         const key = String(type || '').toUpperCase();
         return MULTI_PLACE_LABEL_BY_TYPE[key] || '追加配置';
     }
 
-    function _formatMultiPlaceActivationLog(effects) {
+    function _formatMultiPlaceActivationLog(effects: any) {
         const label = _getMultiPlaceLabel(effects && effects.multiPlaceActivatedType, effects && effects.multiPlaceActivatedName);
         if (effects && effects.multiPlaceInfinite) {
             return `${label}: 合法手が尽きるまで連続配置`;
@@ -147,7 +153,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return `${label}: あと${remaining}回置ける`;
     }
 
-    function _formatMultiPlaceConsumedLog(ev) {
+    function _formatMultiPlaceConsumedLog(ev: any) {
         const label = _getMultiPlaceLabel(ev && ev.sourceType, null);
         const remaining = Number.isFinite(Number(ev && ev.remaining))
             ? Math.max(0, Math.trunc(Number(ev.remaining)))
@@ -158,7 +164,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return `${label}: 追加手を消費`;
     }
 
-    function _inferWorkIncomeStepByGain(gained) {
+    function _inferWorkIncomeStepByGain(gained: any) {
         const g = Number(gained) || 0;
         if (g >= 16) return 5;
         if (g >= 8) return 4;
@@ -168,7 +174,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return null;
     }
 
-    function _resolveWorkIncomeBubbleText(ev) {
+    function _resolveWorkIncomeBubbleText(ev: any) {
         const directText = String(ev && ev.text ? ev.text : '').trim();
         if (directText) return directText;
         const metaText = String(ev && ev.meta && ev.meta.text ? ev.meta.text : '').trim();
@@ -182,13 +188,13 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         if (TurnPipelinePhaseHelpers && typeof TurnPipelinePhaseHelpers.resolveWorkIncomeLine === 'function') {
             return TurnPipelinePhaseHelpers.resolveWorkIncomeLine(ev && ev.gained, rawStep);
         }
-        const step = Number.isFinite(rawStep) ? Math.max(1, Math.min(5, Math.trunc(rawStep))) : null;
+        const step: number | null = Number.isFinite(rawStep) ? Math.max(1, Math.min(5, Math.trunc(rawStep!))) : null;
         if (step && WORK_INCOME_BUBBLE_TEXT_BY_STEP[step]) return WORK_INCOME_BUBBLE_TEXT_BY_STEP[step];
 
         return WORK_INCOME_BUBBLE_TEXT_BY_STEP[1];
     }
 
-    function _resolveWorkRemovedBubbleText(ev) {
+    function _resolveWorkRemovedBubbleText(ev: any) {
         const directText = String(ev && ev.text ? ev.text : '').trim();
         if (directText) return directText;
         const metaText = String(ev && ev.meta && ev.meta.text ? ev.meta.text : '').trim();
@@ -196,15 +202,15 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return WORK_LOST_BUBBLE_TEXT;
     }
 
-    function isRegenTriggeredChange(ev) {
+    function isRegenTriggeredChange(ev: any) {
         return !!(ev && ev.cause === REGEN_CAUSE && ev.reason === REGEN_TRIGGER_REASON);
     }
 
-    function isRegenConsumedStatus(ev) {
+    function isRegenConsumedStatus(ev: any) {
         return !!(ev && ev.meta && ev.meta.special === REGEN_CAUSE && ev.meta.reason === REGEN_CONSUMED_REASON);
     }
 
-    function isLivingWillConsumedStatus(ev) {
+    function isLivingWillConsumedStatus(ev: any) {
         const meta = ev && ev.meta;
         return !!(
             ev &&
@@ -214,7 +220,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         );
     }
 
-    function isLivingWillRestorePresentationEvent(ev) {
+    function isLivingWillRestorePresentationEvent(ev: any) {
         const meta = ev && ev.meta;
         return !!(
             ev &&
@@ -229,11 +235,11 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         );
     }
 
-    function isLivingWillRestoreChange(ev) {
+    function isLivingWillRestoreChange(ev: any) {
         return !!(ev && ev.type === 'CHANGE' && isLivingWillRestorePresentationEvent(ev));
     }
 
-    function hasLivingWillTriggeredDestroyPresentationEventAt(presentationEvents, row, col) {
+    function hasLivingWillTriggeredDestroyPresentationEventAt(presentationEvents: any, row: any, col: any) {
         const events = Array.isArray(presentationEvents) ? presentationEvents : [];
         for (let index = 0; index < events.length; index += 1) {
             const ev = events[index];
@@ -246,7 +252,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return false;
     }
 
-    function hasLivingWillRestoreChangePresentationEventAt(presentationEvents, row, col) {
+    function hasLivingWillRestoreChangePresentationEventAt(presentationEvents: any, row: any, col: any) {
         const events = Array.isArray(presentationEvents) ? presentationEvents : [];
         for (let index = 0; index < events.length; index += 1) {
             const ev = events[index];
@@ -257,7 +263,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return false;
     }
 
-    function hasLivingWillRestorePresentationEventForSource(presentationEvents, row, col, special) {
+    function hasLivingWillRestorePresentationEventForSource(presentationEvents: any, row: any, col: any, special: any) {
         const events = Array.isArray(presentationEvents) ? presentationEvents : [];
         const specialUpper = String(special || '').trim().toUpperCase();
         for (let index = 0; index < events.length; index += 1) {
@@ -275,7 +281,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return false;
     }
 
-    function isObserverLostBubblePresentationEvent(ev) {
+    function isObserverLostBubblePresentationEvent(ev: any) {
         const reason = String((ev && ev.reason) || (ev && ev.meta && ev.meta.reason) || '').toLowerCase();
         return reason.indexOf('anchor_lost') >= 0 ||
             reason.indexOf('removed') >= 0 ||
@@ -283,14 +289,14 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             reason.indexOf('lost') >= 0;
     }
 
-    function isChainFlipPresentationEvent(ev) {
+    function isChainFlipPresentationEvent(ev: any) {
         if (!ev) return false;
         const reason = String(ev.reason || '').toLowerCase();
         const cause = String(ev.cause || '').toUpperCase();
         return reason === 'chain_flip' || cause === 'CHAIN_WILL';
     }
 
-    function isCardEffectFlipPresentationEvent(ev) {
+    function isCardEffectFlipPresentationEvent(ev: any) {
         if (!ev) return false;
         const reason = String(ev.reason || '').toLowerCase();
         return isChainFlipPresentationEvent(ev) ||
@@ -312,9 +318,9 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             reason.indexOf('tempt_applied') === 0;
     }
 
-    function _countCardEffectFlipFallbackEvents(rawEvents) {
+    function _countCardEffectFlipFallbackEvents(rawEvents: any) {
         const events = Array.isArray(rawEvents) ? rawEvents : [];
-        return events.reduce((sum, ev) => {
+        return events.reduce((sum: any, ev: any) => {
             if (!ev || !ev.type) return sum;
             if (CARD_EFFECT_FLIP_RAW_EVENT_TYPES.has(ev.type)) {
                 return sum + (_rawDetailCount(ev) > 0 ? 1 : 0);
@@ -329,17 +335,17 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }, 0);
     }
 
-    function getChainFlipLink(ev) {
+    function getChainFlipLink(ev: any) {
         if (!ev || !ev.meta || !Number.isFinite(ev.meta.chainLink)) return 1;
         const link = Number(ev.meta.chainLink);
         return link >= 1 ? link : 1;
     }
 
-    function isInheritedHyperactiveType(type) {
+    function isInheritedHyperactiveType(type: any) {
         return String(type || '').toUpperCase() === 'INHERITED_HYPERACTIVE';
     }
 
-    function isOverlayOnlySpecialStoneType(type) {
+    function isOverlayOnlySpecialStoneType(type: any) {
         if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isOverlayOnlySpecialStoneType === 'function') {
             return SpecialStoneRegistry.isOverlayOnlySpecialStoneType(type);
         }
@@ -347,12 +353,12 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return typeUpper === 'GUARD' || typeUpper === 'INHERITED_HYPERACTIVE' || typeUpper === 'LIVING_WILL';
     }
 
-    function getVisualSpecialFromMeta(meta) {
+    function getVisualSpecialFromMeta(meta: any) {
         const special = (meta && meta.special) || null;
         return isOverlayOnlySpecialStoneType(special) ? null : special;
     }
 
-    function shouldPreferFinalVisualStateForStatusApplied(eventSpecialRaw, visualSpecial, livingWillAura) {
+    function shouldPreferFinalVisualStateForStatusApplied(eventSpecialRaw: any, visualSpecial: any, livingWillAura: any) {
         if (!isOverlayOnlySpecialStoneType(eventSpecialRaw)) return false;
         if (String(eventSpecialRaw || '').toUpperCase() === 'LIVING_WILL') {
             return livingWillAura === true && !!visualSpecial;
@@ -360,7 +366,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return !!visualSpecial;
     }
 
-    function resolveDisplayTimerValue(special, timerValue, regenRemainingValue) {
+    function resolveDisplayTimerValue(special: any, timerValue: any, regenRemainingValue: any) {
         if (StoneStatusSnapshot && typeof StoneStatusSnapshot.resolveDisplayTimerValue === 'function') {
             return StoneStatusSnapshot.resolveDisplayTimerValue({
                 type: special,
@@ -377,37 +383,37 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return null;
     }
 
-    function getPrimaryTimerFromMeta(meta) {
+    function getPrimaryTimerFromMeta(meta: any) {
         const special = (meta && meta.special) || null;
         return resolveDisplayTimerValue(special, meta && meta.timer, meta && meta.regenRemaining);
     }
 
-    function getInheritedTimerFromMeta(meta) {
+    function getInheritedTimerFromMeta(meta: any) {
         const inheritedTimer = (meta && meta.inheritedTimer) || null;
         if (inheritedTimer !== null && inheritedTimer !== undefined) return inheritedTimer;
         const special = (meta && meta.special) || null;
         return isInheritedHyperactiveType(special) ? ((meta && meta.timer) || null) : null;
     }
 
-    function getInheritedOwnerFromMeta(meta) {
+    function getInheritedOwnerFromMeta(meta: any) {
         const inheritedOwner = (meta && meta.inheritedOwner) || null;
         if (inheritedOwner !== null && inheritedOwner !== undefined) return inheritedOwner;
         const special = (meta && meta.special) || null;
         return isInheritedHyperactiveType(special) ? ((meta && meta.owner) || null) : null;
     }
 
-    function toCounterOrNull(value) {
+    function toCounterOrNull(value: any) {
         if (value === null || value === undefined || value === '') return null;
         const n = Number(value);
         if (!Number.isFinite(n)) return null;
         return Math.max(0, Math.trunc(n));
     }
 
-    function getFlipEvadeRemainingFromMeta(meta) {
+    function getFlipEvadeRemainingFromMeta(meta: any) {
         return toCounterOrNull(meta && meta.flipEvadeRemaining);
     }
 
-    function getInheritedFlipEvadeRemainingFromMeta(meta) {
+    function getInheritedFlipEvadeRemainingFromMeta(meta: any) {
         const inherited = toCounterOrNull(meta && meta.inheritedFlipEvadeRemaining);
         if (inherited !== null) return inherited;
         const special = (meta && meta.special) || null;
@@ -417,15 +423,15 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return null;
     }
 
-    function getDestroyEvadeRemainingFromMeta(meta) {
+    function getDestroyEvadeRemainingFromMeta(meta: any) {
         return toCounterOrNull(meta && meta.destroyEvadeRemaining);
     }
 
-    function isMainBoardCell(r, c) {
+    function isMainBoardCell(r: any, c: any) {
         return Number.isInteger(r) && Number.isInteger(c) && r >= 0 && r < 8 && c >= 0 && c < 8;
     }
 
-    function getExpansionColorAt(gameState, r, c) {
+    function getExpansionColorAt(gameState: any, r: any, c: any) {
         const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
             ? gameState.boardExpansion
             : null;
@@ -448,7 +454,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return 0;
     }
 
-    function getCellColorAt(gameState, r, c) {
+    function getCellColorAt(gameState: any, r: any, c: any) {
         if (!gameState || !Array.isArray(gameState.board)) return 0;
         if (isMainBoardCell(r, c)) {
             const boardRow = gameState.board[r];
@@ -462,7 +468,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
     /**
      * Helper to get visual state of a cell from game/card state.
      */
-    function getVisualStateAt(r, c, cardState, gameState) {
+    function getVisualStateAt(r: any, c: any, cardState: any, gameState: any) {
         if (!gameState || !gameState.board) return {
             color: 0,
             special: null,
@@ -487,7 +493,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         let livingWillAura = false;
 
         if (cardState && cardState.markers) {
-            const markersAtCell = cardState.markers.filter((m) => (
+            const markersAtCell = cardState.markers.filter((m: any) => (
                 m &&
                 m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
                 m.row === r &&
@@ -495,7 +501,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             ));
             const bombMarker = MarkersAdapter && typeof MarkersAdapter.findBombMarkerAt === 'function'
                 ? MarkersAdapter.findBombMarkerAt(cardState, r, c)
-                : cardState.markers.find(m => m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') && m.data && m.data.category === 'bomb' && m.row === r && m.col === c);
+                : cardState.markers.find((m: any) => m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') && m.data && m.data.category === 'bomb' && m.row === r && m.col === c);
 
             if (StoneStatusSnapshot && typeof StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers === 'function') {
                 const visualState = StoneStatusSnapshot.resolveStoneVisualStatusFromMarkers(markersAtCell, {
@@ -512,7 +518,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                 destroyEvadeRemaining = visualState.destroyEvadeRemaining;
                 livingWillAura = visualState.livingWillAura === true;
             } else {
-                const inherited = markersAtCell.find((m) => (
+                const inherited = markersAtCell.find((m: any) => (
                     m &&
                     m.data &&
                     String(m.data.type || '').toUpperCase() === 'INHERITED_HYPERACTIVE'
@@ -525,7 +531,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                     inheritedFlipEvadeRemaining = toCounterOrNull(inherited.data && inherited.data.flipEvadeRemaining);
                 }
 
-                const visualSpecial = markersAtCell.find((m) => {
+                const visualSpecial = markersAtCell.find((m: any) => {
                     const typeUpper = String(m && m.data && m.data.type ? m.data.type : '').toUpperCase();
                     if (!typeUpper) return false;
                     return !isOverlayOnlySpecialStoneType(typeUpper);
@@ -554,7 +560,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                 }
             }
             if (!livingWillAura) {
-                livingWillAura = markersAtCell.some((m) => (
+                livingWillAura = markersAtCell.some((m: any) => (
                     m &&
                     m.data &&
                     String(m.data.type || '').toUpperCase() === 'LIVING_WILL'
@@ -592,7 +598,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    function _createPlaybackEventBase(ev, finalCardState) {
+    function _createPlaybackEventBase(ev: any, finalCardState: any) {
         return {
             meta: ev && ev.meta ? ev.meta : null,
             rawType: ev && ev.type ? ev.type : null,
@@ -604,7 +610,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    function _createPlaybackEvent(playbackBase, type, phase, targets) {
+    function _createPlaybackEvent(playbackBase: any, type: any, phase: any, targets: any) {
         return Object.assign({
             type,
             phase,
@@ -612,12 +618,12 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }, playbackBase || null);
     }
 
-    function _clearChainFlipPhaseState(phaseState) {
+    function _clearChainFlipPhaseState(phaseState: any) {
         phaseState.prevWasChainFlip = false;
         phaseState.prevChainFlipLink = null;
     }
 
-    function _preparePassivePlaybackPhaseState(phaseState, options) {
+    function _preparePassivePlaybackPhaseState(phaseState: any, options?: any) {
         _clearChainFlipPhaseState(phaseState);
         phaseState.prevDestroyCause = null;
         if (!options || options.clearWillHunter !== false) {
@@ -628,7 +634,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }
     }
 
-    function _planDurationEndRevertPlaybackPhase(phaseState, hasPriorPlaybackEvent) {
+    function _planDurationEndRevertPlaybackPhase(phaseState: any, hasPriorPlaybackEvent: any) {
         if (Number.isInteger(phaseState.durationEndRevertPhase)) {
             return phaseState.durationEndRevertPhase;
         }
@@ -639,7 +645,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return phaseState.durationEndRevertPhase;
     }
 
-    function _clearGroupedDestroyPhaseState(phaseState) {
+    function _clearGroupedDestroyPhaseState(phaseState: any) {
         phaseState.willHunterKingSlashPhase = null;
         phaseState.gluttonousEatPhase = null;
         phaseState.gluttonousEatActionId = null;
@@ -647,7 +653,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         phaseState.superCrushActionId = null;
     }
 
-    function _assignActionScopedPhase(phaseState, phaseField, actionIdField, actionId) {
+    function _assignActionScopedPhase(phaseState: any, phaseField: any, actionIdField: any, actionId: any) {
         const hasActionMismatch =
             phaseState[phaseField] !== null &&
             phaseState[actionIdField] !== null &&
@@ -661,7 +667,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return phaseState[phaseField];
     }
 
-    function _getDestroyOutcomeKind(meta) {
+    function _getDestroyOutcomeKind(meta: any) {
         if (DestroyOutcomeContract && typeof DestroyOutcomeContract.getDestroyOutcomeKind === 'function') {
             return DestroyOutcomeContract.getDestroyOutcomeKind(meta);
         }
@@ -674,12 +680,12 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return null;
     }
 
-    function _isDestroyRemovalOutcome(target) {
+    function _isDestroyRemovalOutcome(target: any) {
         const kind = _getDestroyOutcomeKind(target && target.meta);
         return kind === null || kind === DESTROY_OUTCOME_KINDS.DESTROYED;
     }
 
-    function _isProliferationSpawnPresentationEvent(ev) {
+    function _isProliferationSpawnPresentationEvent(ev: any) {
         return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'PROLIFERATION_WILL' &&
             String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('proliferation_spawn') === 0;
     }
@@ -707,40 +713,40 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         })
     ]);
 
-    function _matchesSpawnCauseAndReason(subject, cause, reasonPrefix) {
+    function _matchesSpawnCauseAndReason(subject: any, cause: any, reasonPrefix: any) {
         return String(subject && subject.cause ? subject.cause : '').toUpperCase() === String(cause || '').toUpperCase() &&
             String(subject && subject.reason ? subject.reason : '').toLowerCase().indexOf(String(reasonPrefix || '').toLowerCase()) === 0;
     }
 
-    function _isCardEffectSpawnEventLike(ev, profile) {
+    function _isCardEffectSpawnEventLike(ev: any, profile: any) {
         return !!profile && _matchesSpawnCauseAndReason(ev, profile.cause, profile.reasonPrefix);
     }
 
-    function _isSeedSproutEventLike(ev) {
+    function _isSeedSproutEventLike(ev: any) {
         return _matchesSpawnCauseAndReason(ev, 'SEED_WILL', 'seed_sprout');
     }
 
-    function _isLivingWillRestoreEventLike(ev) {
+    function _isLivingWillRestoreEventLike(ev: any) {
         return _matchesSpawnCauseAndReason(ev, 'LIVING_WILL', 'living_will_restored');
     }
 
-    function _isCardEffectSpawnPlaybackEvent(ev, profile) {
+    function _isCardEffectSpawnPlaybackEvent(ev: any, profile: any) {
         return !!(
             ev &&
             ev.type === 'spawn' &&
             Array.isArray(ev.targets) &&
-            ev.targets.some((target) => _isCardEffectSpawnEventLike(target, profile))
+            ev.targets.some((target: any) => _isCardEffectSpawnEventLike(target, profile))
         );
     }
 
-    function _getCardEffectSpawnProfile(ev) {
+    function _getCardEffectSpawnProfile(ev: any) {
         for (const profile of CARD_EFFECT_SPAWN_PROFILES) {
             if (_isCardEffectSpawnEventLike(ev, profile)) return profile;
         }
         return null;
     }
 
-    function _isCloneLikeSpawnPresentationEvent(ev, spawnMeta) {
+    function _isCloneLikeSpawnPresentationEvent(ev: any, spawnMeta: any) {
         const spawnCause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
         return (
             (spawnCause === 'CLONE_WILL' || spawnCause === 'PROLIFERATION_WILL') &&
@@ -750,46 +756,46 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         );
     }
 
-    function _isGluttonousEatDestroyPresentationEvent(ev) {
+    function _isGluttonousEatDestroyPresentationEvent(ev: any) {
         return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'GLUTTONOUS_WILL' &&
             String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('gluttonous_eat') === 0;
     }
 
-    function _isSuperCrushDestroyPresentationEvent(ev) {
+    function _isSuperCrushDestroyPresentationEvent(ev: any) {
         const cause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
         const reason = String(ev && ev.reason ? ev.reason : '').toLowerCase();
         return SUPER_CRUSH_CAUSES.has(cause) &&
             (reason.indexOf('super_buoyancy_collision') === 0 || reason.indexOf('super_gravity_collision') === 0);
     }
 
-    function _isWillHunterKingSlashDestroyPresentationEvent(ev) {
+    function _isWillHunterKingSlashDestroyPresentationEvent(ev: any) {
         return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'WILL_HUNTER_KING' &&
             String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('will_hunter_king_slash') === 0;
     }
 
-    function _isGluttonousEatMovePresentationEvent(ev) {
+    function _isGluttonousEatMovePresentationEvent(ev: any) {
         return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'GLUTTONOUS_WILL' &&
             String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('gluttonous_eat_move') === 0;
     }
 
-    function _isSuperCrushMovePresentationEvent(ev) {
+    function _isSuperCrushMovePresentationEvent(ev: any) {
         const cause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
         const reason = String(ev && ev.reason ? ev.reason : '').toLowerCase();
         return SUPER_CRUSH_CAUSES.has(cause) &&
             (reason.indexOf('super_buoyancy_move') === 0 || reason.indexOf('super_gravity_move') === 0);
     }
 
-    function _isWillHunterKingSlashMovePresentationEvent(ev) {
+    function _isWillHunterKingSlashMovePresentationEvent(ev: any) {
         return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'WILL_HUNTER_KING' &&
             String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('will_hunter_king_slash_move') === 0;
     }
 
-    function _isExtremeForcedSwapMovePresentationEvent(ev) {
+    function _isExtremeForcedSwapMovePresentationEvent(ev: any) {
         return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'EXTREME_HYPERACTIVE_WILL' &&
             String(ev && ev.reason ? ev.reason : '').toLowerCase() === 'extreme_hyperactive_forced_swap';
     }
 
-    function _isExtremeForcedSwapMovePairPresentation(firstEv, secondEv) {
+    function _isExtremeForcedSwapMovePairPresentation(firstEv: any, secondEv: any) {
         if (!_isExtremeForcedSwapMovePresentationEvent(firstEv) || !_isExtremeForcedSwapMovePresentationEvent(secondEv)) {
             return false;
         }
@@ -823,7 +829,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return true;
     }
 
-    function _canSkipEventBetweenExtremeForcedSwapMoves(firstEv, candidateEv) {
+    function _canSkipEventBetweenExtremeForcedSwapMoves(firstEv: any, candidateEv: any) {
         const candidateType = String(candidateEv && candidateEv.type ? candidateEv.type : '').toUpperCase();
         if (
             candidateType !== 'STATUS_APPLIED' &&
@@ -844,7 +850,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return true;
     }
 
-    function _findExtremeForcedSwapMovePairPresentationIndex(presentationEvents, firstIndex) {
+    function _findExtremeForcedSwapMovePairPresentationIndex(presentationEvents: any, firstIndex: any) {
         const firstEv = Array.isArray(presentationEvents) ? presentationEvents[firstIndex] : null;
         if (!_isExtremeForcedSwapMovePresentationEvent(firstEv)) return -1;
         for (let index = firstIndex + 1; index < presentationEvents.length; index += 1) {
@@ -860,7 +866,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return -1;
     }
 
-    function _createOverlapReturnAfterState(meta, overlapOwner, overlapSpecial, includeMetaVisual) {
+    function _createOverlapReturnAfterState(meta: any, overlapOwner: any, overlapSpecial: any, includeMetaVisual: any) {
         return {
             color: overlapOwner === 'black' ? 1 : (overlapOwner === 'white' ? -1 : 0),
             special: overlapSpecial,
@@ -874,7 +880,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    function _createOverlapReturnPlaybackEvent(playbackBase, options) {
+    function _createOverlapReturnPlaybackEvent(playbackBase: any, options: any) {
         const from = options && options.from ? options.from : null;
         const to = options && options.to ? options.to : null;
         const meta = options && options.meta ? options.meta : null;
@@ -897,7 +903,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }]);
     }
 
-    function _createExtremeForcedSwapPlaybackEvent(playbackBase, phase, leadEv, followEv) {
+    function _createExtremeForcedSwapPlaybackEvent(playbackBase: any, phase: any, leadEv: any, followEv: any) {
         const playbackMeta = (playbackBase && playbackBase.meta && typeof playbackBase.meta === 'object')
             ? Object.assign({}, playbackBase.meta)
             : {};
@@ -930,7 +936,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         );
     }
 
-    function _getSpawnOverlapReturnSpec(ev, spawnMeta) {
+    function _getSpawnOverlapReturnSpec(ev: any, spawnMeta: any) {
         if (!_isProliferationSpawnPresentationEvent(ev) || !spawnMeta) return null;
         const proliferationTriggeredBy = String(spawnMeta.proliferationTriggeredBy ? spawnMeta.proliferationTriggeredBy : '').toUpperCase();
         const proliferationTriggerReason = String(spawnMeta.proliferationTriggerReason ? spawnMeta.proliferationTriggerReason : '').toLowerCase();
@@ -964,7 +970,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    function _getGhostBlockedOverlapReturnSpec(ev, destroyMeta, destroyOutcomeKind, isGluttonousEatDestroy, isWillHunterKingSlashDestroy) {
+    function _getGhostBlockedOverlapReturnSpec(ev: any, destroyMeta: any, destroyOutcomeKind: any, isGluttonousEatDestroy: any, isWillHunterKingSlashDestroy: any) {
         if (
             destroyOutcomeKind !== DESTROY_OUTCOME_KINDS.GHOST_BLOCKED ||
             !destroyMeta ||
@@ -988,7 +994,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    function _planSpawnPlayback(phaseState, ev, playbackBase, followsProliferationDestroy) {
+    function _planSpawnPlayback(phaseState: any, ev: any, playbackBase: any, followsProliferationDestroy: any) {
         _clearChainFlipPhaseState(phaseState);
         phaseState.prevDestroyCause = null;
         phaseState.durationEndRevertPhase = null;
@@ -1064,7 +1070,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    function _planDestroyPlayback(phaseState, ev, destroyMeta, playbackBase) {
+    function _planDestroyPlayback(phaseState: any, ev: any, destroyMeta: any, playbackBase: any) {
         _clearChainFlipPhaseState(phaseState);
         phaseState.durationEndRevertPhase = null;
         const destroyCauseUpper = String(ev && ev.cause ? ev.cause : '').toUpperCase();
@@ -1132,7 +1138,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return { phase, trailingPlaybackEvents };
     }
 
-    function _planChangePlaybackPhase(phaseState, ev) {
+    function _planChangePlaybackPhase(phaseState: any, ev: any) {
         phaseState.durationEndRevertPhase = null;
         phaseState.prevDestroyCause = null;
         phaseState.willHunterKingSlashPhase = null;
@@ -1159,7 +1165,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return phase;
     }
 
-    function _planMovePlaybackPhase(phaseState, ev) {
+    function _planMovePlaybackPhase(phaseState: any, ev: any) {
         _clearChainFlipPhaseState(phaseState);
         phaseState.durationEndRevertPhase = null;
         phaseState.prevDestroyCause = null;
@@ -1195,7 +1201,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
      * Converts presentation events (BoardOps output) into PlaybackEvents.
      * This expects events to be JSON-safe presentationEvents as emitted by BoardOps.
      */
-    function mapToPlaybackEvents(presEvents, finalCardState, finalGameState) {
+    function mapToPlaybackEvents(presEvents: any, finalCardState: any, finalGameState: any) {
         const playbackEvents = [];
         const phaseState = _createPlaybackPhaseState();
 
@@ -1742,23 +1748,23 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return _appendGeneratedThrowChainPlayback(generatedThrowChainSplit.immediateEvents, generatedThrowChainSplit.deferredEvents);
     }
 
-    function _phaseNum(v) {
+    function _phaseNum(v: any) {
         const n = Number(v);
         return Number.isFinite(n) ? n : 0;
     }
 
-    function _getPrimaryPlaybackTarget(ev) {
+    function _getPrimaryPlaybackTarget(ev: any) {
         if (ev && Array.isArray(ev.targets) && ev.targets.length > 0) {
             return ev.targets[0];
         }
         return ev || null;
     }
 
-    function _hasGeneratedThrowChainReason(reason) {
+    function _hasGeneratedThrowChainReason(reason: any) {
         return String(reason || '').trim().toLowerCase() === GENERATED_THROW_CHAIN_REASON;
     }
 
-    function _isGeneratedThrowChainHandAddPlaybackEvent(ev) {
+    function _isGeneratedThrowChainHandAddPlaybackEvent(ev: any) {
         if (!ev || ev.type !== 'hand_add') return false;
         if (String(ev.rawType || '').toUpperCase() !== 'HAND_ADD') return false;
         if (_hasGeneratedThrowChainReason(ev.reason)) return true;
@@ -1766,16 +1772,16 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         const candidates = Array.isArray(ev.targets) && ev.targets.length > 0
             ? ev.targets
             : [ev];
-        return candidates.some((target) => !!target && _hasGeneratedThrowChainReason(target.reason));
+        return candidates.some((target: any) => !!target && _hasGeneratedThrowChainReason(target.reason));
     }
 
-    function _countPlaybackCards(ev) {
+    function _countPlaybackCards(ev: any) {
         const target = _getPrimaryPlaybackTarget(ev);
         const count = Number(target && target.count);
         return Number.isFinite(count) ? Math.max(1, Math.trunc(count)) : 1;
     }
 
-    function _clonePlaybackTarget(target) {
+    function _clonePlaybackTarget(target: any) {
         if (!target || typeof target !== 'object') return target;
         const clonedTarget = Object.assign({}, target);
         if (target.from && typeof target.from === 'object') clonedTarget.from = Object.assign({}, target.from);
@@ -1785,25 +1791,25 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return clonedTarget;
     }
 
-    function _clonePlaybackEventWithPhase(ev, phase) {
+    function _clonePlaybackEventWithPhase(ev: any, phase: any) {
         const clonedEvent = Object.assign({}, ev, { phase });
         if (clonedEvent.meta && typeof clonedEvent.meta === 'object') {
             clonedEvent.meta = Object.assign({}, clonedEvent.meta);
         }
         if (Array.isArray(ev && ev.targets)) {
-            clonedEvent.targets = ev.targets.map((target) => _clonePlaybackTarget(target));
+            clonedEvent.targets = ev.targets.map((target: any) => _clonePlaybackTarget(target));
         }
         return clonedEvent;
     }
 
-    function _setDeferredGeneratedThrowChainPlayback(playerKey, events) {
+    function _setDeferredGeneratedThrowChainPlayback(playerKey: any, events: any) {
         const ownerKey = _normalizePlayerKey(playerKey) || 'black';
         deferredGeneratedThrowChainPlaybackByPlayer[ownerKey] = Array.isArray(events)
-            ? events.map((ev) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)))
+            ? events.map((ev: any) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)))
             : [];
     }
 
-    function _takeDeferredGeneratedThrowChainPlayback(playerKey) {
+    function _takeDeferredGeneratedThrowChainPlayback(playerKey: any) {
         const ownerKey = _normalizePlayerKey(playerKey) || 'black';
         const queued = Array.isArray(deferredGeneratedThrowChainPlaybackByPlayer[ownerKey])
             ? deferredGeneratedThrowChainPlaybackByPlayer[ownerKey].slice()
@@ -1812,7 +1818,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return queued;
     }
 
-    function _extractGeneratedThrowChainPlayback(playbackEvents) {
+    function _extractGeneratedThrowChainPlayback(playbackEvents: any) {
         const immediateEvents = [];
         const deferredEvents = [];
         for (const ev of Array.isArray(playbackEvents) ? playbackEvents : []) {
@@ -1825,7 +1831,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return { immediateEvents, deferredEvents };
     }
 
-    function _appendGeneratedThrowChainPlayback(playbackEvents, deferredEvents) {
+    function _appendGeneratedThrowChainPlayback(playbackEvents: any, deferredEvents: any) {
         const baseEvents = Array.isArray(playbackEvents) ? playbackEvents.slice() : [];
         const pendingEvents = Array.isArray(deferredEvents) ? deferredEvents : [];
         if (pendingEvents.length <= 0) return baseEvents;
@@ -1837,7 +1843,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return baseEvents;
     }
 
-    function _processGeneratedThrowChainPlayback(playbackEvents, action, playerKey) {
+    function _processGeneratedThrowChainPlayback(playbackEvents: any, action: any, playerKey: any) {
         const split = _extractGeneratedThrowChainPlayback(playbackEvents);
         const actionType = String(action && action.type ? action.type : '').toLowerCase();
         const ownerKey = _normalizePlayerKey(playerKey) || 'black';
@@ -1849,7 +1855,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                     playbackEvents: split.immediateEvents,
                     deferredGeneratedThrowChainHandAdd: {
                         playerKey: ownerKey,
-                        count: split.deferredEvents.reduce((sum, ev) => sum + _countPlaybackCards(ev), 0),
+                        count: split.deferredEvents.reduce((sum: any, ev: any) => sum + _countPlaybackCards(ev), 0),
                         reason: GENERATED_THROW_CHAIN_REASON
                     }
                 };
@@ -1873,15 +1879,15 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return { playbackEvents: split.immediateEvents, deferredGeneratedThrowChainHandAdd: null };
     }
 
-    function _maxPhase(playbackEvents) {
+    function _maxPhase(playbackEvents: any) {
         const arr = Array.isArray(playbackEvents) ? playbackEvents : [];
-        return arr.reduce((maxP, ev) => {
+        return arr.reduce((maxP: any, ev: any) => {
             const p = _phaseNum(ev && ev.phase);
             return p > maxP ? p : maxP;
         }, 0);
     }
 
-    function _findPhase(playbackEvents, predicate, fallbackPhase) {
+    function _findPhase(playbackEvents: any, predicate: any, fallbackPhase: any) {
         const arr = Array.isArray(playbackEvents) ? playbackEvents : [];
         for (const ev of arr) {
             if (predicate(ev)) return _phaseNum(ev && ev.phase);
@@ -1889,12 +1895,12 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return _phaseNum(fallbackPhase);
     }
 
-    function _rawDetailCount(ev) {
+    function _rawDetailCount(ev: any) {
         if (!ev || !Array.isArray(ev.details)) return 0;
         return ev.details.length;
     }
 
-    function _hasRawEvent(rawEvents, type, predicate) {
+    function _hasRawEvent(rawEvents: any, type: any, predicate?: any) {
         const events = Array.isArray(rawEvents) ? rawEvents : [];
         for (const ev of events) {
             if (!ev || ev.type !== type) continue;
@@ -1903,16 +1909,16 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return false;
     }
 
-    function normalizePlaybackEvents(playbackEvents) {
+    function normalizePlaybackEvents(playbackEvents: any, _unused?: any) {
         return Array.isArray(playbackEvents) ? playbackEvents : [];
     }
 
-    function _isDestroyWithCause(target, causes) {
+    function _isDestroyWithCause(target: any, causes: any) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         return causes.has(cause);
     }
 
-    function _isHyperactiveMoveTarget(target) {
+    function _isHyperactiveMoveTarget(target: any) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         const isFlipEvadeMove = reason.indexOf('flip_evade_move') >= 0;
@@ -1935,7 +1941,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         );
     }
 
-    function _isUltimateAnchorMoveTarget(target) {
+    function _isUltimateAnchorMoveTarget(target: any) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         return (
@@ -1948,7 +1954,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         );
     }
 
-    function _isSuperCrushMoveTarget(target) {
+    function _isSuperCrushMoveTarget(target: any) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         return (
@@ -1958,7 +1964,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         );
     }
 
-    function _isSpecialDurationExpiredDestroyTarget(target) {
+    function _isSpecialDurationExpiredDestroyTarget(target: any) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         const special = String(target && target.meta && target.meta.special ? target.meta.special : '').toUpperCase();
@@ -1969,11 +1975,11 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return SPECIAL_DURATION_EXPIRE_CAUSES.has(cause) || !!special;
     }
 
-    function _isSpecialDurationExpiredDestroyEvent(ev) {
-        return !!(ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => _isSpecialDurationExpiredDestroyTarget(t)));
+    function _isSpecialDurationExpiredDestroyEvent(ev: any) {
+        return !!(ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t: any) => _isSpecialDurationExpiredDestroyTarget(t)));
     }
 
-    function _hasDurationEndMarker(reason, cause) {
+    function _hasDurationEndMarker(reason: any, cause?: any) {
         const reasonLower = String(reason || '').toLowerCase();
         const causeLower = String(cause || '').toLowerCase();
         return (
@@ -1984,7 +1990,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         );
     }
 
-    function _isSpecialDurationExpiredStatusRemovedEvent(ev) {
+    function _isSpecialDurationExpiredStatusRemovedEvent(ev: any) {
         if (!ev || String(ev.type || '').toLowerCase() !== 'status_removed') return false;
         const special = String(ev.meta && ev.meta.special ? ev.meta.special : '').toUpperCase();
         if (!SPECIAL_DURATION_REVERT_SPECIALS.has(special)) return false;
@@ -1994,29 +2000,29 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return true;
     }
 
-    function _isSpecialDurationExpiredPlaybackEvent(ev) {
+    function _isSpecialDurationExpiredPlaybackEvent(ev: any) {
         return _isSpecialDurationExpiredDestroyEvent(ev) || _isSpecialDurationExpiredStatusRemovedEvent(ev);
     }
 
-    function _isSniperShotDestroyTarget(target) {
+    function _isSniperShotDestroyTarget(target: any) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         return cause === 'SNIPER_WILL' && reason.indexOf('sniper_shot') >= 0;
     }
 
-    function _isLightningDestroyTarget(target) {
+    function _isLightningDestroyTarget(target: any) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         return cause === 'LIGHTNING_WILL' && reason.indexOf('lightning_destroyed') >= 0;
     }
 
-    function _isRobotVacuumSuckDestroyTarget(target) {
+    function _isRobotVacuumSuckDestroyTarget(target: any) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         return cause === 'ROBOT_VACUUM' && reason.indexOf('robot_vacuum_suck') >= 0;
     }
 
-    function _isBoardShrinkDestroyTarget(target) {
+    function _isBoardShrinkDestroyTarget(target: any) {
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         return cause === 'BOARD_SHRINK_WILL' ||
@@ -2024,16 +2030,16 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             reason.indexOf('board_shrink') >= 0;
     }
 
-    function _isGoldSilverSelfDestroyTarget(target) {
+    function _isGoldSilverSelfDestroyTarget(target: any) {
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         return reason === 'gold_stone_sacrifice' || reason === 'rainbow_stone_sacrifice' || reason === 'silver_stone_sacrifice' || reason === 'crystal_stone_sacrifice';
     }
 
-    function _isGoldSilverSelfDestroyEvent(ev) {
-        return !!(ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => _isGoldSilverSelfDestroyTarget(t)));
+    function _isGoldSilverSelfDestroyEvent(ev: any) {
+        return !!(ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t: any) => _isGoldSilverSelfDestroyTarget(t)));
     }
 
-    function _isWorkDurationExpiredPresentationEvent(ev) {
+    function _isWorkDurationExpiredPresentationEvent(ev: any) {
         if (!ev || !ev.type) return false;
         if (ev.type === 'WORK_INCOME') {
             if (ev.removed !== true) return false;
@@ -2048,14 +2054,14 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return _hasDurationEndMarker(reason, cause);
     }
 
-    function _isWorkFlipOrDestroyRemovedPresentationEvent(ev) {
+    function _isWorkFlipOrDestroyRemovedPresentationEvent(ev: any) {
         if (!ev || ev.type !== 'WORK_REMOVED') return false;
         if (ev.removed === false) return false;
         if (_isWorkDurationExpiredPresentationEvent(ev)) return false;
         return true;
     }
 
-    function _createSoundCuePlanningContext(playbackEvents, rawEvents, presentationEvents) {
+    function _createSoundCuePlanningContext(playbackEvents: any, rawEvents: any, presentationEvents: any) {
         const base = Array.isArray(playbackEvents) ? playbackEvents.slice() : [];
         return {
             base,
@@ -2067,7 +2073,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
     }
 
-    function _pushSoundCue(ctx, soundKey, phase, sourceType, options = {}) {
+    function _pushSoundCue(ctx: any, soundKey: any, phase: any, sourceType: any, options: any = {}) {
         const key = String(soundKey || '').trim();
         const allowRepeat = !!(options && options.allowRepeat === true);
         if (!key) return;
@@ -2083,8 +2089,8 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         });
     }
 
-    function _tagCardUseAnimationPlaybackTarget(ctx, patch) {
-        const anchorIndex = ctx.base.findIndex((ev) => ev && ev.type === 'card_use_animation');
+    function _tagCardUseAnimationPlaybackTarget(ctx: any, patch: any) {
+        const anchorIndex = ctx.base.findIndex((ev: any) => ev && ev.type === 'card_use_animation');
         if (anchorIndex < 0) return false;
         const anchor = ctx.base[anchorIndex];
         const targets = Array.isArray(anchor.targets) ? anchor.targets.slice() : [];
@@ -2094,22 +2100,22 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return true;
     }
 
-    function _appendPlaybackEventsIntoCardUseAnimationTarget(ctx, propertyName, playbackEvents) {
+    function _appendPlaybackEventsIntoCardUseAnimationTarget(ctx: any, propertyName: any, playbackEvents: any) {
         const deferredEvents = Array.isArray(playbackEvents)
             ? playbackEvents
-                .filter((ev) => !!ev)
-                .map((ev) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)))
+                .filter((ev: any) => !!ev)
+                .map((ev: any) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)))
             : [];
         if (!deferredEvents.length) return false;
-        const anchorIndex = ctx.base.findIndex((ev) => ev && ev.type === 'card_use_animation');
+        const anchorIndex = ctx.base.findIndex((ev: any) => ev && ev.type === 'card_use_animation');
         if (anchorIndex < 0) return false;
         const anchor = ctx.base[anchorIndex];
         const targets = Array.isArray(anchor.targets) ? anchor.targets.slice() : [];
         const firstTarget = targets[0] ? Object.assign({}, targets[0]) : {};
         const existingEvents = Array.isArray(firstTarget[propertyName])
             ? firstTarget[propertyName]
-                .filter((ev) => !!ev)
-                .map((ev) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)))
+                .filter((ev: any) => !!ev)
+                .map((ev: any) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)))
             : [];
         firstTarget[propertyName] = existingEvents.concat(deferredEvents);
         targets[0] = firstTarget;
@@ -2117,9 +2123,9 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return true;
     }
 
-    function _movePlaybackEventsIntoCardUseAnimationTarget(ctx, predicate, propertyName) {
+    function _movePlaybackEventsIntoCardUseAnimationTarget(ctx: any, predicate: any, propertyName: any) {
         const deferredEvents = ctx.base
-            .filter((ev) => !!ev && predicate(ev));
+            .filter((ev: any) => !!ev && predicate(ev));
         if (!deferredEvents.length) return false;
         if (!_appendPlaybackEventsIntoCardUseAnimationTarget(ctx, propertyName, deferredEvents)) return false;
         for (let i = ctx.base.length - 1; i >= 0; i--) {
@@ -2128,9 +2134,9 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return true;
     }
 
-    function _moveFirstPlaybackEventIntoCardUseAnimationTarget(ctx, sourceEvents, predicate, propertyName) {
+    function _moveFirstPlaybackEventIntoCardUseAnimationTarget(ctx: any, sourceEvents: any, predicate: any, propertyName: any) {
         if (!Array.isArray(sourceEvents)) return false;
-        const matchIndex = sourceEvents.findIndex((ev) => !!ev && predicate(ev));
+        const matchIndex = sourceEvents.findIndex((ev: any) => !!ev && predicate(ev));
         if (matchIndex < 0) return false;
         const matchedEvent = sourceEvents[matchIndex];
         if (!_appendPlaybackEventsIntoCardUseAnimationTarget(ctx, propertyName, [matchedEvent])) return false;
@@ -2138,82 +2144,82 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return true;
     }
 
-    function _collectUniquePhases(playbackEvents, predicate) {
+    function _collectUniquePhases(playbackEvents: any, predicate: any) {
         return Array.from(new Set(
             (Array.isArray(playbackEvents) ? playbackEvents : [])
-                .filter((ev) => predicate(ev))
-                .map((ev) => _phaseNum(ev && ev.phase))
-                .filter((phase) => phase > 0)
-        )).sort((a, b) => a - b);
+                .filter((ev: any) => predicate(ev))
+                .map((ev: any) => _phaseNum(ev && ev.phase))
+                .filter((phase: any) => phase > 0)
+        )).sort((a: any, b: any) => a - b);
     }
 
-    function _pushCueForPhases(ctx, phases, soundKey, sourceType) {
+    function _pushCueForPhases(ctx: any, phases: any, soundKey: any, sourceType: any) {
         for (const phase of phases) {
             _pushSoundCue(ctx, soundKey, phase, sourceType, { allowRepeat: true });
         }
     }
 
-    function _pushRepeatedCueForMatchingTargets(ctx, events, targetPredicate, soundKey, sourceType) {
+    function _pushRepeatedCueForMatchingTargets(ctx: any, events: any, targetPredicate: any, soundKey: any, sourceType: any) {
         for (const ev of Array.isArray(events) ? events : []) {
             const phase = _phaseNum(ev && ev.phase);
             const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
-            const hitCount = targets.filter((target) => targetPredicate(target)).length;
+            const hitCount = targets.filter((target: any) => targetPredicate(target)).length;
             for (let i = 0; i < hitCount; i++) {
                 _pushSoundCue(ctx, soundKey, phase, sourceType, { allowRepeat: true });
             }
         }
     }
 
-    function _pushRepeatedCueForCardEffectSpawnProfiles(ctx, events, soundKey) {
+    function _pushRepeatedCueForCardEffectSpawnProfiles(ctx: any, events: any, soundKey: any) {
         for (const profile of CARD_EFFECT_SPAWN_PROFILES) {
             _pushRepeatedCueForMatchingTargets(
                 ctx,
                 events,
-                (target) => _isCardEffectSpawnEventLike(target, profile),
+                (target: any) => _isCardEffectSpawnEventLike(target, profile),
                 soundKey,
                 profile.soundSourceType
             );
         }
     }
 
-    function _deferFirstCardEffectSpawnIntoDisappearPlayback(ctx, profile, soundKey) {
-        if (!_hasRawEvent(ctx.raw, profile.rawResolvedType, (ev) => Number(ev && ev.spawnedCount) > 0)) {
+    function _deferFirstCardEffectSpawnIntoDisappearPlayback(ctx: any, profile: any, soundKey: any) {
+        if (!_hasRawEvent(ctx.raw, profile.rawResolvedType, (ev: any) => Number(ev && ev.spawnedCount) > 0)) {
             return;
         }
         const movedSpawn = _moveFirstPlaybackEventIntoCardUseAnimationTarget(
             ctx,
             ctx.base,
-            (ev) => _isCardEffectSpawnPlaybackEvent(ev, profile),
+            (ev: any) => _isCardEffectSpawnPlaybackEvent(ev, profile),
             'disappearPlaybackEvents'
         );
         if (!movedSpawn) return;
         _moveFirstPlaybackEventIntoCardUseAnimationTarget(
             ctx,
             ctx.added,
-            (ev) => ev &&
+            (ev: any) => ev &&
                 ev.type === SOUND_EVENT_TYPE &&
                 ev.meta &&
                 ev.meta.sourceType === profile.soundSourceType &&
                 Array.isArray(ev.targets) &&
-                ev.targets.some((target) => String(target && target.soundKey ? target.soundKey : '').trim() === String(soundKey || '').trim()),
+                ev.targets.some((target: any) => String(target && target.soundKey ? target.soundKey : '').trim() === String(soundKey || '').trim()),
             'disappearPlaybackEvents'
         );
     }
 
-    function _planCoreSoundCues(ctx) {
+    function _planCoreSoundCues(ctx: any) {
         const bombDestroyPhases = _collectUniquePhases(
             ctx.base,
-            (ev) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => _isDestroyWithCause(t, BOMB_DESTROY_CAUSES))
+            (ev: any) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t: any) => _isDestroyWithCause(t, BOMB_DESTROY_CAUSES))
         );
         if (bombDestroyPhases.length > 0) {
             _pushCueForPhases(ctx, bombDestroyPhases, 'bomb_explode', 'bomb_destroy');
-        } else if (_hasRawEvent(ctx.raw, 'bombs_exploded', (ev) => !!(ev && ev.details))) {
+        } else if (_hasRawEvent(ctx.raw, 'bombs_exploded', (ev: any) => !!(ev && ev.details))) {
             _pushSoundCue(ctx, 'bomb_explode', ctx.fallbackPhase, 'bombs_exploded');
         }
 
         const breedingPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'spawn' && Array.isArray(ev.targets) && ev.targets.some((t) => {
+            (ev: any) => ev && ev.type === 'spawn' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 const reason = String(t && t.reason ? t.reason : '').toLowerCase();
                 return cause === 'BREEDING' || reason.indexOf('breeding_spawn') === 0;
@@ -2221,54 +2227,54 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             ctx.fallbackPhase
         );
         if (
-            _hasRawEvent(ctx.raw, 'breeding_spawned_start', (ev) => _rawDetailCount(ev) > 0) ||
-            _hasRawEvent(ctx.raw, 'breeding_spawned_immediate', (ev) => _rawDetailCount(ev) > 0)
+            _hasRawEvent(ctx.raw, 'breeding_spawned_start', (ev: any) => _rawDetailCount(ev) > 0) ||
+            _hasRawEvent(ctx.raw, 'breeding_spawned_immediate', (ev: any) => _rawDetailCount(ev) > 0)
         ) {
             _pushSoundCue(ctx, 'breeding_spawn', breedingPhase, 'breeding_spawned');
         }
         _pushRepeatedCueForCardEffectSpawnProfiles(
             ctx,
-            ctx.base.filter((ev) => ev && ev.type === 'spawn'),
+            ctx.base.filter((ev: any) => ev && ev.type === 'spawn'),
             'breeding_spawn'
         );
 
-        const seedSproutEvents = ctx.base.filter((ev) => (
+        const seedSproutEvents = ctx.base.filter((ev: any) => (
             ev &&
             ev.type === 'spawn' &&
             Array.isArray(ev.targets) &&
-            ev.targets.some((target) => _isSeedSproutEventLike(target))
+            ev.targets.some((target: any) => _isSeedSproutEventLike(target))
         ));
         if (seedSproutEvents.length > 0) {
             _pushRepeatedCueForMatchingTargets(
                 ctx,
                 seedSproutEvents,
-                (target) => _isSeedSproutEventLike(target),
+                (target: any) => _isSeedSproutEventLike(target),
                 'seed_sprout',
                 'seed_sprout'
             );
         }
 
-        const livingWillRestoreEvents = ctx.base.filter((ev) => (
+        const livingWillRestoreEvents = ctx.base.filter((ev: any) => (
             ev &&
             (ev.type === 'spawn' || ev.type === 'flip') &&
             Array.isArray(ev.targets) &&
-            ev.targets.some((target) => _isLivingWillRestoreEventLike(target))
+            ev.targets.some((target: any) => _isLivingWillRestoreEventLike(target))
         ));
         if (livingWillRestoreEvents.length > 0) {
             _pushRepeatedCueForMatchingTargets(
                 ctx,
                 livingWillRestoreEvents,
-                (target) => _isLivingWillRestoreEventLike(target),
+                (target: any) => _isLivingWillRestoreEventLike(target),
                 'living_will_restored',
                 'living_will_restored'
             );
         }
 
-        const hasAppliedTemptSelection = _hasRawEvent(ctx.raw, 'tempt_selected', (ev) => !!(ev && ev.applied));
+        const hasAppliedTemptSelection = _hasRawEvent(ctx.raw, 'tempt_selected', (ev: any) => !!(ev && ev.applied));
         const hasTemptSelectionEvent = _hasRawEvent(ctx.raw, 'tempt_selected');
-        const hasAppliedSwapSelection = _hasRawEvent(ctx.raw, 'swap_selected', (ev) => !!(ev && ev.swapped));
+        const hasAppliedSwapSelection = _hasRawEvent(ctx.raw, 'swap_selected', (ev: any) => !!(ev && ev.swapped));
         const hasSwapSelectionEvent = _hasRawEvent(ctx.raw, 'swap_selected');
-        const shouldIncludeCardEffectFlipTarget = (target) => {
+        const shouldIncludeCardEffectFlipTarget = (target: any) => {
             if (!isCardEffectFlipPresentationEvent(target)) return false;
             const reason = String(target && target.reason ? target.reason : '').toLowerCase();
             if (reason.indexOf('tempt_applied') === 0) {
@@ -2281,7 +2287,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         };
         const cardEffectFlipPhases = _collectUniquePhases(
             ctx.base,
-            (ev) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t) => shouldIncludeCardEffectFlipTarget(t))
+            (ev: any) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t: any) => shouldIncludeCardEffectFlipTarget(t))
         );
         if (cardEffectFlipPhases.length > 0) {
             _pushCueForPhases(ctx, cardEffectFlipPhases, CARD_EFFECT_FLIP_SOUND_KEY, 'card_effect_flip');
@@ -2292,17 +2298,17 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             }
         }
 
-        const ultimateAnchorMoveEvents = ctx.base.filter((ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => _isUltimateAnchorMoveTarget(t)));
+        const ultimateAnchorMoveEvents = ctx.base.filter((ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => _isUltimateAnchorMoveTarget(t)));
         if (ultimateAnchorMoveEvents.length > 0) {
             _pushRepeatedCueForMatchingTargets(
                 ctx,
                 ultimateAnchorMoveEvents,
-                (target) => _isUltimateAnchorMoveTarget(target),
+                (target: any) => _isUltimateAnchorMoveTarget(target),
                 ULTIMATE_ANCHOR_MOVE_SOUND_KEY,
                 'ultimate_anchor_moved'
             );
         } else {
-            const fallbackMoveCount = ctx.raw.reduce((sum, ev) => {
+            const fallbackMoveCount = ctx.raw.reduce((sum: any, ev: any) => {
                 if (!ev || !ev.type) return sum;
                 if (
                     ev.type !== 'dragon_moved_start' &&
@@ -2321,17 +2327,17 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             }
         }
 
-        const hyperactiveMoveEvents = ctx.base.filter((ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => _isHyperactiveMoveTarget(t)));
+        const hyperactiveMoveEvents = ctx.base.filter((ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => _isHyperactiveMoveTarget(t)));
         if (hyperactiveMoveEvents.length > 0) {
             _pushRepeatedCueForMatchingTargets(
                 ctx,
                 hyperactiveMoveEvents,
-                (target) => _isHyperactiveMoveTarget(target),
+                (target: any) => _isHyperactiveMoveTarget(target),
                 'hyperactive_move',
                 'hyperactive_moved'
             );
         } else {
-            const fallbackMoveCount = ctx.raw.reduce((sum, ev) => {
+            const fallbackMoveCount = ctx.raw.reduce((sum: any, ev: any) => {
                 if (!ev || !ev.type) return sum;
                 if (
                     ev.type !== 'hyperactive_moved_start' &&
@@ -2356,68 +2362,68 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }
     }
 
-    function _planSelectionSoundCues(ctx) {
+    function _planSelectionSoundCues(ctx: any) {
         const trapSelectPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'TRAP',
+            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'TRAP',
             ctx.fallbackPhase
         );
         const timeBombSelectPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'TIME_BOMB',
+            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'TIME_BOMB',
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'trap_selected', (ev) => !!(ev && ev.applied))) {
+        if (_hasRawEvent(ctx.raw, 'trap_selected', (ev: any) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'trap_select', trapSelectPhase, 'trap_selected');
         }
-        if (_hasRawEvent(ctx.raw, 'time_bomb_selected', (ev) => !!(ev && ev.applied))) {
+        if (_hasRawEvent(ctx.raw, 'time_bomb_selected', (ev: any) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'trap_select', timeBombSelectPhase, 'time_bomb_selected');
         }
 
         const guardSelectPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'GUARD',
+            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'GUARD',
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'guard_selected', (ev) => !!(ev && ev.applied))) {
+        if (_hasRawEvent(ctx.raw, 'guard_selected', (ev: any) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'guard_select', guardSelectPhase, 'guard_selected');
         }
 
         const livingWillPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'LIVING_WILL',
+            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'LIVING_WILL',
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'living_will_selected', (ev) => !!(ev && ev.applied))) {
+        if (_hasRawEvent(ctx.raw, 'living_will_selected', (ev: any) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'living_will_selected', livingWillPhase, 'living_will_selected');
         }
 
         const hyperactiveInheritSelectPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'INHERITED_HYPERACTIVE',
+            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'INHERITED_HYPERACTIVE',
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'hyperactive_inherit_selected', (ev) => !!(ev && ev.applied))) {
+        if (_hasRawEvent(ctx.raw, 'hyperactive_inherit_selected', (ev: any) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'guard_select', hyperactiveInheritSelectPhase, 'hyperactive_inherit_selected');
         }
 
         const freezeSelectPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'FREEZE',
+            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'FREEZE',
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'freeze_selected', (ev) => !!(ev && ev.applied))) {
+        if (_hasRawEvent(ctx.raw, 'freeze_selected', (ev: any) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'freeze_select', freezeSelectPhase, 'freeze_selected');
         }
 
-        const trapTriggeredEvent = ctx.raw.find((ev) => ev && ev.type === 'trap_triggered' && _rawDetailCount(ev) > 0);
+        const trapTriggeredEvent = ctx.raw.find((ev: any) => ev && ev.type === 'trap_triggered' && _rawDetailCount(ev) > 0);
         const trapTriggeredDetail = trapTriggeredEvent && Array.isArray(trapTriggeredEvent.details)
             ? trapTriggeredEvent.details[0]
             : null;
         const trapTriggeredPhase = (trapTriggeredDetail && Number.isInteger(trapTriggeredDetail.row) && Number.isInteger(trapTriggeredDetail.col))
             ? _findPhase(
                 ctx.base,
-                (ev) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t) => t && t.r === trapTriggeredDetail.row && t.col === trapTriggeredDetail.col),
+                (ev: any) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t: any) => t && t.r === trapTriggeredDetail.row && t.col === trapTriggeredDetail.col),
                 ctx.fallbackPhase
             )
             : ctx.fallbackPhase;
@@ -2427,82 +2433,82 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
 
         const strongWindPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => {
+            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 const reason = String(t && t.reason ? t.reason : '').toLowerCase();
                 return cause === 'STRONG_WIND_WILL' || reason.indexOf('strong_wind_move') === 0;
             }),
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'strong_wind_selected', (ev) => !!(ev && ev.applied))) {
+        if (_hasRawEvent(ctx.raw, 'strong_wind_selected', (ev: any) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'strong_wind_move', strongWindPhase, 'strong_wind_selected');
         }
 
         const superBuoyancyPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => {
+            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
                 if (!_isSuperCrushMoveTarget(t)) return false;
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 return cause === 'SUPER_BUOYANCY_WILL';
             }),
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'super_buoyancy_selected', (ev) => !!(ev && ev.applied))) {
+        if (_hasRawEvent(ctx.raw, 'super_buoyancy_selected', (ev: any) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'super_buoyancy_move', superBuoyancyPhase, 'super_buoyancy_selected');
         }
 
         const superGravityPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => {
+            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
                 if (!_isSuperCrushMoveTarget(t)) return false;
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 return cause === 'SUPER_GRAVITY_WILL';
             }),
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'super_gravity_selected', (ev) => !!(ev && ev.applied))) {
+        if (_hasRawEvent(ctx.raw, 'super_gravity_selected', (ev: any) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'super_gravity_move', superGravityPhase, 'super_gravity_selected');
         }
 
         const teleportPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => {
+            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 const reason = String(t && t.reason ? t.reason : '').toLowerCase();
                 return cause === 'TELEPORT_WILL' || reason.indexOf('teleport_move') === 0;
             }),
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'teleport_selected', (ev) => !!(ev && ev.applied))) {
+        if (_hasRawEvent(ctx.raw, 'teleport_selected', (ev: any) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'teleport_select', teleportPhase, 'teleport_selected');
         }
 
         const trapMisfirePhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => {
+            (ev: any) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
                 const reason = String(t && t.reason ? t.reason : '').toLowerCase();
                 return reason.indexOf('trap_disarmed') >= 0 || reason.indexOf('trap_expired') >= 0;
             }),
             ctx.fallbackPhase
         );
         if (
-            _hasRawEvent(ctx.raw, 'trap_disarmed', (ev) => _rawDetailCount(ev) > 0) ||
-            _hasRawEvent(ctx.raw, 'trap_expired', (ev) => _rawDetailCount(ev) > 0)
+            _hasRawEvent(ctx.raw, 'trap_disarmed', (ev: any) => _rawDetailCount(ev) > 0) ||
+            _hasRawEvent(ctx.raw, 'trap_expired', (ev: any) => _rawDetailCount(ev) > 0)
         ) {
             _pushSoundCue(ctx, 'trap_misfire', trapMisfirePhase, 'trap_misfire');
         }
 
         const clonePhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t) => {
+            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 return !!(t && t.clone === true) || cause === 'CLONE_WILL' || cause === 'PROLIFERATION_WILL';
             }),
             ctx.fallbackPhase
         );
         if (
-            _hasRawEvent(ctx.raw, 'clone_selected', (ev) => !!(ev && ev.applied)) ||
-            ctx.pres.some((ev) => (
+            _hasRawEvent(ctx.raw, 'clone_selected', (ev: any) => !!(ev && ev.applied)) ||
+            ctx.pres.some((ev: any) => (
                 ev &&
                 ev.type === 'SPAWN' &&
                 String(ev.cause || '').toUpperCase() === 'PROLIFERATION_WILL' &&
@@ -2514,58 +2520,58 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
 
         const extendLifePhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() !== 'TRAP',
+            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() !== 'TRAP',
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'extend_life_selected', (ev) => !!(ev && ev.applied))) {
+        if (_hasRawEvent(ctx.raw, 'extend_life_selected', (ev: any) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'extend_life', extendLifePhase, 'extend_life_selected');
         }
 
         const corrosionPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'card_use_animation',
+            (ev: any) => ev && ev.type === 'card_use_animation',
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'corrosion_will_resolved', (ev) => Number(ev && ev.affectedCount) > 0)) {
+        if (_hasRawEvent(ctx.raw, 'corrosion_will_resolved', (ev: any) => Number(ev && ev.affectedCount) > 0)) {
             _pushSoundCue(ctx, 'corrosion_tick', corrosionPhase, 'corrosion_will_resolved');
         }
 
         const temptPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t) => {
+            (ev: any) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 const reason = String(t && t.reason ? t.reason : '').toLowerCase();
                 return cause === 'TEMPT_WILL' || reason.indexOf('tempt_applied') === 0;
             }),
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'tempt_selected', (ev) => !!(ev && ev.applied))) {
+        if (_hasRawEvent(ctx.raw, 'tempt_selected', (ev: any) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'tempt_select', temptPhase, 'tempt_selected');
         }
 
         const capturePhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'capture_to_hand_animation',
+            (ev: any) => ev && ev.type === 'capture_to_hand_animation',
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'capture_selected', (ev) => !!(ev && ev.applied))) {
+        if (_hasRawEvent(ctx.raw, 'capture_selected', (ev: any) => !!(ev && ev.applied))) {
             _pushSoundCue(ctx, 'tempt_select', capturePhase, 'capture_selected');
         }
 
-        const hasBoardShrinkDestroyPlayback = ctx.base.some((ev) => (
+        const hasBoardShrinkDestroyPlayback = ctx.base.some((ev: any) => (
             ev &&
             ev.type === 'destroy' &&
             Array.isArray(ev.targets) &&
-            ev.targets.some((target) => _isBoardShrinkDestroyTarget(target))
+            ev.targets.some((target: any) => _isBoardShrinkDestroyTarget(target))
         ));
         const boardShrinkPhase = _findPhase(
             ctx.base,
-            (ev) => (
+            (ev: any) => (
                 ev &&
                 ev.type === 'status_applied' &&
                 (
                     (ev.meta && String(ev.meta.special || '').toUpperCase() === 'METEOR_HOLE') ||
-                    (Array.isArray(ev.targets) && ev.targets.some((target) => (
+                    (Array.isArray(ev.targets) && ev.targets.some((target: any) => (
                         target &&
                         target.after &&
                         String(target.after.special || '').toUpperCase() === 'METEOR_HOLE'
@@ -2574,13 +2580,13 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             ),
             _findPhase(
                 ctx.base,
-                (ev) => ev && ev.type === 'card_use_animation',
+                (ev: any) => ev && ev.type === 'card_use_animation',
                 ctx.fallbackPhase
             )
         );
         if (
             !hasBoardShrinkDestroyPlayback &&
-            _hasRawEvent(ctx.raw, 'board_shrink_selected', (ev) => !!(
+            _hasRawEvent(ctx.raw, 'board_shrink_selected', (ev: any) => !!(
                 ev &&
                 ev.applied &&
                 ev.completed !== false &&
@@ -2592,28 +2598,28 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }
     }
 
-    function _planCardAndEconomySoundCues(ctx) {
+    function _planCardAndEconomySoundCues(ctx: any) {
         const cardUseAnimationPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'card_use_animation',
+            (ev: any) => ev && ev.type === 'card_use_animation',
             0
         );
         const postCardUsePhase = cardUseAnimationPhase > 0 ? (cardUseAnimationPhase + 1) : ctx.fallbackPhase;
-        const hasCardUse = ctx.pres.some((ev) => !!ev && ev.type === 'CARD_USED');
+        const hasCardUse = ctx.pres.some((ev: any) => !!ev && ev.type === 'CARD_USED');
         if (hasCardUse && cardUseAnimationPhase > 0) {
             _pushSoundCue(ctx, 'card_use_button', cardUseAnimationPhase, 'card_used');
         }
-        const hasTreasureGain = _hasRawEvent(ctx.raw, 'treasure_box_gain', (ev) => Number(ev && ev.gained) > 0);
+        const hasTreasureGain = _hasRawEvent(ctx.raw, 'treasure_box_gain', (ev: any) => Number(ev && ev.gained) > 0);
         if (hasTreasureGain) {
             _pushSoundCue(ctx, 'treasure_gain', postCardUsePhase, 'treasure_box_gain');
         }
 
         const roundBonusBannerPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'round_bonus_banner',
+            (ev: any) => ev && ev.type === 'round_bonus_banner',
             ctx.fallbackPhase
         );
-        const hasRoundBonusBanner = ctx.pres.some((ev) => (
+        const hasRoundBonusBanner = ctx.pres.some((ev: any) => (
             ev &&
             ev.type === 'ROUND_BONUS_BANNER' &&
             Number(ev.amount) > 0
@@ -2622,11 +2628,11 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             _pushSoundCue(ctx, 'round_bonus', roundBonusBannerPhase, 'round_bonus');
         }
 
-        if (_hasRawEvent(ctx.raw, 'loss_will_resolved', (ev) => Number(ev && ev.removedCount) > 0)) {
+        if (_hasRawEvent(ctx.raw, 'loss_will_resolved', (ev: any) => Number(ev && ev.removedCount) > 0)) {
             _tagCardUseAnimationPlaybackTarget(ctx, { disappearSoundKey: 'loss_will_reset' });
             _movePlaybackEventsIntoCardUseAnimationTarget(
                 ctx,
-                (ev) => ev && ev.type === 'status_removed' && ev.meta && ev.meta.reason === 'loss_will_reset',
+                (ev: any) => ev && ev.type === 'status_removed' && ev.meta && ev.meta.reason === 'loss_will_reset',
                 'disappearPlaybackEvents'
             );
         }
@@ -2636,10 +2642,10 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
 
         const strongWillPromotedPhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.type === 'status_applied' && ev.meta && ev.meta.reason === 'strong_will_promoted',
+            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && ev.meta.reason === 'strong_will_promoted',
             ctx.fallbackPhase
         );
-        const hasStrongWillPromotion = ctx.pres.some((ev) => (
+        const hasStrongWillPromotion = ctx.pres.some((ev: any) => (
             ev &&
             ev.type === 'STATUS_APPLIED' &&
             String(ev.reason || (ev.meta && ev.meta.reason) || '').toLowerCase() === 'strong_will_promoted'
@@ -2650,43 +2656,43 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
 
         const condemnPhase = _findPhase(
             ctx.base,
-            (ev) => ev &&
+            (ev: any) => ev &&
                 ev.type === 'hand_remove' &&
                 Array.isArray(ev.targets) &&
-                ev.targets.some((target) => String(target && target.reason ? target.reason : '').toLowerCase() === 'condemn_will'),
+                ev.targets.some((target: any) => String(target && target.reason ? target.reason : '').toLowerCase() === 'condemn_will'),
             _findPhase(
                 ctx.base,
-                (ev) => ev && ev.type === 'card_use_animation',
+                (ev: any) => ev && ev.type === 'card_use_animation',
                 ctx.fallbackPhase
             )
         );
-        if (_hasRawEvent(ctx.raw, 'condemn_selected', (ev) => !!(ev && ev.applied && ev.destroyedCardId))) {
+        if (_hasRawEvent(ctx.raw, 'condemn_selected', (ev: any) => !!(ev && ev.applied && ev.destroyedCardId))) {
             _pushSoundCue(ctx, 'stone_destroy', condemnPhase, 'condemn_selected');
         }
 
         const workIncomePhase = _findPhase(
             ctx.base,
-            (ev) => ev && ev.rawType === 'WORK_INCOME',
+            (ev: any) => ev && ev.rawType === 'WORK_INCOME',
             _findPhase(
                 ctx.base,
-                (ev) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'WORK',
+                (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'WORK',
                 ctx.fallbackPhase
             )
         );
-        const hasWorkIncome16 = ctx.pres.some((ev) => ev && ev.type === 'WORK_INCOME' && Number(ev.gained) === 16);
-        const hasWorkIncome = ctx.pres.some((ev) => ev && ev.type === 'WORK_INCOME' && Number(ev.gained) > 0);
+        const hasWorkIncome16 = ctx.pres.some((ev: any) => ev && ev.type === 'WORK_INCOME' && Number(ev.gained) === 16);
+        const hasWorkIncome = ctx.pres.some((ev: any) => ev && ev.type === 'WORK_INCOME' && Number(ev.gained) > 0);
         if (hasWorkIncome16) {
             _pushSoundCue(ctx, 'work_income_16', workIncomePhase, 'work_income');
         } else if (hasWorkIncome && !hasTreasureGain) {
             _pushSoundCue(ctx, 'charge_gain_common', workIncomePhase, 'work_income');
         }
 
-        const workRemovedEvents = ctx.pres.filter((ev) => _isWorkFlipOrDestroyRemovedPresentationEvent(ev));
+        const workRemovedEvents = ctx.pres.filter((ev: any) => _isWorkFlipOrDestroyRemovedPresentationEvent(ev));
         if (workRemovedEvents.length > 0) {
-            const workRemovedPlaybackEvents = ctx.base.filter((ev) => ev && ev.rawType === 'WORK_REMOVED');
+            const workRemovedPlaybackEvents = ctx.base.filter((ev: any) => ev && ev.rawType === 'WORK_REMOVED');
             const workRemovedFallbackPhase = _findPhase(
                 ctx.base,
-                (ev) => ev && ev.rawType === 'WORK_REMOVED',
+                (ev: any) => ev && ev.rawType === 'WORK_REMOVED',
                 ctx.fallbackPhase
             );
             for (let i = 0; i < workRemovedEvents.length; i++) {
@@ -2697,10 +2703,10 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }
     }
 
-    function _isGenericDestroyPlaybackEvent(ev) {
+    function _isGenericDestroyPlaybackEvent(ev: any) {
         if (!ev || ev.type !== 'destroy' || !Array.isArray(ev.targets)) return false;
         if (_isSpecialDurationExpiredPlaybackEvent(ev)) return false;
-        return ev.targets.some((t) => {
+        return ev.targets.some((t: any) => {
             if (!_isDestroyRemovalOutcome(t)) return false;
             const cause = String(t && t.cause ? t.cause : '').toUpperCase();
             const reason = String(t && t.reason ? t.reason : '').toLowerCase();
@@ -2716,34 +2722,34 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         });
     }
 
-    function _planDestroySoundCues(ctx) {
-        const sniperDestroyEvents = ctx.base.filter((ev) => (
+    function _planDestroySoundCues(ctx: any) {
+        const sniperDestroyEvents = ctx.base.filter((ev: any) => (
             ev &&
             ev.type === 'destroy' &&
             Array.isArray(ev.targets) &&
-            ev.targets.some((t) => _isSniperShotDestroyTarget(t))
+            ev.targets.some((t: any) => _isSniperShotDestroyTarget(t))
         ));
         if (sniperDestroyEvents.length > 0) {
             _pushRepeatedCueForMatchingTargets(
                 ctx,
                 sniperDestroyEvents,
-                (target) => _isSniperShotDestroyTarget(target) && _isDestroyRemovalOutcome(target),
+                (target: any) => _isSniperShotDestroyTarget(target) && _isDestroyRemovalOutcome(target),
                 'stone_destroy',
                 'sniper_shot'
             );
         }
 
-        const lightningDestroyEvents = ctx.base.filter((ev) => (
+        const lightningDestroyEvents = ctx.base.filter((ev: any) => (
             ev &&
             ev.type === 'destroy' &&
             Array.isArray(ev.targets) &&
-            ev.targets.some((t) => _isLightningDestroyTarget(t))
+            ev.targets.some((t: any) => _isLightningDestroyTarget(t))
         ));
         if (lightningDestroyEvents.length > 0) {
             _pushRepeatedCueForMatchingTargets(
                 ctx,
                 lightningDestroyEvents,
-                (target) => _isLightningDestroyTarget(target) && _isDestroyRemovalOutcome(target),
+                (target: any) => _isLightningDestroyTarget(target) && _isDestroyRemovalOutcome(target),
                 'stone_destroy',
                 'lightning_destroyed'
             );
@@ -2751,19 +2757,19 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
 
         const robotVacuumSuckPhases = _collectUniquePhases(
             ctx.base,
-            (ev) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t) => _isRobotVacuumSuckDestroyTarget(t))
+            (ev: any) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t: any) => _isRobotVacuumSuckDestroyTarget(t))
         );
         _pushCueForPhases(ctx, robotVacuumSuckPhases, 'robot_vacuum_suck', 'robot_vacuum_suck');
 
-        const goldSilverSelfDestroyPhases = _collectUniquePhases(ctx.base, (ev) => _isGoldSilverSelfDestroyEvent(ev));
+        const goldSilverSelfDestroyPhases = _collectUniquePhases(ctx.base, (ev: any) => _isGoldSilverSelfDestroyEvent(ev));
         _pushCueForPhases(ctx, goldSilverSelfDestroyPhases, 'charge_gain_common', 'gold_silver_self_destroy');
 
         const boardShrinkDestroyPhases = _collectUniquePhases(
             ctx.base,
-            (ev) => ev &&
+            (ev: any) => ev &&
                 ev.type === 'destroy' &&
                 Array.isArray(ev.targets) &&
-                ev.targets.some((t) => _isBoardShrinkDestroyTarget(t) && _isDestroyRemovalOutcome(t))
+                ev.targets.some((t: any) => _isBoardShrinkDestroyTarget(t) && _isDestroyRemovalOutcome(t))
         );
         _pushCueForPhases(ctx, boardShrinkDestroyPhases, 'board_shrink_selected', 'board_shrink_selected');
 
@@ -2773,22 +2779,22 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }
     }
 
-    function appendSoundEffectPlaybackEvents(playbackEvents, rawEvents, presentationEvents) {
+    function appendSoundEffectPlaybackEvents(playbackEvents: any, rawEvents: any, presentationEvents: any) {
         const ctx = _createSoundCuePlanningContext(playbackEvents, rawEvents, presentationEvents);
         if (!ctx.raw.length && !ctx.base.length) return ctx.base;
         _planCoreSoundCues(ctx);
         _planSelectionSoundCues(ctx);
         _planCardAndEconomySoundCues(ctx);
         _planDestroySoundCues(ctx);
-        ctx.added.sort((a, b) => _phaseNum(a.phase) - _phaseNum(b.phase));
+        ctx.added.sort((a: any, b: any) => _phaseNum(a.phase) - _phaseNum(b.phase));
         return ctx.base.concat(ctx.added);
     }
 
-    function _playerLabel(playerKey) {
+    function _playerLabel(playerKey: any) {
         return playerKey === 'black' ? '黒' : '白';
     }
 
-    function _toPosText(pos) {
+    function _toPosText(pos: any) {
         if (!pos || !Number.isInteger(pos.row) || !Number.isInteger(pos.col)) return '';
         if (SharedBoardUtils && typeof SharedBoardUtils.formatPosTextJa === 'function') {
             return SharedBoardUtils.formatPosTextJa(pos);
@@ -2799,7 +2805,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return `${file}${pos.row + 1}`;
     }
 
-    function _specialLabelJa(rawSpecial) {
+    function _specialLabelJa(rawSpecial: any) {
         if (SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneDisplayName === 'function') {
             const displayName = SpecialStoneRegistry.getSpecialStoneDisplayName(rawSpecial, null);
             if (displayName) return displayName;
@@ -2832,16 +2838,16 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return rawSpecial || '';
     }
 
-    function _detailCount(ev) {
+    function _detailCount(ev: any) {
         return (ev && Array.isArray(ev.details)) ? ev.details.length : 0;
     }
 
-    function _detailGainedSum(ev) {
+    function _detailGainedSum(ev: any) {
         if (!ev || !Array.isArray(ev.details)) return 0;
-        return ev.details.reduce((sum, one) => sum + (Number(one && one.gained) || 0), 0);
+        return ev.details.reduce((sum: any, one: any) => sum + (Number(one && one.gained) || 0), 0);
     }
 
-    function _hyperactiveLabel(ev, fallback) {
+    function _hyperactiveLabel(ev: any, fallback: any) {
         const details = (ev && Array.isArray(ev.details)) ? ev.details : null;
         const first = details && details[0] ? details[0] : null;
         const markerType = String(first && (first.specialType || first.type) ? (first.specialType || first.type) : '').toUpperCase();
@@ -2852,21 +2858,21 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return fallback;
     }
 
-    function _pushCountLog(logs, ev, label, suffix) {
+    function _pushCountLog(logs: any, ev: any, label: any, suffix: any) {
         logs.push(`${label}${_detailCount(ev)}${suffix}`);
     }
 
-    function _countMatchingDetails(ev, predicate) {
+    function _countMatchingDetails(ev: any, predicate: any) {
         const details = (ev && Array.isArray(ev.details)) ? ev.details : [];
-        return details.reduce((sum, detail) => sum + (predicate(detail) ? 1 : 0), 0);
+        return details.reduce((sum: any, detail: any) => sum + (predicate(detail) ? 1 : 0), 0);
     }
 
-    function _isDurationEndRevertDetail(detail) {
+    function _isDurationEndRevertDetail(detail: any) {
         const reason = String(detail && detail.reason ? detail.reason : '').toLowerCase();
         return !!(detail && detail.reverted === true) || reason === 'duration_end' || reason === 'anchor_expired';
     }
 
-    function _pushSplitDestroyedVsRevertedLog(push, ev, label, destroyedWord = '消滅') {
+    function _pushSplitDestroyedVsRevertedLog(push: any, ev: any, label: any, destroyedWord: any = '消滅') {
         const revertedCount = _countMatchingDetails(ev, _isDurationEndRevertDetail);
         const totalCount = _detailCount(ev);
         const destroyedCount = Math.max(0, totalCount - revertedCount);
@@ -2874,16 +2880,16 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         if (revertedCount > 0) push(`${label}${revertedCount}個が通常石に戻る`);
     }
 
-    function _observerExpiredLogText(ev) {
-        const durationCount = _countMatchingDetails(ev, (detail) => String(detail && detail.reason ? detail.reason : '').toLowerCase() === 'duration_end');
-        const lostCount = _countMatchingDetails(ev, (detail) => String(detail && detail.reason ? detail.reason : '').toLowerCase() === 'anchor_lost');
+    function _observerExpiredLogText(ev: any) {
+        const durationCount = _countMatchingDetails(ev, (detail: any) => String(detail && detail.reason ? detail.reason : '').toLowerCase() === 'duration_end');
+        const lostCount = _countMatchingDetails(ev, (detail: any) => String(detail && detail.reason ? detail.reason : '').toLowerCase() === 'anchor_lost');
         const totalCount = _detailCount(ev);
         if (durationCount > 0 && lostCount === 0) return `盤理の観測者: 親石${durationCount}個が通常石に戻る`;
         if (lostCount > 0 && durationCount === 0 && lostCount === totalCount) return `盤理の観測者: 親石${lostCount}個が失われて効果終了`;
         return `盤理の観測者: 親石${totalCount}個の効果が終了`;
     }
 
-    function _formatCrystalStonePlacementLog(effects) {
+    function _formatCrystalStonePlacementLog(effects: any) {
         const gain = Number.isFinite(Number(effects && effects.crystalStoneGain))
             ? Math.max(0, Number(effects.crystalStoneGain))
             : 0;
@@ -2892,7 +2898,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             : '水晶石: 数字マスなしで増加なし';
     }
 
-    function _normalizePlayerKey(v) {
+    function _normalizePlayerKey(v: any) {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
             const normalized = OwnerHelpersModule.normalizePlayerKeyOptional(v);
             if (normalized) return normalized;
@@ -2902,7 +2908,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return null;
     }
 
-    function _resolveEventActorKey(ev, fallbackPlayerKey) {
+    function _resolveEventActorKey(ev: any, fallbackPlayerKey: any) {
         const byPlayer = _normalizePlayerKey(ev && ev.player);
         if (byPlayer) return byPlayer;
         const details = ev && Array.isArray(ev.details) ? ev.details : null;
@@ -2915,22 +2921,22 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return _normalizePlayerKey(fallbackPlayerKey) || 'black';
     }
 
-    function _withActorPrefix(line, actorKey) {
+    function _withActorPrefix(line: any, actorKey: any) {
         const text = String(line || '').trim();
         if (!text) return '';
         if (/^(黒|白):/.test(text)) return text;
         return `${_playerLabel(actorKey)}: ${text}`;
     }
 
-    function mapEffectLogsFromPipeline(rawEvents, presEvents, playerKey) {
-        const logs = [];
+    function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: any) {
+        const logs: any[] = [];
         const events = Array.isArray(rawEvents) ? rawEvents : [];
         const seenStatusTick = new Set();
 
         for (const ev of events) {
             if (!ev || !ev.type) continue;
             const actorKey = _resolveEventActorKey(ev, playerKey);
-            const push = (line) => {
+            const push = (line: any) => {
                 const msg = _withActorPrefix(line, actorKey);
                 if (msg) logs.push(msg);
             };
@@ -3227,7 +3233,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                 case 'trap_triggered': {
                     const details = Array.isArray(ev.details) ? ev.details : [];
                     if (details.length > 0) {
-                        const destroyedHand = details.reduce((sum, d) => sum + (Number(d && (d.destroyedHandCount ?? d.stolenHandCount)) || 0), 0);
+                        const destroyedHand = details.reduce((sum: any, d: any) => sum + (Number(d && (d.destroyedHandCount ?? d.stolenHandCount)) || 0), 0);
                         push(`罠石が発動: 布石最大20奪取 / 手札全破壊（${destroyedHand}枚）`);
                     }
                     break;
@@ -3281,7 +3287,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         for (const ev of pres) {
             if (!ev) continue;
             const actorKey = _resolveEventActorKey(ev, playerKey);
-            const push = (line) => {
+            const push = (line: any) => {
                 const msg = _withActorPrefix(line, actorKey);
                 if (msg) logs.push(msg);
             };
@@ -3318,7 +3324,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         return compact;
     }
 
-    function mapNormalLogsFromPipeline(rawEvents, playerKey) {
+    function mapNormalLogsFromPipeline(rawEvents: any, playerKey: any) {
         const logs = [];
         const actor = _playerLabel(playerKey);
         const events = Array.isArray(rawEvents) ? rawEvents : [];
@@ -3331,7 +3337,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             }
         }
 
-        const compact = [];
+                const compact: any[] = [];
         for (const line of logs) {
             if (!line) continue;
             if (compact.length > 0 && compact[compact.length - 1] === line) continue;
@@ -3341,20 +3347,22 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
     }
 
     /**
+
+
      * Minimal adapter to run a placement via TurnPipeline and return both state and PlaybackEvents.
      */
-    function runTurnWithAdapter(cardState, gameState, playerKey, action, turnPipeline) {
+    function runTurnWithAdapter(cardState: any, gameState: any, playerKey: any, action: any, turnPipeline: any) {
         if (!turnPipeline) throw new Error('TurnPipeline not available');
         const suppressUiLogs = !!(action && action.__suppressUiLogs === true);
 
         // Build options for applyTurnSafe: include current state version and previous action ids if ActionManager is available
-        const options = { skipTurnStart: true };
+        const options: Record<string, any> = { skipTurnStart: true };
         if (typeof ActionManager !== 'undefined' && ActionManager.ActionManager) {
             try {
                 if (typeof ActionManager.ActionManager.getRecentActionIds === 'function') {
                     options.previousActionIds = ActionManager.ActionManager.getRecentActionIds(200);
                 } else if (typeof ActionManager.ActionManager.getActions === 'function') {
-                    options.previousActionIds = ActionManager.ActionManager.getActions().map(a => a.actionId).filter(Boolean);
+                    options.previousActionIds = ActionManager.ActionManager.getActions().map((a: any) => a.actionId).filter(Boolean);
                 }
             } catch (e) { /* ignore */ }
         }
@@ -3363,7 +3371,8 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
         }
 
         // Attempt to pass the current game PRNG (when available in browser env) to ensure deterministic rule logic
-        const runtimePrng = (typeof getGamePrng === 'function') ? getGamePrng() : (typeof globalThis !== 'undefined' && typeof globalThis.getGamePrng === 'function') ? globalThis.getGamePrng() : undefined; // globalThis — UI/bootstrap dependency
+        const _root: any = (typeof globalThis !== 'undefined') ? globalThis : undefined;
+        const runtimePrng = (typeof getGamePrng === 'function') ? getGamePrng() : (_root && typeof _root.getGamePrng === 'function') ? _root.getGamePrng() : undefined; // globalThis — UI/bootstrap dependency
         const result = (typeof turnPipeline.applyTurnSafe === 'function')
             ? turnPipeline.applyTurnSafe(cardState, gameState, playerKey, action, runtimePrng, options)
             : turnPipeline.applyTurn(cardState, gameState, playerKey, action, runtimePrng, options);
