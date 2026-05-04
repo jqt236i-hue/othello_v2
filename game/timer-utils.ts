@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -9,18 +8,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  * @file timer-utils.js
  * Small helper utilities around injected timers for consistent retry scheduling.
  */
-function hasUsableWaitMs(t) {
+function hasUsableWaitMs(t: any): boolean {
     if (!t || typeof t.waitMs !== 'function') return false;
     // game/timers default waitMs resolves immediately unless UI injected implementation exists.
     if (typeof t.hasTimerImpl === 'function' && !t.hasTimerImpl()) return false;
     return true;
 }
 
-function scheduleRetry(fn, delayMs = 80, timers = null) {
-    let t = timers;
+function scheduleRetry(fn: any, delayMs: number = 80, timers: any = null) {
+    let t: any = timers;
     if (!t) {
         try { t = require('./timers'); } catch (e) { /* use global fallback */ }
-        if (!t && typeof globalThis !== 'undefined') t = globalThis.timers || null;
+        if (!t && typeof globalThis !== 'undefined') t = (globalThis as any).timers || null;
     }
 
     if (hasUsableWaitMs(t)) {

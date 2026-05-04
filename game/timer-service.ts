@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -11,11 +10,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 class TimerService {
-  constructor(mode = 'browser') {
+  mode: any;
+
+  constructor(mode: any = 'browser') {
     this.mode = mode;
   }
 
-  setTimeout(callback, delay) {
+  setTimeout(callback: any, delay: any): any {
     if (this.mode === 'browser') {
       return setTimeout(callback, delay);
     }
@@ -29,14 +30,14 @@ class TimerService {
     return id;
   }
 
-  clearTimeout(id) {
+  clearTimeout(id: any): void {
     if (this.mode === 'browser') {
       clearTimeout(id);
     }
     // headlessモードでは即時実行なのでクリア不要
   }
 
-  setInterval(callback, delay) {
+  setInterval(callback: any, delay: any): any {
     if (this.mode === 'browser') {
       return setInterval(callback, delay);
     }
@@ -49,14 +50,14 @@ class TimerService {
     return { _immediate: true };
   }
 
-  clearInterval(id) {
+  clearInterval(id: any): void {
     if (this.mode === 'browser') {
       clearInterval(id);
     }
   }
 }
 
-function createTimerService(mode) {
+function createTimerService(mode: any): TimerService {
   return new TimerService(mode);
 }
 

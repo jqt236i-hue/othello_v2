@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -37,7 +36,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
         return;
     }
 
-    const missing = required.filter((k) => typeof globalThis !== 'undefined' && typeof globalThis[k] !== 'function');
+    const missing = required.filter((k: any) => typeof globalThis !== 'undefined' && typeof (globalThis as any)[k] !== 'function');
     if (missing.length > 0) {
         console.warn('[special-effects-handler] Missing split effect globals (load order issue?):', missing);
     }

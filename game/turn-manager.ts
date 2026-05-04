@@ -1,5 +1,36 @@
-// @ts-nocheck
+
 import type { CardState, GameState, PlayerKey } from '../src/types';
+
+declare const debugLog: any;
+declare const executeMove: any;
+declare const updateCpuCharacter: any;
+declare const initCardState: any;
+declare const dealInitialCards: any;
+declare const getGamePrng: any;
+// Card effect selection handlers (injected by UI bootstrap / card-effects modules)
+declare const handleDestroySelection: any;
+declare const handleStrongWindSelection: any;
+declare const handleSuperBuoyancySelection: any;
+declare const handleSuperGravitySelection: any;
+declare const handleTeleportSelection: any;
+declare const handleTemptSelection: any;
+declare const handleCaptureSelection: any;
+declare const handleTrapSelection: any;
+declare const handleGuardSelection: any;
+declare const handleLivingWillSelection: any;
+declare const handleHyperactiveInheritSelection: any;
+declare const handleExtendLifeSelection: any;
+declare const handleCorrosionSelection: any;
+declare const handleTimeBombSelection: any;
+declare const handleSwapSelection: any;
+declare const handlePositionSwapSelection: any;
+declare const handleBoardExpansionSelection: any;
+declare const handleBoardShrinkSelection: any;
+declare const handleBlockadeSelection: any;
+declare const handleMeteorSelection: any;
+declare const handleFreezeSelection: any;
+declare const handleSeedSelection: any;
+declare const handleCloneSelection: any;
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -46,7 +77,7 @@ if (typeof require === 'function') {
 }
 const FLIP_ANIMATION_DURATION_MS = (typeof getAnimationTiming === 'function' ? getAnimationTiming('FLIP_ANIMATION_DURATION') : 600) || 600;
 // @compat - __BENCH_FAST_MODE set by test scripts / run-ui-level-match.ts via globalThis
-const CPU_TURN_DELAY_MS = (typeof globalThis !== 'undefined' && globalThis.__BENCH_FAST_MODE === true) ? 0 : 600;
+const CPU_TURN_DELAY_MS = (typeof globalThis !== 'undefined' && (globalThis as any).__BENCH_FAST_MODE === true) ? 0 : 600;
 const ANIMATION_RETRY_DELAY_MS = 80;
 const DOUBLE_PLACE_PASS_DELAY_MS = 250;
 const BLACK_PASS_DELAY_MS = 1000;
@@ -68,8 +99,8 @@ function resetCpuTurnSchedulingStateForTurnManager() {
 function getPlaybackStateForTurnManager() {
     try {
         // globalThis read — UI/bootstrap dependency, keep
-        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) {
-            return globalThis.PlaybackStateManager;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackStateManager) {
+            return (globalThis as any).PlaybackStateManager;
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -97,7 +128,7 @@ function readTurnManagerCardAnimating() {
     return localCardAnimating;
 }
 
-function setTurnManagerBusyState(options) {
+function setTurnManagerBusyState(options: any) {
     const config = (options && typeof options === 'object')
         ? options
         : {
@@ -198,10 +229,10 @@ function isPlaybackRunningForTurnManager() {
         // globalThis read — UI/bootstrap dependency, keep
         if (
             typeof globalThis !== 'undefined' &&
-            globalThis.AnimationEngine &&
-            typeof globalThis.AnimationEngine.isPlaying === 'boolean'
+            (globalThis as any).AnimationEngine &&
+            typeof (globalThis as any).AnimationEngine.isPlaying === 'boolean'
         ) {
-            return globalThis.AnimationEngine.isPlaying === true;
+            return (globalThis as any).AnimationEngine.isPlaying === true;
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -214,7 +245,7 @@ function getStalePlaybackTimeoutMsForTurnManager() {
     return PASS_STALE_PLAYBACK_MS;
 }
 
-function isStalePlaybackLockForTurnManager(options) {
+function isStalePlaybackLockForTurnManager(options: any) {
     const opts = (options && typeof options === 'object') ? options : {};
     const visualPlayback = opts.visualPlayback === true ? true : isVisualPlaybackActiveForTurnManager();
     if (!visualPlayback) return false;
@@ -230,21 +261,21 @@ function isStalePlaybackLockForTurnManager(options) {
     return (Date.now() - startedAt) > getStalePlaybackTimeoutMsForTurnManager();
 }
 
-function releaseStalePlaybackLockForTurnManager(options) {
+function releaseStalePlaybackLockForTurnManager(options: any) {
     if (!isStalePlaybackLockForTurnManager(options)) return false;
     clearPlaybackLockForTurnManager();
     return true;
 }
 
-function emitPresentationEventViaBoardOps(ev) {
+function emitPresentationEventViaBoardOps(ev: any) {
     try {
         // BoardPresentation is imported directly at top of file
         if (BoardPresentation && typeof BoardPresentation.emitPresentationEvent === 'function') return BoardPresentation.emitPresentationEvent(cardState, ev);
     } catch (e) { /* ignore */ }
     try {
         // globalThis read — UI/bootstrap dependency, keep
-        const ops = (typeof globalThis !== 'undefined' && globalThis.BoardOps && typeof globalThis.BoardOps.emitPresentationEvent === 'function')
-            ? globalThis.BoardOps
+        const ops = (typeof globalThis !== 'undefined' && (globalThis as any).BoardOps && typeof (globalThis as any).BoardOps.emitPresentationEvent === 'function')
+            ? (globalThis as any).BoardOps
             : null;
         if (ops) {
             ops.emitPresentationEvent(cardState, ev);
@@ -256,22 +287,22 @@ function emitPresentationEventViaBoardOps(ev) {
 } 
 
 // Configuration and UI-DI (module-level config, no globalThis writes)
-let __uiImpl_turn_manager = {};
-function setUIImpl(obj) {
+let __uiImpl_turn_manager: any = {};
+function setUIImpl(obj: any) {
     __uiImpl_turn_manager = Object.assign({}, __uiImpl_turn_manager, obj || {});
 }
 
 // Module-scoped UI locks (local state; replaces globalThis writes)
-let isProcessing;
-let isCardAnimating;
-let VisualPlaybackActive;
-let __playbackActiveSince;
+let isProcessing: any;
+let isCardAnimating: any;
+let VisualPlaybackActive: any;
+let __playbackActiveSince: any;
 let cpuSmartness = { black: 1, white: 1 }; // @compat - read by some modules via globalThis, keep until Wave F
 var resetGameGeneration = 0;
 
 // TimerService DI
-let turnManagerTimerService = null;
-function setTurnManagerTimerService(service) { turnManagerTimerService = service; }
+let turnManagerTimerService: any = null;
+function setTurnManagerTimerService(service: any) { turnManagerTimerService = service; }
 function getTurnManagerTimerService() {
     if (turnManagerTimerService) return turnManagerTimerService;
     try {
@@ -287,7 +318,7 @@ function getTurnManagerTimerService() {
 let scheduleRetry = null;
 const tu = _require('./timer-utils'); if (tu && typeof tu.scheduleRetry === 'function') scheduleRetry = tu.scheduleRetry; 
 if (!scheduleRetry) {
-    scheduleRetry = (fn, delayMs) => {
+    scheduleRetry = (fn: any, delayMs: any) => {
         const timerService = getTurnManagerTimerService();
         if (timerService) {
             timerService.setTimeout(fn, delayMs);
@@ -302,14 +333,14 @@ if (!scheduleRetry) {
 function hasQueuedPresentationEventsForTurnManager() {
     try {
         if (!cardState || typeof cardState !== 'object') return false;
-        const hasQueuedPlaybackEvents = (queue) => Array.isArray(queue)
+        const hasQueuedPlaybackEvents = (queue: any) => Array.isArray(queue)
             && queue.some((event) => event && event.type === 'PLAYBACK_EVENTS');
         return hasQueuedPlaybackEvents(cardState.presentationEvents)
             || hasQueuedPlaybackEvents(cardState._presentationEventsPersist);
     } catch (e) { /* ignore */ }
     return false;
 }
-function handleCellClick(row, col) {
+function handleCellClick(row: number, col: number) {
     if (isDebugLogAvailable()) {
         debugLog(`[CELL-CLICK] User clicked (${row},${col})`, 'debug', {
             currentPlayer: gameState.currentPlayer,
@@ -321,7 +352,7 @@ function handleCellClick(row, col) {
 
     // Auto mode owns progression; ignore manual board input.
     // globalThis read — UI/bootstrap dependency, keep
-    if (typeof globalThis !== 'undefined' && globalThis.AUTO_MODE_ACTIVE === true) return;
+    if (typeof globalThis !== 'undefined' && (globalThis as any).AUTO_MODE_ACTIVE === true) return;
 
     const playerKey = getPlayerKey(gameState.currentPlayer);
     if (!canLocalUserOperateCurrentTurn()) return;
@@ -398,7 +429,7 @@ function isAnimationInProgress() {
     return processingActive || cardAnimatingActive || visualPlayback || queuedPresentation;
 }
 
-function shouldAllowPendingSelectionDuringAnimation(playerKey, pending, pendingDispatchKey) {
+function shouldAllowPendingSelectionDuringAnimation(playerKey: any, pending: any, pendingDispatchKey: any) {
     if (!pending || !pendingDispatchKey || pending.stage !== 'selectTarget') return false;
     if (readTurnManagerProcessing()) return false;
     const playbackState = getPlaybackStateForTurnManager();
@@ -420,9 +451,9 @@ function isHumanVsHumanModeEnabled() {
     let matchMode = null;
     try {
         // globalThis read — UI/bootstrap dependency, keep
-        matchMode = (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function')
-            ? globalThis.getCurrentMatchMode()
-            : (typeof globalThis !== 'undefined' ? globalThis.MATCH_MODE : null);
+        matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
+            ? (globalThis as any).getCurrentMatchMode()
+            : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
     } catch (e) { /* ignore */ }
     return debugHvH || matchMode === 'network';
 }
@@ -435,9 +466,9 @@ function isNetworkModeForTurnManager() {
     } catch (e) { /* ignore */ }
     try {
         // globalThis read — UI/bootstrap dependency, keep
-        const matchMode = (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function')
-            ? globalThis.getCurrentMatchMode()
-            : (typeof globalThis !== 'undefined' ? globalThis.MATCH_MODE : null);
+        const matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
+            ? (globalThis as any).getCurrentMatchMode()
+            : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
         return matchMode === 'network';
     } catch (e) { /* ignore */ }
     return false;
@@ -490,14 +521,14 @@ function canLocalUserOperateCurrentTurn() {
 // globalThis read — UI/bootstrap dependency, keep (consolidated accessor)
 function getNetworkMatchClientForTurnManager() {
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.NetworkMatchClient) {
-            return globalThis.NetworkMatchClient;
+        if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkMatchClient) {
+            return (globalThis as any).NetworkMatchClient;
         }
     } catch (e) { /* ignore */ }
     return null;
 }
 
-function createNetworkResetAction(playerKey) {
+function createNetworkResetAction(playerKey: any) {
     const normalizedPlayerKey = playerKey === 'white' ? 'white' : 'black';
     return {
         type: 'reset_game',
@@ -523,7 +554,7 @@ function publishNetworkResetSnapshot() {
     } catch (e) { /* ignore */ }
 }
 
-function getPlayerKey(player) {
+function getPlayerKey(player: any) {
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKey === 'function') {
             return OwnerHelpersModule.normalizePlayerKey(player, 'black');
@@ -547,7 +578,7 @@ function getPlayerKey(player) {
     return 'black';
 }
 
-function getPlayerName(player) {
+function getPlayerName(player: any) {
     return getPlayerKey(player) === 'black' ? '黒' : '白';
 }
 
@@ -563,7 +594,7 @@ function resolvePendingCoordinatorForTurnManager() {
         : null;
 }
 
-function resolvePendingSelectionDispatchKeyForTurnManager(pendingType) {
+function resolvePendingSelectionDispatchKeyForTurnManager(pendingType: any) {
     var pendingCoordinator = resolvePendingCoordinatorForTurnManager();
     if (!pendingCoordinator || typeof pendingCoordinator.resolvePendingSelectionDispatchKey !== 'function') {
         return null;
@@ -571,7 +602,7 @@ function resolvePendingSelectionDispatchKeyForTurnManager(pendingType) {
     return pendingCoordinator.resolvePendingSelectionDispatchKey(pendingType);
 }
 
-function readPendingForTurnManager(playerKey) {
+function readPendingForTurnManager(playerKey: any) {
     var pendingCoordinator = resolvePendingCoordinatorForTurnManager();
     if (pendingCoordinator && typeof pendingCoordinator.readPendingEffect === 'function') {
         return pendingCoordinator.readPendingEffect(cardState, playerKey);
@@ -581,7 +612,7 @@ function readPendingForTurnManager(playerKey) {
         : null;
 }
 
-function resolveBoardPendingSelectionHandlerForTurnManager(dispatchKey) {
+function resolveBoardPendingSelectionHandlerForTurnManager(dispatchKey: any) {
     switch (String(dispatchKey || '')) {
     case 'destroy':
         return (typeof handleDestroySelection === 'function') ? handleDestroySelection : null;
@@ -685,7 +716,7 @@ function resetGame() {
         }
     } catch (e) { /* ignore */ }
 
-    const clampCpuLevel = (value) => {
+    const clampCpuLevel = (value: any) => {
         const n = Number(value);
         if (!Number.isFinite(n)) return 1;
         return Math.max(1, Math.min(6, Math.floor(n)));
@@ -702,13 +733,13 @@ function resetGame() {
         updateCpuCharacter();
     }
 
-    let cardInitOptions = {};
+    let cardInitOptions: any = {};
     if (__uiImpl_turn_manager && typeof __uiImpl_turn_manager.buildCardInitOptions === 'function') {
         try {
             const built = __uiImpl_turn_manager.buildCardInitOptions();
             cardInitOptions = (built && typeof built === 'object') ? built : {};
         } catch (e) {
-            console.warn('[resetGame] buildCardInitOptions failed:', e && e.message ? e.message : e);
+            console.warn('[resetGame] buildCardInitOptions failed:', e && (e as any).message ? (e as any).message : e);
             cardInitOptions = {};
         }
     } else if (__uiImpl_turn_manager && typeof __uiImpl_turn_manager.readActiveDeckSpec === 'function') {
@@ -718,7 +749,7 @@ function resetGame() {
                 cardInitOptions = { initialDeckSpec: activeDeckSpec };
             }
         } catch (e) {
-            console.warn('[resetGame] readActiveDeckSpec failed:', e && e.message ? e.message : e);
+            console.warn('[resetGame] readActiveDeckSpec failed:', e && (e as any).message ? (e as any).message : e);
             cardInitOptions = {};
         }
     }
@@ -730,17 +761,17 @@ function resetGame() {
         try {
             boardConfig = __uiImpl_turn_manager.readBoardConfig() || null;
         } catch (e) {
-            console.warn('[resetGame] readBoardConfig failed:', e && e.message ? e.message : e);
+            console.warn('[resetGame] readBoardConfig failed:', e && (e as any).message ? (e as any).message : e);
         }
     }
 
-    gameState = createGameState(boardConfig);
+    (globalThis as any).gameState = createGameState(boardConfig);
     try {
         // initCardState may rely on PRNG; if unavailable, tests should mock or skip
         if (typeof initCardState === 'function') initCardState(undefined, cardInitOptions);
     } catch (e) {
         // In test environments without PRNG, allow fallback to a minimal cardState via CardLogic
-        console.warn('[resetGame] initCardState failed (test environment):', e.message);
+        console.warn('[resetGame] initCardState failed (test environment):', (e as any).message);
         if (typeof CardLogic.createCardState === 'function') {  // CardLogic imported directly
             const prngStub = { next: () => 0.5, _seed: 1, shuffle: (array: any[]) => array };
             const newState = CardLogic.createCardState(prngStub, cardInitOptions);
@@ -749,7 +780,7 @@ function resetGame() {
                 for (const k in cardState) delete cardState[k];
                 Object.assign(cardState, newState);
             } else if (typeof global !== 'undefined') {
-                global.cardState = global.cardState || newState;
+                (global as any).cardState = (global as any).cardState || newState;
             }
         }
     }
@@ -812,8 +843,8 @@ function resetGame() {
                 runTurnStartAndPublishResetSnapshot();
                 emitLogAdded('カード配布完了', 'normal');
 
-            })
-            .catch((err) => {
+    })
+    .catch((err: any) => {
                 if (!isCurrentResetGeneration()) return;
                 console.error('Deal animation error:', err);
                 emitLogAdded('エラー: カード配布に失敗しました', 'normal');
@@ -843,7 +874,7 @@ function resetGame() {
  * Turn Start Logic coordination
  * @param {number} player - BLACK (1) or WHITE (-1)
  */
-async function onTurnStart(player) {
+async function onTurnStart(player: number) {
     const playerKey = getPlayerKey(player);
 
     const safeIsProcessing = (typeof isProcessing !== 'undefined') ? isProcessing : undefined;
@@ -860,7 +891,7 @@ async function onTurnStart(player) {
     // 1. Shared Logic Turn Start (Reset flags, tick active effect durations, Draw)
     // Migrate turn-start logic into the turn pipeline phases and invoke the pipeline phase here
     // so that the *pipeline* (not UI) is the single writer of rule state.
-    const _startEvents = [];
+    const _startEvents: any[] = [];
     let turnStartPlaybackEvents = [];
     if (typeof TurnPipelinePhases.applyTurnStartPhase === 'function') {  // TurnPipelinePhases imported directly
         try {
@@ -888,7 +919,7 @@ async function onTurnStart(player) {
                 }
             }
         } catch (e) {
-            console.error('[CRITICAL][onTurnStart] TurnPipelinePhases.applyTurnStartPhase threw', e && e.stack || e);
+            console.error('[CRITICAL][onTurnStart] TurnPipelinePhases.applyTurnStartPhase threw', e && (e as any).stack || e);
             // Continue gracefully - avoid bubbling exception to caller
         }
     } else {
@@ -923,7 +954,7 @@ async function onTurnStart(player) {
                 if (adapter && typeof adapter.mapToPlaybackEvents === 'function') {
                     const drawPlayback = adapter.mapToPlaybackEvents([drawPresentation], cardState, gameState) || [];
                     if (drawPlayback.length > 0) {
-                        const basePhase = turnStartPlaybackEvents.reduce((maxP, ev) => {
+                        const basePhase = turnStartPlaybackEvents.reduce((maxP: any, ev: any) => {
                             const p = Number(ev && ev.phase || 0);
                             return Number.isFinite(p) && p > maxP ? p : maxP;
                         }, 0);
@@ -1004,8 +1035,8 @@ async function onTurnStart(player) {
             cardState.hands.white = [];
             // Update UI again to reflect transfer
             // globalThis read — UI/bootstrap dependency, keep
-            if (typeof globalThis !== 'undefined' && typeof globalThis.requestCardUiSync === 'function') {
-                globalThis.requestCardUiSync('turn-manager:shared-hand-debug');
+            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).requestCardUiSync === 'function') {
+                (globalThis as any).requestCardUiSync('turn-manager:shared-hand-debug');
             } else if (typeof renderCardUI === 'function') {
                 renderCardUI();
             }
@@ -1018,11 +1049,11 @@ async function onTurnStart(player) {
 }
 
 // ===== Watchdog: prevents permanent freeze if flags get stuck =====
-var lastFlagActiveTime = null;
+var lastFlagActiveTime: any = null;
 const WATCHDOG_TIMEOUT_MS = 10000;
 
 // Watchdog timing moved to UI; expose a ping function so UI can schedule checks using its timing APIs
-function watchdogPing(nowMs) {
+function watchdogPing(nowMs: any) {
     if (isAnimationInProgress()) {
         const now = (typeof nowMs === 'number') ? nowMs : null;
         if (now === null) return;
@@ -1076,8 +1107,8 @@ if (typeof module !== 'undefined' && module.exports) {
 // @compat - legacy UI entry points; keep until Wave F (entry-browser.js provides these via Object.assign(window, mod))
 try {
     if (typeof globalThis !== 'undefined') {
-        try { globalThis.resetGame = resetGame; } catch (e) { /* ignore */ }
-        try { globalThis.handleCellClick = handleCellClick; } catch (e) { /* ignore */ }
+        try { (globalThis as any).resetGame = resetGame; } catch (e) { /* ignore */ }
+        try { (globalThis as any).handleCellClick = handleCellClick; } catch (e) { /* ignore */ }
     }
     // @compat - registerUIGlobals notification; keep until Wave F
     try {
