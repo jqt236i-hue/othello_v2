@@ -46,6 +46,9 @@
     "coverage",
     "dist",
     "**/__pycache__/**",
-    "ai/**/*"
+    "ai/**/*",
+    "game/game/**/*",
+    "game/cards/game/**/*",
+    "game/logic/game/**/*"
   ]
 }

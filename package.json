@@ -84,6 +84,7 @@
       "!**/vendor/**"
     ],
     "testPathIgnorePatterns": [
+      "<rootDir>/dist/",
       "<rootDir>/01-CARD-OTHELLO/"
     ],
     "moduleFileExtensions": [
