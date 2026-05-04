@@ -1,5 +1,41 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
+declare const AISystem: any;
+declare const CardLogic: any;
+declare const BLACK: any;
+declare const WHITE: any;
+declare const isDebugLogAvailable: () => boolean;
+declare const debugLog: (...args: any[]) => void;
+declare const emitLogAdded: (...args: any[]) => void;
+declare const emitEffectLog: (...args: any[]) => void;
+declare const emitCardStateChange: () => void;
+declare const emitBoardUpdate: () => void;
+declare const emitGameStateChange: () => void;
+declare const cpuSmartness: Record<string, number>;
+declare const BoardOps: any;
+declare const PresentationHelper: any;
+declare const ActionManager: any;
+declare const TurnPipelineUIAdapter: any;
+declare const TurnPipeline: any;
+declare const initCardState: (...args: any[]) => void;
+declare const updateCpuCharacter: () => void;
+declare const showResult: () => void;
+declare const getActiveProtectionForPlayer: (playerValue: any) => any[];
+declare const getFlipBlockers: () => any[];
+declare const getLegalMoves: (...args: any[]) => any[];
+declare const isBlockedCell: (...args: any[]) => boolean;
+declare const handleDestroySelection: (...args: any[]) => any;
+declare const handleSwapSelection: (...args: any[]) => any;
+declare const handlePositionSwapSelection: (...args: any[]) => any;
+declare const handleTemptSelection: (...args: any[]) => any;
+declare const HAND_LIMIT: number;
+declare const isCornerRecoveryCardType: (...args: any[]) => boolean;
+declare const isCornerHoldCardType: (...args: any[]) => boolean;
+declare let cardState: any;
+declare let gameState: any;
+declare const CARD_DEFS: any;
+declare const waitForPlaybackIdle: any;
+declare const processCpuTurn: any;
+declare const assignCardPlayedSoundForCpu: (...args: any[]) => void;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
@@ -15,16 +51,16 @@ import type { CardState, GameState, PlayerKey } from '../src/types';
  */
 
 // AISystemの存在確認 (lightweight helper used throughout CPU decision logic)
-function isAISystemAvailable() {
+function isAISystemAvailable(): any {
     return (typeof AISystem !== 'undefined' && AISystem && typeof AISystem === 'object');
 }
 
-function isCpuDebugEnabled() {
+function isCpuDebugEnabled(): any {
     try {
         if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) return true;
     } catch (e) { /* ignore */ }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.DEBUG_CPU_LOG === true) return true;
+        if (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_CPU_LOG === true) return true;
     } catch (e) { /* ignore */ }
     try {
         const qs = (typeof location !== 'undefined' && location && typeof location.search === 'string')
@@ -35,9 +71,9 @@ function isCpuDebugEnabled() {
     return false;
 }
 
-function cpuDebugLog() {
+function cpuDebugLog(...args: any[]): void {
     if (!isCpuDebugEnabled()) return;
-    try { if (typeof console !== 'undefined' && console.log) console.log.apply(console, arguments); } catch (e) { /* ignore */ }
+    try { if (typeof console !== 'undefined' && console.log) console.log.apply(console, args); } catch (e) { /* ignore */ }
 }
 
 if (!isAISystemAvailable()) {
@@ -53,53 +89,53 @@ if (!isAISystemAvailable()) {
  */
 // CPU RNG injection (default deterministic to avoid random calls in game layer)
 let cpuRng = { random: () => 0.5 };
-function setCpuRng(rng) { cpuRng = rng || cpuRng; }
+function setCpuRng(rng: any): any { cpuRng = rng || cpuRng; }
 
-let CpuPolicyCore = null;
+let CpuPolicyCore: any = null;
 if (typeof require === 'function') {
     try { CpuPolicyCore = _require('./ai/cpu-policy-core'); } catch (e) { /* ignore */ }
 }
-let CpuPolicyTableRuntime = null;
+let CpuPolicyTableRuntime: any = null;
 if (typeof require === 'function') {
     try { CpuPolicyTableRuntime = _require('./ai/policy-table-runtime'); } catch (e) { /* ignore */ }
 }
-let CpuPolicyOnnxRuntime = null;
+let CpuPolicyOnnxRuntime: any = null;
 if (typeof require === 'function') {
     try { CpuPolicyOnnxRuntime = _require('./ai/policy-onnx-runtime'); } catch (e) { /* ignore */ }
 }
-let SharedBoardUtilsModule = null;
+let SharedBoardUtilsModule: any = null;
 if (typeof require === 'function') {
     try { SharedBoardUtilsModule = _require('../shared/shared-board-utils'); } catch (e) { /* ignore */ }
 }
 if (!SharedBoardUtilsModule) {
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.SharedBoardUtils) {
-            SharedBoardUtilsModule = globalThis.SharedBoardUtils;
+        if (typeof globalThis !== 'undefined' && (globalThis as any).SharedBoardUtils) {
+            SharedBoardUtilsModule = (globalThis as any).SharedBoardUtils;
         }
     } catch (e) { /* ignore */ }
 }
-let CpuLv6RuntimeCapabilityModule = null;
+let CpuLv6RuntimeCapabilityModule: any = null;
 if (typeof require === 'function') {
     try { CpuLv6RuntimeCapabilityModule = _require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
 }
 
-function readGlobalModule(globalKey) {
+function readGlobalModule(globalKey: any): any {
     try {
-        if (typeof globalThis !== 'undefined' && globalThis && globalThis[globalKey]) {
-            return globalThis[globalKey];
+        if (typeof globalThis !== 'undefined' && globalThis && (globalThis as any)[globalKey]) {
+            return (globalThis as any)[globalKey];
         }
     } catch (e) { /* ignore */ }
     return null;
 }
 
-function resolveModuleReference(currentValue, options) {
+function resolveModuleReference(currentValue: any, options: any): any {
     const opts = options || {};
     const isValid = (typeof opts.isValid === 'function')
         ? opts.isValid
-        : function isTruthy(value) { return !!value; };
+        : function isTruthy(value: any) { return !!value; };
     if (isValid(currentValue)) return currentValue;
 
-    let resolvedModule = null;
+    let resolvedModule: any = null;
     if (typeof opts.readLocal === 'function') {
         try {
             resolvedModule = opts.readLocal();
@@ -119,43 +155,43 @@ function resolveModuleReference(currentValue, options) {
     return null;
 }
 
-function resolveSharedBoardUtilsModule() {
+function resolveSharedBoardUtilsModule(): any {
     const resolvedModule = resolveModuleReference(SharedBoardUtilsModule, {
         requirePath: '../shared/shared-board-utils',
         globalKey: 'SharedBoardUtils',
-        isValid: (moduleRef) => !!(moduleRef && typeof moduleRef === 'object')
+        isValid: (moduleRef: any) => !!(moduleRef && typeof moduleRef === 'object')
     });
     if (resolvedModule) SharedBoardUtilsModule = resolvedModule;
     return resolvedModule;
 }
 
-let PendingTargetSelector = null;
+let PendingTargetSelector: any = null;
 if (typeof require === 'function') {
     try { PendingTargetSelector = _require('./turn-handlers/pending-target-selector'); } catch (e) { /* ignore */ }
 }
-var PendingSelectionFlow = null;
+var PendingSelectionFlow: any = null;
 if (typeof require === 'function') {
     try { PendingSelectionFlow = _require('./card-effects/selection-flow'); } catch (e) { /* ignore */ }
 }
-let cpuDecisionNetworkTurnHandoff = null;
+let cpuDecisionNetworkTurnHandoff: any = null;
 if (typeof require === 'function') {
     try { cpuDecisionNetworkTurnHandoff = _require('./network-turn-handoff'); } catch (e) { /* ignore */ }
 }
-let CpuPendingCoordinator = null;
+let CpuPendingCoordinator: any = null;
 if (typeof require === 'function') {
     try { CpuPendingCoordinator = _require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
 }
-if (!cpuDecisionNetworkTurnHandoff && typeof globalThis !== 'undefined' && globalThis.NetworkTurnHandoff) {
-    cpuDecisionNetworkTurnHandoff = globalThis.NetworkTurnHandoff;
+if (!cpuDecisionNetworkTurnHandoff && typeof globalThis !== 'undefined' && (globalThis as any).NetworkTurnHandoff) {
+    cpuDecisionNetworkTurnHandoff = (globalThis as any).NetworkTurnHandoff;
 }
-if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow) {
-    PendingSelectionFlow = globalThis.PendingSelectionFlow;
+if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && (globalThis as any).PendingSelectionFlow) {
+    PendingSelectionFlow = (globalThis as any).PendingSelectionFlow;
 }
-if (!CpuPendingCoordinator && typeof globalThis !== 'undefined' && globalThis.PendingCoordinator) {
-    CpuPendingCoordinator = globalThis.PendingCoordinator;
+if (!CpuPendingCoordinator && typeof globalThis !== 'undefined' && (globalThis as any).PendingCoordinator) {
+    CpuPendingCoordinator = (globalThis as any).PendingCoordinator;
 }
 
-function hasPendingSelectionFlowContract(moduleRef) {
+function hasPendingSelectionFlowContract(moduleRef: any): any {
     return !!(
         moduleRef
         && typeof moduleRef === 'object'
@@ -167,7 +203,7 @@ function hasPendingSelectionFlowContract(moduleRef) {
     );
 }
 
-function hasPendingSelectionFlowFunction(moduleRef, functionName) {
+function hasPendingSelectionFlowFunction(moduleRef: any, functionName: any): any {
     return !!(
         moduleRef
         && typeof moduleRef === 'object'
@@ -175,12 +211,12 @@ function hasPendingSelectionFlowFunction(moduleRef, functionName) {
     );
 }
 
-function resolvePendingSelectionFlow(requiredFunctionName) {
+function resolvePendingSelectionFlow(requiredFunctionName: any): any {
     const requiredName = typeof requiredFunctionName === 'string' ? requiredFunctionName : '';
     const resolvedModule = resolveModuleReference(PendingSelectionFlow, {
         requirePath: './card-effects/selection-flow',
         globalKey: 'PendingSelectionFlow',
-        isValid: (moduleRef) => requiredName
+        isValid: (moduleRef: any) => requiredName
             ? hasPendingSelectionFlowFunction(moduleRef, requiredName)
             : hasPendingSelectionFlowContract(moduleRef)
     });
@@ -188,17 +224,17 @@ function resolvePendingSelectionFlow(requiredFunctionName) {
     return resolvedModule;
 }
 
-function resolveCpuPendingCoordinator() {
+function resolveCpuPendingCoordinator(): any {
     const resolvedModule = resolveModuleReference(CpuPendingCoordinator, {
         requirePath: './turn/pending-coordinator',
         globalKey: 'PendingCoordinator',
-        isValid: (moduleRef) => !!(moduleRef && typeof moduleRef === 'object')
+        isValid: (moduleRef: any) => !!(moduleRef && typeof moduleRef === 'object')
     });
     if (resolvedModule) CpuPendingCoordinator = resolvedModule;
     return resolvedModule;
 }
 
-function readCpuPendingEffect(playerKey, stateRef) {
+function readCpuPendingEffect(playerKey: any, stateRef?: any): any {
     const resolvedState = stateRef || ((typeof cardState !== 'undefined') ? cardState : null);
     const pendingCoordinator = resolveCpuPendingCoordinator();
     if (pendingCoordinator && typeof pendingCoordinator.readPendingEffect === 'function') {
@@ -209,7 +245,7 @@ function readCpuPendingEffect(playerKey, stateRef) {
         : null;
 }
 
-function clearCpuPendingEffect(playerKey, stateRef) {
+function clearCpuPendingEffect(playerKey: any, stateRef?: any): any {
     const resolvedState = stateRef || ((typeof cardState !== 'undefined') ? cardState : null);
     const pendingCoordinator = resolveCpuPendingCoordinator();
     if (pendingCoordinator && typeof pendingCoordinator.clearPendingEffect === 'function') {
@@ -228,8 +264,8 @@ const CpuDecisionBoardUtilsModule = (() => {
         try { return _require('./cpu-decision-board-utils'); } catch (e) { /* ignore */ }
     }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.CpuDecisionBoardUtils) {
-            return globalThis.CpuDecisionBoardUtils;
+        if (typeof globalThis !== 'undefined' && (globalThis as any).CpuDecisionBoardUtils) {
+            return (globalThis as any).CpuDecisionBoardUtils;
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -237,7 +273,7 @@ const CpuDecisionBoardUtilsModule = (() => {
 
 const countBoardEmpties = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.countBoardEmpties === 'function')
     ? CpuDecisionBoardUtilsModule.countBoardEmpties
-    : function countBoardEmptiesFallback(board) {
+    : function countBoardEmptiesFallback(board: any) {
         if (!Array.isArray(board)) return 0;
         let empties = 0;
         for (let r = 0; r < board.length; r++) {
@@ -255,17 +291,17 @@ const isStandardBoard8x8 = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoa
 
 const isCornerCell = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.isCornerCell === 'function')
     ? CpuDecisionBoardUtilsModule.isCornerCell
-    : function isCornerCellFallback(row, col) {
+    : function isCornerCellFallback(row: any, col: any) {
         return (row === 0 || row === 7) && (col === 0 || col === 7);
     };
 
 const isEdgeCell = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.isEdgeCell === 'function')
     ? CpuDecisionBoardUtilsModule.isEdgeCell
-    : function isEdgeCellFallback(row, col) {
+    : function isEdgeCellFallback(row: any, col: any) {
         return row === 0 || row === 7 || col === 0 || col === 7;
     };
 
-function isPlayableBoard(board) {
+function isPlayableBoard(board: any): any {
     if (!Array.isArray(board) || board.length <= 0) return false;
     for (const row of board) {
         if (!Array.isArray(row) || row.length <= 0) return false;
@@ -273,7 +309,7 @@ function isPlayableBoard(board) {
     return true;
 }
 
-function getShapeAwareBoard(board, gameStateOverride, cardStateOverride) {
+function getShapeAwareBoard(board: any, gameStateOverride: any, cardStateOverride: any): any {
     const boardUtils = resolveSharedBoardUtilsModule();
     if (!Array.isArray(board) || !boardUtils || typeof boardUtils.attachBoardShape !== 'function') {
         return board;
@@ -287,7 +323,7 @@ function getShapeAwareBoard(board, gameStateOverride, cardStateOverride) {
     return board;
 }
 
-function getCurrentCpuBoard() {
+function getCurrentCpuBoard(): any {
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
     return (gs && Array.isArray(gs.board))
@@ -300,7 +336,7 @@ function getCurrentCpuBoard() {
  * learned CPU routes (policy-table / ONNX / 8x8 teacher-aligned paths) stay standard-8x8 only.
  * Custom boards must fall back to the safe non-learned CPU path.
  */
-function canUseStandardBoardCpuPolicy(boardRef, featureKey, playerKey, level) {
+function canUseStandardBoardCpuPolicy(boardRef: any, featureKey: any, playerKey: any, level: any): any {
     const board = boardRef || getCurrentCpuBoard();
     const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
     const supported = capabilityModule && typeof capabilityModule.isStandardBoardCpuPolicyCompatible === 'function'
@@ -317,7 +353,7 @@ function canUseStandardBoardCpuPolicy(boardRef, featureKey, playerKey, level) {
     return supported;
 }
 
-function countPlayableCells(board) {
+function countPlayableCells(board: any): any {
     if (!Array.isArray(board)) return 0;
     const boardUtils = resolveSharedBoardUtilsModule();
     if (boardUtils && typeof boardUtils.collectBoardCoordinates === 'function') {
@@ -328,7 +364,7 @@ function countPlayableCells(board) {
     return total;
 }
 
-function getBoardCellValue(board, row, col) {
+function getBoardCellValue(board: any, row: any, col: any): any {
     const boardUtils = resolveSharedBoardUtilsModule();
     if (boardUtils && typeof boardUtils.getCellValue === 'function') {
         return boardUtils.getCellValue(board, row, col);
@@ -337,7 +373,7 @@ function getBoardCellValue(board, row, col) {
     return board[row][col];
 }
 
-function setBoardCellValue(board, row, col, value) {
+function setBoardCellValue(board: any, row: any, col: any, value: any): any {
     const boardUtils = resolveSharedBoardUtilsModule();
     if (boardUtils && typeof boardUtils.setCellValue === 'function') {
         return boardUtils.setCellValue(board, row, col, value);
@@ -347,7 +383,7 @@ function setBoardCellValue(board, row, col, value) {
     return true;
 }
 
-function getBoardBonusValueAt(row, col) {
+function getBoardBonusValueAt(row: any, col: any): any {
     if (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.getBoardBonusValueAt === 'function') {
         const cs = (typeof cardState !== 'undefined') ? cardState : null;
         return CpuDecisionBoardUtilsModule.getBoardBonusValueAt(row, col, cs);
@@ -364,7 +400,7 @@ function getBoardBonusValueAt(row, col) {
 
 const countCornerControl = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.countCornerControl === 'function')
     ? CpuDecisionBoardUtilsModule.countCornerControl
-    : function countCornerControlFallback(board, playerValue) {
+    : function countCornerControlFallback(board: any, playerValue: any) {
         if (!isPlayableBoard(board)) return { ownCorners: 0, oppCorners: 0 };
         const maxRow = board.length - 1;
         const maxCol = Array.isArray(board[0]) ? (board[0].length - 1) : maxRow;
@@ -388,7 +424,7 @@ const countCornerControl = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoa
 
 const countEdgeControl = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.countEdgeControl === 'function')
     ? CpuDecisionBoardUtilsModule.countEdgeControl
-    : function countEdgeControlFallback(board, playerValue) {
+    : function countEdgeControlFallback(board: any, playerValue: any) {
         if (!isPlayableBoard(board)) return { ownEdges: 0, oppEdges: 0 };
         const maxRow = board.length - 1;
         let ownEdges = 0;
@@ -405,7 +441,7 @@ const countEdgeControl = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoard
         return { ownEdges, oppEdges };
     };
 
-function isRecoveryCardType(cardType) {
+function isRecoveryCardType(cardType: any): any {
     const type = String(cardType || '');
     if (!type) return false;
     if (CpuPolicyCore && typeof CpuPolicyCore.isCornerRecoveryCardType === 'function') {
@@ -417,7 +453,7 @@ function isRecoveryCardType(cardType) {
     return false;
 }
 
-function isHoldCardType(cardType) {
+function isHoldCardType(cardType: any): any {
     const type = String(cardType || '');
     if (!type) return false;
     if (CpuPolicyCore && typeof CpuPolicyCore.isCornerHoldCardType === 'function') {
@@ -429,7 +465,7 @@ function isHoldCardType(cardType) {
     return false;
 }
 
-function isChargeRampCardType(cardType) {
+function isChargeRampCardType(cardType: any): any {
     const type = String(cardType || '');
     if (!type) return false;
     if (CpuPolicyCore && typeof CpuPolicyCore.isChargeRampCardType === 'function') {
@@ -441,7 +477,7 @@ function isChargeRampCardType(cardType) {
     return false;
 }
 
-function resolveCardType(cardId, cardDef) {
+function resolveCardType(cardId: any, cardDef: any): any {
     if (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.resolveCardType === 'function') {
         const logic = (typeof CardLogic !== 'undefined') ? CardLogic : null;
         return CpuDecisionBoardUtilsModule.resolveCardType(cardId, cardDef, logic);
@@ -471,10 +507,10 @@ const WHITE_LV6_CORNER_SWING_KEEP_TYPES = new Set([
     'SUPER_GRAVITY_WILL'
 ]);
 
-function resolvePolicyTableRuntime() {
+function resolvePolicyTableRuntime(): any {
     const resolvedModule = resolveModuleReference(CpuPolicyTableRuntime, {
         globalKey: 'CpuPolicyTableRuntime',
-        isValid: (moduleRef) => !!(
+        isValid: (moduleRef: any) => !!(
             moduleRef &&
             (
                 typeof moduleRef.chooseMove === 'function' ||
@@ -486,10 +522,10 @@ function resolvePolicyTableRuntime() {
     return resolvedModule;
 }
 
-function resolvePolicyOnnxRuntime() {
+function resolvePolicyOnnxRuntime(): any {
     const resolvedModule = resolveModuleReference(CpuPolicyOnnxRuntime, {
         globalKey: 'CpuPolicyOnnxRuntime',
-        isValid: (moduleRef) => !!(
+        isValid: (moduleRef: any) => !!(
             moduleRef &&
             (
                 typeof moduleRef.chooseMove === 'function' ||
@@ -503,10 +539,10 @@ function resolvePolicyOnnxRuntime() {
     return resolvedModule;
 }
 
-function resolveCpuLv6RuntimeCapabilityModule() {
+function resolveCpuLv6RuntimeCapabilityModule(): any {
     const resolvedModule = resolveModuleReference(CpuLv6RuntimeCapabilityModule, {
         globalKey: 'CpuLv6RuntimeCapability',
-        isValid: (moduleRef) => !!(
+        isValid: (moduleRef: any) => !!(
             moduleRef &&
             typeof moduleRef.resolveCpuLv6BrowserRuntimeCapability === 'function'
         )
@@ -515,7 +551,7 @@ function resolveCpuLv6RuntimeCapabilityModule() {
     return resolvedModule;
 }
 
-function resolvePendingType(playerKey) {
+function resolvePendingType(playerKey: any): any {
     try {
         if (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getPendingEffectType === 'function') {
             return CardLogic.getPendingEffectType(cardState, playerKey);
@@ -528,7 +564,7 @@ function resolvePendingType(playerKey) {
     return null;
 }
 
-function getHandCardIdsForPlayer(playerKey) {
+function getHandCardIdsForPlayer(playerKey: any): any {
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
     const hand = (cs && cs.hands && Array.isArray(cs.hands[playerKey]))
         ? cs.hands[playerKey]
@@ -536,7 +572,7 @@ function getHandCardIdsForPlayer(playerKey) {
     return hand.slice();
 }
 
-function getDeckMetricsForPlayer(playerKey) {
+function getDeckMetricsForPlayer(playerKey: any): any {
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
     const legacyDeckCount = (cs && cs.deck && Number.isFinite(cs.deck.length))
         ? cs.deck.length
@@ -557,7 +593,7 @@ function getDeckMetricsForPlayer(playerKey) {
     };
 }
 
-function buildOnnxContext(playerKey, level, legalMovesCount, handCardIds, usableCardIds, candidateMoves) {
+function buildOnnxContext(playerKey: any, level: any, legalMovesCount: any, handCardIds: any, usableCardIds: any, candidateMoves?: any): any {
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
     const moves = Array.isArray(candidateMoves)
         ? candidateMoves.filter((one) => one && Number.isFinite(one.row) && Number.isFinite(one.col))
@@ -602,7 +638,7 @@ function buildOnnxContext(playerKey, level, legalMovesCount, handCardIds, usable
     };
 }
 
-function selectMoveFromLearnedPolicy(candidateMoves, playerKey, level) {
+function selectMoveFromLearnedPolicy(candidateMoves: any, playerKey: any, level: any): any {
     const runtime = resolvePolicyTableRuntime();
     if (!runtime || typeof runtime.chooseMove !== 'function') return null;
     try {
@@ -621,12 +657,12 @@ function selectMoveFromLearnedPolicy(candidateMoves, playerKey, level) {
     }
 }
 
-function createLearnedScoreFn(playerKey, level, legalMovesCount) {
+function createLearnedScoreFn(playerKey: any, level: any, legalMovesCount: any): any {
     const runtime = resolvePolicyTableRuntime();
     if (!runtime || typeof runtime.getActionScore !== 'function') return null;
     const boardRef = getCurrentCpuBoard();
     if (!canUseStandardBoardCpuPolicy(boardRef, 'policy-table-score', playerKey, level)) return null;
-    return function scoreMove(move) {
+    return function scoreMove(move: any) {
         try {
             const s = runtime.getActionScore(move, {
                 playerKey,
@@ -642,9 +678,9 @@ function createLearnedScoreFn(playerKey, level, legalMovesCount) {
     };
 }
 
-function createLookaheadPriorScoreFn(playerKey, level, legalMovesCount, onnxSelectedMove) {
+function createLookaheadPriorScoreFn(playerKey: any, level: any, legalMovesCount: any, onnxSelectedMove: any): any {
     const learnedScoreFn = createLearnedScoreFn(playerKey, level, legalMovesCount);
-    return function priorScore(move) {
+    return function priorScore(move: any) {
         let score = 0;
         if (learnedScoreFn) {
             const learned = Number(learnedScoreFn(move) || 0);
@@ -659,10 +695,10 @@ function createLookaheadPriorScoreFn(playerKey, level, legalMovesCount, onnxSele
     };
 }
 
-function resolveCpuLv6SharedProfile() {
+function resolveCpuLv6SharedProfile(): any {
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.CPU_LV6_SHARED_PROFILE && typeof globalThis.CPU_LV6_SHARED_PROFILE === 'object') {
-            return globalThis.CPU_LV6_SHARED_PROFILE;
+        if (typeof globalThis !== 'undefined' && (globalThis as any).CPU_LV6_SHARED_PROFILE && typeof (globalThis as any).CPU_LV6_SHARED_PROFILE === 'object') {
+            return (globalThis as any).CPU_LV6_SHARED_PROFILE;
         }
     } catch (e) { /* ignore */ }
     try {
@@ -674,7 +710,7 @@ function resolveCpuLv6SharedProfile() {
     return null;
 }
 
-function resolveCpuLv6BrowserProfile() {
+function resolveCpuLv6BrowserProfile(): any {
     const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
     const shared = resolveCpuLv6SharedProfile();
     if (capabilityModule && typeof capabilityModule.resolveCpuLv6BrowserProfile === 'function') {
@@ -684,7 +720,7 @@ function resolveCpuLv6BrowserProfile() {
     return null;
 }
 
-function resolveCpuLv6LookaheadWeights() {
+function resolveCpuLv6LookaheadWeights(): any {
     const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
     const shared = resolveCpuLv6SharedProfile();
     if (capabilityModule && typeof capabilityModule.resolveCpuLv6LookaheadWeights === 'function') {
@@ -701,7 +737,7 @@ function resolveCpuLv6LookaheadWeights() {
     };
 }
 
-function resolveCpuCurrentTurnNumber() {
+function resolveCpuCurrentTurnNumber(): any {
     const turnNumber = Number(gameState && gameState.turnNumber);
     if (Number.isFinite(turnNumber)) return Math.max(1, Math.floor(turnNumber) + 1);
 
@@ -711,27 +747,27 @@ function resolveCpuCurrentTurnNumber() {
     return null;
 }
 
-function resolveCpuLv6OnnxRuntimeGuardOverrides() {
+function resolveCpuLv6OnnxRuntimeGuardOverrides(): any {
     try {
         if (
             typeof globalThis !== 'undefined' &&
-            globalThis.CPU_LV6_ONNX_RUNTIME_GUARD &&
-            typeof globalThis.CPU_LV6_ONNX_RUNTIME_GUARD === 'object'
+            (globalThis as any).CPU_LV6_ONNX_RUNTIME_GUARD &&
+            typeof (globalThis as any).CPU_LV6_ONNX_RUNTIME_GUARD === 'object'
         ) {
-            return globalThis.CPU_LV6_ONNX_RUNTIME_GUARD;
+            return (globalThis as any).CPU_LV6_ONNX_RUNTIME_GUARD;
         }
     } catch (e) { /* ignore */ }
     return null;
 }
 
-function readLegacyPendingSelectionBudgetMs() {
+function readLegacyPendingSelectionBudgetMs(): any {
     try {
-        return Number(globalThis && globalThis.CPU_LV6_PENDING_SELECTION_ONNX_MAX_MS);
+        return Number(globalThis && (globalThis as any).CPU_LV6_PENDING_SELECTION_ONNX_MAX_MS);
     } catch (e) { /* ignore */ }
     return NaN;
 }
 
-function resolveCpuLv6BrowserRuntimeCapability() {
+function resolveCpuLv6BrowserRuntimeCapability(): any {
     const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
     const shared = resolveCpuLv6SharedProfile();
     if (!capabilityModule || typeof capabilityModule.resolveCpuLv6BrowserRuntimeCapability !== 'function') return null;
@@ -741,7 +777,7 @@ function resolveCpuLv6BrowserRuntimeCapability() {
     });
 }
 
-function resolveCpuLv6OnnxRuntimeGuard() {
+function resolveCpuLv6OnnxRuntimeGuard(): any {
     const capability = resolveCpuLv6BrowserRuntimeCapability();
     if (capability && capability.onnxRuntimeGuard && typeof capability.onnxRuntimeGuard === 'object') {
         return capability.onnxRuntimeGuard;
@@ -751,7 +787,7 @@ function resolveCpuLv6OnnxRuntimeGuard() {
         ? browserProfile.onnxRuntimeGuard
         : null;
     const overrides = resolveCpuLv6OnnxRuntimeGuardOverrides();
-    const readNumber = (key, fallback) => {
+    const readNumber = (key: any, fallback: any) => {
         const overrideValue = Number(overrides && overrides[key]);
         if (Number.isFinite(overrideValue)) return overrideValue;
         const configuredValue = Number(configured && configured[key]);
@@ -775,7 +811,7 @@ function resolveCpuLv6OnnxRuntimeGuard() {
     };
 }
 
-function resolveCpuLv6OnnxRuntimeBudgetMs(level, operationKey) {
+function resolveCpuLv6OnnxRuntimeBudgetMs(level: any, operationKey: any): any {
     if (!Number.isFinite(level) || level < 6) return 0;
     const guard = resolveCpuLv6OnnxRuntimeGuard();
     if (!guard) return 0;
@@ -785,7 +821,7 @@ function resolveCpuLv6OnnxRuntimeBudgetMs(level, operationKey) {
     return 0;
 }
 
-function formatCpuOnnxLatencyGateReason(operationKey, sourceLabel, bucket, guard) {
+function formatCpuOnnxLatencyGateReason(operationKey: any, sourceLabel: any, bucket: any, guard: any): any {
     const parts = [];
     const averageMs = Number(bucket && bucket.averageMs);
     const p95Ms = Number(bucket && bucket.p95Ms);
@@ -802,7 +838,7 @@ function formatCpuOnnxLatencyGateReason(operationKey, sourceLabel, bucket, guard
     return `${operationKey}:${sourceLabel}:${parts.join(',')}`;
 }
 
-function evaluateCpuOnnxLatencyGate(runtime, operationKey, level) {
+function evaluateCpuOnnxLatencyGate(runtime: any, operationKey: any, level: any): any {
     if (!runtime || typeof runtime.getStatus !== 'function') return { shouldDegrade: false, reason: '' };
     if (!Number.isFinite(level) || level < 6) return { shouldDegrade: false, reason: '' };
 
@@ -851,18 +887,18 @@ function evaluateCpuOnnxLatencyGate(runtime, operationKey, level) {
     return { shouldDegrade: false, reason: '' };
 }
 
-function logCpuOnnxLatencyDegrade(level, playerKey, operationKey, reason) {
+function logCpuOnnxLatencyDegrade(level: any, playerKey: any, operationKey: any, reason: any): any {
     cpuDebugLog(
         `[CPU] Lv${level} ${playerKey}: ONNX縮退 ${operationKey}${reason ? ` ${reason}` : ''}`
     );
 }
 
 let cpuExecutionMode = 'browser';
-function setCpuExecutionMode(mode) { cpuExecutionMode = mode === 'headless' ? 'headless' : 'browser'; }
+function setCpuExecutionMode(mode: any): any { cpuExecutionMode = mode === 'headless' ? 'headless' : 'browser'; }
 
-let cpuTimerService = null;
-function setCpuTimerService(service) { cpuTimerService = service; }
-function getCpuTimerService() {
+let cpuTimerService: any = null;
+function setCpuTimerService(service: any): any { cpuTimerService = service; }
+function getCpuTimerService(): any {
     if (cpuTimerService) return cpuTimerService;
     try {
         const { createTimerService } = _require('./timer-service');
@@ -873,7 +909,7 @@ function getCpuTimerService() {
     }
 }
 
-function resolveLv6LookaheadTimeCaps(playerKey) {
+function resolveLv6LookaheadTimeCaps(playerKey: any): any {
     const isWhite = String(playerKey || '') === 'white';
     const isBrowserUi = cpuExecutionMode !== 'headless';
     const capabilityModule = resolveCpuLv6RuntimeCapabilityModule();
@@ -921,10 +957,10 @@ function resolveLv6LookaheadTimeCaps(playerKey) {
     };
 }
 
-function createLookaheadMetaLogger(playerKey, level, phaseLabel) {
+function createLookaheadMetaLogger(playerKey: any, level: any, phaseLabel: any): any {
     if (!Number.isFinite(level) || level < 6) return null;
     if (typeof cpuDebugLog !== 'function') return null;
-    return function onSearchMeta(meta) {
+    return function onSearchMeta(meta: any) {
         if (!meta || typeof meta !== 'object') return;
         const depth = Number.isFinite(meta.depth) ? Number(meta.depth) : 'n/a';
         const branch = Number.isFinite(meta.branchLimit) ? Number(meta.branchLimit) : 'all';
@@ -937,7 +973,7 @@ function createLookaheadMetaLogger(playerKey, level, phaseLabel) {
     };
 }
 
-function buildLv6LookaheadOptions(level, board, legalMovesCount, playerKey) {
+function buildLv6LookaheadOptions(level: any, board: any, legalMovesCount: any, playerKey: any): any {
     if (!Number.isFinite(level) || level < 6) return {};
     const empties = countBoardEmpties(board);
     const moves = Math.max(1, Number(legalMovesCount) || 1);
@@ -1016,7 +1052,7 @@ function buildLv6LookaheadOptions(level, board, legalMovesCount, playerKey) {
     };
 }
 
-function selectMoveByLookahead(candidateMoves, playerKey, level, onnxSelectedMove) {
+function selectMoveByLookahead(candidateMoves: any, playerKey: any, level: any, onnxSelectedMove: any): any {
     if (!Array.isArray(candidateMoves) || candidateMoves.length <= 0) return null;
     if (!CpuPolicyCore || typeof CpuPolicyCore.chooseMoveByLookahead !== 'function') return null;
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
@@ -1057,7 +1093,7 @@ function selectMoveByLookahead(candidateMoves, playerKey, level, onnxSelectedMov
     });
 }
 
-async function selectMoveFromOnnxPolicyAsync(candidateMoves, playerKey, level) {
+async function selectMoveFromOnnxPolicyAsync(candidateMoves: any, playerKey: any, level: any): Promise<any> {
     const runtime = resolvePolicyOnnxRuntime();
     if (!runtime || typeof runtime.chooseMove !== 'function') return null;
     const board = getCurrentCpuBoard();
@@ -1110,12 +1146,12 @@ async function selectMoveFromOnnxPolicyAsync(candidateMoves, playerKey, level) {
     }
 }
 
-function isSameMoveByCoord(a, b) {
+function isSameMoveByCoord(a: any, b: any): any {
     if (!a || !b) return false;
     return Number(a.row) === Number(b.row) && Number(a.col) === Number(b.col);
 }
 
-function resolveCandidateMoveByCoord(candidateMoves, move) {
+function resolveCandidateMoveByCoord(candidateMoves: any, move: any): any {
     if (!Array.isArray(candidateMoves) || !move) return null;
     for (const one of candidateMoves) {
         if (isSameMoveByCoord(one, move)) return one;
@@ -1123,7 +1159,7 @@ function resolveCandidateMoveByCoord(candidateMoves, move) {
     return null;
 }
 
-function refineOnnxMoveByTacticalPlan(candidateMoves, selectedMove, playerKey, level) {
+function refineOnnxMoveByTacticalPlan(candidateMoves: any, selectedMove: any, playerKey: any, level: any): any {
     if (!selectedMove) return null;
     if (!Array.isArray(candidateMoves) || candidateMoves.length <= 1) return selectedMove;
     if (!Number.isFinite(level) || level < 6) return selectedMove;
@@ -1140,7 +1176,7 @@ function refineOnnxMoveByTacticalPlan(candidateMoves, selectedMove, playerKey, l
         selectedScore = Number.NEGATIVE_INFINITY;
     }
 
-    let bestMove = null;
+    let bestMove: any = null;
     let bestScore = Number.NEGATIVE_INFINITY;
     for (const move of candidateMoves) {
         let score = Number.NEGATIVE_INFINITY;
@@ -1191,7 +1227,7 @@ function refineOnnxMoveByTacticalPlan(candidateMoves, selectedMove, playerKey, l
     return selected;
 }
 
-function canRerankOnnxCardChoice(level, usableCardIds) {
+function canRerankOnnxCardChoice(level: any, usableCardIds: any): any {
     if (!Number.isFinite(level) || level < 6) return false;
     if (!Array.isArray(usableCardIds) || usableCardIds.length <= 1) return false;
     if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') return false;
@@ -1200,7 +1236,7 @@ function canRerankOnnxCardChoice(level, usableCardIds) {
     return true;
 }
 
-function scoreCardForOnnxRerank(cardId, playerKey, level, legalMovesCount, legalMoves, usableCardIds, prebuiltContext) {
+function scoreCardForOnnxRerank(cardId: any, playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any): any {
     if (!cardId) return Number.NEGATIVE_INFINITY;
     if (!canRerankOnnxCardChoice(level, usableCardIds)) return Number.NEGATIVE_INFINITY;
 
@@ -1255,14 +1291,14 @@ function scoreCardForOnnxRerank(cardId, playerKey, level, legalMovesCount, legal
     return score;
 }
 
-function rerankOnnxCardChoice(selectedCardId, playerKey, level, legalMovesCount, legalMoves, usableCardIds) {
+function rerankOnnxCardChoice(selectedCardId: any, playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any): any {
     if (!selectedCardId) return { cardId: selectedCardId, changed: false, gap: 0 };
     if (!canRerankOnnxCardChoice(level, usableCardIds)) {
         return { cardId: selectedCardId, changed: false, gap: 0 };
     }
 
     const context = buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds);
-    const usable = usableCardIds.filter((id) => typeof id === 'string' && id.length > 0);
+    const usable = usableCardIds.filter((id: any) => typeof id === 'string' && id.length > 0);
     if (usable.length <= 1) return { cardId: selectedCardId, changed: false, gap: 0 };
 
     let bestCardId = selectedCardId;
@@ -1295,7 +1331,7 @@ function rerankOnnxCardChoice(selectedCardId, playerKey, level, legalMovesCount,
     };
 }
 
-async function selectCardFromOnnxPolicyAsync(playerKey, level, legalMovesCount, usableCardIds, legalMoves) {
+async function selectCardFromOnnxPolicyAsync(playerKey: any, level: any, legalMovesCount: any, usableCardIds: any, legalMoves: any): Promise<any> {
     const runtime = resolvePolicyOnnxRuntime();
     if (!runtime || typeof runtime.chooseCard !== 'function') return null;
     if (!canUseStandardBoardCpuPolicy(null, 'onnx-card', playerKey, level)) return null;
@@ -1361,18 +1397,18 @@ async function selectCardFromOnnxPolicyAsync(playerKey, level, legalMovesCount, 
     }
 }
 
-function selectCardFromLearnedPolicy(playerKey, level, legalMovesCount, usableCardIds) {
+function selectCardFromLearnedPolicy(playerKey: any, level: any, legalMovesCount: any, usableCardIds: any): any {
     const runtime = resolvePolicyTableRuntime();
     if (!runtime || typeof runtime.getActionScoreForKey !== 'function') return null;
     if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
     const boardRef = getCurrentCpuBoard();
     if (!canUseStandardBoardCpuPolicy(boardRef, 'policy-table-card', playerKey, level)) return null;
 
-    let bestCardId = null;
+    let bestCardId: any = null;
     let bestScore = -Infinity;
     for (const cardId of usableCardIds) {
         const actionKey = `use_card:${cardId}`;
-        let score = null;
+        let score: any = null;
         try {
             score = runtime.getActionScoreForKey(actionKey, {
                 playerKey,
@@ -1395,7 +1431,7 @@ function selectCardFromLearnedPolicy(playerKey, level, legalMovesCount, usableCa
     return { cardId: bestCardId, cardDef };
 }
 
-function shouldUseSharedPolicyTableCoreCardDecision(level) {
+function shouldUseSharedPolicyTableCoreCardDecision(level: any): any {
     if (!Number.isFinite(level) || level < 6) return false;
     const capability = resolveCpuLv6BrowserRuntimeCapability();
     if (capability) return capability.usesPolicyTableCoreCardDecision === true;
@@ -1403,7 +1439,7 @@ function shouldUseSharedPolicyTableCoreCardDecision(level) {
     return !!(browserProfile && browserProfile.cardDecisionMode === 'policy-table-core');
 }
 
-function createCardChoiceFromId(cardId) {
+function createCardChoiceFromId(cardId: any): any {
     if (!cardId) return null;
     const cardDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
         ? CardLogic.getCardDef(cardId)
@@ -1411,7 +1447,7 @@ function createCardChoiceFromId(cardId) {
     return { cardId, cardDef };
 }
 
-function selectCardBySharedPolicyTableCore(playerKey, level, legalMovesCount, legalMoves, usableCardIds, prebuiltContext) {
+function selectCardBySharedPolicyTableCore(playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any): any {
     if (!Array.isArray(usableCardIds) || usableCardIds.length <= 0) return null;
     if (typeof CardLogic === 'undefined' || !CardLogic) return null;
 
@@ -1458,7 +1494,7 @@ function selectCardBySharedPolicyTableCore(playerKey, level, legalMovesCount, le
     return null;
 }
 
-function getLearnedCardActionScore(cardId, playerKey, level, legalMovesCount) {
+function getLearnedCardActionScore(cardId: any, playerKey: any, level: any, legalMovesCount: any): any {
     if (!cardId) return null;
     const runtime = resolvePolicyTableRuntime();
     if (!runtime || typeof runtime.getActionScoreForKey !== 'function') return null;
@@ -1478,7 +1514,7 @@ function getLearnedCardActionScore(cardId, playerKey, level, legalMovesCount) {
     }
 }
 
-function selectCardByLevel6Consensus(playerKey, level, legalMovesCount, legalMoves, usableCardIds, prebuiltContext) {
+function selectCardByLevel6Consensus(playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any): any {
     if (!Number.isFinite(level) || level < 6) return null;
     if (!Array.isArray(usableCardIds) || usableCardIds.length <= 0) return null;
     if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') return null;
@@ -1489,8 +1525,8 @@ function selectCardByLevel6Consensus(playerKey, level, legalMovesCount, legalMov
     const usable = usableCardIds.filter((id) => typeof id === 'string' && id.length > 0);
     if (usable.length <= 0) return null;
 
-    let best = null;
-    let second = null;
+    let best: any = null;
+    let second: any = null;
     for (const cardId of usable) {
         const decision = CpuPolicyCore.scoreCardUseDecision(
             cardId,
@@ -1539,7 +1575,7 @@ function selectCardByLevel6Consensus(playerKey, level, legalMovesCount, legalMov
     return { cardId: best.cardId, cardDef };
 }
 
-function emitPresentationEventForCpu(ev) {
+function emitPresentationEventForCpu(ev: any): any {
     try {
         if (typeof require === 'function') {
             const pres = _require('./logic/presentation');
@@ -1573,13 +1609,13 @@ function emitPresentationEventForCpu(ev) {
     return false;
 }
 
-function emitCpuSelectionStateChange() {
+function emitCpuSelectionStateChange(): any {
     if (typeof emitCardStateChange === 'function') emitCardStateChange();
     if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
     if (typeof emitGameStateChange === 'function') emitGameStateChange();
 }
 
-function isSelectionOnlyEndTurnPendingType(pendingType) {
+function isSelectionOnlyEndTurnPendingType(pendingType: any): any {
     const pendingSelectionFlow = resolvePendingSelectionFlow('isSelectionOnlyEndTurnPendingType');
     return !!(
         pendingSelectionFlow
@@ -1588,13 +1624,13 @@ function isSelectionOnlyEndTurnPendingType(pendingType) {
     );
 }
 
-function resolvePlayerKeyFromTurnValue(value) {
+function resolvePlayerKeyFromTurnValue(value: any): any {
     if (value === 'black' || value === 1 || value === '1' || (typeof BLACK !== 'undefined' && value === BLACK)) return 'black';
     if (value === 'white' || value === -1 || value === '-1' || (typeof WHITE !== 'undefined' && value === WHITE)) return 'white';
     return null;
 }
 
-function handOffSelectionTurnInGameState(playerKey) {
+function handOffSelectionTurnInGameState(playerKey: any): any {
     if (!gameState) return false;
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
     const turnNumberBeforeSelection = Number(gameState.turnNumber || 0);
@@ -1613,16 +1649,16 @@ function handOffSelectionTurnInGameState(playerKey) {
     return true;
 }
 
-function captureNetworkPublishSnapshot(gameStateValue, cardStateValue) {
+function captureNetworkPublishSnapshot(gameStateValue: any, cardStateValue: any): any {
     if (cpuDecisionNetworkTurnHandoff && typeof cpuDecisionNetworkTurnHandoff.captureNetworkPublishSnapshot === 'function') {
         return cpuDecisionNetworkTurnHandoff.captureNetworkPublishSnapshot(gameStateValue, cardStateValue);
     }
     if (!gameStateValue || !cardStateValue) return null;
     try {
-        if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).structuredClone === 'function') {
             return {
-                gameState: globalThis.structuredClone(gameStateValue),
-                cardState: globalThis.structuredClone(cardStateValue)
+                gameState: (globalThis as any).structuredClone(gameStateValue),
+                cardState: (globalThis as any).structuredClone(cardStateValue)
             };
         }
     } catch (e) { /* ignore */ }
@@ -1637,44 +1673,44 @@ function captureNetworkPublishSnapshot(gameStateValue, cardStateValue) {
     }
 }
 
-function publishCpuSelectionNetworkSnapshot(playerKey, action, playbackEvents, snapshotOverride) {
+function publishCpuSelectionNetworkSnapshot(playerKey: any, action: any, playbackEvents: any, snapshotOverride?: any): any {
     if (cpuDecisionNetworkTurnHandoff && typeof cpuDecisionNetworkTurnHandoff.publishNetworkSnapshot === 'function') {
         const meta = {
             playerKey: playerKey || 'black',
             actionType: 'place',
             playbackEvents: Array.isArray(playbackEvents) ? playbackEvents : []
         };
-        if (action && typeof action === 'object') meta.action = action;
-        if (snapshotOverride) meta.snapshot = snapshotOverride;
+        if (action && typeof action === 'object') (meta as any).action = action;
+        if (snapshotOverride) (meta as any).snapshot = snapshotOverride;
         return cpuDecisionNetworkTurnHandoff.publishNetworkSnapshot(meta);
     }
     try {
-        if (typeof globalThis === 'undefined' || !globalThis.NetworkMatchClient) return;
-        if (typeof globalThis.NetworkMatchClient.publishSnapshot !== 'function') return;
-        if (typeof globalThis.NetworkMatchClient.isActive === 'function' && !globalThis.NetworkMatchClient.isActive()) return;
+        if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return;
+        if (typeof (globalThis as any).NetworkMatchClient.publishSnapshot !== 'function') return;
+        if (typeof (globalThis as any).NetworkMatchClient.isActive === 'function' && !(globalThis as any).NetworkMatchClient.isActive()) return;
         const meta = {
             playerKey: playerKey || 'black',
             actionType: 'place',
             playbackEvents: Array.isArray(playbackEvents) ? playbackEvents : []
         };
-        if (action && typeof action === 'object') meta.action = action;
-        if (snapshotOverride) meta.snapshot = snapshotOverride;
-        globalThis.NetworkMatchClient.publishSnapshot(meta);
+        if (action && typeof action === 'object') (meta as any).action = action;
+        if (snapshotOverride) (meta as any).snapshot = snapshotOverride;
+        (globalThis as any).NetworkMatchClient.publishSnapshot(meta);
     } catch (e) { /* ignore */ }
 }
 
-function isCpuSelectionHumanVsHumanModeEnabled() {
-    const debugHvH = (typeof globalThis !== 'undefined' && globalThis.DEBUG_HUMAN_VS_HUMAN === true);
-    let matchMode = null;
+function isCpuSelectionHumanVsHumanModeEnabled(): any {
+    const debugHvH = (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true);
+    let matchMode: any = null;
     try {
-        matchMode = (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function')
-            ? globalThis.getCurrentMatchMode()
-            : (typeof globalThis !== 'undefined' ? globalThis.MATCH_MODE : null);
+        matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
+            ? (globalThis as any).getCurrentMatchMode()
+            : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
     } catch (e) { /* ignore */ }
     return debugHvH || matchMode === 'network';
 }
 
-async function waitForCpuSelectionPlaybackIdle(playbackEvents) {
+async function waitForCpuSelectionPlaybackIdle(playbackEvents: any): Promise<any> {
     if (cpuDecisionNetworkTurnHandoff && typeof cpuDecisionNetworkTurnHandoff.waitForPlaybackIdleIfNeeded === 'function') {
         return cpuDecisionNetworkTurnHandoff.waitForPlaybackIdleIfNeeded(playbackEvents);
     }
@@ -1682,8 +1718,8 @@ async function waitForCpuSelectionPlaybackIdle(playbackEvents) {
 
     const waitForPlaybackFn = (typeof waitForPlaybackIdle === 'function')
         ? waitForPlaybackIdle
-        : ((typeof globalThis !== 'undefined' && typeof globalThis.waitForPlaybackIdle === 'function')
-            ? globalThis.waitForPlaybackIdle
+        : ((typeof globalThis !== 'undefined' && typeof (globalThis as any).waitForPlaybackIdle === 'function')
+            ? (globalThis as any).waitForPlaybackIdle
             : null);
 
     if (typeof waitForPlaybackFn !== 'function') return;
@@ -1693,7 +1729,7 @@ async function waitForCpuSelectionPlaybackIdle(playbackEvents) {
     } catch (e) { /* ignore */ }
 }
 
-function scheduleCpuSelectionWhiteTurn(delayMs, expectedTurnNumber) {
+function scheduleCpuSelectionWhiteTurn(delayMs: any, expectedTurnNumber: any): any {
     const safeDelay = Number.isFinite(delayMs) ? delayMs : 0;
     const timerService = getCpuTimerService();
     if (!timerService) return;
@@ -1707,7 +1743,7 @@ function scheduleCpuSelectionWhiteTurn(delayMs, expectedTurnNumber) {
     if (tid && typeof tid.unref === 'function') tid.unref();
 }
 
-async function continueCpuSelectionTurnHandoff(playerKey, playbackEvents, action) {
+async function continueCpuSelectionTurnHandoff(playerKey: any, playbackEvents: any, action: any): Promise<any> {
     const finalizeTurn = (cpuDecisionNetworkTurnHandoff && typeof cpuDecisionNetworkTurnHandoff.finalizeNetworkTurnHandoff === 'function')
         ? cpuDecisionNetworkTurnHandoff.finalizeNetworkTurnHandoff
         : null;
@@ -1719,11 +1755,11 @@ async function continueCpuSelectionTurnHandoff(playerKey, playbackEvents, action
         action,
         playbackEvents,
         humanMode: isCpuSelectionHumanVsHumanModeEnabled(),
-        publishSnapshot: ({ playerKey: publishPlayerKey, action: publishAction, playbackEvents: publishPlaybackEvents }) => {
+        publishSnapshot: ({ playerKey: publishPlayerKey, action: publishAction, playbackEvents: publishPlaybackEvents }: any) => {
             publishCpuSelectionNetworkSnapshot(publishPlayerKey, publishAction || action, publishPlaybackEvents);
         },
         resolveCurrentPlayerKey: () => resolvePlayerKeyFromTurnValue(gameState ? gameState.currentPlayer : null),
-        scheduleCpuTurn: ({ delayMs, expectedTurnNumber }) => {
+        scheduleCpuTurn: ({ delayMs, expectedTurnNumber }: any) => {
             scheduleCpuSelectionWhiteTurn(delayMs, expectedTurnNumber);
         },
         onHumanTurnReady: () => {
@@ -1732,7 +1768,7 @@ async function continueCpuSelectionTurnHandoff(playerKey, playbackEvents, action
     });
 }
 
-function maybeContinueCpuSelectionTurnHandoff(playerKey, pendingType, playbackEvents, action) {
+function maybeContinueCpuSelectionTurnHandoff(playerKey: any, pendingType: any, playbackEvents: any, action?: any): any {
     if (!isSelectionOnlyEndTurnPendingType(pendingType)) return;
     const activePlayerKey = resolvePlayerKeyFromTurnValue(gameState ? gameState.currentPlayer : null);
     if (!activePlayerKey || activePlayerKey === playerKey) return;
@@ -1741,7 +1777,7 @@ function maybeContinueCpuSelectionTurnHandoff(playerKey, pendingType, playbackEv
     });
 }
 
-function finalizeCpuPendingSelectionFlow(playerKey, pendingType, playbackEvents, action) {
+function finalizeCpuPendingSelectionFlow(playerKey: any, pendingType: any, playbackEvents: any, action: any): any {
     const normalizedPlaybackEvents = Array.isArray(playbackEvents) ? playbackEvents : [];
     const pendingSelectionFlow = resolvePendingSelectionFlow('finalizePendingSelectionFlow');
 
@@ -1767,14 +1803,14 @@ function finalizeCpuPendingSelectionFlow(playerKey, pendingType, playbackEvents,
 
             Promise.resolve(waitForCpuSelectionPlaybackIdle(normalizedPlaybackEvents)).then(() => {
                 try {
-                    if (typeof globalThis !== 'undefined' && globalThis.NetworkMatchClient && typeof globalThis.NetworkMatchClient.publishSnapshot === 'function') {
+                    if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkMatchClient && typeof (globalThis as any).NetworkMatchClient.publishSnapshot === 'function') {
                         const meta = {
                             playerKey: playerKey || 'black',
                             actionType: 'place',
                             playbackEvents: normalizedPlaybackEvents
                         };
-                        if (action) meta.action = action;
-                        globalThis.NetworkMatchClient.publishSnapshot(meta);
+                        if (action) (meta as any).action = action;
+                        (globalThis as any).NetworkMatchClient.publishSnapshot(meta);
                         return;
                     }
                 } catch (e) { /* ignore */ }
@@ -1790,14 +1826,14 @@ function finalizeCpuPendingSelectionFlow(playerKey, pendingType, playbackEvents,
 
     return Promise.resolve(waitForCpuSelectionPlaybackIdle(normalizedPlaybackEvents)).then(() => {
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.NetworkMatchClient && typeof globalThis.NetworkMatchClient.publishSnapshot === 'function') {
+            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkMatchClient && typeof (globalThis as any).NetworkMatchClient.publishSnapshot === 'function') {
                 const meta = {
                     playerKey: playerKey || 'black',
                     actionType: 'place',
                     playbackEvents: normalizedPlaybackEvents
                 };
-                if (action) meta.action = action;
-                globalThis.NetworkMatchClient.publishSnapshot(meta);
+                if (action) (meta as any).action = action;
+                (globalThis as any).NetworkMatchClient.publishSnapshot(meta);
                 return;
             }
         } catch (e) { /* ignore */ }
@@ -1805,25 +1841,25 @@ function finalizeCpuPendingSelectionFlow(playerKey, pendingType, playbackEvents,
     }).catch(() => { /* ignore */ });
 }
 
-function resolveTurnPipelineAdapter() {
+function resolveTurnPipelineAdapter(): any {
     return resolveModuleReference(null, {
         readLocal: () => (typeof TurnPipelineUIAdapter !== 'undefined' ? TurnPipelineUIAdapter : null),
         requirePath: './turn/pipeline_ui_adapter',
         globalKey: 'TurnPipelineUIAdapter',
-        isValid: (moduleRef) => !!moduleRef
+        isValid: (moduleRef: any) => !!moduleRef
     });
 }
 
-function resolveTurnPipeline() {
+function resolveTurnPipeline(): any {
     return resolveModuleReference(null, {
         readLocal: () => (typeof TurnPipeline !== 'undefined' ? TurnPipeline : null),
         requirePath: './turn/turn_pipeline',
         globalKey: 'TurnPipeline',
-        isValid: (moduleRef) => !!moduleRef
+        isValid: (moduleRef: any) => !!moduleRef
     });
 }
 
-async function runCpuPendingSelectionViaPipeline(playerKey, actionPayload, pendingType) {
+async function runCpuPendingSelectionViaPipeline(playerKey: any, actionPayload: any, pendingType: any): Promise<any> {
     const adapter = resolveTurnPipelineAdapter();
     const pipeline = resolveTurnPipeline();
     const pendingSelectionFlow = resolvePendingSelectionFlow('createPendingSelectionAction');
@@ -1863,7 +1899,7 @@ async function runCpuPendingSelectionViaPipeline(playerKey, actionPayload, pendi
     return { ok: true, res };
 }
 
-function resolveAppliedCardMeta(playerKey, fallbackCardId, fallbackCardDef) {
+function resolveAppliedCardMeta(playerKey: any, fallbackCardId: any, fallbackCardDef: any): any {
     const appliedCardId = (cardState && cardState.lastUsedCardByPlayer && cardState.lastUsedCardByPlayer[playerKey])
         ? cardState.lastUsedCardByPlayer[playerKey]
         : fallbackCardId;
@@ -1875,14 +1911,14 @@ function resolveAppliedCardMeta(playerKey, fallbackCardId, fallbackCardDef) {
     return { appliedCardId, appliedCardDef, appliedCardCost, appliedCardName };
 }
 
-function normalizeCardUsePlaybackEvents(playbackEvents, playerKey, cardMeta) {
+function normalizeCardUsePlaybackEvents(playbackEvents: any, playerKey: any, cardMeta: any): any {
     const events = Array.isArray(playbackEvents) ? playbackEvents : [];
     const meta = cardMeta || {};
-    return events.map((ev) => {
+    return events.map((ev: any) => {
         if (!ev || ev.type !== 'card_use_animation') return ev;
         const targets = Array.isArray(ev.targets) ? ev.targets : [];
         const normalizedTargets = targets.length > 0
-            ? targets.map((t) => Object.assign({}, t, {
+            ? targets.map((t: any) => Object.assign({}, t, {
                 cardId: meta.appliedCardId,
                 cost: meta.appliedCardCost,
                 name: meta.appliedCardName
@@ -1898,7 +1934,7 @@ function normalizeCardUsePlaybackEvents(playbackEvents, playerKey, cardMeta) {
     });
 }
 
-function emitCpuCardUseLog(playerKey, level, cardDefOrNull, cardIdOrNull) {
+function emitCpuCardUseLog(playerKey: any, level: any, cardDefOrNull: any, cardIdOrNull: any): any {
     const shownName = cardDefOrNull ? cardDefOrNull.name : cardIdOrNull;
     cpuDebugLog(`[CPU] Lv${level} ${playerKey}: カード使用 - ${shownName}`);
     if (typeof emitLogAdded === 'function') {
@@ -1906,7 +1942,7 @@ function emitCpuCardUseLog(playerKey, level, cardDefOrNull, cardIdOrNull) {
     }
 }
 
-function runCpuCardUseViaPipeline(playerKey, cardId, cardDef) {
+function runCpuCardUseViaPipeline(playerKey: any, cardId: any, cardDef: any): any {
     const adapter = resolveTurnPipelineAdapter();
     const pipeline = resolveTurnPipeline();
     if (!adapter || !pipeline || typeof adapter.runTurnWithAdapter !== 'function') return null;
@@ -1974,7 +2010,7 @@ function runCpuCardUseViaPipeline(playerKey, cardId, cardDef) {
     };
 }
 
-function runCpuHandDestroyViaPipeline(playerKey, destroyCardId) {
+function runCpuHandDestroyViaPipeline(playerKey: any, destroyCardId: any): any {
     const adapter = resolveTurnPipelineAdapter();
     const pipeline = resolveTurnPipeline();
     if (!adapter || !pipeline || typeof adapter.runTurnWithAdapter !== 'function') return null;
@@ -2002,7 +2038,7 @@ function runCpuHandDestroyViaPipeline(playerKey, destroyCardId) {
     };
 }
 
-function emitCpuEffectLog(message) {
+function emitCpuEffectLog(message: any): any {
     if (!message) return;
     if (typeof emitEffectLog === 'function') {
         emitEffectLog(message);
@@ -2013,7 +2049,7 @@ function emitCpuEffectLog(message) {
     }
 }
 
-function getTargetAwareUsableCardIds(playerKey) {
+function getTargetAwareUsableCardIds(playerKey: any): any {
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
     if (typeof CardLogic === 'undefined' || !CardLogic) return [];
@@ -2030,14 +2066,14 @@ function getTargetAwareUsableCardIds(playerKey) {
     }
     if (typeof CardLogic.canUseCard === 'function') {
         const hand = (cs.hands && cs.hands[playerKey]) ? cs.hands[playerKey] : [];
-        return hand.filter((id) => {
+        return hand.filter((id: any) => {
             try { return !!CardLogic.canUseCard(cs, playerKey, id); } catch (e) { return false; }
         });
     }
     return [];
 }
 
-function makePlanPressureProfile(basePressure, cornerWindowPressure, recoveryGapPressure, recoveryEmergencyPressure) {
+function makePlanPressureProfile(basePressure: any, cornerWindowPressure: any, recoveryGapPressure: any, recoveryEmergencyPressure: any): any {
     return Object.freeze({
         basePressure: Math.max(0, Number(basePressure) || 0),
         cornerWindowPressure: Math.max(0, Number(cornerWindowPressure) || 0),
@@ -2140,14 +2176,14 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     X_BOMB: makePlanPressureProfile(3, 4, 3, 3)
 });
 
-function getGeneratedThrowChainPlanPressureProfile(cardType) {
+function getGeneratedThrowChainPlanPressureProfile(cardType: any): any {
     const type = String(cardType || '');
     return Object.prototype.hasOwnProperty.call(GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE, type)
-        ? GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE[type]
+        ? (GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE as any)[type]
         : null;
 }
 
-function hasPlanPressureProfileForCardType(cardType) {
+function hasPlanPressureProfileForCardType(cardType: any): any {
     const type = String(cardType || '');
     const hasDirectProfile = Object.prototype.hasOwnProperty.call(
         CARD_TYPE_PLAN_PRESSURE_PROFILE,
@@ -2156,14 +2192,14 @@ function hasPlanPressureProfileForCardType(cardType) {
     return hasDirectProfile || !!getGeneratedThrowChainPlanPressureProfile(type);
 }
 
-function getCardPlanPressureProfile(cardType) {
+function getCardPlanPressureProfile(cardType: any): any {
     const type = String(cardType || '');
     return Object.prototype.hasOwnProperty.call(CARD_TYPE_PLAN_PRESSURE_PROFILE, type)
-        ? CARD_TYPE_PLAN_PRESSURE_PROFILE[type]
+        ? (CARD_TYPE_PLAN_PRESSURE_PROFILE as any)[type]
         : getGeneratedThrowChainPlanPressureProfile(type);
 }
 
-function computeCardPlanPressure(level, legalMovesCount, planState, decisionContext) {
+function computeCardPlanPressure(level: any, legalMovesCount: any, planState: any, decisionContext: any): any {
     const plan = planState || {};
     const ctx = decisionContext || {};
     const discDiff = Number.isFinite(ctx.discDiff) ? Number(ctx.discDiff) : 0;
@@ -2203,7 +2239,7 @@ function computeCardPlanPressure(level, legalMovesCount, planState, decisionCont
     return Math.max(0, Math.min(7, pressure));
 }
 
-function resolveCardPlanPressureThreshold(legalMovesCount, planState, profile) {
+function resolveCardPlanPressureThreshold(legalMovesCount: any, planState: any, profile: any): any {
     const plan = planState || {};
     const activeProfile = profile || makePlanPressureProfile(0, 0, 0, 0);
     if (plan.cornerEmergency === true) return activeProfile.recoveryEmergencyPressure;
@@ -2212,7 +2248,7 @@ function resolveCardPlanPressureThreshold(legalMovesCount, planState, profile) {
     return activeProfile.basePressure;
 }
 
-function buildCornerPlanState(playerKey, legalMoves, usableCardIds) {
+function buildCornerPlanState(playerKey: any, legalMoves: any, usableCardIds: any): any {
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
     const board = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
@@ -2276,7 +2312,7 @@ function buildCornerPlanState(playerKey, legalMoves, usableCardIds) {
     };
 }
 
-function isCardChoiceAllowedByPlan(playerKey, level, legalMovesCount, cardId, cardDef, planState, decisionContext) {
+function isCardChoiceAllowedByPlan(playerKey: any, level: any, legalMovesCount: any, cardId: any, cardDef: any, planState: any, decisionContext: any): any {
     if (!cardId) return false;
     if (!Number.isFinite(level) || level < 6) return true;
     if (!Number.isFinite(legalMovesCount) || legalMovesCount <= 0) return true;
@@ -2354,7 +2390,7 @@ function isCardChoiceAllowedByPlan(playerKey, level, legalMovesCount, cardId, ca
     return planPressure >= requiredPressure;
 }
 
-function buildMovePlanContext(playerKey, level, candidateMoves) {
+function buildMovePlanContext(playerKey: any, level: any, candidateMoves: any): any {
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
     const board = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
@@ -2397,7 +2433,7 @@ function buildMovePlanContext(playerKey, level, candidateMoves) {
     };
 }
 
-function shouldRespectPendingPlacementPlanStrictly(pendingType) {
+function shouldRespectPendingPlacementPlanStrictly(pendingType: any): any {
     if (!pendingType || !CpuPolicyCore || typeof CpuPolicyCore.getMovePlanProfileForCardType !== 'function') {
         return false;
     }
@@ -2419,7 +2455,7 @@ function shouldRespectPendingPlacementPlanStrictly(pendingType) {
     );
 }
 
-function maybeOverrideWithStrictPendingPlacement(selectedMove, candidateMoves, playerKey, movePlanScoreFn) {
+function maybeOverrideWithStrictPendingPlacement(selectedMove: any, candidateMoves: any, playerKey: any, movePlanScoreFn: any): any {
     if (!selectedMove || !Array.isArray(candidateMoves) || candidateMoves.length <= 1) return selectedMove;
     if (typeof movePlanScoreFn !== 'function') return selectedMove;
 
@@ -2432,7 +2468,7 @@ function maybeOverrideWithStrictPendingPlacement(selectedMove, candidateMoves, p
     const selectedAnchored = isCornerCell(selectedRow, selectedCol, board) || isEdgeCell(selectedRow, selectedCol, board);
     const selectedPlanScore = Number(movePlanScoreFn(selectedMove) || 0);
 
-    let bestAnchoredMove = null;
+    let bestAnchoredMove: any = null;
     let bestAnchoredScore = Number.NEGATIVE_INFINITY;
     for (const move of candidateMoves) {
         if (!move) continue;
@@ -2471,7 +2507,7 @@ function maybeOverrideWithStrictPendingPlacement(selectedMove, candidateMoves, p
     return bestAnchoredMove;
 }
 
-function countBoardStatsForPlayer(playerValue) {
+function countBoardStatsForPlayer(playerValue: any): any {
     const board = getCurrentCpuBoard();
     if (!Array.isArray(board)) {
         return { discDiff: 0, empties: 0 };
@@ -2482,7 +2518,7 @@ function countBoardStatsForPlayer(playerValue) {
     const boardUtils = resolveSharedBoardUtilsModule();
     const cells = (boardUtils && typeof boardUtils.collectBoardCoordinates === 'function')
         ? boardUtils.collectBoardCoordinates(board)
-        : board.flatMap((row, r) => (Array.isArray(row) ? row.map((_, c) => ({ row: r, col: c })) : []));
+        : board.flatMap((row: any, r: any) => (Array.isArray(row) ? row.map((_: any, c: any) => ({ row: r, col: c })) : []));
     for (const cell of cells) {
         const v = getBoardCellValue(board, cell.row, cell.col);
         if (v === playerValue) own += 1;
@@ -2492,7 +2528,7 @@ function countBoardStatsForPlayer(playerValue) {
     return { discDiff: own - opp, empties };
 }
 
-function buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds) {
+function buildCardUseDecisionContext(playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any): any {
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
     const board = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
@@ -2522,7 +2558,7 @@ function buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMov
     const planState = buildCornerPlanState(playerKey, legalMoves, usableCardIds);
     const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
     const legalMoveMetrics = (CpuPolicyCore && typeof CpuPolicyCore.computeLegalMoveMetrics === 'function')
-        ? CpuPolicyCore.computeLegalMoveMetrics(safeLegalMoves, (row, col) => getBoardBonusValueAt(row, col))
+        ? CpuPolicyCore.computeLegalMoveMetrics(safeLegalMoves, (row: any, col: any) => getBoardBonusValueAt(row, col))
         : {
             maxLegalFlips: 0,
             avgLegalFlips: 0,
@@ -2616,7 +2652,7 @@ const HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE = new Set([
     'SUPER_GRAVITY_WILL'
 ]);
 
-function cloneBoardForCpu(board) {
+function cloneBoardForCpu(board: any): any {
     const boardUtils = resolveSharedBoardUtilsModule();
     if (boardUtils && typeof boardUtils.cloneBoard === 'function') {
         return boardUtils.cloneBoard(board);
@@ -2625,7 +2661,7 @@ function cloneBoardForCpu(board) {
     return board.map((row) => (Array.isArray(row) ? row.slice() : []));
 }
 
-function applyMoveByFlipsForCpu(board, move, playerValue) {
+function applyMoveByFlipsForCpu(board: any, move: any, playerValue: any): any {
     if (!Array.isArray(board) || !move) return null;
     const row = Number(move.row);
     const col = Number(move.col);
@@ -2642,13 +2678,13 @@ function applyMoveByFlipsForCpu(board, move, playerValue) {
     return next;
 }
 
-function hasCornerMoveOnBoardForPlayer(board, playerValue) {
+function hasCornerMoveOnBoardForPlayer(board: any, playerValue: any): any {
     if (!Array.isArray(board)) return false;
     const boardUtils = resolveSharedBoardUtilsModule();
     if (boardUtils && typeof boardUtils.getLegalMovesBasic === 'function') {
         try {
             const legal = boardUtils.getLegalMovesBasic(board, playerValue) || [];
-            return legal.some((m) => m && isCornerCell(Number(m.row), Number(m.col), board));
+            return legal.some((m: any) => m && isCornerCell(Number(m.row), Number(m.col), board));
         } catch (e) {
             return false;
         }
@@ -2667,7 +2703,7 @@ function hasCornerMoveOnBoardForPlayer(board, playerValue) {
     }
 }
 
-function buildCardQuiescenceSnapshot(playerKey, level, legalMoves, context) {
+function buildCardQuiescenceSnapshot(playerKey: any, level: any, legalMoves: any, context: any): any {
     if (!Number.isFinite(level) || level < 6) return null;
     if (!Array.isArray(legalMoves) || legalMoves.length <= 0) return null;
     if (!CpuPolicyCore || typeof CpuPolicyCore.chooseMoveByLookahead !== 'function') return null;
@@ -2726,7 +2762,7 @@ function buildCardQuiescenceSnapshot(playerKey, level, legalMoves, context) {
     };
 }
 
-function shouldHoldCardByQuiescence(playerKey, level, cardId, cardDef, context, snapshot) {
+function shouldHoldCardByQuiescence(playerKey: any, level: any, cardId: any, cardDef: any, context: any, snapshot: any): any {
     if (!Number.isFinite(level) || level < 6) return false;
     if (!cardId || !context || !snapshot || !snapshot.bestMove) return false;
     if (context.forceUseCard === true) return false;
@@ -2748,7 +2784,7 @@ function shouldHoldCardByQuiescence(playerKey, level, cardId, cardDef, context, 
     return false;
 }
 
-function isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, cardId, prebuiltContext) {
+function isCardChoiceAllowedByRisk(playerKey: any, level: any, legalMovesCount: any, cardId: any, prebuiltContext: any): any {
     if (!cardId) return false;
     if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function' || typeof CardLogic === 'undefined' || !CardLogic) {
         return true;
@@ -2768,7 +2804,7 @@ function isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, cardId, pr
     }
 }
 
-function isCardChoiceAllowedByHighConfidence(playerKey, level, legalMovesCount, cardId, prebuiltContext) {
+function isCardChoiceAllowedByHighConfidence(playerKey: any, level: any, legalMovesCount: any, cardId: any, prebuiltContext: any): any {
     if (!cardId) return false;
     if (!Number.isFinite(level) || level < 6) return true;
     if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function' || typeof CardLogic === 'undefined' || !CardLogic) {
@@ -2809,14 +2845,14 @@ function isCardChoiceAllowedByHighConfidence(playerKey, level, legalMovesCount, 
     }
 }
 
-function _isCpuTrapOnlyModeEnabled(playerKey) {
+function _isCpuTrapOnlyModeEnabled(playerKey: any): any {
     try {
         const root = (typeof globalThis !== 'undefined') ? globalThis : null;
         if (!root) return false;
         const qs = String((root.location && root.location.search) || '');
         const debugEnabled =
             /[?&]debug=(1|true)\b/i.test(qs) ||
-            root.DEBUG_UNLIMITED_USAGE === true;
+            (root as any).DEBUG_UNLIMITED_USAGE === true;
         if (!debugEnabled) return false;
         const enabled = /[?&]cpuTrapOnly=(1|true)\b/i.test(qs);
         if (!enabled) return false;
@@ -2830,26 +2866,26 @@ function _isCpuTrapOnlyModeEnabled(playerKey) {
     }
 }
 
-function _findTrapCardIdInCatalog() {
+function _findTrapCardIdInCatalog(): any {
     try {
         const root = (typeof globalThis !== 'undefined') ? globalThis : null;
         const defs = (typeof CARD_DEFS !== 'undefined' && Array.isArray(CARD_DEFS))
             ? CARD_DEFS
-            : (root && Array.isArray(root.CARD_DEFS) ? root.CARD_DEFS : []);
-        const def = defs.find(c => c && c.type === 'TRAP_WILL' && c.enabled !== false);
+            : (root && Array.isArray((root as any).CARD_DEFS) ? (root as any).CARD_DEFS : []);
+        const def = defs.find((c: any) => c && c.type === 'TRAP_WILL' && c.enabled !== false);
         return def ? def.id : null;
     } catch (e) {
         return null;
     }
 }
 
-function _prepareCpuTrapOnlyCard(playerKey) {
+function _prepareCpuTrapOnlyCard(playerKey: any): any {
     if (!_isCpuTrapOnlyModeEnabled(playerKey)) return null;
     if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return null;
     if (typeof CardLogic === 'undefined' || !CardLogic) return null;
 
     const hand = cardState.hands[playerKey];
-    let trapId = null;
+    let trapId: any = null;
     for (const id of hand) {
         try {
             const def = CardLogic.getCardDef ? CardLogic.getCardDef(id) : null;
@@ -2879,7 +2915,7 @@ function _prepareCpuTrapOnlyCard(playerKey) {
     return trapId;
 }
 
-function selectCardFallback(cardState, gameState, playerKey, level, legalMoves) {
+function selectCardFallback(cardState: any, gameState: any, playerKey: any, level: any, legalMoves: any): any {
     if (typeof cardState === 'undefined' || !cardState) return null;
     if (typeof CardLogic === 'undefined') return null;
     const usable = getTargetAwareUsableCardIds(playerKey);
@@ -2920,10 +2956,10 @@ function selectCardFallback(cardState, gameState, playerKey, level, legalMoves) 
  * @param {string} playerKey - 'black' or 'white'
  * @returns {{cardId:string,cardDef:object}|null}
  */
-function selectCardToUse(playerKey) {
+function selectCardToUse(playerKey: any): any {
     // Pure decision: returns a candidate { cardId, cardDef } or null but does NOT apply it.
     const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && typeof cpuSmartness[playerKey] !== 'undefined') ? cpuSmartness[playerKey] : 1;
-    const player = playerKey === 'black' ? (typeof BLACK !== 'undefined' ? BLACK : (typeof global !== 'undefined' ? global.BLACK : 1)) : (typeof WHITE !== 'undefined' ? WHITE : (typeof global !== 'undefined' ? global.WHITE : -1));
+    const player = playerKey === 'black' ? (typeof BLACK !== 'undefined' ? BLACK : (typeof globalThis !== 'undefined' ? (globalThis as any).BLACK : 1)) : (typeof WHITE !== 'undefined' ? WHITE : (typeof globalThis !== 'undefined' ? (globalThis as any).WHITE : -1));
     const protection = (typeof getActiveProtectionForPlayer === 'function') ? getActiveProtectionForPlayer(player) : null;
     const perma = (typeof getFlipBlockers === 'function') ? getFlipBlockers() : [];
     const safeGameState = (typeof gameState !== 'undefined') ? gameState : null;
@@ -2944,7 +2980,7 @@ function selectCardToUse(playerKey) {
     }
     const quiescenceSnapshot = buildCardQuiescenceSnapshot(playerKey, level, legalMoves, decisionContext);
     const cornerPlanState = decisionContext.cornerPlanState || buildCornerPlanState(playerKey, legalMoves, usableNow);
-    const isAllowedChoice = (choice) => {
+    const isAllowedChoice = (choice: any) => {
         if (!choice || !choice.cardId) return false;
         if (!isCardChoiceAllowedByPlan(playerKey, level, legalMovesCount, choice.cardId, choice.cardDef, cornerPlanState, decisionContext)) {
             return false;
@@ -3042,7 +3078,7 @@ function selectCardToUse(playerKey) {
     }
 
     // Try AISystem via safe wrapper
-    let cardChoice = null;
+    let cardChoice: any = null;
     if (isAISystemAvailable() && typeof AISystem.selectCardToUse === 'function') {
         try {
             const safeCardState = (typeof cardState !== 'undefined') ? cardState : null;
@@ -3065,7 +3101,7 @@ function selectCardToUse(playerKey) {
     return cardChoice || null;
 }
 
-function selectHandCardToDestroy(playerKey) {
+function selectHandCardToDestroy(playerKey: any): any {
     if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return null;
     if (readCpuPendingEffect(playerKey)) return null;
     if (!CpuPolicyCore || typeof CpuPolicyCore.chooseHandDestroyTargetForCycle !== 'function') return null;
@@ -3099,7 +3135,7 @@ function selectHandCardToDestroy(playerKey) {
     return selected;
 }
 
-function applyHandCardDestroy(playerKey, destroyChoice) {
+function applyHandCardDestroy(playerKey: any, destroyChoice: any): any {
     if (!destroyChoice || !destroyChoice.cardId) return false;
     if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return false;
     if (!cardState.hands[playerKey].includes(destroyChoice.cardId)) return false;
@@ -3142,7 +3178,7 @@ function applyHandCardDestroy(playerKey, destroyChoice) {
     return true;
 }
 
-function cpuMaybeDestroyHandCardWithPolicy(playerKey) {
+function cpuMaybeDestroyHandCardWithPolicy(playerKey: any): any {
     if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return false;
     if (readCpuPendingEffect(playerKey)) return false;
 
@@ -3156,7 +3192,7 @@ function cpuMaybeDestroyHandCardWithPolicy(playerKey) {
  * Side-effectful: mutates cardState/gameState and triggers emitters.
  * Returns true on success, false if application failed or card not in hand.
  */
-function applyCardChoice(playerKey, cardChoice) {
+function applyCardChoice(playerKey: any, cardChoice: any): any {
     // Side-effectful application: applies the chosen card and updates UI/state
     if (!cardChoice) return false;
     const { cardId, cardDef } = cardChoice;
@@ -3176,9 +3212,9 @@ function applyCardChoice(playerKey, cardChoice) {
         const appliedCardName = pipelineResult.appliedCardName || (appliedCardDef && appliedCardDef.name) || null;
 
         try {
-            if (typeof globalThis !== 'undefined' && typeof globalThis.playCardUseHandAnimation === 'function') {
-                if (globalThis.VisualPlaybackActive !== true) {
-                    globalThis.playCardUseHandAnimation({
+            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).playCardUseHandAnimation === 'function') {
+                if ((globalThis as any).VisualPlaybackActive !== true) {
+                    (globalThis as any).playCardUseHandAnimation({
                         player: playerKey,
                         owner: playerKey,
                         cardId: appliedCardId,
@@ -3250,9 +3286,9 @@ function applyCardChoice(playerKey, cardChoice) {
     // Browser safety fallback: if playback wiring misses in this build/order, play once directly.
     // Duplicate calls are suppressed in playCardUseHandAnimation via timestamp guard.
     try {
-        if (typeof globalThis !== 'undefined' && typeof globalThis.playCardUseHandAnimation === 'function') {
-            if (globalThis.VisualPlaybackActive !== true) {
-                globalThis.playCardUseHandAnimation({
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).playCardUseHandAnimation === 'function') {
+            if ((globalThis as any).VisualPlaybackActive !== true) {
+                (globalThis as any).playCardUseHandAnimation({
                     player: playerKey,
                     owner: playerKey,
                     cardId: cardId,
@@ -3271,7 +3307,7 @@ function applyCardChoice(playerKey, cardChoice) {
     return true;
 }
 
-function cpuMaybeUseCardWithPolicy(playerKey) {
+function cpuMaybeUseCardWithPolicy(playerKey: any): any {
     // Backwards-compatible wrapper that selects then applies; preserves original behavior
     if (typeof cardState === 'undefined' || !cardState || !cardState.hasUsedCardThisTurnByPlayer) {
         // Defensive: in some browser load orders cardState may not be initialized yet
@@ -3309,7 +3345,7 @@ function cpuMaybeUseCardWithPolicy(playerKey) {
  * @param {string} playerKey - 'black' または 'white'
  * @returns {Object} 選択された手
  */
-function selectCpuMoveWithPolicy(candidateMoves, playerKey) {
+function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
     const level = cpuSmartness[playerKey] || 1;
 
     // 人間プレイヤーの場合はエラー（このコードは呼ばれてはいけない）
@@ -3325,7 +3361,7 @@ function selectCpuMoveWithPolicy(candidateMoves, playerKey) {
     }
 
     const aiSelector = isAISystemAvailable() && typeof AISystem.selectMove === 'function'
-        ? (moves, lv) => AISystem.selectMove(gameState, cardState, moves, lv, null)
+        ? (moves: any, lv: any) => AISystem.selectMove(gameState, cardState, moves, lv, null)
         : null;
     const pendingType = resolvePendingType(playerKey);
     if (pendingType === 'FREE_PLACEMENT' || pendingType === 'LAST_RESORT') {
@@ -3347,7 +3383,7 @@ function selectCpuMoveWithPolicy(candidateMoves, playerKey) {
         CpuPolicyCore &&
         typeof CpuPolicyCore.scoreMoveForCornerEdgePlan === 'function'
     )
-        ? (move) => {
+        ? (move: any) => {
             try {
                 return Number(CpuPolicyCore.scoreMoveForCornerEdgePlan(move, movePlanContext) || 0);
             } catch (e) {
@@ -3361,7 +3397,7 @@ function selectCpuMoveWithPolicy(candidateMoves, playerKey) {
         return learnedMove;
     }
 
-    const combinedScoreFn = (move) => {
+    const combinedScoreFn = (move: any) => {
         let score = 0;
         if (movePlanScoreFn) score += movePlanScoreFn(move);
         if (learnedScoreFn) {
@@ -3447,13 +3483,13 @@ function selectCpuMoveWithPolicy(candidateMoves, playerKey) {
     }
 }
 
-function getBoardCellValueSafe(board, row, col) {
+function getBoardCellValueSafe(board: any, row: any, col: any): any {
     if (!Array.isArray(board)) return null;
     if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
     return getBoardCellValue(board, row, col);
 }
 
-function countAdjacentCellsByValue(board, row, col, value) {
+function countAdjacentCellsByValue(board: any, row: any, col: any, value: any): any {
     if (!Array.isArray(board)) return 0;
     let count = 0;
     for (let dr = -1; dr <= 1; dr++) {
@@ -3468,7 +3504,7 @@ function countAdjacentCellsByValue(board, row, col, value) {
     return count;
 }
 
-function getMarkerPriorityValue(type) {
+function getMarkerPriorityValue(type: any): any {
     const t = String(type || '').toUpperCase();
     if (!t) return 120;
     if (t === 'GUARD') return 280;
@@ -3479,7 +3515,7 @@ function getMarkerPriorityValue(type) {
     return 140;
 }
 
-function getTimedMarkerProfileAt(playerKey, row, col) {
+function getTimedMarkerProfileAt(playerKey: any, row: any, col: any): any {
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     const out = {
         ownTimedCount: 0,
@@ -3511,7 +3547,7 @@ function getTimedMarkerProfileAt(playerKey, row, col) {
     return out;
 }
 
-function isCpuBlockedCell(row, col) {
+function isCpuBlockedCell(row: any, col: any): any {
     try {
         if (typeof isBlockedCell === 'function') {
             return !!isBlockedCell(cardState, row, col, gameState);
@@ -3522,7 +3558,7 @@ function isCpuBlockedCell(row, col) {
     return false;
 }
 
-function getStrongWindLandingProfile(row, col) {
+function getStrongWindLandingProfile(row: any, col: any): any {
     const board = getCurrentCpuBoard();
     if (!board) return null;
 
@@ -3596,7 +3632,7 @@ function getStrongWindLandingProfile(row, col) {
     };
 }
 
-function scoreSeatStrategicValue(playerKey, row, col, markerProfile) {
+function scoreSeatStrategicValue(playerKey: any, row: any, col: any, markerProfile: any): any {
     const board = getCurrentCpuBoard();
     if (!board) return 0;
     const cell = getBoardCellValueSafe(board, row, col);
@@ -3632,7 +3668,7 @@ function scoreSeatStrategicValue(playerKey, row, col, markerProfile) {
     return score;
 }
 
-function getMarkerProfileAt(playerKey, row, col) {
+function getMarkerProfileAt(playerKey: any, row: any, col: any): any {
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     const out = {
         ownSpecialScore: 0,
@@ -3655,7 +3691,7 @@ function getMarkerProfileAt(playerKey, row, col) {
     return out;
 }
 
-function getMoveOpponentSpecialFlipProfile(playerKey, move) {
+function getMoveOpponentSpecialFlipProfile(playerKey: any, move: any): any {
     const flips = Array.isArray(move && move.flips) ? move.flips : [];
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     if (flips.length <= 0 || markers.length <= 0) {
@@ -3696,7 +3732,7 @@ function getMoveOpponentSpecialFlipProfile(playerKey, move) {
     return { count, score };
 }
 
-function scoreLv6PlacementPlanMove(playerKey, level, move, planContext) {
+function scoreLv6PlacementPlanMove(playerKey: any, level: any, move: any, planContext: any): any {
     if (!CpuPolicyCore || typeof CpuPolicyCore.scoreMoveForCornerEdgePlan !== 'function') {
         return 0;
     }
@@ -3706,7 +3742,7 @@ function scoreLv6PlacementPlanMove(playerKey, level, move, planContext) {
     return Number.isFinite(score) ? score : 0;
 }
 
-function filterLv6SpecialRemovalMoves(playerKey, level, candidateMoves) {
+function filterLv6SpecialRemovalMoves(playerKey: any, level: any, candidateMoves: any): any {
     if (!Array.isArray(candidateMoves) || candidateMoves.length <= 0) return [];
 
     const profiledMoves = [];
@@ -3718,7 +3754,7 @@ function filterLv6SpecialRemovalMoves(playerKey, level, candidateMoves) {
     if (profiledMoves.length <= 1) return profiledMoves.map((one) => one.move);
 
     const maxCount = profiledMoves.reduce((best, one) => Math.max(best, Number(one.profile.count) || 0), 0);
-    let narrowed = profiledMoves.filter((one) => (Number(one.profile.count) || 0) === maxCount);
+    let narrowed = profiledMoves.filter((one: any) => (Number(one.profile.count) || 0) === maxCount);
     if (narrowed.length <= 1) return narrowed.map((one) => one.move);
 
     const maxScore = narrowed.reduce((best, one) => Math.max(best, Number(one.profile.score) || 0), 0);
@@ -3737,12 +3773,12 @@ function filterLv6SpecialRemovalMoves(playerKey, level, candidateMoves) {
     return finalists.length > 0 ? finalists : narrowedMoves;
 }
 
-function isEdgeDangerousCornerAdjacent(row, col, board) {
+function isEdgeDangerousCornerAdjacent(row: any, col: any, board: any): any {
     if (!isEdgeCell(row, col, board) || isCornerCell(row, col, board)) return false;
     return isLv6OpenCornerAdjacentCell(row, col, board);
 }
 
-function isLv6OpenCornerAdjacentCell(row, col, board) {
+function isLv6OpenCornerAdjacentCell(row: any, col: any, board: any): any {
     if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return false;
     if (isCornerCell(row, col, board)) return false;
     const cornerHint = getCornerProximity(row, col, board);
@@ -3750,9 +3786,9 @@ function isLv6OpenCornerAdjacentCell(row, col, board) {
     return getBoardCellValueSafe(board, cornerHint.corner[0], cornerHint.corner[1]) === 0;
 }
 
-function filterLv6OpenCornerAdjacentMoves(candidateMoves, board) {
+function filterLv6OpenCornerAdjacentMoves(candidateMoves: any, board: any): any {
     if (!Array.isArray(candidateMoves) || candidateMoves.length <= 1 || !Array.isArray(board)) return candidateMoves;
-    const safeMoves = candidateMoves.filter((move) => {
+    const safeMoves = candidateMoves.filter((move: any) => {
         if (!move) return false;
         const row = Number(move.row);
         const col = Number(move.col);
@@ -3762,10 +3798,10 @@ function filterLv6OpenCornerAdjacentMoves(candidateMoves, board) {
     return safeMoves.length > 0 ? safeMoves : candidateMoves;
 }
 
-function filterLv6EdgeMovesByPlan(playerKey, level, candidateMoves, board) {
+function filterLv6EdgeMovesByPlan(playerKey: any, level: any, candidateMoves: any, board: any): any {
     if (!Array.isArray(candidateMoves) || candidateMoves.length <= 0 || !board) return [];
 
-    const edgeMoves = candidateMoves.filter((move) => {
+    const edgeMoves = candidateMoves.filter((move: any) => {
         if (!move) return false;
         const row = Number(move.row);
         const col = Number(move.col);
@@ -3787,7 +3823,7 @@ function filterLv6EdgeMovesByPlan(playerKey, level, candidateMoves, board) {
     const strictPendingPlacement = shouldRespectPendingPlacementPlanStrictly(resolvePendingType(playerKey));
     let bestPlanScore = Number.NEGATIVE_INFINITY;
     let bestOverallPlanScore = Number.NEGATIVE_INFINITY;
-    let bestOverallMove = null;
+    let bestOverallMove: any = null;
     const planScored = candidateMoves.map((move) => {
         const planScore = scoreLv6PlacementPlanMove(playerKey, level, move, planContext);
         if (safeEdgeSet.has(move) && planScore > bestPlanScore) bestPlanScore = planScore;
@@ -3820,7 +3856,7 @@ function filterLv6EdgeMovesByPlan(playerKey, level, candidateMoves, board) {
     return finalists.length > 0 ? finalists : safeEdgeMoves;
 }
 
-function filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves) {
+function filterMovesByLv6PlacementPriority(playerKey: any, level: any, candidateMoves: any): any {
     if (!Array.isArray(candidateMoves) || candidateMoves.length <= 0) return [];
     if (!Number.isFinite(level) || level < 6) return candidateMoves;
 
@@ -3837,7 +3873,7 @@ function filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves) {
     }
 
     if (board) {
-        const cornerMoves = candidatePool.filter((move) => {
+        const cornerMoves = candidatePool.filter((move: any) => {
             if (!move) return false;
             const row = Number(move.row);
             const col = Number(move.col);
@@ -3878,7 +3914,7 @@ function filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves) {
     return candidatePool;
 }
 
-function isCloneSplitEligibleSource(playerKey, row, col, markerProfile) {
+function isCloneSplitEligibleSource(playerKey: any, row: any, col: any, markerProfile?: any): any {
     const board = getCurrentCpuBoard();
     const playerValue = playerKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)
@@ -3895,19 +3931,19 @@ function isCloneSplitEligibleSource(playerKey, row, col, markerProfile) {
     );
 }
 
-function filterCloneSplitTargetsForLv6(playerKey, targets) {
+function filterCloneSplitTargetsForLv6(playerKey: any, targets: any): any {
     if (!Array.isArray(targets) || targets.length <= 0) return [];
     const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
         ? Number(cpuSmartness[playerKey])
         : 1;
     if (level < 6) return targets;
-    return targets.filter((target) => {
+    return targets.filter((target: any) => {
         if (!target) return false;
         return isCloneSplitEligibleSource(playerKey, target.row, target.col);
     });
 }
 
-function getCornerProximity(row, col, boardOverride) {
+function getCornerProximity(row: any, col: any, boardOverride: any): any {
     const board = Array.isArray(boardOverride) ? boardOverride : getCurrentCpuBoard();
     const boardUtils = resolveSharedBoardUtilsModule();
     if (!board || !boardUtils) return null;
@@ -3949,7 +3985,7 @@ function getCornerProximity(row, col, boardOverride) {
     return null;
 }
 
-function getForcedCornerLaneBonus(pendingType, row, col, board, playerValue) {
+function getForcedCornerLaneBonus(pendingType: any, row: any, col: any, board: any, playerValue: any): any {
     if (!Array.isArray(board) || board.length <= 0) return 0;
     if (!Number.isInteger(row) || !Number.isInteger(col)) return 0;
     const targetCell = getBoardCellValueSafe(board, row, col);
@@ -3972,7 +4008,7 @@ function getForcedCornerLaneBonus(pendingType, row, col, board, playerValue) {
     return 0;
 }
 
-function getForcedCornerLaneAntiPatternPenalty(pendingType, row, col, board, playerValue) {
+function getForcedCornerLaneAntiPatternPenalty(pendingType: any, row: any, col: any, board: any, playerValue: any): any {
     if (!Array.isArray(board) || board.length <= 0) return 0;
     if (!Number.isInteger(row) || !Number.isInteger(col)) return 0;
     const targetCell = getBoardCellValueSafe(board, row, col);
@@ -4003,7 +4039,7 @@ function getForcedCornerLaneAntiPatternPenalty(pendingType, row, col, board, pla
     return 0;
 }
 
-function simulatePendingPlacementBoard(board, playerValue, target) {
+function simulatePendingPlacementBoard(board: any, playerValue: any, target: any): any {
     if (!Array.isArray(board)) return null;
     if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
     const next = cloneBoardForCpu(board);
@@ -4016,7 +4052,7 @@ function simulatePendingPlacementBoard(board, playerValue, target) {
     return next;
 }
 
-function scorePendingTargetByType(playerKey, pendingType, target, pending) {
+function scorePendingTargetByType(playerKey: any, pendingType: any, target: any, pending: any): any {
     if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return Number.NEGATIVE_INFINITY;
     const board = getCurrentCpuBoard();
     if (!board) return Number.NEGATIVE_INFINITY;
@@ -4049,8 +4085,8 @@ function scorePendingTargetByType(playerKey, pendingType, target, pending) {
         : 1;
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
 
-    function hasSpecialMarkerTypeAt(targetRow, targetCol, markerType) {
-        return markers.some((marker) => (
+    function hasSpecialMarkerTypeAt(targetRow: any, targetCol: any, markerType: any): any {
+        return markers.some((marker: any) => (
             marker &&
             marker.kind === 'specialStone' &&
             marker.row === targetRow &&
@@ -4060,7 +4096,7 @@ function scorePendingTargetByType(playerKey, pendingType, target, pending) {
         ));
     }
 
-    function scoreBoardShrinkLine(lineCells) {
+    function scoreBoardShrinkLine(lineCells: any): any {
         if (!Array.isArray(lineCells) || lineCells.length <= 0) return Number.NEGATIVE_INFINITY;
         let lineScore = 0;
         let changeableCount = 0;
@@ -4571,7 +4607,7 @@ function scorePendingTargetByType(playerKey, pendingType, target, pending) {
     }
 }
 
-function choosePendingTargetWithPolicy(playerKey, pendingType, targets, pending) {
+function choosePendingTargetWithPolicy(playerKey: any, pendingType: any, targets: any, pending: any): any {
     if (
         PendingTargetSelector &&
         typeof PendingTargetSelector.choosePendingTargetWithPolicy === 'function'
@@ -4581,12 +4617,12 @@ function choosePendingTargetWithPolicy(playerKey, pendingType, targets, pending)
             pendingType,
             pending,
             targets,
-            scoreTarget: (target) => scorePendingTargetByType(playerKey, pendingType, target, pending)
+            scoreTarget: (target: any) => scorePendingTargetByType(playerKey, pendingType, target, pending)
         });
     }
 
     if (!Array.isArray(targets) || targets.length <= 0) return null;
-    let best = null;
+    let best: any = null;
     let bestScore = Number.NEGATIVE_INFINITY;
     for (const one of targets) {
         const score = scorePendingTargetByType(playerKey, pendingType, one, pending);
@@ -4613,11 +4649,11 @@ const PENDING_SELECTION_VALUE_WEIGHT = 220;
 
 const CPU_ONNX_BUDGET_TIMEOUT = { kind: 'cpu-onnx-budget-timeout' };
 
-function resolvePendingSelectionOnnxBudgetMs(level) {
+function resolvePendingSelectionOnnxBudgetMs(level: any): any {
     return resolveCpuLv6OnnxRuntimeBudgetMs(level, 'choosePendingTarget');
 }
 
-async function awaitCpuPromiseWithinBudget(promiseFactory, budgetMs, timeoutValue) {
+async function awaitCpuPromiseWithinBudget(promiseFactory: any, budgetMs: any, timeoutValue: any): Promise<any> {
     if (typeof promiseFactory !== 'function') return null;
     if (
         !Number.isFinite(budgetMs) ||
@@ -4630,8 +4666,8 @@ async function awaitCpuPromiseWithinBudget(promiseFactory, budgetMs, timeoutValu
         return promiseFactory();
     }
     return new Promise((resolve) => {
-        let timeoutId = null;
-        promiseFactory().then((result) => {
+        let timeoutId: any = null;
+        promiseFactory().then((result: any) => {
             if (timeoutId !== null) timerService.clearTimeout(timeoutId);
             resolve(result);
         });
@@ -4639,7 +4675,7 @@ async function awaitCpuPromiseWithinBudget(promiseFactory, budgetMs, timeoutValu
     });
 }
 
-function resolveCurrentLegalMovesCountForPlayer(playerKey) {
+function resolveCurrentLegalMovesCountForPlayer(playerKey: any): any {
     if (typeof getLegalMoves !== 'function' || !gameState) return 0;
     const playerValue = playerKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)
@@ -4656,7 +4692,7 @@ function resolveCurrentLegalMovesCountForPlayer(playerKey) {
     }
 }
 
-function buildPendingTargetOnnxContext(playerKey, level, pendingType, targets) {
+function buildPendingTargetOnnxContext(playerKey: any, level: any, pendingType: any, targets: any): any {
     const handCardIds = getHandCardIdsForPlayer(playerKey);
     const context = buildOnnxContext(
         playerKey,
@@ -4670,7 +4706,7 @@ function buildPendingTargetOnnxContext(playerKey, level, pendingType, targets) {
     return context;
 }
 
-function simulateBoardForPendingTarget(playerKey, pendingType, target) {
+function simulateBoardForPendingTarget(playerKey: any, pendingType: any, target: any): any {
     const board = getCurrentCpuBoard();
     if (!isPlayableBoard(board) || !target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
     const type = String(pendingType || '');
@@ -4691,7 +4727,7 @@ function simulateBoardForPendingTarget(playerKey, pendingType, target) {
     return null;
 }
 
-function buildPendingTargetValueContext(baseContext, pendingType, target, boardOverride) {
+function buildPendingTargetValueContext(baseContext: any, pendingType: any, target: any, boardOverride: any): any {
     const normalizedTarget = (target && Number.isFinite(target.row) && Number.isFinite(target.col))
         ? {
             row: Number(target.row),
@@ -4707,7 +4743,7 @@ function buildPendingTargetValueContext(baseContext, pendingType, target, boardO
     });
 }
 
-async function evaluatePendingTargetValue(runtime, baseContext, playerKey, level, pendingType, target, budgetMs) {
+async function evaluatePendingTargetValue(runtime: any, baseContext: any, playerKey: any, level: any, pendingType: any, target: any, budgetMs: any): Promise<any> {
     if (!runtime || typeof runtime.evaluatePosition !== 'function') return null;
     const valueBudgetMs = Number.isFinite(budgetMs) && budgetMs > 0
         ? Math.max(12, Math.floor(budgetMs / 2))
@@ -4723,13 +4759,13 @@ async function evaluatePendingTargetValue(runtime, baseContext, playerKey, level
     return Number.isFinite(Number(value)) ? Number(value) : null;
 }
 
-function resolvePendingTargetOverrideThreshold(pendingType) {
+function resolvePendingTargetOverrideThreshold(pendingType: any): any {
     const type = String(pendingType || '');
     if (type === 'FREE_PLACEMENT' || type === 'LAST_RESORT') return 240;
     return 24;
 }
 
-async function rerankOnnxPendingTargetChoice(runtime, selectedTarget, playerKey, level, pendingType, targets, pending, baseContext, budgetMs) {
+async function rerankOnnxPendingTargetChoice(runtime: any, selectedTarget: any, playerKey: any, level: any, pendingType: any, targets: any, pending: any, baseContext: any, budgetMs: any): Promise<any> {
     const selected = resolveCandidateMoveByCoord(targets, selectedTarget) || selectedTarget;
     const fallback = choosePendingTargetWithPolicy(playerKey, pendingType, targets, pending);
     if (!selected || !fallback || isSameMoveByCoord(selected, fallback)) {
@@ -4761,7 +4797,7 @@ async function rerankOnnxPendingTargetChoice(runtime, selectedTarget, playerKey,
     };
 }
 
-async function choosePendingTargetWithPolicyAsync(playerKey, pendingType, targets, pending) {
+async function choosePendingTargetWithPolicyAsync(playerKey: any, pendingType: any, targets: any, pending: any): Promise<any> {
     const fallback = choosePendingTargetWithPolicy(playerKey, pendingType, targets, pending);
     if (!Array.isArray(targets) || targets.length <= 0) return null;
 
@@ -4834,7 +4870,7 @@ async function choosePendingTargetWithPolicyAsync(playerKey, pendingType, target
  * 破壊対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectDestroyWithPolicy(playerKey) {
+async function cpuSelectDestroyWithPolicy(playerKey: any): Promise<any> {
     const level = cpuSmartness[playerKey] || 1;
     const board = getCurrentCpuBoard();
     const selectorTargets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
@@ -4851,7 +4887,7 @@ async function cpuSelectDestroyWithPolicy(playerKey) {
         const boardUtils = resolveSharedBoardUtilsModule();
         if (boardUtils && typeof boardUtils.collectBoardCoordinates === 'function') {
             targets = boardUtils.collectBoardCoordinates(board)
-                .filter((cell) => getBoardCellValueSafe(board, cell.row, cell.col) !== 0);
+                .filter((cell: any) => getBoardCellValueSafe(board, cell.row, cell.col) !== 0);
         } else {
             targets = [];
             for (let row = 0; row < board.length; row++) {
@@ -4900,7 +4936,7 @@ async function cpuSelectDestroyWithPolicy(playerKey) {
  * 強風の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectStrongWindWillWithPolicy(playerKey) {
+async function cpuSelectStrongWindWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -4931,7 +4967,7 @@ async function cpuSelectStrongWindWillWithPolicy(playerKey) {
     }
 }
 
-async function cpuSelectSuperBuoyancyWillWithPolicy(playerKey) {
+async function cpuSelectSuperBuoyancyWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -4962,7 +4998,7 @@ async function cpuSelectSuperBuoyancyWillWithPolicy(playerKey) {
     }
 }
 
-async function cpuSelectSuperGravityWillWithPolicy(playerKey) {
+async function cpuSelectSuperGravityWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -4998,7 +5034,7 @@ async function cpuSelectSuperGravityWillWithPolicy(playerKey) {
  * 天の恵み 候補選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectHeavenBlessingWithPolicy(playerKey) {
+async function cpuSelectHeavenBlessingWithPolicy(playerKey: any): Promise<any> {
     const pending = readCpuPendingEffect(playerKey);
     const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
     if (!offers.length) {
@@ -5092,7 +5128,7 @@ async function cpuSelectHeavenBlessingWithPolicy(playerKey) {
  * 断罪の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectCondemnWillWithPolicy(playerKey) {
+async function cpuSelectCondemnWillWithPolicy(playerKey: any): Promise<any> {
     const pending = readCpuPendingEffect(playerKey);
     const offers = (pending && Array.isArray(pending.offers)) ? pending.offers.slice() : [];
     if (!offers.length) {
@@ -5194,7 +5230,7 @@ async function cpuSelectCondemnWillWithPolicy(playerKey) {
  * 交換の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectSwapWithEnemyWithPolicy(playerKey) {
+async function cpuSelectSwapWithEnemyWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -5236,7 +5272,7 @@ async function cpuSelectSwapWithEnemyWithPolicy(playerKey) {
  * 入替の意志 対象選択（2段階）
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectPositionSwapWillWithPolicy(playerKey) {
+async function cpuSelectPositionSwapWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -5276,7 +5312,7 @@ async function cpuSelectPositionSwapWillWithPolicy(playerKey) {
  * 罠の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectTrapWillWithPolicy(playerKey) {
+async function cpuSelectTrapWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -5314,7 +5350,7 @@ async function cpuSelectTrapWillWithPolicy(playerKey) {
  * 守る意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectGuardWillWithPolicy(playerKey) {
+async function cpuSelectGuardWillWithPolicy(playerKey: any): Promise<any> {
     const pending = readCpuPendingEffect(playerKey);
     const pendingType = (pending && (pending.type === 'GUARD_WILL' || pending.type === 'GUARDIAN_GOD'))
         ? pending.type
@@ -5354,7 +5390,7 @@ async function cpuSelectGuardWillWithPolicy(playerKey) {
  * 生きる意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectLivingWillWithPolicy(playerKey) {
+async function cpuSelectLivingWillWithPolicy(playerKey: any): Promise<any> {
     const pending = readCpuPendingEffect(playerKey);
     const pendingType = (pending && pending.type === 'LIVING_WILL') ? pending.type : 'LIVING_WILL';
 
@@ -5394,7 +5430,7 @@ async function cpuSelectLivingWillWithPolicy(playerKey) {
  * 多動の継承 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectHyperactiveInheritWillWithPolicy(playerKey) {
+async function cpuSelectHyperactiveInheritWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getHyperactiveInheritTargets === 'function')
         ? CardLogic.getHyperactiveInheritTargets(cardState, gameState, playerKey)
         : ((typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
@@ -5431,7 +5467,7 @@ async function cpuSelectHyperactiveInheritWillWithPolicy(playerKey) {
  * 延命系カード 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectExtendLifeWillWithPolicy(playerKey) {
+async function cpuSelectExtendLifeWillWithPolicy(playerKey: any): Promise<any> {
     const pending = readCpuPendingEffect(playerKey);
     const pendingType = pending && pending.type === 'EXTEND_LIFE_GOD'
         ? 'EXTEND_LIFE_GOD'
@@ -5473,7 +5509,7 @@ async function cpuSelectExtendLifeWillWithPolicy(playerKey) {
  * 腐食の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectCorrosionWillWithPolicy(playerKey) {
+async function cpuSelectCorrosionWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getCorrosionTargets === 'function')
         ? CardLogic.getCorrosionTargets(cardState, gameState, playerKey)
         : ((typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
@@ -5506,7 +5542,7 @@ async function cpuSelectCorrosionWillWithPolicy(playerKey) {
     }
 }
 
-function scoreTimeBombTarget(playerKey, target) {
+function scoreTimeBombTarget(playerKey: any, target: any): any {
     if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return -Infinity;
     const board = getCurrentCpuBoard();
     if (!board) return -Infinity;
@@ -5562,9 +5598,9 @@ function scoreTimeBombTarget(playerKey, target) {
     return score;
 }
 
-function chooseTimeBombTargetWithPolicy(playerKey, targets) {
+function chooseTimeBombTargetWithPolicy(playerKey: any, targets: any): any {
     if (!Array.isArray(targets) || targets.length <= 0) return null;
-    let best = null;
+    let best: any = null;
     let bestScore = -Infinity;
     for (const target of targets) {
         const score = scoreTimeBombTarget(playerKey, target);
@@ -5580,7 +5616,7 @@ function chooseTimeBombTargetWithPolicy(playerKey, targets) {
  * 時限爆弾 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectTimeBombWithPolicy(playerKey) {
+async function cpuSelectTimeBombWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getTimeBombTargets === 'function')
         ? CardLogic.getTimeBombTargets(cardState, gameState, playerKey)
         : [];
@@ -5618,7 +5654,7 @@ async function cpuSelectTimeBombWithPolicy(playerKey) {
  * 盤面拡張 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectBoardExpansionWillWithPolicy(playerKey) {
+async function cpuSelectBoardExpansionWillWithPolicy(playerKey: any): Promise<any> {
     const pending = readCpuPendingEffect(playerKey);
     const pendingType = pending && typeof pending.type === 'string' ? pending.type : 'BOARD_EXPANSION_WILL';
     const isGodExpansion = pendingType === 'BOARD_EXPANSION_GOD';
@@ -5663,7 +5699,7 @@ async function cpuSelectBoardExpansionWillWithPolicy(playerKey) {
  * 盤面縮小 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectBoardShrinkWithPolicy(playerKey) {
+async function cpuSelectBoardShrinkWithPolicy(playerKey: any): Promise<any> {
     const pending = readCpuPendingEffect(playerKey);
     const pendingType = pending && typeof pending.type === 'string' ? pending.type : 'BOARD_SHRINK_WILL';
     const isGodShrink = pendingType === 'BOARD_SHRINK_GOD';
@@ -5708,7 +5744,7 @@ async function cpuSelectBoardShrinkWithPolicy(playerKey) {
  * 封鎖の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectBlockadeWillWithPolicy(playerKey) {
+async function cpuSelectBlockadeWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -5742,7 +5778,7 @@ async function cpuSelectBlockadeWillWithPolicy(playerKey) {
  * 隕石 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectMeteorWillWithPolicy(playerKey) {
+async function cpuSelectMeteorWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -5776,7 +5812,7 @@ async function cpuSelectMeteorWillWithPolicy(playerKey) {
  * 凍結の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectFreezeWillWithPolicy(playerKey) {
+async function cpuSelectFreezeWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -5810,7 +5846,7 @@ async function cpuSelectFreezeWillWithPolicy(playerKey) {
  * 種まきの意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectSeedWillWithPolicy(playerKey) {
+async function cpuSelectSeedWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -5844,7 +5880,7 @@ async function cpuSelectSeedWillWithPolicy(playerKey) {
  * 複製の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectCloneWillWithPolicy(playerKey) {
+async function cpuSelectCloneWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -5885,7 +5921,7 @@ async function cpuSelectCloneWillWithPolicy(playerKey) {
  * 分裂の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectSplitWillWithPolicy(playerKey) {
+async function cpuSelectSplitWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -5926,7 +5962,7 @@ async function cpuSelectSplitWillWithPolicy(playerKey) {
  * テレポート 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectTeleportWillWithPolicy(playerKey) {
+async function cpuSelectTeleportWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -5960,7 +5996,7 @@ async function cpuSelectTeleportWillWithPolicy(playerKey) {
  * マステレポート 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectCellTeleportWillWithPolicy(playerKey) {
+async function cpuSelectCellTeleportWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -5994,7 +6030,7 @@ async function cpuSelectCellTeleportWillWithPolicy(playerKey) {
  * 誘惑の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectTemptWillWithPolicy(playerKey) {
+async function cpuSelectTemptWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -6033,7 +6069,7 @@ async function cpuSelectTemptWillWithPolicy(playerKey) {
  * 捕獲の意志 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
-async function cpuSelectCaptureWillWithPolicy(playerKey) {
+async function cpuSelectCaptureWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
         : [];
@@ -6073,7 +6109,7 @@ async function cpuSelectCaptureWillWithPolicy(playerKey) {
 // { type: 'move', move }
 // { type: 'useCard', cardId, cardDef }
 // { type: 'pass' }
-function computeCpuAction(playerKey) {
+function computeCpuAction(playerKey: any): any {
     const level = cpuSmartness[playerKey] || 1;
     const player = playerKey === 'black' ? BLACK : WHITE;
     const protection = getActiveProtectionForPlayer(player);
@@ -6082,7 +6118,7 @@ function computeCpuAction(playerKey) {
 
     if (!legalMoves.length) {
         // ask the centralized selector for a candidate
-        let cardChoice = null;
+        let cardChoice: any = null;
         try {
             cardChoice = selectCardToUse(playerKey);
         } catch (e) {
@@ -6149,10 +6185,10 @@ if (typeof module !== 'undefined' && module.exports) {
 }
 
 // Expose to global for environments that rely on global symbols (e.g., browser concatenation)
-if (typeof global !== 'undefined') { global.computeCpuAction = computeCpuAction; global.selectCardToUse = selectCardToUse; global.applyCardChoice = applyCardChoice; }
+if (typeof global !== 'undefined') { (global as any).computeCpuAction = computeCpuAction; (global as any).selectCardToUse = selectCardToUse; (global as any).applyCardChoice = applyCardChoice; }
 // Register via UIBootstrap when available, fallback to globalThis for legacy global access
 try {
     const uiBootstrap = _require('../shared/ui-bootstrap-shared');
     if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function') uiBootstrap.registerUIGlobals({ computeCpuAction });
 } catch (e) { /* ignore */ }
-try { if (typeof globalThis !== 'undefined') globalThis.computeCpuAction = computeCpuAction; } catch (e) { /* Intentionally empty: compat global assignment */ }
+try { if (typeof globalThis !== 'undefined') (globalThis as any).computeCpuAction = computeCpuAction; } catch (e) {}
