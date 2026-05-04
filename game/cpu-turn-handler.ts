@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -6,6 +5,55 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 import type { CardState, GameState, PlayerKey } from '../src/types';
+
+// Global declarations for functions not in ui/globals.d.ts
+declare const getActiveProtectionForPlayer: any;
+declare const getFlipBlockers: any;
+declare const countDiscs: any;
+declare const emitLogAdded: any;
+declare const debugLog: any;
+declare const selectCardFromOnnxPolicyAsync: any;
+declare const applyCardChoice: any;
+declare const buildCardUseDecisionContext: any;
+declare const isCardChoiceAllowedByPlan: any;
+declare const isCardChoiceAllowedByRisk: any;
+declare const isCardChoiceAllowedByHighConfidence: any;
+declare const selectCpuMoveWithPolicy: any;
+declare const selectMoveFromOnnxPolicyAsync: any;
+declare const processPassTurn: any;
+declare const generateMovesForPlayer: any;
+declare const executeMove: any;
+declare const cpuMaybeDestroyHandCardWithPolicy: any;
+declare const cpuMaybeUseCardWithPolicy: any;
+declare const cpuSelectDestroyWithPolicy: any;
+declare const cpuSelectStrongWindWillWithPolicy: any;
+declare const cpuSelectSuperBuoyancyWillWithPolicy: any;
+declare const cpuSelectSuperGravityWillWithPolicy: any;
+declare const cpuSelectHeavenBlessingWithPolicy: any;
+declare const cpuSelectCondemnWillWithPolicy: any;
+declare const cpuSelectSwapWithEnemyWithPolicy: any;
+declare const cpuSelectPositionSwapWillWithPolicy: any;
+declare const cpuSelectTrapWillWithPolicy: any;
+declare const cpuSelectGuardWillWithPolicy: any;
+declare const cpuSelectLivingWillWithPolicy: any;
+declare const cpuSelectHyperactiveInheritWillWithPolicy: any;
+declare const cpuSelectExtendLifeWillWithPolicy: any;
+declare const cpuSelectCorrosionWillWithPolicy: any;
+declare const cpuSelectTeleportWillWithPolicy: any;
+declare const cpuSelectCellTeleportWillWithPolicy: any;
+declare const cpuSelectTemptWillWithPolicy: any;
+declare const cpuSelectCaptureWillWithPolicy: any;
+declare const cpuSelectTimeBombWithPolicy: any;
+declare const cpuSelectBoardExpansionWillWithPolicy: any;
+declare const cpuSelectBoardShrinkWillWithPolicy: any;
+declare const cpuSelectBlockadeWillWithPolicy: any;
+declare const cpuSelectMeteorWillWithPolicy: any;
+declare const cpuSelectFreezeWillWithPolicy: any;
+declare const cpuSelectSeedWillWithPolicy: any;
+declare const cpuSelectCloneWillWithPolicy: any;
+declare let isProcessing: any;
+declare let isCardAnimating: any;
+declare let VisualPlaybackActive: any;
 
 // CPU turn orchestration extracted from turn-manager
 
@@ -28,31 +76,31 @@ let timers: any = null;
 if (typeof require === 'function') {
     try { timers = _require('./timers'); } catch (e) { /* ignore */ }
 }
-let passHandler = null;
+let passHandler: any = null;
 if (typeof require === 'function') {
     try { passHandler = _require('./pass-handler'); } catch (e) { /* ignore */ }
 }
-let cpuCommentaryRuntime = null;
+let cpuCommentaryRuntime: any = null;
 if (typeof require === 'function') {
     try { cpuCommentaryRuntime = _require('./ai/cpu-commentary-runtime'); } catch (e) { /* ignore */ }
 }
-let commentaryContextHelpers = null;
+let commentaryContextHelpers: any = null;
 if (typeof require === 'function') {
     try { commentaryContextHelpers = _require('../shared/commentary-context-helpers'); } catch (e) { /* ignore */ }
 }
-let commentaryRuntimeHelpers = null;
+let commentaryRuntimeHelpers: any = null;
 if (typeof require === 'function') {
     try { commentaryRuntimeHelpers = _require('../shared/commentary-runtime-helpers'); } catch (e) { /* ignore */ }
 }
-let cpuCardLogic = null;
+let cpuCardLogic: any = null;
 if (typeof require === 'function') {
     try { cpuCardLogic = _require('./logic/cards'); } catch (e) { /* ignore */ }
 }
-let pendingCoordinator = null;
+let pendingCoordinator: any = null;
 if (typeof require === 'function') {
     try { pendingCoordinator = _require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
 }
-let cpuLv6RuntimeCapability = null;
+let cpuLv6RuntimeCapability: any = null;
 if (typeof require === 'function') {
     try { cpuLv6RuntimeCapability = _require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
 }
@@ -65,14 +113,14 @@ function setCpuUIImpl(obj: any): void {
 const ANIMATION_RETRY_DELAY_MS = 80;
 
 // Local safe constants to avoid ReferenceError for undeclared globals in test environments
-const CONST_BLACK = (typeof BLACK !== 'undefined') ? BLACK : ((typeof global !== 'undefined' && typeof global.BLACK !== 'undefined') ? global.BLACK : 1);
-const CONST_WHITE = (typeof WHITE !== 'undefined') ? WHITE : ((typeof global !== 'undefined' && typeof global.WHITE !== 'undefined') ? global.WHITE : -1);
+const CONST_BLACK = (typeof BLACK !== 'undefined') ? BLACK : ((typeof global !== 'undefined' && typeof (global as any).BLACK !== 'undefined') ? (global as any).BLACK : 1);
+const CONST_WHITE = (typeof WHITE !== 'undefined') ? WHITE : ((typeof global !== 'undefined' && typeof (global as any).WHITE !== 'undefined') ? (global as any).WHITE : -1);
 
 function getAnimationRetryDelayMs() {
     return ANIMATION_RETRY_DELAY_MS;
 }
 
-function getActiveProtectionSafe(playerValue) {
+function getActiveProtectionSafe(playerValue: any) {
     try {
         if (typeof getActiveProtectionForPlayer === 'function') {
             return getActiveProtectionForPlayer(playerValue) || [];
@@ -117,7 +165,7 @@ function resolvePendingCoordinatorForCpu() {
     return null;
 }
 
-function resolvePendingSelectionDispatchKeyForCpu(pendingType) {
+function resolvePendingSelectionDispatchKeyForCpu(pendingType: any) {
     const coordinator = resolvePendingCoordinatorForCpu();
     if (!coordinator || typeof coordinator.resolvePendingSelectionDispatchKey !== 'function') return null;
     return coordinator.resolvePendingSelectionDispatchKey(pendingType);
@@ -163,8 +211,8 @@ function getFateWillControllerForTurnOwnerSafe(turnOwnerKey: PlayerKey, cardStat
             return logic.getFateWillControllerForTurnOwner(cardStateValue, turnOwnerKey);
         } catch (e) { /* ignore */ }
     }
-    if (!cardStateValue || !cardStateValue.fateWillControllerByTurnOwner) return null;
-    const controllerKey = cardStateValue.fateWillControllerByTurnOwner[turnOwnerKey];
+    if (!cardStateValue || !(cardStateValue as any).fateWillControllerByTurnOwner) return null;
+    const controllerKey = (cardStateValue as any).fateWillControllerByTurnOwner[turnOwnerKey];
     if (controllerKey === 'black' || controllerKey === 'white') return controllerKey;
     return null;
 }
@@ -183,9 +231,9 @@ function isHumanVsHumanModeEnabled() {
     let matchMode = null;
     try {
         // globalThis read — UI/bootstrap dependency, keep
-        matchMode = (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function')
-            ? globalThis.getCurrentMatchMode()
-            : (typeof globalThis !== 'undefined' ? globalThis.MATCH_MODE : null);
+        matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
+            ? (globalThis as any).getCurrentMatchMode()
+            : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
     } catch (e) { /* ignore */ }
     return debugHvH || matchMode === 'network';
 }
@@ -193,8 +241,8 @@ function isHumanVsHumanModeEnabled() {
 function getPlaybackStateForCpuTurn() {
     // @compat - globalThis read, UI/bootstrap dependency (PlaybackStateManager)
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) {
-            return globalThis.PlaybackStateManager;
+        if (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackStateManager) {
+            return (globalThis as any).PlaybackStateManager;
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -210,7 +258,7 @@ function readCpuProcessing() {
     return false;
 }
 
-function setCpuProcessing(active) {
+function setCpuProcessing(active: any) {
     const next = active === true;
     const playbackState = getPlaybackStateForCpuTurn();
     if (playbackState && typeof playbackState.setProcessing === 'function') {
@@ -220,7 +268,7 @@ function setCpuProcessing(active) {
     return next;
 }
 
-function shouldAbortCpuForHumanMode(playerKey, context) {
+function shouldAbortCpuForHumanMode(playerKey: any, context: any) {
     if (!isHumanVsHumanModeEnabled()) return false;
     resetPendingSelectRetryState(playerKey);
     setCpuProcessing(false);
@@ -231,7 +279,7 @@ function shouldAbortCpuForHumanMode(playerKey, context) {
     return true;
 }
 
-function debugCpuTrace(message, meta) {
+function debugCpuTrace(message: any, meta?: any) {
     try {
         if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
             if (typeof debugLog === 'function') {
@@ -246,7 +294,7 @@ function debugCpuTrace(message, meta) {
 function isCpuFastBenchModeEnabled() {
     // @compat - globalThis read, set by test scripts / run-ui-level-match.ts via globalThis.__BENCH_FAST_MODE
     try {
-        return typeof globalThis !== 'undefined' && globalThis.__BENCH_FAST_MODE === true;
+        return typeof globalThis !== 'undefined' && (globalThis as any).__BENCH_FAST_MODE === true;
     } catch (e) { /* ignore */ }
     return false;
 }
@@ -299,7 +347,7 @@ function resolveCpuLv6BrowserRuntimeCapability() {
     return capabilityModule.resolveCpuLv6BrowserRuntimeCapability(shared);
 }
 
-function shouldUseOnnxCardDecision(level) {
+function shouldUseOnnxCardDecision(level: any) {
     if (!Number.isFinite(level) || level < 6) return true;
     const capability = resolveCpuLv6BrowserRuntimeCapability();
     if (capability) return capability.usesOnnxCardDecision === true;
@@ -308,7 +356,7 @@ function shouldUseOnnxCardDecision(level) {
     return mode !== 'policy-table-core';
 }
 
-function shouldUseOnnxMoveDecision(level) {
+function shouldUseOnnxMoveDecision(level: any) {
     if (!Number.isFinite(level) || level < 6) return true;
     const capability = resolveCpuLv6BrowserRuntimeCapability();
     if (capability) return capability.usesOnnxMoveDecision === true;
@@ -317,7 +365,7 @@ function shouldUseOnnxMoveDecision(level) {
     return mode !== 'policy-table-lookahead' && mode !== 'browser-policy-lookahead' && mode !== 'policy-table-core';
 }
 
-function resolveLv6MinThinkMs(playerKey, level, autoMode) {
+function resolveLv6MinThinkMs(playerKey: any, level: any, autoMode: any) {
     if (autoMode) return 0;
     if (!Number.isFinite(level) || level < 6) return 0;
     if (playerKey !== 'white') return 0;
@@ -331,8 +379,8 @@ function resolveLv6MinThinkMs(playerKey, level, autoMode) {
     } catch (e) { /* ignore */ }
     // @compat - globalThis.CPU_LV6_MIN_THINK_MS is a browser-level window override; keep as fallback
     try {
-        if (typeof globalThis !== 'undefined' && Number.isFinite(globalThis.CPU_LV6_MIN_THINK_MS)) {
-            return Math.max(0, Math.floor(Number(globalThis.CPU_LV6_MIN_THINK_MS)));
+        if (typeof globalThis !== 'undefined' && Number.isFinite((globalThis as any).CPU_LV6_MIN_THINK_MS)) {
+            return Math.max(0, Math.floor(Number((globalThis as any).CPU_LV6_MIN_THINK_MS)));
         }
     } catch (e) { /* ignore */ }
     return 250;
@@ -388,7 +436,7 @@ function resolveCommentaryRuntimeHelpers() {
     return null;
 }
 
-function countDiscsSafe(state) {
+function countDiscsSafe(state: any) {
     try {
         if (typeof countDiscs === 'function') {
             const counted = countDiscs(state);
@@ -409,7 +457,7 @@ function countDiscsSafe(state) {
     return { black: 0, white: 0 };
 }
 
-function countOwnedBasicCornersSafe(stateOrBoard, playerKey) {
+function countOwnedBasicCornersSafe(stateOrBoard: any, playerKey: any) {
     const board = Array.isArray(stateOrBoard)
         ? stateOrBoard
         : (stateOrBoard && Array.isArray(stateOrBoard.board) ? stateOrBoard.board : null);
@@ -426,7 +474,7 @@ function countOwnedBasicCornersSafe(stateOrBoard, playerKey) {
     return owned;
 }
 
-function resolvePhaseByTurn(turnNumber, occupiedCells) {
+function resolvePhaseByTurn(turnNumber: any, occupiedCells: any) {
     const helpers = resolveCommentaryContextHelpers();
     if (helpers && typeof helpers.resolvePhaseByTurn === 'function') {
         return helpers.resolvePhaseByTurn(turnNumber, occupiedCells);
@@ -434,7 +482,7 @@ function resolvePhaseByTurn(turnNumber, occupiedCells) {
     return 'middle';
 }
 
-function resolveAdvantageLabel(playerKey, counts) {
+function resolveAdvantageLabel(playerKey: any, counts: any) {
     const helpers = resolveCommentaryContextHelpers();
     if (helpers && typeof helpers.resolveAdvantageLabel === 'function') {
         return helpers.resolveAdvantageLabel(playerKey, counts);
@@ -442,7 +490,7 @@ function resolveAdvantageLabel(playerKey, counts) {
     return 'even';
 }
 
-function getLastUsedCardIdSafe(playerKey) {
+function getLastUsedCardIdSafe(playerKey: any) {
     try {
         if (cardState && cardState.lastUsedCardByPlayer) {
             return cardState.lastUsedCardByPlayer[playerKey] || null;
@@ -451,7 +499,7 @@ function getLastUsedCardIdSafe(playerKey) {
     return null;
 }
 
-function getHandSizeSafe(playerKey) {
+function getHandSizeSafe(playerKey: any) {
     try {
         if (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])) {
             return cardState.hands[playerKey].length;
@@ -460,7 +508,7 @@ function getHandSizeSafe(playerKey) {
     return 0;
 }
 
-function getChargeSafe(playerKey) {
+function getChargeSafe(playerKey: any) {
     try {
         if (cardState && cardState.charge && Number.isFinite(cardState.charge[playerKey])) {
             return Number(cardState.charge[playerKey]);
@@ -469,14 +517,14 @@ function getChargeSafe(playerKey) {
     return 0;
 }
 
-function getDiscDiffSafe(playerKey) {
+function getDiscDiffSafe(playerKey: any) {
     const counts = countDiscsSafe(gameState);
     const black = Number.isFinite(counts && counts.black) ? counts.black : 0;
     const white = Number.isFinite(counts && counts.white) ? counts.white : 0;
     return playerKey === 'black' ? (black - white) : (white - black);
 }
 
-function shouldOverrideOnnxHoldDecision(playerKey, level, legalMovesCount) {
+function shouldOverrideOnnxHoldDecision(playerKey: any, level: any, legalMovesCount: any) {
     const safeLevel = Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1;
     const safeLegalMoves = Number.isFinite(legalMovesCount) ? Math.max(0, Math.floor(legalMovesCount)) : 0;
     const handSize = getHandSizeSafe(playerKey);
@@ -516,7 +564,7 @@ function shouldOverrideOnnxHoldDecision(playerKey, level, legalMovesCount) {
     return false;
 }
 
-function resolveCommentaryCpuLevel(playerKey, explicitLevel) {
+function resolveCommentaryCpuLevel(playerKey: any, explicitLevel: any) {
     const direct = Number(explicitLevel);
     if (Number.isFinite(direct) && direct >= 1) return Math.max(1, Math.floor(direct));
 
@@ -529,7 +577,7 @@ function resolveCommentaryCpuLevel(playerKey, explicitLevel) {
     return 1;
 }
 
-function emitCpuCommentary(eventType, playerKey, extra) {
+function emitCpuCommentary(eventType: any, playerKey: any, extra: any) {
     const runtime = resolveCpuCommentaryRuntime();
     if (!runtime || typeof runtime.requestCommentary !== 'function') return;
     if (typeof emitLogAdded !== 'function') return;
@@ -571,7 +619,7 @@ function emitCpuCommentary(eventType, playerKey, extra) {
         })
         : fallbackContext;
 
-    runtime.requestCommentary(context).then((text) => {
+    runtime.requestCommentary(context).then((text: any) => {
         const entry = formatPresentationCommentaryResult(playerKey, text);
         if (!entry) return;
         emitLogAdded(Object.assign({
@@ -583,7 +631,7 @@ function emitCpuCommentary(eventType, playerKey, extra) {
     });
 }
 
-function normalizePresentationPlayerKey(value, fallbackKey) {
+function normalizePresentationPlayerKey(value: any, fallbackKey: any) {
     const helpers = resolveCommentaryContextHelpers();
     if (helpers && typeof helpers.normalizePlayerKey === 'function') {
         return helpers.normalizePlayerKey(value, fallbackKey);
@@ -621,13 +669,13 @@ function getCurrentPlayerKeyFromState(state: GameState | null): PlayerKey | null
 
 function getTurnNumberFromState(state: GameState | null): number | null {
     try {
-        const turnNumber = state ? state.turnNumber : null;
+        const turnNumber = state ? (state as any).turnNumber : null;
         return Number.isFinite(turnNumber) ? turnNumber : null;
     } catch (e) { /* ignore */ }
     return null;
 }
 
-function formatPresentationCommentaryResult(playerKey, text) {
+function formatPresentationCommentaryResult(playerKey: any, text: any) {
     const line = String(text || '').trim();
     if (!line) return null;
     const runtimeHelpers = resolveCommentaryRuntimeHelpers();
@@ -644,17 +692,17 @@ function formatPresentationCommentaryResult(playerKey, text) {
     };
 }
 
-function createPresentationRuntime(dependencies) {
+function createPresentationRuntime(dependencies: any) {
     const deps = (dependencies && typeof dependencies === 'object') ? dependencies : {};
     const normalizePlayerKey = typeof deps.normalizePlayerKey === 'function'
         ? deps.normalizePlayerKey
-        : ((value, fallbackKey) => (value === 'white' ? 'white' : (fallbackKey === 'white' ? 'white' : 'black')));
+        : ((value: any, fallbackKey: any) => (value === 'white' ? 'white' : (fallbackKey === 'white' ? 'white' : 'black')));
     const resolveGameState = typeof deps.resolveGameState === 'function'
         ? deps.resolveGameState
         : (() => null);
     const resolveCardState = typeof deps.resolveCardState === 'function'
         ? deps.resolveCardState
-        : ((value) => (value && typeof value === 'object') ? value : null);
+        : ((value: any) => (value && typeof value === 'object') ? value : null);
     const getPlayerKeyFromState = typeof deps.getCurrentPlayerKeyFromState === 'function'
         ? deps.getCurrentPlayerKeyFromState
         : (() => null);
@@ -695,7 +743,7 @@ function createPresentationRuntime(dependencies) {
         ? deps.processCpuTurn
         : null;
 
-    function buildEnemyCardUsedEventFromPlayback(playbackEvents) {
+    function buildEnemyCardUsedEventFromPlayback(playbackEvents: any) {
         const events = Array.isArray(playbackEvents) ? playbackEvents : [];
         for (const ev of events) {
             if (!ev || ev.type !== 'card_use_animation') continue;
@@ -718,7 +766,7 @@ function createPresentationRuntime(dependencies) {
         return null;
     }
 
-    function buildEnemyCardCommentaryContext(ev, options) {
+    function buildEnemyCardCommentaryContext(ev: any, options: any) {
         const state = resolveGameState(options);
         if (!state || !Array.isArray(state.board)) return null;
 
@@ -764,7 +812,7 @@ function createPresentationRuntime(dependencies) {
         };
     }
 
-    function requestEnemyCardCommentary(ev, options) {
+    function requestEnemyCardCommentary(ev: any, options: any) {
         if (isHumanModeEnabled()) return Promise.resolve(null);
 
         const opts = (options && typeof options === 'object') ? options : {};
@@ -781,13 +829,13 @@ function createPresentationRuntime(dependencies) {
             .catch(() => null);
     }
 
-    function requestEnemyCardCommentaryFromPlayback(playbackEvents, options) {
+    function requestEnemyCardCommentaryFromPlayback(playbackEvents: any, options: any) {
         const enemyCardEvent = buildEnemyCardUsedEventFromPlayback(playbackEvents);
         if (!enemyCardEvent) return Promise.resolve(null);
         return requestEnemyCardCommentary(enemyCardEvent, options);
     }
 
-    function flushPendingPresentationEvents(cardStateRef, options) {
+    function flushPendingPresentationEvents(cardStateRef: any, options: any) {
         const state = resolveCardState(cardStateRef);
         if (!state) return [];
 
@@ -821,7 +869,7 @@ function createPresentationRuntime(dependencies) {
         let drainPending = false;
 
         return {
-            async requestDrain(runDrain) {
+            async requestDrain(runDrain: any) {
                 drainPending = true;
                 if (drainInProgress) return;
 
@@ -840,7 +888,7 @@ function createPresentationRuntime(dependencies) {
         };
     }
 
-    function scheduleCpuTurn(ev, options) {
+    function scheduleCpuTurn(ev: any, options: any) {
         const payload = (ev && typeof ev === 'object') ? ev : {};
         const opts = (options && typeof options === 'object') ? options : {};
         const delay = Number.isFinite(payload.delayMs) ? payload.delayMs : 0;
@@ -890,7 +938,7 @@ const presentationRuntime = createPresentationRuntime({
     resolveCpuCommentaryRuntime,
     formatCommentaryResult: formatPresentationCommentaryResult,
     isHumanVsHumanModeEnabled,
-    flushPresentationEvents: (state) => ((cpuCardLogic && typeof cpuCardLogic.flushPresentationEvents === 'function')
+    flushPresentationEvents: (state: any) => ((cpuCardLogic && typeof cpuCardLogic.flushPresentationEvents === 'function')
         ? cpuCardLogic.flushPresentationEvents(state)
         : []),
     processCpuTurn: () => processCpuTurn()
@@ -962,13 +1010,13 @@ async function maybeUseCardFromOnnx(playerKey: PlayerKey, level: number, legalMo
     } catch (e) {
         debugCpuTrace('[AI] selectCardFromOnnxPolicyAsync failed; fallback to policy table/core', {
             playerKey,
-            error: e && e.message ? e.message : String(e)
+            error: e && (e as any).message ? (e as any).message : String(e)
         });
         return none;
     }
 }
 
-function selectCpuMoveSafe(candidateMoves, playerKey) {
+function selectCpuMoveSafe(candidateMoves: any, playerKey: any) {
     if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
     try {
         if (typeof selectCpuMoveWithPolicy === 'function') {
@@ -980,7 +1028,7 @@ function selectCpuMoveSafe(candidateMoves, playerKey) {
     } catch (e) {
         debugCpuTrace('[AI] selectCpuMoveWithPolicy failed; fallback to first candidate', {
             playerKey,
-            error: e && e.message ? e.message : String(e)
+            error: e && (e as any).message ? (e as any).message : String(e)
         });
     }
     // Test/headless fallback: keep deterministic behavior instead of throwing.
@@ -1008,7 +1056,7 @@ function isUiAnimationBusy() {
     const winPlayback = (typeof VisualPlaybackActive !== 'undefined') ? (VisualPlaybackActive === true) : false;
     return localCard || winPlayback;
 }
-const _cpuRetryPendingByPlayer = { black: null, white: null };
+const _cpuRetryPendingByPlayer: Record<string, any> = { black: null, white: null };
 const _pendingSelectRetryStateByPlayer = {
     black: { key: '', count: 0 },
     white: { key: '', count: 0 }
@@ -1017,11 +1065,11 @@ const _scheduledRetryTimerIds = new Set();
 let _cpuRetryGeneration = 0;
 const MAX_STUCK_PENDING_SELECT_RETRIES = 4;
 
-function _retryStateKey(playerKey) {
+function _retryStateKey(playerKey: any) {
     return playerKey === 'white' ? 'white' : 'black';
 }
 
-function resetPendingSelectRetryState(playerKey) {
+function resetPendingSelectRetryState(playerKey: any) {
     const key = _retryStateKey(playerKey);
     _pendingSelectRetryStateByPlayer[key].key = '';
     _pendingSelectRetryStateByPlayer[key].count = 0;
@@ -1039,14 +1087,14 @@ function resetCpuTurnHandlerState() {
             if (timerService) {
                 timerService.clearTimeout(tid);
             } else {
-                clearTimeout(tid);
+                clearTimeout(tid as any);
             }
         } catch (e) { /* ignore */ }
     }
     _scheduledRetryTimerIds.clear();
 }
 
-function makePendingSelectRetryKey(pending) {
+function makePendingSelectRetryKey(pending: any) {
     if (!pending) return '';
     const type = String(pending.type || '');
     const stage = String(pending.stage || '');
@@ -1056,7 +1104,7 @@ function makePendingSelectRetryKey(pending) {
     return `${type}:${stage}:${selectedCount}:${maxSelections}:${offersLen}`;
 }
 
-function shouldAbortStuckPendingSelection(playerKey, pending) {
+function shouldAbortStuckPendingSelection(playerKey: any, pending: any) {
     const key = _retryStateKey(playerKey);
     const retryKey = makePendingSelectRetryKey(pending);
     const state = _pendingSelectRetryStateByPlayer[key];
@@ -1069,7 +1117,7 @@ function shouldAbortStuckPendingSelection(playerKey, pending) {
     return state.count > MAX_STUCK_PENDING_SELECT_RETRIES;
 }
 
-function scheduleRunCpuTurn(playerKey, options, delayMs) {
+function scheduleRunCpuTurn(playerKey: any, options: any, delayMs: any) {
     const key = playerKey === 'white' ? 'white' : 'black';
     const expectedRetryGeneration = _cpuRetryGeneration;
     if (_cpuRetryPendingByPlayer[key] === expectedRetryGeneration) return;
@@ -1130,7 +1178,7 @@ function resolveApplyCardChoiceFn() {
     return null;
 }
 
-function getUsableCardIdsForCpuRetry(playerKey) {
+function getUsableCardIdsForCpuRetry(playerKey: any) {
     if (!cpuCardLogic) return [];
     if (typeof cpuCardLogic.getUsableCardIds === 'function') {
         const usable = cpuCardLogic.getUsableCardIds(cardState, gameState, playerKey);
@@ -1145,7 +1193,7 @@ function getUsableCardIdsForCpuRetry(playerKey) {
     return [];
 }
 
-function tryApplyAnyUsableCard(playerKey) {
+function tryApplyAnyUsableCard(playerKey: any) {
     const hasUsedCardThisTurn = !!(
         cardState &&
         cardState.hasUsedCardThisTurnByPlayer &&
@@ -1174,7 +1222,7 @@ function tryApplyAnyUsableCard(playerKey) {
 // Prefer shared scheduleRetry helper from game/timer-utils when available, fallback to a local implementation
 // Build scheduleRetry as a small wrapper that prefers injected timers with a real impl,
 // then falls back to setTimeout.
-function hasUsableWaitMs(t) {
+function hasUsableWaitMs(t: any) {
     if (!t || typeof t.waitMs !== 'function') return false;
     // game/timers exposes hasTimerImpl(): false means Promise.resolve() immediate fallback
     // which can cause tight retry loops.
@@ -1182,7 +1230,7 @@ function hasUsableWaitMs(t) {
     return true;
 }
 
-function scheduleRetry(fn, delayMs = getAnimationRetryDelayMs()) {
+function scheduleRetry(fn: any, delayMs: any = getAnimationRetryDelayMs()) {
     // 1) Prefer legacy module-scoped injected timers when a real impl is present.
     if (hasUsableWaitMs(timers)) {
         try {
@@ -1212,7 +1260,7 @@ function scheduleRetry(fn, delayMs = getAnimationRetryDelayMs()) {
 }
 
 // Return a mapping of shared pending-dispatch keys => async handler for a given playerKey.
-function getPendingDispatchHandlers(playerKey) {
+function getPendingDispatchHandlers(playerKey: any) {
     return {
         destroy: async () => { await cpuSelectDestroyWithPolicy(playerKey); },
         strong_wind: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectStrongWindWillWithPolicy === 'function' ? cpuSelectStrongWindWillWithPolicy : null, playerKey); },
@@ -1234,7 +1282,7 @@ function getPendingDispatchHandlers(playerKey) {
         capture: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectCaptureWillWithPolicy === 'function' ? cpuSelectCaptureWillWithPolicy : null, playerKey); },
         time_bomb: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectTimeBombWithPolicy === 'function' ? cpuSelectTimeBombWithPolicy : null, playerKey); },
         board_expansion: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectBoardExpansionWillWithPolicy === 'function' ? cpuSelectBoardExpansionWillWithPolicy : null, playerKey); },
-        board_shrink: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectBoardShrinkWithPolicy === 'function' ? cpuSelectBoardShrinkWithPolicy : null, playerKey); },
+        board_shrink: async () => { await runOptionalCpuPendingSelectionHandler(typeof         cpuSelectBoardShrinkWillWithPolicy === 'function' ?         cpuSelectBoardShrinkWillWithPolicy : null, playerKey); },
         blockade: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectBlockadeWillWithPolicy === 'function' ? cpuSelectBlockadeWillWithPolicy : null, playerKey); },
         meteor: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectMeteorWillWithPolicy === 'function' ? cpuSelectMeteorWillWithPolicy : null, playerKey); },
         freeze: async () => { await runOptionalCpuPendingSelectionHandler(typeof cpuSelectFreezeWillWithPolicy === 'function' ? cpuSelectFreezeWillWithPolicy : null, playerKey); },
@@ -1463,7 +1511,7 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
         // Use shared pending-dispatch keys so human/CPU paths do not duplicate type aliases.
         if (pending && pending.stage === 'selectTarget') {
             const pendingDispatchKey = resolvePendingSelectionDispatchKeyForCpu(pending.type);
-            const handler = pendingDispatchKey ? getPendingDispatchHandlers(playerKey)[pendingDispatchKey] : null;
+            const handler = pendingDispatchKey ? (getPendingDispatchHandlers(playerKey) as any)[pendingDispatchKey] : null;
             if (handler) {
                 if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
                     debugLog(`[AI] CPU selecting ${pending.type.replace(/_/g, ' ').toLowerCase()} target`, 'debug', { playerKey, pendingEffect: pending });
@@ -1584,7 +1632,7 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             } catch (e) {
                 debugCpuTrace('[AI] selectMoveFromOnnxPolicyAsync failed; fallback to policy table/core', {
                     playerKey,
-                    error: e && e.message ? e.message : String(e)
+                    error: e && (e as any).message ? (e as any).message : String(e)
                 });
             }
         }
@@ -1659,11 +1707,11 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
         resetPendingSelectRetryState(playerKey);
     } catch (error) {
         console.error(`[AI] Error in runCpuTurn for ${playerKey}:`, error);
-        console.error(`[AI] Error message: ${error.message}`);
-        console.error(`[AI] Error stack: ${error.stack}`);
+        console.error(`[AI] Error message: ${(error as any).message}`);
+        console.error(`[AI] Error stack: ${(error as any).stack}`);
         if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
-            debugLog(`[AI] CPU Error for ${playerKey}: ${error.message}`, 'error', {
-                errorStack: error.stack,
+            debugLog(`[AI] CPU Error for ${playerKey}: ${(error as any).message}`, 'error', {
+                errorStack: (error as any).stack,
                 playerKey
             });
         }
@@ -1673,7 +1721,7 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             debugCpuTrace('[AI] clearing stuck pending after CPU error', {
                 playerKey,
                 pendingType: stuckPending.type || 'unknown',
-                error: error && error.message ? error.message : String(error)
+                error: error && (error as any).message ? (error as any).message : String(error)
             });
             clearCpuPendingSelection(playerKey);
         }
@@ -1711,8 +1759,8 @@ try {
 } catch (e) { /* ignore in headless contexts */ }
 // Browser fallback: if UI is loaded via globals, register into globalThis.UIBootstrap
 try {
-    if (typeof globalThis !== 'undefined' && globalThis.UIBootstrap && typeof globalThis.UIBootstrap.registerUIGlobals === 'function') {
-        globalThis.UIBootstrap.registerUIGlobals({ processCpuTurn, processAutoBlackTurn, GamePresentationRuntime: presentationRuntime });
+    if (typeof globalThis !== 'undefined' && (globalThis as any).UIBootstrap && typeof (globalThis as any).UIBootstrap.registerUIGlobals === 'function') {
+        (globalThis as any).UIBootstrap.registerUIGlobals({ processCpuTurn, processAutoBlackTurn, GamePresentationRuntime: presentationRuntime });
     } else if (typeof globalThis !== 'undefined') {
         // Wait for bootstrap to become available (IDed by globalThis.UIBootstrap) and register when ready.
         // Avoid polling during tests (Jest) to prevent keeping the event loop open.
@@ -1727,8 +1775,8 @@ try {
             const tid = schedulePoll(() => {
                 tries += 1;
                 try {
-                    if (globalThis.UIBootstrap && typeof globalThis.UIBootstrap.registerUIGlobals === 'function') {
-                        globalThis.UIBootstrap.registerUIGlobals({ processCpuTurn, processAutoBlackTurn, GamePresentationRuntime: presentationRuntime });
+                    if ((globalThis as any).UIBootstrap && typeof (globalThis as any).UIBootstrap.registerUIGlobals === 'function') {
+                        (globalThis as any).UIBootstrap.registerUIGlobals({ processCpuTurn, processAutoBlackTurn, GamePresentationRuntime: presentationRuntime });
                         clearPoll(tid);
                         return;
                     }
@@ -1742,8 +1790,8 @@ try {
 // @compat - Legacy entry points; expose to globalThis for immediate fallback in browser contexts
 try {
     if (typeof globalThis !== 'undefined') {
-        try { globalThis.processCpuTurn = processCpuTurn; } catch (e) { /* Intentionally empty: compat global assignment */ } // @compat
-        try { globalThis.processAutoBlackTurn = processAutoBlackTurn; } catch (e) { /* Intentionally empty: compat global assignment */ } // @compat
-        try { globalThis.GamePresentationRuntime = presentationRuntime; } catch (e) { /* Intentionally empty: compat global assignment */ } // @compat
+        try { (globalThis as any).processCpuTurn = processCpuTurn; } catch (e) { /* Intentionally empty: compat global assignment */ } // @compat
+        try { (globalThis as any).processAutoBlackTurn = processAutoBlackTurn; } catch (e) { /* Intentionally empty: compat global assignment */ } // @compat
+        try { (globalThis as any).GamePresentationRuntime = presentationRuntime; } catch (e) { /* Intentionally empty: compat global assignment */ } // @compat
     }
 } catch (e) { /* ignore */ }

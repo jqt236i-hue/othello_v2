@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -36,7 +35,7 @@ function toggle() {
   if (isEnabled()) disable(); else enable();
 }
 
-function setIntervalMs(ms) {
+function setIntervalMs(ms: any) {
   AUTO_SIMPLE_INTERVAL_MS = Number(ms) || AUTO_SIMPLE_INTERVAL_MS;
 }
 
