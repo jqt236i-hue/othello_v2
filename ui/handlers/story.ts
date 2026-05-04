@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use strict';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
@@ -249,11 +248,12 @@ function setupStoryControls(storyBtn: any, storyMenuOverlay: HTMLElement | null,
     return null;
   }
 
-  mountMenu(storyMenuOverlay);
-  const closeButton = storyMenuOverlay.querySelector('.story-menu-close');
-  const backdrop = storyMenuOverlay.querySelector('.story-menu-backdrop');
-  const list = storyMenuOverlay.querySelector('.story-menu-list');
-  const note = storyMenuOverlay.querySelector('.story-menu-note');
+  const _overlay: HTMLElement = storyMenuOverlay;
+  mountMenu(_overlay);
+  const closeButton = _overlay.querySelector('.story-menu-close');
+  const backdrop = _overlay.querySelector('.story-menu-backdrop');
+  const list = _overlay.querySelector('.story-menu-list');
+  const note = _overlay.querySelector('.story-menu-note');
 
   function renderMenu(): void {
     if (!list) return;
@@ -261,8 +261,8 @@ function setupStoryControls(storyBtn: any, storyMenuOverlay: HTMLElement | null,
     const entries = getMenuEntries(storyController, tutorialController);
 
     for (const entry of entries) {
-      const button = createMenuButton(storyMenuOverlay, entry, () => {
-        setMenuOpen(storyMenuOverlay, storyBtn, false);
+      const button = createMenuButton(_overlay, entry, () => {
+        setMenuOpen(_overlay, storyBtn, false);
         if (typeof entry.open === 'function') {
           entry.open();
         }
@@ -276,9 +276,9 @@ function setupStoryControls(storyBtn: any, storyMenuOverlay: HTMLElement | null,
   }
 
   function toggleMenu(): void {
-    const isOpen = storyMenuOverlay.classList.contains('is-open');
+    const isOpen = _overlay.classList.contains('is-open');
     if (isOpen) {
-      setMenuOpen(storyMenuOverlay, storyBtn, false);
+      setMenuOpen(_overlay, storyBtn, false);
       return;
     }
     if (storyController && typeof storyController.isActive === 'function' && storyController.isActive()) {
@@ -288,7 +288,7 @@ function setupStoryControls(storyBtn: any, storyMenuOverlay: HTMLElement | null,
       return;
     }
     renderMenu();
-    setMenuOpen(storyMenuOverlay, storyBtn, true);
+    setMenuOpen(_overlay, storyBtn, true);
   }
 
   if (storyBtn) {
@@ -305,16 +305,16 @@ function setupStoryControls(storyBtn: any, storyMenuOverlay: HTMLElement | null,
     storyBtn.dataset.storyBound = '1';
   }
 
-  if (closeButton && closeButton.dataset.storyBound !== '1') {
+  if (closeButton && (closeButton as HTMLElement).dataset.storyBound !== '1') {
     closeButton.addEventListener('click', () => {
-      setMenuOpen(storyMenuOverlay, storyBtn, false);
+      setMenuOpen(_overlay, storyBtn, false);
     });
     (closeButton as HTMLElement).dataset.storyBound = '1';
   }
 
-  if (backdrop && backdrop.dataset.storyBound !== '1') {
+  if (backdrop && (backdrop as HTMLElement).dataset.storyBound !== '1') {
     backdrop.addEventListener('click', () => {
-      setMenuOpen(storyMenuOverlay, storyBtn, false);
+      setMenuOpen(_overlay, storyBtn, false);
     });
     (backdrop as HTMLElement).dataset.storyBound = '1';
   }

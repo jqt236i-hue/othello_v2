@@ -1,8 +1,13 @@
-// @ts-nocheck
 'use strict';
 
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+  ? __non_webpack_require__
+  : require;
+
 function getRoot(): any {
-  const base = (typeof globalThis !== 'undefined' ? globalThis : {});
+  const base: any = (typeof globalThis !== 'undefined' ? globalThis : {});
   if (base && base.window && typeof base.window === 'object') return base.window;
   try {
     if (typeof window !== 'undefined' && window) return window;
@@ -219,8 +224,8 @@ function isPlaybackStale(options?: any): boolean {
     return animationEngine.isPlaying !== true;
   }
   const startedAt = getPlaybackStartedAt();
-  if (Number.isFinite(startedAt)) {
-    return (Date.now() - startedAt) > getPlaybackStaleMs(options);
+  if (startedAt !== null && Number.isFinite(startedAt)) {
+    return (Date.now() - (startedAt as number)) > getPlaybackStaleMs(options);
   }
   return false;
 }
@@ -234,8 +239,8 @@ function getPresentationQueueState(source?: any): any {
         if (target && target.cardState && typeof target.cardState === 'object') return target.cardState;
       } catch (e) { /* ignore */ }
       try {
-        if (typeof globalThis !== 'undefined' && globalThis && globalThis.cardState && typeof globalThis.cardState === 'object') {
-          return globalThis.cardState;
+        if (typeof globalThis !== 'undefined' && globalThis && (globalThis as any).cardState && typeof (globalThis as any).cardState === 'object') {
+          return (globalThis as any).cardState;
         }
       } catch (e) { /* ignore */ }
       return null;
@@ -540,8 +545,8 @@ function getPlaybackRuntimeModule(): any {
   }
   if (!PlaybackRuntimeModule) {
     try {
-      if (typeof globalThis !== 'undefined' && globalThis && globalThis.PlaybackRuntime) {
-        PlaybackRuntimeModule = globalThis.PlaybackRuntime;
+      if (typeof globalThis !== 'undefined' && globalThis && (globalThis as any).PlaybackRuntime) {
+        PlaybackRuntimeModule = (globalThis as any).PlaybackRuntime;
       }
     } catch (e) { /* ignore */ }
   }

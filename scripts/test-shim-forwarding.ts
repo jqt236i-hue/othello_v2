@@ -11,7 +11,7 @@ const sharedPath = path.resolve(__dirname, '..', '..', 'shared', 'ui-bootstrap-s
 
 const calls: any[] = [];
 // Ensure any existing module is cleared
-try { delete require.cache[require.resolve(uiBootPath)]; } catch(e){}
+try { delete require.cache[require.resolve(uiBootPath)]; } catch(e){ /* Intentionally empty: module may not be cached */ }
 
 // Insert mock
 require.cache[require.resolve(uiBootPath)] = {
@@ -24,7 +24,7 @@ require.cache[require.resolve(uiBootPath)] = {
 } as any;
 
 // Clear shared module cache and require
-try { delete require.cache[require.resolve(sharedPath)]; } catch(e){}
+try { delete require.cache[require.resolve(sharedPath)]; } catch(e){ /* Intentionally empty: module may not be cached */ }
 const s = require(sharedPath);
 s.registerUIGlobals({ testKey: 'value' });
 

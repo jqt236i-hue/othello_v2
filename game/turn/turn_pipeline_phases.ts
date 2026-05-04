@@ -1832,12 +1832,12 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
                     } else if (t === 'HYPERACTIVE' || t === 'ESCAPE_HYPERACTIVE' || t === 'INHERITED_HYPERACTIVE' || t === 'EXTREME_HYPERACTIVE') {
                         // Hyperactive-family moves can trigger for both owners; process per-anchor by owner
                         const ownerKey = owner;
-                        if (typeof console !== 'undefined' && console.log) console.log('[TurnPipeline] processing HYPERACTIVE anchor', { row, col, owner: ownerKey, type: t, createdSeq: m.createdSeq });
+                        if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[TurnPipeline] processing HYPERACTIVE anchor', { row, col, owner: ownerKey, type: t, createdSeq: m.createdSeq });
                         const res = CardLogic.processHyperactiveMoveAtAnchor(cardState, gameState, ownerKey, row, col, p, {
                             currentTurnPlayerKey: playerKey,
                             expectedSpecialType: t
                         });
-                        if (typeof console !== 'undefined' && console.log) console.log('[TurnPipeline] hyperactive result', { row, col, owner: ownerKey, type: t, res });
+                        if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[TurnPipeline] hyperactive result', { row, col, owner: ownerKey, type: t, res });
                         if (res && res.moved && res.moved.length) {
                             events.push({ type: 'hyperactive_moved_start', details: res.moved });
                             hyperAggregated.moved.push(...res.moved);
@@ -3532,7 +3532,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             // Previous behavior ran an immediate hyperactive activation here; it has been removed so that
             // hyperactive moves only occur at turn-start processing (consistent and deterministic).
             if (effects && effects.hyperactivePlaced && !effects.instantHyperactivePlaced) {
-                if (typeof console !== 'undefined' && console.log) console.log('[TurnPipeline] hyperactivePlaced detected on placement — immediate activation suppressed by spec');
+                if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[TurnPipeline] hyperactivePlaced detected on placement — immediate activation suppressed by spec');
             }
             if (effects && effects.instantHyperactivePlaced && typeof CardLogic.processInstantHyperactiveMoveAtAnchor === 'function') {
                 const instantHyper = CardLogic.processInstantHyperactiveMoveAtAnchor(cardState, gameState, playerKey, action.row, action.col, p);
@@ -3577,7 +3577,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
             }
             // ULTIMATE_HYPERACTIVE_GOD also starts from turn-start processing only.
             if (effects && effects.ultimateHyperactivePlaced) {
-                if (typeof console !== 'undefined' && console.log) console.log('[TurnPipeline] ultimateHyperactivePlaced detected on placement — immediate activation suppressed by spec');
+                if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[TurnPipeline] ultimateHyperactivePlaced detected on placement — immediate activation suppressed by spec');
             }
 
             if (typeof CardLogic.processTrapEffects === 'function') {

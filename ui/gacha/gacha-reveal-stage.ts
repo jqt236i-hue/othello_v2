@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use strict';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
@@ -62,7 +61,7 @@ function ensureGachaRevealStage(docRef: Document, overlay: HTMLElement): StageRe
 
     const skipBtn = createStaticElement(docRef, 'button', 'btn-small', 'SKIP');
     skipBtn.id = 'gachaRevealSkipBtn';
-    skipBtn.type = 'button';
+    (skipBtn as HTMLButtonElement).type = 'button';
     skipBtn.setAttribute('aria-label', 'ガチャ演出をスキップ');
     stage.appendChild(skipBtn);
 
@@ -175,26 +174,27 @@ function populateHero(refs: StageRefs, pull: any, newlyUnlockedIdSet: Set<string
   const rarityId = String(pull.rarity || '').trim().toLowerCase();
   const isNew = newlyUnlockedIdSet.has(item.id);
   const itemVisuals = resolveGachaItemVisualsModule();
-  refs.hero.setAttribute('data-gacha-rarity', rarityId);
-  refs.heroRarity.textContent = String(pull.rarity || '');
-  refs.hero.setAttribute('data-gacha-kind', itemVisuals.normalizeItemKind(item));
+  refs.hero!.setAttribute('data-gacha-rarity', rarityId);
+  refs.heroRarity!.textContent = String(pull.rarity || '');
+  refs.hero!.setAttribute('data-gacha-kind', itemVisuals.normalizeItemKind(item));
   itemVisuals.applyItemPreviewState(item, refs.heroImage as HTMLImageElement, refs.heroFallback as HTMLElement);
-  refs.heroKind.textContent = itemVisuals.getItemKindLabel(item);
-  refs.heroName.textContent = item.label;
-  refs.heroStatus.textContent = isNew ? 'NEW' : '所持済み';
-  refs.heroStatus.className = `gacha-reveal-hero-status ${isNew ? 'is-new' : 'is-owned'}`;
+  refs.heroKind!.textContent = itemVisuals.getItemKindLabel(item);
+  refs.heroName!.textContent = item.label;
+  refs.heroStatus!.textContent = isNew ? 'NEW' : '所持済み';
+  refs.heroStatus!.className = `gacha-reveal-hero-status ${isNew ? 'is-new' : 'is-owned'}`;
 }
 
 function populateGrid(refs: StageRefs, pulls: any[], newlyUnlockedIdSet: Set<string>, spotlightPull: any): void {
   if (!refs || !refs.grid) return;
-  refs.grid.innerHTML = '';
-  const docRef = refs.grid.ownerDocument || (typeof document !== 'undefined' ? document : null);
+  const grid = refs.grid as HTMLElement;
+  grid.innerHTML = '';
+  const docRef = grid.ownerDocument || (typeof document !== 'undefined' ? document : null);
   if (!docRef) return;
 
   const spotlightId = spotlightPull && spotlightPull.item ? spotlightPull.item.id : null;
   pulls.forEach((pull, index) => {
     const itemId = pull && pull.item ? pull.item.id : '';
-    refs.grid.appendChild(createSlotCard(docRef, pull, newlyUnlockedIdSet.has(itemId), index, spotlightId));
+    grid.appendChild(createSlotCard(docRef, pull, newlyUnlockedIdSet.has(itemId), index, spotlightId));
   });
 }
 

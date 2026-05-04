@@ -293,8 +293,8 @@ async function applyStoneVisualEffect(discElement: HTMLElement, effectKey: strin
   if (debugVisual) console.log('[VISUAL_DEBUG] applyStoneVisualEffect called', effectKey, options);
   const visualMap = getUiStoneVisualEffects();
   const effect = visualMap[effectKey];
-  try { if (!discElement && debugVisual) console.warn('[VISUAL_DEBUG] applyStoneVisualEffect: discElement missing for', effectKey); } catch (e) {}
-  try { if (debugVisual) console.log('[VISUAL_DEBUG] effect lookup:', effectKey, effect ? effect.cssClass : null); } catch (e) {}
+  try { if (!discElement && debugVisual) console.warn('[VISUAL_DEBUG] applyStoneVisualEffect: discElement missing for', effectKey); } catch (e) { /* Intentionally empty: debug guard */ }
+  try { if (debugVisual) console.log('[VISUAL_DEBUG] effect lookup:', effectKey, effect ? effect.cssClass : null); } catch (e) { /* Intentionally empty: debug guard */ }
   if (!effect) {
     console.warn(`[VISUAL_EFFECTS] Unknown effect key: ${effectKey}`);
     return false;
@@ -302,7 +302,7 @@ async function applyStoneVisualEffect(discElement: HTMLElement, effectKey: strin
 
   if (debugVisual && effectKey === 'workStone') {
     console.log('[VISUAL_DEBUG] applyStoneVisualEffect(workStone) called, options:', options, 'effect:', effect);
-    try { (window as any)._lastApplyWorkTs = Date.now(); } catch (e) {}
+    try { (window as any)._lastApplyWorkTs = Date.now(); } catch (e) { /* Intentionally empty: diagnostic timestamp */ }
   }
 
   const ensureDiscSkeleton = getDiscRenderHelper('ensureDiscSkeleton');
@@ -313,7 +313,7 @@ async function applyStoneVisualEffect(discElement: HTMLElement, effectKey: strin
   discElement.classList.add(effect.cssClass);
   applyOwnerMetadataForEffect(discElement, effectKey, effect, options);
 
-  try { if (debugVisual) console.log('[VISUAL_DEBUG] after apply classes:', discElement.className, 'cssVar:', discElement.style.getPropertyValue('--special-stone-image')); } catch(e){}
+  try { if (debugVisual) console.log('[VISUAL_DEBUG] after apply classes:', discElement.className, 'cssVar:', discElement.style.getPropertyValue('--special-stone-image')); } catch(e){ /* Intentionally empty: debug guard */ }
   const imagePath = resolveStoneEffectImagePath(effect, options);
   let overlayImage: string | null = null;
   if (imagePath) {

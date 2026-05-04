@@ -28,7 +28,7 @@ try {
   if (typeof window !== 'undefined' && _isNoAnim() && typeof document !== 'undefined' && document.documentElement) {
     document.documentElement.classList.add('no-anim');
   }
-} catch (e) { }
+} catch (e) { /* Intentionally empty: DOM guard for module init */ }
 
 function _getDiscRenderHelperForStoneVisuals(name: string): any {
   if (BoardRendererDiscHelpers && typeof BoardRendererDiscHelpers[name] === 'function') return BoardRendererDiscHelpers[name];
@@ -60,18 +60,18 @@ function applyStoneVisualState(disc: HTMLElement, options: any = {}): void {
   }
 
   if (effectKey && typeof (applyStoneVisualEffect as any) === 'function') {
-    try { if (debugVisual) console.log('[VISUAL_DEBUG] crossfade attempting applyStoneVisualEffect', effectKey); } catch (e) {}
+    try { if (debugVisual) console.log('[VISUAL_DEBUG] crossfade attempting applyStoneVisualEffect', effectKey); } catch (e) { /* Intentionally empty: debug guard */ }
     try { (applyStoneVisualEffect as any)(disc, effectKey, { owner }); } catch (e) { console.warn('[VISUAL_DEBUG] applyStoneVisualEffect threw', e); }
-    try { if (debugVisual) console.log('[VISUAL_DEBUG] crossfade after apply classes:', disc && disc.className); } catch (e) {}
+    try { if (debugVisual) console.log('[VISUAL_DEBUG] crossfade after apply classes:', disc && disc.className); } catch (e) { /* Intentionally empty: debug guard */ }
   }
 
   try {
     const overlay = disc.parentElement.querySelector('.stone-fade-overlay');
     if (overlay) overlay.remove();
-  } catch (e) { }
+  } catch (e) { /* Intentionally empty: DOM guard for overlay cleanup */ }
 
   disc.classList.remove('stone-hidden', 'stone-hidden-all', 'stone-instant');
-  try { disc.style.opacity = ''; } catch (e) { }
+  try { disc.style.opacity = ''; } catch (e) { /* Intentionally empty: DOM style cleanup guard */ }
 
   return;
 }
@@ -529,7 +529,7 @@ if (typeof window !== 'undefined') {
   try {
     (window as any).StoneVisuals = (window as any).StoneVisuals || {};
     Object.assign((window as any).StoneVisuals, { applyStoneVisualState, animateStoneVisualTransition, crossfadeStoneVisual, setDiscColorAt, removeBombOverlayAt, clearAllStoneVisualEffectsAt, syncDiscVisualToCurrentState, applyPendingSpecialstoneVisual, showChargeDelta });
-  } catch (e) {}
+  } catch (e) { /* Intentionally empty: window assignment guard */ }
 }
 
 const StoneVisualsModule = {

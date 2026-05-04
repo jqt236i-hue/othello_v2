@@ -1,5 +1,4 @@
-// @ts-nocheck
-import type { CardState, GameState, PlayerKey } from '../../src/types';
+import type { CardState, GameState, PlayerKey } from '../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -7,43 +6,66 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+declare var isCardAnimating: any;
+declare var isProcessing: any;
+declare const requestCardUiSync: (...args: any[]) => any;
+declare const renderCardUI: (...args: any[]) => any;
+declare const SoundEngine: any;
+declare const BLACK: number;
+declare const WHITE: number;
+declare const EMPTY: number;
+declare const cardState: any;
+declare const OwnerHelpers: any;
+declare const SharedConstants: any;
+declare const CardLogic: any;
+declare const TimerRegistry: any;
+declare const boardEl: any;
+declare const handLayer: any;
+declare const handWrapper: any;
+declare const heldStone: any;
+declare const __uiImpl: any;
+declare const applyStoneVisualEffect: (...args: any[]) => any;
+declare const applyCardSpecialArtToFace: (...args: any[]) => any;
+declare const createCardFaceElement: (...args: any[]) => any;
+declare const fitCardNameElement: (...args: any[]) => any;
+
 /**
  * @file animation-utils.js
  * @description アニメーションユーティリティ
  * 石の配置・破壊・フェードアウトアニメーションを担当
  */
 // Shared animation helpers (normalized) - resolved lazily via AnimationResolver
-let __anim_res_utils = null;
-try { __anim_res_utils = (typeof require === 'function') ? require('./animation-resolver') : (typeof globalThis !== 'undefined' ? globalThis.AnimationResolver : null); } catch (e) { __anim_res_utils = (typeof globalThis !== 'undefined' ? globalThis.AnimationResolver : null); }
+let __anim_res_utils: any = null;
+try { __anim_res_utils = (typeof require === 'function') ? require('./animation-resolver') : (typeof globalThis !== 'undefined' ? (globalThis as any).AnimationResolver : null); } catch (e: any) { __anim_res_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).AnimationResolver : null); }
 function _getAnimationShared() { return (__anim_res_utils && typeof __anim_res_utils.getAnimationShared === 'function') ? __anim_res_utils.getAnimationShared() : null; }
 function _isNoAnim() { const fn = (__anim_res_utils && typeof __anim_res_utils.isNoAnim === 'function') ? __anim_res_utils.isNoAnim() : function () { return false; }; return fn(); }
 function _Timer() { return (__anim_res_utils && typeof __anim_res_utils.getTimer === 'function') ? __anim_res_utils.getTimer() : (function () {
     if (typeof TimerRegistry !== 'undefined') return TimerRegistry;
     return {
-        setTimeout: (fn, ms) => setTimeout(fn, ms),
-        clearTimeout: (id) => clearTimeout(id),
+        setTimeout: (fn: any, ms: any) => setTimeout(fn, ms),
+        clearTimeout: (id: any) => clearTimeout(id),
         clearAll: () => {},
         pendingCount: () => 0,
         newScope: () => null,
         clearScope: () => {}
     };
 })(); }
-let __playback_state_utils = null;
-try { __playback_state_utils = (typeof require === 'function') ? require('./playback-state-manager') : (typeof globalThis !== 'undefined' ? globalThis.PlaybackStateManager : null); } catch (e) { __playback_state_utils = (typeof globalThis !== 'undefined' ? globalThis.PlaybackStateManager : null); }
-let __owner_helpers_utils = null;
-try { __owner_helpers_utils = (typeof require === 'function') ? require('../utils/owner-helpers') : (typeof globalThis !== 'undefined' ? globalThis.OwnerHelpers : null); } catch (e) { __owner_helpers_utils = (typeof globalThis !== 'undefined' ? globalThis.OwnerHelpers : null); }
-let __hand_skin_utils = null;
+let __playback_state_utils: any = null;
+try { __playback_state_utils = (typeof require === 'function') ? require('./playback-state-manager') : (typeof globalThis !== 'undefined' ? (globalThis as any).PlaybackStateManager : null); } catch (e: any) { __playback_state_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).PlaybackStateManager : null); }
+let __owner_helpers_utils: any = null;
+try { __owner_helpers_utils = (typeof require === 'function') ? require('../utils/owner-helpers') : (typeof globalThis !== 'undefined' ? (globalThis as any).OwnerHelpers : null); } catch (e: any) { __owner_helpers_utils = (typeof globalThis !== 'undefined' ? (globalThis as any).OwnerHelpers : null); }
+let __hand_skin_utils: any = null;
 function _getOwnerHelpers() {
     if (__owner_helpers_utils) return __owner_helpers_utils;
     try {
         if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers) return OwnerHelpers;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis && globalThis.OwnerHelpers) return globalThis.OwnerHelpers;
-    } catch (e) { /* ignore */ }
+        if (typeof globalThis !== 'undefined' && globalThis && (globalThis as any).OwnerHelpers) return (globalThis as any).OwnerHelpers;
+    } catch (e: any) { /* ignore */ }
     return null;
 }
-function _setCardAnimatingState(locked) {
+function _setCardAnimatingState(locked: any) {
     if (__playback_state_utils && typeof __playback_state_utils.setCardAnimating === 'function') {
         __playback_state_utils.setCardAnimating(locked);
         return;
@@ -52,7 +74,7 @@ function _setCardAnimatingState(locked) {
     if (typeof window !== 'undefined') window.isCardAnimating = !!locked;
 }
 
-function _setProcessingState(locked) {
+function _setProcessingState(locked: any) {
     if (__playback_state_utils && typeof __playback_state_utils.setProcessing === 'function') {
         __playback_state_utils.setProcessing(locked);
         return;
@@ -61,7 +83,7 @@ function _setProcessingState(locked) {
     if (typeof window !== 'undefined') window.isProcessing = !!locked;
 }
 
-function _requestCardUiSyncForAnimationUtils(reason) {
+function _requestCardUiSyncForAnimationUtils(reason: any) {
     const requestCardUiSyncFn = (typeof requestCardUiSync === 'function')
         ? requestCardUiSync
         : ((typeof window !== 'undefined' && typeof window.requestCardUiSync === 'function') ? window.requestCardUiSync : null);
@@ -74,11 +96,11 @@ function _requestCardUiSyncForAnimationUtils(reason) {
             renderCardUI();
             return true;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return false;
 }
 
-function _normalizeHandOwnerKey(value) {
+function _normalizeHandOwnerKey(value: any) {
     const ownerHelpers = _getOwnerHelpers();
     if (ownerHelpers && typeof ownerHelpers.normalizePlayerKey === 'function') {
         return ownerHelpers.normalizePlayerKey(value, 'black');
@@ -87,7 +109,7 @@ function _normalizeHandOwnerKey(value) {
     return 'black';
 }
 
-function _getHandElementsByOwner(playerKey) {
+function _getHandElementsByOwner(playerKey: any) {
     if (typeof document === 'undefined') return [];
     const ownerKey = _normalizeHandOwnerKey(playerKey);
     const handBlackEl = document.getElementById('hand-black');
@@ -102,12 +124,12 @@ function _getHandElementsByOwner(playerKey) {
     return fallbackHandEl ? [fallbackHandEl] : [];
 }
 
-function _resolveHandElementByOwner(playerKey) {
+function _resolveHandElementByOwner(playerKey: any) {
     const handElements = _getHandElementsByOwner(playerKey);
     return handElements.length > 0 ? handElements[0] : null;
 }
 
-function _resolveDeckElementByOwner(playerKey) {
+function _resolveDeckElementByOwner(playerKey: any) {
     if (typeof document === 'undefined') return null;
     const ownerKey = _normalizeHandOwnerKey(playerKey);
     const deckBlackEl = document.getElementById('deck-black');
@@ -130,7 +152,7 @@ function _resolveDeckElementByOwner(playerKey) {
     return document.getElementById(ownerKey === 'white' ? 'deck-white' : 'deck-black');
 }
 
-function _isOwnerOnBottomSlot(playerKey) {
+function _isOwnerOnBottomSlot(playerKey: any) {
     const ownerKey = _normalizeHandOwnerKey(playerKey);
     if (typeof document === 'undefined') return ownerKey === 'black';
 
@@ -168,20 +190,20 @@ function _getHandSkinUiModule() {
         if (typeof require === 'function') {
             __hand_skin_utils = require('./handlers/hand-skin');
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     if (!__hand_skin_utils) {
         try {
             if (typeof window !== 'undefined' && window && window.HandSkinUiModule) {
                 __hand_skin_utils = window.HandSkinUiModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     if (!__hand_skin_utils) {
         try {
-            if (typeof globalThis !== 'undefined' && globalThis && globalThis.HandSkinUiModule) {
-                __hand_skin_utils = globalThis.HandSkinUiModule;
+            if (typeof globalThis !== 'undefined' && globalThis && (globalThis as any).HandSkinUiModule) {
+                __hand_skin_utils = (globalThis as any).HandSkinUiModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     return __hand_skin_utils;
 }
@@ -195,7 +217,7 @@ function _getResolveHandAnimationContext() {
         if (typeof window !== 'undefined' && window && typeof window.resolveHandAnimationContext === 'function') {
             return window.resolveHandAnimationContext;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
@@ -208,11 +230,11 @@ function _getSyncDisplayedHandSkin() {
         if (typeof window !== 'undefined' && window && typeof window.syncDisplayedHandSkin === 'function') {
             return window.syncDisplayedHandSkin;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
-function _resolveHandAnimationContext(ownerKey, visualOptions) {
+function _resolveHandAnimationContext(ownerKey: any, visualOptions: any) {
     const normalizedOwnerKey = _normalizeHandOwnerKey(ownerKey);
     const options = (visualOptions && typeof visualOptions === 'object')
         ? Object.assign({}, visualOptions, { ownerKey: normalizedOwnerKey })
@@ -236,7 +258,7 @@ function _resolveHandAnimationContext(ownerKey, visualOptions) {
                     ownerKey: _normalizeHandOwnerKey(resolved.ownerKey || normalizedOwnerKey)
                 });
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     return {
         ownerKey: normalizedOwnerKey,
@@ -248,7 +270,7 @@ function _resolveHandAnimationContext(ownerKey, visualOptions) {
     };
 }
 
-function _applyResolvedHandAnimationContext(handContext) {
+function _applyResolvedHandAnimationContext(handContext: any) {
     const imageEl = _resolveHandImageElement();
     if (!imageEl || !handContext || !handContext.renderedImagePath) return handContext;
     imageEl.setAttribute('src', handContext.renderedImagePath);
@@ -261,11 +283,11 @@ function _applyResolvedHandAnimationContext(handContext) {
     return handContext;
 }
 
-function _syncDisplayedHandSkinForAnimation(ownerKey, visualOptions) {
+function _syncDisplayedHandSkinForAnimation(ownerKey: any, visualOptions: any) {
     try {
         const handContext = _resolveHandAnimationContext(ownerKey, visualOptions);
         return _applyResolvedHandAnimationContext(handContext);
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return _resolveHandAnimationContext(ownerKey, visualOptions);
 }
 
@@ -277,7 +299,7 @@ function _restoreDisplayedHandSkinAfterAnimation() {
             ? window
             : ((typeof globalThis !== 'undefined' && globalThis) ? globalThis : null);
         syncDisplayedHandSkin(rootRef, null, _resolveHandImageElement());
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 }
 
 function _resolveHandLayerElements() {
@@ -289,7 +311,7 @@ function _resolveHandLayerElements() {
     };
 }
 
-function _resolveHandSelectorByOwner(playerKey) {
+function _resolveHandSelectorByOwner(playerKey: any) {
     const handEl = _resolveHandElementByOwner(playerKey);
     if (handEl && handEl.id) {
         return `#${handEl.id}`;
@@ -298,7 +320,7 @@ function _resolveHandSelectorByOwner(playerKey) {
     return ownerKey === 'white' ? '#hand-white' : '#hand-black';
 }
 
-function _playEffectByKeySafe(soundKey) {
+function _playEffectByKeySafe(soundKey: any) {
     const key = String(soundKey || '').trim();
     if (!key) return;
     try {
@@ -306,20 +328,20 @@ function _playEffectByKeySafe(soundKey) {
             if (typeof SoundEngine.init === 'function') SoundEngine.init();
             SoundEngine.playEffectByKey(key);
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 }
 
 function _resolveCardStateForHandAnimations() {
     try {
         if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         if (typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') return window.cardState;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
-function _normalizeCardSourceRect(rectLike) {
+function _normalizeCardSourceRect(rectLike: any) {
     if (!rectLike || typeof rectLike !== 'object') return null;
     const left = Number(rectLike.left);
     const top = Number(rectLike.top);
@@ -331,7 +353,7 @@ function _normalizeCardSourceRect(rectLike) {
     return { left, top, width, height, right, bottom };
 }
 
-function _snapRectToWholePixels(rectLike) {
+function _snapRectToWholePixels(rectLike: any) {
     const rect = _normalizeCardSourceRect(rectLike);
     if (!rect) return null;
     const left = Math.round(rect.left);
@@ -348,14 +370,14 @@ function _snapRectToWholePixels(rectLike) {
     };
 }
 
-function _resolveCardUseSourceRect(sourceCardEl, sourceCardRect) {
+function _resolveCardUseSourceRect(sourceCardEl: any, sourceCardRect: any) {
     const snapshotRect = _normalizeCardSourceRect(sourceCardRect);
     if (snapshotRect && snapshotRect.width > 0 && snapshotRect.height > 0) return snapshotRect;
-    let liveRect = null;
+    let liveRect: any = null;
     if (sourceCardEl && typeof sourceCardEl.getBoundingClientRect === 'function') {
         try {
             liveRect = _normalizeCardSourceRect(sourceCardEl.getBoundingClientRect());
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     if (liveRect && liveRect.width > 0 && liveRect.height > 0) return liveRect;
     return liveRect;
@@ -364,38 +386,38 @@ function _resolveCardUseSourceRect(sourceCardEl, sourceCardRect) {
 function _resolveCreateCardFaceElement() {
     try {
         if (typeof createCardFaceElement === 'function') return createCardFaceElement;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         if (typeof window !== 'undefined' && window && typeof window.createCardFaceElement === 'function') {
             return window.createCardFaceElement;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis && typeof globalThis.createCardFaceElement === 'function') {
-            return globalThis.createCardFaceElement;
+        if (typeof globalThis !== 'undefined' && globalThis && typeof (globalThis as any).createCardFaceElement === 'function') {
+            return (globalThis as any).createCardFaceElement;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
 function _resolveApplyCardSpecialArtToFace() {
     try {
         if (typeof applyCardSpecialArtToFace === 'function') return applyCardSpecialArtToFace;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         if (typeof window !== 'undefined' && window && typeof window.applyCardSpecialArtToFace === 'function') {
             return window.applyCardSpecialArtToFace;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis && typeof globalThis.applyCardSpecialArtToFace === 'function') {
-            return globalThis.applyCardSpecialArtToFace;
+        if (typeof globalThis !== 'undefined' && globalThis && typeof (globalThis as any).applyCardSpecialArtToFace === 'function') {
+            return (globalThis as any).applyCardSpecialArtToFace;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
-function _getFallbackCardCostTier(cost) {
+function _getFallbackCardCostTier(cost: any) {
     const safeCost = Number.isFinite(Number(cost)) ? Number(cost) : null;
     if (safeCost === null) return null;
     if (safeCost === 0) return 'white';
@@ -407,12 +429,12 @@ function _getFallbackCardCostTier(cost) {
     return 'gray';
 }
 
-function _normalizeCardUseDisplayTypeLabel(label) {
+function _normalizeCardUseDisplayTypeLabel(label: any) {
     const normalized = String(label || '').trim();
     return normalized || '';
 }
 
-function _resolveCardUseDisplayTypeLabel(descriptor, cardId) {
+function _resolveCardUseDisplayTypeLabel(descriptor: any, cardId: any) {
     const directLabel = _normalizeCardUseDisplayTypeLabel(
         descriptor && (descriptor.display_type_ja || descriptor.displayTypeJa || descriptor.displayTypeLabel || descriptor.typeLabel)
     );
@@ -424,20 +446,20 @@ function _resolveCardUseDisplayTypeLabel(descriptor, cardId) {
             const cardLabel = _normalizeCardUseDisplayTypeLabel(cardDef && (cardDef.display_type_ja || cardDef.displayTypeJa));
             if (cardLabel) return cardLabel;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     try {
         if (typeof window !== 'undefined' && window.CardCatalog && Array.isArray(window.CardCatalog.cards) && cardId) {
-            const catalogCard = window.CardCatalog.cards.find((entry) => entry && entry.id === cardId);
+            const catalogCard = window.CardCatalog.cards.find((entry: any) => entry && entry.id === cardId);
             const catalogLabel = _normalizeCardUseDisplayTypeLabel(catalogCard && (catalogCard.display_type_ja || catalogCard.displayTypeJa));
             if (catalogLabel) return catalogLabel;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     return '';
 }
 
-function _normalizeCardUseVisualDescriptor(descriptor, fallbackCardId, fallbackCardName, fallbackCardCost) {
+function _normalizeCardUseVisualDescriptor(descriptor: any, fallbackCardId: any, fallbackCardName: any, fallbackCardCost: any) {
     const resolved = (descriptor && typeof descriptor === 'object') ? Object.assign({}, descriptor) : {};
     if (!resolved.cardId && fallbackCardId) {
         resolved.cardId = fallbackCardId;
@@ -454,31 +476,31 @@ function _normalizeCardUseVisualDescriptor(descriptor, fallbackCardId, fallbackC
     return resolved;
 }
 
-function _readCardUseDescriptorFromSourceElement(sourceCardEl) {
+function _readCardUseDescriptorFromSourceElement(sourceCardEl: any) {
     if (!sourceCardEl || typeof sourceCardEl.querySelector !== 'function') return {};
-    const descriptor = {};
+    const descriptor: any = {};
     try {
         if (sourceCardEl.dataset && sourceCardEl.dataset.cardId) {
             descriptor.cardId = String(sourceCardEl.dataset.cardId);
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
-        const classList = sourceCardEl.classList ? Array.from(sourceCardEl.classList) : [];
-        const costTierClass = classList.find((className) => /^cost-tier-/.test(className));
+        const classList: string[] = sourceCardEl.classList ? Array.from(sourceCardEl.classList) : [];
+        const costTierClass = classList.find((className) => /^cost-tier-/.test(className)) as string | undefined;
         if (costTierClass) {
             descriptor.costTier = costTierClass.replace(/^cost-tier-/, '');
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         if (sourceCardEl.dataset && sourceCardEl.dataset.cardType) {
             descriptor.cardType = String(sourceCardEl.dataset.cardType);
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         const nameEl = sourceCardEl.querySelector('.card-name');
         const label = String(nameEl && nameEl.textContent || '').trim();
         if (label) descriptor.name = label;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         const costValueEl = sourceCardEl.querySelector('.card-cost-badge .cost-value');
         const rawCost = String(costValueEl && costValueEl.textContent || '').trim();
@@ -486,7 +508,7 @@ function _readCardUseDescriptorFromSourceElement(sourceCardEl) {
         if (Number.isFinite(parsedCost)) {
             descriptor.cost = parsedCost;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         const typeBadgeEl = sourceCardEl.querySelector('.card-type-badge');
         const rawTypeText = String(typeBadgeEl && typeBadgeEl.textContent || '').trim();
@@ -496,11 +518,11 @@ function _readCardUseDescriptorFromSourceElement(sourceCardEl) {
                 descriptor.displayTypeLabel = normalizedTypeText;
             }
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return descriptor;
 }
 
-function _buildCardUseMovingElement(sourceCardEl, descriptor, ownerKey) {
+function _buildCardUseMovingElement(sourceCardEl: any, descriptor: any, ownerKey: any) {
     const elementDescriptor = _readCardUseDescriptorFromSourceElement(sourceCardEl);
     const visualDescriptor = _normalizeCardUseVisualDescriptor(
         Object.assign({}, elementDescriptor, descriptor || {}),
@@ -524,7 +546,7 @@ function _buildCardUseMovingElement(sourceCardEl, descriptor, ownerKey) {
     return movingCard;
 }
 
-function _buildFallbackCardUseElement(cardId, cardName, cardCost, descriptor, ownerKey) {
+function _buildFallbackCardUseElement(cardId: any, cardName: any, cardCost: any, descriptor: any, ownerKey: any) {
     const visualDescriptor = _normalizeCardUseVisualDescriptor(descriptor, cardId, cardName, cardCost);
     const resolvedCardId = visualDescriptor.cardId || null;
     const resolvedCardName = visualDescriptor.name || null;
@@ -539,22 +561,22 @@ function _buildFallbackCardUseElement(cardId, cardName, cardCost, descriptor, ow
             if (rendered && rendered.nodeType === 1) {
                 return rendered;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
 
     const cardEl = document.createElement('div');
     cardEl.className = 'card-item visible';
     if (resolvedCardId) {
-        try { cardEl.dataset.cardId = String(resolvedCardId); } catch (e) { /* ignore */ }
+        try { cardEl.dataset.cardId = String(resolvedCardId); } catch (e: any) { /* ignore */ }
     }
     if (resolvedCostTier) {
         const tierClass = `cost-tier-${resolvedCostTier}`;
         cardEl.classList.add(tierClass);
     }
-    const _typeKeyMap = { '採掘':'mining', '守護':'guard', '戦闘':'battle', '執行':'judgment', '禁忌':'taboo', '殲滅':'annihilation', '繁栄':'prosperity', '特殊':'special' };
+    const _typeKeyMap: Record<string, string> = { '採掘':'mining', '守護':'guard', '戦闘':'battle', '執行':'judgment', '禁忌':'taboo', '殲滅':'annihilation', '繁栄':'prosperity', '特殊':'special' };
     const resolvedTypeKey = _typeKeyMap[resolvedTypeLabel] || '';
     if (resolvedTypeKey) {
-        try { cardEl.dataset.cardType = resolvedTypeKey; } catch (e) { /* ignore */ }
+        try { cardEl.dataset.cardType = resolvedTypeKey; } catch (e: any) { /* ignore */ }
     }
 
     if (resolvedCardName) {
@@ -566,7 +588,7 @@ function _buildFallbackCardUseElement(cardId, cardName, cardCost, descriptor, ow
             if (typeof window !== 'undefined' && typeof window.fitCardNameElement === 'function') {
                 window.fitCardNameElement(label);
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     if (resolvedCardCost !== null) {
         const badge = document.createElement('div');
@@ -589,7 +611,7 @@ function _buildFallbackCardUseElement(cardId, cardName, cardCost, descriptor, ow
         badgeRow.className = 'card-badge-row';
         const typeBadge = document.createElement('div');
         typeBadge.className = 'card-type-badge';
-        var _typeIconMap = { '採掘':'\u26CF\uFE0E', '守護':'\u26E8\uFE0E', '戦闘':'\u2694\uFE0E', '執行':'\u2696\uFE0E', '禁忌':'\u26A0\uFE0E', '殲滅':'\u2620\uFE0E', '繁栄':'\u2728', '特殊':'\u2726' };
+        var _typeIconMap: Record<string, string> = { '採掘':'\u26CF\uFE0E', '守護':'\u26E8\uFE0E', '戦闘':'\u2694\uFE0E', '執行':'\u2696\uFE0E', '禁忌':'\u26A0\uFE0E', '殲滅':'\u2620\uFE0E', '繁栄':'\u2728', '特殊':'\u2726' };
         var _typeIcon = _typeIconMap[resolvedTypeLabel] || '';
         typeBadge.textContent = _typeIcon ? (_typeIcon + ' ' + resolvedTypeLabel) : resolvedTypeLabel;
         badgeRow.appendChild(typeBadge);
@@ -606,19 +628,19 @@ function _getHandRevealState() {
         if (typeof window === 'undefined') return null;
         const state = window.__handSequentialRevealState;
         return (state && typeof state === 'object') ? state : null;
-    } catch (e) {
+    } catch (e: any) {
         return null;
     }
 }
 
-function _setHandRevealState(nextState) {
+function _setHandRevealState(nextState: any) {
     try {
         if (typeof window === 'undefined') return;
         window.__handSequentialRevealState = nextState || null;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 }
 
-function _setHandRevealCount(playerKey, visibleCount, reason) {
+function _setHandRevealCount(playerKey: any, visibleCount: any, reason: any) {
     const ownerKey = _normalizeHandOwnerKey(playerKey);
     const safeCount = Math.max(0, Math.trunc(Number(visibleCount) || 0));
     _setHandRevealState({ playerKey: ownerKey, visibleCount: safeCount, reason: reason || null });
@@ -627,7 +649,7 @@ function _setHandRevealCount(playerKey, visibleCount, reason) {
 const THROW_CHAIN_HAND_FADE_DURATION = '1s';
 const DEFAULT_HAND_FADE_DURATION_MS = 500;
 
-function _parseHandFadeDurationMs(rawValue, fallbackMs) {
+function _parseHandFadeDurationMs(rawValue: any, fallbackMs: any) {
     const value = String(rawValue || '').trim();
     if (!value) return fallbackMs;
     if (value.endsWith('ms')) {
@@ -642,14 +664,14 @@ function _parseHandFadeDurationMs(rawValue, fallbackMs) {
     return Number.isFinite(parsed) ? Math.max(0, parsed) : fallbackMs;
 }
 
-function _cancelHandFadeInCleanup(cardEl) {
+function _cancelHandFadeInCleanup(cardEl: any) {
     if (!cardEl || typeof cardEl.__cancelHandFadeInCleanup !== 'function') return;
     const cleanup = cardEl.__cancelHandFadeInCleanup;
     delete cardEl.__cancelHandFadeInCleanup;
-    try { cleanup(); } catch (e) { /* ignore */ }
+    try { cleanup(); } catch (e: any) { /* ignore */ }
 }
 
-function _settleHandFadeInVisualState(cardEl) {
+function _settleHandFadeInVisualState(cardEl: any) {
     if (!cardEl) return;
     _cancelHandFadeInCleanup(cardEl);
     cardEl.classList.remove('card-fade-prep');
@@ -657,7 +679,7 @@ function _settleHandFadeInVisualState(cardEl) {
     cardEl.style.removeProperty('--card-fade-in-duration');
 }
 
-function _normalizeQueuedHandFadeInState(fadeState) {
+function _normalizeQueuedHandFadeInState(fadeState: any) {
     if (!fadeState || typeof fadeState !== 'object') return null;
     const token = typeof fadeState.token === 'string' && fadeState.token.trim()
         ? fadeState.token
@@ -674,32 +696,32 @@ function getQueuedHandFadeInState() {
     try {
         if (typeof window === 'undefined') return null;
         return _normalizeQueuedHandFadeInState(window.__handFadeInState || window.__handFadeInHint || null);
-    } catch (e) {
+    } catch (e: any) {
         return null;
     }
 }
 
-function _setQueuedHandFadeInState(fadeState) {
+function _setQueuedHandFadeInState(fadeState: any) {
     const nextState = _normalizeQueuedHandFadeInState(fadeState);
     try {
         if (typeof window === 'undefined') return nextState;
         window.__handFadeInState = nextState;
         window.__handFadeInHint = nextState;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return nextState;
 }
 
-function _armHandFadeInVisualCleanup(cardEl) {
+function _armHandFadeInVisualCleanup(cardEl: any) {
     if (!cardEl) return;
     _cancelHandFadeInCleanup(cardEl);
     const scope = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
     const token = {};
-    let timeoutId = null;
+    let timeoutId: any = null;
     const cleanup = () => {
         if (cardEl.__handFadeInCleanupToken !== token) return;
         cardEl.removeEventListener('animationend', onEnd);
         if (timeoutId !== null) {
-            try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
+            try { _Timer().clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
             timeoutId = null;
         }
         delete cardEl.__handFadeInCleanupToken;
@@ -712,7 +734,7 @@ function _armHandFadeInVisualCleanup(cardEl) {
         cardEl.classList.remove('card-fade-in');
         cardEl.style.removeProperty('--card-fade-in-duration');
     };
-    const onEnd = (ev) => {
+    const onEnd = (ev: any) => {
         if (ev && ev.target && ev.target !== cardEl) return;
         if (ev && ev.animationName && ev.animationName !== 'card-fade-in') return;
         settle();
@@ -730,7 +752,7 @@ function _armHandFadeInVisualCleanup(cardEl) {
     }, durationMs + 120, scope);
 }
 
-function _clearHandFadeInState(criteria) {
+function _clearHandFadeInState(criteria: any) {
     const token = (criteria && typeof criteria === 'object')
         ? (typeof criteria.token === 'string' ? criteria.token : null)
         : (typeof criteria === 'string' ? criteria : null);
@@ -752,17 +774,17 @@ function _clearHandFadeInState(criteria) {
             || (activeHint && ownerKey && activeHint.playerKey === ownerKey)) {
             window.__handFadeInHint = null;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 }
 
-function _applyQueuedHandFadeIn(fadeState, payload) {
+function _applyQueuedHandFadeIn(fadeState: any, payload: any) {
     if (!fadeState || !fadeState.token) return;
     try {
         const activeState = getQueuedHandFadeInState();
         if (!activeState || activeState.token !== fadeState.token) return;
 
         const handSelector = _resolveHandSelectorByOwner(fadeState.playerKey);
-        const latestCard = document.querySelector(`${handSelector} .card-item:last-child`);
+        const latestCard: HTMLElement | null = document.querySelector(`${handSelector} .card-item:last-child`);
         if (latestCard) {
             _settleHandFadeInVisualState(latestCard);
             if (payload && payload.reason === 'generated_throw_chain') {
@@ -773,20 +795,20 @@ function _applyQueuedHandFadeIn(fadeState, payload) {
             latestCard.classList.add('card-fade-in');
             _armHandFadeInVisualCleanup(latestCard);
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     _clearHandFadeInState(fadeState.token);
 }
 
-function _queryOwnerHandFadeElements(playerKey) {
+function _queryOwnerHandFadeElements(playerKey: any) {
     const handElements = _getHandElementsByOwner(playerKey);
-    const matches = [];
-    handElements.forEach((handEl) => {
+    const matches: any[] = [];
+    handElements.forEach((handEl: any) => {
         matches.push(...Array.from(handEl.querySelectorAll('.card-item.card-fade-prep, .card-item.card-fade-in')));
     });
     return matches;
 }
 
-function settleOwnerHandFadeIn(playerKey) {
+function settleOwnerHandFadeIn(playerKey: any) {
     const ownerKey = _normalizeHandOwnerKey(playerKey);
     _queryOwnerHandFadeElements(ownerKey).forEach((cardEl) => {
         _settleHandFadeInVisualState(cardEl);
@@ -795,7 +817,7 @@ function settleOwnerHandFadeIn(playerKey) {
     return true;
 }
 
-function _scheduleQueuedHandFadeIn(fadeState, payload) {
+function _scheduleQueuedHandFadeIn(fadeState: any, payload: any) {
     if (!fadeState || !fadeState.token) return;
 
     const run = () => _applyQueuedHandFadeIn(fadeState, payload || null);
@@ -809,27 +831,27 @@ function _scheduleQueuedHandFadeIn(fadeState, payload) {
             raf(run);
             return;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     run();
 }
 
-function _installAnimationResolveFallback(done, timeoutMs) {
+function _installAnimationResolveFallback(done: any, timeoutMs: any) {
     if (typeof done !== 'function') return function () {};
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return function () {};
 
-    let fallbackId = null;
+    let fallbackId: any = null;
     try {
         fallbackId = setTimeout(() => {
             fallbackId = null;
             done();
         }, timeoutMs);
-    } catch (e) {
+    } catch (e: any) {
         fallbackId = null;
     }
 
     return function clearFallback() {
         if (fallbackId === null) return;
-        try { clearTimeout(fallbackId); } catch (e) { /* ignore */ }
+        try { clearTimeout(fallbackId); } catch (e: any) { /* ignore */ }
         fallbackId = null;
     };
 }
@@ -838,11 +860,11 @@ function _getHandLayerAnimationRoot() {
     if (typeof window !== 'undefined' && window) return window;
     try {
         if (typeof globalThis !== 'undefined' && globalThis) return globalThis;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
-function _getHandLayerAnimationQueueTail(rootRef) {
+function _getHandLayerAnimationQueueTail(rootRef: any) {
     if (!rootRef) return Promise.resolve();
     const tail = rootRef.__handLayerAnimationQueueTail;
     return (tail && typeof tail.then === 'function')
@@ -850,14 +872,14 @@ function _getHandLayerAnimationQueueTail(rootRef) {
         : Promise.resolve();
 }
 
-function _setHandLayerAnimationQueueTail(rootRef, nextTail) {
+function _setHandLayerAnimationQueueTail(rootRef: any, nextTail: any) {
     if (!rootRef) return;
     try {
         rootRef.__handLayerAnimationQueueTail = nextTail || null;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 }
 
-function _enqueueHandLayerAnimation(task) {
+function _enqueueHandLayerAnimation(task: any) {
     const runTask = (typeof task === 'function') ? task : function () { return Promise.resolve(); };
     const rootRef = _getHandLayerAnimationRoot();
     if (!rootRef) {
@@ -865,19 +887,19 @@ function _enqueueHandLayerAnimation(task) {
     }
 
     const previousTail = _getHandLayerAnimationQueueTail(rootRef);
-    let releaseQueue = function () {};
-    const gate = new Promise((resolve) => {
-        releaseQueue = resolve;
+    let releaseQueue: (value?: unknown) => void = function () {};
+    const gate = new Promise<void>((resolve) => {
+        releaseQueue = resolve as (value?: unknown) => void;
     });
     const nextTail = previousTail.then(() => gate);
     _setHandLayerAnimationQueueTail(rootRef, nextTail);
 
     const clearTailIfCurrent = () => {
         try {
-            if (rootRef.__handLayerAnimationQueueTail === nextTail) {
-                rootRef.__handLayerAnimationQueueTail = null;
+            if ((rootRef as any).__handLayerAnimationQueueTail === nextTail) {
+                (rootRef as any).__handLayerAnimationQueueTail = null;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     };
 
     return previousTail.then(() => {
@@ -888,8 +910,8 @@ function _enqueueHandLayerAnimation(task) {
     });
 }
 
-function _animateCompat(el, keyframes, options, scope) {
-    return new Promise((resolve) => {
+function _animateCompat(el: any, keyframes: any, options: any, scope: any) {
+    return new Promise<void>((resolve) => {
         if (!el) return resolve();
         const duration = Math.max(0, Number(options && options.duration) || 0);
         let done = false;
@@ -904,17 +926,17 @@ function _animateCompat(el, keyframes, options, scope) {
             if (typeof el.animate === 'function') {
                 const anim = el.animate(keyframes, options || {});
                 if (anim) {
-                    try { anim.addEventListener('finish', finish, { once: true }); } catch (e) { /* ignore */ }
+                    try { anim.addEventListener('finish', finish, { once: true }); } catch (e: any) { /* ignore */ }
                     try {
                         if (anim.finished && typeof anim.finished.then === 'function') {
                             anim.finished.then(finish).catch(finish);
                         }
-                    } catch (e) { /* ignore */ }
+                    } catch (e: any) { /* ignore */ }
                     _Timer().setTimeout(finish, duration + 140, scope);
                     return;
                 }
             }
-        } catch (e) { /* fallback below */ }
+        } catch (e: any) { /* fallback below */ }
 
         // Fallback path: transition-based minimal animation
         const frames = Array.isArray(keyframes) ? keyframes : [];
@@ -927,7 +949,7 @@ function _animateCompat(el, keyframes, options, scope) {
         if (supportsStyle) {
             if (first && Object.prototype.hasOwnProperty.call(first, 'transform')) el.style.transform = first.transform;
             if (first && Object.prototype.hasOwnProperty.call(first, 'opacity')) el.style.opacity = first.opacity;
-            try { void el.offsetHeight; } catch (e) { /* ignore */ }
+            try { void el.offsetHeight; } catch (e: any) { /* ignore */ }
 
             const transitionParts = [];
             if ((first && Object.prototype.hasOwnProperty.call(first, 'transform')) || (last && Object.prototype.hasOwnProperty.call(last, 'transform'))) {
@@ -944,18 +966,18 @@ function _animateCompat(el, keyframes, options, scope) {
                 try {
                     if (last && Object.prototype.hasOwnProperty.call(last, 'transform')) el.style.transform = last.transform;
                     if (last && Object.prototype.hasOwnProperty.call(last, 'opacity')) el.style.opacity = last.opacity;
-                } catch (e) { /* ignore */ }
+                } catch (e: any) { /* ignore */ }
             };
             try {
                 if (typeof requestAnimationFrame === 'function') requestAnimationFrame(applyLast);
                 else _Timer().setTimeout(applyLast, 16, scope);
-            } catch (e) {
+            } catch (e: any) {
                 applyLast();
             }
         }
 
         _Timer().setTimeout(() => {
-            try { if (supportsStyle) el.style.transition = prevTransition; } catch (e) { /* ignore */ }
+            try { if (supportsStyle) el.style.transition = prevTransition; } catch (e: any) { /* ignore */ }
             finish();
         }, duration + 40, scope);
     });
@@ -967,7 +989,7 @@ function _animateCompat(el, keyframes, options, scope) {
  * @param {number} col - 列
  * @returns {Promise<void>}
  */
-function animateDestroyAt(row, col, options) {
+function animateDestroyAt(row: any, col: any, options: any) {
     // Unified destroy path: use the same fade-out logic as DESTROY playback.
     return animateFadeOutAt(row, col, options);
 }
@@ -979,9 +1001,9 @@ function animateDestroyAt(row, col, options) {
  * @param {number} col - 列
  * @returns {Promise<void>}
  */
-function animateFadeOutAt(row, col, options) {
+function animateFadeOutAt(row: any, col: any, options: any) {
     const opts = options || {};
-    return new Promise(resolve => {
+    return new Promise<void>(resolve=> {
         const root = (typeof boardEl !== 'undefined' && boardEl) ? boardEl : document;
         const cell = root.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
         if (!cell) return resolve();
@@ -1019,13 +1041,13 @@ function animateFadeOutAt(row, col, options) {
         void disc.offsetWidth;
 
         let resolved = false;
-        let timerId = null;
+        let timerId: any = null;
         const safeResolve = () => {
             if (resolved) return;
             resolved = true;
             disc.removeEventListener('animationend', onEnd);
             if (timerId !== null) {
-                try { _Timer().clearTimeout(timerId); } catch (e) {}
+                try { _Timer().clearTimeout(timerId); } catch (e: any) { /* Intentionally empty: timer cleanup guard */ }
                 timerId = null;
             }
             if (createdGhost && disc.parentElement) {
@@ -1038,12 +1060,12 @@ function animateFadeOutAt(row, col, options) {
         const fadeMs = (typeof SharedConstants !== 'undefined' && SharedConstants.DESTROY_FADE_MS) ? SharedConstants.DESTROY_FADE_MS : ((typeof window !== 'undefined' && window.DESTROY_FADE_MS) ? window.DESTROY_FADE_MS : 500);
         const startTs = Date.now();
 
-        const onEnd = (ev) => {
+        const onEnd = (ev: any) => {
             // Guard: if animationend fires immediately (duration 0), wait for the expected fade window.
             try {
                 const elapsed = Date.now() - startTs;
                 if (elapsed < fadeMs) return;
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
             safeResolve();
         };
             const useAnimationEnd = !opts.createGhost; // Keep this line for clarity
@@ -1060,8 +1082,8 @@ function animateFadeOutAt(row, col, options) {
  * @param {number} col
  * @returns {Promise<void>}
  */
-function animateStrongWillApply(row, col) {
-    return new Promise(resolve => {
+function animateStrongWillApply(row: any, col: any) {
+    return new Promise<void>(resolve=> {
         const cell = boardEl.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
         if (!cell) return resolve();
         const disc = cell.querySelector('.disc');
@@ -1088,7 +1110,7 @@ function animateStrongWillApply(row, col) {
             disc.classList.remove('strong-will-apply');
             resolve();
         };
-        const onEnd = (ev) => {
+        const onEnd = (ev: any) => {
             safeResolve();
         };
         disc.addEventListener('animationend', onEnd);
@@ -1105,9 +1127,9 @@ function animateStrongWillApply(row, col) {
  * @param {number} col - 列
  * @param {Function} onComplete - 完了コールバック
  */
-function playHandAnimation(player, row, col, onComplete, visualOptions) {
-    return _enqueueHandLayerAnimation(() => new Promise((resolveQueue) => {
-        const syncCardAnimating = (locked) => {
+function playHandAnimation(player: any, row: any, col: any, onComplete: any, visualOptions: any) {
+    return _enqueueHandLayerAnimation(() => new Promise<void>((resolveQueue) => {
+        const syncCardAnimating = (locked: any) => {
             _setCardAnimatingState(locked);
         };
         const refreshCardUi = () => {
@@ -1117,13 +1139,13 @@ function playHandAnimation(player, row, col, onComplete, visualOptions) {
             _setProcessingState(false);
         };
         const releaseQueue = () => {
-            try { resolveQueue(); } catch (e) { /* ignore */ }
+            try { resolveQueue(); } catch (e: any) { /* ignore */ }
         };
         const completeImmediately = () => {
             unlockProcessing();
             syncCardAnimating(false);
             refreshCardUi();
-            try { if (typeof onComplete === 'function') onComplete(); } catch (e) { /* ignore */ }
+            try { if (typeof onComplete === 'function') onComplete(); } catch (e: any) { /* ignore */ }
             releaseQueue();
         };
 
@@ -1203,7 +1225,7 @@ function playHandAnimation(player, row, col, onComplete, visualOptions) {
         const completeMove = () => {
             if (completed) return;
             completed = true;
-            try { if (typeof onComplete === 'function') onComplete(); } catch (e) { /* ignore */ }
+            try { if (typeof onComplete === 'function') onComplete(); } catch (e: any) { /* ignore */ }
         };
         const cleanup = () => {
             layerEl.style.display = 'none';
@@ -1253,7 +1275,7 @@ function playHandAnimation(player, row, col, onComplete, visualOptions) {
                         SoundEngine.playEffectByKey('stone_place');
                     }
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
             completeMove();
             await placeAnim;
 
@@ -1279,7 +1301,7 @@ function playHandAnimation(player, row, col, onComplete, visualOptions) {
  * @param {{player:string|number,count?:number,reason?:string}} payload
  * @returns {Promise<void>}
  */
-function playClearHandAnimation(payload) {
+function playClearHandAnimation(payload: any) {
     const data = payload || {};
     const blackVal = (typeof BLACK !== 'undefined') ? BLACK : 1;
     const ownerKey = (data.player === 'white' || data.player === -1 || data.player === '-1') ? 'white'
@@ -1287,7 +1309,7 @@ function playClearHandAnimation(payload) {
             : 'black';
     const clearReason = data.reason || null;
 
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
         let clearResolveFallback = function () {};
         if (clearReason === 'rebuild_will') {
             _setHandRevealCount(ownerKey, 0, clearReason);
@@ -1319,7 +1341,7 @@ function playClearHandAnimation(payload) {
             return;
         }
 
-        const cards = Array.from(handEl.querySelectorAll('.card-item'));
+        const cards = Array.from(handEl.querySelectorAll('.card-item')) as HTMLElement[];
         if (!cards.length) {
             done();
             return;
@@ -1388,7 +1410,7 @@ function playClearHandAnimation(payload) {
         );
 
         const animations = fadeTargets.map((cardEl, index) => {
-            return new Promise((resolveOne) => {
+            return new Promise<void>((resolveOne) => {
                 _Timer().setTimeout(async () => {
                     try {
                         await _animateCompat(cardEl, [
@@ -1399,10 +1421,10 @@ function playClearHandAnimation(payload) {
                             easing: 'ease-in',
                             fill: 'forwards'
                         }, scope);
-                    } catch (e) { /* ignore */ }
+                    } catch (e: any) { /* ignore */ }
                     try {
-                        if (cardEl && cardEl.parentElement) cardEl.parentElement.removeChild(cardEl);
-                    } catch (e) { /* ignore */ }
+                        if (cardEl && (cardEl as HTMLElement).parentElement) (cardEl as HTMLElement).parentElement!.removeChild(cardEl);
+                    } catch (e: any) { /* ignore */ }
                     resolveOne();
                 }, index * staggerMs, scope);
             });
@@ -1412,7 +1434,7 @@ function playClearHandAnimation(payload) {
     });
 }
 
-function _finalizeHandAddAnimation(payload, options) {
+function _finalizeHandAddAnimation(payload: any, options: any) {
     const data = payload || {};
     const opts = options || {};
     const toPlayerKey = _normalizeHandOwnerKey(data.player);
@@ -1433,7 +1455,7 @@ function _finalizeHandAddAnimation(payload, options) {
     try {
         _requestCardUiSyncForAnimationUtils('animation-utils:finalize-hand-add');
         _scheduleQueuedHandFadeIn(fadeState, data);
-    } catch (e) {
+    } catch (e: any) {
         _clearHandFadeInState(fadeState.token);
     }
 
@@ -1443,8 +1465,8 @@ function _finalizeHandAddAnimation(payload, options) {
         const hand = (resolvedCardState && resolvedCardState.hands && Array.isArray(resolvedCardState.hands[toPlayerKey]))
             ? resolvedCardState.hands[toPlayerKey]
             : null;
-        const handLen = hand ? hand.length : null;
-        if (Number.isFinite(handLen) && Number(revealState.visibleCount) >= handLen) {
+        const handLen: number | null = hand ? hand.length : null;
+        if (Number.isFinite(handLen) && handLen !== null && Number(revealState.visibleCount) >= handLen) {
             _setHandRevealState(null);
         }
     }
@@ -1455,7 +1477,7 @@ function _finalizeHandAddAnimation(payload, options) {
         if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.pulseDeckUI === 'function') {
             __uiImpl.pulseDeckUI();
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 }
 
 function _getCaptureReservedHandSlotState() {
@@ -1463,11 +1485,11 @@ function _getCaptureReservedHandSlotState() {
         if (typeof window !== 'undefined' && window.__captureReservedHandSlotState && typeof window.__captureReservedHandSlotState === 'object') {
             return window.__captureReservedHandSlotState;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
-function _clearCaptureReservedHandSlotState(expectedToken) {
+function _clearCaptureReservedHandSlotState(expectedToken: any) {
     try {
         if (typeof window === 'undefined') return;
         if (!window.__captureReservedHandSlotState) return;
@@ -1475,23 +1497,23 @@ function _clearCaptureReservedHandSlotState(expectedToken) {
             return;
         }
         window.__captureReservedHandSlotState = null;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 }
 
-function _finalizeCaptureToHandAnimation(payload) {
+function _finalizeCaptureToHandAnimation(payload: any) {
     const data = payload || {};
     _clearCaptureReservedHandSlotState(data.reservedToken || null);
     _requestCardUiSyncForAnimationUtils('animation-utils:finalize-capture-hand');
 }
 
-function _resolveCaptureTargetCardElement(playerKey, handIndex) {
+function _resolveCaptureTargetCardElement(playerKey: any, handIndex: any) {
     const handEl = _resolveHandElementByOwner(playerKey);
     if (!handEl || !Number.isInteger(handIndex)) return null;
     return handEl.querySelector(`.card-item[data-owner-key="${playerKey}"][data-hand-index="${handIndex}"]`)
         || handEl.querySelector(`.card-item[data-hand-index="${handIndex}"]`);
 }
 
-function playCaptureToHandAnimation(payload) {
+function playCaptureToHandAnimation(payload: any) {
     const data = payload || {};
     const toPlayerKey = _normalizeHandOwnerKey(data.player);
     const reservedState = _getCaptureReservedHandSlotState();
@@ -1499,7 +1521,7 @@ function playCaptureToHandAnimation(payload) {
         ? (reservedState.token || null)
         : null;
 
-    return _enqueueHandLayerAnimation(() => new Promise((resolve) => {
+    return _enqueueHandLayerAnimation(() => new Promise<void>((resolve) => {
         const done = () => {
             _finalizeCaptureToHandAnimation(Object.assign({}, data, { reservedToken }));
             resolve();
@@ -1539,8 +1561,8 @@ function playCaptureToHandAnimation(payload) {
 
         const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
         let cleanupStarted = false;
-        let movingStone = null;
-        let revealCard = null;
+        let movingStone: any = null;
+        let revealCard: any = null;
         let timeoutId = _Timer().setTimeout(() => {
             void cleanup();
         }, 2600, sc);
@@ -1550,10 +1572,10 @@ function playCaptureToHandAnimation(payload) {
             cleanupStarted = true;
             try {
                 if (movingStone && movingStone.parentElement) movingStone.parentElement.removeChild(movingStone);
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
             try {
                 if (revealCard && revealCard.parentElement) revealCard.parentElement.removeChild(revealCard);
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
             if (timeoutId) {
                 _Timer().clearTimeout(timeoutId);
                 timeoutId = null;
@@ -1570,7 +1592,7 @@ function playCaptureToHandAnimation(payload) {
             if (data.sourceSpecialType && typeof applyStoneVisualEffect === 'function') {
                 try {
                     applyStoneVisualEffect(movingStone, data.sourceSpecialType, { owner: sourceOwnerKey });
-                } catch (e) { /* ignore */ }
+                } catch (e: any) { /* ignore */ }
             }
         }
         movingStone.style.position = 'fixed';
@@ -1661,7 +1683,7 @@ function playCaptureToHandAnimation(payload) {
  * @param {{player:string|number, cardId?:string|null, count?:number}} payload
  * @returns {Promise<void>}
  */
-function playDrawCardHandAnimation(payload) {
+function playDrawCardHandAnimation(payload: any) {
     const data = payload || {};
     const toPlayerKey = _normalizeHandOwnerKey(data.player);
 
@@ -1679,15 +1701,15 @@ function playDrawCardHandAnimation(payload) {
             }
             window.__lastDrawAnimAt = now;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
-    return _enqueueHandLayerAnimation(() => new Promise(resolve => {
+    return _enqueueHandLayerAnimation(() => new Promise<void>(resolve=> {
         let clearResolveFallback = function () {};
         const done = () => {
             clearResolveFallback();
             try {
                 if (typeof window !== 'undefined') window.__drawHandAnimActive = false;
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
 
             _finalizeHandAddAnimation(data, { pulseDeck: true });
 
@@ -1698,7 +1720,7 @@ function playDrawCardHandAnimation(payload) {
             if (typeof window !== 'undefined') {
                 window.__drawHandAnimActive = true;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         if (_isNoAnim()) {
             done();
@@ -1725,10 +1747,9 @@ function playDrawCardHandAnimation(payload) {
         // Keep lock local to this animation only.
         _setCardAnimatingState(true);
         const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
-        let heldCard = null;
+        let heldCard: any = null;
         let cleanupStarted = false;
-        let timeoutId = null;
-
+        let timeoutId: any = null;
         const deckRect = deckEl.getBoundingClientRect();
         const handRect = handEl.getBoundingClientRect();
 
@@ -1753,7 +1774,7 @@ function playDrawCardHandAnimation(payload) {
             cleanupStarted = true;
             try {
                 if (heldCard && heldCard.parentElement) heldCard.parentElement.removeChild(heldCard);
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
             layerEl.style.display = 'none';
             wrapperEl.style.display = 'none';
             if (heldStoneEl) heldStoneEl.style.display = 'none';
@@ -1763,7 +1784,7 @@ function playDrawCardHandAnimation(payload) {
                 timeoutId = null;
             }
             _setCardAnimatingState(false);
-            try { if (typeof window !== 'undefined') window.__drawHandAnimActive = false; } catch (e) { /* ignore */ }
+            try { if (typeof window !== 'undefined') window.__drawHandAnimActive = false; } catch (e: any) { /* ignore */ }
             done();
         };
         timeoutId = _Timer().setTimeout(cleanup, 2200, sc);
@@ -1807,28 +1828,28 @@ function playDrawCardHandAnimation(payload) {
     }));
 }
 
-function playDirectHandAddAnimation(payload) {
+function playDirectHandAddAnimation(payload: any) {
     const data = payload || {};
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
         _finalizeHandAddAnimation(data, { pulseDeck: false });
         resolve();
     });
 }
 
-function _canViewerSeeTrapPlacement(playerKey) {
+function _canViewerSeeTrapPlacement(playerKey: any) {
     try {
         const root = (typeof window !== 'undefined' && window)
             ? window
             : ((typeof globalThis !== 'undefined' && globalThis) ? globalThis : null);
         if (!root) return true;
-        if (root.BOARD_VIEWER_KEY === 'black' || root.BOARD_VIEWER_KEY === 'white') {
-            return root.BOARD_VIEWER_KEY === playerKey;
+        if ((root as any).BOARD_VIEWER_KEY === 'black' || (root as any).BOARD_VIEWER_KEY === 'white') {
+            return (root as any).BOARD_VIEWER_KEY === playerKey;
         }
-        if (root.LOCAL_PLAYER_KEY === 'black' || root.LOCAL_PLAYER_KEY === 'white') {
-            return root.LOCAL_PLAYER_KEY === playerKey;
+        if ((root as any).LOCAL_PLAYER_KEY === 'black' || (root as any).LOCAL_PLAYER_KEY === 'white') {
+            return (root as any).LOCAL_PLAYER_KEY === playerKey;
         }
-        if (root.DEBUG_HUMAN_VS_HUMAN === true) return true;
-    } catch (e) { /* ignore */ }
+        if ((root as any).DEBUG_HUMAN_VS_HUMAN === true) return true;
+    } catch (e: any) { /* ignore */ }
     return true;
 }
 
@@ -1837,16 +1858,16 @@ function _resolveTrapPlacementBoardElement() {
         if (typeof boardEl !== 'undefined' && boardEl && typeof boardEl.querySelector === 'function') {
             return boardEl;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
             return document.getElementById('board');
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
-function playTrapPlacementFlash(row, col, playerKey) {
+function playTrapPlacementFlash(row: any, col: any, playerKey: any) {
     // Trap visuals are revealed only by explicit TRAP_REVEAL playback timing.
     void row;
     void col;
@@ -1859,7 +1880,7 @@ function playTrapPlacementFlash(row, col, playerKey) {
  * @param {{player?:string|number, owner?:string|number, cardId?:string|null, cost?:number|null, name?:string|null}} payload
  * @returns {Promise<void>}
  */
-function playCardUseHandAnimation(payload) {
+function playCardUseHandAnimation(payload: any) {
     const data = payload || {};
     const blackVal = (typeof BLACK !== 'undefined') ? BLACK : 1;
     const owner = (data.owner !== undefined && data.owner !== null) ? data.owner : data.player;
@@ -1875,9 +1896,9 @@ function playCardUseHandAnimation(payload) {
             }
             window.__lastCardUseAnimAt = now;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
-    return _enqueueHandLayerAnimation(() => new Promise((resolve, reject) => {
+    return _enqueueHandLayerAnimation(() => new Promise<void>((resolve, reject) => {
         let clearResolveFallback = function () {};
         let disappearSoundPlayed = false;
         let disappearHookStarted = false;
@@ -1889,7 +1910,7 @@ function playCardUseHandAnimation(payload) {
             clearResolveFallback();
             resolve();
         };
-        const fail = (error) => {
+        const fail = (error: any) => {
             if (settled) return;
             settled = true;
             clearResolveFallback();
@@ -1908,7 +1929,7 @@ function playCardUseHandAnimation(payload) {
                 await data.onDisappear();
             }
         };
-        const setCardAnimating = (locked) => {
+        const setCardAnimating = (locked: any) => {
             _setCardAnimatingState(locked);
         };
 
@@ -1932,7 +1953,7 @@ function playCardUseHandAnimation(payload) {
 
         setCardAnimating(true);
         const sc = (typeof window !== 'undefined' && window._currentPlaybackScope) ? window._currentPlaybackScope : null;
-        let movingCard = null;
+        let movingCard: any = null;
         let timeoutId = _Timer().setTimeout(() => {
             void cleanup();
         }, 3200, sc);
@@ -1985,13 +2006,13 @@ function playCardUseHandAnimation(payload) {
         const dx = targetX - startX;
         const dy = targetY - startY;
         const liftY = fromBottom ? -14 : 14;
-        const waitHold = () => new Promise((r) => _Timer().setTimeout(r, HOLD_MS, sc));
+        const waitHold = () => new Promise<void>((r) => _Timer().setTimeout(r, HOLD_MS, sc));
         const cleanup = async () => {
             if (cleanupStarted) return;
             cleanupStarted = true;
             try {
                 if (movingCard && movingCard.parentElement) movingCard.parentElement.removeChild(movingCard);
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
             if (handImageEl) handImageEl.style.visibility = prevHandImageVisibility;
             if (heldStoneEl) heldStoneEl.style.display = prevHeldStoneDisplay;
             layerEl.style.display = 'none';
@@ -2003,7 +2024,7 @@ function playCardUseHandAnimation(payload) {
                 await runDisappearEffectsOnce();
                 setCardAnimating(false);
                 done();
-            } catch (error) {
+            } catch (error: any) {
                 setCardAnimating(false);
                 fail(error);
             }
@@ -2068,9 +2089,9 @@ function playCardUseHandAnimation(payload) {
  * @param {{row:number,col:number}} to
  * @returns {Promise<void>}
  */
-function animateHyperactiveMove(from, to, options) {
+function animateHyperactiveMove(from: any, to: any, options: any) {
     const opts = options || {};
-    return new Promise(resolve => {
+    return new Promise<void>(resolve=> {
         const fromCell = boardEl.querySelector(`.cell[data-row="${from.row}"][data-col="${from.col}"]`);
         const toCell = boardEl.querySelector(`.cell[data-row="${to.row}"][data-col="${to.col}"]`);
         if (!fromCell || !toCell) return resolve();
@@ -2131,7 +2152,7 @@ function animateHyperactiveMove(from, to, options) {
                     if (!Number.isFinite(discInsetX) && Number.isFinite(cssDiscInset) && cssDiscInset >= 0) discInsetX = cssDiscInset;
                     if (!Number.isFinite(discInsetY) && Number.isFinite(cssDiscInset) && cssDiscInset >= 0) discInsetY = cssDiscInset;
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
         }
 
         if (!(discWidth > 0)) discWidth = fromRect.width * 0.82;
@@ -2158,7 +2179,7 @@ function animateHyperactiveMove(from, to, options) {
                 fromCell.removeChild(fromDisc);
             }
             toCell.appendChild(fromDisc);
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return resolve();
     }
 
@@ -2179,9 +2200,9 @@ function animateHyperactiveMove(from, to, options) {
         fxLayer.appendChild(ghost);
 
         let finished = false;
-        let timeoutId = null;
-        let transitionKickoffId = null;
-        const handleTransitionEnd = (event) => {
+        let timeoutId: any = null;
+        let transitionKickoffId: any = null;
+        const handleTransitionEnd = (event: any) => {
             if (!event || event.target !== ghost) return;
             const propertyName = String(event.propertyName || '');
             if (propertyName && propertyName !== 'left' && propertyName !== 'top') return;
@@ -2195,10 +2216,10 @@ function animateHyperactiveMove(from, to, options) {
                 timeoutId = null;
             }
             if (transitionKickoffId !== null && typeof cancelAnimationFrame === 'function') {
-                try { cancelAnimationFrame(transitionKickoffId); } catch (e) { /* ignore */ }
+                try { cancelAnimationFrame(transitionKickoffId); } catch (e: any) { /* ignore */ }
                 transitionKickoffId = null;
             }
-            try { ghost.removeEventListener('transitionend', handleTransitionEnd); } catch (e) { /* ignore */ }
+            try { ghost.removeEventListener('transitionend', handleTransitionEnd); } catch (e: any) { /* ignore */ }
             if (ghost.parentElement) ghost.parentElement.removeChild(ghost);
             // Materialize the moved disc immediately so multiple hyperactive moves
             // don't look like teleporting/reappearing after a batch re-render.
@@ -2214,7 +2235,7 @@ function animateHyperactiveMove(from, to, options) {
                     fromCell.removeChild(fromDisc);
                 }
                 toCell.appendChild(fromDisc);
-            } catch (e) {
+            } catch (e: any) {
                 // ignore DOM move errors; board will re-render after this animation anyway
             }
             resolve();
@@ -2237,7 +2258,7 @@ function animateHyperactiveMove(from, to, options) {
             } else {
                 _Timer().setTimeout(startTransition, 0, sc);
             }
-        } catch (e) {
+        } catch (e: any) {
             _Timer().setTimeout(startTransition, 0, sc);
         }
         timeoutId = _Timer().setTimeout(finish, durationMs + 220, sc);

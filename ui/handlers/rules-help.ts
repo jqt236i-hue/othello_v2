@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -7,13 +6,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
+declare var CardInteractionEffects: any;
+declare var CARD_DEFS: any;
+
 'use strict';
-
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
 
 const EFFECT_GLOSSARY_TERMS = Object.freeze([
   'マス破壊',

@@ -1,5 +1,4 @@
-// @ts-nocheck
-import type { CardState, GameState, PlayerKey } from '../../src/types';
+import type { CardState, GameState, PlayerKey } from '../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -35,60 +34,60 @@ const _observationStoneRewardByToken = new Map();
 // Module-level token: survives gameState replacement by network snapshots.
 // Updated each time showResult() is called so stale delayed callbacks can detect
 // that a newer invocation has superseded them.
-let _pendingResultToken = null;
+let _pendingResultToken: any = null;
 const ResultOverlayOwnerHelpersModule = (() => {
     if (typeof require === 'function') {
         try {
             return require('../utils/owner-helpers');
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) return globalThis.OwnerHelpers;
-    } catch (e) { /* ignore */ }
+        if (typeof globalThis !== 'undefined' && (globalThis as any).OwnerHelpers) return (globalThis as any).OwnerHelpers;
+    } catch (e: any) { /* ignore */ }
     return null;
 })();
 const ResultOverlayGachaHelpersModule = (() => {
     if (typeof require === 'function') {
         try {
             return require('../shared/gacha-helpers.js');
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.GachaHelpersModule) return globalThis.GachaHelpersModule;
-    } catch (e) { /* ignore */ }
+        if (typeof globalThis !== 'undefined' && (globalThis as any).GachaHelpersModule) return (globalThis as any).GachaHelpersModule;
+    } catch (e: any) { /* ignore */ }
     return null;
 })();
 const ResultOverlayGachaProgressModule = (() => {
     if (typeof require === 'function') {
         try {
             return require('./storage/gacha-progress.js');
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.GachaProgressStorageModule) return globalThis.GachaProgressStorageModule;
-    } catch (e) { /* ignore */ }
+        if (typeof globalThis !== 'undefined' && (globalThis as any).GachaProgressStorageModule) return (globalThis as any).GachaProgressStorageModule;
+    } catch (e: any) { /* ignore */ }
     return null;
 })();
 const ResultOverlayBoardUtilsModule = (() => {
     if (typeof require === 'function') {
         try {
             return require('../shared/shared-board-utils');
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.SharedBoardUtils) return globalThis.SharedBoardUtils;
-    } catch (e) { /* ignore */ }
+        if (typeof globalThis !== 'undefined' && (globalThis as any).SharedBoardUtils) return (globalThis as any).SharedBoardUtils;
+    } catch (e: any) { /* ignore */ }
     return null;
 })();
 const ResultOverlayBoardUtilsNewModule = (() => {
     if (typeof require === 'function') {
         try {
             return require('../shared/board-utils');
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.BoardUtils) return globalThis.BoardUtils;
-    } catch (e) { /* ignore */ }
+        if (typeof globalThis !== 'undefined' && (globalThis as any).BoardUtils) return (globalThis as any).BoardUtils;
+    } catch (e: any) { /* ignore */ }
     return null;
 })();
 
@@ -99,7 +98,7 @@ function createEmptyResultPresentationState() {
     };
 }
 
-function ensureResultPresentationState(resultState) {
+function ensureResultPresentationState(resultState: any) {
     if (!resultState || typeof resultState !== 'object') return null;
     if (!Object.prototype.hasOwnProperty.call(resultState, 'lastResultVersionShown')) {
         resultState.lastResultVersionShown = null;
@@ -110,7 +109,7 @@ function ensureResultPresentationState(resultState) {
     return resultState;
 }
 
-function resetResultPresentationState(resultState) {
+function resetResultPresentationState(resultState: any) {
     const target = ensureResultPresentationState(resultState);
     if (!target) return createEmptyResultPresentationState();
     target.lastResultVersionShown = null;
@@ -118,7 +117,7 @@ function resetResultPresentationState(resultState) {
     return target;
 }
 
-function normalizeDiscCounts(counts) {
+function normalizeDiscCounts(counts: any) {
     const normalized = (counts && typeof counts === 'object') ? counts : {};
     return {
         black: Number.isFinite(Number(normalized.black)) ? Number(normalized.black) : 0,
@@ -126,7 +125,7 @@ function normalizeDiscCounts(counts) {
     };
 }
 
-function countDiscsFromBoardState(gameStateRef) {
+function countDiscsFromBoardState(gameStateRef: any) {
     const stateRef = (gameStateRef && typeof gameStateRef === 'object') ? gameStateRef : null;
     const board = stateRef && Array.isArray(stateRef.board) ? stateRef.board : [];
     if (ResultOverlayBoardUtilsNewModule && typeof ResultOverlayBoardUtilsNewModule.countDiscs === 'function') {
@@ -144,23 +143,23 @@ function countDiscsFromBoardState(gameStateRef) {
     return counts;
 }
 
-function countDiscs(gameStateRef) {
+function countDiscs(gameStateRef: any) {
     const stateRef = (gameStateRef && typeof gameStateRef === 'object')
         ? gameStateRef
         : (typeof gameState !== 'undefined' ? gameState : null);
     try {
         if (
             typeof globalThis !== 'undefined' &&
-            typeof globalThis.countDiscs === 'function' &&
-            globalThis.countDiscs !== countDiscs
+            typeof (globalThis as any).countDiscs === 'function' &&
+            (globalThis as any).countDiscs !== countDiscs
         ) {
-            return normalizeDiscCounts(globalThis.countDiscs(stateRef));
+            return normalizeDiscCounts((globalThis as any).countDiscs(stateRef));
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return countDiscsFromBoardState(stateRef);
 }
 
-function parseResultPlayerKey(value) {
+function parseResultPlayerKey(value: any) {
     try {
         if (ResultOverlayOwnerHelpersModule) {
             const parsed = (typeof ResultOverlayOwnerHelpersModule.normalizePlayerKeyOptional === 'function')
@@ -170,20 +169,20 @@ function parseResultPlayerKey(value) {
                     : null);
             if (parsed === 'black' || parsed === 'white') return parsed;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     if (value === 'black' || value === 1 || value === '1') return 'black';
     if (value === 'white' || value === -1 || value === '-1') return 'white';
     return null;
 }
 
-function normalizeResultWinnerKey(value) {
+function normalizeResultWinnerKey(value: any) {
     if (value === 'draw' || value === 0 || value === '0') return 'draw';
     const key = parseResultPlayerKey(value);
     return key || 'draw';
 }
 
-function resolveResultWinnerContext(state, fallbackCounts) {
+function resolveResultWinnerContext(state: any, fallbackCounts: any) {
     const counts = fallbackCounts || { black: 0, white: 0 };
     const discWinner = counts.black === counts.white
         ? 'draw'
@@ -191,7 +190,7 @@ function resolveResultWinnerContext(state, fallbackCounts) {
     return { mode: 'disc', winner: normalizeResultWinnerKey(discWinner) };
 }
 
-function getLocalOutcomeKeyForResult(resultContext, viewerKey, counts) {
+function getLocalOutcomeKeyForResult(resultContext: any, viewerKey: any, counts: any) {
     const context = resultContext || resolveResultWinnerContext(typeof gameState !== 'undefined' ? gameState : null, counts);
     const localKey = parseResultPlayerKey(viewerKey) || 'black';
     if (!context || context.winner === 'draw') return 'draw';
@@ -204,14 +203,14 @@ function resolveResultViewerKey() {
             const fromHelper = parseResultPlayerKey(ResultOverlayOwnerHelpersModule.resolveLocalPlayerKey(typeof window !== 'undefined' ? window : null));
             if (fromHelper) return fromHelper;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     try {
         if (typeof window !== 'undefined' && window.NetworkMatchClient && typeof window.NetworkMatchClient.getSeatKey === 'function') {
             const seatKey = parseResultPlayerKey(window.NetworkMatchClient.getSeatKey());
             if (seatKey) return seatKey;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     try {
         if (typeof window !== 'undefined') {
@@ -221,26 +220,26 @@ function resolveResultViewerKey() {
                 if (parsed) return parsed;
             }
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     return 'black';
 }
 
-function getLocalAndOpponentCountsForViewer(counts, viewerKey) {
+function getLocalAndOpponentCountsForViewer(counts: any, viewerKey: any) {
     const localKey = parseResultPlayerKey(viewerKey) || 'black';
     const localCount = localKey === 'white' ? counts.white : counts.black;
     const opponentCount = localKey === 'white' ? counts.black : counts.white;
     return { localKey, localCount, opponentCount };
 }
 
-function getLocalOutcomeKeyForCounts(counts, viewerKey) {
+function getLocalOutcomeKeyForCounts(counts: any, viewerKey: any) {
     const localCounts = getLocalAndOpponentCountsForViewer(counts, viewerKey);
     if (localCounts.localCount > localCounts.opponentCount) return 'win';
     if (localCounts.localCount < localCounts.opponentCount) return 'lose';
     return 'draw';
 }
 
-function resolveResultTitleAndStatus(counts, viewerKey, resultContext) {
+function resolveResultTitleAndStatus(counts: any, viewerKey: any, resultContext: any) {
     const context = resultContext || resolveResultWinnerContext(typeof gameState !== 'undefined' ? gameState : null, counts);
     const localOutcomeKey = getLocalOutcomeKeyForResult(context, viewerKey, counts);
 
@@ -271,7 +270,7 @@ function getTutorialStateApiForResult() {
         if (typeof window !== 'undefined' && window && window.Tutorial && window.Tutorial.State) {
             return window.Tutorial.State;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
@@ -280,7 +279,7 @@ function getTutorialScenarioDuelApi() {
         if (typeof window !== 'undefined' && window && window.Tutorial && window.Tutorial.ScenarioDuel) {
             return window.Tutorial.ScenarioDuel;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
@@ -289,7 +288,7 @@ function getStoryEncounterApi() {
         if (typeof window !== 'undefined' && window && window.Story && window.Story.Encounter) {
             return window.Story.Encounter;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
@@ -303,13 +302,13 @@ function isStoryEncounterResultActive() {
     return !!(encounterApi && typeof encounterApi.isActive === 'function' && encounterApi.isActive());
 }
 
-function resolveObserverDuelResultOverride(counts, viewerKey) {
+function resolveObserverDuelResultOverride(counts: any, viewerKey: any) {
     const duelApi = getTutorialScenarioDuelApi();
     if (!duelApi || typeof duelApi.resolveObserverDuelResult !== 'function') return null;
     return duelApi.resolveObserverDuelResult(counts, viewerKey);
 }
 
-function resolveStoryEncounterResultOverride(counts, viewerKey) {
+function resolveStoryEncounterResultOverride(counts: any, viewerKey: any) {
     const encounterApi = getStoryEncounterApi();
     if (!encounterApi || typeof encounterApi.resolveStoryEncounterResult !== 'function') return null;
     return encounterApi.resolveStoryEncounterResult(counts, viewerKey);
@@ -321,7 +320,7 @@ function finishObserverDuelIfNeeded() {
     return duelApi.finishObserverDuel();
 }
 
-function toFiniteInteger(value, fallback) {
+function toFiniteInteger(value: any, fallback: any) {
     const n = Number(value);
     if (!Number.isFinite(n)) return fallback;
     return Math.floor(n);
@@ -333,28 +332,28 @@ function resolveCurrentMatchMode() {
             const mode = ResultOverlayOwnerHelpersModule.getCurrentMatchMode(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : null));
             if (mode === 'cpu' || mode === 'network') return mode;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     try {
         if (typeof window !== 'undefined') {
             const mode = window.MATCH_MODE || window.__MATCH_MODE;
             if (mode === 'cpu' || mode === 'network') return mode;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     try {
-        if (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function') {
-            const mode = globalThis.getCurrentMatchMode();
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
+            const mode = (globalThis as any).getCurrentMatchMode();
             if (mode === 'cpu' || mode === 'network') return mode;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     try {
         if (typeof globalThis !== 'undefined') {
-            const mode = globalThis.MATCH_MODE || globalThis.__MATCH_MODE;
+            const mode = (globalThis as any).MATCH_MODE || (globalThis as any).__MATCH_MODE;
             if (mode === 'cpu' || mode === 'network') return mode;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     return 'cpu';
 }
@@ -377,7 +376,7 @@ function isObservationStoneRewardEligibleMatch() {
 function canUseScoreStorage() {
     try {
         return typeof localStorage !== 'undefined' && !!localStorage;
-    } catch (e) {
+    } catch (e: any) {
         return false;
     }
 }
@@ -392,27 +391,27 @@ function loadScoreLeaderboard() {
         if (!parsed || typeof parsed !== 'object') return empty;
         const cpu = parsed.cpu && typeof parsed.cpu === 'object' ? parsed.cpu : {};
         return { version: SCORE_CONFIG.version, cpu };
-    } catch (e) {
+    } catch (e: any) {
         return empty;
     }
 }
 
-function saveScoreLeaderboard(payload) {
+function saveScoreLeaderboard(payload: any) {
     if (!canUseScoreStorage()) return false;
     try {
         localStorage.setItem(SCORE_LEADERBOARD_STORAGE_KEY, JSON.stringify(payload));
         return true;
-    } catch (e) {
+    } catch (e: any) {
         return false;
     }
 }
 
-function clampCpuLevel(value) {
+function clampCpuLevel(value: any) {
     const level = toFiniteInteger(value, 1);
     return Math.max(1, Math.min(6, level));
 }
 
-function resolveCpuLevelForViewer(viewerKey) {
+function resolveCpuLevelForViewer(viewerKey: any) {
     const localKey = parseResultPlayerKey(viewerKey) || 'black';
     const enemyKey = localKey === 'white' ? 'black' : 'white';
     const source = (typeof cpuSmartness !== 'undefined' && cpuSmartness && typeof cpuSmartness === 'object')
@@ -443,13 +442,13 @@ function resolveTurnCountForScore() {
     return 0;
 }
 
-function computeResultBaseBonus(localOutcomeKey) {
+function computeResultBaseBonus(localOutcomeKey: any) {
     if (localOutcomeKey === 'win') return SCORE_CONFIG.winBase;
     if (localOutcomeKey === 'draw') return SCORE_CONFIG.drawBase;
     return SCORE_CONFIG.loseBase;
 }
 
-function computeSpeedBonus(turnCount) {
+function computeSpeedBonus(turnCount: any) {
     const totalTurns = Math.max(0, toFiniteInteger(turnCount, 0));
     if (totalTurns <= SCORE_CONFIG.speedStartTurn) return SCORE_CONFIG.speedBase;
     if (totalTurns >= SCORE_CONFIG.speedZeroTurn) return 0;
@@ -460,7 +459,7 @@ function computeSpeedBonus(turnCount) {
     return Math.max(0, scaled);
 }
 
-function computeSupportComponentBonus(rawCount, targetCount, maxBonus) {
+function computeSupportComponentBonus(rawCount: any, targetCount: any, maxBonus: any) {
     const count = Math.max(0, toFiniteInteger(rawCount, 0));
     const target = Math.max(1, toFiniteInteger(targetCount, 1));
     const cap = Math.max(0, toFiniteInteger(maxBonus, 0));
@@ -469,7 +468,7 @@ function computeSupportComponentBonus(rawCount, targetCount, maxBonus) {
     return Math.min(cap, scaled);
 }
 
-function computeSupportBreakdown(localDiscCount, localFlipCount) {
+function computeSupportBreakdown(localDiscCount: any, localFlipCount: any) {
     const discCount = Math.max(0, toFiniteInteger(localDiscCount, 0));
     const flipCount = Math.max(0, toFiniteInteger(localFlipCount, 0));
 
@@ -492,7 +491,7 @@ function computeSupportBreakdown(localDiscCount, localFlipCount) {
     };
 }
 
-function computeScoreSummaryForViewer(options) {
+function computeScoreSummaryForViewer(options: any) {
     const opts = options || {};
     const counts = opts.counts || { black: 0, white: 0 };
     const viewerKey = parseResultPlayerKey(opts.viewerKey) || 'black';
@@ -535,7 +534,7 @@ function computeScoreSummaryForViewer(options) {
     };
 }
 
-function updateCpuLeaderboard(scoreSummary, viewerKey) {
+function updateCpuLeaderboard(scoreSummary: any, viewerKey: any) {
     const cpuLevel = resolveCpuLevelForViewer(viewerKey);
     if (isStoryEncounterResultActive()) {
         return { mode: 'story-encounter', enabled: false, cpuLevel, bestScore: null, updated: false, previousBest: null };
@@ -573,7 +572,7 @@ function updateCpuLeaderboard(scoreSummary, viewerKey) {
     return { mode: 'cpu', enabled: true, cpuLevel, bestScore, updated, previousBest };
 }
 
-function createScoreSummaryRow(label, value) {
+function createScoreSummaryRow(label: any, value: any) {
     const row = document.createElement('div');
     row.className = 'result-score-breakdown-row';
 
@@ -590,7 +589,7 @@ function createScoreSummaryRow(label, value) {
     return row;
 }
 
-function createResultDiscCountsLine(counts) {
+function createResultDiscCountsLine(counts: any) {
     const line = document.createElement('div');
     line.className = 'result-counts';
 
@@ -601,7 +600,7 @@ function createResultDiscCountsLine(counts) {
     return line;
 }
 
-function createScoreMetaLine(scoreSummary, leaderboardState) {
+function createScoreMetaLine(scoreSummary: any, leaderboardState: any) {
     const line = document.createElement('div');
     line.className = 'result-score-meta';
 
@@ -634,7 +633,7 @@ function getObservationStoneBalanceForResult() {
     return Math.max(0, toFiniteInteger(ResultOverlayGachaProgressModule.getObservationStones(rootRef), 0));
 }
 
-function resolveObservationStoneRewardToken(counts, viewerKey, localOutcomeKey) {
+function resolveObservationStoneRewardToken(counts: any, viewerKey: any, localOutcomeKey: any) {
     if (typeof gameState !== 'undefined' && gameState && Number.isFinite(Number(gameState.__resultToken))) {
         return `result:${Math.trunc(Number(gameState.__resultToken))}`;
     }
@@ -645,7 +644,7 @@ function resolveObservationStoneRewardToken(counts, viewerKey, localOutcomeKey) 
     return `fallback:${resolveCurrentMatchMode()}:${String(viewerKey || 'black')}:${String(localOutcomeKey || 'draw')}:${blackCount}:${whiteCount}:${turnCount}`;
 }
 
-function resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey) {
+function resolveObservationStoneRewardSummary(counts: any, viewerKey: any, localOutcomeKey: any) {
     const baseSummary = {
         visible: false,
         eligible: false,
@@ -703,7 +702,7 @@ function resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey
     });
 }
 
-function createObservationStoneLine(summary) {
+function createObservationStoneLine(summary: any) {
     if (!summary || summary.visible !== true) return null;
 
     const line = document.createElement('div');
@@ -722,44 +721,44 @@ function createObservationStoneLine(summary) {
     }
 }
 
-function createObserverDuelMetaLine(override) {
+function createObserverDuelMetaLine(override: any) {
     const line = document.createElement('div');
     line.className = 'result-score-meta';
     line.textContent = override && override.metaText ? String(override.metaText) : '観測者対局: ランキング対象外';
     return line;
 }
 
-function createStoryEncounterMetaLine(override) {
+function createStoryEncounterMetaLine(override: any) {
     const line = document.createElement('div');
     line.className = 'result-score-meta';
     line.textContent = override && override.metaText ? String(override.metaText) : 'ストーリー対局: ランキング対象外';
     return line;
 }
 
-function notifySharedLeaderboardUpdated(detail) {
+function notifySharedLeaderboardUpdated(detail: any) {
     try {
         if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
         if (typeof CustomEvent === 'function') {
             window.dispatchEvent(new CustomEvent('leaderboard:updated', { detail: detail || {} }));
             return;
         }
-        const evt = document.createEvent('Event');
+        const evt: any = document.createEvent('Event');
         evt.initEvent('leaderboard:updated', false, false);
         evt.detail = detail || {};
         window.dispatchEvent(evt);
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 }
 
-function withTrailingSlashRemovedForResult(value) {
+function withTrailingSlashRemovedForResult(value: any) {
     return String(value || '').replace(/\/+$/, '');
 }
 
-function isLoopbackHostForResult(value) {
+function isLoopbackHostForResult(value: any) {
     const host = String(value || '').trim().toLowerCase();
     return host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]' || host.endsWith('.localhost');
 }
 
-function canAutoSubmitSharedLeaderboard(client) {
+function canAutoSubmitSharedLeaderboard(client: any) {
     try {
         if (!client || typeof client.submitScore !== 'function') return false;
         if (typeof client.resolveServerBaseUrl !== 'function') return true;
@@ -778,12 +777,12 @@ function canAutoSubmitSharedLeaderboard(client) {
         }
 
         return true;
-    } catch (e) {
+    } catch (e: any) {
         return false;
     }
 }
 
-function submitSharedLeaderboardScore(scoreSummary, viewerKey) {
+function submitSharedLeaderboardScore(scoreSummary: any, viewerKey: any) {
     try {
         if (typeof window === 'undefined') return;
         if (isStoryEncounterResultActive()) return;
@@ -794,7 +793,7 @@ function submitSharedLeaderboardScore(scoreSummary, viewerKey) {
         const mode = resolveCurrentMatchMode();
         const cpuLevel = resolveCpuLevelForViewer(viewerKey);
         client.submitScore(scoreSummary, { mode, cpuLevel, limit: 10 })
-            .then((result) => {
+            .then((result: any) => {
                 if (result && result.ok) {
                     notifySharedLeaderboardUpdated({
                         updated: !!result.updated,
@@ -803,10 +802,10 @@ function submitSharedLeaderboardScore(scoreSummary, viewerKey) {
                 }
             })
             .catch(() => {});
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 }
 
-function createObserverDuelDialogue(override) {
+function createObserverDuelDialogue(override: any) {
     const dialogContainer = document.createElement('div');
     dialogContainer.className = 'result-dialogues';
 
@@ -829,7 +828,7 @@ function createObserverDuelDialogue(override) {
     return dialogContainer;
 }
 
-function createStoryEncounterDialogue(override) {
+function createStoryEncounterDialogue(override: any) {
     const dialogContainer = document.createElement('div');
     dialogContainer.className = 'result-dialogues';
 
@@ -863,7 +862,7 @@ function dismissResultOverlayIfPresent() {
     removeExistingResultOverlay();
 }
 
-function syncResultPresentationFromSnapshot(options) {
+function syncResultPresentationFromSnapshot(options: any) {
     const opts = (options && typeof options === 'object') ? options : {};
     const resultState = ensureResultPresentationState(
         (opts.resultState && typeof opts.resultState === 'object') ? opts.resultState : null
@@ -882,7 +881,7 @@ function syncResultPresentationFromSnapshot(options) {
     let terminal = false;
     try {
         terminal = !!(isGameOverFn && gameStateRef && isGameOverFn(gameStateRef));
-    } catch (e) {
+    } catch (e: any) {
         terminal = false;
     }
 
@@ -908,7 +907,7 @@ function syncResultPresentationFromSnapshot(options) {
         if (gameStateRef && typeof gameStateRef === 'object') {
             gameStateRef.__resultShown = false;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     const showResultFn = (typeof opts.showResult === 'function') ? opts.showResult : showResult;
     if (typeof showResultFn === 'function') {
@@ -927,7 +926,7 @@ function syncResultPresentationFromSnapshot(options) {
     return false;
 }
 
-function createStoryEncounterHeroRow(override, counts) {
+function createStoryEncounterHeroRow(override: any, counts: any) {
     const body = document.createElement('div');
     body.className = 'story-result-body';
 
@@ -956,7 +955,7 @@ function createStoryEncounterHeroRow(override, counts) {
     return body;
 }
 
-function appendScenarioButtons(panel, override) {
+function appendScenarioButtons(panel: any, override: any) {
     const btnRow = document.createElement('div');
     btnRow.className = 'result-btn-row';
 
@@ -983,7 +982,7 @@ function appendScenarioButtons(panel, override) {
     panel.appendChild(btnRow);
 }
 
-function showStoryEncounterResultOverlay(override, counts) {
+function showStoryEncounterResultOverlay(override: any, counts: any) {
     removeExistingResultOverlay();
 
     const overlay = document.createElement('div');
@@ -1015,7 +1014,7 @@ function showStoryEncounterResultOverlay(override, counts) {
     }, 10);
 }
 
-function createDetailStatsSection(counts, chargeTotals, cardUseTotals, flipTotals, cornerCaptureTotals) {
+function createDetailStatsSection(counts: any, chargeTotals: any, cardUseTotals: any, flipTotals: any, cornerCaptureTotals: any) {
     const section = document.createElement('div');
     section.className = 'result-detail-section';
 
@@ -1079,7 +1078,7 @@ function showResult() {
     // _pendingResultToken is module-level and unaffected by snapshot replacement.
     setTimeout(() => {
         if (_pendingResultToken !== resultToken) return;
-        try { showResultOverlay(); } catch (e) { console.warn('showResultOverlay failed', e); }
+        try { showResultOverlay(); } catch (e: any) { console.warn('showResultOverlay failed', e); }
     }, 2000);
 }
 
@@ -1228,7 +1227,7 @@ function showResultOverlay() {
             finishObserverDuelIfNeeded();
         }
         const el = document.getElementById('result-overlay');
-        if (el) el.parentNode.removeChild(el);
+        if (el && el.parentNode) el.parentNode.removeChild(el);
         if (typeof resetGame === 'function') resetGame();
     };
 
@@ -1240,7 +1239,7 @@ function showResultOverlay() {
             finishObserverDuelIfNeeded();
         }
         const el = document.getElementById('result-overlay');
-        if (el) el.parentNode.removeChild(el);
+        if (el && el.parentNode) el.parentNode.removeChild(el);
     };
 
     btnRow.appendChild(restartBtn);
@@ -1256,7 +1255,7 @@ function showResultOverlay() {
     }, 10);
 }
 
-function createStatRow(label, blackValue, whiteValue) {
+function createStatRow(label: any, blackValue: any, whiteValue: any) {
     const row = document.createElement('div');
     row.className = 'result-stat-row';
 
@@ -1332,7 +1331,7 @@ function getCornerCaptureTotals() {
  * @param {string} [localOutcomeKey] - ローカル視点の勝敗キー
  * @returns {HTMLElement} ダイアログコンテナ
  */
-function createMonsterDialogue(counts, localOutcomeKey) {
+function createMonsterDialogue(counts: any, localOutcomeKey: any) {
     const levelNames = ['不明', '盤喰いの小鬼', '反転の影', '布石を紡ぐ者', '盤面支配者', '終局を告げる者', '盤理の観測者'];
     const cpuLevel = resolveCpuLevelForViewer(resolveResultViewerKey());
 
@@ -1356,8 +1355,8 @@ function createMonsterDialogue(counts, localOutcomeKey) {
     text.className = 'dialogue-text';
 
     let speech = '';
-    if (monsters[cpuLevel]) {
-        const entry = monsters[cpuLevel][monsterOutcome];
+    if ((monsters as any)[cpuLevel]) {
+        const entry = (monsters as any)[cpuLevel][monsterOutcome];
         if (Array.isArray(entry)) {
             speech = entry[Math.floor(Math.random() * entry.length)];
         } else {

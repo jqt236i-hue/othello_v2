@@ -1,5 +1,4 @@
-// @ts-nocheck
-import type { CardState, GameState, PlayerKey } from '../../../src/types';
+import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -38,7 +37,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const ESCAPE_WILL_NAME = '逃げる意志';
     const ESCAPE_WILL_IMAGE_SRC = 'assets/story/stones/ESCAPE_WILL-black.png';
 
-    function deepFreeze(value) {
+    function deepFreeze(value: any): any {
         if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
         Object.freeze(value);
         for (const key of Object.keys(value)) {
@@ -47,9 +46,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return value;
     }
 
-    function buildChoiceResponseMap(step) {
+    function buildChoiceResponseMap(step: any): any {
         if (!step || !Array.isArray(step.responses)) return {};
-        const out = {};
+        const out: any = {};
         for (const response of step.responses) {
             if (!response || !response.choiceId) continue;
             out[String(response.choiceId)] = response;
@@ -57,9 +56,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return out;
     }
 
-    function normalizeChapterSteps(stepDefinitions) {
-        const steps = [];
-        const stepsById = {};
+    function normalizeChapterSteps(stepDefinitions: any): any {
+        const steps: any[] = [];
+        const stepsById: any = {};
         for (const stepDefinition of stepDefinitions) {
             const normalized = deepFreeze(Object.assign({}, stepDefinition, {
                 responseMap: buildChoiceResponseMap(stepDefinition)
@@ -73,7 +72,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         });
     }
 
-    function createChapterRecord(definition) {
+    function createChapterRecord(definition: any): any {
         const source = definition && typeof definition === 'object' ? definition : {};
         return deepFreeze(Object.assign({
             kind: 'story',
@@ -83,8 +82,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }, source));
     }
 
-    function chapterStep(chapterLabel, backgroundSrc, definition) {
-        const base = {
+    function chapterStep(chapterLabel: any, backgroundSrc: any, definition: any): any {
+        const base: any = {
             chapterLabel: chapterLabel || ''
         };
         if (backgroundSrc) {
@@ -93,23 +92,23 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return Object.assign(base, definition);
     }
 
-    function forestStep(definition) {
+    function forestStep(definition: any): any {
         return chapterStep(CHAPTER1_LABEL, FOREST_BG_SRC, definition);
     }
 
-    function chapter2ForestStep(definition) {
+    function chapter2ForestStep(definition: any): any {
         return chapterStep(CHAPTER2_LABEL, FOREST_BG_SRC, definition);
     }
 
-    function chapter2VillageStep(definition) {
+    function chapter2VillageStep(definition: any): any {
         return chapterStep(CHAPTER2_LABEL, HYPERACTIVE_VILLAGE_BG_SRC, definition);
     }
 
-    function chapter2TheoryStep(definition) {
+    function chapter2TheoryStep(definition: any): any {
         return chapterStep(CHAPTER2_LABEL, THEORY_ROOM_BG_SRC, definition);
     }
 
-    function chapter2LibraryStep(definition) {
+    function chapter2LibraryStep(definition: any): any {
         return chapterStep(CHAPTER2_LABEL, OLD_LIBRARY_BG_SRC, definition);
     }
 
@@ -1245,11 +1244,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         })
     });
 
-    function getChapter(chapterId) {
+    function getChapter(chapterId: any): any {
         return chapters[String(chapterId || '')] || null;
     }
 
-    function getChapterStep(chapterId, stepId) {
+    function getChapterStep(chapterId: any, stepId: any): any {
         const chapter = getChapter(chapterId);
         if (!chapter || !stepId) return null;
         return chapter.stepsById[String(stepId)] || null;

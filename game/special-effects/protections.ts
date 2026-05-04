@@ -68,9 +68,9 @@ async function animateProtectionExpireAt(row, col) {
         if (BoardPresentation && typeof BoardPresentation.emitPresentationEvent === 'function') {
             BoardPresentation.emitPresentationEvent(cardState, { type: 'PROTECTION_EXPIRE', row, col, durationMs: 600, effectKey: 'protectionExpire' });
         } else {
-            try { console.warn('[protections] Presentation helper not available'); } catch (e) { }
+            try { console.warn('[protections] Presentation helper not available'); } catch (e) { /* Intentionally empty: console.warn unavailable */ }
         }
-    } catch (e) { try { console.warn('[protections] Presentation helper not available'); } catch (e) { } }
+    } catch (e) { try { console.warn('[protections] Presentation helper not available'); } catch (e) { /* Intentionally empty: console.warn unavailable */ } }
     // Preserve pacing: wait same duration so turn sequencing remains unchanged.
     await waitMs(600);
 }

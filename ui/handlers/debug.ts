@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -7,10 +6,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
-'use strict';
+declare var cardState: any;
+declare var gameState: any;
+declare var BoardUpdateDispatch: any;
+declare var emitBoardUpdate: any;
+declare var renderBoard: any;
+declare var renderCardUI: any;
+declare var addLog: any;
+declare var fillDebugHand: any;
+declare var DebugActions: any;
+declare var resetGame: any;
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require) as NodeRequire;
+'use strict';
 
 let _registerUIGlobals_debug: any = null;
 let _getUIBootstrapGlobals_debug: any = null;

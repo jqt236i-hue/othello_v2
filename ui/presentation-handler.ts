@@ -1,10 +1,3 @@
-// @ts-nocheck
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
-
 import type { CardState, GameState, PlayerKey } from '../src/types';
 
 'use strict';
@@ -573,7 +566,7 @@ function applyCrossfadeStone(ev: any): void {
           durationMs: ev.durationMs,
           autoFadeOut: ev.autoFadeOut,
           fadeWholeStone: ev.fadeWholeStone
-        }).catch(function () {});
+        }).catch(function () { /* Intentionally empty: fire-and-forget animation */ });
       } else if (typeof applyStoneVisualState === 'function') {
         applyStoneVisualState(disc, {
           effectKey: ev.effectKey,

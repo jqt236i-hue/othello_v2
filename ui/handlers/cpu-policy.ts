@@ -1,5 +1,11 @@
-// @ts-nocheck
 'use strict';
+
+declare var _require: any;
+declare var loadLvMaxModels: any;
+declare var CpuPolicy: any;
+declare var cpuSmartness: any;
+declare var mccfrPolicy: any;
+declare var addLog: any;
 
 function _isDebugEnabled(): boolean {
   try {
@@ -12,11 +18,11 @@ function _isDebugEnabled(): boolean {
   return false;
 }
 
-function _debugLog(): void {
+function _debugLog(...args: any[]): void {
   if (!_isDebugEnabled()) return;
   try {
     if (typeof console !== 'undefined' && typeof console.log === 'function') {
-      console.log.apply(console, arguments as any);
+      console.log.apply(console, args);
     }
   } catch (e) { /* ignore */ }
 }

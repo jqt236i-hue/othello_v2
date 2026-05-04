@@ -1,11 +1,27 @@
-// @ts-nocheck
-import type { CardState, GameState, PlayerKey } from '../../src/types';
+import type { CardState, GameState, PlayerKey } from '../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+
+declare const gameState: any;
+declare const cardState: any;
+declare const SoundEngine: any;
+declare const MarkersAdapter: any;
+declare const CardLogic: any;
+declare const getPlayerKey: (...args: any[]) => any;
+declare const getLegalMoves: (...args: any[]) => any;
+declare const syncBoardPixelSizing: (...args: any[]) => any;
+declare const applyStoneVisualEffect: (...args: any[]) => any;
+declare const applyTrapStoneFallbackVisual: (...args: any[]) => any;
+declare const getEffectKeyForSpecialType: (...args: any[]) => any;
+declare const SPECIAL_TYPE_TO_EFFECT_KEY: any;
+declare const handleCellClick: (...args: any[]) => any;
+declare const BLACK: number;
+declare const WHITE: number;
+declare const EMPTY: number;
 
 /**
  * @file diff-renderer.js
@@ -33,20 +49,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
  * Stores previous render state for diff calculation
  * @type {Array<Array<CellState>>|null}
  */
-let previousBoardState = null;
-
+let previousBoardState: any = null;
 /**
  * DOM要素キャッシュ - セル要素の参照を保持
  * Cache of cell DOM elements for fast access
  * @type {Array<Array<HTMLElement>>}
  */
-let cellCache = [];
+let cellCache: any[] = [];
 let cellCacheMap = new Map();
-let boardDomSignature = null;
-let lastBoardExpansionRevealSoundKey = null;
+let boardDomSignature: any = null;
+let lastBoardExpansionRevealSoundKey: any = null;
 let suppressBoardExpansionRevealSoundThisRender = false;
 
-function _getBoardShapeForDiff(gameState) {
+function _getBoardShapeForDiff(gameState: any) {
     const board = (gameState && Array.isArray(gameState.board)) ? gameState.board : null;
     let rows = Array.isArray(board) ? board.length : 8;
     let cols = 0;
@@ -60,7 +75,7 @@ function _getBoardShapeForDiff(gameState) {
     return { rows, cols };
 }
 
-function _normalizeBoardShapeInputForDiff(shapeOrGameState) {
+function _normalizeBoardShapeInputForDiff(shapeOrGameState: any) {
     const rows = Number(shapeOrGameState && shapeOrGameState.rows);
     const cols = Number(shapeOrGameState && shapeOrGameState.cols);
     if (Number.isFinite(rows) && Number.isFinite(cols)) {
@@ -72,7 +87,7 @@ function _normalizeBoardShapeInputForDiff(shapeOrGameState) {
     return _getBoardShapeForDiff(shapeOrGameState);
 }
 
-function _getStateBoardShapeForDiff(state) {
+function _getStateBoardShapeForDiff(state: any) {
     if (state && state._boardShape) {
         return _normalizeBoardShapeInputForDiff(state._boardShape);
     }
@@ -89,7 +104,7 @@ function _getStateBoardShapeForDiff(state) {
     };
 }
 
-function _applyBoardCssVarsForDiff(boardEl, gameState) {
+function _applyBoardCssVarsForDiff(boardEl: any, gameState: any) {
     const shape = _getBoardShapeForDiff(gameState);
     if (boardEl && boardEl.style) {
         boardEl.style.setProperty('--board-rows', String(shape.rows));
@@ -102,27 +117,27 @@ function _applyBoardCssVarsForDiff(boardEl, gameState) {
     return shape;
 }
 
-var BoardRendererStoneHelpersModule = null;
+var BoardRendererStoneHelpersModule: any = null;
 if (typeof require === 'function') {
-    try { BoardRendererStoneHelpersModule = require('./board-renderer'); } catch (e) { /* ignore */ }
+    try { BoardRendererStoneHelpersModule = require('./board-renderer'); } catch (e: any) { /* ignore */ }
 }
-var SpecialStoneRegistryModule = null;
+var SpecialStoneRegistryModule: any = null;
 if (typeof require === 'function') {
-    try { SpecialStoneRegistryModule = require('../shared/special-stone-registry'); } catch (e) { /* ignore */ }
+    try { SpecialStoneRegistryModule = require('../shared/special-stone-registry'); } catch (e: any) { /* ignore */ }
 }
-var StoneStatusSnapshotModule = null;
+var StoneStatusSnapshotModule: any = null;
 if (typeof require === 'function') {
-    try { StoneStatusSnapshotModule = require('../shared/stone-status-snapshot'); } catch (e) { /* ignore */ }
+    try { StoneStatusSnapshotModule = require('../shared/stone-status-snapshot'); } catch (e: any) { /* ignore */ }
 }
-var BoardUpdateSyncRuntimeModule = null;
+var BoardUpdateSyncRuntimeModule: any = null;
 if (typeof require === 'function') {
-    try { BoardUpdateSyncRuntimeModule = require('./board-update-sync-runtime'); } catch (e) { /* ignore */ }
+    try { BoardUpdateSyncRuntimeModule = require('./board-update-sync-runtime'); } catch (e: any) { /* ignore */ }
 }
 
 function _getGlobalScopeForDiff() {
     return (typeof globalThis !== 'undefined')
         ? globalThis
-        : (typeof self !== 'undefined' ? self : (typeof window !== 'undefined' ? window : {}));
+        : (typeof self !== 'undefined' ? self : (typeof window !== 'undefined' ? window : ({} as any)));
 }
 
 function _getSpecialStoneRegistryForDiff() {
@@ -143,7 +158,7 @@ function _getBoardUpdateSyncRuntimeForDiff() {
     return globalScope.BoardUpdateSyncRuntime || null;
 }
 
-function _getDiscStoneHelperForDiff(name) {
+function _getDiscStoneHelperForDiff(name: any) {
     if (BoardRendererStoneHelpersModule && typeof BoardRendererStoneHelpersModule[name] === 'function') {
         return BoardRendererStoneHelpersModule[name];
     }
@@ -160,12 +175,12 @@ function _isTimeStopActiveForDiff() {
             (document.documentElement && document.documentElement.classList && document.documentElement.classList.contains('time-stop-active')) ||
             (document.body && document.body.classList && document.body.classList.contains('time-stop-active'))
         );
-    } catch (e) {
+    } catch (e: any) {
         return false;
     }
 }
 
-function _applyTimeStopLegalEmphasisForDiff(cell) {
+function _applyTimeStopLegalEmphasisForDiff(cell: any) {
     const helper = _getDiscStoneHelperForDiff('applyTimeStopLegalEmphasis');
     if (typeof helper === 'function') {
         helper(cell, _isTimeStopActiveForDiff());
@@ -190,10 +205,10 @@ function _playBoardExpansionRevealSoundForDiff() {
             SoundEngine.init();
         }
         SoundEngine.playEffectByKey('board_expansion_reveal');
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 }
 
-function _scheduleBoardExpansionRevealSoundForDiff(revealExpansionKeys, boardSignature) {
+function _scheduleBoardExpansionRevealSoundForDiff(revealExpansionKeys: any, boardSignature: any) {
     const keys = Array.isArray(revealExpansionKeys)
         ? revealExpansionKeys.slice()
         : Array.from(revealExpansionKeys || []);
@@ -214,17 +229,17 @@ function _scheduleBoardExpansionRevealSoundForDiff(revealExpansionKeys, boardSig
             });
             return;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     _playBoardExpansionRevealSoundForDiff();
 }
 
-function _isMainBoardCellForDiff(row, col, shapeOrGameState) {
+function _isMainBoardCellForDiff(row: any, col: any, shapeOrGameState?: any) {
     const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
     return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < shape.rows && col >= 0 && col < shape.cols;
 }
 
-function _resolveExpansionSideForDiff(side, row, col, shapeOrGameState) {
+function _resolveExpansionSideForDiff(side: any, row: any, col: any, shapeOrGameState: any) {
     const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
     if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
     if (col === -1) return 'left';
@@ -234,7 +249,7 @@ function _resolveExpansionSideForDiff(side, row, col, shapeOrGameState) {
     return null;
 }
 
-function _isExpansionCoordinateForDiff(row, col, shapeOrGameState) {
+function _isExpansionCoordinateForDiff(row: any, col: any, shapeOrGameState: any) {
     const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
     if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
     if (row < -1 || row > shape.rows || col < -1 || col > shape.cols) return false;
@@ -242,7 +257,7 @@ function _isExpansionCoordinateForDiff(row, col, shapeOrGameState) {
     return true;
 }
 
-function _applyExpansionCellPositionForDiff(cell, row, col, shapeOrGameState) {
+function _applyExpansionCellPositionForDiff(cell: any, row: any, col: any, shapeOrGameState: any) {
     if (!cell) return;
     const shape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
     const rowPercent = 100 / shape.rows;
@@ -270,18 +285,18 @@ function _applyExpansionCellPositionForDiff(cell, row, col, shapeOrGameState) {
     cell.style.bottom = '';
 }
 
-function _getExpansionDescriptorsForDiff(gameState) {
+function _getExpansionDescriptorsForDiff(gameState: any) {
     const boardShape = _getBoardShapeForDiff(gameState);
     const expansion = (gameState && gameState.boardExpansion && typeof gameState.boardExpansion === 'object')
         ? gameState.boardExpansion
         : null;
     if (!expansion) return [];
 
-    const out = [];
-    const pushDescriptor = (source, legacyRow, legacyOwner) => {
-        let side = null;
-        let row = null;
-        let col = null;
+    const out: any[] = [];
+    const pushDescriptor = (source: any, legacyRow?: any, legacyOwner?: any) => {
+        let side: any = null;
+        let row: any = null;
+        let col: any = null;
         let owner = legacyOwner;
 
         if (source && typeof source === 'object') {
@@ -326,12 +341,12 @@ function _getExpansionDescriptorsForDiff(gameState) {
     return out;
 }
 
-function _getExpansionDescriptorForDiff(gameState) {
+function _getExpansionDescriptorForDiff(gameState: any) {
     const descriptors = _getExpansionDescriptorsForDiff(gameState);
     return descriptors.length > 0 ? descriptors[0] : null;
 }
 
-function _getBoardDomSignatureForDiff(gameState) {
+function _getBoardDomSignatureForDiff(gameState: any) {
     const boardShape = _getBoardShapeForDiff(gameState);
     const descriptors = _getExpansionDescriptorsForDiff(gameState);
     if (!descriptors.length) return `base:${boardShape.rows}x${boardShape.cols}`;
@@ -341,17 +356,17 @@ function _getBoardDomSignatureForDiff(gameState) {
     return `expanded:${boardShape.rows}x${boardShape.cols}:${tokens.join('|')}`;
 }
 
-function _getExpansionStateListForDiff(state) {
+function _getExpansionStateListForDiff(state: any): any[] {
     if (state && Array.isArray(state._expansionCells)) return state._expansionCells.filter(Boolean);
     if (state && state._expansionCell) return [state._expansionCell];
     return [];
 }
 
-function _getExpansionRevealKeysForDiff(previousState, nextDescriptors, allowReveal) {
+function _getExpansionRevealKeysForDiff(previousState: any, nextDescriptors: any, allowReveal: any) {
     if (!allowReveal) return new Set();
     const previousKeys = new Set(
         _getExpansionStateListForDiff(previousState)
-            .map((exp) => `${exp.row},${exp.col}`)
+            .map((exp: any) => `${exp.row},${exp.col}`)
     );
     return new Set(
         (Array.isArray(nextDescriptors) ? nextDescriptors : [])
@@ -361,7 +376,7 @@ function _getExpansionRevealKeysForDiff(previousState, nextDescriptors, allowRev
     );
 }
 
-function _applyDoubleDigitTimerClassForDiff(timerElement, rawValue) {
+function _applyDoubleDigitTimerClassForDiff(timerElement: any, rawValue: any) {
     if (!timerElement) return;
     const numericValue = Number(rawValue);
     if (!Number.isFinite(numericValue)) return;
@@ -370,7 +385,7 @@ function _applyDoubleDigitTimerClassForDiff(timerElement, rawValue) {
     }
 }
 
-function _resolveStrongWillDisplayTurnsForDiff(data) {
+function _resolveStrongWillDisplayTurnsForDiff(data: any) {
     if (String(data && data.type ? data.type : '').toUpperCase() !== 'PERMA_PROTECTED') return undefined;
     const rawThreshold = Number(data && data.strongWillPromotionThreshold);
     const threshold = Number.isFinite(rawThreshold) ? Math.max(1, Math.trunc(rawThreshold)) : 10;
@@ -379,7 +394,7 @@ function _resolveStrongWillDisplayTurnsForDiff(data) {
     return Math.max(0, threshold - progress);
 }
 
-function _resolveSpecialDisplayTurnsForDiff(data) {
+function _resolveSpecialDisplayTurnsForDiff(data: any) {
     const primary = Number(data && data.remainingOwnerTurns);
     if (Number.isFinite(primary)) return Math.max(0, Math.trunc(primary));
     const strongWillRemaining = _resolveStrongWillDisplayTurnsForDiff(data);
@@ -391,7 +406,7 @@ function _resolveSpecialDisplayTurnsForDiff(data) {
     return undefined;
 }
 
-function _isBombCategoryMarkerForDiff(marker) {
+function _isBombCategoryMarkerForDiff(marker: any) {
     if (!marker || typeof marker !== 'object') return false;
     if (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
         return MarkersAdapter.isBombCategoryMarker(marker);
@@ -402,35 +417,35 @@ function _isBombCategoryMarkerForDiff(marker) {
     return marker.kind === 'bomb' || category === 'bomb' || type === 'TIME_BOMB';
 }
 
-function _cacheCell(row, col, cell) {
+function _cacheCell(row: any, col: any, cell: any) {
     if (!cellCache[row]) cellCache[row] = [];
     cellCache[row][col] = cell;
     cellCacheMap.set(`${row},${col}`, cell);
 }
 
-function _getCachedCell(row, col) {
+function _getCachedCell(row: any, col: any) {
     return cellCacheMap.get(`${row},${col}`) || null;
 }
 
 // Shared animation helpers (normalized)
 var AnimationShared = (typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null);
-var OwnerHelpersModule = null;
+var OwnerHelpersModule: any = null;
 if (typeof require === 'function') {
-    try { OwnerHelpersModule = require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
+    try { OwnerHelpersModule = require('../utils/owner-helpers'); } catch (e: any) { /* ignore */ }
 }
 if (!OwnerHelpersModule) {
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) OwnerHelpersModule = globalThis.OwnerHelpers;
-    } catch (e) { /* ignore */ }
+        if (typeof globalThis !== 'undefined' && (globalThis as any).OwnerHelpers) OwnerHelpersModule = (globalThis as any).OwnerHelpers;
+    } catch (e: any) { /* ignore */ }
 }
-var PlaybackStateModule = null;
+var PlaybackStateModule: any = null;
 if (typeof require === 'function') {
-    try { PlaybackStateModule = require('./playback-state-manager'); } catch (e) { /* ignore */ }
+    try { PlaybackStateModule = require('./playback-state-manager'); } catch (e: any) { /* ignore */ }
 }
 if (!PlaybackStateModule) {
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) PlaybackStateModule = globalThis.PlaybackStateManager;
-    } catch (e) { /* ignore */ }
+        if (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackStateManager) PlaybackStateModule = (globalThis as any).PlaybackStateManager;
+    } catch (e: any) { /* ignore */ }
 }
 
 function _isVisualPlaybackActiveForDiff() {
@@ -469,15 +484,14 @@ function _consumeBoardUpdateSyncContextForDiff() {
 // Internal (per-render) flag to suppress fallback flip animation.
 // AnimationEngine already animates flip events; DiffRenderer is used to sync final DOM state after playback.
 let suppressFallbackFlipThisRender = false;
-let pendingMoveSourceKeysThisRender = null;
-
+let pendingMoveSourceKeysThisRender: any = null;
 function _getCardStateForDiffPlayback() {
     try {
         if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         if (typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') return window.cardState;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
@@ -485,7 +499,7 @@ function _hasPendingPlaybackEvents() {
     if (PlaybackStateModule && typeof PlaybackStateModule.hasPendingVisualPlayback === 'function') {
         try {
             return PlaybackStateModule.hasPendingVisualPlayback(_getCardStateForDiffPlayback()) === true;
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     return false;
 }
@@ -495,12 +509,12 @@ function _getPendingPlaybackQueueEntriesForDiff() {
     if (PlaybackStateModule && typeof PlaybackStateModule.getPresentationQueueEntries === 'function') {
         try {
             return PlaybackStateModule.getPresentationQueueEntries(state);
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     return [];
 }
 
-function _getPlaybackEventsFromQueueEntryForDiff(entry) {
+function _getPlaybackEventsFromQueueEntryForDiff(entry: any) {
     if (!entry || typeof entry !== 'object') return [];
     if (entry.type === 'PLAYBACK_EVENTS' && Array.isArray(entry.events)) {
         return entry.events;
@@ -508,7 +522,7 @@ function _getPlaybackEventsFromQueueEntryForDiff(entry) {
     return [entry];
 }
 
-function _extractMoveSourceKeyFromPlaybackTargetForDiff(target) {
+function _extractMoveSourceKeyFromPlaybackTargetForDiff(target: any) {
     if (!target || typeof target !== 'object') return null;
 
     const from = (target.from && typeof target.from === 'object') ? target.from : null;
@@ -544,7 +558,7 @@ function _collectPendingMoveSourceKeysForDiff() {
     return keys;
 }
 
-function _hasPendingMoveSourceAtForDiff(row, col) {
+function _hasPendingMoveSourceAtForDiff(row: any, col: any) {
     const key = `${row},${col}`;
     const keys = pendingMoveSourceKeysThisRender || _collectPendingMoveSourceKeysForDiff();
     return keys.has(key);
@@ -553,30 +567,30 @@ function _hasPendingMoveSourceAtForDiff(row, col) {
 function _resolveGameStateForDiffRender() {
     try {
         if (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object') return gameState;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         if (typeof window !== 'undefined' && window.gameState && typeof window.gameState === 'object') return window.gameState;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.gameState && typeof globalThis.gameState === 'object') return globalThis.gameState;
-    } catch (e) { /* ignore */ }
+        if (typeof globalThis !== 'undefined' && (globalThis as any).gameState && typeof (globalThis as any).gameState === 'object') return (globalThis as any).gameState;
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
 function _resolveCardStateForDiffRender() {
     try {
         if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         if (typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') return window.cardState;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.cardState && typeof globalThis.cardState === 'object') return globalThis.cardState;
-    } catch (e) { /* ignore */ }
+        if (typeof globalThis !== 'undefined' && (globalThis as any).cardState && typeof (globalThis as any).cardState === 'object') return (globalThis as any).cardState;
+    } catch (e: any) { /* ignore */ }
     return {};
 }
 
-function _collectPendingSelectedTargetHighlightKeysForDiff(pending) {
+function _collectPendingSelectedTargetHighlightKeysForDiff(pending: any) {
     const helper = _getDiscStoneHelperForDiff('collectPendingSelectedTargetHighlightKeys');
     if (typeof helper === 'function') {
         const result = helper(pending);
@@ -588,7 +602,7 @@ function _collectPendingSelectedTargetHighlightKeysForDiff(pending) {
     if (!pending || pending.stage !== 'selectTarget') return out;
 
     const pendingType = String(pending.type || '').toUpperCase();
-    const addKey = (target) => {
+    const addKey = (target: any) => {
         if (!target) return;
         const row = Number(target.row);
         const col = Number(target.col);
@@ -615,10 +629,10 @@ function _collectPendingSelectedTargetHighlightKeysForDiff(pending) {
     return out;
 }
 
-function _buildEmptyCellStateForDiffRender(shapeOrGameState) {
+function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
     const boardShape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
     const emptyVal = (typeof EMPTY !== 'undefined') ? EMPTY : 0;
-    const state = [];
+    const state: any = [];
     for (let r = 0; r < boardShape.rows; r++) {
         state[r] = [];
         for (let c = 0; c < boardShape.cols; c++) {
@@ -648,7 +662,7 @@ function _buildEmptyCellStateForDiffRender(shapeOrGameState) {
     return state;
 }
 
-function _resolveFlipEvadeDisplayForDiff(special, inherited) {
+function _resolveFlipEvadeDisplayForDiff(special: any, inherited: any) {
     const specialTypeUpper = String(special && special.type ? special.type : '').toUpperCase();
     const specialSupportsFlipEvade = (
         specialTypeUpper === 'HYPERACTIVE' ||
@@ -676,7 +690,7 @@ function _resolveFlipEvadeDisplayForDiff(special, inherited) {
     };
 }
 
-function _resolveDestroyEvadeDisplayForDiff(special, inherited) {
+function _resolveDestroyEvadeDisplayForDiff(special: any, inherited: any) {
     const specialTypeUpper = String(special && special.type ? special.type : '').toUpperCase();
     const specialSupportsDestroyEvade = (
         specialTypeUpper === 'ULTIMATE_HYPERACTIVE' ||
@@ -704,7 +718,7 @@ function _resolveDestroyEvadeDisplayForDiff(special, inherited) {
 
 const LONG_PRESS_MS = 420;
 const LONG_PRESS_MOVE_CANCEL_PX = 8;
-const STONE_INFO_TAG_MEANINGS = Object.freeze({
+const STONE_INFO_TAG_MEANINGS: Record<string, string> = Object.freeze({
     '多動状態': '両者ターン開始時にマス移動する状態。',
     '反転回避': '反転対象になったとき、マス移動でその石だけ回避する。',
     '破壊回避': '破壊対象になったとき、空きマスへ移動してその石だけ回避する。',
@@ -716,14 +730,14 @@ const STONE_INFO_TAG_MEANINGS = Object.freeze({
     '守る意志適用中': '守る意志または守護神の完全保護が重なっている。',
     '通常石': '通常の石。配置時に挟んだ列を反転できる。'
 });
-let _stoneInfoTagPanelRefs = null;
-let _stoneInfoTagPanelState = {
+let _stoneInfoTagPanelRefs: any = null;
+let _stoneInfoTagPanelState: { open: boolean; key: string | null } = {
     open: false,
     key: null
 };
 let _stoneInfoTagAutoDismissBound = false;
 
-function _isBoardHiddenTrap(marker) {
+function _isBoardHiddenTrap(marker: any) {
     if (!marker || !marker.data || marker.data.type !== 'TRAP') return false;
     // Hidden traps stay visually normal for both seats until reveal timing events.
     return true;
@@ -734,7 +748,7 @@ function _resolveNetworkLocalPlayerKeyForDiff() {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveLocalPlayerKey === 'function') {
             return OwnerHelpersModule.resolveLocalPlayerKey(typeof window !== 'undefined' ? window : null);
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         if (typeof window !== 'undefined') {
             if (window.NetworkMatchClient && typeof window.NetworkMatchClient.getSeatKey === 'function') {
@@ -746,7 +760,7 @@ function _resolveNetworkLocalPlayerKeyForDiff() {
                 if (key === 'white' || key === 'black') return key;
             }
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return 'black';
 }
 
@@ -758,7 +772,7 @@ function _canLocalPlayerControlCurrentTurnForDiff() {
             : ((typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function')
                 ? window.getCurrentMatchMode() === 'network'
                 : ((typeof window !== 'undefined' ? window.MATCH_MODE : null) === 'network'));
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     const currentPlayerKey = gameState.currentPlayer === WHITE ? 'white' : 'black';
     const isHvH = !!(typeof window !== 'undefined' && window.DEBUG_HUMAN_VS_HUMAN === true);
     if (isNetworkMode || !isHvH) {
@@ -775,7 +789,7 @@ function _canLocalPlayerControlCurrentTurnForDiff() {
     return currentPlayerKey === localPlayerKey;
 }
 
-function _normalizeSpecialStoneInfoType(rawType) {
+function _normalizeSpecialStoneInfoType(rawType: any) {
     if (!rawType) return null;
     const registry = _getSpecialStoneRegistryForDiff();
     if (registry && typeof registry.normalizeSpecialStoneType === 'function') {
@@ -784,7 +798,7 @@ function _normalizeSpecialStoneInfoType(rawType) {
     return String(rawType).toUpperCase();
 }
 
-function _getSpecialStoneInfoForDiff(rawType) {
+function _getSpecialStoneInfoForDiff(rawType: any) {
     const type = _normalizeSpecialStoneInfoType(rawType);
     if (!type) return null;
     const registry = _getSpecialStoneRegistryForDiff();
@@ -794,7 +808,7 @@ function _getSpecialStoneInfoForDiff(rawType) {
     return null;
 }
 
-function _createSpecialStoneStatusSnapshotForDiff(input, options) {
+function _createSpecialStoneStatusSnapshotForDiff(input: any, options: any) {
     const snapshotModule = _getStoneStatusSnapshotForDiff();
     if (snapshotModule && typeof snapshotModule.createSpecialStoneStatusSnapshot === 'function') {
         return snapshotModule.createSpecialStoneStatusSnapshot(input, options);
@@ -802,7 +816,7 @@ function _createSpecialStoneStatusSnapshotForDiff(input, options) {
     return null;
 }
 
-function _buildSpecialStoneStatusTagsForDiff(inputs, options) {
+function _buildSpecialStoneStatusTagsForDiff(inputs: any, options: any) {
     const snapshotModule = _getStoneStatusSnapshotForDiff();
     if (snapshotModule && typeof snapshotModule.buildSpecialStoneStatusTags === 'function') {
         return snapshotModule.buildSpecialStoneStatusTags(inputs, options);
@@ -810,12 +824,12 @@ function _buildSpecialStoneStatusTagsForDiff(inputs, options) {
     return (options && options.includeSpecialStone === false) ? [] : ['特殊石'];
 }
 
-function _normalizeBoardCoord(value) {
+function _normalizeBoardCoord(value: any) {
     const num = Number(value);
     return Number.isInteger(num) ? num : null;
 }
 
-function _isSameBoardCoord(rowA, colA, rowB, colB) {
+function _isSameBoardCoord(rowA: any, colA: any, rowB: any, colB: any) {
     const aRow = _normalizeBoardCoord(rowA);
     const aCol = _normalizeBoardCoord(colA);
     const bRow = _normalizeBoardCoord(rowB);
@@ -895,7 +909,7 @@ function _closeStoneInfoTagPanel() {
     _stoneInfoTagPanelState = { open: false, key: null };
 }
 
-function _toggleStoneInfoTagPanel(tag) {
+function _toggleStoneInfoTagPanel(tag: any) {
     const key = String(tag || '').trim();
     if (!key) return false;
 
@@ -920,10 +934,10 @@ function _bindStoneInfoTagAutoDismiss() {
     if (_stoneInfoTagAutoDismissBound || typeof document === 'undefined') return;
     _stoneInfoTagAutoDismissBound = true;
 
-    document.addEventListener('pointerdown', (event) => {
+    document.addEventListener('pointerdown', (event: PointerEvent) => {
         if (!_stoneInfoTagPanelState.open) return;
 
-        const rawTarget = event ? event.target : null;
+        const rawTarget = event ? (event.target as Element | null) : null;
         const targetEl = rawTarget && rawTarget.nodeType === 1
             ? rawTarget
             : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
@@ -937,7 +951,7 @@ function _bindStoneInfoTagAutoDismiss() {
     }, true);
 }
 
-function _renderStoneInfoMetaBadges(metaEl, badges) {
+function _renderStoneInfoMetaBadges(metaEl: any, badges: any) {
     if (!metaEl) return;
     metaEl.textContent = '';
 
@@ -977,7 +991,7 @@ function _getMarkerKinds() {
         : { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' };
 }
 
-function _getMarkerEntriesAt(row, col) {
+function _getMarkerEntriesAt(row: any, col: any) {
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     const kinds = _getMarkerKinds();
     const entries = [];
@@ -998,14 +1012,14 @@ function _getMarkerEntriesAt(row, col) {
     return entries;
 }
 
-function _getMarkerEntryAt(row, col) {
+function _getMarkerEntryAt(row: any, col: any) {
     const entries = _getMarkerEntriesAt(row, col);
     return entries.length > 0 ? entries[0] : null;
 }
 
-function _hasGuardMarkerAt(row, col) {
+function _hasGuardMarkerAt(row: any, col: any) {
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-    return markers.some(m => (
+    return markers.some((m: any) => (
         m &&
         m.kind === _getMarkerKinds().SPECIAL_STONE &&
         _isSameBoardCoord(m.row, m.col, row, col) &&
@@ -1014,7 +1028,7 @@ function _hasGuardMarkerAt(row, col) {
     ));
 }
 
-function _getEntryType(entry) {
+function _getEntryType(entry: any) {
     if (!entry || !entry.marker) return null;
     if (entry.kind === (_getMarkerKinds().BOMB)) {
         const bombType = (entry.marker.data && entry.marker.data.type) ? entry.marker.data.type : 'TIME_BOMB';
@@ -1024,11 +1038,11 @@ function _getEntryType(entry) {
     return _normalizeSpecialStoneInfoType(markerType);
 }
 
-function _isOverlayOnlyMarkerEntryForDiff(entry) {
+function _isOverlayOnlyMarkerEntryForDiff(entry: any) {
     return _getEntryType(entry) === 'LIVING_WILL';
 }
 
-function _hasHyperactiveLikeStateForDiff(state) {
+function _hasHyperactiveLikeStateForDiff(state: any) {
     if (!state || typeof state !== 'object') return false;
     const specialSnapshot = _createSpecialStoneStatusSnapshotForDiff({
         type: state.special && state.special.type,
@@ -1041,7 +1055,7 @@ function _hasHyperactiveLikeStateForDiff(state) {
     return !!state.inherited;
 }
 
-function _createEntryStatusInputForDiff(entry, hasGuard) {
+function _createEntryStatusInputForDiff(entry: any, hasGuard: any) {
     if (!entry || !entry.marker) return null;
     const type = _getEntryType(entry);
     if (!type) return null;
@@ -1057,7 +1071,7 @@ function _createEntryStatusInputForDiff(entry, hasGuard) {
     };
 }
 
-function _buildSpecialStoneBadges(entries, hasGuard, primaryInput) {
+function _buildSpecialStoneBadges(entries: any, hasGuard: any, primaryInput: any) {
     const resolvedEntries = Array.isArray(entries) ? entries : [];
     const statusInputs = resolvedEntries
         .map((entry) => _createEntryStatusInputForDiff(entry, false))
@@ -1093,7 +1107,7 @@ const BREEDING_SPROUT_STONE_INFO = {
     }
 };
 
-function _getStoneOwnerAt(row, col) {
+function _getStoneOwnerAt(row: any, col: any) {
     const black = (typeof BLACK !== 'undefined') ? BLACK : 1;
     const white = (typeof WHITE !== 'undefined') ? WHITE : -1;
     const state = _resolveGameStateForDiffRender();
@@ -1114,7 +1128,7 @@ function _getStoneOwnerAt(row, col) {
     return owner === black || owner === white ? owner : null;
 }
 
-function _getNormalStoneInfo(row, col) {
+function _getNormalStoneInfo(row: any, col: any) {
     const black = (typeof BLACK !== 'undefined') ? BLACK : 1;
     const white = (typeof WHITE !== 'undefined') ? WHITE : -1;
     const owner = _getStoneOwnerAt(row, col);
@@ -1123,7 +1137,7 @@ function _getNormalStoneInfo(row, col) {
     return null;
 }
 
-function _getBreedingSproutOwnerKeyAt(row, col) {
+function _getBreedingSproutOwnerKeyAt(row: any, col: any) {
     const cardStateValue = (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object')
         ? cardState
         : null;
@@ -1142,17 +1156,17 @@ function _getBreedingSproutOwnerKeyAt(row, col) {
     return isSprout ? ownerKey : null;
 }
 
-function _getBreedingSproutStoneInfo(row, col) {
+function _getBreedingSproutStoneInfo(row: any, col: any) {
     const ownerKey = _getBreedingSproutOwnerKeyAt(row, col);
     if (ownerKey !== 'black' && ownerKey !== 'white') return null;
     return BREEDING_SPROUT_STONE_INFO[ownerKey] || null;
 }
 
-function showSpecialStoneInfoAt(row, col) {
+function showSpecialStoneInfoAt(row: any, col: any) {
     _closeStoneInfoTagPanel();
     const entries = _getMarkerEntriesAt(row, col);
     const entry = entries.find((one) => !_isOverlayOnlyMarkerEntryForDiff(one)) || null;
-    let info = null;
+    let info: any = null;
     const badges = [];
     if (entry) {
         const type = _getEntryType(entry);
@@ -1223,10 +1237,10 @@ function _ensureOutsideCloseHandler() {
     if (_outsideCloseHandlerBound || typeof document === 'undefined') return;
     _outsideCloseHandlerBound = true;
     _bindStoneInfoTagAutoDismiss();
-    document.addEventListener('pointerdown', (ev) => {
+    document.addEventListener('pointerdown', (ev: PointerEvent) => {
         const panel = document.getElementById('stone-info-panel');
         if (!panel || !panel.classList.contains('visible')) return;
-        const target = ev.target;
+        const target = ev.target as Node | null;
         if (panel.contains(target)) return;
         const board = document.getElementById('board');
         if (board && board.contains(target)) return;
@@ -1234,10 +1248,10 @@ function _ensureOutsideCloseHandler() {
     }, true);
 }
 
-function attachBoardCellInteraction(cell, row, col) {
+function attachBoardCellInteraction(cell: any, row: any, col: any) {
     if (!cell) return;
 
-    let pressTimer = null;
+    let pressTimer: any = null;
     let pressActive = false;
     let longPressed = false;
     let startX = 0;
@@ -1251,7 +1265,7 @@ function attachBoardCellInteraction(cell, row, col) {
         }
     };
 
-    cell.addEventListener('pointerdown', (ev) => {
+    cell.addEventListener('pointerdown', (ev: any) => {
         if (ev.button !== 0) return;
         _ensureOutsideCloseHandler();
         clearPress();
@@ -1266,7 +1280,7 @@ function attachBoardCellInteraction(cell, row, col) {
         }, LONG_PRESS_MS);
     });
 
-    cell.addEventListener('pointermove', (ev) => {
+    cell.addEventListener('pointermove', (ev: any) => {
         if (!pressActive) return;
         const dx = Math.abs(Number(ev.clientX || 0) - startX);
         const dy = Math.abs(Number(ev.clientY || 0) - startY);
@@ -1275,7 +1289,7 @@ function attachBoardCellInteraction(cell, row, col) {
         }
     });
 
-    cell.addEventListener('pointerup', (ev) => {
+    cell.addEventListener('pointerup', (ev: any) => {
         if (!pressActive && !longPressed) return;
         const wasLongPressed = longPressed;
         clearPress();
@@ -1296,7 +1310,7 @@ function attachBoardCellInteraction(cell, row, col) {
  * Initialize board with full rendering (first time only)
  * @param {HTMLElement} boardEl - 盤面要素
  */
-function initializeBoardDOM(boardEl) {
+function initializeBoardDOM(boardEl: any) {
     const gameState = _resolveGameStateForDiffRender();
     const boardShape = _applyBoardCssVarsForDiff(boardEl, gameState);
     const expansions = _getExpansionDescriptorsForDiff(gameState);
@@ -1314,8 +1328,8 @@ function initializeBoardDOM(boardEl) {
         for (let c = 0; c < boardShape.cols; c++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
-            cell.dataset.row = r;
-            cell.dataset.col = c;
+            cell.dataset.row = String(r);
+            cell.dataset.col = String(c);
             attachBoardCellInteraction(cell, r, c);
             boardEl.appendChild(cell);
             _cacheCell(r, c, cell);
@@ -1385,7 +1399,7 @@ function buildCurrentCellState() {
             : ((typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function')
                 ? window.getCurrentMatchMode() === 'network'
                 : ((typeof window !== 'undefined' ? window.MATCH_MODE : null) === 'network'));
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     const canControlCurrentTurn = _canLocalPlayerControlCurrentTurnForDiff();
     const isFateWillControlledTurn = !!(
         cardState &&
@@ -1417,12 +1431,12 @@ function buildCurrentCellState() {
     let normalLegalSet = new Set();
     if (showLegalHints) {
         const legalMoves = getLegalMoves(gameState, context.protectedStones, context.permaProtectedStones);
-        normalLegalSet = new Set(legalMoves.map(m => `${m.row},${m.col}`));
+        normalLegalSet = new Set(legalMoves.map((m: any) => `${m.row},${m.col}`));
     }
 
     const tabooLegalSet = new Set();
     if (showLegalHints && isTabooReversePending && typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getTabooReverseCandidates === 'function') {
-        const addTabooCell = (row, col) => {
+        const addTabooCell = (row: any, col: any) => {
             if (!Number.isInteger(row) || !Number.isInteger(col)) return;
             const key = `${row},${col}`;
             const candidates = CardLogic.getTabooReverseCandidates(cardState, gameState, playerKey, row, col);
@@ -1445,7 +1459,7 @@ function buildCurrentCellState() {
     if (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true) {
         console.log('[DiffRenderer] legal hint cells:', legalSet.size, 'player:', player, 'taboo:', isTabooReversePending, 'tabooCells:', tabooLegalSet.size);
     }
-    const selectableTargetSet = new Set(selectableTargets.map(p => p.row + ',' + p.col));
+    const selectableTargetSet = new Set(selectableTargets.map((p: any) => p.row + ',' + p.col));
     const selectedTargetHighlightSet = isHumanTurn
         ? _collectPendingSelectedTargetHighlightKeysForDiff(pending)
         : new Set();
@@ -1584,7 +1598,7 @@ function buildCurrentCellState() {
         const sproutByOwner = (cardState && cardState.breedingSproutByOwner && typeof cardState.breedingSproutByOwner === 'object')
             ? cardState.breedingSproutByOwner
             : { black: [], white: [] };
-        const addSprout = (ownerKey, positions) => {
+        const addSprout = (ownerKey: any, positions: any) => {
             const ownerVal = ownerKey === 'black' ? BLACK : WHITE;
             if (!Array.isArray(positions)) return;
             for (const p of positions) {
@@ -1596,7 +1610,7 @@ function buildCurrentCellState() {
         };
         addSprout('black', sproutByOwner.black);
         addSprout('white', sproutByOwner.white);
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     const existingCellKeySet = new Set();
     for (let r = 0; r < boardShape.rows; r++) {
@@ -1621,7 +1635,7 @@ function buildCurrentCellState() {
         playableKeySet.delete(holeKey);
     }
 
-    const getBoardShrinkInnerBoundaryMask = (row, col, visualVariant) => {
+    const getBoardShrinkInnerBoundaryMask = (row: any, col: any, visualVariant: any) => {
         if (String(visualVariant || '').toUpperCase() !== 'BOARD_FRAME') return null;
         const edges = [];
         const neighbors = [
@@ -1638,7 +1652,7 @@ function buildCurrentCellState() {
         return edges.length ? edges.join(',') : null;
     };
 
-    const state = [];
+    const state: any = [];
     for (let r = 0; r < boardShape.rows; r++) {
         state[r] = [];
         for (let c = 0; c < boardShape.cols; c++) {
@@ -1679,7 +1693,7 @@ function buildCurrentCellState() {
             );
 
             // Normalize owner to BLACK/WHITE constant
-            const getOwnerVal = (owner) => {
+            const getOwnerVal = (owner: any) => {
                 if (owner === 'black' || owner === BLACK || owner === 1) return BLACK;
                 return WHITE;
             };
@@ -1768,7 +1782,7 @@ function buildCurrentCellState() {
             )
         );
 
-        const getOwnerVal = (owner) => {
+        const getOwnerVal = (owner: any) => {
             if (owner === 'black' || owner === BLACK || owner === 1) return BLACK;
             return WHITE;
         };
@@ -1834,7 +1848,7 @@ function buildCurrentCellState() {
  * @param {CellState} b - 現在の状態
  * @returns {boolean} 同一かどうか
  */
-function cellStatesEqual(a, b) {
+function cellStatesEqual(a: any, b: any) {
     if (!a) return false;
     if (a.value !== b.value) return false;
     if (a.isLegal !== b.isLegal) return false;
@@ -1902,7 +1916,7 @@ function cellStatesEqual(a, b) {
     return true;
 }
 
-function updateCellDOM(cell, state, row, col, prevState) {
+function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any) {
     const boardShape = _getBoardShapeForDiff(_resolveGameStateForDiffRender());
     const isExpansionCell = _isExpansionCoordinateForDiff(row, col, boardShape);
     const expansionSide = _resolveExpansionSideForDiff(state && state.side ? state.side : null, row, col, boardShape);
@@ -1927,7 +1941,7 @@ function updateCellDOM(cell, state, row, col, prevState) {
             currentDisc.classList.remove('stone-hidden', 'stone-hidden-all', 'stone-instant');
             currentDisc.style.opacity = '';
             currentDisc.style.visibility = '';
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
 
     // Also skip if an animation overlay is active in this cell
@@ -1950,19 +1964,19 @@ function updateCellDOM(cell, state, row, col, prevState) {
             const fadeMs = (typeof SharedConstants !== 'undefined' && SharedConstants.DESTROY_FADE_MS)
                 ? SharedConstants.DESTROY_FADE_MS
                 : ((typeof window !== 'undefined' && window.DESTROY_FADE_MS) ? window.DESTROY_FADE_MS : 500);
-            const timer = (AnimationShared && AnimationShared.getTimer) ? AnimationShared.getTimer() : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn, ms) => setTimeout(fn, ms) });
+            const timer = (AnimationShared && AnimationShared.getTimer) ? AnimationShared.getTimer() : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn: any, ms: any) => setTimeout(fn, ms) });
             timer.setTimeout(() => {
                 try {
                     cell.classList.remove('has-disc');
                     cell.innerHTML = '';
-                } catch (e) { /* ignore */ }
+                } catch (e: any) { /* ignore */ }
                 try {
                     if (typeof BoardUpdateDispatch !== 'undefined' && BoardUpdateDispatch && typeof BoardUpdateDispatch.requestBoardUpdate === 'function') {
                         BoardUpdateDispatch.requestBoardUpdate();
                     } else if (typeof emitBoardUpdate === 'function') {
                         emitBoardUpdate();
                     }
-                } catch (e) { /* ignore */ }
+                } catch (e: any) { /* ignore */ }
             }, fadeMs + 50);
             return;
         }
@@ -2014,7 +2028,7 @@ function updateCellDOM(cell, state, row, col, prevState) {
                 const holeMark = document.createElement('div');
                 holeMark.className = 'board-shrink-hole-mark';
                 const innerBoundaryMask = typeof state.blockade.innerBoundaryMask === 'string'
-                    ? state.blockade.innerBoundaryMask.split(',').map((edge) => String(edge || '').trim()).filter((edge) => !!edge)
+                    ? state.blockade.innerBoundaryMask.split(',').map((edge: any) => String(edge || '').trim()).filter((edge: any) => !!edge)
                     : [];
                 for (const edge of innerBoundaryMask) {
                     const edgeEl = document.createElement('div');
@@ -2089,11 +2103,11 @@ function updateCellDOM(cell, state, row, col, prevState) {
                     disc.style.setProperty('--disc-base-image', (state.value === BLACK ? 'var(--normal-stone-black-image)' : 'var(--normal-stone-white-image)'));
                     disc.dataset.renderMode = 'base-only';
                     disc.dataset.effect = 'normal';
-                } catch (e) { /* ignore */ }
+                } catch (e: any) { /* ignore */ }
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
-        const normalizeOwnerVal = (owner) => {
+        const normalizeOwnerVal = (owner: any) => {
             if (owner === 'black' || owner === BLACK || owner === 1) return BLACK;
             return WHITE;
         };
@@ -2242,9 +2256,9 @@ function updateCellDOM(cell, state, row, col, prevState) {
             const flipMs = (typeof window !== 'undefined' && window.AnimationConstants && window.AnimationConstants.FLIP_MS) ? window.AnimationConstants.FLIP_MS : 600;
             try {
                 if (AnimationShared && AnimationShared.triggerFlip) AnimationShared.triggerFlip(disc);
-                const timer = (AnimationShared && AnimationShared.getTimer) ? AnimationShared.getTimer() : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn, ms) => setTimeout(fn, ms) });
-                timer.setTimeout(() => { try { if (AnimationShared && AnimationShared.removeFlip) AnimationShared.removeFlip(disc); else disc.classList.remove('flip'); } catch (e) { } }, flipMs);
-            } catch (e) { /* ignore */ }
+                const timer = (AnimationShared && AnimationShared.getTimer) ? AnimationShared.getTimer() : (typeof TimerRegistry !== 'undefined' ? TimerRegistry : { setTimeout: (fn: any, ms: any) => setTimeout(fn, ms) });
+                timer.setTimeout(() => { try { if (AnimationShared && AnimationShared.removeFlip) AnimationShared.removeFlip(disc); else disc.classList.remove('flip'); } catch (e: any) { /* Intentionally empty: DOM cleanup guard */ } }, flipMs);
+            } catch (e: any) { /* ignore */ }
         }
 
     }
@@ -2269,7 +2283,7 @@ function updateCellDOM(cell, state, row, col, prevState) {
  * @param {string} type - Special stone type
  * @returns {string|null} Effect key for applyStoneVisualEffect
  */
-function getEffectKeyForType(type) {
+function getEffectKeyForType(type: any) {
     // Delegate to the canonical map in visual-effects-map.js when available.
     if (typeof getEffectKeyForSpecialType === 'function') {
         return getEffectKeyForSpecialType(type);
@@ -2278,37 +2292,37 @@ function getEffectKeyForType(type) {
         if (typeof SPECIAL_TYPE_TO_EFFECT_KEY !== 'undefined' && SPECIAL_TYPE_TO_EFFECT_KEY) {
             return SPECIAL_TYPE_TO_EFFECT_KEY[type] || null;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         if (typeof window !== 'undefined' && window.SPECIAL_TYPE_TO_EFFECT_KEY) {
             return window.SPECIAL_TYPE_TO_EFFECT_KEY[type] || null;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
-function reconcileCellHasDiscClasses(boardEl) {
+function reconcileCellHasDiscClasses(boardEl: any) {
     if (!boardEl || typeof boardEl.querySelectorAll !== 'function') return;
     const cells = boardEl.querySelectorAll('.cell');
-    cells.forEach((cell) => {
+    cells.forEach((cell: any) => {
         try {
             const hasDisc = !!cell.querySelector('.disc');
             if (hasDisc) cell.classList.add('has-disc');
             else cell.classList.remove('has-disc');
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     });
 }
 
-function reconcileCellHintClasses(boardEl, currentState) {
+function reconcileCellHintClasses(boardEl: any, currentState: any) {
     if (!boardEl || !currentState || typeof currentState !== 'object') return;
     const boardShape = _getStateBoardShapeForDiff(currentState);
     const expansionStateMap = new Map(
         _getExpansionStateListForDiff(currentState)
             .filter(Boolean)
-            .map((exp) => [`${exp.row},${exp.col}`, exp])
+            .map((exp: any) => [`${exp.row},${exp.col}`, exp])
     );
     const cells = boardEl.querySelectorAll('.cell');
-    cells.forEach((cell) => {
+    cells.forEach((cell: any) => {
         try {
             const row = Number(cell && cell.dataset ? cell.dataset.row : NaN);
             const col = Number(cell && cell.dataset ? cell.dataset.col : NaN);
@@ -2331,7 +2345,7 @@ function reconcileCellHintClasses(boardEl, currentState) {
             cell.classList.toggle('selectable-friendly', shouldShowSelectable);
             cell.classList.toggle('selectable-friendly-no-circle', shouldShowExtendLifeTarget);
             _applyTimeStopLegalEmphasisForDiff(cell);
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     });
 }
 
@@ -2341,7 +2355,7 @@ function reconcileCellHintClasses(boardEl, currentState) {
  * @param {HTMLElement} boardEl - 盤面要素
  * @returns {number} 更新されたセル数
  */
-function renderBoardDiff(boardEl) {
+function renderBoardDiff(boardEl: any) {
     // Single Visual Writer detection: prevent diff/rerender during active playback
     const boardUpdateSyncContext = _peekBoardUpdateSyncContextForDiff();
     const allowBoardUpdateDuringPlayback = !!(
@@ -2436,8 +2450,8 @@ function renderBoardDiff(boardEl) {
 
         const prevExpList = _getExpansionStateListForDiff(previousBoardState);
         const currExpList = _getExpansionStateListForDiff(currentState);
-        const prevExpMap = new Map(prevExpList.filter(Boolean).map((exp) => [`${exp.row},${exp.col}`, exp]));
-        const currExpMap = new Map(currExpList.filter(Boolean).map((exp) => [`${exp.row},${exp.col}`, exp]));
+        const prevExpMap: Map<string, any> = new Map(prevExpList.filter(Boolean).map((exp: any) => [`${exp.row},${exp.col}`, exp]));
+        const currExpMap: Map<string, any> = new Map(currExpList.filter(Boolean).map((exp: any) => [`${exp.row},${exp.col}`, exp]));
         const expansionKeys = new Set([...prevExpMap.keys(), ...currExpMap.keys()]);
         for (const key of expansionKeys) {
             const prevExp = prevExpMap.get(key) || null;
@@ -2474,7 +2488,7 @@ function renderBoardDiff(boardEl) {
  * Force full re-render of all cells
  * @param {HTMLElement} boardEl - 盤面要素
  */
-function forceFullRender(boardEl) {
+function forceFullRender(boardEl: any) {
     previousBoardState = null;
     cellCache = [];
     cellCacheMap = new Map();

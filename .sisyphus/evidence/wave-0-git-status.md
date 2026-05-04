@@ -1,0 +1,2862 @@
+# Wave 0: Git Status Report
+
+## Summary
+- Total changed files: 2849
+- Added: 618
+- Modified: 1196
+- Deleted: 961
+
+## Diff Stats
+ 1913 files changed, 25112 insertions(+), 240896 deletions(-)
+
+## Full Status
+ D .github/agents/Scrutiny.agent.md
+ D .github/agents/fleet-council-coordinator.agent.md
+ D .github/copilot-instructions.md
+ D .github/instructions/cards.instructions.md
+ D .github/instructions/constants.instructions.md
+ D .github/instructions/cpu.instructions.md
+ D .github/instructions/debug.instructions.md
+ D .github/instructions/docs.instructions.md
+ D .github/instructions/game.instructions.md
+ D .github/instructions/scripts.instructions.md
+ D .github/instructions/shared.instructions.md
+ D .github/instructions/ui.instructions.md
+ D .github/instructions/workers.instructions.md
+ D .github/prompts/execute-plan.prompt.md
+ D .github/skills/animation-visual-playback-workflow/SKILL.md
+ D .github/skills/board-expansion-movement-workflow/SKILL.md
+ D .github/skills/card-cost-adjustment-workflow/SKILL.md
+ D .github/skills/card-description-surface-workflow/SKILL.md
+ D .github/skills/card-effect-integration-workflow/SKILL.md
+ D .github/skills/cpu-onnx-gate-workflow/SKILL.md
+ D .github/skills/deck-builder-authoring-workflow/SKILL.md
+ D .github/skills/design-plan-runbook-authoring-workflow/SKILL.md
+ D .github/skills/marker-duration-lifecycle-workflow/SKILL.md
+ D .github/skills/network-backend-worker-workflow/SKILL.md
+ D .github/skills/network-playback-workflow/SKILL.md
+ D .github/skills/network-selfmatch-bug-hunt-workflow/SKILL.md
+ D .github/skills/new-card-implementation-workflow/SKILL.md
+ D .github/skills/pending-selection-flow-workflow/SKILL.md
+ D .github/skills/prompt-refinement-workflow/SKILL.md
+ D .github/skills/repo-skill-authoring-workflow/SKILL.md
+ D .github/skills/safe-rational-refactor/SKILL.md
+ D .github/skills/selfplay-training-pipeline-workflow/SKILL.md
+ D .github/skills/selfplay-training-run-ops-workflow/SKILL.md
+ D .github/skills/story-tutorial-workflow/SKILL.md
+ D .github/skills/ui-bootstrap-load-order-workflow/SKILL.md
+ D .github/skills/worker-public-sync-workflow/SKILL.md
+ M 01-rulebook.md
+ M AGENTS.md
+ M SKILLS.md
+ M ai/train/__pycache__/onnx_trainer_common.cpython-313.pyc
+ D analyze-crystal-stone-quiet.js
+ D analyze-crystal-stone.js
+ D analyze-destroy-cycle.js
+ D analyze-selfplay-moves.js
+ D analyze-trap-will.js
+ M assets/asset-manifest.json
+ D "assets/audio/sound-effect/\347\251\266\346\245\265\345\217\215\350\273\242\351\276\215\343\203\273\347\251\266\346\245\265\347\240\264\345\243\212\347\245\236\343\201\214\347\247\273\345\213\225\343\201\227\343\201\237\343\202\277\343\202\244\343\203\237\343\203\263\343\202\260.mp3"
+ D "assets/images/background/\345\256\207\345\256\231\343\201\256\350\246\263\346\270\254.png"
+ M cards/card-interaction-effects.js
+ D cards/card-interaction-effects.ts
+ M cards/card-interaction.js
+ M cards/card-interaction.ts
+ M cards/card-renderer.js
+ M cards/catalog.generated.js
+ M cards/catalog.js
+ M cards/catalog.json
+ M cards/catalog.ts
+ D charge-utils.js
+ D commentary-context-helpers.js
+ D commentary-runtime-helpers.js
+ M constants/animation-constants.js
+ M constants/animation-constants.ts
+ M constants/cpu-lv6-shared-profile.js
+ M constants/difficulty-constants.js
+ M constants/ui-element-cache.js
+ D cpu-lv6-runtime-capability.js
+ D cpu/cpu-turn.js
+ D deck-codec.js
+ D deck-spec.js
+ D destroy-outcome-contract.js
+ M dist/cards/card-interaction-effects.js
+ M dist/cards/card-interaction-effects.js.map
+ M dist/cards/card-interaction.js
+ M dist/cards/card-interaction.js.map
+ M dist/cards/card-renderer.js
+ M dist/cards/catalog.generated.js
+ M dist/cards/catalog.generated.js.map
+ M dist/cards/catalog.js
+ M dist/cards/catalog.js.map
+ M dist/cards/catalog.json
+ M dist/constants/animation-constants.js
+ M dist/constants/animation-constants.js.map
+ M dist/constants/cpu-lv6-shared-profile.js
+ D dist/dist/game/logic/cards-internal/card-usage-prechecks.d.ts
+ D dist/dist/game/logic/cards-internal/card-usage-prechecks.d.ts.map
+ D dist/dist/game/logic/cards-internal/card-usage-prechecks.js
+ D dist/dist/game/logic/cards-internal/card-usage-prechecks.js.map
+ D dist/dist/game/logic/cards-internal/charge-ledger.d.ts
+ D dist/dist/game/logic/cards-internal/charge-ledger.d.ts.map
+ D dist/dist/game/logic/cards-internal/charge-ledger.js
+ D dist/dist/game/logic/cards-internal/charge-ledger.js.map
+ D dist/dist/game/logic/cards-internal/module-resolver.d.ts
+ D dist/dist/game/logic/cards-internal/module-resolver.d.ts.map
+ D dist/dist/game/logic/cards-internal/module-resolver.js
+ D dist/dist/game/logic/cards-internal/module-resolver.js.map
+ D dist/dist/game/logic/cards-internal/presentation-helpers.d.ts
+ D dist/dist/game/logic/cards-internal/presentation-helpers.d.ts.map
+ D dist/dist/game/logic/cards-internal/presentation-helpers.js
+ D dist/dist/game/logic/cards-internal/presentation-helpers.js.map
+ D dist/dist/game/logic/cards-internal/random-source.d.ts
+ D dist/dist/game/logic/cards-internal/random-source.d.ts.map
+ D dist/dist/game/logic/cards-internal/random-source.js
+ D dist/dist/game/logic/cards-internal/random-source.js.map
+ M dist/game/ai/__tests__/test-endgame-solver.test.js
+ M dist/game/ai/__tests__/test-gumbel-mcts.test.js
+ M dist/game/ai/cpu-commentary-runtime.js
+ M dist/game/ai/cpu-commentary-runtime.js.map
+ M dist/game/ai/cpu-lv6-lookahead-profile.js
+ M dist/game/ai/cpu-lv6-lookahead-profile.js.map
+ D dist/game/ai/cpu-policy-core.d.ts
+ M dist/game/ai/cpu-policy-core.js
+ M dist/game/ai/cpu-policy-core.js.map
+ M dist/game/ai/endgame-solver.js
+ M dist/game/ai/fixed-commentary-engine.js
+ M dist/game/ai/fixed-commentary-engine.js.map
+ M dist/game/ai/gumbel-mcts.js
+ M dist/game/ai/level-system.js
+ M dist/game/ai/mcts-core.js
+ M dist/game/ai/mcts-policy.js
+ M dist/game/ai/mcts-policy.js.map
+ M dist/game/ai/mcts-temperature.js
+ M dist/game/ai/mcts-two-layer.js
+ M dist/game/ai/policy-onnx-runtime-v2.js
+ M dist/game/ai/policy-onnx-runtime.js
+ M dist/game/ai/policy-onnx-runtime.js.map
+ M dist/game/ai/policy-table-runtime.js
+ M dist/game/ai/policy-table-runtime.js.map
+ M dist/game/auto.js
+ M dist/game/auto.js.map
+ M dist/game/card-effects-applier.js
+ M dist/game/card-effects/blockade.js
+ M dist/game/card-effects/blockade.js.map
+ M dist/game/card-effects/board-expansion.js
+ M dist/game/card-effects/board-expansion.js.map
+ M dist/game/card-effects/board-shrink.js
+ M dist/game/card-effects/board-shrink.js.map
+ M dist/game/card-effects/capture.js
+ M dist/game/card-effects/capture.js.map
+ M dist/game/card-effects/clone.js
+ M dist/game/card-effects/clone.js.map
+ M dist/game/card-effects/destroy.js
+ M dist/game/card-effects/destroy.js.map
+ M dist/game/card-effects/extend-life.js
+ M dist/game/card-effects/extend-life.js.map
+ M dist/game/card-effects/freeze.js
+ M dist/game/card-effects/freeze.js.map
+ M dist/game/card-effects/guard.js
+ M dist/game/card-effects/guard.js.map
+ M dist/game/card-effects/helpers.js
+ M dist/game/card-effects/helpers.js.map
+ D dist/game/card-effects/hyperactive-inherit.d.ts
+ D dist/game/card-effects/hyperactive-inherit.d.ts.map
+ D dist/game/card-effects/hyperactive-inherit.js
+ D dist/game/card-effects/hyperactive-inherit.js.map
+ M dist/game/card-effects/living-will.js
+ M dist/game/card-effects/living-will.js.map
+ M dist/game/card-effects/meteor.js
+ M dist/game/card-effects/meteor.js.map
+ M dist/game/card-effects/placement.js
+ M dist/game/card-effects/placement.js.map
+ M dist/game/card-effects/position-swap.js
+ M dist/game/card-effects/position-swap.js.map
+ M dist/game/card-effects/seed.js
+ M dist/game/card-effects/seed.js.map
+ M dist/game/card-effects/selection-flow.js
+ M dist/game/card-effects/strong-wind.js
+ M dist/game/card-effects/strong-wind.js.map
+ M dist/game/card-effects/swap.js
+ M dist/game/card-effects/swap.js.map
+ M dist/game/card-effects/teleport.js
+ M dist/game/card-effects/teleport.js.map
+ M dist/game/card-effects/tempt.js
+ M dist/game/card-effects/tempt.js.map
+ M dist/game/card-effects/time-bomb.js
+ M dist/game/card-effects/time-bomb.js.map
+ M dist/game/card-effects/trap.js
+ M dist/game/card-effects/trap.js.map
+ M dist/game/cards/effect-resolver.js
+ M dist/game/cards/effect-resolver.js.map
+ M dist/game/cards/effects/board-expansion-apply.js
+ M dist/game/cards/effects/breeding.js
+ M dist/game/cards/effects/breeding.js.map
+ M dist/game/cards/effects/chain.js
+ M dist/game/cards/effects/chain.js.map
+ M dist/game/cards/effects/clone.js
+ M dist/game/cards/effects/clone.js.map
+ M dist/game/cards/effects/destroy-dragon.js
+ M dist/game/cards/effects/destroy-dragon.js.map
+ M dist/game/cards/effects/destroy-one-stone.js
+ M dist/game/cards/effects/destroy-one-stone.js.map
+ M dist/game/cards/effects/dragon.js
+ M dist/game/cards/effects/dragon.js.map
+ M dist/game/cards/effects/expansion.js
+ M dist/game/cards/effects/expansion.js.map
+ M dist/game/cards/effects/flips.js
+ M dist/game/cards/effects/flips.js.map
+ M dist/game/cards/effects/hand-effects.js
+ M dist/game/cards/effects/hyperactive.js
+ M dist/game/cards/effects/hyperactive.js.map
+ M dist/game/cards/effects/lightning.js
+ M dist/game/cards/effects/lightning.js.map
+ M dist/game/cards/effects/living-will.js
+ M dist/game/cards/effects/living-will.js.map
+ M dist/game/cards/effects/markers.js
+ M dist/game/cards/effects/markers.js.map
+ M dist/game/cards/effects/meteor.js
+ M dist/game/cards/effects/meteor.js.map
+ M dist/game/cards/effects/movement.js
+ M dist/game/cards/effects/movement.js.map
+ M dist/game/cards/effects/ownership.js
+ M dist/game/cards/effects/position-swap.js
+ M dist/game/cards/effects/protect.js
+ M dist/game/cards/effects/regen.js
+ M dist/game/cards/effects/regen.js.map
+ M dist/game/cards/effects/selectors.js
+ M dist/game/cards/effects/shrink.js
+ M dist/game/cards/effects/shrink.js.map
+ M dist/game/cards/effects/sniper.js
+ M dist/game/cards/effects/sniper.js.map
+ M dist/game/cards/effects/status-cells.js
+ M dist/game/cards/effects/swap-with-enemy.js
+ M dist/game/cards/effects/swap-with-enemy.js.map
+ M dist/game/cards/effects/targets.js
+ M dist/game/cards/effects/teleport.js
+ M dist/game/cards/effects/teleport.js.map
+ M dist/game/cards/effects/time-bomb.js
+ M dist/game/cards/effects/time-bomb.js.map
+ M dist/game/cards/effects/trap.js
+ M dist/game/cards/effects/udg.js
+ M dist/game/cards/effects/udg.js.map
+ M dist/game/cards/effects/work-will.js
+ M dist/game/cards/effects/work-will.js.map
+ D dist/game/cards/game/cards/effects/board-expansion-apply.d.ts
+ D dist/game/cards/game/cards/effects/board-expansion-apply.d.ts.map
+ D dist/game/cards/game/cards/effects/board-expansion-apply.js
+ D dist/game/cards/game/cards/effects/board-expansion-apply.js.map
+ D dist/game/cards/game/cards/effects/breeding.d.ts
+ D dist/game/cards/game/cards/effects/breeding.d.ts.map
+ D dist/game/cards/game/cards/effects/breeding.js
+ D dist/game/cards/game/cards/effects/breeding.js.map
+ D dist/game/cards/game/cards/effects/chain.d.ts
+ D dist/game/cards/game/cards/effects/chain.d.ts.map
+ D dist/game/cards/game/cards/effects/chain.js
+ D dist/game/cards/game/cards/effects/chain.js.map
+ D dist/game/cards/game/cards/effects/clone.d.ts
+ D dist/game/cards/game/cards/effects/clone.d.ts.map
+ D dist/game/cards/game/cards/effects/clone.js
+ D dist/game/cards/game/cards/effects/clone.js.map
+ D dist/game/cards/game/cards/effects/destroy-dragon.d.ts
+ D dist/game/cards/game/cards/effects/destroy-dragon.d.ts.map
+ D dist/game/cards/game/cards/effects/destroy-dragon.js
+ D dist/game/cards/game/cards/effects/destroy-dragon.js.map
+ D dist/game/cards/game/cards/effects/destroy-one-stone.d.ts
+ D dist/game/cards/game/cards/effects/destroy-one-stone.d.ts.map
+ D dist/game/cards/game/cards/effects/destroy-one-stone.js
+ D dist/game/cards/game/cards/effects/destroy-one-stone.js.map
+ D dist/game/cards/game/cards/effects/dragon.d.ts
+ D dist/game/cards/game/cards/effects/dragon.d.ts.map
+ D dist/game/cards/game/cards/effects/dragon.js
+ D dist/game/cards/game/cards/effects/dragon.js.map
+ D dist/game/cards/game/cards/effects/expansion.d.ts
+ D dist/game/cards/game/cards/effects/expansion.d.ts.map
+ D dist/game/cards/game/cards/effects/expansion.js
+ D dist/game/cards/game/cards/effects/expansion.js.map
+ D dist/game/cards/game/cards/effects/flips.d.ts
+ D dist/game/cards/game/cards/effects/flips.d.ts.map
+ D dist/game/cards/game/cards/effects/flips.js
+ D dist/game/cards/game/cards/effects/flips.js.map
+ D dist/game/cards/game/cards/effects/hand-effects.d.ts
+ D dist/game/cards/game/cards/effects/hand-effects.d.ts.map
+ D dist/game/cards/game/cards/effects/hand-effects.js
+ D dist/game/cards/game/cards/effects/hand-effects.js.map
+ D dist/game/cards/game/cards/effects/hyperactive.d.ts
+ D dist/game/cards/game/cards/effects/hyperactive.d.ts.map
+ D dist/game/cards/game/cards/effects/hyperactive.js
+ D dist/game/cards/game/cards/effects/hyperactive.js.map
+ D dist/game/cards/game/cards/effects/lightning.d.ts
+ D dist/game/cards/game/cards/effects/lightning.d.ts.map
+ D dist/game/cards/game/cards/effects/lightning.js
+ D dist/game/cards/game/cards/effects/lightning.js.map
+ D dist/game/cards/game/cards/effects/living-will.d.ts
+ D dist/game/cards/game/cards/effects/living-will.d.ts.map
+ D dist/game/cards/game/cards/effects/living-will.js
+ D dist/game/cards/game/cards/effects/living-will.js.map
+ D dist/game/cards/game/cards/effects/markers.d.ts
+ D dist/game/cards/game/cards/effects/markers.d.ts.map
+ D dist/game/cards/game/cards/effects/markers.js
+ D dist/game/cards/game/cards/effects/markers.js.map
+ D dist/game/cards/game/cards/effects/meteor.d.ts
+ D dist/game/cards/game/cards/effects/meteor.d.ts.map
+ D dist/game/cards/game/cards/effects/meteor.js
+ D dist/game/cards/game/cards/effects/meteor.js.map
+ D dist/game/cards/game/cards/effects/movement.d.ts
+ D dist/game/cards/game/cards/effects/movement.d.ts.map
+ D dist/game/cards/game/cards/effects/movement.js
+ D dist/game/cards/game/cards/effects/movement.js.map
+ D dist/game/cards/game/cards/effects/ownership.d.ts
+ D dist/game/cards/game/cards/effects/ownership.d.ts.map
+ D dist/game/cards/game/cards/effects/ownership.js
+ D dist/game/cards/game/cards/effects/ownership.js.map
+ D dist/game/cards/game/cards/effects/position-swap.d.ts
+ D dist/game/cards/game/cards/effects/position-swap.d.ts.map
+ D dist/game/cards/game/cards/effects/position-swap.js
+ D dist/game/cards/game/cards/effects/position-swap.js.map
+ D dist/game/cards/game/cards/effects/protect.d.ts
+ D dist/game/cards/game/cards/effects/protect.d.ts.map
+ D dist/game/cards/game/cards/effects/protect.js
+ D dist/game/cards/game/cards/effects/protect.js.map
+ D dist/game/cards/game/cards/effects/regen.d.ts
+ D dist/game/cards/game/cards/effects/regen.d.ts.map
+ D dist/game/cards/game/cards/effects/regen.js
+ D dist/game/cards/game/cards/effects/regen.js.map
+ D dist/game/cards/game/cards/effects/shrink.d.ts
+ D dist/game/cards/game/cards/effects/shrink.d.ts.map
+ D dist/game/cards/game/cards/effects/shrink.js
+ D dist/game/cards/game/cards/effects/shrink.js.map
+ D dist/game/cards/game/cards/effects/sniper.d.ts
+ D dist/game/cards/game/cards/effects/sniper.d.ts.map
+ D dist/game/cards/game/cards/effects/sniper.js
+ D dist/game/cards/game/cards/effects/sniper.js.map
+ D dist/game/cards/game/cards/effects/status-cells.d.ts
+ D dist/game/cards/game/cards/effects/status-cells.d.ts.map
+ D dist/game/cards/game/cards/effects/status-cells.js
+ D dist/game/cards/game/cards/effects/status-cells.js.map
+ D dist/game/cards/game/cards/effects/swap-with-enemy.d.ts
+ D dist/game/cards/game/cards/effects/swap-with-enemy.d.ts.map
+ D dist/game/cards/game/cards/effects/swap-with-enemy.js
+ D dist/game/cards/game/cards/effects/swap-with-enemy.js.map
+ D dist/game/cards/game/cards/effects/targets.d.ts
+ D dist/game/cards/game/cards/effects/targets.d.ts.map
+ D dist/game/cards/game/cards/effects/targets.js
+ D dist/game/cards/game/cards/effects/targets.js.map
+ D dist/game/cards/game/cards/effects/teleport.d.ts
+ D dist/game/cards/game/cards/effects/teleport.d.ts.map
+ D dist/game/cards/game/cards/effects/teleport.js
+ D dist/game/cards/game/cards/effects/teleport.js.map
+ D dist/game/cards/game/cards/effects/time-bomb.d.ts
+ D dist/game/cards/game/cards/effects/time-bomb.d.ts.map
+ D dist/game/cards/game/cards/effects/time-bomb.js
+ D dist/game/cards/game/cards/effects/time-bomb.js.map
+ D dist/game/cards/game/cards/effects/trap.d.ts
+ D dist/game/cards/game/cards/effects/trap.d.ts.map
+ D dist/game/cards/game/cards/effects/trap.js
+ D dist/game/cards/game/cards/effects/trap.js.map
+ D dist/game/cards/game/cards/effects/udg.d.ts
+ D dist/game/cards/game/cards/effects/udg.d.ts.map
+ D dist/game/cards/game/cards/effects/udg.js
+ D dist/game/cards/game/cards/effects/udg.js.map
+ D dist/game/cards/game/cards/effects/work-will.d.ts
+ D dist/game/cards/game/cards/effects/work-will.d.ts.map
+ D dist/game/cards/game/cards/effects/work-will.js
+ D dist/game/cards/game/cards/effects/work-will.js.map
+ D dist/game/cards/game/logic/cards/chain.d.ts
+ D dist/game/cards/game/logic/cards/chain.d.ts.map
+ D dist/game/cards/game/logic/cards/chain.js
+ D dist/game/cards/game/logic/cards/chain.js.map
+ D dist/game/cards/game/logic/cards/clone.d.ts
+ D dist/game/cards/game/logic/cards/clone.d.ts.map
+ D dist/game/cards/game/logic/cards/clone.js
+ D dist/game/cards/game/logic/cards/clone.js.map
+ D dist/game/cards/game/logic/cards/flips.d.ts
+ D dist/game/cards/game/logic/cards/flips.d.ts.map
+ D dist/game/cards/game/logic/cards/flips.js
+ D dist/game/cards/game/logic/cards/flips.js.map
+ D dist/game/cards/game/logic/cards/meteor.d.ts
+ D dist/game/cards/game/logic/cards/meteor.d.ts.map
+ D dist/game/cards/game/logic/cards/meteor.js
+ D dist/game/cards/game/logic/cards/meteor.js.map
+ D dist/game/cards/game/logic/cards/movement.d.ts
+ D dist/game/cards/game/logic/cards/movement.d.ts.map
+ D dist/game/cards/game/logic/cards/movement.js
+ D dist/game/cards/game/logic/cards/movement.js.map
+ D dist/game/cards/game/logic/cards/shrink.d.ts
+ D dist/game/cards/game/logic/cards/shrink.d.ts.map
+ D dist/game/cards/game/logic/cards/shrink.js
+ D dist/game/cards/game/logic/cards/shrink.js.map
+ D dist/game/cards/game/logic/cards/targets.d.ts
+ D dist/game/cards/game/logic/cards/targets.d.ts.map
+ D dist/game/cards/game/logic/cards/targets.js
+ D dist/game/cards/game/logic/cards/targets.js.map
+ D dist/game/cards/game/logic/cards/teleport.d.ts
+ D dist/game/cards/game/logic/cards/teleport.d.ts.map
+ D dist/game/cards/game/logic/cards/teleport.js
+ D dist/game/cards/game/logic/cards/teleport.js.map
+ D dist/game/cards/game/logic/effects/destroy_one_stone.d.ts
+ D dist/game/cards/game/logic/effects/destroy_one_stone.d.ts.map
+ D dist/game/cards/game/logic/effects/destroy_one_stone.js
+ D dist/game/cards/game/logic/effects/destroy_one_stone.js.map
+ M dist/game/cards/selectors.js
+ M dist/game/cards/src/types/board.js
+ M dist/game/cards/src/types/index.js
+ M dist/game/cards/src/types/player.js
+ M dist/game/cards/state-manager.js
+ M dist/game/cards/target-resolver.js
+ M dist/game/cards/target-resolver.js.map
+ M dist/game/cards/timing-processor.js
+ M dist/game/controller-events.js
+ M dist/game/controller-events.js.map
+ M dist/game/cpu-decision-board-utils.js
+ M dist/game/cpu-decision-board-utils.js.map
+ M dist/game/cpu-decision.js
+ M dist/game/cpu-decision.js.map
+ D dist/game/cpu-turn-handler.d.ts
+ M dist/game/cpu-turn-handler.js
+ M dist/game/cpu-turn-handler.js.map
+ M dist/game/debug/debug-actions.js
+ M dist/game/debug/debug-actions.js.map
+ M dist/game/game-controller-slim.js
+ M dist/game/game-core-logic.js
+ D dist/game/game/cards/effect-resolver.d.ts
+ D dist/game/game/cards/effect-resolver.d.ts.map
+ D dist/game/game/cards/effect-resolver.js
+ D dist/game/game/cards/effect-resolver.js.map
+ D dist/game/game/cards/state-manager.d.ts
+ D dist/game/game/cards/state-manager.d.ts.map
+ D dist/game/game/cards/state-manager.js
+ D dist/game/game/cards/state-manager.js.map
+ D dist/game/game/cards/target-resolver.d.ts
+ D dist/game/game/cards/target-resolver.d.ts.map
+ D dist/game/game/cards/target-resolver.js
+ D dist/game/game/cards/target-resolver.js.map
+ D dist/game/game/cards/timing-processor.d.ts
+ D dist/game/game/cards/timing-processor.d.ts.map
+ D dist/game/game/cards/timing-processor.js
+ D dist/game/game/cards/timing-processor.js.map
+ D dist/game/game/logic/context.d.ts
+ D dist/game/game/logic/context.d.ts.map
+ D dist/game/game/logic/context.js
+ D dist/game/game/logic/context.js.map
+ D dist/game/game/logic/position-weights.d.ts
+ D dist/game/game/logic/position-weights.d.ts.map
+ D dist/game/game/logic/position-weights.js
+ D dist/game/game/logic/position-weights.js.map
+ M dist/game/log-messages.js
+ M dist/game/logic/board_ops.js
+ M dist/game/logic/board_ops.js.map
+ M dist/game/logic/cards-internal/card-usage-prechecks.js
+ M dist/game/logic/cards-internal/card-usage-prechecks.js.map
+ M dist/game/logic/cards-internal/charge-ledger.js
+ M dist/game/logic/cards-internal/effect-timing.js
+ M dist/game/logic/cards-internal/hand-manager.js
+ M dist/game/logic/cards-internal/hand-manager.js.map
+ M dist/game/logic/cards-internal/module-resolver.js
+ M dist/game/logic/cards-internal/pending-state-manager.js
+ M dist/game/logic/cards-internal/pending-state-manager.js.map
+ M dist/game/logic/cards-internal/presentation-helpers.js
+ M dist/game/logic/cards-internal/presentation-helpers.js.map
+ M dist/game/logic/cards-internal/random-source.js
+ M dist/game/logic/cards-internal/selector-orchestrator.js
+ M dist/game/logic/cards-internal/selector-orchestrator.js.map
+ M dist/game/logic/cards-internal/state-factory.js
+ M dist/game/logic/cards.js
+ M dist/game/logic/cards.js.map
+ M dist/game/logic/cards/breeding.js
+ M dist/game/logic/cards/breeding.js.map
+ M dist/game/logic/cards/chain.js
+ M dist/game/logic/cards/clone.js
+ M dist/game/logic/cards/clone.js.map
+ M dist/game/logic/cards/costs.js
+ M dist/game/logic/cards/defs.js
+ M dist/game/logic/cards/destroy_dragon.js
+ M dist/game/logic/cards/destroy_dragon.js.map
+ M dist/game/logic/cards/expansion.js
+ M dist/game/logic/cards/flips.js
+ M dist/game/logic/cards/hyperactive.js
+ M dist/game/logic/cards/hyperactive.js.map
+ M dist/game/logic/cards/lightning.js
+ M dist/game/logic/cards/lightning.js.map
+ M dist/game/logic/cards/living_will.js
+ M dist/game/logic/cards/living_will.js.map
+ M dist/game/logic/cards/markers.js
+ M dist/game/logic/cards/meteor.js
+ M dist/game/logic/cards/movement.js
+ M dist/game/logic/cards/regen.js.map
+ M dist/game/logic/cards/selectors.js
+ M dist/game/logic/cards/selectors.js.map
+ M dist/game/logic/cards/shrink.js
+ M dist/game/logic/cards/sniper.js
+ M dist/game/logic/cards/sniper.js.map
+ M dist/game/logic/cards/targets.js
+ M dist/game/logic/cards/teleport.js
+ M dist/game/logic/cards/time_bomb.js
+ M dist/game/logic/cards/udg.js
+ M dist/game/logic/cards/utils.js
+ M dist/game/logic/cards/utils.js.map
+ M dist/game/logic/cards/will_hunter_king.js
+ M dist/game/logic/cards/work_will.js
+ M dist/game/logic/cards/work_will.js.map
+ M dist/game/logic/context.js
+ M dist/game/logic/context.js.map
+ M dist/game/logic/core.js
+ M dist/game/logic/effects/destroy_one_stone.js
+ M dist/game/logic/effects/destroy_one_stone.js.map
+ M dist/game/logic/effects/dragon.js
+ M dist/game/logic/effects/swap_with_enemy.js
+ D dist/game/logic/game/logic/cards/chain.d.ts
+ D dist/game/logic/game/logic/cards/chain.d.ts.map
+ D dist/game/logic/game/logic/cards/chain.js
+ D dist/game/logic/game/logic/cards/chain.js.map
+ D dist/game/logic/game/logic/cards/clone.d.ts
+ D dist/game/logic/game/logic/cards/clone.d.ts.map
+ D dist/game/logic/game/logic/cards/clone.js
+ D dist/game/logic/game/logic/cards/clone.js.map
+ D dist/game/logic/game/logic/cards/costs.d.ts
+ D dist/game/logic/game/logic/cards/costs.d.ts.map
+ D dist/game/logic/game/logic/cards/costs.js
+ D dist/game/logic/game/logic/cards/costs.js.map
+ D dist/game/logic/game/logic/cards/defs.d.ts
+ D dist/game/logic/game/logic/cards/defs.d.ts.map
+ D dist/game/logic/game/logic/cards/defs.js
+ D dist/game/logic/game/logic/cards/defs.js.map
+ D dist/game/logic/game/logic/cards/flips.d.ts
+ D dist/game/logic/game/logic/cards/flips.d.ts.map
+ D dist/game/logic/game/logic/cards/flips.js
+ D dist/game/logic/game/logic/cards/flips.js.map
+ D dist/game/logic/game/logic/cards/meteor.d.ts
+ D dist/game/logic/game/logic/cards/meteor.d.ts.map
+ D dist/game/logic/game/logic/cards/meteor.js
+ D dist/game/logic/game/logic/cards/meteor.js.map
+ D dist/game/logic/game/logic/cards/movement.d.ts
+ D dist/game/logic/game/logic/cards/movement.d.ts.map
+ D dist/game/logic/game/logic/cards/movement.js
+ D dist/game/logic/game/logic/cards/movement.js.map
+ D dist/game/logic/game/logic/cards/shrink.d.ts
+ D dist/game/logic/game/logic/cards/shrink.d.ts.map
+ D dist/game/logic/game/logic/cards/shrink.js
+ D dist/game/logic/game/logic/cards/shrink.js.map
+ D dist/game/logic/game/logic/cards/targets.d.ts
+ D dist/game/logic/game/logic/cards/targets.d.ts.map
+ D dist/game/logic/game/logic/cards/targets.js
+ D dist/game/logic/game/logic/cards/targets.js.map
+ D dist/game/logic/game/logic/cards/teleport.d.ts
+ D dist/game/logic/game/logic/cards/teleport.d.ts.map
+ D dist/game/logic/game/logic/cards/teleport.js
+ D dist/game/logic/game/logic/cards/teleport.js.map
+ D dist/game/logic/game/logic/cards/will_hunter_king.d.ts
+ D dist/game/logic/game/logic/cards/will_hunter_king.d.ts.map
+ D dist/game/logic/game/logic/cards/will_hunter_king.js
+ D dist/game/logic/game/logic/cards/will_hunter_king.js.map
+ D dist/game/logic/game/logic/effects/destroy_one_stone.d.ts
+ D dist/game/logic/game/logic/effects/destroy_one_stone.d.ts.map
+ D dist/game/logic/game/logic/effects/destroy_one_stone.js
+ D dist/game/logic/game/logic/effects/destroy_one_stone.js.map
+ M dist/game/logic/markers_adapter.js
+ M dist/game/logic/position-weights.js
+ M dist/game/logic/presentation.js
+ M dist/game/logic/presentation.js.map
+ M dist/game/logic/src/types/board.js
+ M dist/game/logic/src/types/index.js
+ M dist/game/logic/src/types/player.js
+ M dist/game/move-executor-visuals.js
+ M dist/game/move-executor-visuals.js.map
+ M dist/game/move-executor.js
+ M dist/game/move-executor.js.map
+ M dist/game/move-generator.js
+ M dist/game/move-generator.js.map
+ M dist/game/network-turn-handoff.js
+ M dist/game/network-turn-handoff.js.map
+ M dist/game/pass-handler.js
+ M dist/game/pass-handler.js.map
+ M dist/game/presentation.js
+ M dist/game/presentation.js.map
+ M dist/game/schema/action_manager.js
+ M dist/game/schema/action_manager.js.map
+ M dist/game/schema/prng.js
+ M dist/game/special-effects-handler.js
+ M dist/game/special-effects/bombs.js
+ M dist/game/special-effects/bombs.js.map
+ M dist/game/special-effects/breeding.js
+ M dist/game/special-effects/breeding.js.map
+ M dist/game/special-effects/dragons.js
+ M dist/game/special-effects/dragons.js.map
+ M dist/game/special-effects/helpers.js
+ M dist/game/special-effects/helpers.js.map
+ M dist/game/special-effects/hyperactive.js
+ M dist/game/special-effects/hyperactive.js.map
+ M dist/game/special-effects/protections.js
+ M dist/game/special-effects/udg.js
+ M dist/game/special-effects/udg.js.map
+ M dist/game/src/types/board.js
+ M dist/game/src/types/index.js
+ M dist/game/src/types/player.js
+ M dist/game/timer-service.js
+ M dist/game/timer-utils.js
+ M dist/game/timers.js
+ M dist/game/timers.js.map
+ M dist/game/turn-handlers/pending-target-selector.js
+ M dist/game/turn-handlers/pending-target-selector.js.map
+ M dist/game/turn-manager.js
+ M dist/game/turn-manager.js.map
+ M dist/game/turn/pending-coordinator.js
+ M dist/game/turn/pending-coordinator.js.map
+ M dist/game/turn/pipeline_ui_adapter.js
+ M dist/game/turn/pipeline_ui_adapter.js.map
+ M dist/game/turn/turn_pipeline.js
+ M dist/game/turn/turn_pipeline_phase_helpers.js
+ M dist/game/turn/turn_pipeline_phase_helpers.js.map
+ M dist/game/turn/turn_pipeline_phases.js
+ M dist/game/turn/turn_pipeline_phases.js.map
+ M dist/game/visual-effects-map.js
+ M dist/game/visual-effects-map.js.map
+ M dist/scripts/__tests__/test-sprt.test.js
+ M dist/scripts/analyze-stone-circle.js
+ M dist/scripts/analyze-stone-margins.js
+ M dist/scripts/audit-card-context-parity.js
+ M dist/scripts/audit-card-use-future-delta.js
+ M dist/scripts/audit-corner-use-drift.js
+ M dist/scripts/benchmark-browser-inference.js
+ M dist/scripts/benchmark-policy-adoption-sprt.js
+ M dist/scripts/benchmark-policy-adoption.js
+ M dist/scripts/benchmark-policy-onnx-gate.js
+ M dist/scripts/benchmark-policy-quality-gate.js
+ M dist/scripts/benchmark-selfplay-policy.js
+ M dist/scripts/check-js-syntax.js
+ M dist/scripts/check-manifest-up-to-date.js
+ M dist/scripts/check-window-usage.js
+ M dist/scripts/check-window-usage.js.map
+ M dist/scripts/check_stone_alpha.js
+ M dist/scripts/clean-selfplay-artifacts.js
+ M dist/scripts/convert-ui-to-ts.js
+ M dist/scripts/curriculum-scheduler.js
+ M dist/scripts/deploy-lane-model-to-root.js
+ M dist/scripts/download-nemotron-gguf.js
+ M dist/scripts/ephemeral-server.js
+ M dist/scripts/export-hardcase-summary.js
+ M dist/scripts/export-teacher-solutions.js
+ M dist/scripts/extract-hardcases.js
+ M dist/scripts/generate-asset-manifest.js
+ M dist/scripts/generate-catalog.js
+ M dist/scripts/generate-gacha-hand-catalog.js
+ M dist/scripts/generate-observation-gacha-catalog.js
+ M dist/scripts/generate-selfplay-data-parallel.js
+ M dist/scripts/generate-selfplay-data.js
+ M dist/scripts/init-deepcfr-foundation.js
+ M dist/scripts/list-large-files.js
+ M dist/scripts/load-training-profile.js
+ M dist/scripts/local-cpu-commentary-server.js
+ M dist/scripts/local-match-server.js
+ M dist/scripts/local-match-server.js.map
+ M dist/scripts/match-network-smoke.js
+ M dist/scripts/monitor-selfplay-training-run.js
+ M dist/scripts/monitor-selfplay-training-run.js.map
+ M dist/scripts/normalize-stone-circle.js
+ M dist/scripts/normalize-stone-margins.js
+ M dist/scripts/policy-gate-result-utils.js
+ M dist/scripts/policy-seed-utils.js
+ M dist/scripts/preflight-deepcfr-training.js
+ M dist/scripts/preflight-selfplay-training.js
+ M dist/scripts/prepare-worker-assets.js
+ M dist/scripts/prepare-worker-assets.js.map
+ M dist/scripts/preview-file.js
+ M dist/scripts/promote-policy-model.js
+ M dist/scripts/promotion-helpers.js
+ M dist/scripts/replay-adoption-gate.js
+ M dist/scripts/resolve-training-profile.js
+ M dist/scripts/rollback-policy-model.js
+ M dist/scripts/run-all-checks.js
+ M dist/scripts/run-foundation-bootstrap.js
+ M dist/scripts/run-hardcase-mining.js
+ M dist/scripts/run-hardcase-retrain.js
+ M dist/scripts/run-pass-handler-debug.js
+ M dist/scripts/run-selfplay-training-cycle.js
+ M dist/scripts/run-selfplay-training-preset.js
+ M dist/scripts/run-selfplay-training-profile.js
+ M dist/scripts/run-selfplay-training-profile.js.map
+ M dist/scripts/run-ui-level-match.js
+ M dist/scripts/seed-bank-manager.js
+ M dist/scripts/selfplay-teacher-defaults.js
+ M dist/scripts/serve-with-fallback.js
+ M dist/scripts/serve-with-fallback.js.map
+ M dist/scripts/sprt.js
+ M dist/scripts/test-shim-forwarding.js
+ M dist/scripts/test-shim-forwarding.js.map
+ M dist/scripts/training-artifact-status.js
+ M dist/scripts/training-checkpoint-utils.js
+ M dist/scripts/training-command-args.js
+ M dist/scripts/training-cycle-command-builders.js
+ M dist/scripts/training-cycle-reporting.js
+ M dist/scripts/training-profile-launcher-args.js
+ M dist/scripts/training-resolved-config-utils.js
+ M dist/scripts/training-warehouse-manifest-utils.js
+ D dist/shared-constants.d.ts
+ M dist/shared-constants.js
+ M dist/shared-constants.js.map
+ M dist/shared/board-utils.js
+ M dist/shared/charge-utils.js
+ M dist/shared/commentary-context-helpers.js
+ M dist/shared/commentary-runtime-helpers.js
+ M dist/shared/cpu-lv6-runtime-capability.js
+ M dist/shared/deck-codec.js
+ M dist/shared/deck-spec.js
+ M dist/shared/destroy-outcome-contract.js
+ M dist/shared/gacha-hand-catalog-shared.js
+ M dist/shared/gacha-hand-catalog.generated.js
+ M dist/shared/gacha-helpers.js
+ M dist/shared/network-action-schema.js
+ M dist/shared/observation-gacha-catalog-shared.js
+ M dist/shared/observation-gacha-catalog.generated.js
+ M dist/shared/othello-core.js
+ M dist/shared/playback-event-helpers.js
+ M dist/shared/player-encoding.js
+ M dist/shared/shared-board-utils.js
+ M dist/shared/shared-card-heuristics.js
+ M dist/shared/special-stone-registry.js
+ M dist/shared/special-stone-registry.js.map
+ M dist/shared/state-hash.js
+ M dist/shared/stone-status-snapshot.js
+ M dist/shared/stone-status-snapshot.js.map
+ M dist/shared/story-deck-codec.js
+ M dist/shared/story-deck-spec.js
+ M dist/shared/ui-bootstrap-shared.js
+ M dist/sound-engine.js
+ M dist/src/board.js
+ M dist/src/card.js
+ M dist/src/engine/engine.js
+ M dist/src/engine/selfplay-runner.js
+ M dist/src/engine/selfplay-runner.js.map
+ M dist/src/events.js
+ M dist/src/game.js
+ M dist/src/index.js
+ M dist/src/player.js
+ M dist/src/protocol/actions.js
+ M dist/src/protocol/events.js
+ M dist/src/shared-constants.js
+ M dist/src/types/board.js
+ M dist/src/types/board.js.map
+ D dist/src/types/card.d.ts
+ M dist/src/types/card.js
+ M dist/src/types/events.js
+ M dist/src/types/game.js
+ M dist/src/types/index.js
+ M dist/src/types/player.js
+ M dist/test/cards.fate-will-help-surfaces.test.js
+ M dist/test/cards.fate-will-help-surfaces.test.js.map
+ M dist/test/cards.salvation-will-help-surfaces.test.js
+ M dist/test/cards.salvation-will-help-surfaces.test.js.map
+ M dist/test/code.window-usage.test.js
+ M dist/test/code.window-usage.test.js.map
+ M dist/test/constants.test.js
+ M dist/test/constants.test.js.map
+ M dist/test/constants.unified.test.js
+ M dist/test/constants.unified.test.js.map
+ M dist/test/cpu.aisystem.helper.test.js
+ M dist/test/cpu.aisystem.helper.test.js.map
+ M dist/test/cpu.decision.refactor.test.js
+ M dist/test/cpu.decision.refactor.test.js.map
+ M dist/test/cpu.onnx-context.deck.test.js
+ M dist/test/cpu.onnx-context.deck.test.js.map
+ M dist/test/cpu.turn-handler.error.test.js
+ M dist/test/cpu.turn-handler.error.test.js.map
+ M dist/test/determinism.test.js
+ M dist/test/determinism.test.js.map
+ M dist/test/game.card-effects.clone.test.js
+ M dist/test/game.card-effects.clone.test.js.map
+ M dist/test/game.card-effects.helpers.test.js
+ M dist/test/game.card-effects.helpers.test.js.map
+ M dist/test/game.cards.expansion-module.test.js
+ M dist/test/game.cards.expansion-module.test.js.map
+ M dist/test/game.chain-will-consumed.test.js
+ M dist/test/game.chain-will-consumed.test.js.map
+ M dist/test/game.cpu-policy-core.test.js
+ M dist/test/game.cpu-policy-core.test.js.map
+ M dist/test/game.cpuhandler.registration.test.js
+ M dist/test/game.cpuhandler.registration.test.js.map
+ M dist/test/game.free-placement-spawn-cause.test.js
+ M dist/test/game.free-placement-spawn-cause.test.js.map
+ M dist/test/game.logic.clone-module.test.js
+ M dist/test/game.logic.clone-module.test.js.map
+ M dist/test/game.logic.single-color-gameover.test.js
+ M dist/test/game.logic.single-color-gameover.test.js.map
+ M dist/test/game.move-generator.expansion-pending.test.js
+ M dist/test/game.move-generator.expansion-pending.test.js.map
+ M dist/test/game.pipeline-ui-adapter.move.test.js
+ M dist/test/game.pipeline-ui-adapter.move.test.js.map
+ M dist/test/game.pipeline-ui-adapter.regen-flip-order.test.js
+ M dist/test/game.pipeline-ui-adapter.regen-flip-order.test.js.map
+ M dist/test/game.pipeline-ui-adapter.regen-status-removed.test.js
+ M dist/test/game.pipeline-ui-adapter.regen-status-removed.test.js.map
+ M dist/test/game.pipeline-ui-adapter.salvation-sound-cue.test.js
+ M dist/test/game.pipeline-ui-adapter.salvation-sound-cue.test.js.map
+ M dist/test/game.pipeline-ui-adapter.skip-turn-start.test.js
+ M dist/test/game.pipeline-ui-adapter.skip-turn-start.test.js.map
+ M dist/test/game.pipeline-ui-adapter.sniper-meta.test.js
+ M dist/test/game.pipeline-ui-adapter.sniper-meta.test.js.map
+ M dist/test/game.pipeline-ui-adapter.sound-cue.test.js
+ M dist/test/game.pipeline-ui-adapter.sound-cue.test.js.map
+ M dist/test/game.pipeline-ui-adapter.spawn.test.js
+ M dist/test/game.pipeline-ui-adapter.spawn.test.js.map
+ M dist/test/game.pipeline-ui-adapter.unknown-presentation-skip.test.js
+ M dist/test/game.pipeline-ui-adapter.unknown-presentation-skip.test.js.map
+ M dist/test/game.special-stone-browser-order.test.js
+ M dist/test/game.special-stone-browser-order.test.js.map
+ D dist/test/game.split-will.test.js
+ M dist/test/game.visualeffects.registration.test.js
+ M dist/test/game.visualeffects.registration.test.js.map
+ M dist/test/index.cpu-lv6-runtime-capability-load.test.js
+ M dist/test/index.cpu-lv6-runtime-capability-load.test.js.map
+ M dist/test/index.destroy-outcome-contract-load.test.js
+ M dist/test/index.destroy-outcome-contract-load.test.js.map
+ M dist/test/index.local-script-paths.test.js
+ M dist/test/index.local-script-paths.test.js.map
+ M dist/test/presentation.persist-events.test.js
+ M dist/test/presentation.persist-events.test.js.map
+ M dist/test/presentation.warns.once.test.js
+ M dist/test/presentation.warns.once.test.js.map
+ M dist/test/protocol.test.js
+ M dist/test/protocol.test.js.map
+ M dist/test/scripts.match-network-smoke.test.js
+ M dist/test/scripts.match-network-smoke.test.js.map
+ M dist/test/selfplay.preflight.test.js
+ M dist/test/selfplay.preflight.test.js.map
+ M dist/test/selfplay.runner.test.js
+ M dist/test/selfplay.runner.test.js.map
+ M dist/test/serve-with-fallback.test.js
+ M dist/test/serve-with-fallback.test.js.map
+ M dist/test/shared.deck-codec.test.js
+ M dist/test/shared.deck-codec.test.js.map
+ M dist/test/shared.gacha-helpers.test.js
+ M dist/test/shared.gacha-helpers.test.js.map
+ M dist/test/shared.observation-gacha-catalog-shared.test.js
+ M dist/test/shared.observation-gacha-catalog-shared.test.js.map
+ M dist/test/shared.story-deck-spec.browser-merge.test.js
+ M dist/test/shared.story-deck-spec.browser-merge.test.js.map
+ M dist/test/ui.animation-engine.guard-timer.test.js
+ M dist/test/ui.animation-engine.guard-timer.test.js.map
+ M dist/test/ui.animation-utils.trap-flash.test.js
+ M dist/test/ui.animation-utils.trap-flash.test.js.map
+ M dist/test/ui.board-update-sync-runtime.test.js
+ M dist/test/ui.board-update-sync-runtime.test.js.map
+ M dist/test/ui.bootstrap-shared.forwarding.test.js
+ M dist/test/ui.bootstrap-shared.forwarding.test.js.map
+ M dist/test/ui.bootstrap.commentary-routing.test.js
+ M dist/test/ui.bootstrap.commentary-routing.test.js.map
+ M dist/test/ui.card-performance-css.test.js
+ M dist/test/ui.card-performance-css.test.js.map
+ M dist/test/ui.debug.hand-layout-css.test.js
+ M dist/test/ui.debug.hand-layout-css.test.js.map
+ M dist/test/ui.gacha-fallback-css.test.js
+ M dist/test/ui.gacha-fallback-css.test.js.map
+ M dist/test/ui.hand-skin-panel-css.test.js
+ M dist/test/ui.hand-skin-panel-css.test.js.map
+ M dist/test/ui.owner-helpers-classic-script-load.test.js
+ M dist/test/ui.owner-helpers-classic-script-load.test.js.map
+ M dist/test/ui.sound-engine-access.test.js
+ M dist/test/ui.sound-engine-access.test.js.map
+ M dist/test/ui.stone-timer-position.test.js
+ M dist/test/ui.stone-timer-position.test.js.map
+ M dist/test/ui.stonevisuals-delegation.test.js
+ M dist/test/ui.stonevisuals-delegation.test.js.map
+ M dist/test/ui.story-state.test.js
+ M dist/test/ui.story-state.test.js.map
+ M dist/test/utils.deep-clone.test.js
+ M dist/test/utils.deep-clone.test.js.map
+ M dist/test/visual-regression.test.js
+ M dist/test/visual-regression.test.js.map
+ M dist/ui/animation-constants.js
+ M dist/ui/animation-engine.js
+ M dist/ui/animation-engine.js.map
+ M dist/ui/animation-helpers.js
+ M dist/ui/animation-resolver.js
+ M dist/ui/animation-shared.js
+ M dist/ui/animation-utils.js
+ M dist/ui/animation-utils.js.map
+ M dist/ui/background-skin/catalog.js
+ M dist/ui/background-skin/catalog.js.map
+ M dist/ui/background-skin/controller.js
+ M dist/ui/background-skin/runtime.js
+ M dist/ui/background-skin/selection.js
+ M dist/ui/board-renderer.js
+ M dist/ui/board-renderer.js.map
+ M dist/ui/board-update-dispatch.js
+ M dist/ui/board-update-sync-runtime.js
+ M dist/ui/bootstrap.js
+ M dist/ui/bootstrap/init-dom.js
+ M dist/ui/bootstrap/init-dom.js.map
+ M dist/ui/bootstrap/init-events.js
+ M dist/ui/bootstrap/init-events.js.map
+ M dist/ui/bootstrap/init-game.js
+ M dist/ui/bootstrap/init-game.js.map
+ M dist/ui/bootstrap/init-network.js
+ M dist/ui/bootstrap/init-network.js.map
+ M dist/ui/commentary-broker.js
+ M dist/ui/cosmetics/catalog-shared.js
+ M dist/ui/deck-builder-controller.js
+ M dist/ui/deck-builder-renderer.js
+ M dist/ui/deck-builder-state.js
+ M dist/ui/diff-renderer.js
+ M dist/ui/diff-renderer.js.map
+ M dist/ui/event-handlers.js
+ M dist/ui/gacha-reveal-player.js
+ M dist/ui/gacha/catalog-access.js
+ M dist/ui/gacha/gacha-events.js
+ M dist/ui/gacha/gacha-item-visuals.js
+ M dist/ui/gacha/gacha-overlay-controller.js
+ M dist/ui/gacha/gacha-overlay-view.js
+ M dist/ui/gacha/gacha-reveal-audio.js
+ M dist/ui/gacha/gacha-reveal-stage.js
+ M dist/ui/gacha/gacha-transaction.js
+ M dist/ui/gacha/gacha-transaction.js.map
+ M dist/ui/hand-skin/catalog.js
+ M dist/ui/hand-skin/catalog.js.map
+ M dist/ui/hand-skin/controller.js
+ M dist/ui/hand-skin/runtime.js
+ M dist/ui/hand-skin/selection.js
+ M dist/ui/handlers/auto.js
+ M dist/ui/handlers/cpu-policy.js
+ M dist/ui/handlers/debug.js
+ M dist/ui/handlers/deck-builder.js
+ M dist/ui/handlers/gacha.js
+ M dist/ui/handlers/hand-skin.js
+ M dist/ui/handlers/init.js
+ M dist/ui/handlers/match-mode.js
+ M dist/ui/handlers/rules-help.js
+ M dist/ui/handlers/smart.js
+ M dist/ui/handlers/sound.js
+ M dist/ui/handlers/story.js
+ M dist/ui/handlers/tutorial.js
+ M dist/ui/layout-stage.js
+ M dist/ui/leaderboard-client.js
+ M dist/ui/marker-bridge.js
+ M dist/ui/move-executor-visuals.js
+ M dist/ui/network-client.js
+ M dist/ui/network-client.js.map
+ M dist/ui/network/action-bridge.js
+ M dist/ui/network/apply-coordinator.js
+ M dist/ui/network/command-payload.js
+ M dist/ui/network/commentary.js
+ M dist/ui/network/publish-request.js
+ M dist/ui/network/publish-tracker.js
+ M dist/ui/network/reconnect-controller.js
+ M dist/ui/network/session-lifecycle.js
+ M dist/ui/network/session-seat.js
+ M dist/ui/network/snapshot-canonical.js
+ M dist/ui/network/snapshot-presentation.js
+ M dist/ui/network/snapshot-runtime.js
+ M dist/ui/network/snapshot.js
+ M dist/ui/placement-sound-selection.js
+ M dist/ui/playback-engine.js
+ M dist/ui/playback-runtime.js
+ M dist/ui/playback-state-manager.js
+ M dist/ui/presentation-handler.js
+ M dist/ui/result-overlay.js
+ M dist/ui/result-overlay.js.map
+ M dist/ui/sound-engine-access.js
+ M dist/ui/status-display.js
+ M dist/ui/stone-visuals.js
+ M dist/ui/stone-visuals.js.map
+ M dist/ui/storage/action-log.js
+ M dist/ui/storage/deck-presets.js
+ M dist/ui/storage/gacha-progress.js
+ M dist/ui/storage/gacha-progress.js.map
+ M dist/ui/story-deck-lab/story-deck-lab-controller.js
+ M dist/ui/story-deck-lab/story-deck-lab-renderer.js
+ M dist/ui/story-deck-lab/story-deck-lab-state.js
+ M dist/ui/story/story-battle-ui.js
+ M dist/ui/story/story-controller.js
+ M dist/ui/story/story-encounter.js
+ M dist/ui/story/story-state.js
+ M dist/ui/story/story-steps.js
+ M dist/ui/story/story-steps.js.map
+ M dist/ui/tutorial/tutorial-action-wait.js
+ M dist/ui/tutorial/tutorial-controller.js
+ M dist/ui/tutorial/tutorial-overlay.js
+ M dist/ui/tutorial/tutorial-runtime.js
+ M dist/ui/tutorial/tutorial-scenario-duel.js
+ M dist/ui/tutorial/tutorial-state.js
+ M dist/ui/tutorial/tutorial-steps.js
+ M dist/ui/tutorial/tutorial-storage.js
+ M dist/ui/tutorial/typewriter.js
+ M dist/ui/visual-effects-map.js
+ M dist/utils/deepClone.js
+ M dist/utils/match-authority.js
+ M dist/utils/owner-helpers.js
+ M dist/utils/owner-helpers.js.map
+ M dist/workers/match-worker.js
+ M dist/workers/match-worker.mjs
+ M dist/workers/match-worker.mjs.map
+ M docs/architecture-contracts.md
+ M docs/plans/refactor-completion-report.md
+ M docs/plans/refactor-master-plan.md
+ M docs/runtime-bootstrap-asset-visual-fix-plan-2026-04-26.md
+ M docs/teacher-cpu-card-usage-buckets.md
+ M entry-browser-classic.js
+ M entry-browser.js
+ D gacha-hand-catalog-shared.js
+ D gacha-helpers.js
+ M game/ai/cpu-policy-core.ts
+ M game/ai/endgame-solver.js
+ M game/ai/gumbel-mcts.js
+ M game/ai/mcts-core.js
+ M game/ai/mcts-temperature.js
+ M game/ai/mcts-two-layer.js
+ M game/ai/policy-onnx-runtime.ts
+ M game/ai/policy-table-runtime.js
+ D game/ai/policy-table-runtime.ts
+ M game/auto.js
+ M game/card-effects/destroy.js
+ D game/card-effects/hyperactive-inherit.js
+ D game/card-effects/hyperactive-inherit.ts
+ M game/card-effects/placement.js
+ M game/cards/effect-resolver.js
+ D game/cards/effect-resolver.ts
+ M game/cards/effects/breeding.ts
+ M game/cards/effects/chain.ts
+ M game/cards/effects/clone.ts
+ M game/cards/effects/destroy-dragon.ts
+ M game/cards/effects/destroy-one-stone.ts
+ M game/cards/effects/dragon.ts
+ M game/cards/effects/expansion.ts
+ M game/cards/effects/flips.ts
+ D game/cards/effects/hyperactive.ts
+ M game/cards/effects/lightning.ts
+ M game/cards/effects/living-will.ts
+ M game/cards/effects/markers.ts
+ M game/cards/effects/meteor.ts
+ M game/cards/effects/movement.ts
+ M game/cards/effects/regen.ts
+ M game/cards/effects/shrink.ts
+ M game/cards/effects/sniper.ts
+ M game/cards/effects/swap-with-enemy.ts
+ M game/cards/effects/teleport.ts
+ M game/cards/effects/time-bomb.ts
+ M game/cards/effects/udg.ts
+ M game/cards/effects/work-will.ts
+ D game/cards/game/cards/effects/board-expansion-apply.js
+ D game/cards/game/cards/effects/board-expansion-apply.ts
+ D game/cards/game/cards/effects/breeding.js
+ D game/cards/game/cards/effects/breeding.ts
+ D game/cards/game/cards/effects/chain.js
+ D game/cards/game/cards/effects/chain.ts
+ D game/cards/game/cards/effects/clone.js
+ D game/cards/game/cards/effects/clone.ts
+ D game/cards/game/cards/effects/destroy-dragon.js
+ D game/cards/game/cards/effects/destroy-dragon.ts
+ D game/cards/game/cards/effects/destroy-one-stone.js
+ D game/cards/game/cards/effects/destroy-one-stone.ts
+ D game/cards/game/cards/effects/dragon.js
+ D game/cards/game/cards/effects/dragon.ts
+ D game/cards/game/cards/effects/expansion.js
+ D game/cards/game/cards/effects/expansion.ts
+ D game/cards/game/cards/effects/flips.js
+ D game/cards/game/cards/effects/flips.ts
+ D game/cards/game/cards/effects/hand-effects.js
+ D game/cards/game/cards/effects/hand-effects.ts
+ D game/cards/game/cards/effects/hyperactive.js
+ D game/cards/game/cards/effects/hyperactive.ts
+ D game/cards/game/cards/effects/lightning.js
+ D game/cards/game/cards/effects/lightning.ts
+ D game/cards/game/cards/effects/living-will.js
+ D game/cards/game/cards/effects/living-will.ts
+ D game/cards/game/cards/effects/markers.js
+ D game/cards/game/cards/effects/markers.ts
+ D game/cards/game/cards/effects/meteor.js
+ D game/cards/game/cards/effects/meteor.ts
+ D game/cards/game/cards/effects/movement.js
+ D game/cards/game/cards/effects/movement.ts
+ D game/cards/game/cards/effects/ownership.js
+ D game/cards/game/cards/effects/position-swap.js
+ D game/cards/game/cards/effects/position-swap.ts
+ D game/cards/game/cards/effects/protect.js
+ D game/cards/game/cards/effects/protect.ts
+ D game/cards/game/cards/effects/regen.js
+ D game/cards/game/cards/effects/regen.ts
+ D game/cards/game/cards/effects/shrink.js
+ D game/cards/game/cards/effects/shrink.ts
+ D game/cards/game/cards/effects/sniper.js
+ D game/cards/game/cards/effects/sniper.ts
+ D game/cards/game/cards/effects/status-cells.js
+ D game/cards/game/cards/effects/status-cells.ts
+ D game/cards/game/cards/effects/swap-with-enemy.js
+ D game/cards/game/cards/effects/swap-with-enemy.ts
+ D game/cards/game/cards/effects/targets.js
+ D game/cards/game/cards/effects/teleport.js
+ D game/cards/game/cards/effects/teleport.ts
+ D game/cards/game/cards/effects/time-bomb.js
+ D game/cards/game/cards/effects/time-bomb.ts
+ D game/cards/game/cards/effects/trap.js
+ D game/cards/game/cards/effects/trap.ts
+ D game/cards/game/cards/effects/udg.js
+ D game/cards/game/cards/effects/udg.ts
+ D game/cards/game/cards/effects/work-will.js
+ D game/cards/game/cards/effects/work-will.ts
+ D game/cards/game/logic/cards/chain.js
+ D game/cards/game/logic/cards/chain.ts
+ D game/cards/game/logic/cards/clone.js
+ D game/cards/game/logic/cards/clone.ts
+ D game/cards/game/logic/cards/flips.js
+ D game/cards/game/logic/cards/flips.ts
+ D game/cards/game/logic/cards/meteor.js
+ D game/cards/game/logic/cards/meteor.ts
+ D game/cards/game/logic/cards/movement.js
+ D game/cards/game/logic/cards/shrink.js
+ D game/cards/game/logic/cards/shrink.ts
+ D game/cards/game/logic/cards/targets.js
+ D game/cards/game/logic/cards/targets.ts
+ D game/cards/game/logic/cards/teleport.js
+ D game/cards/game/logic/cards/teleport.ts
+ D game/cards/game/logic/effects/destroy_one_stone.js
+ D game/cards/game/logic/effects/destroy_one_stone.ts
+ D game/cards/src/types/board.js
+ D game/cards/src/types/board.ts
+ D game/cards/src/types/card.js
+ D game/cards/src/types/events.js
+ D game/cards/src/types/game.js
+ D game/cards/src/types/index.js
+ D game/cards/src/types/index.ts
+ D game/cards/src/types/player.js
+ D game/cards/src/types/player.ts
+ M game/cards/state-manager.js
+ M game/cards/target-resolver.ts
+ M game/cards/timing-processor.js
+ M game/controller-events.ts
+ M game/cpu-decision-board-utils.js
+ D game/cpu-decision-board-utils.ts
+ M game/cpu-decision.js
+ M game/cpu-decision.ts
+ M game/cpu-turn-handler.js
+ M game/cpu-turn-handler.ts
+ M game/debug/debug-actions.js
+ D game/debug/debug-actions.ts
+ M game/game-controller-slim.js
+ M game/game-core-logic.js
+ D game/game/cards/effect-resolver.js
+ D game/game/cards/state-manager.js
+ D game/game/cards/state-manager.ts
+ D game/game/cards/target-resolver.js
+ D game/game/cards/target-resolver.ts
+ D game/game/cards/timing-processor.js
+ D game/game/cards/timing-processor.ts
+ D game/game/logic/context.js
+ D game/game/logic/context.ts
+ D game/game/logic/position-weights.js
+ D game/game/logic/position-weights.ts
+ M game/log-messages.js
+ M game/logic/board_ops.ts
+ D game/logic/card-usage-prechecks.js
+ M game/logic/cards-internal/card-usage-prechecks.ts
+ M game/logic/cards-internal/hand-manager.ts
+ M game/logic/cards-internal/pending-state-manager.ts
+ M game/logic/cards-internal/presentation-helpers.ts
+ M game/logic/cards-internal/selector-orchestrator.ts
+ M game/logic/cards.ts
+ M game/logic/cards/breeding.js
+ D game/logic/cards/breeding.ts
+ M game/logic/cards/clone.ts
+ M game/logic/cards/destroy_dragon.js
+ D game/logic/cards/destroy_dragon.ts
+ M game/logic/cards/hyperactive.ts
+ M game/logic/cards/lightning.js
+ D game/logic/cards/lightning.ts
+ M game/logic/cards/living_will.ts
+ M game/logic/cards/selectors.ts
+ M game/logic/cards/sniper.js
+ D game/logic/cards/sniper.ts
+ M game/logic/cards/utils.js
+ D game/logic/cards/utils.ts
+ M game/logic/cards/work_will.js
+ D game/logic/cards/work_will.ts
+ D game/logic/charge-ledger.js
+ D game/logic/game/logic/cards/chain.js
+ D game/logic/game/logic/cards/chain.ts
+ D game/logic/game/logic/cards/clone.js
+ D game/logic/game/logic/cards/clone.ts
+ D game/logic/game/logic/cards/costs.js
+ D game/logic/game/logic/cards/costs.ts
+ D game/logic/game/logic/cards/defs.js
+ D game/logic/game/logic/cards/defs.ts
+ D game/logic/game/logic/cards/flips.js
+ D game/logic/game/logic/cards/flips.ts
+ D game/logic/game/logic/cards/meteor.js
+ D game/logic/game/logic/cards/meteor.ts
+ D game/logic/game/logic/cards/movement.js
+ D game/logic/game/logic/cards/shrink.js
+ D game/logic/game/logic/cards/shrink.ts
+ D game/logic/game/logic/cards/targets.js
+ D game/logic/game/logic/cards/targets.ts
+ D game/logic/game/logic/cards/teleport.js
+ D game/logic/game/logic/cards/teleport.ts
+ D game/logic/game/logic/cards/will_hunter_king.js
+ D game/logic/game/logic/effects/destroy_one_stone.js
+ D game/logic/game/logic/effects/destroy_one_stone.ts
+ D game/logic/module-resolver.js
+ D game/logic/presentation-helpers.js
+ D game/logic/random-source.js
+ D game/logic/src/types/board.js
+ D game/logic/src/types/board.ts
+ D game/logic/src/types/card.js
+ D game/logic/src/types/events.js
+ D game/logic/src/types/game.js
+ D game/logic/src/types/index.js
+ D game/logic/src/types/index.ts
+ D game/logic/src/types/player.js
+ D game/logic/src/types/player.ts
+ M game/move-executor-visuals.js
+ D game/move-executor-visuals.ts
+ D game/move-executor.ts
+ M game/move-generator.js
+ D game/move-generator.ts
+ M game/network-turn-handoff.js
+ D game/network-turn-handoff.ts
+ D game/pass-handler.ts
+ M game/schema/action_manager.js
+ D game/schema/action_manager.ts
+ M game/special-effects-handler.js
+ M game/special-effects/bombs.js
+ M game/special-effects/breeding.js
+ D game/special-effects/dragons.ts
+ M game/special-effects/helpers.ts
+ D game/special-effects/hyperactive.ts
+ D game/src/types/board.js
+ D game/src/types/board.ts
+ D game/src/types/card.js
+ D game/src/types/events.js
+ D game/src/types/game.js
+ D game/src/types/index.js
+ D game/src/types/index.ts
+ D game/src/types/player.js
+ D game/src/types/player.ts
+ M game/timer-service.js
+ M game/timer-utils.js
+ M game/timers.js
+ M game/turn-handlers/pending-target-selector.js
+ D game/turn-handlers/pending-target-selector.ts
+ M game/turn-manager.js
+ M game/turn/pipeline_ui_adapter.ts
+ M game/turn/turn_pipeline.js
+ M game/turn/turn_pipeline_phase_helpers.js
+ D game/turn/turn_pipeline_phase_helpers.ts
+ M game/turn/turn_pipeline_phases.ts
+ M game/visual-effects-map.js
+ D game/visual-effects-map.ts
+ M is-env-capable.js
+ M is-env-capable.ts
+ D network-action-schema.js
+ D observation-gacha-catalog-shared.js
+ M package-lock.json
+ M package.json
+ D playback-event-helpers.js
+ M scripts/benchmark-policy-adoption-sprt.js
+ M scripts/benchmark-policy-adoption.js
+ M scripts/benchmark-policy-onnx-gate.js
+ M scripts/benchmark-selfplay-policy.js
+ M scripts/check-window-usage.js
+ M scripts/clean-selfplay-artifacts.js
+ M scripts/curriculum-scheduler.js
+ M scripts/deploy-lane-model-to-root.js
+ M scripts/download-nemotron-gguf.js
+ M scripts/export-hardcase-summary.js
+ M scripts/export-teacher-solutions.js
+ M scripts/extract-hardcases.js
+ M scripts/generate-asset-manifest.js
+ M scripts/generate-catalog.js
+ M scripts/generate-observation-gacha-catalog.js
+ M scripts/generate-selfplay-data-parallel.js
+ M scripts/generate-selfplay-data.js
+ M scripts/init-deepcfr-foundation.js
+ M scripts/local-cpu-commentary-server.js
+ M scripts/local-match-server.js
+ M scripts/local-match-server.ts
+ M scripts/monitor-selfplay-training-run.js
+ M scripts/monitor-selfplay-training-run.ts
+ M scripts/normalize-stone-circle.js
+ M scripts/normalize-stone-margins.js
+ M scripts/preflight-deepcfr-training.js
+ M scripts/preflight-selfplay-training.js
+ M scripts/prepare-worker-assets.js
+ M scripts/prepare-worker-assets.ts
+ M scripts/preview-file.js
+ M scripts/promote-policy-model.js
+ M scripts/promotion-helpers.js
+ M scripts/replay-adoption-gate.js
+ M scripts/resolve-training-profile.js
+ M scripts/rollback-policy-model.js
+ M scripts/run-foundation-bootstrap.js
+ M scripts/run-selfplay-training-cycle.js
+ M scripts/run-selfplay-training-preset.js
+ M scripts/run-selfplay-training-profile.js
+ M scripts/run-selfplay-training-profile.ts
+ M scripts/serve-with-fallback.js
+ M scripts/serve-with-fallback.ts
+ M scripts/sprt.js
+ M scripts/test-shim-forwarding.ts
+ M scripts/training-artifact-status.js
+ M scripts/training-resolved-config-utils.js
+ D shared-board-utils.js
+ D shared-card-heuristics.js
+ M shared-constants.ts
+ M shared/board-utils.js
+ M shared/charge-utils.js
+ M shared/commentary-context-helpers.js
+ M shared/commentary-runtime-helpers.js
+ M shared/cpu-lv6-runtime-capability.js
+ M shared/deck-codec.js
+ M shared/deck-spec.js
+ M shared/destroy-outcome-contract.js
+ M shared/gacha-hand-catalog-shared.js
+ M shared/gacha-hand-catalog.generated.js
+ M shared/gacha-helpers.js
+ M shared/network-action-schema.js
+ M shared/observation-gacha-catalog-shared.js
+ M shared/observation-gacha-catalog.generated.js
+ M shared/othello-core.js
+ M shared/playback-event-helpers.js
+ M shared/player-encoding.js
+ M shared/shared-board-utils.js
+ M shared/shared-card-heuristics.js
+ M shared/special-stone-registry.js
+ M shared/special-stone-registry.ts
+ M shared/state-hash.js
+ M shared/stone-status-snapshot.js
+ M shared/stone-status-snapshot.ts
+ M shared/story-deck-codec.js
+ M shared/story-deck-spec.js
+ M shared/ui-bootstrap-shared.js
+ D special-stone-registry.js
+ M src/engine/selfplay-runner.ts
+ M src/types/board.ts
+ M src/types/card.ts
+ M src/types/game.ts
+ D state-hash.js
+ D stone-status-snapshot.js
+ D story-deck-codec.js
+ M story-deck-lab.html
+ D story-deck-spec.js
+ D test/asset.manifest.apply.test.js
+ D test/assets.images.test.js
+ D test/assets.manifest.test.js
+ D test/assets.preload.test.js
+ D test/cards.afterimage-will-surfaces.test.js
+ D test/cards.breeding-will-surfaces.test.js
+ D test/cards.catalog.test.js
+ D test/cards.cell-teleport-will-surfaces.test.js
+ D test/cards.chain-will-surfaces.test.js
+ D test/cards.detail-copy-audit.test.js
+ D test/cards.equality-will-surfaces.test.js
+ D test/cards.escape-will-surfaces.test.js
+ D test/cards.fate-will-help-surfaces.test.js
+M  test/cards.fate-will-help-surfaces.test.ts
+ D test/cards.generate.test.js
+ D test/cards.hyperactive-will-surfaces.test.js
+ D test/cards.last-resort-surfaces.test.js
+ D test/cards.numeric-effect-tags.test.js
+M  test/cards.numeric-effect-tags.test.ts
+ D test/cards.reinforcement-will-surfaces.test.js
+ D test/cards.robot-vacuum-will-surfaces.test.js
+ D test/cards.salvation-will-help-surfaces.test.js
+M  test/cards.salvation-will-help-surfaces.test.ts
+ D test/cards.swap-with-enemy-surfaces.test.js
+ D test/cards.tempt-will-surfaces.test.js
+ D test/cards.time-stop-god-surfaces.test.js
+ D test/cards.ultimate-reverse-dragon-surfaces.test.js
+ D test/cards.will-hunter-king-surfaces.test.js
+ D test/code.smoke.sideeffects.test.js
+ D test/code.window-usage.test.js
+M  test/code.window-usage.test.ts
+ D test/constants.test.js
+M  test/constants.test.ts
+ D test/constants.unified.test.js
+M  test/constants.unified.test.ts
+ D test/cpu.aisystem.helper.test.js
+M  test/cpu.aisystem.helper.test.ts
+ D test/cpu.board-shrink.pending-selection.test.js
+ D test/cpu.commentary-runtime.test.js
+ D test/cpu.compute.test.js
+ D test/cpu.decision.pending-selection-continue-turn.test.js
+ D test/cpu.decision.refactor.test.js
+M  test/cpu.decision.refactor.test.ts
+ D test/cpu.decision.selection-only-movement.test.js
+ D test/cpu.handler.timing.test.js
+ D test/cpu.lv6-shared-profile.test.js
+ D test/cpu.onnx-context.deck.test.js
+M  test/cpu.onnx-context.deck.test.ts
+ D test/cpu.turn-handler.commentary.test.js
+ D test/cpu.turn-handler.error.test.js
+M  test/cpu.turn-handler.error.test.ts
+ D test/cpu.turn-handler.fate-will.test.js
+ D test/cpu.turn-handler.network-guard.test.js
+ D test/cpu.turn-handler.onnx-hold.test.js
+ D test/cpu.turn-handler.pending.test.js
+ D test/cpu.turn-handler.retry.test.js
+ D test/determinism.test.js
+M  test/determinism.test.ts
+ D test/e2e-runtime-helpers.test.js
+ D test/e2e/card_effects.e2e.test.js
+ D test/e2e/cpu.e2e.test.js
+ D test/e2e/cpu_auto_response.e2e.test.js
+ D test/e2e/cpu_level_diff.e2e.test.js
+ D test/e2e/destroy-card-will-hunter-king.e2e.test.js
+ D test/e2e/multi_turn_progression.e2e.test.js
+ D test/e2e/reset_click.e2e.test.js
+ D test/e2e/special_effects.e2e.test.js
+ D test/game-init-manifest.test.js
+ D test/game.absolute-protect-next-stone.test.js
+ D test/game.afterimage-will.test.js
+ D test/game.blockade-will.test.js
+ D test/game.board-bonus.test.js
+ D test/game.board-expansion-will.test.js
+ D test/game.board-ops.result-totals.test.js
+ D test/game.board-shrink-will.test.js
+ D test/game.breeding-frontier.test.js
+ D test/game.capture-will.test.js
+ D test/game.card-effects.blockade.test.js
+ D test/game.card-effects.board-expansion-sound.test.js
+ D test/game.card-effects.board-expansion.test.js
+ D test/game.card-effects.board-shrink.test.js
+ D test/game.card-effects.capture.test.js
+ D test/game.card-effects.clone.test.js
+M  test/game.card-effects.clone.test.ts
+ D test/game.card-effects.destroy.test.js
+ D test/game.card-effects.extend-life.test.js
+ D test/game.card-effects.freeze.test.js
+ D test/game.card-effects.guard.test.js
+ D test/game.card-effects.helpers.test.js
+M  test/game.card-effects.helpers.test.ts
+ D test/game.card-effects.hyperactive-inherit.test.js
+ D test/game.card-effects.hyperactive-inherit.test.ts
+ D test/game.card-effects.living-will.test.js
+ D test/game.card-effects.meteor.test.js
+ D test/game.card-effects.placement.test.js
+ D test/game.card-effects.position-swap.test.js
+ D test/game.card-effects.seed.test.js
+ D test/game.card-effects.selection-flow.test.js
+ D test/game.card-effects.strong-wind.test.js
+ D test/game.card-effects.swap.test.js
+ D test/game.card-effects.teleport.test.js
+ D test/game.card-effects.tempt.test.js
+ D test/game.card-effects.time-bomb.test.js
+ D test/game.card-effects.trap.test.js
+ D test/game.cards-internal.module-resolver.test.js
+ D test/game.cards-internal.presentation-helpers.test.js
+M  test/game.cards-internal.presentation-helpers.test.ts
+ D test/game.cards-internal.state-factory.test.js
+ D test/game.cards.card-used-presentation.test.js
+ D test/game.cards.charge-ledger-module.test.js
+ D test/game.cards.effect-timing-module.test.js
+ D test/game.cards.expansion-module.test.js
+M  test/game.cards.expansion-module.test.ts
+ D test/game.cards.hand-manager-module.test.js
+ D test/game.cards.markers-duration-module.test.js
+ D test/game.cards.markers-module.test.js
+ D test/game.cards.pending-state-manager-module.test.js
+ D test/game.cards.reshuffle-cycle.test.js
+ D test/game.cell-teleport-will.test.js
+ D test/game.chain-will-consumed.test.js
+M  test/game.chain-will-consumed.test.ts
+ D test/game.chain-will-progression.test.js
+ D test/game.chain-will-single-direction-choice.test.js
+ D test/game.chain-will-three-links.test.js
+ D test/game.chain-will-two-links.test.js
+ D test/game.charge-delta-events.test.js
+ D test/game.clone-will.test.js
+ D test/game.condemn-will.test.js
+ D test/game.controller-events.test.js
+ D test/game.corner-tribute-will.test.js
+ D test/game.corrosion-will.test.js
+ D test/game.cpu-lv6-lookahead-profile.test.js
+ D test/game.cpu-policy-core.test.js
+M  test/game.cpu-policy-core.test.ts
+ D test/game.cpu-policy-onnx-runtime.test.js
+ D test/game.cpu-policy-table-runtime.test.js
+ D test/game.cpu-turn-handler.presentation-runtime.test.js
+ D test/game.cpuhandler.registration.test.js
+M  test/game.cpuhandler.registration.test.ts
+ D test/game.cross-bomb.test.js
+ D test/game.custom-board-config.test.js
+ D test/game.debug-actions.fill-hand.test.js
+ D test/game.destroy-dragon-will.test.js
+ D test/game.double-place-pipeline.test.js
+ D test/game.duration-end-revert.test.js
+ D test/game.equality-will.test.js
+ D test/game.escape-will.test.js
+ D test/game.expansion-fallback-helpers.test.js
+ D test/game.extend-life-work-will.test.js
+ D test/game.extreme-hyperactive-will.test.js
+ D test/game.fate-will.test.js
+ D test/game.free-placement-like-pending.test.js
+ D test/game.free-placement-spawn-cause.test.js
+M  test/game.free-placement-spawn-cause.test.ts
+ D test/game.freeze-will.test.js
+ D test/game.ghost-will.test.js
+ D test/game.gluttonous-will.test.js
+ D test/game.gold-silver-adapter.test.js
+ D test/game.gold-silver-destroy.test.js
+ D test/game.gold-silver-pipeline.test.js
+ D test/game.guard-will.test.js
+ D test/game.heaven-blessing.test.js
+ D test/game.hyperactive-inherit-will.test.js
+ D test/game.hyperactive-inherit-will.test.ts
+ D test/game.hyperactive.playback.test.js
+ D test/game.instant-hyperactive-will.test.js
+ D test/game.last-resort.test.js
+ D test/game.lightning-will.test.js
+ D test/game.living-will.test.js
+ D test/game.logic.clone-module.test.js
+M  test/game.logic.clone-module.test.ts
+ D test/game.logic.meteor-module.test.js
+ D test/game.logic.movement-module.test.js
+ D test/game.logic.single-color-gameover.test.js
+M  test/game.logic.single-color-gameover.test.ts
+ D test/game.logic.teleport-module.test.js
+ D test/game.logic.time-bomb-apply.test.js
+ D test/game.logic.time-bomb-single.test.js
+ D test/game.loss-will.test.js
+ D test/game.meteor-will.test.js
+ D test/game.move-executor.cpu-fallback.test.js
+ D test/game.move-executor.presentation.test.js
+ D test/game.move-generator.expansion-pending.test.js
+M  test/game.move-generator.expansion-pending.test.ts
+ D test/game.movement-selection-turn-handoff.test.js
+ D test/game.network-turn-handoff.test.js
+ D test/game.observer-will.test.js
+ D test/game.pass-clears-pending.test.js
+ D test/game.pass-handler.test.js
+ D test/game.pending-coordinator.contract.test.js
+ D test/game.pending-selection-flow.test.js
+ D test/game.pending-target-selector.test.js
+ D test/game.perma-protected-next-stone.test.js
+ D test/game.pipeline-ui-adapter.chain-flip-order.test.js
+ D test/game.pipeline-ui-adapter.destroy-batch.test.js
+ D test/game.pipeline-ui-adapter.draw.test.js
+ D test/game.pipeline-ui-adapter.effect-logs.anchor-expire.test.js
+ D test/game.pipeline-ui-adapter.gluttonous-phase.test.js
+ D test/game.pipeline-ui-adapter.living-will-revive.test.js
+ D test/game.pipeline-ui-adapter.move-metadata.test.js
+M  test/game.pipeline-ui-adapter.move-metadata.test.ts
+ D test/game.pipeline-ui-adapter.move.test.js
+M  test/game.pipeline-ui-adapter.move.test.ts
+ D test/game.pipeline-ui-adapter.normal-logs.test.js
+M  test/game.pipeline-ui-adapter.normal-logs.test.ts
+ D test/game.pipeline-ui-adapter.regen-flip-order.test.js
+M  test/game.pipeline-ui-adapter.regen-flip-order.test.ts
+ D test/game.pipeline-ui-adapter.regen-status-removed.test.js
+M  test/game.pipeline-ui-adapter.regen-status-removed.test.ts
+ D test/game.pipeline-ui-adapter.salvation-disappear-timing.test.js
+ D test/game.pipeline-ui-adapter.salvation-sound-cue.test.js
+M  test/game.pipeline-ui-adapter.salvation-sound-cue.test.ts
+ D test/game.pipeline-ui-adapter.skip-turn-start.test.js
+M  test/game.pipeline-ui-adapter.skip-turn-start.test.ts
+ D test/game.pipeline-ui-adapter.sniper-meta.test.js
+M  test/game.pipeline-ui-adapter.sniper-meta.test.ts
+ D test/game.pipeline-ui-adapter.sound-cue.test.js
+M  test/game.pipeline-ui-adapter.sound-cue.test.ts
+ D test/game.pipeline-ui-adapter.spawn.test.js
+M  test/game.pipeline-ui-adapter.spawn.test.ts
+ D test/game.pipeline-ui-adapter.special-revert-phase.test.js
+ D test/game.pipeline-ui-adapter.unknown-presentation-skip.test.js
+M  test/game.pipeline-ui-adapter.unknown-presentation-skip.test.ts
+ D test/game.position-swap-will.test.js
+ D test/game.presentation.test.js
+ D test/game.proliferation-will.test.js
+ D test/game.protected-next-stone.test.js
+ D test/game.rebuild-will.test.js
+ D test/game.regen.consume-visual.test.js
+ D test/game.reinforcement-will.test.js
+ D test/game.reveal-hand-will.test.js
+ D test/game.ribo-will.test.js
+ D test/game.robot-vacuum-will.test.js
+ D test/game.round-bonus.test.js
+ D test/game.salvation-will.test.js
+ D test/game.seed-will.test.js
+ D test/game.selector-orchestrator.fallback.test.js
+ D test/game.sniper-will.test.js
+ D test/game.special-effects.bombs.batch.test.js
+ D test/game.special-effects.ui-boundary.test.js
+ D test/game.special-stone-browser-order.test.js
+M  test/game.special-stone-browser-order.test.ts
+ D test/game.special-stone-bubble-rollout.test.js
+M  test/game.special-stone-bubble-rollout.test.ts
+ D test/game.special-stone-visual-rule.test.js
+M  test/game.special-stone-visual-rule.test.ts
+ D test/game.specialstone.spawn-meta-backfill.test.js
+ D test/game.split-will.test.js
+ D test/game.split-will.test.ts
+ D test/game.strong-wind.test.js
+ D test/game.super-buoyancy-will.test.js
+ D test/game.supply-will.test.js
+ D test/game.swap-normal-only.test.js
+ D test/game.swap-selection-turn-handoff.test.js
+ D test/game.taboo-reverse-will.test.js
+ D test/game.teleport-will.test.js
+ D test/game.time-bomb-selection.test.js
+ D test/game.time-stop-god.test.js
+ D test/game.trap-selection-turn-handoff.test.js
+ D test/game.trap-will.test.js
+ D test/game.treasure-box.test.js
+ D test/game.turn-pipeline-phase-helpers.special-stone-speech.test.js
+M  test/game.turn-pipeline-phase-helpers.special-stone-speech.test.ts
+ D test/game.turn-pipeline-strong-will-timer.test.js
+ D test/game.turn-pipeline.destroy-hand-card.test.js
+ D test/game.turn-pipeline.out-of-turn.test.js
+ D test/game.turn-pipeline.pending-cache-turn-start.test.js
+ D test/game.udg-duration.test.js
+ D test/game.ui-boundary.test.js
+ D test/game.ultimate-hyperactive-god.test.js
+ D test/game.ultimate-hyperactive.turn-start.test.js
+ D test/game.visualeffects.registration.test.js
+M  test/game.visualeffects.registration.test.ts
+ D test/game.will-hunter-king.test.js
+M  test/game.will-hunter-king.test.ts
+ D test/game.work-will.expansion.test.js
+ D test/game.x-bomb.test.js
+ D test/index.card-module-scripts.test.js
+ M test/index.card-module-scripts.test.ts
+ D test/index.cpu-lv6-runtime-capability-load.test.js
+M  test/index.cpu-lv6-runtime-capability-load.test.ts
+ D test/index.destroy-outcome-contract-load.test.js
+M  test/index.destroy-outcome-contract-load.test.ts
+ D test/index.local-script-paths.test.js
+M  test/index.local-script-paths.test.ts
+ D test/index.sniper-module-load.test.js
+ D test/load-training-profile.sync.test.js
+ D test/local-match-server.leave-contract.test.js
+ D test/local-match-server.publish-contract.test.js
+ D test/local-match-server.room-deck.test.js
+ D test/network.playback-event-assembly.contract.test.js
+ D test/onnx-trainer.grouped-split.test.js
+ D test/presentation.board-updated.serial.test.js
+ D test/presentation.flush.test.js
+ D test/presentation.persist-events.test.js
+M  test/presentation.persist-events.test.ts
+ D test/presentation.schedule.cpu.test.js
+ D test/presentation.warns.once.test.js
+M  test/presentation.warns.once.test.ts
+ D test/protocol.test.js
+M  test/protocol.test.ts
+ D test/regression.udr-crystal-fixes.test.js
+ D test/scripts.deploy-lane-model-to-root.test.js
+ D test/scripts.generate-observation-gacha-catalog.test.js
+ D test/scripts.match-network-smoke.test.js
+M  test/scripts.match-network-smoke.test.ts
+ D test/scripts.prepare-worker-assets.test.js
+ D test/scripts.training-artifact-status.test.js
+ D test/selfplay.benchmark-policy.test.js
+ D test/selfplay.card-context-parity-audit.test.js
+ D test/selfplay.card-use-future-delta-audit.test.js
+ D test/selfplay.clean-artifacts.test.js
+ D test/selfplay.corner-use-drift-audit.test.js
+ D test/selfplay.deepcfr-foundation-init.test.js
+ D test/selfplay.deepcfr-preflight.test.js
+ D test/selfplay.generate-data.parallel-workers.test.js
+ D test/selfplay.generate-data.test.js
+ D test/selfplay.generate-parallel.test.js
+ D test/selfplay.policy-action-score.test.js
+ D test/selfplay.policy-adoption.test.js
+ D test/selfplay.policy-onnx-gate.test.js
+ D test/selfplay.policy-promotion.test.js
+ D test/selfplay.policy-quality-gate.test.js
+ D test/selfplay.policy-rollback.test.js
+ D test/selfplay.policy-table-training.test.js
+ D test/selfplay.preflight.test.js
+M  test/selfplay.preflight.test.ts
+ D test/selfplay.replay-adoption-gate.test.js
+ D test/selfplay.runner.test.js
+M  test/selfplay.runner.test.ts
+ D test/selfplay.runtime-parity.test.js
+ D test/selfplay.seed-bank-manager.test.js
+ D test/selfplay.teacher-solutions.test.js
+ D test/selfplay.training-cycle.test.js
+ D test/selfplay.training-monitor.test.js
+ D test/selfplay.training-preset.test.js
+ D test/selfplay.training-profile-launcher.test.js
+ D test/selfplay.ui-level-match.test.js
+ D test/serve-with-fallback.test.js
+M  test/serve-with-fallback.test.ts
+ D test/shared.commentary-context-helpers.test.js
+ D test/shared.commentary-runtime-helpers.test.js
+ D test/shared.cpu-lv6-runtime-capability.test.js
+ D test/shared.deck-codec.test.js
+M  test/shared.deck-codec.test.ts
+ D test/shared.destroy-outcome-contract.test.js
+ D test/shared.gacha-hand-catalog-shared.test.js
+ D test/shared.gacha-helpers.test.js
+M  test/shared.gacha-helpers.test.ts
+ D test/shared.observation-gacha-catalog-shared.test.js
+M  test/shared.observation-gacha-catalog-shared.test.ts
+ D test/shared.playback-event-helpers.test.js
+ D test/shared.story-deck-codec.test.js
+ D test/shared.story-deck-spec.browser-merge.test.js
+M  test/shared.story-deck-spec.browser-merge.test.ts
+ D test/sound-engine.default-bgm.test.js
+ D test/story-deck-lab.page.test.js
+ D test/turn-manager.retry.test.js
+ D test/ui.animation-engine.guard-timer.test.js
+M  test/ui.animation-engine.guard-timer.test.ts
+ D test/ui.animation-engine.hand-add.test.js
+ D test/ui.animation-engine.inherited-hyperactive-timer.test.js
+ D test/ui.animation-engine.inherited-hyperactive-timer.test.ts
+ D test/ui.animation-engine.move-variants.test.js
+ D test/ui.animation-engine.observer-bubble.test.js
+ D test/ui.animation-engine.playback-state.test.js
+ D test/ui.animation-engine.test.js
+ D test/ui.animation-shared.test.js
+ D test/ui.animation-utils.hand-fallback.test.js
+ D test/ui.animation-utils.test.js
+ D test/ui.animation-utils.trap-flash.test.js
+M  test/ui.animation-utils.trap-flash.test.ts
+ D test/ui.auto.playback-state.test.js
+ D test/ui.background-skin-runtime.test.js
+ D test/ui.board-expansion-cell-render.test.js
+ D test/ui.board-frame.custom-size.test.js
+ D test/ui.board-renderer.fallback-legal-hint.test.js
+ D test/ui.board-renderer.pixel-sizing.test.js
+ D test/ui.board-update-dispatch.test.js
+ D test/ui.board-update-sync-runtime.test.js
+M  test/ui.board-update-sync-runtime.test.ts
+ D test/ui.bootstrap-shared.forwarding.test.js
+M  test/ui.bootstrap-shared.forwarding.test.ts
+ D test/ui.bootstrap-shared.test.js
+ D test/ui.bootstrap.commentary-routing.test.js
+M  test/ui.bootstrap.commentary-routing.test.ts
+ D test/ui.bootstrap.cpu-early-registration.test.js
+ D test/ui.bootstrap.debug-log.test.js
+ D test/ui.bootstrap.lazy-install.test.js
+ D test/ui.bootstrap.specialstone-preload.test.js
+ D test/ui.card-condemn-selection-deferred-publish.test.js
+ D test/ui.card-destroy-hand.test.js
+ D test/ui.card-detail-effect-tags.test.js
+M  test/ui.card-detail-effect-tags.test.ts
+ D test/ui.card-performance-css.test.js
+M  test/ui.card-performance-css.test.ts
+ D test/ui.card-renderer-hand-inspect.test.js
+ D test/ui.card-text-clarity-css.test.js
+ D test/ui.card-ui-sync.test.js
+ D test/ui.card-use-source-element.test.js
+M  test/ui.card-use-source-element.test.ts
+ D test/ui.charge-delta-queue.test.js
+ D test/ui.commentary-broker.test.js
+ D test/ui.cpu-policy-handler.test.js
+ D test/ui.debug.disable-reset.test.js
+ D test/ui.debug.fill-hand-refresh.test.js
+ D test/ui.debug.globals.test.js
+ D test/ui.debug.hand-layout-css.test.js
+M  test/ui.debug.hand-layout-css.test.ts
+ D test/ui.debug.hand-scroll.test.js
+ D test/ui.debug.network-idempotent.test.js
+ D test/ui.debug.visual.test.js
+ D test/ui.deck-builder-controller.test.js
+ D test/ui.diff-renderer.destroy-fade-shadow.test.js
+ D test/ui.diff-renderer.flip.test.js
+ D test/ui.disc-shadow.test.js
+ D test/ui.fate-will-legal-hints.test.js
+ D test/ui.fate-will-ui-controlled-turn.test.js
+ D test/ui.flip.suppress-double.test.js
+ D test/ui.gacha-fallback-css.test.js
+M  test/ui.gacha-fallback-css.test.ts
+ D test/ui.gacha-handler.test.js
+ D test/ui.gacha-item-visuals.test.js
+ D test/ui.gacha-overlay-view.test.js
+ D test/ui.gacha-progress-storage.test.js
+ D test/ui.gacha-reveal-audio.test.js
+ D test/ui.gacha-reveal-player.test.js
+ D test/ui.gacha-transaction.test.js
+ D test/ui.hand-skin-handler.test.js
+ D test/ui.hand-skin-panel-css.test.js
+M  test/ui.hand-skin-panel-css.test.ts
+ D test/ui.heaven-blessing-overlay.test.js
+ D test/ui.heaven-blessing-selection-deferred-publish.test.js
+ D test/ui.heaven-overlay-network-authority-gate.test.js
+ D test/ui.init.action-button-binding.test.js
+ D test/ui.init.async-policy-load.test.js
+ D test/ui.init.gacha.test.js
+ D test/ui.init.hand-skin.test.js
+ D test/ui.init.playback-runtime.test.js
+ D test/ui.init.side-panel-toggle.test.js
+ D test/ui.layout-responsive.aspect-ratio.test.js
+ D test/ui.layout-stage.profile-selection.test.js
+ D test/ui.lightning-will-legal-hint.test.js
+ D test/ui.long-press-info.test.js
+M  test/ui.long-press-info.test.ts
+ D test/ui.match-mode.leaderboard-limit.test.js
+ D test/ui.match-mode.network-button.test.js
+ D test/ui.move-executor-visuals.instant-hyperactive.test.js
+ D test/ui.network-charge-seat-layout.test.js
+ D test/ui.network-client.action-bridge-next-snapshot.test.js
+ D test/ui.network-client.apply-coordinator.test.js
+ D test/ui.network-client.card-use-visual-descriptor.test.js
+ D test/ui.network-client.commentary.test.js
+ D test/ui.network-client.debug-fill-hand-publish.test.js
+ D test/ui.network-client.effect-log-dedupe.test.js
+ D test/ui.network-client.guard-tempt-deferred-publish.test.js
+ D test/ui.network-client.leave-room-cleanup.test.js
+ D test/ui.network-client.movement-deferred-publish.test.js
+ D test/ui.network-client.multi-stage-selection.test.js
+ D test/ui.network-client.presence-log.test.js
+ D test/ui.network-client.publish-base-version.test.js
+ D test/ui.network-client.reconnect-sync.test.js
+ D test/ui.network-client.result-sync.test.js
+ D test/ui.network-client.seat-normalization.test.js
+ D test/ui.network-client.server-url.test.js
+ D test/ui.network-client.snapshot-effect-logs.test.js
+ D test/ui.network-client.sound-dedupe.test.js
+ D test/ui.network-client.swap-deferred-publish.test.js
+ D test/ui.network-client.trap-deferred-publish.test.js
+ D test/ui.network-command-payload.test.js
+ D test/ui.network-commentary.test.js
+ D test/ui.network-legal-hints.test.js
+ D test/ui.network-publish-request.test.js
+ D test/ui.network-session-lifecycle.test.js
+ D test/ui.network-snapshot-canonical.test.js
+ D test/ui.network-snapshot.charge-delta-reconstruct.test.js
+ D test/ui.network-snapshot.hyperactive-source-empty.test.js
+M  test/ui.network-snapshot.hyperactive-source-empty.test.ts
+ D test/ui.network-snapshot.move-source-empty.test.js
+ D test/ui.network-snapshot.pending-presentation-reconcile.test.js
+ D test/ui.network-snapshot.single-writer-baseline.test.js
+ D test/ui.network-work-will-followup-placement.test.js
+ D test/ui.owner-helpers-classic-script-load.test.js
+M  test/ui.owner-helpers-classic-script-load.test.ts
+ D test/ui.pass-stale-busy.test.js
+ D test/ui.placement-sound-selection.test.js
+ D test/ui.playback-engine.dispatch.test.js
+ D test/ui.playback-state-manager.test.js
+ D test/ui.result-overlay.network-seat.test.js
+ D test/ui.result-overlay.story-result.test.js
+ D test/ui.rules-help-panel.test.js
+ D test/ui.sound-engine-access.test.js
+M  test/ui.sound-engine-access.test.ts
+ D test/ui.sound-handler.test.js
+ D test/ui.status-display.cpu-scale.test.js
+ D test/ui.status-display.network-seat.test.js
+ D test/ui.status-display.portrait-bubble.test.js
+ D test/ui.status-display.round-display.test.js
+ D test/ui.stone-rendering.test.js
+M  test/ui.stone-rendering.test.ts
+ D test/ui.stone-timer-position.test.js
+M  test/ui.stone-timer-position.test.ts
+ D test/ui.stone-visuals.contract.test.js
+ D test/ui.stonevisuals-delegation.test.js
+M  test/ui.stonevisuals-delegation.test.ts
+ D test/ui.story-battle-ui.test.js
+ D test/ui.story-controller.test.js
+ D test/ui.story-deck-lab-renderer.test.js
+ D test/ui.story-deck-lab-state.test.js
+ D test/ui.story-encounter.test.js
+ D test/ui.story-handler.test.js
+ D test/ui.story-state.test.js
+M  test/ui.story-state.test.ts
+ D test/ui.story-steps.test.js
+ D test/ui.taboo-legal-highlight.test.js
+ D test/ui.tutorial-action-wait.test.js
+ D test/ui.tutorial-controller.test.js
+ D test/ui.tutorial-handler.test.js
+ D test/ui.tutorial-overlay.test.js
+ D test/ui.tutorial-runtime.test.js
+ D test/ui.tutorial-steps.test.js
+ D test/ui.tutorial-storage.test.js
+ D test/ui.visual-effects-map.shared.test.js
+ D test/utils.deep-clone.test.js
+M  test/utils.deep-clone.test.ts
+ D test/utils.match-authority.public-snapshot.test.js
+ D test/utils.match-authority.publish-response.test.js
+ D test/utils.owner-helpers.network-seat.test.js
+ D test/visual-regression.test.js
+M  test/visual-regression.test.ts
+ D test/workers.match-condemn-visibility.test.js
+ D test/workers.match-heartbeat-stateversion.test.js
+ D test/workers.match-leaderboard.test.js
+ D test/workers.match-leave-token-revocation.test.js
+ D test/workers.match-pending-effect-id.test.js
+ D test/workers.match-publish-effect-logs.test.js
+ D test/workers.match-publish-idempotency.test.js
+ D test/workers.match-publish-sanitize.test.js
+ D test/workers.match-rematch-publish.test.js
+ D test/workers.match-reveal-hand-visibility.test.js
+ D test/workers.match-room-deck.test.js
+ D test/workers.match-stream-sse.test.js
+ D test/workers.match-turn-timer.test.js
+ M tests/visual-regression/baseline-board.png
+ M tests/visual-regression/diff.png
+ M tests/visual-regression/fallback-board.png
+ M tmp/playwright-network-verify/all-card-network-selfmatch.js
+ M tsconfig.json
+ D ui-bootstrap-shared.js
+ M ui/animation-constants.js
+ M ui/animation-engine.js
+ M ui/animation-engine.ts
+ M ui/animation-helpers.js
+ M ui/animation-resolver.js
+ M ui/animation-shared.js
+ M ui/animation-utils.js
+ M ui/animation-utils.ts
+ M ui/background-skin/catalog.ts
+ M ui/board-renderer.js
+ M ui/board-renderer.ts
+ M ui/board-update-dispatch.js
+ M ui/board-update-sync-runtime.js
+ M ui/bootstrap.js
+ M ui/bootstrap/init-dom.ts
+ M ui/bootstrap/init-events.ts
+ M ui/bootstrap/init-game.ts
+ M ui/bootstrap/init-network.ts
+ M ui/commentary-broker.js
+ M ui/cosmetics/catalog-shared.js
+ M ui/deck-builder-controller.js
+ M ui/deck-builder-renderer.js
+ M ui/deck-builder-state.js
+ M ui/diff-renderer.js
+ M ui/diff-renderer.ts
+ M ui/gacha-reveal-player.js
+ M ui/gacha/gacha-overlay-controller.js
+ M ui/gacha/gacha-reveal-audio.js
+ M ui/gacha/gacha-reveal-stage.js
+ M ui/gacha/gacha-transaction.js
+ M ui/handlers/auto.js
+ M ui/handlers/gacha.js
+ M ui/handlers/sound.js
+ M ui/layout-stage.js
+ M ui/leaderboard-client.js
+ M ui/marker-bridge.js
+ M ui/move-executor-visuals.js
+ M ui/network-client.js
+ M ui/network-client.ts
+ M ui/network/command-payload.js
+ M ui/network/publish-tracker.js
+ M ui/network/reconnect-controller.js
+ M ui/network/snapshot-presentation.js
+ M ui/network/snapshot-runtime.js
+ M ui/placement-sound-selection.js
+ M ui/playback-engine.js
+ M ui/playback-runtime.js
+ M ui/playback-state-manager.js
+ M ui/presentation-handler.js
+ M ui/result-overlay.js
+ M ui/sound-engine-access.js
+ M ui/status-display.js
+ M ui/stone-visuals.js
+ M ui/stone-visuals.ts
+ M ui/storage/gacha-progress.ts
+ M ui/story-deck-lab/story-deck-lab-state.js
+ M ui/story/story-state.js
+ M ui/story/story-steps.ts
+ M ui/tutorial/tutorial-action-wait.js
+ M ui/tutorial/tutorial-scenario-duel.js
+ M ui/tutorial/tutorial-state.js
+ M ui/tutorial/tutorial-storage.js
+ M ui/visual-effects-map.js
+ M utils/deepClone.js
+ M utils/match-authority.js
+ M utils/owner-helpers.js
+ D utils/owner-helpers.ts
+ M worker-public/assets/asset-manifest.json
+ D "worker-public/assets/audio/sound-effect/\347\251\266\346\245\265\345\217\215\350\273\242\351\276\215\343\203\273\347\251\266\346\245\265\347\240\264\345\243\212\347\245\236\343\201\214\347\247\273\345\213\225\343\201\227\343\201\237\343\202\277\343\202\244\343\203\237\343\203\263\343\202\260.mp3"
+ D "worker-public/assets/images/background/\345\256\207\345\256\231\343\201\256\350\246\263\346\270\254.png"
+ M worker-public/card-system.js
+ M worker-public/cards/card-interaction-effects.js
+ M worker-public/cards/card-interaction.js
+ M worker-public/cards/card-renderer.js
+ M worker-public/cards/catalog.generated.js
+ M worker-public/cards/catalog.js
+ M worker-public/cards/catalog.json
+ M worker-public/constants/animation-constants.js
+ M worker-public/constants/cpu-lv6-shared-profile.js
+ M worker-public/constants/difficulty-constants.js
+ M worker-public/constants/ui-element-cache.js
+ M worker-public/entry-browser.js
+ M worker-public/game-events.js
+ M worker-public/game/ai/cpu-commentary-runtime.js
+ M worker-public/game/ai/cpu-lv6-lookahead-profile.js
+ M worker-public/game/ai/cpu-policy-core.js
+ M worker-public/game/ai/endgame-solver.js
+ M worker-public/game/ai/fixed-commentary-engine.js
+ M worker-public/game/ai/gumbel-mcts.js
+ M worker-public/game/ai/level-system.js
+ M worker-public/game/ai/mcts-core.js
+ M worker-public/game/ai/mcts-policy.js
+ M worker-public/game/ai/mcts-temperature.js
+ M worker-public/game/ai/mcts-two-layer.js
+ M worker-public/game/ai/policy-onnx-runtime-v2.js
+ M worker-public/game/ai/policy-onnx-runtime.js
+ M worker-public/game/auto.js
+ M worker-public/game/card-effects/blockade.js
+ M worker-public/game/card-effects/board-expansion.js
+ M worker-public/game/card-effects/board-shrink.js
+ M worker-public/game/card-effects/capture.js
+ M worker-public/game/card-effects/clone.js
+ M worker-public/game/card-effects/destroy.js
+ M worker-public/game/card-effects/extend-life.js
+ M worker-public/game/card-effects/freeze.js
+ M worker-public/game/card-effects/guard.js
+ M worker-public/game/card-effects/helpers.js
+ D worker-public/game/card-effects/hyperactive-inherit.js
+ M worker-public/game/card-effects/living-will.js
+ M worker-public/game/card-effects/meteor.js
+ M worker-public/game/card-effects/placement.js
+ M worker-public/game/card-effects/position-swap.js
+ M worker-public/game/card-effects/seed.js
+ M worker-public/game/card-effects/selection-flow.js
+ M worker-public/game/card-effects/strong-wind.js
+ M worker-public/game/card-effects/swap.js
+ M worker-public/game/card-effects/teleport.js
+ M worker-public/game/card-effects/tempt.js
+ M worker-public/game/card-effects/time-bomb.js
+ M worker-public/game/card-effects/trap.js
+ M worker-public/game/cards/effect-resolver.js
+ M worker-public/game/cards/effects/board-expansion-apply.js
+ M worker-public/game/cards/effects/breeding.js
+ M worker-public/game/cards/effects/chain.js
+ M worker-public/game/cards/effects/clone.js
+ M worker-public/game/cards/effects/destroy-dragon.js
+ M worker-public/game/cards/effects/destroy-one-stone.js
+ M worker-public/game/cards/effects/dragon.js
+ M worker-public/game/cards/effects/expansion.js
+ M worker-public/game/cards/effects/flips.js
+ M worker-public/game/cards/effects/hand-effects.js
+ D worker-public/game/cards/effects/hyperactive.js
+ M worker-public/game/cards/effects/lightning.js
+ M worker-public/game/cards/effects/living-will.js
+ M worker-public/game/cards/effects/markers.js
+ M worker-public/game/cards/effects/meteor.js
+ M worker-public/game/cards/effects/movement.js
+ M worker-public/game/cards/effects/ownership.js
+ M worker-public/game/cards/effects/position-swap.js
+ M worker-public/game/cards/effects/protect.js
+ M worker-public/game/cards/effects/regen.js
+ M worker-public/game/cards/effects/selectors.js
+ M worker-public/game/cards/effects/shrink.js
+ M worker-public/game/cards/effects/sniper.js
+ M worker-public/game/cards/effects/status-cells.js
+ M worker-public/game/cards/effects/swap-with-enemy.js
+ M worker-public/game/cards/effects/targets.js
+ M worker-public/game/cards/effects/teleport.js
+ M worker-public/game/cards/effects/time-bomb.js
+ M worker-public/game/cards/effects/trap.js
+ M worker-public/game/cards/effects/udg.js
+ M worker-public/game/cards/effects/work-will.js
+ M worker-public/game/cards/state-manager.js
+ M worker-public/game/cards/target-resolver.js
+ M worker-public/game/cards/timing-processor.js
+ M worker-public/game/controller-events.js
+ M worker-public/game/cpu-decision.js
+ M worker-public/game/cpu-turn-handler.js
+ M worker-public/game/game-controller-slim.js
+ M worker-public/game/game-core-logic.js
+ M worker-public/game/log-messages.js
+ M worker-public/game/logic/board_ops.js
+ M worker-public/game/logic/cards-internal/card-usage-prechecks.js
+ M worker-public/game/logic/cards-internal/charge-ledger.js
+ M worker-public/game/logic/cards-internal/effect-timing.js
+ M worker-public/game/logic/cards-internal/hand-manager.js
+ M worker-public/game/logic/cards-internal/module-resolver.js
+ M worker-public/game/logic/cards-internal/pending-state-manager.js
+ M worker-public/game/logic/cards-internal/presentation-helpers.js
+ M worker-public/game/logic/cards-internal/random-source.js
+ M worker-public/game/logic/cards-internal/selector-orchestrator.js
+ M worker-public/game/logic/cards-internal/state-factory.js
+ M worker-public/game/logic/cards.js
+ M worker-public/game/logic/cards/breeding.js
+ M worker-public/game/logic/cards/chain.js
+ M worker-public/game/logic/cards/clone.js
+ M worker-public/game/logic/cards/costs.js
+ M worker-public/game/logic/cards/defs.js
+ M worker-public/game/logic/cards/destroy_dragon.js
+ M worker-public/game/logic/cards/expansion.js
+ M worker-public/game/logic/cards/flips.js
+ M worker-public/game/logic/cards/hyperactive.js
+ M worker-public/game/logic/cards/lightning.js
+ M worker-public/game/logic/cards/living_will.js
+ M worker-public/game/logic/cards/markers.js
+ M worker-public/game/logic/cards/meteor.js
+ M worker-public/game/logic/cards/movement.js
+ M worker-public/game/logic/cards/selectors.js
+ M worker-public/game/logic/cards/shrink.js
+ M worker-public/game/logic/cards/sniper.js
+ M worker-public/game/logic/cards/targets.js
+ M worker-public/game/logic/cards/teleport.js
+ M worker-public/game/logic/cards/time_bomb.js
+ M worker-public/game/logic/cards/udg.js
+ M worker-public/game/logic/cards/utils.js
+ M worker-public/game/logic/cards/will_hunter_king.js
+ M worker-public/game/logic/cards/work_will.js
+ D worker-public/game/logic/context.js
+ M worker-public/game/logic/core.js
+ M worker-public/game/logic/effects/destroy_one_stone.js
+ M worker-public/game/logic/effects/dragon.js
+ M worker-public/game/logic/effects/swap_with_enemy.js
+ M worker-public/game/logic/markers_adapter.js
+ M worker-public/game/logic/position-weights.js
+ M worker-public/game/logic/presentation.js
+ M worker-public/game/move-executor-visuals.js
+ M worker-public/game/move-executor.js
+ M worker-public/game/move-generator.js
+ M worker-public/game/network-turn-handoff.js
+ M worker-public/game/pass-handler.js
+ M worker-public/game/schema/prng.js
+ M worker-public/game/special-effects-handler.js
+ M worker-public/game/special-effects/bombs.js
+ M worker-public/game/special-effects/breeding.js
+ M worker-public/game/special-effects/helpers.js
+ M worker-public/game/special-effects/protections.js
+ M worker-public/game/special-effects/udg.js
+ M worker-public/game/timer-service.js
+ M worker-public/game/timer-utils.js
+ M worker-public/game/timers.js
+ M worker-public/game/turn-handlers/pending-target-selector.js
+ M worker-public/game/turn-manager.js
+ M worker-public/game/turn/pending-coordinator.js
+ M worker-public/game/turn/pipeline_ui_adapter.js
+ M worker-public/game/turn/turn_pipeline.js
+ M worker-public/game/turn/turn_pipeline_phase_helpers.js
+ M worker-public/game/turn/turn_pipeline_phases.js
+ M worker-public/game/visual-effects-map.js
+ M worker-public/is-env-capable.js
+ M worker-public/shared-constants.js
+ M worker-public/shared/board-utils.js
+ M worker-public/shared/charge-utils.js
+ M worker-public/shared/commentary-context-helpers.js
+ M worker-public/shared/commentary-runtime-helpers.js
+ M worker-public/shared/cpu-lv6-runtime-capability.js
+ M worker-public/shared/deck-codec.js
+ M worker-public/shared/deck-spec.js
+ M worker-public/shared/destroy-outcome-contract.js
+ M worker-public/shared/gacha-hand-catalog-shared.js
+ M worker-public/shared/gacha-hand-catalog.generated.js
+ M worker-public/shared/gacha-helpers.js
+ M worker-public/shared/network-action-schema.js
+ M worker-public/shared/observation-gacha-catalog-shared.js
+ M worker-public/shared/observation-gacha-catalog.generated.js
+ M worker-public/shared/othello-core.js
+ M worker-public/shared/playback-event-helpers.js
+ M worker-public/shared/player-encoding.js
+ M worker-public/shared/shared-board-utils.js
+ M worker-public/shared/shared-card-heuristics.js
+ M worker-public/shared/special-stone-registry.js
+ M worker-public/shared/state-hash.js
+ M worker-public/shared/stone-status-snapshot.js
+ M worker-public/shared/story-deck-codec.js
+ M worker-public/shared/story-deck-spec.js
+ D worker-public/shared/types.d.js
+ M worker-public/shared/ui-bootstrap-shared.js
+ M worker-public/sound-engine.js
+ M worker-public/story-deck-lab.html
+ M worker-public/ui.js
+ M worker-public/ui/animation-constants.js
+ M worker-public/ui/animation-engine.js
+ M worker-public/ui/animation-helpers.js
+ M worker-public/ui/animation-resolver.js
+ M worker-public/ui/animation-shared.js
+ M worker-public/ui/animation-utils.js
+ M worker-public/ui/background-skin/catalog.js
+ M worker-public/ui/background-skin/controller.js
+ M worker-public/ui/background-skin/runtime.js
+ M worker-public/ui/background-skin/selection.js
+ M worker-public/ui/board-renderer.js
+ M worker-public/ui/board-update-dispatch.js
+ M worker-public/ui/board-update-sync-runtime.js
+ M worker-public/ui/bootstrap.js
+ M worker-public/ui/bootstrap/init-dom.js
+ M worker-public/ui/bootstrap/init-events.js
+ M worker-public/ui/bootstrap/init-game.js
+ M worker-public/ui/bootstrap/init-network.js
+ M worker-public/ui/commentary-broker.js
+ M worker-public/ui/deck-builder-controller.js
+ M worker-public/ui/deck-builder-renderer.js
+ M worker-public/ui/deck-builder-state.js
+ M worker-public/ui/diff-renderer.js
+ M worker-public/ui/gacha-reveal-player.js
+ M worker-public/ui/gacha/catalog-access.js
+ M worker-public/ui/gacha/gacha-events.js
+ M worker-public/ui/gacha/gacha-item-visuals.js
+ M worker-public/ui/gacha/gacha-overlay-controller.js
+ M worker-public/ui/gacha/gacha-overlay-view.js
+ M worker-public/ui/gacha/gacha-reveal-audio.js
+ M worker-public/ui/gacha/gacha-reveal-stage.js
+ M worker-public/ui/gacha/gacha-transaction.js
+ M worker-public/ui/hand-skin/catalog.js
+ M worker-public/ui/hand-skin/controller.js
+ M worker-public/ui/hand-skin/runtime.js
+ M worker-public/ui/hand-skin/selection.js
+ M worker-public/ui/handlers/auto.js
+ M worker-public/ui/handlers/cpu-policy.js
+ M worker-public/ui/handlers/debug.js
+ M worker-public/ui/handlers/deck-builder.js
+ M worker-public/ui/handlers/gacha.js
+ M worker-public/ui/handlers/hand-skin.js
+ M worker-public/ui/handlers/init.js
+ M worker-public/ui/handlers/match-mode.js
+ M worker-public/ui/handlers/rules-help.js
+ M worker-public/ui/handlers/smart.js
+ M worker-public/ui/handlers/sound.js
+ M worker-public/ui/handlers/story.js
+ M worker-public/ui/handlers/tutorial.js
+ M worker-public/ui/leaderboard-client.js
+ M worker-public/ui/marker-bridge.js
+ M worker-public/ui/move-executor-visuals.js
+ M worker-public/ui/network-client.js
+ M worker-public/ui/network/action-bridge.js
+ M worker-public/ui/network/apply-coordinator.js
+ M worker-public/ui/network/command-payload.js
+ M worker-public/ui/network/commentary.js
+ M worker-public/ui/network/publish-request.js
+ M worker-public/ui/network/publish-tracker.js
+ M worker-public/ui/network/reconnect-controller.js
+ M worker-public/ui/network/session-lifecycle.js
+ M worker-public/ui/network/session-seat.js
+ M worker-public/ui/network/snapshot-canonical.js
+ M worker-public/ui/network/snapshot-presentation.js
+ M worker-public/ui/network/snapshot-runtime.js
+ M worker-public/ui/network/snapshot.js
+ M worker-public/ui/placement-sound-selection.js
+ M worker-public/ui/playback-engine.js
+ M worker-public/ui/playback-runtime.js
+ M worker-public/ui/playback-state-manager.js
+ M worker-public/ui/presentation-handler.js
+ M worker-public/ui/result-overlay.js
+ M worker-public/ui/sound-engine-access.js
+ M worker-public/ui/status-display.js
+ M worker-public/ui/stone-visuals.js
+ M worker-public/ui/storage/action-log.js
+ M worker-public/ui/storage/deck-presets.js
+ M worker-public/ui/storage/gacha-progress.js
+ M worker-public/ui/story-deck-lab/story-deck-lab-controller.js
+ M worker-public/ui/story-deck-lab/story-deck-lab-renderer.js
+ M worker-public/ui/story-deck-lab/story-deck-lab-state.js
+ M worker-public/ui/story/story-battle-ui.js
+ M worker-public/ui/story/story-controller.js
+ M worker-public/ui/story/story-encounter.js
+ M worker-public/ui/story/story-state.js
+ M worker-public/ui/story/story-steps.js
+ M worker-public/ui/tutorial/tutorial-action-wait.js
+ M worker-public/ui/tutorial/tutorial-controller.js
+ M worker-public/ui/tutorial/tutorial-overlay.js
+ M worker-public/ui/tutorial/tutorial-runtime.js
+ M worker-public/ui/tutorial/tutorial-scenario-duel.js
+ M worker-public/ui/tutorial/tutorial-state.js
+ M worker-public/ui/tutorial/tutorial-steps.js
+ M worker-public/ui/tutorial/tutorial-storage.js
+ M worker-public/ui/tutorial/typewriter.js
+ M worker-public/ui/visual-effects-map.js
+ M worker-public/utils/deepClone.js
+ M worker-public/utils/match-authority.js
+ M workers/match-worker.mjs
+?? .opencode/
+?? .playwright-mcp/final-snapshot.txt
+?? .playwright-mcp/final-verify.txt
+?? .playwright-mcp/page-2026-04-30T03-00-45-544Z.yml
+?? .playwright-mcp/page-2026-04-30T03-09-54-294Z.yml
+?? .playwright-mcp/page-2026-04-30T09-59-58-535Z.yml
+?? .playwright-mcp/page-2026-04-30T10-00-02-304Z.yml
+?? .playwright-mcp/page-2026-05-01T15-01-55-320Z.yml
+?? .playwright-mcp/page-2026-05-01T15-22-18-526Z.yml
+?? .playwright-mcp/page-2026-05-01T15-27-48-579Z.yml
+?? .playwright-mcp/page-2026-05-01T15-29-47-080Z.yml
+?? .playwright-mcp/page-2026-05-01T15-31-23-091Z.yml
+?? .playwright-mcp/page-2026-05-01T15-34-11-990Z.yml
+?? .playwright-mcp/page-2026-05-01T15-41-36-798Z.yml
+?? .playwright-mcp/page-2026-05-01T21-00-31-794Z.yml
+?? .playwright-mcp/page-2026-05-01T21-01-51-091Z.yml
+?? .playwright-mcp/page-2026-05-01T21-04-46-552Z.yml
+?? .playwright-mcp/page-2026-05-01T21-56-00-398Z.yml
+?? .playwright-mcp/page-2026-05-01T21-56-36-187Z.yml
+?? .playwright-mcp/page-2026-05-01T21-57-22-698Z.yml
+?? .playwright-mcp/page-2026-05-01T21-58-03-383Z.yml
+?? .playwright-mcp/page-2026-05-01T21-59-14-065Z.yml
+?? .playwright-mcp/page-2026-05-01T22-08-31-357Z.yml
+?? .playwright-mcp/page-2026-05-01T22-09-36-123Z.yml
+?? .playwright-mcp/page-2026-05-01T22-16-57-820Z.yml
+?? .playwright-mcp/page-2026-05-01T22-22-45-658Z.yml
+?? .playwright-mcp/page-2026-05-01T22-23-39-979Z.yml
+?? .playwright-mcp/page-2026-05-01T22-24-24-315Z.yml
+?? .playwright-mcp/page-2026-05-01T22-25-57-124Z.yml
+?? .playwright-mcp/page-2026-05-01T22-26-36-123Z.yml
+?? .playwright-mcp/page-2026-05-01T22-28-22-560Z.yml
+?? .playwright-mcp/page-2026-05-01T22-30-13-682Z.yml
+?? .playwright-mcp/page-2026-05-01T22-31-11-805Z.yml
+?? .playwright-mcp/page-2026-05-01T22-33-10-444Z.yml
+?? .playwright-mcp/page-2026-05-01T22-37-40-502Z.yml
+?? .playwright-mcp/page-2026-05-01T22-39-17-667Z.yml
+?? .playwright-mcp/page-2026-05-01T22-40-55-582Z.yml
+?? .playwright-mcp/page-2026-05-01T22-41-36-709Z.yml
+?? .playwright-mcp/page-2026-05-01T22-43-17-049Z.yml
+?? .playwright-mcp/page-2026-05-02T04-34-43-024Z.yml
+?? .playwright-mcp/page-2026-05-02T04-51-54-057Z.yml
+?? .playwright-mcp/page-2026-05-02T05-25-52-818Z.yml
+?? .playwright-mcp/page-2026-05-02T05-50-28-993Z.yml
+?? .playwright-mcp/page-2026-05-02T06-19-42-030Z.yml
+?? .playwright-mcp/page-2026-05-02T06-46-35-140Z.yml
+?? .playwright-mcp/page-2026-05-02T07-25-41-986Z.yml
+?? .playwright-mcp/page-2026-05-02T08-17-54-011Z.yml
+?? .playwright-mcp/page-2026-05-02T08-37-43-762Z.yml
+?? .playwright-mcp/page-2026-05-02T08-59-59-706Z.yml
+?? .playwright-mcp/page-2026-05-02T11-44-53-653Z.yml
+?? .playwright-mcp/page-2026-05-02T12-48-31-721Z.yml
+?? .playwright-mcp/page-2026-05-02T12-54-46-699Z.yml
+?? .playwright-mcp/page-2026-05-02T13-02-08-323Z.yml
+?? .playwright-mcp/page-2026-05-02T13-05-14-821Z.yml
+?? .playwright-mcp/page-2026-05-02T13-07-08-220Z.yml
+?? .playwright-mcp/page-2026-05-02T13-07-29-979Z.yml
+?? .playwright-mcp/page-2026-05-02T13-07-59-846Z.yml
+?? .playwright-mcp/page-2026-05-02T21-44-22-667Z.yml
+?? .playwright-mcp/page-2026-05-02T21-45-34-413Z.yml
+?? .playwright-mcp/page-2026-05-02T21-46-32-321Z.yml
+?? .playwright-mcp/page-2026-05-02T21-48-17-821Z.yml
+?? .playwright-mcp/page-2026-05-03T04-12-58-315Z.yml
+?? .playwright-mcp/page-2026-05-03T04-13-20-482Z.yml
+?? .playwright-mcp/page-2026-05-03T04-14-29-490Z.yml
+?? .playwright-mcp/page-2026-05-03T04-14-40-099Z.yml
+?? .playwright-mcp/page-2026-05-03T04-14-50-124Z.yml
+?? .playwright-mcp/page-2026-05-03T04-14-59-886Z.yml
+?? .playwright-mcp/page-2026-05-03T11-05-42-123Z.yml
+?? .playwright-mcp/page-2026-05-03T11-05-56-547Z.yml
+?? .playwright-mcp/page-2026-05-03T11-08-03-684Z.yml
+?? .playwright-mcp/page-2026-05-03T11-12-49-370Z.yml
+?? .playwright-mcp/page-2026-05-03T11-13-26-461Z.yml
+?? .playwright-mcp/page-2026-05-03T11-13-47-380Z.yml
+?? .playwright-mcp/page-2026-05-03T11-13-54-314Z.yml
+?? .playwright-mcp/page-2026-05-03T11-15-28-996Z.yml
+?? .playwright-mcp/page-2026-05-03T11-17-29-703Z.yml
+?? .playwright-mcp/page-2026-05-03T11-18-00-033Z.yml
+?? .playwright-mcp/page-2026-05-03T11-18-16-773Z.yml
+?? .playwright-mcp/page-2026-05-03T11-18-41-546Z.yml
+?? .playwright-mcp/page-2026-05-03T11-18-50-591Z.yml
+?? .playwright-mcp/page-2026-05-03T11-26-17-448Z.yml
+?? .playwright-mcp/page-2026-05-03T11-27-00-184Z.yml
+?? .playwright-mcp/page-2026-05-03T11-29-44-463Z.yml
+?? .playwright-mcp/page-2026-05-03T11-30-22-392Z.yml
+?? .playwright-mcp/page-2026-05-03T11-30-40-565Z.yml
+?? .playwright-mcp/page-snapshot.txt
+?? .playwright-mcp/success-snapshot.txt
+?? .sisyphus/boulder.json
+?? .sisyphus/drafts/
+?? .sisyphus/evidence/
+?? .sisyphus/notepads/
+?? .sisyphus/plans/browser-runtime-recovery-plan.md
+?? .sisyphus/plans/card-verification-loop.md
+?? .sisyphus/plans/equality-will-removal.md
+?? .sisyphus/plans/fix-background-skin-wiring.md
+?? .sisyphus/plans/fix-multi-move-sound.md
+?? .sisyphus/plans/fix-onnx-loading.md
+?? .sisyphus/plans/fix-repository-issues.md
+?? .sisyphus/plans/fix-sound-engine.md
+?? .sisyphus/plans/global-dep-refactor.md
+?? .sisyphus/plans/hyperactive-inherit-removal.md
+?? .sisyphus/plans/repair-post-typescript-regressions.md
+?? .sisyphus/plans/typescript-migration-completion.md
+?? 221451
+?? assets/asset-manifest.json.tmp-25472-1777812615986
+?? "assets/audio/sound-effect/\347\251\266\346\245\265\345\217\215\350\273\242\351\276\215\343\203\273\347\251\266\346\245\265\347\240\264\345\243\212\347\245\236\343\203\273\346\204\217\345\277\227\347\213\251\343\202\212\343\201\256\347\216\213\343\201\214\347\247\273\345\213\225\343\201\227\343\201\237\343\202\277\343\202\244\343\203\237\343\203\263\343\202\260.mp3"
+?? check_module_registry.js
+?? dist/card-system.js
+?? dist/card-system.js.map
+?? dist/game-events.js
+?? dist/game-events.js.map
+?? dist/is-env-capable.js
+?? dist/is-env-capable.js.map
+?? dist/scripts/add-module-tracking.js
+?? dist/scripts/add-module-tracking.js.map
+?? dist/scripts/augment-entry-v2.js
+?? dist/scripts/augment-entry-v2.js.map
+?? dist/scripts/augment-entry.js
+?? dist/scripts/augment-entry.js.map
+?? dist/scripts/boot-debug.js
+?? dist/scripts/boot-debug.js.map
+?? dist/scripts/boot-debug2.js
+?? dist/scripts/boot-debug2.js.map
+?? dist/scripts/boot-test.js
+?? dist/scripts/boot-test.js.map
+?? dist/scripts/boot-test2.js
+?? dist/scripts/boot-test2.js.map
+?? dist/scripts/boot-test3.js
+?? dist/scripts/boot-test3.js.map
+?? dist/scripts/browser-boot-smoke.js
+?? dist/scripts/browser-boot-smoke.js.map
+?? dist/scripts/build-module-registry.js
+?? dist/scripts/build-module-registry.js.map
+?? dist/scripts/check-bootstrap.js
+?? dist/scripts/check-bootstrap.js.map
+?? dist/scripts/check-format.js
+?? dist/scripts/check-format.js.map
+?? dist/scripts/check-init-factory.js
+?? dist/scripts/check-init-factory.js.map
+?? dist/scripts/check-registry-content.js
+?? dist/scripts/check-registry-content.js.map
+?? dist/scripts/check-registry-content2.js
+?? dist/scripts/check-registry-content2.js.map
+?? dist/scripts/check-registry-dups.js
+?? dist/scripts/check-registry-dups.js.map
+?? dist/scripts/check-registry-dups2.js
+?? dist/scripts/check-registry-dups2.js.map
+?? dist/scripts/clean-dist-require.js
+?? dist/scripts/clean-dist-require.js.map
+?? dist/scripts/cross-ref-scripts.js
+?? dist/scripts/cross-ref-scripts.js.map
+?? dist/scripts/debug-single.js
+?? dist/scripts/debug-single.js.map
+?? dist/scripts/debug-single2.js
+?? dist/scripts/debug-single2.js.map
+?? dist/scripts/dedup-require.js
+?? dist/scripts/dedup-require.js.map
+?? dist/scripts/find-initdom.js
+?? dist/scripts/find-initdom.js.map
+?? dist/scripts/find-missing.js
+?? dist/scripts/find-missing.js.map
+?? dist/scripts/find-pc.js
+?? dist/scripts/find-pc.js.map
+?? dist/scripts/find-reset.js
+?? dist/scripts/find-reset.js.map
+?? dist/scripts/fix-duplicate-require.js
+?? dist/scripts/fix-duplicate-require.js.map
+?? dist/scripts/fix-globals.js
+?? dist/scripts/fix-globals.js.map
+?? dist/scripts/fix-require-v2.js
+?? dist/scripts/fix-require-v2.js.map
+?? dist/scripts/inspect-bisect.js
+?? dist/scripts/inspect-bisect.js.map
+?? dist/scripts/inspect-deep.js
+?? dist/scripts/inspect-deep.js.map
+?? dist/scripts/inspect-escape.js
+?? dist/scripts/inspect-escape.js.map
+?? dist/scripts/inspect-exact.js
+?? dist/scripts/inspect-exact.js.map
+?? dist/scripts/inspect-failures.js
+?? dist/scripts/inspect-failures.js.map
+?? dist/scripts/inspect-raw.js
+?? dist/scripts/inspect-raw.js.map
+?? dist/scripts/inspect-ui-failure.js
+?? dist/scripts/inspect-ui-failure.js.map
+?? dist/scripts/inspect-vm.js
+?? dist/scripts/inspect-vm.js.map
+?? dist/scripts/list-registry.js
+?? dist/scripts/list-registry.js.map
+?? dist/scripts/map-require-paths.js
+?? dist/scripts/map-require-paths.js.map
+?? dist/scripts/patch-entry.js
+?? dist/scripts/patch-entry.js.map
+?? dist/scripts/rebuild-entry-classic.js
+?? dist/scripts/rebuild-entry-classic.js.map
+?? dist/scripts/rebuild-entry-safe.js
+?? dist/scripts/rebuild-entry-safe.js.map
+?? dist/scripts/remove-fn-require.js
+?? dist/scripts/remove-fn-require.js.map
+?? dist/scripts/remove-local-require.js
+?? dist/scripts/remove-local-require.js.map
+?? dist/scripts/test-json.js
+?? dist/scripts/test-json.js.map
+?? dist/scripts/validate-new.js
+?? dist/scripts/validate-new.js.map
+?? dist/scripts/validate-registry.js
+?? dist/scripts/validate-registry.js.map
+?? dist/scripts/validate-single.js
+?? dist/scripts/validate-single.js.map
+?? dist/sound-engine.js.map
+?? dist/test/workers.match-export-readiness.test.js
+?? dist/test/workers.match-export-readiness.test.js.map
+?? dist/ui.js
+?? dist/ui.js.map
+?? docs/cleanup-log-2026-05-02.txt
+?? docs/plans/browser-boot-recovery-master-plan-2026-05-02.md
+?? docs/plans/browser-visual-ui-complete-recovery-instructions-2026-05-03.md
+?? docs/repo-storage-cleanup-runbook-2026-05-02.md
+?? entry-browser-augmented.js
+?? esbuild-banner.js
+?? esbuild-footer.js
+?? fix_module_registry.js
+?? fix_registry_properly.js
+?? game/cards/effects/board-expansion-apply.js
+?? game/cards/effects/breeding.js
+?? game/cards/effects/chain.js
+?? game/cards/effects/clone.js
+?? game/cards/effects/destroy-dragon.js
+?? game/cards/effects/destroy-one-stone.js
+?? game/cards/effects/dragon.js
+?? game/cards/effects/expansion.js
+?? game/cards/effects/flips.js
+?? game/cards/effects/hand-effects.js
+?? game/cards/effects/lightning.js
+?? game/cards/effects/living-will.js
+?? game/cards/effects/markers.js
+?? game/cards/effects/meteor.js
+?? game/cards/effects/movement.js
+?? game/cards/effects/ownership.js
+?? game/cards/effects/position-swap.js
+?? game/cards/effects/protect.js
+?? game/cards/effects/regen.js
+?? game/cards/effects/selectors.js
+?? game/cards/effects/shrink.js
+?? game/cards/effects/sniper.js
+?? game/cards/effects/status-cells.js
+?? game/cards/effects/swap-with-enemy.js
+?? game/cards/effects/targets.js
+?? game/cards/effects/teleport.js
+?? game/cards/effects/time-bomb.js
+?? game/cards/effects/trap.js
+?? game/cards/effects/udg.js
+?? game/cards/effects/work-will.js
+?? game/logic/presentation.js
+?? opencode.json
+?? playwright-boot-test.png
+?? public/runtime.js
+?? scripts/add-module-tracking.js
+?? scripts/augment-entry-v2.js
+?? scripts/augment-entry.js
+?? scripts/boot-debug.js
+?? scripts/boot-debug2.js
+?? scripts/boot-test.js
+?? scripts/boot-test2.js
+?? scripts/boot-test3.js
+?? scripts/browser-boot-smoke.js
+?? scripts/build-module-registry.ts
+?? scripts/check-bootstrap.js
+?? scripts/check-format.js
+?? scripts/check-init-factory.js
+?? scripts/check-registry-content.js
+?? scripts/check-registry-content2.js
+?? scripts/check-registry-dups.js
+?? scripts/check-registry-dups2.js
+?? scripts/clean-dist-require.js
+?? scripts/cross-ref-scripts.js
+?? scripts/debug-single.js
+?? scripts/debug-single2.js
+?? scripts/dedup-require.js
+?? scripts/find-initdom.js
+?? scripts/find-missing.js
+?? scripts/find-pc.js
+?? scripts/find-reset.js
+?? scripts/fix-duplicate-require.js
+?? scripts/fix-globals.js
+?? scripts/fix-require-v2.js
+?? scripts/inspect-bisect.js
+?? scripts/inspect-deep.js
+?? scripts/inspect-escape.js
+?? scripts/inspect-exact.js
+?? scripts/inspect-failures.js
+?? scripts/inspect-raw.js
+?? scripts/inspect-ui-failure.js
+?? scripts/inspect-vm.js
+?? scripts/list-registry.js
+?? scripts/map-require-paths.js
+?? scripts/patch-entry.js
+?? scripts/rebuild-entry-classic.js
+?? scripts/rebuild-entry-safe.js
+?? scripts/remove-fn-require.js
+?? scripts/remove-local-require.js
+?? scripts/test-json.js
+?? scripts/validate-new.js
+?? scripts/validate-registry.js
+?? scripts/validate-single.js
+?? task-11-jest-full.txt
+?? task-11-network-parity.txt
+?? task-11-tests-classification.txt
+?? task-4-canonical-counterparts.txt
+?? task-4-game-boundary-check.txt
+?? task-5-browser-commonjs-gate.txt
+?? task-5-browser-smoke-main.txt
+?? task-6-cli-smoke.txt
+?? task-6-require-main-check.txt
+?? task-7-worker-entry-map.md
+?? task-7-worker-exports.txt
+?? task-7-worker-prepare.txt
+?? task-8-jest.txt
+?? task-8-test-typecheck.txt
+?? test/workers.match-export-readiness.test.ts
+?? tmp/board-debug-screenshot.png
+?? tmp/browser-after-entry-copy.png
+?? tmp/browser-after-gameevents.png
+?? tmp/browser-after-html-fix.png
+?? tmp/browser-current.png
+?? tmp/browser-final-after-move-1920x1080-2026-05-03.png
+?? tmp/browser-final-cpu-fixed.png
+?? tmp/browser-final-gameplay-1920x1080-2026-05-03.png
+?? tmp/browser-final-recovery.png
+?? tmp/browser-side-panel-toggle-2026-05-03.png
+?? tmp/browser-visual-after-1366x768-2026-05-03.png
+?? tmp/browser-visual-after-2026-05-03.png
+?? tmp/browser-visual-before-2026-05-03.png
+?? tmp/browser-visual-final-1366x768-2026-05-03.png
+?? tmp/browser-visual-final-1920x919-2026-05-03.png
+?? tmp/capture-errors-screenshot.png
+?? tmp/capture-errors.js
+?? tmp/check-globals.js
+?? tmp/click-debug.js
+?? tmp/click-test-2.js
+?? tmp/click-test-3.js
+?? tmp/click-test.js
+?? tmp/deep-board-check.js
+?? tmp/find-executemove.js
+?? tmp/playwright-current-1366x768-2026-05-03.png
+?? tmp/playwright-current-1920x919-2026-05-03.png
+?? tmp/playwright-current-state-1366x768-2026-05-03.json
+?? tmp/playwright-current-state-2026-05-03.json
+?? tsconfig.test.json
+?? worker-public/assets/asset-manifest.json.tmp-25472-1777812615986
+?? "worker-public/assets/audio/sound-effect/\347\251\266\346\245\265\345\217\215\350\273\242\351\276\215\343\203\273\347\251\266\346\245\265\347\240\264\345\243\212\347\245\236\343\203\273\346\204\217\345\277\227\347\213\251\343\202\212\343\201\256\347\216\213\343\201\214\347\247\273\345\213\225\343\201\227\343\201\237\343\202\277\343\202\244\343\203\237\343\203\263\343\202\260.mp3"
+?? worker-public/cards/card-interaction.ts
+?? worker-public/cards/card-renderer.ts
+?? worker-public/cards/catalog.ts
+?? worker-public/constants/animation-constants.ts
+?? worker-public/constants/cpu-lv6-shared-profile.ts
+?? worker-public/constants/difficulty-constants.ts
+?? worker-public/constants/ui-element-cache.ts
+?? worker-public/game/ai/cpu-commentary-runtime.ts
+?? worker-public/game/ai/cpu-lv6-lookahead-profile.ts
+?? worker-public/game/ai/cpu-policy-core.ts
+?? worker-public/game/ai/endgame-solver.ts
+?? worker-public/game/ai/fixed-commentary-engine.ts
+?? worker-public/game/ai/gumbel-mcts.ts
+?? worker-public/game/ai/level-system.ts
+?? worker-public/game/ai/mcts-core.ts
+?? worker-public/game/ai/mcts-policy.ts
+?? worker-public/game/ai/mcts-temperature.ts
+?? worker-public/game/ai/mcts-two-layer.ts
+?? worker-public/game/ai/policy-onnx-runtime-v2.ts
+?? worker-public/game/ai/policy-onnx-runtime.ts
+?? worker-public/game/auto.ts
+?? worker-public/game/card-effects/blockade.ts
+?? worker-public/game/card-effects/board-expansion.ts
+?? worker-public/game/card-effects/board-shrink.ts
+?? worker-public/game/card-effects/capture.ts
+?? worker-public/game/card-effects/clone.ts
+?? worker-public/game/card-effects/destroy.ts
+?? worker-public/game/card-effects/extend-life.ts
+?? worker-public/game/card-effects/freeze.ts
+?? worker-public/game/card-effects/guard.ts
+?? worker-public/game/card-effects/helpers.ts
+?? worker-public/game/card-effects/living-will.ts
+?? worker-public/game/card-effects/meteor.ts
+?? worker-public/game/card-effects/placement.ts
+?? worker-public/game/card-effects/position-swap.ts
+?? worker-public/game/card-effects/seed.ts
+?? worker-public/game/card-effects/selection-flow.ts
+?? worker-public/game/card-effects/strong-wind.ts
+?? worker-public/game/card-effects/swap.ts
+?? worker-public/game/card-effects/teleport.ts
+?? worker-public/game/card-effects/tempt.ts
+?? worker-public/game/card-effects/time-bomb.ts
+?? worker-public/game/card-effects/trap.ts
+?? worker-public/game/cards/effects/board-expansion-apply.ts
+?? worker-public/game/cards/effects/breeding.ts
+?? worker-public/game/cards/effects/chain.ts
+?? worker-public/game/cards/effects/clone.ts
+?? worker-public/game/cards/effects/destroy-dragon.ts
+?? worker-public/game/cards/effects/destroy-one-stone.ts
+?? worker-public/game/cards/effects/dragon.ts
+?? worker-public/game/cards/effects/expansion.ts
+?? worker-public/game/cards/effects/flips.ts
+?? worker-public/game/cards/effects/hand-effects.ts
+?? worker-public/game/cards/effects/lightning.ts
+?? worker-public/game/cards/effects/living-will.ts
+?? worker-public/game/cards/effects/markers.ts
+?? worker-public/game/cards/effects/meteor.ts
+?? worker-public/game/cards/effects/movement.ts
+?? worker-public/game/cards/effects/ownership.ts
+?? worker-public/game/cards/effects/position-swap.ts
+?? worker-public/game/cards/effects/protect.ts
+?? worker-public/game/cards/effects/regen.ts
+?? worker-public/game/cards/effects/selectors.ts
+?? worker-public/game/cards/effects/shrink.ts
+?? worker-public/game/cards/effects/sniper.ts
+?? worker-public/game/cards/effects/status-cells.ts
+?? worker-public/game/cards/effects/swap-with-enemy.ts
+?? worker-public/game/cards/effects/targets.ts
+?? worker-public/game/cards/effects/teleport.ts
+?? worker-public/game/cards/effects/time-bomb.ts
+?? worker-public/game/cards/effects/trap.ts
+?? worker-public/game/cards/effects/udg.ts
+?? worker-public/game/cards/effects/work-will.ts
+?? worker-public/game/cards/selectors.js
+?? worker-public/game/cards/selectors.ts
+?? worker-public/game/cards/state-manager.ts
+?? worker-public/game/cards/target-resolver.ts
+?? worker-public/game/cards/timing-processor.ts
+?? worker-public/game/controller-events.ts
+?? worker-public/game/cpu-decision.ts
+?? worker-public/game/cpu-turn-handler.ts
+?? worker-public/game/game-controller-slim.ts
+?? worker-public/game/game-core-logic.ts
+?? worker-public/game/log-messages.ts
+?? worker-public/game/logic/board_ops.ts
+?? worker-public/game/logic/cards-internal/card-usage-prechecks.ts
+?? worker-public/game/logic/cards-internal/charge-ledger.ts
+?? worker-public/game/logic/cards-internal/effect-timing.ts
+?? worker-public/game/logic/cards-internal/hand-manager.ts
+?? worker-public/game/logic/cards-internal/module-resolver.ts
+?? worker-public/game/logic/cards-internal/pending-state-manager.ts
+?? worker-public/game/logic/cards-internal/presentation-helpers.ts
+?? worker-public/game/logic/cards-internal/random-source.ts
+?? worker-public/game/logic/cards-internal/selector-orchestrator.ts
+?? worker-public/game/logic/cards-internal/state-factory.ts
+?? worker-public/game/logic/cards.ts
+?? worker-public/game/logic/cards/chain.ts
+?? worker-public/game/logic/cards/clone.ts
+?? worker-public/game/logic/cards/costs.ts
+?? worker-public/game/logic/cards/defs.ts
+?? worker-public/game/logic/cards/expansion.ts
+?? worker-public/game/logic/cards/flips.ts
+?? worker-public/game/logic/cards/hyperactive.ts
+?? worker-public/game/logic/cards/living_will.ts
+?? worker-public/game/logic/cards/markers.ts
+?? worker-public/game/logic/cards/meteor.ts
+?? worker-public/game/logic/cards/movement.ts
+?? worker-public/game/logic/cards/regen.ts
+?? worker-public/game/logic/cards/selectors.ts
+?? worker-public/game/logic/cards/shrink.ts
+?? worker-public/game/logic/cards/targets.ts
+?? worker-public/game/logic/cards/teleport.ts
+?? worker-public/game/logic/cards/time_bomb.ts
+?? worker-public/game/logic/cards/udg.ts
+?? worker-public/game/logic/cards/will_hunter_king.ts
+?? worker-public/game/logic/context.ts
+?? worker-public/game/logic/core.ts
+?? worker-public/game/logic/effects/destroy_one_stone.ts
+?? worker-public/game/logic/effects/dragon.ts
+?? worker-public/game/logic/effects/swap_with_enemy.ts
+?? worker-public/game/logic/markers_adapter.ts
+?? worker-public/game/logic/position-weights.ts
+?? worker-public/game/logic/presentation.ts
+?? worker-public/game/presentation.js
+?? worker-public/game/presentation.ts
+?? worker-public/game/schema/prng.ts
+?? worker-public/game/special-effects-handler.ts
+?? worker-public/game/special-effects/bombs.ts
+?? worker-public/game/special-effects/breeding.ts
+?? worker-public/game/special-effects/helpers.ts
+?? worker-public/game/special-effects/protections.ts
+?? worker-public/game/special-effects/udg.ts
+?? worker-public/game/timer-service.ts
+?? worker-public/game/timer-utils.ts
+?? worker-public/game/timers.ts
+?? worker-public/game/turn-manager.ts
+?? worker-public/game/turn/pending-coordinator.ts
+?? worker-public/game/turn/pipeline_ui_adapter.ts
+?? worker-public/game/turn/turn_pipeline.ts
+?? worker-public/game/turn/turn_pipeline_phases.ts
+?? worker-public/public/
+?? worker-public/shared/board-utils.ts
+?? worker-public/shared/charge-utils.ts
+?? worker-public/shared/commentary-context-helpers.ts
+?? worker-public/shared/commentary-runtime-helpers.ts
+?? worker-public/shared/cpu-lv6-runtime-capability.ts
+?? worker-public/shared/deck-codec.ts
+?? worker-public/shared/deck-spec.ts
+?? worker-public/shared/destroy-outcome-contract.ts
+?? worker-public/shared/gacha-hand-catalog-shared.ts
+?? worker-public/shared/gacha-helpers.ts
+?? worker-public/shared/network-action-schema.ts
+?? worker-public/shared/observation-gacha-catalog-shared.ts
+?? worker-public/shared/othello-core.ts
+?? worker-public/shared/playback-event-helpers.ts
+?? worker-public/shared/player-encoding.ts
+?? worker-public/shared/shared-board-utils.ts
+?? worker-public/shared/shared-card-heuristics.ts
+?? worker-public/shared/special-stone-registry.ts
+?? worker-public/shared/state-hash.ts
+?? worker-public/shared/stone-status-snapshot.ts
+?? worker-public/shared/story-deck-codec.ts
+?? worker-public/shared/story-deck-spec.ts
+?? worker-public/shared/types.d.ts
+?? worker-public/shared/ui-bootstrap-shared.ts
+?? worker-public/ui/animation-constants.ts
+?? worker-public/ui/animation-engine.ts
+?? worker-public/ui/animation-helpers.ts
+?? worker-public/ui/animation-resolver.ts
+?? worker-public/ui/animation-shared.ts
+?? worker-public/ui/animation-utils.ts
+?? worker-public/ui/background-skin/catalog.ts
+?? worker-public/ui/background-skin/controller.ts
+?? worker-public/ui/background-skin/runtime.ts
+?? worker-public/ui/background-skin/selection.ts
+?? worker-public/ui/board-renderer.ts
+?? worker-public/ui/board-update-dispatch.ts
+?? worker-public/ui/board-update-sync-runtime.ts
+?? worker-public/ui/bootstrap.ts
+?? worker-public/ui/bootstrap/init-dom.ts
+?? worker-public/ui/bootstrap/init-events.ts
+?? worker-public/ui/bootstrap/init-game.ts
+?? worker-public/ui/bootstrap/init-network.ts
+?? worker-public/ui/commentary-broker.ts
+?? worker-public/ui/cosmetics/catalog-shared.ts
+?? worker-public/ui/deck-builder-controller.ts
+?? worker-public/ui/deck-builder-renderer.ts
+?? worker-public/ui/deck-builder-state.ts
+?? worker-public/ui/diff-renderer.ts
+?? worker-public/ui/event-handlers.ts
+?? worker-public/ui/gacha-reveal-player.ts
+?? worker-public/ui/gacha/catalog-access.ts
+?? worker-public/ui/gacha/gacha-events.ts
+?? worker-public/ui/gacha/gacha-item-visuals.ts
+?? worker-public/ui/gacha/gacha-overlay-controller.ts
+?? worker-public/ui/gacha/gacha-overlay-view.ts
+?? worker-public/ui/gacha/gacha-reveal-audio.ts
+?? worker-public/ui/gacha/gacha-reveal-stage.ts
+?? worker-public/ui/gacha/gacha-transaction.ts
+?? worker-public/ui/globals.d.ts
+?? worker-public/ui/hand-skin/catalog.ts
+?? worker-public/ui/hand-skin/controller.ts
+?? worker-public/ui/hand-skin/runtime.ts
+?? worker-public/ui/hand-skin/selection.ts
+?? worker-public/ui/handlers/auto.ts
+?? worker-public/ui/handlers/cpu-policy.ts
+?? worker-public/ui/handlers/debug.ts
+?? worker-public/ui/handlers/deck-builder.ts
+?? worker-public/ui/handlers/gacha.ts
+?? worker-public/ui/handlers/hand-skin.ts
+?? worker-public/ui/handlers/init.ts
+?? worker-public/ui/handlers/match-mode.ts
+?? worker-public/ui/handlers/rules-help.ts
+?? worker-public/ui/handlers/smart.ts
+?? worker-public/ui/handlers/sound.ts
+?? worker-public/ui/handlers/story.ts
+?? worker-public/ui/handlers/tutorial.ts
+?? worker-public/ui/layout-stage.ts
+?? worker-public/ui/leaderboard-client.ts
+?? worker-public/ui/marker-bridge.ts
+?? worker-public/ui/move-executor-visuals.ts
+?? worker-public/ui/network-client.ts
+?? worker-public/ui/network/action-bridge.ts
+?? worker-public/ui/network/apply-coordinator.ts
+?? worker-public/ui/network/command-payload.ts
+?? worker-public/ui/network/commentary.ts
+?? worker-public/ui/network/publish-request.ts
+?? worker-public/ui/network/publish-tracker.ts
+?? worker-public/ui/network/reconnect-controller.ts
+?? worker-public/ui/network/session-lifecycle.ts
+?? worker-public/ui/network/session-seat.ts
+?? worker-public/ui/network/snapshot-canonical.ts
+?? worker-public/ui/network/snapshot-presentation.ts
+?? worker-public/ui/network/snapshot-runtime.ts
+?? worker-public/ui/network/snapshot.ts
+?? worker-public/ui/placement-sound-selection.ts
+?? worker-public/ui/playback-engine.ts
+?? worker-public/ui/playback-runtime.ts
+?? worker-public/ui/playback-state-manager.ts
+?? worker-public/ui/presentation-handler.ts
+?? worker-public/ui/result-overlay.ts
+?? worker-public/ui/sound-engine-access.ts
+?? worker-public/ui/status-display.ts
+?? worker-public/ui/stone-visuals.ts
+?? worker-public/ui/storage/action-log.ts
+?? worker-public/ui/storage/deck-presets.ts
+?? worker-public/ui/storage/gacha-progress.ts
+?? worker-public/ui/story-deck-lab/story-deck-lab-controller.ts
+?? worker-public/ui/story-deck-lab/story-deck-lab-renderer.ts
+?? worker-public/ui/story-deck-lab/story-deck-lab-state.ts
+?? worker-public/ui/story/story-battle-ui.ts
+?? worker-public/ui/story/story-controller.ts
+?? worker-public/ui/story/story-encounter.ts
+?? worker-public/ui/story/story-state.ts
+?? worker-public/ui/story/story-steps.ts
+?? worker-public/ui/tutorial/tutorial-action-wait.ts
+?? worker-public/ui/tutorial/tutorial-controller.ts
+?? worker-public/ui/tutorial/tutorial-overlay.ts
+?? worker-public/ui/tutorial/tutorial-runtime.ts
+?? worker-public/ui/tutorial/tutorial-scenario-duel.ts
+?? worker-public/ui/tutorial/tutorial-state.ts
+?? worker-public/ui/tutorial/tutorial-steps.ts
+?? worker-public/ui/tutorial/tutorial-storage.ts
+?? worker-public/ui/tutorial/typewriter.ts
+?? worker-public/ui/visual-effects-map.ts
+?? worker-public/utils/deepClone.ts
+?? worker-public/utils/match-authority.ts
+

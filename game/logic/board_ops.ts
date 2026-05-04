@@ -930,7 +930,7 @@ function emitPresentationEvent(cardState: any, ev: any): void {
     if (!cardState._presentationEventsPersist) cardState._presentationEventsPersist = [];
     cardState._presentationEventsPersist.push(out);
     if (isBoardOpsDebugEnabled(cardState)) {
-        try { if (typeof console !== 'undefined' && console.log) console.log('[BOARDOPS] emitPresentationEvent pushed, persist len', cardState._presentationEventsPersist.length); } catch (e) {}
+        try { if (typeof console !== 'undefined' && console.log) console.log('[BOARDOPS] emitPresentationEvent pushed, persist len', cardState._presentationEventsPersist.length); } catch (e) { /* Intentionally empty: debug logging guard */ }
     }
 
     if (metaSource && typeof metaSource.plyIndex === 'number') {

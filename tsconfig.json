@@ -37,8 +37,6 @@
       "workers/**/*",
       "scripts/**/*",
       "cards/**/*",
-      "test/**/*",
-      "tests/**/*",
       "src/**/*",
       "utils/**/*.ts"
     ],

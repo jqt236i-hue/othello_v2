@@ -848,7 +848,7 @@ async function onTurnStart(player) {
 
     const safeIsProcessing = (typeof isProcessing !== 'undefined') ? isProcessing : undefined;
     const safeIsCardAnimating = (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined;
-    console.log('[DEBUG][onTurnStart] enter', { player, playerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, USE_TURN_PIPELINE: !!(__uiImpl_turn_manager && __uiImpl_turn_manager.USE_TURN_PIPELINE) });
+    if (isDebugLogAvailable()) console.log('[DEBUG][onTurnStart] enter', { player, playerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, USE_TURN_PIPELINE: !!(__uiImpl_turn_manager && __uiImpl_turn_manager.USE_TURN_PIPELINE) });
 
     // Record hand size before turn start to detect if a draw happened
     const handSizeBefore = cardState.hands[playerKey].length;
@@ -869,7 +869,7 @@ async function onTurnStart(player) {
             }
             // Provide runtime PRNG to pipeline so start-of-turn effects that need randomness can run in browser
             const runtimePrng = (typeof getGamePrng === 'function') ? getGamePrng() : ((typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.getGamePrng === 'function') ? __uiImpl.getGamePrng() : undefined);
-            if (typeof console !== 'undefined' && console.log) console.log('[onTurnStart] runtimePrng available:', !!runtimePrng);
+            if (isDebugLogAvailable()) console.log('[onTurnStart] runtimePrng available:', !!runtimePrng);
             TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, _startEvents, runtimePrng);
             // Convert any presentation events emitted during turn-start into PlaybackEvents
             const adapter = getTurnPipelineUIAdapter();
@@ -904,7 +904,7 @@ async function onTurnStart(player) {
         debugLog(`[TURN-START] After turn-start phase: handAfter: ${handSizeAfter}, newTurnCount: ${newTurnCount}`, 'info');
     }
 
-    console.log('[DEBUG][onTurnStart] exit', { playerKey, handSizeBefore, handSizeAfter, newTurnCount, isProcessing, isCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
+    if (isDebugLogAvailable()) console.log('[DEBUG][onTurnStart] exit', { playerKey, handSizeBefore, handSizeAfter, newTurnCount, isProcessing, isCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
 
     // 2. Log
     const turnCount = gameState.turnNumber + 1;
@@ -977,8 +977,8 @@ async function onTurnStart(player) {
         Notifier.notifyUI(cardState, gameState, { stateChanged: true, cardStateChanged: true, render: true });
     } catch (e) {
         // As a safe fallback in unusual environments, keep the old behavior
-        try { emitGameStateChange(); } catch (e2) {}
-        try { emitCardStateChange(); } catch (e2) {}
+        try { emitGameStateChange(); } catch (e2) { /* Intentionally empty: safe fallback emission */ }
+        try { emitCardStateChange(); } catch (e2) { /* Intentionally empty: safe fallback emission */ }
         requestUIRender();
     }
 

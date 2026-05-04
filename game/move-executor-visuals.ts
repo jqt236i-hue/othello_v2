@@ -35,7 +35,7 @@ function _isNoAnim() {
         if (__uiImpl_move_exec_visuals && __uiImpl_move_exec_visuals.DISABLE_ANIMATIONS === true) return true;
         if (typeof location !== 'undefined' && /[?&]noanim=1/.test(location.search)) return true;
         if (typeof process !== 'undefined' && (process.env.NOANIM === '1' || process.env.NOANIM === 'true' || process.env.DISABLE_ANIMATIONS === '1')) return true;
-    } catch (e) { }
+    } catch (e) { /* Intentionally empty: env feature check failure is non-critical */ }
     return false;
 }
 

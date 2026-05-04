@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -41,32 +40,6 @@ function buildChoiceResponseMap(step: any): any {
     return out;
 }
 
-const STEP_ID_PATTERNS: any = deepFreeze({
-    main: /^STEP_\d{3}$/,
-    modernIntro: /^INTRO_SCENE_00[1-4]$/,
-    observerIntro: /^(INTRO_SCENE_005|INTRO_BRANCH)$/
-});
-
-const STEP_PRESETS: any = deepFreeze({
-    modernIntroScene: {
-        characterVisible: true,
-        characterImageSrc: REAL_WORLD_HERO_IMAGE_SRC,
-        characterImageAlt: REAL_WORLD_HERO_NAME,
-        sceneBackgroundSrc: STUDENT_ROOM_BG_SRC
-    },
-    observerIntroScene: {
-        characterVisible: true,
-        characterImageSrc: OBSERVER_IMAGE_SRC,
-        characterImageAlt: OBSERVER_NAME,
-        sceneBackgroundSrc: FOREST_BG_SRC,
-        observerStage: OBSERVER_STAGE_TOP
-    },
-    observerBoardScene: {
-        observerVisible: true,
-        observerStage: OBSERVER_STAGE_TOP
-    }
-});
-
 function resolveChapter0StepDefaults(step: any): any {
     const stepId = step && step.id ? String(step.id) : '';
     if (STEP_ID_PATTERNS.modernIntro.test(stepId)) return STEP_PRESETS.modernIntroScene;
@@ -75,7 +48,7 @@ function resolveChapter0StepDefaults(step: any): any {
     return null;
 }
 
-function normalizeScenarioSteps(stepDefinitions: any[], resolveDefaults: any): any {
+function normalizeScenarioSteps(stepDefinitions: any, resolveDefaults: any): any {
     const steps: any[] = [];
     const stepsById: any = {};
     for (const stepDefinition of stepDefinitions) {
@@ -101,6 +74,32 @@ function createScenarioRecord(definition: any): any {
         unlocksScenarioIds: []
     }, source));
 }
+
+const STEP_ID_PATTERNS: any = deepFreeze({
+    main: /^STEP_\d{3}$/,
+    modernIntro: /^INTRO_SCENE_00[1-4]$/,
+    observerIntro: /^(INTRO_SCENE_005|INTRO_BRANCH)$/
+});
+
+const STEP_PRESETS: any = deepFreeze({
+    modernIntroScene: {
+        characterVisible: true,
+        characterImageSrc: REAL_WORLD_HERO_IMAGE_SRC,
+        characterImageAlt: REAL_WORLD_HERO_NAME,
+        sceneBackgroundSrc: STUDENT_ROOM_BG_SRC
+    },
+    observerIntroScene: {
+        characterVisible: true,
+        characterImageSrc: OBSERVER_IMAGE_SRC,
+        characterImageAlt: OBSERVER_NAME,
+        sceneBackgroundSrc: FOREST_BG_SRC,
+        observerStage: OBSERVER_STAGE_TOP
+    },
+    observerBoardScene: {
+        observerVisible: true,
+        observerStage: OBSERVER_STAGE_TOP
+    }
+});
 
 const chapter0StepDefinitions = [
     {

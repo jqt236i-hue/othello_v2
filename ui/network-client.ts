@@ -1,5 +1,4 @@
-// @ts-nocheck
-import type { CardState, GameState, PlayerKey } from '../../src/types';
+import type { CardState, GameState, PlayerKey } from '../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -7,7 +6,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-const root = (typeof window !== 'undefined' ? window : globalThis);
+declare const addLog: (...args: any[]) => any;
+declare const isGameOver: (...args: any[]) => any;
+
+const root: any = (typeof window !== 'undefined' ? window : globalThis);
 
 const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const SERVER_URL_STORAGE_KEY = 'network_match_server_url';
@@ -33,55 +35,55 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const NETWORK_TELEMETRY_RECENT_LIMIT = 40;
     const PlaybackStateModule = (typeof require === 'function')
         ? (() => {
-            try { return require('./playback-state-manager'); } catch (e) { return root.PlaybackStateManager || null; }
+            try { return require('./playback-state-manager'); } catch (e: any) { return root.PlaybackStateManager || null; }
         })()
         : (root.PlaybackStateManager || null);
     const PendingCoordinatorModule = (typeof require === 'function')
         ? (() => {
-            try { return require('../game/turn/pending-coordinator'); } catch (e) { return root.PendingCoordinator || null; }
+            try { return require('../game/turn/pending-coordinator'); } catch (e: any) { return root.PendingCoordinator || null; }
         })()
         : (root.PendingCoordinator || null);
     const PendingStateManagerModule = (typeof require === 'function')
         ? (() => {
-            try { return require('../game/logic/cards-internal/pending-state-manager'); } catch (e) { return root.CardPendingStateManager || null; }
+            try { return require('../game/logic/cards-internal/pending-state-manager'); } catch (e: any) { return root.CardPendingStateManager || null; }
         })()
         : (root.CardPendingStateManager || null);
     const ResultOverlayModule = (typeof require === 'function')
         ? (() => {
-            try { return require('./result-overlay'); } catch (e) { return root || null; }
+            try { return require('./result-overlay'); } catch (e: any) { return root || null; }
         })()
         : (root || null);
 
-    function resolvePendingSelectionContract(cardType) {
+    function resolvePendingSelectionContract(cardType: any) {
         if (!cardType) return null;
         try {
             if (PendingCoordinatorModule && typeof PendingCoordinatorModule.getPendingSelectionContract === 'function') {
                 const contract = PendingCoordinatorModule.getPendingSelectionContract(cardType);
                 if (contract && typeof contract === 'object') return contract;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         try {
             if (PendingStateManagerModule && typeof PendingStateManagerModule.resolvePendingSelectionContract === 'function') {
                 const contract = PendingStateManagerModule.resolvePendingSelectionContract(cardType);
                 if (contract && typeof contract === 'object') return contract;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return null;
     }
 
-    function shouldDeferNetworkPublishForPendingType(cardType) {
+    function shouldDeferNetworkPublishForPendingType(cardType: any) {
         if (!cardType) return false;
         try {
             if (PendingCoordinatorModule && typeof PendingCoordinatorModule.shouldDeferNetworkPublishForPendingType === 'function') {
                 return PendingCoordinatorModule.shouldDeferNetworkPublishForPendingType(cardType) === true;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         const contract = resolvePendingSelectionContract(cardType);
         return !!(contract && contract.deferNetworkPublish === true);
     }
 
-    function syncPendingSelectionActionCache(pendingEffectByPlayer) {
-        const syncOptions = {};
+    function syncPendingSelectionActionCache(pendingEffectByPlayer: any) {
+        const syncOptions: any = {};
         try {
             if (
                 PlaybackStateModule
@@ -92,7 +94,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             ) {
                 syncOptions.preservePlayerKeys = [normalizePlayerKey(state.seatKey)];
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         try {
             if (PendingCoordinatorModule && typeof PendingCoordinatorModule.syncPendingSelectionActionCache === 'function') {
                 return PendingCoordinatorModule.syncPendingSelectionActionCache(
@@ -100,7 +102,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     syncOptions.preservePlayerKeys ? syncOptions : undefined
                 );
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return {
             cleared: [],
             retained: []
@@ -117,7 +119,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         };
     }
 
-    function resetNetworkResultPresentationState(resultState) {
+    function resetNetworkResultPresentationState(resultState: any) {
         if (!resultState || typeof resultState !== 'object') {
             return createInitialResultPresentationState();
         }
@@ -134,7 +136,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             if (PlaybackStateModule && typeof PlaybackStateModule.getPlaybackActive === 'function') {
                 return PlaybackStateModule.getPlaybackActive() === true;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return false;
     }
 
@@ -143,7 +145,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             if (PlaybackStateModule && typeof PlaybackStateModule.clearBoardUpdateContext === 'function') {
                 PlaybackStateModule.clearBoardUpdateContext();
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
 
     function clearPlaybackStateForLeave() {
@@ -152,11 +154,11 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 PlaybackStateModule.abortPlayback();
                 return;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         clearBoardUpdateContext();
     }
 
-    function armSuppressDiffBoardUpdateContext(reason) {
+    function armSuppressDiffBoardUpdateContext(reason: any) {
         try {
             if (PlaybackStateModule && typeof PlaybackStateModule.armBoardUpdateContext === 'function') {
                 PlaybackStateModule.armBoardUpdateContext({
@@ -165,10 +167,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     reason: reason || 'self_snapshot_sync'
                 });
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
 
-    function shouldClearStaleBoardUpdateContext(options) {
+    function shouldClearStaleBoardUpdateContext(options: any) {
         const opts = options || {};
         if (opts.force !== true) return false;
         if (opts.boardUpdateContext && typeof opts.boardUpdateContext === 'object') return false;
@@ -177,12 +179,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return getPlaybackActive() !== true;
     }
 
-    function normalizeRoomId(value) {
+    function normalizeRoomId(value: any) {
         const roomId = String(value || '').trim().toUpperCase();
         return roomId;
     }
 
-    function normalizeServerUrl(value) {
+    function normalizeServerUrl(value: any) {
         const raw = String(value || '').trim();
         if (!raw) return '';
         if (/^https?:\/\//i.test(raw)) {
@@ -191,7 +193,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         try {
             const protocol = (typeof location !== 'undefined' && /^https?:$/.test(location.protocol)) ? location.protocol : 'http:';
             return `${protocol}//${raw}`.replace(/\/+$/, '');
-        } catch (e) {
+        } catch (e: any) {
             return `http://${raw}`.replace(/\/+$/, '');
         }
     }
@@ -201,26 +203,26 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             if (root && typeof root.setTimeout === 'function' && typeof root.clearTimeout === 'function') {
                 return root;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         try {
-            if (typeof globalThis !== 'undefined' && globalThis && typeof globalThis.setTimeout === 'function' && typeof globalThis.clearTimeout === 'function') {
+            if (typeof globalThis !== 'undefined' && globalThis && typeof (globalThis as any).setTimeout === 'function' && typeof (globalThis as any).clearTimeout === 'function') {
                 return globalThis;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return null;
     }
 
-    function scheduleTimeout(callback, ms) {
+    function scheduleTimeout(callback: any, ms: any) {
         const host = resolveTimerHost();
         if (!host || typeof host.setTimeout !== 'function') return 0;
         return host.setTimeout(callback, ms);
     }
 
-    function clearScheduledTimeout(handle) {
+    function clearScheduledTimeout(handle: any) {
         if (!handle) return;
         const host = resolveTimerHost();
         if (!host || typeof host.clearTimeout !== 'function') return;
-        try { host.clearTimeout(handle); } catch (e) { /* ignore */ }
+        try { host.clearTimeout(handle); } catch (e: any) { /* ignore */ }
     }
 
     function deriveSameOriginServerUrl() {
@@ -228,7 +230,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             if (typeof location !== 'undefined' && /^https?:$/.test(location.protocol) && location.origin) {
                 return withTrailingSlashRemoved(location.origin);
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return DEFAULT_SERVER_URL;
     }
 
@@ -239,25 +241,25 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 const byQuery = normalizeServerUrl(params.get('matchServer') || '');
                 if (byQuery) return byQuery;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
             const byWindow = normalizeServerUrl(root.MATCH_SERVER_URL || '');
             if (byWindow) return byWindow;
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
             if (typeof localStorage !== 'undefined') {
                 const byStorage = normalizeServerUrl(localStorage.getItem(SERVER_URL_STORAGE_KEY) || '');
                 if (byStorage) return byStorage;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
             if (typeof location !== 'undefined' && /^https?:$/.test(location.protocol) && location.hostname) {
                 return deriveSameOriginServerUrl();
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return deriveSameOriginServerUrl();
     }
@@ -275,16 +277,16 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         roomBoardConfig: null,
         networkDebugEnabled: false,
         serverUrl: deriveInitialServerUrl(),
-        stateVersion: null,
-        eventSource: null,
+        stateVersion: null as any,
+        eventSource: null as any,
         lastStreamActivityAt: 0,
         lastStreamEventId: '',
         streamWatchdogTimerId: 0,
-        statusWriter: null,
-        roomStateListener: null,
-        chatListener: null,
-        chatHistory: [],
-        publishChain: Promise.resolve(),
+        statusWriter: null as any,
+        roomStateListener: null as any,
+        chatListener: null as any,
+        chatHistory: [] as any[],
+        publishChain: Promise.resolve() as any,
         publishTracker: {
             nextSequence: 0,
             operations: []
@@ -297,29 +299,29 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             limitSeconds: TURN_TIMER_DEFAULT_LIMIT,
             active: false,
             turnSeatKey: 'black',
-            turnStartedAt: null,
-            turnDeadlineAt: null
+            turnStartedAt: null as any,
+            turnDeadlineAt: null as any
         },
-        turnTimerListener: null,
+        turnTimerListener: null as any,
         turnTimerTickHandle: 0,
-        turnTimerSyncRequestedDeadline: null,
+        turnTimerSyncRequestedDeadline: null as any,
         serverTimeOffsetMs: 0,
         heartbeatResyncInFlight: false,
-        reconnectRecoveryTimerId: null,
+        reconnectRecoveryTimerId: null as any,
         reconnectRecoveryPending: false,
-        appliedStateVersion: null,
-        pendingForceSyncPlaybackVersion: null,
+        appliedStateVersion: null as any,
+        pendingForceSyncPlaybackVersion: null as any,
         pendingForceSyncPlaybackSource: '',
         pendingForceSyncPlaybackSignature: '',
         authoritativeMatchState: {
-            gameState: null,
-            cardState: null,
-            stateVersion: null,
-            authority: null,
-            projectedForSeat: null,
+            gameState: null as any,
+            cardState: null as any,
+            stateVersion: null as any,
+            authority: null as any,
+            projectedForSeat: null as any,
             turnStartReconciled: false,
-            projectedSnapshotHash: null,
-            lastAppliedProjectedSnapshotHash: null
+            projectedSnapshotHash: null as any,
+            lastAppliedProjectedSnapshotHash: null as any
         },
         localPresentationState: {
             preservedQueues: null,
@@ -328,44 +330,43 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             playbackSuppressed: false
         },
         networkTelemetry: {
-            counts: {},
-            recentEvents: []
+            counts: {} as any,
+            recentEvents: [] as any[]
         }
     };
 
-    let networkCommentaryModule = null;
-    let networkActionSchemaModule = null;
-    let networkPublishRequestModule = null;
-    let networkSnapshotModule = null;
-    let networkSessionSeatModule = null;
-    let networkSessionLifecycleModule = null;
-    let networkCommandPayloadModule = null;
-    let networkActionBridgeModule = null;
-    let networkApplyCoordinatorModule = null;
-    let networkReconnectControllerModule = null;
-    let networkPublishTrackerModule = null;
-    let cardLogicModule = null;
-    let networkCommentaryController = null;
-    let networkSnapshotController = null;
-    let networkSessionSeatController = null;
-    let networkSessionLifecycleController = null;
-    let networkActionBridgeController = null;
-    let networkReconnectController = null;
-    let networkPublishTrackerController = null;
-    let ownerHelpers = null;
-
+    let networkCommentaryModule: any = null;
+    let networkActionSchemaModule: any = null;
+    let networkPublishRequestModule: any = null;
+    let networkSnapshotModule: any = null;
+    let networkSessionSeatModule: any = null;
+    let networkSessionLifecycleModule: any = null;
+    let networkCommandPayloadModule: any = null;
+    let networkActionBridgeModule: any = null;
+    let networkApplyCoordinatorModule: any = null;
+    let networkReconnectControllerModule: any = null;
+    let networkPublishTrackerModule: any = null;
+    let cardLogicModule: any = null;
+    let networkCommentaryController: any = null;
+    let networkSnapshotController: any = null;
+    let networkSessionSeatController: any = null;
+    let networkSessionLifecycleController: any = null;
+    let networkActionBridgeController: any = null;
+    let networkReconnectController: any = null;
+    let networkPublishTrackerController: any = null;
+    let ownerHelpers: any = null;
     if (typeof require === 'function') {
-        try { networkCommentaryModule = require('./network/commentary'); } catch (e) { /* ignore */ }
-        try { networkActionSchemaModule = require('../shared/network-action-schema'); } catch (e) { /* ignore */ }
-        try { networkPublishRequestModule = require('./network/publish-request'); } catch (e) { /* ignore */ }
-        try { networkSnapshotModule = require('./network/snapshot'); } catch (e) { /* ignore */ }
-        try { networkSessionSeatModule = require('./network/session-seat'); } catch (e) { /* ignore */ }
-        try { networkSessionLifecycleModule = require('./network/session-lifecycle'); } catch (e) { /* ignore */ }
-        try { networkCommandPayloadModule = require('./network/command-payload'); } catch (e) { /* ignore */ }
-        try { networkActionBridgeModule = require('./network/action-bridge'); } catch (e) { /* ignore */ }
-        try { networkApplyCoordinatorModule = require('./network/apply-coordinator'); } catch (e) { /* ignore */ }
-        try { networkReconnectControllerModule = require('./network/reconnect-controller'); } catch (e) { /* ignore */ }
-        try { networkPublishTrackerModule = require('./network/publish-tracker'); } catch (e) { /* ignore */ }
+        try { networkCommentaryModule = require('./network/commentary'); } catch (e: any) { /* ignore */ }
+        try { networkActionSchemaModule = require('../shared/network-action-schema'); } catch (e: any) { /* ignore */ }
+        try { networkPublishRequestModule = require('./network/publish-request'); } catch (e: any) { /* ignore */ }
+        try { networkSnapshotModule = require('./network/snapshot'); } catch (e: any) { /* ignore */ }
+        try { networkSessionSeatModule = require('./network/session-seat'); } catch (e: any) { /* ignore */ }
+        try { networkSessionLifecycleModule = require('./network/session-lifecycle'); } catch (e: any) { /* ignore */ }
+        try { networkCommandPayloadModule = require('./network/command-payload'); } catch (e: any) { /* ignore */ }
+        try { networkActionBridgeModule = require('./network/action-bridge'); } catch (e: any) { /* ignore */ }
+        try { networkApplyCoordinatorModule = require('./network/apply-coordinator'); } catch (e: any) { /* ignore */ }
+        try { networkReconnectControllerModule = require('./network/reconnect-controller'); } catch (e: any) { /* ignore */ }
+        try { networkPublishTrackerModule = require('./network/publish-tracker'); } catch (e: any) { /* ignore */ }
     }
 
     function resolveNetworkCommentaryModule() {
@@ -376,14 +377,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 networkCommentaryModule = root.NetworkCommentaryModule;
                 return networkCommentaryModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.NetworkCommentaryModule) {
-                networkCommentaryModule = globalThis.NetworkCommentaryModule;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkCommentaryModule) {
+                networkCommentaryModule = (globalThis as any).NetworkCommentaryModule;
                 return networkCommentaryModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return null;
     }
@@ -396,14 +397,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 networkActionSchemaModule = root.NetworkActionSchema;
                 return networkActionSchemaModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.NetworkActionSchema) {
-                networkActionSchemaModule = globalThis.NetworkActionSchema;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkActionSchema) {
+                networkActionSchemaModule = (globalThis as any).NetworkActionSchema;
                 return networkActionSchemaModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return null;
     }
@@ -416,14 +417,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 networkSnapshotModule = root.NetworkSnapshotModule;
                 return networkSnapshotModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.NetworkSnapshotModule) {
-                networkSnapshotModule = globalThis.NetworkSnapshotModule;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkSnapshotModule) {
+                networkSnapshotModule = (globalThis as any).NetworkSnapshotModule;
                 return networkSnapshotModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return null;
     }
@@ -436,14 +437,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 networkSessionSeatModule = root.NetworkSessionSeatModule;
                 return networkSessionSeatModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.NetworkSessionSeatModule) {
-                networkSessionSeatModule = globalThis.NetworkSessionSeatModule;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkSessionSeatModule) {
+                networkSessionSeatModule = (globalThis as any).NetworkSessionSeatModule;
                 return networkSessionSeatModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return null;
     }
@@ -456,14 +457,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 networkSessionLifecycleModule = root.NetworkSessionLifecycleModule;
                 return networkSessionLifecycleModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.NetworkSessionLifecycleModule) {
-                networkSessionLifecycleModule = globalThis.NetworkSessionLifecycleModule;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkSessionLifecycleModule) {
+                networkSessionLifecycleModule = (globalThis as any).NetworkSessionLifecycleModule;
                 return networkSessionLifecycleModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return null;
     }
@@ -476,14 +477,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 networkCommandPayloadModule = root.NetworkCommandPayloadModule;
                 return networkCommandPayloadModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.NetworkCommandPayloadModule) {
-                networkCommandPayloadModule = globalThis.NetworkCommandPayloadModule;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkCommandPayloadModule) {
+                networkCommandPayloadModule = (globalThis as any).NetworkCommandPayloadModule;
                 return networkCommandPayloadModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return null;
     }
@@ -496,14 +497,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 networkActionBridgeModule = root.NetworkActionBridgeModule;
                 return networkActionBridgeModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.NetworkActionBridgeModule) {
-                networkActionBridgeModule = globalThis.NetworkActionBridgeModule;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkActionBridgeModule) {
+                networkActionBridgeModule = (globalThis as any).NetworkActionBridgeModule;
                 return networkActionBridgeModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return null;
     }
@@ -516,14 +517,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 networkApplyCoordinatorModule = root.NetworkApplyCoordinatorModule;
                 return networkApplyCoordinatorModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.NetworkApplyCoordinatorModule) {
-                networkApplyCoordinatorModule = globalThis.NetworkApplyCoordinatorModule;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkApplyCoordinatorModule) {
+                networkApplyCoordinatorModule = (globalThis as any).NetworkApplyCoordinatorModule;
                 return networkApplyCoordinatorModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return null;
     }
@@ -536,14 +537,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 networkReconnectControllerModule = root.NetworkReconnectControllerModule;
                 return networkReconnectControllerModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.NetworkReconnectControllerModule) {
-                networkReconnectControllerModule = globalThis.NetworkReconnectControllerModule;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkReconnectControllerModule) {
+                networkReconnectControllerModule = (globalThis as any).NetworkReconnectControllerModule;
                 return networkReconnectControllerModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return null;
     }
@@ -556,14 +557,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 networkPublishTrackerModule = root.NetworkPublishTrackerModule;
                 return networkPublishTrackerModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.NetworkPublishTrackerModule) {
-                networkPublishTrackerModule = globalThis.NetworkPublishTrackerModule;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkPublishTrackerModule) {
+                networkPublishTrackerModule = (globalThis as any).NetworkPublishTrackerModule;
                 return networkPublishTrackerModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return null;
     }
@@ -576,21 +577,21 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 cardLogicModule = require('../game/logic/cards');
                 if (cardLogicModule) return cardLogicModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
             if (root && root.CardLogic) {
                 cardLogicModule = root.CardLogic;
                 return cardLogicModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.CardLogic) {
-                cardLogicModule = globalThis.CardLogic;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).CardLogic) {
+                cardLogicModule = (globalThis as any).CardLogic;
                 return cardLogicModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return null;
     }
@@ -603,14 +604,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 networkPublishRequestModule = root.NetworkPublishRequestModule;
                 return networkPublishRequestModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.NetworkPublishRequestModule) {
-                networkPublishRequestModule = globalThis.NetworkPublishRequestModule;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkPublishRequestModule) {
+                networkPublishRequestModule = (globalThis as any).NetworkPublishRequestModule;
                 return networkPublishRequestModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return null;
     }
@@ -634,7 +635,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         networkSnapshotController = mod.createNetworkSnapshotController({
             root,
             getState: () => state,
-            onTelemetry: (type, details) => recordNetworkTelemetry(type, details),
+            onTelemetry: (type: any, details: any) => recordNetworkTelemetry(type, details),
             syncPendingSelectionActionCache
         });
         return networkSnapshotController;
@@ -651,7 +652,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             normalizePlayerKey,
             normalizeRoomId,
             playerNameMax: PLAYER_NAME_MAX,
-            prepareSessionActivation: (payload) => {
+            prepareSessionActivation: (payload: any) => {
                 state.lastStreamEventId = '';
                 state.appliedStateVersion = getSnapshotStateVersion(payload && payload.snapshot);
                 clearPendingForceSyncPlaybackRecovery();
@@ -670,10 +671,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 resetPublishTracker();
                 clearPendingForceSyncPlaybackRecovery();
             },
-            updateTurnTimerFromPayload: (payload) => updateTurnTimerFromPayload(payload),
+            updateTurnTimerFromPayload: (payload: any) => updateTurnTimerFromPayload(payload),
             ensureActionBridge: () => ensureActionBridge(),
-            applySnapshot: (snapshot, options) => applySnapshot(snapshot, options),
-            resetResultPresentationState: (resultState) => resetNetworkResultPresentationState(resultState)
+            applySnapshot: (snapshot: any, options: any) => applySnapshot(snapshot, options),
+            resetResultPresentationState: (resultState: any) => resetNetworkResultPresentationState(resultState)
         });
         return networkSessionSeatController;
     }
@@ -727,7 +728,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             isActive: () => state.active,
             normalizePlayerKey,
             cardLogicModule: resolveCardLogicModule(),
-            queueCommandPublish: (playerKey, action, options) => queueCommandPublish(playerKey, action, options),
+            queueCommandPublish: (playerKey: any, action: any, options: any) => queueCommandPublish(playerKey, action, options),
             shouldDeferNetworkPublishForPendingType
         });
         return networkActionBridgeController;
@@ -743,9 +744,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             scheduleTimeout,
             clearScheduledTimeout,
             emitStatus,
-            openStream: (options) => openStream(options),
-            syncLatestStateWithRetry: (options) => syncLatestStateWithRetry(options),
-            recordNetworkTelemetry: (type, details) => recordNetworkTelemetry(type, details),
+            openStream: (options: any) => openStream(options),
+            syncLatestStateWithRetry: (options: any) => syncLatestStateWithRetry(options),
+            recordNetworkTelemetry: (type: any, details: any) => recordNetworkTelemetry(type, details),
             getAppliedStateVersion,
             computeRetryDelayMs,
             reconnectRecoveryWaitMs: RECONNECT_STREAM_RECOVERY_WAIT_MS,
@@ -771,7 +772,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return networkPublishTrackerController;
     }
 
-    function invokeControllerMethod(resolveController, methodName, argsLike, fallback) {
+    function invokeControllerMethod(resolveController: any, methodName: any, argsLike: any, fallback: any) {
         const controller = (typeof resolveController === 'function') ? resolveController() : null;
         if (controller && typeof controller[methodName] === 'function') {
             return controller[methodName].apply(controller, argsLike || []);
@@ -787,17 +788,17 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             if (root && root.HandSkinUiModule) {
                 return root.HandSkinUiModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         try {
             if (typeof require === 'function') {
                 return require('./handlers/hand-skin.js');
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.HandSkinUiModule) {
-                return globalThis.HandSkinUiModule;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).HandSkinUiModule) {
+                return (globalThis as any).HandSkinUiModule;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return null;
     }
 
@@ -809,39 +810,39 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 ownerHelpers = root.OwnerHelpers;
                 return ownerHelpers;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
             if (typeof require === 'function') {
                 ownerHelpers = require('../utils/owner-helpers');
                 if (ownerHelpers) return ownerHelpers;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) {
-                ownerHelpers = globalThis.OwnerHelpers;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).OwnerHelpers) {
+                ownerHelpers = (globalThis as any).OwnerHelpers;
                 return ownerHelpers;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return null;
     }
 
-    function normalizePlayerKey(value) {
+    function normalizePlayerKey(value: any) {
         try {
             const schema = resolveNetworkActionSchemaModule();
             if (schema && typeof schema.normalizePlayerKey === 'function') {
                 return schema.normalizePlayerKey(value, 'black');
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
             const helpers = resolveOwnerHelpers();
             if (helpers && typeof helpers.normalizePlayerKey === 'function') {
                 return helpers.normalizePlayerKey(value, 'black');
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         const normalized = (value === null || typeof value === 'undefined')
             ? ''
@@ -852,16 +853,16 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return 'black';
     }
 
-    function cloneDataForCommandPayload(value) {
+    function cloneDataForCommandPayload(value: any) {
         try {
-            if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
-                return globalThis.structuredClone(value);
+            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).structuredClone === 'function') {
+                return (globalThis as any).structuredClone(value);
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return JSON.parse(JSON.stringify(value));
     }
 
-    function createNetworkTelemetryState() {
+    function createNetworkTelemetryState(): any {
         return {
             counts: {},
             recentEvents: []
@@ -872,7 +873,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         state.networkTelemetry = createNetworkTelemetryState();
     }
 
-    function recordNetworkTelemetry(type, details) {
+    function recordNetworkTelemetry(type: any, details: any) {
         const eventType = String(type || '').trim();
         if (!eventType) return;
 
@@ -891,11 +892,11 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             ? Number(telemetry.counts[eventType]) + 1
             : 1;
 
-        let safeDetails = null;
+        let safeDetails: any = null;
         if (details && typeof details === 'object') {
             try {
                 safeDetails = cloneDataForCommandPayload(details);
-            } catch (e) {
+            } catch (e: any) {
                 safeDetails = { cloneFailed: true };
             }
         }
@@ -914,7 +915,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             try {
                 const encoded = safeDetails ? JSON.stringify(safeDetails) : '';
                 if (encoded) suffix = ` ${encoded}`;
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
             emitEffectLog(`[network-debug] ${eventType}${suffix}`);
         }
     }
@@ -922,21 +923,21 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     function getNetworkTelemetry() {
         try {
             return cloneDataForCommandPayload(state.networkTelemetry || createNetworkTelemetryState());
-        } catch (e) {
+        } catch (e: any) {
             return createNetworkTelemetryState();
         }
     }
 
-    function cloneReadableNetworkStateValue(value, fallbackValue) {
+    function cloneReadableNetworkStateValue(value: any, fallbackValue: any) {
         if (typeof value === 'undefined') return fallbackValue;
         try {
             return cloneDataForCommandPayload(value);
-        } catch (e) {
+        } catch (e: any) {
             return fallbackValue;
         }
     }
 
-    function cloneTrackedPublishRequestMeta(requestMeta) {
+    function cloneTrackedPublishRequestMeta(requestMeta: any) {
         if (!requestMeta || typeof requestMeta !== 'object') return null;
         return {
             actionType: requestMeta.actionType || null,
@@ -954,7 +955,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         };
     }
 
-    function cloneTrackedPublishEntry(entry) {
+    function cloneTrackedPublishEntry(entry: any) {
         if (!entry || typeof entry !== 'object' || !entry.operationId) return null;
         return {
             operationId: String(entry.operationId || ''),
@@ -974,7 +975,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     function getState() {
         const tracker = ensurePublishTracker();
         const operations = Array.isArray(tracker.operations)
-            ? tracker.operations.map((entry) => cloneTrackedPublishEntry(entry)).filter((entry) => !!entry)
+            ? tracker.operations.map((entry: any) => cloneTrackedPublishEntry(entry)).filter((entry: any) => !!entry)
             : [];
         return {
             active: state.active === true,
@@ -994,7 +995,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         };
     }
 
-    function getSnapshotStateVersion(snapshot) {
+    function getSnapshotStateVersion(snapshot: any) {
         const meta = getSnapshotMeta(snapshot);
         if (meta && meta.version !== null) return meta.version;
         return Number.isFinite(Number(snapshot && snapshot.stateVersion))
@@ -1002,7 +1003,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             : null;
     }
 
-    function getSnapshotMeta(snapshot) {
+    function getSnapshotMeta(snapshot: any) {
         if (!snapshot || typeof snapshot !== 'object' || !snapshot._meta || typeof snapshot._meta !== 'object') {
             return null;
         }
@@ -1034,8 +1035,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             : null;
         const liveCardState = root && root.cardState && typeof root.cardState === 'object'
             ? root.cardState
-            : ((typeof globalThis !== 'undefined' && globalThis.cardState && typeof globalThis.cardState === 'object')
-                ? globalThis.cardState
+            : ((typeof globalThis !== 'undefined' && (globalThis as any).cardState && typeof (globalThis as any).cardState === 'object')
+                ? (globalThis as any).cardState
                 : null);
         const authoritativeTurnIndex = authoritativeCardState && Number.isFinite(Number(authoritativeCardState.turnIndex))
             ? Math.trunc(Number(authoritativeCardState.turnIndex))
@@ -1054,8 +1055,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         }
         const liveGameState = root && root.gameState && typeof root.gameState === 'object'
             ? root.gameState
-            : ((typeof globalThis !== 'undefined' && globalThis.gameState && typeof globalThis.gameState === 'object')
-                ? globalThis.gameState
+            : ((typeof globalThis !== 'undefined' && (globalThis as any).gameState && typeof (globalThis as any).gameState === 'object')
+                ? (globalThis as any).gameState
                 : null);
         if (liveGameState && Number.isFinite(Number(liveGameState.turnNumber))) {
             return Math.trunc(Number(liveGameState.turnNumber));
@@ -1063,7 +1064,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return null;
     }
 
-    function computeForceSyncPlaybackRecoverySignature(snapshot) {
+    function computeForceSyncPlaybackRecoverySignature(snapshot: any) {
         if (!snapshot || typeof snapshot !== 'object') return '';
         if (!snapshot.gameState || typeof snapshot.gameState !== 'object') return '';
         if (!snapshot.cardState || typeof snapshot.cardState !== 'object') return '';
@@ -1076,7 +1077,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 gameState: cloneDataForCommandPayload(snapshot.gameState),
                 cardState: signatureCardState
             });
-        } catch (e) {
+        } catch (e: any) {
             return '';
         }
     }
@@ -1095,7 +1096,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     // For publish-response we additionally require the response snapshot signature
     // to match the actor's current state, which guarantees the response is the
     // echo of the same action and not a divergent server correction.
-    function shouldApplyPublishResponseAsShadowPlayback(trackedPublish, snapshot, playbackEvents) {
+    function shouldApplyPublishResponseAsShadowPlayback(trackedPublish: any, snapshot: any, playbackEvents: any) {
         if (!trackedPublish || typeof trackedPublish !== 'object') return false;
         if (!trackedPublish.requestMeta) return false;
         const requestedPlaybackEvents = getTrackedPublishRequestedPlaybackEvents(trackedPublish);
@@ -1113,7 +1114,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     // playback so the actor does not see the same card-use / flip animation
     // twice. trackedPublish presence (matched by operationId in the SSE payload)
     // guarantees this is the echo of this actor's own action.
-    function shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish, playbackEvents) {
+    function shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish: any, playbackEvents: any) {
         if (!trackedPublish || typeof trackedPublish !== 'object') return false;
         if (!trackedPublish.requestMeta) return false;
         const requestedPlaybackEvents = getTrackedPublishRequestedPlaybackEvents(trackedPublish);
@@ -1128,7 +1129,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         state.pendingForceSyncPlaybackSignature = '';
     }
 
-    function rememberPendingForceSyncPlaybackRecovery(snapshot, options) {
+    function rememberPendingForceSyncPlaybackRecovery(snapshot: any, options: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const snapshotVersion = getSnapshotStateVersion(snapshot);
         const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
@@ -1151,7 +1152,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return true;
     }
 
-    function consumePendingForceSyncPlaybackRecovery(snapshotOrVersion) {
+    function consumePendingForceSyncPlaybackRecovery(snapshotOrVersion: any) {
         const snapshotVersion = Number.isFinite(Number(snapshotOrVersion))
             ? Number(snapshotOrVersion)
             : getSnapshotStateVersion(snapshotOrVersion);
@@ -1165,7 +1166,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return true;
     }
 
-    function shouldRecoverForceSyncedStreamPlayback(snapshot, playbackEvents) {
+    function shouldRecoverForceSyncedStreamPlayback(snapshot: any, playbackEvents: any) {
         const pendingVersion = Number.isFinite(Number(state.pendingForceSyncPlaybackVersion))
             ? Number(state.pendingForceSyncPlaybackVersion)
             : null;
@@ -1182,7 +1183,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return localVersion === snapshotVersion;
     }
 
-    function isVersionConflictReason(reasonValue) {
+    function isVersionConflictReason(reasonValue: any) {
         const reason = String(reasonValue || '').trim();
         return reason === 'VERSION_MISMATCH'
             || reason === 'VERSION_AHEAD'
@@ -1190,7 +1191,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             || reason === 'VERSION_GAP';
     }
 
-    function getVersionConflictTelemetryKey(reasonValue) {
+    function getVersionConflictTelemetryKey(reasonValue: any) {
         const reason = String(reasonValue || '').trim();
         if (reason === 'VERSION_AHEAD') return 'publish_version_ahead';
         if (reason === 'VERSION_BEHIND') return 'publish_version_behind';
@@ -1199,7 +1200,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return '';
     }
 
-    function resolveRejectedPublishSnapshotHandling(entry, payload, rejectedReason, options) {
+    function resolveRejectedPublishSnapshotHandling(entry: any, payload: any, rejectedReason: any, options: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const reason = String(rejectedReason || '').trim() || 'PUBLISH_REJECTED';
         const snapshot = (payload && payload.snapshot && typeof payload.snapshot === 'object')
@@ -1241,7 +1242,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return { shouldApplySnapshot: true, skipReason: null, snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
     }
 
-    function buildPublishCommandPayload(info, playerKey) {
+    function buildPublishCommandPayload(info: any, playerKey: any) {
         const moduleRef = resolveNetworkCommandPayloadModule();
         if (!moduleRef || typeof moduleRef.buildPublishCommandPayload !== 'function') {
             return null;
@@ -1253,7 +1254,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         });
     }
 
-    function withTrailingSlashRemoved(url) {
+    function withTrailingSlashRemoved(url: any) {
         return String(url || '').replace(/\/+$/, '');
     }
 
@@ -1263,33 +1264,33 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return `op_${nowPart}_${randPart}`;
     }
 
-    function readSeatClaim(roomId) {
+    function readSeatClaim(roomId: any) {
         return invokeControllerMethod(getNetworkSessionSeatController, 'readSeatClaim', arguments, null);
     }
 
-    function writeSeatClaim(roomId, seatKey, seatToken) {
+    function writeSeatClaim(roomId: any, seatKey: any, seatToken: any) {
         invokeControllerMethod(getNetworkSessionSeatController, 'writeSeatClaim', arguments, undefined);
     }
 
-    function clearSeatClaim(roomId) {
+    function clearSeatClaim(roomId: any) {
         invokeControllerMethod(getNetworkSessionSeatController, 'clearSeatClaim', arguments, undefined);
     }
 
-    function emitStatus(text, isError) {
+    function emitStatus(text: any, isError: any) {
         if (typeof state.statusWriter === 'function') {
             try {
                 state.statusWriter(String(text || ''), !!isError);
                 return;
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
         }
         try {
             if (typeof addLog === 'function') {
                 addLog(String(text || ''));
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
 
-    function emitEffectLog(text) {
+    function emitEffectLog(text: any) {
         const line = String(text || '').trim();
         if (!line) return;
         try {
@@ -1297,35 +1298,35 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 root.emitEffectLog(line);
                 return;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         try {
             if (root && typeof root.emitLogAdded === 'function') {
                 root.emitLogAdded(line, 'effect');
                 return;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         try {
             if (typeof globalThis !== 'undefined' && globalThis && globalThis !== root) {
-                if (typeof globalThis.emitEffectLog === 'function' && globalThis.emitEffectLog !== emitEffectLog) {
-                    globalThis.emitEffectLog(line);
+                if (typeof (globalThis as any).emitEffectLog === 'function' && (globalThis as any).emitEffectLog !== emitEffectLog) {
+                    (globalThis as any).emitEffectLog(line);
                     return;
                 }
-                if (typeof globalThis.emitLogAdded === 'function') {
-                    globalThis.emitLogAdded(line, 'effect');
+                if (typeof (globalThis as any).emitLogAdded === 'function') {
+                    (globalThis as any).emitLogAdded(line, 'effect');
                     return;
                 }
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         try {
             if (typeof addLog === 'function') {
                 addLog(line);
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
 
-    function getPayloadEffectLogs(payload) {
+    function getPayloadEffectLogs(payload: any) {
         const source = (payload && Array.isArray(payload.effectLogs)) ? payload.effectLogs : [];
-        const normalized = [];
+        const normalized: any[] = [];
         for (let index = 0; index < source.length; index += 1) {
             const line = String(source[index] || '').trim();
             if (!line) continue;
@@ -1335,7 +1336,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return normalized;
     }
 
-    function emitPayloadEffectLogs(payload) {
+    function emitPayloadEffectLogs(payload: any) {
         const effectLogs = getPayloadEffectLogs(payload);
         for (let index = 0; index < effectLogs.length; index += 1) {
             emitEffectLog(effectLogs[index]);
@@ -1343,18 +1344,18 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return effectLogs.length;
     }
 
-    function emitStatusAndEffectLog(text, isError) {
+    function emitStatusAndEffectLog(text: any, isError: any) {
         emitStatus(text, isError);
         if (typeof state.statusWriter === 'function') {
             emitEffectLog(text);
         }
     }
 
-    function emitSnapshotCommentary(payload, snapshot, isSelfOperation, playbackEvents) {
+    function emitSnapshotCommentary(payload: any, snapshot: any, isSelfOperation: any, playbackEvents: any) {
         invokeControllerMethod(getNetworkCommentaryController, 'emitSnapshotCommentary', arguments, undefined);
     }
 
-    function getSeatDisplayName(seatKey) {
+    function getSeatDisplayName(seatKey: any) {
         return invokeControllerMethod(
             getNetworkSessionSeatController,
             'getSeatDisplayName',
@@ -1363,7 +1364,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         );
     }
 
-    function normalizePlayerName(value) {
+    function normalizePlayerName(value: any) {
         return invokeControllerMethod(
             getNetworkSessionSeatController,
             'normalizePlayerName',
@@ -1372,7 +1373,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         );
     }
 
-    function normalizeRoomSeats(value) {
+    function normalizeRoomSeats(value: any) {
         return invokeControllerMethod(
             getNetworkSessionSeatController,
             'normalizeRoomSeats',
@@ -1381,7 +1382,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         );
     }
 
-    function normalizeSeatNames(value) {
+    function normalizeSeatNames(value: any) {
         return invokeControllerMethod(
             getNetworkSessionSeatController,
             'normalizeSeatNames',
@@ -1390,7 +1391,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         );
     }
 
-    function normalizeSeatHandSkins(value) {
+    function normalizeSeatHandSkins(value: any) {
         return invokeControllerMethod(
             getNetworkSessionSeatController,
             'normalizeSeatHandSkins',
@@ -1412,7 +1413,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         invokeControllerMethod(getNetworkSessionSeatController, 'emitRoomStateChanged', arguments, undefined);
     }
 
-    function updateRoomSeatsFromPayload(payload) {
+    function updateRoomSeatsFromPayload(payload: any) {
         invokeControllerMethod(getNetworkSessionSeatController, 'updateRoomSeatsFromPayload', arguments, undefined);
     }
 
@@ -1421,18 +1422,18 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         if (handSkinUiModule && typeof handSkinUiModule.readStoredHandSkinId === 'function') {
             try {
                 return String(handSkinUiModule.readStoredHandSkinId(root)).trim() || 'default';
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
         }
         const storageKey = String((handSkinUiModule && handSkinUiModule.HAND_SKIN_STORAGE_KEY) || 'othello.handSkin').trim() || 'othello.handSkin';
         try {
             if (typeof localStorage !== 'undefined') {
                 return String(localStorage.getItem(storageKey) || '').trim() || 'default';
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return 'default';
     }
 
-    function applyPayloadSessionState(payload) {
+    function applyPayloadSessionState(payload: any) {
         if (!payload || typeof payload !== 'object') return;
         updateTurnTimerFromPayload(payload);
         updateRoomSeatsFromPayload(payload);
@@ -1445,7 +1446,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             state.authoritativeMatchState.projectedSnapshotHash = snapshotMeta.projectedSnapshotHash;
         }
         const warnings = (payload.playbackDiagnostics && Array.isArray(payload.playbackDiagnostics.warnings))
-            ? payload.playbackDiagnostics.warnings.filter((warning) => String(warning || '').trim())
+            ? payload.playbackDiagnostics.warnings.filter((warning: any) => String(warning || '').trim())
             : [];
         if (warnings.length > 0) {
             recordNetworkTelemetry('playback_diagnostics_warning', {
@@ -1455,7 +1456,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         }
     }
 
-    function normalizeTurnTimerPayload(value) {
+    function normalizeTurnTimerPayload(value: any) {
         const source = (value && typeof value === 'object') ? value : {};
         const limitSeconds = Number.isFinite(Number(source.limitSeconds))
             ? Math.max(1, Math.trunc(Number(source.limitSeconds)))
@@ -1478,13 +1479,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         };
     }
 
-    function updateServerTimeOffset(serverTimeValue) {
+    function updateServerTimeOffset(serverTimeValue: any) {
         const serverTime = Number(serverTimeValue);
         if (!Number.isFinite(serverTime)) return;
         state.serverTimeOffsetMs = serverTime - Date.now();
     }
 
-    function maybeSyncFromHeartbeat(payload) {
+    function maybeSyncFromHeartbeat(payload: any) {
         const controller = getNetworkReconnectController();
         if (!controller || typeof controller.maybeSyncFromHeartbeat !== 'function') return;
         controller.maybeSyncFromHeartbeat(payload);
@@ -1494,7 +1495,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return Date.now() + (Number.isFinite(state.serverTimeOffsetMs) ? state.serverTimeOffsetMs : 0);
     }
 
-    function waitForMs(ms) {
+    function waitForMs(ms: any) {
         const waitMs = Number.isFinite(Number(ms)) ? Math.max(0, Math.trunc(Number(ms))) : 0;
         return new Promise((resolve) => {
             scheduleTimeout(resolve, waitMs);
@@ -1523,7 +1524,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         controller.resetPublishTracker();
     }
 
-    function createTrackedPublish(operationId, requestMeta) {
+    function createTrackedPublish(operationId: any, requestMeta: any) {
         const controller = getNetworkPublishTrackerController();
         if (!controller || typeof controller.createTrackedPublish !== 'function') {
             throw new Error('NetworkPublishTrackerModule unavailable');
@@ -1531,73 +1532,73 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return controller.createTrackedPublish(operationId, requestMeta);
     }
 
-    function getTrackedPublishRequestedPlaybackEvents(entry) {
+    function getTrackedPublishRequestedPlaybackEvents(entry: any) {
         const controller = getNetworkPublishTrackerController();
         if (!controller || typeof controller.getTrackedPublishRequestedPlaybackEvents !== 'function') return [];
         return controller.getTrackedPublishRequestedPlaybackEvents(entry);
     }
 
-    function findTrackedPublish(operationId) {
+    function findTrackedPublish(operationId: any) {
         const controller = getNetworkPublishTrackerController();
         if (!controller || typeof controller.findTrackedPublish !== 'function') return null;
         return controller.findTrackedPublish(operationId);
     }
 
-    function settleTrackedPublish(entry) {
+    function settleTrackedPublish(entry: any) {
         const controller = getNetworkPublishTrackerController();
         if (!controller || typeof controller.settleTrackedPublish !== 'function') return;
         controller.settleTrackedPublish(entry);
     }
 
-    function markTrackedPublishInFlight(entry) {
+    function markTrackedPublishInFlight(entry: any) {
         const controller = getNetworkPublishTrackerController();
         if (!controller || typeof controller.markTrackedPublishInFlight !== 'function') return;
         controller.markTrackedPublishInFlight(entry);
     }
 
-    function markTrackedPublishResponse(entry, stateVersionValue) {
+    function markTrackedPublishResponse(entry: any, stateVersionValue: any) {
         const controller = getNetworkPublishTrackerController();
         if (!controller || typeof controller.markTrackedPublishResponse !== 'function') return;
         controller.markTrackedPublishResponse(entry, stateVersionValue);
     }
 
-    function markTrackedPublishSelfSnapshot(entry, snapshot) {
+    function markTrackedPublishSelfSnapshot(entry: any, snapshot: any) {
         const controller = getNetworkPublishTrackerController();
         if (!controller || typeof controller.markTrackedPublishSelfSnapshot !== 'function') return;
         controller.markTrackedPublishSelfSnapshot(entry, snapshot);
     }
 
-    function markTrackedPublishSnapshotApplied(entry, snapshot, source) {
+    function markTrackedPublishSnapshotApplied(entry: any, snapshot: any, source: any) {
         const controller = getNetworkPublishTrackerController();
         if (!controller || typeof controller.markTrackedPublishSnapshotApplied !== 'function') return;
         controller.markTrackedPublishSnapshotApplied(entry, snapshot, source);
     }
 
-    function hasTrackedPublishPresentedResult(entry) {
+    function hasTrackedPublishPresentedResult(entry: any) {
         const controller = getNetworkPublishTrackerController();
         if (!controller || typeof controller.hasTrackedPublishPresentedResult !== 'function') return false;
         return controller.hasTrackedPublishPresentedResult(entry);
     }
 
-    function markTrackedPublishResultPresented(entry, snapshot) {
+    function markTrackedPublishResultPresented(entry: any, snapshot: any) {
         const controller = getNetworkPublishTrackerController();
         if (!controller || typeof controller.markTrackedPublishResultPresented !== 'function') return;
         controller.markTrackedPublishResultPresented(entry, snapshot);
     }
 
-    function hasPendingLocalPublishes(options) {
+    function hasPendingLocalPublishes(options: any) {
         const controller = getNetworkPublishTrackerController();
         if (!controller || typeof controller.hasPendingLocalPublishes !== 'function') return false;
         return controller.hasPendingLocalPublishes(options);
     }
 
-    function hasNewerQueuedPublish(sequence) {
+    function hasNewerQueuedPublish(sequence: any) {
         const controller = getNetworkPublishTrackerController();
         if (!controller || typeof controller.hasNewerQueuedPublish !== 'function') return false;
         return controller.hasNewerQueuedPublish(sequence);
     }
 
-    function getPendingLocalPublishProjectedSnapshotHash(options) {
+    function getPendingLocalPublishProjectedSnapshotHash(options: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const ignoredSequence = Number.isFinite(Number(opts.ignoreSequence))
             ? Number(opts.ignoreSequence)
@@ -1620,7 +1621,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return null;
     }
 
-    function applySnapshotThroughCoordinator(snapshot, options) {
+    function applySnapshotThroughCoordinator(snapshot: any, options: any) {
         const mod = resolveNetworkApplyCoordinatorModule();
         if (!mod || typeof mod.applySnapshotThroughCoordinator !== 'function') {
             throw new Error('NetworkApplyCoordinatorModule unavailable');
@@ -1630,21 +1631,21 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             hasNewerQueuedPublish,
             applySnapshot,
             markTrackedPublishSnapshotApplied,
-            onAppliedVersion: (appliedVersion) => {
+            onAppliedVersion: (appliedVersion: any) => {
                 state.appliedStateVersion = appliedVersion;
                 state.stateVersion = appliedVersion;
             }
         }));
     }
 
-    function isTerminalSnapshotForResult(snapshot) {
+    function isTerminalSnapshotForResult(snapshot: any) {
         const gameState = snapshot && snapshot.gameState;
         if (!gameState || typeof gameState !== 'object') return false;
         try {
             if (typeof root.isGameOver === 'function') {
                 return !!root.isGameOver(gameState);
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return gameState.currentPlayer === -1;
     }
 
@@ -1666,7 +1667,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return null;
     }
 
-    function shouldSkipForceSyncSnapshot(snapshot, options) {
+    function shouldSkipForceSyncSnapshot(snapshot: any, options?: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const remoteVersion = getSnapshotStateVersion(snapshot);
         const localVersion = getAppliedStateVersion();
@@ -1692,7 +1693,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return remoteVersion <= localVersion;
     }
 
-    function computeRetryDelayMs(baseDelayMs, maxDelayMs, attempt) {
+    function computeRetryDelayMs(baseDelayMs: any, maxDelayMs: any, attempt: any) {
         const base = Number.isFinite(Number(baseDelayMs))
             ? Math.max(100, Math.trunc(Number(baseDelayMs)))
             : 300;
@@ -1705,7 +1706,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return Math.max(RECONNECT_MIN_DELAY_MS, jitterMs);
     }
 
-    async function syncLatestStateWithRetry(options) {
+    async function syncLatestStateWithRetry(options: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const maxAttempts = Number.isFinite(Number(opts.maxAttempts))
             ? Math.max(1, Math.trunc(Number(opts.maxAttempts)))
@@ -1714,7 +1715,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             ? Math.max(100, Math.trunc(Number(opts.baseDelayMs)))
             : 350;
 
-        let lastError = null;
+        let lastError: any = null;
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
             if (!isActive()) {
                 return { ok: false, reason: 'INACTIVE' };
@@ -1726,7 +1727,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     return result;
                 }
                 lastError = new Error(result && result.reason ? String(result.reason) : 'STATE_SYNC_FAILED');
-            } catch (e) {
+            } catch (e: any) {
                 lastError = e;
             }
 
@@ -1760,7 +1761,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         if (typeof state.turnTimerListener !== 'function') return;
         try {
             state.turnTimerListener(getTurnTimerInfo());
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
 
     function clearTurnTimerTick() {
@@ -1769,7 +1770,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         state.turnTimerTickHandle = 0;
     }
 
-    function maybeSyncLatestStateAfterTimeout(timerInfo) {
+    function maybeSyncLatestStateAfterTimeout(timerInfo: any) {
         if (!timerInfo || timerInfo.active !== true) return;
         if (!Number.isFinite(Number(timerInfo.turnDeadlineAt))) return;
         if (!isActive()) return;
@@ -1813,7 +1814,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         emitTurnTimerChanged();
     }
 
-    function updateTurnTimerFromPayload(payload) {
+    function updateTurnTimerFromPayload(payload: any) {
         if (!payload || typeof payload !== 'object') return;
 
         updateServerTimeOffset(payload.serverTime);
@@ -1839,15 +1840,15 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         invokeControllerMethod(getNetworkSessionSeatController, 'ensureOwnSeatJoined', arguments, undefined);
     }
 
-    function normalizeChatText(value) {
+    function normalizeChatText(value: any) {
         return String(value || '').replace(/[\r\n]+/g, ' ').trim();
     }
 
-    function countTextChars(value) {
+    function countTextChars(value: any) {
         return Array.from(String(value || '')).length;
     }
 
-    function normalizeChatMessage(entry) {
+    function normalizeChatMessage(entry: any) {
         if (!entry || typeof entry !== 'object') return null;
         const text = normalizeChatText(entry.text);
         if (!text) return null;
@@ -1859,14 +1860,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         };
     }
 
-    function emitChatEvent(payload) {
+    function emitChatEvent(payload: any) {
         if (typeof state.chatListener !== 'function') return;
         try {
             state.chatListener(payload);
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
 
-    function handleChatPayload(payload) {
+    function handleChatPayload(payload: any) {
         if (!payload || payload.ok !== true) return;
 
         applyPayloadSessionState(payload);
@@ -1875,8 +1876,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         if (type === 'history') {
             const list = Array.isArray(payload.messages) ? payload.messages : [];
             const normalized = list
-                .map((entry) => normalizeChatMessage(entry))
-                .filter((entry) => !!entry);
+                .map((entry: any) => normalizeChatMessage(entry))
+                .filter((entry: any) => !!entry);
             state.chatHistory = normalized.slice(-CHAT_HISTORY_LIMIT);
             emitChatEvent({
                 type: 'history',
@@ -1899,7 +1900,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         });
     }
 
-    function handlePresencePayload(payload) {
+    function handlePresencePayload(payload: any) {
         if (!payload || payload.ok !== true) return;
 
         applyPayloadSessionState(payload);
@@ -1919,7 +1920,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         emitStatusAndEffectLog(message, false);
     }
 
-    function handleTimeoutPassPayload(payload) {
+    function handleTimeoutPassPayload(payload: any) {
         if (!payload || payload.ok !== true) return;
         if (String(payload.actionType || '') !== 'timeout_pass') return;
 
@@ -1933,7 +1934,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         emitStatusAndEffectLog(`ネット対戦: ${seatName}の手番が時間切れになりました`, false);
     }
 
-    function applySnapshot(snapshot, options) {
+    function applySnapshot(snapshot: any, options: any) {
         if (shouldClearStaleBoardUpdateContext(options)) {
             clearBoardUpdateContext();
             recordNetworkTelemetry('force_snapshot_cleared_stale_board_update_context', {
@@ -1952,7 +1953,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return applied;
     }
 
-    function activateSessionFromResponse(data, fallbackRoomId) {
+    function activateSessionFromResponse(data: any, fallbackRoomId: any) {
         invokeControllerMethod(getNetworkSessionSeatController, 'activateSessionFromResponse', arguments, undefined);
     }
 
@@ -1988,20 +1989,20 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         });
     }
 
-    function setSeatGlobals(seatKey) {
+    function setSeatGlobals(seatKey: any) {
         invokeControllerMethod(getNetworkSessionSeatController, 'setSeatGlobals', arguments, undefined);
     }
 
-    function parseStreamEventPayload(event) {
+    function parseStreamEventPayload(event: any) {
         try {
             return JSON.parse((event && event.data) || '{}');
-        } catch (e) {
+        } catch (e: any) {
             return null;
         }
     }
 
-    function createStreamPayloadHandler(payloadHandler) {
-        return function handleParsedStreamEvent(event) {
+    function createStreamPayloadHandler(payloadHandler: any) {
+        return function handleParsedStreamEvent(event: any) {
             const payload = parseStreamEventPayload(event);
             if (!payload) return;
             rememberStreamEventId(event);
@@ -2010,9 +2011,9 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         };
     }
 
-    async function requestJson(method, path, payload) {
+    async function requestJson(method: any, path: any, payload: any) {
         const url = `${withTrailingSlashRemoved(state.serverUrl)}${path}`;
-        const init = {
+        const init: any = {
             method,
             headers: { 'Content-Type': 'application/json' }
         };
@@ -2021,16 +2022,16 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         }
 
         let timeoutId = 0;
-        let controller = null;
+        let controller: any = null;
         try {
             if (typeof AbortController === 'function') {
                 controller = new AbortController();
                 init.signal = controller.signal;
                 timeoutId = scheduleTimeout(() => {
-                    try { controller.abort(); } catch (e) { /* ignore */ }
+                    try { controller.abort(); } catch (e: any) { /* ignore */ }
                 }, REQUEST_TIMEOUT_MS);
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         try {
             const response = await fetch(url, init);
@@ -2043,13 +2044,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         }
     }
 
-    function sanitizePlaybackValueForPublish(value) {
+    function sanitizePlaybackValueForPublish(value: any): any {
         if (Array.isArray(value)) {
-            return value.map((item) => sanitizePlaybackValueForPublish(item));
+            return value.map((item: any) => sanitizePlaybackValueForPublish(item));
         }
         if (!value || typeof value !== 'object') return value;
 
-        const sanitized = {};
+        const sanitized: any = {};
         const keys = Object.keys(value);
         for (let index = 0; index < keys.length; index += 1) {
             const key = keys[index];
@@ -2059,12 +2060,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return sanitized;
     }
 
-    function sanitizePlaybackEventsForPublish(playbackEvents) {
+    function sanitizePlaybackEventsForPublish(playbackEvents: any) {
         if (!Array.isArray(playbackEvents) || playbackEvents.length <= 0) return [];
         return playbackEvents.map((event) => sanitizePlaybackValueForPublish(event));
     }
 
-    function queueCommandPublish(playerKey, action, options) {
+    function queueCommandPublish(playerKey: any, action: any, options: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const normalizedPlayerKey = normalizePlayerKey(playerKey);
         const resolvedActionType = String(
@@ -2079,11 +2080,11 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         });
     }
 
-    function isMatchApiMissing(res) {
+    function isMatchApiMissing(res: any) {
         return !!(res && Number(res.status) === 404);
     }
 
-    function shouldRetryJoinWithoutStoredClaim(res) {
+    function shouldRetryJoinWithoutStoredClaim(res: any) {
         const reason = String(res && res.data && res.data.reason ? res.data.reason : '').trim();
         return reason === 'ROOM_FULL' || reason === 'SEAT_TOKEN_MISMATCH';
     }
@@ -2136,7 +2137,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         controller.markStreamActivity();
     }
 
-    function rememberStreamEventId(event) {
+    function rememberStreamEventId(event: any) {
         const controller = getNetworkReconnectController();
         if (!controller || typeof controller.rememberStreamEventId !== 'function') return;
         controller.rememberStreamEventId(event);
@@ -2160,21 +2161,20 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         controller.closeStream();
     }
 
-    function isRetryablePublishStatus(status) {
+    function isRetryablePublishStatus(status: any) {
         const code = Number(status);
         return code === 408 || code === 429 || code === 500 || code === 502 || code === 503 || code === 504;
     }
 
-    async function publishRequestWithRetry(payload) {
-        let lastError = null;
-
+    async function publishRequestWithRetry(payload: any) {
+        let lastError: any = null;
         for (let attempt = 0; attempt < PUBLISH_RETRY_MAX_ATTEMPTS; attempt += 1) {
             try {
                 const res = await requestJson('POST', '/api/match/publish', payload);
                 if (!isRetryablePublishStatus(res && res.status) || attempt >= (PUBLISH_RETRY_MAX_ATTEMPTS - 1)) {
                     return res;
                 }
-            } catch (e) {
+            } catch (e: any) {
                 lastError = e;
                 if (attempt >= (PUBLISH_RETRY_MAX_ATTEMPTS - 1)) {
                     throw e;
@@ -2188,7 +2188,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         throw (lastError || new Error('PUBLISH_RETRY_EXHAUSTED'));
     }
 
-    function openStream(options) {
+    function openStream(options: any) {
         const opts = options || {};
         closeStream();
         if (!state.active || !state.roomId) return;
@@ -2209,7 +2209,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         markStreamActivity();
         scheduleStreamWatchdog();
 
-        const onSnapshot = (payload) => {
+        const onSnapshot = (payload: any) => {
             if (!payload || payload.ok !== true) return;
             applyPayloadSessionState(payload);
             const snapshot = payload.snapshot;
@@ -2284,13 +2284,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             pruneTrackedPublishes();
         };
 
-        const handleStreamEvent = createStreamPayloadHandler((payload) => {
+        const handleStreamEvent = createStreamPayloadHandler((payload: any) => {
             completeReconnectRecoveryFromStream();
             onSnapshot(payload);
         });
         const handlePresenceEvent = createStreamPayloadHandler(handlePresencePayload);
         const handleChatEvent = createStreamPayloadHandler(handleChatPayload);
-        const handleHeartbeatEvent = createStreamPayloadHandler((payload) => {
+        const handleHeartbeatEvent = createStreamPayloadHandler((payload: any) => {
             completeReconnectRecoveryFromStream();
             applyPayloadSessionState(payload);
             maybeSyncFromHeartbeat(payload);
@@ -2332,11 +2332,11 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return state.active === true && !!state.roomId;
     }
 
-    function setStatusWriter(writer) {
+    function setStatusWriter(writer: any) {
         state.statusWriter = typeof writer === 'function' ? writer : null;
     }
 
-    function setServerUrl(url) {
+    function setServerUrl(url: any) {
         const normalized = normalizeServerUrl(url);
         state.serverUrl = normalized
             ? withTrailingSlashRemoved(normalized)
@@ -2345,14 +2345,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             if (typeof localStorage !== 'undefined') {
                 localStorage.setItem(SERVER_URL_STORAGE_KEY, state.serverUrl);
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
 
     function getServerUrl() {
         return state.serverUrl;
     }
 
-    function createRoom(options) {
+    function createRoom(options: any) {
         return invokeControllerMethod(
             getNetworkSessionLifecycleController,
             'createRoom',
@@ -2361,7 +2361,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         );
     }
 
-    function joinRoom(roomId, options) {
+    function joinRoom(roomId: any, options: any) {
         return invokeControllerMethod(
             getNetworkSessionLifecycleController,
             'joinRoom',
@@ -2382,12 +2382,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     function getCurrentAppliedGameState() {
         try {
             if (root && root.gameState && typeof root.gameState === 'object') return root.gameState;
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.gameState && typeof globalThis.gameState === 'object') {
-                return globalThis.gameState;
+            if (typeof globalThis !== 'undefined' && (globalThis as any).gameState && typeof (globalThis as any).gameState === 'object') {
+                return (globalThis as any).gameState;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return null;
     }
 
@@ -2398,11 +2398,11 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         try {
             const gameOverFn = (root && typeof root.isGameOver === 'function')
                 ? root.isGameOver
-                : ((typeof globalThis !== 'undefined' && typeof globalThis.isGameOver === 'function') ? globalThis.isGameOver : null);
+                : ((typeof globalThis !== 'undefined' && typeof (globalThis as any).isGameOver === 'function') ? (globalThis as any).isGameOver : null);
             if (typeof gameOverFn === 'function') {
                 return !!gameOverFn(currentGameState);
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
 
         return false;
     }
@@ -2420,7 +2420,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return invokeControllerMethod(getNetworkSnapshotController, 'getCurrentSnapshotForPublish', arguments, null);
     }
 
-    function publishSnapshot(meta) {
+    function publishSnapshot(meta: any) {
         if (!isActive()) return Promise.resolve({ ok: false, reason: 'INACTIVE' });
         if (!state.seatToken) return Promise.resolve({ ok: false, reason: 'SEAT_TOKEN_REQUIRED' });
 
@@ -2456,7 +2456,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             params: commandPayload ? (commandPayload.params || {}) : null,
             playbackEvents: queuedPlaybackEvents,
             usedSnapshotFallback: info.usedSnapshotFallback === true,
-            snapshotProjectedHash: getSnapshotMeta(info && info.snapshot) && getSnapshotMeta(info && info.snapshot).projectedSnapshotHash
+            snapshotProjectedHash: (getSnapshotMeta(info && info.snapshot) || {} as any).projectedSnapshotHash
         });
 
         state.publishChain = state.publishChain
@@ -2603,7 +2603,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 pruneTrackedPublishes();
                 return { ok: true };
             })
-            .catch((error) => {
+            .catch((error: any) => {
                 const message = error && error.message ? error.message : 'PUBLISH_ERROR';
                 settleTrackedPublish(trackedPublish);
                 emitStatus(`ネット対戦: 通信失敗 (${message})`, true);
@@ -2630,10 +2630,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             playbackEvents: []
         });
 
-        let firstResult = null;
+        let firstResult: any = null;
         try {
             firstResult = await makeRequest();
-        } catch (e) {
+        } catch (e: any) {
             return { ok: false, reason: 'REMATCH_REQUEST_FAILED' };
         }
 
@@ -2642,7 +2642,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
         try {
             await syncLatestStateWithRetry({ maxAttempts: 2, baseDelayMs: 250 });
-        } catch (e) {
+        } catch (e: any) {
             // keep rematch flow best-effort; fall through to one retry publish
         }
 
@@ -2652,7 +2652,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
         try {
             return await makeRequest();
-        } catch (e) {
+        } catch (e: any) {
             return { ok: false, reason: 'REMATCH_REQUEST_FAILED' };
         }
     }
@@ -2694,17 +2694,17 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             : null;
     }
 
-    function setRoomStateListener(listener) {
+    function setRoomStateListener(listener: any) {
         state.roomStateListener = (typeof listener === 'function') ? listener : null;
         emitRoomStateChanged();
     }
 
-    function setTurnTimerListener(listener) {
+    function setTurnTimerListener(listener: any) {
         state.turnTimerListener = (typeof listener === 'function') ? listener : null;
         emitTurnTimerChanged();
     }
 
-    function setChatListener(listener) {
+    function setChatListener(listener: any) {
         state.chatListener = (typeof listener === 'function') ? listener : null;
         if (state.chatListener && state.chatHistory.length > 0) {
             emitChatEvent({
@@ -2718,7 +2718,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return CHAT_MAX_LENGTH;
     }
 
-    async function sendChatMessage(text) {
+    async function sendChatMessage(text: any) {
         if (!isActive()) {
             return { ok: false, reason: 'INACTIVE' };
         }
@@ -2772,7 +2772,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         };
     }
 
-    async function updateHandSkin(selectedHandSkinId) {
+    async function updateHandSkin(selectedHandSkinId: any) {
         if (!isActive()) {
             return { ok: false, reason: 'INACTIVE' };
         }

@@ -6,6 +6,7 @@
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
+declare const isDebugLogAvailable: () => boolean;
 
 function _require(id: string): any {
     if (typeof __non_webpack_require__ !== 'undefined') {
@@ -1374,7 +1375,7 @@ function moveHyperactiveOnce(
     const candidates = isExtremeHyperactive
         ? getNeighborEmptyCandidates(cardState, gameState, entry.row, entry.col, { isBlockedCell }, { includeOccupied: true })
         : getNeighborEmptyCandidates(cardState, gameState, entry.row, entry.col, { isBlockedCell });
-    if (typeof console !== 'undefined' && console.log) console.log('[HYPERACTIVE] moveHyperactiveOnce candidates', candidates.length, 'at', { row: entry.row, col: entry.col, owner: entry.owner });
+    if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[HYPERACTIVE] moveHyperactiveOnce candidates', candidates.length, 'at', { row: entry.row, col: entry.col, owner: entry.owner });
 
     if (candidates.length === 0) {
         if (isEscapeHyperactive) {
@@ -1537,7 +1538,7 @@ function moveHyperactiveOnce(
         }
         return { moved, destroyed, flipped, repelled, ownerKey };
     }
-    if (typeof console !== 'undefined' && console.log) console.log('[HYPERACTIVE] selected target', { target, candidatesLen: candidates.length, markerType });
+    if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[HYPERACTIVE] selected target', { target, candidatesLen: candidates.length, markerType });
 
     let flipCells: any[] = [];
     if (!isExtremeHyperactive) {

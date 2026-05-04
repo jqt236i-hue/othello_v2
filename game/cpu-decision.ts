@@ -6155,4 +6155,4 @@ try {
     const uiBootstrap = _require('../shared/ui-bootstrap-shared');
     if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function') uiBootstrap.registerUIGlobals({ computeCpuAction });
 } catch (e) { /* ignore */ }
-try { if (typeof globalThis !== 'undefined') globalThis.computeCpuAction = computeCpuAction; } catch (e) {}
+try { if (typeof globalThis !== 'undefined') globalThis.computeCpuAction = computeCpuAction; } catch (e) { /* Intentionally empty: compat global assignment */ }

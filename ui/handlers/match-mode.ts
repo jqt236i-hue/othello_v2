@@ -1,5 +1,11 @@
-// @ts-nocheck
-import type { CardState, GameState, PlayerKey } from '../../../src/types';
+import type { CardState, GameState, PlayerKey } from '../../src/types';
+
+declare var cardState: any;
+declare var gameState: any;
+declare var emitBoardUpdate: any;
+declare var renderBoard: any;
+declare var renderCardUI: any;
+declare var addLog: any;
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -7,7 +13,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-const root = (typeof window !== 'undefined' ? window : globalThis);
+const root: any = (typeof window !== 'undefined' ? window : globalThis);
 
 const MODE_CPU = 'cpu';
     const MODE_NETWORK = 'network';
@@ -21,10 +27,10 @@ const MODE_CPU = 'cpu';
     let leaderboardRefreshToken = 0;
     let networkStatusBaseText = '';
     let networkStatusBaseIsError = false;
-    let networkTurnTimerInfo = null;
+    let networkTurnTimerInfo: any = null;
     let networkRoomDebugEnabled = false;
 
-    const uiRefs = {
+    const uiRefs: any = {
         modeCpuBtn: null,
         modeNetworkBtn: null,
         controlPanel: null,
@@ -67,12 +73,12 @@ const MODE_CPU = 'cpu';
         layoutSyncRaf: 0
     };
 
-    function normalizeMode(mode) {
+    function normalizeMode(mode: any) {
         if (mode === MODE_NETWORK) return MODE_NETWORK;
         return MODE_CPU;
     }
 
-    function isHumanMode(mode) {
+    function isHumanMode(mode: any) {
         return mode === MODE_NETWORK;
     }
 
@@ -89,7 +95,7 @@ const MODE_CPU = 'cpu';
         return currentMode === MODE_NETWORK;
     }
 
-    function normalizePlayerName(value) {
+    function normalizePlayerName(value: any) {
         const normalized = String(value || '').replace(/\s+/g, ' ').trim();
         return Array.from(normalized).slice(0, PLAYER_NAME_MAX).join('');
     }
@@ -153,7 +159,7 @@ const MODE_CPU = 'cpu';
         };
     }
 
-    function normalizeBoardConfig(boardConfig, fallbackBoardConfig) {
+    function normalizeBoardConfig(boardConfig: any, fallbackBoardConfig?: any) {
         const fallback = (fallbackBoardConfig && typeof fallbackBoardConfig === 'object')
             ? fallbackBoardConfig
             : createDefaultBoardConfig();
@@ -173,7 +179,7 @@ const MODE_CPU = 'cpu';
         };
     }
 
-    function getBoardDimensionBounds(axis) {
+    function getBoardDimensionBounds(axis: any) {
         try {
             if (root.SharedBoardUtils && typeof root.SharedBoardUtils.getBoardDimensionBounds === 'function') {
                 return root.SharedBoardUtils.getBoardDimensionBounds(axis);
@@ -184,7 +190,7 @@ const MODE_CPU = 'cpu';
             : { min: 4, max: 10 };
     }
 
-    function stepBoardDimensionValue(value, direction, fallbackValue, axis) {
+    function stepBoardDimensionValue(value: any, direction: any, fallbackValue: any, axis: any) {
         try {
             if (root.SharedBoardUtils && typeof root.SharedBoardUtils.stepBoardDimensionValue === 'function') {
                 return root.SharedBoardUtils.stepBoardDimensionValue(value, direction, fallbackValue, axis);
@@ -197,13 +203,13 @@ const MODE_CPU = 'cpu';
         return Math.max(bounds.min, Math.min(bounds.max, Math.floor(numeric + step)));
     }
 
-    function readPrimaryWheelDelta(event) {
+    function readPrimaryWheelDelta(event: any) {
         const deltaX = Number(event && event.deltaX) || 0;
         const deltaY = Number(event && event.deltaY) || 0;
         return Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
     }
 
-    function applyBoardDimensionInputBounds(inputRef, axis) {
+    function applyBoardDimensionInputBounds(inputRef: any, axis: any) {
         if (!inputRef) return;
         const bounds = getBoardDimensionBounds(axis);
         inputRef.min = String(bounds.min);
@@ -224,7 +230,7 @@ const MODE_CPU = 'cpu';
         return createDefaultBoardConfig();
     }
 
-    function getRoomBoardConfig(roomState) {
+    function getRoomBoardConfig(roomState: any) {
         let roomBoardConfig = roomState && roomState.roomBoardConfig;
         if (!roomBoardConfig && root.NetworkMatchClient && typeof root.NetworkMatchClient.getRoomBoardConfig === 'function') {
             try {
@@ -237,12 +243,12 @@ const MODE_CPU = 'cpu';
         return normalizeBoardConfig(roomBoardConfig);
     }
 
-    function formatBoardConfigLabel(boardConfig) {
+    function formatBoardConfigLabel(boardConfig: any) {
         const normalizedBoardConfig = normalizeBoardConfig(boardConfig);
         return `${normalizedBoardConfig.rows}x${normalizedBoardConfig.cols}`;
     }
 
-    function hasCustomRoomBoardConfig(boardConfig) {
+    function hasCustomRoomBoardConfig(boardConfig: any) {
         if (!boardConfig || typeof boardConfig !== 'object') return false;
         const rows = Number(boardConfig.rows);
         const cols = Number(boardConfig.cols);
@@ -271,7 +277,7 @@ const MODE_CPU = 'cpu';
         return `${formatPendingRoomDeckText()} / 作成時に送る盤面: ${formatBoardConfigLabel(getPendingRoomBoardConfig())}`;
     }
 
-    function renderNetworkBoardSizeControls(roomState) {
+    function renderNetworkBoardSizeControls(roomState: any) {
         const roomBoardConfig = getRoomBoardConfig(roomState);
         const activeBoardConfig = roomBoardConfig || getPendingRoomBoardConfig();
         const locked = !!roomBoardConfig;
@@ -312,7 +318,7 @@ const MODE_CPU = 'cpu';
         renderNetworkDeckInfo();
     }
 
-    function formatSeatDeckText(seatLabel, deckCode, deckSize) {
+    function formatSeatDeckText(seatLabel: any, deckCode: any, deckSize: any) {
         if (deckCode) {
             const customSize = Number.isFinite(Number(deckSize)) ? Number(deckSize) : 30;
             return `${seatLabel}カスタム ${customSize}枚`;
@@ -323,7 +329,7 @@ const MODE_CPU = 'cpu';
         return `${seatLabel}デフォルトデッキ`;
     }
 
-    function hasCustomRoomDeck(roomDeck) {
+    function hasCustomRoomDeck(roomDeck: any) {
         if (!roomDeck || typeof roomDeck !== 'object') return false;
         if (roomDeck.deckCode) return true;
         const byPlayer = roomDeck.deckCodeByPlayer && typeof roomDeck.deckCodeByPlayer === 'object'
@@ -332,7 +338,7 @@ const MODE_CPU = 'cpu';
         return !!(byPlayer && (byPlayer.black || byPlayer.white));
     }
 
-    function formatRoomDeckText(roomDeck) {
+    function formatRoomDeckText(roomDeck: any) {
         if (!roomDeck || typeof roomDeck !== 'object') {
             return formatPendingRoomDeckText();
         }
@@ -355,7 +361,7 @@ const MODE_CPU = 'cpu';
         return '部屋デッキ: デフォルトデッキ';
     }
 
-    function renderNetworkDeckInfo(roomState) {
+    function renderNetworkDeckInfo(roomState?: any) {
         const el = uiRefs.networkDeckInfo;
         if (!el) return;
 
@@ -407,7 +413,7 @@ const MODE_CPU = 'cpu';
         });
     }
 
-    function updateNetworkDebugEnabledFromRoomState(roomState) {
+    function updateNetworkDebugEnabledFromRoomState(roomState: any) {
         if (!roomState || typeof roomState !== 'object') return;
         if (!Object.prototype.hasOwnProperty.call(roomState, 'networkDebugEnabled')) return;
         networkRoomDebugEnabled = roomState.networkDebugEnabled === true;
@@ -443,7 +449,7 @@ const MODE_CPU = 'cpu';
         } catch (e) { /* ignore */ }
     }
 
-    function setSharedPlayerName(value) {
+    function setSharedPlayerName(value: any) {
         const normalized = normalizePlayerName(value);
         if (!normalized) return '';
 
@@ -489,13 +495,13 @@ const MODE_CPU = 'cpu';
         return setSharedPlayerName(candidate);
     }
 
-    function getShortPlayerId(playerId) {
+    function getShortPlayerId(playerId: any) {
         const raw = String(playerId || '').trim();
         if (!raw) return '';
         return raw.slice(-4).toUpperCase();
     }
 
-    function collectDuplicateLeaderboardNames(entries) {
+    function collectDuplicateLeaderboardNames(entries: any) {
         const counts = new Map();
         const list = Array.isArray(entries) ? entries : [];
 
@@ -570,7 +576,7 @@ const MODE_CPU = 'cpu';
         scheduleControlPanelLayoutSync();
     }
 
-    function writeNetworkStatus(text, isError) {
+    function writeNetworkStatus(text: any, isError: any) {
         networkStatusBaseText = String(text || '');
         networkStatusBaseIsError = !!isError;
         renderNetworkStatus();
@@ -580,7 +586,7 @@ const MODE_CPU = 'cpu';
         return !!(uiRefs.networkOverlay && uiRefs.networkOverlay.classList.contains('is-open'));
     }
 
-    function setNetworkOverlayVisible(visible) {
+    function setNetworkOverlayVisible(visible: any) {
         if (!uiRefs.networkOverlay) return;
         const open = !!visible;
         uiRefs.networkOverlay.classList.toggle('is-open', open);
@@ -603,7 +609,7 @@ const MODE_CPU = 'cpu';
         }
     }
 
-    function writeLeaderboardStatus(text, isError) {
+    function writeLeaderboardStatus(text: any, isError: any) {
         const el = uiRefs.leaderboardStatus;
         if (el) {
             el.textContent = String(text || '');
@@ -615,7 +621,7 @@ const MODE_CPU = 'cpu';
         return !!(uiRefs.leaderboardOverlay && uiRefs.leaderboardOverlay.classList.contains('is-open'));
     }
 
-    function setLeaderboardOverlayVisible(visible) {
+    function setLeaderboardOverlayVisible(visible: any) {
         if (!uiRefs.leaderboardOverlay) return;
         const open = !!visible;
         uiRefs.leaderboardOverlay.classList.toggle('is-open', open);
@@ -634,7 +640,7 @@ const MODE_CPU = 'cpu';
         }
     }
 
-    function formatLeaderboardTime(epochMs) {
+    function formatLeaderboardTime(epochMs: any) {
         if (!Number.isFinite(Number(epochMs)) || Number(epochMs) <= 0) return '';
         try {
             const date = new Date(Number(epochMs));
@@ -652,7 +658,7 @@ const MODE_CPU = 'cpu';
         uiRefs.leaderboardList.innerHTML = '';
     }
 
-    function appendLeaderboardPlaceholder(text) {
+    function appendLeaderboardPlaceholder(text: any) {
         if (!uiRefs.leaderboardList) return;
         const row = document.createElement('div');
         row.className = 'leaderboard-row is-empty';
@@ -660,7 +666,7 @@ const MODE_CPU = 'cpu';
         uiRefs.leaderboardList.appendChild(row);
     }
 
-    function createLeaderboardRow(entry, selfPlayerId, duplicateNames) {
+    function createLeaderboardRow(entry: any, selfPlayerId: any, duplicateNames: any) {
         const row = document.createElement('div');
         row.className = 'leaderboard-row';
 
@@ -697,7 +703,7 @@ const MODE_CPU = 'cpu';
         return row;
     }
 
-    function renderLeaderboardRows(entries) {
+    function renderLeaderboardRows(entries: any) {
         clearLeaderboardRows();
         if (!uiRefs.leaderboardList) return;
 
@@ -722,7 +728,7 @@ const MODE_CPU = 'cpu';
         });
     }
 
-    async function refreshLeaderboardPanel(options) {
+    async function refreshLeaderboardPanel(options: any) {
         const opts = options || {};
         if (!uiRefs.leaderboardPanel || !uiRefs.leaderboardStatus || !uiRefs.leaderboardList) return;
         if (uiRefs.leaderboardOverlay && !isLeaderboardOverlayOpen() && opts.force !== true) return;
@@ -777,7 +783,7 @@ const MODE_CPU = 'cpu';
             });
         }
 
-        uiRefs.leaderboardOverlay.addEventListener('click', (event) => {
+        uiRefs.leaderboardOverlay.addEventListener('click', (event: any) => {
             if (!event) return;
             if (event.target === uiRefs.leaderboardOverlay) {
                 setLeaderboardOverlayVisible(false);
@@ -785,7 +791,7 @@ const MODE_CPU = 'cpu';
         });
 
         if (typeof root.addEventListener === 'function') {
-            root.addEventListener('keydown', (event) => {
+            root.addEventListener('keydown', (event: any) => {
                 if (!event || event.key !== 'Escape') return;
                 if (isLeaderboardOverlayOpen()) {
                     setLeaderboardOverlayVisible(false);
@@ -836,7 +842,7 @@ const MODE_CPU = 'cpu';
             });
             uiRefs.leaderboardNameInput.addEventListener('change', applyName);
             uiRefs.leaderboardNameInput.addEventListener('blur', applyName);
-            uiRefs.leaderboardNameInput.addEventListener('keydown', (event) => {
+            uiRefs.leaderboardNameInput.addEventListener('keydown', (event: any) => {
                 if (!event || event.key !== 'Enter') return;
                 event.preventDefault();
                 applyName();
@@ -868,7 +874,7 @@ const MODE_CPU = 'cpu';
             });
         }
 
-        uiRefs.networkOverlay.addEventListener('click', (event) => {
+        uiRefs.networkOverlay.addEventListener('click', (event: any) => {
             if (!event) return;
             if (event.target === uiRefs.networkOverlay) {
                 setNetworkOverlayVisible(false);
@@ -887,7 +893,7 @@ const MODE_CPU = 'cpu';
         return CHAT_INPUT_FALLBACK_MAX;
     }
 
-    function formatChatInput(value) {
+    function formatChatInput(value: any) {
         const maxLength = getChatMaxLength();
         return Array.from(String(value || '').replace(/[\r\n]+/g, ' ').trim())
             .slice(0, maxLength)
@@ -899,7 +905,7 @@ const MODE_CPU = 'cpu';
         uiRefs.networkChatMessages.innerHTML = '';
     }
 
-    function appendNetworkChatMessage(entry) {
+    function appendNetworkChatMessage(entry: any) {
         if (!uiRefs.networkChatMessages || !entry || !entry.text) return;
         const seatKey = (entry.seatKey === 'white') ? 'white' : 'black';
         const seatLabel = seatKey === 'white' ? '白' : '黒';
@@ -917,13 +923,13 @@ const MODE_CPU = 'cpu';
         uiRefs.networkChatMessages.scrollTop = uiRefs.networkChatMessages.scrollHeight;
     }
 
-    function renderNetworkChatHistory(messages) {
+    function renderNetworkChatHistory(messages: any) {
         clearNetworkChatMessages();
         if (!Array.isArray(messages)) return;
         messages.forEach((entry) => appendNetworkChatMessage(entry));
     }
 
-    function setNetworkChatExpanded(expanded) {
+    function setNetworkChatExpanded(expanded: any) {
         if (!uiRefs.networkChatPanel) return;
         const isOpen = !!expanded;
         uiRefs.networkChatPanel.classList.toggle('is-open', isOpen);
@@ -932,7 +938,7 @@ const MODE_CPU = 'cpu';
         }
     }
 
-    function setNetworkChatVisible(visible) {
+    function setNetworkChatVisible(visible: any) {
         if (!uiRefs.networkChatPanel) return;
         const nextVisible = !!visible;
         const changed = networkChatVisible !== nextVisible;
@@ -1066,7 +1072,7 @@ const MODE_CPU = 'cpu';
         }
     }
 
-    function syncHumanModeFlags(enabled) {
+    function syncHumanModeFlags(enabled: any) {
         try {
             root.DEBUG_HUMAN_VS_HUMAN = !!enabled;
 
@@ -1155,7 +1161,7 @@ const MODE_CPU = 'cpu';
         } catch (e) { /* ignore */ }
     }
 
-    async function setMode(mode, options) {
+    async function setMode(mode: any, options?: any) {
         const opts = options || {};
         const nextMode = normalizeMode(mode);
         const prevMode = currentMode;
@@ -1211,7 +1217,7 @@ const MODE_CPU = 'cpu';
     }
 
     function bindNetworkButtons() {
-        const formatRoomIdInput = (value) => {
+        const formatRoomIdInput = (value: any) => {
             return String(value || '')
                 .trim()
                 .toUpperCase()
@@ -1219,7 +1225,7 @@ const MODE_CPU = 'cpu';
                 .slice(0, 3);
         };
 
-        const copyTextToClipboard = async (value) => {
+        const copyTextToClipboard = async (value: any) => {
             const text = String(value || '');
             if (!text) return false;
 
@@ -1276,13 +1282,13 @@ const MODE_CPU = 'cpu';
         };
 
         if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setStatusWriter === 'function') {
-            root.NetworkMatchClient.setStatusWriter((text, isError) => {
+            root.NetworkMatchClient.setStatusWriter((text: any, isError: any) => {
                 writeNetworkStatus(text, isError);
             });
         }
 
         if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setRoomStateListener === 'function') {
-            root.NetworkMatchClient.setRoomStateListener((roomState) => {
+            root.NetworkMatchClient.setRoomStateListener((roomState: any) => {
                 updateNetworkDebugEnabledFromRoomState(roomState);
                 applyNetworkDebugModeAccess();
                 refreshNetworkChatVisibility();
@@ -1296,14 +1302,14 @@ const MODE_CPU = 'cpu';
         }
 
         if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setTurnTimerListener === 'function') {
-            root.NetworkMatchClient.setTurnTimerListener((timerInfo) => {
+            root.NetworkMatchClient.setTurnTimerListener((timerInfo: any) => {
                 networkTurnTimerInfo = (timerInfo && typeof timerInfo === 'object') ? timerInfo : null;
                 renderNetworkStatus();
             });
         }
 
         if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setChatListener === 'function') {
-            root.NetworkMatchClient.setChatListener((payload) => {
+            root.NetworkMatchClient.setChatListener((payload: any) => {
                 if (!payload || typeof payload !== 'object') return;
                 if (payload.type === 'history') {
                     renderNetworkChatHistory(payload.messages || []);
@@ -1331,7 +1337,7 @@ const MODE_CPU = 'cpu';
             uiRefs.networkChatInput.addEventListener('change', () => {
                 uiRefs.networkChatInput.value = formatChatInput(uiRefs.networkChatInput.value);
             });
-            uiRefs.networkChatInput.addEventListener('keydown', (event) => {
+            uiRefs.networkChatInput.addEventListener('keydown', (event: any) => {
                 if (event && event.key === 'Enter') {
                     event.preventDefault();
                     sendChatMessage();
@@ -1386,7 +1392,7 @@ const MODE_CPU = 'cpu';
             });
         }
 
-        const bindNetworkBoardSizeInput = (inputRef, axis) => {
+        const bindNetworkBoardSizeInput = (inputRef: any, axis: any) => {
             if (!inputRef || inputRef.dataset.networkBoardSizeBound === '1') return;
             const onBoardSizeInput = () => {
                 if (inputRef.disabled) return;
@@ -1394,7 +1400,7 @@ const MODE_CPU = 'cpu';
             };
             inputRef.addEventListener('input', onBoardSizeInput);
             inputRef.addEventListener('change', onBoardSizeInput);
-            inputRef.addEventListener('wheel', (event) => {
+            inputRef.addEventListener('wheel', (event: any) => {
                 if (inputRef.disabled) return;
                 const primaryDelta = readPrimaryWheelDelta(event);
                 if (!primaryDelta) return;
@@ -1525,7 +1531,7 @@ const MODE_CPU = 'cpu';
         applyNetworkDebugModeAccess();
     }
 
-    function setupMatchModeControls(options) {
+    function setupMatchModeControls(options: any) {
         const opts = options || {};
         uiRefs.modeCpuBtn = opts.modeCpuBtn || null;
         uiRefs.modeNetworkBtn = opts.modeNetworkBtn || null;

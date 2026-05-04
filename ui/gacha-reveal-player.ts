@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use strict';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
@@ -195,7 +194,7 @@ function createGachaRevealPlayer(options?: any): any {
       createAudio: opts.createAudio
     })
     : null;
-  const state = {
+  const state: { skipRequested: boolean; dismissRequested: boolean; phase: string; isActive: boolean } = {
     skipRequested: false,
     dismissRequested: false,
     phase: 'idle',
@@ -286,7 +285,7 @@ function createGachaRevealPlayer(options?: any): any {
     await nextFrame(rootRef);
     await waitForStep(state, Math.max(0, timings.introMs - (Date.now() - revealStartedAt)));
 
-    if (state.skipRequested !== true) {
+    if ((state as any).skipRequested !== true) {
       refs.headline.textContent = '観測が収束しました';
       refs.subtitle.textContent = isTenPull
         ? 'もっとも強い反応を観測しました'
@@ -296,13 +295,13 @@ function createGachaRevealPlayer(options?: any): any {
       await waitForStep(state, timings.heroMs);
     }
 
-    if (state.skipRequested !== true && isTenPull) {
+    if ((state as any).skipRequested !== true && isTenPull) {
       refs.stage.classList.add('is-grid-visible');
       await waitForStep(state, timings.gridMs);
     }
 
-    const finishedWith = state.skipRequested === true ? 'skipped' : 'animated';
-    if (state.skipRequested !== true) {
+    const finishedWith = (state as any).skipRequested === true ? 'skipped' : 'animated';
+    if ((state as any).skipRequested !== true) {
       state.phase = 'waiting-dismiss';
       refs.stage.classList.add('is-awaiting-dismiss');
       refs.skipBtn.textContent = '一覧へ';
@@ -310,7 +309,7 @@ function createGachaRevealPlayer(options?: any): any {
       await waitForDismiss(state);
     }
 
-    if (state.skipRequested === true) {
+    if ((state as any).skipRequested === true) {
       refs.stage.classList.add('is-finishing');
       await waitForStep(state, timings.finishMs);
     }
@@ -361,3 +360,6 @@ const GachaRevealPlayerModule = {
 };
 
 export = GachaRevealPlayerModule;
+
+
+

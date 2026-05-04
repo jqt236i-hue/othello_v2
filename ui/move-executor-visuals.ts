@@ -1,10 +1,3 @@
-// @ts-nocheck
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
-
 import type { CardState, GameState, PlayerKey } from '../src/types';
 
 'use strict';
@@ -51,7 +44,7 @@ let _isNoAnim = (typeof AnimationShared !== 'undefined' && AnimationShared && An
     if (typeof window !== 'undefined' && (window as any).DISABLE_ANIMATIONS === true) return true;
     if (typeof location !== 'undefined' && /[?&]noanim=1/.test(location.search)) return true;
     if (typeof process !== 'undefined' && (process.env.NOANIM === '1' || process.env.NOANIM === 'true' || process.env.DISABLE_ANIMATIONS === '1')) return true;
-  } catch (e) { }
+  } catch (e) { /* Intentionally empty: env feature check failure is non-critical */ }
   return false;
 };
 
@@ -68,7 +61,7 @@ function applyFlipAnimations(flipsToAnimate: any[]): void {
           (disc as HTMLElement).classList.remove('flip');
         }
         void (disc as HTMLElement).offsetWidth;
-        console.log(`Suppressed flip animation for (${r},${c})`);
+        if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log(`Suppressed flip animation for (${r},${c})`);
       }
     });
   });
@@ -262,7 +255,7 @@ async function animateFlipsWithDeferredColor(flips: any[], fromColor: number, to
           (disc as HTMLElement).classList.remove('flip');
         }
         void (disc as HTMLElement).offsetWidth;
-        console.log(`Deferred flip suppressed for (${r},${c}) with color-after option`);
+        if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log(`Deferred flip suppressed for (${r},${c}) with color-after option`);
       }
       setTimeout(resolve, delay);
     }));
@@ -295,7 +288,7 @@ async function animateFlipsWithDeferredColor(flips: any[], fromColor: number, to
           (disc as HTMLElement).classList.remove('flip');
         }
         void (disc as HTMLElement).offsetWidth;
-        console.log(`Deferred flip suppressed for (${r},${c})`);
+        if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log(`Deferred flip suppressed for (${r},${c})`);
       }
       setTimeout(resolve, delay);
     }));
@@ -453,7 +446,7 @@ async function runMoveVisualSequence(move: any, hadSelection: boolean, phases: a
 
     try {
       if (effects && effects.workPlaced) {
-        console.log('[Visuals] workPlaced detected — syncing visuals for placed cell', move.row, move.col);
+        if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[Visuals] workPlaced detected — syncing visuals for placed cell', move.row, move.col);
         syncDiscVisualToCurrentState(move.row, move.col);
         if (typeof (ensureWorkVisualsApplied as any) === 'function') (ensureWorkVisualsApplied as any)();
       }
@@ -465,10 +458,10 @@ async function runMoveVisualSequence(move: any, hadSelection: boolean, phases: a
           immediate.hyperactiveMoved.length > 0
         );
         if (hasImmediateHyperactiveMove) {
-          console.log('[Visuals] hyperactivePlaced with immediate move detected — syncing placed cell before movement', move.row, move.col);
+          if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[Visuals] hyperactivePlaced with immediate move detected — syncing placed cell before movement', move.row, move.col);
           syncDiscVisualToCurrentState(move.row, move.col);
         } else {
-          console.log('[Visuals] hyperactivePlaced detected — relying on diff-renderer visuals');
+          if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[Visuals] hyperactivePlaced detected — relying on diff-renderer visuals');
         }
       }
     } catch (e) {
@@ -511,7 +504,7 @@ async function runMoveVisualSequence(move: any, hadSelection: boolean, phases: a
             disc.className = 'disc ' + (player === BLACK ? 'black' : 'white');
             cell.appendChild(disc);
           } else {
-            try { (disc as HTMLElement).style.opacity = ''; } catch (e) { }
+            try { (disc as HTMLElement).style.opacity = ''; } catch (e) { /* Intentionally empty: DOM style cleanup guard */ }
           }
 
           await new Promise(resolve => setTimeout(resolve, BREEDING_FADE_MS));

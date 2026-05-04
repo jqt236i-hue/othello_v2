@@ -1742,8 +1742,8 @@ try {
 // @compat - Legacy entry points; expose to globalThis for immediate fallback in browser contexts
 try {
     if (typeof globalThis !== 'undefined') {
-        try { globalThis.processCpuTurn = processCpuTurn; } catch (e) {} // @compat
-        try { globalThis.processAutoBlackTurn = processAutoBlackTurn; } catch (e) {} // @compat
-        try { globalThis.GamePresentationRuntime = presentationRuntime; } catch (e) {} // @compat
+        try { globalThis.processCpuTurn = processCpuTurn; } catch (e) { /* Intentionally empty: compat global assignment */ } // @compat
+        try { globalThis.processAutoBlackTurn = processAutoBlackTurn; } catch (e) { /* Intentionally empty: compat global assignment */ } // @compat
+        try { globalThis.GamePresentationRuntime = presentationRuntime; } catch (e) { /* Intentionally empty: compat global assignment */ } // @compat
     }
 } catch (e) { /* ignore */ }

@@ -1,11 +1,29 @@
-// @ts-nocheck
-import type { CardState, GameState, PlayerKey } from '../../src/types';
+import type { CardState, GameState, PlayerKey } from '../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+
+declare const gameState: any;
+declare const cardState: any;
+declare const boardEl: any;
+declare const getPlayerKey: (...args: any[]) => any;
+declare const CardLogic: any;
+declare const getLegalMoves: (...args: any[]) => any;
+declare const renderBoardDiff: (...args: any[]) => any;
+declare const BLACK: number;
+declare const WHITE: number;
+declare const EMPTY: number;
+declare const MarkersAdapter: any;
+declare const applyStoneVisualEffect: (...args: any[]) => any;
+declare const applyTrapStoneFallbackVisual: (...args: any[]) => any;
+declare const getEffectKeyForSpecialType: (...args: any[]) => any;
+declare const SPECIAL_TYPE_TO_EFFECT_KEY: any;
+declare const attachBoardCellInteraction: (...args: any[]) => any;
+declare const handleCellClick: (...args: any[]) => any;
+declare const countDiscs: (...args: any[]) => any;
 
 /**
  * @file board-renderer.js
@@ -19,19 +37,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
  * 
  * Note: Requires diff-renderer.js to be loaded first
  */
-var OwnerHelpersModule = null;
+var OwnerHelpersModule: any = null;
 if (typeof require === 'function') {
-    try { OwnerHelpersModule = require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
+    try { OwnerHelpersModule = require('../utils/owner-helpers'); } catch (e: any) { /* ignore */ }
 }
 if (!OwnerHelpersModule) {
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) OwnerHelpersModule = globalThis.OwnerHelpers;
-    } catch (e) { /* ignore */ }
+        if (typeof globalThis !== 'undefined' && (globalThis as any).OwnerHelpers) OwnerHelpersModule = (globalThis as any).OwnerHelpers;
+    } catch (e: any) { /* ignore */ }
 }
 
-var BoardRendererSoundEngineAccessModule = null;
+var BoardRendererSoundEngineAccessModule: any = null;
 if (typeof require === 'function') {
-    try { BoardRendererSoundEngineAccessModule = require('./sound-engine-access'); } catch (e) { /* ignore */ }
+    try { BoardRendererSoundEngineAccessModule = require('./sound-engine-access'); } catch (e: any) { /* ignore */ }
 }
 
 function _getBoardShapeForBoardRenderer() {
@@ -51,9 +69,9 @@ function _getBoardShapeForBoardRenderer() {
     return { rows, cols };
 }
 
-let boardPixelSizingObserver = null;
-let boardPixelSizingObservedFrame = null;
-let boardPixelSizingObservedElement = null;
+let boardPixelSizingObserver: any = null;
+let boardPixelSizingObservedFrame: any = null;
+let boardPixelSizingObservedElement: any = null;
 let boardPixelSizingWindowHandlerInstalled = false;
 let timeStopBgmPausedByBoardRenderer = false;
 const STANDARD_BOARD_BASELINE_ROWS = 8;
@@ -67,13 +85,13 @@ function _resolveSoundEngineAccessForBoardRenderer() {
             BoardRendererSoundEngineAccessModule = window.SoundEngineAccessModule;
             return BoardRendererSoundEngineAccessModule;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.SoundEngineAccessModule) {
-            BoardRendererSoundEngineAccessModule = globalThis.SoundEngineAccessModule;
+        if (typeof globalThis !== 'undefined' && (globalThis as any).SoundEngineAccessModule) {
+            BoardRendererSoundEngineAccessModule = (globalThis as any).SoundEngineAccessModule;
             return BoardRendererSoundEngineAccessModule;
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
@@ -84,17 +102,17 @@ function _resolveSoundEngineForBoardRenderer() {
     }
     try {
         if (typeof SoundEngine !== 'undefined' && SoundEngine) return SoundEngine;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         if (typeof window !== 'undefined' && window.SoundEngine) return window.SoundEngine;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.SoundEngine) return globalThis.SoundEngine;
-    } catch (e) { /* ignore */ }
+        if (typeof globalThis !== 'undefined' && (globalThis as any).SoundEngine) return (globalThis as any).SoundEngine;
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
-function _isBgmPlayingForBoardRenderer(engine) {
+function _isBgmPlayingForBoardRenderer(engine: any) {
     const accessModule = _resolveSoundEngineAccessForBoardRenderer();
     if (accessModule && typeof accessModule.isBgmPlaying === 'function') {
         return accessModule.isBgmPlaying(engine);
@@ -102,13 +120,13 @@ function _isBgmPlayingForBoardRenderer(engine) {
     return !!(engine && engine.allowBgmPlay === true && engine.bgm && engine.bgm.paused !== true);
 }
 
-function _isBoardShapeOversizeForPixelSizing(shape) {
+function _isBoardShapeOversizeForPixelSizing(shape: any) {
     const rows = shape && Number.isFinite(shape.rows) ? shape.rows : STANDARD_BOARD_BASELINE_ROWS;
     const cols = shape && Number.isFinite(shape.cols) ? shape.cols : STANDARD_BOARD_BASELINE_COLS;
     return rows > STANDARD_BOARD_BASELINE_ROWS || cols > STANDARD_BOARD_BASELINE_COLS;
 }
 
-function _normalizeBoardShapeForPixelSizing(shapeOrState) {
+function _normalizeBoardShapeForPixelSizing(shapeOrState: any) {
     const rows = Number(shapeOrState && shapeOrState.rows);
     const cols = Number(shapeOrState && shapeOrState.cols);
     if (Number.isFinite(rows) && Number.isFinite(cols)) {
@@ -120,7 +138,7 @@ function _normalizeBoardShapeForPixelSizing(shapeOrState) {
     return _getBoardShapeForBoardRenderer();
 }
 
-function _clearBoardPixelSizingVars(boardElement) {
+function _clearBoardPixelSizingVars(boardElement: any) {
     if (boardElement && boardElement.style) {
         boardElement.style.removeProperty('width');
         boardElement.style.removeProperty('height');
@@ -136,7 +154,7 @@ function _clearBoardPixelSizingVars(boardElement) {
     _setBoardOversizeLayoutState(frameElement, false);
 }
 
-function _getBoardFrameElementForPixelSizing(boardElement) {
+function _getBoardFrameElementForPixelSizing(boardElement: any) {
     if (!boardElement) return null;
     if (typeof boardElement.closest === 'function') {
         const closestFrame = boardElement.closest('#board-frame');
@@ -148,13 +166,13 @@ function _getBoardFrameElementForPixelSizing(boardElement) {
     return null;
 }
 
-function _clearBoardFramePixelSizingVars(frameElement) {
+function _clearBoardFramePixelSizingVars(frameElement: any) {
     if (!frameElement || !frameElement.style) return;
     frameElement.style.removeProperty('--board-frame-outer-width');
     frameElement.style.removeProperty('--board-frame-outer-height');
 }
 
-function _getBoardLayoutContainerForPixelSizing(frameElement) {
+function _getBoardLayoutContainerForPixelSizing(frameElement: any) {
     if (frameElement && typeof frameElement.closest === 'function') {
         const closestContainer = frameElement.closest('#game-container');
         if (closestContainer) return closestContainer;
@@ -165,7 +183,7 @@ function _getBoardLayoutContainerForPixelSizing(frameElement) {
     return null;
 }
 
-function _setBoardOversizeLayoutState(frameElement, active) {
+function _setBoardOversizeLayoutState(frameElement: any, active: any) {
     const oversizeActive = !!active;
     if (typeof document !== 'undefined' && document && document.body && document.body.classList) {
         document.body.classList.toggle('board-oversize-active', oversizeActive);
@@ -176,7 +194,7 @@ function _setBoardOversizeLayoutState(frameElement, active) {
     }
 }
 
-function _measureBoardFrameBaseOuterSize(frameElement) {
+function _measureBoardFrameBaseOuterSize(frameElement: any) {
     if (!frameElement || typeof document === 'undefined' || !document || typeof document.createElement !== 'function') {
         return null;
     }
@@ -194,7 +212,7 @@ function _measureBoardFrameBaseOuterSize(frameElement) {
     probe.style.margin = '0';
     probe.style.border = '0';
     frameElement.appendChild(probe);
-    let rect = null;
+    let rect: any = null;
     if (typeof probe.getBoundingClientRect === 'function') {
         rect = probe.getBoundingClientRect();
     }
@@ -203,7 +221,7 @@ function _measureBoardFrameBaseOuterSize(frameElement) {
     return { width: rect.width, height: rect.height };
 }
 
-function _getContentRectSizeForPixelSizing(element) {
+function _getContentRectSizeForPixelSizing(element: any) {
     if (!element || typeof window === 'undefined' || typeof window.getComputedStyle !== 'function' || typeof element.getBoundingClientRect !== 'function') {
         return null;
     }
@@ -217,7 +235,7 @@ function _getContentRectSizeForPixelSizing(element) {
     return { width, height };
 }
 
-function _getBoardBoxMetricsForPixelSizing(boardElement) {
+function _getBoardBoxMetricsForPixelSizing(boardElement: any) {
     if (!boardElement || typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') {
         return { borderX: 0, borderY: 0, boxSizing: '' };
     }
@@ -231,7 +249,7 @@ function _getBoardBoxMetricsForPixelSizing(boardElement) {
     };
 }
 
-function _getBoardFrameMetricsForPixelSizing(boardElement) {
+function _getBoardFrameMetricsForPixelSizing(boardElement: any) {
     const frameElement = _getBoardFrameElementForPixelSizing(boardElement);
     if (frameElement && typeof window !== 'undefined' && typeof window.getComputedStyle === 'function' && typeof frameElement.getBoundingClientRect === 'function') {
         const frameStyle = window.getComputedStyle(frameElement);
@@ -264,7 +282,7 @@ function _getBoardFrameMetricsForPixelSizing(boardElement) {
     return null;
 }
 
-function _getBoardBaseSizeForPixelSizing(boardElement) {
+function _getBoardBaseSizeForPixelSizing(boardElement: any) {
     const frameMetrics = _getBoardFrameMetricsForPixelSizing(boardElement);
     if (frameMetrics) {
         return {
@@ -287,7 +305,7 @@ function _getBoardBaseSizeForPixelSizing(boardElement) {
     };
 }
 
-function _applyBoardFramePixelSizing(frameMetrics, outerWidth, outerHeight, shape) {
+function _applyBoardFramePixelSizing(frameMetrics: any, outerWidth: any, outerHeight: any, shape: any) {
     if (!frameMetrics || !frameMetrics.frameElement || !frameMetrics.frameElement.style) return;
     const frameWidth = Math.max(frameMetrics.baseOuterWidth, outerWidth + frameMetrics.paddingX);
     const frameHeight = Math.max(frameMetrics.baseOuterHeight, outerHeight + frameMetrics.paddingY);
@@ -314,7 +332,7 @@ function _handleBoardPixelSizingViewportChange() {
     syncBoardPixelSizing(boardPixelSizingObservedElement);
 }
 
-function _ensureBoardPixelSizingObserver(boardElement) {
+function _ensureBoardPixelSizingObserver(boardElement: any) {
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function' && !boardPixelSizingWindowHandlerInstalled) {
         window.addEventListener('resize', _handleBoardPixelSizingViewportChange, { passive: true });
         boardPixelSizingWindowHandlerInstalled = true;
@@ -328,19 +346,19 @@ function _ensureBoardPixelSizingObserver(boardElement) {
     if (boardPixelSizingObserver && typeof boardPixelSizingObserver.disconnect === 'function') {
         try {
             boardPixelSizingObserver.disconnect();
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
 
     boardPixelSizingObservedFrame = frameElement;
     try {
         boardPixelSizingObserver = new ResizeObserver(_handleBoardPixelSizingViewportChange);
         boardPixelSizingObserver.observe(frameElement);
-    } catch (e) {
+    } catch (e: any) {
         boardPixelSizingObserver = null;
     }
 }
 
-function syncBoardPixelSizing(boardElement, shapeInput) {
+function syncBoardPixelSizing(boardElement: any, shapeInput?: any) {
     const shape = _normalizeBoardShapeForPixelSizing(shapeInput);
     if (!boardElement || !boardElement.style) return shape;
 
@@ -388,7 +406,7 @@ function syncBoardPixelSizing(boardElement, shapeInput) {
     return shape;
 }
 
-function _applyBoardCssVarsForBoardRenderer(boardElement) {
+function _applyBoardCssVarsForBoardRenderer(boardElement: any) {
     const shape = _getBoardShapeForBoardRenderer();
     if (boardElement && boardElement.style) {
         boardElement.style.setProperty('--board-rows', String(shape.rows));
@@ -398,14 +416,14 @@ function _applyBoardCssVarsForBoardRenderer(boardElement) {
     return shape;
 }
 
-var PlaybackStateModule = null;
+var PlaybackStateModule: any = null;
 if (typeof require === 'function') {
-    try { PlaybackStateModule = require('./playback-state-manager'); } catch (e) { /* ignore */ }
+    try { PlaybackStateModule = require('./playback-state-manager'); } catch (e: any) { /* ignore */ }
 }
 if (!PlaybackStateModule) {
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) PlaybackStateModule = globalThis.PlaybackStateManager;
-    } catch (e) { /* ignore */ }
+        if (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackStateManager) PlaybackStateModule = (globalThis as any).PlaybackStateManager;
+    } catch (e: any) { /* ignore */ }
 }
 
 function _isVisualPlaybackActiveForBoardRenderer() {
@@ -418,10 +436,10 @@ function _isVisualPlaybackActiveForBoardRenderer() {
 function _getCardStateForBoardRendererPlayback() {
     try {
         if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         if (typeof window !== 'undefined' && window.cardState && typeof window.cardState === 'object') return window.cardState;
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return null;
 }
 
@@ -429,7 +447,7 @@ function _hasPendingPlaybackEventsForBoardRenderer() {
     if (PlaybackStateModule && typeof PlaybackStateModule.hasPendingVisualPlayback === 'function') {
         try {
             return PlaybackStateModule.hasPendingVisualPlayback(_getCardStateForBoardRendererPlayback()) === true;
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     return false;
 }
@@ -440,7 +458,7 @@ function _shouldSkipBoardRenderForPlayback() {
             return PlaybackStateModule.shouldDeferBoardUpdate({
                 cardState: _getCardStateForBoardRendererPlayback()
             }) === true;
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
     }
     return _isVisualPlaybackActiveForBoardRenderer() || _hasPendingPlaybackEventsForBoardRenderer();
 }
@@ -455,7 +473,7 @@ function _isTimeStopActiveForBoardRenderer() {
         const blackRemaining = Number(remainingByPlayer.black);
         const whiteRemaining = Number(remainingByPlayer.white);
         return (Number.isFinite(blackRemaining) && blackRemaining > 0) || (Number.isFinite(whiteRemaining) && whiteRemaining > 0);
-    } catch (e) {
+    } catch (e: any) {
         return false;
     }
 }
@@ -468,11 +486,11 @@ function _syncTimeStopClassForBoardRenderer() {
         if (active) {
             if (_isBgmPlayingForBoardRenderer(soundEngine)) {
                 timeStopBgmPausedByBoardRenderer = true;
-                try { soundEngine.pauseBgm(); } catch (e) { timeStopBgmPausedByBoardRenderer = false; }
+                try { soundEngine.pauseBgm(); } catch (e: any) { timeStopBgmPausedByBoardRenderer = false; }
             }
         } else if (timeStopBgmPausedByBoardRenderer) {
             timeStopBgmPausedByBoardRenderer = false;
-            try { soundEngine.playBgm(); } catch (e) { /* ignore */ }
+            try { soundEngine.playBgm(); } catch (e: any) { /* ignore */ }
         }
     } else if (!active) {
         timeStopBgmPausedByBoardRenderer = false;
@@ -484,12 +502,12 @@ function _syncTimeStopClassForBoardRenderer() {
         if (document.body && document.body.classList) {
             document.body.classList.toggle('time-stop-active', active);
         }
-    } catch (e) {
+    } catch (e: any) {
         // UI only
     }
 }
 
-function applyTimeStopLegalEmphasis(cell, active) {
+function applyTimeStopLegalEmphasis(cell: any, active: any) {
     if (!cell || !cell.classList) return;
     const shouldEmphasize = !!active && (
         cell.classList.contains('legal') ||
@@ -499,7 +517,7 @@ function applyTimeStopLegalEmphasis(cell, active) {
     cell.classList.toggle('time-stop-legal-emphasis', shouldEmphasize);
 }
 
-function _addPendingSelectedTargetHighlightKey(out, target) {
+function _addPendingSelectedTargetHighlightKey(out: any, target: any) {
     if (!out || !target) return;
     const row = Number(target.row);
     const col = Number(target.col);
@@ -507,7 +525,7 @@ function _addPendingSelectedTargetHighlightKey(out, target) {
     out.add(`${row},${col}`);
 }
 
-function collectPendingSelectedTargetHighlightKeys(pending) {
+function collectPendingSelectedTargetHighlightKeys(pending: any) {
     const out = new Set();
     if (!pending || pending.stage !== 'selectTarget') return out;
 
@@ -553,7 +571,7 @@ function renderBoard() {
             selectableTargets.length > 0
         );
         if (boardEl) boardEl.classList.toggle('selection-mode', isSelectingTarget);
-    } catch (e) {
+    } catch (e: any) {
         // UI only
     }
     syncBoardPixelSizing(boardEl);
@@ -574,13 +592,13 @@ function renderBoard() {
  * フォールバック：全セル再描画
  * Fallback: Full board re-render (legacy method)
  */
-function _isBoardHiddenTrapForBoardRenderer(marker) {
+function _isBoardHiddenTrapForBoardRenderer(marker: any) {
     if (!marker || !marker.data || marker.data.type !== 'TRAP') return false;
     // Hidden traps stay visually normal for both seats until reveal timing events.
     return true;
 }
 
-function _isFlipEvadeSpecialTypeForBoard(type) {
+function _isFlipEvadeSpecialTypeForBoard(type: any) {
     const typeUpper = String(type || '').toUpperCase();
     return (
         typeUpper === 'HYPERACTIVE' ||
@@ -592,12 +610,12 @@ function _isFlipEvadeSpecialTypeForBoard(type) {
     );
 }
 
-function _isDestroyEvadeSpecialTypeForBoard(type) {
+function _isDestroyEvadeSpecialTypeForBoard(type: any) {
     const typeUpper = String(type || '').toUpperCase();
     return typeUpper === 'WILL_HUNTER_KING' || typeUpper === 'ULTIMATE_HYPERACTIVE' || typeUpper === 'EXTREME_HYPERACTIVE' || typeUpper === 'AFTERIMAGE_WILL';
 }
 
-function _resolveDestroyEvadeDisplayForBoard(special, inherited) {
+function _resolveDestroyEvadeDisplayForBoard(special: any, inherited: any) {
     const specialTypeUpper = String(special && special.type ? special.type : '').toUpperCase();
     const specialSupportsDestroyEvade = _isDestroyEvadeSpecialTypeForBoard(specialTypeUpper);
     const specialEvade = (special && specialSupportsDestroyEvade && Number.isFinite(Number(special.destroyEvadeRemaining)))
@@ -618,7 +636,7 @@ function _resolveDestroyEvadeDisplayForBoard(special, inherited) {
     };
 }
 
-function _resolveStrongWillDisplayTurnsForBoard(data) {
+function _resolveStrongWillDisplayTurnsForBoard(data: any) {
     if (String(data && data.type ? data.type : '').toUpperCase() !== 'PERMA_PROTECTED') return undefined;
     const rawThreshold = Number(data && data.strongWillPromotionThreshold);
     const threshold = Number.isFinite(rawThreshold) ? Math.max(1, Math.trunc(rawThreshold)) : 10;
@@ -627,7 +645,7 @@ function _resolveStrongWillDisplayTurnsForBoard(data) {
     return Math.max(0, threshold - progress);
 }
 
-function _resolveSpecialDisplayTurnsForBoard(data) {
+function _resolveSpecialDisplayTurnsForBoard(data: any) {
     const primary = Number(data && data.remainingOwnerTurns);
     if (Number.isFinite(primary)) return Math.max(0, Math.trunc(primary));
     const strongWillRemaining = _resolveStrongWillDisplayTurnsForBoard(data);
@@ -639,7 +657,7 @@ function _resolveSpecialDisplayTurnsForBoard(data) {
     return undefined;
 }
 
-function _isBombCategoryMarkerForBoard(marker) {
+function _isBombCategoryMarkerForBoard(marker: any) {
     if (!marker || typeof marker !== 'object') return false;
     if (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
         return MarkersAdapter.isBombCategoryMarker(marker);
@@ -650,7 +668,7 @@ function _isBombCategoryMarkerForBoard(marker) {
     return marker.kind === 'bomb' || category === 'bomb' || type === 'TIME_BOMB';
 }
 
-function _applyDoubleDigitTimerClassForBoard(timerElement, rawValue) {
+function _applyDoubleDigitTimerClassForBoard(timerElement: any, rawValue: any) {
     if (!timerElement) return;
     const numericValue = Number(rawValue);
     if (!Number.isFinite(numericValue)) return;
@@ -664,7 +682,7 @@ function _resolveNetworkLocalPlayerKeyForBoard() {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveLocalPlayerKey === 'function') {
             return OwnerHelpersModule.resolveLocalPlayerKey(typeof window !== 'undefined' ? window : null);
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     try {
         if (typeof window !== 'undefined') {
             if (window.NetworkMatchClient && typeof window.NetworkMatchClient.getSeatKey === 'function') {
@@ -676,7 +694,7 @@ function _resolveNetworkLocalPlayerKeyForBoard() {
                 if (key === 'white' || key === 'black') return key;
             }
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     return 'black';
 }
 
@@ -686,15 +704,15 @@ function _canLocalPlayerControlCurrentTurnForBoard() {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function') {
             isNetworkMode = OwnerHelpersModule.isNetworkMode(typeof window !== 'undefined' ? window : null);
         } else {
-            let matchMode = null;
+            let matchMode: any = null;
             try {
                 matchMode = (typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function')
                     ? window.getCurrentMatchMode()
                     : (typeof window !== 'undefined' ? window.MATCH_MODE : null);
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
             isNetworkMode = matchMode === 'network';
         }
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
     const currentPlayerKey = gameState.currentPlayer === WHITE ? 'white' : 'black';
     const isHvH = !!(typeof window !== 'undefined' && window.DEBUG_HUMAN_VS_HUMAN === true);
     // FATE_WILL: if another player controls this turn, only the controller can operate.
@@ -746,7 +764,7 @@ function renderBoardFull() {
     );
     if (boardEl) boardEl.classList.toggle('selection-mode', isSelectingTarget);
     const boardShape = _applyBoardCssVarsForBoardRenderer(boardEl);
-    const selectableTargetSet = new Set(selectableTargets.map(p => p.row + ',' + p.col));
+    const selectableTargetSet = new Set(selectableTargets.map((p: any) => p.row + ',' + p.col));
     const isNetworkMode = !!(OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function'
         ? OwnerHelpersModule.isNetworkMode(typeof window !== 'undefined' ? window : null)
         : ((typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function')
@@ -767,7 +785,7 @@ function renderBoardFull() {
     let normalLegalSet = new Set();
     if (showLegalHints) {
         const legalMoves = getLegalMoves(gameState, context.protectedStones, context.permaProtectedStones);
-        normalLegalSet = new Set(legalMoves.map(m => `${m.row},${m.col}`));
+        normalLegalSet = new Set(legalMoves.map((m: any) => `${m.row},${m.col}`));
     }
 
     const tabooLegalSet = new Set();
@@ -866,7 +884,7 @@ function renderBoardFull() {
         const sproutByOwner = (cardState && cardState.breedingSproutByOwner && typeof cardState.breedingSproutByOwner === 'object')
             ? cardState.breedingSproutByOwner
             : { black: [], white: [] };
-        const addSprout = (ownerKey, positions) => {
+        const addSprout = (ownerKey: any, positions: any) => {
             const ownerVal = ownerKey === 'black' ? BLACK : WHITE;
             if (!Array.isArray(positions)) return;
             for (const p of positions) {
@@ -878,26 +896,26 @@ function renderBoardFull() {
         };
         addSprout('black', sproutByOwner.black);
         addSprout('white', sproutByOwner.white);
-    } catch (e) { /* ignore */ }
+    } catch (e: any) { /* ignore */ }
 
     // Helper for effect key mapping: delegate to canonical visual-effects map.
-    const getEffectKeyForType = (type) => {
+    const getEffectKeyForType = (type: any) => {
         if (typeof getEffectKeyForSpecialType === 'function') return getEffectKeyForSpecialType(type);
         try {
             if (typeof SPECIAL_TYPE_TO_EFFECT_KEY !== 'undefined' && SPECIAL_TYPE_TO_EFFECT_KEY) {
                 return SPECIAL_TYPE_TO_EFFECT_KEY[type] || null;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         try {
             if (typeof window !== 'undefined' && window.SPECIAL_TYPE_TO_EFFECT_KEY) {
                 return window.SPECIAL_TYPE_TO_EFFECT_KEY[type] || null;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return null;
     };
 
     // Helper to normalize owner
-    const getOwnerVal = (owner) => {
+    const getOwnerVal = (owner: any) => {
         if (owner === 'black' || owner === BLACK || owner === 1) return BLACK;
         return WHITE;
     };
@@ -906,8 +924,8 @@ function renderBoardFull() {
         for (let c = 0; c < boardShape.cols; c++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
-            cell.dataset.row = r;
-            cell.dataset.col = c;
+            cell.dataset.row = String(r);
+            cell.dataset.col = String(c);
 
             // Human turn gets legal move hints (Black always, White in HvH)
             const key = r + ',' + c;
@@ -999,7 +1017,7 @@ function renderBoardFull() {
                     if (specialCanShowFlipEvade && Number.isFinite(specialFlipEvadeForDisplay)) {
                         const evadeTimer = document.createElement('div');
                         evadeTimer.className = 'stone-timer flip-evade-timer';
-                        const evadeRemaining = Math.max(0, Math.trunc(specialFlipEvadeForDisplay));
+                        const evadeRemaining = Math.max(0, Math.trunc(Number(specialFlipEvadeForDisplay)));
                         evadeTimer.textContent = String(evadeRemaining);
                         _applyDoubleDigitTimerClassForBoard(evadeTimer, evadeRemaining);
                         discHud.appendChild(evadeTimer);
@@ -1056,7 +1074,7 @@ function renderBoardFull() {
                 if (Number.isFinite(inheritedFlipEvadeForDisplay)) {
                     const evadeTimer = document.createElement('div');
                     evadeTimer.className = 'stone-timer flip-evade-timer';
-                    const inheritedEvadeRemaining = Math.max(0, Math.trunc(inheritedFlipEvadeForDisplay));
+                    const inheritedEvadeRemaining = Math.max(0, Math.trunc(Number(inheritedFlipEvadeForDisplay)));
                     evadeTimer.textContent = String(inheritedEvadeRemaining);
                     _applyDoubleDigitTimerClassForBoard(evadeTimer, inheritedEvadeRemaining);
                     discHud.appendChild(evadeTimer);
@@ -1064,7 +1082,7 @@ function renderBoardFull() {
                 if (Number.isFinite(inheritedDestroyEvadeForDisplay) && !specialCanShowDestroyEvade) {
                     const destroyEvadeTimer = document.createElement('div');
                     destroyEvadeTimer.className = 'stone-timer destroy-evade-timer';
-                    const inheritedDestroyEvadeRemaining = Math.max(0, Math.trunc(inheritedDestroyEvadeForDisplay));
+                    const inheritedDestroyEvadeRemaining = Math.max(0, Math.trunc(Number(inheritedDestroyEvadeForDisplay)));
                     destroyEvadeTimer.textContent = String(inheritedDestroyEvadeRemaining);
                     _applyDoubleDigitTimerClassForBoard(destroyEvadeTimer, inheritedDestroyEvadeRemaining);
                     discHud.appendChild(destroyEvadeTimer);
@@ -1110,7 +1128,7 @@ function updateOccupancyUI() {
     if (whiteEl) whiteEl.innerHTML = `<div class="occ-dot"></div>白 ${whitePct}%`;
 }
 
-function _findDirectDiscChildByClass(disc, className) {
+function _findDirectDiscChildByClass(disc: any, className: any) {
     if (!disc || !disc.children) return null;
     for (const child of disc.children) {
         if (child && child.classList && child.classList.contains(className)) return child;
@@ -1118,7 +1136,7 @@ function _findDirectDiscChildByClass(disc, className) {
     return null;
 }
 
-function _resolveDiscOwnerDescriptor(owner) {
+function _resolveDiscOwnerDescriptor(owner: any) {
     const blackValue = (typeof BLACK !== 'undefined') ? BLACK : 1;
     const whiteValue = (typeof WHITE !== 'undefined') ? WHITE : -1;
     const normalized = (owner === whiteValue || owner === -1 || owner === 'white' || owner === '-1')
@@ -1150,12 +1168,12 @@ function _areStoneBaseImagesReady() {
             document.documentElement.classList &&
             document.documentElement.classList.contains('stone-base-images-ready')
         );
-    } catch (e) {
+    } catch (e: any) {
         return false;
     }
 }
 
-function _resolveDiscImageState(renderState, baseImage) {
+function _resolveDiscImageState(renderState: any, baseImage: any) {
     if (renderState && typeof renderState.imageState === 'string' && renderState.imageState) {
         return renderState.imageState;
     }
@@ -1163,7 +1181,7 @@ function _resolveDiscImageState(renderState, baseImage) {
     return (hasBaseImage && _areStoneBaseImagesReady()) ? 'loaded' : 'fallback';
 }
 
-function ensureDiscSkeleton(disc) {
+function ensureDiscSkeleton(disc: any) {
     if (!disc || typeof document === 'undefined' || typeof disc.appendChild !== 'function') {
         return { face: null, base: null, overlay: null, hud: null };
     }
@@ -1209,12 +1227,12 @@ function ensureDiscSkeleton(disc) {
     return { face, base, overlay, hud };
 }
 
-function getDiscHudRoot(disc) {
+function getDiscHudRoot(disc: any) {
     const skeleton = ensureDiscSkeleton(disc);
     return (skeleton && skeleton.hud) ? skeleton.hud : disc;
 }
 
-function applyDiscRenderState(disc, renderState = {}) {
+function applyDiscRenderState(disc: any, renderState: any = {}) {
     if (!disc || !disc.style || typeof disc.style.setProperty !== 'function') return;
 
     const blackValue = (typeof BLACK !== 'undefined') ? BLACK : 1;
@@ -1241,31 +1259,31 @@ function applyDiscRenderState(disc, renderState = {}) {
 
     ensureDiscSkeleton(disc);
 
-    try { disc.dataset.renderMode = renderMode; } catch (e) { /* ignore */ }
-    try { disc.dataset.effect = renderState.effectKey || 'normal'; } catch (e) { /* ignore */ }
-    try { disc.dataset.imageState = imageState; } catch (e) { /* ignore */ }
-    try { disc.style.setProperty('--disc-base-image', baseImage); } catch (e) { /* ignore */ }
-    try { disc.style.setProperty('--stone-image', baseImage); } catch (e) { /* ignore */ }
-    try { disc.style.setProperty('--disc-base-fallback-color', fallbackColor || 'transparent'); } catch (e) { /* ignore */ }
-    try { disc.style.removeProperty('--disc-base-color'); } catch (e) { /* ignore */ }
+    try { disc.dataset.renderMode = renderMode; } catch (e: any) { /* ignore */ }
+    try { disc.dataset.effect = renderState.effectKey || 'normal'; } catch (e: any) { /* ignore */ }
+    try { disc.dataset.imageState = imageState; } catch (e: any) { /* ignore */ }
+    try { disc.style.setProperty('--disc-base-image', baseImage); } catch (e: any) { /* ignore */ }
+    try { disc.style.setProperty('--stone-image', baseImage); } catch (e: any) { /* ignore */ }
+    try { disc.style.setProperty('--disc-base-fallback-color', fallbackColor || 'transparent'); } catch (e: any) { /* ignore */ }
+    try { disc.style.removeProperty('--disc-base-color'); } catch (e: any) { /* ignore */ }
 
     if (overlayImage) {
-        try { disc.style.setProperty('--disc-overlay-image', overlayImage); } catch (e) { /* ignore */ }
-        try { disc.style.setProperty('--special-stone-image', overlayImage); } catch (e) { /* ignore */ }
+        try { disc.style.setProperty('--disc-overlay-image', overlayImage); } catch (e: any) { /* ignore */ }
+        try { disc.style.setProperty('--special-stone-image', overlayImage); } catch (e: any) { /* ignore */ }
     } else {
-        try { disc.style.removeProperty('--disc-overlay-image'); } catch (e) { /* ignore */ }
-        try { disc.style.removeProperty('--special-stone-image'); } catch (e) { /* ignore */ }
+        try { disc.style.removeProperty('--disc-overlay-image'); } catch (e: any) { /* ignore */ }
+        try { disc.style.removeProperty('--special-stone-image'); } catch (e: any) { /* ignore */ }
     }
 
     if (Number.isFinite(overlayScale) && overlayScale > 0 && overlayScale !== 1) {
-        try { disc.style.setProperty('--disc-overlay-scale', String(overlayScale)); } catch (e) { /* ignore */ }
+        try { disc.style.setProperty('--disc-overlay-scale', String(overlayScale)); } catch (e: any) { /* ignore */ }
     } else {
-        try { disc.style.removeProperty('--disc-overlay-scale'); } catch (e) { /* ignore */ }
+        try { disc.style.removeProperty('--disc-overlay-scale'); } catch (e: any) { /* ignore */ }
     }
 }
 
 // Expose in CommonJS for tests and in browser globals for legacy callers
-function setDiscStoneImage(disc, val) {
+function setDiscStoneImage(disc: any, val: any) {
     applyDiscRenderState(disc, {
         owner: val,
         renderMode: 'base-only',

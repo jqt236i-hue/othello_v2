@@ -1,11 +1,18 @@
-// @ts-nocheck
-import type { CardState, GameState, PlayerKey } from '../../src/types';
+import type { CardState, GameState, PlayerKey } from '../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+
+declare const SoundEngine: any;
+declare const OwnerHelpers: any;
+declare const TimerRegistry: any;
+declare const BLACK: number;
+declare const WHITE: number;
+declare const addLog: ((msg: any) => void) | undefined;
+declare const playHandAnimation: any;
 
 const Constants = _require('./animation-constants');
 const Visuals = _require('./stone-visuals');
@@ -37,17 +44,17 @@ const {
     const LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY = '__skipNextCardUseButtonSoundCount';
     const LOCAL_CARD_USE_PLAYBACK_SKIP_MS = 30000;
 
-    function hasRegenBackFlip(events) {
-        return (events || []).some(e =>
+    function hasRegenBackFlip(events: any) {
+        return (events || []).some((e: any) =>
             e &&
             e.type === EVENT_TYPES.FLIP &&
             Array.isArray(e.targets) &&
-            e.targets.some(t => t && t.cause === REGEN_CAUSE && t.reason === REGEN_TRIGGER_REASON)
+            e.targets.some((t: any) => t && t.cause === REGEN_CAUSE && t.reason === REGEN_TRIGGER_REASON)
         );
     }
 
     var AnimationResolver = (typeof require === 'function')
-        ? (function () { try { return require('./animation-resolver'); } catch (e) { return (typeof window !== 'undefined' ? window.AnimationResolver : null); } }())
+        ? (function () { try { return require('./animation-resolver'); } catch (e: any) { return (typeof window !== 'undefined' ? window.AnimationResolver : null); } }())
         : (typeof window !== 'undefined' ? window.AnimationResolver : null);
     var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimationShared === 'function')
         ? AnimationResolver.getAnimationShared()
@@ -59,24 +66,24 @@ const {
             if (typeof require === 'function') {
                 try {
                     return require('../utils/owner-helpers');
-                } catch (e) {
+                } catch (e: any) {
                     return null;
                 }
             }
             if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers) return OwnerHelpers;
             try {
-                if (typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) return globalThis.OwnerHelpers;
-            } catch (e) { /* ignore */ }
+                if (typeof globalThis !== 'undefined' && (globalThis as any).OwnerHelpers) return (globalThis as any).OwnerHelpers;
+            } catch (e: any) { /* ignore */ }
             return null;
         }());
     var BoardUpdateDispatch = (AnimationResolver && typeof AnimationResolver.resolveModuleOrGlobal === 'function')
         ? AnimationResolver.resolveModuleOrGlobal('./board-update-dispatch', 'BoardUpdateDispatch')
-        : ((typeof require === 'function') ? (function () { try { return require('./board-update-dispatch'); } catch (e) { return null; } }()) : (typeof window !== 'undefined' ? window.BoardUpdateDispatch : null));
+        : ((typeof require === 'function') ? (function () { try { return require('./board-update-dispatch'); } catch (e: any) { return null; } }()) : (typeof window !== 'undefined' ? window.BoardUpdateDispatch : null));
     var _Timer = (AnimationShared && AnimationShared.getTimer) ? AnimationShared.getTimer : function () {
         if (typeof TimerRegistry !== 'undefined') return TimerRegistry;
         return {
-            setTimeout: (fn, ms) => setTimeout(fn, ms),
-            clearTimeout: (id) => clearTimeout(id),
+            setTimeout: (fn: any, ms: any) => setTimeout(fn, ms),
+            clearTimeout: (id: any) => clearTimeout(id),
             clearAll: () => {},
             pendingCount: () => 0,
             newScope: () => null,
@@ -98,15 +105,15 @@ const {
 
     // use the _Timer from AnimationShared (declared above) to avoid duplication
 
-    function _getUiRootRef() {
+    function _getUiRootRef(): any {
         if (typeof window !== 'undefined' && window) return window;
         try {
             if (typeof globalThis !== 'undefined' && globalThis) return globalThis;
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return null;
     }
 
-    function _consumeLocalPlaybackSoundSkip(soundKey) {
+    function _consumeLocalPlaybackSoundSkip(soundKey: any) {
         const normalizedKey = String(soundKey || '').trim();
         if (!normalizedKey) return false;
         const rootRef = _getUiRootRef();
@@ -120,13 +127,13 @@ const {
             if (Object.keys(registry).length === 0) {
                 delete rootRef[LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY];
             }
-        } catch (e) {
+        } catch (e: any) {
             registry[normalizedKey] = 0;
         }
         return expiresAt >= Date.now();
     }
 
-    function _buildCardUseAnimationSkipKey(target) {
+    function _buildCardUseAnimationSkipKey(target: any) {
         const source = (target && typeof target === 'object') ? target : {};
         const owner = String(source.owner || source.player || '').trim();
         const cardId = String(source.cardId || '').trim();
@@ -134,7 +141,7 @@ const {
         return `${owner}::${cardId}`;
     }
 
-    function _armLocalCardUseAnimationSkip(target) {
+    function _armLocalCardUseAnimationSkip(target: any) {
         const key = _buildCardUseAnimationSkipKey(target);
         if (!key) return false;
         const rootRef = _getUiRootRef();
@@ -147,7 +154,7 @@ const {
         return true;
     }
 
-    function _consumeLocalCardUseAnimationSkip(target) {
+    function _consumeLocalCardUseAnimationSkip(target: any) {
         const key = _buildCardUseAnimationSkipKey(target);
         if (!key) return false;
         const rootRef = _getUiRootRef();
@@ -161,7 +168,7 @@ const {
             if (Object.keys(registry).length === 0) {
                 delete rootRef[LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY];
             }
-        } catch (e) {
+        } catch (e: any) {
             registry[key] = 0;
         }
         return expiresAt >= Date.now();
@@ -201,11 +208,21 @@ const {
                 emitBoardUpdate();
                 return true;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e: any) { /* ignore */ }
         return false;
     }
 
     class PlaybackEngine {
+        isPlaying: any;
+        boardEl: any;
+        isAborted: any;
+        _watchdogFired: any;
+        playbackScope: any;
+        _remainingEvents: any;
+        _watchdogId: any;
+        _phaseContext: any;
+        _playbackRunSequence: any;
+        _activePlaybackRunId: any;
         constructor() {
             this.isPlaying = false;
             this.boardEl = document.getElementById('board');
@@ -219,7 +236,7 @@ const {
             this._activePlaybackRunId = null;
         }
 
-        _registerPlaybackAbortHandle(runId, runState) {
+        _registerPlaybackAbortHandle(runId: any, runState: any) {
             if (!PlaybackState || typeof PlaybackState.registerPlaybackAbortHandle !== 'function') return null;
             const handle = {
                 runId,
@@ -231,11 +248,11 @@ const {
                     this._activePlaybackRunId = null;
                     const scope = runState.scope;
                     if (scope !== null) {
-                        try { _Timer().clearScope(scope); } catch (e) { /* ignore */ }
+                        try { _Timer().clearScope(scope); } catch (e: any) { /* ignore */ }
                     }
                     const watchdogId = runState.watchdogId;
                     if (watchdogId) {
-                        try { _Timer().clearTimeout(watchdogId); } catch (e) { /* ignore */ }
+                        try { _Timer().clearTimeout(watchdogId); } catch (e: any) { /* ignore */ }
                     }
                     if (this.playbackScope === scope) {
                         this.playbackScope = null;
@@ -251,7 +268,7 @@ const {
             return handle;
         }
 
-        _clearPlaybackAbortHandle(handle) {
+        _clearPlaybackAbortHandle(handle: any) {
             if (PlaybackState && typeof PlaybackState.clearPlaybackAbortHandle === 'function') {
                 PlaybackState.clearPlaybackAbortHandle(handle);
             }
@@ -264,7 +281,7 @@ const {
             return this.isPlaying === true;
         }
 
-        _toBoardIndex(value) {
+        _toBoardIndex(value: any) {
             if (value === null || typeof value === 'undefined') return null;
             if (typeof value === 'boolean') return null;
             if (typeof value === 'string' && value.trim() === '') return null;
@@ -273,7 +290,7 @@ const {
             return Math.trunc(n);
         }
 
-        _normalizeCellRef(ref) {
+        _normalizeCellRef(ref: any) {
             const src = (ref && typeof ref === 'object') ? ref : {};
             const out = Object.assign({}, src);
             const rowRaw = Object.prototype.hasOwnProperty.call(src, 'r') ? src.r : src.row;
@@ -287,7 +304,7 @@ const {
             return out;
         }
 
-        _normalizeTarget(target, eventType) {
+        _normalizeTarget(target: any, eventType: any) {
             const src = (target && typeof target === 'object') ? target : {};
             const out = Object.assign({}, src);
             if (eventType === EVENT_TYPES.MOVE) {
@@ -303,16 +320,16 @@ const {
             return out;
         }
 
-        _normalizeEvent(ev) {
+        _normalizeEvent(ev: any) {
             if (!ev || typeof ev !== 'object') return ev;
             const out = Object.assign({}, ev);
             if (Array.isArray(ev.targets)) {
-                out.targets = ev.targets.map((t) => this._normalizeTarget(t, ev.type));
+                out.targets = ev.targets.map((t: any) => this._normalizeTarget(t, ev.type));
             }
             return out;
         }
 
-        _resolveSniperSource(target) {
+        _resolveSniperSource(target: any) {
             const t = (target && typeof target === 'object') ? target : {};
             const meta = (t.meta && typeof t.meta === 'object') ? t.meta : {};
             const sourceRow = this._toBoardIndex(
@@ -325,27 +342,27 @@ const {
             return { row: sourceRow, col: sourceCol };
         }
 
-        _resolveRobotVacuumSource(target) {
+        _resolveRobotVacuumSource(target: any) {
             return this._resolveSniperSource(target);
         }
 
-        _resolveDestroyDragonSource(target) {
+        _resolveDestroyDragonSource(target: any) {
             return this._resolveSniperSource(target);
         }
 
-        _getTargetCause(target) {
+        _getTargetCause(target: any) {
             return String(target && target.cause ? target.cause : '').toUpperCase();
         }
 
-        _getTargetReason(target) {
+        _getTargetReason(target: any) {
             return String(target && target.reason ? target.reason : '').toLowerCase();
         }
 
-        _isSuperCrushCause(cause) {
+        _isSuperCrushCause(cause: any) {
             return cause === 'SUPER_BUOYANCY_WILL' || cause === 'SUPER_GRAVITY_WILL';
         }
 
-        _resolveSuperCrushCollisionDelayMs(target) {
+        _resolveSuperCrushCollisionDelayMs(target: any) {
             const cause = this._getTargetCause(target);
             if (!this._isSuperCrushCause(cause)) return 0;
 
@@ -360,19 +377,19 @@ const {
             return delayMs > 0 ? delayMs : 0;
         }
 
-        _resolveOwnerColorFromBefore(ownerBefore) {
+        _resolveOwnerColorFromBefore(ownerBefore: any) {
             if (ownerBefore !== 'black' && ownerBefore !== 'white') return null;
             const blackVal = (typeof BLACK !== 'undefined') ? BLACK : 1;
             const whiteVal = (typeof WHITE !== 'undefined') ? WHITE : -1;
             return ownerBefore === 'black' ? blackVal : whiteVal;
         }
 
-        _resolveOwnerClassFromColor(ownerColor) {
+        _resolveOwnerClassFromColor(ownerColor: any) {
             const blackVal = (typeof BLACK !== 'undefined') ? BLACK : 1;
             return ownerColor === blackVal ? 'black' : 'white';
         }
 
-        _resolveVisualColorFromState(state, fallbackDisc, fallbackOwner) {
+        _resolveVisualColorFromState(state: any, fallbackDisc: any, fallbackOwner: any) {
             const blackVal = (typeof BLACK !== 'undefined') ? BLACK : 1;
             const whiteVal = (typeof WHITE !== 'undefined') ? WHITE : -1;
             const rawColor = Number(state && state.color);
@@ -393,7 +410,7 @@ const {
             return null;
         }
 
-        _normalizePlayerKeyOptional(value) {
+        _normalizePlayerKeyOptional(value: any) {
             if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
                 const normalized = OwnerHelpersModule.normalizePlayerKeyOptional(value);
                 if (normalized === 'black' || normalized === 'white') return normalized;
@@ -403,7 +420,7 @@ const {
             return null;
         }
 
-        _normalizePlayerKey(value) {
+        _normalizePlayerKey(value: any) {
             return this._normalizePlayerKeyOptional(value) || 'black';
         }
 
@@ -412,7 +429,7 @@ const {
                 if (OwnerHelpersModule && typeof OwnerHelpersModule.getCurrentMatchMode === 'function') {
                     return String(OwnerHelpersModule.getCurrentMatchMode(typeof window !== 'undefined' ? window : null) || 'cpu').toLowerCase();
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
 
             try {
                 if (typeof window !== 'undefined' && typeof window.getCurrentMatchMode === 'function') {
@@ -422,17 +439,17 @@ const {
                     const matchMode = window.MATCH_MODE || window.__MATCH_MODE;
                     if (matchMode) return String(matchMode).toLowerCase();
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
 
             try {
-                if (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function') {
-                    return String(globalThis.getCurrentMatchMode() || 'cpu').toLowerCase();
+                if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
+                    return String((globalThis as any).getCurrentMatchMode() || 'cpu').toLowerCase();
                 }
                 if (typeof globalThis !== 'undefined') {
-                    const matchMode = globalThis.MATCH_MODE || globalThis.__MATCH_MODE;
+                    const matchMode = (globalThis as any).MATCH_MODE || (globalThis as any).__MATCH_MODE;
                     if (matchMode) return String(matchMode).toLowerCase();
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
 
             return 'cpu';
         }
@@ -442,13 +459,13 @@ const {
                 if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers && typeof OwnerHelpers.resolveLocalPlayerKey === 'function') {
                     return this._normalizePlayerKey(OwnerHelpers.resolveLocalPlayerKey(typeof window !== 'undefined' ? window : null));
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
 
             try {
                 if (typeof window !== 'undefined' && window && window.NetworkMatchClient && typeof window.NetworkMatchClient.getSeatKey === 'function') {
                     return this._normalizePlayerKey(window.NetworkMatchClient.getSeatKey());
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
 
             try {
                 if (typeof window !== 'undefined' && window) {
@@ -458,12 +475,12 @@ const {
                         if (one === 'black' || one === 1 || one === '1') return 'black';
                     }
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
 
             return 'black';
         }
 
-        _resolveCardUseOwnerKey(target) {
+        _resolveCardUseOwnerKey(target: any) {
             const t = (target && typeof target === 'object') ? target : {};
             if (Object.prototype.hasOwnProperty.call(t, 'owner') && t.owner !== null && typeof t.owner !== 'undefined' && t.owner !== '') {
                 return this._normalizePlayerKey(t.owner);
@@ -474,7 +491,7 @@ const {
             return null;
         }
 
-        _resolveCardType(cardId) {
+        _resolveCardType(cardId: any) {
             if (!cardId) return null;
             if (typeof CardLogic === 'undefined' || !CardLogic || typeof CardLogic.getCardDef !== 'function') {
                 return null;
@@ -483,7 +500,7 @@ const {
             return def && typeof def.type === 'string' ? def.type : null;
         }
 
-        _resolvePlaceHandDescriptor(target) {
+        _resolvePlaceHandDescriptor(target: any) {
             const normalizedTarget = this._normalizeTarget(target, EVENT_TYPES.PLACE_HAND_ANIMATION);
             const playerKey = this._normalizePlayerKeyOptional(
                 normalizedTarget && (normalizedTarget.player || normalizedTarget.owner)
@@ -497,23 +514,23 @@ const {
             };
         }
 
-        _shouldPlayPlaceHandAnimation(target) {
+        _shouldPlayPlaceHandAnimation(target: any) {
             if (this._getCurrentMatchMode() !== 'network') return false;
             const descriptor = this._resolvePlaceHandDescriptor(target);
             return !!descriptor;
         }
 
-        _resolvePlayerValue(playerKey) {
+        _resolvePlayerValue(playerKey: any) {
             const blackVal = (typeof BLACK !== 'undefined') ? BLACK : 1;
             const whiteVal = (typeof WHITE !== 'undefined') ? WHITE : -1;
             return playerKey === 'white' ? whiteVal : blackVal;
         }
 
-        _isCardEffectCause(cause) {
+        _isCardEffectCause(cause: any) {
             return !!cause && cause !== 'SYSTEM';
         }
 
-        _isPositiveSpawnLikeEffectTarget(eventType, target, cause, reason) {
+        _isPositiveSpawnLikeEffectTarget(eventType: any, target: any, cause: any, reason: any) {
             const normalizedCause = String(cause || '').toUpperCase();
             const normalizedReason = String(reason || '').toLowerCase();
             const isCloneLikeMove = eventType === EVENT_TYPES.MOVE && !!(target && target.clone === true);
@@ -531,7 +548,7 @@ const {
             );
         }
 
-        _resolveEffectTargetHighlightTone(eventType, target) {
+        _resolveEffectTargetHighlightTone(eventType: any, target: any) {
             if (_isNoAnim()) return null;
             if (target && target.meta && (
                 target.meta.blockedByGhost ||
@@ -595,7 +612,7 @@ const {
                 : null;
         }
 
-        _shouldPreserveDiscOnDestroy(target) {
+        _shouldPreserveDiscOnDestroy(target: any) {
             return !!(
                 target &&
                 target.meta && (
@@ -606,7 +623,7 @@ const {
             );
         }
 
-        _resolveDestroyTargetHighlightMinimumMs(target) {
+        _resolveDestroyTargetHighlightMinimumMs(target: any) {
             if (!target || !target.meta) return 0;
             const isProtectedDestroy =
                 target.meta.proliferated === true ||
@@ -622,7 +639,7 @@ const {
             return Math.max(120, Math.floor(MOVE_MS / 2));
         }
 
-        _resolveSpawnTargetHighlightMinimumMs(target) {
+        _resolveSpawnTargetHighlightMinimumMs(target: any) {
             if (!target) return 0;
             const cause = this._getTargetCause(target);
             const reason = this._getTargetReason(target);
@@ -639,14 +656,14 @@ const {
             return POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS;
         }
 
-        _resolveStatusChangeHighlightMinimumMs(highlightTone) {
+        _resolveStatusChangeHighlightMinimumMs(highlightTone: any) {
             if (!highlightTone) return 0;
             return highlightTone === HIGHLIGHT_TONE_POSITIVE
                 ? POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS
                 : PHASE_GAP_MS;
         }
 
-        async _runWithEffectTargetHighlight(cell, eventType, target, runner, minimumVisibleMs) {
+        async _runWithEffectTargetHighlight(cell: any, eventType: any, target: any, runner: any, minimumVisibleMs: any) {
             if (!cell || typeof runner !== 'function') return undefined;
 
             const highlightTone = this._resolveEffectTargetHighlightTone(eventType, target);
@@ -656,7 +673,7 @@ const {
             return this._runWithTransientCellHighlight(cell, highlightTone, runner, minimumVisibleMs, extraClasses);
         }
 
-        _resolveStatusChangeHighlightTone(ev, target) {
+        _resolveStatusChangeHighlightTone(ev: any, target: any) {
             if (!ev || (ev.type !== EVENT_TYPES.STATUS_APPLIED && ev.type !== EVENT_TYPES.STATUS_REMOVED)) return null;
             const meta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
             const explicitTone = String(meta.highlightTone || '').toLowerCase();
@@ -695,7 +712,7 @@ const {
             return HIGHLIGHT_TONE_NEGATIVE;
         }
 
-        async _runWithTransientCellHighlight(cell, highlightTone, runner, minimumVisibleMs, extraClasses) {
+        async _runWithTransientCellHighlight(cell: any, highlightTone: any, runner: any, minimumVisibleMs: any, extraClasses: any) {
             if (!cell || typeof runner !== 'function') return undefined;
             const baseHighlightClass = highlightTone === HIGHLIGHT_TONE_POSITIVE
                 ? EFFECT_TARGET_POSITIVE_HIGHLIGHT_CLASS
@@ -718,7 +735,7 @@ const {
                     cell.classList.add(className);
                 }
                 highlighted = true;
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
 
             try {
                 return await runner();
@@ -732,20 +749,20 @@ const {
                 }
                 if (highlighted) {
                     for (const className of transientClasses) {
-                        try { cell.classList.remove(className); } catch (e) { /* ignore */ }
+                        try { cell.classList.remove(className); } catch (e: any) { /* ignore */ }
                     }
-                    try { cell.classList.remove(baseHighlightClass); } catch (e) { /* ignore */ }
+                    try { cell.classList.remove(baseHighlightClass); } catch (e: any) { /* ignore */ }
                 }
             }
         }
 
-        async _waitForAnimationFinish(anim, durationMs, timeoutPaddingMs) {
+        async _waitForAnimationFinish(anim: any, durationMs: any, timeoutPaddingMs: any) {
             if (!anim) return;
             const timeoutMs = Math.max(0, Math.round(Number(durationMs) || 0)) +
                 Math.max(0, Math.round(Number(timeoutPaddingMs) || 0));
 
-            await new Promise((resolve) => {
-                let timeoutId = null;
+            await new Promise<void>((resolve) => {
+                let timeoutId: any = null;
                 let done = false;
                 const finish = () => {
                     if (done) return;
@@ -754,9 +771,9 @@ const {
                         if (anim && typeof anim.removeEventListener === 'function') {
                             anim.removeEventListener('finish', finish);
                         }
-                    } catch (e) { /* ignore */ }
+                    } catch (e: any) { /* ignore */ }
                     if (timeoutId !== null) {
-                        try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
+                        try { _Timer().clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
                         timeoutId = null;
                     }
                     resolve();
@@ -765,24 +782,24 @@ const {
                     if (anim && typeof anim.addEventListener === 'function') {
                         anim.addEventListener('finish', finish, { once: true });
                     }
-                } catch (e) { /* ignore */ }
+                } catch (e: any) { /* ignore */ }
                 try {
                     timeoutId = _Timer().setTimeout(finish, timeoutMs, this.playbackScope);
-                } catch (e) {
+                } catch (e: any) {
                     timeoutId = setTimeout(finish, timeoutMs);
                 }
                 try {
                     if (anim && anim.finished && typeof anim.finished.then === 'function') {
                         anim.finished.then(finish).catch(finish);
                     }
-                } catch (e) { /* ignore */ }
+                } catch (e: any) { /* ignore */ }
             });
         }
 
-        async _waitForOpacityTransition(element, durationMs, timeoutPaddingMs, startTransition, cleanup) {
+        async _waitForOpacityTransition(element: any, durationMs: any, timeoutPaddingMs: any, startTransition: any, cleanup: any) {
             if (!element) {
                 if (typeof cleanup === 'function') {
-                    try { cleanup(); } catch (e) { /* ignore */ }
+                    try { cleanup(); } catch (e: any) { /* ignore */ }
                 }
                 return;
             }
@@ -790,42 +807,42 @@ const {
             const timeoutMs = Math.max(0, Math.round(Number(durationMs) || 0)) +
                 Math.max(0, Math.round(Number(timeoutPaddingMs) || 0));
 
-            await new Promise((resolve) => {
-                let timeoutId = null;
+            await new Promise<void>((resolve) => {
+                let timeoutId: any = null;
                 let done = false;
                 const finish = () => {
                     if (done) return;
                     done = true;
                     if (timeoutId !== null) {
-                        try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
+                        try { _Timer().clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
                         timeoutId = null;
                     }
-                    try { element.removeEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
+                    try { element.removeEventListener('transitionend', onEnd); } catch (e: any) { /* ignore */ }
                     if (typeof cleanup === 'function') {
-                        try { cleanup(); } catch (e) { /* ignore */ }
+                        try { cleanup(); } catch (e: any) { /* ignore */ }
                     }
                     resolve();
                 };
-                const onEnd = (e) => {
+                const onEnd = (e: any) => {
                     if (!e || e.propertyName === 'opacity') finish();
                 };
-                try { element.addEventListener('transitionend', onEnd); } catch (e) { /* ignore */ }
+                try { element.addEventListener('transitionend', onEnd); } catch (e: any) { /* ignore */ }
                 try {
                     timeoutId = _Timer().setTimeout(finish, timeoutMs, this.playbackScope);
-                } catch (e) {
+                } catch (e: any) {
                     timeoutId = setTimeout(finish, timeoutMs);
                 }
                 if (typeof startTransition === 'function') {
                     try {
                         startTransition();
-                    } catch (e) {
+                    } catch (e: any) {
                         finish();
                     }
                 }
             });
         }
 
-        _resolveSniperProjectileOwner(target) {
+        _resolveSniperProjectileOwner(target: any) {
             const t = (target && typeof target === 'object') ? target : {};
             const meta = (t.meta && typeof t.meta === 'object') ? t.meta : {};
             const directOwner = (typeof t.projectileOwner === 'string') ? t.projectileOwner : null;
@@ -837,7 +854,7 @@ const {
             return 'black';
         }
 
-        async animateSniperProjectile(target) {
+        async animateSniperProjectile(target: any) {
             if (!target) return;
             if (_isNoAnim()) return;
 
@@ -896,7 +913,7 @@ const {
             if (projectile.parentElement) projectile.parentElement.removeChild(projectile);
         }
 
-        async animateRobotVacuumSuction(target) {
+        async animateRobotVacuumSuction(target: any) {
             if (!target) return;
             if (_isNoAnim()) return;
 
@@ -956,7 +973,7 @@ const {
             if (projectile.parentElement) projectile.parentElement.removeChild(projectile);
         }
 
-        async animateDestroyDragonBreath(target) {
+        async animateDestroyDragonBreath(target: any) {
             if (!target) return;
             if (_isNoAnim()) return;
 
@@ -1031,14 +1048,14 @@ const {
             layer.appendChild(impact);
             document.body.appendChild(layer);
 
-            await new Promise((resolve) => {
-                let timeoutId = null;
+            await new Promise<void>((resolve) => {
+                let timeoutId: any = null;
                 let done = false;
                 const finish = () => {
                     if (done) return;
                     done = true;
                     if (timeoutId !== null) {
-                        try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
+                        try { _Timer().clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
                         timeoutId = null;
                     }
                     resolve();
@@ -1078,11 +1095,11 @@ const {
                             easing: 'ease-out'
                         });
                     }
-                } catch (e) { /* ignore */ }
+                } catch (e: any) { /* ignore */ }
 
                 try {
                     timeoutId = _Timer().setTimeout(finish, durationMs + 120, this.playbackScope);
-                } catch (e) {
+                } catch (e: any) {
                     timeoutId = setTimeout(finish, durationMs + 120);
                 }
             });
@@ -1090,7 +1107,7 @@ const {
             if (layer.parentElement) layer.parentElement.removeChild(layer);
         }
 
-        async animateUdgLightningStrike(target) {
+        async animateUdgLightningStrike(target: any) {
             if (!target) return;
             if (_isNoAnim()) return;
 
@@ -1145,7 +1162,7 @@ const {
             const segmentCount = Math.max(5, Math.min(11, Math.round(distance / 42)));
             const jitterPx = Math.max(8, Math.min(24, Math.round(distance / 13)));
 
-            const buildPath = (sx, sy, ex, ey, segments, jitter) => {
+            const buildPath = (sx: any, sy: any, ex: any, ey: any, segments: any, jitter: any) => {
                 const safeSegments = Math.max(2, Number(segments) || 2);
                 const points = [];
                 const dx = ex - sx;
@@ -1171,7 +1188,7 @@ const {
                 return { d, points };
             };
 
-            const createPath = (d, stroke, strokeWidth) => {
+            const createPath = (d: any, stroke: any, strokeWidth: any) => {
                 const path = document.createElementNS(svgNs, 'path');
                 path.setAttribute('d', d);
                 path.setAttribute('fill', 'none');
@@ -1246,13 +1263,13 @@ const {
             document.body.appendChild(overlay);
 
             const durationMs = Math.max(170, Math.min(300, Math.round(170 + (distance * 0.12))));
-            const animations = [];
-            const queueAnimation = (el, keyframes, options) => {
+            const animations: any[] = [];
+            const queueAnimation = (el: any, keyframes: any, options: any) => {
                 try {
                     if (!el || typeof el.animate !== 'function') return;
                     const anim = el.animate(keyframes, options);
                     animations.push(anim);
-                } catch (e) {
+                } catch (e: any) {
                     /* ignore */
                 }
             };
@@ -1324,21 +1341,21 @@ const {
                     await new Promise((resolve) => {
                         try {
                             _Timer().setTimeout(resolve, durationMs + 40, this.playbackScope);
-                        } catch (e) {
+                        } catch (e: any) {
                             setTimeout(resolve, durationMs + 40);
                         }
                     });
                     return;
                 }
 
-                await new Promise((resolve) => {
-                    let timeoutId = null;
+                await new Promise<void>((resolve) => {
+                    let timeoutId: any = null;
                     let done = false;
                     const finish = () => {
                         if (done) return;
                         done = true;
                         if (timeoutId !== null) {
-                            try { _Timer().clearTimeout(timeoutId); } catch (e) { /* ignore */ }
+                            try { _Timer().clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
                             timeoutId = null;
                         }
                         resolve();
@@ -1359,7 +1376,7 @@ const {
                             } else {
                                 settled += 1;
                             }
-                        } catch (e) {
+                        } catch (e: any) {
                             settled += 1;
                         }
                     }
@@ -1367,7 +1384,7 @@ const {
                     if (settled >= expected) finish();
                     try {
                         timeoutId = _Timer().setTimeout(finish, durationMs + 140, this.playbackScope);
-                    } catch (e) {
+                    } catch (e: any) {
                         timeoutId = setTimeout(finish, durationMs + 140);
                     }
                 });
@@ -1381,7 +1398,7 @@ const {
          * @param {Array} events - Ordered PlaybackEvents
          * @returns {Promise<void>}
          */
-        async play(events) {
+        async play(events: any) {
             const normalizedEvents = Array.isArray(events)
                 ? events.map((ev) => this._normalizeEvent(ev))
                 : [];
@@ -1403,7 +1420,7 @@ const {
                 event &&
                 event.type === EVENT_TYPES.MOVE &&
                 Array.isArray(event.targets) &&
-                event.targets.some((target) => String(target && target.cause ? target.cause : '').toUpperCase() === 'CELL_TELEPORT_WILL')
+                event.targets.some((target: any) => String(target && target.cause ? target.cause : '').toUpperCase() === 'CELL_TELEPORT_WILL')
             ));
 
             if (this._isPlaybackStateActive()) {
@@ -1422,8 +1439,7 @@ const {
                 watchdogId: null,
                 externallyAborted: false
             };
-            let abortHandle = null;
-
+            let abortHandle: any = null;
             // Setup playback scope and flags
             this.isPlaying = true;
             this.playbackScope = (typeof TimerRegistry !== 'undefined' && TimerRegistry.newScope) ? TimerRegistry.newScope() : null;
@@ -1462,7 +1478,7 @@ const {
                     }
 
                     // Remove processed phases from remainingEvents
-                    this._remainingEvents = this._remainingEvents.filter(ev => Number(ev.phase || 0) > Number(phase));
+                    this._remainingEvents = this._remainingEvents.filter((ev: any) => Number(ev.phase || 0) > Number(phase));
 
                     const phaseEvents = phases[phase];
                     await this.executePhase(phaseEvents);
@@ -1474,21 +1490,21 @@ const {
                         // so treat the first spawn the same as an immediate follow-up flip.
                         const nextPhaseKey = sortedPhases[sortedPhases.indexOf(phase) + 1];
                         const nextEvents = phases[nextPhaseKey] || [];
-                        const hasPlaceOrSpawn = phaseEvents.some(e => e && (e.type === EVENT_TYPES.PLACE || e.type === EVENT_TYPES.SPAWN || e.type === EVENT_TYPES.PLACE_HAND_ANIMATION));
-                        const hasPlaceHandAnimation = phaseEvents.some(e => e && e.type === EVENT_TYPES.PLACE_HAND_ANIMATION);
-                        const nextHasSpawn = nextEvents.some(e => e && e.type === EVENT_TYPES.SPAWN);
-                        const nextHasFlip = nextEvents.some(e => e && e.type === EVENT_TYPES.FLIP);
+                        const hasPlaceOrSpawn = phaseEvents.some((e: any) => e && (e.type === EVENT_TYPES.PLACE || e.type === EVENT_TYPES.SPAWN || e.type === EVENT_TYPES.PLACE_HAND_ANIMATION));
+                        const hasPlaceHandAnimation = phaseEvents.some((e: any) => e && e.type === EVENT_TYPES.PLACE_HAND_ANIMATION);
+                        const nextHasSpawn = nextEvents.some((e: any) => e && e.type === EVENT_TYPES.SPAWN);
+                        const nextHasFlip = nextEvents.some((e: any) => e && e.type === EVENT_TYPES.FLIP);
                         const nextHasRegenBackFlip = hasRegenBackFlip(nextEvents);
                         const skipPlaceGap = hasPlaceOrSpawn && (
                             (nextHasFlip && !nextHasRegenBackFlip) ||
                             (hasPlaceHandAnimation && nextHasSpawn)
                         );
-                        const hasCardUseAnimation = phaseEvents.some(e => e && e.type === EVENT_TYPES.CARD_USE_ANIMATION);
-                        const nextHasTreasureGainCue = nextEvents.some((ev) => {
+                        const hasCardUseAnimation = phaseEvents.some((e: any) => e && e.type === EVENT_TYPES.CARD_USE_ANIMATION);
+                        const nextHasTreasureGainCue = nextEvents.some((ev: any) => {
                             if (!ev || ev.type !== EVENT_TYPES.SOUND_EFFECT) return false;
                             if (String(ev.soundKey || '').trim() === 'treasure_gain') return true;
                             const targets = Array.isArray(ev.targets) ? ev.targets : [];
-                            return targets.some((t) => String((t && t.soundKey) || '').trim() === 'treasure_gain');
+                            return targets.some((t: any) => String((t && t.soundKey) || '').trim() === 'treasure_gain');
                         });
                         const skipCardUseTreasureGap = hasCardUseAnimation && nextHasTreasureGainCue;
                         if (!skipPlaceGap && !skipCardUseTreasureGap) {
@@ -1496,7 +1512,7 @@ const {
                         }
                     }
                 }
-            } catch (err) {
+            } catch (err: any) {
                 abortedDuringPlay = true;
                 console.error('[AnimationEngine] Playback error:', err);
             } finally {
@@ -1559,8 +1575,8 @@ const {
                 }
               }
         }
-        groupByPhase(events) {
-            return events.reduce((acc, ev) => {
+        groupByPhase(events: any) {
+            return events.reduce((acc: any, ev: any) => {
                 const p = ev.phase || 0;
                 if (!acc[p]) acc[p] = [];
                 acc[p].push(ev);
@@ -1568,7 +1584,7 @@ const {
             }, {});
         }
 
-        _isSuperCrushMoveTarget(target) {
+        _isSuperCrushMoveTarget(target: any) {
             const cause = this._getTargetCause(target);
             const reason = this._getTargetReason(target);
             return this._isSuperCrushCause(cause) ||
@@ -1576,7 +1592,7 @@ const {
                 reason.indexOf('super_gravity_move') === 0;
         }
 
-        _buildPhaseContext(events) {
+        _buildPhaseContext(events: any) {
             const superCrushDestinations = new Map();
             for (const ev of events || []) {
                 if (!ev || ev.type !== EVENT_TYPES.MOVE || !Array.isArray(ev.targets)) continue;
@@ -1598,13 +1614,13 @@ const {
             return { superCrushDestinations };
         }
 
-        _getSuperCrushDestinationContext(row, col) {
+        _getSuperCrushDestinationContext(row: any, col: any) {
             const ctx = this._phaseContext;
             if (!ctx || !(ctx.superCrushDestinations instanceof Map)) return null;
             return ctx.superCrushDestinations.get(`${row},${col}`) || null;
         }
 
-        async _withPhaseContext(context, runner) {
+        async _withPhaseContext(context: any, runner: any) {
             const prev = this._phaseContext;
             this._phaseContext = context || null;
             try {
@@ -1614,7 +1630,7 @@ const {
             }
         }
 
-        async _animateDestroyGhostAtCell(cell, ownerColor) {
+        async _animateDestroyGhostAtCell(cell: any, ownerColor: any) {
             if (!cell) return;
             const ghost = document.createElement('div');
             ghost.className = 'disc';
@@ -1627,23 +1643,23 @@ const {
             if (ghost.parentElement) ghost.parentElement.removeChild(ghost);
         }
 
-        _removeDiscFromCell(cell, disc) {
+        _removeDiscFromCell(cell: any, disc: any) {
             if (!cell || !disc) return;
             try {
                 if (disc.parentElement === cell) cell.removeChild(disc);
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
             try {
                 if (!cell.querySelector('.disc')) cell.classList.remove('has-disc');
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
         }
 
-        async executePhase(phaseEvents) {
+        async executePhase(phaseEvents: any) {
             const events = Array.isArray(phaseEvents) ? phaseEvents.slice() : [];
             const hasTreasureGainCue = events.some((ev) => {
                 if (!ev || ev.type !== EVENT_TYPES.SOUND_EFFECT) return false;
                 if (String(ev.soundKey || '').trim() === 'treasure_gain') return true;
                 const targets = Array.isArray(ev.targets) ? ev.targets : [];
-                return targets.some((t) => String((t && t.soundKey) || '').trim() === 'treasure_gain');
+                return targets.some((t: any) => String((t && t.soundKey) || '').trim() === 'treasure_gain');
             });
 
             const effectiveEvents = hasTreasureGainCue
@@ -1679,9 +1695,9 @@ const {
             });
         }
 
-        async _sleep(ms) {
+        async _sleep(ms: any) {
             if (_isNoAnim()) return Promise.resolve();
-            return new Promise(resolve => {
+            return new Promise<void>(resolve=> {
                 const id = _Timer().setTimeout(resolve, ms, this.playbackScope);
             });
         }
@@ -1694,12 +1710,12 @@ const {
             // Clear timers in this scope and mark aborted
             try {
                 if (this.playbackScope !== null) _Timer().clearScope(this.playbackScope);
-            } catch (e) { /* best-effort */ }
+            } catch (e: any) { /* best-effort */ }
             this.isAborted = true;
             // Apply final state by requesting a full board sync
             try {
                 _requestBoardUpdate();
-            } catch (e) { console.error('[AnimationEngine] watchdog emitBoardUpdate failed', e); }
+            } catch (e: any) { console.error('[AnimationEngine] watchdog emitBoardUpdate failed', e); }
             // Ensure flags cleared
             if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
                 PlaybackState.abortPlayback({ boardElement: this.boardEl });
@@ -1715,17 +1731,17 @@ const {
             if (typeof window !== 'undefined') { window.__telemetry__ = window.__telemetry__ || { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 }; window.__telemetry__.abortCount = (window.__telemetry__.abortCount || 0) + 1; }
             try {
                 if (this.playbackScope !== null) _Timer().clearScope(this.playbackScope);
-            } catch (e) { }
+            } catch (e: any) { /* Intentionally empty: timer cleanup in abort path */ }
             this.isAborted = true;
             if (PlaybackState && typeof PlaybackState.abortPlayback === 'function') {
                 PlaybackState.abortPlayback({ boardElement: this.boardEl });
             } else {
                 this.setGlobalInteractionLock(false);
             }
-            try { _requestBoardUpdate(); } catch (e) { }
+            try { _requestBoardUpdate(); } catch (e: any) { /* Intentionally empty: board update in abort path */ }
         }
 
-        async executeEvent(ev) {
+        async executeEvent(ev: any) {
             switch (ev.type) {
                 case EVENT_TYPES.PLACE:
                     return this.handlePlace(ev);
@@ -1799,7 +1815,7 @@ const {
                             ? window.playHandAnimation
                             : ((typeof playHandAnimation === 'function') ? playHandAnimation : null);
                         if (typeof handAnimationFn !== 'function') return Promise.resolve();
-                        return new Promise((resolve) => {
+                        return new Promise<void>((resolve) => {
                             let finished = false;
                             const finish = () => {
                                 if (finished) return;
@@ -1815,7 +1831,7 @@ const {
                             };
                             try {
                                 handAnimationFn(this._resolvePlayerValue(descriptor.playerKey), descriptor.r, descriptor.col, done);
-                            } catch (e) {
+                            } catch (e: any) {
                                 done();
                             }
                         });
@@ -1833,7 +1849,7 @@ const {
                             _armLocalCardUseAnimationSkip(t2);
                         }
                         const disappearPlaybackEvents = Array.isArray(t2.disappearPlaybackEvents)
-                            ? t2.disappearPlaybackEvents.filter((one) => !!one)
+                            ? t2.disappearPlaybackEvents.filter((one: any) => !!one)
                             : [];
                         if (typeof window !== 'undefined' && typeof window.playCardUseHandAnimation === 'function') {
                             return window.playCardUseHandAnimation({
@@ -1845,7 +1861,7 @@ const {
                                 name: t2.name,
                                 disappearSoundKey: t2.disappearSoundKey || null,
                                 onDisappear: disappearPlaybackEvents.length > 0
-                                    ? () => Promise.all(disappearPlaybackEvents.map((one) => this.executeEvent(one)))
+                                    ? () => Promise.all(disappearPlaybackEvents.map((one: any) => this.executeEvent(one)))
                                     : null,
                                 sourceCardEl: t2.sourceCardEl || null,
                                 sourceCardRect: t2.sourceCardRect || ev.sourceCardRect || null
@@ -1884,7 +1900,7 @@ const {
 
         // --- Visual Primitive Handlers ---
 
-        async handleRoundBonusBanner(ev) {
+        async handleRoundBonusBanner(ev: any) {
             const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
             const target = targets[0] || ev || null;
             const amount = Number.isFinite(Number(target && target.amount))
@@ -1909,11 +1925,11 @@ const {
                         text
                     });
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
             return Promise.resolve();
         }
 
-        async handleSoundEffect(ev) {
+        async handleSoundEffect(ev: any) {
             const meta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
             const isLocalPendingPreview = meta.localPendingPreview === true;
             const keys = [];
@@ -1936,12 +1952,12 @@ const {
                         SoundEngine.init();
                         SoundEngine.playEffectByKey(trimmed);
                     }
-                } catch (e) { /* ignore */ }
+                } catch (e: any) { /* ignore */ }
             }
             return Promise.resolve();
         }
 
-        async handleObserverBubble(ev) {
+        async handleObserverBubble(ev: any) {
             const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
             if (!targets.length) return Promise.resolve();
 
@@ -1988,7 +2004,7 @@ const {
                     }
                 }
                 for (const oldNode of existing) {
-                    try { if (oldNode && oldNode.parentElement) oldNode.parentElement.removeChild(oldNode); } catch (e) { /* ignore */ }
+                    try { if (oldNode && oldNode.parentElement) oldNode.parentElement.removeChild(oldNode); } catch (e: any) { /* ignore */ }
                 }
 
                 const rect = cell.getBoundingClientRect();
@@ -2089,23 +2105,23 @@ const {
                         bubble.style.opacity = '1';
                         bubble.style.transform = finalTransform;
                     });
-                } catch (e) {
+                } catch (e: any) {
                     bubble.style.opacity = '1';
                     bubble.style.transform = finalTransform;
                 }
 
                 setTimeout(() => {
-                    try { bubble.style.opacity = '0'; } catch (e) { /* ignore */ }
+                    try { bubble.style.opacity = '0'; } catch (e: any) { /* ignore */ }
                 }, holdMs);
                 setTimeout(() => {
-                    try { if (bubble.parentElement) bubble.parentElement.removeChild(bubble); } catch (e) { /* ignore */ }
+                    try { if (bubble.parentElement) bubble.parentElement.removeChild(bubble); } catch (e: any) { /* ignore */ }
                 }, totalMs + 120);
             }
 
             return Promise.resolve();
         }
 
-        async handlePlace(ev) {
+        async handlePlace(ev: any) {
             const eventType = (ev && ev.type) ? ev.type : EVENT_TYPES.PLACE;
             for (const t of ev.targets) {
                 const cell = this.getCellEl(t.r, t.col);
@@ -2128,15 +2144,15 @@ const {
             return Promise.resolve();
         }
 
-        async handleFlip(ev) {
-            const promises = ev.targets.map(async t => {
+        async handleFlip(ev: any) {
+            const promises = ev.targets.map(async (t: any) => {
                 const cell = this.getCellEl(t.r, t.col);
                 if (!cell) return;
                 const blockedByGhost = !!(t && t.meta && t.meta.blockedByGhost);
                 if (blockedByGhost) {
                     await this._runWithEffectTargetHighlight(cell, EVENT_TYPES.FLIP, t, async () => {
                         await this._sleep(Math.max(120, Math.floor(FLIP_MS / 2)));
-                    });
+                    }, 0);
                     return;
                 }
                 const disc = cell.querySelector('.disc');
@@ -2151,7 +2167,7 @@ const {
                         cell.appendChild(ghost);
                         await this._sleep(FADE_OUT_MS);
                         if (ghost.parentElement) ghost.parentElement.removeChild(ghost);
-                    } catch (e) { /* ignore */ }
+                    } catch (e: any) { /* ignore */ }
                     return;
                 }
 
@@ -2163,7 +2179,7 @@ const {
                     // This makes the color change feel simultaneous with the flip motion.
                     if (noAnim) {
                         this.syncDiscVisual(disc, after);
-                        try { disc.classList.remove('flip'); } catch (e) { }
+                        try { disc.classList.remove('flip'); } catch (e: any) { /* Intentionally empty: DOM class cleanup guard */ }
                         return;
                     }
 
@@ -2174,10 +2190,10 @@ const {
                             const before = { color: (t.ownerBefore === 'black') ? 1 : -1, special: t.specialBefore || null, timer: t.timerBefore || null };
                             this.syncDiscVisual(disc, before);
                         }
-                    } catch (e) { /* ignore */ }
+                    } catch (e: any) { /* ignore */ }
 
                     // Trigger flip animation immediately
-                    try { if (AnimationShared && AnimationShared.triggerFlip) AnimationShared.triggerFlip(disc); } catch (e) { /* defensive */ }
+                    try { if (AnimationShared && AnimationShared.triggerFlip) AnimationShared.triggerFlip(disc); } catch (e: any) { /* defensive */ }
 
                     // Swap visuals exactly mid-way so color change aligns with motion start
                     await this._sleep(FLIP_MS / 2);
@@ -2185,14 +2201,14 @@ const {
 
                     // Finish motion and clean up
                     await this._sleep(FLIP_MS / 2);
-                    try { if (AnimationShared && AnimationShared.removeFlip) AnimationShared.removeFlip(disc); } catch (e) { }
-                });
+                    try { if (AnimationShared && AnimationShared.removeFlip) AnimationShared.removeFlip(disc); } catch (e: any) { /* Intentionally empty: AnimationShared may not be available */ }
+                }, 0);
             });
             await Promise.all(promises);
         }
 
         // Batch handler so that multiple flips in the same phase animate simultaneously
-        async executeFlipBatch(flipEvents) {
+        async executeFlipBatch(flipEvents: any) {
             const allTargets = [];
             for (const ev of flipEvents) {
                 for (const t of ev.targets || []) {
@@ -2204,8 +2220,8 @@ const {
             await this.handleFlip({ targets: allTargets });
         }
 
-        async handleDestroy(ev) {
-            const promises = ev.targets.map(async t => {
+        async handleDestroy(ev: any) {
+            const promises = ev.targets.map(async (t: any) => {
                 const superCrushDelay = this._resolveSuperCrushCollisionDelayMs(t);
                 if (superCrushDelay > 0) {
                     await this._sleep(superCrushDelay);
@@ -2302,7 +2318,7 @@ const {
                                 await this._sleep(FADE_OUT_MS);
                                 if (ghost.parentElement) ghost.parentElement.removeChild(ghost);
                             }
-                        } catch (e) { /* ignore */ }
+                        } catch (e: any) { /* ignore */ }
                     } else {
                         // Fallback: apply class and sleep
                         if (disc) {
@@ -2320,7 +2336,7 @@ const {
             await Promise.all(promises);
         }
 
-        async animateWillHunterKingSlash(target) {
+        async animateWillHunterKingSlash(target: any) {
             if (!target || _isNoAnim()) return;
 
             const cell = this.getCellEl(target.r, target.col);
@@ -2369,11 +2385,11 @@ const {
                     await this._sleep(durationMs);
                 }
             } finally {
-                try { if (slash.parentElement) slash.parentElement.removeChild(slash); } catch (e) { /* ignore */ }
+                try { if (slash.parentElement) slash.parentElement.removeChild(slash); } catch (e: any) { /* ignore */ }
             }
         }
 
-        async handleSpawn(ev) {
+        async handleSpawn(ev: any) {
             // Spawn is similar to place, but BREEDING spawn has its own fade-in.
             const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
             if (!targets.length) return Promise.resolve();
@@ -2417,7 +2433,7 @@ const {
                         fadeMs,
                         120,
                         () => {
-                            try { requestAnimationFrame(() => { disc.style.opacity = '1'; }); } catch (e) { disc.style.opacity = '1'; }
+                            try { requestAnimationFrame(() => { disc.style.opacity = '1'; }); } catch (e: any) { disc.style.opacity = '1'; }
                         },
                         () => {
                             disc.style.opacity = '';
@@ -2430,19 +2446,19 @@ const {
             await Promise.all(fadePromises);
         }
 
-        isBreedingSpawnTarget(t) {
+        isBreedingSpawnTarget(t: any) {
             if (!t) return false;
             const cause = String(t.cause || '').toUpperCase();
             const reason = String(t.reason || '').toLowerCase();
             return cause === 'BREEDING' && reason.indexOf('breeding_spawn') === 0;
         }
 
-        getSpawnFadeInMs(t) {
+        getSpawnFadeInMs(t: any) {
             if (this.isBreedingSpawnTarget(t)) return BREEDING_SPAWN_FADE_MS;
             return 0;
         }
 
-        _getMoveSemantics(target) {
+        _getMoveSemantics(target: any) {
             const cause = this._getTargetCause(target);
             const reason = this._getTargetReason(target);
             const extremeForcedSwapRole = String(target && target.extremeForcedSwapRole ? target.extremeForcedSwapRole : '').toLowerCase();
@@ -2503,22 +2519,22 @@ const {
             };
         }
 
-        _getMoveHighlightCells(fromCell, toCell, moveSemantics) {
+        _getMoveHighlightCells(fromCell: any, toCell: any, moveSemantics: any) {
             if (!moveSemantics) return [toCell];
             if (moveSemantics.shouldHighlightBothCells) return [fromCell, toCell];
             return (moveSemantics.isDestroyEvadeMove || moveSemantics.isFlipEvadeMove) ? [fromCell] : [toCell];
         }
 
-        _ensureMoveDiscVisible(discEl) {
+        _ensureMoveDiscVisible(discEl: any) {
             if (!discEl) return;
             try {
                 discEl.classList.remove('stone-hidden', 'stone-hidden-all', 'stone-instant', 'destroy-fade', 'shatter');
-            } catch (e) { /* ignore */ }
-            try { discEl.style.visibility = 'visible'; } catch (e) { /* ignore */ }
-            try { discEl.style.opacity = ''; } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
+            try { discEl.style.visibility = 'visible'; } catch (e: any) { /* ignore */ }
+            try { discEl.style.opacity = ''; } catch (e: any) { /* ignore */ }
         }
 
-        _buildMoveGhostAnimationSpec(moveSemantics, deltaX, deltaY) {
+        _buildMoveGhostAnimationSpec(moveSemantics: any, deltaX: any, deltaY: any) {
             const normalizedCause = String(moveSemantics && moveSemantics.cause ? moveSemantics.cause : '').toUpperCase();
             const normalizedReason = String(moveSemantics && moveSemantics.reason ? moveSemantics.reason : '').toLowerCase();
             const defaultSpec = {
@@ -2601,7 +2617,7 @@ const {
             return defaultSpec;
         }
 
-        _resolveMoveFallbackState(target) {
+        _resolveMoveFallbackState(target: any) {
             const fallbackState = (target && target.after && (target.after.color === 1 || target.after.color === -1))
                 ? target.after
                 : {
@@ -2614,7 +2630,7 @@ const {
             return fallbackState;
         }
 
-        _resolveMoveDiscContext(fromCell, toCell, target, moveSemantics) {
+        _resolveMoveDiscContext(fromCell: any, toCell: any, target: any, moveSemantics: any) {
             let disc = fromCell.querySelector('.disc');
             let sourceCell = fromCell;
             let useGhostOnly = !!(moveSemantics && moveSemantics.useGhostOnlyByDefault);
@@ -2637,7 +2653,7 @@ const {
             return { disc, sourceCell, useGhostOnly };
         }
 
-        _moveLiveDiscToDestination(fromCell, toCell, sourceCell, disc) {
+        _moveLiveDiscToDestination(fromCell: any, toCell: any, sourceCell: any, disc: any) {
             if (!disc || !toCell) return null;
             toCell.innerHTML = '';
             this._ensureMoveDiscVisible(disc);
@@ -2650,7 +2666,7 @@ const {
             return disc;
         }
 
-        _applyImmediateGhostOnlyMoveTarget(target, toCell, disc) {
+        _applyImmediateGhostOnlyMoveTarget(target: any, toCell: any, disc: any) {
             if (!toCell) return null;
             toCell.innerHTML = '';
             const targetDisc = (target && target.after && (target.after.color === 1 || target.after.color === -1))
@@ -2663,7 +2679,7 @@ const {
             return targetDisc;
         }
 
-        _setCellDiscFromState(cell, state) {
+        _setCellDiscFromState(cell: any, state: any) {
             if (!cell) return null;
             cell.innerHTML = '';
             cell.classList.remove('has-disc');
@@ -2675,7 +2691,7 @@ const {
             return disc;
         }
 
-        _ensureAnimatedCloneMoveTarget(target, toCell) {
+        _ensureAnimatedCloneMoveTarget(target: any, toCell: any) {
             if (!toCell) return null;
             const existingTargetDisc = toCell.querySelector('.disc');
             if (existingTargetDisc) return existingTargetDisc;
@@ -2687,7 +2703,7 @@ const {
             return targetDisc;
         }
 
-        _hideMoveDestinationDiscForGhostPlayback(toCell, disc, moveSemantics) {
+        _hideMoveDestinationDiscForGhostPlayback(toCell: any, disc: any, moveSemantics: any) {
             if (!toCell || !moveSemantics || !moveSemantics.shouldHideDestinationDiscDuringGhostPlayback) return null;
             const liveTargetDisc = toCell.querySelector('.disc');
             if (liveTargetDisc && liveTargetDisc !== disc) {
@@ -2697,14 +2713,14 @@ const {
             return null;
         }
 
-        _hideMoveSourceDiscForGhostPlayback(disc, useGhostOnly, moveSemantics) {
+        _hideMoveSourceDiscForGhostPlayback(disc: any, useGhostOnly: any, moveSemantics: any) {
             const shouldHideSourceDisc = !!disc && (!useGhostOnly || (moveSemantics && moveSemantics.isOverlapReturnMove));
             if (!shouldHideSourceDisc) return false;
             disc.style.visibility = 'hidden';
             return true;
         }
 
-        _createMoveGhost(disc, fromRect) {
+        _createMoveGhost(disc: any, fromRect: any) {
             const ghost = disc.cloneNode(true);
             ghost.classList.remove('destroy-fade', 'shatter');
             ghost.classList.add('stone-instant');
@@ -2722,7 +2738,7 @@ const {
             return ghost;
         }
 
-        _createMoveGhostFromState(state, fromRect) {
+        _createMoveGhostFromState(state: any, fromRect: any) {
             if (!state || (state.color !== 1 && state.color !== -1)) return null;
             if (typeof document === 'undefined' || !document || !document.body) return null;
             const ghost = this.createDisc(state);
@@ -2742,13 +2758,13 @@ const {
             return ghost;
         }
 
-        _settleMoveGhostIntoCell(ghost, cell, after) {
+        _settleMoveGhostIntoCell(ghost: any, cell: any, after: any) {
             if (!ghost || !cell) return null;
             try {
                 if (ghost.parentElement && ghost.parentElement !== cell) {
                     ghost.parentElement.removeChild(ghost);
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
             try {
                 ghost.classList.remove('stone-instant');
                 ghost.style.position = '';
@@ -2763,29 +2779,29 @@ const {
                 ghost.style.visibility = 'visible';
                 ghost.style.opacity = '';
                 ghost.style.transition = '';
-            } catch (e) { /* ignore */ }
+            } catch (e: any) { /* ignore */ }
             cell.innerHTML = '';
             cell.appendChild(ghost);
             cell.classList.add('has-disc');
             if (after && (after.color === 1 || after.color === -1)) {
-                try { this.syncDiscVisual(ghost, after); } catch (e) { /* ignore */ }
+                try { this.syncDiscVisual(ghost, after); } catch (e: any) { /* ignore */ }
             }
             return ghost;
         }
 
-        _cleanupMoveGhostPlayback(ghost, hiddenTargetDisc, discHidden, disc) {
+        _cleanupMoveGhostPlayback(ghost: any, hiddenTargetDisc: any, discHidden: any, disc: any) {
             if (ghost && ghost.parentElement) {
                 ghost.parentElement.removeChild(ghost);
             }
             if (hiddenTargetDisc) {
-                try { this._ensureMoveDiscVisible(hiddenTargetDisc); } catch (e) { /* ignore */ }
+                try { this._ensureMoveDiscVisible(hiddenTargetDisc); } catch (e: any) { /* ignore */ }
             }
             if (discHidden) {
-                try { this._ensureMoveDiscVisible(disc); } catch (e) { /* ignore */ }
+                try { this._ensureMoveDiscVisible(disc); } catch (e: any) { /* ignore */ }
             }
         }
 
-        _isValidMoveCellPosition(position) {
+        _isValidMoveCellPosition(position: any) {
             return !!(
                 position &&
                 Number.isInteger(position.r) &&
@@ -2793,16 +2809,16 @@ const {
             );
         }
 
-        _hasRenderableDiscState(state) {
+        _hasRenderableDiscState(state: any) {
             return !!(state && (state.color === 1 || state.color === -1));
         }
 
-        _canApplyExtremeForcedSwapFinalState(lead, follow) {
+        _canApplyExtremeForcedSwapFinalState(lead: any, follow: any) {
             return this._hasRenderableDiscState(lead && lead.after) &&
                 this._hasRenderableDiscState(follow && follow.after);
         }
 
-        _applyExtremeForcedSwapFinalState(returnCell, overlapCell, leadAfter, followAfter) {
+        _applyExtremeForcedSwapFinalState(returnCell: any, overlapCell: any, leadAfter: any, followAfter: any) {
             if (returnCell) {
                 this._setCellDiscFromState(returnCell, followAfter || null);
             }
@@ -2811,23 +2827,23 @@ const {
             }
         }
 
-        _isExtremeForcedSwapMoveEvent(ev) {
+        _isExtremeForcedSwapMoveEvent(ev: any) {
             const sequence = String(ev && ev.meta && ev.meta.sequence ? ev.meta.sequence : '').toLowerCase();
             if (sequence === 'extreme_hyperactive_forced_swap') return true;
             const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
             if (targets.length !== 2) return false;
-            return targets.every((target) => {
+            return targets.every((target: any) => {
                 const cause = String(this._getTargetCause(target) || '').toUpperCase();
                 const reason = String(this._getTargetReason(target) || '').toLowerCase();
                 return cause === 'EXTREME_HYPERACTIVE_WILL' && reason === 'extreme_hyperactive_forced_swap';
             });
         }
 
-        _resolveExtremeForcedSwapMoveTargets(ev) {
+        _resolveExtremeForcedSwapMoveTargets(ev: any) {
             const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
             if (targets.length !== 2) return null;
-            let lead = targets.find((target) => String(target && target.extremeForcedSwapRole ? target.extremeForcedSwapRole : '').toLowerCase() === 'lead') || null;
-            let follow = targets.find((target) => String(target && target.extremeForcedSwapRole ? target.extremeForcedSwapRole : '').toLowerCase() === 'follow') || null;
+            let lead = targets.find((target: any) => String(target && target.extremeForcedSwapRole ? target.extremeForcedSwapRole : '').toLowerCase() === 'lead') || null;
+            let follow = targets.find((target: any) => String(target && target.extremeForcedSwapRole ? target.extremeForcedSwapRole : '').toLowerCase() === 'follow') || null;
             if (!lead || !follow) {
                 [lead, follow] = targets;
             }
@@ -2852,7 +2868,7 @@ const {
             return { lead, follow };
         }
 
-        async _handleExtremeForcedSwapMove(ev) {
+        async _handleExtremeForcedSwapMove(ev: any) {
             const pairedTargets = this._resolveExtremeForcedSwapMoveTargets(ev);
             if (!pairedTargets) return false;
 
@@ -2881,9 +2897,9 @@ const {
 
             const leadSemantics = this._getMoveSemantics(lead);
             const returnSemantics = this._getMoveSemantics(follow);
-            let highlightedCells = [];
-            let overlapGhost = null;
-            let returnGhost = null;
+            let highlightedCells: any[] = [];
+            let overlapGhost: any = null;
+            let returnGhost: any = null;
             const docBody = (typeof document !== 'undefined' && document && document.body) ? document.body : null;
             const sourceDisc = fromCell.querySelector('.disc');
             const occupiedDisc = overlapCell.querySelector('.disc');
@@ -2896,7 +2912,7 @@ const {
                         try {
                             oneCell.classList.add(EFFECT_TARGET_HIGHLIGHT_CLASS);
                             highlightedCells.push(oneCell);
-                        } catch (e) { /* ignore */ }
+                        } catch (e: any) { /* ignore */ }
                     }
                 }
 
@@ -2923,7 +2939,7 @@ const {
 
                 try {
                     const overlapDurationMs = Math.max(1, Math.round(MOVE_MS));
-                    let overlapAnim = null;
+                    let overlapAnim: any = null;
                     if (typeof overlapGhost.animate === 'function') {
                         try {
                             const overlapSpec = this._buildMoveGhostAnimationSpec(
@@ -2935,7 +2951,7 @@ const {
                                 duration: overlapDurationMs,
                                 easing: overlapSpec.easing
                             });
-                        } catch (e) {
+                        } catch (e: any) {
                             overlapAnim = null;
                         }
                     }
@@ -2962,7 +2978,7 @@ const {
 
                 try {
                     const returnDurationMs = Math.max(1, Math.round(MOVE_MS));
-                    let returnAnim = null;
+                    let returnAnim: any = null;
                     if (typeof returnGhost.animate === 'function') {
                         try {
                             const returnSpec = this._buildMoveGhostAnimationSpec(
@@ -2974,7 +2990,7 @@ const {
                                 duration: returnDurationMs,
                                 easing: returnSpec.easing
                             });
-                        } catch (e) {
+                        } catch (e: any) {
                             returnAnim = null;
                         }
                     }
@@ -2990,24 +3006,24 @@ const {
                 return true;
             } finally {
                 if (sourceDisc && sourceDisc.parentElement) {
-                    try { this._ensureMoveDiscVisible(sourceDisc); } catch (e) { /* ignore */ }
+                    try { this._ensureMoveDiscVisible(sourceDisc); } catch (e: any) { /* ignore */ }
                 }
                 if (occupiedDisc && occupiedDisc.parentElement) {
-                    try { this._ensureMoveDiscVisible(occupiedDisc); } catch (e) { /* ignore */ }
+                    try { this._ensureMoveDiscVisible(occupiedDisc); } catch (e: any) { /* ignore */ }
                 }
                 for (const highlightedCell of highlightedCells) {
-                    try { highlightedCell.classList.remove(EFFECT_TARGET_HIGHLIGHT_CLASS); } catch (e) { /* ignore */ }
+                    try { highlightedCell.classList.remove(EFFECT_TARGET_HIGHLIGHT_CLASS); } catch (e: any) { /* ignore */ }
                 }
             }
         }
 
-        async handleMove(ev) {
+        async handleMove(ev: any) {
             if (this._isExtremeForcedSwapMoveEvent(ev)) {
                 const handled = await this._handleExtremeForcedSwapMove(ev);
                 if (handled) return;
             }
             const moveTargets = Array.isArray(ev && ev.targets) ? ev.targets : [];
-            const promises = moveTargets.map(async t => {
+            const promises = moveTargets.map(async (t: any) => {
                 if (!t || !this._isValidMoveCellPosition(t.from) || !this._isValidMoveCellPosition(t.to)) return;
                 const fromCell = this.getCellEl(t.from.r, t.from.col);
                 const toCell = this.getCellEl(t.to.r, t.to.col);
@@ -3015,7 +3031,7 @@ const {
 
                 const moveSemantics = this._getMoveSemantics(t);
 
-                let highlightedCells = [];
+                let highlightedCells: any[] = [];
                 try {
                     const highlightTone = this._resolveEffectTargetHighlightTone(EVENT_TYPES.MOVE, t);
                     const highlightClass = highlightTone === HIGHLIGHT_TONE_POSITIVE
@@ -3028,7 +3044,7 @@ const {
                             try {
                                 oneCell.classList.add(highlightClass);
                                 highlightedCells.push({ cell: oneCell, className: highlightClass });
-                            } catch (e) { /* ignore */ }
+                            } catch (e: any) { /* ignore */ }
                         }
                     }
 
@@ -3053,7 +3069,7 @@ const {
                             if (moveSemantics.isOverlapReturnMove) {
                                 return;
                             }
-                            let targetDisc = null;
+                            let targetDisc: any = null;
                             if (!useGhostOnly) {
                                 targetDisc = this._moveLiveDiscToDestination(fromCell, toCell, sourceCell, disc);
                             } else {
@@ -3071,7 +3087,7 @@ const {
                                 });
                                 await this._waitForAnimationFinish(anim, durationMs, 120);
                             }
-                        } catch (e) {
+                        } catch (e: any) {
                             // best-effort
                         }
                         return;
@@ -3085,7 +3101,7 @@ const {
                         const durationScale = moveSemantics.isPositionSwapMove ? 0.8 : 1;
                         const durationMs = Math.max(1, Math.round(MOVE_MS * durationScale));
 
-                        let anim = null;
+                        let anim: any = null;
                         if (typeof ghost.animate === 'function') {
                             try {
                                 const animationSpec = this._buildMoveGhostAnimationSpec(moveSemantics, deltaX, deltaY);
@@ -3093,7 +3109,7 @@ const {
                                     duration: durationMs,
                                     easing: animationSpec.easing
                                 });
-                            } catch (e) {
+                            } catch (e: any) {
                                 anim = null;
                             }
                         }
@@ -3123,15 +3139,15 @@ const {
                     }
                 } finally {
                     for (const highlightedCell of highlightedCells) {
-                        try { highlightedCell.cell.classList.remove(highlightedCell.className); } catch (e) { /* ignore */ }
+                        try { highlightedCell.cell.classList.remove(highlightedCell.className); } catch (e: any) { /* ignore */ }
                     }
                 }
             });
             await Promise.all(promises);
         }
 
-        async handleStatusChange(ev) {
-            const promises = ev.targets.map(async t => {
+        async handleStatusChange(ev: any) {
+            const promises = ev.targets.map(async (t: any) => {
                 const cell = this.getCellEl(t.r, t.col);
                 if (!cell) return;
 
@@ -3233,7 +3249,7 @@ const {
 
                         // Section 1.5: True Cross-Fade via overlay
                         if (Visuals.crossfadeStoneVisual) {
-                            const crossfadeOptions = {
+                            const crossfadeOptions: any = {
                                 effectKey: effectKey,
                                 owner: (visualOwner !== null && typeof visualOwner !== 'undefined' && visualOwner !== '')
                                     ? visualOwner
@@ -3253,19 +3269,20 @@ const {
                             this.syncDiscVisual(disc, visualAfter);
                         }
                     },
-                    this._resolveStatusChangeHighlightMinimumMs(highlightTone)
+                    this._resolveStatusChangeHighlightMinimumMs(highlightTone),
+                    []
                 );
             });
             await Promise.all(promises);
         }
 
-        async fadeOutFreezeOverlay(cell, durationMs) {
+        async fadeOutFreezeOverlay(cell: any, durationMs: any) {
             if (!cell) return;
             const freezeMark = cell.querySelector('.freeze-mark');
             cell.classList.remove('frozen-cell');
             if (!freezeMark) return;
             if (_isNoAnim() || !Number.isFinite(durationMs) || durationMs <= 0) {
-                try { if (freezeMark.parentElement) freezeMark.parentElement.removeChild(freezeMark); } catch (e) { /* ignore */ }
+                try { if (freezeMark.parentElement) freezeMark.parentElement.removeChild(freezeMark); } catch (e: any) { /* ignore */ }
                 return;
             }
 
@@ -3276,7 +3293,7 @@ const {
             ghost.style.zIndex = '85';
             ghost.style.opacity = '1';
 
-            try { if (freezeMark.parentElement) freezeMark.parentElement.removeChild(freezeMark); } catch (e) { /* ignore */ }
+            try { if (freezeMark.parentElement) freezeMark.parentElement.removeChild(freezeMark); } catch (e: any) { /* ignore */ }
             cell.appendChild(ghost);
             ghost.style.transition = `opacity ${durationMs}ms ease`;
 
@@ -3289,17 +3306,17 @@ const {
                         requestAnimationFrame(() => {
                             ghost.style.opacity = '0';
                         });
-                    } catch (e) {
+                    } catch (e: any) {
                         ghost.style.opacity = '0';
                     }
                 },
                 () => {
-                    try { if (ghost.parentElement) ghost.parentElement.removeChild(ghost); } catch (e) { /* ignore */ }
+                    try { if (ghost.parentElement) ghost.parentElement.removeChild(ghost); } catch (e: any) { /* ignore */ }
                 }
             );
         }
 
-        async crossfadeDiscToState(disc, after, durationMs) {
+        async crossfadeDiscToState(disc: any, after: any, durationMs: any) {
             if (!disc) return;
             const cell = disc.parentElement;
             if (!cell || _isNoAnim() || !Number.isFinite(durationMs) || durationMs <= 0) {
@@ -3339,13 +3356,13 @@ const {
                             disc.style.opacity = '1';
                             ghost.style.opacity = '0';
                         });
-                    } catch (e) {
+                    } catch (e: any) {
                         disc.style.opacity = '1';
                         ghost.style.opacity = '0';
                     }
                 },
                 () => {
-                    try { if (ghost.parentElement) ghost.parentElement.removeChild(ghost); } catch (e) { /* ignore */ }
+                    try { if (ghost.parentElement) ghost.parentElement.removeChild(ghost); } catch (e: any) { /* ignore */ }
                     disc.style.opacity = '';
                     disc.style.transition = prevDiscTransition;
                 }
@@ -3354,22 +3371,22 @@ const {
 
         // --- Helpers ---
 
-        getCellEl(r, c) {
+        getCellEl(r: any, c: any) {
             if (!this.boardEl || typeof this.boardEl.querySelector !== 'function') return null;
             return this.boardEl.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
         }
 
-        async waitForDisc(r, c, attempts) {
+        async waitForDisc(r: any, c: any, attempts: any) {
             let remaining = Number.isFinite(attempts) ? attempts : 1;
             while (remaining > 0) {
                 const cell = this.getCellEl(r, c);
                 const disc = cell ? cell.querySelector('.disc') : null;
                 if (disc) return disc;
                 remaining -= 1;
-                await new Promise(resolve => {
+                await new Promise<void>(resolve=> {
                     try {
                         requestAnimationFrame(() => setTimeout(resolve, 0));
-                    } catch (e) {
+                    } catch (e: any) {
                         setTimeout(resolve, 0);
                     }
                 });
@@ -3377,14 +3394,14 @@ const {
             return null;
         }
 
-        createDisc(state) {
+        createDisc(state: any) {
             const disc = document.createElement('div');
             disc.className = 'disc';
             this.syncDiscVisual(disc, state);
             return disc;
         }
 
-        syncDiscVisual(disc, state) {
+        syncDiscVisual(disc: any, state: any) {
             if (!state) return;
             disc.classList.remove('black', 'white');
             if (state.color === 1) disc.classList.add('black');
@@ -3440,17 +3457,17 @@ const {
             this.syncDiscTimerOnly(disc, state);
         }
 
-        syncDiscTimerOnly(disc, state) {
+        syncDiscTimerOnly(disc: any, state: any) {
             if (!disc || !state) return;
 
             const allTimerSelector = '.stone-timer, .bomb-timer, .special-timer, .countdown-timer, .inherited-hyperactive-timer, .dragon-timer, .udg-timer, .breeding-timer, .work-timer, .guard-timer, .flip-evade-timer, .destroy-evade-timer';
             const existingTimers = Array.from(disc.querySelectorAll(allTimerSelector));
-            existingTimers.forEach((el) => el.remove());
+            existingTimers.forEach((el: any) => el.remove());
 
             const specialType = String(state.special || '').toUpperCase();
             let primaryTimerValue = Number(state.timer);
             let inheritedTimerValue = Number(state.inheritedTimer);
-            const parseCounterOrNaN = (raw) => {
+            const parseCounterOrNaN = (raw: any) => {
                 if (raw === null || raw === undefined || raw === '') return NaN;
                 const parsed = Number(raw);
                 if (!Number.isFinite(parsed)) return NaN;
@@ -3474,7 +3491,7 @@ const {
                 flipEvadeRemaining = NaN;
             }
 
-            const appendTimer = (className, value, options) => {
+            const appendTimer = (className: any, value: any, options: any) => {
                 const opts = options || {};
                 const allowZero = opts.allowZero === true;
                 if (!(Number.isFinite(value) && (allowZero ? value >= 0 : value > 0))) return;
@@ -3493,11 +3510,11 @@ const {
                 else if (specialType === 'BREEDING') primaryClass = 'stone-timer breeding-timer';
                 else if (specialType === 'WORK') primaryClass = 'stone-timer work-timer';
                 else if (specialType === 'TIME_STOP' || specialType === 'PERMA_PROTECTED') primaryClass = 'countdown-timer';
-                appendTimer(primaryClass, primaryTimerValue);
+                appendTimer(primaryClass, primaryTimerValue, undefined);
             }
 
             if (Number.isFinite(inheritedTimerValue) && inheritedTimerValue > 0) {
-                appendTimer('stone-timer special-timer inherited-hyperactive-timer', inheritedTimerValue);
+                appendTimer('stone-timer special-timer inherited-hyperactive-timer', inheritedTimerValue, undefined);
             }
 
             const isPrimaryFlipEvadeSpecialType = (
@@ -3538,7 +3555,7 @@ const {
             }
         }
 
-        applyFinalStates(ev) {
+        applyFinalStates(ev: any) {
             // Fallback: use per-target provided 'after' states when available
             for (const t of ev.targets || []) {
                 const state = t.after || { color: 0, special: null, timer: null };
@@ -3558,7 +3575,7 @@ const {
             }
         }
 
-        setGlobalInteractionLock(locked) {
+        setGlobalInteractionLock(locked: any) {
             if (PlaybackState && typeof PlaybackState.beginPlayback === 'function' && locked === true) {
                 PlaybackState.beginPlayback({ boardElement: this.boardEl });
             } else if (PlaybackState && typeof PlaybackState.finalizePlayback === 'function' && locked !== true) {
@@ -3583,7 +3600,7 @@ const {
             }
         }
 
-        log(msg) {
+        log(msg: any) {
             if (window.addLog) window.addLog(msg);
             else console.log('[LOG]', msg);
         }

@@ -55,3 +55,23 @@ declare const player: any;
 declare const resultOverlay: any;
 declare const showResult: any;
 declare const showResultOverlay: any;
+declare const isDebugLogAvailable: () => boolean;
+
+// Allow window and globalThis property access for legacy JS globals
+interface Window {
+  [key: string]: any;
+}
+interface Element {
+  dataset: DOMStringMap;
+}
+interface DOMTokenList {
+  [key: string]: any;
+}
+declare const isGameOver: any;
+declare const handLayer: any;
+declare const handWrapper: any;
+declare const heldStone: any;
+declare const createCardFaceElement: any;
+declare const applyCardSpecialArtToFace: any;
+declare const SharedConstants: any;
+declare const __uiImpl: any;

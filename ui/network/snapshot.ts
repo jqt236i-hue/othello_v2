@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -8,9 +7,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 'use strict';
-
-declare const __non_webpack_require__: NodeRequire | undefined;
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require) as NodeRequire;
 
 function createNetworkSnapshotController(config: any): any {
     const cfg = (config && typeof config === 'object') ? config : {};
