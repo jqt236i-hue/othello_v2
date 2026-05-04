@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -12,14 +11,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 
 const PendingSelectionFlow = _require('./selection-flow');
 
-function wasSelectionApplied(result, rawEventType) {
+function wasSelectionApplied(result: any, rawEventType: string): boolean {
     const selected = result && Array.isArray(result.rawEvents)
-        ? result.rawEvents.find((event) => event && event.type === rawEventType)
+        ? result.rawEvents.find((event: any) => event && event.type === rawEventType)
         : null;
     return !!(selected && selected.applied);
 }
 
-async function handleHyperactiveInheritSelection(row, col, playerKey) {
+async function handleHyperactiveInheritSelection(row: number, col: number, playerKey: string): Promise<any> {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
     return PendingSelectionFlow.executePendingSelection({
         row,
@@ -28,7 +27,7 @@ async function handleHyperactiveInheritSelection(row, col, playerKey) {
         pendingType: 'HYPERACTIVE_INHERIT_WILL',
         actionPayload: { hyperactiveInheritTarget: { row, col } },
         invalidMessage: '多動を継承する自分の石を選んでください',
-        validateResult: ({ result }) => wasSelectionApplied(result, 'hyperactive_inherit_selected'),
+        validateResult: ({ result }: { result: any }) => wasSelectionApplied(result, 'hyperactive_inherit_selected'),
         buildPlaybackMeta: () => ({ cause: 'HYPERACTIVE_INHERIT_WILL', target: { row, col } })
     });
 }

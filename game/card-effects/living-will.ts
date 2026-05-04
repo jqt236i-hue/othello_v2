@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -12,14 +11,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 
 const PendingSelectionFlow = _require('./selection-flow');
 
-function wasLivingWillSelectionApplied(result) {
+function wasLivingWillSelectionApplied(result: any): boolean {
     const selected = result && Array.isArray(result.rawEvents)
-        ? result.rawEvents.find((event) => event && event.type === 'living_will_selected')
+        ? result.rawEvents.find((event: any) => event && event.type === 'living_will_selected')
         : null;
     return !!(selected && selected.applied);
 }
 
-async function handleLivingWillSelection(row, col, playerKey) {
+async function handleLivingWillSelection(row: number, col: number, playerKey: string): Promise<any> {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
     return PendingSelectionFlow.executePendingSelection({
         row,
@@ -28,7 +27,7 @@ async function handleLivingWillSelection(row, col, playerKey) {
         pendingType: 'LIVING_WILL',
         actionPayload: { livingWillTarget: { row, col } },
         invalidMessage: '生きる意志を付与する自分の石を選んでください',
-        validateResult: ({ result }) => wasLivingWillSelectionApplied(result),
+        validateResult: ({ result }: { result: any }) => wasLivingWillSelectionApplied(result),
         buildPlaybackMeta: () => ({ cause: 'LIVING_WILL', target: { row, col } })
     });
 }

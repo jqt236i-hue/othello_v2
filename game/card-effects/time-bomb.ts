@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -12,14 +11,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 
 const PendingSelectionFlow = _require('./selection-flow');
 
-function wasSelectionApplied(result, rawEventType) {
+function wasSelectionApplied(result: any, rawEventType: string): boolean {
     const selected = result && Array.isArray(result.rawEvents)
-        ? result.rawEvents.find((event) => event && event.type === rawEventType)
+        ? result.rawEvents.find((event: any) => event && event.type === rawEventType)
         : null;
     return !!(selected && selected.applied);
 }
 
-async function handleTimeBombSelection(row, col, playerKey) {
+async function handleTimeBombSelection(row: number, col: number, playerKey: string) {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
     return PendingSelectionFlow.executePendingSelection({
         row,
@@ -28,7 +27,7 @@ async function handleTimeBombSelection(row, col, playerKey) {
         pendingType: 'TIME_BOMB',
         actionPayload: { bombTarget: { row, col } },
         invalidMessage: '時限爆弾にする自分の石を選んでください',
-        validateResult: ({ result }) => wasSelectionApplied(result, 'time_bomb_selected'),
+        validateResult: ({ result }: any) => wasSelectionApplied(result, 'time_bomb_selected'),
         buildPlaybackMeta: () => ({ cause: 'TIME_BOMB', target: { row, col } })
     });
 }

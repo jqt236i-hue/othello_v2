@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -12,14 +11,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 
 const PendingSelectionFlow = _require('./selection-flow');
 
-function wasSelectionApplied(result, rawEventType) {
+function wasSelectionApplied(result: any, rawEventType: string): boolean {
     const selected = result && Array.isArray(result.rawEvents)
-        ? result.rawEvents.find((event) => event && event.type === rawEventType)
+        ? result.rawEvents.find((event: any) => event && event.type === rawEventType)
         : null;
     return !!(selected && selected.applied);
 }
 
-async function handleMeteorSelection(row, col, playerKey) {
+async function handleMeteorSelection(row: number, col: number, playerKey: string): Promise<any> {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
     return PendingSelectionFlow.executePendingSelection({
         row,
@@ -28,7 +27,7 @@ async function handleMeteorSelection(row, col, playerKey) {
         pendingType: 'METEOR_WILL',
         actionPayload: { meteorTarget: { row, col } },
         invalidMessage: '破壊するマスを選んでください',
-        validateResult: ({ result }) => wasSelectionApplied(result, 'meteor_selected'),
+        validateResult: ({ result }: { result: any }) => wasSelectionApplied(result, 'meteor_selected'),
         buildPlaybackMeta: () => ({ cause: 'METEOR_WILL', target: { row, col } })
     });
 }

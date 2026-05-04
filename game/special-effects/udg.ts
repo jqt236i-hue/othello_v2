@@ -1,5 +1,5 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
+declare const emitLogAdded: any;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
@@ -16,13 +16,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  * @param {number} player - Current player (BLACK=1 or WHITE=-1)
  * @returns {Promise<void>}
  */
-async function processUltimateDestroyGodsAtTurnStart(player, precomputedResult = null, precomputedEvents = null) {
+async function processUltimateDestroyGodsAtTurnStart(player: number, precomputedResult: any = null, precomputedEvents: any = null) {
     const udgs = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.getSpecialMarkers === 'function')
-        ? MarkersAdapter.getSpecialMarkers(cardState).filter(m => m.data && m.data.type === 'ULTIMATE_DESTROY_GOD')
-        : (cardState && cardState.markers ? cardState.markers.filter(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_DESTROY_GOD') : []);
+        ? MarkersAdapter.getSpecialMarkers(cardState).filter((m: any) => m.data && m.data.type === 'ULTIMATE_DESTROY_GOD')
+        : (cardState && cardState.markers ? cardState.markers.filter((m: any) => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_DESTROY_GOD') : []);
     if (!udgs.length) return;
 
-    const hasPlayback = (typeof globalThis !== 'undefined' && globalThis.PlaybackEngine && typeof globalThis.PlaybackEngine.playPresentationEvents === 'function'); // globalThis - UI/bootstrap dependency
+    const hasPlayback = (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackEngine && typeof (globalThis as any).PlaybackEngine.playPresentationEvents === 'function'); // globalThis - UI/bootstrap dependency
 
     const playerKey = player === BLACK ? 'black' : 'white';
     // Prefer precomputed result (from pipeline). If not provided, try to extract from events.
@@ -92,7 +92,7 @@ async function processUltimateDestroyGodsAtTurnStart(player, precomputedResult =
  * @param {number} col
  * @param {Object} [precomputedResult]
  */
-async function processUltimateDestroyGodImmediateAtPlacement(player, row, col, precomputedResult = null) {
+async function processUltimateDestroyGodImmediateAtPlacement(player: number, row: number, col: number, precomputedResult: any = null) {
     const playerKey = player === BLACK ? 'black' : 'white';
     const result = precomputedResult || CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, { decrementRemainingOwnerTurns: false });
 

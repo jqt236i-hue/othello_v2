@@ -1,5 +1,5 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
+declare const emitLogAdded: (...args: any[]) => void;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
@@ -12,13 +12,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 
 const PendingSelectionFlow = _require('./selection-flow');
 
-function getCloneSelectedEvent(result, rawEventType) {
+function getCloneSelectedEvent(result: any, rawEventType: string): any {
     return result && Array.isArray(result.rawEvents)
-        ? result.rawEvents.find((event) => event && event.type === rawEventType)
+        ? result.rawEvents.find((event: any) => event && event.type === rawEventType)
         : null;
 }
 
-async function handleCloneLikeSelection(row, col, playerKey, config) {
+async function handleCloneLikeSelection(row: number, col: number, playerKey: string, config: any): Promise<any> {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
 
     const cfg = config || {};
@@ -29,7 +29,7 @@ async function handleCloneLikeSelection(row, col, playerKey, config) {
     const playbackCause = String(cfg.playbackCause || pendingType);
     const successLogBuilder = typeof cfg.successLogBuilder === 'function'
         ? cfg.successLogBuilder
-        : ((spawnedCount) => `複製の意志: ${spawnedCount}個を生成`);
+        : ((spawnedCount: number) => `複製の意志: ${spawnedCount}個を生成`);
 
     return PendingSelectionFlow.executePendingSelection({
         row,
@@ -40,12 +40,12 @@ async function handleCloneLikeSelection(row, col, playerKey, config) {
             [actionTargetKey]: { row, col }
         },
         invalidMessage: selectionFailLog,
-        validateResult: ({ result }) => {
+        validateResult: ({ result }: any) => {
             const selected = getCloneSelectedEvent(result, selectedEventType);
             return !!(selected && selected.applied);
         },
         buildPlaybackMeta: () => ({ cause: playbackCause, target: { row, col } }),
-        afterStateChange: ({ result }) => {
+        afterStateChange: ({ result }: any) => {
             const selected = getCloneSelectedEvent(result, selectedEventType);
             if (!selected || typeof emitLogAdded !== 'function') return;
             const spawnedCount = Array.isArray(selected.spawned) ? selected.spawned.length : 0;
@@ -54,14 +54,14 @@ async function handleCloneLikeSelection(row, col, playerKey, config) {
     });
 }
 
-async function handleCloneSelection(row, col, playerKey) {
+async function handleCloneSelection(row: number, col: number, playerKey: string): Promise<any> {
     return handleCloneLikeSelection(row, col, playerKey, {
         pendingType: 'CLONE_WILL',
         actionTargetKey: 'cloneTarget',
         selectedEventType: 'clone_selected',
         selectionFailLog: '周囲に空きがある自分の石を選んでください',
         playbackCause: 'CLONE_WILL',
-        successLogBuilder: (spawnedCount) => `複製の意志: ${spawnedCount}個を生成`
+        successLogBuilder: (spawnedCount: number) => `複製の意志: ${spawnedCount}個を生成`
     });
 }
 

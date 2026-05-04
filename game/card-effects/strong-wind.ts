@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -11,12 +10,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+declare const emitLogAdded: any;
 
-function getPlayerLabel(playerKey) {
+function getPlayerLabel(playerKey: string): string {
     return playerKey === 'black' ? '黒' : '白';
 }
 
-async function handleMovementSelection(row, col, playerKey, options) {
+async function handleMovementSelection(row: number, col: number, playerKey: string, options: any) {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
 
     const opts = options || {};
@@ -27,9 +27,9 @@ async function handleMovementSelection(row, col, playerKey, options) {
         pendingType: opts.pendingType,
         actionPayload: { [opts.actionField]: { row, col } },
         invalidMessage: opts.invalidMessage,
-        validateResult: ({ result }) => {
+        validateResult: ({ result }: any) => {
             const selected = result && Array.isArray(result.rawEvents)
-                ? result.rawEvents.find((event) => event && event.type === opts.rawEventType && event.applied)
+                ? result.rawEvents.find((event: any) => event && event.type === opts.rawEventType && event.applied)
                 : null;
             return !!selected;
         },
@@ -42,7 +42,7 @@ async function handleMovementSelection(row, col, playerKey, options) {
     });
 }
 
-async function handleStrongWindSelection(row, col, playerKey) {
+async function handleStrongWindSelection(row: number, col: number, playerKey: string) {
     return handleMovementSelection(row, col, playerKey, {
         pendingType: 'STRONG_WIND_WILL',
         actionField: 'strongWindTarget',
@@ -53,7 +53,7 @@ async function handleStrongWindSelection(row, col, playerKey) {
     });
 }
 
-async function handleSuperBuoyancySelection(row, col, playerKey) {
+async function handleSuperBuoyancySelection(row: number, col: number, playerKey: string) {
     return handleMovementSelection(row, col, playerKey, {
         pendingType: 'SUPER_BUOYANCY_WILL',
         actionField: 'superBuoyancyTarget',
@@ -64,7 +64,7 @@ async function handleSuperBuoyancySelection(row, col, playerKey) {
     });
 }
 
-async function handleSuperGravitySelection(row, col, playerKey) {
+async function handleSuperGravitySelection(row: number, col: number, playerKey: string) {
     return handleMovementSelection(row, col, playerKey, {
         pendingType: 'SUPER_GRAVITY_WILL',
         actionField: 'superGravityTarget',

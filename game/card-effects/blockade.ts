@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -12,14 +11,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 
 const PendingSelectionFlow = _require('./selection-flow');
 
-function wasSelectionApplied(result, rawEventType) {
+function wasSelectionApplied(result: any, rawEventType: string) {
     const selected = result && Array.isArray(result.rawEvents)
-        ? result.rawEvents.find((event) => event && event.type === rawEventType)
+        ? result.rawEvents.find((event: any) => event && event.type === rawEventType)
         : null;
     return !!(selected && selected.applied);
 }
 
-async function handleBlockadeSelection(row, col, playerKey) {
+async function handleBlockadeSelection(row: number, col: number, playerKey: string) {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
     return PendingSelectionFlow.executePendingSelection({
         row,
@@ -28,7 +27,7 @@ async function handleBlockadeSelection(row, col, playerKey) {
         pendingType: 'BLOCKADE_WILL',
         actionPayload: { blockadeTarget: { row, col } },
         invalidMessage: '封鎖する空きマスを選んでください',
-        validateResult: ({ result }) => wasSelectionApplied(result, 'blockade_selected'),
+        validateResult: ({ result }: { result: any }) => wasSelectionApplied(result, 'blockade_selected'),
         buildPlaybackMeta: () => ({ cause: 'BLOCKADE_WILL', target: { row, col } })
     });
 }

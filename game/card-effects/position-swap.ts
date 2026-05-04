@@ -1,9 +1,11 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
   : require;
+
+declare function emitLogAdded(message: any, kind?: string): void;
+declare function posToNotation(row: number, col: number): string;
 
 /**
  * @file position-swap.js
@@ -12,19 +14,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 
 const PendingSelectionFlow = _require('./selection-flow');
 
-function getPositionSwapFirstSelectedEvent(result) {
+function getPositionSwapFirstSelectedEvent(result: any) {
     return result && Array.isArray(result.rawEvents)
-        ? result.rawEvents.find((event) => event && event.type === 'position_swap_first_selected')
+        ? result.rawEvents.find((event: any) => event && event.type === 'position_swap_first_selected')
         : null;
 }
 
-function getPositionSwapCompletedEvent(result) {
+function getPositionSwapCompletedEvent(result: any) {
     return result && Array.isArray(result.rawEvents)
-        ? result.rawEvents.find((event) => event && event.type === 'position_swap_selected' && event.applied && event.completed)
+        ? result.rawEvents.find((event: any) => event && event.type === 'position_swap_selected' && event.applied && event.completed)
         : null;
 }
 
-async function handlePositionSwapSelection(row, col, playerKey) {
+async function handlePositionSwapSelection(row: number, col: number, playerKey: string) {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
     return PendingSelectionFlow.executePendingSelection({
         row,
@@ -33,9 +35,9 @@ async function handlePositionSwapSelection(row, col, playerKey) {
         pendingType: 'POSITION_SWAP_WILL',
         actionPayload: { positionSwapTarget: { row, col } },
         invalidMessage: '入替対象の石を選んでください',
-        validateResult: ({ result }) => !!(getPositionSwapFirstSelectedEvent(result) || getPositionSwapCompletedEvent(result)),
+        validateResult: ({ result }: { result: any }) => !!(getPositionSwapFirstSelectedEvent(result) || getPositionSwapCompletedEvent(result)),
         buildPlaybackMeta: () => ({ cause: 'POSITION_SWAP_WILL', target: { row, col } }),
-        afterStateChange: ({ result }) => {
+        afterStateChange: ({ result }: { result: any }) => {
             if (typeof emitLogAdded !== 'function') return;
             const swapped = getPositionSwapCompletedEvent(result);
             if (swapped) {

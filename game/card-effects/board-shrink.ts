@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -12,12 +11,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 
 const PendingSelectionFlow = _require('./selection-flow');
 
-function wasBoardShrinkSelectionApplied(result) {
+function wasBoardShrinkSelectionApplied(result: any) {
     const rawEvents = result && Array.isArray(result.rawEvents) ? result.rawEvents : [];
-    return rawEvents.some((event) => event && event.type === 'board_shrink_selected' && event.applied);
+    return rawEvents.some((event: any) => event && event.type === 'board_shrink_selected' && event.applied);
 }
 
-async function handleBoardShrinkSelection(row, col, playerKey) {
+async function handleBoardShrinkSelection(row: number, col: number, playerKey: string) {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
     return PendingSelectionFlow.executePendingSelection({
         row,
@@ -25,7 +24,7 @@ async function handleBoardShrinkSelection(row, col, playerKey) {
         playerKey,
         pendingTypes: ['BOARD_SHRINK_WILL', 'BOARD_SHRINK_GOD'],
         actionPayload: { shrinkTarget: { row, col } },
-        invalidMessage: ({ pendingType, pending }) => {
+        invalidMessage: ({ pendingType, pending }: { pendingType: any; pending: any }) => {
             if (pendingType === 'BOARD_SHRINK_GOD') {
                 return pending && pending.firstTarget
                     ? '角から伸ばす辺方向を選んでください'
@@ -33,8 +32,8 @@ async function handleBoardShrinkSelection(row, col, playerKey) {
             }
             return '外周のマスを3つ選んで盤面を縮小してください';
         },
-        validateResult: ({ result }) => wasBoardShrinkSelectionApplied(result),
-        buildPlaybackMeta: ({ pendingType, pending }) => ({
+        validateResult: ({ result }: { result: any }) => wasBoardShrinkSelectionApplied(result),
+        buildPlaybackMeta: ({ pendingType, pending }: { pendingType: any; pending: any }) => ({
             cause: pendingType,
             target: { row, col },
             firstTarget: pending && pending.firstTarget

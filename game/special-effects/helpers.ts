@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -16,7 +15,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  * @param {number} row 
  * @param {number} col 
  */
-function clearSpecialAt(row, col) {
+function clearSpecialAt(row: number, col: number) {
     // Use local implementation (matches card-effects-applier.js)
     local_clearSpecialAt(row, col);
 }
@@ -26,13 +25,13 @@ function clearSpecialAt(row, col) {
 // We'll implement it locally using direct array manipulation for now, 
 // matching previous behavior.
 
-function local_clearSpecialAt(row, col) {
+function local_clearSpecialAt(row: number, col: number) {
     if (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
         MarkersAdapter.removeMarkersAt(cardState, row, col);
         return;
     }
     if (cardState && cardState.markers) {
-        cardState.markers = cardState.markers.filter(m => !(m.row === row && m.col === col));
+        cardState.markers = cardState.markers.filter((m: any) => !(m.row === row && m.col === col));
     }
 }
 
@@ -40,9 +39,9 @@ function getFlipBlockers() {
     if (!cardState || !cardState.markers) return [];
     const specials = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.getSpecialMarkers === 'function')
         ? MarkersAdapter.getSpecialMarkers(cardState)
-        : cardState.markers.filter(m => m.kind === 'specialStone');
+        : cardState.markers.filter((m: any) => m.kind === 'specialStone');
     return specials
-        .filter(s => {
+        .filter((s: any) => {
             if (!s || !s.data) return false;
             if (s.data.type === 'PERMA_PROTECTED' || s.data.type === 'DRAGON' || s.data.type === 'BREEDING' || s.data.type === 'GLUTTONOUS' || s.data.type === 'ULTIMATE_DESTROY_GOD' || s.data.type === 'GUARD') {
                 return true;
@@ -51,7 +50,7 @@ function getFlipBlockers() {
             const remaining = Number(s.data.remainingOwnerTurns);
             return !Number.isFinite(remaining) || remaining > 0;
         })
-        .map(s => ({ row: s.row, col: s.col, owner: s.owner }));
+        .map((s: any) => ({ row: s.row, col: s.col, owner: s.owner }));
 }
 
 if (typeof module !== 'undefined' && module.exports) {
@@ -65,7 +64,7 @@ if (typeof module !== 'undefined' && module.exports) {
 // a global helper for debug/visualization, the UI layer should import this module and attach
 // functions to the browser global explicitly. This keeps `game/**` free of direct references to browser globals.
 if (typeof globalThis !== 'undefined') {
-    try { globalThis.getFlipBlockers = getFlipBlockers; } catch (e) { /* ignore */ }
+    try { (globalThis as any).getFlipBlockers = getFlipBlockers; } catch (e) { /* ignore */ }
 }
 
 export {};

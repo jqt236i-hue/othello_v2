@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -13,19 +12,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 // Imports replacing globalThis references
 const { BLACK, WHITE } = _require('../../shared-constants');
 const CardSystem = _require('../../card-system');
-const MarkersAdapter = (function() {
+const MarkersAdapter: any = (function() {
     try { return _require('../logic/markers_adapter'); } catch (e) { return null; }
 })();
-const VisualEffectsMap = (function() {
+const VisualEffectsMap: any = (function() {
     try { return _require('../visual-effects-map'); } catch (e) { return null; }
 })();
 
-const CardEffectsOwnerHelpersModule = (function() {
+const CardEffectsOwnerHelpersModule: any = (function() {
     try { return _require('../../utils/owner-helpers'); } catch (e) { return null; }
 })();
 
 // Map player const to string key
-function getPlayerKey(player) {
+function getPlayerKey(player: number): string {
     try {
         if (CardEffectsOwnerHelpersModule && typeof CardEffectsOwnerHelpersModule.normalizePlayerKey === 'function') {
             return CardEffectsOwnerHelpersModule.normalizePlayerKey(player, 'black');
@@ -34,11 +33,11 @@ function getPlayerKey(player) {
     return player === BLACK ? 'black' : 'white';
 }
 
-function getPlayerDisplayName(player) {
+function getPlayerDisplayName(player: number): string {
     return getPlayerKey(player) === 'black' ? '黒' : '白';
 }
 
-function getOwner(player) {
+function getOwner(player: number): number {
     return getPlayerKey(player) === 'black' ? BLACK : WHITE;
 }
 
@@ -47,13 +46,13 @@ function getOwner(player) {
  * @param {number} player - BLACK (1) or WHITE (-1)
  * @returns {Array} 保護石リスト [{row, col, remainingTurns}]
  */
-function getActiveProtectionForPlayer(player) {
+function getActiveProtectionForPlayer(player: number): any[] {
     if (!CardSystem.cardState || !CardSystem.cardState.markers) return [];
     const playerKey = getPlayerKey(player);
-    const markers = (MarkersAdapter && typeof MarkersAdapter.getSpecialMarkers === 'function')
+    const markers: any[] = (MarkersAdapter && typeof MarkersAdapter.getSpecialMarkers === 'function')
         ? MarkersAdapter.getSpecialMarkers(CardSystem.cardState)
-        : (CardSystem.cardState.markers || []).filter(m => m.kind === 'specialStone');
-    return markers.filter(m =>
+        : (CardSystem.cardState.markers || []).filter((m: any) => m.kind === 'specialStone');
+    return markers.filter((m: any) =>
         m.owner === playerKey && m.data && m.data.type === 'PROTECTED'
     );
 }
@@ -63,7 +62,7 @@ function getActiveProtectionForPlayer(player) {
  * @param {string} type - Special stone type
  * @returns {string|null} Effect key for applyStoneVisualEffect
  */
-function getEffectKeyForType(type) {
+function getEffectKeyForType(type: string): string | null {
     if (VisualEffectsMap && typeof VisualEffectsMap.getEffectKeyForSpecialType === 'function') {
         try {
             return VisualEffectsMap.getEffectKeyForSpecialType(type);
@@ -84,11 +83,11 @@ if (typeof module !== 'undefined' && module.exports) {
 
 // @compat - globalThis writes for legacy browser/script-tag compatibility
 if (typeof globalThis !== 'undefined') {
-    try { globalThis.getPlayerKey = getPlayerKey; } catch (e) { /* ignore */ }
-    try { globalThis.getPlayerDisplayName = getPlayerDisplayName; } catch (e) { /* ignore */ }
-    try { globalThis.getOwner = getOwner; } catch (e) { /* ignore */ }
-    try { globalThis.getActiveProtectionForPlayer = getActiveProtectionForPlayer; } catch (e) { /* ignore */ }
-    try { globalThis.getEffectKeyForType = getEffectKeyForType; } catch (e) { /* ignore */ }
+    try { (globalThis as any).getPlayerKey = getPlayerKey; } catch (e) { /* ignore */ }
+    try { (globalThis as any).getPlayerDisplayName = getPlayerDisplayName; } catch (e) { /* ignore */ }
+    try { (globalThis as any).getOwner = getOwner; } catch (e) { /* ignore */ }
+    try { (globalThis as any).getActiveProtectionForPlayer = getActiveProtectionForPlayer; } catch (e) { /* ignore */ }
+    try { (globalThis as any).getEffectKeyForType = getEffectKeyForType; } catch (e) { /* ignore */ }
 }
 
 export {};

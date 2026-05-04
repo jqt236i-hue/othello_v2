@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -11,21 +10,22 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+declare const emitLogAdded: any;
 
-function getSwapSelectedEvent(result) {
+function getSwapSelectedEvent(result: any) {
     return result && Array.isArray(result.rawEvents)
-    ? result.rawEvents.find((event) => event && event.type === 'swap_selected' && event.swapped)
+    ? result.rawEvents.find((event: any) => event && event.type === 'swap_selected' && event.swapped)
         : null;
 }
 
-function getSwapSelectionPrompt() {
+function getSwapSelectionPrompt(): string {
     if (typeof LOG_MESSAGES !== 'undefined' && LOG_MESSAGES && typeof LOG_MESSAGES.swapSelectPrompt === 'function') {
         return LOG_MESSAGES.swapSelectPrompt();
     }
     return '交換する敵石を選んでください';
 }
 
-function emitSwapAppliedLog(playerKey, selected) {
+function emitSwapAppliedLog(playerKey: string, selected: any): void {
     if (typeof emitLogAdded !== 'function' || !selected) return;
     if (typeof LOG_MESSAGES !== 'undefined' && LOG_MESSAGES && typeof LOG_MESSAGES.swapApplied === 'function') {
         emitLogAdded(LOG_MESSAGES.swapApplied(playerKey === 'black' ? '黒' : '白', posToNotation(selected.row, selected.col), selected.withCard));
@@ -34,7 +34,7 @@ function emitSwapAppliedLog(playerKey, selected) {
     emitLogAdded(`${playerKey === 'black' ? '黒' : '白'}が${posToNotation(selected.row, selected.col)}と手札を交換`);
 }
 
-async function handleSwapSelection(row, col, playerKey) {
+async function handleSwapSelection(row: number, col: number, playerKey: string) {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
     return PendingSelectionFlow.executePendingSelection({
         row,
@@ -43,9 +43,9 @@ async function handleSwapSelection(row, col, playerKey) {
         pendingType: 'SWAP_WITH_ENEMY',
         actionPayload: { swapTarget: { row, col } },
         invalidMessage: getSwapSelectionPrompt,
-        validateResult: ({ result }) => !!getSwapSelectedEvent(result),
+        validateResult: ({ result }: any) => !!getSwapSelectedEvent(result),
         buildPlaybackMeta: () => ({ cause: 'SWAP_WITH_ENEMY', target: { row, col } }),
-        afterStateChange: ({ result }) => {
+        afterStateChange: ({ result }: any) => {
             emitSwapAppliedLog(playerKey, getSwapSelectedEvent(result));
         }
     });

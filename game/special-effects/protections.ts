@@ -1,5 +1,5 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
+declare const BoardOps: any;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
@@ -24,22 +24,22 @@ if (typeof require === 'function') {
 }
 var BoardOpsModule = null;
 try { BoardOpsModule = (typeof require === 'function') ? require('../logic/board_ops') : (typeof BoardOps !== 'undefined' ? BoardOps : null); } catch (e) { BoardOpsModule = BoardOpsModule || null; }
-const waitMs = (ms) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
+const waitMs = (ms: number) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
 
-async function processExpiredProtectionsAtTurnEnd(player) {
+async function processExpiredProtectionsAtTurnEnd(player: number) {
     // Find protected stones from unified specialStones
     const protectedStones = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.getSpecialMarkers === 'function')
-        ? MarkersAdapter.getSpecialMarkers(cardState).filter(m => m.data && m.data.type === 'PROTECTED')
-        : (cardState && cardState.markers ? cardState.markers.filter(m => m.kind === 'specialStone' && m.data && m.data.type === 'PROTECTED') : []);
+        ? MarkersAdapter.getSpecialMarkers(cardState).filter((m: any) => m.data && m.data.type === 'PROTECTED')
+        : (cardState && cardState.markers ? cardState.markers.filter((m: any) => m.kind === 'specialStone' && m.data && m.data.type === 'PROTECTED') : []);
     if (protectedStones.length === 0) return;
 
     // Find protected stones that are expiring for this player
-    const expiringStones = protectedStones.filter(p => p.data && p.data.expiresForPlayer === player);
+    const expiringStones = protectedStones.filter((p: any) => p.data && p.data.expiresForPlayer === player);
 
     if (expiringStones.length === 0) return;
 
     // Animate fade-out for each expiring stone
-    const animationPromises = expiringStones.map(p => animateProtectionExpireAt(p.row, p.col));
+    const animationPromises = expiringStones.map((p: any) => animateProtectionExpireAt(p.row, p.col));
     await Promise.all(animationPromises);
 
     // Remove expired protections from cardState (unified array)
@@ -48,7 +48,7 @@ async function processExpiredProtectionsAtTurnEnd(player) {
             MarkersAdapter.removeMarkersAt(cardState, p.row, p.col, { kind: 'specialStone', type: 'PROTECTED', owner: p.owner });
         }
     } else if (cardState && cardState.markers) {
-        cardState.markers = cardState.markers.filter(m => !(m.kind === 'specialStone' && m.data && m.data.type === 'PROTECTED' && m.data.expiresForPlayer === player));
+        cardState.markers = cardState.markers.filter((m: any) => !(m.kind === 'specialStone' && m.data && m.data.type === 'PROTECTED' && m.data.expiresForPlayer === player));
     }
 
     // Update display
@@ -61,7 +61,7 @@ async function processExpiredProtectionsAtTurnEnd(player) {
  * @param {number} row
  * @param {number} col
  */
-async function animateProtectionExpireAt(row, col) {
+async function animateProtectionExpireAt(row: number, col: number) {
     // Ask UI to animate protection expiry; UI may ignore if not present.
     try {
         var BoardPresentation = (typeof require === 'function') ? require('../logic/presentation') : null;

@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -11,15 +10,16 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+declare const emitLogAdded: any;
 
-function wasSelectionApplied(result, rawEventType) {
+function wasSelectionApplied(result: any, rawEventType: string): boolean {
     const selected = result && Array.isArray(result.rawEvents)
-        ? result.rawEvents.find((event) => event && event.type === rawEventType)
+        ? result.rawEvents.find((event: any) => event && event.type === rawEventType)
         : null;
     return !!(selected && selected.applied);
 }
 
-async function handleTemptSelection(row, col, playerKey) {
+async function handleTemptSelection(row: number, col: number, playerKey: string) {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
     return PendingSelectionFlow.executePendingSelection({
         row,
@@ -28,7 +28,7 @@ async function handleTemptSelection(row, col, playerKey) {
         pendingType: 'TEMPT_WILL',
         actionPayload: { temptTarget: { row, col } },
         invalidMessage: () => LOG_MESSAGES.temptSelectPrompt(),
-        validateResult: ({ result }) => wasSelectionApplied(result, 'tempt_selected'),
+        validateResult: ({ result }: any) => wasSelectionApplied(result, 'tempt_selected'),
         buildPlaybackMeta: () => ({ cause: 'TEMPT_WILL', target: { row, col } }),
         afterStateChange: () => {
             if (typeof emitLogAdded !== 'function') return;

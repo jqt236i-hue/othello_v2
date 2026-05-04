@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -12,14 +11,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 
 const PendingSelectionFlow = _require('./selection-flow');
 
-function wasSelectionApplied(result, rawEventType) {
+function wasSelectionApplied(result: any, rawEventType: string): boolean {
     const selected = result && Array.isArray(result.rawEvents)
-        ? result.rawEvents.find((event) => event && event.type === rawEventType)
+        ? result.rawEvents.find((event: any) => event && event.type === rawEventType)
         : null;
     return !!(selected && selected.applied);
 }
 
-async function handleGuardSelection(row, col, playerKey) {
+async function handleGuardSelection(row: number, col: number, playerKey: string): Promise<any> {
     if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
     return PendingSelectionFlow.executePendingSelection({
         row,
@@ -28,8 +27,8 @@ async function handleGuardSelection(row, col, playerKey) {
         pendingTypes: ['GUARD_WILL', 'GUARDIAN_GOD'],
         actionPayload: { guardTarget: { row, col } },
         invalidMessage: '守る石にする自分の石を選んでください',
-        validateResult: ({ result }) => wasSelectionApplied(result, 'guard_selected'),
-        buildPlaybackMeta: ({ pendingType }) => ({ cause: pendingType, target: { row, col } })
+        validateResult: ({ result }: { result: any }) => wasSelectionApplied(result, 'guard_selected'),
+        buildPlaybackMeta: ({ pendingType }: { pendingType: string }) => ({ cause: pendingType, target: { row, col } })
     });
 }
 

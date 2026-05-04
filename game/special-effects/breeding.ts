@@ -1,5 +1,5 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
+declare const emitLogAdded: any;
 
 function _require(id: string): any {
   if (typeof __non_webpack_require__ !== 'undefined') {
@@ -16,7 +16,7 @@ function _require(id: string): any {
  * @description Breeding effect handlers
  */
 
-let __uiImpl_breeding = {};
+let __uiImpl_breeding: any = {};
 function setUIImpl(obj: any) { __uiImpl_breeding = obj || {}; }
 
 // Timers abstraction (UI may inject via timers.setTimerImpl)
@@ -24,7 +24,7 @@ let timers = null;
 if (typeof require === 'function') {
     try { timers = _require('../timers'); } catch (e) { /* ignore */ }
 }
-const waitMs = (ms) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
+const waitMs = (ms: number) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
 
 // Animation timing import (replacing globalThis.getAnimationTiming)
 let _getAnimationTiming_baked: ((key: string) => number) | null = null;
@@ -48,13 +48,13 @@ function _isNoAnim() {
  * @param {Object} [precomputedResult] - Optional pre-computed result from logic layer
  * @returns {Promise<void>}
  */
-async function processBreedingEffectsAtTurnStart(player, precomputedEvents = null) {
+async function processBreedingEffectsAtTurnStart(player: number, precomputedEvents: any = null) {
     const playerKey = player === BLACK ? 'black' : 'white';
 
-    const hasPlayback = (typeof globalThis !== 'undefined' && globalThis.PlaybackEngine && typeof globalThis.PlaybackEngine.playPresentationEvents === 'function'); // globalThis - UI/bootstrap dependency
+    const hasPlayback = (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackEngine && typeof (globalThis as any).PlaybackEngine.playPresentationEvents === 'function'); // globalThis - UI/bootstrap dependency
 
     // Prefer a precomputed result from pipeline events if provided
-    let result = null;
+    let result: any = null;
     if (precomputedEvents && Array.isArray(precomputedEvents)) {
         result = { spawned: [], destroyed: [], flipped: [], anchors: [] };
         for (const ev of precomputedEvents) {
@@ -133,7 +133,7 @@ async function processBreedingEffectsAtTurnStart(player, precomputedEvents = nul
  * @param {number} col
  * @param {Object} [precomputedResult]
  */
-async function processBreedingImmediateAtPlacement(player, row, col, precomputedResult = null) {
+async function processBreedingImmediateAtPlacement(player: number, row: number, col: number, precomputedResult: any = null) {
     const playerKey = player === BLACK ? 'black' : 'white';
     const result = precomputedResult || CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, playerKey, row, col);
 
