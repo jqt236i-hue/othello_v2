@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
@@ -19,7 +18,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
     } else {
         root.SeededPRNG = factory();
     }
-}(typeof self !== 'undefined' ? self : this, function () {
+}(typeof self !== 'undefined' ? self : this as any, function () {
     'use strict';
 
     /**
@@ -27,7 +26,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
      * @param {number} [seed=1] - Seed value
      * @returns {Object} PRNG object with random() and shuffle()
      */
-    function createPRNG(seed) {
+    function createPRNG(seed: any) {
         // Use a simple LCG for deterministic random numbers
         // Parameters from Numerical Recipes
         let state = (seed === undefined || seed === null) ? 1 : seed;
@@ -52,7 +51,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
              * Shuffle an array in place (Fisher-Yates)
              * @param {Array} array
              */
-            shuffle: function (array) {
+            shuffle: function (array: any) {
                 for (let i = array.length - 1; i > 0; i--) {
                     const j = Math.floor(this.random() * (i + 1));
                     [array[i], array[j]] = [array[j], array[i]];
@@ -64,7 +63,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
              * @param {number} max
              * @returns {number}
              */
-            nextInt: function (max) {
+            nextInt: function (max: any) {
                 return Math.floor(this.random() * max);
             },
 
@@ -83,7 +82,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
              * Restore PRNG to a previous state
              * @param {{ seed: number, calls: number }} savedState
              */
-            restoreState: function (savedState) {
+            restoreState: function (savedState: any) {
                 // Reset to seed and replay calls
                 this._seed = savedState.seed;
                 this._calls = 0;
@@ -108,7 +107,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
      * @param {{ seed: number, calls: number }} savedState
      * @returns {Object} PRNG object
      */
-    function fromState(savedState) {
+    function fromState(savedState: any) {
         const prng = createPRNG(savedState.seed);
         prng.restoreState(savedState);
         return prng;
