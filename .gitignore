@@ -46,6 +46,7 @@ playwright-report/
 
 # Test artifacts
 breeding-*.png
+test_run_output.txt
 
 # Debug Python scripts
 check_*.py
