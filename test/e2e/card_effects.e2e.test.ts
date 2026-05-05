@@ -46,13 +46,13 @@ describe('Card effects E2E', () => {
 
     // Ensure debug flags, fill debug hand and pick first card; ensure charge and flags allow use
     const setup = await page.evaluate(() => {
-      try { window.DEBUG_UNLIMITED_USAGE = true; window.DEBUG_HUMAN_VS_HUMAN = true; } catch (e) {}
-      try { if (window.__uiImpl_turn_manager) { window.__uiImpl_turn_manager.DEBUG_UNLIMITED_USAGE = true; window.__uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN = true; } } catch (e) {}
-      try { window.DebugActions.fillDebugHand(window.cardState, { fillWhite: false }); } catch (e) { }
+      try { window.DEBUG_UNLIMITED_USAGE = true; window.DEBUG_HUMAN_VS_HUMAN = true; } catch (e) { /* Intentionally empty: DOM guard in page.evaluate */ }
+      try { if (window.__uiImpl_turn_manager) { window.__uiImpl_turn_manager.DEBUG_UNLIMITED_USAGE = true; window.__uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN = true; } } catch (e) { /* Intentionally empty: DOM guard in page.evaluate */ }
+      try { window.DebugActions.fillDebugHand(window.cardState, { fillWhite: false }); } catch (e) { /* Intentionally empty: DOM guard in page.evaluate */ }
       // ensure sufficient charge and reset usage flags
-      try { window.cardState.charge = window.cardState.charge || {}; window.cardState.charge.black = 100; } catch (e) {}
-      try { window.cardState.hasUsedCardThisTurnByPlayer = window.cardState.hasUsedCardThisTurnByPlayer || {}; window.cardState.hasUsedCardThisTurnByPlayer.black = false; } catch (e) {}
-      try { window.isProcessing = false; window.isCardAnimating = false; } catch (e) {}
+      try { window.cardState.charge = window.cardState.charge || {}; window.cardState.charge.black = 100; } catch (e) { /* Intentionally empty: DOM guard in page.evaluate */ }
+      try { window.cardState.hasUsedCardThisTurnByPlayer = window.cardState.hasUsedCardThisTurnByPlayer || {}; window.cardState.hasUsedCardThisTurnByPlayer.black = false; } catch (e) { /* Intentionally empty: DOM guard in page.evaluate */ }
+      try { window.isProcessing = false; window.isCardAnimating = false; } catch (e) { /* Intentionally empty: DOM guard in page.evaluate */ }
       const usableIds = (window.CardLogic && typeof window.CardLogic.getUsableCardIds === 'function')
         ? (window.CardLogic.getUsableCardIds(window.cardState, window.gameState, 'black') || [])
         : [];
@@ -124,7 +124,7 @@ describe('Card effects E2E', () => {
         try {
           const logs = document.querySelectorAll('#log .logEntry');
           for (const l of logs) { if (l.textContent && l.textContent.indexOf('がカードを使用') !== -1) return true; }
-        } catch (e) {}
+        } catch (e) { /* Intentionally empty: DOM query guard */ }
       } catch (e) { return false; }
       return false;
     }, { timeout: 20000 });

@@ -1,0 +1,174 @@
+game/logic/cards.ts(159,65): error TS7006: Parameter 'stone' implicitly has an 'any' type.
+game/logic/cards.ts(253,67): error TS7006: Parameter 'out' implicitly has an 'any' type.
+game/logic/cards.ts(253,72): error TS7006: Parameter 'cardDef' implicitly has an 'any' type.
+game/logic/cards.ts(313,53): error TS7006: Parameter 'one' implicitly has an 'any' type.
+game/logic/cards.ts(315,44): error TS7006: Parameter 'one' implicitly has an 'any' type.
+game/logic/cards.ts(346,45): error TS2345: Argument of type 'string' is not assignable to parameter of type '"DOUBLE_CHAIN_WILL" | "TRIPLE_CHAIN_WILL" | "QUAD_CHAIN_WILL" | "INFINITE_CHAIN_WILL"'.
+game/logic/cards.ts(353,23): error TS2554: Expected 4 arguments, but got 3.
+game/logic/cards.ts(395,42): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+game/logic/cards.ts(395,47): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards.ts(402,65): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+game/logic/cards.ts(433,9): error TS2554: Expected 4 arguments, but got 3.
+game/logic/cards.ts(463,13): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(473,19): error TS7006: Parameter 'array' implicitly has an 'any' type.
+game/logic/cards.ts(743,28): error TS2554: Expected 5 arguments, but got 3.
+game/logic/cards.ts(768,9): error TS2554: Expected 4 arguments, but got 3.
+game/logic/cards.ts(953,24): error TS2554: Expected 4 arguments, but got 3.
+game/logic/cards.ts(985,17): error TS7006: Parameter 'spawnIndex' implicitly has an 'any' type.
+game/logic/cards.ts(1023,39): error TS7006: Parameter 'innerCardState' implicitly has an 'any' type.
+game/logic/cards.ts(1023,55): error TS7006: Parameter 'innerGameState' implicitly has an 'any' type.
+game/logic/cards.ts(1023,71): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards.ts(1023,76): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards.ts(1023,81): error TS7006: Parameter 'ownerKey' implicitly has an 'any' type.
+game/logic/cards.ts(1023,91): error TS7006: Parameter 'spawnCause' implicitly has an 'any' type.
+game/logic/cards.ts(1023,103): error TS7006: Parameter 'spawnReason' implicitly has an 'any' type.
+game/logic/cards.ts(1037,40): error TS7006: Parameter 'innerCardState' implicitly has an 'any' type.
+game/logic/cards.ts(1037,56): error TS7006: Parameter 'innerGameState' implicitly has an 'any' type.
+game/logic/cards.ts(1037,72): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards.ts(1037,77): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards.ts(1037,82): error TS7006: Parameter 'ownerKey' implicitly has an 'any' type.
+game/logic/cards.ts(1037,92): error TS7006: Parameter 'flipCause' implicitly has an 'any' type.
+game/logic/cards.ts(1037,103): error TS7006: Parameter 'flipReason' implicitly has an 'any' type.
+game/logic/cards.ts(1037,115): error TS7006: Parameter 'meta' implicitly has an 'any' type.
+game/logic/cards.ts(1054,23): error TS7022: 'spawnIndex' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+game/logic/cards.ts(1055,23): error TS7022: 'spawnMeta' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+game/logic/cards.ts(1143,101): error TS7006: Parameter 'cell' implicitly has an 'any' type.
+game/logic/cards.ts(1145,13): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(1159,32): error TS7006: Parameter 'cell' implicitly has an 'any' type.
+game/logic/cards.ts(1160,36): error TS7006: Parameter 'spawnIndex' implicitly has an 'any' type.
+game/logic/cards.ts(1167,9): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(1214,34): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(1242,37): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(1245,42): error TS2345: Argument of type '{ row: any; col: any; }' is not assignable to parameter of type 'never'.
+game/logic/cards.ts(1260,34): error TS2345: Argument of type '{ repaymentAmount: number; shortageDestroyCount: number; remainingOwnerTurnsBefore: number; remainingOwnerTurnsAfter: number; chargeBefore: number; chargeAfter: number; repaid: number; shortage: boolean; destroyed: never[]; destroyedCount: number; completed: boolean; }' is not assignable to parameter of type 'never'.
+game/logic/cards.ts(1276,9): error TS7034: Variable 'CardEffectTimingModules' implicitly has type 'any' in some locations where its type cannot be determined.
+game/logic/cards.ts(1284,34): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/logic/cards.ts(1284,45): error TS7006: Parameter 'playerKey' implicitly has an 'any' type.
+game/logic/cards.ts(1284,56): error TS7006: Parameter 'flipCount' implicitly has an 'any' type.
+game/logic/cards.ts(1294,25): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(1300,41): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/logic/cards.ts(1300,52): error TS7006: Parameter 'playerKey' implicitly has an 'any' type.
+game/logic/cards.ts(1300,63): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards.ts(1300,68): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards.ts(1309,44): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/logic/cards.ts(1309,55): error TS7006: Parameter 'playerKey' implicitly has an 'any' type.
+game/logic/cards.ts(1309,66): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards.ts(1309,71): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards.ts(1318,14): error TS7005: Variable 'CardEffectTimingModules' implicitly has an 'any' type.
+game/logic/cards.ts(1581,20): error TS7006: Parameter 'desc' implicitly has an 'any' type.
+game/logic/cards.ts(1583,51): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards.ts(1591,18): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(1601,20): error TS7006: Parameter 'desc' implicitly has an 'any' type.
+game/logic/cards.ts(1723,13): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(1724,13): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(1733,18): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(1737,18): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(1841,28): error TS2554: Expected 1 arguments, but got 0.
+game/logic/cards.ts(1874,50): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+game/logic/cards.ts(1874,55): error TS7006: Parameter 'item' implicitly has an 'any' type.
+game/logic/cards.ts(1875,43): error TS7006: Parameter 'item' implicitly has an 'any' type.
+game/logic/cards.ts(1884,75): error TS7006: Parameter 'sum' implicitly has an 'any' type.
+game/logic/cards.ts(1884,80): error TS7006: Parameter 'item' implicitly has an 'any' type.
+game/logic/cards.ts(1885,51): error TS7006: Parameter 'a' implicitly has an 'any' type.
+game/logic/cards.ts(1885,54): error TS7006: Parameter 'b' implicitly has an 'any' type.
+game/logic/cards.ts(1905,13): error TS7053: Element implicitly has an 'any' type because expression of type '`${number},${number}`' can't be used to index type '{}'.
+game/logic/cards.ts(2169,31): error TS7053: Element implicitly has an 'any' type because expression of type 'any' can't be used to index type 'Readonly<{ TRAP: "TRAP_WILL"; PROTECTED: "PROTECTED_NEXT_STONE"; PERMA_PROTECTED: "PERMA_PROTECT_NEXT_STONE"; ABSOLUTE_PROTECTED: "PERMA_PROTECT_NEXT_STONE"; TIME_BOMB: "TIME_BOMB"; TIME_STOP: "TIME_STOP_GOD"; ... 22 more ...; RAINBOW_STONE: "RAINBOW_STONE"; }>'.
+game/logic/cards.ts(2409,21): error TS7006: Parameter 'c' implicitly has an 'any' type.
+game/logic/cards.ts(2410,18): error TS7006: Parameter 'c' implicitly has an 'any' type.
+game/logic/cards.ts(2487,38): error TS7006: Parameter 'nextCardState' implicitly has an 'any' type.
+game/logic/cards.ts(2487,53): error TS7006: Parameter 'nextGameState' implicitly has an 'any' type.
+game/logic/cards.ts(2487,68): error TS7006: Parameter 'nextPlayerKey' implicitly has an 'any' type.
+game/logic/cards.ts(2546,13): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(2587,35): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards.ts(2587,40): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards.ts(2587,82): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards.ts(2608,32): error TS7006: Parameter 'target' implicitly has an 'any' type.
+game/logic/cards.ts(2733,42): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards.ts(2736,48): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards.ts(2766,42): error TS18047: 'rem' is possibly 'null'.
+game/logic/cards.ts(2779,42): error TS18047: 'rem' is possibly 'null'.
+game/logic/cards.ts(2855,60): error TS7006: Parameter 'cell' implicitly has an 'any' type.
+game/logic/cards.ts(2859,72): error TS7006: Parameter 'target' implicitly has an 'any' type.
+game/logic/cards.ts(2866,52): error TS7006: Parameter 'cell' implicitly has an 'any' type.
+game/logic/cards.ts(2921,15): error TS7034: Variable 'res' implicitly has type 'any[]' in some locations where its type cannot be determined.
+game/logic/cards.ts(2923,32): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards.ts(2923,37): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards.ts(2923,42): error TS7006: Parameter 'side' implicitly has an 'any' type.
+game/logic/cards.ts(2946,16): error TS7005: Variable 'res' implicitly has an 'any[]' type.
+game/logic/cards.ts(3001,38): error TS7006: Parameter 't' implicitly has an 'any' type.
+game/logic/cards.ts(3015,9): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(3030,24): error TS7006: Parameter 'cs' implicitly has an 'any' type.
+game/logic/cards.ts(3030,28): error TS7006: Parameter 'gs' implicitly has an 'any' type.
+game/logic/cards.ts(3030,32): error TS7006: Parameter 'r' implicitly has an 'any' type.
+game/logic/cards.ts(3030,35): error TS7006: Parameter 'c' implicitly has an 'any' type.
+game/logic/cards.ts(3030,38): error TS7006: Parameter 'cause' implicitly has an 'any' type.
+game/logic/cards.ts(3030,45): error TS7006: Parameter 'reason' implicitly has an 'any' type.
+game/logic/cards.ts(3030,53): error TS7006: Parameter 'meta' implicitly has an 'any' type.
+game/logic/cards.ts(3047,62): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards.ts(3061,35): error TS2345: Argument of type '{ row: any; col: any; owner: string; reason: string; }' is not assignable to parameter of type 'never'.
+game/logic/cards.ts(3080,38): error TS2345: Argument of type '{ row: any; col: any; owner: string; }' is not assignable to parameter of type 'never'.
+game/logic/cards.ts(3090,17): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(3091,38): error TS2554: Expected 4 arguments, but got 3.
+game/logic/cards.ts(3100,36): error TS2345: Argument of type '{ row: any; col: any; owner: string; victim: string; stolenCharge: number; gainedCharge: any; stolenHandCount: any; destroyedHandCount: any; destroyedCardIds: any; toHandCount: number; toDeckCount: number; }' is not assignable to parameter of type 'never'.
+game/logic/cards.ts(3117,31): error TS2345: Argument of type '{ row: any; col: any; owner: string; reason: string; }' is not assignable to parameter of type 'never'.
+game/logic/cards.ts(3194,38): error TS7006: Parameter 't' implicitly has an 'any' type.
+game/logic/cards.ts(3210,9): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(3276,38): error TS7006: Parameter 't' implicitly has an 'any' type.
+game/logic/cards.ts(3290,9): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(3324,38): error TS7006: Parameter 't' implicitly has an 'any' type.
+game/logic/cards.ts(3331,68): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards.ts(3332,62): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards.ts(3381,9): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(3531,38): error TS7006: Parameter 't' implicitly has an 'any' type.
+game/logic/cards.ts(3559,17): error TS2554: Expected 4 arguments, but got 3.
+game/logic/cards.ts(3565,13): error TS2554: Expected 4 arguments, but got 3.
+game/logic/cards.ts(3569,9): error TS2554: Expected 4 arguments, but got 3.
+game/logic/cards.ts(3574,9): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(3613,26): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+game/logic/cards.ts(3620,23): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+game/logic/cards.ts(3622,52): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+game/logic/cards.ts(3630,46): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+game/logic/cards.ts(3649,26): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+game/logic/cards.ts(3656,23): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+game/logic/cards.ts(3659,52): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+game/logic/cards.ts(3668,46): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+game/logic/cards.ts(3675,48): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+game/logic/cards.ts(3680,40): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+game/logic/cards.ts(3699,55): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+game/logic/cards.ts(3750,9): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(3774,13): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(3789,36): error TS7006: Parameter 'spawnIndex' implicitly has an 'any' type.
+game/logic/cards.ts(3799,9): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(3838,9): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(3867,31): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(3870,31): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(3979,9): error TS2554: Expected 4 arguments, but got 3.
+game/logic/cards.ts(4007,38): error TS7006: Parameter 't' implicitly has an 'any' type.
+game/logic/cards.ts(4036,9): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(4065,39): error TS7006: Parameter 'target' implicitly has an 'any' type.
+game/logic/cards.ts(4073,22): error TS7006: Parameter 'target' implicitly has an 'any' type.
+game/logic/cards.ts(4112,9): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(4171,9): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(4192,39): error TS7006: Parameter 't' implicitly has an 'any' type.
+game/logic/cards.ts(4230,37): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(4267,9): error TS2554: Expected 3 arguments, but got 2.
+game/logic/cards.ts(4521,27): error TS7006: Parameter 's' implicitly has an 'any' type.
+game/logic/cards.ts(4524,24): error TS7006: Parameter 'b' implicitly has an 'any' type.
+game/logic/cards.ts(4537,67): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+game/logic/cards.ts(4572,67): error TS7006: Parameter 'marker' implicitly has an 'any' type.
+game/logic/cards.ts(4709,40): error TS7006: Parameter 'p' implicitly has an 'any' type.
+game/logic/cards.ts(4712,52): error TS7006: Parameter 'p' implicitly has an 'any' type.
+game/logic/cards.ts(4756,45): error TS7006: Parameter 'max' implicitly has an 'any' type.
+game/logic/cards.ts(4756,50): error TS7006: Parameter 'one' implicitly has an 'any' type.
+game/logic/cards.ts(4757,50): error TS7006: Parameter 'one' implicitly has an 'any' type.
+game/logic/cards.ts(4769,46): error TS7006: Parameter 'pos' implicitly has an 'any' type.
+game/logic/cards.ts(5136,59): error TS7006: Parameter 'entry' implicitly has an 'any' type.
+game/logic/cards.ts(5155,13): error TS2322: Type '0' is not assignable to type 'null'.
+game/logic/cards.ts(5156,33): error TS2345: Argument of type '{ row: any; col: any; owner: any; reason: string; }' is not assignable to parameter of type 'never'.
+game/logic/cards.ts(5173,27): error TS2554: Expected 4 arguments, but got 3.
+game/logic/cards.ts(5199,21): error TS2322: Type '0' is not assignable to type 'null'.
+game/logic/cards.ts(5200,41): error TS2345: Argument of type '{ row: any; col: any; owner: any; reason: string; }' is not assignable to parameter of type 'never'.
+game/logic/cards.ts(5267,49): error TS7006: Parameter 'p' implicitly has an 'any' type.
+game/logic/cards.ts(5269,54): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards.ts(5272,17): error TS2554: Expected 5 arguments, but got 4.
+game/logic/cards.ts(5499,16): error TS2554: Expected 2 arguments, but got 0.

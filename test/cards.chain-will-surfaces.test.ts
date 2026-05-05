@@ -62,7 +62,7 @@ function loadWindowCatalog(relativePath) {
 describe('CHAIN_WILL catalog/help surfaces', () => {
   afterEach(() => {
     jest.resetModules();
-    try { delete global.window; } catch (error) {}
+    try { delete global.window; } catch (error) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('catalog json / catalog.js / catalog.generated.js / generator output stay aligned for chain cards', () => {

@@ -17,7 +17,11 @@ const CardRegen = (function (root: any, factory: any) {
     } else {
         return (root.CardRegen = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardMarkers || null));
     }
+<<<<<<< Updated upstream
 }(typeof self !== 'undefined' ? self : {}, function (SharedConstants: any, SharedBoardUtils: any, CardMarkersModule: any) {
+=======
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants: any, SharedBoardUtils: any, CardMarkersModule: any) {
+>>>>>>> Stashed changes
     'use strict';
 
     const { BLACK, WHITE, DIRECTIONS, EMPTY } = SharedConstants || {};
@@ -390,8 +394,13 @@ const CardRegen = (function (root: any, factory: any) {
     }
 
     function applyRegenAfterFlips(cardState: any, gameState: any, flips: any, flipperKey: any, skipCapture: any, deps: any = {}) {
+<<<<<<< Updated upstream
         const regened: Array<{row: number; col: number}> = [];
         const captureFlips: Array<{row: number; col: number}> = [];
+=======
+        const regened = [];
+        const captureFlips = [];
+>>>>>>> Stashed changes
         if (!flips || !flips.length) return { regened, captureFlips };
         const consumedRegenKeys = new Set();
         const ctx = _getRegenCardContext(cardState, deps);

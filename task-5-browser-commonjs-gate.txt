@@ -1,0 +1,35 @@
+Task 5 browser CommonJS gate evidence
+Date: 2026-04-30
+
+Root index.html inventory:
+- Read index.html.
+- Found 244 .js script src targets.
+- Found 193 direct CommonJS dist-forwarder shims matching module.exports = require(...dist/...).
+- All 193 direct dist-forwarder shims have matching .ts source files.
+- ui/layout-stage.js is one of those shims and has canonical source ui/layout-stage.ts.
+- ui/layout-stage.ts itself uses TypeScript syntax and is not safe to load directly as a classic browser script.
+- No index.html change was made because a full replacement chain was not proven browser-safe and changing script load order was out of scope.
+
+Emitted browser artifact gate:
+- HTML files checked: worker-public/index.html and worker-public/story-deck-lab.html.
+- Unique emitted script targets checked: 249.
+- Missing emitted script targets: 0.
+- Direct dist-forwarder shims found in emitted script targets: 0.
+- Unapproved top-level exports.* patterns found in emitted script targets: 0.
+- Unguarded top-level module.exports assignments found in emitted script targets: 0.
+- node_modules/onnxruntime-web/dist/ort.min.js was treated as third-party UMD and excluded from project CommonJS shim approval decisions.
+
+Gate rule used:
+- Fail direct project shims containing module.exports = require(...dist/...).
+- Fail top-level exports.*.
+- Fail top-level module.exports = ... unless the file also contains a typeof module guard, which is an approved UMD/browser-safe pattern.
+- Allow guarded UMD/CommonJS compatibility branches because they do not evaluate module/exports in browsers where module is undefined.
+
+Gate command result:
+- htmlFiles=2
+- uniqueScriptTargets=249
+- issues=0
+
+Conclusion:
+- The emitted browser script targets used by the served app do not contain unapproved CommonJS patterns.
+- Root .js dist-forwarders remain source-side Node/test shims and were not promoted to browser-loaded artifacts.

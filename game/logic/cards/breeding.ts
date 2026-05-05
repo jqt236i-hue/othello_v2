@@ -6,7 +6,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
+<<<<<<< Updated upstream
 // breeding is provided as a global by the build system (esbuild-banner.js)
 declare const breeding: any;
+=======
+declare const breeding: Record<string, unknown>;
+>>>>>>> Stashed changes
 
 export = breeding;

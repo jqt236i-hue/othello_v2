@@ -1,0 +1,3 @@
+ - `lsp_diagnostics` could not run because `typescript-language-server` is not installed in this environment.
+ - The repo still has a generated/runtime source-of-truth split, so the mirror has to stay in sync for modules like this one.
+ - The self-play smoke emits repeated `CardRegen module not available` and circular-dependency warnings, but the run still completes and writes output.

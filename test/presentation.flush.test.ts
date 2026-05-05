@@ -1,7 +1,7 @@
 describe('presentation flush persisted events', () => {
   beforeEach(() => {
     jest.resetModules();
-    try { delete global.BoardOps; } catch (e) {}
+    try { delete global.BoardOps; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('flushPersistedEvents forwards persisted events to BoardOps after registration', () => {

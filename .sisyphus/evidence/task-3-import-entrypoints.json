@@ -1,0 +1,3933 @@
+{
+  "jest": {
+    "setupFiles": [
+      "<rootDir>/tests/jest.setup.js"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/jest.afterenv.js"
+    ],
+    "transform": [
+      "^.+\\.(ts|tsx)$",
+      "^.+\\.(js|jsx)$"
+    ]
+  },
+  "worker": {
+    "main": "workers/match-worker.mjs",
+    "assetsDirectory": "worker-public"
+  },
+  "workerMirrorCopyList": [
+    "index.html",
+    "story-deck-lab.html",
+    "is-env-capable.js",
+    "shared-constants.js",
+    "card-system.js",
+    "game-events.js",
+    "sound-engine.js",
+    "ui.js",
+    "styles-animations.css",
+    "styles-base.css",
+    "styles-board.css",
+    "styles-cards.css",
+    "styles-layout.css",
+    "styles-responsive.css",
+    "styles-story-deck-lab.css",
+    "styles-stone-shadows.css",
+    "styles-variables.css",
+    "assets",
+    "cards",
+    "constants",
+    "game",
+    "shared",
+    "ui",
+    "utils",
+    "assets",
+    "cards",
+    "constants",
+    "game",
+    "shared",
+    "ui",
+    "utils"
+  ],
+  "imports": [
+    {
+      "sourceFile": "game/ai/cpu-lv6-lookahead-profile.ts",
+      "targetPath": "../../constants/cpu-lv6-shared-profile.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "game/cpu-decision.ts",
+      "targetPath": "../constants/cpu-lv6-shared-profile.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "game/cpu-turn-handler.ts",
+      "targetPath": "../constants/cpu-lv6-shared-profile.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/background-skin/catalog.ts",
+      "targetPath": "../cosmetics/catalog-shared.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/background-skin/runtime.ts",
+      "targetPath": "./catalog.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/background-skin/selection.ts",
+      "targetPath": "./catalog.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/cosmetics/catalog-shared.ts",
+      "targetPath": "../storage/gacha-progress.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/cosmetics/catalog-shared.ts",
+      "targetPath": "../../shared/observation-gacha-catalog.generated.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha/catalog-access.ts",
+      "targetPath": "../../shared/observation-gacha-catalog.generated.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha/catalog-access.ts",
+      "targetPath": "../../shared/observation-gacha-catalog-shared.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha/catalog-access.ts",
+      "targetPath": "../bootstrap.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha/gacha-overlay-controller.ts",
+      "targetPath": "../../shared/gacha-helpers.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha/gacha-overlay-view.ts",
+      "targetPath": "../../shared/gacha-helpers.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha/gacha-overlay-view.ts",
+      "targetPath": "./gacha-item-visuals.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha/gacha-reveal-audio.ts",
+      "targetPath": "../sound-engine-access.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha/gacha-reveal-stage.ts",
+      "targetPath": "./gacha-item-visuals.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha/gacha-transaction.ts",
+      "targetPath": "../../shared/gacha-helpers.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha/gacha-transaction.ts",
+      "targetPath": "./catalog-access.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha/gacha-transaction.ts",
+      "targetPath": "../storage/gacha-progress.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha-reveal-player.ts",
+      "targetPath": "./animation-shared.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha-reveal-player.ts",
+      "targetPath": "../shared/gacha-helpers.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha-reveal-player.ts",
+      "targetPath": "./gacha/gacha-reveal-stage.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/gacha-reveal-player.ts",
+      "targetPath": "./gacha/gacha-reveal-audio.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/hand-skin/catalog.ts",
+      "targetPath": "../cosmetics/catalog-shared.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/hand-skin/controller.ts",
+      "targetPath": "./catalog.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/hand-skin/controller.ts",
+      "targetPath": "./selection.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/hand-skin/controller.ts",
+      "targetPath": "./runtime.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/hand-skin/controller.ts",
+      "targetPath": "../background-skin/controller.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/hand-skin/controller.ts",
+      "targetPath": "../bootstrap.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/hand-skin/controller.ts",
+      "targetPath": "../gacha/gacha-events.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/hand-skin/runtime.ts",
+      "targetPath": "./catalog.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/hand-skin/runtime.ts",
+      "targetPath": "./selection.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/hand-skin/runtime.ts",
+      "targetPath": "../../utils/owner-helpers.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/hand-skin/selection.ts",
+      "targetPath": "./catalog.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/cpu-policy.ts",
+      "targetPath": "../../constants/cpu-lv6-shared-profile.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/cpu-policy.ts",
+      "targetPath": "../../shared/cpu-lv6-runtime-capability.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/gacha.ts",
+      "targetPath": "../gacha/gacha-transaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/gacha.ts",
+      "targetPath": "../gacha/gacha-overlay-view.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/gacha.ts",
+      "targetPath": "../gacha/gacha-overlay-controller.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/gacha.ts",
+      "targetPath": "../gacha-reveal-player.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/gacha.ts",
+      "targetPath": "../gacha/gacha-events.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/gacha.ts",
+      "targetPath": "../bootstrap.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/hand-skin.ts",
+      "targetPath": "../hand-skin/catalog.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/hand-skin.ts",
+      "targetPath": "../hand-skin/selection.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/hand-skin.ts",
+      "targetPath": "../hand-skin/runtime.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/hand-skin.ts",
+      "targetPath": "../hand-skin/controller.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/sound.ts",
+      "targetPath": "../placement-sound-selection.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/handlers/sound.ts",
+      "targetPath": "../gacha/gacha-events.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/network/session-seat.ts",
+      "targetPath": "../../shared/gacha-hand-catalog-shared.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/network-client.ts",
+      "targetPath": "./handlers/hand-skin.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/placement-sound-selection.ts",
+      "targetPath": "./gacha/catalog-access.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/placement-sound-selection.ts",
+      "targetPath": "./storage/gacha-progress.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/result-overlay.ts",
+      "targetPath": "../shared/gacha-helpers.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/result-overlay.ts",
+      "targetPath": "./storage/gacha-progress.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/status-display.ts",
+      "targetPath": "./result-overlay.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/storage/gacha-progress.ts",
+      "targetPath": "../../shared/observation-gacha-catalog-shared.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/story/story-battle-ui.ts",
+      "targetPath": "../sound-engine-access.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/story/story-controller.ts",
+      "targetPath": "../sound-engine-access.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/story/story-encounter.ts",
+      "targetPath": "../sound-engine-access.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "ui/tutorial/tutorial-controller.ts",
+      "targetPath": "../sound-engine-access.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "shared/gacha-hand-catalog-shared.ts",
+      "targetPath": "./observation-gacha-catalog-shared.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "scripts/generate-observation-gacha-catalog.ts",
+      "targetPath": "../shared/observation-gacha-catalog-shared.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "scripts/generate-observation-gacha-catalog.ts",
+      "targetPath": "../shared/gacha-hand-catalog-shared.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "workers/match-worker.mjs",
+      "targetPath": "../dist/workers/match-worker.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "workers/match-worker.ts",
+      "targetPath": "../utils/deepClone.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "workers/match-worker.ts",
+      "targetPath": "../utils/match-authority.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "workers/match-worker.ts",
+      "targetPath": "../shared/network-action-schema.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "workers/match-worker.ts",
+      "targetPath": "../shared/playback-event-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/asset.manifest.apply.test.ts",
+      "targetPath": "../ui/bootstrap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/asset.manifest.apply.test.ts",
+      "targetPath": "../scripts/generate-asset-manifest.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/assets.manifest.test.ts",
+      "targetPath": "../scripts/generate-asset-manifest.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/assets.preload.test.ts",
+      "targetPath": "../ui/bootstrap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/cpu.commentary-runtime.test.ts",
+      "targetPath": "../data/dialogue/fixed-commentary-data.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/cpu.commentary-runtime.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/cpu.lv6-shared-profile.test.ts",
+      "targetPath": "../constants/cpu-lv6-shared-profile.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/cpu.turn-handler.commentary.test.ts",
+      "targetPath": "../game/cpu-turn-handler.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/cpu.turn-handler.fate-will.test.ts",
+      "targetPath": "../game/cpu-turn-handler.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/cpu.turn-handler.onnx-hold.test.ts",
+      "targetPath": "../game/cpu-turn-handler.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/cpu.turn-handler.onnx-hold.test.ts",
+      "targetPath": "../game/cpu-decision.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/cpu.turn-handler.retry.test.ts",
+      "targetPath": "../game/cpu-turn-handler.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/cpu.turn-handler.retry.test.ts",
+      "targetPath": "../game/timers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/e2e/card_effects.e2e.test.ts",
+      "targetPath": "./e2e-runtime-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/e2e/cpu.e2e.test.ts",
+      "targetPath": "./e2e-runtime-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/e2e/cpu_auto_response.e2e.test.ts",
+      "targetPath": "./e2e-runtime-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/e2e/cpu_level_diff.e2e.test.ts",
+      "targetPath": "./e2e-runtime-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/e2e/destroy-card-will-hunter-king.e2e.test.ts",
+      "targetPath": "./e2e-runtime-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/e2e/multi_turn_progression.e2e.test.ts",
+      "targetPath": "./e2e-runtime-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/e2e/reset_click.e2e.test.ts",
+      "targetPath": "./e2e-runtime-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/e2e/special_effects.e2e.test.ts",
+      "targetPath": "./e2e-runtime-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/e2e-runtime-helpers.test.ts",
+      "targetPath": "./e2e/e2e-runtime-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game-init-manifest.test.ts",
+      "targetPath": "../ui/bootstrap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game-init-manifest.test.ts",
+      "targetPath": "../scripts/generate-asset-manifest.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.absolute-protect-next-stone.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.absolute-protect-next-stone.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.absolute-protect-next-stone.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.afterimage-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.afterimage-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.afterimage-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.blockade-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.blockade-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.blockade-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.board-bonus.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.board-bonus.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.board-bonus.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.board-expansion-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.board-expansion-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.board-expansion-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.board-expansion-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.board-expansion-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.board-ops.result-totals.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.board-ops.result-totals.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.board-ops.result-totals.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.board-shrink-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.board-shrink-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.breeding-frontier.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.capture-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.capture-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.blockade.test.ts",
+      "targetPath": "../game/card-effects/blockade.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.board-expansion-sound.test.ts",
+      "targetPath": "../game/card-effects/board-expansion.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.board-expansion.test.ts",
+      "targetPath": "../game/card-effects/board-expansion.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.board-shrink.test.ts",
+      "targetPath": "../game/card-effects/board-shrink.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.capture.test.ts",
+      "targetPath": "../game/card-effects/capture.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.clone.test.ts",
+      "targetPath": "../game/card-effects/clone.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.destroy.test.ts",
+      "targetPath": "../game/card-effects/destroy.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.extend-life.test.ts",
+      "targetPath": "../game/card-effects/extend-life.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.freeze.test.ts",
+      "targetPath": "../game/card-effects/freeze.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.guard.test.ts",
+      "targetPath": "../game/card-effects/guard.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.hyperactive-inherit.test.ts",
+      "targetPath": "../game/card-effects/hyperactive-inherit.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.living-will.test.ts",
+      "targetPath": "../game/card-effects/living-will.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.meteor.test.ts",
+      "targetPath": "../game/card-effects/meteor.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.placement.test.ts",
+      "targetPath": "../game/card-effects/placement.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.placement.test.ts",
+      "targetPath": "../game/log-messages.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.position-swap.test.ts",
+      "targetPath": "../game/card-effects/position-swap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.seed.test.ts",
+      "targetPath": "../game/card-effects/seed.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.selection-flow.test.ts",
+      "targetPath": "../game/card-effects/selection-flow.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.selection-flow.test.ts",
+      "targetPath": "../game/turn/pending-coordinator.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.selection-flow.test.ts",
+      "targetPath": "../game/network-turn-handoff.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.swap.test.ts",
+      "targetPath": "../game/card-effects/swap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.teleport.test.ts",
+      "targetPath": "../game/card-effects/teleport.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.tempt.test.ts",
+      "targetPath": "../game/card-effects/tempt.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.time-bomb.test.ts",
+      "targetPath": "../game/card-effects/time-bomb.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.card-effects.trap.test.ts",
+      "targetPath": "../game/card-effects/trap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards-internal.module-resolver.test.ts",
+      "targetPath": "../game/logic/cards-internal/module-resolver.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards-internal.presentation-helpers.test.ts",
+      "targetPath": "../game/logic/cards-internal/presentation-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards-internal.state-factory.test.ts",
+      "targetPath": "../game/logic/cards-internal/state-factory.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.card-used-presentation.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.card-used-presentation.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.card-used-presentation.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.card-used-presentation.test.ts",
+      "targetPath": "../game/turn/pending-coordinator.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.charge-ledger-module.test.ts",
+      "targetPath": "../game/logic/cards-internal/charge-ledger.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.effect-timing-module.test.ts",
+      "targetPath": "../game/logic/cards-internal/effect-timing.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.hand-manager-module.test.ts",
+      "targetPath": "../game/logic/cards-internal/hand-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.markers-duration-module.test.ts",
+      "targetPath": "../game/logic/cards/markers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.markers-module.test.ts",
+      "targetPath": "../game/logic/cards/markers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.markers-module.test.ts",
+      "targetPath": "../game/logic/cards/expansion.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.markers-module.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.pending-state-manager-module.test.ts",
+      "targetPath": "../game/logic/cards-internal/pending-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.reshuffle-cycle.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.reshuffle-cycle.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.reshuffle-cycle.test.ts",
+      "targetPath": "../shared/deck-spec.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cards.reshuffle-cycle.test.ts",
+      "targetPath": "../game/schema/prng.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cell-teleport-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cell-teleport-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cell-teleport-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-progression.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-progression.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-progression.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-progression.test.ts",
+      "targetPath": "./helpers/chain-test-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-single-direction-choice.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-single-direction-choice.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-single-direction-choice.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-single-direction-choice.test.ts",
+      "targetPath": "./helpers/chain-test-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-three-links.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-three-links.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-three-links.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-three-links.test.ts",
+      "targetPath": "./helpers/chain-test-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-two-links.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-two-links.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-two-links.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.chain-will-two-links.test.ts",
+      "targetPath": "./helpers/chain-test-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.charge-delta-events.test.ts",
+      "targetPath": "../game/logic/cards/utils.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.clone-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.clone-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.clone-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.condemn-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.condemn-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.condemn-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.controller-events.test.ts",
+      "targetPath": "../game/controller-events.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.corner-tribute-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.corner-tribute-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.corner-tribute-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.corner-tribute-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.corrosion-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.corrosion-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.corrosion-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cpu-policy-core.test.ts",
+      "targetPath": "../game/ai/cpu-policy-core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cpu-policy-core.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cpu-policy-core.test.ts",
+      "targetPath": "../shared/shared-board-utils.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.cpu-turn-handler.presentation-runtime.test.ts",
+      "targetPath": "../game/cpu-turn-handler.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.custom-board-config.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.custom-board-config.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.custom-board-config.test.ts",
+      "targetPath": "../game/logic/cards/expansion.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.custom-board-config.test.ts",
+      "targetPath": "../game/logic/cards/selectors.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.custom-board-config.test.ts",
+      "targetPath": "../game/logic/cards/targets.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.custom-board-config.test.ts",
+      "targetPath": "../game/logic/cards/hyperactive.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.custom-board-config.test.ts",
+      "targetPath": "../game/logic/cards-internal/selector-orchestrator.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.custom-board-config.test.ts",
+      "targetPath": "../shared/shared-board-utils.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.debug-actions.fill-hand.test.js",
+      "targetPath": "../game/debug/debug-actions.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/game.debug-actions.fill-hand.test.ts",
+      "targetPath": "../game/debug/debug-actions.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.destroy-dragon-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.destroy-dragon-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.destroy-dragon-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.destroy-dragon-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.destroy-dragon-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.double-place-pipeline.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.double-place-pipeline.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.double-place-pipeline.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.duration-end-revert.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.duration-end-revert.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.equality-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.equality-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.equality-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.equality-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.escape-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.escape-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.escape-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.escape-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.expansion-fallback-helpers.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.expansion-fallback-helpers.test.ts",
+      "targetPath": "../game/logic/effects/dragon.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.extend-life-work-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.extend-life-work-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.extend-life-work-will.test.ts",
+      "targetPath": "../game/logic/cards/work_will.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.extreme-hyperactive-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.extreme-hyperactive-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.extreme-hyperactive-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.extreme-hyperactive-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.fate-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.fate-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.fate-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.free-placement-like-pending.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.free-placement-like-pending.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.free-placement-like-pending.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.free-placement-like-pending.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.free-placement-like-pending.test.ts",
+      "targetPath": "../game/move-generator.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.freeze-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.freeze-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.freeze-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.freeze-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ghost-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ghost-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ghost-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ghost-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ghost-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.gluttonous-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.gluttonous-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.gluttonous-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.gluttonous-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.guard-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.guard-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.guard-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.guard-will.test.ts",
+      "targetPath": "../game/logic/cards/selectors.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.heaven-blessing.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.heaven-blessing.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.heaven-blessing.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.hyperactive-inherit-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.hyperactive-inherit-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.hyperactive-inherit-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.hyperactive-inherit-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.hyperactive-inherit-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.hyperactive.playback.test.ts",
+      "targetPath": "../game/move-executor-visuals.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.hyperactive.playback.test.ts",
+      "targetPath": "../game/special-effects/hyperactive.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.instant-hyperactive-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.instant-hyperactive-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.instant-hyperactive-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.instant-hyperactive-will.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.last-resort.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.last-resort.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.last-resort.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.lightning-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.lightning-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.lightning-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.lightning-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.lightning-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.lightning-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.living-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.living-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.living-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.logic.clone-module.test.ts",
+      "targetPath": "../game/logic/cards/clone.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.logic.meteor-module.test.ts",
+      "targetPath": "../game/logic/cards/meteor.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.logic.movement-module.test.ts",
+      "targetPath": "../game/logic/cards/movement.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.logic.teleport-module.test.ts",
+      "targetPath": "../game/logic/cards/teleport.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.logic.time-bomb-apply.test.ts",
+      "targetPath": "../game/logic/cards/time_bomb.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.logic.time-bomb-single.test.ts",
+      "targetPath": "../game/logic/cards/time_bomb.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.logic.time-bomb-single.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.loss-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.loss-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.loss-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.meteor-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.meteor-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.meteor-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.meteor-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.meteor-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.move-executor.cpu-fallback.test.ts",
+      "targetPath": "../game/move-executor.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.move-executor.presentation.test.ts",
+      "targetPath": "../game/move-executor.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.move-generator.expansion-pending.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.move-generator.expansion-pending.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.move-generator.expansion-pending.test.ts",
+      "targetPath": "../game/move-generator.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.movement-selection-turn-handoff.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.movement-selection-turn-handoff.test.ts",
+      "targetPath": "../game/card-effects/strong-wind.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.network-turn-handoff.test.ts",
+      "targetPath": "../game/network-turn-handoff.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.observer-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.observer-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.observer-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.observer-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.observer-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pass-clears-pending.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pass-clears-pending.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pass-clears-pending.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pass-clears-pending.test.ts",
+      "targetPath": "../game/turn/pending-coordinator.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pass-handler.test.ts",
+      "targetPath": "../game/pass-handler.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pending-coordinator.contract.test.ts",
+      "targetPath": "../game/turn/pending-coordinator.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pending-coordinator.contract.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pending-selection-flow.test.ts",
+      "targetPath": "../game/card-effects/selection-flow.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pending-selection-flow.test.ts",
+      "targetPath": "../game/turn/pending-coordinator.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pending-selection-flow.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pending-selection-flow.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pending-selection-flow.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pending-selection-flow.test.ts",
+      "targetPath": "../game/card-effects/board-expansion.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pending-selection-flow.test.ts",
+      "targetPath": "../game/card-effects/board-shrink.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pending-selection-flow.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pending-selection-flow.test.ts",
+      "targetPath": "../game/logic/presentation.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pending-selection-flow.test.ts",
+      "targetPath": "../game/network-turn-handoff.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pending-target-selector.test.ts",
+      "targetPath": "../game/turn-handlers/pending-target-selector.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.perma-protected-next-stone.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.perma-protected-next-stone.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.perma-protected-next-stone.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.perma-protected-next-stone.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.chain-flip-order.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.destroy-batch.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.draw.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.effect-logs.anchor-expire.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.gluttonous-phase.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.living-will-revive.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.move-metadata.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.move.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.normal-logs.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.salvation-disappear-timing.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.sound-cue.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.sound-cue.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.sound-cue.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.sound-cue.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.spawn.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.pipeline-ui-adapter.special-revert-phase.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.position-swap-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.position-swap-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.proliferation-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.proliferation-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.proliferation-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.proliferation-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.proliferation-will.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.protected-next-stone.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.protected-next-stone.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.protected-next-stone.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.protected-next-stone.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.rebuild-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.rebuild-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.regen.consume-visual.test.ts",
+      "targetPath": "../game/logic/cards/regen.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.regen.consume-visual.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.regen.consume-visual.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.regen.consume-visual.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.reinforcement-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.reinforcement-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.reinforcement-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.reinforcement-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.reveal-hand-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.reveal-hand-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.reveal-hand-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.reveal-hand-will.test.ts",
+      "targetPath": "../utils/match-authority.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ribo-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ribo-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ribo-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.robot-vacuum-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.robot-vacuum-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.robot-vacuum-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.round-bonus.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.round-bonus.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.salvation-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.salvation-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.salvation-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.salvation-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.seed-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.seed-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.seed-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.seed-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.selector-orchestrator.fallback.test.ts",
+      "targetPath": "../game/logic/cards-internal/selector-orchestrator.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.sniper-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.sniper-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.sniper-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.sniper-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.sniper-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.sniper-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.special-effects.bombs.batch.test.ts",
+      "targetPath": "../game/special-effects/bombs.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.special-stone-bubble-rollout.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.special-stone-bubble-rollout.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.special-stone-bubble-rollout.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.special-stone-bubble-rollout.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.special-stone-bubble-rollout.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.special-stone-bubble-rollout.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.special-stone-visual-rule.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.special-stone-visual-rule.test.ts",
+      "targetPath": "../game/logic/cards/utils.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.special-stone-visual-rule.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.specialstone.spawn-meta-backfill.test.js",
+      "targetPath": "../game/logic/cards.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/game.specialstone.spawn-meta-backfill.test.js",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/game.specialstone.spawn-meta-backfill.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.specialstone.spawn-meta-backfill.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.split-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.split-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.split-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.strong-wind.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.super-buoyancy-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.super-buoyancy-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.supply-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.supply-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.swap-normal-only.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.swap-normal-only.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.swap-selection-turn-handoff.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.swap-selection-turn-handoff.test.ts",
+      "targetPath": "../game/card-effects/swap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.taboo-reverse-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.taboo-reverse-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.taboo-reverse-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.teleport-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.teleport-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.teleport-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.time-bomb-selection.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.time-bomb-selection.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.time-stop-god.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.time-stop-god.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.time-stop-god.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.time-stop-god.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.time-stop-god.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.trap-selection-turn-handoff.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.trap-selection-turn-handoff.test.ts",
+      "targetPath": "../game/card-effects/trap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.trap-will.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.trap-will.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.trap-will.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.trap-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.trap-will.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.trap-will.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.treasure-box.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.treasure-box.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.treasure-box.test.ts",
+      "targetPath": "../game/turn/pending-coordinator.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.turn-pipeline-phase-helpers.special-stone-speech.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phase_helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.turn-pipeline-strong-will-timer.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.turn-pipeline-strong-will-timer.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.turn-pipeline-strong-will-timer.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.turn-pipeline-strong-will-timer.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.turn-pipeline.destroy-hand-card.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.turn-pipeline.destroy-hand-card.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.turn-pipeline.destroy-hand-card.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.turn-pipeline.out-of-turn.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.turn-pipeline.pending-cache-turn-start.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.turn-pipeline.pending-cache-turn-start.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.turn-pipeline.pending-cache-turn-start.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.turn-pipeline.pending-cache-turn-start.test.ts",
+      "targetPath": "../game/turn/pending-coordinator.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.udg-duration.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ui-boundary.test.ts",
+      "targetPath": "../game/visual-effects-map.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ui-boundary.test.ts",
+      "targetPath": "../game/move-executor-visuals.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ui-boundary.test.ts",
+      "targetPath": "../game/turn-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ultimate-hyperactive-god.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ultimate-hyperactive-god.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ultimate-hyperactive-god.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ultimate-hyperactive-god.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ultimate-hyperactive.turn-start.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.ultimate-hyperactive.turn-start.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.will-hunter-king.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.will-hunter-king.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.will-hunter-king.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.will-hunter-king.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.work-will.expansion.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/game.work-will.expansion.test.ts",
+      "targetPath": "../game/logic/cards/work_will.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/load-training-profile.sync.test.ts",
+      "targetPath": "../constants/cpu-lv6-shared-profile.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/local-match-server.leave-contract.test.ts",
+      "targetPath": "../scripts/local-match-server.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/local-match-server.publish-contract.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/local-match-server.publish-contract.test.ts",
+      "targetPath": "../scripts/local-match-server.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/local-match-server.room-deck.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/local-match-server.room-deck.test.ts",
+      "targetPath": "../shared/deck-spec.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/local-match-server.room-deck.test.ts",
+      "targetPath": "../shared/deck-codec.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/network.playback-event-assembly.contract.test.ts",
+      "targetPath": "../shared/playback-event-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/network.playback-event-assembly.contract.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/network.playback-event-assembly.contract.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/network.playback-event-assembly.contract.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/network.playback-event-assembly.contract.test.ts",
+      "targetPath": "../utils/match-authority.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/network.playback-event-assembly.contract.test.ts",
+      "targetPath": "../scripts/local-match-server.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/presentation.board-updated.serial.test.ts",
+      "targetPath": "../ui/presentation-handler.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/presentation.flush.test.ts",
+      "targetPath": "../game/logic/presentation.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/presentation.schedule.cpu.test.ts",
+      "targetPath": "../ui/presentation-handler.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/regression.udr-crystal-fixes.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/regression.udr-crystal-fixes.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/regression.udr-crystal-fixes.test.ts",
+      "targetPath": "../game/turn/turn_pipeline_phases.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/regression.udr-crystal-fixes.test.ts",
+      "targetPath": "../game/logic/board_ops.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/regression.udr-crystal-fixes.test.ts",
+      "targetPath": "../game/cpu-decision.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/regression.udr-crystal-fixes.test.ts",
+      "targetPath": "../src/engine/selfplay-runner.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/regression.udr-crystal-fixes.test.ts",
+      "targetPath": "../game/card-effects/placement.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/regression.udr-crystal-fixes.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/scripts.deploy-lane-model-to-root.test.ts",
+      "targetPath": "../scripts/deploy-lane-model-to-root.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/scripts.generate-observation-gacha-catalog.test.js",
+      "targetPath": "../scripts/generate-observation-gacha-catalog.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/scripts.generate-observation-gacha-catalog.test.ts",
+      "targetPath": "../scripts/generate-observation-gacha-catalog.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.generate-data.parallel-workers.test.ts",
+      "targetPath": "../constants/cpu-lv6-shared-profile.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.generate-data.parallel-workers.test.ts",
+      "targetPath": "../scripts/generate-selfplay-data-parallel.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.generate-data.test.ts",
+      "targetPath": "../scripts/generate-selfplay-data.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.generate-data.test.ts",
+      "targetPath": "../constants/cpu-lv6-shared-profile.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.generate-parallel.test.ts",
+      "targetPath": "../scripts/generate-selfplay-data-parallel.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.policy-adoption.test.ts",
+      "targetPath": "../scripts/policy-gate-result-utils.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.policy-quality-gate.test.ts",
+      "targetPath": "../scripts/policy-gate-result-utils.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.policy-rollback.test.ts",
+      "targetPath": "../scripts/promote-policy-model.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.policy-rollback.test.ts",
+      "targetPath": "../scripts/rollback-policy-model.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.runner.test.ts",
+      "targetPath": "../game/logic/core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.runner.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.runner.test.ts",
+      "targetPath": "../game/ai/cpu-policy-core.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.runner.test.ts",
+      "targetPath": "../game/ai/cpu-lv6-lookahead-profile.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.runner.test.ts",
+      "targetPath": "../game/cpu-decision.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.runner.test.ts",
+      "targetPath": "../game/turn/turn_pipeline.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/selfplay.training-preset.test.ts",
+      "targetPath": "../constants/cpu-lv6-shared-profile.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/shared.commentary-context-helpers.test.ts",
+      "targetPath": "../shared/commentary-context-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/shared.commentary-runtime-helpers.test.ts",
+      "targetPath": "../shared/commentary-runtime-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/shared.cpu-lv6-runtime-capability.test.ts",
+      "targetPath": "../constants/cpu-lv6-shared-profile.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/shared.cpu-lv6-runtime-capability.test.ts",
+      "targetPath": "../shared/cpu-lv6-runtime-capability.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/shared.destroy-outcome-contract.test.ts",
+      "targetPath": "../shared/destroy-outcome-contract.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/shared.gacha-hand-catalog-shared.test.js",
+      "targetPath": "../shared/gacha-hand-catalog-shared.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/shared.gacha-hand-catalog-shared.test.ts",
+      "targetPath": "../shared/gacha-hand-catalog-shared.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/shared.gacha-helpers.test.js",
+      "targetPath": "../shared/gacha-helpers.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/shared.observation-gacha-catalog-shared.test.js",
+      "targetPath": "../shared/observation-gacha-catalog-shared.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/shared.playback-event-helpers.test.ts",
+      "targetPath": "../shared/playback-event-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/shared.playback-event-helpers.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/shared.story-deck-codec.test.ts",
+      "targetPath": "../shared-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/shared.story-deck-codec.test.ts",
+      "targetPath": "../shared/story-deck-spec.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/shared.story-deck-codec.test.ts",
+      "targetPath": "../shared/story-deck-codec.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/sound-engine.default-bgm.test.js",
+      "targetPath": "../ui/placement-sound-selection.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/sound-engine.default-bgm.test.ts",
+      "targetPath": "../ui/placement-sound-selection.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/turn-manager.retry.test.ts",
+      "targetPath": "../game/turn/pipeline_ui_adapter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/turn-manager.retry.test.ts",
+      "targetPath": "../game/cpu-turn-handler.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/turn-manager.retry.test.ts",
+      "targetPath": "../game/timers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/turn-manager.retry.test.ts",
+      "targetPath": "../game/turn-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/turn-manager.retry.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/turn-manager.retry.test.ts",
+      "targetPath": "../game/turn/pending-coordinator.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.animation-engine.guard-timer.test.ts",
+      "targetPath": "../ui/animation-constants.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.animation-engine.guard-timer.test.ts",
+      "targetPath": "../ui/animation-engine.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.animation-engine.hand-add.test.ts",
+      "targetPath": "../ui/animation-engine.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.animation-engine.inherited-hyperactive-timer.test.ts",
+      "targetPath": "../ui/animation-engine.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.animation-engine.move-variants.test.ts",
+      "targetPath": "../ui/animation-engine.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.animation-engine.observer-bubble.test.ts",
+      "targetPath": "../ui/animation-engine.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.animation-engine.playback-state.test.ts",
+      "targetPath": "../ui/animation-engine.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.animation-engine.playback-state.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.animation-engine.test.ts",
+      "targetPath": "../ui/animation-engine.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.animation-utils.hand-fallback.test.js",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.animation-utils.hand-fallback.test.js",
+      "targetPath": "../ui/handlers/hand-skin.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.animation-utils.hand-fallback.test.ts",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.animation-utils.hand-fallback.test.ts",
+      "targetPath": "../ui/animation-utils.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.animation-utils.hand-fallback.test.ts",
+      "targetPath": "../ui/handlers/hand-skin.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.animation-utils.test.ts",
+      "targetPath": "../ui/animation-utils.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.auto.playback-state.test.js",
+      "targetPath": "../ui/handlers/auto.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.auto.playback-state.test.ts",
+      "targetPath": "../ui/handlers/auto.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.background-skin-runtime.test.js",
+      "targetPath": "../ui/background-skin/runtime.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.background-skin-runtime.test.ts",
+      "targetPath": "../ui/background-skin/runtime.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.board-expansion-cell-render.test.ts",
+      "targetPath": "../ui/diff-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.board-expansion-cell-render.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.board-renderer.fallback-legal-hint.test.ts",
+      "targetPath": "../ui/board-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.board-renderer.pixel-sizing.test.ts",
+      "targetPath": "../ui/board-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.board-update-dispatch.test.ts",
+      "targetPath": "../ui/board-update-dispatch.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.bootstrap.cpu-early-registration.test.ts",
+      "targetPath": "../ui/bootstrap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.bootstrap.cpu-early-registration.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.bootstrap.debug-log.test.ts",
+      "targetPath": "../ui/bootstrap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.bootstrap.debug-log.test.ts",
+      "targetPath": "../is-env-capable.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.bootstrap.lazy-install.test.ts",
+      "targetPath": "../ui/bootstrap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.bootstrap.specialstone-preload.test.ts",
+      "targetPath": "../ui/bootstrap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.card-condemn-selection-deferred-publish.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.card-condemn-selection-deferred-publish.test.js",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.card-condemn-selection-deferred-publish.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.card-condemn-selection-deferred-publish.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.card-condemn-selection-deferred-publish.test.ts",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.card-destroy-hand.test.js",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.card-destroy-hand.test.ts",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.card-detail-effect-tags.test.js",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.card-detail-effect-tags.test.ts",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.card-use-source-element.test.js",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.card-use-source-element.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.card-use-source-element.test.ts",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.commentary-broker.test.ts",
+      "targetPath": "../ui/commentary-broker.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.debug.fill-hand-refresh.test.js",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.debug.fill-hand-refresh.test.ts",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.deck-builder-controller.test.ts",
+      "targetPath": "../shared/deck-spec.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.deck-builder-controller.test.ts",
+      "targetPath": "../shared/deck-codec.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.deck-builder-controller.test.ts",
+      "targetPath": "../ui/deck-builder-controller.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.deck-builder-controller.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.diff-renderer.destroy-fade-shadow.test.ts",
+      "targetPath": "../ui/diff-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.diff-renderer.flip.test.ts",
+      "targetPath": "../ui/diff-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.diff-renderer.flip.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.fate-will-legal-hints.test.ts",
+      "targetPath": "../ui/diff-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.flip.suppress-double.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.flip.suppress-double.test.ts",
+      "targetPath": "../ui/diff-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.flip.suppress-double.test.ts",
+      "targetPath": "../ui/board-update-sync-runtime.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.gacha-handler.test.js",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.gacha-handler.test.js",
+      "targetPath": "../ui/handlers/gacha.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.gacha-handler.test.ts",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.gacha-handler.test.ts",
+      "targetPath": "../ui/handlers/gacha.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.gacha-item-visuals.test.js",
+      "targetPath": "../ui/gacha/gacha-item-visuals.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.gacha-item-visuals.test.ts",
+      "targetPath": "../ui/gacha/gacha-item-visuals.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.gacha-overlay-view.test.js",
+      "targetPath": "../ui/gacha/gacha-overlay-view.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.gacha-overlay-view.test.ts",
+      "targetPath": "../ui/gacha/gacha-overlay-view.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.gacha-progress-storage.test.js",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.gacha-progress-storage.test.ts",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.gacha-reveal-audio.test.js",
+      "targetPath": "../ui/gacha/gacha-reveal-audio.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.gacha-reveal-audio.test.ts",
+      "targetPath": "../ui/gacha/gacha-reveal-audio.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.gacha-reveal-player.test.js",
+      "targetPath": "../ui/gacha-reveal-player.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.gacha-reveal-player.test.ts",
+      "targetPath": "../ui/gacha-reveal-player.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.gacha-transaction.test.js",
+      "targetPath": "../ui/gacha/gacha-transaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.gacha-transaction.test.ts",
+      "targetPath": "../ui/gacha/gacha-transaction.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.hand-skin-handler.test.js",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.hand-skin-handler.test.js",
+      "targetPath": "../ui/handlers/hand-skin.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.hand-skin-handler.test.js",
+      "targetPath": "../ui/bootstrap.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.hand-skin-handler.test.ts",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.hand-skin-handler.test.ts",
+      "targetPath": "../ui/handlers/hand-skin.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.hand-skin-handler.test.ts",
+      "targetPath": "../ui/bootstrap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.heaven-blessing-overlay.test.js",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.heaven-blessing-overlay.test.ts",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.heaven-blessing-selection-deferred-publish.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.heaven-blessing-selection-deferred-publish.test.js",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.heaven-blessing-selection-deferred-publish.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.heaven-blessing-selection-deferred-publish.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.heaven-blessing-selection-deferred-publish.test.ts",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.heaven-overlay-network-authority-gate.test.js",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.heaven-overlay-network-authority-gate.test.ts",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.init.action-button-binding.test.js",
+      "targetPath": "../ui/handlers/init.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.init.action-button-binding.test.ts",
+      "targetPath": "../ui/handlers/init.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.init.async-policy-load.test.js",
+      "targetPath": "../ui/handlers/init.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.init.async-policy-load.test.ts",
+      "targetPath": "../ui/handlers/init.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.init.gacha.test.js",
+      "targetPath": "../ui/handlers/init.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.init.gacha.test.ts",
+      "targetPath": "../ui/handlers/init.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.init.hand-skin.test.js",
+      "targetPath": "../ui/handlers/init.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.init.hand-skin.test.ts",
+      "targetPath": "../ui/handlers/init.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.init.playback-runtime.test.js",
+      "targetPath": "../ui/handlers/init.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.init.playback-runtime.test.ts",
+      "targetPath": "../ui/handlers/init.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.init.side-panel-toggle.test.js",
+      "targetPath": "../ui/handlers/init.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.init.side-panel-toggle.test.ts",
+      "targetPath": "../ui/handlers/init.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.lightning-will-legal-hint.test.ts",
+      "targetPath": "../ui/diff-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.long-press-info.test.js",
+      "targetPath": "../ui/diff-renderer.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.long-press-info.test.ts",
+      "targetPath": "../ui/diff-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.match-mode.leaderboard-limit.test.js",
+      "targetPath": "../ui/handlers/match-mode.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.match-mode.leaderboard-limit.test.ts",
+      "targetPath": "../ui/handlers/match-mode.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.match-mode.network-button.test.js",
+      "targetPath": "../ui/handlers/match-mode.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.match-mode.network-button.test.ts",
+      "targetPath": "../ui/handlers/match-mode.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.action-bridge-next-snapshot.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.action-bridge-next-snapshot.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.action-bridge-next-snapshot.test.ts",
+      "targetPath": "../game/logic/cards.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-client.apply-coordinator.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.apply-coordinator.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.card-use-visual-descriptor.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.card-use-visual-descriptor.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.commentary.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.commentary.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.debug-fill-hand-publish.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.debug-fill-hand-publish.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.effect-log-dedupe.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.effect-log-dedupe.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.guard-tempt-deferred-publish.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.guard-tempt-deferred-publish.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.leave-room-cleanup.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.leave-room-cleanup.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-client.leave-room-cleanup.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.movement-deferred-publish.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.movement-deferred-publish.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.movement-deferred-publish.test.ts",
+      "targetPath": "../game/card-effects/strong-wind.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-client.multi-stage-selection.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.multi-stage-selection.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.presence-log.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.presence-log.test.js",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.presence-log.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.presence-log.test.ts",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-client.publish-base-version.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.publish-base-version.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.reconnect-sync.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.reconnect-sync.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.result-sync.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.result-sync.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.result-sync.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-client.seat-normalization.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.seat-normalization.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.snapshot-effect-logs.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.snapshot-effect-logs.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.sound-dedupe.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.sound-dedupe.test.ts",
+      "targetPath": "../ui/animation-engine.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-client.sound-dedupe.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.swap-deferred-publish.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.swap-deferred-publish.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.swap-deferred-publish.test.ts",
+      "targetPath": "../game/card-effects/swap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-client.trap-deferred-publish.test.js",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.trap-deferred-publish.test.ts",
+      "targetPath": "../ui/network-client.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-client.trap-deferred-publish.test.ts",
+      "targetPath": "../game/card-effects/trap.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-command-payload.test.js",
+      "targetPath": "../ui/network/command-payload.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-command-payload.test.ts",
+      "targetPath": "../ui/network/command-payload.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-commentary.test.js",
+      "targetPath": "../ui/network/commentary.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-commentary.test.ts",
+      "targetPath": "../ui/network/commentary.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-legal-hints.test.ts",
+      "targetPath": "../ui/board-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-legal-hints.test.ts",
+      "targetPath": "../ui/diff-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-publish-request.test.js",
+      "targetPath": "../ui/network/publish-request.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-publish-request.test.ts",
+      "targetPath": "../ui/network/publish-request.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-session-lifecycle.test.js",
+      "targetPath": "../ui/network/session-lifecycle.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-session-lifecycle.test.ts",
+      "targetPath": "../ui/network/session-lifecycle.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-snapshot-canonical.test.js",
+      "targetPath": "../ui/network/snapshot-canonical.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-snapshot-canonical.test.ts",
+      "targetPath": "../ui/network/snapshot-canonical.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-snapshot.charge-delta-reconstruct.test.ts",
+      "targetPath": "../ui/network/snapshot.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-snapshot.hyperactive-source-empty.test.ts",
+      "targetPath": "../ui/network/snapshot.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-snapshot.move-source-empty.test.ts",
+      "targetPath": "../ui/network/snapshot.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-snapshot.pending-presentation-reconcile.test.ts",
+      "targetPath": "../ui/network/snapshot.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-snapshot.single-writer-baseline.test.ts",
+      "targetPath": "../game/turn/pending-coordinator.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-snapshot.single-writer-baseline.test.ts",
+      "targetPath": "../ui/network/snapshot.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-work-will-followup-placement.test.js",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-work-will-followup-placement.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.network-work-will-followup-placement.test.ts",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.network-work-will-followup-placement.test.ts",
+      "targetPath": "../game/turn-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.pass-stale-busy.test.js",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.pass-stale-busy.test.ts",
+      "targetPath": "../cards/card-interaction.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.placement-sound-selection.test.js",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.placement-sound-selection.test.js",
+      "targetPath": "../ui/placement-sound-selection.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.placement-sound-selection.test.ts",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.placement-sound-selection.test.ts",
+      "targetPath": "../ui/placement-sound-selection.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.playback-engine.dispatch.test.ts",
+      "targetPath": "../ui/playback-engine.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.playback-state-manager.test.ts",
+      "targetPath": "../ui/playback-state-manager.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.result-overlay.network-seat.test.js",
+      "targetPath": "../ui/result-overlay.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.result-overlay.network-seat.test.js",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.result-overlay.network-seat.test.ts",
+      "targetPath": "../ui/result-overlay.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.result-overlay.network-seat.test.ts",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.result-overlay.story-result.test.js",
+      "targetPath": "../ui/result-overlay.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.result-overlay.story-result.test.ts",
+      "targetPath": "../ui/result-overlay.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.rules-help-panel.test.js",
+      "targetPath": "../ui/handlers/rules-help.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.rules-help-panel.test.ts",
+      "targetPath": "../ui/handlers/rules-help.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.sound-engine-access.test.js",
+      "targetPath": "../ui/sound-engine-access.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.sound-handler.test.js",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.sound-handler.test.js",
+      "targetPath": "../ui/gacha/catalog-access.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.sound-handler.test.js",
+      "targetPath": "../ui/placement-sound-selection.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/ui.sound-handler.test.ts",
+      "targetPath": "../ui/handlers/sound.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.sound-handler.test.ts",
+      "targetPath": "../ui/storage/gacha-progress.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.sound-handler.test.ts",
+      "targetPath": "../ui/gacha/catalog-access.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.sound-handler.test.ts",
+      "targetPath": "../ui/placement-sound-selection.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.stone-rendering.test.ts",
+      "targetPath": "../ui/board-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.stone-rendering.test.ts",
+      "targetPath": "../ui/diff-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.stone-visuals.contract.test.ts",
+      "targetPath": "../ui/stone-visuals.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-battle-ui.test.ts",
+      "targetPath": "../ui/story/story-battle-ui.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-battle-ui.test.ts",
+      "targetPath": "../ui/story/story-state.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-battle-ui.test.ts",
+      "targetPath": "../ui/tutorial/tutorial-overlay.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-controller.test.ts",
+      "targetPath": "../ui/story/story-controller.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-controller.test.ts",
+      "targetPath": "../ui/story/story-state.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-controller.test.ts",
+      "targetPath": "../ui/tutorial/tutorial-storage.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-deck-lab-renderer.test.ts",
+      "targetPath": "../ui/story-deck-lab/story-deck-lab-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-deck-lab-state.test.ts",
+      "targetPath": "../ui/story-deck-lab/story-deck-lab-state.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-deck-lab-state.test.ts",
+      "targetPath": "../shared/story-deck-spec.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-encounter.test.ts",
+      "targetPath": "../ui/story/story-encounter.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-handler.test.ts",
+      "targetPath": "../ui/handlers/story.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-handler.test.ts",
+      "targetPath": "../ui/story/story-controller.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-handler.test.ts",
+      "targetPath": "../ui/story/story-steps.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-handler.test.ts",
+      "targetPath": "../ui/tutorial/tutorial-storage.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.story-steps.test.ts",
+      "targetPath": "../ui/story/story-steps.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.taboo-legal-highlight.test.ts",
+      "targetPath": "../ui/diff-renderer.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.tutorial-action-wait.test.ts",
+      "targetPath": "../ui/tutorial/tutorial-action-wait.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.tutorial-controller.test.ts",
+      "targetPath": "../ui/tutorial/tutorial-controller.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.tutorial-controller.test.ts",
+      "targetPath": "../ui/tutorial/tutorial-state.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.tutorial-handler.test.ts",
+      "targetPath": "../ui/handlers/tutorial.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.tutorial-overlay.test.ts",
+      "targetPath": "../ui/tutorial/tutorial-overlay.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.tutorial-runtime.test.ts",
+      "targetPath": "../ui/tutorial/tutorial-runtime.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.tutorial-steps.test.ts",
+      "targetPath": "../ui/tutorial/tutorial-steps.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/ui.tutorial-storage.test.ts",
+      "targetPath": "../ui/tutorial/tutorial-storage.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/utils.match-authority.public-snapshot.test.ts",
+      "targetPath": "../utils/match-authority.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/utils.match-authority.publish-response.test.ts",
+      "targetPath": "../utils/match-authority.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/utils.owner-helpers.network-seat.test.js",
+      "targetPath": "../utils/owner-helpers.js",
+      "type": "require"
+    },
+    {
+      "sourceFile": "test/utils.owner-helpers.network-seat.test.ts",
+      "targetPath": "../utils/owner-helpers.js",
+      "type": "import"
+    },
+    {
+      "sourceFile": "test/workers.match-room-deck.test.ts",
+      "targetPath": "../shared/deck-spec.js",
+      "type": "import"
+    }
+  ]
+}

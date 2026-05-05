@@ -29,12 +29,12 @@ describe('debug hand fling', () => {
 
   afterEach(() => {
     jest.useRealTimers();
-    try { delete global.window; } catch (e) {}
-    try { delete global.document; } catch (e) {}
-    try { delete global.Event; } catch (e) {}
-    try { delete global.addLog; } catch (e) {}
-    try { delete global.fillDebugHand; } catch (e) {}
-    try { delete global.renderCardUI; } catch (e) {}
+    try { delete global.window; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.document; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.Event; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.addLog; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.fillDebugHand; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.renderCardUI; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('debug on allows immediate horizontal swipe and suppresses post-drag card click', () => {

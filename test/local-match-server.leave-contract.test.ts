@@ -131,7 +131,7 @@ describe('local match server leave contract', () => {
     } finally {
       try {
         if (stream && stream.req) stream.req.destroy();
-      } catch (e) {}
+      } catch (e) { /* Intentionally empty: stream cleanup guard */ }
       await closeServer(server);
     }
   });
@@ -327,7 +327,7 @@ describe('local match server leave contract', () => {
     } finally {
       try {
         if (stream && stream.req) stream.req.destroy();
-      } catch (e) {}
+      } catch (e) { /* Intentionally empty: stream cleanup guard */ }
       await closeServer(server);
     }
   });
@@ -441,7 +441,7 @@ describe('local match server leave contract', () => {
     } finally {
       try {
         if (stream && stream.req) stream.req.destroy();
-      } catch (e) {}
+      } catch (e) { /* Intentionally empty: stream cleanup guard */ }
       await closeServer(server);
     }
   });

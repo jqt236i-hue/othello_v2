@@ -1,0 +1,1 @@
+window._require=function(p){return window};window.__require=function(p){return window};var CoreLogic;var CardLogic;var CardSystem;var GameEvents;var gameState;var cardState;var boardConfig;var prng;var regen={applyRegenWill:function(){},applyRegenAfterFlips:function(){return{regened:[],captureFlips:[]}}};var lightning={};var breeding={};var destroy_dragon={};var work_will={};

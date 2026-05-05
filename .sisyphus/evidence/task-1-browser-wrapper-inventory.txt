@@ -1,0 +1,192 @@
+# Browser wrapper inventory
+total_index_scripts=238
+root_cjs_wrappers=230
+worker_public_cjs_wrappers=101
+
+## Decision
+Root index.html script path is not browser-safe after migration; worker-public is the browser-ready mirror and is therefore the intended default serve root.
+
+## Root CJS wrappers (first 80 shown)
+- ui/layout-stage.js: "use strict"; | /** @type {any} */ | module.exports = require('../dist/ui/layout-stage');
+- is-env-capable.js: const path = require('path'); | module.exports = require(path.join(__dirname, 'dist', 'is-env-capable.js')); | 
+- constants/difficulty-constants.js: const path = require('path'); | module.exports = require(path.join(__dirname, '..', '..', 'dist', 'constants', 'difficulty-constants.js')); | 
+- constants/ui-element-cache.js: const path = require('path'); | module.exports = require(path.join(__dirname, '../dist', 'constants', 'ui-element-cache')); | 
+- constants/animation-constants.js: module.exports = require("../dist/constants/animation-constants"); | 
+- cards/catalog.js: "use strict"; | /** @type {any} */ | module.exports = require('../dist/cards/catalog');
+- shared-constants.js: "use strict"; | /** @type {any} */ | module.exports = require('dist/./shared-constants');
+- shared/shared-board-utils.js: 'use strict'; |  | module.exports = require('../dist/shared/shared-board-utils');
+- shared/deck-spec.js: 'use strict'; |  | module.exports = require('../dist/shared/deck-spec');
+- shared/deck-codec.js: 'use strict'; |  | module.exports = require('../dist/shared/deck-codec');
+- shared/destroy-outcome-contract.js: 'use strict'; |  | module.exports = require('../dist/shared/destroy-outcome-contract');
+- shared/special-stone-registry.js: 'use strict'; |  | module.exports = require('../dist/shared/special-stone-registry');
+- shared/stone-status-snapshot.js: 'use strict'; |  | module.exports = require('../dist/shared/stone-status-snapshot');
+- shared/shared-board-utils.js: 'use strict'; |  | module.exports = require('../dist/shared/shared-board-utils');
+- game/logic/markers_adapter.js: /** @type {any} */ | module.exports = require('../../dist/game/logic/markers_adapter'); | 
+- game/logic/cards-internal/random-source.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards-internal/random-source');
+- game/logic/cards-internal/state-factory.js: /** @type {any} */ | module.exports = require('../../../dist/game/logic/cards-internal/state-factory'); | 
+- game/logic/cards-internal/module-resolver.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards-internal/module-resolver');
+- game/logic/cards-internal/presentation-helpers.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards-internal/presentation-helpers');
+- game/logic/board_ops.js: "use strict"; | /** @type {any} */ | module.exports = require('../../dist/game/logic/board_ops');
+- utils/owner-helpers.js: "use strict"; | /** @type {any} */ | module.exports = require('../dist/utils/owner-helpers');
+- game/logic/core.js: /** @type {any} */ | module.exports = require('../../dist/game/logic/core'); | 
+- game/logic/cards/defs.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards/defs');
+- game/logic/cards/costs.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards/costs');
+- game/logic/cards/utils.js: "use strict"; | /** @type {any} */ | module.exports = require('../../../dist/game/logic/cards/utils');
+- game/logic/cards/targets.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards/targets');
+- game/logic/cards/selectors.js: module.exports = require('../../../dist/game/logic/cards/selectors'); | 
+- game/logic/cards/flips.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards/flips');
+- game/logic/cards/chain.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards/chain');
+- game/logic/cards/regen.js: "use strict"; | /** @type {any} */ | module.exports = require('../../../dist/game/logic/cards/regen');
+- game/logic/cards/time_bomb.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards/time_bomb');
+- game/logic/cards/breeding.js: "use strict"; | /** @type {any} */ | module.exports = require('../../../dist/game/logic/cards/breeding');
+- game/logic/cards/hyperactive.js: module.exports = require('../../../dist/game/logic/cards/hyperactive');
+- game/logic/cards/udg.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards/udg');
+- game/logic/cards/sniper.js: "use strict"; | /** @type {any} */ | module.exports = require('../../../dist/game/logic/cards/sniper');
+- game/logic/cards/lightning.js: "use strict"; | /** @type {any} */ | module.exports = require('../../../dist/game/logic/cards/lightning');
+- game/logic/cards/destroy_dragon.js: "use strict"; | /** @type {any} */ | module.exports = require('../../../dist/game/logic/cards/destroy_dragon');
+- game/logic/cards/will_hunter_king.js: module.exports = require('../../../dist/game/logic/cards/will_hunter_king'); | 
+- game/logic/cards/work_will.js: "use strict"; | /** @type {any} */ | module.exports = require('../../../dist/game/logic/cards/work_will');
+- game/logic/cards/expansion.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards/expansion');
+- game/logic/cards/markers.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards/markers');
+- game/logic/cards/living_will.js: module.exports = require('../../../dist/game/logic/cards/living_will'); | 
+- game/logic/cards/movement.js: module.exports = require('../../../dist/game/logic/cards/movement'); | 
+- game/logic/cards/teleport.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards/teleport');
+- game/logic/cards/clone.js: module.exports = require('../../../dist/game/logic/cards/clone'); | 
+- game/logic/cards/meteor.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards/meteor');
+- game/logic/cards/shrink.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards/shrink');
+- game/logic/effects/dragon.js: /** @type {any} */ | module.exports = require('../../../dist/game/logic/effects/dragon'); | 
+- game/logic/effects/swap_with_enemy.js: /** @type {any} */ | module.exports = require('../../../dist/game/logic/effects/swap_with_enemy'); | 
+- game/logic/effects/destroy_one_stone.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/effects/destroy_one_stone');
+- game/logic/cards-internal/card-usage-prechecks.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards-internal/card-usage-prechecks');
+- game/logic/cards-internal/selector-orchestrator.js: /** @type {any} */ | module.exports = require('../../../dist/game/logic/cards-internal/selector-orchestrator'); | 
+- game/logic/cards-internal/hand-manager.js: /** @type {any} */ | module.exports = require('../../../dist/game/logic/cards-internal/hand-manager'); | 
+- game/logic/cards-internal/effect-timing.js: /** @type {any} */ | module.exports = require('../../../dist/game/logic/cards-internal/effect-timing'); | 
+- game/logic/cards-internal/pending-state-manager.js: /** @type {any} */ | module.exports = require('../../../dist/game/logic/cards-internal/pending-state-manager'); | 
+- game/turn/pending-coordinator.js: "use strict"; | /** @type {any} */ | module.exports = require('../../dist/game/turn/pending-coordinator');
+- game/logic/cards-internal/charge-ledger.js: 'use strict'; |  | module.exports = require('../../../dist/game/logic/cards-internal/charge-ledger');
+- game/logic/cards.js: "use strict"; | /** @type {any} */ | module.exports = require('../../dist/game/logic/cards');
+- game/logic/position-weights.js: "use strict"; | /** @type {any} */ | module.exports = require('../../dist/game/logic/position-weights');
+- game/schema/prng.js: module.exports = require("../../dist/game/schema/prng"); | 
+- game/schema/action_manager.js: "use strict"; | /** @type {any} */ | module.exports = require('../../dist/game/schema/action_manager');
+- game-events.js: module.exports = require("./dist/game-events"); | 
+- game/game-core-logic.js: module.exports = require("../dist/game/game-core-logic"); | 
+- game/move-generator.js: "use strict"; | /** @type {any} */ | module.exports = require('../dist/game/move-generator');
+- card-system.js: module.exports = require("./dist/card-system"); | 
+- ui/storage/action-log.js: module.exports = require("../../dist/ui/storage/action-log"); | 
+- shared/commentary-context-helpers.js: 'use strict'; |  | module.exports = require('../dist/shared/commentary-context-helpers');
+- shared/commentary-runtime-helpers.js: 'use strict'; |  | module.exports = require('../dist/shared/commentary-runtime-helpers');
+- shared/playback-event-helpers.js: 'use strict'; |  | module.exports = require('../dist/shared/playback-event-helpers');
+- ui/commentary-broker.js: const path = require('path'); | module.exports = require(path.join(__dirname, '..', '..', 'dist', 'ui', 'commentary-broker.js')); | 
+- ui/bootstrap.js: "use strict"; | /** @type {any} */ | module.exports = require('../dist/ui/bootstrap');
+- ui/bootstrap/init-dom.js: module.exports = require("../../dist/ui/bootstrap/init-dom"); | 
+- ui/bootstrap/init-events.js: const path = require('path'); | module.exports = require(path.join(__dirname, '..', '..', 'dist', 'ui', 'bootstrap', 'init-events.js')); | 
+- ui/bootstrap/init-game.js: module.exports = require("../../dist/ui/bootstrap/init-game"); | 
+- ui/bootstrap/init-network.js: const path = require('path'); | module.exports = require(path.join(__dirname, '..', '..', 'dist', 'ui', 'bootstrap', 'init-network.js')); | 
+- ui/marker-bridge.js: module.exports = require("../dist/ui/marker-bridge"); | 
+- ui.js: "use strict"; | /** @type {any} */ | module.exports = require('dist/./ui');
+- ui/animation-resolver.js: module.exports = require("../dist/ui/animation-resolver"); | 
+- ui/animation-shared.js: module.exports = require("../dist/ui/animation-shared"); | 
+- ui/animation-helpers.js: module.exports = require("../dist/ui/animation-helpers"); | 
+
+## worker-public CJS wrappers
+- shared/deck-spec.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         let cardCatalog = null;
+- shared/deck-codec.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory(require('./deck-spec'));
+- shared/destroy-outcome-contract.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- shared/special-stone-registry.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- shared/stone-status-snapshot.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         let SpecialStoneRegistry = null;
+- game/logic/cards-internal/random-source.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- game/logic/cards-internal/state-factory.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- game/logic/cards-internal/module-resolver.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- game/logic/cards-internal/presentation-helpers.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- game/logic/board_ops.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         let CardExpansionModule = null;
+- game/logic/cards/will_hunter_king.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         let CardUtilsModule = null;
+- game/logic/cards/expansion.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(require('../../../shared-constants'), require('../../../shared/shared-board-utils'));
+- game/logic/cards/markers.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         let MarkersAdapterModule = null;
+- game/logic/cards/living_will.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         let CardMarkersModule = null;
+- game/cards/effects/ownership.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(require('../../../shared-constants'));
+- game/cards/effects/board-expansion-apply.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(require('../../../shared-constants'));
+- game/cards/effects/status-cells.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- game/cards/effects/hand-effects.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- game/cards/effects/position-swap.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(require('../../../shared-constants'));
+- game/logic/cards-internal/card-usage-prechecks.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- game/logic/cards-internal/hand-manager.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- game/logic/cards-internal/pending-state-manager.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- game/logic/cards-internal/charge-ledger.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- shared/commentary-context-helpers.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         let OwnerHelpersModule = null;
+- shared/commentary-runtime-helpers.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         let CommentaryContextHelpers = null;
+- shared/playback-event-helpers.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         let OwnerHelpers = null;
+- ui/commentary-broker.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/bootstrap.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- ui/animation-resolver.js: // Lightweight resolver to safely provide AnimationHelpers and related helpers. | (function (root, factory) { |     if (typeof module === 'object' && module.exports) {
+- ui/animation-helpers.js: (function(root, factory){ |     if (typeof module === 'object' && module.exports) module.exports = factory(); |     else root.AnimationHelpers = factory();
+- ui/playback-runtime.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(root);
+- ui/playback-state-manager.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(root);
+- ui/board-update-dispatch.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(root);
+- ui/board-update-sync-runtime.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(root);
+- shared/gacha-helpers.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- shared/observation-gacha-catalog-shared.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- shared/observation-gacha-catalog.generated.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- shared/gacha-hand-catalog-shared.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- shared/gacha-hand-catalog.generated.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/storage/gacha-progress.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/gacha/gacha-events.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/gacha/catalog-access.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/placement-sound-selection.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/gacha/gacha-transaction.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/gacha/gacha-item-visuals.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/gacha/gacha-overlay-view.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/gacha/gacha-overlay-controller.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/gacha/gacha-reveal-stage.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/sound-engine-access.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/gacha/gacha-reveal-audio.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/gacha-reveal-player.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- shared/network-action-schema.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- ui/network/commentary.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/network/command-payload.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(root || (typeof globalThis !== 'undefined' ? globalThis : this));
+- ui/network/publish-request.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(root || (typeof globalThis !== 'undefined' ? globalThis : this));
+- ui/network/action-bridge.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(root || (typeof globalThis !== 'undefined' ? globalThis : this));
+- ui/network/apply-coordinator.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(root || (typeof globalThis !== 'undefined' ? globalThis : this));
+- ui/network/reconnect-controller.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(root || (typeof globalThis !== 'undefined' ? globalThis : this));
+- ui/network/publish-tracker.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(root || (typeof globalThis !== 'undefined' ? globalThis : this));
+- ui/network/snapshot-runtime.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/network/snapshot-canonical.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/network/snapshot-presentation.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/network/snapshot.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/network/session-seat.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/network/session-lifecycle.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory(root || (typeof globalThis !== 'undefined' ? globalThis : this));
+- ui/storage/deck-presets.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/deck-builder-state.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory(require('../shared/deck-spec'));
+- ui/deck-builder-renderer.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory(require('../shared/deck-spec'));
+- ui/deck-builder-controller.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory(
+- game/network-turn-handoff.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         const BoardUtils = (() => { try { return require('../shared/board-utils'); } catch (e) { return null; } })();
+- shared/cpu-lv6-runtime-capability.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         let SharedBoardUtilsModule = null;
+- data/dialogue/fixed-commentary-data.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- game/ai/fixed-commentary-engine.js: (function (root, factory) { |     if (typeof module === 'object' && module.exports) { |         module.exports = factory();
+- ui/tutorial/tutorial-state.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/tutorial/tutorial-storage.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/tutorial/tutorial-steps.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/tutorial/typewriter.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/tutorial/tutorial-overlay.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/tutorial/tutorial-action-wait.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/tutorial/tutorial-runtime.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/tutorial/tutorial-scenario-duel.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/tutorial/tutorial-controller.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory(
+- ui/story/story-state.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/story/story-steps.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/story/story-encounter.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory(require('../../shared/ui-bootstrap-shared'));
+- ui/story/story-controller.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory(
+- ui/story/story-battle-ui.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/handlers/sound.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/handlers/gacha.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/cosmetics/catalog-shared.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/background-skin/catalog.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/background-skin/selection.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/background-skin/runtime.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/background-skin/controller.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/hand-skin/catalog.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/hand-skin/selection.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/hand-skin/runtime.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/hand-skin/controller.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/handlers/hand-skin.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();
+- ui/handlers/story.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory(
+- ui/handlers/tutorial.js: (function (root, factory) { |     if (typeof module !== 'undefined' && module.exports) { |         module.exports = factory();

@@ -1,0 +1,1 @@
+{"version":3,"file":"cpu-policy.d.ts","sourceRoot":"","sources":["../../../ui/handlers/cpu-policy.ts"],"names":[],"mappings":"AA8XA,iBAAe,eAAe,IAAI,OAAO,CAAC,IAAI,CAAC,CAiB9C;AAED,iBAAe,aAAa,IAAI,OAAO,CAAC,IAAI,CAAC,CAiB5C;AAED,iBAAe,mBAAmB,IAAI,OAAO,CAAC,IAAI,CAAC,CA4MlD;AAED,iBAAe,oBAAoB,IAAI,OAAO,CAAC,IAAI,CAAC,CAiEnD;AASD,QAAA,MAAM,eAAe;;;;;CAKpB,CAAC;AAEF,SAAS,eAAe,CAAC"}

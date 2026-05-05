@@ -1,0 +1,21 @@
+Task 2 scope guardrail verification
+
+Checked:
+- `.sisyphus/evidence/task-2-retained-js-policy.md` not present at the expected path
+- `docs/architecture-contracts.md`
+
+Forbidden scope words searched:
+- gameplay rebalance
+- card effect change
+- UI redesign
+- CPU behavior change
+- network semantics change
+- new dependency
+- add package
+- install library
+
+Matches found:
+- `.sisyphus/evidence/task-2-retained-js-policy.md`: 0 (file missing)
+- `docs/architecture-contracts.md`: 0
+
+Total matches found: 0

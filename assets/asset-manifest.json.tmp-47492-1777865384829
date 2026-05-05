@@ -1,0 +1,402 @@
+{
+  "version": "2026-05-04",
+  "generatedAt": "2026-05-04T03:29:44.828Z",
+  "files": [
+    {
+      "path": "assets/images/stones/absolute_protect_next_stone-black.png",
+      "sha256": "7c09ddbef3bcba7102c1f3b579807816c1cbebbed0ddc7bc4a6691b747c49a03"
+    },
+    {
+      "path": "assets/images/stones/absolute_protect_next_stone-white.png",
+      "sha256": "79628ff39f26e65fb4ec284f6db367114ba412bd0a2e1fa21d6454afb88d1f26"
+    },
+    {
+      "path": "assets/images/stones/BREEDING_WILL-black.png",
+      "sha256": "f4093988a550e156fd93b4d17d25bfcfb85e59d275914cb119134da42f6b7c98"
+    },
+    {
+      "path": "assets/images/stones/BREEDING_WILL-white.png",
+      "sha256": "d927fecc9a458029e66e17c6e1f2610b7dbc03359c3e8bcb97fab1137cc4e6ee"
+    },
+    {
+      "path": "assets/images/stones/CROSS_BOMB-black.png",
+      "sha256": "a4ea21a1e990e146fbf62d715637b41854e98717b19135ea4e2ef6be17f0fe36"
+    },
+    {
+      "path": "assets/images/stones/CROSS_BOMB-white.png",
+      "sha256": "beb80b131165dd393c2ef97400078e67e7309167db3e55c944c9818339e9e5c8"
+    },
+    {
+      "path": "assets/images/stones/crystal_stone.png",
+      "sha256": "7ae3a83d297c6ae5f245490173d417ff9cd0d09094a3335daebe138ac69df4aa"
+    },
+    {
+      "path": "assets/images/stones/DESTROY_DRAGON-black.png",
+      "sha256": "143cc98aff3bd55432abe918118a2da6c383dfa855072aa72d5e2faac1821b92"
+    },
+    {
+      "path": "assets/images/stones/DESTROY_DRAGON-white.png",
+      "sha256": "cc288ed753801c48b9ecec3fce7e5692ac4bdf6413ab8b7aa2f1b75a6990768b"
+    },
+    {
+      "path": "assets/images/stones/dragon-black.png",
+      "sha256": "143cc98aff3bd55432abe918118a2da6c383dfa855072aa72d5e2faac1821b92"
+    },
+    {
+      "path": "assets/images/stones/dragon-white.png",
+      "sha256": "cc288ed753801c48b9ecec3fce7e5692ac4bdf6413ab8b7aa2f1b75a6990768b"
+    },
+    {
+      "path": "assets/images/stones/ESCAPE_WILL-black.png",
+      "sha256": "6f99a1fdfd0d66084a74287cfc4cfc34a2e8bea18a622daccd6fdeb935bc0257"
+    },
+    {
+      "path": "assets/images/stones/ESCAPE_WILL-white.png",
+      "sha256": "91afb424f0ce0820b55f6c8b0e300320d8de406d3f79987715e3fc907387ea8d"
+    },
+    {
+      "path": "assets/images/stones/EXTREME_HYPERACTIVE_WILL-black.png",
+      "sha256": "a24ca07c320642339ca3d432d8218487de088eb2c59f76c92c00089781758b02"
+    },
+    {
+      "path": "assets/images/stones/EXTREME_HYPERACTIVE_WILL-white.png",
+      "sha256": "d978e7b19bd3fb3f393cf3977879a8e07b3685511214adf60feef03aea5e22c8"
+    },
+    {
+      "path": "assets/images/stones/GHOST_WILL-black.png",
+      "sha256": "e24474a080ff7c92f1584f3e9175040d07762adb19f1052966a6447f61d5f0a5"
+    },
+    {
+      "path": "assets/images/stones/GHOST_WILL-white.png",
+      "sha256": "ba038b13acd8f146229238421cbcfc125a69c28ccfbd9087356101010aa9a0c5"
+    },
+    {
+      "path": "assets/images/stones/GLUTTONOUS_WILL-black.png",
+      "sha256": "f0007f07277d08e509c87909784a2599b8be87d52c978cf0b8d344902fba05b8"
+    },
+    {
+      "path": "assets/images/stones/GLUTTONOUS_WILL-white.png",
+      "sha256": "ce4be0dc2079837aab949a3a5fa52c32198b5465c89141784797a74af12f656b"
+    },
+    {
+      "path": "assets/images/stones/gold_stone.png",
+      "sha256": "93cbe22366eb790f20c313d89519848d457f30462a206cee30d9f4f538ef8923"
+    },
+    {
+      "path": "assets/images/stones/HYPERACTIVE_WILL-black.png",
+      "sha256": "42d18e2701049d2cd8092791b668f78b8ae9909d8501a5ab9450f8a62771b139"
+    },
+    {
+      "path": "assets/images/stones/HYPERACTIVE_WILL-white.png",
+      "sha256": "dd15b7c8aa8d9f16905bc919b931512447a05424c4c2bf6ab3f9b454bc0181e1"
+    },
+    {
+      "path": "assets/images/stones/normal_stone-black.png",
+      "sha256": "f1eb934b000b028ef0d383a392033fe22b98f1b2f28bdbeca968b79a652b14bb"
+    },
+    {
+      "path": "assets/images/stones/normal_stone-white.png",
+      "sha256": "79ef47c29a8707cf5f1f50aa7b7587dfa5ec270866725708b103419535c48509"
+    },
+    {
+      "path": "assets/images/stones/OBSERVER_WILL-black.png",
+      "sha256": "7ab2eb56159cc8545b4576c161e26c59feadf98cc5916a3c031694f43cad4c99"
+    },
+    {
+      "path": "assets/images/stones/OBSERVER_WILL-white.png",
+      "sha256": "d38dbff6bce968e18565312bfdc05261cece4dc358842a113605d86fe8f5299d"
+    },
+    {
+      "path": "assets/images/stones/perma_protect_next_stone-black.png",
+      "sha256": "4b9ee0c7c41042fb308809262bec346cbad4babf5d3cb50956060002b0a0a877"
+    },
+    {
+      "path": "assets/images/stones/perma_protect_next_stone-white.png",
+      "sha256": "5ea01367badbcf27f904c42f1d1044beec870bd8f51cab73d6448d35f397962c"
+    },
+    {
+      "path": "assets/images/stones/PROLIFERATION_WILL-black.png",
+      "sha256": "f0c357d8fb0e830d24a48324aecbf19bd28876cd18994743d173a0b9b39a6d2e"
+    },
+    {
+      "path": "assets/images/stones/PROLIFERATION_WILL-white.png",
+      "sha256": "d52eb5cbd0c878b213b79e53576e56232d1592220102d3a2cfdba8e570c6052d"
+    },
+    {
+      "path": "assets/images/stones/protected_next_stone.png",
+      "sha256": "80991c995b35769eadb407afcd287d03bed5401932826a5dbe36f8b4e05b1145"
+    },
+    {
+      "path": "assets/images/stones/rainbow_stone.png",
+      "sha256": "797db9153247a6df51e32964c9a5c66afa7e09bd9d170f73de489ad71596d51a"
+    },
+    {
+      "path": "assets/images/stones/rakurai-black.png",
+      "sha256": "986c998ed3b829cfc161f6bd968792534e73b366954b4cbf82fd87b1928ad00f"
+    },
+    {
+      "path": "assets/images/stones/rakurai-white.png",
+      "sha256": "9360176c33ea4856602fda0260e126c8e2f7820be64b4e453f2fc366ae2522af"
+    },
+    {
+      "path": "assets/images/stones/regen_stone-black.png",
+      "sha256": "b06c1a05632562ed1034b60aa7b44ffbc910cac0a18cc458b800d5e456922077"
+    },
+    {
+      "path": "assets/images/stones/regen_stone-white.png",
+      "sha256": "f5818bb9ea9e9dc34019428593240f7eada8eceb60c71d27a53d08a6645ca7ab"
+    },
+    {
+      "path": "assets/images/stones/ROBOT_VACUUM_WILL-black.png",
+      "sha256": "3926588deeb92dd691b78810bed68bdbe1809008f0d8ddee260357c6b5111a6d"
+    },
+    {
+      "path": "assets/images/stones/ROBOT_VACUUM_WILL-white.png",
+      "sha256": "0d0e3f773476d52f21f3329c4f8c8919742f1ba66664de739ae71e69707e4f02"
+    },
+    {
+      "path": "assets/images/stones/silver.stone.png",
+      "sha256": "1c3e864c24a873f282270faed691e5c949a4ad0aeaa58e7bd0f282924303c232"
+    },
+    {
+      "path": "assets/images/stones/sna-black.png",
+      "sha256": "85d436df0aba4754867b1fbdf66446c718cb942e894422f90abdab363fc507f1"
+    },
+    {
+      "path": "assets/images/stones/sna-white.png",
+      "sha256": "2a51b80dbf550d6be0fb821db1f5df1b546bc88c0143e79d68b54fb07535d793"
+    },
+    {
+      "path": "assets/images/stones/TIME_BOMB-black.png",
+      "sha256": "05bafefc700b1f6c3897660983725892caee71417657d93261ceb10c9d7584a0"
+    },
+    {
+      "path": "assets/images/stones/TIME_BOMB-white.png",
+      "sha256": "48fb5bf577bed96ca27fcafdd4bb674abb86e2d2c4d51da91532965ed8f4cc7d"
+    },
+    {
+      "path": "assets/images/stones/TIME_STOP-black.png",
+      "sha256": "bacd7440fd2d4dae3b76a6baf83ec5b5b3ea96ee67d8dfc0f74c0a05218b51d4"
+    },
+    {
+      "path": "assets/images/stones/TIME_STOP-white.png",
+      "sha256": "fb563ee42beedfcdc6fd3bf3f106cd6a8dc889847ef7af6e2218e591ebfadd61"
+    },
+    {
+      "path": "assets/images/stones/trap_stone-black.png",
+      "sha256": "1fd54d9b01807bdb7599f8648bca69d7acb7084aedb6b7cdce937f0488ec3ab0"
+    },
+    {
+      "path": "assets/images/stones/trap_stone-white.png",
+      "sha256": "45ac0eecd6dba50ff10d221a3d27a2c7dcd0f507fae4ec2c45dc64b9bcb86505"
+    },
+    {
+      "path": "assets/images/stones/ULTIMATE_DESTROY_GOD-black.png",
+      "sha256": "42ef6e1564c814a3118dbe400f7fd6b020b1d59181ac7040ea967cb15bda4981"
+    },
+    {
+      "path": "assets/images/stones/ULTIMATE_DESTROY_GOD-white.png",
+      "sha256": "483dae76d222562bab6398d924b3ed3eb035c930171e6cf3c98a0deddc551cbe"
+    },
+    {
+      "path": "assets/images/stones/ULTIMATE_HYPERACTIVE_GOD-black.png",
+      "sha256": "fe15d709c073652d32b44e3b94e34a174622ab3f3492dd426bcd9abd7db32380"
+    },
+    {
+      "path": "assets/images/stones/ULTIMATE_HYPERACTIVE_GOD-white.png",
+      "sha256": "e3f0b256fdf755758064f71a65f7d9298c33597c5f7af0047be6d1b366a587a4"
+    },
+    {
+      "path": "assets/images/stones/ultimate_reverse_dragon-black.png",
+      "sha256": "b38b8ed7e42d670a8d4d4ed8cfd597a5068450f253096e19051c59fe5293eeb0"
+    },
+    {
+      "path": "assets/images/stones/ultimate_reverse_dragon-white.png",
+      "sha256": "929c14b12bcbd7d389a1c5a804458c9d344a640713d99dca14d24919eaad264d"
+    },
+    {
+      "path": "assets/images/stones/WILL_HUNTER_KING-black.png",
+      "sha256": "bc89c269590ab222b6cb0760143e9522dfea13901e6705a21bd42d7d92aba703"
+    },
+    {
+      "path": "assets/images/stones/WILL_HUNTER_KING-white.png",
+      "sha256": "a6775ff1f524a72bcc57ca3d832e42702538b03e81e04fd3dd76144bad17e61f"
+    },
+    {
+      "path": "assets/images/stones/work_stone-black.png",
+      "sha256": "9809e2da5c1e8640cd90e44b746808eec748d03e4072352c82c3612a2ed324a9"
+    },
+    {
+      "path": "assets/images/stones/work_stone-white.png",
+      "sha256": "cda5b3d3b4b6d6b3a798df2307b57083fa6b66f8838cd26c8fc054034028113a"
+    },
+    {
+      "path": "assets/images/stones/X_BOMB-black.png",
+      "sha256": "4465887e2a7460ef77d96e80d3b4af78b03339091d7f313949ac029e64244380"
+    },
+    {
+      "path": "assets/images/stones/X_BOMB-white.png",
+      "sha256": "e5ea05cd87f28978dfd0fe09b9b2f445a2c97f040ffd5722d857cbfc3a223711"
+    },
+    {
+      "path": "assets/images/stones/ZAN-BLACK.png",
+      "sha256": "83b2db112df1320d9a81b909553c94f9a5ad70790efcab2857209f55626a9d72"
+    },
+    {
+      "path": "assets/images/stones/ZAN-WHITE.png",
+      "sha256": "bc622317855561cfc0d09a74e351126b6685e72c8c7e50d2cc069a5063309e2e"
+    },
+    {
+      "path": "assets/images/other/a.png",
+      "sha256": "00120b9f42b26097e0818de9c5c7a7f3fac31451cf4f40120d6e7b5beb555773"
+    },
+    {
+      "path": "assets/images/other/aaa.png",
+      "sha256": "26fd6fca9e961b99586974434a96809503e8ab0b19d2b88ac713253b27d0a92c"
+    },
+    {
+      "path": "assets/images/other/bud.png",
+      "sha256": "19e0a32d22b73ee75f01853faed04fdf6b016b0a77a1ce60c7f4a2583d417fd4"
+    },
+    {
+      "path": "assets/images/other/ICE.png",
+      "sha256": "312480508df6093420625da7aa6eb3bfa9d8f19b53a475c4d597f6431de46cf4"
+    },
+    {
+      "path": "assets/images/other/seed.png",
+      "sha256": "1860a550483fc73443299d8a1483212c130b5f192d8acf74fd8017951ffcb0bf"
+    },
+    {
+      "path": "assets/images/other/X.png",
+      "sha256": "c3644e92ccc11fbb3488547e11807d47db62e379192d94f78dfcb508c4dfcb0f"
+    },
+    {
+      "path": "assets/images/other/観測石.png",
+      "sha256": "2ecd16bbbbe9664cf3190619a89492c2a2c085889ca0475c157dc865c5af6b29"
+    },
+    {
+      "path": "assets/images/background/default.png",
+      "sha256": "2fb2f1e18045a943a56c9a406fadb460b5ba8739e8fd7de7b04d379066f2eb99"
+    },
+    {
+      "path": "assets/images/background/宇宙の観測.png",
+      "sha256": "7a52c0ff947e9c7b70938540f110218d38b2abc54ee0f0d8a836be1fcb5b3260"
+    },
+    {
+      "path": "assets/images/background/観測の机.png",
+      "sha256": "2fe28ec2347fb703dd25ab5c2dca5644a5b3c6b8652e1ecb93cc4e38b82481e9"
+    },
+    {
+      "path": "assets/images/background-skin/default-table.svg",
+      "sha256": "c360360b46fe834cbf442e38c36c00a1b568b4658e65c928d99bfd20fe703152"
+    },
+    {
+      "path": "assets/images/background-skin/観測の机.png",
+      "sha256": "2fe28ec2347fb703dd25ab5c2dca5644a5b3c6b8652e1ecb93cc4e38b82481e9"
+    },
+    {
+      "path": "assets/images/hand-skin/lv1-2.png",
+      "sha256": "610b5ac7f026c7a0345f3c7894ac37027b891e820825b44bbb6f46a67a67bf3b"
+    },
+    {
+      "path": "assets/images/hand-skin/lv3-5.png",
+      "sha256": "01b294fbe6220b47e6a26a0ebbf3f6fe953b67920eb48709439a845d948ad419"
+    },
+    {
+      "path": "assets/images/hand-skin/lv4.png",
+      "sha256": "9782e236b3f2632360cccfbd69bc9ccabf137d3fbc3af0ca3156efc22b92435c"
+    },
+    {
+      "path": "assets/images/hand-skin/lv6.png",
+      "sha256": "1b9c8d559901613145cc22852bcaa45ab7b12be99467d967f1a260fe1ed54d78"
+    },
+    {
+      "path": "assets/images/hand-skin/勇者の手.png",
+      "sha256": "31dbec8c481d7c27d4e6206159d12cd0ae82e8b65263b5dad89a5ad15662af6e"
+    },
+    {
+      "path": "assets/images/Gacha/EXR/background/観測の意志.png",
+      "sha256": "2045f8e313765c8bed2f8c93cf41adb98a11c84a157d1a4131949e6ce4376302"
+    },
+    {
+      "path": "assets/images/Gacha/EXR/意志.png",
+      "sha256": "f1eb934b000b028ef0d383a392033fe22b98f1b2f28bdbeca968b79a652b14bb"
+    },
+    {
+      "path": "assets/images/Gacha/N/background/観測できなかった夜.png",
+      "sha256": "8219b27eb83e360731643269a5df4dd11a118177bab5c3e5ad6353bd3eaf9ba0"
+    },
+    {
+      "path": "assets/images/Gacha/N/type-1-standard.mp3",
+      "sha256": "f6d0ae361d49d6e15b8a2d805a7c47e2b2e793787052524357ba61abd2cf2001"
+    },
+    {
+      "path": "assets/images/Gacha/N/type-3-heavy.mp3",
+      "sha256": "bf577f12117076a14a473b78b759f800c5f807149e2bc6447fdf11cd7f159379"
+    },
+    {
+      "path": "assets/images/Gacha/N/type-4-resonant.mp3",
+      "sha256": "89feec28c10f028ef70094eeb029506139f32c9ed88c3102ddc705b37986dd2f"
+    },
+    {
+      "path": "assets/images/Gacha/N/type-5-soft.mp3",
+      "sha256": "88b1dfdba40b9632c7a869eea60f9954b2b29c54c3eb0086dcc1e4ad65a40986"
+    },
+    {
+      "path": "assets/images/Gacha/N/人の手.png",
+      "sha256": "1dfc5ca1aff2a5dae24b0667694cc08106f7748f4501c00cc0e968fe488f2189"
+    },
+    {
+      "path": "assets/images/Gacha/N/小鬼の手.png",
+      "sha256": "610b5ac7f026c7a0345f3c7894ac37027b891e820825b44bbb6f46a67a67bf3b"
+    },
+    {
+      "path": "assets/images/Gacha/N/陽気な手.png",
+      "sha256": "73e958642f4c0fd027b95fe2d90405a7b8cbf7a8452cf703705dad7923e82e38"
+    },
+    {
+      "path": "assets/images/Gacha/N/魚眼ハンド.png",
+      "sha256": "4e3838f64a8af90fe8da5f612d58a5c9cb5d88cb90d26448874d1f54f53dec8e"
+    },
+    {
+      "path": "assets/images/Gacha/R/background/観測の森.png",
+      "sha256": "d6b48b6049b2c11e06545e44f33953ef7c5c420f14a62dafdaa08571ad499e67"
+    },
+    {
+      "path": "assets/images/Gacha/R/background/観測の部屋.png",
+      "sha256": "526d78fec4ed0c0083e5518e4f78d4575c0bb4a96a29e3339405513c4ad1d9c5"
+    },
+    {
+      "path": "assets/images/Gacha/R/支配の手.png",
+      "sha256": "9782e236b3f2632360cccfbd69bc9ccabf137d3fbc3af0ca3156efc22b92435c"
+    },
+    {
+      "path": "assets/images/Gacha/R/猫の手.png",
+      "sha256": "90896d78cd0f6a5aebb246ddce2c939f7f49ad7debb28d2b0e7af21a27c6204a"
+    },
+    {
+      "path": "assets/images/Gacha/SR/background/宇宙の観測.png",
+      "sha256": "7a52c0ff947e9c7b70938540f110218d38b2abc54ee0f0d8a836be1fcb5b3260"
+    },
+    {
+      "path": "assets/images/Gacha/SR/虹の手.png",
+      "sha256": "ca8938488e7924460c62fc7eae8eddb37dab897a51306d17e62139e20552dd81"
+    },
+    {
+      "path": "assets/images/Gacha/SSR/background/カードオセロ.png",
+      "sha256": "02fd3856ba8aedcdb68f14edd0077e28e868faac064a11bddd3668a61687179e"
+    },
+    {
+      "path": "assets/images/Gacha/SSR/邪悪な手.png",
+      "sha256": "6dde01b2b0434eb0c717d157a92ac76d4928f6e7c08eef68428d065282b9eed5"
+    },
+    {
+      "path": "assets/images/Gacha/UR/background/最高の観測.png",
+      "sha256": "968962b0020cc5a719c3df546c238e799d56a3c7537213843c5622140a437d1d"
+    },
+    {
+      "path": "assets/images/Gacha/UR/ラグドールの手.png",
+      "sha256": "a9effb3169ed2aef27612ded7581f3ee17df4a22b2d46c971e7a8bcde8508e6d"
+    }
+  ]
+}

@@ -4,8 +4,8 @@ import { JSDOM } from 'jsdom';
 describe('ui/bootstrap lazy install', () => {
   afterEach(() => {
     jest.resetModules();
-    try { delete global.window; } catch (e) {}
-    try { delete global.document; } catch (e) {}
+    try { delete global.window; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.document; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('requiring ui/bootstrap does not eagerly install game DI', () => {

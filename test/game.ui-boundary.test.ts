@@ -48,7 +48,7 @@ describe('game ↔ UI boundary (headless)', () => {
 
     // restore
     mv.clearUIImpl && mv.clearUIImpl();
-    try { delete global.__uiImpl; } catch (e) {}
+    try { delete global.__uiImpl; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('turn-manager loads safely and cooperates with ui/bootstrap registerUIGlobals', () => {

@@ -1,0 +1,188 @@
+Task 6 CLI smoke evidence
+Date: 2026-04-30
+Working directory: C:\Users\quarr\Desktop\othello_v2
+
+Method
+- Commands were run through bounded PowerShell process wrappers from the repo root.
+- stdout and stderr were captured separately.
+- Server-like commands were run with --help where useful, or with a short startup timeout and process-tree kill.
+- No long-running server process was intentionally left running.
+
+Summary
+- npm run checkall: real checks executed, exit 2 due existing static check failure in game/cpu-turn-handler.js window usage.
+- npm run worker:prepare: exited 0 but only printed npm script prologue; adapter analysis shows scripts/prepare-worker-assets.js bypasses dist main behavior, so this is a silent no-op.
+- node scripts/serve-with-fallback.js --help: help printed, exit 0; not a silent no-op.
+- node scripts/local-match-server.js --help and bounded startup: exit 0 with empty stdout/stderr; adapter analysis and direct dist comparison show this is a silent no-op.
+- node scripts/generate-catalog.js --help and safe run: exit 0 with empty stdout/stderr; adapter analysis and direct dist comparison show this is a silent no-op.
+
+Command: npm run checkall
+Exit code: 2
+Timed out: false
+Duration: 335 ms
+stdout:
+```
+
+> othello@1.0.0 checkall
+> node scripts/run-all-checks.js
+
+
+=== running: node scripts/check-window-usage.js ===
+
+=== running: node scripts/test-shim-forwarding.js ===
+calls.length= 1 last= { testKey: 'value' }
+```
+stderr:
+```
+
+[STATIC-CHECK] Forbidden usage found in non-UI files:
+ - game/cpu-turn-handler.js:1449 (window.)
+
+Please register UI globals via `ui/bootstrap.registerUIGlobals` or migrate to UIBootstrap.
+
+One or more checks failed.
+```
+No-op check: Not a no-op. It ran at least check-window-usage.js and test-shim-forwarding.js before failing.
+
+Command: npm run worker:prepare
+Exit code: 0
+Timed out: false
+Duration: 226 ms
+stdout:
+```
+
+> othello@1.0.0 worker:prepare
+> node scripts/prepare-worker-assets.js
+
+```
+stderr:
+```
+```
+No-op check: Silent no-op. No worker-prepare output appeared. Static adapter check shows scripts/prepare-worker-assets.js is a thin require of dist/scripts/prepare-worker-assets.js, whose require.main block is not forwarded.
+
+Command: node scripts/serve-with-fallback.js --help
+Exit code: 0
+Timed out: false
+Duration: 68 ms
+stdout:
+```
+Usage:
+  node scripts/serve-with-fallback.js [root] [options] [-- extra-http-server-flags]
+
+Options:
+      --port <n>         Preferred port (default: 8000 or PORT env)
+      --host <host>      Host to bind (default: 0.0.0.0 or HOST env)
+      --cache <n>        Cache seconds for http-server (default: -1)
+      --max-attempts <n> Number of sequential ports to try before falling back to OS-assigned port
+  -h, --help             Show this help
+```
+stderr:
+```
+```
+No-op check: Not a no-op. Help text was emitted by the forwarded dist entrypoint.
+
+Command: node scripts/local-match-server.js --help
+Exit code: 0
+Timed out: false
+Duration: 72 ms
+stdout:
+```
+```
+stderr:
+```
+```
+No-op check: Silent no-op. --help produced no output and no startup banner.
+
+Command: node scripts/local-match-server.js --host 127.0.0.1 --port 0
+Exit code: 0
+Timed out: false
+Duration: 70 ms
+stdout:
+```
+```
+stderr:
+```
+```
+No-op check: Silent no-op. A bounded startup form also exited immediately without readiness output. No server needed termination.
+
+Direct dist comparison for local match server:
+Command: node dist/scripts/local-match-server.js --host 127.0.0.1 --port 0
+Exit code: TIMEOUT_KILLED
+Timed out: true
+Duration: 3042 ms
+stdout:
+```
+LOCAL_MATCH_SERVER:127.0.0.1:0
+```
+stderr:
+```
+```
+Interpretation: The dist main behavior starts the server and emits readiness. The root adapter did not invoke that behavior. The direct dist process was killed after the bounded readiness check.
+
+Command: node scripts/generate-catalog.js --help
+Exit code: 0
+Timed out: false
+Duration: 28 ms
+stdout:
+```
+```
+stderr:
+```
+```
+No-op check: Silent no-op. --help is not implemented and the adapter did not invoke generation.
+
+Command: node scripts/generate-catalog.js
+Exit code: 0
+Timed out: false
+Duration: 26 ms
+stdout:
+```
+```
+stderr:
+```
+```
+No-op check: Silent no-op. Safe run exited 0 without Generated output.
+
+Direct dist comparison for catalog generation:
+Command: node dist/scripts/generate-catalog.js
+Exit code: 0
+Timed out: false
+Duration: 36 ms
+stdout:
+```
+Generated C:\Users\quarr\Desktop\othello_v2\dist\cards\catalog.generated.js
+Generated C:\Users\quarr\Desktop\othello_v2\dist\cards\catalog.js
+```
+stderr:
+```
+```
+Interpretation: The dist main behavior generates catalog files and logs both outputs. The root adapter did not invoke that behavior.
+
+Additional comparison for worker prepare:
+Command: node dist/scripts/prepare-worker-assets.js
+Exit code: 1
+Timed out: false
+Duration: 974 ms
+stdout:
+```
+```
+stderr:
+```
+C:\Users\quarr\Desktop\othello_v2\dist\scripts\prepare-worker-assets.js:322
+        throw new Error(`[worker-prepare] mirror verification failed (${issues.length}): ${preview}`);
+        ^
+
+Error: [worker-prepare] mirror verification failed (16): source missing: card-system.js; source missing: game-events.js; source missing: index.html; source missing: is-env-capable.js; source missing: sound-engine.js; source missing: story-deck-lab.html; source missing: styles-animations.css; source missing: styles-base.css
+    at verifyMirrors (C:\Users\quarr\Desktop\othello_v2\dist\scripts\prepare-worker-assets.js:322:15)
+    at prepareWorkerAssets (C:\Users\quarr\Desktop\othello_v2\dist\scripts\prepare-worker-assets.js:341:5)
+    at Object.<anonymous> (C:\Users\quarr\Desktop\othello_v2\dist\scripts\prepare-worker-assets.js:358:5)
+    at Module._compile (node:internal/modules/cjs/loader:1761:14)
+    at Object..js (node:internal/modules/cjs/loader:1893:10)
+    at Module.load (node:internal/modules/cjs/loader:1481:32)
+    at Module._load (node:internal/modules/cjs/loader:1300:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:245:24)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+
+Node.js v24.12.0
+```
+Interpretation: dist contains guarded main behavior, but the root adapter does not forward it. Direct dist execution also appears to use dist as ROOT, causing mirror verification failure rather than preparing worker-public from the repo root.

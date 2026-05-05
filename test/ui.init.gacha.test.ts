@@ -39,7 +39,7 @@ describe('initializeUI gacha wiring', () => {
       if (global.window && typeof global.window.close === 'function') {
         global.window.close();
       }
-    } catch (e) {}
+    } catch (e) { /* Intentionally empty: test cleanup guard */ }
     delete global.window;
     delete global.document;
     delete global.resetGame;

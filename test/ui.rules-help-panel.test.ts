@@ -25,10 +25,10 @@ describe('rules help panel', () => {
   });
 
   afterEach(() => {
-    try { delete global.CardInteractionEffects; } catch (e) {}
-    try { delete global.window; } catch (e) {}
-    try { delete global.document; } catch (e) {}
-    try { delete global.Event; } catch (e) {}
+    try { delete global.CardInteractionEffects; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.window; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.document; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.Event; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('opens by button and closes by outside click', () => {

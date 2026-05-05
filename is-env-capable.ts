@@ -92,7 +92,7 @@ export function isCardAnimationAvailable(): boolean {
 export function safeDebugLog(message: string, level?: string, meta?: any): void {
     if (isDebugLogAvailable()) {
         if (isBrowserEnv()) {
-            try { if (typeof globalThis !== 'undefined' && typeof (globalThis as any).debugLog === 'function') (globalThis as any).debugLog(message, level || 'debug', meta || null); } catch (e) {}
+            try { if (typeof globalThis !== 'undefined' && typeof (globalThis as any).debugLog === 'function') (globalThis as any).debugLog(message, level || 'debug', meta || null); } catch (e) { /* Intentionally empty: debugLog unavailable in this environment */ }
         } else if (isNodeEnv()) {
             (global as any).debugLog(message, level || 'debug', meta || null);
         } else {

@@ -6,6 +6,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
+<<<<<<< Updated upstream
 // These are provided externally (template context)
 // NOTE: Wrapped in IIFE so TypeScript accepts the `return` statements (module-level
 // return in CJS is valid JS but not valid TS). Template variables use `any` because
@@ -32,5 +33,23 @@ void function ___utilsTemplate(): void {
 
 // utils is provided as a global by the build system (esbuild-banner.js)
 declare const utils: any;
+=======
+declare function normalizePlayerKey(playerKey: any): string | null;
+declare function ensureChargeState(cardState: any): void;
+declare function setChargeWithDelta(cardState: any, normalized: string, amount: number, reason: any, meta: any): { changed: boolean; before: number; after: number; delta: number };
+
+function addCharge(cardState: any, playerKey: any, amount: any, reason: any, meta: any): { changed: boolean; before: number; after: number; delta: number } {
+    const normalized = normalizePlayerKey(playerKey);
+    if (!cardState || !normalized) return { changed: false, before: 0, after: 0, delta: 0 };
+    ensureChargeState(cardState);
+    const beforeRaw = Number(cardState.charge && cardState.charge[normalized] || 0);
+    const safeBefore = Number.isFinite(beforeRaw) ? beforeRaw : 0;
+    const add = Number(amount);
+    const safeAdd = Number.isFinite(add) ? add : 0;
+    return setChargeWithDelta(cardState, normalized, safeBefore + safeAdd, reason, meta);
+}
+
+const utils = { addCharge };
+>>>>>>> Stashed changes
 
 export = utils;

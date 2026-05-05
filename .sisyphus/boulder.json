@@ -1,0 +1,40 @@
+{
+  "active_plan": "C:\\Users\\quarr\\Desktop\\othello_v2\\.sisyphus\\plans\\fix-debug-hvh-mode.md",
+  "started_at": "2026-05-05T05:33:05.344Z",
+  "session_ids": [
+    "ses_209baf795ffeYE3hvdloIhOphP"
+  ],
+  "session_origins": {
+    "ses_209baf795ffeYE3hvdloIhOphP": "direct"
+  },
+  "plan_name": "fix-debug-hvh-mode",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "Fix root `game/pass-handler.js` — add `globalThis.DEBUG_HUMAN_VS_HUMAN` check to `isHumanVsHumanModeEnabled()`",
+      "session_id": "ses_2095f62b8ffebCAKH4vpc8YZKy",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-05T05:35:06.936Z"
+    },
+    "todo:4": {
+      "task_key": "todo:4",
+      "task_label": "4",
+      "task_title": "Run `npm run build:ts` — TypeScript コンパイル",
+      "session_id": "ses_2095ad0f6ffeT5F2WrvbjmF9FQ",
+      "agent": "Sisyphus-Junior",
+      "category": "quick",
+      "updated_at": "2026-05-05T05:38:49.237Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — `oracle`",
+      "session_id": "ses_20959238affeJk2YIFTbPAEQoD",
+      "agent": "oracle",
+      "updated_at": "2026-05-05T05:43:58.522Z"
+    }
+  }
+}

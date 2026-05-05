@@ -4,9 +4,9 @@ describe('ui bootstrap debug logging', () => {
   afterEach(() => {
     jest.restoreAllMocks();
     jest.resetModules();
-    try { delete global.window; } catch (e) {}
-    try { delete global.document; } catch (e) {}
-    try { delete global.location; } catch (e) {}
+    try { delete global.window; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.document; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.location; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.debugLog; } catch (e) { global.debugLog = undefined; }
   });
 

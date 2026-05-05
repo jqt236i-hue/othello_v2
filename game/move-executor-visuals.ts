@@ -1,4 +1,9 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
+declare var __uiImpl_move_exec_visuals: any;
+declare var __uiImpl: any;
+declare var AnimationEngine: any;
+declare var CardLogic: any;
+declare var getMoveExecutorVisuals: any;
 
 function _require(id: string): any {
   if (typeof __non_webpack_require__ !== 'undefined') {
@@ -44,7 +49,7 @@ function _isNoAnim() {
         if (__uiImpl_move_exec_visuals && __uiImpl_move_exec_visuals.DISABLE_ANIMATIONS === true) return true;
         if (typeof location !== 'undefined' && /[?&]noanim=1/.test(location.search)) return true;
         if (typeof process !== 'undefined' && (process.env.NOANIM === '1' || process.env.NOANIM === 'true' || process.env.DISABLE_ANIMATIONS === '1')) return true;
-    } catch (e) { /* Intentionally empty: env feature check failure is non-critical */ }
+    } catch (e: any) { /* Intentionally empty: env feature check failure is non-critical */ }
     return false;
 }
 
@@ -106,7 +111,11 @@ function getTurnTransitionGapMs() {
 // Timers abstraction injection - use game/timers when available instead of direct timers
 let timers: any = null;
 try { timers = _require('../timers'); } catch (e) { /* ignore */ }
+<<<<<<< Updated upstream
 const _waitMs = (ms: number) => (timers && typeof timers.waitMs === 'function') ? timers.waitMs(ms) : Promise.resolve();
+=======
+const _waitMs = (ms: any) => (timers && typeof timers.waitMs === 'function') ? timers.waitMs(ms) : Promise.resolve();
+>>>>>>> Stashed changes
 
 async function animateFlipsWithDeferredColor(flips: any, fromColor: any, toColor: any) {
     if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.animateFlipsWithDeferredColor === 'function') {
@@ -198,6 +207,10 @@ async function runMoveVisualSequence(move: any, hadSelection: any, phases: any, 
 
 // Expose to Node.js requires; game/ side is intentionally DOM-free and delegates to UI at runtime
 // Provide a small DI boundary so UI can inject implementations for visual helpers.
+<<<<<<< Updated upstream
+=======
+__uiImpl_move_exec_visuals = {};
+>>>>>>> Stashed changes
 function setUIImpl(obj: any) { __uiImpl_move_exec_visuals = obj || {}; }
 function clearUIImpl() { __uiImpl_move_exec_visuals = {}; }
 

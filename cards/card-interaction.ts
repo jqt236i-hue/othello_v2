@@ -57,13 +57,13 @@ function ensureDebugActionsLoaded(cb) {
             window.__debugActionsLoaded = true;
             const waiters = window.__debugActionsWaiters || [];
             window.__debugActionsWaiters = [];
-            for (const fn of waiters) { try { fn(DebugActions); } catch (e) {} }
+            for (const fn of waiters) { try { fn(DebugActions); } catch (e) { /* Intentionally empty: one bad callback must not break others */ } }
         };
         s.onerror = () => {
             window.__debugActionsLoading = false;
             const waiters = window.__debugActionsWaiters || [];
             window.__debugActionsWaiters = [];
-            for (const fn of waiters) { try { fn(null); } catch (e) {} }
+            for (const fn of waiters) { try { fn(null); } catch (e) { /* Intentionally empty: one bad callback must not break others */ } }
         };
         document.head.appendChild(s);
     } catch (e) { if (cb) cb(null); }

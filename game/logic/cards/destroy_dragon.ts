@@ -6,7 +6,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
+<<<<<<< Updated upstream
 // destroy_dragon is provided as a global by the build system (esbuild-banner.js)
 declare const destroy_dragon: any;
+=======
+declare const destroy_dragon: Record<string, unknown>;
+>>>>>>> Stashed changes
 
 export = destroy_dragon;

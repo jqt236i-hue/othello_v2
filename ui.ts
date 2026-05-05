@@ -653,7 +653,7 @@ export function updateOccupancyUI() {
 export function ensureWorkVisualsApplied() {
     try {
         // Diagnostic log to capture invocation in user environments
-        try { (window as any)._lastEnsureVisualsTs = Date.now(); } catch (e) {}
+        try { (window as any)._lastEnsureVisualsTs = Date.now(); } catch (e) { /* Intentionally empty: diagnostic timestamp */ }
         const markers = ((window as any).cardState && Array.isArray((window as any).cardState.markers)) ? (window as any).cardState.markers : [];
         const works = markers.filter((m: any) => m && m.kind === 'specialStone' && m.data && m.data.type === 'WORK');
         if (typeof window !== 'undefined' && (window as any).DEBUG_WORK_VISUALS === true) {
@@ -873,7 +873,7 @@ export function initWorkVisualDiagnosticsBadge() {
         badge.style.whiteSpace = 'pre-wrap';
         badge.style.cursor = 'pointer';
         badge.addEventListener('click', () => {
-            try { navigator.clipboard && navigator.clipboard.writeText(JSON.stringify(collectWorkVisualDiagnostics(), null, 2)); } catch (e) {}
+            try { navigator.clipboard && navigator.clipboard.writeText(JSON.stringify(collectWorkVisualDiagnostics(), null, 2)); } catch (e) { /* Intentionally empty: clipboard may be unavailable */ }
         });
         document.body.appendChild(badge);
         // periodic update

@@ -1,4 +1,5 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
+declare var CardLogic: any;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
@@ -14,14 +15,14 @@ function emitPresentationEvent(cardState: any, ev: any): boolean {
             return true;
         }
     }
-    catch (_e) { /* ignore */ }
+    catch (_e: any) { /* ignore */ }
     try {
         if (!warnedNoBoardOps) {
             console.warn('[presentation] BoardOps.emitPresentationEvent not available (events will be persisted)');
             warnedNoBoardOps = true;
         }
     }
-    catch (_e) { /* ignore */ }
+    catch (_e: any) { /* ignore */ }
     try {
         if (cardState && Array.isArray(cardState._presentationEventsPersist)) {
             cardState._presentationEventsPersist.push(ev);
@@ -30,7 +31,7 @@ function emitPresentationEvent(cardState: any, ev: any): boolean {
             cardState._presentationEventsPersist = [ev];
         }
     }
-    catch (_e) { /* ignore persistence failures */ }
+    catch (_e: any) { /* ignore persistence failures */ }
     return false;
 }
 function flushPersistedEvents(): boolean {
@@ -48,12 +49,12 @@ function flushPersistedEvents(): boolean {
                     try {
                         root.BoardOps.emitPresentationEvent(cardStateRef, ev);
                     }
-                    catch (_e) { /* ignore */ }
+                    catch (_e: any) { /* ignore */ }
                 }
                 flushedCount += events.length;
             }
         }
-        catch (_e) { /* ignore and continue */ }
+        catch (_e: any) { /* ignore and continue */ }
         if (cardStateRef && Array.isArray(cardStateRef._presentationEventsPersist) && cardStateRef._presentationEventsPersist.length) {
             const persisted = cardStateRef._presentationEventsPersist.slice();
             cardStateRef._presentationEventsPersist.length = 0;
@@ -61,13 +62,13 @@ function flushPersistedEvents(): boolean {
                 try {
                     root.BoardOps.emitPresentationEvent(cardStateRef, ev);
                 }
-                catch (_e) { /* ignore */ }
+                catch (_e: any) { /* ignore */ }
             }
             flushedCount += persisted.length;
         }
         return flushedCount > 0;
     }
-    catch (_e) { /* ignore */ }
+    catch (_e: any) { /* ignore */ }
     return false;
 }
 module.exports = {

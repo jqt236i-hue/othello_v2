@@ -1,0 +1,24 @@
+# BASELINE PASS
+
+## Command
+```powershell
+npm run typecheck
+```
+
+## Exit Code
+```text
+0
+```
+
+## Stdout
+```text
+
+> othello@1.0.0 typecheck
+> tsc --noEmit
+
+```
+
+## Stderr
+```text
+
+```

@@ -230,7 +230,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return resolveStrongWillDisplayTimer(markerData);
     }
 
+<<<<<<< Updated upstream
     function cloneDeferredPendingSelectionValue(value: any): any {
+=======
+    function cloneDeferredPendingSelectionValue(value: any) {
+>>>>>>> Stashed changes
         if (Array.isArray(value)) {
             return value.map((item: any) => cloneDeferredPendingSelectionValue(item));
         }

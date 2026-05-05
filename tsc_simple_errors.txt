@@ -1,0 +1,220 @@
+game/auto.ts(39,24): error TS7006: Parameter 'ms' implicitly has an 'any' type.
+game/game-core-logic.ts(13,12): error TS2304: Cannot find name 'CoreLogic'.
+game/game-core-logic.ts(19,26): error TS7006: Parameter 'boardConfig' implicitly has an 'any' type.
+game/game-core-logic.ts(20,12): error TS2304: Cannot find name 'CoreLogic'.
+game/game-core-logic.ts(23,24): error TS7006: Parameter 'state' implicitly has an 'any' type.
+game/game-core-logic.ts(24,12): error TS2304: Cannot find name 'CoreLogic'.
+game/game-core-logic.ts(30,19): error TS7006: Parameter 'state' implicitly has an 'any' type.
+game/game-core-logic.ts(30,26): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/game-core-logic.ts(30,31): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/game-core-logic.ts(30,36): error TS7006: Parameter 'player' implicitly has an 'any' type.
+game/game-core-logic.ts(30,44): error TS7006: Parameter 'protectedStones' implicitly has an 'any' type.
+game/game-core-logic.ts(30,61): error TS7006: Parameter 'permaProtectedStones' implicitly has an 'any' type.
+game/game-core-logic.ts(34,138): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+game/game-core-logic.ts(50,60): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/game-core-logic.ts(66,12): error TS2304: Cannot find name 'CoreLogic'.
+game/game-core-logic.ts(69,20): error TS7006: Parameter 'state' implicitly has an 'any' type.
+game/game-core-logic.ts(69,27): error TS7006: Parameter 'move' implicitly has an 'any' type.
+game/game-core-logic.ts(70,12): error TS2304: Cannot find name 'CoreLogic'.
+game/game-core-logic.ts(73,20): error TS7006: Parameter 'state' implicitly has an 'any' type.
+game/game-core-logic.ts(74,22): error TS2304: Cannot find name 'CoreLogic'.
+game/game-core-logic.ts(77,16): error TS2304: Cannot find name 'isDebugLogAvailable'.
+game/game-core-logic.ts(77,54): error TS2304: Cannot find name 'isDebugLogAvailable'.
+game/game-core-logic.ts(78,9): error TS2304: Cannot find name 'debugLog'.
+game/game-core-logic.ts(88,21): error TS7006: Parameter 'state' implicitly has an 'any' type.
+game/game-core-logic.ts(89,12): error TS2304: Cannot find name 'CoreLogic'.
+game/game-core-logic.ts(92,21): error TS7006: Parameter 'state' implicitly has an 'any' type.
+game/game-core-logic.ts(93,12): error TS2304: Cannot find name 'CoreLogic'.
+game/log-messages.ts(15,20): error TS7006: Parameter 'gain' implicitly has an 'any' type.
+game/log-messages.ts(16,18): error TS7006: Parameter 'gain' implicitly has an 'any' type.
+game/log-messages.ts(17,21): error TS7006: Parameter 'gain' implicitly has an 'any' type.
+game/log-messages.ts(18,21): error TS7006: Parameter 'gain' implicitly has an 'any' type.
+game/log-messages.ts(19,21): error TS7006: Parameter 'amount' implicitly has an 'any' type.
+game/log-messages.ts(21,19): error TS7006: Parameter 'ownerName' implicitly has an 'any' type.
+game/log-messages.ts(22,24): error TS7006: Parameter 'ownerName' implicitly has an 'any' type.
+game/log-messages.ts(23,22): error TS7006: Parameter 'ownerName' implicitly has an 'any' type.
+game/log-messages.ts(24,20): error TS7006: Parameter 'ownerName' implicitly has an 'any' type.
+game/log-messages.ts(25,27): error TS7006: Parameter 'ownerName' implicitly has an 'any' type.
+game/log-messages.ts(26,17): error TS7006: Parameter 'ownerName' implicitly has an 'any' type.
+game/log-messages.ts(27,33): error TS7006: Parameter 'ownerName' implicitly has an 'any' type.
+game/log-messages.ts(28,25): error TS7006: Parameter 'ownerName' implicitly has an 'any' type.
+game/log-messages.ts(29,32): error TS7006: Parameter 'ownerName' implicitly has an 'any' type.
+game/log-messages.ts(30,31): error TS7006: Parameter 'ownerName' implicitly has an 'any' type.
+game/log-messages.ts(32,28): error TS7006: Parameter 'label' implicitly has an 'any' type.
+game/log-messages.ts(32,35): error TS7006: Parameter 'remaining' implicitly has an 'any' type.
+game/log-messages.ts(32,46): error TS7006: Parameter 'infinite' implicitly has an 'any' type.
+game/log-messages.ts(43,20): error TS7006: Parameter 'playerLabel' implicitly has an 'any' type.
+game/log-messages.ts(43,33): error TS7006: Parameter 'posText' implicitly has an 'any' type.
+game/log-messages.ts(44,22): error TS7006: Parameter 'playerLabel' implicitly has an 'any' type.
+game/log-messages.ts(44,35): error TS7006: Parameter 'posText' implicitly has an 'any' type.
+game/log-messages.ts(44,44): error TS7006: Parameter 'cardName' implicitly has an 'any' type.
+game/log-messages.ts(45,22): error TS7006: Parameter 'playerLabel' implicitly has an 'any' type.
+game/log-messages.ts(45,35): error TS7006: Parameter 'posText' implicitly has an 'any' type.
+game/log-messages.ts(46,19): error TS7006: Parameter 'playerLabel' implicitly has an 'any' type.
+game/log-messages.ts(46,32): error TS7006: Parameter 'posText' implicitly has an 'any' type.
+game/log-messages.ts(49,23): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(50,23): error TS7006: Parameter 'playerLabel' implicitly has an 'any' type.
+game/log-messages.ts(50,36): error TS7006: Parameter 'posText' implicitly has an 'any' type.
+game/log-messages.ts(50,45): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(51,22): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(52,20): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(54,28): error TS7006: Parameter 'playerLabel' implicitly has an 'any' type.
+game/log-messages.ts(54,41): error TS7006: Parameter 'remaining' implicitly has an 'any' type.
+game/log-messages.ts(54,52): error TS7006: Parameter 'label' implicitly has an 'any' type.
+game/log-messages.ts(56,20): error TS7006: Parameter 'posText' implicitly has an 'any' type.
+game/log-messages.ts(57,23): error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+game/log-messages.ts(57,35): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(58,32): error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+game/log-messages.ts(58,44): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(59,23): error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+game/log-messages.ts(59,35): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(60,32): error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+game/log-messages.ts(60,44): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(61,20): error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+game/log-messages.ts(61,32): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(62,29): error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+game/log-messages.ts(62,41): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(63,24): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(64,28): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(65,31): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(66,35): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(67,34): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(68,30): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(69,34): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(70,23): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(71,27): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(72,32): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(73,36): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/log-messages.ts(74,34): error TS7006: Parameter 'count' implicitly has an 'any' type.
+game/logic/cards/regen.ts(22,56): error TS7006: Parameter 'SharedConstants' implicitly has an 'any' type.
+game/logic/cards/regen.ts(22,73): error TS7006: Parameter 'SharedBoardUtils' implicitly has an 'any' type.
+game/logic/cards/regen.ts(22,91): error TS7006: Parameter 'CardMarkersModule' implicitly has an 'any' type.
+game/logic/cards/regen.ts(37,28): error TS2339: Property 'CardMarkers' does not exist on type '{}'.
+game/logic/cards/regen.ts(44,33): error TS7006: Parameter 'gameState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(60,30): error TS7006: Parameter 'gameState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(60,41): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards/regen.ts(60,46): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards/regen.ts(73,35): error TS7006: Parameter 'side' implicitly has an 'any' type.
+game/logic/cards/regen.ts(73,41): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards/regen.ts(73,46): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards/regen.ts(73,51): error TS7006: Parameter 'gameState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(84,34): error TS7006: Parameter 'gameState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(84,45): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards/regen.ts(84,50): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards/regen.ts(116,27): error TS7006: Parameter 'gameState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(116,38): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards/regen.ts(116,43): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards/regen.ts(126,27): error TS7006: Parameter 'gameState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(126,38): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards/regen.ts(126,43): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards/regen.ts(126,48): error TS7006: Parameter 'value' implicitly has an 'any' type.
+game/logic/cards/regen.ts(154,29): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(154,40): error TS7006: Parameter 'playerKey' implicitly has an 'any' type.
+game/logic/cards/regen.ts(154,51): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards/regen.ts(154,56): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards/regen.ts(155,32): error TS2339: Property 'addMarker' does not exist on type '{}'.
+game/logic/cards/regen.ts(155,47): error TS7006: Parameter 'cs' implicitly has an 'any' type.
+game/logic/cards/regen.ts(155,51): error TS7006: Parameter 'kind' implicitly has an 'any' type.
+game/logic/cards/regen.ts(155,57): error TS7006: Parameter 'r' implicitly has an 'any' type.
+game/logic/cards/regen.ts(155,60): error TS7006: Parameter 'c' implicitly has an 'any' type.
+game/logic/cards/regen.ts(155,63): error TS7006: Parameter 'owner' implicitly has an 'any' type.
+game/logic/cards/regen.ts(155,70): error TS7006: Parameter 'data' implicitly has an 'any' type.
+game/logic/cards/regen.ts(197,38): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(197,49): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards/regen.ts(197,54): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards/regen.ts(208,35): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(209,37): error TS2339: Property 'getCardContext' does not exist on type '{}'.
+game/logic/cards/regen.ts(210,76): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards/regen.ts(210,153): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards/regen.ts(211,81): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards/regen.ts(219,20): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards/regen.ts(221,34): error TS2339: Property 'clearBombAt' does not exist on type '{}'.
+game/logic/cards/regen.ts(221,51): error TS7006: Parameter 'cs' implicitly has an 'any' type.
+game/logic/cards/regen.ts(221,55): error TS7006: Parameter 'r' implicitly has an 'any' type.
+game/logic/cards/regen.ts(221,58): error TS7006: Parameter 'c' implicitly has an 'any' type.
+game/logic/cards/regen.ts(227,60): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards/regen.ts(230,84): error TS7006: Parameter 'p' implicitly has an 'any' type.
+game/logic/cards/regen.ts(231,87): error TS7006: Parameter 'p' implicitly has an 'any' type.
+game/logic/cards/regen.ts(232,98): error TS7006: Parameter 'p' implicitly has an 'any' type.
+game/logic/cards/regen.ts(235,23): error TS7006: Parameter 'r' implicitly has an 'any' type.
+game/logic/cards/regen.ts(235,26): error TS7006: Parameter 'c' implicitly has an 'any' type.
+game/logic/cards/regen.ts(245,41): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(245,52): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards/regen.ts(245,57): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards/regen.ts(245,62): error TS7006: Parameter 'owner' implicitly has an 'any' type.
+game/logic/cards/regen.ts(246,25): error TS2339: Property 'removeMarkersAt' does not exist on type '{}'.
+game/logic/cards/regen.ts(247,18): error TS2339: Property 'removeMarkersAt' does not exist on type '{}'.
+game/logic/cards/regen.ts(264,58): error TS7006: Parameter 'm' implicitly has an 'any' type.
+game/logic/cards/regen.ts(275,39): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(275,50): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards/regen.ts(275,55): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards/regen.ts(276,31): error TS2339: Property 'BoardOps' does not exist on type '{}'.
+game/logic/cards/regen.ts(289,38): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(289,49): error TS7006: Parameter 'gameState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(289,60): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards/regen.ts(289,65): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards/regen.ts(289,70): error TS7006: Parameter 'regenOwner' implicitly has an 'any' type.
+game/logic/cards/regen.ts(289,82): error TS7006: Parameter 'ownerColor' implicitly has an 'any' type.
+game/logic/cards/regen.ts(289,94): error TS7006: Parameter 'ctx' implicitly has an 'any' type.
+game/logic/cards/regen.ts(307,26): error TS2339: Property 'BoardOps' does not exist on type '{}'.
+game/logic/cards/regen.ts(307,50): error TS2339: Property 'BoardOps' does not exist on type '{}'.
+game/logic/cards/regen.ts(308,44): error TS2339: Property 'BoardOps' does not exist on type '{}'.
+game/logic/cards/regen.ts(321,37): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(321,48): error TS7006: Parameter 'gameState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(321,59): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards/regen.ts(321,64): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards/regen.ts(321,69): error TS7006: Parameter 'ownerKey' implicitly has an 'any' type.
+game/logic/cards/regen.ts(321,79): error TS7006: Parameter 'ownerColor' implicitly has an 'any' type.
+game/logic/cards/regen.ts(321,91): error TS7006: Parameter 'nextRemaining' implicitly has an 'any' type.
+game/logic/cards/regen.ts(323,31): error TS2339: Property 'BoardOps' does not exist on type '{}'.
+game/logic/cards/regen.ts(343,38): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(343,49): error TS7006: Parameter 'gameState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(343,60): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards/regen.ts(343,65): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards/regen.ts(343,70): error TS7006: Parameter 'triggerKind' implicitly has an 'any' type.
+game/logic/cards/regen.ts(343,83): error TS7006: Parameter 'skipCapture' implicitly has an 'any' type.
+game/logic/cards/regen.ts(343,107): error TS7006: Parameter 'ctx' implicitly has an 'any' type.
+game/logic/cards/regen.ts(343,112): error TS7006: Parameter 'consumedRegenKeys' implicitly has an 'any' type.
+game/logic/cards/regen.ts(356,18): error TS2339: Property 'BoardOps' does not exist on type '{}'.
+game/logic/cards/regen.ts(356,42): error TS2339: Property 'BoardOps' does not exist on type '{}'.
+game/logic/cards/regen.ts(357,18): error TS2339: Property 'BoardOps' does not exist on type '{}'.
+game/logic/cards/regen.ts(394,35): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(394,46): error TS7006: Parameter 'gameState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(394,57): error TS7006: Parameter 'flips' implicitly has an 'any' type.
+game/logic/cards/regen.ts(394,64): error TS7006: Parameter 'flipperKey' implicitly has an 'any' type.
+game/logic/cards/regen.ts(394,76): error TS7006: Parameter 'skipCapture' implicitly has an 'any' type.
+game/logic/cards/regen.ts(395,15): error TS7034: Variable 'regened' implicitly has type 'any[]' in some locations where its type cannot be determined.
+game/logic/cards/regen.ts(396,15): error TS7034: Variable 'captureFlips' implicitly has type 'any[]' in some locations where its type cannot be determined.
+game/logic/cards/regen.ts(397,47): error TS7005: Variable 'regened' implicitly has an 'any[]' type.
+game/logic/cards/regen.ts(397,56): error TS7005: Variable 'captureFlips' implicitly has an 'any[]' type.
+game/logic/cards/regen.ts(400,24): error TS7006: Parameter 'p' implicitly has an 'any' type.
+game/logic/cards/regen.ts(423,37): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(423,48): error TS7006: Parameter 'gameState' implicitly has an 'any' type.
+game/logic/cards/regen.ts(423,59): error TS7006: Parameter 'row' implicitly has an 'any' type.
+game/logic/cards/regen.ts(423,64): error TS7006: Parameter 'col' implicitly has an 'any' type.
+game/logic/cards/regen.ts(423,69): error TS7006: Parameter 'triggerMeta' implicitly has an 'any' type.
+game/presentation.ts(10,32): error TS7006: Parameter 'cardState' implicitly has an 'any' type.
+game/presentation.ts(10,43): error TS7006: Parameter 'ev' implicitly has an 'any' type.
+game/presentation.ts(13,26): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+game/presentation.ts(13,50): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+game/presentation.ts(14,18): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+game/presentation.ts(40,28): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+game/presentation.ts(40,52): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+game/presentation.ts(43,43): error TS2339: Property 'cardState' does not exist on type 'typeof globalThis'.
+game/presentation.ts(43,60): error TS2339: Property 'cardState' does not exist on type 'typeof globalThis'.
+game/presentation.ts(50,30): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+game/presentation.ts(63,26): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+game/special-effects-handler.ts(40,88): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type 'typeof globalThis'.
+  No index signature with a parameter of type 'string' was found on type 'typeof globalThis'.
+game/timer-utils.ts(12,26): error TS7006: Parameter 't' implicitly has an 'any' type.
+game/timer-utils.ts(19,24): error TS7006: Parameter 'fn' implicitly has an 'any' type.
+game/timer-utils.ts(23,69): error TS7017: Element implicitly has an 'any' type because type 'typeof globalThis' has no index signature.
+game/timer-utils.ts(28,20): error TS18047: 't' is possibly 'null'.
+game/timers.ts(12,23): error TS7006: Parameter 'obj' implicitly has an 'any' type.
+game/timers.ts(14,42): error TS2339: Property 'waitMs' does not exist on type '{}'.
+game/timers.ts(14,80): error TS2339: Property 'requestFrame' does not exist on type '{}'.
+game/timers.ts(16,17): error TS7006: Parameter 'ms' implicitly has an 'any' type.
+game/timers.ts(17,31): error TS2339: Property 'waitMs' does not exist on type '{}'.
+game/timers.ts(17,67): error TS2339: Property 'waitMs' does not exist on type '{}'.
+game/timers.ts(22,31): error TS2339: Property 'requestFrame' does not exist on type '{}'.
+game/timers.ts(22,73): error TS2339: Property 'requestFrame' does not exist on type '{}'.

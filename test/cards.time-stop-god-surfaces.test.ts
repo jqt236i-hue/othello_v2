@@ -41,7 +41,7 @@ function loadWindowCatalog(relativePath) {
 describe('TIME_STOP_GOD catalog/help surfaces', () => {
   afterEach(() => {
     jest.resetModules();
-    try { delete global.window; } catch (error) {}
+    try { delete global.window; } catch (error) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('catalog json / catalog.js / catalog.generated.js / generator output stay aligned for TIME_STOP_GOD', () => {

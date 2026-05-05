@@ -6,8 +6,8 @@ describe('game/logic/presentation', () => {
         // Clear module cache to ensure fresh require in each test
         delete require.cache[require.resolve(modPath)];
         // Clear any global PresentationHelper / BoardOps
-        try { delete global.PresentationHelper; } catch (e) {}
-        try { delete global.BoardOps; } catch (e) {}
+        try { delete global.PresentationHelper; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+        try { delete global.BoardOps; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     });
 
     test('registers PresentationHelper on globalThis and forwards to BoardOps if present', () => {

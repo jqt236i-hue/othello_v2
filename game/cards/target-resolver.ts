@@ -130,7 +130,11 @@ const Targets = CardTargets || {};
         return getCellValue(gameState, row, col) !== null;
     }
 
+<<<<<<< Updated upstream
     function isBlockedCell(cardState: any, row: any, col: any) {
+=======
+    function isBlockedCell(cardState: any, row: number, col: number) {
+>>>>>>> Stashed changes
         if (Markers && typeof Markers.getBlockingMarkers === 'function') {
             return Markers.getBlockingMarkers(cardState).some((m: any) => m.row === row && m.col === col);
         }
@@ -145,7 +149,11 @@ const Targets = CardTargets || {};
         ));
     }
 
+<<<<<<< Updated upstream
     function isAbsoluteProtectedCell(cardState: any, row: any, col: any) {
+=======
+    function isAbsoluteProtectedCell(cardState: any, row: number, col: number) {
+>>>>>>> Stashed changes
         if (Markers && typeof Markers.findSpecialMarkerAt === 'function') {
             return !!Markers.findSpecialMarkerAt(cardState, row, col, 'ABSOLUTE_PROTECTED');
         }
@@ -160,7 +168,11 @@ const Targets = CardTargets || {};
         ));
     }
 
+<<<<<<< Updated upstream
     function isFrozenCell(cardState: any, row: any, col: any) {
+=======
+    function isFrozenCell(cardState: any, row: number, col: number) {
+>>>>>>> Stashed changes
         if (Markers && typeof Markers.isFrozenCellForCard === 'function') {
             return !!Markers.isFrozenCellForCard(cardState, row, col);
         }
@@ -175,7 +187,11 @@ const Targets = CardTargets || {};
         ));
     }
 
+<<<<<<< Updated upstream
     function isMeteorHoleCell(cardState: any, row: any, col: any) {
+=======
+    function isMeteorHoleCell(cardState: any, row: number, col: number) {
+>>>>>>> Stashed changes
         if (Markers && typeof Markers.isMeteorHoleCell === 'function') {
             return !!Markers.isMeteorHoleCell(cardState, row, col);
         }
@@ -190,7 +206,11 @@ const Targets = CardTargets || {};
         ));
     }
 
+<<<<<<< Updated upstream
     function isGuardProtectedCell(cardState: any, row: any, col: any) {
+=======
+    function isGuardProtectedCell(cardState: any, row: number, col: number) {
+>>>>>>> Stashed changes
         if (Markers && typeof Markers.isGuardProtectedCell === 'function') {
             return !!Markers.isGuardProtectedCell(cardState, row, col);
         }
@@ -275,7 +295,11 @@ const Targets = CardTargets || {};
         return markers.filter((m: any) => m && m.kind === 'specialStone' && m.data && m.data.category === 'bomb');
     }
 
+<<<<<<< Updated upstream
     function findSpecialMarkerAt(cardState: any, row: any, col: any, type?: any, owner?: any) {
+=======
+    function findSpecialMarkerAt(cardState: any, row: number, col: number, type?: any, owner?: any) {
+>>>>>>> Stashed changes
         if (Markers && typeof Markers.findSpecialMarkerAt === 'function') {
             return Markers.findSpecialMarkerAt(cardState, row, col, type, owner);
         }

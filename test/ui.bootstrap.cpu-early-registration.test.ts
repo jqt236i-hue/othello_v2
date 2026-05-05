@@ -6,15 +6,15 @@ describe('UI bootstrap early CPU registration', () => {
   const modPath = require.resolve('../ui/bootstrap');
   beforeEach(() => {
     jest.resetModules();
-    try { delete global.processCpuTurn; } catch (e) {}
+    try { delete global.processCpuTurn; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   afterEach(() => {
-    try { delete global.window; } catch (e) {}
-    try { delete global.document; } catch (e) {}
-    try { delete global.resetRenderStats; } catch (e) {}
-    try { delete global.hideCpuSpeechBubble; } catch (e) {}
-    try { delete global.PlaybackStateManager; } catch (e) {}
+    try { delete global.window; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.document; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.resetRenderStats; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.hideCpuSpeechBubble; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.PlaybackStateManager; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('installGameDI registers processCpuTurn when cpu-turn-handler exposes it', () => {

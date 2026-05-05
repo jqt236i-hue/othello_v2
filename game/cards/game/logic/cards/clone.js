@@ -1,2 +1,0 @@
-const path = require('path');
-module.exports = require(path.join(__dirname, '..', '..', '..', '..', 'dist', 'game', 'cards', 'game', 'logic', 'cards', 'clone.js'));

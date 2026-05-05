@@ -42,7 +42,7 @@ function loadWindowCatalog(relativePath) {
 describe('ULTIMATE_REVERSE_DRAGON catalog/help surfaces', () => {
   afterEach(() => {
     jest.resetModules();
-    try { delete global.window; } catch (error) {}
+    try { delete global.window; } catch (error) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('catalog json / catalog.js / catalog.generated.js / generator output stay aligned for ULTIMATE_REVERSE_DRAGON', () => {

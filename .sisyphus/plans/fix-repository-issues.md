@@ -1616,7 +1616,7 @@ Wave FINAL (VERIFICATION — 最終検証):
 > **4つのレビューエージェントを並列実行。全てが承認する必要あり。**
 > 結果をユーザーに提示し、明示的な「OK」を得てから完了とする。
 
-- [ ] F1. **計画適合監査** — `oracle`
+- [x] F1. **計画適合監査** — `oracle`
 
   **What to do**:
   - 計画を end-to-end で読み込む
@@ -1635,7 +1635,7 @@ Wave FINAL (VERIFICATION — 最終検証):
 
   **Evidence**: `.sisyphus/evidence/final-audit-oracle.md`
 
-- [ ] F2. **コード品質レビュー** — `unspecified-high`
+- [x] F2. **コード品質レビュー** — `unspecified-high`
 
   **What to do**:
   - `tsc --noEmit` + linter + `npm test`を実行
@@ -1652,7 +1652,7 @@ Wave FINAL (VERIFICATION — 最終検証):
 
   **Evidence**: `.sisyphus/evidence/final-quality-review.md`
 
-- [ ] F3. **実動作QA** — `unspecified-high`（+ `playwright` skill）
+- [x] F3. **実動作QA** — `unspecified-high`（+ `playwright` skill）
 
   **What to do**:
   - クリーンな状態から開始
@@ -1679,7 +1679,7 @@ Wave FINAL (VERIFICATION — 最終検証):
 
   **Evidence**: `.sisyphus/evidence/final-qa/`（スクリーンショット等）
 
-- [ ] F4. **スコープ適合チェック** — `deep`
+- [x] F4. **スコープ適合チェック** — `deep`
 
   **What to do**:
   - 各タスクについて「What to do」を読み、実際のdiff（git log/diff）を確認
@@ -1699,7 +1699,7 @@ Wave FINAL (VERIFICATION — 最終検証):
 
   **Evidence**: `.sisyphus/evidence/final-scope-check.md`
 
-- [ ] F5. **ユーザー最終承認**
+- [x] F5. **ユーザー最終承認**
 
   **What to do**:
   - F1-F4の結果を統合してユーザーに提示

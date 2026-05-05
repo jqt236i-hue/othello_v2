@@ -1,0 +1,105 @@
+Worker bridge export verification:
+
+  Command:
+    node -e 'import("./workers/match-worker.mjs").then(m=>{console.log("module-keys="+Object.keys(m).sort().join(",")); console.log("has-default-fetch="+(!!(m.default&&typeof m.default.fetch==="function"))); console.log("has-MatchRoomDurableObject="+(typeof m.MatchRoomDurableObject==="function"));}).catch(err=>{console.error(err); process.exit(1);})'
+
+  Output:
+    module-keys=MatchRoomDurableObject,default
+    has-default-fetch=true
+    has-MatchRoomDurableObject=true
+
+Wrangler config verification:
+
+  Output:
+    main=true
+    assetsDirectory=true
+    assetsBinding=true
+    durableObjectBinding=true
+    migration=true
+
+Worker .mjs classification:
+
+  workers/match-worker.mjs: worker-esm-bridge, configured by wrangler.toml as main.
+  dist/workers/match-worker.mjs: worker-esm-bridge generated artifact, not configured by wrangler.toml as main.
+
+Worker-public expected root entries from prepare config:
+
+  index.html:present
+  story-deck-lab.html:present
+  is-env-capable.js:present
+  shared-constants.js:present
+  card-system.js:present
+  game-events.js:present
+  sound-engine.js:present
+  ui.js:present
+  styles-animations.css:present
+  styles-base.css:present
+  styles-board.css:present
+  styles-cards.css:present
+  styles-layout.css:present
+  styles-responsive.css:present
+  styles-story-deck-lab.css:present
+  styles-stone-shadows.css:present
+  styles-variables.css:present
+  assets:present
+  cards:present
+  constants:present
+  game:present
+  shared:present
+  ui:present
+  utils:present
+
+Worker-public source parity check after npm run worker:prepare:
+
+  mirrored-files-checked=939
+  missing=433
+  missing sample:
+    cards\card-interaction-effects.ts
+    cards\card-interaction.ts
+    cards\card-renderer.ts
+    cards\catalog.ts
+    constants\animation-constants.ts
+    constants\cpu-lv6-shared-profile.ts
+    constants\difficulty-constants.ts
+    constants\ui-element-cache.ts
+    game\ai\cpu-commentary-runtime.ts
+    game\ai\cpu-lv6-lookahead-profile.ts
+    game\ai\cpu-policy-core.ts
+    game\ai\endgame-solver.ts
+    game\ai\fixed-commentary-engine.ts
+    game\ai\gumbel-mcts.ts
+    game\ai\level-system.ts
+    game\ai\mcts-core.ts
+    game\ai\mcts-policy.ts
+    game\ai\mcts-temperature.ts
+    game\ai\mcts-two-layer.ts
+    game\ai\policy-onnx-runtime-v2.ts
+
+  mismatches=260
+  mismatch sample:
+    assets\asset-manifest.json
+    card-system.js
+    cards\card-interaction-effects.js
+    cards\card-interaction.js
+    cards\card-renderer.js
+    cards\catalog.js
+    constants\animation-constants.js
+    constants\cpu-lv6-shared-profile.js
+    constants\difficulty-constants.js
+    constants\ui-element-cache.js
+    game-events.js
+    game\ai\cpu-commentary-runtime.js
+    game\ai\cpu-lv6-lookahead-profile.js
+    game\ai\cpu-policy-core.js
+    game\ai\endgame-solver.js
+    game\ai\fixed-commentary-engine.js
+    game\ai\gumbel-mcts.js
+    game\ai\level-system.js
+    game\ai\mcts-core.js
+    game\ai\mcts-policy.js
+
+Conclusion:
+
+  Durable Object exports and Wrangler config are intact.
+  The root files and directories expected by the prepare config are present in worker-public/.
+  The generated-output-only mirror contract is not clean after the requested npm prepare command, because source-to-worker-public parity still reports missing and mismatched files.

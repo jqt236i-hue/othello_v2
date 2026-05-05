@@ -1,0 +1,115 @@
+{
+  "repoRoot": "C:/Users/quarr/Desktop/othello_v2",
+  "inputs": [
+    "index.html",
+    "story-deck-lab.html"
+  ],
+  "summary": {
+    "totalScriptTags": 11,
+    "browserLoaded": 9,
+    "inline": 2,
+    "externalCdn": 0
+  },
+  "scriptTags": [
+    {
+      "htmlFile": "index.html",
+      "tagIndex": 1,
+      "src": null,
+      "classification": "inline",
+      "resolvedPath": null,
+      "fileKind": null,
+      "exists": false
+    },
+    {
+      "htmlFile": "index.html",
+      "tagIndex": 2,
+      "src": "ui/layout-stage.js",
+      "classification": "browser-loaded",
+      "resolvedPath": "ui/layout-stage.js",
+      "fileKind": "js",
+      "exists": true
+    },
+    {
+      "htmlFile": "story-deck-lab.html",
+      "tagIndex": 1,
+      "src": "cards/catalog.generated.js",
+      "classification": "browser-loaded",
+      "resolvedPath": "cards/catalog.generated.js",
+      "fileKind": "js",
+      "exists": true
+    },
+    {
+      "htmlFile": "story-deck-lab.html",
+      "tagIndex": 2,
+      "src": "shared-constants.js",
+      "classification": "browser-loaded",
+      "resolvedPath": "shared-constants.js",
+      "fileKind": "js",
+      "exists": true
+    },
+    {
+      "htmlFile": "story-deck-lab.html",
+      "tagIndex": 3,
+      "src": "cards/card-renderer.js",
+      "classification": "browser-loaded",
+      "resolvedPath": "cards/card-renderer.js",
+      "fileKind": "js",
+      "exists": true
+    },
+    {
+      "htmlFile": "story-deck-lab.html",
+      "tagIndex": 4,
+      "src": "shared/story-deck-spec.js",
+      "classification": "browser-loaded",
+      "resolvedPath": "shared/story-deck-spec.js",
+      "fileKind": "js",
+      "exists": true
+    },
+    {
+      "htmlFile": "story-deck-lab.html",
+      "tagIndex": 5,
+      "src": "shared/story-deck-codec.js",
+      "classification": "browser-loaded",
+      "resolvedPath": "shared/story-deck-codec.js",
+      "fileKind": "js",
+      "exists": true
+    },
+    {
+      "htmlFile": "story-deck-lab.html",
+      "tagIndex": 6,
+      "src": "ui/story-deck-lab/story-deck-lab-state.js",
+      "classification": "browser-loaded",
+      "resolvedPath": "ui/story-deck-lab/story-deck-lab-state.js",
+      "fileKind": "js",
+      "exists": true
+    },
+    {
+      "htmlFile": "story-deck-lab.html",
+      "tagIndex": 7,
+      "src": "ui/story-deck-lab/story-deck-lab-renderer.js",
+      "classification": "browser-loaded",
+      "resolvedPath": "ui/story-deck-lab/story-deck-lab-renderer.js",
+      "fileKind": "js",
+      "exists": true
+    },
+    {
+      "htmlFile": "story-deck-lab.html",
+      "tagIndex": 8,
+      "src": "ui/story-deck-lab/story-deck-lab-controller.js",
+      "classification": "browser-loaded",
+      "resolvedPath": "ui/story-deck-lab/story-deck-lab-controller.js",
+      "fileKind": "js",
+      "exists": true
+    },
+    {
+      "htmlFile": "story-deck-lab.html",
+      "tagIndex": 9,
+      "src": null,
+      "classification": "inline",
+      "resolvedPath": null,
+      "fileKind": null,
+      "exists": false
+    }
+  ],
+  "externalScripts": []
+}

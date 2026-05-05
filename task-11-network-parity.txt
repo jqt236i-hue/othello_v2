@@ -1,0 +1,1304 @@
+
+> othello@1.0.0 test:network:parity
+> jest --runInBand --runTestsByPath test\ui.network-client.publish-base-version.test.ts test\ui.network-client.reconnect-sync.test.ts test\ui.network-client.result-sync.test.ts test\ui.network-client.action-bridge-next-snapshot.test.ts test\ui.network-client.trap-deferred-publish.test.ts test\ui.network-snapshot.single-writer-baseline.test.ts test\ui.network-snapshot.move-source-empty.test.ts test\workers.match-publish-sanitize.test.ts test\workers.match-publish-idempotency.test.ts test\workers.match-stream-sse.test.ts test\workers.match-leave-token-revocation.test.ts test\network.playback-event-assembly.contract.test.ts test\utils.match-authority.publish-response.test.ts test\local-match-server.publish-contract.test.ts test\local-match-server.leave-contract.test.ts test\ui.match-mode.network-button.test.ts test\ui.animation-utils.hand-fallback.test.ts test\ui.animation-engine.test.ts
+
+ts-jest[ts-jest-transformer] (WARN) Define `ts-jest` config under `globals` is deprecated. Please do
+transform: {
+    <transform_regex>: ['ts-jest', { /* ts-jest config goes here in Jest */ }],
+},
+See more at https://kulshekhar.github.io/ts-jest/docs/getting-started/presets#advanced
+FAIL test/workers.match-stream-sse.test.ts (71.823 s)
+  笳・match worker stream SSE 窶ｺ top-level create 縺ｨ state 縺・seatHandSkins 繧堤ｶｭ謖√☆繧・
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at makeInitialSnapshot (dist/workers/match-worker.js:396:33)
+      at async handleCreate (dist/workers/match-worker.js:1434:26)
+      at async [eval]:31:26
+      at runScenario (test/workers.match-stream-sse.test.ts:13:11)
+      at runCreateApiSeatHandSkinScenario (test/workers.match-stream-sse.test.ts:321:10)
+      at Object.<anonymous> (test/workers.match-stream-sse.test.ts:425:20)
+
+FAIL test/workers.match-leave-token-revocation.test.ts (10.199 s)
+  笳・match worker leave contract 窶ｺ leave rotates seat token, rejects old token, and closes leaving stream
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      85 |     expect(result.leaveStatus).toBe(200);
+      86 |     expect(result.leaveOk).toBe(true);
+    > 87 |     expect(result.joinedWhite).toBe(true);
+         |                                ^
+      88 |     expect(result.staleStateStatus).toBe(403);
+      89 |     expect(result.staleStateReason).toBe('SEAT_TOKEN_MISMATCH');
+      90 |     expect(result.newSeatToken).not.toBe(result.oldSeatToken);
+
+      at Object.<anonymous> (test/workers.match-leave-token-revocation.test.ts:87:32)
+
+FAIL test/workers.match-publish-sanitize.test.ts
+  笳・match worker publish sanitize 窶ｺ command publish縺ｧ繧・missed turn-start bookkeeping 繧定｣懷ｮ後＠縺ｦ豌ｸ邯壼喧縺吶ｋ
+
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:12:31
+      at runPublishScenario (test/workers.match-publish-sanitize.test.ts:14:11)
+      at runPublishTurnStartReconcileScenario (test/workers.match-publish-sanitize.test.ts:318:10)
+      at Object.<anonymous> (test/workers.match-publish-sanitize.test.ts:1042:20)
+
+  笳・match worker publish sanitize 窶ｺ accepts command publish payload without snapshot fallback
+
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:12:31
+      at runPublishScenario (test/workers.match-publish-sanitize.test.ts:14:11)
+      at runCommandPublishPlaceScenario (test/workers.match-publish-sanitize.test.ts:388:10)
+      at Object.<anonymous> (test/workers.match-publish-sanitize.test.ts:1078:20)
+
+  笳・match worker publish sanitize 窶ｺ second worker publish snapshot does not replay stale charge delta events from the previous turn
+
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:12:31
+      at runPublishScenario (test/workers.match-publish-sanitize.test.ts:14:11)
+      at runChargeDeltaReplayScenario (test/workers.match-publish-sanitize.test.ts:993:10)
+      at Object.<anonymous> (test/workers.match-publish-sanitize.test.ts:1097:20)
+
+  笳・match worker publish sanitize 窶ｺ time stop extra turn survives guardian selection and hands off to white after the follow-up place
+
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:12:31
+      at runPublishScenario (test/workers.match-publish-sanitize.test.ts:14:11)
+      at runTimeStopGuardianCommandChainScenario (test/workers.match-publish-sanitize.test.ts:894:10)
+      at Object.<anonymous> (test/workers.match-publish-sanitize.test.ts:1113:20)
+
+  笳・match worker publish sanitize 窶ｺ command publish with PLUNDER_WILL preserves stolen charge and clears pending effect
+
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:17:31
+      at runPublishScenario (test/workers.match-publish-sanitize.test.ts:14:11)
+      at runCommandPublishPendingPlaceScenario (test/workers.match-publish-sanitize.test.ts:472:10)
+      at Object.<anonymous> (test/workers.match-publish-sanitize.test.ts:1134:20)
+
+  笳・match worker publish sanitize 窶ｺ command publish with RAINBOW_STONE emits destroy playback and leaves source empty
+
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:17:31
+      at runPublishScenario (test/workers.match-publish-sanitize.test.ts:14:11)
+      at runCommandPublishPendingPlaceScenario (test/workers.match-publish-sanitize.test.ts:472:10)
+      at Object.<anonymous> (test/workers.match-publish-sanitize.test.ts:1151:20)
+
+  笳・match worker publish sanitize 窶ｺ command publish with FREE_PLACEMENT accepts zero-flip placement in authority stream
+
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:17:31
+      at runPublishScenario (test/workers.match-publish-sanitize.test.ts:14:11)
+      at runCommandPublishPendingPlaceScenario (test/workers.match-publish-sanitize.test.ts:472:10)
+      at Object.<anonymous> (test/workers.match-publish-sanitize.test.ts:1176:20)
+
+  笳・match worker publish sanitize 窶ｺ command publish with BREEDING_WILL keeps breeding spawn playback in authority stream
+
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:17:31
+      at runPublishScenario (test/workers.match-publish-sanitize.test.ts:14:11)
+      at runCommandPublishPendingPlaceScenario (test/workers.match-publish-sanitize.test.ts:472:10)
+      at Object.<anonymous> (test/workers.match-publish-sanitize.test.ts:1203:20)
+
+  笳・match worker publish sanitize 窶ｺ command publish with SNIPER_WILL keeps sniper destroy playback in authority stream
+
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:17:31
+      at runPublishScenario (test/workers.match-publish-sanitize.test.ts:14:11)
+      at runCommandPublishPendingPlaceScenario (test/workers.match-publish-sanitize.test.ts:472:10)
+      at Object.<anonymous> (test/workers.match-publish-sanitize.test.ts:1236:20)
+
+  笳・match worker publish sanitize 窶ｺ sniper marker survives into next owner turn and decrements in network authority flow
+
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:11:31
+      at runPublishScenario (test/workers.match-publish-sanitize.test.ts:14:11)
+      at runCommandPublishSniperTurnStartScenario (test/workers.match-publish-sanitize.test.ts:560:10)
+      at Object.<anonymous> (test/workers.match-publish-sanitize.test.ts:1266:20)
+
+  笳・match worker publish sanitize 窶ｺ network debug room 縺ｧ縺ｯ謇狗分螟悶・ debug fill hand command 繧定ｨｱ蜿ｯ縺苓・蟶ｭ縺縺題｣懷・縺吶ｋ
+
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:18:31
+      at runPublishScenario (test/workers.match-publish-sanitize.test.ts:14:11)
+      at runCommandPublishDebugFillScenario (test/workers.match-publish-sanitize.test.ts:645:10)
+      at Object.<anonymous> (test/workers.match-publish-sanitize.test.ts:1289:20)
+
+  笳・match worker publish sanitize 窶ｺ network debug room 縺ｧ縺ｯ debug fill hand command 縺ｧ requested cards only 縺ｫ鄂ｮ縺肴鋤縺医ｉ繧後ｋ
+
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:18:31
+      at runPublishScenario (test/workers.match-publish-sanitize.test.ts:14:11)
+      at runCommandPublishDebugFillScenario (test/workers.match-publish-sanitize.test.ts:645:10)
+      at Object.<anonymous> (test/workers.match-publish-sanitize.test.ts:1303:20)
+
+  笳・match worker publish sanitize 窶ｺ network debug room 縺ｧ縺ｪ縺・ｴ蜷医・ debug fill hand command 繧呈拠蜷ｦ縺吶ｋ
+
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:18:31
+      at runPublishScenario (test/workers.match-publish-sanitize.test.ts:14:11)
+      at runCommandPublishDebugFillScenario (test/workers.match-publish-sanitize.test.ts:645:10)
+      at Object.<anonymous> (test/workers.match-publish-sanitize.test.ts:1323:20)
+
+FAIL test/ui.network-client.publish-base-version.test.ts
+  笳・NetworkMatchClient queued publish 窶ｺ stream snapshot驕ｩ逕ｨ蠕後・谺｡蝗柝ublish縺ｯ譖ｴ譁ｰ貂医∩stateVersion繧鍛aseVersion縺ｫ菴ｿ縺・
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 11
+    Received: 10
+
+      222 |     await Promise.resolve();
+      223 |
+    > 224 |     expect(client.getStateVersion()).toBe(11);
+          |                                      ^
+      225 |
+      226 |     const publishResult = await client.publishSnapshot({
+      227 |       playerKey: 'black',
+
+      at Object.<anonymous> (test/ui.network-client.publish-base-version.test.ts:224:38)
+
+  笳・NetworkMatchClient queued publish 窶ｺ publish謌仙粥蠢懃ｭ斐・繧ｵ繝ｼ繝舌・ playbackEvents 縺碁壼ｸｸ蜀咲函縺ｨ縺励※ emit 縺輔ｌ繧・
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: {"charge": {"black": 10, "white": 10}, "discard": [], "hands": {"black": [], "white": []}, "hasUsedCardThisTurnByPlayer": {"black": false, "white": false}, "lastUsedCardByPlayer": {"black": null, "white": null}, "markers": [], "pendingEffectByPlayer": {"black": null, "white": null}, "selectedCardId": null, "selectedCardOwnerKey": null, "turnIndex": 1}, ObjectContaining {"events": [{"phase": 1, "targets": [{"from": {"col": 3, "r": 3}, "to": {"col": 4, "r": 3}}], "type": "move"}], "meta": ObjectContaining {"source": "network_snapshot"}, "type": "PLAYBACK_EVENTS"}
+
+    Number of calls: 0
+
+      506 |     expect(result.ok).toBe(true);
+      507 |     // Single Writer: 繧ｵ繝ｼ繝舌・蠢懃ｭ斐・ playbackEvents 縺碁壼ｸｸ蜀咲函縺ｨ縺励※ emit
+    > 508 |     expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledWith(
+          |                                                   ^
+      509 |       global.cardState,
+      510 |       expect.objectContaining({
+      511 |         type: 'PLAYBACK_EVENTS',
+
+      at Object.<anonymous> (test/ui.network-client.publish-base-version.test.ts:508:51)
+
+  笳・NetworkMatchClient queued publish 窶ｺ publish蠢懃ｭ泌・逹蠕後・self SSE縺ｧ蜷御ｸ version 縺ｯ驥崎､・←逕ｨ縺輔ｌ縺ｪ縺・
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+
+    Expected number of calls: 1
+    Received number of calls: 0
+
+      596 |
+      597 |     // Single Writer: POST 蠢懃ｭ斐〒蜈ｨ playbackEvents 縺碁壼ｸｸ蜀咲函縺ｨ縺励※ emit 貂医∩
+    > 598 |     expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+          |                                                   ^
+      599 |     expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledWith(
+      600 |       global.cardState,
+      601 |       expect.objectContaining({
+
+      at Object.<anonymous> (test/ui.network-client.publish-base-version.test.ts:598:51)
+
+FAIL test/ui.network-client.reconnect-sync.test.ts
+  笳・NetworkMatchClient reconnect and resync 窶ｺ state sync payload 縺ｮ roomBoardConfig 縺・null 縺ｧ繧・snapshot 縺ｮ custom boardConfig 繧剃ｿ晄戟縺吶ｋ
+
+    expect(received).toHaveLength(expected)
+
+    Matcher error: received value must have a length property whose value must be a number
+
+    Received has value: undefined
+
+      320 |       standard8x8: false
+      321 |     });
+    > 322 |     expect(global.gameState.board).toHaveLength(7);
+          |                                    ^
+      323 |     expect(global.gameState.board[0]).toHaveLength(9);
+      324 |
+      325 |     const firstStream = eventSources[0];
+
+      at Object.<anonymous> (test/ui.network-client.reconnect-sync.test.ts:322:36)
+
+  笳・NetworkMatchClient reconnect and resync 窶ｺ force蜀榊酔譛溘〒螻髱｢縺縺大・縺ｫ蜷医▲縺溷ｾ後〒繧ょ酔迚・tream縺ｮplayback繧・蝗槭□縺大屓蠕ｩ縺吶ｋ
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+    -   "appliedSnapshot": true,
+    +   "appliedSnapshot": false,
+        "ok": true,
+      }
+
+      488 |
+      489 |     const syncResult = await client.syncLatestState();
+    > 490 |     expect(syncResult).toEqual({ ok: true, appliedSnapshot: true });
+          |                        ^
+      491 |
+      492 |     const stream = eventSources[0];
+      493 |     const snapshotHandler = stream.listeners.snapshot;
+
+      at Object.<anonymous> (test/ui.network-client.reconnect-sync.test.ts:490:24)
+
+  笳・NetworkMatchClient reconnect and resync 窶ｺ publish諡貞凄縺ｧforce驕ｩ逕ｨ縺励◆蜷檎沿snapshot縺ｧ繧ょｾ檎ｶ嘖tream playback繧貞屓蠕ｩ縺吶ｋ
+
+    expect(jest.fn()).toHaveBeenCalledTimes(expected)
+
+    Expected number of calls: 1
+    Received number of calls: 0
+
+      617 |     await Promise.resolve();
+      618 |
+    > 619 |     expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+          |                                                   ^
+      620 |     expect(global.cardState.presentationEvents).toEqual([
+      621 |       expect.objectContaining({
+      622 |         type: 'PLAYBACK_EVENTS',
+
+      at Object.<anonymous> (test/ui.network-client.reconnect-sync.test.ts:619:51)
+
+  笳・NetworkMatchClient reconnect and resync 窶ｺ snapshot譛ｪ驕ｩ逕ｨ縺ｮ諡貞凄縺ｧstateVersion縺縺鷹ｲ繧薙〒繧Ｉeartbeat縺悟・蜷梧悄繧定ｦ∵ｱゅ☆繧・
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 2
+    Received: 1
+
+      727 |
+      728 |     expect(stateFetchCount).toBe(1);
+    > 729 |     expect(global.gameState.turnNumber).toBe(2);
+          |                                         ^
+      730 |     expect(typeof resolveSecondPublish).toBe('function');
+      731 |     resolveSecondPublish();
+      732 |     const queuedResult = await queuedPublish;
+
+      at Object.<anonymous> (test/ui.network-client.reconnect-sync.test.ts:729:41)
+
+  笳・NetworkMatchClient reconnect and resync 窶ｺ pending publish荳ｭ縺ｯ蜷檎沿stream recovery繧帝←逕ｨ縺励↑縺・
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+    -   "appliedSnapshot": true,
+    +   "appliedSnapshot": false,
+        "ok": true,
+      }
+
+      818 |
+      819 |     const syncResult = await client.syncLatestState();
+    > 820 |     expect(syncResult).toEqual({ ok: true, appliedSnapshot: true });
+          |                        ^
+      821 |
+      822 |     global.gameState = JSON.parse(JSON.stringify(optimisticSnapshot.gameState));
+      823 |     global.cardState = JSON.parse(JSON.stringify(optimisticSnapshot.cardState));
+
+      at Object.<anonymous> (test/ui.network-client.reconnect-sync.test.ts:820:24)
+
+  笳・NetworkMatchClient reconnect and resync 窶ｺ pending publish荳ｭ縺ｧ繧ょ酔迚・hash 荳堺ｸ閾ｴ snapshot 縺ｯ force sync 縺ｧ驕ｩ逕ｨ縺吶ｋ
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 1
+
+      Object {
+    -   "appliedSnapshot": true,
+    +   "appliedSnapshot": false,
+        "ok": true,
+      }
+
+      1071 |
+      1072 |     const syncResult = await client.syncLatestState();
+    > 1073 |     expect(syncResult).toEqual({ ok: true, appliedSnapshot: true });
+           |                        ^
+      1074 |     expect(stateFetchCount).toBe(1);
+      1075 |     expect(global.gameState.turnNumber).toBe(7);
+      1076 |     expect(global.cardState.markers).toEqual([]);
+
+      at Object.<anonymous> (test/ui.network-client.reconnect-sync.test.ts:1073:24)
+
+  笳・NetworkMatchClient reconnect and resync 窶ｺ 髱樒ｵょｱ繧ｹ繝翫ャ繝励す繝ｧ繝・ヨ縺ｮ驕ｩ逕ｨ譎ゅ↓ result overlay 繧定・蜍輔〒髢峨§繧・
+    expect(received).toBeNull()
+
+    Received: <div id="result-overlay" />
+
+      1178 |     expect(joined.ok).toBe(true);
+      1179 |
+    > 1180 |     expect(document.getElementById('result-overlay')).toBeNull();
+           |                                                       ^
+      1181 |   });
+      1182 | });
+      1183 |
+
+      at Object.<anonymous> (test/ui.network-client.reconnect-sync.test.ts:1180:55)
+
+FAIL test/workers.match-publish-idempotency.test.ts
+  笳・match worker publish idempotency 窶ｺ serialized command payload縺ｮ蜀埼√・驥崎､・←逕ｨ縺帙★謌仙粥蠢懃ｭ斐☆繧・
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:22:31
+      at runScenario (test/workers.match-publish-idempotency.test.ts:13:11)
+      at runPublishIdempotencyScenario (test/workers.match-publish-idempotency.test.ts:91:10)
+      at Object.<anonymous> (test/workers.match-publish-idempotency.test.ts:271:20)
+
+  笳・match worker publish idempotency 窶ｺ command payload縺ｧ繧ょ酔荳operationId縺ｮ蜀埼√・驥崎､・←逕ｨ縺励↑縺・
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:22:31
+      at runScenario (test/workers.match-publish-idempotency.test.ts:13:11)
+      at runCommandPublishIdempotencyScenario (test/workers.match-publish-idempotency.test.ts:167:10)
+      at Object.<anonymous> (test/workers.match-publish-idempotency.test.ts:290:20)
+
+  笳・match worker publish idempotency 窶ｺ older accepted operationId繧ょｱ･豁ｴ蜀・↑繧永dempotent replay縺ｨ縺励※謇ｱ縺・
+    Error: [cards.js] CardEffectResolver.getCardHandManagerContext not available
+
+      4355 | function getCardHandManagerContext() {
+      4356 |     if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
+    > 4357 |         throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
+           |               ^
+      4358 |     }
+      4359 |     return CardEffectResolverModule.getCardHandManagerContext({
+      4360 |         hasStandardLegalMoveForPlayer,
+
+      at getCardHandManagerContext (dist/game/logic/cards.js:4357:15)
+      at ensureCardCopyState (dist/game/logic/cards.js:2103:65)
+      at Object.createCardState (dist/game/logic/cards-internal/state-factory.js:128:5)
+      at Object.createCardState (dist/game/logic/cards.js:2005:29)
+      at [eval]:22:31
+      at runScenario (test/workers.match-publish-idempotency.test.ts:13:11)
+      at runHistoricalReplayScenario (test/workers.match-publish-idempotency.test.ts:266:10)
+      at Object.<anonymous> (test/workers.match-publish-idempotency.test.ts:309:20)
+
+FAIL test/ui.match-mode.network-button.test.ts
+  笳・match-mode network button behavior 窶ｺ 繝阪ャ繝亥ｯｾ謌ｦ荳ｭ縺ｫ繝阪ャ繝亥ｯｾ謌ｦ繝懊ち繝ｳ繧貞・謚ｼ荳九＠縺ｦ繧・PU縺ｸ謌ｻ繧峨↑縺・
+    TypeError: window.setupMatchModeControls is not a function
+
+      113 |
+      114 |     require('../ui/handlers/match-mode.js');
+    > 115 |     window.setupMatchModeControls(buildUiRefs());
+          |            ^
+      116 |   });
+      117 |
+      118 |   afterEach(() => {
+
+      at Object.<anonymous> (test/ui.match-mode.network-button.test.ts:115:12)
+
+  笳・match-mode network button behavior 窶ｺ 蛻晄悄蛹也峩蠕後↓驛ｨ螻狗乢髱｢諠・ｱ縺梧悴遒ｺ螳壹〒繧・8x8 陦ｨ遉ｺ縺ｸ螳牙・縺ｫ繝輔か繝ｼ繝ｫ繝舌ャ繧ｯ縺吶ｋ
+
+    TypeError: window.setupMatchModeControls is not a function
+
+      113 |
+      114 |     require('../ui/handlers/match-mode.js');
+    > 115 |     window.setupMatchModeControls(buildUiRefs());
+          |            ^
+      116 |   });
+      117 |
+      118 |   afterEach(() => {
+
+      at Object.<anonymous> (test/ui.match-mode.network-button.test.ts:115:12)
+
+  笳・match-mode network button behavior 窶ｺ 繝阪ャ繝亥ｯｾ謌ｦ繝｢繝ｼ繝繝ｫ縺ｮ逶､髱｢繧ｵ繧､繧ｺ螟画峩縺ｯ pending 陦ｨ遉ｺ縺ｨ驛ｨ螻倶ｽ懈・ payload 縺ｫ蜿肴丐縺輔ｌ繧・
+    TypeError: window.setupMatchModeControls is not a function
+
+      113 |
+      114 |     require('../ui/handlers/match-mode.js');
+    > 115 |     window.setupMatchModeControls(buildUiRefs());
+          |            ^
+      116 |   });
+      117 |
+      118 |   afterEach(() => {
+
+      at Object.<anonymous> (test/ui.match-mode.network-button.test.ts:115:12)
+
+  笳・match-mode network button behavior 窶ｺ 繝阪ャ繝亥ｯｾ謌ｦ繝｢繝ｼ繝繝ｫ縺ｮ逶､髱｢繧ｵ繧､繧ｺ蜈･蜉帙・繝帙う繝ｼ繝ｫ縺ｧ 10x10 縺ｾ縺ｧ蠅玲ｸ帙〒縺阪ｋ
+
+    TypeError: window.setupMatchModeControls is not a function
+
+      113 |
+      114 |     require('../ui/handlers/match-mode.js');
+    > 115 |     window.setupMatchModeControls(buildUiRefs());
+          |            ^
+      116 |   });
+      117 |
+      118 |   afterEach(() => {
+
+      at Object.<anonymous> (test/ui.match-mode.network-button.test.ts:115:12)
+
+  笳・match-mode network button behavior 窶ｺ 驛ｨ螻狗乢髱｢縺檎｢ｺ螳壹＠縺溘ｉ繝阪ャ繝亥ｯｾ謌ｦ繝｢繝ｼ繝繝ｫ縺ｮ逶､髱｢繧ｵ繧､繧ｺ蜈･蜉帙ｒ繝ｭ繝・け縺吶ｋ
+
+    TypeError: window.setupMatchModeControls is not a function
+
+      113 |
+      114 |     require('../ui/handlers/match-mode.js');
+    > 115 |     window.setupMatchModeControls(buildUiRefs());
+          |            ^
+      116 |   });
+      117 |
+      118 |   afterEach(() => {
+
+      at Object.<anonymous> (test/ui.match-mode.network-button.test.ts:115:12)
+
+  笳・match-mode network button behavior 窶ｺ CPU繝懊ち繝ｳ謚ｼ荳九〒縺ｯ繝阪ャ繝亥ｯｾ謌ｦ縺九ｉCPU縺ｸ謌ｻ繧・
+    TypeError: window.setupMatchModeControls is not a function
+
+      113 |
+      114 |     require('../ui/handlers/match-mode.js');
+    > 115 |     window.setupMatchModeControls(buildUiRefs());
+          |            ^
+      116 |   });
+      117 |
+      118 |   afterEach(() => {
+
+      at Object.<anonymous> (test/ui.match-mode.network-button.test.ts:115:12)
+
+  笳・match-mode network button behavior 窶ｺ 驛ｨ螻狗分蜿ｷ繧ｳ繝斐・繝懊ち繝ｳ縺ｧ蜈･蜉帛､繧偵さ繝斐・縺ｧ縺阪ｋ
+
+    TypeError: window.setupMatchModeControls is not a function
+
+      113 |
+      114 |     require('../ui/handlers/match-mode.js');
+    > 115 |     window.setupMatchModeControls(buildUiRefs());
+          |            ^
+      116 |   });
+      117 |
+      118 |   afterEach(() => {
+
+      at Object.<anonymous> (test/ui.match-mode.network-button.test.ts:115:12)
+
+  笳・match-mode network button behavior 窶ｺ 驛ｨ螻狗分蜿ｷ縺檎ｩｺ縺ｪ繧峨さ繝斐・縺帙★繧ｨ繝ｩ繝ｼ繧定｡ｨ遉ｺ縺吶ｋ
+
+    TypeError: window.setupMatchModeControls is not a function
+
+      113 |
+      114 |     require('../ui/handlers/match-mode.js');
+    > 115 |     window.setupMatchModeControls(buildUiRefs());
+          |            ^
+      116 |   });
+      117 |
+      118 |   afterEach(() => {
+
+      at Object.<anonymous> (test/ui.match-mode.network-button.test.ts:115:12)
+
+  笳・match-mode network button behavior 窶ｺ 驛ｨ螻倶ｽ懈・譎ゅ↓繝・ヰ繝・げ譛牙柑繝√ぉ繝・け繧剃ｻ倥￠繧九→create payload縺ｸ蜿肴丐縺輔ｌ繧・
+    TypeError: window.setupMatchModeControls is not a function
+
+      113 |
+      114 |     require('../ui/handlers/match-mode.js');
+    > 115 |     window.setupMatchModeControls(buildUiRefs());
+          |            ^
+      116 |   });
+      117 |
+      118 |   afterEach(() => {
+
+      at Object.<anonymous> (test/ui.match-mode.network-button.test.ts:115:12)
+
+  笳・match-mode network button behavior 窶ｺ 繝・ヰ繝・げ繝√ぉ繝・け譛ｪ驕ｸ謚槭〒縺ｯ create payload 縺ｫ networkDebugEnabled 繧定ｼ峨○縺ｪ縺・
+    TypeError: window.setupMatchModeControls is not a function
+
+      113 |
+      114 |     require('../ui/handlers/match-mode.js');
+    > 115 |     window.setupMatchModeControls(buildUiRefs());
+          |            ^
+      116 |   });
+      117 |
+      118 |   afterEach(() => {
+
+      at Object.<anonymous> (test/ui.match-mode.network-button.test.ts:115:12)
+
+FAIL test/local-match-server.publish-contract.test.ts
+  笳・local match server publish contract 窶ｺ VERSION_BEHIND response keeps room context and shared publishMeta shape
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 409
+    Received: 404
+
+      113 |       });
+      114 |
+    > 115 |       expect(response.status).toBe(409);
+          |                               ^
+      116 |       expect(response.data).toEqual(expect.objectContaining({
+      117 |         ok: false,
+      118 |         roomId,
+
+      at Object.<anonymous> (test/local-match-server.publish-contract.test.ts:115:31)
+
+  笳・local match server publish contract 窶ｺ seatHandSkins are exposed through create join state and hand-skin update
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 500
+
+      171 |         selectedHandSkinId: 'gacha__n__hand-swap'
+      172 |       });
+    > 173 |       expect(created.status).toBe(200);
+          |                              ^
+      174 |       expect(created.data.seatHandSkins).toEqual({
+      175 |         black: 'gacha__n__髯ｽ豌励↑謇・,
+      176 |         white: ''
+
+      at Object.<anonymous> (test/local-match-server.publish-contract.test.ts:173:30)
+
+  笳・local match server publish contract 窶ｺ network debug fill hand can replace the acting seat hand with requested cards only
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 500
+
+      224 |         networkDebugEnabled: true
+      225 |       });
+    > 226 |       expect(created.status).toBe(200);
+          |                              ^
+      227 |
+      228 |       const response = await requestJson(port, 'POST', '/api/match/publish', {
+      229 |         roomId: created.data.roomId,
+
+      at Object.<anonymous> (test/local-match-server.publish-contract.test.ts:226:30)
+
+  笳・local match server publish contract 窶ｺ missing operationId publish is rejected before command handling
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 409
+    Received: 404
+
+      281 |       });
+      282 |
+    > 283 |       expect(response.status).toBe(409);
+          |                               ^
+      284 |       expect(response.data).toEqual(expect.objectContaining({
+      285 |         ok: false,
+      286 |         roomId,
+
+      at Object.<anonymous> (test/local-match-server.publish-contract.test.ts:283:31)
+
+  笳・local match server publish contract 窶ｺ legacy snapshot-only publish is rejected and authoritative state stays unchanged
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 409
+    Received: 404
+
+      346 |       });
+      347 |
+    > 348 |       expect(response.status).toBe(409);
+          |                               ^
+      349 |       expect(response.data).toEqual(expect.objectContaining({
+      350 |         ok: false,
+      351 |         roomId,
+
+      at Object.<anonymous> (test/local-match-server.publish-contract.test.ts:348:31)
+
+  笳・local match server publish contract 窶ｺ authoritative tempt follow-up strips redundant card-use context and can steal robot vacuum
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      410 |         }];
+      411 |       });
+    > 412 |       expect(patched).toBe(true);
+          |                       ^
+      413 |
+      414 |       const state = await requestJson(
+      415 |         port,
+
+      at Object.<anonymous> (test/local-match-server.publish-contract.test.ts:412:23)
+
+  笳・local match server publish contract 窶ｺ stale pendingEffectId publish is rejected before deferred selection is applied
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: true
+    Received: false
+
+      494 |         };
+      495 |       });
+    > 496 |       expect(patched).toBe(true);
+          |                       ^
+      497 |
+      498 |       const response = await requestJson(port, 'POST', '/api/match/publish', {
+      499 |         roomId,
+
+      at Object.<anonymous> (test/local-match-server.publish-contract.test.ts:496:23)
+
+  笳・local match server publish contract 窶ｺ idempotent replay response keeps shared publishMeta shape
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      574 |
+      575 |       const first = await requestJson(port, 'POST', '/api/match/publish', publishBody);
+    > 576 |       expect(first.status).toBe(200);
+          |                            ^
+      577 |       expect(Array.isArray(first.data.playbackEvents)).toBe(true);
+      578 |       expect(Array.isArray(first.data.effectLogs)).toBe(true);
+      579 |       expect(first.data.playbackEvents.length).toBeGreaterThan(0);
+
+      at Object.<anonymous> (test/local-match-server.publish-contract.test.ts:576:28)
+
+  笳・local match server publish contract 窶ｺ different same-seat operationId is not treated as idempotent replay
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      660 |
+      661 |       const first = await requestJson(port, 'POST', '/api/match/publish', firstBody);
+    > 662 |       expect(first.status).toBe(200);
+          |                            ^
+      663 |       expect(first.data && first.data.ok).toBe(true);
+      664 |
+      665 |       const second = await requestJson(port, 'POST', '/api/match/publish', {
+
+      at Object.<anonymous> (test/local-match-server.publish-contract.test.ts:662:28)
+
+  笳・local match server publish contract 窶ｺ older accepted operationId is replayed even after a newer same-seat action
+
+    TypeError: Cannot read properties of undefined (reading 'gameState')
+
+      54 |
+      55 | function pickFirstLegalMove(snapshot, seatKey) {
+    > 56 |   const legalMoves = Core.getLegalMoves(snapshot.gameState, getSeatPlayer(seatKey));
+         |                                                  ^
+      57 |   if (!Array.isArray(legalMoves) || legalMoves.length === 0) {
+      58 |     throw new Error(`No legal moves available for ${seatKey}`);
+      59 |   }
+
+      at pickFirstLegalMove (test/local-match-server.publish-contract.test.ts:56:50)
+      at buildPlacePublishBody (test/local-match-server.publish-contract.test.ts:64:16)
+      at Object.<anonymous> (test/local-match-server.publish-contract.test.ts:706:25)
+
+  笳・local match server publish contract 窶ｺ second publish snapshot does not replay stale charge delta events from the previous turn
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      778 |         playerName: '縺励ｍ'
+      779 |       });
+    > 780 |       expect(joined.status).toBe(200);
+          |                             ^
+      781 |       const whiteSeatToken = joined.data.seatToken;
+      782 |
+      783 |       const blackPublish = await requestJson(
+
+      at Object.<anonymous> (test/local-match-server.publish-contract.test.ts:780:29)
+
+  笳・local match server publish contract 窶ｺ FATE_WILL controller seat can publish action during controlled opponent turn
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      845 |
+      846 |       const joined = await requestJson(port, 'POST', '/api/match/join', { roomId, playerName: '縺励ｍ' });
+    > 847 |       expect(joined.status).toBe(200);
+          |                             ^
+      848 |       const whiteSeatToken = joined.data.seatToken;
+      849 |
+      850 |       // Set FATE_WILL controller state: black controls white's turn, and it is white's turn.
+
+      at Object.<anonymous> (test/local-match-server.publish-contract.test.ts:847:29)
+
+  笳・local match server publish contract 窶ｺ non-controller out-of-turn publish is still rejected with OUT_OF_TURN
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      919 |
+      920 |       const joined = await requestJson(port, 'POST', '/api/match/join', { roomId, playerName: '縺励ｍ' });
+    > 921 |       expect(joined.status).toBe(200);
+          |                             ^
+      922 |       const whiteSeatToken = joined.data.seatToken;
+      923 |
+      924 |       const stateAfterJoin = await requestJson(
+
+      at Object.<anonymous> (test/local-match-server.publish-contract.test.ts:921:29)
+
+FAIL test/network.playback-event-assembly.contract.test.ts
+  笳・network playback event assembly contract 窶ｺ shared helper contract stays aligned across UI adapter, worker, and local match server
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      484 |     try {
+      485 |       room = await createJoinedLocalRoom();
+    > 486 |       expect(room.stateResponse.status).toBe(200);
+          |                                         ^
+      487 |       expect(room.stateResponse.data.ok).toBe(true);
+      488 |
+      489 |       const snapshot = room.stateResponse.data.snapshot;
+
+      at Object.<anonymous> (test/network.playback-event-assembly.contract.test.ts:486:41)
+
+  笳・network playback event assembly contract 窶ｺ shared helper contract stays aligned across UI adapter, worker, and local match server on 7x9 room
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      561 |       const roomBoardConfig = { rows: 7, cols: 9, standard8x8: false };
+      562 |       room = await createJoinedLocalRoom({ roomBoardConfig });
+    > 563 |       expect(room.stateResponse.status).toBe(200);
+          |                                         ^
+      564 |       expect(room.stateResponse.data.ok).toBe(true);
+      565 |       expect(room.stateResponse.data.roomBoardConfig).toMatchObject(roomBoardConfig);
+      566 |
+
+      at Object.<anonymous> (test/network.playback-event-assembly.contract.test.ts:563:41)
+
+  笳・network playback event assembly contract 窶ｺ local match stream replays missed snapshot events after Last-Event-ID reconnect
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 404
+
+      651 |     try {
+      652 |       room = await createJoinedLocalRoom();
+    > 653 |       expect(room.stateResponse.status).toBe(200);
+          |                                         ^
+      654 |       expect(room.stateResponse.data.ok).toBe(true);
+      655 |
+      656 |       const initialSnapshot = room.stateResponse.data.snapshot;
+
+      at Object.<anonymous> (test/network.playback-event-assembly.contract.test.ts:653:41)
+
+FAIL test/local-match-server.leave-contract.test.ts
+  笳・local match server leave contract 窶ｺ leave rotates seat token, rejects old token, and closes leaving stream
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 500
+
+      92 |     try {
+      93 |       const created = await requestJson(port, 'POST', '/api/match/create', { playerName: '縺上ｍ' });
+    > 94 |       expect(created.status).toBe(200);
+         |                              ^
+      95 |
+      96 |       const roomId = created.data.roomId;
+      97 |       const oldSeatToken = created.data.seatToken;
+
+      at Object.<anonymous> (test/local-match-server.leave-contract.test.ts:94:30)
+
+  笳・local match server leave contract 窶ｺ leave rejects missing and stale seat token without clearing the seat
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 500
+
+      143 |     try {
+      144 |       const created = await requestJson(port, 'POST', '/api/match/create', { playerName: '縺上ｍ' });
+    > 145 |       expect(created.status).toBe(200);
+          |                              ^
+      146 |
+      147 |       const roomId = created.data.roomId;
+      148 |       const oldSeatToken = created.data.seatToken;
+
+      at Object.<anonymous> (test/local-match-server.leave-contract.test.ts:145:30)
+
+  笳・local match server leave contract 窶ｺ stream rejects missing and stale seat token
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 500
+
+      195 |     try {
+      196 |       const created = await requestJson(port, 'POST', '/api/match/create', { playerName: '縺上ｍ' });
+    > 197 |       expect(created.status).toBe(200);
+          |                              ^
+      198 |
+      199 |       const roomId = created.data.roomId;
+      200 |
+
+      at Object.<anonymous> (test/local-match-server.leave-contract.test.ts:197:30)
+
+  笳・local match server leave contract 窶ｺ stream replays buffered snapshot from Last-Event-ID for the authenticated seat
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 500
+
+      226 |     try {
+      227 |       const created = await requestJson(port, 'POST', '/api/match/create', { playerName: '縺上ｍ' });
+    > 228 |       expect(created.status).toBe(200);
+          |                              ^
+      229 |
+      230 |       const roomId = created.data.roomId;
+      231 |       const seatToken = created.data.seatToken;
+
+      at Object.<anonymous> (test/local-match-server.leave-contract.test.ts:228:30)
+
+  笳・local match server leave contract 窶ｺ stream replays buffered snapshot from lastEventId query for the authenticated seat
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 200
+    Received: 500
+
+      340 |     try {
+      341 |       const created = await requestJson(port, 'POST', '/api/match/create', { playerName: '縺上ｍ' });
+    > 342 |       expect(created.status).toBe(200);
+          |                              ^
+      343 |
+      344 |       const roomId = created.data.roomId;
+      345 |       const seatToken = created.data.seatToken;
+
+      at Object.<anonymous> (test/local-match-server.leave-contract.test.ts:342:30)
+
+PASS test/utils.match-authority.publish-response.test.ts
+FAIL test/ui.animation-engine.test.ts
+  笳・Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     窶｢ If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     窶｢ If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     窶｢ To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     窶｢ If you need a custom transformation specify a "transform" option in your config.
+     窶｢ If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    C:\Users\quarr\Desktop\othello_v2\test\ui.animation-engine.test.ts:10
+            import * as engine from '../ui/animation-engine.js';
+            ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      at Runtime.createScriptFromCode (node_modules/jest-runtime/build/index.js:1505:14)
+
+FAIL test/ui.animation-utils.hand-fallback.test.ts
+  笳・Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     窶｢ If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     窶｢ If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     窶｢ To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     窶｢ If you need a custom transformation specify a "transform" option in your config.
+     窶｢ If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    C:\Users\quarr\Desktop\othello_v2\test\ui.animation-utils.hand-fallback.test.ts:94
+        import * as storageModule from '../ui/storage/gacha-progress.js';
+        ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      at Runtime.createScriptFromCode (node_modules/jest-runtime/build/index.js:1505:14)
+
+FAIL test/ui.network-snapshot.move-source-empty.test.ts
+  笳・Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     窶｢ If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     窶｢ If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     窶｢ To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     窶｢ If you need a custom transformation specify a "transform" option in your config.
+     窶｢ If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    C:\Users\quarr\Desktop\othello_v2\test\ui.network-snapshot.move-source-empty.test.ts:56
+        import { createNetworkSnapshotController } from '../ui/network/snapshot.js';
+        ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      at Runtime.createScriptFromCode (node_modules/jest-runtime/build/index.js:1505:14)
+
+FAIL test/ui.network-snapshot.single-writer-baseline.test.ts
+  笳・Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     窶｢ If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     窶｢ If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     窶｢ To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     窶｢ If you need a custom transformation specify a "transform" option in your config.
+     窶｢ If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    C:\Users\quarr\Desktop\othello_v2\test\ui.network-snapshot.single-writer-baseline.test.ts:90
+                import * as pendingCoordinator from '../game/turn/pending-coordinator.js';
+                ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      at Runtime.createScriptFromCode (node_modules/jest-runtime/build/index.js:1505:14)
+
+FAIL test/ui.network-client.trap-deferred-publish.test.ts
+  笳・Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     窶｢ If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     窶｢ If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     窶｢ To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     窶｢ If you need a custom transformation specify a "transform" option in your config.
+     窶｢ If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    C:\Users\quarr\Desktop\othello_v2\test\ui.network-client.trap-deferred-publish.test.ts:244
+            import { handleTrapSelection } from '../game/card-effects/trap.js';
+            ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      at Runtime.createScriptFromCode (node_modules/jest-runtime/build/index.js:1505:14)
+
+FAIL test/ui.network-client.action-bridge-next-snapshot.test.ts
+  笳・Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     窶｢ If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     窶｢ If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     窶｢ To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     窶｢ If you need a custom transformation specify a "transform" option in your config.
+     窶｢ If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    C:\Users\quarr\Desktop\othello_v2\test\ui.network-client.action-bridge-next-snapshot.test.ts:277
+            import * as CardLogic from '../game/logic/cards.js';
+            ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      at Runtime.createScriptFromCode (node_modules/jest-runtime/build/index.js:1505:14)
+
+FAIL test/ui.network-client.result-sync.test.ts
+  笳・Test suite failed to run
+
+    Jest encountered an unexpected token
+
+    Jest failed to parse a file. This happens e.g. when your code or its dependencies use non-standard JavaScript syntax, or when Jest is not configured to support such syntax.
+
+    Out of the box Jest supports Babel, which will be used to transform your files into valid JS based on your Babel configuration.
+
+    By default "node_modules" folder is ignored by transformers.
+
+    Here's what you can do:
+     窶｢ If you are trying to use ECMAScript Modules, see https://jestjs.io/docs/ecmascript-modules for how to enable it.
+     窶｢ If you are trying to use TypeScript, see https://jestjs.io/docs/getting-started#using-typescript
+     窶｢ To have some of your "node_modules" files transformed, you can specify a custom "transformIgnorePatterns" in your config.
+     窶｢ If you need a custom transformation specify a "transform" option in your config.
+     窶｢ If you simply want to mock your non-JS modules (e.g. binary assets) you can stub them out with the "moduleNameMapper" config option.
+
+    You'll find more details and examples of these config options in the docs:
+    https://jestjs.io/docs/configuration
+    For information about custom transformations, see:
+    https://jestjs.io/docs/code-transformation
+
+    Details:
+
+    C:\Users\quarr\Desktop\othello_v2\test\ui.network-client.result-sync.test.ts:212
+            import * as playbackState from '../ui/playback-state-manager.js';
+            ^^^^^^
+
+    SyntaxError: Cannot use import statement outside a module
+
+      at Runtime.createScriptFromCode (node_modules/jest-runtime/build/index.js:1505:14)
+
+Test Suites: 17 failed, 1 passed, 18 total
+Tests:       59 failed, 75 passed, 134 total
+Snapshots:   0 total
+Time:        86.769 s, estimated 87 s
+Ran all test suites within paths "test\ui.network-client.publish-base-version.test.ts", "test\ui.network-client.reconnect-sync.test.ts", "test\ui.network-client.result-sync.test.ts", "test\ui.network-client.action-bridge-next-snapshot.test.ts", "test\ui.network-client.trap-deferred-publish.test.ts", "test\ui.network-snapshot.single-writer-baseline.test.ts", "test\ui.network-snapshot.move-source-empty.test.ts", "test\workers.match-publish-sanitize.test.ts", "test\workers.match-publish-idempotency.test.ts", "test\workers.match-stream-sse.test.ts", "test\workers.match-leave-token-revocation.test.ts", "test\network.playback-event-assembly.contract.test.ts", "test\utils.match-authority.publish-response.test.ts", "test\local-match-server.publish-contract.test.ts", "test\local-match-server.leave-contract.test.ts", "test\ui.match-mode.network-button.test.ts", "test\ui.animation-utils.hand-fallback.test.ts", "test\ui.animation-engine.test.ts".
+
+[task-11 note] npm run test:network:parity exit code: 1

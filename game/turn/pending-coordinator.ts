@@ -15,7 +15,11 @@ const pendingCoordinatorModule = (function (root: any) {
         white: null
     };
 
+<<<<<<< Updated upstream
     function resolveCachedModule(cacheRef: any, requirePath: any, globalKey: any) {
+=======
+    function resolveCachedModule(cacheRef: any, requirePath: string, globalKey: string): any {
+>>>>>>> Stashed changes
         if (cacheRef && typeof cacheRef === 'object') {
             return cacheRef;
         }
@@ -56,7 +60,11 @@ const pendingCoordinatorModule = (function (root: any) {
         return cachedCardLogic;
     }
 
+<<<<<<< Updated upstream
     function callPendingStateManager(methodName: any, args: any, fallbackValue: any) {
+=======
+    function callPendingStateManager(methodName: string, args: any[], fallbackValue: any): any {
+>>>>>>> Stashed changes
         var pendingStateManager = getPendingStateManager();
         if (!pendingStateManager || typeof pendingStateManager[methodName] !== 'function') {
             return fallbackValue;
@@ -64,7 +72,11 @@ const pendingCoordinatorModule = (function (root: any) {
         return pendingStateManager[methodName].apply(pendingStateManager, args || []);
     }
 
+<<<<<<< Updated upstream
     function normalizePlayerKey(playerKey: any) {
+=======
+    function normalizePlayerKey(playerKey: any): string {
+>>>>>>> Stashed changes
         var ownerHelpers = getOwnerHelpers();
         if (ownerHelpers && typeof ownerHelpers.normalizePlayerKey === 'function') {
             return ownerHelpers.normalizePlayerKey(playerKey, 'black');
@@ -72,11 +84,19 @@ const pendingCoordinatorModule = (function (root: any) {
         return String(playerKey || '').trim().toLowerCase() === 'white' ? 'white' : 'black';
     }
 
+<<<<<<< Updated upstream
     function normalizePendingType(cardType: any) {
         return String(cardType || '').trim().toUpperCase();
     }
 
     function cloneData(value: any) {
+=======
+    function normalizePendingType(cardType: any): string {
+        return String(cardType || '').trim().toUpperCase();
+    }
+
+    function cloneData(value: any): any {
+>>>>>>> Stashed changes
         try {
             if (root && typeof root.structuredClone === 'function') {
                 return root.structuredClone(value);
@@ -85,7 +105,11 @@ const pendingCoordinatorModule = (function (root: any) {
         return JSON.parse(JSON.stringify(value));
     }
 
+<<<<<<< Updated upstream
     function clonePendingSelectionAction(action: any) {
+=======
+    function clonePendingSelectionAction(action: any): any {
+>>>>>>> Stashed changes
         if (!action || typeof action !== 'object') return null;
         try {
             return cloneData(action);
@@ -94,7 +118,11 @@ const pendingCoordinatorModule = (function (root: any) {
         }
     }
 
+<<<<<<< Updated upstream
     function ensurePendingStateByPlayer(cardState: any) {
+=======
+    function ensurePendingStateByPlayer(cardState: any): any {
+>>>>>>> Stashed changes
         if (!cardState || typeof cardState !== 'object') return null;
         if (!cardState.pendingEffectByPlayer || typeof cardState.pendingEffectByPlayer !== 'object') {
             cardState.pendingEffectByPlayer = { black: null, white: null };
@@ -108,6 +136,7 @@ const pendingCoordinatorModule = (function (root: any) {
         return cardState.pendingEffectByPlayer;
     }
 
+<<<<<<< Updated upstream
     function resolvePendingSelectionContract(cardType: any) {
         return callPendingStateManager('resolvePendingSelectionContract', [cardType], null);
     }
@@ -129,6 +158,29 @@ const pendingCoordinatorModule = (function (root: any) {
     }
 
     function storePendingSelectionAction(playerKey: any, action: any, pendingType: any) {
+=======
+    function resolvePendingSelectionContract(cardType: any): any {
+        return callPendingStateManager('resolvePendingSelectionContract', [cardType], null);
+    }
+
+    function resolvePendingSelectionDispatchKey(cardType: any): any {
+        return callPendingStateManager('resolvePendingSelectionDispatchKey', [cardType], null);
+    }
+
+    function isSelectionOnlyEndTurnPendingType(cardType: any): any {
+        return callPendingStateManager('isSelectionOnlyEndTurnPendingType', [cardType], false);
+    }
+
+    function shouldDeferNetworkPublishForPendingType(cardType: any): any {
+        return callPendingStateManager('shouldDeferNetworkPublishForPendingType', [cardType], false);
+    }
+
+    function shouldWaitForPlaybackIdleForPendingType(cardType: any): any {
+        return callPendingStateManager('shouldWaitForPlaybackIdleForPendingType', [cardType], false);
+    }
+
+    function storePendingSelectionAction(playerKey: any, action: any, pendingType: any): any {
+>>>>>>> Stashed changes
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
         if (!action || typeof action !== 'object') {
             pendingSelectionActionByPlayer[normalizedPlayerKey] = null;
@@ -141,7 +193,11 @@ const pendingCoordinatorModule = (function (root: any) {
         return readPendingSelectionAction(normalizedPlayerKey);
     }
 
+<<<<<<< Updated upstream
     function readPendingSelectionAction(playerKey: any) {
+=======
+    function readPendingSelectionAction(playerKey: any): any {
+>>>>>>> Stashed changes
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
         var storedEntry = pendingSelectionActionByPlayer[normalizedPlayerKey];
         var action = storedEntry && typeof storedEntry === 'object' && storedEntry.action && typeof storedEntry.action === 'object'
@@ -151,7 +207,11 @@ const pendingCoordinatorModule = (function (root: any) {
         return clonePendingSelectionAction(action);
     }
 
+<<<<<<< Updated upstream
     function clearPendingSelectionAction(playerKey: any) {
+=======
+    function clearPendingSelectionAction(playerKey: any): boolean {
+>>>>>>> Stashed changes
         pendingSelectionActionByPlayer[normalizePlayerKey(playerKey)] = null;
         return true;
     }
@@ -162,18 +222,30 @@ const pendingCoordinatorModule = (function (root: any) {
         return true;
     }
 
+<<<<<<< Updated upstream
     function readPendingEffect(cardState: any, playerKey: any) {
+=======
+    function readPendingEffect(cardState: any, playerKey: any): any {
+>>>>>>> Stashed changes
         var pendingByPlayer = ensurePendingStateByPlayer(cardState);
         if (!pendingByPlayer) return null;
         return pendingByPlayer[normalizePlayerKey(playerKey)] || null;
     }
 
+<<<<<<< Updated upstream
     function getPendingEffectType(cardState: any, playerKey: any) {
+=======
+    function getPendingEffectType(cardState: any, playerKey: any): any {
+>>>>>>> Stashed changes
         var pending = readPendingEffect(cardState, playerKey);
         return pending && pending.type ? pending.type : null;
     }
 
+<<<<<<< Updated upstream
     function allocatePendingEffectId(cardState: any) {
+=======
+    function allocatePendingEffectId(cardState: any): string {
+>>>>>>> Stashed changes
         var baseTurnIndex = cardState && Number.isFinite(Number(cardState.turnIndex))
             ? Math.max(0, Math.trunc(Number(cardState.turnIndex)))
             : 0;
@@ -187,7 +259,11 @@ const pendingCoordinatorModule = (function (root: any) {
         return 'pending_' + String(baseTurnIndex) + '_' + String(nextSeq);
     }
 
+<<<<<<< Updated upstream
     function writePendingEffect(cardState: any, playerKey: any, pendingEffect: any, options: any) {
+=======
+    function writePendingEffect(cardState: any, playerKey: any, pendingEffect: any, options: any): any {
+>>>>>>> Stashed changes
         var pendingByPlayer = ensurePendingStateByPlayer(cardState);
         if (!pendingByPlayer) {
             return { ok: false, reason: 'invalid_card_state' };
@@ -216,7 +292,11 @@ const pendingCoordinatorModule = (function (root: any) {
         };
     }
 
+<<<<<<< Updated upstream
     function clearPendingEffect(cardState: any, playerKey: any, options: any) {
+=======
+    function clearPendingEffect(cardState: any, playerKey: any, options: any): any {
+>>>>>>> Stashed changes
         var pendingByPlayer = ensurePendingStateByPlayer(cardState);
         if (!pendingByPlayer) {
             return { ok: false, reason: 'invalid_card_state' };
@@ -233,7 +313,11 @@ const pendingCoordinatorModule = (function (root: any) {
         };
     }
 
+<<<<<<< Updated upstream
     function resolvePendingSyncContext(value: any) {
+=======
+    function resolvePendingSyncContext(value: any): any {
+>>>>>>> Stashed changes
         if (!value || typeof value !== 'object') {
             return {
                 pendingByPlayer: null,
@@ -252,12 +336,20 @@ const pendingCoordinatorModule = (function (root: any) {
         };
     }
 
+<<<<<<< Updated upstream
     function syncPendingSelectionActionCache(pendingState: any, options: any) {
+=======
+    function syncPendingSelectionActionCache(pendingState: any, options: any): any {
+>>>>>>> Stashed changes
         var syncContext = resolvePendingSyncContext(pendingState);
         var pendingByPlayer = syncContext.pendingByPlayer;
         var expectedTurnIndex = syncContext.turnIndex;
         var opts = (options && typeof options === 'object') ? options : {};
+<<<<<<< Updated upstream
         var preservePlayerKeys = Array.isArray(opts.preservePlayerKeys)
+=======
+        var preservePlayerKeys: string[] = Array.isArray(opts.preservePlayerKeys)
+>>>>>>> Stashed changes
             ? opts.preservePlayerKeys.map(function (value: any) {
                 return normalizePlayerKey(value);
             })
@@ -302,7 +394,11 @@ const pendingCoordinatorModule = (function (root: any) {
         return summary;
     }
 
+<<<<<<< Updated upstream
     function shouldRetainPendingSelectionAction(cardStateValue: any, playerKey: any, pendingType: any) {
+=======
+    function shouldRetainPendingSelectionAction(cardStateValue: any, playerKey: any, pendingType: any): boolean {
+>>>>>>> Stashed changes
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
         var pendingByPlayer = cardStateValue && cardStateValue.pendingEffectByPlayer;
         var pending = pendingByPlayer && pendingByPlayer[normalizedPlayerKey];
@@ -311,23 +407,39 @@ const pendingCoordinatorModule = (function (root: any) {
         return normalizePendingType(pending.type) === normalizePendingType(pendingType);
     }
 
+<<<<<<< Updated upstream
     function clonePendingSelectionTransportTarget(target: any) {
+=======
+    function clonePendingSelectionTransportTarget(target: any): any {
+>>>>>>> Stashed changes
         if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
         return { row: target.row, col: target.col };
     }
 
+<<<<<<< Updated upstream
     function applyPendingSelectionCardContext(target: any, playerKey: any, pendingLike: any, options: any) {
+=======
+    function applyPendingSelectionCardContext(target: any, playerKey: any, pendingLike: any, options: any): any {
+>>>>>>> Stashed changes
         var payload = (target && typeof target === 'object') ? target : {};
         return payload;
     }
 
+<<<<<<< Updated upstream
     function buildPendingSelectionTransportState(pendingType: any, pending: any) {
+=======
+    function buildPendingSelectionTransportState(pendingType: any, pending: any): any {
+>>>>>>> Stashed changes
         var normalizedPendingType = normalizePendingType(pendingType || (pending && pending.type));
         if (!normalizedPendingType || !pending || normalizePendingType(pending.type) !== normalizedPendingType) {
             return null;
         }
 
+<<<<<<< Updated upstream
         var transportState: Record<string, any> = {
+=======
+        var transportState: any = {
+>>>>>>> Stashed changes
             type: normalizedPendingType,
             stage: typeof pending.stage === 'string' && pending.stage ? pending.stage : 'selectTarget'
         };
@@ -375,7 +487,11 @@ const pendingCoordinatorModule = (function (root: any) {
         return transportState;
     }
 
+<<<<<<< Updated upstream
     function createPendingSelectionAction(playerKey: any, pendingType: any, actionPayload: any, options: any) {
+=======
+    function createPendingSelectionAction(playerKey: any, pendingType: any, actionPayload: any, options: any): any {
+>>>>>>> Stashed changes
         var opts = (options && typeof options === 'object') ? options : {};
         var normalizedPayload = Object.assign({}, actionPayload || {});
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
@@ -399,7 +515,11 @@ const pendingCoordinatorModule = (function (root: any) {
                 && root.ActionManager
                 && root.ActionManager.ActionManager
                 && typeof root.ActionManager.ActionManager.createAction === 'function'
+<<<<<<< Updated upstream
                     ? function (type: any, ownerKey: any, payload: any) {
+=======
+                    ?                 function (type: any, ownerKey: any, payload: any) {
+>>>>>>> Stashed changes
                         return root.ActionManager.ActionManager.createAction(type, ownerKey, payload);
                     }
                     : null
@@ -416,7 +536,11 @@ const pendingCoordinatorModule = (function (root: any) {
         return action;
     }
 
+<<<<<<< Updated upstream
     function clearPendingSelectionFailureState(cardState: any, playerKey: any, options: any) {
+=======
+    function clearPendingSelectionFailureState(cardState: any, playerKey: any, options: any): any {
+>>>>>>> Stashed changes
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
         var opts = (options && typeof options === 'object') ? options : {};
         var shouldClearPendingEffect = opts.clearPendingEffect === true;
@@ -438,7 +562,11 @@ const pendingCoordinatorModule = (function (root: any) {
         };
     }
 
+<<<<<<< Updated upstream
     function requiresPendingTarget(cardType: any) {
+=======
+    function requiresPendingTarget(cardType: any): boolean {
+>>>>>>> Stashed changes
         var pendingStateManager = getPendingStateManager();
         return !!(
             pendingStateManager
@@ -447,7 +575,11 @@ const pendingCoordinatorModule = (function (root: any) {
         );
     }
 
+<<<<<<< Updated upstream
     function getPendingSelectionContract(cardType: any) {
+=======
+    function getPendingSelectionContract(cardType: any): any {
+>>>>>>> Stashed changes
         return resolvePendingSelectionContract(cardType);
     }
 

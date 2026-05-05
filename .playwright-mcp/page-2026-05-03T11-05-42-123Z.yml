@@ -1,0 +1,215 @@
+- generic [ref=e1]:
+  - heading "カードオセロ" [level=1] [ref=e2]
+  - generic: ROUND 1
+  - generic:
+    - generic: 効果ログ
+  - generic:
+    - img "敵CPU"
+    - generic: 盤喰いの小鬼
+  - generic:
+    - img "オセロの勇者"
+    - generic: オセロの勇者
+  - button "ガチャ" [ref=e3] [cursor=pointer]
+  - button "ランキング" [ref=e4] [cursor=pointer]
+  - button "デッキ" [ref=e5] [cursor=pointer]
+  - button "STORY" [ref=e6] [cursor=pointer]
+  - button "HELP" [ref=e7] [cursor=pointer]
+  - 'button "見た目設定（現在の手: 勇者の手）" [ref=e8] [cursor=pointer]': SKIN
+  - generic:
+    - dialog:
+      - generic:
+        - generic: story
+        - button: ×
+      - generic: 章を選んで開始します。未解放の章は表示されますが開始できません。
+  - generic [ref=e9]:
+    - generic [ref=e10]:
+      - generic:
+        - generic: 30/30
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14] [cursor=pointer]:
+          - generic: "9"
+        - generic [ref=e15] [cursor=pointer]:
+          - generic: "8"
+        - generic [ref=e16] [cursor=pointer]:
+          - generic: "1"
+        - generic [ref=e17] [cursor=pointer]:
+          - generic: "4"
+        - generic [ref=e18] [cursor=pointer]:
+          - generic: "2"
+        - generic [ref=e19] [cursor=pointer]:
+          - generic: "4"
+        - generic [ref=e20] [cursor=pointer]:
+          - generic: "4"
+        - generic [ref=e21] [cursor=pointer]:
+          - generic: "3"
+        - generic [ref=e22] [cursor=pointer]:
+          - generic: "4"
+        - generic [ref=e23] [cursor=pointer]:
+          - generic: "1"
+        - generic [ref=e24] [cursor=pointer]:
+          - generic: "3"
+        - generic [ref=e25] [cursor=pointer]:
+          - generic: "5"
+        - generic [ref=e26] [cursor=pointer]:
+          - generic: "3"
+        - generic [ref=e27] [cursor=pointer]:
+          - generic: "6"
+        - generic [ref=e28] [cursor=pointer]:
+          - generic: "7"
+        - generic [ref=e29] [cursor=pointer]:
+          - generic: "7"
+        - generic [ref=e30] [cursor=pointer]:
+          - generic: "1"
+        - generic [ref=e31] [cursor=pointer]:
+          - generic: "3"
+        - generic [ref=e32] [cursor=pointer]:
+          - generic: "6"
+        - generic [ref=e35] [cursor=pointer]:
+          - generic: "5"
+        - generic [ref=e36] [cursor=pointer]:
+          - generic: "1"
+        - generic [ref=e37] [cursor=pointer]:
+          - generic: "10"
+        - generic [ref=e38] [cursor=pointer]:
+          - generic: "4"
+        - generic [ref=e39] [cursor=pointer]:
+          - generic: "3"
+        - generic [ref=e46] [cursor=pointer]:
+          - generic: "2"
+        - generic [ref=e47] [cursor=pointer]:
+          - generic: "4"
+        - generic [ref=e48] [cursor=pointer]:
+          - generic: "2"
+        - generic [ref=e49] [cursor=pointer]:
+          - generic: "2"
+        - generic [ref=e56] [cursor=pointer]:
+          - generic: "6"
+        - generic [ref=e57] [cursor=pointer]:
+          - generic: "5"
+        - generic [ref=e58] [cursor=pointer]:
+          - generic: "4"
+        - generic [ref=e59] [cursor=pointer]:
+          - generic: "6"
+        - generic [ref=e60] [cursor=pointer]:
+          - generic: "1"
+        - generic [ref=e63] [cursor=pointer]:
+          - generic: "1"
+        - generic [ref=e64] [cursor=pointer]:
+          - generic: "3"
+        - generic [ref=e65] [cursor=pointer]:
+          - generic: "7"
+        - generic [ref=e66] [cursor=pointer]:
+          - generic: "3"
+        - generic [ref=e67] [cursor=pointer]:
+          - generic: "1"
+        - generic [ref=e68] [cursor=pointer]:
+          - generic: "1"
+        - generic [ref=e69] [cursor=pointer]:
+          - generic: "1"
+        - generic [ref=e70] [cursor=pointer]:
+          - generic: "1"
+        - generic [ref=e71] [cursor=pointer]:
+          - generic: "1"
+        - generic [ref=e72] [cursor=pointer]:
+          - generic: "1"
+        - generic [ref=e73] [cursor=pointer]:
+          - generic: "2"
+        - generic [ref=e74] [cursor=pointer]:
+          - generic: "2"
+        - generic [ref=e75] [cursor=pointer]:
+          - generic: "2"
+        - generic [ref=e76] [cursor=pointer]:
+          - generic: "3"
+        - generic [ref=e77] [cursor=pointer]:
+          - generic: "2"
+        - generic [ref=e78] [cursor=pointer]:
+          - generic: "5"
+        - generic [ref=e79] [cursor=pointer]:
+          - generic: "2"
+        - generic [ref=e80] [cursor=pointer]:
+          - generic: "2"
+        - generic [ref=e81] [cursor=pointer]:
+          - generic: "5"
+      - generic: "布石: 0 / 99"
+      - generic: "布石: 0 / 99"
+    - generic [ref=e82]:
+      - generic [ref=e135] [cursor=pointer]:
+        - generic [ref=e136]: 強風の意志
+        - generic [ref=e137]:
+          - text: ◈
+          - generic [ref=e138]: "9"
+          - generic [ref=e139]: cost
+        - generic:
+          - generic: ⚖︎ 執行
+        - text: ✦
+      - generic:
+        - generic: 29/30
+      - generic [ref=e90]:
+        - generic [ref=e91]: "-"
+        - generic [ref=e92]: カードを選択してください
+        - generic [ref=e93]:
+          - button "詳細" [disabled] [ref=e94]
+          - button "使用" [disabled] [ref=e95]
+          - button "破壊" [disabled] [ref=e96]
+  - generic [ref=e98]:
+    - button "操作パネルを閉じる" [expanded] [ref=e99] [cursor=pointer]: −
+    - generic [ref=e100]:
+      - generic [ref=e101]:
+        - generic [ref=e102]: GAME
+        - button "リセット" [active] [ref=e103] [cursor=pointer]
+        - 'button "AUTO: OFF" [ref=e104] [cursor=pointer]'
+      - generic [ref=e105]:
+        - generic [ref=e106]: MODE
+        - button "CPU" [ref=e107] [cursor=pointer]
+        - button "ネット対戦" [ref=e108] [cursor=pointer]
+        - 'button "DEBUG: OFF" [ref=e109] [cursor=pointer]'
+      - generic [ref=e110]:
+        - generic [ref=e111]: BOARD
+        - button "盤面サイズ" [ref=e112] [cursor=pointer]
+        - generic [ref=e113]: 8x8
+      - generic [ref=e114]:
+        - generic [ref=e115]: CPU LEVEL
+        - generic [ref=e116]: 黒
+        - combobox [ref=e117]:
+          - 'option "Lv1: 盤喰いの小鬼" [selected]'
+          - 'option "Lv2: 反転の影"'
+          - 'option "Lv3: 布石を紡ぐ者"'
+          - 'option "Lv4: 盤面支配者"'
+          - 'option "Lv5: 終局を告げる者"'
+          - 'option "Lv6: 盤理の観測者"'
+        - generic [ref=e118]: 白
+        - combobox [ref=e119]:
+          - 'option "Lv1: 盤喰いの小鬼" [selected]'
+          - 'option "Lv2: 反転の影"'
+          - 'option "Lv3: 布石を紡ぐ者"'
+          - 'option "Lv4: 盤面支配者"'
+          - 'option "Lv5: 終局を告げる者"'
+          - 'option "Lv6: 盤理の観測者"'
+      - generic [ref=e120]:
+        - generic [ref=e121]: SE
+        - button "🔊 ON" [ref=e122] [cursor=pointer]
+        - combobox [ref=e123]:
+          - option "既定配置音" [selected]
+        - slider [ref=e124]: "0.55"
+      - generic [ref=e125]:
+        - generic [ref=e126]: BGM
+        - button "▶" [ref=e127] [cursor=pointer]
+        - button "⏸" [ref=e128] [cursor=pointer]
+        - combobox [ref=e129]:
+          - option "c-othello" [selected]
+          - option "c-othello-2"
+          - option "盤喰いの小鬼戦"
+          - option "幻想即興曲"
+          - option "ノクターン"
+        - slider [ref=e130]: "0.09"
+    - generic [ref=e132]:
+      - generic [ref=e133]: 捨て札
+      - generic [ref=e134]: "0"
+  - text: ✦ ✦
+  - generic:
+    - generic:
+      - generic:
+        - img
+      - button [disabled]: 終了
+      - dialog

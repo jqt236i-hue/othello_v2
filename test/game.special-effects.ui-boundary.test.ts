@@ -13,8 +13,8 @@ describe('special-effects UI DI boundary', () => {
     describe(name, () => {
       beforeEach(() => {
         jest.resetModules();
-        try { delete global[globalSetterName]; } catch (e) {}
-        try { delete globalThis[globalSetterName]; } catch (e) {}
+        try { delete global[globalSetterName]; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+        try { delete globalThis[globalSetterName]; } catch (e) { /* Intentionally empty: test cleanup guard */ }
       });
 
       test('module can be required', () => {

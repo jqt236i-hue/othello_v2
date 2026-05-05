@@ -54,7 +54,7 @@ describe('NetworkMatchClient result sync', () => {
   });
 
   afterEach(() => {
-    try { if (dom && dom.window && typeof dom.window.close === 'function') dom.window.close(); } catch (e) {}
+    try { if (dom && dom.window && typeof dom.window.close === 'function') dom.window.close(); } catch (e) { /* Intentionally empty: test cleanup guard */ }
 
     delete global.window;
     delete global.document;

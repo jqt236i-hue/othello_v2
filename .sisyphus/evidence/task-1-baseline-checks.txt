@@ -1,0 +1,13 @@
+# Baseline Checks
+
+## `npm run checkall`
+- Exit code: `0`
+- Summary: `scripts/run-all-checks.js` ran `node scripts/check-window-usage.js` and `node scripts/test-shim-forwarding.js`; both passed.
+
+## `npm run test:browser:smoke`
+- Exit code: `0`
+- Summary: `scripts/browser-boot-smoke.js` succeeded and reported `browser-smoke success http://127.0.0.1:59270`.
+
+## `npm run worker:prepare`
+- Exit code: `0`
+- Summary: `scripts/prepare-worker-assets.js` completed successfully with no errors.

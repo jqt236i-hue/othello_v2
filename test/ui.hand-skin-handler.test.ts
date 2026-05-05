@@ -52,10 +52,10 @@ describe('hand skin handler', () => {
   });
 
   afterEach(() => {
-    try { delete global.window; } catch (e) {}
-    try { delete global.document; } catch (e) {}
-    try { delete global.Event; } catch (e) {}
-    try { delete global.KeyboardEvent; } catch (e) {}
+    try { delete global.window; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.document; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.Event; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.KeyboardEvent; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('applies stored unlocked gacha hand skin and updates selected option state', () => {

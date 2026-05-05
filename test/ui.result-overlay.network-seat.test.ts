@@ -31,7 +31,7 @@ describe('result overlay seat perspective', () => {
       if (dom && dom.window && typeof dom.window.close === 'function') {
         dom.window.close();
       }
-    } catch (e) {}
+    } catch (e) { /* Intentionally empty: test cleanup guard */ }
 
     delete global.window;
     delete global.document;
@@ -582,7 +582,7 @@ describe('showResult __resultToken race condition', () => {
     jest.useRealTimers();
     try {
       if (dom && dom.window && typeof dom.window.close === 'function') dom.window.close();
-    } catch (e) {}
+    } catch (e) { /* Intentionally empty: test cleanup guard */ }
     delete global.window;
     delete global.document;
     delete global.localStorage;

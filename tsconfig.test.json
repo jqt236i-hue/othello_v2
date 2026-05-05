@@ -1,0 +1,23 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "game/**/*",
+    "ui/**/*",
+    "shared/**/*",
+    "workers/**/*",
+    "scripts/**/*",
+    "cards/**/*",
+    "test/**/*",
+    "tests/**/*",
+    "src/**/*",
+    "utils/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "worker-public",
+    "coverage",
+    "**/__pycache__/**",
+    "ai/**/*"
+  ]
+}

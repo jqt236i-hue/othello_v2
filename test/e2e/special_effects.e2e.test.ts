@@ -83,7 +83,7 @@ describe('Special effects E2E', () => {
 
     if (!workApplied) {
       // give one final try to run the helper directly
-      await page.evaluate(() => { try { if (typeof ensureWorkVisualsApplied === 'function') ensureWorkVisualsApplied(); } catch (e) {} });
+      await page.evaluate(() => { try { if (typeof ensureWorkVisualsApplied === 'function') ensureWorkVisualsApplied(); } catch (e) { /* Intentionally empty: fire-and-forget retry */ } });
       // re-check once
       await new Promise(r => setTimeout(r, 500));
     }

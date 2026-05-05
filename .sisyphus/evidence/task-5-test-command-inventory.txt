@@ -1,0 +1,28 @@
+# Regression test command inventory
+
+## Existing commands
+- `npm run checkall`: static check bundle (`scripts/run-all-checks.js`).
+- `npm run test:jest -- --runTestsByPath test/serve-with-fallback.test.ts`: targeted serve helper tests.
+- `npm run worker:prepare`: prepares `worker-public` mirror/assets.
+- `npx wrangler deploy --dry-run`: validates Worker bundle/assets/bindings without publishing.
+
+## Added/needed targeted checks
+- Serve executable wrapper: `node scripts/serve-with-fallback.js --help` and a bounded child-process HTTP probe against `/index.html`.
+- Worker export: Node dynamic import of `workers/match-worker.mjs`, asserting keys include `default` and `MatchRoomDurableObject`.
+- Browser smoke: start `node scripts/serve-with-fallback.js --port <port>`, navigate with Playwright, assert no startup CommonJS wrapper errors and `#board`/`#resetBtn` are usable.
+
+## Tool availability
+- Playwright dependency exists in package.json.
+- Wrangler is available through `npx wrangler` and dry-run works without Cloudflare publish.
+- No deploy credentials are required for ordinary regression validation.
+
+## Exact command matrix for this task
+- Serve: `npm run serve`
+- Browser boot fixture: open `http://127.0.0.1:8000/` after serve starts; the wrapper serves `worker-public/` by default.
+- Worker export: `npm run worker:prepare`
+- Full checkall: `npm run checkall`
+
+## Deterministic fallback notes
+- `node scripts/serve-with-fallback.js --help` prints the wrapper usage and confirms the CLI entrypoint exists.
+- `node scripts/prepare-worker-assets.js --help` exits 0 even though it prints nothing.
+- `node scripts/run-all-checks.js --help` executes the full check bundle and passed in this repo.

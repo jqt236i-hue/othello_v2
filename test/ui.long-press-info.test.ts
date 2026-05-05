@@ -31,9 +31,9 @@ describe('board cell long press info', () => {
 
   afterEach(() => {
     jest.useRealTimers();
-    try { delete global.window; } catch (e) {}
-    try { delete global.document; } catch (e) {}
-    try { delete global.Event; } catch (e) {}
+    try { delete global.window; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.document; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.Event; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('short press keeps normal click behavior', () => {

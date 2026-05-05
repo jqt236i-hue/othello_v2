@@ -15,7 +15,7 @@ describe('gacha progress storage', () => {
       if (dom && dom.window && typeof dom.window.close === 'function') {
         dom.window.close();
       }
-    } catch (e) {}
+    } catch (e) { /* Intentionally empty: test cleanup guard */ }
     delete global.window;
     delete global.localStorage;
   });

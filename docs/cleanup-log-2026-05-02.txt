@@ -1,0 +1,83 @@
+# リポジトリ容量クリーンアップ作業ログ
+
+作業日: 2026-05-02
+対象: C:\Users\quarr\Desktop\othello_v2
+委託元: repo-storage-cleanup-runbook-2026-05-02.md
+
+---
+
+## Step A: 事前確認
+
+```powershell
+git rev-parse --show-toplevel
+```
+結果: `C:/Users/quarr/Desktop/othello_v2`
+
+```powershell
+Get-Process python,node -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,Path
+```
+結果: node プロセス多数あり、python プロセスなし。
+CommandLine フィルタ（selfplay|train）による詳細確認で学習ジョブは検出されず。
+
+## Step B: 削除対象 dry-run 確認
+
+```powershell
+node .\dist\scripts\clean-selfplay-artifacts.js --keep-deployed
+```
+結果:
+- targets=1028
+- size=52.17 GB
+- 主要対象: data/runs/browser_lv6_deploy_v1/ 配下の .ndjson, .log, .json など
+- dry-run only. Use --apply to delete.
+
+## Step D: 本削除
+
+```powershell
+node .\dist\scripts\clean-selfplay-artifacts.js --keep-deployed --apply
+```
+結果:
+- targets=1028
+- size=52.17 GB
+- deleted=1028
+- failed=0
+
+## Step 5: 検証
+
+### 容量確認
+
+```powershell
+Get-ChildItem -Force | ForEach-Object { ... }
+```
+結果（上位）:
+- data: 5.42 GB（クリーンアップ前: 約 57.6 GB）
+- .venv: 4.64 GB
+- .git: 0.75 GB
+- worker-public: 0.29 GB
+- assets: 0.23 GB
+- tmp: 0.22 GB
+- node_modules: 0.22 GB
+
+### 保持モデル確認
+
+```powershell
+Get-ChildItem -LiteralPath .\data\models -Force | Select-Object Name, @{N='SizeMB';E={[math]::Round($_.Length/1MB,2)}}
+```
+結果（本番用モデル5点）:
+- policy-table.json: 11.52 MB
+- policy-net.onnx: 1.06 MB
+- policy-card.onnx: 0.97 MB
+- policy-target.onnx: 1.00 MB
+- policy-value.onnx: 0.88 MB
+
+すべて保持されており、削除対象には含まれていない。
+
+## 追加クリーンアップ（Step E）
+
+現時点では未実施。.venv / node_modules / data/egaroucid の削除は、再インストール・再生成が必要な場合のみ別途判断。
+
+## 総括
+
+- 削除済み容量: 52.17 GB
+- 残存データ容量: 5.42 GB
+- 失敗ファイル: 0
+- 本番用モデル5点: 全て保持確認済み

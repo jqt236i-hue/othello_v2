@@ -8,13 +8,13 @@ describe('ui/bootstrap special stone preload', () => {
   });
 
   afterEach(() => {
-    try { consoleErrorSpy.mockRestore(); } catch (e) {}
+    try { consoleErrorSpy.mockRestore(); } catch (e) { /* Intentionally empty: test cleanup guard */ }
     jest.resetModules();
-    try { delete global.window; } catch (e) {}
-    try { delete global.document; } catch (e) {}
-    try { delete global.Image; } catch (e) {}
-    try { delete global.preloadStoneVisualEffectKeys; } catch (e) {}
-    try { delete global.getSupportedEffectKeys; } catch (e) {}
+    try { delete global.window; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.document; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.Image; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.preloadStoneVisualEffectKeys; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.getSupportedEffectKeys; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   function installDom() {
