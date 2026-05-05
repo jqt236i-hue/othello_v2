@@ -626,7 +626,7 @@ Wave FINAL (Review):
 
 ---
 
-- [ ] 11. **ビルド確認（npm run build:ts）**
+- [x] 11. **ビルド確認（npm run build:ts）**
 
   **What to do**:
   - `npm run build:ts` を実行

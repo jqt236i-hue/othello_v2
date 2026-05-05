@@ -6,11 +6,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
-<<<<<<< Updated upstream
-// lightning is provided as a global by the build system (esbuild-banner.js)
-declare const lightning: any;
-=======
 declare const lightning: Record<string, unknown>;
->>>>>>> Stashed changes
 
 export = lightning;

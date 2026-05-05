@@ -1,10 +1,4 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
-declare var CoreLogic: any;
-declare var CardLogic: any;
-declare var cardState: any;
-declare var MarkersAdapter: any;
-declare var isDebugLogAvailable: any;
-declare var debugLog: any;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
@@ -29,39 +23,23 @@ if (typeof CoreLogic === 'undefined') {
 
 // ===== Game State Management =====
 
-<<<<<<< Updated upstream
-function createGameState(boardConfig: any): any {
-    return CoreLogic.createGameState(boardConfig);
-}
-
-function copyGameState(state: any): any {
-=======
 function createGameState(boardConfig: any) {
     return CoreLogic.createGameState(boardConfig);
 }
 
 function copyGameState(state: any) {
->>>>>>> Stashed changes
     return CoreLogic.copyGameState(state);
 }
 
 // ===== Move Logic =====
 
 // Legacy signature support: splits context params into arguments and global lookups
-<<<<<<< Updated upstream
-function getFlips(state: any, row: any, col: any, player: any, protectedStones: any, permaProtectedStones: any): any {
-=======
 function getFlips(state: any, row: any, col: any, player: any, protectedStones: any, permaProtectedStones: any) {
->>>>>>> Stashed changes
     // Prefer centralized helper to obtain card-related context when available
     let context: any = null;
     try {
-<<<<<<< Updated upstream
-        const ctxHelper = (typeof require === 'function') ? require('./logic/context') : (typeof globalThis !== 'undefined' ? (globalThis as any).GameLogicContext : null);
-=======
         const _gt: any = typeof globalThis !== 'undefined' ? globalThis : null;
         const ctxHelper = (typeof require === 'function') ? require('./logic/context') : (_gt ? _gt.GameLogicContext : null);
->>>>>>> Stashed changes
         if (ctxHelper && typeof ctxHelper.getSafeCardContext === 'function') {
             context = ctxHelper.getSafeCardContext(typeof cardState !== 'undefined' ? cardState : undefined, protectedStones, permaProtectedStones);
         }
@@ -96,19 +74,11 @@ function getFlips(state: any, row: any, col: any, player: any, protectedStones: 
     return CoreLogic.getFlipsWithContext(state, row, col, player, context);
 }
 
-<<<<<<< Updated upstream
-function applyMove(state: any, move: any): any {
-    return CoreLogic.applyMove(state, move);
-}
-
-function applyPass(state: any): any {
-=======
 function applyMove(state: any, move: any) {
     return CoreLogic.applyMove(state, move);
 }
 
 function applyPass(state: any) {
->>>>>>> Stashed changes
     const newState = CoreLogic.applyPass(state);
 
     // Maintain logging side-effect
@@ -123,19 +93,11 @@ function applyPass(state: any) {
     return newState;
 }
 
-<<<<<<< Updated upstream
-function isGameOver(state: any): any {
-    return CoreLogic.isGameOver(state);
-}
-
-function countDiscs(state: any): any {
-=======
 function isGameOver(state: any) {
     return CoreLogic.isGameOver(state);
 }
 
 function countDiscs(state: any) {
->>>>>>> Stashed changes
     return CoreLogic.countDiscs(state);
 }
 

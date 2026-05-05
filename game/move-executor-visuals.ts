@@ -1,9 +1,4 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
-declare var __uiImpl_move_exec_visuals: any;
-declare var __uiImpl: any;
-declare var AnimationEngine: any;
-declare var CardLogic: any;
-declare var getMoveExecutorVisuals: any;
 
 function _require(id: string): any {
   if (typeof __non_webpack_require__ !== 'undefined') {
@@ -111,11 +106,7 @@ function getTurnTransitionGapMs() {
 // Timers abstraction injection - use game/timers when available instead of direct timers
 let timers: any = null;
 try { timers = _require('../timers'); } catch (e) { /* ignore */ }
-<<<<<<< Updated upstream
-const _waitMs = (ms: number) => (timers && typeof timers.waitMs === 'function') ? timers.waitMs(ms) : Promise.resolve();
-=======
 const _waitMs = (ms: any) => (timers && typeof timers.waitMs === 'function') ? timers.waitMs(ms) : Promise.resolve();
->>>>>>> Stashed changes
 
 async function animateFlipsWithDeferredColor(flips: any, fromColor: any, toColor: any) {
     if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.animateFlipsWithDeferredColor === 'function') {
@@ -207,10 +198,7 @@ async function runMoveVisualSequence(move: any, hadSelection: any, phases: any, 
 
 // Expose to Node.js requires; game/ side is intentionally DOM-free and delegates to UI at runtime
 // Provide a small DI boundary so UI can inject implementations for visual helpers.
-<<<<<<< Updated upstream
-=======
 __uiImpl_move_exec_visuals = {};
->>>>>>> Stashed changes
 function setUIImpl(obj: any) { __uiImpl_move_exec_visuals = obj || {}; }
 function clearUIImpl() { __uiImpl_move_exec_visuals = {}; }
 

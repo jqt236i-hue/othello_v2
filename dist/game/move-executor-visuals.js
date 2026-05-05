@@ -174,6 +174,7 @@ async function runMoveVisualSequence(move, hadSelection, phases, effects, immedi
 }
 // Expose to Node.js requires; game/ side is intentionally DOM-free and delegates to UI at runtime
 // Provide a small DI boundary so UI can inject implementations for visual helpers.
+__uiImpl_move_exec_visuals = {};
 function setUIImpl(obj) { __uiImpl_move_exec_visuals = obj || {}; }
 function clearUIImpl() { __uiImpl_move_exec_visuals = {}; }
 module.exports = {

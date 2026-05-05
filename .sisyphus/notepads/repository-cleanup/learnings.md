@@ -70,3 +70,26 @@ All 10 deleted files were bridge/wrapper files (1-3 lines) that re-export from `
 
 **Pre-existing issue found:**
 `npm run build:ts` fails with TS1185 merge conflict markers across many `game/` TS files (`effect-resolver.ts`, `selectors.ts`, `target-resolver.ts`, `game-core-logic.ts`, `pending-coordinator.ts`, etc.). This is unrelated to Task 8 - the errors are in game logic files, not in the root bridge files we deleted.
+
+## Task 11: Fix merge conflict markers in TypeScript files (2026-05-05)
+
+**Summary:** Removed all merge conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) from 19 TypeScript files that were introduced during repository cleanup.
+
+**Pattern of conflicts:**
+- **Simple import conflicts (7 files):** `effect-resolver.ts`, `selectors.ts`, `network-turn-handoff.ts`, `move-generator.ts`, `move-executor.ts`, `game-controller-slim.ts`, `turn_pipeline_phase_helpers.ts` — Updated upstream had dist/ reference imports vs Stashed changes had clean imports. Chose Stashed changes (clean imports) per task instructions.
+- **Type annotation conflicts (5 files):** `target-resolver.ts`, `pending-coordinator.ts`, `game-core-logic.ts`, `turn_pipeline_phases.ts`, `move-executor-visuals.ts` — Updated upstream had `any`/no type annotations vs Stashed changes had proper types (`number`, `string` return types, etc.). Chose Stashed changes (proper types).
+- **`any` vs `Record<string, unknown>` (4 files):** `breeding.ts`, `lightning.ts`, `destroy_dragon.ts`, `work_will.ts` — Updated upstream had `declare const foo: any` with comment vs Stashed changes had `Record<string, unknown>`. Chose Stashed changes.
+- **Template vs function (2 files):** `sniper.ts`, `utils.ts` — Updated upstream had template-based code (IIFE with declared template variables) vs Stashed changes had proper function implementations. Chose Stashed changes.
+- **Module scope (1 file):** `regen.ts` — Two conflicts: `self : {}` vs `self : this` (chose `this`), and `Array<{row; col}>` type annotation removed (had to re-add to fix TS7034 implicit any[]).
+
+**Additional fixes during typecheck:**
+- Removed duplicate `declare` blocks in `game-core-logic.ts` (lines 2-7) and `move-executor-visuals.ts` (lines 2/6) to resolve TS2300 errors
+- Added `: any` return type to `cloneDeferredPendingSelectionValue` in `turn_pipeline_phases.ts` to fix TS7023 implicit return type
+- Changed `sniper.ts` export from `declare const` to `Record<string, any>` to match runtime JS module shape
+- Dist directory needed cleaning to resolve pre-existing TS5055 errors
+
+**Verification:**
+- `npm run typecheck` — exit code 0 (clean)
+- `npm run build:ts` — exit code 0 (after dist clean)
+- Zero merge conflict markers remain across all TypeScript files
+- 19 files modified (all conflicts), 2 additional files cleaned (duplicate declarations)
