@@ -496,6 +496,22 @@ async function executeMoveViaPipeline(move, hadSelection, playerKey, adapter, pi
     if (typeof WHITE !== 'undefined' && gameState.currentPlayer === WHITE && humanMode) {
         debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] human-vs-human mode: skip CPU scheduling');
     }
+    // In local mode (no finalizeTurn), onTurnStart for the next player must be called
+    // to trigger card draw, effect ticks, game-over checks, and turn logging.
+    // The pipeline runs with skipTurnStart:true, so turn-start is not handled there.
+    try {
+        const nextPlayer = gameState.currentPlayer;
+        if (typeof nextPlayer !== 'undefined' && nextPlayer !== null) {
+            debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] local mode: calling onTurnStart for next player', { nextPlayer });
+            if (typeof onTurnStartLogic === 'function') {
+                onTurnStartLogic(nextPlayer).catch(err => {
+                    debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] onTurnStart failed', err);
+                });
+            }
+        }
+    } catch (e) {
+        debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] error calling onTurnStart', e);
+    }
     setMoveExecutorProcessing(false);
     try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
 }

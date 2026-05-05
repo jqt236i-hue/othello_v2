@@ -190,8 +190,9 @@ function getCurrentMatchModeSafe() {
 }
 
 function isHumanVsHumanModeEnabled() {
+    const debugHvH = typeof globalThis !== 'undefined' && globalThis.DEBUG_HUMAN_VS_HUMAN === true;
     const matchMode = getCurrentMatchModeSafe();
-    return matchMode === 'network';
+    return debugHvH || matchMode === 'network';
 }
 
 function isNetworkModeEnabled() {
