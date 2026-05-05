@@ -1,6 +1,20 @@
 # Dependencies
 node_modules/
 
+# Build outputs
+dist/
+coverage/
+
+# Cloudflare Wrangler cache
+.wrangler/
+
+# Playwright MCP artifacts
+.playwright-mcp/page-*.png
+.playwright-mcp/*.txt
+
+# Python cache
+**/__pycache__/
+
 # Generated ML artifacts (safe to regenerate)
 logs/
 reports/
