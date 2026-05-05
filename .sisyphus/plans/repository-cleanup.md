@@ -414,7 +414,7 @@ Wave FINAL (Review):
 
 ---
 
-- [ ] 7. **重複ディレクトリの削除（game/logic/game/, game/cards/game/, game/game/）**
+- [x] 7. **重複ディレクトリの削除（game/logic/game/, game/cards/game/, game/game/）**
 
   **What to do**:
   - `rg` で各ディレクトリへの参照を確認:
@@ -468,7 +468,7 @@ Wave FINAL (Review):
 
 ---
 
-- [ ] 8. **ルートJS/TSペアの整理（11ファイル）**
+- [x] 8. **ルートJS/TSペアの整理（11ファイル）**
 
   **What to do**:
   - 以下の11ファイルの `.js` を削除（`.ts` は残す）:
@@ -535,7 +535,7 @@ Wave FINAL (Review):
 
 ---
 
-- [ ] 9. **一時ファイル・ログ・スクリーンショットの削除**
+- [x] 9. **一時ファイル・ログ・スクリーンショットの削除**
 
   **What to do**:
   - 以下のファイルを削除:
@@ -582,7 +582,7 @@ Wave FINAL (Review):
 
 ---
 
-- [ ] 10. **worker-public/孤児ファイルの削除**
+- [x] 10. **worker-public/孤児ファイルの削除**
 
   **What to do**:
   - 以下の3ファイルを確認して削除:

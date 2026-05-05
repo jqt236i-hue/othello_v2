@@ -1,3 +1,0 @@
-[worker-prepare] generated-compressed data/models/policy-table.json -> data/models/policy-table.json.gz raw=1.3MiB compressed=0.1MiB
-[worker-prepare] mirror-verified files=396
-[worker-prepare] output=C:\Users\quarr\Desktop\othello_v2\worker-public
