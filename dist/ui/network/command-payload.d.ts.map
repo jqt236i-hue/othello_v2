@@ -1,1 +1,0 @@
-{"version":3,"file":"command-payload.d.ts","sourceRoot":"","sources":["../../../ui/network/command-payload.ts"],"names":[],"mappings":"AAkFA,iBAAS,gCAAgC,CAAC,MAAM,EAAE,GAAG,EAAE,iBAAiB,CAAC,EAAE,GAAG,EAAE,OAAO,CAAC,EAAE,GAAG,GAAG,GAAG,CA6BlG;AAcD,iBAAS,0BAA0B,CAAC,IAAI,EAAE,GAAG,EAAE,OAAO,CAAC,EAAE,GAAG,GAAG,GAAG,CAsCjE;AAED,QAAA,MAAM,cAAc;;;CAGnB,CAAC;AAEF,SAAS,cAAc,CAAC"}

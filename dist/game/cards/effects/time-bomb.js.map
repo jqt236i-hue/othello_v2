@@ -1,1 +1,0 @@
-{"version":3,"file":"time-bomb.js","sourceRoot":"","sources":["../../../../game/cards/effects/time-bomb.ts"],"names":[],"mappings":";AAAA;;;GAGG;AAGH,8DAA+D;AAG/D,MAAM,OAAO,GAAG;IACd,iBAAiB,EAAE,cAAc,CAAC,iBAAiB;IACnD,SAAS,EAAE,cAAc,CAAC,SAAS;IACnC,UAAU,EAAE,cAAc,CAAC,UAAU;CACtC,CAAC;AAEF,iBAAS,OAAO,CAAC"}

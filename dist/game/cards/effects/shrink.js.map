@@ -1,1 +1,0 @@
-{"version":3,"file":"shrink.js","sourceRoot":"","sources":["../../../../game/cards/effects/shrink.ts"],"names":[],"mappings":";AAAA;;;GAGG;AAEH,yDAA0D;AAE1D,MAAM,OAAO,GAAQ;IACnB,oBAAoB,EAAE,YAAY,CAAC,oBAAoB;IACvD,mBAAmB,EAAE,YAAY,CAAC,mBAAmB;IACrD,4BAA4B,EAAE,YAAY,CAAC,4BAA4B;CACxE,CAAC;AAEF,iBAAS,OAAO,CAAC"}

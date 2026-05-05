@@ -1,1 +1,0 @@
-{"version":3,"file":"dragon.js","sourceRoot":"","sources":["../../../../game/cards/effects/dragon.ts"],"names":[],"mappings":";AAAA;;;GAGG;AAGH,2DAA4D;AAG5D,MAAM,OAAO,GAIT;IACF,oBAAoB,EAAE,YAAY,CAAC,oBAAoB;IACvD,4BAA4B,EAAE,YAAY,CAAC,4BAA4B;IACvE,qCAAqC,EAAE,YAAY,CAAC,qCAAqC;CAC1F,CAAC;AAEF,iBAAS,OAAO,CAAC"}
