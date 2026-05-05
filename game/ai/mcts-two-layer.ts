@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * @file mcts-two-layer.ts
  * @description Two-layer MCTS (Duelyst-style IMC) for Card Othello.

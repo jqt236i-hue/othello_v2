@@ -1,4 +1,3 @@
-// @ts-nocheck
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
@@ -22,10 +21,10 @@ const AUX_FEATURE_DIM = 16;
 const LEGACY_BOARD_SIZE = 8;
 const LEGACY_BOARD_FEATURE_DIM = LEGACY_BOARD_SIZE * LEGACY_BOARD_SIZE;
 const MAX_HAND_SIZE = 5;
-let SharedBoardUtils = null;
+let SharedBoardUtils: any = null;
 try {
     SharedBoardUtils = _require('../../shared/shared-board-utils');
-} catch (e) { /* ignore */ }
+} catch (e: any) { /* ignore */ }
 const PADDED_BOARD_MIN = SharedBoardUtils && Number.isFinite(Number(SharedBoardUtils.PADDED_BOARD_MIN))
     ? Number(SharedBoardUtils.PADDED_BOARD_MIN)
     : -1;
@@ -47,33 +46,33 @@ const NO_CARD_ACTION_ID = '__no_card__';
 const LEGACY_DECK_COUNT_NORMALIZER = 60;
 const DECK_COUNT_FEATURE_MODE = 'own_deck_ratio_v1';
 
-let _session = null;
-let _meta = null;
+let _session: any = null;
+let _meta: any = null;
 let _inputName = 'obs';
 let _placeOutputName = 'logits';
-let _cardOutputName = null;
-let _cardActionIds = [];
+let _cardOutputName: any = null;
+let _cardActionIds: any = [];
 let _cardActionIndexById = Object.create(null);
 let _noCardActionIndex = -1;
-let _cardSession = null;
-let _cardMeta = null;
+let _cardSession: any = null;
+let _cardMeta: any = null;
 let _cardInputName = 'obs';
 let _cardHeadOutputName = 'card_logits';
-let _cardModelActionIds = [];
+let _cardModelActionIds: any = [];
 let _cardModelActionIndexById = Object.create(null);
 let _cardModelNoCardActionIndex = -1;
-let _targetSession = null;
-let _targetMeta = null;
+let _targetSession: any = null;
+let _targetMeta: any = null;
 let _targetInputName = 'obs';
 let _targetOutputName = 'target_logits';
-let _valueSession = null;
-let _valueMeta = null;
+let _valueSession: any = null;
+let _valueMeta: any = null;
 let _valueInputName = 'obs';
 let _valueOutputName = 'value';
-let _lastError = null;
-let _cardLastError = null;
-let _targetLastError = null;
-let _valueLastError = null;
+let _lastError: any = null;
+let _cardLastError: any = null;
+let _targetLastError: any = null;
+let _valueLastError: any = null;
 let _sourceUrl = DEFAULT_MODEL_URL;
 let _metaUrl = DEFAULT_META_URL;
 let _cardSourceUrl = DEFAULT_CARD_MODEL_URL;
@@ -130,13 +129,13 @@ function nowMs() {
     return Date.now();
 }
 
-function normalizeDurationMs(value) {
+function normalizeDurationMs(value: any) {
     const n = Number(value);
     if (!Number.isFinite(n)) return 0;
     return Math.max(0, n);
 }
 
-function pushLatencySample(bucket, durationMs) {
+function pushLatencySample(bucket: any, durationMs: any) {
     if (!bucket || !Array.isArray(bucket.samples)) return;
     bucket.samples.push(durationMs);
     if (bucket.samples.length > LATENCY_SAMPLE_LIMIT) {
@@ -144,7 +143,7 @@ function pushLatencySample(bucket, durationMs) {
     }
 }
 
-function recordLatency(operationKey, startedAt) {
+function recordLatency(operationKey: any, startedAt: any) {
     if (!operationKey) return;
     const bucket = _latencyStats && _latencyStats.perOperation
         ? _latencyStats.perOperation[operationKey]
@@ -161,7 +160,7 @@ function recordLatency(operationKey, startedAt) {
     }
 }
 
-function summarizeLatencyBucket(bucket) {
+function summarizeLatencyBucket(bucket: any) {
     if (!bucket) {
         return { count: 0, totalMs: 0, averageMs: 0, p95Ms: 0, maxMs: 0, lastMs: 0 };
     }
@@ -171,7 +170,7 @@ function summarizeLatencyBucket(bucket) {
     const lastMs = Number(bucket.lastMs) || 0;
     let p95Ms = 0;
     if (Array.isArray(bucket.samples) && bucket.samples.length > 0) {
-        const sorted = bucket.samples.slice().sort((a, b) => a - b);
+        const sorted = bucket.samples.slice().sort((a: any, b: any) => a - b);
         const index = Math.max(0, Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1));
         p95Ms = Number(sorted[index]) || 0;
     }
@@ -196,7 +195,7 @@ function getLatencyStatus() {
     };
 }
 
-function configure(config) {
+function configure(config: any) {
     if (!config || typeof config !== 'object') return getStatus();
     if (typeof config.enabled === 'boolean') _config.enabled = config.enabled;
     if (Number.isFinite(config.minLevel)) _config.minLevel = Math.max(1, Math.floor(config.minLevel));
@@ -312,7 +311,7 @@ function resolveOrtApi(requireSession: any): any {
     return null;
 }
 
-async function loadMetaJson(url, fetchImpl) {
+async function loadMetaJson(url: any, fetchImpl: any) {
     const f = fetchImpl || (typeof fetch === 'function' ? fetch : null);
     if (!f) return null;
     try {
@@ -326,7 +325,7 @@ async function loadMetaJson(url, fetchImpl) {
     }
 }
 
-function applyCardActionIds(ids) {
+function applyCardActionIds(ids: any) {
     _cardActionIds = Array.isArray(ids) ? ids.filter((one) => typeof one === 'string' && one.trim()) : [];
     _cardActionIndexById = Object.create(null);
     for (let i = 0; i < _cardActionIds.length; i++) {
@@ -337,7 +336,7 @@ function applyCardActionIds(ids) {
         : -1;
 }
 
-function applyCardModelActionIds(ids) {
+function applyCardModelActionIds(ids: any) {
     _cardModelActionIds = Array.isArray(ids) ? ids.filter((one) => typeof one === 'string' && one.trim()) : [];
     _cardModelActionIndexById = Object.create(null);
     for (let i = 0; i < _cardModelActionIds.length; i++) {
@@ -348,7 +347,7 @@ function applyCardModelActionIds(ids) {
         : -1;
 }
 
-function resolveTensorByName(outputs, preferredName, fallbackIndex) {
+function resolveTensorByName(outputs: any, preferredName: any, fallbackIndex: any) {
     if (!outputs || typeof outputs !== 'object') return null;
     if (preferredName && outputs[preferredName] && outputs[preferredName].data) return outputs[preferredName];
     const keys = Object.keys(outputs);
@@ -358,7 +357,7 @@ function resolveTensorByName(outputs, preferredName, fallbackIndex) {
     return outputs[key] || null;
 }
 
-async function loadFromUrl(modelUrl, metaUrl, fetchImpl) {
+async function loadFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any) {
     const ortApi = resolveOrtApi(true);
     if (!ortApi) {
         _lastError = new Error('onnxruntime-web is not available');
@@ -369,7 +368,7 @@ async function loadFromUrl(modelUrl, metaUrl, fetchImpl) {
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _metaUrl;
 
     try {
-        let session = null;
+        let session: any = null;
         try {
             session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['webgpu', 'wasm'] });
         } catch (primaryErr) {
@@ -397,7 +396,7 @@ async function loadFromUrl(modelUrl, metaUrl, fetchImpl) {
     }
 }
 
-async function loadCardModelFromUrl(modelUrl, metaUrl, fetchImpl) {
+async function loadCardModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any) {
     const ortApi = resolveOrtApi(true);
     if (!ortApi) {
         _cardLastError = new Error('onnxruntime-web is not available');
@@ -408,7 +407,7 @@ async function loadCardModelFromUrl(modelUrl, metaUrl, fetchImpl) {
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _cardMetaUrl;
 
     try {
-        let session = null;
+        let session: any = null;
         try {
             session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['webgpu', 'wasm'] });
         } catch (primaryErr) {
@@ -438,7 +437,7 @@ async function loadCardModelFromUrl(modelUrl, metaUrl, fetchImpl) {
     }
 }
 
-async function loadTargetModelFromUrl(modelUrl, metaUrl, fetchImpl) {
+async function loadTargetModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any) {
     const ortApi = resolveOrtApi(true);
     if (!ortApi) {
         _targetLastError = new Error('onnxruntime-web is not available');
@@ -449,7 +448,7 @@ async function loadTargetModelFromUrl(modelUrl, metaUrl, fetchImpl) {
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _targetMetaUrl;
 
     try {
-        let session = null;
+        let session: any = null;
         try {
             session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['webgpu', 'wasm'] });
         } catch (primaryErr) {
@@ -477,7 +476,7 @@ async function loadTargetModelFromUrl(modelUrl, metaUrl, fetchImpl) {
     }
 }
 
-async function loadValueModelFromUrl(modelUrl, metaUrl, fetchImpl) {
+async function loadValueModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any) {
     const ortApi = resolveOrtApi(true);
     if (!ortApi) {
         _valueLastError = new Error('onnxruntime-web is not available');
@@ -488,7 +487,7 @@ async function loadValueModelFromUrl(modelUrl, metaUrl, fetchImpl) {
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _valueMetaUrl;
 
     try {
-        let session = null;
+        let session: any = null;
         try {
             session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['webgpu', 'wasm'] });
         } catch (primaryErr) {
@@ -516,7 +515,7 @@ async function loadValueModelFromUrl(modelUrl, metaUrl, fetchImpl) {
     }
 }
 
-function perspectiveCell(v, playerKey) {
+function perspectiveCell(v: any, playerKey: any) {
     if (!Number.isFinite(v)) return 0;
     const sign = playerKey === 'black' ? 1 : -1;
     if (v === sign) return 1;
@@ -524,7 +523,7 @@ function perspectiveCell(v, playerKey) {
     return 0;
 }
 
-function buildCardCounts(cardIds) {
+function buildCardCounts(cardIds: any) {
     const counts = Object.create(null);
     if (!Array.isArray(cardIds)) return counts;
     for (const one of cardIds) {
@@ -536,7 +535,7 @@ function buildCardCounts(cardIds) {
     return counts;
 }
 
-function toBinaryFlag(raw) {
+function toBinaryFlag(raw: any) {
     if (raw === true) return 1;
     if (raw === false || raw == null) return 0;
     const n = Number(raw);
@@ -544,14 +543,14 @@ function toBinaryFlag(raw) {
     return n > 0 ? 1 : 0;
 }
 
-function sigmoidDelta(delta) {
+function sigmoidDelta(delta: any) {
     const n = Number(delta);
     if (!Number.isFinite(n)) return 0.5;
     const capped = Math.max(-12, Math.min(12, n));
     return 1 / (1 + Math.exp(-capped));
 }
 
-function getBoardCoordinates(board) {
+function getBoardCoordinates(board: any) {
     if (!Array.isArray(board)) return [];
     if (SharedBoardUtils && typeof SharedBoardUtils.collectBoardCoordinates === 'function') {
         return SharedBoardUtils.collectBoardCoordinates(board);
@@ -566,7 +565,7 @@ function getBoardCoordinates(board) {
     return out;
 }
 
-function getBoardCellValue(board, row, col) {
+function getBoardCellValue(board: any, row: any, col: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function') {
         return SharedBoardUtils.getCellValue(board, row, col);
     }
@@ -574,7 +573,7 @@ function getBoardCellValue(board, row, col) {
     return board[row][col];
 }
 
-function isCornerMoveForBoard(move, board) {
+function isCornerMoveForBoard(move: any, board: any) {
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return false;
     if (SharedBoardUtils && typeof SharedBoardUtils.isCornerCell === 'function') {
         return SharedBoardUtils.isCornerCell(Number(move.row), Number(move.col), board);
@@ -582,7 +581,7 @@ function isCornerMoveForBoard(move, board) {
     return (move.row === 0 || move.row === 7) && (move.col === 0 || move.col === 7);
 }
 
-function isEdgeMoveForBoard(move, board) {
+function isEdgeMoveForBoard(move: any, board: any) {
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return false;
     if (SharedBoardUtils && typeof SharedBoardUtils.isEdgeCell === 'function') {
         return SharedBoardUtils.isEdgeCell(Number(move.row), Number(move.col), board);
@@ -590,7 +589,7 @@ function isEdgeMoveForBoard(move, board) {
     return move.row === 0 || move.row === 7 || move.col === 0 || move.col === 7;
 }
 
-function isPaddedActionSpace(modelMeta, outputDimHint) {
+function isPaddedActionSpace(modelMeta: any, outputDimHint: any) {
     const paddedSize = modelMeta && Number.isFinite(Number(modelMeta.paddedBoardSize))
         ? Math.floor(Number(modelMeta.paddedBoardSize))
         : 0;
@@ -603,15 +602,15 @@ function isPaddedActionSpace(modelMeta, outputDimHint) {
     return false;
 }
 
-function supportsPaddedBoardFeatures(modelMeta) {
+function supportsPaddedBoardFeatures(modelMeta: any) {
     const metaBase = modelMeta && Number.isFinite(Number(modelMeta.baseInputDim))
         ? Math.floor(Number(modelMeta.baseInputDim))
         : null;
     return isPaddedActionSpace(modelMeta, modelMeta && modelMeta.outputDim) ||
-        (Number.isFinite(metaBase) && metaBase >= (PADDED_BOARD_FEATURE_DIM + AUX_FEATURE_DIM));
+        (Number.isFinite(metaBase) && (metaBase as number) >= (PADDED_BOARD_FEATURE_DIM + AUX_FEATURE_DIM));
 }
 
-function resolveBoardFeatureDim(modelMeta, baseInputDim) {
+function resolveBoardFeatureDim(modelMeta: any, baseInputDim: any) {
     if (supportsPaddedBoardFeatures(modelMeta)) {
         return PADDED_BOARD_FEATURE_DIM;
     }
@@ -621,7 +620,7 @@ function resolveBoardFeatureDim(modelMeta, baseInputDim) {
     return LEGACY_BOARD_FEATURE_DIM;
 }
 
-function resolveActionGrid(modelMeta, outputDimHint) {
+function resolveActionGrid(modelMeta: any, outputDimHint: any) {
     if (isPaddedActionSpace(modelMeta, outputDimHint)) {
         return {
             minCoord: PADDED_BOARD_MIN,
@@ -634,7 +633,7 @@ function resolveActionGrid(modelMeta, outputDimHint) {
     };
 }
 
-function actionIndexFromCoord(row, col, modelMeta, outputDimHint) {
+function actionIndexFromCoord(row: any, col: any, modelMeta: any, outputDimHint: any) {
     if (!Number.isFinite(row) || !Number.isFinite(col)) return -1;
     const grid = resolveActionGrid(modelMeta, outputDimHint);
     const normalizedRow = Number(row);
@@ -651,7 +650,7 @@ function actionIndexFromCoord(row, col, modelMeta, outputDimHint) {
     return (normalizedRow * grid.size) + normalizedCol;
 }
 
-function estimateDiscDiffFromBoard(board, playerKey) {
+function estimateDiscDiffFromBoard(board: any, playerKey: any) {
     if (!Array.isArray(board)) return 0;
     const own = playerKey === 'black' ? 1 : -1;
     const opp = -own;
@@ -665,7 +664,7 @@ function estimateDiscDiffFromBoard(board, playerKey) {
     return ownCount - oppCount;
 }
 
-function resolveCardUseProbabilityThreshold(context) {
+function resolveCardUseProbabilityThreshold(context: any) {
     const ctx = context || {};
     const legalMovesCount = Number.isFinite(ctx.legalMovesCount) ? Number(ctx.legalMovesCount) : 0;
     if (legalMovesCount <= 0) return 0.5;
@@ -694,7 +693,7 @@ function resolveCardUseProbabilityThreshold(context) {
     return Math.max(0.5, Math.min(0.8, threshold));
 }
 
-function countCornerEdgeControl(board, playerKey) {
+function countCornerEdgeControl(board: any, playerKey: any) {
     const out = { ownCorners: 0, oppCorners: 0, ownEdges: 0, oppEdges: 0 };
     if (!Array.isArray(board)) return out;
     const own = playerKey === 'black' ? 1 : -1;
@@ -725,7 +724,7 @@ function countCornerEdgeControl(board, playerKey) {
     return out;
 }
 
-function getContextBoardBonusAtCell(ctx, row, col) {
+function getContextBoardBonusAtCell(ctx: any, row: any, col: any) {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return 0;
     const key = `${row},${col}`;
     if (ctx.boardBonusConsumedByCell && ctx.boardBonusConsumedByCell[key] === true) return 0;
@@ -733,7 +732,7 @@ function getContextBoardBonusAtCell(ctx, row, col) {
     return Number.isFinite(raw) && raw > 0 ? raw : 0;
 }
 
-function getCornerPlanFeatures(ctx, board, playerKey) {
+function getCornerPlanFeatures(ctx: any, board: any, playerKey: any) {
     const control = countCornerEdgeControl(board, playerKey);
     const ownCorners = Number.isFinite(Number(ctx.ownCornersBefore)) ? Number(ctx.ownCornersBefore) : control.ownCorners;
     const oppCorners = Number.isFinite(Number(ctx.oppCornersBefore)) ? Number(ctx.oppCornersBefore) : control.oppCorners;
@@ -743,10 +742,10 @@ function getCornerPlanFeatures(ctx, board, playerKey) {
     const moves = Array.isArray(ctx.candidateMoves) ? ctx.candidateMoves : [];
     const hasCornerMoveNow = Number.isFinite(Number(ctx.hasCornerMoveNow))
         ? toBinaryFlag(ctx.hasCornerMoveNow)
-        : (moves.some((move) => isCornerMoveForBoard(move, board)) ? 1 : 0);
+        : (moves.some((move: any) => isCornerMoveForBoard(move, board)) ? 1 : 0);
     const hasEdgeMoveNow = Number.isFinite(Number(ctx.hasEdgeMoveNow))
         ? toBinaryFlag(ctx.hasEdgeMoveNow)
-        : (moves.some((move) => isEdgeMoveForBoard(move, board) && !isCornerMoveForBoard(move, board)) ? 1 : 0);
+        : (moves.some((move: any) => isEdgeMoveForBoard(move, board) && !isCornerMoveForBoard(move, board)) ? 1 : 0);
 
     let maxLegalMoveBonus = Number.isFinite(Number(ctx.maxLegalMoveBonus)) ? Number(ctx.maxLegalMoveBonus) : 0;
     if (maxLegalMoveBonus <= 0 && moves.length > 0) {
@@ -780,9 +779,9 @@ function getCornerPlanFeatures(ctx, board, playerKey) {
     };
 }
 
-function resolveBaseInputDim(modelMeta, inputDim, cardDim) {
+function resolveBaseInputDim(modelMeta: any, inputDim: any, cardDim: any): number {
     const metaBase = modelMeta && Number.isFinite(modelMeta.baseInputDim) ? Math.floor(modelMeta.baseInputDim) : null;
-    if (Number.isFinite(metaBase) && metaBase >= 64 && metaBase <= inputDim) return metaBase;
+    if (Number.isFinite(metaBase) && (metaBase as number) >= 64 && (metaBase as number) <= inputDim) return metaBase as number;
     if (Number.isFinite(cardDim) && cardDim > 0) {
         const inferred = inputDim - (cardDim * 2);
         if (inferred >= 64 && inferred <= inputDim) return inferred;
@@ -790,7 +789,7 @@ function resolveBaseInputDim(modelMeta, inputDim, cardDim) {
     return Math.min(BASE_INPUT_DIM, inputDim);
 }
 
-function resolveDeckCountScalar(ctx, modelMeta) {
+function resolveDeckCountScalar(ctx: any, modelMeta: any) {
     const legacyDeckCount = Number.isFinite(ctx.deckCount) ? ctx.deckCount : 0;
     if (modelMeta && modelMeta.deckCountFeature === DECK_COUNT_FEATURE_MODE) {
         const ownDeckCount = Number.isFinite(ctx.ownDeckCount) ? ctx.ownDeckCount : legacyDeckCount;
@@ -802,7 +801,7 @@ function resolveDeckCountScalar(ctx, modelMeta) {
     return legacyDeckCount / LEGACY_DECK_COUNT_NORMALIZER;
 }
 
-function buildInputVector(context, metaOverride, actionIdsOverride) {
+function buildInputVector(context: any, metaOverride: any, actionIdsOverride: any) {
     const ctx = context || {};
     const board = Array.isArray(ctx.board) ? ctx.board : [];
     const playerKey = ctx.playerKey === 'black' ? 'black' : 'white';
@@ -886,7 +885,7 @@ function buildInputVector(context, metaOverride, actionIdsOverride) {
     }
 
     const pendingTypes = modelMeta && Array.isArray(modelMeta.pendingTypes)
-        ? modelMeta.pendingTypes.filter((one) => typeof one === 'string' && one.trim())
+        ? modelMeta.pendingTypes.filter((one: any) => typeof one === 'string' && one.trim())
         : [];
     if (pendingTypes.length > 0) {
         const fullCardOffset = baseInputDim + (cardDim * 2);
@@ -905,19 +904,19 @@ function buildInputVector(context, metaOverride, actionIdsOverride) {
     return out;
 }
 
-function indexFromMove(move, modelMeta, outputDimHint) {
+function indexFromMove(move: any, modelMeta: any, outputDimHint: any) {
     if (!move) return -1;
     return actionIndexFromCoord(move.row, move.col, modelMeta, outputDimHint);
 }
 
-function isStandardOnnxBoard(board) {
+function isStandardOnnxBoard(board: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isStandardBoard8x8 === 'function') {
         return SharedBoardUtils.isStandardBoard8x8(board);
     }
     return false;
 }
 
-function hasOnlySupportedMoveIndexes(moves, modelMeta, outputDimHint) {
+function hasOnlySupportedMoveIndexes(moves: any, modelMeta: any, outputDimHint: any) {
     if (!Array.isArray(moves)) return true;
     for (const move of moves) {
         if (indexFromMove(move, modelMeta, outputDimHint) < 0) return false;
@@ -925,7 +924,7 @@ function hasOnlySupportedMoveIndexes(moves, modelMeta, outputDimHint) {
     return true;
 }
 
-function isSupportedOnnxContext(context, candidateMoves, modelMeta, outputDimHint) {
+function isSupportedOnnxContext(context: any, candidateMoves: any, modelMeta: any, outputDimHint: any) {
     const board = Array.isArray(context && context.board) ? context.board : null;
     if (supportsPaddedBoardFeatures(modelMeta)) {
         if (!Array.isArray(board) || board.length <= 0) return false;
@@ -938,21 +937,21 @@ function isSupportedOnnxContext(context, candidateMoves, modelMeta, outputDimHin
     return true;
 }
 
-async function runInferenceForSession(session, inputName, context, metaOverride, actionIdsOverride) {
+async function runInferenceForSession(session: any, inputName: any, context: any, metaOverride: any, actionIdsOverride: any) {
     if (!session) return null;
     const ortApi = resolveOrtApi(false);
     if (!ortApi) return null;
     const x = buildInputVector(context || {}, metaOverride, actionIdsOverride);
-    const feeds = {};
+    const feeds: any = {};
     feeds[inputName] = new ortApi.Tensor('float32', x, [1, x.length]);
     return session.run(feeds);
 }
 
-async function runInference(context) {
+async function runInference(context: any) {
     return runInferenceForSession(_session, _inputName, context, _meta, _cardActionIds);
 }
 
-async function chooseMove(candidateMoves, context) {
+async function chooseMove(candidateMoves: any, context: any) {
     if (!_config.enabled) return null;
     if (!hasModel()) return null;
     if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
@@ -969,7 +968,7 @@ async function chooseMove(candidateMoves, context) {
         if (!out || !out.data) return null;
         const scores = out.data;
 
-        let best = null;
+        let best: any = null;
         let bestScore = -Infinity;
         for (const move of candidateMoves) {
             const idx = indexFromMove(move, _meta, scores.length);
@@ -996,7 +995,7 @@ async function chooseMove(candidateMoves, context) {
     }
 }
 
-async function chooseCard(usableCardIds, context) {
+async function chooseCard(usableCardIds: any, context: any) {
     if (!_config.enabled) return null;
     if (!hasModel() && !hasCardSpecialistModel()) return null;
     if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
@@ -1021,7 +1020,7 @@ async function chooseCard(usableCardIds, context) {
         if (!out || !out.data) return null;
         const scores = out.data;
 
-        let bestCardId = null;
+        let bestCardId: any = null;
         let bestScore = -Infinity;
         for (const cardId of usableCardIds) {
             if (typeof cardId !== 'string') continue;
@@ -1063,7 +1062,7 @@ async function chooseCard(usableCardIds, context) {
     }
 }
 
-async function choosePendingTarget(candidateTargets, context) {
+async function choosePendingTarget(candidateTargets: any, context: any) {
     if (!_config.enabled) return null;
     if (!hasTargetModel()) return null;
     if (!Array.isArray(candidateTargets) || candidateTargets.length === 0) return null;
@@ -1079,7 +1078,7 @@ async function choosePendingTarget(candidateTargets, context) {
         if (!out || !out.data) return null;
         const scores = out.data;
 
-        let best = null;
+        let best: any = null;
         let bestScore = -Infinity;
         for (const target of candidateTargets) {
             const idx = indexFromMove(target, _targetMeta, scores.length);
@@ -1106,7 +1105,7 @@ async function choosePendingTarget(candidateTargets, context) {
     }
 }
 
-async function evaluatePosition(context) {
+async function evaluatePosition(context: any) {
     if (!_config.enabled) return null;
     if (!hasValueModel()) return null;
     if (!isSupportedOnnxContext(context, null, _valueMeta, _valueMeta && _valueMeta.outputDim)) return null;
@@ -1129,7 +1128,7 @@ async function evaluatePosition(context) {
     }
 }
 
-function __setLoadedForTest(session, meta) {
+function __setLoadedForTest(session: any, meta: any) {
     _session = session || null;
     _meta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
     _inputName = (_meta && _meta.inputName) || 'obs';
@@ -1139,7 +1138,7 @@ function __setLoadedForTest(session, meta) {
     _lastError = null;
 }
 
-function __setCardModelForTest(session, meta) {
+function __setCardModelForTest(session: any, meta: any) {
     _cardSession = session || null;
     _cardMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
     _cardInputName = (_cardMeta && _cardMeta.inputName) || 'obs';
@@ -1148,7 +1147,7 @@ function __setCardModelForTest(session, meta) {
     _cardLastError = null;
 }
 
-function __setTargetModelForTest(session, meta) {
+function __setTargetModelForTest(session: any, meta: any) {
     _targetSession = session || null;
     _targetMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
     _targetInputName = (_targetMeta && _targetMeta.inputName) || 'obs';
@@ -1156,7 +1155,7 @@ function __setTargetModelForTest(session, meta) {
     _targetLastError = null;
 }
 
-function __setValueModelForTest(session, meta) {
+function __setValueModelForTest(session: any, meta: any) {
     _valueSession = session || null;
     _valueMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
     _valueInputName = (_valueMeta && _valueMeta.inputName) || 'obs';
@@ -1198,8 +1197,9 @@ if (typeof module !== 'undefined' && module.exports) {
 
 try {
     if (typeof globalThis !== 'undefined') {
-        globalThis.CpuPolicyOnnxRuntime = Api; // @compat - backward-compat export
+        (globalThis as any).CpuPolicyOnnxRuntime = Api; // @compat - backward-compat export
     }
 } catch (e) { /* ignore */ }
 
 export = Api;
+

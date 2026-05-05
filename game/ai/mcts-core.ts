@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * @file mcts-core.ts
  * @description Neural-guided MCTS (AlphaZero-style, no rollouts).
@@ -115,7 +114,7 @@ class MCTSTree {
     }
 
     for (let sim = 0; sim < this.numSimulations; sim++) {
-      let node = root;
+      let node: MCTSNode = root;
       const path = [node];
       let state = this.gameInterface.copyState(rootState);
       let cardState = rootCardState ? this.gameInterface.copyCardState(rootCardState) : null;
@@ -125,7 +124,7 @@ class MCTSTree {
       while (node.isExpanded && node.children.length > 0) {
         const parentQ = node.value;
         const fpu = parentQ - this.fpuReduction;
-        node = node.selectChild(this.c_puct, fpu);
+        node = node.selectChild(this.c_puct, fpu)!;
         if (!node) break;
         path.push(node);
         const result = this.gameInterface.applyAction(state, cardState, node.action, playerKey);

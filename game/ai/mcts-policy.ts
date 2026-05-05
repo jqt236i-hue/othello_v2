@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -25,29 +24,29 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
 const { MCTSTree } = require('./mcts-core');
 const { GumbelMCTS } = require('./gumbel-mcts');
 
-let CoreLogic = null;
+let CoreLogic: any = null;
 try {
     CoreLogic = _require('../logic/core');
-} catch (e) { /* ignore */ }
+} catch (e: any) { /* ignore */ }
 
-let CardLogic = null;
+let CardLogic: any = null;
 try {
     CardLogic = _require('../logic/cards');
-} catch (e) { /* ignore */ }
+} catch (e: any) { /* ignore */ }
 
-let CpuPolicyOnnxRuntime = null;
+let CpuPolicyOnnxRuntime: any = null;
 try {
     CpuPolicyOnnxRuntime = _require('./policy-onnx-runtime');
-} catch (e) { /* ignore */ }
+} catch (e: any) { /* ignore */ }
 
-function getPlayerValue(playerKey) {
+function getPlayerValue(playerKey: any): number {
     if (CoreLogic && CoreLogic.BLACK !== undefined) {
         return playerKey === 'black' ? CoreLogic.BLACK : CoreLogic.WHITE;
     }
     return playerKey === 'black' ? 1 : -1;
 }
 
-function copyGameState(state) {
+function copyGameState(state: any): any {
     if (CoreLogic && typeof CoreLogic.copyGameState === 'function') {
         return CoreLogic.copyGameState(state);
     }
@@ -55,16 +54,16 @@ function copyGameState(state) {
     return JSON.parse(JSON.stringify(state));
 }
 
-function copyCardState(cardState) {
+function copyCardState(cardState: any): any {
     if (!cardState) return null;
     return JSON.parse(JSON.stringify(cardState));
 }
 
-function boardToString(board) {
+function boardToString(board: any): string {
     if (!Array.isArray(board)) return '';
     try {
         return JSON.stringify(board);
-    } catch (e) {
+    } catch (e: any) {
         return '';
     }
 }
@@ -78,7 +77,7 @@ const _gameInterface = {
 
     copyCardState: copyCardState,
 
-    hashState(state, cardState, playerKey) {
+    hashState(state: any, cardState: any, playerKey: string): string {
         const boardStr = boardToString(state && state.board);
         const chargeStr = (cardState && cardState.charge)
             ? JSON.stringify(cardState.charge)
@@ -86,12 +85,12 @@ const _gameInterface = {
         return `${boardStr}|${chargeStr}|${playerKey}`;
     },
 
-    hashAfterAction(parentHash, action) {
+    hashAfterAction(parentHash: string, action: any): string {
         return `${parentHash}>${action.type}:${action.row ?? '_'}:${action.col ?? '_'}:${action.cardId ?? '_'}`;
     },
 
-    listActions(state, cardState, playerKey) {
-        const actions = [];
+    listActions(state: any, cardState: any, playerKey: string): any[] {
+        const actions: any[] = [];
         if (!CoreLogic || typeof CoreLogic.getLegalMoves !== 'function') {
             return actions;
         }
@@ -105,7 +104,7 @@ const _gameInterface = {
         return actions;
     },
 
-    applyAction(state, cardState, action, playerKey) {
+    applyAction(state: any, cardState: any, action: any, playerKey: string): any {
         const nextState = copyGameState(state);
         const nextCardState = copyCardState(cardState);
         const nextPlayer = playerKey === 'black' ? 'white' : 'black';
@@ -126,7 +125,7 @@ const _gameInterface = {
         return { state: nextState, cardState: nextCardState, nextPlayer };
     },
 
-    isTerminal(state, cardState) {
+    isTerminal(state: any, cardState: any): any {
         if (!CoreLogic) {
             return { isTerminal: false, value: 0 };
         }
@@ -161,11 +160,11 @@ const _gameInterface = {
         return { isTerminal: true, value };
     },
 
-    nextPlayer(playerKey) {
+    nextPlayer(playerKey: string): string {
         return playerKey === 'black' ? 'white' : 'black';
     },
 
-    actionToKey(action) {
+    actionToKey(action: any): string {
         if (action.type === 'place') {
             return `place:${action.row}:${action.col}`;
         }
@@ -177,7 +176,7 @@ const _gameInterface = {
 // Neural-network wrapper injected into MCTSTree
 // ---------------------------------------------------------------------------
 
-function _buildOnnxContext(state, cardState, playerKey, legalMoves) {
+function _buildOnnxContext(state: any, cardState: any, playerKey: string, legalMoves: any[]): any {
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
     const board = Array.isArray(state && state.board) ? state.board : [];
     const charge = (cardState && cardState.charge) || {};
@@ -217,7 +216,7 @@ function _buildOnnxContext(state, cardState, playerKey, legalMoves) {
     };
 }
 
-function _resolveDeckMetrics(cardState, playerKey) {
+function _resolveDeckMetrics(cardState: any, playerKey: string): any {
     const legacyDeckCount = (cardState && Array.isArray(cardState.deck)) ? cardState.deck.length : 0;
     const ownDeckCount = (cardState && cardState.decks && Array.isArray(cardState.decks[playerKey]))
         ? cardState.decks[playerKey].length
@@ -231,14 +230,14 @@ function _resolveDeckMetrics(cardState, playerKey) {
     return { legacyDeckCount, ownDeckCount, initialDeckSize };
 }
 
-function _getHandCardIds(cardState, playerKey) {
+function _getHandCardIds(cardState: any, playerKey: string): any[] {
     if (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])) {
         return cardState.hands[playerKey].slice();
     }
     return [];
 }
 
-function _getUsableCardIds(cardState, playerKey) {
+function _getUsableCardIds(cardState: any, playerKey: string): any[] {
     if (!CardLogic || typeof CardLogic.getUsableCards !== 'function') return [];
     try {
         return CardLogic.getUsableCards(cardState, playerKey);
@@ -248,7 +247,7 @@ function _getUsableCardIds(cardState, playerKey) {
 }
 
 const _network = {
-    async evaluate(state, cardState, playerKey) {
+    async evaluate(state: any, cardState: any, playerKey: string): Promise<any> {
         if (!CpuPolicyOnnxRuntime) {
             return { policy: new Map(), value: 0 };
         }
@@ -324,7 +323,7 @@ const _network = {
  * @param {number} [opts.temperature]
  * @returns {Promise<object|null>}  Best action or null on failure.
  */
-async function searchWithMcts(state, cardState, playerKey, opts) {
+async function searchWithMcts(state: any, cardState: any, playerKey: string, opts: any): Promise<any> {
     const options = opts || {};
     const numSimulations = Number.isFinite(options.numSimulations)
         ? Math.max(1, Math.floor(options.numSimulations))
@@ -353,9 +352,9 @@ async function searchWithMcts(state, cardState, playerKey, opts) {
             result = await tree.search(state, cardState, playerKey);
         }
         if (!Array.isArray(result) || result.length === 0) return null;
-        result.sort((a, b) => b.visitCount - a.visitCount);
+        result.sort((a: any, b: any) => b.visitCount - a.visitCount);
         return result[0].action;
-    } catch (e) {
+    } catch (e: any) {
         if (typeof console !== 'undefined' && console.warn) {
             console.warn('[MCTS] search failed, fallback to direct policy', e);
         }
@@ -367,5 +366,5 @@ export = { searchWithMcts, _gameInterface, _network };
 
 // Browser global
 if (typeof globalThis !== 'undefined') {
-    globalThis.CpuMctsPolicy = { searchWithMcts, _gameInterface, _network }; // @compat - backward-compat export
+    (globalThis as any).CpuMctsPolicy = { searchWithMcts, _gameInterface, _network }; // @compat - backward-compat export
 };

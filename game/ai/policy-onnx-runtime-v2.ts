@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -26,9 +25,9 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 const ort = require('onnxruntime-node');
 
-let _session = null;
-let _meta = null;
-let _lastError = null;
+let _session: any = null;
+let _meta: any = null;
+let _lastError: any = null;
 
 const CARD_DISPLAY_TYPES = [
     '執行', '守護', '戦闘', '採掘', '殲滅', '特殊', '禁忌', '繁栄', '観測'
@@ -38,9 +37,9 @@ const HAND_SIZE = 5;
 const HAND_FEATURE_DIM = 1 + 1 + NUM_DISPLAY_TYPES; // card_id_idx + cost + onehot(9)
 
 // Card catalog cache (loaded lazily)
-let _cardCatalog = null;
-let _cardIdToIdx = {};
-let _cardIdList = [];
+let _cardCatalog: any = null;
+let _cardIdToIdx: any = {};
+let _cardIdList: any = [];
 
 function _loadCardCatalog() {
     if (_cardCatalog) return _cardCatalog;
@@ -68,12 +67,12 @@ function _loadCardCatalog() {
     return _cardCatalog;
 }
 
-function _cardIdToIndex(cardId) {
+function _cardIdToIndex(cardId: any): number {
     if (!cardId) return _cardIdList.length;
     return _cardIdToIdx[cardId] !== undefined ? _cardIdToIdx[cardId] : _cardIdList.length;
 }
 
-function _displayTypeToOnehot(displayType) {
+function _displayTypeToOnehot(displayType: any): number[] {
     const vec = new Array(NUM_DISPLAY_TYPES).fill(0.0);
     if (!displayType) return vec;
     const idx = CARD_DISPLAY_TYPES.indexOf(displayType.trim());
@@ -81,7 +80,7 @@ function _displayTypeToOnehot(displayType) {
     return vec;
 }
 
-function _encodeCardFeatures(cardId) {
+function _encodeCardFeatures(cardId: any): number[] {
     if (!cardId) return [0.0, ...new Array(NUM_DISPLAY_TYPES).fill(0.0)];
     const catalog = _loadCardCatalog();
     const card = catalog[cardId];
@@ -91,7 +90,7 @@ function _encodeCardFeatures(cardId) {
     return [costNorm, ...onehot];
 }
 
-function buildHandTensor(handCardIds) {
+function buildHandTensor(handCardIds: any): any {
     /** Build (1, 5, 11) hand tensor from card ID list. */
     const hand = [];
     for (let i = 0; i < HAND_SIZE; i++) {
@@ -103,7 +102,7 @@ function buildHandTensor(handCardIds) {
     return new ort.Tensor('float32', new Float32Array(hand.flat()), [1, HAND_SIZE, HAND_FEATURE_DIM]);
 }
 
-function buildBoardTensor(board, playerKey) {
+function buildBoardTensor(board: any, playerKey: any): any {
     /** Build (1, 5, 10, 10) board tensor.
      *
      * Channels:
@@ -151,7 +150,7 @@ function buildBoardTensor(board, playerKey) {
     return new ort.Tensor('float32', new Float32Array(tensor.flat(2)), [1, 5, size, size]);
 }
 
-function buildAuxVector(context) {
+function buildAuxVector(context: any): any {
     /** Build (1, 16) auxiliary vector. */
     const ctx = context || {};
     const legalMoves = Number(ctx.legalMovesCount || 0) / 60.0;
@@ -180,7 +179,7 @@ function buildAuxVector(context) {
     return new ort.Tensor('float32', new Float32Array(vec), [1, 16]);
 }
 
-async function loadModel(modelPath, metaPath) {
+async function loadModel(modelPath: any, metaPath: any): Promise<any> {
     /** Load ONNX model and metadata. */
     _session = await ort.InferenceSession.create(modelPath);
     if (metaPath) {
@@ -194,7 +193,7 @@ async function loadModel(modelPath, metaPath) {
     return { session: _session, meta: _meta };
 }
 
-async function evaluate(context) {
+async function evaluate(context: any): Promise<any> {
     /** Run inference and return {policy, wdl, card, value}.
      *
      * policy: Map<moveIndex, probability>
@@ -276,7 +275,7 @@ async function evaluate(context) {
     return { policy, wdl, card, value };
 }
 
-async function chooseMove(candidateMoves, context) {
+async function chooseMove(candidateMoves: any, context: any): Promise<any> {
     /** Choose best move from candidate moves. */
     if (!candidateMoves || candidateMoves.length === 0) return null;
 
@@ -301,7 +300,7 @@ async function chooseMove(candidateMoves, context) {
     }
 }
 
-async function chooseCard(usableCardIds, context) {
+async function chooseCard(usableCardIds: any, context: any): Promise<any> {
     /** Choose best card from usable cards. */
     if (!usableCardIds || usableCardIds.length === 0) return null;
 
@@ -327,7 +326,7 @@ async function chooseCard(usableCardIds, context) {
     }
 }
 
-function getLastError() {
+function getLastError(): any {
     return _lastError;
 }
 
