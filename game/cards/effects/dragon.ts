@@ -7,7 +7,7 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import DragonModule = require('../../logic/effects/dragon');
 
 
-const exports: {
+const _exports: {
   processDragonEffects: any;
   processDragonEffectsAtAnchor: any;
   processDragonEffectsAtTurnStartAnchor: any;
@@ -17,4 +17,4 @@ const exports: {
   processDragonEffectsAtTurnStartAnchor: DragonModule.processDragonEffectsAtTurnStartAnchor
 };
 
-export = exports;
+export = _exports;

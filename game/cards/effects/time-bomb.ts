@@ -6,10 +6,10 @@
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 const TimeBombModule: any = require('../../logic/cards/time_bomb');
 
-const exports: Record<string, any> = {
+const _exports: Record<string, any> = {
   applyTimeBombWill: TimeBombModule.applyTimeBombWill,
   tickBombs: TimeBombModule.tickBombs,
   tickBombAt: TimeBombModule.tickBombAt
 };
 
-export = exports;
+export = _exports;

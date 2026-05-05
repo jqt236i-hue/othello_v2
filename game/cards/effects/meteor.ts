@@ -17,8 +17,8 @@ interface MeteorExports {
   ) => any;
 }
 
-const exports: MeteorExports = {
+const _exports: MeteorExports = {
   applyMeteorWill: MeteorModule.applyMeteorWill
 };
 
-export = exports;
+export = _exports;

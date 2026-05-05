@@ -447,7 +447,11 @@ function shouldAllowPendingSelectionDuringAnimation(playerKey: any, pending: any
 }
 
 function isHumanVsHumanModeEnabled() {
-    const debugHvH = !!(__uiImpl_turn_manager && __uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN);
+    const debugHvH = !!(
+        (__uiImpl_turn_manager && __uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN) ||
+        (typeof window !== 'undefined' && (window as any).DEBUG_HUMAN_VS_HUMAN) ||
+        (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN)
+    );
     let matchMode = null;
     try {
         // globalThis read — UI/bootstrap dependency, keep
@@ -501,7 +505,11 @@ function resolveNetworkLocalPlayerKey() {
 function canLocalUserOperateCurrentTurn() {
     const currentPlayerKey = getPlayerKey(gameState.currentPlayer);
     const isNetworkMode = isNetworkModeForTurnManager();
-    const isHvH = !!(__uiImpl_turn_manager && __uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN);
+    const isHvH = !!(
+        (__uiImpl_turn_manager && __uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN) ||
+        (typeof window !== 'undefined' && (window as any).DEBUG_HUMAN_VS_HUMAN) ||
+        (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN)
+    );
     // FATE_WILL: if another player controls this turn, only the controller can operate.
     // Applies in network mode and in local non-HvH mode.
     if (isNetworkMode || !isHvH) {

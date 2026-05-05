@@ -39,7 +39,7 @@ interface MarkersExports {
   applyCorrosionWill: (cardState: CardState, gameState: any, playerKey: PlayerKey, row: number, col: number, deps?: any) => Record<string, unknown>;
 }
 
-const exports: MarkersExports = {
+const _exports: MarkersExports = {
   MARKER_KINDS: MarkersModule.MARKER_KINDS,
   MARKER_CATEGORIES: MarkersModule.MARKER_CATEGORIES,
   ensureMarkers: MarkersModule.ensureMarkers,
@@ -72,4 +72,4 @@ const exports: MarkersExports = {
   applyCorrosionWill: MarkersModule.applyCorrosionWill
 };
 
-export = exports;
+export = _exports;

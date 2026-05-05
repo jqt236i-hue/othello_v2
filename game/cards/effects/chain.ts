@@ -16,8 +16,8 @@ interface ChainExports {
   ) => any | null;
 }
 
-const exports: ChainExports = {
+const _exports: ChainExports = {
   findChainChoice: ChainModule.findChainChoice
 };
 
-export = exports;
+export = _exports;

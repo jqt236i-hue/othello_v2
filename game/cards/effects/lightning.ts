@@ -7,10 +7,10 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import LightningModule = require('../../logic/cards/lightning');
 
 
-const exports = {
+const _exports = {
   processLightningWillEffects: LightningModule.processLightningWillEffects,
   processLightningWillEffectsAtAnchor: LightningModule.processLightningWillEffectsAtAnchor,
   processLightningWillEffectsAtTurnStartAnchor: LightningModule.processLightningWillEffectsAtTurnStartAnchor
 };
 
-export = exports;
+export = _exports;

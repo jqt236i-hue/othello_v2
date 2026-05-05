@@ -6,9 +6,9 @@
 import type { GameState } from '../../../src/types';
 import FlipsModule = require('../../logic/cards/flips');
 
-const exports = {
+const _exports = {
   getDirectionalChainFlips: FlipsModule.getDirectionalChainFlips,
   getFlipsWithContext: FlipsModule.getFlipsWithContext
 };
 
-export = exports;
+export = _exports;

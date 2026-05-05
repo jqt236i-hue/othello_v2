@@ -5,10 +5,10 @@
 
 import MovementModule = require('../../logic/cards/movement');
 
-const exports: any = {
+const _exports: any = {
   applyStrongWindWill: MovementModule.applyStrongWindWill,
   applySuperBuoyancyWill: MovementModule.applySuperBuoyancyWill,
   applySuperGravityWill: MovementModule.applySuperGravityWill
 };
 
-export = exports;
+export = _exports;

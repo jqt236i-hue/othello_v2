@@ -7,10 +7,10 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import DestroyDragonModule = require('../../logic/cards/destroy_dragon');
 
 
-const exports = {
+const _exports = {
   processDestroyDragonEffects: DestroyDragonModule.processDestroyDragonEffects,
   processDestroyDragonEffectsAtAnchor: DestroyDragonModule.processDestroyDragonEffectsAtAnchor,
   processDestroyDragonEffectsAtTurnStartAnchor: DestroyDragonModule.processDestroyDragonEffectsAtTurnStartAnchor
 };
 
-export = exports;
+export = _exports;

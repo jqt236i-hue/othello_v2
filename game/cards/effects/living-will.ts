@@ -7,9 +7,9 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import LivingWillModule = require('../../logic/cards/living_will');
 
 
-const exports: any = {
+const _exports: any = {
   applyLivingWill: LivingWillModule.applyLivingWill,
   applyLivingWillAfterFlips: LivingWillModule.applyLivingWillAfterFlips
 };
 
-export = exports;
+export = _exports;

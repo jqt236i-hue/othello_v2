@@ -5,10 +5,10 @@
 
 import ShrinkModule = require('../../logic/cards/shrink');
 
-const exports: any = {
+const _exports: any = {
   applyBoardShrinkWill: ShrinkModule.applyBoardShrinkWill,
   applyBoardShrinkGod: ShrinkModule.applyBoardShrinkGod,
   BOARD_SHRINK_SELECTION_COUNT: ShrinkModule.BOARD_SHRINK_SELECTION_COUNT
 };
 
-export = exports;
+export = _exports;

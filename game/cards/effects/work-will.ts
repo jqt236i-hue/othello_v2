@@ -7,9 +7,9 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import WorkWillModule = require('../../logic/cards/work_will');
 
 
-const exports = {
+const _exports = {
   placeWorkStone: WorkWillModule.placeWorkStone,
   processWorkEffects: WorkWillModule.processWorkEffects
 };
 
-export = exports;
+export = _exports;

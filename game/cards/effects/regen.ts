@@ -7,9 +7,9 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import RegenModule = require('../../logic/cards/regen');
 
 
-const exports = {
+const _exports = {
   applyRegenWill: RegenModule.applyRegenWill,
   applyRegenAfterFlips: RegenModule.applyRegenAfterFlips
 };
 
-export = exports;
+export = _exports;

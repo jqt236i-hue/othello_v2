@@ -7,10 +7,10 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import BreedingModule = require('../../logic/cards/breeding');
 
 
-const exports = {
+const _exports = {
   processBreedingEffects: BreedingModule.processBreedingEffects,
   processBreedingEffectsAtAnchor: BreedingModule.processBreedingEffectsAtAnchor,
   processBreedingEffectsAtTurnStartAnchor: BreedingModule.processBreedingEffectsAtTurnStartAnchor
 };
 
-export = exports;
+export = _exports;

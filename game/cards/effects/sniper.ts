@@ -7,9 +7,9 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import SniperModule = require('../../logic/cards/sniper');
 
 
-const exports = {
+const _exports = {
   processSniperWillEffects: SniperModule.processSniperWillEffects,
   processSniperWillEffectsAtTurnStartAnchor: SniperModule.processSniperWillEffectsAtTurnStartAnchor
 };
 
-export = exports;
+export = _exports;

@@ -7,7 +7,7 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 import ExpansionModule = require('../../logic/cards/expansion');
 
 
-const exports: any = {
+const _exports: any = {
   isMainBoardCellForCard: ExpansionModule.isMainBoardCellForCard,
   resolveExpansionSideForCard: ExpansionModule.resolveExpansionSideForCard,
   normalizeExpansionOwnerForCard: ExpansionModule.normalizeExpansionOwnerForCard,
@@ -26,4 +26,4 @@ const exports: any = {
   buildInitialBoardBonusMap: ExpansionModule.buildInitialBoardBonusMap
 };
 
-export = exports;
+export = _exports;

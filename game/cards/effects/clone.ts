@@ -5,9 +5,9 @@
 
 import CloneModule = require('../../logic/cards/clone');
 
-const exports: any = {
+const _exports: any = {
   applyCloneWill: CloneModule.applyCloneWill,
   applySplitWill: CloneModule.applySplitWill
 };
 
-export = exports;
+export = _exports;

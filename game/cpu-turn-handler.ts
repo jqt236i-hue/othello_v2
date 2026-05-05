@@ -226,8 +226,11 @@ function resolveCpuControlledTurnOwnerKey(): PlayerKey | null {
 }
 
 function isHumanVsHumanModeEnabled() {
-    // @compat - DEBUG_HUMAN_VS_HUMAN injected via setCpuUIImpl DI
-    const debugHvH = !!(__uiImpl_cpu && __uiImpl_cpu.DEBUG_HUMAN_VS_HUMAN);
+    const debugHvH = !!(
+        (__uiImpl_cpu && __uiImpl_cpu.DEBUG_HUMAN_VS_HUMAN) ||
+        (typeof window !== 'undefined' && (window as any).DEBUG_HUMAN_VS_HUMAN) ||
+        (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN)
+    );
     let matchMode = null;
     try {
         // globalThis read — UI/bootstrap dependency, keep

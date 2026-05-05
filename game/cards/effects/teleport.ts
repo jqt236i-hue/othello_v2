@@ -5,9 +5,9 @@
 
 import TeleportModule = require('../../logic/cards/teleport');
 
-const exports: any = {
+const _exports: any = {
   applyTeleportWill: TeleportModule.applyTeleportWill,
   applyCellTeleportWill: TeleportModule.applyCellTeleportWill
 };
 
-export = exports;
+export = _exports;

@@ -5,8 +5,8 @@
 
 import DestroyOneStoneModule = require('../../logic/effects/destroy_one_stone');
 
-const exports: any = {
+const _exports: any = {
   applyDestroyOneStone: DestroyOneStoneModule.applyDestroyOneStone
 };
 
-export = exports;
+export = _exports;
