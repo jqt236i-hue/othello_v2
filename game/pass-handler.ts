@@ -69,6 +69,11 @@ if (typeof require === 'function') {
 
 function getPlaybackStateForPassHandler() {
     if (playbackStateManagerModule) return playbackStateManagerModule;
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) {
+            return globalThis.PlaybackStateManager;
+        }
+    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -242,8 +247,11 @@ function isCpuControlledPlayer(playerKey: string) {
 }
 
 function publishNetworkSnapshot(meta: any) {
+    let client = networkMatchClientModule;
     try {
-        const client = networkMatchClientModule;
+        if (!client && typeof globalThis !== 'undefined' && globalThis.NetworkMatchClient) {
+            client = globalThis.NetworkMatchClient;
+        }
         if (!client) return;
         if (typeof client.publishSnapshot !== 'function') return;
         if (typeof client.isActive === 'function' && !client.isActive()) return;
