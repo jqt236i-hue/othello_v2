@@ -15,7 +15,7 @@ describe('GUARD_WILL / GUARDIAN_GOD (守る意志/守護神)', () => {
       turnNumber: 1,
       consecutivePasses: 0
     };
-    return { cardState, gameState };
+    return { cardState, gameState, prng };
   }
 
   test('can guard own stone and clear pending', () => {
@@ -191,7 +191,7 @@ describe('GUARD_WILL / GUARDIAN_GOD (守る意志/守護神)', () => {
   });
 
   test('guarded stone is not flipped by DRAGON turn-start effect', () => {
-    const { cardState, gameState } = makeState();
+    const { cardState, gameState, prng } = makeState();
     gameState.board[4][4] = 1;   // black dragon anchor
     gameState.board[4][5] = -1;  // white guarded stone
     cardState.markers.push(
@@ -213,7 +213,7 @@ describe('GUARD_WILL / GUARDIAN_GOD (守る意志/守護神)', () => {
       }
     );
 
-    CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4);
+    CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4, { randomSource: prng });
     expect(gameState.board[4][5]).toBe(-1);
   });
 

@@ -253,13 +253,18 @@ function getRandomTurnStartMoveDestination(cardState: any, gameState: any, fromR
         candidates.push({ row: cell.row, col: cell.col });
     }
     if (!candidates.length) return null;
-    const randomSource = (RandomSourceModule && typeof RandomSourceModule.resolveRandomSource === 'function')
-        ? RandomSourceModule.resolveRandomSource(
-            deps && deps.randomSource,
-            null,
-            'DragonEffects.selectRandomEmptyDestination'
-        )
-        : deps.randomSource;
+    let randomSource = deps && deps.randomSource;
+    if (randomSource) {
+        if (RandomSourceModule && typeof RandomSourceModule.resolveRandomSource === 'function') {
+            randomSource = RandomSourceModule.resolveRandomSource(
+                randomSource,
+                null,
+                'DragonEffects.selectRandomEmptyDestination'
+            );
+        }
+    } else {
+        randomSource = { random: () => Math.random() };
+    }
     const rawIndex = Math.floor(randomSource.random() * candidates.length);
     const index = Math.max(0, Math.min(candidates.length - 1, rawIndex));
     return candidates[index] || candidates[0] || null;
