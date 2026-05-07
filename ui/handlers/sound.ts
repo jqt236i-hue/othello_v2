@@ -24,7 +24,7 @@ function resolvePlacementSoundSelectionModule(rootRef: any): any {
     }
   } catch (e) { /* ignore */ }
   try {
-    return _require('../placement-sound-selection.js');
+    return _require('../placement-sound-selection');
   } catch (e) { /* ignore */ }
   return null;
 }
@@ -39,7 +39,7 @@ function resolveRootRef(seTypeSelect?: any): any {
 
 function resolveGachaEventsModule(rootRef: any): any {
   try {
-    return _require('../gacha/gacha-events.js');
+    return _require('../gacha/gacha-events');
   } catch (e) { /* ignore */ }
   const ctx = rootRef || (typeof globalThis !== 'undefined' ? globalThis : null);
   if (ctx && ctx.GachaEventsModule) return ctx.GachaEventsModule;

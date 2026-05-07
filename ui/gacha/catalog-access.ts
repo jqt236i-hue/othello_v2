@@ -41,7 +41,7 @@ function resolveObservationCatalogModule(): any {
 
 function resolveObservationCatalogSharedModule(): any {
   try {
-    return _require('../../shared/observation-gacha-catalog-shared.js');
+    return _require('../../shared/observation-gacha-catalog-shared');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).ObservationGachaCatalogSharedModule) {
@@ -53,7 +53,7 @@ function resolveObservationCatalogSharedModule(): any {
 
 function resolveUIBootstrapModule(): any {
   try {
-    return _require('../bootstrap.js');
+    return _require('../bootstrap');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).UIBootstrap) return (globalThis as any).UIBootstrap;

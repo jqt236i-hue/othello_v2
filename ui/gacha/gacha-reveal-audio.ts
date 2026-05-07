@@ -10,7 +10,7 @@ const GACHA_PULL_AUDIO_PATH = 'assets/audio/other/gacha.mp3';
 
 function resolveSoundEngineAccessModule(rootRef: any): any {
   try {
-    return _require('../sound-engine-access.js');
+    return _require('../sound-engine-access');
   } catch (e) { /* ignore */ }
   try {
     if (rootRef && rootRef.SoundEngineAccessModule) return rootRef.SoundEngineAccessModule;

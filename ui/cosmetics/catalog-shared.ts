@@ -24,7 +24,7 @@ function resolveGachaProgressStorage(rootRef: any): any {
     }
   } catch (e) { /* ignore */ }
   try {
-    return _require('../storage/gacha-progress.js');
+    return _require('../storage/gacha-progress');
   } catch (e) { /* ignore */ }
   return null;
 }

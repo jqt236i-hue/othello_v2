@@ -46,7 +46,7 @@ function resolveObservationCatalogAccessModule(rootRef: any): any {
     }
   } catch (e) { /* ignore */ }
   try {
-    return _require('./gacha/catalog-access.js');
+    return _require('./gacha/catalog-access');
   } catch (e) { /* ignore */ }
   return null;
 }
@@ -64,7 +64,7 @@ function resolveGachaProgressStorageModule(rootRef: any): any {
     }
   } catch (e) { /* ignore */ }
   try {
-    return _require('./storage/gacha-progress.js');
+    return _require('./storage/gacha-progress');
   } catch (e) { /* ignore */ }
   return null;
 }

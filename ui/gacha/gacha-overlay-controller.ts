@@ -8,7 +8,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 function resolveGachaHelpersModule(): any {
   try {
-    return _require('../../shared/gacha-helpers.js');
+    return _require('../../shared/gacha-helpers');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).GachaHelpersModule) return (globalThis as any).GachaHelpersModule;

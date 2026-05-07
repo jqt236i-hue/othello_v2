@@ -15,7 +15,7 @@ function createStaticElement(docRef: Document, tagName: string, className?: stri
 
 function resolveGachaItemVisualsModule(): any {
   try {
-    return _require('./gacha-item-visuals.js');
+    return _require('./gacha-item-visuals');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).GachaItemVisualsModule) {

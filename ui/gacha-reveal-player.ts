@@ -30,7 +30,7 @@ function resolveDocument(rootRef: any): Document | null {
 function resolveAnimationSharedModule(): any {
   if (typeof _require === 'function') {
     try {
-      return _require('./animation-shared.js');
+      return _require('./animation-shared');
     } catch (e) { /* ignore */ }
   }
   try {
@@ -42,7 +42,7 @@ function resolveAnimationSharedModule(): any {
 function resolveGachaHelpersModule(): any {
   if (typeof _require === 'function') {
     try {
-      return _require('../shared/gacha-helpers.js');
+      return _require('../shared/gacha-helpers');
     } catch (e) { /* ignore */ }
   }
   try {
@@ -54,7 +54,7 @@ function resolveGachaHelpersModule(): any {
 function resolveGachaRevealStageModule(): any {
   if (typeof _require === 'function') {
     try {
-      return _require('./gacha/gacha-reveal-stage.js');
+      return _require('./gacha/gacha-reveal-stage');
     } catch (e) { /* ignore */ }
   }
   try {
@@ -66,7 +66,7 @@ function resolveGachaRevealStageModule(): any {
 function resolveGachaRevealAudioModule(): any {
   if (typeof _require === 'function') {
     try {
-      return _require('./gacha/gacha-reveal-audio.js');
+      return _require('./gacha/gacha-reveal-audio');
     } catch (e) { /* ignore */ }
   }
   try {

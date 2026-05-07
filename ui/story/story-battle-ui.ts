@@ -32,7 +32,7 @@ const TEMPLATE = [
 
 function resolveSoundEngineAccessModule(rootRef: any): any {
   try {
-    return _require('../sound-engine-access.js');
+    return _require('../sound-engine-access');
   } catch (e) { /* ignore */ }
   return (rootRef && rootRef.SoundEngineAccessModule)
     || (typeof (globalThis as any).SoundEngineAccessModule !== 'undefined' ? (globalThis as any).SoundEngineAccessModule : null)

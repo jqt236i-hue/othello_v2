@@ -47,7 +47,7 @@ function resolveCatalogModule(rootRef: Window | null | undefined): BackgroundSki
     }
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
-    try { return _require('./catalog.js') ?? null; } catch (e) { /* ignore */ }
+    try { return _require('./catalog') ?? null; } catch (e) { /* ignore */ }
   }
   return null;
 }

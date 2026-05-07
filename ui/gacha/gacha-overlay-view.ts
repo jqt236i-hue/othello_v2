@@ -14,7 +14,7 @@ function resolveDocument(rootRef: any): Document | null {
 
 function resolveGachaHelpersModule(): any {
   try {
-    return _require('../../shared/gacha-helpers.js');
+    return _require('../../shared/gacha-helpers');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).GachaHelpersModule) return (globalThis as any).GachaHelpersModule;
@@ -24,7 +24,7 @@ function resolveGachaHelpersModule(): any {
 
 function resolveGachaItemVisualsModule(): any {
   try {
-    return _require('./gacha-item-visuals.js');
+    return _require('./gacha-item-visuals');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).GachaItemVisualsModule) {

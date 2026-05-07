@@ -27,7 +27,7 @@ const TUTORIAL_CHOICE_SELECT_SOUND = 'assets/story/sound-ef/自分視点選択�
 function resolveSoundEngineAccessModule(rootRef: any): any {
   if (typeof _require === 'function') {
     try {
-      return _require('../sound-engine-access.js');
+      return _require('../sound-engine-access');
     } catch (e) { /* ignore */ }
   }
   return (rootRef && rootRef.SoundEngineAccessModule)

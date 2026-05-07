@@ -49,7 +49,7 @@ const ResultOverlayOwnerHelpersModule = (() => {
 const ResultOverlayGachaHelpersModule = (() => {
     if (typeof require === 'function') {
         try {
-            return require('../shared/gacha-helpers.js');
+            return require('../shared/gacha-helpers');
         } catch (e: any) { /* ignore */ }
     }
     try {
@@ -60,7 +60,7 @@ const ResultOverlayGachaHelpersModule = (() => {
 const ResultOverlayGachaProgressModule = (() => {
     if (typeof require === 'function') {
         try {
-            return require('./storage/gacha-progress.js');
+            return require('./storage/gacha-progress');
         } catch (e: any) { /* ignore */ }
     }
     try {

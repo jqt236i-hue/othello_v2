@@ -15,7 +15,7 @@ const TRANSACTION_ERROR_CODES = Object.freeze({
 
 function resolveGachaHelpersModule(): any {
   try {
-    return _require('../../shared/gacha-helpers.js');
+    return _require('../../shared/gacha-helpers');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).GachaHelpersModule) return (globalThis as any).GachaHelpersModule;
@@ -25,7 +25,7 @@ function resolveGachaHelpersModule(): any {
 
 function resolveObservationCatalogAccessModule(): any {
   try {
-    return _require('./catalog-access.js');
+    return _require('./catalog-access');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).ObservationGachaCatalogAccessModule) {
@@ -37,7 +37,7 @@ function resolveObservationCatalogAccessModule(): any {
 
 function resolveGachaProgressStorageModule(): any {
   try {
-    return _require('../storage/gacha-progress.js');
+    return _require('../storage/gacha-progress');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).GachaProgressStorageModule) return (globalThis as any).GachaProgressStorageModule;

@@ -14,7 +14,7 @@ function resolveDocument(rootRef: any): Document | null {
 
 function resolveGachaTransactionModule(): any {
   try {
-    return _require('../gacha/gacha-transaction.js');
+    return _require('../gacha/gacha-transaction');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).GachaTransactionModule) return (globalThis as any).GachaTransactionModule;
@@ -24,7 +24,7 @@ function resolveGachaTransactionModule(): any {
 
 function resolveGachaOverlayViewModule(): any {
   try {
-    return _require('../gacha/gacha-overlay-view.js');
+    return _require('../gacha/gacha-overlay-view');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).GachaOverlayViewModule) return (globalThis as any).GachaOverlayViewModule;
@@ -34,7 +34,7 @@ function resolveGachaOverlayViewModule(): any {
 
 function resolveGachaOverlayControllerModule(): any {
   try {
-    return _require('../gacha/gacha-overlay-controller.js');
+    return _require('../gacha/gacha-overlay-controller');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).GachaOverlayControllerModule) return (globalThis as any).GachaOverlayControllerModule;
@@ -44,7 +44,7 @@ function resolveGachaOverlayControllerModule(): any {
 
 function resolveGachaRevealPlayerModule(): any {
   try {
-    return _require('../gacha-reveal-player.js');
+    return _require('../gacha-reveal-player');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).GachaRevealPlayerModule) return (globalThis as any).GachaRevealPlayerModule;
@@ -54,7 +54,7 @@ function resolveGachaRevealPlayerModule(): any {
 
 function resolveGachaEventsModule(): any {
   try {
-    return _require('../gacha/gacha-events.js');
+    return _require('../gacha/gacha-events');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).GachaEventsModule) return (globalThis as any).GachaEventsModule;
@@ -64,7 +64,7 @@ function resolveGachaEventsModule(): any {
 
 function resolveUIBootstrapModule(): any {
   try {
-    return _require('../bootstrap.js');
+    return _require('../bootstrap');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).UIBootstrap) return (globalThis as any).UIBootstrap;

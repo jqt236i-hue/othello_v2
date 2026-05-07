@@ -16,7 +16,7 @@ function resolveCatalogModule(rootRef: any): any {
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('./catalog.js');
+      return _require('./catalog');
     } catch (e) { /* ignore */ }
   }
   return null;
@@ -32,7 +32,7 @@ function resolveSelectionModule(rootRef: any): any {
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('./selection.js');
+      return _require('./selection');
     } catch (e) { /* ignore */ }
   }
   return null;
@@ -48,7 +48,7 @@ function resolveRuntimeModule(rootRef: any): any {
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('./runtime.js');
+      return _require('./runtime');
     } catch (e) { /* ignore */ }
   }
   return null;
@@ -64,7 +64,7 @@ function resolveBackgroundControllerModule(rootRef: any): any {
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('../background-skin/controller.js');
+      return _require('../background-skin/controller');
     } catch (e) { /* ignore */ }
   }
   return null;
@@ -80,7 +80,7 @@ function resolveUIBootstrapModule(rootRef: any): any {
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('../bootstrap.js');
+      return _require('../bootstrap');
     } catch (e) { /* ignore */ }
   }
   return null;
@@ -96,7 +96,7 @@ function resolveGachaEventsModule(rootRef: any): any {
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('../gacha/gacha-events.js');
+      return _require('../gacha/gacha-events');
     } catch (e) { /* ignore */ }
   }
   return null;

@@ -791,7 +791,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         } catch (e: any) { /* ignore */ }
         try {
             if (typeof require === 'function') {
-                return require('./handlers/hand-skin.js');
+                return require('./handlers/hand-skin');
             }
         } catch (e: any) { /* ignore */ }
         try {
