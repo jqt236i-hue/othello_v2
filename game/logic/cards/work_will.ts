@@ -6,6 +6,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
-declare const work_will: Record<string, unknown>;
+const work_will: Record<string, unknown> = {};
 
 export = work_will;
