@@ -323,7 +323,7 @@ TypeScript 移行完了は、次をすべて満たす状態とする。
 ## 10. 実行結果記録（2026-05-07 実施分）
 
 ブランチ: `feat/typescript-migration-completion`
-最終コミット: `1544af2`
+最終コミット: `1b8c549`
 
 ### 完了フェーズ
 
@@ -353,12 +353,13 @@ TypeScript 移行完了は、次をすべて満たす状態とする。
 1. **テスト TS 型対応**: `test/*.test.ts` の型エラー修正（`tsconfig.test.json` strict 対応）
 2. **テスト環境のモック注入パターン**: Jest + ts-jest で `.ts` が優先解決されるため、グローバル mock を使うテストが dist wrapper 経由で動作しない問題
 3. **UI source-sibling `.js` import**: `ui/background-skin/`, `ui/hand-skin/`, `ui/handlers/` などの `.js` 拡張子付き require
-4. **missing 実装の本格対応**: `effect-resolver.ts` と `card-interaction-effects.ts` の stub 化は型安全性を確保したが、テストで要求される具体的な実装は未完了
+4. **missing 実装の本格対応**: `effect-resolver.ts` と `card-interaction-effects.ts` は safe-default stub 化済み（`game.move-generator.expansion-pending.test.js` は通過）。ただし本来の効果実装は未完了
 5. **`game/` 下の legacy JS 残存**: `game/cards/effect-resolver.js`, `game/debug/debug-actions.js` は既存 wrapper のまま（実装欠如のため）
 
 ### コミット履歴
 
 ```
+1b8c549 feat(ts-migration): improve effect-resolver stub with safe defaults
 1544af2 fix(pass-handler): restore globalThis fallbacks for PlaybackStateManager and NetworkMatchClient
 b6adba6 feat(ts-migration): add stubs for effect-resolver and card-interaction-effects
 942b2b1 feat(ts-migration): migrate move-executor.js to TS canonical source
