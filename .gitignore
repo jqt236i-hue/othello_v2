@@ -11,6 +11,7 @@ coverage/
 # Playwright MCP artifacts
 .playwright-mcp/page-*.png
 .playwright-mcp/*.txt
+.playwright-mcp/*.yml
 
 # Python cache
 **/__pycache__/
