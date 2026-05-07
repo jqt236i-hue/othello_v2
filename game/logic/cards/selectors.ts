@@ -153,10 +153,17 @@ function resolveBoardConfig(gameState: GameState): BoardConfig {
 }
 
 function isPositionSwapProtectedCell(cardState: CardState, row: number, col: number): boolean {
-    if (!CardUtils || typeof CardUtils.getSpecialMarkerAt !== 'function') return false;
-    const entry = CardUtils.getSpecialMarkerAt(cardState, row, col);
-    const marker = (entry && entry.kind === 'specialStone') ? entry.marker : null;
-    return !!(marker && marker.data && marker.data.type === 'GLUTTONOUS');
+    const cs = cardState as any;
+    const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
+    const marker = markers.find((m: any) => (
+        m &&
+        m.kind === 'specialStone' &&
+        m.row === row &&
+        m.col === col &&
+        m.data &&
+        m.data.type === 'GLUTTONOUS'
+    ));
+    return !!marker;
 }
 
 function getCellValue(gameState: GameState, row: number, col: number): any {
