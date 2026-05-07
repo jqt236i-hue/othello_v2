@@ -6,7 +6,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch",
-    "build:ts": "tsc",
+    "build:ts": "tsc -p tsconfig.build.json",
     "serve": "node scripts/serve-with-fallback.js",
     "match:server": "node scripts/local-match-server.js",
     "match:server:net": "node scripts/local-match-server.js --host 0.0.0.0 --port 8787",

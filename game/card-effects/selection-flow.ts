@@ -1,7 +1,7 @@
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
-declare const root: any;
+const root: any = (typeof globalThis !== 'undefined') ? globalThis as any : (typeof global !== 'undefined' ? global as any : undefined);
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__

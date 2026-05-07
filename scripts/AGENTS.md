@@ -1,0 +1,27 @@
+# scripts/ AGENTS.md
+
+Build, codegen, checks, local servers, worker sync, and selfplay/training orchestration. Read `.github/instructions/scripts.instructions.md` first.
+
+## Script categories
+
+| Task | Start here | Notes |
+| --- | --- | --- |
+| TypeScript build/check wrappers | `run-all-checks.ts`, `check-window-usage.ts`, `test-shim-forwarding.ts` | `.js` files usually require `dist/scripts/*`; build before relying on shims after a clean clone. |
+| Worker/public mirror | `prepare-worker-assets.ts` | Copies root assets/modules to `worker-public/`, regenerates asset manifest and gacha catalogs, verifies mirror. |
+| Local servers/network smoke | `serve-with-fallback.ts`, `local-match-server.ts`, `match-network-smoke.ts` | Keep local server and Worker authority contracts aligned. |
+| Catalog / manifest generation | `generate-catalog.ts`, `generate-observation-gacha-catalog.ts`, `generate-asset-manifest.ts` | Generated outputs are not hand-edit targets. |
+| Selfplay/training orchestration | `run-selfplay-training-cycle.ts`, `run-selfplay-training-profile.ts`, `load-training-profile.ts`, `promote-policy-model.ts`, `deploy-lane-model-to-root.ts` | Profile/gate/promotion contracts are in `docs/architecture-contracts.md` §5.2. |
+
+## Gotchas
+
+- Many `scripts/*.js` files are thin shims into `dist/scripts/*`; after editing `scripts/*.ts`, run `npm run build:ts` before invoking the shim.
+- `run-selfplay-training-cycle.ts` has a large ordered pipeline and a very large `parseArgs`; preserve step order and resume semantics.
+- Python training commands expect repo-root `.venv\Scripts\python.exe`; `ai/train/setup.ps1` installs Torch separately from `requirements.txt`.
+- Lane promotion and root deployment are separate: `promote-policy-model` writes lane-local artifacts; `deploy-lane-model-to-root` copies a lane champion to root `data/models/`; run `npm run worker:prepare` after root deploy.
+- `data/` can contain large model/run artifacts. Do not add or commit model outputs unless explicitly requested.
+
+## Verification
+
+- Changed script entrypoint: `npm run build:ts`, then run the relevant npm script or focused Jest under `test/scripts.*` / `test/selfplay.*`.
+- Check scripts: `npm run checkall` and/or `npm run check:window`.
+- Worker sync script changes: `npm run worker:prepare` and inspect mirror-related output.
