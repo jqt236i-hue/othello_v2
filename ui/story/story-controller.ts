@@ -92,7 +92,7 @@ function createStoryController(options?: any): any {
   function resolveSoundEngineAccessModule(): any {
     if (typeof _require === 'function') {
       try {
-        return _require('../sound-engine-access.js');
+        return _require('../sound-engine-access');
       } catch (e) { /* ignore */ }
     }
     return (rootRef && rootRef.SoundEngineAccessModule)

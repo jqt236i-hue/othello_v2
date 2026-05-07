@@ -781,7 +781,7 @@ if (typeof window !== 'undefined') {
 function resolveResultOverlayApiForStatusDisplay(): any {
     try {
         if (typeof _require === 'function') {
-            const resultOverlay = _require('./result-overlay.js');
+            const resultOverlay = _require('./result-overlay');
             if (resultOverlay && typeof resultOverlay === 'object') return resultOverlay;
         }
     } catch (e) { /* ignore */ }

@@ -4935,7 +4935,8 @@ const {
             BoardOps: BoardOpsModule,
             getCardContext,
             selectRandomEmptyBoardShapeDestination,
-            moveCoexistingSpecialMarkers
+            moveCoexistingSpecialMarkers,
+            randomSource: opts.randomSource ?? null
         }, opts);
         if (DragonEffectsModule && typeof DragonEffectsModule.processDragonEffectsAtTurnStartAnchor === 'function') {
             return DragonEffectsModule.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, dragonDeps);

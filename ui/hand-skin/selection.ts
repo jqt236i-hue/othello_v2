@@ -34,7 +34,7 @@ function resolveCatalogModule(rootRef: Window & { HandSkinCatalogModule?: HandSk
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('./catalog.js') ?? null;
+      return _require('./catalog') ?? null;
     } catch (e) { /* ignore */ }
   }
   return null;

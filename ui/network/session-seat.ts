@@ -18,7 +18,7 @@ function createNetworkSessionSeatController(config: any): any {
     } catch (e) { /* ignore */ }
     try {
       if (typeof _require === 'function') {
-        return _require('../../shared/gacha-hand-catalog-shared.js');
+        return _require('../../shared/gacha-hand-catalog-shared');
       }
     } catch (e) { /* ignore */ }
     return null;

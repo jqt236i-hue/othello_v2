@@ -33,7 +33,7 @@ const OWNED_KIND_ORDER = Object.freeze(['hand_skin', 'background_skin', 'placeme
 let ObservationGachaCatalogSharedModule: any = null;
 if (typeof _require === 'function') {
   try {
-    ObservationGachaCatalogSharedModule = _require('../../shared/observation-gacha-catalog-shared.js');
+    ObservationGachaCatalogSharedModule = _require('../../shared/observation-gacha-catalog-shared');
   } catch (e) { /* ignore */ }
 }
 if (!ObservationGachaCatalogSharedModule) {

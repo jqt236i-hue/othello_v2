@@ -287,5 +287,6 @@ export = {
     resolveHttpServerEntrypoint,
     computeAssetSourceFingerprint,
     refreshGeneratedCatalogArtifactsIfNeeded,
-    startArtifactRefreshLoop
+    startArtifactRefreshLoop,
+    main
 };

@@ -113,7 +113,7 @@ function _resolveCpuLv6SharedProfile(): any {
   } catch (e) { /* ignore */ }
   try {
     if (typeof _require === 'function') {
-      const shared = _require('../../constants/cpu-lv6-shared-profile.js');
+      const shared = _require('../../constants/cpu-lv6-shared-profile');
       if (shared && typeof shared === 'object') return shared;
     }
   } catch (e) { /* ignore */ }
@@ -141,7 +141,7 @@ function _resolveCpuLv6RuntimeCapabilityModule(): any {
   } catch (e) { /* ignore */ }
   try {
     if (typeof _require === 'function') {
-      const moduleRef = _require('../../shared/cpu-lv6-runtime-capability.js');
+      const moduleRef = _require('../../shared/cpu-lv6-runtime-capability');
       if (moduleRef && typeof moduleRef.resolveCpuLv6BrowserRuntimeCapability === 'function') {
         _cpuLv6RuntimeCapabilityModule = moduleRef;
         return _cpuLv6RuntimeCapabilityModule;
