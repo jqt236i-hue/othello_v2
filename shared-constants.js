@@ -1,3 +1,3 @@
 "use strict";
 /** @type {any} */
-module.exports = require('dist/./shared-constants');
+module.exports = require('./dist/shared-constants');

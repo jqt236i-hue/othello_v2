@@ -14,7 +14,7 @@ interface CardCatalog {
 }
 
 function generate(): CardCatalog {
-  const jsonPath = path.resolve(__dirname, '..', 'cards', 'catalog.json');
+  const jsonPath = path.resolve(process.cwd(), 'cards', 'catalog.json');
   const json: CardCatalog = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
   // Ensure version exists
   if (typeof json.version === 'undefined') json.version = 1;
@@ -51,8 +51,8 @@ function generateBrowserFile(outPath: string) {
 }
 
 if (require.main === module) {
-  const generatedPath = path.resolve(__dirname, '..', 'cards', 'catalog.generated.js');
-  const browserPath = path.resolve(__dirname, '..', 'cards', 'catalog.js');
+  const generatedPath = path.resolve(process.cwd(), 'cards', 'catalog.generated.js');
+  const browserPath = path.resolve(process.cwd(), 'cards', 'catalog.js');
   generateFile(generatedPath);
   generateBrowserFile(browserPath);
   console.log('Generated', generatedPath);
