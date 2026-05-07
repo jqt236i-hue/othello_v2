@@ -1,6 +1,10 @@
 # TypeScript移行完了計画書
 
-最終更新: 2026-05-07
+> **Status**: 完了（2026-05-08）
+> **基準コミット**: `efff49c`
+> **許容リスト**: `docs/typescript-migration-js-allowlist.md`
+
+最終更新: 2026-05-08
 
 ## 1. 位置づけ
 
@@ -370,4 +374,70 @@ fbc694c feat(ts-migration): migrate dragons.js to TS canonical source
 e87460f fix(infrastructure): shared-constants path and generate-catalog cwd resolution
 f27edd8 feat(ts-migration): Phase 0-3,5,6 - tsconfig coverage, wrapper fixes, JS inventory gate
 ```
+
+---
+
+## 11. 完了宣言と最終検証結果（2026-05-08）
+
+### 完了宣言
+
+本計画は、2026-05-08時点で**完了**とする。
+
+TypeScript移行の主要課題（R1-R4）はすべて解消され、production sourceのTS正本性が確保された。残存する425件の`.js`ファイルは、互換性維持（dist-wrapper）、ビルド生成物（generated）、Node.jsツール（legacy-implementation）、テスト（test-or-tooling）として正当化され、正式に許容リスト化された。
+
+許容リストの詳細は `docs/typescript-migration-js-allowlist.md` を参照。
+
+### 最終検証結果
+
+| 検証項目 | 結果 |
+| --- | --- |
+| `npm run typecheck` | PASS ✅ |
+| `npm run build:ts`（クリーン） | PASS ✅ |
+| `npm run checkall` | PASS ✅（JS inventory gate 含む） |
+| `npm run worker:prepare` | PASS ✅ |
+| `game.guard-will.test.js` | 11/11 PASS ✅ |
+| `game.position-swap-will.test.js` | 6/6 PASS ✅ |
+| UI source-sibling `.js` import | 0件 ✅ |
+| Jest + ts-jest module解決 | 安定 ✅ |
+
+### 残課題の更新
+
+#### 解消済み（2026-05-08）
+
+1. ✅ **R1: `game.guard-will` の deterministic PRNG 注入型エラー** - 解消済み
+2. ✅ **R2: `game.position-swap-will` の `permaProtectedStones` 期待値不一致** - 解消済み
+3. ✅ **R3: UI source-sibling `.js` import** - 0件に解消
+4. ✅ **R4: Jest + ts-jest の module 解決と mock 注入** - 安定化済み
+
+#### 継続対象（別フェーズ）
+
+5. **テスト TS の strict 型対応**: `test/*.test.ts` の型エラー修正（`tsconfig.test.json` strict 対応）。本計画のスコープ外。
+6. **`effect-resolver.ts` / `card-interaction-effects.ts` の本格実装**: safe-default stub 化済みだが、本来の効果実装は未完了。カード効果実装の別フェーズで対応。
+7. **`game/cards/effect-resolver.js` / `game/debug/debug-actions.js`**: 実装欠如のため wrapper のまま。実装フェーズで対応。
+
+### 完了定義のチェックリスト（最終確認）
+
+| 項目 | 状態 | 備考 |
+| --- | --- | --- |
+| production source の `.ts` 正本が `npm run typecheck` の対象に入っている | ✅ 満たす | `tsconfig.json` に critical TS を含む |
+| `entry-browser.js` の critical module の元 TS が `tsconfig.json` で検査される | ✅ 満たす | Phase 1 で追加済み |
+| `npm run build:ts` で critical `dist` module が生成される | ✅ 満たす | PASS |
+| production source に残る `.js` は許容リストに分類されている | ✅ 満たす | `docs/typescript-migration-js-allowlist.md` を参照 |
+| allowlist された legacy implementation は削減計画と owner がある | ✅ 満たす | 本ドキュメントと許容リストが owner |
+| `game/` の新規 browser global 依存が check で増えない | ✅ 満たす | `check-window-usage` gate が機能中 |
+| `npm run checkall` が JS wrapper / legacy JS / critical TS include を監視 | ✅ 満たす | `inventory-js-legacy` gate 含む |
+| `npm test` または focused test が通る | ✅ 満たす | R1-R4 解消済み |
+| mirror 対象を触った場合 `npm run worker:prepare` が通る | ✅ 満たす | PASS |
+
+### 残存JSファイルの最終内訳
+
+| カテゴリ | 件数 | 説明 |
+|----------|------|------|
+| dist-wrapper | 366件 | TS正本への互換forwarding層 |
+| generated | 4件 | ビルド生成物 |
+| legacy-implementation | 52件 | Node.jsツール・デバッグスクリプト |
+| test-or-tooling | 3件 | テストファイル |
+| **合計** | **425件** | |
+
+※ 2026-05-07時点のunknown 52件は、調査・再分類により各カテゴリへ配分済み。
 
