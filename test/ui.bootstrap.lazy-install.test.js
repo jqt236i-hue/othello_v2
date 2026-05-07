@@ -31,13 +31,13 @@ describe('ui/bootstrap lazy install', () => {
     global.document = dom.window.document;
 
     const installGameDIMock = jest.fn();
-    const bootstrapPath = path.resolve(__dirname, '..', 'ui', 'bootstrap.js');
-    jest.doMock(bootstrapPath, () => ({
-      installGameDI: installGameDIMock
-    }), { virtual: false });
+    // Mock the bootstrap module that init.ts will actually require
+    jest.doMock('../ui/bootstrap', () => ({
+      installGameDI: installGameDIMock,
+      isGameDIInstalled: () => false
+    }));
 
-    const initPath = path.resolve(__dirname, '..', 'ui', 'handlers', 'init.js');
-    const initModule = require(initPath);
+    const initModule = require('../ui/handlers/init');
 
     initModule.initializeUI();
 

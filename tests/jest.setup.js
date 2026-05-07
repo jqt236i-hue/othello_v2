@@ -26,3 +26,14 @@ try {
   // CoreLogic not available, tests that need it will set it up themselves
 }
 
+// Bootstrap TurnPipeline for tests that require turn pipeline
+// game/pass-handler.ts and cpu-turn-handler.ts expect globalThis.TurnPipeline
+try {
+  const turnPipeline = require('../game/turn/turn_pipeline');
+  if (turnPipeline && !globalThis.TurnPipeline) {
+    globalThis.TurnPipeline = turnPipeline;
+  }
+} catch (e) {
+  // TurnPipeline not available, tests that need it will set it up themselves
+}
+

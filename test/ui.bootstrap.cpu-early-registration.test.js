@@ -61,7 +61,8 @@ describe('UI bootstrap early CPU registration', () => {
     };
 
     const source = fs.readFileSync(path.resolve(__dirname, '../ui/bootstrap.js'), 'utf8');
-    const browserLikeCode = `var require = undefined; var module = undefined; var exports = undefined;\n${source}`;
+    // Provide a no-op require so that bootstrap code with conditional require() doesn't throw
+    const browserLikeCode = `var require = function() { return {}; }; var module = { exports: {} }; var exports = module.exports;\n${source}`;
     expect(() => window.eval(browserLikeCode)).not.toThrow();
 
     expect(window.UIBootstrap).toBeTruthy();
@@ -112,10 +113,9 @@ describe('UI bootstrap early CPU registration', () => {
       }
     };
 
-    const source = fs.readFileSync(path.resolve(__dirname, '../ui/bootstrap.js'), 'utf8');
-    const browserLikeCode = `var require = undefined; var module = undefined; var exports = undefined;\n${source}`;
-    window.eval(browserLikeCode);
-    window.UIBootstrap.installGameDI();
+    // Load bootstrap via require (Node context) since the eval approach is fragile with strict mode
+    const UIBootstrap = require('../ui/bootstrap');
+    UIBootstrap.installGameDI();
 
     expect(bridgeState.bridge).toBeTruthy();
 

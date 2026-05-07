@@ -1,5 +1,18 @@
-const mod = require('../game/cpu-turn-handler');
+// Mock TurnPipelineUIAdapter before requiring cpu-turn-handler
+jest.mock('../game/turn/pipeline_ui_adapter', () => ({
+    runTurnWithAdapter: jest.fn((_cs, _gs, _p, action) => ({
+        ok: action.type === 'destroy_hand_card',
+        nextCardState: {
+            hands: { white: [], black: [] },
+            hasDestroyedCardThisTurnByPlayer: { white: true, black: false }
+        },
+        nextGameState: { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: 'white', turnNumber: 10 },
+        playbackEvents: []
+    }))
+}));
+
 const cpuDecision = require('../game/cpu-decision');
+const mod = require('../game/cpu-turn-handler');
 
 function makeBoard() {
     const board = Array.from({ length: 8 }, () => Array(8).fill(0));
