@@ -38,7 +38,18 @@
       "scripts/**/*",
       "cards/**/*",
       "src/**/*",
-      "utils/**/*.ts"
+      "utils/**/*.ts",
+      "shared-constants.ts",
+      "game-events.ts",
+      "sound-engine.ts",
+      "ui.ts",
+      "is-env-capable.ts",
+      "card-system.ts",
+      "analyze-selfplay-moves.ts",
+      "analyze-destroy-cycle.ts",
+      "analyze-crystal-stone.ts",
+      "analyze-crystal-stone-quiet.ts",
+      "analyze-trap-will.ts"
     ],
   "exclude": [
     "node_modules",

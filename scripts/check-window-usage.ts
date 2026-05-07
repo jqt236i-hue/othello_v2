@@ -7,7 +7,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-const root = path.resolve(__dirname, '..');
+const root = path.resolve(__dirname, '..', '..');
 
 function shouldCheck(filePath: string): boolean {
     // Only check server-side / logic code where window usage is forbidden.

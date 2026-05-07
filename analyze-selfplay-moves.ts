@@ -129,7 +129,7 @@ async function main(): Promise<void> {
             onRecord
         });
 
-        error(Collected  records);
+        error('Collected records:', records);
         
         const records = result.records && result.records.length > 0 ? result.records : allRecords;
         const analysis = analyzeRecords(records);

@@ -47,7 +47,7 @@ export function isDebugLogAvailable(): boolean {
     }
     // Fallback: check in current scope
     try {
-        return typeof debugLog === 'function';
+        return typeof globalThis !== 'undefined' && typeof (globalThis as any).debugLog === 'function';
     } catch (e) {
         return false;
     }
@@ -98,7 +98,9 @@ export function safeDebugLog(message: string, level?: string, meta?: any): void 
         } else {
             // Try direct call
             try {
-                debugLog(message, level || 'debug', meta || null);
+                if (typeof globalThis !== 'undefined' && typeof (globalThis as any).debugLog === 'function') {
+                    (globalThis as any).debugLog(message, level || 'debug', meta || null);
+                }
             } catch (e) {
                 // Silently ignore
             }
