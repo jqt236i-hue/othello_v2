@@ -2,18 +2,29 @@
  * Card effect resolver stub — implementation incomplete.
  * This module is required by game/logic/cards.ts but the full implementation
  * was lost during migration. Fallback logic in cards.ts handles most cases.
+ * These stubs return safe defaults to avoid hard crashes; behavior may be
+ * incomplete until the canonical implementation is restored.
  */
 
-function notImplemented(name: string) {
-  return function() {
-    throw new Error(`[effect-resolver] ${name} is not implemented`);
-  };
-}
-
 export = {
-  getCardHandManagerContext: notImplemented('getCardHandManagerContext'),
-  applyCardUsage: notImplemented('applyCardUsage'),
-  cancelPendingSelection: notImplemented('cancelPendingSelection'),
-  getCardEffectTimingContext: notImplemented('getCardEffectTimingContext'),
-  getCardContext: notImplemented('getCardContext')
+  getCardHandManagerContext: function() {
+    return {};
+  },
+  applyCardUsage: function() {
+    return true;
+  },
+  cancelPendingSelection: function() {
+    return { canceled: false };
+  },
+  getCardEffectTimingContext: function() {
+    return {};
+  },
+  getCardContext: function() {
+    return {
+      protectedStones: [],
+      permaProtectedStones: [],
+      bombs: [],
+      blockedCells: []
+    };
+  }
 };

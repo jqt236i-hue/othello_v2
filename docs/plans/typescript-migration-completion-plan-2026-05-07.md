@@ -320,3 +320,53 @@ TypeScript 移行完了は、次をすべて満たす状態とする。
 5. JS 分類 script または一時調査コマンドで、legacy JS 上位リストを確定する。
 6. `game/move-executor.js` と `game/move-executor.ts` の差分を比較し、TS 正本へ統合できるか判断する。
 
+## 10. 実行結果記録（2026-05-07 実施分）
+
+ブランチ: `feat/typescript-migration-completion`
+最終コミット: `1544af2`
+
+### 完了フェーズ
+
+| フェーズ | 状態 | 備考 |
+| --- | --- | --- |
+| Phase 0: 棚卸しを機械化する | 完了 | `scripts/inventory-js-legacy.ts` を新規作成。`game/` 下の新規 unwrapped high-risk ファイルを検出するゲートを `checkall` に統合。 |
+| Phase 1: `tsconfig.json` の coverage を修正する | 完了 | `shared-constants.ts`, `game-events.ts`, `sound-engine.ts`, `ui.ts`, `is-env-capable.ts`, `card-system.ts`, `analyze-*.ts` を `include` に追加。 |
+| Phase 2: JS wrapper 契約を固定する | 完了 | 壊れた wrapper（`export = require;`）を正しい `export = require('../dist/...');` に修正。 |
+| Phase 3: 中核 legacy JS を TS 正本へ統合する | 完了 | `game/logic/cards/regen.js` を wrapper 化。残り 5 ファイル（`move-executor.js`, `pass-handler.js`, `move-generator.js`, `hyperactive.js`, `dragons.js`）を TS 正本へ移行し、`.js` を dist wrapper に置き換え。 |
+| Phase 4: import / require 経路を整理する | 部分完了 | 中核ファイルの wrapper 化により主要な legacy debt を解消。UI 下の source-sibling `.js` import は別フェーズとして残存。 |
+| Phase 5: test TypeScript の扱いを決める | 部分完了 | `tsconfig.test.json` に `noEmit: true` を追加し Jest transform 用 config として明示。テスト TS の strict 型対応は別フェーズとして残存。 |
+| Phase 6: 完了ゲートを CI 相当に固定する | 完了 | `checkall` に `inventory-js-legacy` ゲートを統合。`game/` 下の新規 legacy JS 増殖を検出。 |
+
+### 検証結果（最終）
+
+| 検証項目 | 結果 |
+| --- | --- |
+| `npm run typecheck` | PASS |
+| `npm run build:ts`（クリーン） | PASS |
+| `npm run checkall` | PASS（JS inventory gate 含む） |
+| `npm run worker:prepare` | PASS |
+| ゲーム起動（`npm run serve`） | PASS（localhost:8000 で HTTP 200） |
+| `npm test`（focused JS tests） | 一部失敗（ts-jest が `.ts` を優先解決するため、グローバル mock 注入パターンと競合。別フェーズ対象） |
+
+### 残課題
+
+1. **テスト TS 型対応**: `test/*.test.ts` の型エラー修正（`tsconfig.test.json` strict 対応）
+2. **テスト環境のモック注入パターン**: Jest + ts-jest で `.ts` が優先解決されるため、グローバル mock を使うテストが dist wrapper 経由で動作しない問題
+3. **UI source-sibling `.js` import**: `ui/background-skin/`, `ui/hand-skin/`, `ui/handlers/` などの `.js` 拡張子付き require
+4. **missing 実装の本格対応**: `effect-resolver.ts` と `card-interaction-effects.ts` の stub 化は型安全性を確保したが、テストで要求される具体的な実装は未完了
+5. **`game/` 下の legacy JS 残存**: `game/cards/effect-resolver.js`, `game/debug/debug-actions.js` は既存 wrapper のまま（実装欠如のため）
+
+### コミット履歴
+
+```
+1544af2 fix(pass-handler): restore globalThis fallbacks for PlaybackStateManager and NetworkMatchClient
+b6adba6 feat(ts-migration): add stubs for effect-resolver and card-interaction-effects
+942b2b1 feat(ts-migration): migrate move-executor.js to TS canonical source
+c4bae9c feat(ts-migration): migrate pass-handler.js to TS canonical source
+701fa5e feat(ts-migration): migrate move-generator.js to TS canonical source
+2d41845 feat(ts-migration): migrate hyperactive.js to TS canonical source
+fbc694c feat(ts-migration): migrate dragons.js to TS canonical source
+e87460f fix(infrastructure): shared-constants path and generate-catalog cwd resolution
+f27edd8 feat(ts-migration): Phase 0-3,5,6 - tsconfig coverage, wrapper fixes, JS inventory gate
+```
+
