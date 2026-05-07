@@ -1,9 +1,19 @@
-declare const __non_webpack_require__: NodeRequire | undefined;
+/**
+ * Card effect resolver stub — implementation incomplete.
+ * This module is required by game/logic/cards.ts but the full implementation
+ * was lost during migration. Fallback logic in cards.ts handles most cases.
+ */
 
-const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
-  ? __non_webpack_require__
-  : require;
+function notImplemented(name: string) {
+  return function() {
+    throw new Error(`[effect-resolver] ${name} is not implemented`);
+  };
+}
 
-import type { CardState, GameState, PlayerKey } from "../../src/types";
-
-export = _require;
+export = {
+  getCardHandManagerContext: notImplemented('getCardHandManagerContext'),
+  applyCardUsage: notImplemented('applyCardUsage'),
+  cancelPendingSelection: notImplemented('cancelPendingSelection'),
+  getCardEffectTimingContext: notImplemented('getCardEffectTimingContext'),
+  getCardContext: notImplemented('getCardContext')
+};
