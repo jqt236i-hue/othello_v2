@@ -51,11 +51,13 @@ let timers: any = null;
 let OwnerHelpersModule: any = null;
 let passHandlerNetworkTurnHandoff: any = null;
 let passHandlerPendingCoordinator: any = null;
+let passHandlerTurnPipelineModule: any = null;
 if (typeof require === 'function') {
     try { timers = require('./timers'); } catch (e) { /* ignore */ }
     try { OwnerHelpersModule = require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
     try { passHandlerNetworkTurnHandoff = require('./network-turn-handoff'); } catch (e) { /* ignore */ }
     try { passHandlerPendingCoordinator = require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
+    try { passHandlerTurnPipelineModule = require('./turn/turn_pipeline'); } catch (e) { /* ignore */ }
 }
 // DI imports for UI-cross-boundary modules (graceful degradation via try/catch)
 let playbackStateManagerModule: any = null;
@@ -217,6 +219,11 @@ function getCurrentMatchModeSafe() {
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.getCurrentMatchMode === 'function') {
             return OwnerHelpersModule.getCurrentMatchMode();
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis.MATCH_MODE) {
+            return globalThis.MATCH_MODE;
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -395,7 +402,10 @@ function ensureCurrentPlayerCanActOrPass(options?: any) {
  * Helper to apply pass via TurnPipeline with safe fallback.
  */
 function applyPassViaPipeline(playerKey: string) {
-    if (typeof TurnPipeline === 'undefined') {
+    const turnPipeline = (typeof TurnPipeline !== 'undefined')
+        ? TurnPipeline
+        : passHandlerTurnPipelineModule;
+    if (!turnPipeline) {
         throw new Error('TurnPipeline is not available - cannot process pass');
     }
 
@@ -409,8 +419,8 @@ function applyPassViaPipeline(playerKey: string) {
         }
 
     // Use applyTurnSafe if available, fallback to applyTurn
-    if (typeof TurnPipeline.applyTurnSafe === 'function') {
-        const result = TurnPipeline.applyTurnSafe(cardState, gameState, playerKey, action);
+    if (typeof turnPipeline.applyTurnSafe === 'function') {
+        const result = turnPipeline.applyTurnSafe(cardState, gameState, playerKey, action);
         if (!result.ok) {
             console.error('[PASS-HANDLER] Pass rejected:', result.events);
             // Log rejected event but continue - do NOT record
@@ -433,7 +443,7 @@ function applyPassViaPipeline(playerKey: string) {
         };
     } else {
         // Fallback to regular applyTurn
-        const res = TurnPipeline.applyTurn(cardState, gameState, playerKey, action);
+        const res = turnPipeline.applyTurn(cardState, gameState, playerKey, action);
         gameState = res.gameState;
         cardState = res.cardState;
 

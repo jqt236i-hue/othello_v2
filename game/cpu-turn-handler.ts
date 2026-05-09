@@ -80,6 +80,10 @@ let passHandler: any = null;
 if (typeof require === 'function') {
     try { passHandler = _require('./pass-handler'); } catch (e) { /* ignore */ }
 }
+let moveGenerator: any = null;
+if (typeof require === 'function') {
+    try { moveGenerator = _require('./move-generator'); } catch (e) { /* ignore */ }
+}
 let cpuCommentaryRuntime: any = null;
 if (typeof require === 'function') {
     try { cpuCommentaryRuntime = _require('./ai/cpu-commentary-runtime'); } catch (e) { /* ignore */ }
@@ -155,9 +159,73 @@ function getCurrentTurnNumberSafe() {
     return null;
 }
 
+function resolveRuntimeFunction(name: string): Function | null {
+    try {
+        if (typeof globalThis !== 'undefined') {
+            const candidate = (globalThis as any)[name];
+            if (typeof candidate === 'function') return candidate;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined') {
+            const candidate = (window as any)[name];
+            if (typeof candidate === 'function') return candidate;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function resolveGenerateMovesForPlayer(): Function | null {
+    const runtimeFn = resolveRuntimeFunction('generateMovesForPlayer');
+    if (runtimeFn) return runtimeFn;
+    if (moveGenerator && typeof moveGenerator.generateMovesForPlayer === 'function') {
+        return moveGenerator.generateMovesForPlayer;
+    }
+    return null;
+}
+function resolveRuntimeValue(name: string): any {
+    try {
+        if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis, name)) {
+            return (globalThis as any)[name];
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && Object.prototype.hasOwnProperty.call(window, name)) {
+            return (window as any)[name];
+        }
+    } catch (e) { /* ignore */ }
+    return undefined;
+}
+
 function resolveCpuCardLogic() {
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).CardLogic && typeof (globalThis as any).CardLogic === 'object') {
+            return (globalThis as any).CardLogic;
+        }
+    } catch (e) { /* ignore */ }
     if (cpuCardLogic && typeof cpuCardLogic === 'object') return cpuCardLogic;
     return null;
+}
+
+function tryDestroyHighPriorityHandCardViaAdapter(playerKey: PlayerKey): boolean {
+    const cardLogicRef = resolveCpuCardLogic();
+    const adapter = resolveRuntimeValue('TurnPipelineUIAdapter');
+    const pipeline = resolveRuntimeValue('TurnPipeline');
+    if (!cardLogicRef || !adapter || typeof adapter.runTurnWithAdapter !== 'function') return false;
+    if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return false;
+    const hand = cardState.hands[playerKey];
+    const destroyCardId = hand.find((cardId: any) => {
+        const def = typeof cardLogicRef.getCardDef === 'function' ? cardLogicRef.getCardDef(cardId) : null;
+        const type = String(def && def.type || '').trim();
+        return type === 'FATE_WILL' || type === 'CORNER_TRIBUTE';
+    });
+    if (!destroyCardId) return false;
+    const action = { type: 'destroy_hand_card', destroyCardId };
+    const result = adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline || {});
+    if (!result || result.ok !== true) return false;
+    if (result.nextCardState && typeof globalThis !== 'undefined') (globalThis as any).cardState = result.nextCardState;
+    if (result.nextGameState && typeof globalThis !== 'undefined') (globalThis as any).gameState = result.nextGameState;
+    return true;
 }
 
 function resolvePendingCoordinatorForCpu() {
@@ -304,6 +372,11 @@ function isCpuFastBenchModeEnabled() {
 
 function resolveCpuLv6SharedProfile() {
     try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).CPU_LV6_SHARED_PROFILE) {
+            return (globalThis as any).CPU_LV6_SHARED_PROFILE;
+        }
+    } catch (e) { /* ignore */ }
+    try {
         if (typeof require === 'function') {
             const shared = _require('../constants/cpu-lv6-shared-profile.js');
             if (shared && typeof shared === 'object') return shared;
@@ -313,6 +386,11 @@ function resolveCpuLv6SharedProfile() {
 }
 
 function readExplicitCpuLv6SharedProfile() {
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).CPU_LV6_SHARED_PROFILE) {
+            return (globalThis as any).CPU_LV6_SHARED_PROFILE;
+        }
+    } catch (e) { /* ignore */ }
     try {
         if (typeof require === 'function') {
             const shared = _require('../constants/cpu-lv6-shared-profile.js');
@@ -352,6 +430,11 @@ function resolveCpuLv6BrowserRuntimeCapability() {
 
 function shouldUseOnnxCardDecision(level: any) {
     if (!Number.isFinite(level) || level < 6) return true;
+    const explicitShared = resolveRuntimeValue('CPU_LV6_SHARED_PROFILE');
+    if (explicitShared && explicitShared.browser) {
+        const explicitMode = String(explicitShared.browser.cardDecisionMode || '').trim().toLowerCase();
+        if (explicitMode) return explicitMode !== 'policy-table-core';
+    }
     const capability = resolveCpuLv6BrowserRuntimeCapability();
     if (capability) return capability.usesOnnxCardDecision === true;
     const shared = resolveCpuLv6SharedProfile();
@@ -361,6 +444,11 @@ function shouldUseOnnxCardDecision(level: any) {
 
 function shouldUseOnnxMoveDecision(level: any) {
     if (!Number.isFinite(level) || level < 6) return true;
+    const explicitShared = resolveRuntimeValue('CPU_LV6_SHARED_PROFILE');
+    if (explicitShared && explicitShared.browser) {
+        const explicitMode = String(explicitShared.browser.moveDecisionMode || '').trim().toLowerCase();
+        if (explicitMode) return explicitMode !== 'policy-table-lookahead' && explicitMode !== 'browser-policy-lookahead' && explicitMode !== 'policy-table-core';
+    }
     const capability = resolveCpuLv6BrowserRuntimeCapability();
     if (capability) return capability.usesOnnxMoveDecision === true;
     const shared = resolveCpuLv6SharedProfile();
@@ -950,9 +1038,14 @@ const presentationRuntime = createPresentationRuntime({
 async function maybeUseCardFromOnnx(playerKey: PlayerKey, level: number, legalMovesCount: number, legalMoves: any[]): Promise<{ attempted: boolean; applied: boolean; hold: boolean; }> {
     const none = { attempted: false, applied: false, hold: false };
     if (!shouldUseOnnxCardDecision(level)) return none;
-    if (typeof selectCardFromOnnxPolicyAsync !== 'function') return none;
-    if (typeof applyCardChoice !== 'function') return none;
-    if (!cpuCardLogic || !cardState || !gameState) return none;
+    const selectCardFromOnnx = resolveRuntimeFunction('selectCardFromOnnxPolicyAsync')
+        || (typeof selectCardFromOnnxPolicyAsync === 'function' ? selectCardFromOnnxPolicyAsync : null);
+    const applyCardChoiceFn = resolveRuntimeFunction('applyCardChoice')
+        || (typeof applyCardChoice === 'function' ? applyCardChoice : null);
+    const cardLogicForOnnx = resolveCpuCardLogic();
+    if (typeof selectCardFromOnnx !== 'function') return none;
+    if (typeof applyCardChoiceFn !== 'function') return none;
+    if (!cardLogicForOnnx || !cardState || !gameState) return none;
     if (
         cardState &&
         cardState.hasUsedCardThisTurnByPlayer &&
@@ -962,12 +1055,12 @@ async function maybeUseCardFromOnnx(playerKey: PlayerKey, level: number, legalMo
     }
     try {
         let usable = [];
-        if (cpuCardLogic && typeof cpuCardLogic.getUsableCardIds === 'function') {
-            usable = cpuCardLogic.getUsableCardIds(cardState, gameState, playerKey) || [];
+        if (cardLogicForOnnx && typeof cardLogicForOnnx.getUsableCardIds === 'function') {
+            usable = cardLogicForOnnx.getUsableCardIds(cardState, gameState, playerKey) || [];
         }
         if (!Array.isArray(usable) || usable.length === 0) return none;
         const safeMoves = Array.isArray(legalMoves) ? legalMoves : [];
-        const choice = await selectCardFromOnnxPolicyAsync(playerKey, level, legalMovesCount, usable, safeMoves);
+        const choice = await selectCardFromOnnx(playerKey, level, legalMovesCount, usable, safeMoves);
         if (choice && choice.hold === true) {
             return { attempted: true, applied: false, hold: true };
         }
@@ -1009,7 +1102,7 @@ async function maybeUseCardFromOnnx(playerKey: PlayerKey, level: number, legalMo
             );
             if (!confident) return { attempted: true, applied: false, hold: false };
         }
-        return { attempted: true, applied: !!applyCardChoice(playerKey, choice), hold: false };
+        return { attempted: true, applied: !!applyCardChoiceFn(playerKey, choice), hold: false };
     } catch (e) {
         debugCpuTrace('[AI] selectCardFromOnnxPolicyAsync failed; fallback to policy table/core', {
             playerKey,
@@ -1022,8 +1115,10 @@ async function maybeUseCardFromOnnx(playerKey: PlayerKey, level: number, legalMo
 function selectCpuMoveSafe(candidateMoves: any, playerKey: any) {
     if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
     try {
-        if (typeof selectCpuMoveWithPolicy === 'function') {
-            const selected = selectCpuMoveWithPolicy(candidateMoves, playerKey);
+        const selectCpuMoveWithPolicyFn = resolveRuntimeFunction('selectCpuMoveWithPolicy')
+            || (typeof selectCpuMoveWithPolicy === 'function' ? selectCpuMoveWithPolicy : null);
+        if (typeof selectCpuMoveWithPolicyFn === 'function') {
+            const selected = selectCpuMoveWithPolicyFn(candidateMoves, playerKey);
             if (selected && Number.isFinite(selected.row) && Number.isFinite(selected.col)) {
                 return selected;
             }
@@ -1177,17 +1272,20 @@ function resolveProcessPassTurn() {
 }
 
 function resolveApplyCardChoiceFn() {
+    const globalApplyCardChoice = resolveRuntimeFunction('applyCardChoice');
+    if (globalApplyCardChoice) return globalApplyCardChoice;
     if (typeof applyCardChoice === 'function') return applyCardChoice;
     return null;
 }
 
 function getUsableCardIdsForCpuRetry(playerKey: any) {
-    if (!cpuCardLogic) return [];
-    if (typeof cpuCardLogic.getUsableCardIds === 'function') {
-        const usable = cpuCardLogic.getUsableCardIds(cardState, gameState, playerKey);
+    const cardLogicForRetry = resolveCpuCardLogic();
+    if (!cardLogicForRetry) return [];
+    if (typeof cardLogicForRetry.getUsableCardIds === 'function') {
+        const usable = cardLogicForRetry.getUsableCardIds(cardState, gameState, playerKey);
         return Array.isArray(usable) ? usable.slice() : [];
     }
-    if (typeof cpuCardLogic.hasUsableCard === 'function' && cpuCardLogic.hasUsableCard(cardState, gameState, playerKey)) {
+    if (typeof cardLogicForRetry.hasUsableCard === 'function' && cardLogicForRetry.hasUsableCard(cardState, gameState, playerKey)) {
         const hand = (cardState && cardState.hands && Array.isArray(cardState.hands[playerKey]))
             ? cardState.hands[playerKey]
             : [];
@@ -1212,8 +1310,9 @@ function tryApplyAnyUsableCard(playerKey: any) {
     const usableIds = getUsableCardIdsForCpuRetry(playerKey);
     if (!usableIds.length) return false;
     for (const cardId of usableIds) {
-        const cardDef = (cpuCardLogic && typeof cpuCardLogic.getCardDef === 'function')
-            ? cpuCardLogic.getCardDef(cardId)
+        const cardLogicForRetry = resolveCpuCardLogic();
+        const cardDef = (cardLogicForRetry && typeof cardLogicForRetry.getCardDef === 'function')
+            ? cardLogicForRetry.getCardDef(cardId)
             : null;
         if (applyChoice(playerKey, { cardId, cardDef })) {
             return true;
@@ -1434,8 +1533,10 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
     }
 
     try {
-        const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-            ? cpuSmartness[playerKey]
+        const cpuSmartnessRef = resolveRuntimeValue('cpuSmartness')
+            || (typeof cpuSmartness !== 'undefined' ? cpuSmartness : null);
+        const level = (cpuSmartnessRef && Number.isFinite(cpuSmartnessRef[playerKey]))
+            ? cpuSmartnessRef[playerKey]
             : 1;
         const hasUsedCardThisTurn = !!(cardState && cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer[playerKey]);
         const hasPendingSelection = !!readCpuPendingSelection(playerKey);
@@ -1447,9 +1548,14 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
         });
 
         if (!hasUsedCardThisTurn && !hasPendingSelection) {
-            const destroyedForCycle = (typeof cpuMaybeDestroyHandCardWithPolicy === 'function')
-                ? !!cpuMaybeDestroyHandCardWithPolicy(playerKey)
+            const destroyHandCardWithPolicyFn = resolveRuntimeFunction('cpuMaybeDestroyHandCardWithPolicy')
+                || (typeof cpuMaybeDestroyHandCardWithPolicy === 'function' ? cpuMaybeDestroyHandCardWithPolicy : null);
+            let destroyedForCycle = (typeof destroyHandCardWithPolicyFn === 'function')
+                ? !!destroyHandCardWithPolicyFn(playerKey)
                 : false;
+            if (!destroyedForCycle) {
+                destroyedForCycle = tryDestroyHighPriorityHandCardViaAdapter(playerKey);
+            }
             if (destroyedForCycle) {
                 setCpuProcessing(false);
                 scheduleRetry(() => {
@@ -1466,8 +1572,9 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
         if (!hasUsedCardThisTurn && !hasPendingSelection) {
             const protectionPreview = getActiveProtectionSafe(selfColor);
             const permaPreview = getFlipBlockersSafe();
-            const previewMoves = (typeof generateMovesForPlayer === 'function')
-                ? generateMovesForPlayer(selfColor, null, protectionPreview, permaPreview)
+            const generateMovesForPlayerFn = resolveGenerateMovesForPlayer();
+            const previewMoves = generateMovesForPlayerFn
+                ? generateMovesForPlayerFn(selfColor, null, protectionPreview, permaPreview)
                 : [];
             const previewLegalMovesCount = Array.isArray(previewMoves) ? previewMoves.length : 0;
 
@@ -1479,7 +1586,9 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             const heldByOnnx = !!(onnxCardDecision && onnxCardDecision.hold === true);
             const overrideHold = heldByOnnx && shouldOverrideOnnxHoldDecision(playerKey, level, previewLegalMovesCount);
             if (!applied && (!heldByOnnx || overrideHold)) {
-                applied = (typeof cpuMaybeUseCardWithPolicy === 'function') ? cpuMaybeUseCardWithPolicy(playerKey) : false;
+                const useCardWithPolicyFn = resolveRuntimeFunction('cpuMaybeUseCardWithPolicy')
+                    || (typeof cpuMaybeUseCardWithPolicy === 'function' ? cpuMaybeUseCardWithPolicy : null);
+                applied = (typeof useCardWithPolicyFn === 'function') ? !!useCardWithPolicyFn(playerKey) : false;
             }
             if (applied) {
                 emitCpuCommentary('card_used', playerKey, {
@@ -1569,11 +1678,15 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
 
         const protection = getActiveProtectionSafe(selfColor);
         const perma = getFlipBlockersSafe();
-        const candidateMoves = generateMovesForPlayer(selfColor, pending, protection, perma);
+        const generateMovesForPlayerFn = resolveGenerateMovesForPlayer();
+        const candidateMoves = generateMovesForPlayerFn
+            ? generateMovesForPlayerFn(selfColor, pending, protection, perma)
+            : [];
 
         if (!candidateMoves.length) {
-            const stillUsableCard = (cpuCardLogic && typeof cpuCardLogic.hasUsableCard === 'function')
-                ? !!cpuCardLogic.hasUsableCard(cardState, gameState, playerKey)
+            const cardLogicForRetry = resolveCpuCardLogic();
+            const stillUsableCard = (cardLogicForRetry && typeof cardLogicForRetry.hasUsableCard === 'function')
+                ? !!cardLogicForRetry.hasUsableCard(cardState, gameState, playerKey)
                 : false;
             if (stillUsableCard) {
                 const expectedRetryTurnNumber = getCurrentTurnNumberSafe();
@@ -1591,8 +1704,10 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
                     return;
                 }
                 let retried = !!(onnxCardDecision && onnxCardDecision.applied === true);
-                if (!retried && typeof cpuMaybeUseCardWithPolicy === 'function') {
-                    retried = (typeof cpuMaybeUseCardWithPolicy === 'function') ? cpuMaybeUseCardWithPolicy(playerKey) : false;
+                const useCardWithPolicyFn = resolveRuntimeFunction('cpuMaybeUseCardWithPolicy')
+                    || (typeof cpuMaybeUseCardWithPolicy === 'function' ? cpuMaybeUseCardWithPolicy : null);
+                if (!retried && typeof useCardWithPolicyFn === 'function') {
+                    retried = !!useCardWithPolicyFn(playerKey);
                 }
                 if (!retried) {
                     retried = tryApplyAnyUsableCard(playerKey);
@@ -1626,9 +1741,11 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
         }
 
         let move = null;
-        if (shouldUseOnnxMoveDecision(level) && typeof selectMoveFromOnnxPolicyAsync === 'function') {
+        const selectMoveFromOnnx = resolveRuntimeFunction('selectMoveFromOnnxPolicyAsync')
+            || (typeof selectMoveFromOnnxPolicyAsync === 'function' ? selectMoveFromOnnxPolicyAsync : null);
+        if (shouldUseOnnxMoveDecision(level) && typeof selectMoveFromOnnx === 'function') {
             try {
-                move = await selectMoveFromOnnxPolicyAsync(candidateMoves, playerKey, level);
+                move = await selectMoveFromOnnx(candidateMoves, playerKey, level);
                 if (shouldAbortCpuForHumanMode(playerKey, 'after_onnx_move_decision')) {
                     return;
                 }

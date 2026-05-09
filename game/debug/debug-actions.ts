@@ -4,9 +4,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-import type { CardState, GameState, PlayerKey } from '../../src/types';
+const DebugActionsModule = _require('../../../game/debug/debug-actions.js');
 
-/** @type {any} */
-('../../dist/game/debug/debug-actions');
+module.exports = DebugActionsModule;
 
-export = require;
+export = DebugActionsModule;

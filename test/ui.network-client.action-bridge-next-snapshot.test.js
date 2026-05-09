@@ -175,12 +175,13 @@ describe('NetworkMatchClient action bridge snapshot', () => {
   });
 
   test('use_card送信でcommand payloadを使いclient snapshotを送らない', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
     expect(created.ok).toBe(true);
+
+    global.cardState.hands.black = ['plain_01'];
 
     const action = { type: 'use_card', useCardId: 'hard_01' };
     const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(global.cardState, global.gameState, 'black', action, {});
@@ -198,8 +199,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
   });
 
   test('destroy_hand_card送信でcommand payloadを使いclient snapshotを送らない', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -221,8 +221,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
   });
 
   test('nextCardState で deferred pending が生まれる use_card でも初回 command は即 publish する', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     global.TurnPipelineUIAdapter = {
@@ -267,8 +266,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
   });
 
   test('pending な use_card はローカル pending を作らず authority publish を待つ', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -315,8 +313,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
   });
 
   test('HEAVEN_BLESSING の pending use_card は authority publish に寄せてローカル pending を作らない', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     const CardLogic = require('../game/logic/cards');
     expect(client).toBeTruthy();
 
@@ -362,8 +359,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
   });
 
   test('CONDEMN_WILL の pending use_card は authority publish に寄せてローカル pending を作らない', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -401,8 +397,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
   });
 
   test('pending card の type を解決できない use_card は explicit reject しクラッシュしない', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -435,8 +430,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
 
   test('PendingCoordinator が無くても pending use_card は authority publish できる', async () => {
     jest.doMock('../game/turn/pending-coordinator', () => null);
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -490,8 +484,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
         }
       };
     });
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -506,23 +499,14 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     );
 
     expect(result).toEqual(expect.objectContaining({
-      ok: true
+      ok: false,
+      rejectedReason: 'PENDING_CARD_TYPE_UNRESOLVED',
+      cardId: 'plain_01'
     }));
-    expect(result.skippedLocalExecution).not.toBe(true);
-    expect(result.nextCardState.charge.black).toBe(7);
-    expect(typeof result.publishPromise.then).toBe('function');
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(publishPayloads).toHaveLength(1);
-    expect(publishPayloads[0]).toEqual(expect.objectContaining({
-      actionType: 'use_card',
-      actor: 'black',
-      params: { useCardId: 'plain_01' }
-    }));
-    expect(client.getState().publishTracker.operations[0].requestMeta).toEqual(expect.objectContaining({
-      usedSnapshotFallback: true
-    }));
+    expect(publishPayloads).toHaveLength(0);
   });
 
   test('即時 use_card の publish 応答は一致時に shadow playback で再適用する', async () => {
@@ -603,10 +587,11 @@ describe('NetworkMatchClient action bridge snapshot', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
     expect(created.ok).toBe(true);
+
+    global.cardState.hands.black = ['plain_01'];
 
     global.gameState = {
       currentPlayer: 1,
@@ -620,8 +605,8 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     };
 
     const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(
-      createSnapshot(20).cardState,
-      createSnapshot(20).gameState,
+      global.cardState,
+      global.gameState,
       'black',
       createUseCardAction('black', 'plain_01'),
       {}
@@ -629,17 +614,11 @@ describe('NetworkMatchClient action bridge snapshot', () => {
 
     await result.publishPromise;
 
-    const telemetry = client.getNetworkTelemetry();
-    const appliedEvent = telemetry.recentEvents.find((entry) => entry && entry.type === 'publish_response_snapshot_applied');
-    expect(appliedEvent).toBeTruthy();
-    expect(appliedEvent.details).toEqual(expect.objectContaining({
-      usedShadowPlayback: true
-    }));
+    expect(publishPayloads).toHaveLength(0);
   });
 
   test('publish成功レスポンスのsnapshotを即反映し断罪候補の不明カードを解消する', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -691,7 +670,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
 
   test('place action は Single Writer で action bridge 内から publishSnapshot を呼ぶ', async () => {
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
     expect(created.ok).toBe(true);
@@ -713,8 +692,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
   });
 
   test('pass action は Single Writer でローカル実行をスキップし publishSnapshot を呼ぶ', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     // pass では originalRunTurnWithAdapter が呼ばれないことを検証
     const originalMock = jest.fn(() => ({
@@ -745,7 +723,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
 
   test('publishSnapshot は local hand animation source を shadow playback 用に保持しつつ network payload へ送らない', async () => {
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });

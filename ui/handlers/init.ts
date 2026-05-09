@@ -55,6 +55,14 @@ const InitBootstrapShared = ((): typeof SharedUIBootstrap | null => {
 })();
 
 function _getUiBootstrapModule(): typeof UIBootstrap | null {
+  if (typeof _require === 'function') {
+    try {
+      const directBootstrap = _require('../bootstrap');
+      if (directBootstrap && typeof directBootstrap.installGameDI === 'function') {
+        return directBootstrap;
+      }
+    } catch (e) { /* ignore */ }
+  }
   if (InitBootstrapShared && typeof InitBootstrapShared.resolveUIBootstrap === 'function') {
     return InitBootstrapShared.resolveUIBootstrap();
   }

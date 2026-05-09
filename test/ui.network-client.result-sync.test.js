@@ -77,7 +77,7 @@ describe('NetworkMatchClient result sync', () => {
 
   test('終局スナップショット受信で結果表示を一度だけ行う', () => {
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     const terminalSnapshot = withServerMeta({
       stateVersion: 7,
@@ -95,7 +95,7 @@ describe('NetworkMatchClient result sync', () => {
 
   test('skipResultOverlay 指定時は結果表示を行わない', () => {
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     const terminalSnapshot = withServerMeta({
       stateVersion: 8,
@@ -110,7 +110,7 @@ describe('NetworkMatchClient result sync', () => {
 
   test('custom board の終局 snapshot でも盤面サイズを保ったまま結果表示する', () => {
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     const terminalSnapshot = withServerMeta({
       stateVersion: 85,
@@ -143,7 +143,7 @@ describe('NetworkMatchClient result sync', () => {
     };
 
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     const snapshot = withServerMeta({
       stateVersion: 9,
@@ -178,7 +178,7 @@ describe('NetworkMatchClient result sync', () => {
     };
 
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     client.applySnapshot(withServerMeta({
       stateVersion: 10,
@@ -212,7 +212,7 @@ describe('NetworkMatchClient result sync', () => {
     };
 
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     client.applySnapshot(withServerMeta({
       stateVersion: 11,
@@ -246,7 +246,7 @@ describe('NetworkMatchClient result sync', () => {
     playbackState.setPlaybackActive(true);
 
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     client.applySnapshot(withServerMeta({
       stateVersion: 12,
@@ -272,7 +272,7 @@ describe('NetworkMatchClient result sync', () => {
   test('force snapshot without playback clears stale board update context', () => {
     const playbackState = require('../ui/playback-state-manager');
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     playbackState.armBoardUpdateContext({
       suppressFallbackFlip: true,
@@ -297,7 +297,7 @@ describe('NetworkMatchClient result sync', () => {
 
   test('incoming snapshot transient state is stripped and telemetry records it', () => {
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     const applied = client.applySnapshot(withServerMeta({
       stateVersion: 14,
@@ -323,7 +323,7 @@ describe('NetworkMatchClient result sync', () => {
 
   test('non-force snapshot without stateVersion is rejected and telemetry records it', () => {
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     const applied = client.applySnapshot(withServerMeta({
       gameState: { currentPlayer: 1, turnNumber: 48 },
@@ -339,7 +339,7 @@ describe('NetworkMatchClient result sync', () => {
 
   test('snapshot apply rehydrates legacy marker fields for fallback UI paths', () => {
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     const snapshot = withServerMeta({
       stateVersion: 10,
@@ -364,7 +364,7 @@ describe('NetworkMatchClient result sync', () => {
   // The self-stream terminal fix lives in the network-client coordinator, not here.
   test('applySnapshot に明示 skipResultOverlay を渡した場合は終局でも結果表示しない', () => {
     require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
 
     const terminalSnapshot = withServerMeta({
       stateVersion: 20,

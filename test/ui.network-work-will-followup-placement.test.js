@@ -71,13 +71,17 @@ describe('network WORK_WILL follow-up placement', () => {
     });
     global.__publishDeferred = publishDeferred;
 
+    global.CARD_DEFS = [
+      { id: 'work_01', type: 'WORK_WILL', name: '出稼ぎの意志', cost: 1 }
+    ];
     global.CardLogic = {
       getCardDef: (id) => ({ id, name: '出稼ぎの意志', desc: 'd', cost: 1, type: 'WORK_WILL' }),
       getUsableCardIds: () => ['work_01']
     };
-    global.Core = {
+    global.CoreLogic = {
       getLegalMoves: jest.fn(() => [{ row: 2, col: 3 }])
     };
+    global.Core = global.CoreLogic;
     global.TurnPipeline = {};
     global.TurnPipelineUIAdapter = {
       runTurnWithAdapter: jest.fn(() => ({
@@ -135,6 +139,7 @@ describe('network WORK_WILL follow-up placement', () => {
     delete global.cardState;
     delete global.CardLogic;
     delete global.Core;
+    delete global.CoreLogic;
     delete global.TurnPipeline;
     delete global.TurnPipelineUIAdapter;
     delete global.ActionManager;
@@ -155,6 +160,7 @@ describe('network WORK_WILL follow-up placement', () => {
     delete global.playHandAnimation;
     delete global.SoundEngine;
     delete global.BoardOps;
+    delete global.CARD_DEFS;
     jest.clearAllMocks();
   });
 

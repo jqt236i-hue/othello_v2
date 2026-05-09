@@ -2206,7 +2206,7 @@ describe('selfplay training cycle script', () => {
     });
 
     test('annotates failed step with iteration and exit metadata', () => {
-        const baseError = new Error('command failed (exit=1): python train_card_onnx.py');
+        const baseError = new Error('command failed (exit=1): python train_card_onnx.py') as any;
         baseError.code = 'COMMAND_FAILED';
         baseError.exitCode = 1;
         baseError.command = 'python train_card_onnx.py';

@@ -434,11 +434,15 @@ function reportPlaybackAssemblyDiagnostics(context, diagnostics, options = {}) {
 function buildPublishPayload(room, viewerSeatKey, options = {}) {
     const serverTime = Number.isFinite(Number(options.serverTime)) ? Number(options.serverTime) : Date.now();
     const networkDebugEnabled = toPublicNetworkDebugEnabled(room);
+    const snapshot = Object.prototype.hasOwnProperty.call(options, 'snapshot')
+        ? options.snapshot
+        : toPublicSnapshot(room, viewerSeatKey);
+    if (options.previousSnapshotForChargeDelta && MatchAuthority && typeof MatchAuthority.restoreMissingChargeDeltaEvents === 'function') {
+        MatchAuthority.restoreMissingChargeDeltaEvents(options.previousSnapshotForChargeDelta, snapshot);
+    }
     const payloadOptions = {
         ok: options.ok === true,
-        snapshot: Object.prototype.hasOwnProperty.call(options, 'snapshot')
-            ? options.snapshot
-            : toPublicSnapshot(room, viewerSeatKey),
+        snapshot,
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled,
@@ -1863,6 +1867,8 @@ async function handlePublish(req, res) {
         return;
     }
 
+    const previousSnapshotForChargeDelta = deepClone(room.snapshot);
+
     room.stateVersion += 1;
     nextSnapshot.stateVersion = room.stateVersion;
     nextSnapshot.updatedAt = Date.now();
@@ -1897,18 +1903,21 @@ async function handlePublish(req, res) {
     };
     const serverTime = Date.now();
     const preparedSnapshot = prepareSnapshotBroadcast(room, meta);
-    const responsePayload = buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
-        ok: true,
-        serverTime,
-        playbackEvents: serverPlaybackEvents,
-        effectLogs: serverEffectLogs,
-        playbackDiagnostics: serverPlaybackDiagnostics,
-        publishKind: 'accepted',
-        operationId,
-        actionType,
-        receivedBaseVersion: baseVersion,
-        authoritativeStateVersion: room.stateVersion
-    }));
+    const responsePayload = buildPublishPayload(room, seatKey, Object.assign(
+        MatchAuthority.buildPublishResponseOptions({
+            ok: true,
+            serverTime,
+            playbackEvents: serverPlaybackEvents,
+            effectLogs: serverEffectLogs,
+            playbackDiagnostics: serverPlaybackDiagnostics,
+            publishKind: 'accepted',
+            operationId,
+            actionType,
+            receivedBaseVersion: baseVersion,
+            authoritativeStateVersion: room.stateVersion
+        }),
+        { previousSnapshotForChargeDelta }
+    ));
     if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
         MatchAuthority.appendAuthorityLog(room, {
             kind: 'publish_accepted',

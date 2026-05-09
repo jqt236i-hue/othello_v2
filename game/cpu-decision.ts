@@ -128,6 +128,21 @@ function readGlobalModule(globalKey: any): any {
     return null;
 }
 
+function readGlobalValue(globalKey: string): any {
+    return readGlobalModule(globalKey);
+}
+
+function resolveCpuSmartnessLevel(playerKey: any): number {
+    const smartness = readGlobalValue('cpuSmartness') || (typeof cpuSmartness !== 'undefined' ? cpuSmartness : null);
+    return smartness && Number.isFinite(smartness[playerKey])
+        ? Number(smartness[playerKey])
+        : 1;
+}
+
+function resolveCardLogicForCpuDecision(): any {
+    return readGlobalModule('CardLogic') || (typeof CardLogic !== 'undefined' ? CardLogic : null);
+}
+
 function resolveModuleReference(currentValue: any, options: any): any {
     const opts = options || {};
     const isValid = (typeof opts.isValid === 'function')
@@ -1449,7 +1464,8 @@ function createCardChoiceFromId(cardId: any): any {
 
 function selectCardBySharedPolicyTableCore(playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any): any {
     if (!Array.isArray(usableCardIds) || usableCardIds.length <= 0) return null;
-    if (typeof CardLogic === 'undefined' || !CardLogic) return null;
+    const cardLogicRef = resolveCardLogicForCpuDecision();
+    if (!cardLogicRef) return null;
 
     const context = prebuiltContext || buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds);
     const learnedChoice = selectCardFromLearnedPolicy(playerKey, level, legalMovesCount, usableCardIds);
@@ -1518,7 +1534,8 @@ function selectCardByLevel6Consensus(playerKey: any, level: any, legalMovesCount
     if (!Number.isFinite(level) || level < 6) return null;
     if (!Array.isArray(usableCardIds) || usableCardIds.length <= 0) return null;
     if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') return null;
-    if (typeof CardLogic === 'undefined' || !CardLogic) return null;
+    const cardLogicRef = resolveCardLogicForCpuDecision();
+    if (!cardLogicRef) return null;
     if (typeof CardLogic.getCardCost !== 'function' || typeof CardLogic.getCardDef !== 'function') return null;
 
     const context = prebuiltContext || buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds);
@@ -1842,6 +1859,8 @@ function finalizeCpuPendingSelectionFlow(playerKey: any, pendingType: any, playb
 }
 
 function resolveTurnPipelineAdapter(): any {
+    const globalAdapter = readGlobalModule('TurnPipelineUIAdapter');
+    if (globalAdapter) return globalAdapter;
     return resolveModuleReference(null, {
         readLocal: () => (typeof TurnPipelineUIAdapter !== 'undefined' ? TurnPipelineUIAdapter : null),
         requirePath: './turn/pipeline_ui_adapter',
@@ -1851,6 +1870,8 @@ function resolveTurnPipelineAdapter(): any {
 }
 
 function resolveTurnPipeline(): any {
+    const globalPipeline = readGlobalModule('TurnPipeline');
+    if (globalPipeline) return globalPipeline;
     return resolveModuleReference(null, {
         readLocal: () => (typeof TurnPipeline !== 'undefined' ? TurnPipeline : null),
         requirePath: './turn/turn_pipeline',
@@ -2052,22 +2073,23 @@ function emitCpuEffectLog(message: any): any {
 function getTargetAwareUsableCardIds(playerKey: any): any {
     const cs = (typeof cardState !== 'undefined') ? cardState : null;
     const gs = (typeof gameState !== 'undefined') ? gameState : null;
-    if (typeof CardLogic === 'undefined' || !CardLogic) return [];
+    const cardLogicRef = resolveCardLogicForCpuDecision();
+    if (!cardLogicRef) return [];
     if (!cs || !gs) return [];
-    if (typeof CardLogic.getUsableCardIds === 'function') {
+    if (typeof cardLogicRef.getUsableCardIds === 'function') {
         try {
-            return CardLogic.getUsableCardIds(cs, gs, playerKey) || [];
+            return cardLogicRef.getUsableCardIds(cs, gs, playerKey) || [];
         } catch (e) { /* ignore */ }
     }
-    if (typeof CardLogic.hasUsableCard === 'function' && CardLogic.hasUsableCard(cs, gs, playerKey)) {
+    if (typeof cardLogicRef.hasUsableCard === 'function' && cardLogicRef.hasUsableCard(cs, gs, playerKey)) {
         // Fallback when only boolean API is available.
         const hand = (cs.hands && cs.hands[playerKey]) ? cs.hands[playerKey] : [];
         return hand.slice();
     }
-    if (typeof CardLogic.canUseCard === 'function') {
+    if (typeof cardLogicRef.canUseCard === 'function') {
         const hand = (cs.hands && cs.hands[playerKey]) ? cs.hands[playerKey] : [];
         return hand.filter((id: any) => {
-            try { return !!CardLogic.canUseCard(cs, playerKey, id); } catch (e) { return false; }
+            try { return !!cardLogicRef.canUseCard(cs, playerKey, id); } catch (e) { return false; }
         });
     }
     return [];
@@ -3105,14 +3127,13 @@ function selectHandCardToDestroy(playerKey: any): any {
     if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return null;
     if (readCpuPendingEffect(playerKey)) return null;
     if (!CpuPolicyCore || typeof CpuPolicyCore.chooseHandDestroyTargetForCycle !== 'function') return null;
-    if (typeof CardLogic === 'undefined' || !CardLogic) return null;
+    const cardLogicRef = resolveCardLogicForCpuDecision();
+    if (!cardLogicRef) return null;
 
     const hand = cardState.hands[playerKey].slice();
     if (hand.length <= 0) return null;
 
-    const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-        ? Number(cpuSmartness[playerKey])
-        : 1;
+    const level = resolveCpuSmartnessLevel(playerKey);
     if (level < 4) return null;
 
     const player = playerKey === 'black'
@@ -3127,8 +3148,8 @@ function selectHandCardToDestroy(playerKey: any): any {
     const selected = CpuPolicyCore.chooseHandDestroyTargetForCycle(
         hand,
         usableNow,
-        typeof CardLogic.getCardCost === 'function' ? CardLogic.getCardCost : () => 0,
-        typeof CardLogic.getCardDef === 'function' ? CardLogic.getCardDef : () => null,
+        typeof cardLogicRef.getCardCost === 'function' ? cardLogicRef.getCardCost : () => 0,
+        typeof cardLogicRef.getCardDef === 'function' ? cardLogicRef.getCardDef : () => null,
         decisionContext
     );
     if (!selected || !selected.cardId) return null;
@@ -3141,16 +3162,15 @@ function applyHandCardDestroy(playerKey: any, destroyChoice: any): any {
     if (!cardState.hands[playerKey].includes(destroyChoice.cardId)) return false;
 
     const destroyCardId = destroyChoice.cardId;
+    const cardLogicRef = resolveCardLogicForCpuDecision();
     const destroyCardDef = destroyChoice.cardDef || (
-        (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
-            ? CardLogic.getCardDef(destroyCardId)
+        (cardLogicRef && typeof cardLogicRef.getCardDef === 'function')
+            ? cardLogicRef.getCardDef(destroyCardId)
             : null
     );
     const pipelineResult = runCpuHandDestroyViaPipeline(playerKey, destroyCardId);
     if (pipelineResult && pipelineResult.ok) {
-        const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-            ? Number(cpuSmartness[playerKey])
-            : 1;
+        const level = resolveCpuSmartnessLevel(playerKey);
         const cardName = (destroyCardDef && destroyCardDef.name) ? destroyCardDef.name : destroyCardId;
         cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 手札破壊 - ${cardName} (${destroyChoice.reason || 'cycle'})`);
         if (typeof emitLogAdded === 'function') {
@@ -3162,14 +3182,12 @@ function applyHandCardDestroy(playerKey: any, destroyChoice: any): any {
         return false;
     }
 
-    if (typeof CardLogic === 'undefined' || !CardLogic || typeof CardLogic.destroyHandCard !== 'function') return false;
-    const direct = CardLogic.destroyHandCard(cardState, playerKey, destroyCardId);
+    if (!cardLogicRef || typeof cardLogicRef.destroyHandCard !== 'function') return false;
+    const direct = cardLogicRef.destroyHandCard(cardState, playerKey, destroyCardId);
     if (!direct || !direct.applied) return false;
     emitCpuSelectionStateChange();
 
-    const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-        ? Number(cpuSmartness[playerKey])
-        : 1;
+    const level = resolveCpuSmartnessLevel(playerKey);
     const cardName = (destroyCardDef && destroyCardDef.name) ? destroyCardDef.name : destroyCardId;
     cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 手札破壊(direct) - ${cardName} (${destroyChoice.reason || 'cycle'})`);
     if (typeof emitLogAdded === 'function') {

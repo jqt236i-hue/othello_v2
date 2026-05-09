@@ -9,7 +9,7 @@
 
     const catalog = {
     "version": 1,
-    "generatedAt": "2026-04-27T01:49:49.622Z",
+    "generatedAt": "2026-05-09T10:04:29.121Z",
     "sourceDir": "assets/images/Gacha",
     "items": [
         {
@@ -246,7 +246,7 @@
     ]
 };
     const frozenItems = Array.isArray(catalog.items)
-        ? catalog.items.map((item) => Object.freeze(item))
+        ? catalog.items.map((item: any) => Object.freeze(item))
         : [];
     catalog.items = Object.freeze(frozenItems);
     return Object.freeze(catalog);

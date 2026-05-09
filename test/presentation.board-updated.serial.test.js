@@ -65,6 +65,9 @@ describe('presentation handler boardUpdated draining', () => {
         })
     };
     global.renderCardUI = jest.fn();
+    global.GamePresentationRuntime = {
+      flushPendingPresentationEvents: () => global.CardLogic.flushPresentationEvents()
+    };
 
     const ph = require('../ui/presentation-handler');
 
@@ -113,6 +116,9 @@ describe('presentation handler boardUpdated draining', () => {
       play: jest.fn().mockReturnValue(firstPlayback.promise)
     };
     global.renderCardUI = jest.fn();
+    global.GamePresentationRuntime = {
+      flushPendingPresentationEvents: () => global.CardLogic.flushPresentationEvents()
+    };
 
     const ph = require('../ui/presentation-handler');
 
@@ -201,6 +207,9 @@ describe('presentation handler boardUpdated draining', () => {
       play: jest.fn().mockResolvedValue(undefined)
     };
     global.renderCardUI = jest.fn();
+    global.GamePresentationRuntime = {
+      flushPendingPresentationEvents: () => global.CardLogic.flushPresentationEvents()
+    };
 
     const ph = require('../ui/presentation-handler');
     await ph.onBoardUpdated();

@@ -21,7 +21,7 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('uses only guard-timer for GUARD status updates', () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 
@@ -40,7 +40,7 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('uses countdown timer for Strong Will countdown updates', () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 
@@ -54,7 +54,7 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('syncDiscVisual toggles living will aura without dropping the current special visual', () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 
@@ -71,8 +71,8 @@ describe('animation-engine guard timer rendering', () => {
       crossfadeStoneVisual: crossfadeSpy
     }));
 
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '0';
@@ -107,9 +107,9 @@ describe('animation-engine guard timer rendering', () => {
       crossfadeStoneVisual: crossfadeSpy
     }));
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '0';
@@ -147,8 +147,8 @@ describe('animation-engine guard timer rendering', () => {
       crossfadeStoneVisual: crossfadeSpy
     }));
 
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '0';
@@ -185,9 +185,9 @@ describe('animation-engine guard timer rendering', () => {
       crossfadeStoneVisual: crossfadeSpy
     }));
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '1';
@@ -227,9 +227,9 @@ describe('animation-engine guard timer rendering', () => {
       crossfadeStoneVisual: crossfadeSpy
     }));
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '2';
@@ -269,9 +269,9 @@ describe('animation-engine guard timer rendering', () => {
     }));
 
     global.window.getEffectKeyForSpecialType = () => 'hyperactiveStone';
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '2';
@@ -310,9 +310,9 @@ describe('animation-engine guard timer rendering', () => {
       crossfadeStoneVisual: crossfadeSpy
     }));
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '2';
@@ -353,8 +353,8 @@ describe('animation-engine guard timer rendering', () => {
       crossfadeStoneVisual: crossfadeSpy
     }));
 
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '2';
@@ -385,8 +385,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('BLOCKADE の STATUS_APPLIED は赤も紫も出さない', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '2';
@@ -419,8 +419,8 @@ describe('animation-engine guard timer rendering', () => {
       crossfadeStoneVisual: crossfadeSpy
     }));
 
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell has-disc';
     cell.dataset.row = '2';
@@ -452,8 +452,8 @@ describe('animation-engine guard timer rendering', () => {
       crossfadeStoneVisual: crossfadeSpy
     }));
 
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '2';
@@ -485,10 +485,10 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('blockedByGhost flip only shows highlight and keeps the disc owner', async () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
     const syncSpy = jest.spyOn(engine, 'syncDiscVisual');
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '3';
@@ -521,9 +521,9 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('blockedByGhost destroy only shows highlight and keeps the disc in place', async () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '4';
@@ -555,9 +555,9 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('proliferated destroy only shows highlight and keeps the disc in place', async () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '5';
@@ -589,9 +589,9 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('regenerated destroy only shows highlight and keeps the disc in place', async () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '5';
@@ -626,9 +626,9 @@ describe('animation-engine guard timer rendering', () => {
     ['GLUTTONOUS_WILL', 'gluttonous_eat'],
     ['WILL_HUNTER_KING', 'will_hunter_king_slash']
   ])('proliferated %s destroy keeps highlight visible through overlap midpoint', async (cause, reason) => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '5';
@@ -662,9 +662,9 @@ describe('animation-engine guard timer rendering', () => {
     ['GLUTTONOUS_WILL', 'gluttonous_eat'],
     ['WILL_HUNTER_KING', 'will_hunter_king_slash']
   ])('ghost-blocked %s destroy keeps highlight visible through overlap midpoint', async (cause, reason) => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '5';
@@ -691,9 +691,9 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('regenerated will_hunter destroy keeps highlight visible through overlap midpoint', async () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine');
     const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '5';
@@ -725,8 +725,8 @@ describe('animation-engine guard timer rendering', () => {
       crossfadeStoneVisual: crossfadeSpy
     }));
 
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '0';
@@ -755,8 +755,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('freeze duration_end の STATUS_REMOVED は freeze overlay fade を使う', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell frozen-cell';
     cell.dataset.row = '0';
@@ -792,8 +792,8 @@ describe('animation-engine guard timer rendering', () => {
     jest.doMock('../ui/stone-visuals', () => ({
       crossfadeStoneVisual: crossfadeSpy
     }));
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '2';
@@ -825,8 +825,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('fadeOutFreezeOverlay removes frozen-cell visuals after fade', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell frozen-cell';
     cell.dataset.row = '1';
@@ -844,8 +844,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('play accepts STATUS_TICK targets with row/col keys', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.dataset.row = '0';
@@ -876,8 +876,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('play accepts MOVE targets with from/to row keys', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
     window.DISABLE_ANIMATIONS = true;
 
     const fromCell = document.createElement('div');
@@ -914,8 +914,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('move duration is fixed regardless of distance for strong wind / ultimate hyperactive / position swap', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const proto = window.Element && window.Element.prototype;
     const originalAnimate = proto ? proto.animate : undefined;
@@ -1024,7 +1024,7 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('move fallback keeps destination white disc visible when animate API is unavailable', async () => {
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const fromCell = document.createElement('div');
     fromCell.className = 'cell';
     fromCell.dataset.row = '0';
@@ -1044,7 +1044,7 @@ describe('animation-engine guard timer rendering', () => {
     if (proto) proto.animate = undefined;
 
     try {
-      import * as engine from '../ui/animation-engine.js';
+      const engine = require('../ui/animation-engine');
       await engine.play([
         {
           type: 'move',
@@ -1075,7 +1075,7 @@ describe('animation-engine guard timer rendering', () => {
     ['SPLIT_WILL', 'split_spawn'],
     ['PROLIFERATION_WILL', 'proliferation_spawn']
   ])('%s after-state playback keeps purple highlight on destination until move finishes', async (cause, reason) => {
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const setRect = (el, row, col) => {
       const left = col * 100;
       const top = row * 100;
@@ -1129,7 +1129,7 @@ describe('animation-engine guard timer rendering', () => {
     }
 
     try {
-      import * as engine from '../ui/animation-engine.js';
+      const engine = require('../ui/animation-engine');
       const playbackPromise = engine.handleMove({
         type: 'move',
         targets: [{
@@ -1172,7 +1172,7 @@ describe('animation-engine guard timer rendering', () => {
     ['ULTIMATE_REVERSE_DRAGON', 'ultimate_reverse_dragon_move'],
     ['ULTIMATE_DESTROY_GOD', 'ultimate_destroy_god_move']
   ])('%s after-state playback hides destination disc during hyperactive-family move', async (cause, reason) => {
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const setRect = (el, row, col) => {
       const left = col * 100;
       const top = row * 100;
@@ -1224,7 +1224,7 @@ describe('animation-engine guard timer rendering', () => {
     }
 
     try {
-      import * as engine from '../ui/animation-engine.js';
+      const engine = require('../ui/animation-engine');
       const playbackPromise = engine.handleMove({
         type: 'move',
         targets: [{
@@ -1255,7 +1255,7 @@ describe('animation-engine guard timer rendering', () => {
     ['SUPER_BUOYANCY_WILL', 'super_buoyancy_move', 'super_buoyancy_collision'],
     ['SUPER_GRAVITY_WILL', 'super_gravity_move', 'super_gravity_collision']
   ])('%s destination collision keeps final disc visible during after-state playback', async (cause, moveReason, destroyReason) => {
-    const board = document.getElementById('board');
+    const board = document.getElementById('board')!;
     const setRect = (el, row, col) => {
       const left = col * 100;
       const top = row * 100;
@@ -1297,7 +1297,7 @@ describe('animation-engine guard timer rendering', () => {
     }
 
     try {
-      import * as engine from '../ui/animation-engine.js';
+      const engine = require('../ui/animation-engine');
       await engine.executePhase([
         {
           type: 'destroy',
@@ -1336,8 +1336,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('TELEPORT_WILL move appears instantly at destination without translate trajectory', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const fromCell = document.createElement('div');
     fromCell.className = 'cell';
@@ -1388,8 +1388,8 @@ describe('animation-engine guard timer rendering', () => {
 
   test('sniper expiration destroy does not trigger projectile animation when source is null', async () => {
     global.animateFadeOutAt = jest.fn(() => Promise.resolve());
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -1421,8 +1421,8 @@ describe('animation-engine guard timer rendering', () => {
 
   test('sniper shot destroy triggers projectile animation when source exists', async () => {
     global.animateFadeOutAt = jest.fn(() => Promise.resolve());
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const sourceCell = document.createElement('div');
     sourceCell.className = 'cell';
@@ -1461,8 +1461,8 @@ describe('animation-engine guard timer rendering', () => {
 
   test('robot vacuum destroy triggers suction animation and skips fade-out path', async () => {
     global.animateFadeOutAt = jest.fn(() => Promise.resolve());
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const sourceCell = document.createElement('div');
     sourceCell.className = 'cell';
@@ -1512,8 +1512,8 @@ describe('animation-engine guard timer rendering', () => {
 
   test('gluttonous eat destroy skips fade and target is replaced by move', async () => {
     global.animateFadeOutAt = jest.fn(() => Promise.resolve());
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
     window.DISABLE_ANIMATIONS = true;
 
     const sourceCell = document.createElement('div');
@@ -1573,8 +1573,8 @@ describe('animation-engine guard timer rendering', () => {
 
   test('robot vacuum anchor_expired destroy does not use suction animation', async () => {
     global.animateFadeOutAt = jest.fn(() => Promise.resolve());
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -1610,8 +1610,8 @@ describe('animation-engine guard timer rendering', () => {
 
   test('udg destroy triggers lightning animation when source exists', async () => {
     global.animateFadeOutAt = jest.fn(() => Promise.resolve());
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const sourceCell = document.createElement('div');
     sourceCell.className = 'cell';
@@ -1652,8 +1652,8 @@ describe('animation-engine guard timer rendering', () => {
 
   test('udg anchor_expired destroy does not trigger lightning animation', async () => {
     global.animateFadeOutAt = jest.fn(() => Promise.resolve());
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -1687,8 +1687,8 @@ describe('animation-engine guard timer rendering', () => {
 
   test('lightning_will destroy triggers lightning animation when source exists', async () => {
     global.animateFadeOutAt = jest.fn(() => Promise.resolve());
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const sourceCell = document.createElement('div');
     sourceCell.className = 'cell';
@@ -1729,8 +1729,8 @@ describe('animation-engine guard timer rendering', () => {
 
   test('lightning_will anchor_expired destroy does not trigger lightning animation', async () => {
     global.animateFadeOutAt = jest.fn(() => Promise.resolve());
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -1763,8 +1763,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('card-effect flip applies and clears red cell highlight during animation', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -1801,8 +1801,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('non-card-effect flip does not apply red cell highlight', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -1837,8 +1837,8 @@ describe('animation-engine guard timer rendering', () => {
 
   test('card-effect destroy applies and clears red cell highlight', async () => {
     global.animateFadeOutAt = jest.fn(() => Promise.resolve());
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -1874,8 +1874,8 @@ describe('animation-engine guard timer rendering', () => {
 
   test('destroy highlight still applies red cell highlight when disc was already removed', async () => {
     global.animateFadeOutAt = jest.fn(() => Promise.resolve());
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -1907,8 +1907,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('breeding spawn applies and clears purple cell highlight on spawn moment', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -1944,8 +1944,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('free placement spawn applies and clears red cell highlight', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -1977,8 +1977,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('Equality Will spawn keeps purple cell highlight visible briefly', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -2017,8 +2017,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('Salvation Will spawn keeps purple cell highlight visible briefly', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -2057,8 +2057,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('Reinforcement Will spawn keeps purple cell highlight visible briefly', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -2097,8 +2097,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('free placement place event applies and clears red cell highlight', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -2130,8 +2130,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('normal place event inserts the disc immediately without fade setup', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const targetCell = document.createElement('div');
     targetCell.className = 'cell';
@@ -2159,8 +2159,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('strong wind move applies and clears red cell highlight at destination', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const fromCell = document.createElement('div');
     fromCell.className = 'cell';
@@ -2202,8 +2202,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('gluttonous eat move applies and clears red cell highlight at destination', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const fromCell = document.createElement('div');
     fromCell.className = 'cell';
@@ -2246,8 +2246,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('gluttonous eat phase keeps red highlight on move target without destroy/remove race', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const fromCell = document.createElement('div');
     fromCell.className = 'cell';
@@ -2312,8 +2312,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('teleport move applies and clears red cell highlight at destination', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const fromCell = document.createElement('div');
     fromCell.className = 'cell';
@@ -2356,8 +2356,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('cell teleport move applies and clears red cell highlight at destination', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const fromCell = document.createElement('div');
     fromCell.className = 'cell';
@@ -2402,8 +2402,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('destroy evade move applies and clears red cell highlight at source', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const fromCell = document.createElement('div');
     fromCell.className = 'cell';
@@ -2458,8 +2458,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('position swap move applies and clears red cell highlight on both cells', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const fromCell = document.createElement('div');
     fromCell.className = 'cell';
@@ -2509,8 +2509,8 @@ describe('animation-engine guard timer rendering', () => {
   });
 
   test('flip evade move applies and clears red cell highlight on source cell only', async () => {
-    import * as engine from '../ui/animation-engine.js';
-    const board = document.getElementById('board');
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
 
     const fromCell = document.createElement('div');
     fromCell.className = 'cell';

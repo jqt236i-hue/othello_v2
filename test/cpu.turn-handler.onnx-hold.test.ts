@@ -1,5 +1,7 @@
-import * as mod from '../game/cpu-turn-handler.js';
-import * as cpuDecision from '../game/cpu-decision.js';
+export {};
+const global: Record<string, any> = globalThis;
+const mod = require('../game/cpu-turn-handler.js');
+const cpuDecision: Record<string, any> = require('../game/cpu-decision.js');
 
 function makeBoard() {
     const board = Array.from({ length: 8 }, () => Array(8).fill(0));
@@ -32,7 +34,7 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         global.CardLogic = {
             getUsableCardIds: () => ['card_a'],
             hasUsableCard: () => true,
-            getCardDef: (id) => ({ id })
+            getCardDef: (id: string) => ({ id })
         };
         global.selectCardFromOnnxPolicyAsync = jest.fn(async () => ({ hold: true }));
         global.cpuMaybeUseCardWithPolicy = jest.fn(() => false);
@@ -238,7 +240,8 @@ describe('cpu-turn-handler onnx hold behavior', () => {
     });
 
     test('runCpuTurn destroys bucket2 FATE_WILL before card-use path in browser Lv6 flow', async () => {
-        const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation(() => 1);
+        const callbacks: Function[] = [];
+        const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation(((callback: (...args: any[]) => void) => { callbacks.push(callback); return 1; }) as any);
         global.cpuMaybeDestroyHandCardWithPolicy = cpuDecision.cpuMaybeDestroyHandCardWithPolicy;
         global.cardState = {
             hands: { white: ['fate_01'], black: [] },
@@ -280,10 +283,13 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         expect(global.selectCardFromOnnxPolicyAsync).not.toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
         expect(setTimeoutSpy).toHaveBeenCalled();
+        // Execute stored callbacks to clean up timers
+        callbacks.forEach(cb => cb());
     });
 
     test('runCpuTurn destroys bucket3 CORNER_TRIBUTE before card-use path in browser Lv6 flow', async () => {
-        const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation(() => 1);
+        const callbacks: Function[] = [];
+        const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation(((callback: (...args: any[]) => void) => { callbacks.push(callback); return 1; }) as any);
         global.cpuMaybeDestroyHandCardWithPolicy = cpuDecision.cpuMaybeDestroyHandCardWithPolicy;
         global.cardState = {
             hands: { white: ['corner_tribute_01'], black: [] },
@@ -325,5 +331,7 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         expect(global.selectCardFromOnnxPolicyAsync).not.toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
         expect(setTimeoutSpy).toHaveBeenCalled();
+        // Execute stored callbacks to clean up timers
+        callbacks.forEach(cb => cb());
     });
 });

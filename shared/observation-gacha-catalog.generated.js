@@ -1,4 +1,3 @@
-// @ts-nocheck
 (function (root, factory) {
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = factory();
@@ -10,7 +9,7 @@
 
     const catalog = {
     "version": 1,
-    "generatedAt": "2026-04-28T22:07:28.237Z",
+    "generatedAt": "2026-05-08T14:46:47.439Z",
     "sourceDir": "assets/images/Gacha",
     "items": [
         {
@@ -247,7 +246,7 @@
     ]
 };
     const frozenItems = Array.isArray(catalog.items)
-        ? catalog.items.map((item) => Object.freeze(item))
+        ? catalog.items.map((item: any) => Object.freeze(item))
         : [];
     catalog.items = Object.freeze(frozenItems);
     return Object.freeze(catalog);

@@ -9,8 +9,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 
-if (typeof (window as any).CardLogic === 'undefined') {
-    console.error('CardLogic is not loaded. Please include game/logic/cards.js');
+try {
+    if (typeof window !== 'undefined' && typeof (window as any).CardLogic === 'undefined') {
+        console.error('CardLogic is not loaded. Please include game/logic/cards.js');
+    }
+} catch (e) {
+    // window not available in Node.js/test environment
 }
 
 // Global card state container (reference stable)

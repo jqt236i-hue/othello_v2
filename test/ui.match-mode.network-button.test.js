@@ -111,8 +111,9 @@ describe('match-mode network button behavior', () => {
       getSeatKey: jest.fn(() => 'black')
     };
 
-    require('../ui/handlers/match-mode.js');
-    window.setupMatchModeControls(buildUiRefs());
+    const matchModeModule = require('../ui/handlers/match-mode.js');
+    window.MatchMode = matchModeModule;
+    matchModeModule.setupMatchModeControls(buildUiRefs());
   });
 
   afterEach(() => {

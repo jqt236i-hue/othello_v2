@@ -1,9 +1,11 @@
+export {};
+const global: Record<string, any> = globalThis;
 describe('cpu turn handler commentary', () => {
   test('shared runtime helper prefix is used for white CPU commentary logs', async () => {
     jest.resetModules();
 
     const requestCommentaryMock = jest.fn(async () => '行くぞ');
-    jest.doMock('../game/ai/cpu-commentary-runtime', () => ({
+    jest.doMock('../dist/game/ai/cpu-commentary-runtime', () => ({
       requestCommentary: requestCommentaryMock
     }));
 
@@ -33,7 +35,7 @@ describe('cpu turn handler commentary', () => {
     global.executeMove = jest.fn();
     global.generateMovesForPlayer = jest.fn(() => [{ row: 2, col: 3, flips: [] }]);
 
-    import * as handler from '../game/cpu-turn-handler.js';
+    const handler = require('../game/cpu-turn-handler.js');
 
     await handler.runCpuTurn('white');
     await Promise.resolve();
@@ -60,7 +62,7 @@ describe('cpu turn handler commentary', () => {
     const requestCommentaryMock = jest.fn()
       .mockResolvedValueOnce('読むぞ')
       .mockResolvedValueOnce('角だ');
-    jest.doMock('../game/ai/cpu-commentary-runtime', () => ({
+    jest.doMock('../dist/game/ai/cpu-commentary-runtime', () => ({
       requestCommentary: requestCommentaryMock
     }));
 
@@ -93,7 +95,7 @@ describe('cpu turn handler commentary', () => {
     });
     global.generateMovesForPlayer = jest.fn(() => [{ row: 0, col: 0, flips: [] }]);
 
-    import * as handler from '../game/cpu-turn-handler.js';
+    const handler = require('../game/cpu-turn-handler.js');
 
     await handler.runCpuTurn('white');
     await Promise.resolve();
@@ -121,7 +123,7 @@ describe('cpu turn handler commentary', () => {
     jest.resetModules();
 
     const requestCommentaryMock = jest.fn(async () => '読むぞ');
-    jest.doMock('../game/ai/cpu-commentary-runtime', () => ({
+    jest.doMock('../dist/game/ai/cpu-commentary-runtime', () => ({
       requestCommentary: requestCommentaryMock
     }));
 
@@ -154,7 +156,7 @@ describe('cpu turn handler commentary', () => {
     });
     global.generateMovesForPlayer = jest.fn(() => [{ row: 2, col: 3, flips: [] }]);
 
-    import * as handler from '../game/cpu-turn-handler.js';
+    const handler = require('../game/cpu-turn-handler.js');
 
     await handler.runCpuTurn('white');
     await Promise.resolve();

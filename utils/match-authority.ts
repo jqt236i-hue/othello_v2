@@ -990,6 +990,53 @@ function stripTransientChargeDeltaState(nextSnapshot) {
     return nextSnapshot;
 }
 
+function normalizeChargeValueForAuthority(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 0;
+    return numeric;
+}
+
+function restoreMissingChargeDeltaEvents(previousSnapshot, nextSnapshot) {
+    const previousCardState = (previousSnapshot && previousSnapshot.cardState && typeof previousSnapshot.cardState === 'object')
+        ? previousSnapshot.cardState
+        : null;
+    const nextCardState = (nextSnapshot && nextSnapshot.cardState && typeof nextSnapshot.cardState === 'object')
+        ? nextSnapshot.cardState
+        : null;
+    if (!previousCardState || !nextCardState) return nextSnapshot;
+    if (Array.isArray(nextCardState.chargeDeltaEvents) && nextCardState.chargeDeltaEvents.length > 0) {
+        return nextSnapshot;
+    }
+
+    const previousCharge = (previousCardState.charge && typeof previousCardState.charge === 'object')
+        ? previousCardState.charge
+        : null;
+    const nextCharge = (nextCardState.charge && typeof nextCardState.charge === 'object')
+        ? nextCardState.charge
+        : null;
+    if (!previousCharge || !nextCharge) return nextSnapshot;
+
+    const events = [];
+    let seq = 1;
+    for (const playerKey of PLAYER_KEYS) {
+        const before = normalizeChargeValueForAuthority(previousCharge[playerKey]);
+        const after = normalizeChargeValueForAuthority(nextCharge[playerKey]);
+        const delta = after - before;
+        if (delta === 0) continue;
+        events.push({
+            seq,
+            player: playerKey,
+            before,
+            after,
+            delta,
+            reason: 'network_snapshot_charge_sync'
+        });
+        seq += 1;
+    }
+    nextCardState.chargeDeltaEvents = events;
+    return nextSnapshot;
+}
+
 function isTrapStoneLike(entry) {
     if (!entry || typeof entry !== 'object') return false;
     if (entry.data && entry.data.type === 'TRAP') return true;
@@ -1543,6 +1590,7 @@ const matchAuthority = {
     computeProjectedSnapshotHash,
     stripTransientPresentationState,
     stripTransientChargeDeltaState,
+    restoreMissingChargeDeltaEvents,
     projectSnapshotForViewer,
     buildPublicSnapshot,
     validatePendingSelectionPublish,

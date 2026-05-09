@@ -39,6 +39,8 @@ describe('UI bootstrap early CPU registration', () => {
     });
     const { window } = dom;
     const bridgeState = { bridge: null };
+    global.window = window;
+    global.document = window.document;
 
     window.PendingSelectionFlow = {
       setSignalBridge: (bridge) => {
@@ -60,8 +62,8 @@ describe('UI bootstrap early CPU registration', () => {
       }
     };
 
-    const source = fs.readFileSync(path.resolve(__dirname, '../ui/bootstrap.js'), 'utf8');
-    // Provide a no-op require so that bootstrap code with conditional require() doesn't throw
+    const source = fs.readFileSync(path.resolve(__dirname, '../dist/ui/bootstrap.js'), 'utf8');
+    // Evaluate the built browser-compatible artifact with a no-op require so optional DI imports fall back to globals.
     const browserLikeCode = `var require = function() { return {}; }; var module = { exports: {} }; var exports = module.exports;\n${source}`;
     expect(() => window.eval(browserLikeCode)).not.toThrow();
 
@@ -97,6 +99,8 @@ describe('UI bootstrap early CPU registration', () => {
     });
     const { window } = dom;
     const bridgeState = { bridge: null };
+    global.window = window;
+    global.document = window.document;
 
     window.PendingSelectionFlow = {
       setSignalBridge: (bridge) => {
@@ -113,9 +117,10 @@ describe('UI bootstrap early CPU registration', () => {
       }
     };
 
-    // Load bootstrap via require (Node context) since the eval approach is fragile with strict mode
-    const UIBootstrap = require('../ui/bootstrap');
-    UIBootstrap.installGameDI();
+    const source = fs.readFileSync(path.resolve(__dirname, '../dist/ui/bootstrap.js'), 'utf8');
+    const browserLikeCode = `var require = function() { return {}; }; var module = { exports: {} }; var exports = module.exports;\n${source}`;
+    expect(() => window.eval(browserLikeCode)).not.toThrow();
+    window.UIBootstrap.installGameDI();
 
     expect(bridgeState.bridge).toBeTruthy();
 

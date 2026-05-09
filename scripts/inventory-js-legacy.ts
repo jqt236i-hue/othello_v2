@@ -83,7 +83,10 @@ function main() {
     'game/pass-handler.js',
     'game/move-generator.js',
     'game/special-effects/hyperactive.js',
-    'game/special-effects/dragons.js'
+    'game/special-effects/dragons.js',
+    'game/debug/debug-actions.js',
+    'game/logic/cards/breeding.js',
+    'game/logic/cards/sniper.js'
   ]);
   const unwrappedHighRisk = results.filter(r => r.file.startsWith('game/') && r.hasTs && r.category !== 'dist-wrapper' && r.category !== 'generated' && !allowedLegacy.has(r.file));
   if (unwrappedHighRisk.length > 0) {

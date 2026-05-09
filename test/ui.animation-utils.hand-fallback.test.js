@@ -429,6 +429,16 @@ describe('animation-utils hand fallback', () => {
     window.__handFadeInState = { playerKey: 'black', count: 1, token: 'fade-token' };
     window.__handFadeInHint = { playerKey: 'black', count: 1, token: 'fade-token' };
 
+    global.OwnerHelpers = {
+      normalizePlayerKey: (value) => {
+        if (value === 'white' || value === -1 || value === '-1') return 'white';
+        return 'black';
+      },
+      filterOwnerMatchedElements: (elements, ownerKey) => {
+        return elements.filter(el => el && el.dataset && el.dataset.ownerKey === ownerKey);
+      }
+    };
+
     const mod = require('../ui/animation-utils');
     expect(mod.getQueuedHandFadeInState()).toMatchObject({ playerKey: 'black', count: 1, token: 'fade-token' });
 

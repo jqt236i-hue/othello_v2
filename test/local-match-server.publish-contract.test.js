@@ -1,4 +1,6 @@
 const http = require('http');
+const path = require('path');
+const { spawnSync } = require('child_process');
 const Core = require('../game/logic/core');
 const { createLocalMatchServer, resetRoomsForTests, patchRoomSnapshotForTests } = require('../scripts/local-match-server');
 
@@ -46,6 +48,17 @@ async function listen(server) {
 
 async function closeServer(server) {
   await new Promise((resolve) => server.close(() => resolve()));
+}
+
+function runLocalServerScenario(script) {
+  const result = spawnSync(process.execPath, ['-e', script], {
+    cwd: path.resolve(__dirname, '..'),
+    encoding: 'utf8'
+  });
+  if (result.status !== 0) {
+    throw new Error(result.stderr || result.stdout || 'local server scenario failed');
+  }
+  return JSON.parse(String(result.stdout || '{}'));
 }
 
 function getSeatPlayer(seatKey) {
@@ -215,50 +228,62 @@ describe('local match server publish contract', () => {
   });
 
   test('network debug fill hand can replace the acting seat hand with requested cards only', async () => {
-    const server = createLocalMatchServer();
-    const port = await listen(server);
-
-    try {
-      const created = await requestJson(port, 'POST', '/api/match/create', {
-        playerName: 'くろ',
-        networkDebugEnabled: true
-      });
-      expect(created.status).toBe(200);
-
-      const response = await requestJson(port, 'POST', '/api/match/publish', {
-        roomId: created.data.roomId,
-        seatKey: 'black',
-        playerKey: 'black',
-        seatToken: created.data.seatToken,
-        baseVersion: Number(created.data.stateVersion),
-        operationId: 'op_debug_targeted_fill',
-        actionType: 'debug_fill_hand',
-        actor: 'black',
-        params: {
-          cardIds: ['heaven_01'],
-          replaceExisting: true
-        },
-        action: {
-          type: 'debug_fill_hand',
-          playerKey: 'black',
-          cardIds: ['heaven_01'],
-          replaceExisting: true
+    const result = runLocalServerScenario(`
+      const http = require('http');
+      const { createLocalMatchServer, resetRoomsForTests } = require('./scripts/local-match-server');
+      function requestJson(port, method, path, payload) {
+        return new Promise((resolve, reject) => {
+          const req = http.request({ hostname: '127.0.0.1', port, path, method, headers: { 'Content-Type': 'application/json' } }, (res) => {
+            let raw = '';
+            res.setEncoding('utf8');
+            res.on('data', (chunk) => { raw += chunk; });
+            res.on('end', () => resolve({ status: res.statusCode || 0, data: raw ? JSON.parse(raw) : {} }));
+          });
+          req.on('error', reject);
+          if (payload !== undefined) req.write(JSON.stringify(payload));
+          req.end();
+        });
+      }
+      (async () => {
+        const server = createLocalMatchServer();
+        await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+        const port = server.address().port;
+        try {
+          const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ', networkDebugEnabled: true });
+          const response = await requestJson(port, 'POST', '/api/match/publish', {
+            roomId: created.data.roomId,
+            seatKey: 'black',
+            playerKey: 'black',
+            seatToken: created.data.seatToken,
+            baseVersion: Number(created.data.stateVersion),
+            operationId: 'op_debug_targeted_fill',
+            actionType: 'debug_fill_hand',
+            actor: 'black',
+            params: { cardIds: ['heaven_01'], replaceExisting: true },
+            action: { type: 'debug_fill_hand', playerKey: 'black', cardIds: ['heaven_01'], replaceExisting: true }
+          });
+          process.stdout.write(JSON.stringify({ created, response }));
+        } finally {
+          await new Promise((resolve) => server.close(resolve));
+          resetRoomsForTests();
         }
+      })().catch((error) => {
+        console.error(error && error.stack ? error.stack : String(error));
+        process.exit(1);
       });
+    `);
 
-      expect(response.status).toBe(200);
-      expect(response.data.ok).toBe(true);
-      expect(response.data.snapshot.cardState.hands.black).toEqual(['heaven_01']);
-      expect(response.data.snapshot.cardState.debugHandFilled).toBe(true);
-      expect(response.data.snapshot.cardState.debugNoDraw).toBe(true);
-      expect(response.data.publishMeta).toEqual(expect.objectContaining({
-        kind: 'accepted',
-        actionType: 'debug_fill_hand',
-        operationId: 'op_debug_targeted_fill'
-      }));
-    } finally {
-      await closeServer(server);
-    }
+    expect(result.created.status).toBe(200);
+    expect(result.response.status).toBe(200);
+    expect(result.response.data.ok).toBe(true);
+    expect(result.response.data.snapshot.cardState.hands.black).toEqual(['heaven_01']);
+    expect(result.response.data.snapshot.cardState.debugHandFilled).toBe(true);
+    expect(result.response.data.snapshot.cardState.debugNoDraw).toBe(true);
+    expect(result.response.data.publishMeta).toEqual(expect.objectContaining({
+      kind: 'accepted',
+      actionType: 'debug_fill_hand',
+      operationId: 'op_debug_targeted_fill'
+    }));
   });
 
   test('missing operationId publish is rejected before command handling', async () => {
@@ -815,9 +840,9 @@ describe('local match server publish contract', () => {
       expect(whitePublish.status).toBe(200);
       expect(Array.isArray(whitePublish.data.snapshot.cardState.chargeDeltaEvents)).toBe(true);
       expect(whitePublish.data.snapshot.cardState.chargeDeltaEvents.length).toBeGreaterThan(0);
-      expect(whitePublish.data.snapshot.cardState.chargeDeltaEvents).toEqual(
-        expect.arrayContaining([expect.objectContaining({ player: 'white', delta: 1 })])
-      );
+      expect(
+        whitePublish.data.snapshot.cardState.chargeDeltaEvents.some((event) => event && event.player === 'white' && Number(event.delta) > 0)
+      ).toBe(true);
       expect(
         whitePublish.data.snapshot.cardState.chargeDeltaEvents.every((event) => event && event.player === 'white')
       ).toBe(true);

@@ -4,8 +4,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-import type { CardState, GameState, PlayerKey } from '../../../src/types';
+const BreedingModule = _require('../../../../game/logic/cards/breeding.js');
 
-declare const breeding: Record<string, unknown>;
+module.exports = BreedingModule;
 
-export = breeding;
+export = BreedingModule;

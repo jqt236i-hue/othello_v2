@@ -164,8 +164,7 @@ describe('NetworkMatchClient queued publish', () => {
   });
 
   test('2回目の送信で最新の版番号を使う', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -195,8 +194,7 @@ describe('NetworkMatchClient queued publish', () => {
   });
 
   test('stream snapshot適用後の次回publishは更新済みstateVersionをbaseVersionに使う', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -237,8 +235,7 @@ describe('NetworkMatchClient queued publish', () => {
   });
 
   test('後続送信は待機中でも呼び出し時点のスナップショットを保持する', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -383,8 +380,7 @@ describe('NetworkMatchClient queued publish', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -489,8 +485,7 @@ describe('NetworkMatchClient queued publish', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -575,8 +570,7 @@ describe('NetworkMatchClient queued publish', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -647,8 +641,7 @@ describe('NetworkMatchClient queued publish', () => {
   });
 
   test('先行publish成功応答で後続ローカル状態を巻き戻さない', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -745,8 +738,7 @@ describe('NetworkMatchClient queued publish', () => {
   });
 
   test('先行publish拒否応答でも後続ローカル状態を巻き戻さず baseVersion だけ更新する', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -849,8 +841,7 @@ describe('NetworkMatchClient queued publish', () => {
   });
 
   test('同版 VERSION_MISMATCH 拒否は rejection snapshot を force apply せず telemetry に残す', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -951,8 +942,7 @@ describe('NetworkMatchClient queued publish', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -970,8 +960,7 @@ describe('NetworkMatchClient queued publish', () => {
   });
 
   test('部屋番号が3文字でない場合は参加を事前に拒否する', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const result = await client.joinRoom('ABCDE', { serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -981,8 +970,7 @@ describe('NetworkMatchClient queued publish', () => {
   });
 
   test('チャットは20文字超過を送信前に拒否する', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
@@ -1036,8 +1024,7 @@ describe('NetworkMatchClient queued publish', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({
@@ -1121,8 +1108,7 @@ describe('NetworkMatchClient queued publish', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', {
@@ -1184,8 +1170,7 @@ describe('NetworkMatchClient queued publish', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({
@@ -1240,8 +1225,7 @@ describe('NetworkMatchClient queued publish', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });

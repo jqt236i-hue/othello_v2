@@ -1,11 +1,19 @@
-import * as core from '../game/ai/cpu-policy-core.js';
-import * as Core from '../game/logic/core.js';
-import * as catalog from '../cards/catalog.json';
-import * as SharedBoardUtils from '../shared/shared-board-utils.js';
+type TestCardDef = { id: string; type?: string };
+type TestMove = { id?: string | number; row?: number; col?: number; flips?: unknown[] };
+type SearchMeta = Record<string, number | boolean>;
+function requireSearchMeta(meta: SearchMeta | null): SearchMeta {
+    if (!meta) throw new Error('missing search metadata');
+    return meta;
+}
+
+const core = require('../game/ai/cpu-policy-core');
+const CoreLogic = require('../game/logic/core');
+const catalog = require('../cards/catalog.json');
+const TestSharedBoardUtils = require('../shared/shared-board-utils');
 
 describe('cpu-policy-core', () => {
     test('every catalog card type has explicit CPU usage style coverage', () => {
-        const catalogTypes = [...new Set((catalog.cards || []).map((card) => String(card.type || '').trim()).filter(Boolean))];
+        const catalogTypes = [...new Set((catalog.cards || []).map((card: { type?: unknown }) => String(card.type || '').trim()).filter(Boolean))];
         expect(catalogTypes.length).toBeGreaterThan(0);
         const missing = catalogTypes.filter((type) => !core.hasUsageStyleForCardType(type));
         expect(missing).toEqual([]);
@@ -13,12 +21,12 @@ describe('cpu-policy-core', () => {
 
     test('chooseHighestCostCard picks max-cost card', () => {
         const usable = ['a', 'b', 'c'];
-        const costs = { a: 5, b: 12, c: 7 };
-        const defs = { a: { id: 'a' }, b: { id: 'b' }, c: { id: 'c' } };
+        const costs: Record<string, number> = { a: 5, b: 12, c: 7 };
+        const defs: Record<string, TestCardDef> = { a: { id: 'a' }, b: { id: 'b' }, c: { id: 'c' } };
         const out = core.chooseHighestCostCard(
             usable,
-            (id) => costs[id],
-            (id) => defs[id]
+            (id: string) => costs[id],
+            (id: string) => defs[id]
         );
         expect(out).toEqual({ cardId: 'b', cardDef: defs.b });
     });
@@ -498,7 +506,7 @@ describe('cpu-policy-core', () => {
     test('chooseMove uses scoreMove ordering when provided', () => {
         const moves = [{ id: 'a' }, { id: 'b' }];
         const selected = core.chooseMove(moves, 4, { random: () => 0.0 }, null, {
-            scoreMove: (m) => (m.id === 'b' ? 100 : 0)
+            scoreMove: (m: TestMove) => (m.id === 'b' ? 100 : 0)
         });
         expect(selected).toEqual(moves[1]);
     });
@@ -539,7 +547,7 @@ describe('cpu-policy-core', () => {
             board,
             playerValue: -1,
             level: 6,
-            scoreMove: (move) => (move === moveB ? 99999 : 0)
+            scoreMove: (move: TestMove) => (move === moveB ? 99999 : 0)
         });
         expect(selected).toEqual(moveB);
     });
@@ -551,7 +559,7 @@ describe('cpu-policy-core', () => {
         board[3][4] = 1;
         board[4][3] = 1;
         board[4][4] = -1;
-        SharedBoardUtils.attachBoardShape(board, {
+        TestSharedBoardUtils.attachBoardShape(board, {
             boardExpansion: {
                 cells: [
                     { row: 0, col: 8, owner: 0 },
@@ -633,7 +641,7 @@ describe('cpu-policy-core', () => {
             // Force prior-only ranking so the guard behavior is explicitly tested.
             searchWeight: 0,
             priorWeight: 400,
-            scoreMove: (move) => (move === riskyMove ? 999999 : 0)
+            scoreMove: (move: TestMove) => (move === riskyMove ? 999999 : 0)
         });
         expect(selected).toEqual(saferMove);
     });
@@ -661,7 +669,7 @@ describe('cpu-policy-core', () => {
             // make inner prior extremely large: lv6 hard guard should still force corner.
             searchWeight: 0,
             priorWeight: 500,
-            scoreMove: (move) => (move === innerMove ? 999999 : 0)
+            scoreMove: (move: TestMove) => (move === innerMove ? 999999 : 0)
         });
         expect(selected).toEqual(cornerMove);
     });
@@ -688,7 +696,7 @@ describe('cpu-policy-core', () => {
             // force prior to prefer inner; lv6 edge-hold guard should switch to edge.
             searchWeight: 0,
             priorWeight: 500,
-            scoreMove: (move) => (move === innerMove ? 999999 : 0)
+            scoreMove: (move: TestMove) => (move === innerMove ? 999999 : 0)
         });
         expect(selected).toEqual(edgeMove);
     });
@@ -714,7 +722,7 @@ describe('cpu-policy-core', () => {
             nodeBudget: 2000,
             searchWeight: 0,
             priorWeight: 500,
-            scoreMove: (move) => (move === innerMove ? 999999 : 0)
+            scoreMove: (move: TestMove) => (move === innerMove ? 999999 : 0)
         });
         expect(selected).toEqual(innerMove);
     });
@@ -740,7 +748,7 @@ describe('cpu-policy-core', () => {
             nodeBudget: 2000,
             searchWeight: 0,
             priorWeight: 500,
-            scoreMove: (move) => (move === innerMove ? 999999 : 0)
+            scoreMove: (move: TestMove) => (move === innerMove ? 999999 : 0)
         });
         expect(selected).toEqual(stabilizingEdgeMove);
     });
@@ -793,7 +801,7 @@ describe('cpu-policy-core', () => {
             nodeBudget: 2000,
             searchWeight: 0,
             priorWeight: 500,
-            scoreMove: (move) => (move === innerMove ? 999999 : 0)
+            scoreMove: (move: TestMove) => (move === innerMove ? 999999 : 0)
         });
 
         expect(selected).toEqual(innerMove);
@@ -818,7 +826,7 @@ describe('cpu-policy-core', () => {
             nodeBudget: 2000,
             searchWeight: 0,
             priorWeight: 500,
-            scoreMove: (move) => (move === innerMove ? 999999 : 0)
+            scoreMove: (move: TestMove) => (move === innerMove ? 999999 : 0)
         });
 
         expect(selected).toEqual(innerMove);
@@ -831,7 +839,7 @@ describe('cpu-policy-core', () => {
         board[0][6] = 1;
         board[4][3] = 1;
 
-        SharedBoardUtils.attachBoardShape(board, {
+        TestSharedBoardUtils.attachBoardShape(board, {
             boardExpansion: {
                 cells: [
                     { row: -1, col: 7, owner: 0 },
@@ -852,7 +860,7 @@ describe('cpu-policy-core', () => {
             nodeBudget: 2000,
             searchWeight: 0,
             priorWeight: 500,
-            scoreMove: (move) => (move === innerMove ? 999999 : 0)
+            scoreMove: (move: TestMove) => (move === innerMove ? 999999 : 0)
         })).not.toThrow();
     });
 
@@ -872,14 +880,14 @@ describe('cpu-policy-core', () => {
         const moveCorner = { row: 0, col: 0, flips: [{ row: 0, col: 1 }, { row: 1, col: 0 }] };
         const moveInner = { row: 2, col: 2, flips: [{ row: 2, col: 3 }] };
 
-        let meta = null;
+        let meta: SearchMeta | null = null;
         const selected = core.chooseMoveByLookahead([moveInner, moveCorner], {
             board,
             playerValue: 1,
             level: 6,
             endgameNodeBudget: 20_000,
             endgameMaxTimeMs: 120,
-            onSearchMeta: (m) => {
+            onSearchMeta: (m: SearchMeta) => {
                 meta = m;
             }
         });
@@ -887,51 +895,53 @@ describe('cpu-policy-core', () => {
         expect(selected).toBeTruthy();
         expect([moveInner, moveCorner]).toContain(selected);
         expect(meta).toBeTruthy();
-        expect(meta.endgameMode).toBe(true);
-        expect(meta.depth).toBeGreaterThanOrEqual(30);
+        const metaSnapshot = requireSearchMeta(meta);
+        expect(metaSnapshot.endgameMode).toBe(true);
+        expect(metaSnapshot.depth).toBeGreaterThanOrEqual(30);
     });
 
     test('chooseMoveByLookahead exposes late-endgame parity and damped prior mix in metadata', () => {
-        const board = Array.from({ length: 8 }, () => Array(8).fill(Core.BLACK));
-        board[0][0] = Core.EMPTY;
-        board[0][1] = Core.EMPTY;
-        board[1][0] = Core.EMPTY;
+        const board = Array.from({ length: 8 }, () => Array(8).fill(CoreLogic.BLACK));
+        board[0][0] = CoreLogic.EMPTY;
+        board[0][1] = CoreLogic.EMPTY;
+        board[1][0] = CoreLogic.EMPTY;
 
-        let meta = null;
+        let meta: SearchMeta | null = null;
         const selected = core.chooseMoveByLookahead([
             { row: 0, col: 0, flips: [] }
         ], {
             board,
-            playerValue: Core.BLACK,
+            playerValue: CoreLogic.BLACK,
             level: 6,
             priorWeight: 100,
             searchWeight: 1.8,
-            onSearchMeta: (one) => {
+            onSearchMeta: (one: SearchMeta) => {
                 meta = one;
             }
         });
 
         expect(selected).toEqual(expect.objectContaining({ row: 0, col: 0 }));
         expect(meta).toBeTruthy();
-        expect(meta.endgameMode).toBe(true);
-        expect(meta.effectivePriorWeight).toBeLessThan(100);
-        expect(meta.effectiveSearchWeight).toBeGreaterThan(1.8);
-        expect(meta.parityOddRegionCount).toBe(1);
-        expect(meta.parityEvenRegionCount).toBe(0);
-        expect(meta.paritySignal).toBe(1);
-        expect(meta.forcedPassSignal).toBe(0);
+        const metaSnapshot = requireSearchMeta(meta);
+        expect(metaSnapshot.endgameMode).toBe(true);
+        expect(metaSnapshot.effectivePriorWeight).toBeLessThan(100);
+        expect(metaSnapshot.effectiveSearchWeight).toBeGreaterThan(1.8);
+        expect(metaSnapshot.parityOddRegionCount).toBe(1);
+        expect(metaSnapshot.parityEvenRegionCount).toBe(0);
+        expect(metaSnapshot.paritySignal).toBe(1);
+        expect(metaSnapshot.forcedPassSignal).toBe(0);
     });
 
     test('chooseCardWithRiskProfile avoids high-variance expensive card while ahead', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             high: { id: 'high', type: 'ULTIMATE_REVERSE_DRAGON' },
             safe: { id: 'safe', type: 'HEAVEN_BLESSING' }
         };
-        const costs = { high: 30, safe: 2 };
+        const costs: Record<string, number> = { high: 30, safe: 2 };
         const selected = core.chooseCardWithRiskProfile(
             ['high', 'safe'],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 legalMovesCount: 1,
@@ -965,7 +975,7 @@ describe('cpu-policy-core', () => {
 
 
     test('scoreCardUseDecision uses REBUILD_WILL to recover from saturated low-quality hand', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             rebuild: { id: 'rebuild', type: 'REBUILD_WILL' },
             risk_a: { id: 'risk_a', type: 'TIME_STOP_GOD' },
             risk_b: { id: 'risk_b', type: 'TIME_BOMB' },
@@ -975,7 +985,7 @@ describe('cpu-policy-core', () => {
         const out = core.scoreCardUseDecision(
             'rebuild',
             () => 0,
-            (id) => defs[id] || null,
+            (id: string) => defs[id] || null,
             {
                 level: 6,
                 legalMovesCount: 4,
@@ -995,7 +1005,7 @@ describe('cpu-policy-core', () => {
     });
 
     test('scoreCardUseDecision suppresses REBUILD_WILL when key cards are held or deck is too thin', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             rebuild: { id: 'rebuild', type: 'REBUILD_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             destroy: { id: 'destroy', type: 'DESTROY_ONE_STONE' },
@@ -1004,7 +1014,7 @@ describe('cpu-policy-core', () => {
         const out = core.scoreCardUseDecision(
             'rebuild',
             () => 0,
-            (id) => defs[id] || null,
+            (id: string) => defs[id] || null,
             {
                 level: 6,
                 legalMovesCount: 4,
@@ -1072,15 +1082,15 @@ describe('cpu-policy-core', () => {
     });
 
     test('scoreCardUseDecision prefers stability cards while ahead with corner-edge lead', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             guard: { id: 'guard', type: 'GUARD_WILL' },
             bomb: { id: 'bomb', type: 'TIME_BOMB' }
         };
-        const costs = { guard: 8, bomb: 9 };
+        const costs: Record<string, number> = { guard: 8, bomb: 9 };
         const guardDecision = core.scoreCardUseDecision(
             'guard',
-            (id) => costs[id],
-            (id) => defs[id] || null,
+            (id: string) => costs[id],
+            (id: string) => defs[id] || null,
             {
                 level: 6,
                 legalMovesCount: 5,
@@ -1099,8 +1109,8 @@ describe('cpu-policy-core', () => {
         );
         const bombDecision = core.scoreCardUseDecision(
             'bomb',
-            (id) => costs[id],
-            (id) => defs[id] || null,
+            (id: string) => costs[id],
+            (id: string) => defs[id] || null,
             {
                 level: 6,
                 legalMovesCount: 5,
@@ -1122,15 +1132,15 @@ describe('cpu-policy-core', () => {
     });
 
     test('scoreCardUseDecision prefers recovery swing cards while behind in corner-edge deficit', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' },
             guard: { id: 'guard', type: 'GUARD_WILL' }
         };
-        const costs = { recover: 12, guard: 8 };
+        const costs: Record<string, number> = { recover: 12, guard: 8 };
         const recoverDecision = core.scoreCardUseDecision(
             'recover',
-            (id) => costs[id],
-            (id) => defs[id] || null,
+            (id: string) => costs[id],
+            (id: string) => defs[id] || null,
             {
                 level: 6,
                 legalMovesCount: 3,
@@ -1149,8 +1159,8 @@ describe('cpu-policy-core', () => {
         );
         const guardDecision = core.scoreCardUseDecision(
             'guard',
-            (id) => costs[id],
-            (id) => defs[id] || null,
+            (id: string) => costs[id],
+            (id: string) => defs[id] || null,
             {
                 level: 6,
                 legalMovesCount: 3,
@@ -1173,15 +1183,15 @@ describe('cpu-policy-core', () => {
     });
 
     test('scoreCardUseDecision boosts edge contest cards when edge control is collapsing', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             destroy: { id: 'destroy', type: 'DESTROY_ONE_STONE' },
             heaven: { id: 'heaven', type: 'HEAVEN_BLESSING' }
         };
-        const costs = { destroy: 12, heaven: 6 };
+        const costs: Record<string, number> = { destroy: 12, heaven: 6 };
         const destroyDecision = core.scoreCardUseDecision(
             'destroy',
-            (id) => costs[id],
-            (id) => defs[id] || null,
+            (id: string) => costs[id],
+            (id: string) => defs[id] || null,
             {
                 level: 6,
                 legalMovesCount: 2,
@@ -1200,8 +1210,8 @@ describe('cpu-policy-core', () => {
         );
         const heavenDecision = core.scoreCardUseDecision(
             'heaven',
-            (id) => costs[id],
-            (id) => defs[id] || null,
+            (id: string) => costs[id],
+            (id: string) => defs[id] || null,
             {
                 level: 6,
                 legalMovesCount: 2,
@@ -1918,16 +1928,16 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseLowestRetentionCard rotates EXTREME_HYPERACTIVE_WILL first when leading in endgame', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             extreme: { id: 'extreme', type: 'EXTREME_HYPERACTIVE_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' }
         };
-        const costs = { extreme: 35, guard: 2, silver: 3 };
+        const costs: Record<string, number> = { extreme: 35, guard: 2, silver: 3 };
         const selected = core.chooseLowestRetentionCard(
             ['extreme', 'guard', 'silver'],
-            (id) => costs[id],
-            (id) => defs[id] || null,
+            (id: string) => costs[id],
+            (id: string) => defs[id] || null,
             {
                 level: 6,
                 legalMovesCount: 4,
@@ -1946,16 +1956,16 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseLowestRetentionCard keeps recovery card and sells lower-impact card when hand is full', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             guard: { id: 'guard', type: 'GUARD_WILL' },
             dragon: { id: 'dragon', type: 'ULTIMATE_REVERSE_DRAGON' },
             silver: { id: 'silver', type: 'SILVER_STONE' }
         };
-        const costs = { guard: 2, dragon: 30, silver: 5 };
+        const costs: Record<string, number> = { guard: 2, dragon: 30, silver: 5 };
         const selected = core.chooseLowestRetentionCard(
             ['guard', 'dragon', 'silver'],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 legalMovesCount: 4,
@@ -1972,16 +1982,16 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseLowestRetentionCard keeps recovery card during corner emergency', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' },
             chain: { id: 'chain', type: 'DOUBLE_CHAIN_WILL' },
             wind: { id: 'wind', type: 'STRONG_WIND_WILL' }
         };
-        const costs = { recover: 14, chain: 10, wind: 8 };
+        const costs: Record<string, number> = { recover: 14, chain: 10, wind: 8 };
         const selected = core.chooseLowestRetentionCard(
             ['recover', 'chain', 'wind'],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 legalMovesCount: 2,
@@ -1998,16 +2008,16 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseLowestRetentionCard prefers selling cost>=20 card in white Lv6 mode', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             dragon: { id: 'dragon', type: 'ULTIMATE_REVERSE_DRAGON' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' }
         };
-        const costs = { dragon: 30, guard: 2, silver: 3 };
+        const costs: Record<string, number> = { dragon: 30, guard: 2, silver: 3 };
         const selected = core.chooseLowestRetentionCard(
             ['dragon', 'guard', 'silver'],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 playerValue: -1,
@@ -2026,16 +2036,16 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseLowestRetentionCard rotates LAST_RESORT first when it is unusable and hand is crowded', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             last: { id: 'last', type: 'LAST_RESORT' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
         };
-        const costs = { last: 20, guard: 2, recover: 14 };
+        const costs: Record<string, number> = { last: 20, guard: 2, recover: 14 };
         const selected = core.chooseLowestRetentionCard(
             ['last', 'guard', 'recover'],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 playerValue: -1,
@@ -2054,16 +2064,16 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseLowestRetentionCard rotates LAST_RESORT first when no legal moves remain but discDiff is non-negative', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             last: { id: 'last', type: 'LAST_RESORT' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
         };
-        const costs = { last: 20, guard: 2, recover: 14 };
+        const costs: Record<string, number> = { last: 20, guard: 2, recover: 14 };
         const selected = core.chooseLowestRetentionCard(
             ['last', 'guard', 'recover'],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 playerValue: -1,
@@ -2164,17 +2174,17 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseLowestRetentionCard rotates SUPER_BUOYANCY_WILL when no corner or edge conversion exists', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             super: { id: 'super', type: 'SUPER_BUOYANCY_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' },
             work: { id: 'work', type: 'WORK_WILL' }
         };
-        const costs = { super: 14, guard: 2, recover: 14, work: 11 };
+        const costs: Record<string, number> = { super: 14, guard: 2, recover: 14, work: 11 };
         const selected = core.chooseLowestRetentionCard(
             ['super', 'guard', 'recover', 'work'],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 playerValue: -1,
@@ -2196,16 +2206,16 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseLowestRetentionCard keeps TELEPORT_WILL during corner emergency', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             teleport: { id: 'teleport', type: 'TELEPORT_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
         };
-        const costs = { teleport: 9, silver: 3, recover: 14 };
+        const costs: Record<string, number> = { teleport: 9, silver: 3, recover: 14 };
         const selected = core.chooseLowestRetentionCard(
             ['teleport', 'silver', 'recover'],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 playerValue: -1,
@@ -2224,16 +2234,16 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseLowestRetentionCard rotates CONDEMN_WILL when opponent hand is nearly empty', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             condemn: { id: 'condemn', type: 'CONDEMN_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
         };
-        const costs = { condemn: 6, guard: 2, recover: 14 };
+        const costs: Record<string, number> = { condemn: 6, guard: 2, recover: 14 };
         const selected = core.chooseLowestRetentionCard(
             ['condemn', 'guard', 'recover'],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 playerValue: -1,
@@ -2253,16 +2263,16 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseLowestRetentionCard rotates TEMPT_WILL when opponent has no special stones', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             tempt: { id: 'tempt', type: 'TEMPT_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
         };
-        const costs = { tempt: 6, guard: 2, recover: 14 };
+        const costs: Record<string, number> = { tempt: 6, guard: 2, recover: 14 };
         const selected = core.chooseLowestRetentionCard(
             ['tempt', 'guard', 'recover'],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 playerValue: -1,
@@ -2282,18 +2292,18 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseHandDestroyTargetForCycle rotates time bomb first when missing recovery role', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             bomb: { id: 'bomb', type: 'TIME_BOMB' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' },
             chain: { id: 'chain', type: 'DOUBLE_CHAIN_WILL' }
         };
-        const costs = { bomb: 13, guard: 2, silver: 5, chain: 10 };
+        const costs: Record<string, number> = { bomb: 13, guard: 2, silver: 5, chain: 10 };
         const selected = core.chooseHandDestroyTargetForCycle(
             ['bomb', 'guard', 'silver', 'chain'],
             [],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 legalMovesCount: 4,
@@ -2310,19 +2320,19 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseHandDestroyTargetForCycle keeps recovery card during emergency hand-pressure cycle', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' },
             chain: { id: 'chain', type: 'DOUBLE_CHAIN_WILL' },
             silver: { id: 'silver', type: 'SILVER_STONE' },
             bomb: { id: 'bomb', type: 'TIME_BOMB' },
             guard: { id: 'guard', type: 'GUARD_WILL' }
         };
-        const costs = { recover: 14, chain: 10, silver: 5, bomb: 13, guard: 2 };
+        const costs: Record<string, number> = { recover: 14, chain: 10, silver: 5, bomb: 13, guard: 2 };
         const selected = core.chooseHandDestroyTargetForCycle(
             ['recover', 'chain', 'silver', 'bomb', 'guard'],
             [],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 legalMovesCount: 3,
@@ -2340,18 +2350,18 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseHandDestroyTargetForCycle rotates SUPER_BUOYANCY_WILL first in non-emergency no-anchor fast cycle', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             super: { id: 'super', type: 'SUPER_BUOYANCY_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' },
             work: { id: 'work', type: 'WORK_WILL' }
         };
-        const costs = { super: 14, guard: 2, recover: 14, work: 11 };
+        const costs: Record<string, number> = { super: 14, guard: 2, recover: 14, work: 11 };
         const selected = core.chooseHandDestroyTargetForCycle(
             ['super', 'guard', 'recover', 'work'],
             [],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 playerValue: -1,
@@ -2373,18 +2383,18 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseHandDestroyTargetForCycle rotates CHAIN/DOUBLE first in white Lv6 stable lead', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             chain: { id: 'chain', type: 'DOUBLE_CHAIN_WILL' },
             double: { id: 'double', type: 'DOUBLE_PLACE' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             work: { id: 'work', type: 'WORK_WILL' }
         };
-        const costs = { chain: 22, double: 24, guard: 2, work: 11 };
+        const costs: Record<string, number> = { chain: 22, double: 24, guard: 2, work: 11 };
         const selected = core.chooseHandDestroyTargetForCycle(
             ['chain', 'double', 'guard', 'work'],
             [],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 playerValue: -1,
@@ -2403,18 +2413,18 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseHandDestroyTargetForCycle keeps generated TRIPLE_PLACE in white Lv6 stable lead', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             triple: { id: 'triple', type: 'TRIPLE_PLACE' },
             heaven: { id: 'heaven', type: 'HEAVEN_BLESSING' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             work: { id: 'work', type: 'WORK_WILL' }
         };
-        const costs = { triple: 24, heaven: 24, guard: 2, work: 11 };
+        const costs: Record<string, number> = { triple: 24, heaven: 24, guard: 2, work: 11 };
         const selected = core.chooseHandDestroyTargetForCycle(
             ['triple', 'heaven', 'guard', 'work'],
             [],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 playerValue: -1,
@@ -2433,18 +2443,18 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseHandDestroyTargetForCycle rotates LAST_RESORT first when legal moves already exist', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             last: { id: 'last', type: 'LAST_RESORT' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' },
             silver: { id: 'silver', type: 'SILVER_STONE' }
         };
-        const costs = { last: 20, guard: 2, recover: 14, silver: 3 };
+        const costs: Record<string, number> = { last: 20, guard: 2, recover: 14, silver: 3 };
         const selected = core.chooseHandDestroyTargetForCycle(
             ['last', 'guard', 'recover', 'silver'],
             [],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 playerValue: -1,
@@ -2463,18 +2473,18 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseHandDestroyTargetForCycle rotates clone-style volatile cards in white Lv6 stable lead', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             clone: { id: 'clone', type: 'CLONE_WILL' },
             split: { id: 'split', type: 'SPLIT_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             work: { id: 'work', type: 'WORK_WILL' }
         };
-        const costs = { clone: 14, split: 16, guard: 2, work: 11 };
+        const costs: Record<string, number> = { clone: 14, split: 16, guard: 2, work: 11 };
         const selected = core.chooseHandDestroyTargetForCycle(
             ['clone', 'split', 'guard', 'work'],
             [],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 playerValue: -1,
@@ -2537,25 +2547,25 @@ describe('cpu-policy-core', () => {
     });
 
     test('all catalog card types have explicit usage style profile', () => {
-        const types = Array.from(new Set((catalog.cards || []).map((c) => c && c.type).filter(Boolean)));
+        const types = Array.from(new Set((catalog.cards || []).map((c: { type?: unknown } | null) => c && c.type).filter(Boolean)));
         const missing = types.filter((type) => !core.hasUsageStyleForCardType(type));
         expect(missing).toEqual([]);
     });
 
     test('all catalog card types have explicit base score bonus', () => {
-        const types = Array.from(new Set((catalog.cards || []).map((c) => c && c.type).filter(Boolean)));
+        const types = Array.from(new Set((catalog.cards || []).map((c: { type?: unknown } | null) => c && c.type).filter(Boolean)));
         const missing = types.filter((type) => !core.hasBaseScoreBonusForCardType(type));
         expect(missing).toEqual([]);
     });
 
     test('all catalog card types have explicit move plan profile', () => {
-        const types = Array.from(new Set((catalog.cards || []).map((c) => c && c.type).filter(Boolean)));
+        const types = Array.from(new Set((catalog.cards || []).map((c: { type?: unknown } | null) => c && c.type).filter(Boolean)));
         const missing = types.filter((type) => !core.hasMovePlanProfileForCardType(type));
         expect(missing).toEqual([]);
     });
 
     test('scoreCardUseDecision remains finite across all catalog card types', () => {
-        const types = Array.from(new Set((catalog.cards || []).map((c) => c && c.type).filter(Boolean)));
+        const types = Array.from(new Set((catalog.cards || []).map((c: { type?: unknown } | null) => c && c.type).filter(Boolean)));
         for (const type of types) {
             const out = core.scoreCardUseDecision(
                 `id_${type}`,
@@ -2695,7 +2705,7 @@ describe('cpu-policy-core', () => {
     });
 
     test('scoreCardUseDecision allows gold silver rainbow and plunder at 3+ flips', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             gold: { id: 'gold', type: 'GOLD_STONE' },
             silver: { id: 'silver', type: 'SILVER_STONE' },
             rainbow: { id: 'rainbow', type: 'RAINBOW_STONE' },
@@ -2714,10 +2724,10 @@ describe('cpu-policy-core', () => {
             maxLegalGain: 3,
             oppCharge: 12
         };
-        const gold = core.scoreCardUseDecision('gold', () => 8, (id) => defs[id], common);
-        const silver = core.scoreCardUseDecision('silver', () => 6, (id) => defs[id], common);
-        const rainbow = core.scoreCardUseDecision('rainbow', () => 10, (id) => defs[id], common);
-        const plunder = core.scoreCardUseDecision('plunder', () => 7, (id) => defs[id], common);
+        const gold = core.scoreCardUseDecision('gold', () => 8, (id: string) => defs[id], common);
+        const silver = core.scoreCardUseDecision('silver', () => 6, (id: string) => defs[id], common);
+        const rainbow = core.scoreCardUseDecision('rainbow', () => 10, (id: string) => defs[id], common);
+        const plunder = core.scoreCardUseDecision('plunder', () => 7, (id: string) => defs[id], common);
         expect(gold.shouldUse).toBe(true);
         expect(silver.shouldUse).toBe(true);
         expect(rainbow.shouldUse).toBe(true);
@@ -3073,16 +3083,16 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseLowestRetentionCard rotates taboo card first when white Lv6 is ahead', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             taboo: { id: 'taboo', type: 'TABOO_REVERSE_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             recover: { id: 'recover', type: 'DESTROY_ONE_STONE' }
         };
-        const costs = { taboo: 44, guard: 2, recover: 14 };
+        const costs: Record<string, number> = { taboo: 44, guard: 2, recover: 14 };
         const selected = core.chooseLowestRetentionCard(
             ['taboo', 'guard', 'recover'],
-            (id) => costs[id],
-            (id) => defs[id] || null,
+            (id: string) => costs[id],
+            (id: string) => defs[id] || null,
             {
                 level: 6,
                 playerValue: -1,
@@ -3103,16 +3113,16 @@ describe('cpu-policy-core', () => {
     });
 
     test('chooseLowestRetentionCard rotates meteor before stable guard while ahead', () => {
-        const defs = {
+        const defs: Record<string, TestCardDef> = {
             meteor: { id: 'meteor', type: 'METEOR_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             treasure: { id: 'treasure', type: 'TREASURE_BOX' }
         };
-        const costs = { meteor: 21, guard: 2, treasure: 0 };
+        const costs: Record<string, number> = { meteor: 21, guard: 2, treasure: 0 };
         const selected = core.chooseLowestRetentionCard(
             ['meteor', 'guard', 'treasure'],
-            (id) => costs[id],
-            (id) => defs[id],
+            (id: string) => costs[id],
+            (id: string) => defs[id],
             {
                 level: 6,
                 playerValue: -1,
@@ -3216,7 +3226,7 @@ describe('cpu-policy-core', () => {
         board[3][4] = -1;
         board[4][3] = -1;
         board[4][4] = 1;
-        const shapedBoard = SharedBoardUtils.attachBoardShape(board, {
+        const shapedBoard = TestSharedBoardUtils.attachBoardShape(board, {
             cardState: {
                 markers: [
                     { kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'METEOR_HOLE' } }
@@ -3426,8 +3436,8 @@ describe('cpu-policy-core', () => {
         const supportedBoard = loneBoard.map((row) => row.slice());
         supportedBoard[0][3] = 1;
 
-        expect(SharedBoardUtils.countAdjacentLoneEdgeDiscs(loneBoard, 0, 5, 1)).toBe(1);
-        expect(SharedBoardUtils.countAdjacentLoneEdgeDiscs(supportedBoard, 0, 5, 1)).toBe(0);
+expect(TestSharedBoardUtils.countAdjacentLoneEdgeDiscs(loneBoard, 0, 5, 1)).toBe(1);
+expect(TestSharedBoardUtils.countAdjacentLoneEdgeDiscs(supportedBoard, 0, 5, 1)).toBe(0);
 
         const edgeMove = { row: 0, col: 5, flips: [{ row: 1, col: 5 }] };
 

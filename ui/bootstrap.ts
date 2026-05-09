@@ -464,6 +464,10 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             }
         } catch (e: any) { /* ignore */ }
         try {
+            if (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).PendingSelectionFlow) {
+                const selectionFlow = (window as unknown as Record<string, unknown>).PendingSelectionFlow as { setSignalBridge?: unknown };
+                if (typeof selectionFlow.setSignalBridge === 'function') return selectionFlow;
+            }
             if (typeof globalThis !== 'undefined' && (globalThis as any).PendingSelectionFlow && typeof (globalThis as any).PendingSelectionFlow.setSignalBridge === 'function') {
                 return (globalThis as any).PendingSelectionFlow;
             }
@@ -481,6 +485,10 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             }
         } catch (e: any) { /* ignore */ }
         try {
+            if (typeof window !== 'undefined' && (window as unknown as Record<string, unknown>).PresentationHelper) {
+                const presentationHelper = (window as unknown as Record<string, unknown>).PresentationHelper as { emitPresentationEvent?: unknown };
+                if (typeof presentationHelper.emitPresentationEvent === 'function') return presentationHelper;
+            }
             if (typeof globalThis !== 'undefined' && (globalThis as any).PresentationHelper && typeof (globalThis as any).PresentationHelper.emitPresentationEvent === 'function') {
                 return (globalThis as any).PresentationHelper;
             }
@@ -544,8 +552,12 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 let emitted = false;
                 for (let index = 0; index < signalNames.length; index += 1) {
                     try {
-                        if (typeof globalThis === 'undefined') continue;
-                        const signalFn = (globalThis as any)[signalNames[index]];
+                        const windowSignal = typeof window !== 'undefined'
+                            ? (window as unknown as Record<string, unknown>)[signalNames[index]]
+                            : null;
+                        const signalFn = typeof windowSignal === 'function'
+                            ? windowSignal
+                            : (typeof globalThis !== 'undefined' ? (globalThis as any)[signalNames[index]] : null);
                         if (typeof signalFn !== 'function') continue;
                         signalFn();
                         emitted = true;
@@ -556,10 +568,16 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             emitMessage: (text: any) => {
                 if (!text) return false;
                 try {
-                    if (typeof globalThis === 'undefined' || typeof (globalThis as any).emitLogAdded !== 'function') {
+                    const windowLog = typeof window !== 'undefined'
+                        ? (window as unknown as Record<string, unknown>).emitLogAdded
+                        : null;
+                    const emitLogAdded = typeof windowLog === 'function'
+                        ? windowLog
+                        : (typeof globalThis !== 'undefined' ? (globalThis as any).emitLogAdded : null);
+                    if (typeof emitLogAdded !== 'function') {
                         return false;
                     }
-                    (globalThis as any).emitLogAdded(text);
+                    emitLogAdded(text);
                     return true;
                 } catch (e: any) {
                     return false;
@@ -567,10 +585,16 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             },
             emitBoardUpdate: () => {
                 try {
-                    if (typeof globalThis === 'undefined' || typeof (globalThis as any).emitBoardUpdate !== 'function') {
+                    const windowBoardUpdate = typeof window !== 'undefined'
+                        ? (window as unknown as Record<string, unknown>).emitBoardUpdate
+                        : null;
+                    const emitBoardUpdate = typeof windowBoardUpdate === 'function'
+                        ? windowBoardUpdate
+                        : (typeof globalThis !== 'undefined' ? (globalThis as any).emitBoardUpdate : null);
+                    if (typeof emitBoardUpdate !== 'function') {
                         return false;
                     }
-                    (globalThis as any).emitBoardUpdate();
+                    emitBoardUpdate();
                     return true;
                 } catch (e: any) {
                     return false;
@@ -1197,6 +1221,29 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         return { status: 'no_asset_manifest' };
     }
 
-    const UIBootstrap = { addLog, debugLog, updateBgmButtons, updateStatus, installGameDI, isGameDIInstalled, registerUIGlobals, getRegisteredUIGlobals, preloadAssets, preloadSpecialStoneVisuals, applyAssetManifest, handleGameInit, ensureStoneBaseImagesReady, setLoadedAssetManifest, getLoadedAssetManifest, refreshLoadedAssetManifest, ASSET_MANIFEST_UPDATED_EVENT };
+    const UIBootstrap = {
+        addLog: (typeof addLog === 'function') ? addLog : function () { return false; },
+        debugLog: (typeof debugLog === 'function') ? debugLog : function () { return false; },
+        updateBgmButtons,
+        updateStatus,
+        installGameDI,
+        isGameDIInstalled,
+        registerUIGlobals,
+        getRegisteredUIGlobals,
+        preloadAssets,
+        preloadSpecialStoneVisuals,
+        applyAssetManifest,
+        handleGameInit,
+        ensureStoneBaseImagesReady,
+        setLoadedAssetManifest,
+        getLoadedAssetManifest,
+        refreshLoadedAssetManifest,
+        ASSET_MANIFEST_UPDATED_EVENT
+    };
+    try {
+        if (typeof window !== 'undefined') {
+            (window as unknown as { UIBootstrap?: typeof UIBootstrap }).UIBootstrap = UIBootstrap;
+        }
+    } catch (e: any) { /* ignore */ }
 export = UIBootstrap;
 

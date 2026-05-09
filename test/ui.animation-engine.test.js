@@ -4,12 +4,19 @@ describe('animation-engine _sleep', () => {
   });
 
   test('resolves immediately when NOANIM is active', async () => {
-    jest.doMock('../ui/animation-shared.js', () => ({ isNoAnim: () => true, getTimer: () => ({ setTimeout: () => {}, clearTimeout: () => {}, clearAll: () => {} }) }));
+    // Set NOANIM environment variable to disable animations
+    process.env.NOANIM = '1';
     // Minimal fake document so the PlaybackEngine constructor succeeds in node tests
     global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
+    global.window = {
+      setTimeout: (fn, ms) => setTimeout(fn, ms),
+      clearTimeout: (id) => clearTimeout(id)
+    };
     const engine = require('../ui/animation-engine');
     // _sleep should resolve immediately (no waiting) when NOANIM mode is active
     await expect(engine._sleep(1000)).resolves.toBeUndefined();
+    delete process.env.NOANIM;
+    delete global.window;
   });
 
   test('returns 500ms fade only for breeding spawn targets', () => {
@@ -44,6 +51,8 @@ describe('animation-engine _sleep', () => {
     const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
     global.document = { getElementById: () => cellEl };
     global.window = {
+      setTimeout: (fn, ms) => setTimeout(fn, ms),
+      clearTimeout: (id) => clearTimeout(id),
       playCardUseHandAnimation: jest.fn(() => Promise.resolve())
     };
     global.emitBoardUpdate = jest.fn();
@@ -99,7 +108,10 @@ describe('animation-engine _sleep', () => {
   test('place_hand_animation の直後 phase に spawn だけがある特殊石配置でも追加ギャップなしで再生する', async () => {
     const cellEl = { classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) };
     global.document = { getElementById: () => cellEl };
-    global.window = {};
+    global.window = {
+      setTimeout: (fn, ms) => setTimeout(fn, ms),
+      clearTimeout: (id) => clearTimeout(id)
+    };
     global.emitBoardUpdate = jest.fn();
 
     const engine = require('../ui/animation-engine');

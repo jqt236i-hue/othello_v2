@@ -181,8 +181,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
   });
 
   test('初回stream open時は state API で再同期しない', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -201,8 +200,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
   });
 
   test('stream error後に再接続し、stream event が来なければ fallback で state API を再同期する', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -231,8 +229,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
   });
 
   test('reconnect 後に snapshot が届けば fallback state sync を走らせない', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -308,8 +305,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -385,8 +381,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
 
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
     try {
-      require('../ui/network-client.js');
-      const client = window.NetworkMatchClient;
+      const client = require('../ui/network-client.js');
       expect(client).toBeTruthy();
 
       const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -419,8 +414,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
   test('heartbeat無応答が続いた場合はwatchdogで再接続する', async () => {
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
     try {
-      require('../ui/network-client.js');
-      const client = window.NetworkMatchClient;
+      const client = require('../ui/network-client.js');
       expect(client).toBeTruthy();
 
       const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -442,8 +436,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
   });
 
   test('heartbeatでより新しいstateVersionを受信した場合は自動再同期する', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -479,8 +472,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
       })
     };
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -580,8 +572,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -684,8 +675,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -809,8 +799,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -865,8 +854,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
   test('再接続時は直近のSSE event idを lastEventId query に載せる', async () => {
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
     try {
-      require('../ui/network-client.js');
-      const client = window.NetworkMatchClient;
+      const client = require('../ui/network-client.js');
       expect(client).toBeTruthy();
 
       const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -958,8 +946,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -1051,8 +1038,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
     expect(joined.ok).toBe(true);
 
@@ -1082,8 +1068,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
   });
 
   test('requestRematch は reset_game publish を送る', async () => {
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -1152,8 +1137,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
       return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     });
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
@@ -1170,8 +1154,7 @@ describe('NetworkMatchClient reconnect and resync', () => {
   test('非終局スナップショットの適用時に result overlay を自動で閉じる', async () => {
     document.body.innerHTML = '<div id="result-overlay"></div>';
 
-    require('../ui/network-client.js');
-    const client = window.NetworkMatchClient;
+    const client = require('../ui/network-client.js');
     expect(client).toBeTruthy();
 
     const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });

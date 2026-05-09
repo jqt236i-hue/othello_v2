@@ -5,7 +5,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-const CARD_TYPE_BY_ID = (globalThis as any).CARD_DEFS.reduce((acc: any, c: any) => {
+const CARD_DEFS = (typeof globalThis !== 'undefined' && (globalThis as any).CARD_DEFS)
+    ? (globalThis as any).CARD_DEFS
+    : [];
+const CARD_TYPE_BY_ID = CARD_DEFS.reduce((acc: any, c: any) => {
     acc[c.id] = c.type;
     return acc;
 }, {});
