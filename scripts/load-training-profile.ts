@@ -7,8 +7,12 @@ import * as path from 'path';
 import { spawnSync } from 'child_process';
 import _training_checkpoint_utils from './training-checkpoint-utils';
 const { TRAINING_CHECKPOINT_HEAD_SPECS, createEmptyResumeCheckpointPaths, cloneResumeCheckpointPaths, detectCheckpointHead } = _training_checkpoint_utils;
-import _training_command_args from './training-command-args';
-const { stripLeadingScriptArg, collectCliFlagMap, getFlagValue, hasFlag } = _training_command_args;
+import _training_seed_bank_plan from './training-seed-bank-plan';
+const { buildSeedBankPlanFromArgs } = _training_seed_bank_plan;
+import _training_shared_teacher_args from './training-shared-teacher-args';
+const { resolveGuideModeFromArgs, applySharedTeacherProfileArgs } = _training_shared_teacher_args;
+import _training_profile_presets from './training-profile-presets';
+const { resolveTrainingProfilePresetRefs } = _training_profile_presets;
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -29,28 +33,6 @@ const RESERVED_TRAIN_CYCLE_FLAGS = new Set([
     '--resume-checkpoint',
     '--run-tag'
 ].concat(TRAINING_CHECKPOINT_HEAD_SPECS.map((spec: any) => spec.resumeFlag)));
-
-const SHARED_TEACHER_ARG_SPECS = Object.freeze([
-    { flag: '--selfplay-policy-mix-rate', key: 'policyMixRate', type: 'number' },
-    { flag: '--selfplay-policy-model-pool-size', key: 'policyModelPoolSize', type: 'integer' },
-    { flag: '--selfplay-policy-pool-sampling', key: 'policyPoolSampling', type: 'string' },
-    { flag: '--selfplay-policy-pool-recency-decay', key: 'policyPoolRecencyDecay', type: 'number' },
-    { flag: '--selfplay-policy-current-anchor-rate', key: 'policyCurrentAnchorRate', type: 'number' },
-    { flag: '--selfplay-tactical-weight-min', key: 'tacticalWeightMin', type: 'number' },
-    { flag: '--selfplay-tactical-weight-max', key: 'tacticalWeightMax', type: 'number' },
-    { flag: '--selfplay-tactical-depth-opening', key: 'tacticalDepthOpening', type: 'integer' },
-    { flag: '--selfplay-tactical-depth-mid', key: 'tacticalDepthMid', type: 'integer' },
-    { flag: '--selfplay-tactical-depth-end', key: 'tacticalDepthEnd', type: 'integer' },
-    { flag: '--selfplay-tactical-beam-width', key: 'tacticalBeamWidth', type: 'integer' },
-    { flag: '--selfplay-policy-score-weight-min', key: 'policyScoreWeightMin', type: 'number' },
-    { flag: '--selfplay-policy-score-weight-max', key: 'policyScoreWeightMax', type: 'number' },
-    { flag: '--selfplay-heuristic-weight-min', key: 'heuristicWeightMin', type: 'number' },
-    { flag: '--selfplay-heuristic-weight-max', key: 'heuristicWeightMax', type: 'number' },
-    { flag: '--selfplay-teacher-committee-weight-min', key: 'teacherCommitteeWeightMin', type: 'number' },
-    { flag: '--selfplay-teacher-committee-weight-max', key: 'teacherCommitteeWeightMax', type: 'number' },
-    { flag: '--selfplay-teacher-committee-consensus-bonus-min', key: 'teacherCommitteeConsensusBonusMin', type: 'number' },
-    { flag: '--selfplay-teacher-committee-consensus-bonus-max', key: 'teacherCommitteeConsensusBonusMax', type: 'number' }
-]);
 
 function defaultPythonPath(cwd: string) {
     return path.resolve(cwd || process.cwd(), '.venv', 'Scripts', 'python.exe');
@@ -180,13 +162,26 @@ function resolveProfileDocument(profileRef: any, options: any) {
     const cwd = options && options.cwd ? options.cwd : process.cwd();
     const pythonPath = options && options.pythonPath ? options.pythonPath : defaultPythonPath(cwd);
     const profilePath = resolveNamedConfigPath('profile', profileRef, cwd);
-    const profile = loadStructuredFile(profilePath, pythonPath);
+    let profile = loadStructuredFile(profilePath, pythonPath);
     if (!profile || typeof profile !== 'object' || Array.isArray(profile)) {
         throw new Error(`training profile must be an object: ${profilePath}`);
     }
     if (profile.schemaVersion && profile.schemaVersion !== PROFILE_SCHEMA_VERSION) {
         throw new Error(`unsupported training profile schemaVersion in ${profilePath}: ${profile.schemaVersion}`);
     }
+    profile = resolveTrainingProfilePresetRefs(profile, {
+        loadPreset(ref: any) {
+            const presetPath = resolveNamedConfigPath('profile', ref, cwd);
+            const preset = loadStructuredFile(presetPath, pythonPath);
+            if (!preset || typeof preset !== 'object' || Array.isArray(preset)) {
+                throw new Error(`training profile preset must be an object: ${presetPath}`);
+            }
+            if (preset.schemaVersion && preset.schemaVersion !== PROFILE_SCHEMA_VERSION) {
+                throw new Error(`unsupported training profile preset schemaVersion in ${presetPath}: ${preset.schemaVersion}`);
+            }
+            return preset;
+        }
+    });
 
     const gateRef = options && options.gateProfile ? options.gateProfile : profile.gateProfile;
     let gatePath = null;
@@ -368,38 +363,6 @@ function shellQuote(arg: string) {
     return `"${raw.replace(/"/g, '\\"')}"`;
 }
 
-function findFlagIndex(args: any, flag: any) {
-    if (!Array.isArray(args) || !flag) return -1;
-    for (let i = 0; i < args.length; i++) {
-        if (String(args[i] || '').trim() === flag) return i;
-    }
-    return -1;
-}
-
-function removeFlagAndValue(args: any, flag: any) {
-    if (!Array.isArray(args) || !flag) return args || [];
-    const out = args.slice();
-    const index = findFlagIndex(out, flag);
-    if (index < 0) return out;
-    out.splice(index, 1);
-    if (index < out.length && !String(out[index] || '').trim().startsWith('--')) {
-        out.splice(index, 1);
-    }
-    return out;
-}
-
-function upsertFlagValue(args: any, flag: any, value: any) {
-    const out = removeFlagAndValue(args, flag);
-    out.push(flag, String(value));
-    return out;
-}
-
-function upsertBooleanFlag(args: any, flag: any, enabled: any) {
-    const out = removeFlagAndValue(args, flag);
-    if (enabled) out.push(flag);
-    return out;
-}
-
 function loadCpuLv6SharedTeacherProfile(cwd: string) {
     const sharedPath = path.resolve(cwd, 'constants', 'cpu-lv6-shared-profile.js');
     if (!fs.existsSync(sharedPath)) return null;
@@ -411,24 +374,6 @@ function loadCpuLv6SharedTeacherProfile(cwd: string) {
     } catch (e) {
         return null;
     }
-}
-
-function formatSharedTeacherValue(type: any, value: any) {
-    if (type === 'integer') {
-        const numeric = Math.max(0, Math.floor(Number(value) || 0));
-        return String(numeric);
-    }
-    if (type === 'number') {
-        const numeric = Number(value);
-        return String(Number.isFinite(numeric) ? numeric : 0);
-    }
-    return String(value);
-}
-
-function resolveGuideModeFromArgs(args: any) {
-    if (findFlagIndex(args, '--selfplay-use-promoted-model-only') >= 0) return 'promoted-only';
-    if (findFlagIndex(args, '--selfplay-use-candidate-every-iteration') >= 0) return 'candidate-every-iteration';
-    return null;
 }
 
 function resolveSharedTeacherSyncConfig(profile: string) {
@@ -451,176 +396,6 @@ function resolveSharedTeacherSyncConfig(profile: string) {
         enabled: false,
         mode: 'disabled'
     };
-}
-
-function getNumericFlagValue(flagMap: any, flag: any, fallback: any) {
-    const raw = getFlagValue(flagMap, flag);
-    if (raw === undefined || raw === true) return fallback;
-    const numeric = Number(raw);
-    return Number.isFinite(numeric) ? numeric : fallback;
-}
-
-function buildSeedBankPlan(trainCycleArgs: any, context: any) {
-    const normalizedArgs = stripLeadingScriptArg(trainCycleArgs);
-    const flagMap = collectCliFlagMap(normalizedArgs);
-    const seedBankArg = getFlagValue(flagMap, '--seed-bank');
-    if (seedBankArg === undefined || seedBankArg === true) return null;
-    const seedBankPath = resolveMaybePath(
-        context && context.cwd ? context.cwd : process.cwd(),
-        String(seedBankArg || '').trim()
-    );
-    if (!seedBankPath) return null;
-
-    const baseSeed = getNumericFlagValue(flagMap, '--seed', 1);
-    const quickSeedCount = getNumericFlagValue(
-        flagMap,
-        '--quick-adoption-seed-count',
-        getNumericFlagValue(flagMap, '--adoption-seed-count', 1)
-    );
-    const quickSeedStride = getNumericFlagValue(
-        flagMap,
-        '--quick-adoption-seed-stride',
-        getNumericFlagValue(flagMap, '--adoption-seed-stride', 1000)
-    );
-    const quickSeedOffset = getNumericFlagValue(flagMap, '--quick-adoption-seed-offset', 0);
-    const finalSeedCount = getNumericFlagValue(
-        flagMap,
-        '--final-adoption-seed-count',
-        getNumericFlagValue(flagMap, '--adoption-seed-count', 1)
-    );
-    const finalSeedStride = getNumericFlagValue(
-        flagMap,
-        '--final-adoption-seed-stride',
-        getNumericFlagValue(flagMap, '--adoption-seed-stride', 1000)
-    );
-    const finalSeedOffset = getNumericFlagValue(
-        flagMap,
-        '--adoption-final-seed-offset',
-        getNumericFlagValue(flagMap, '--eval-seed-offset', 500000)
-    );
-
-    const gates = {
-        quick: {
-            baseSeed: baseSeed + quickSeedOffset,
-            seedCount: quickSeedCount,
-            seedStride: quickSeedStride,
-            purpose: 'quick adoption gate'
-        },
-        final: {
-            baseSeed: baseSeed + finalSeedOffset,
-            seedCount: finalSeedCount,
-            seedStride: finalSeedStride,
-            purpose: 'final adoption gate'
-        },
-        onnx: {
-            baseSeed: baseSeed + getNumericFlagValue(flagMap, '--onnx-gate-seed-offset', 700000),
-            seedCount: getNumericFlagValue(flagMap, '--onnx-gate-seed-count', 1),
-            seedStride: getNumericFlagValue(flagMap, '--onnx-gate-seed-stride', 1000),
-            purpose: hasFlag(flagMap, '--onnx-gate')
-                ? 'onnx gate'
-                : 'onnx gate schedule'
-        }
-    };
-    if (hasFlag(flagMap, '--quality-gate')) {
-        gates.quality = {
-            baseSeed: baseSeed + getNumericFlagValue(flagMap, '--quality-gate-seed-offset', 250000),
-            seedCount: getNumericFlagValue(flagMap, '--quality-gate-seed-count', 1),
-            seedStride: getNumericFlagValue(flagMap, '--quality-gate-seed-stride', 1000),
-            purpose: 'quality gate'
-        };
-    }
-    return {
-        path: seedBankPath,
-        bankId: `${context && context.profileName ? context.profileName : 'training'}-seed-bank`,
-        description: context && context.runTag
-            ? `Auto-initialized seed bank for ${context.runTag}`
-            : 'Auto-initialized seed bank',
-        gates
-    };
-}
-
-function applySharedTeacherProfileArgs(trainCycleArgs: any, teacherProfile: any, options: any) {
-    let nextArgs = Array.isArray(trainCycleArgs) ? trainCycleArgs.slice() : [];
-    const syncMode = options && options.mode === 'override' ? 'override' : 'fill-missing';
-    const report = {
-        enabled: true,
-        mode: syncMode,
-        sourcePath: options && options.sourcePath ? options.sourcePath : null,
-        sourceFound: !!(teacherProfile && typeof teacherProfile === 'object'),
-        flagActions: [],
-        guideMode: {
-            desired: null,
-            active: resolveGuideModeFromArgs(nextArgs),
-            status: teacherProfile && typeof teacherProfile === 'object'
-                ? 'preserved-explicit'
-                : 'source-missing'
-        }
-    };
-    if (!teacherProfile || typeof teacherProfile !== 'object') {
-        return { args: nextArgs, report };
-    }
-
-    for (const spec of SHARED_TEACHER_ARG_SPECS) {
-        const rawValue = teacherProfile[spec.key];
-        if (rawValue == null) {
-            report.flagActions.push({
-                flag: spec.flag,
-                key: spec.key,
-                status: 'missing-source-value'
-            });
-            continue;
-        }
-        const formattedValue = formatSharedTeacherValue(spec.type, rawValue);
-        const hasExplicitFlag = findFlagIndex(nextArgs, spec.flag) >= 0;
-        if (hasExplicitFlag && syncMode !== 'override') {
-            report.flagActions.push({
-                flag: spec.flag,
-                key: spec.key,
-                teacherValue: rawValue,
-                formattedValue,
-                status: 'preserved-explicit'
-            });
-            continue;
-        }
-        nextArgs = upsertFlagValue(nextArgs, spec.flag, formattedValue);
-        report.flagActions.push({
-            flag: spec.flag,
-            key: spec.key,
-            teacherValue: rawValue,
-            formattedValue,
-            status: hasExplicitFlag ? 'overrode-explicit' : 'applied'
-        });
-    }
-    const desiredGuideMode = teacherProfile.usePromotedModelOnly === false
-        ? 'candidate-every-iteration'
-        : 'promoted-only';
-    const explicitGuideMode = resolveGuideModeFromArgs(nextArgs);
-    if (!explicitGuideMode || syncMode === 'override') {
-        nextArgs = upsertBooleanFlag(
-            nextArgs,
-            '--selfplay-use-promoted-model-only',
-            teacherProfile.usePromotedModelOnly !== false
-        );
-        nextArgs = upsertBooleanFlag(
-            nextArgs,
-            '--selfplay-use-candidate-every-iteration',
-            teacherProfile.usePromotedModelOnly === false
-        );
-        report.guideMode = {
-            desired: desiredGuideMode,
-            active: resolveGuideModeFromArgs(nextArgs),
-            status: explicitGuideMode && syncMode === 'override'
-                ? 'overrode-explicit'
-                : 'applied'
-        };
-    } else {
-        report.guideMode = {
-            desired: desiredGuideMode,
-            active: explicitGuideMode,
-            status: 'preserved-explicit'
-        };
-    }
-    return { args: nextArgs, report };
 }
 
 function buildPreflightCommand(resolved: any) {
@@ -775,7 +550,7 @@ function resolveTrainingProfile(profileRef: any, options: any) {
         .concat(gateTrainCycleArgs)
         .concat(generatedArgs)
         .concat(passThrough);
-    const seedBankPlan = buildSeedBankPlan(trainCycleArgs, {
+    const seedBankPlan = buildSeedBankPlanFromArgs(trainCycleArgs, {
         cwd,
         profileName,
         runTag

@@ -48,26 +48,14 @@ const {
     annotateTrainingCycleError,
     writeSummarySnapshot
 } = require('./training-cycle-reporting');
+const {
+    TRAINING_CYCLE_STEP_ORDER
+} = require('./training-cycle-steps');
 
 function defaultSelfplayJobs() {
     const cpuCount = Array.isArray(os.cpus()) ? os.cpus().length : 1;
     return Math.max(1, Math.min(10, cpuCount));
 }
-
-const TRAINING_CYCLE_STEP_ORDER = Object.freeze([
-    'generate-train',
-    'generate-eval',
-    'train-policy',
-    'evaluate-policy',
-    'train-card-policy',
-    'train-target-policy',
-    'train-value-policy',
-    'adoption-quick',
-    'adoption-quality-gate',
-    'adoption-final',
-    'adoption-onnx-gate',
-    'promote-model'
-]);
 
 function normalizeRestartFromStep(stepName) {
     const normalized = String(stepName || '').trim().toLowerCase();

@@ -6,6 +6,22 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 const POLICY_GATE_PAYLOAD_SCHEMA_VERSION = 'policy_gate_result.v1';
 
+function buildPolicyGatePayloadHeader(options: any) {
+    const gateFamily = options && options.gateFamily ? String(options.gateFamily) : null;
+    const gateType = options && options.gateType ? String(options.gateType) : gateFamily;
+    const benchmarkSchemaVersion = options && options.benchmarkSchemaVersion
+        ? options.benchmarkSchemaVersion
+        : null;
+    return {
+        generatedAt: new Date().toISOString(),
+        schemaVersion: benchmarkSchemaVersion,
+        payloadSchemaVersion: POLICY_GATE_PAYLOAD_SCHEMA_VERSION,
+        gateFamily,
+        gateType,
+        benchmarkSchemaVersion
+    };
+}
+
 function normalizeDiagnosticValue(value: any): any {
     if (value === undefined) return null;
     if (value === null) return null;
@@ -143,5 +159,6 @@ function attachPolicyGateDecisionDiagnostics(decision: Decision, extraCriteria?:
 
 export = { 
     POLICY_GATE_PAYLOAD_SCHEMA_VERSION,
+    buildPolicyGatePayloadHeader,
     attachPolicyGateDecisionDiagnostics
  } as any;

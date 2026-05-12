@@ -571,13 +571,13 @@ def main() -> int:
         f"train_target_acc={train_summary.target_acc:.3f} "
         f"onnx={args.onnx_out}"
     )
-    print(f"[train_target_onnx] meta={meta_out}")
-    if (args.checkpoint_out or "").strip():
-        print(f"[train_target_onnx] checkpoint={args.checkpoint_out}")
-    if (args.metrics_out or "").strip():
-        print(f"[train_target_onnx] metrics={args.metrics_out}")
-    if resumed_from:
-        print(f"[train_target_onnx] resumed_from={resumed_from}")
+    trainer_common.log_trainer_artifact_paths(
+        "train_target_onnx",
+        meta_out=meta_out,
+        checkpoint_out=args.checkpoint_out,
+        metrics_out=args.metrics_out,
+        resumed_from=resumed_from,
+    )
     return 0
 
 

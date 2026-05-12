@@ -159,6 +159,23 @@ def write_json_payload(path_value: str, payload: dict[str, Any]) -> None:
         json.dump(payload, handle, ensure_ascii=False, indent=2)
 
 
+def log_trainer_artifact_paths(
+    trainer_label: str,
+    *,
+    meta_out: str,
+    checkpoint_out: str | None = None,
+    metrics_out: str | None = None,
+    resumed_from: str | None = None,
+) -> None:
+    print(f"[{trainer_label}] meta={meta_out}")
+    if (checkpoint_out or "").strip():
+        print(f"[{trainer_label}] checkpoint={checkpoint_out}")
+    if (metrics_out or "").strip():
+        print(f"[{trainer_label}] metrics={metrics_out}")
+    if resumed_from:
+        print(f"[{trainer_label}] resumed_from={resumed_from}")
+
+
 def read_resume_checkpoint(
     resume_checkpoint: str | None,
     device: str,

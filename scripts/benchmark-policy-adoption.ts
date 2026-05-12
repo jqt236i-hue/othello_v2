@@ -14,7 +14,7 @@ const {
     applyAdoptionArgsFromResolvedConfig
 } = require('./training-resolved-config-utils');
 const {
-    POLICY_GATE_PAYLOAD_SCHEMA_VERSION,
+    buildPolicyGatePayloadHeader,
     attachPolicyGateDecisionDiagnostics
 } = require('./policy-gate-result-utils');
 const {
@@ -1025,12 +1025,13 @@ function buildAdoptionPayload(options, perSeed, startedAt, runtime) {
     const benchmarkSchemaVersion = first && first.baseline ? first.baseline.schemaVersion : null;
 
     return {
-        generatedAt: new Date().toISOString(),
-        schemaVersion: benchmarkSchemaVersion,
-        payloadSchemaVersion: POLICY_GATE_PAYLOAD_SCHEMA_VERSION,
+        ...buildPolicyGatePayloadHeader({
+            gateFamily: 'adoption',
+            gateType: options.gatePhase || 'quality',
+            benchmarkSchemaVersion
+        }),
         gateFamily: 'adoption',
         gateType: options.gatePhase || 'quality',
-        benchmarkSchemaVersion,
         config: {
             games: options.games,
             seed: options.seed,

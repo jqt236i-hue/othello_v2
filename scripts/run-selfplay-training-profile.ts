@@ -6,14 +6,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawn } from 'child_process';
 import _seed_bank_manager from './seed-bank-manager';
-const { buildSeedBank, syncSeedBank } = _seed_bank_manager;
+const { syncSeedBank } = _seed_bank_manager;
 import _training_warehouse_manifest_utils from './training-warehouse-manifest-utils';
 const { cleanupWarehouseSelfplayArtifacts } = _training_warehouse_manifest_utils;
 
 import _load_training_profile from './load-training-profile';
 const { resolveTrainingProfile, writeResolvedConfig, runCommand } = _load_training_profile;
-import _training_command_args from './training-command-args';
-const { collectCliFlagMap, getFlagValue, hasFlag } = _training_command_args;
+import _training_seed_bank_plan from './training-seed-bank-plan';
+const { buildSeedBankInitFromResolved } = _training_seed_bank_plan;
 import _training_profile_launcher_args from './training-profile-launcher-args';
 const { parseTrainingProfileLauncherArgs, formatTrainingProfileLauncherHelp } = _training_profile_launcher_args;
 
@@ -31,101 +31,8 @@ function printHelp() {
     console.log(formatTrainingProfileLauncherHelp({ mode: 'run' }));
 }
 
-function getNumericCommandFlagValue(flagMap: any, flag: any, fallback: any) {
-    const raw = getFlagValue(flagMap, flag);
-    if (raw == null) return fallback;
-    const numeric = Number(raw);
-    return Number.isFinite(numeric) ? numeric : fallback;
-}
-
 function buildSeedBankFromResolvedCommand(resolved: any) {
-    const seedBankPlan = resolved && resolved.seedBankPlan && typeof resolved.seedBankPlan === 'object'
-        ? resolved.seedBankPlan
-        : null;
-    if (seedBankPlan && seedBankPlan.path && seedBankPlan.gates && typeof seedBankPlan.gates === 'object') {
-        return {
-            seedBankPath: path.resolve(seedBankPlan.path),
-            bank: buildSeedBank({
-                bankId: seedBankPlan.bankId,
-                description: seedBankPlan.description,
-                gates: seedBankPlan.gates
-            })
-        };
-    }
-
-    const commandArgs = resolved && resolved.command && Array.isArray(resolved.command.args)
-        ? resolved.command.args
-        : [];
-    const flagMap = collectCliFlagMap(commandArgs);
-    const seedBankArg = getFlagValue(flagMap, '--seed-bank');
-    if (!seedBankArg) return null;
-    const baseSeed = getNumericCommandFlagValue(flagMap, '--seed', 1);
-    const quickSeedCount = getNumericCommandFlagValue(
-        flagMap,
-        '--quick-adoption-seed-count',
-        getNumericCommandFlagValue(flagMap, '--adoption-seed-count', 1)
-    );
-    const quickSeedStride = getNumericCommandFlagValue(
-        flagMap,
-        '--quick-adoption-seed-stride',
-        getNumericCommandFlagValue(flagMap, '--adoption-seed-stride', 1000)
-    );
-    const quickSeedOffset = getNumericCommandFlagValue(flagMap, '--quick-adoption-seed-offset', 0);
-    const finalSeedCount = getNumericCommandFlagValue(
-        flagMap,
-        '--final-adoption-seed-count',
-        getNumericCommandFlagValue(flagMap, '--adoption-seed-count', 1)
-    );
-    const finalSeedStride = getNumericCommandFlagValue(
-        flagMap,
-        '--final-adoption-seed-stride',
-        getNumericCommandFlagValue(flagMap, '--adoption-seed-stride', 1000)
-    );
-    const finalSeedOffset = getNumericCommandFlagValue(
-        flagMap,
-        '--adoption-final-seed-offset',
-        getNumericCommandFlagValue(flagMap, '--eval-seed-offset', 500000)
-    );
-    const gates = {
-        quick: {
-            baseSeed: baseSeed + quickSeedOffset,
-            seedCount: quickSeedCount,
-            seedStride: quickSeedStride,
-            purpose: 'quick adoption gate'
-        },
-        final: {
-            baseSeed: baseSeed + finalSeedOffset,
-            seedCount: finalSeedCount,
-            seedStride: finalSeedStride,
-            purpose: 'final adoption gate'
-        }
-    };
-    if (hasFlag(flagMap, '--quality-gate')) {
-        gates.quality = {
-            baseSeed: baseSeed + getNumericCommandFlagValue(flagMap, '--quality-gate-seed-offset', 250000),
-            seedCount: getNumericCommandFlagValue(flagMap, '--quality-gate-seed-count', 1),
-            seedStride: getNumericCommandFlagValue(flagMap, '--quality-gate-seed-stride', 1000),
-            purpose: 'quality gate'
-        };
-    }
-    gates.onnx = {
-        baseSeed: baseSeed + getNumericCommandFlagValue(flagMap, '--onnx-gate-seed-offset', 700000),
-        seedCount: getNumericCommandFlagValue(flagMap, '--onnx-gate-seed-count', 1),
-        seedStride: getNumericCommandFlagValue(flagMap, '--onnx-gate-seed-stride', 1000),
-        purpose: hasFlag(flagMap, '--onnx-gate')
-            ? 'onnx gate'
-            : 'onnx gate schedule'
-    };
-    return {
-        seedBankPath: path.resolve(resolved && resolved.cwd ? resolved.cwd : process.cwd(), seedBankArg),
-        bank: buildSeedBank({
-            bankId: `${resolved && resolved.profile ? resolved.profile.name : 'training'}-seed-bank`,
-            description: resolved && resolved.paths && resolved.paths.runTag
-                ? `Auto-initialized seed bank for ${resolved.paths.runTag}`
-                : 'Auto-initialized seed bank',
-            gates
-        })
-    };
+    return buildSeedBankInitFromResolved(resolved);
 }
 
 function ensureSeedBankInitialized(resolved: any, logger: any) {

@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { parseArgs as parseAdoptionArgs, buildAdoptionPayload, buildEarlyStopDecision, computeAdoptionDecisionAverage, runSeedEvaluations } from './benchmark-policy-adoption';
 import _policy_gate_result_utils from './policy-gate-result-utils';
-const { POLICY_GATE_PAYLOAD_SCHEMA_VERSION, attachPolicyGateDecisionDiagnostics } = _policy_gate_result_utils;
+const { buildPolicyGatePayloadHeader, attachPolicyGateDecisionDiagnostics } = _policy_gate_result_utils;
 import _policy_seed_utils from './policy-seed-utils';
 const { buildSeedSchedule } = _policy_seed_utils;
 
@@ -207,12 +207,13 @@ function buildQualityGatePayload(adoptionPayload: any, options: any, earlyStop: 
         : null;
 
     return {
-        generatedAt: new Date().toISOString(),
-        schemaVersion: benchmarkSchemaVersion,
-        payloadSchemaVersion: POLICY_GATE_PAYLOAD_SCHEMA_VERSION,
+        ...buildPolicyGatePayloadHeader({
+            gateFamily: 'quality',
+            gateType: 'quality',
+            benchmarkSchemaVersion
+        }),
         gateType: 'quality',
         gateFamily: 'quality',
-        benchmarkSchemaVersion,
         config: {
             games: options.games,
             seed: options.seed,

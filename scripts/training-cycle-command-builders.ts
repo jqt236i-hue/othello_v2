@@ -85,6 +85,55 @@ function buildGenerateSelfplayDataArgs(options: any) {
     );
 }
 
+function buildOnnxTrainerCoreArgs(args: any, overrides: any) {
+    const learningRate = Object.prototype.hasOwnProperty.call(overrides || {}, 'lr') ? overrides.lr : args.onnxLr;
+    const hiddenSize = Object.prototype.hasOwnProperty.call(overrides || {}, 'hiddenSize') ? overrides.hiddenSize : args.onnxHiddenSize;
+    return [
+        '--epochs', String(args.onnxEpochs),
+        '--batch-size', String(args.onnxBatchSize),
+        '--lr', String(learningRate),
+        '--hidden-size', String(hiddenSize),
+        '--device', args.onnxDevice,
+        '--log-interval-steps', String(args.onnxLogIntervalSteps),
+        '--val-split', String(args.onnxValSplit),
+        '--val-split-mode', String(args.onnxValSplitMode),
+        '--early-stop-patience', String(args.onnxEarlyStopPatience),
+        '--early-stop-min-delta', String(args.onnxEarlyStopMinDelta),
+        '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
+        '--early-stop-monitor', (overrides && overrides.specialistMonitor)
+            ? normalizeSpecialistEarlyStopMonitor(args.onnxEarlyStopMonitor)
+            : args.onnxEarlyStopMonitor,
+        '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
+        '--lr-plateau-patience', String(args.onnxLrPlateauPatience),
+        '--lr-plateau-factor', String(args.onnxLrPlateauFactor),
+        '--lr-plateau-min-lr', String(args.onnxLrPlateauMinLr)
+    ];
+}
+
+function buildOnnxTrainerSampleWeightArgs(args: any, options: any) {
+    return [
+        ...((options && options.includeCardClassWeights) ? [
+            '--card-no-action-weight', String(args.onnxCardNoActionWeight),
+            '--card-class-balance-power', String(args.onnxCardClassBalancePower)
+        ] : []),
+        '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
+        '--loser-sample-weight', String(args.onnxLoserSampleWeight),
+        '--draw-sample-weight', String(args.onnxDrawSampleWeight),
+        '--corner-emergency-sample-boost', String(args.onnxCornerEmergencySampleBoost),
+        '--negative-future-disc-sample-boost', String(args.onnxNegativeFutureDiscSampleBoost),
+        '--negative-future-disc-threshold', String(args.onnxNegativeFutureDiscThreshold),
+        '--tactical-miss-sample-boost', String(args.onnxTacticalMissSampleBoost),
+        '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
+        '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
+        '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
+        ...((options && options.includeBalanceBoosts) ? [
+            '--corner-balance-sample-boost', String(args.onnxCornerBalanceSampleBoost),
+            '--edge-balance-sample-boost', String(args.onnxEdgeBalanceSampleBoost),
+            '--economy-balance-sample-boost', String(args.onnxEconomyBalanceSampleBoost)
+        ] : [])
+    ];
+}
+
 function buildPolicyTrainingCommandArgs(options: any) {
     const { args, iterationPaths, resumeCheckpointPath } = options;
     const trainerScript = args.policyTrainerScript || path.resolve('ai', 'train', 'train_policy_onnx.py');
@@ -102,37 +151,11 @@ function buildPolicyTrainingCommandArgs(options: any) {
         '--onnx-out', iterationPaths.onnxModelPath,
         '--meta-out', iterationPaths.onnxMetaPath,
         '--policy-table-out', iterationPaths.candidateModelPath,
-        '--epochs', String(args.onnxEpochs),
-        '--batch-size', String(args.onnxBatchSize),
-        '--lr', String(args.onnxLr),
-        '--hidden-size', String(args.onnxHiddenSize),
-        '--device', args.onnxDevice,
-        '--log-interval-steps', String(args.onnxLogIntervalSteps),
-        '--val-split', String(args.onnxValSplit),
-        '--val-split-mode', String(args.onnxValSplitMode),
-        '--early-stop-patience', String(args.onnxEarlyStopPatience),
-        '--early-stop-min-delta', String(args.onnxEarlyStopMinDelta),
-        '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
-        '--early-stop-monitor', args.onnxEarlyStopMonitor,
-        '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
-        '--lr-plateau-patience', String(args.onnxLrPlateauPatience),
-        '--lr-plateau-factor', String(args.onnxLrPlateauFactor),
-        '--lr-plateau-min-lr', String(args.onnxLrPlateauMinLr),
-        '--card-no-action-weight', String(args.onnxCardNoActionWeight),
-        '--card-class-balance-power', String(args.onnxCardClassBalancePower),
-        '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
-        '--loser-sample-weight', String(args.onnxLoserSampleWeight),
-        '--draw-sample-weight', String(args.onnxDrawSampleWeight),
-        '--corner-emergency-sample-boost', String(args.onnxCornerEmergencySampleBoost),
-        '--negative-future-disc-sample-boost', String(args.onnxNegativeFutureDiscSampleBoost),
-        '--negative-future-disc-threshold', String(args.onnxNegativeFutureDiscThreshold),
-        '--tactical-miss-sample-boost', String(args.onnxTacticalMissSampleBoost),
-        '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
-        '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
-        '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
-        '--corner-balance-sample-boost', String(args.onnxCornerBalanceSampleBoost),
-        '--edge-balance-sample-boost', String(args.onnxEdgeBalanceSampleBoost),
-        '--economy-balance-sample-boost', String(args.onnxEconomyBalanceSampleBoost),
+        ...buildOnnxTrainerCoreArgs(args, {}),
+        ...buildOnnxTrainerSampleWeightArgs(args, {
+            includeCardClassWeights: true,
+            includeBalanceBoosts: true
+        }),
         '--metrics-out', iterationPaths.onnxMetricsPath,
         '--min-visits', String(args.minVisits),
         '--shape-immediate', String(args.shapeImmediate),
@@ -148,34 +171,10 @@ function buildCardTrainingCommandArgs(options: any) {
         '--input', iterationPaths.trainDataPath,
         '--onnx-out', iterationPaths.cardOnnxModelPath,
         '--meta-out', iterationPaths.cardOnnxMetaPath,
-        '--epochs', String(args.onnxEpochs),
-        '--batch-size', String(args.onnxBatchSize),
-        '--lr', String(args.onnxLr),
-        '--hidden-size', String(args.onnxHiddenSize),
-        '--device', args.onnxDevice,
-        '--log-interval-steps', String(args.onnxLogIntervalSteps),
-        '--val-split', String(args.onnxValSplit),
-        '--val-split-mode', String(args.onnxValSplitMode),
-        '--early-stop-patience', String(args.onnxEarlyStopPatience),
-        '--early-stop-min-delta', String(args.onnxEarlyStopMinDelta),
-        '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
-        '--early-stop-monitor', normalizeSpecialistEarlyStopMonitor(args.onnxEarlyStopMonitor),
-        '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
-        '--lr-plateau-patience', String(args.onnxLrPlateauPatience),
-        '--lr-plateau-factor', String(args.onnxLrPlateauFactor),
-        '--lr-plateau-min-lr', String(args.onnxLrPlateauMinLr),
-        '--card-no-action-weight', String(args.onnxCardNoActionWeight),
-        '--card-class-balance-power', String(args.onnxCardClassBalancePower),
-        '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
-        '--loser-sample-weight', String(args.onnxLoserSampleWeight),
-        '--draw-sample-weight', String(args.onnxDrawSampleWeight),
-        '--corner-emergency-sample-boost', String(args.onnxCornerEmergencySampleBoost),
-        '--negative-future-disc-sample-boost', String(args.onnxNegativeFutureDiscSampleBoost),
-        '--negative-future-disc-threshold', String(args.onnxNegativeFutureDiscThreshold),
-        '--tactical-miss-sample-boost', String(args.onnxTacticalMissSampleBoost),
-        '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
-        '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
-        '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
+        ...buildOnnxTrainerCoreArgs(args, { specialistMonitor: true }),
+        ...buildOnnxTrainerSampleWeightArgs(args, {
+            includeCardClassWeights: true
+        }),
         '--metrics-out', iterationPaths.cardMetricsPath,
         '--checkpoint-out', iterationPaths.cardCheckpointPath
     ], resumeCheckpointPath, args.onnxResumeOptimizer);
@@ -188,32 +187,8 @@ function buildTargetTrainingCommandArgs(options: any) {
         '--input', iterationPaths.trainDataPath,
         '--onnx-out', iterationPaths.targetOnnxModelPath,
         '--meta-out', iterationPaths.targetOnnxMetaPath,
-        '--epochs', String(args.onnxEpochs),
-        '--batch-size', String(args.onnxBatchSize),
-        '--lr', String(args.onnxLr),
-        '--hidden-size', String(args.onnxHiddenSize),
-        '--device', args.onnxDevice,
-        '--log-interval-steps', String(args.onnxLogIntervalSteps),
-        '--val-split', String(args.onnxValSplit),
-        '--val-split-mode', String(args.onnxValSplitMode),
-        '--early-stop-patience', String(args.onnxEarlyStopPatience),
-        '--early-stop-min-delta', String(args.onnxEarlyStopMinDelta),
-        '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
-        '--early-stop-monitor', normalizeSpecialistEarlyStopMonitor(args.onnxEarlyStopMonitor),
-        '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
-        '--lr-plateau-patience', String(args.onnxLrPlateauPatience),
-        '--lr-plateau-factor', String(args.onnxLrPlateauFactor),
-        '--lr-plateau-min-lr', String(args.onnxLrPlateauMinLr),
-        '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
-        '--loser-sample-weight', String(args.onnxLoserSampleWeight),
-        '--draw-sample-weight', String(args.onnxDrawSampleWeight),
-        '--corner-emergency-sample-boost', String(args.onnxCornerEmergencySampleBoost),
-        '--negative-future-disc-sample-boost', String(args.onnxNegativeFutureDiscSampleBoost),
-        '--negative-future-disc-threshold', String(args.onnxNegativeFutureDiscThreshold),
-        '--tactical-miss-sample-boost', String(args.onnxTacticalMissSampleBoost),
-        '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
-        '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
-        '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
+        ...buildOnnxTrainerCoreArgs(args, { specialistMonitor: true }),
+        ...buildOnnxTrainerSampleWeightArgs(args, {}),
         '--metrics-out', iterationPaths.targetMetricsPath,
         '--checkpoint-out', iterationPaths.targetCheckpointPath
     ], resumeCheckpointPath, args.onnxResumeOptimizer);
@@ -228,35 +203,14 @@ function buildValueTrainingCommandArgs(options: any) {
         '--input', iterationPaths.trainDataPath,
         '--onnx-out', iterationPaths.valueOnnxModelPath,
         '--meta-out', iterationPaths.valueOnnxMetaPath,
-        '--epochs', String(args.onnxEpochs),
-        '--batch-size', String(args.onnxBatchSize),
-        '--lr', String(valueLr),
-        '--hidden-size', String(valueHiddenSize),
-        '--device', args.onnxDevice,
-        '--log-interval-steps', String(args.onnxLogIntervalSteps),
-        '--val-split', String(args.onnxValSplit),
-        '--val-split-mode', String(args.onnxValSplitMode),
-        '--early-stop-patience', String(args.onnxEarlyStopPatience),
-        '--early-stop-min-delta', String(args.onnxEarlyStopMinDelta),
-        '--early-stop-min-epochs', String(args.onnxEarlyStopMinEpochs),
-        '--early-stop-monitor', normalizeSpecialistEarlyStopMonitor(args.onnxEarlyStopMonitor),
-        '--early-stop-smoothing-window', String(args.onnxEarlyStopSmoothingWindow),
-        '--lr-plateau-patience', String(args.onnxLrPlateauPatience),
-        '--lr-plateau-factor', String(args.onnxLrPlateauFactor),
-        '--lr-plateau-min-lr', String(args.onnxLrPlateauMinLr),
-        '--winner-sample-boost', String(args.onnxWinnerSampleBoost),
-        '--loser-sample-weight', String(args.onnxLoserSampleWeight),
-        '--draw-sample-weight', String(args.onnxDrawSampleWeight),
-        '--corner-emergency-sample-boost', String(args.onnxCornerEmergencySampleBoost),
-        '--negative-future-disc-sample-boost', String(args.onnxNegativeFutureDiscSampleBoost),
-        '--negative-future-disc-threshold', String(args.onnxNegativeFutureDiscThreshold),
-        '--tactical-miss-sample-boost', String(args.onnxTacticalMissSampleBoost),
-        '--tactical-miss-threshold', String(args.onnxTacticalMissThreshold),
-        '--hand-pressure-sample-boost', String(args.onnxHandPressureSampleBoost),
-        '--pending-target-sample-boost', String(args.onnxPendingTargetSampleBoost),
-        '--corner-balance-sample-boost', String(args.onnxCornerBalanceSampleBoost),
-        '--edge-balance-sample-boost', String(args.onnxEdgeBalanceSampleBoost),
-        '--economy-balance-sample-boost', String(args.onnxEconomyBalanceSampleBoost),
+        ...buildOnnxTrainerCoreArgs(args, {
+            lr: valueLr,
+            hiddenSize: valueHiddenSize,
+            specialistMonitor: true
+        }),
+        ...buildOnnxTrainerSampleWeightArgs(args, {
+            includeBalanceBoosts: true
+        }),
         '--metrics-out', iterationPaths.valueMetricsPath,
         '--value-target-corner-weight', String(args.onnxValueTargetCornerWeight),
         '--value-target-edge-weight', String(args.onnxValueTargetEdgeWeight),

@@ -1368,13 +1368,13 @@ def main() -> int:
     )
     if (args.policy_table_out or "").strip():
         print(f"[train_policy_onnx] policy_table={args.policy_table_out}")
-    print(f"[train_policy_onnx] meta={meta_out}")
-    if (args.checkpoint_out or "").strip():
-        print(f"[train_policy_onnx] checkpoint={args.checkpoint_out}")
-    if (args.metrics_out or "").strip():
-        print(f"[train_policy_onnx] metrics={args.metrics_out}")
-    if resumed_from:
-        print(f"[train_policy_onnx] resumed_from={resumed_from}")
+    trainer_common.log_trainer_artifact_paths(
+        "train_policy_onnx",
+        meta_out=meta_out,
+        checkpoint_out=args.checkpoint_out,
+        metrics_out=args.metrics_out,
+        resumed_from=resumed_from,
+    )
     return 0
 
 
