@@ -1,1 +1,1 @@
-module.exports = require("../dist/scripts/run-selfplay-training-profile");
+module.exports = require("./dist-cli-wrapper").wrapDistCli(module, "run-selfplay-training-profile.js");

@@ -1,2 +1,1 @@
-const path = require('path');
-module.exports = require(path.join(__dirname, '../dist', 'scripts', 'preflight-selfplay-training'));
+module.exports = require("./dist-cli-wrapper").wrapDistCli(module, "preflight-selfplay-training.js");

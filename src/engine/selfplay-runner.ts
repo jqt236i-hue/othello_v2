@@ -2205,11 +2205,21 @@ function getLegalMovesForAction(gameState, cardState, playerKey) {
     const player = toPlayerValue(playerKey);
     const context = getSafeCardContext(cardState);
     const pendingType = CardLogic.getPendingEffectType(cardState, playerKey);
+    const isFreePlacement = CardLogic.isFreePlacementPendingType(pendingType);
 
-    if (CardLogic.isFreePlacementPendingType(pendingType)) {
-        return Core.getFreePlacementMoves(gameState, player, context);
-    }
-    return Core.getLegalMoves(gameState, player, context);
+    const moves = isFreePlacement
+        ? Core.getFreePlacementMoves(gameState, player, context)
+        : Core.getLegalMoves(gameState, player, context);
+    if (!Array.isArray(moves) || moves.length <= 0) return [];
+    return moves.filter((move) => {
+        if (!move || !Number.isInteger(move.row) || !Number.isInteger(move.col)) return false;
+        if (isFreePlacement) return true;
+        try {
+            return Core.getFlipsWithContext(gameState, move.row, move.col, player, context).length > 0;
+        } catch (e) {
+            return false;
+        }
+    });
 }
 
 function getDirectUsableCardIds(cardState, gameState, playerKey) {
@@ -3185,12 +3195,16 @@ function buildDecisionSnapshot(gameState, cardState, playerKey, rng) {
     } catch (e) {
         return {
             gameState,
-            cardState
+            cardState,
+            prng: rng,
+            turnStartApplied: false
         };
     }
     return {
         gameState: clonedGameState,
-        cardState: clonedCardState
+        cardState: clonedCardState,
+        prng: previewPrng,
+        turnStartApplied: true
     };
 }
 
@@ -3674,14 +3688,38 @@ function createAction(decision, gameIndex, actionCounter, turnIndex) {
 }
 
 function applyActionSafe(state, playerKey, action) {
+    const skipTurnStart = state.skipTurnStartForNextAction === true;
+    state.skipTurnStartForNextAction = false;
     return TurnPipeline.applyTurnSafe(
         state.cardState,
         state.gameState,
         playerKey,
         action,
         state.prng,
-        { currentStateVersion: state.stateVersion }
+        {
+            currentStateVersion: state.stateVersion,
+            skipTurnStart
+        }
     );
+}
+
+function applyDecisionSnapshotBaseline(state, snapshot, stateVersion) {
+    state.cardState = snapshot.cardState;
+    state.gameState = snapshot.gameState;
+    if (snapshot.prng) state.prng = snapshot.prng;
+    state.stateVersion = stateVersion;
+    state.skipTurnStartForNextAction = snapshot.turnStartApplied === true;
+}
+
+function applyRejectedTurnStartBaseline(state, rejectedResult) {
+    if (!rejectedResult || !rejectedResult.gameState || !rejectedResult.cardState) return false;
+    state.gameState = rejectedResult.gameState;
+    state.cardState = rejectedResult.cardState;
+    state.stateVersion = Number.isFinite(rejectedResult.nextStateVersion)
+        ? rejectedResult.nextStateVersion
+        : state.stateVersion;
+    state.skipTurnStartForNextAction = true;
+    return true;
 }
 
 function getPendingSelectionState(cardState, playerKey) {
@@ -3727,15 +3765,11 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
     const firstDecision = decideAction(state.gameState, state.cardState, playerKey, state.prng, options, firstSnapshot);
     actionCounterRef.value += 1;
     const first = createAction(firstDecision, gameIndex, actionCounterRef.value, state.stateVersion);
+    applyDecisionSnapshotBaseline(state, firstSnapshot, state.stateVersion);
     let result = applyActionSafe(state, playerKey, first.action);
     if (result.ok) {
         return { decision: firstDecision, action: first.action, result, decisionContext: firstSnapshot };
     }
-
-    // Apply rejected snapshots as the new baseline before retrying.
-    state.cardState = result.cardState;
-    state.gameState = result.gameState;
-    state.stateVersion = result.nextStateVersion;
 
     const errMsg = String(result.errorMessage || '');
     const illegalPassRejected = first.actionType === 'pass' && errMsg.includes('Illegal pass');
@@ -3750,6 +3784,11 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
         throw new Error(`[SELFPLAY] action rejected game=${gameIndex} ply=${ply} action=${first.actionType} reason=${result.rejectedReason || 'UNKNOWN'} ${msg}`);
     }
 
+    // Retry from the pre-action turn-start snapshot. applyTurnSafe returns a clone
+    // that may contain partially applied turn/card mutations after a rejection.
+    // Reusing that rejected clone can drift currentPlayer and poison long self-play.
+    applyDecisionSnapshotBaseline(state, firstSnapshot, result.nextStateVersion);
+
     const retryOpts = Object.assign({}, options);
     if (first.actionType === 'use_card') retryOpts.allowCardUsage = false;
     if (first.actionType === 'destroy_hand_card') retryOpts.allowHandDestroy = false;
@@ -3757,12 +3796,11 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
     const retryDecision = decideAction(state.gameState, state.cardState, playerKey, state.prng, retryOpts, retrySnapshot);
     actionCounterRef.value += 1;
     const retry = createAction(retryDecision, gameIndex, actionCounterRef.value, state.stateVersion);
+    applyDecisionSnapshotBaseline(state, retrySnapshot, state.stateVersion);
     result = applyActionSafe(state, playerKey, retry.action);
     if (!result.ok) {
         // Last-resort safety net: force a deterministic legal action so long training loops do not crash.
-        state.cardState = result.cardState;
-        state.gameState = result.gameState;
-        state.stateVersion = result.nextStateVersion;
+        applyDecisionSnapshotBaseline(state, retrySnapshot, result.nextStateVersion);
 
         const fallbackSnapshot = buildDecisionSnapshot(state.gameState, state.cardState, playerKey, state.prng);
         const fallbackDecision = buildRetryFallbackDecision(
@@ -3775,13 +3813,103 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
 
         actionCounterRef.value += 1;
         const forced = createAction(fallbackDecision, gameIndex, actionCounterRef.value, state.stateVersion);
+        applyDecisionSnapshotBaseline(state, fallbackSnapshot, state.stateVersion);
+        const forcedPendingBefore = CardLogic.getPendingEffectType(state.cardState, playerKey) || null;
+        const forcedFlipsBefore = (
+            forced.action &&
+            forced.action.type === 'place' &&
+            !CardLogic.isFreePlacementPendingType(forcedPendingBefore)
+        )
+            ? Core.getFlipsWithContext(
+                state.gameState,
+                forced.action.row,
+                forced.action.col,
+                toPlayerValue(playerKey),
+                getSafeCardContext(state.cardState)
+            ).length
+            : null;
         const forcedResult = applyActionSafe(state, playerKey, forced.action);
         if (forcedResult.ok) {
             return { decision: fallbackDecision, action: forced.action, result: forcedResult, decisionContext: fallbackSnapshot };
         }
 
+        const forcedErrMsg = String(forcedResult.errorMessage || '');
+        if (forced.action && forced.action.type === 'pass' && forcedErrMsg.includes('Illegal pass')) {
+            applyRejectedTurnStartBaseline(state, forcedResult);
+            const passRejectedFallback = buildRetryFallbackDecision(
+                state.gameState,
+                state.cardState,
+                playerKey,
+                state.prng,
+                options
+            );
+            const passRejectedMoves = Array.isArray(passRejectedFallback.legalMoves)
+                ? passRejectedFallback.legalMoves.filter((move) => (
+                    move &&
+                    Number.isInteger(move.row) &&
+                    Number.isInteger(move.col)
+                ))
+                : [];
+            for (const move of passRejectedMoves) {
+                const alternateDecision = Object.assign({}, passRejectedFallback, {
+                    action: { type: 'place', row: move.row, col: move.col }
+                });
+                actionCounterRef.value += 1;
+                const alternate = createAction(alternateDecision, gameIndex, actionCounterRef.value, state.stateVersion);
+                state.skipTurnStartForNextAction = true;
+                const alternateResult = applyActionSafe(state, playerKey, alternate.action);
+                if (alternateResult.ok) {
+                    return {
+                        decision: alternateDecision,
+                        action: alternate.action,
+                        result: alternateResult,
+                        decisionContext: {
+                            gameState: state.gameState,
+                            cardState: state.cardState,
+                            prng: state.prng,
+                            turnStartApplied: true
+                        }
+                    };
+                }
+            }
+        }
+
+        const fallbackMoves = Array.isArray(fallbackDecision.legalMoves)
+            ? fallbackDecision.legalMoves.filter((move) => (
+                move &&
+                Number.isInteger(move.row) &&
+                Number.isInteger(move.col) &&
+                (move.row !== forced.action.row || move.col !== forced.action.col)
+            ))
+            : [];
+        for (const move of fallbackMoves) {
+            const alternateDecision = Object.assign({}, fallbackDecision, {
+                action: { type: 'place', row: move.row, col: move.col }
+            });
+            actionCounterRef.value += 1;
+            const alternate = createAction(alternateDecision, gameIndex, actionCounterRef.value, state.stateVersion);
+            applyDecisionSnapshotBaseline(state, fallbackSnapshot, state.stateVersion);
+            const alternateResult = applyActionSafe(state, playerKey, alternate.action);
+            if (alternateResult.ok) {
+                return {
+                    decision: alternateDecision,
+                    action: alternate.action,
+                    result: alternateResult,
+                    decisionContext: fallbackSnapshot
+                };
+            }
+        }
+
         const msg = forcedResult.errorMessage || result.errorMessage || '';
-        throw new Error(`[SELFPLAY] action rejected game=${gameIndex} ply=${ply} action=${retry.actionType} reason=${forcedResult.rejectedReason || result.rejectedReason || 'UNKNOWN'} ${msg}`);
+        const fallbackCurrentPlayer = toPlayerKey(fallbackSnapshot.gameState.currentPlayer);
+        throw new Error(
+            `[SELFPLAY] action rejected game=${gameIndex} ply=${ply} action=${retry.actionType} ` +
+            `reason=${forcedResult.rejectedReason || result.rejectedReason || 'UNKNOWN'} ` +
+            `first=${first.actionType}:${first.action.type} retry=${retry.actionType}:${retry.action.type} ` +
+            `forced=${forced.action.type}:${Number.isFinite(forced.action.row) ? forced.action.row : 'na'},${Number.isFinite(forced.action.col) ? forced.action.col : 'na'} ` +
+            `pending=${forcedPendingBefore || 'none'} current=${fallbackCurrentPlayer} player=${playerKey} flipsBefore=${forcedFlipsBefore === null ? 'na' : forcedFlipsBefore} ` +
+            `legal=${Array.isArray(fallbackDecision.legalMoves) ? fallbackDecision.legalMoves.length : 'na'} ${msg}`
+        );
     }
     return { decision: retryDecision, action: retry.action, result, decisionContext: retrySnapshot };
 }

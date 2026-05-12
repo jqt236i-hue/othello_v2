@@ -1,1 +1,1 @@
-module.exports = require("../dist/scripts/generate-selfplay-data");
+module.exports = require("./dist-cli-wrapper").wrapDistCli(module, "generate-selfplay-data.js");

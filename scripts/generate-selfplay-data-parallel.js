@@ -1,1 +1,1 @@
-module.exports = require("../dist/scripts/generate-selfplay-data-parallel");
+module.exports = require("./dist-cli-wrapper").wrapDistCli(module, "generate-selfplay-data-parallel.js");

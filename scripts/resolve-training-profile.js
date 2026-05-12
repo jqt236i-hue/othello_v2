@@ -1,2 +1,2 @@
 #!/usr/bin/env node
-module.exports = require("../dist/scripts/resolve-training-profile");
+module.exports = require("./dist-cli-wrapper").wrapDistCli(module, "resolve-training-profile.js");

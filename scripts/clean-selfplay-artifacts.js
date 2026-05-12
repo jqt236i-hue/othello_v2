@@ -1,2 +1,1 @@
-const path = require('path');
-module.exports = require(path.join(__dirname, '..', '..', 'dist', 'scripts', 'clean-selfplay-artifacts.js'));
+module.exports = require("./dist-cli-wrapper").wrapDistCli(module, "clean-selfplay-artifacts.js");

@@ -1,3 +1,3 @@
 "use strict";
 /** @type {any} */
-module.exports = require('../dist/scripts/benchmark-policy-quality-gate');
+module.exports = require("./dist-cli-wrapper").wrapDistCli(module, "benchmark-policy-quality-gate.js");

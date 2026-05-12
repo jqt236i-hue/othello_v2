@@ -1,3 +1,3 @@
 "use strict";
 /** @type {any} */
-module.exports = require('../dist/scripts/benchmark-selfplay-policy');
+module.exports = require("./dist-cli-wrapper").wrapDistCli(module, "benchmark-selfplay-policy.js");
