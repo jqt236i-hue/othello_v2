@@ -3452,6 +3452,7 @@ function normalizeOptions(options) {
         baseSeed: Number.isFinite(opts.baseSeed) ? Math.floor(opts.baseSeed) : 1,
         gameIndexOffset: Number.isFinite(opts.gameIndexOffset) ? Math.max(0, Math.floor(opts.gameIndexOffset)) : 0,
         maxPlies: Number.isFinite(opts.maxPlies) ? Math.max(1, Math.floor(opts.maxPlies)) : 220,
+        gameRetryCount: Number.isFinite(opts.gameRetryCount) ? Math.max(0, Math.floor(opts.gameRetryCount)) : 4,
         allowCardUsage: opts.allowCardUsage !== false,
         cardUsageRate: Number.isFinite(opts.cardUsageRate) ? Math.max(0, Math.min(1, opts.cardUsageRate)) : 0.2,
         policyMixRate,
@@ -4239,6 +4240,48 @@ function runSingleGame(gameIndex, seed, options) {
     };
 }
 
+function buildSelfplayRetrySeed(seed, gameIndex, attempt) {
+    const base = Number.isFinite(seed) ? Math.floor(seed) : 1;
+    const index = Number.isFinite(gameIndex) ? Math.floor(gameIndex) : 0;
+    const retry = Math.max(1, Math.floor(Number(attempt) || 1));
+    return base + (retry * 1000003) + (index * 17);
+}
+
+function runSingleGameWithRetries(gameIndex, seed, opts, perGameOptions) {
+    const retryCount = Number.isFinite(opts.gameRetryCount)
+        ? Math.max(0, Math.floor(opts.gameRetryCount))
+        : 0;
+    let lastError = null;
+
+    for (let attempt = 0; attempt <= retryCount; attempt++) {
+        const effectiveSeed = attempt === 0
+            ? seed
+            : buildSelfplayRetrySeed(seed, gameIndex, attempt);
+        try {
+            const one = runSingleGame(gameIndex, effectiveSeed, perGameOptions);
+            if (attempt > 0 && one && one.summary) {
+                one.summary.retryAttempt = attempt;
+                one.summary.originalSeed = seed;
+                one.summary.seed = effectiveSeed;
+            }
+            return one;
+        } catch (err) {
+            lastError = err;
+            if (attempt >= retryCount) break;
+            if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+                const message = err && err.message ? String(err.message) : String(err);
+                console.warn(
+                    `[SELFPLAY] game retry game=${gameIndex} attempt=${attempt + 1}/${retryCount} ` +
+                    `seed=${seed} retrySeed=${buildSelfplayRetrySeed(seed, gameIndex, attempt + 1)} reason=${message}`
+                );
+            }
+        }
+    }
+
+    const msg = lastError && lastError.message ? String(lastError.message) : String(lastError || 'unknown');
+    throw new Error(`[SELFPLAY] game failed after retries game=${gameIndex} seed=${seed} retries=${retryCount}: ${msg}`);
+}
+
 function runSelfPlayGames(options) {
     const opts = normalizeOptions(options);
     const allRecords = [];
@@ -4255,12 +4298,13 @@ function runSelfPlayGames(options) {
         const gamePlayerPolicies = opts.playerPolicyResolver
             ? opts.playerPolicyResolver(gameIndex, seed)
             : opts.playerPolicies;
+        const perGameOpts = Object.assign({}, opts, { playerPolicies: gamePlayerPolicies || null });
         const perGamePolicies = buildPerGamePolicySet(
-            Object.assign({}, opts, { playerPolicies: gamePlayerPolicies || null }),
+            perGameOpts,
             seed,
             gameIndex
         );
-        const one = runSingleGame(gameIndex, seed, Object.assign({}, opts, {
+        const one = runSingleGameWithRetries(gameIndex, seed, opts, Object.assign({}, perGameOpts, {
             playerPolicies: perGamePolicies
         }));
         gameSummaries.push(one.summary);
