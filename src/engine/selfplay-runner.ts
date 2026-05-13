@@ -3483,7 +3483,8 @@ function normalizeOptions(options) {
             : 'selfplay-games',
         shouldStop: typeof opts.shouldStop === 'function' ? opts.shouldStop : null,
         onRecord: typeof opts.onRecord === 'function' ? opts.onRecord : null,
-        onGameEnd: typeof opts.onGameEnd === 'function' ? opts.onGameEnd : null
+        onGameEnd: typeof opts.onGameEnd === 'function' ? opts.onGameEnd : null,
+        onGameRetryHardcase: typeof opts.onGameRetryHardcase === 'function' ? opts.onGameRetryHardcase : null
     };
 }
 
@@ -3848,6 +3849,59 @@ function tryFallbackPlacementsFromSnapshot(state, fallbackSnapshot, fallbackStat
     };
 }
 
+function buildIllegalMoveHardcase(payload) {
+    const source = payload && typeof payload === 'object' ? payload : {};
+    const fallbackSnapshot = source.fallbackSnapshot || {};
+    const forced = source.forced || {};
+    const placementFallback = source.placementFallback || {};
+    const forcedResult = source.forcedResult || {};
+    const retry = source.retry || {};
+    const first = source.first || {};
+    return {
+        schemaVersion: 'selfplay_illegal_move_hardcase.v1',
+        generatedAt: new Date().toISOString(),
+        gameIndex: source.gameIndex,
+        ply: source.ply,
+        player: source.playerKey,
+        stateVersion: source.fallbackStateVersion,
+        firstActionType: first.actionType || null,
+        firstAction: first.action ? deepClone(first.action) : null,
+        retryActionType: retry.actionType || null,
+        retryAction: retry.action ? deepClone(retry.action) : null,
+        forcedAction: forced.action ? deepClone(forced.action) : null,
+        forcedPendingBefore: source.forcedPendingBefore || null,
+        forcedFlipsBefore: Number.isFinite(source.forcedFlipsBefore) ? source.forcedFlipsBefore : null,
+        forcedRejectedReason: forcedResult.rejectedReason || null,
+        forcedErrorMessage: forcedResult.errorMessage || null,
+        fallbackCurrentPlayer: fallbackSnapshot.gameState ? toPlayerKey(fallbackSnapshot.gameState.currentPlayer) : null,
+        legalMoves: source.fallbackDecision && Array.isArray(source.fallbackDecision.legalMoves)
+            ? deepClone(source.fallbackDecision.legalMoves)
+            : [],
+        attemptedPlacements: Number.isFinite(placementFallback.attemptedPlacements)
+            ? placementFallback.attemptedPlacements
+            : null,
+        skippedInvalidPlacements: Number.isFinite(placementFallback.skippedInvalidPlacements)
+            ? placementFallback.skippedInvalidPlacements
+            : null,
+        lastPlacementAction: placementFallback.action ? deepClone(placementFallback.action) : null,
+        lastPlacementFlipsBefore: Number.isFinite(placementFallback.flipsBefore)
+            ? placementFallback.flipsBefore
+            : null,
+        snapshot: {
+            turnStartApplied: fallbackSnapshot.turnStartApplied === true,
+            gameState: fallbackSnapshot.gameState ? deepClone(fallbackSnapshot.gameState) : null,
+            cardState: fallbackSnapshot.cardState ? deepClone(fallbackSnapshot.cardState) : null
+        }
+    };
+}
+
+function attachSelfplayHardcase(error, hardcase) {
+    if (error && hardcase) {
+        error.selfplayHardcase = hardcase;
+    }
+    return error;
+}
+
 function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actionCounterRef) {
     const firstSnapshot = buildDecisionSnapshot(state.gameState, state.cardState, playerKey, state.prng);
     const firstDecision = decideAction(state.gameState, state.cardState, playerKey, state.prng, options, firstSnapshot);
@@ -3985,7 +4039,22 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
 
         const msg = forcedResult.errorMessage || result.errorMessage || '';
         const fallbackCurrentPlayer = toPlayerKey(fallbackSnapshot.gameState.currentPlayer);
-        throw new Error(
+        const hardcase = buildIllegalMoveHardcase({
+            gameIndex,
+            ply,
+            playerKey,
+            first,
+            retry,
+            forced,
+            forcedResult,
+            forcedPendingBefore,
+            forcedFlipsBefore,
+            fallbackSnapshot,
+            fallbackStateVersion,
+            fallbackDecision,
+            placementFallback
+        });
+        const error = new Error(
             `[SELFPLAY] action rejected game=${gameIndex} ply=${ply} action=${retry.actionType} ` +
             `reason=${forcedResult.rejectedReason || result.rejectedReason || 'UNKNOWN'} ` +
             `first=${first.actionType}:${first.action.type} retry=${retry.actionType}:${retry.action.type} ` +
@@ -3995,6 +4064,7 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
             `attemptedPlacements=${placementFallback.attemptedPlacements} skippedInvalidPlacements=${placementFallback.skippedInvalidPlacements} ` +
             `lastPlacementFlipsBefore=${placementFallback.flipsBefore === null ? 'na' : placementFallback.flipsBefore} ${msg}`
         );
+        throw attachSelfplayHardcase(error, hardcase);
     }
     return { decision: retryDecision, action: retry.action, result, decisionContext: retrySnapshot };
 }
@@ -4268,6 +4338,15 @@ function runSingleGameWithRetries(gameIndex, seed, opts, perGameOptions) {
         } catch (err) {
             lastError = err;
             if (attempt >= retryCount) break;
+            if (opts.onGameRetryHardcase && err && err.selfplayHardcase) {
+                opts.onGameRetryHardcase(Object.assign({}, err.selfplayHardcase, {
+                    originalSeed: seed,
+                    retrySeed: buildSelfplayRetrySeed(seed, gameIndex, attempt + 1),
+                    retryAttempt: attempt + 1,
+                    retryLimit: retryCount,
+                    errorMessage: err && err.message ? String(err.message) : String(err)
+                }));
+            }
             if (typeof console !== 'undefined' && typeof console.warn === 'function') {
                 const message = err && err.message ? String(err.message) : String(err);
                 console.warn(

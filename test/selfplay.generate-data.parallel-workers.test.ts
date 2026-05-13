@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import * as EventEmitter from 'events';
+import { EventEmitter } from 'events';
 import * as cpuLv6SharedProfile from '../constants/cpu-lv6-shared-profile.js';
 
 function createArgs(tempDir, overrides) {
@@ -63,7 +63,7 @@ describe('selfplay generate data worker retries', () => {
 
     test('parseArgs defaults align parallel standalone selfplay with shared Lv6 teacher profile', () => {
         jest.resetModules();
-        import { parseArgs } from '../scripts/generate-selfplay-data-parallel.js';
+        const { parseArgs } = require('../scripts/generate-selfplay-data-parallel.js');
         const teacher = cpuLv6SharedProfile.teacher;
         const args = parseArgs([]);
 

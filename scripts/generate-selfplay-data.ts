@@ -784,6 +784,17 @@ function runSelfPlayShard(options) {
     const hardcaseStream = hardcaseOutPath
         ? fs.createWriteStream(hardcaseOutPath, { encoding: 'utf8' })
         : null;
+    const illegalMoveHardcaseOutPath = `${outPath}.illegal-move.ndjson`;
+    let illegalMoveHardcaseStream = null;
+    const writeIllegalMoveHardcase = (hardcase) => {
+        if (!hardcase || typeof hardcase !== 'object') return;
+        if (!illegalMoveHardcaseStream) {
+            illegalMoveHardcaseStream = fs.createWriteStream(illegalMoveHardcaseOutPath, {
+                encoding: 'utf8'
+            });
+        }
+        illegalMoveHardcaseStream.write(`${JSON.stringify(hardcase)}\n`);
+    };
 
     const modelPathPool = buildPolicyModelPathPool(opts);
     const policyModels = Array.isArray(opts.policyModels)
@@ -792,6 +803,7 @@ function runSelfPlayShard(options) {
     const modelResolver = createPolicyModelPoolResolver(policyModels, opts, opts);
     let finishedGames = 0;
     let hardcaseRecords = 0;
+    let illegalMoveHardcaseRecords = 0;
     const progressEvery = Number.isFinite(opts.progressEvery) && opts.progressEvery > 0
         ? Math.max(1, Math.floor(opts.progressEvery))
         : 10;
@@ -845,6 +857,10 @@ function runSelfPlayShard(options) {
                     });
                 }
             }
+        },
+        onGameRetryHardcase: (hardcase) => {
+            illegalMoveHardcaseRecords += 1;
+            writeIllegalMoveHardcase(hardcase);
         }
     }));
 
@@ -852,18 +868,28 @@ function runSelfPlayShard(options) {
         const onError = (err) => reject(err);
         outStream.on('error', onError);
         if (hardcaseStream) hardcaseStream.on('error', onError);
+        if (illegalMoveHardcaseStream) illegalMoveHardcaseStream.on('error', onError);
         Promise.all([
             waitForStreamClose(outStream),
-            waitForStreamClose(hardcaseStream)
+            waitForStreamClose(hardcaseStream),
+            waitForStreamClose(illegalMoveHardcaseStream)
         ]).then(() => {
             resolve({
-                summary: Object.assign({}, result.summary, { hardcaseRecords }),
+                summary: Object.assign({}, result.summary, {
+                    hardcaseRecords,
+                    illegalMoveHardcaseRecords
+                }),
                 elapsedMs: Date.now() - startedAt,
                 outPath,
-                hardcaseOutPath
+                hardcaseOutPath,
+                illegalMoveHardcaseOutPath: illegalMoveHardcaseRecords > 0 ? illegalMoveHardcaseOutPath : null
             });
         }).catch(reject);
     });
+}
+
+function buildIllegalMoveHardcaseOutPath(outPath) {
+    return `${path.resolve(process.cwd(), String(outPath || 'data/selfplay.ndjson'))}.illegal-move.ndjson`;
 }
 
 function combineSummary(shardResults) {
@@ -872,12 +898,14 @@ function combineSummary(shardResults) {
     let totalGames = 0;
     let totalPlies = 0;
     let hardcaseRecords = 0;
+    let illegalMoveHardcaseRecords = 0;
     for (const one of rows) {
         const s = one && one.summary ? one.summary : null;
         if (!s) continue;
         totalGames += Number(s.totalGames || 0);
         totalPlies += Number(s.totalPlies || 0);
         hardcaseRecords += Number(s.hardcaseRecords || 0);
+        illegalMoveHardcaseRecords += Number(s.illegalMoveHardcaseRecords || 0);
         const w = s.wins || {};
         wins.black += Number(w.black || 0);
         wins.white += Number(w.white || 0);
@@ -889,6 +917,7 @@ function combineSummary(shardResults) {
         totalPlies,
         avgPlies: totalGames > 0 ? totalPlies / totalGames : 0,
         hardcaseRecords,
+        illegalMoveHardcaseRecords,
         wins
     };
 }
@@ -1307,6 +1336,15 @@ async function runSelfPlayParallel(args, options) {
             .filter(Boolean);
         await mergeShardFiles(hardcaseShardPaths, args.hardcaseOut);
     }
+    const illegalMoveShardPaths = sorted
+        .map((one) => one.illegalMoveHardcaseOutPath)
+        .filter((one) => one && fileExists(one));
+    const illegalMoveHardcaseOutPath = illegalMoveShardPaths.length > 0
+        ? buildIllegalMoveHardcaseOutPath(args.out)
+        : null;
+    if (illegalMoveHardcaseOutPath) {
+        await mergeShardFiles(illegalMoveShardPaths, illegalMoveHardcaseOutPath);
+    }
     const summary = combineSummary(sorted);
 
     try {
@@ -1316,7 +1354,8 @@ async function runSelfPlayParallel(args, options) {
     return {
         summary,
         outPath: args.out,
-        hardcaseOutPath: args.hardcaseOut || null
+        hardcaseOutPath: args.hardcaseOut || null,
+        illegalMoveHardcaseOutPath
     };
 }
 
@@ -1344,7 +1383,8 @@ async function runSelfPlayJob(args, options) {
     return {
         summary: result.summary,
         outPath: result.outPath,
-        hardcaseOutPath: result.hardcaseOutPath
+        hardcaseOutPath: result.hardcaseOutPath,
+        illegalMoveHardcaseOutPath: result.illegalMoveHardcaseOutPath
     };
 }
 
@@ -1448,7 +1488,8 @@ async function runSelfPlayWithResumeChunks(args) {
             chunkIndex: chunk.chunkIndex,
             summary: chunkResult.summary,
             outPath: chunkPaths.outPath,
-            hardcaseOutPath: chunkPaths.hardcaseOutPath
+            hardcaseOutPath: chunkPaths.hardcaseOutPath,
+            illegalMoveHardcaseOutPath: chunkResult.illegalMoveHardcaseOutPath
         });
         completedGames += Number(chunkResult.summary && chunkResult.summary.totalGames || 0);
     }
@@ -1461,6 +1502,15 @@ async function runSelfPlayWithResumeChunks(args) {
             args.hardcaseOut
         );
     }
+    const illegalMoveChunkPaths = sorted
+        .map((one) => one.illegalMoveHardcaseOutPath)
+        .filter((one) => one && fileExists(one));
+    const illegalMoveHardcaseOutPath = illegalMoveChunkPaths.length > 0
+        ? buildIllegalMoveHardcaseOutPath(args.out)
+        : null;
+    if (illegalMoveHardcaseOutPath) {
+        await mergeShardFiles(illegalMoveChunkPaths, illegalMoveHardcaseOutPath);
+    }
     const summary = combineSummary(sorted);
     try {
         fs.rmSync(chunkDir, { recursive: true, force: true });
@@ -1468,7 +1518,8 @@ async function runSelfPlayWithResumeChunks(args) {
     return {
         summary,
         outPath: args.out,
-        hardcaseOutPath: args.hardcaseOut || null
+        hardcaseOutPath: args.hardcaseOut || null,
+        illegalMoveHardcaseOutPath
     };
 }
 
@@ -1498,6 +1549,7 @@ async function runWorkerMain() {
                     shardIndex,
                     outPath: result.outPath,
                     hardcaseOutPath: result.hardcaseOutPath,
+                    illegalMoveHardcaseOutPath: result.illegalMoveHardcaseOutPath,
                     summary: result.summary
                 }
             }, resolve);
@@ -1556,6 +1608,9 @@ async function main() {
     console.log(`[selfplay] totalGames=${result.summary.totalGames} avgPlies=${result.summary.avgPlies.toFixed(2)} wins=${JSON.stringify(result.summary.wins)}`);
     if (Number(result.summary.hardcaseRecords || 0) > 0) {
         console.log(`[selfplay] hardcaseRecords=${Number(result.summary.hardcaseRecords || 0)}`);
+    }
+    if (Number(result.summary.illegalMoveHardcaseRecords || 0) > 0) {
+        console.log(`[selfplay] illegalMoveHardcases=${Number(result.summary.illegalMoveHardcaseRecords || 0)} path=${buildIllegalMoveHardcaseOutPath(args.out)}`);
     }
     if (policyModelPaths.length === 1) {
         console.log(`[selfplay] policyModel=${policyModelPaths[0]}`);
