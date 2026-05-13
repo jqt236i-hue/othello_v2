@@ -111,11 +111,11 @@ In practice, this means:
 
 The Lv6 CPU training/runtime path spans `constants/`, `scripts/`, `ui/`, and `game/`, but the stable contract is:
 
-- `constants/cpu-lv6-shared-profile.js` is the canonical source for shared browser Lv6 defaults and shared teacher defaults.
-- `shared/cpu-lv6-runtime-capability.js` is the canonical pure resolver for browser Lv6 decision-mode interpretation, primary-vs-auxiliary ONNX role, runtime guard budgets, and standard-board compatibility checks.
-- `scripts/load-training-profile.js` is the canonical merger for shared-profile values, named profile YAML, gate YAML, launcher overrides, and derived runtime/training defaults.
-- `scripts/resolve-training-profile.js` and `scripts/run-selfplay-training-profile.js` are launcher wrappers over that resolved structure, not alternate sources of precedence logic.
-- `ui/handlers/cpu-policy.js`, `game/cpu-decision.js`, and `game/cpu-turn-handler.js` must consume that shared runtime capability resolver instead of re-implementing Lv6 decision-mode parsing separately.
+- `constants/cpu-lv6-shared-profile.ts` is the canonical source for shared browser Lv6 defaults and shared teacher defaults; the adjacent `.js` file is a compatibility wrapper/projection.
+- `shared/cpu-lv6-runtime-capability.ts` is the canonical pure resolver for browser Lv6 decision-mode interpretation, primary-vs-auxiliary ONNX role, runtime guard budgets, and standard-board compatibility checks; the adjacent `.js` file is a compatibility wrapper/projection.
+- `scripts/load-training-profile.ts` is the canonical merger for shared-profile values, named profile YAML, gate YAML, launcher overrides, and derived runtime/training defaults; `scripts/load-training-profile.js` is the Node entry compatibility wrapper.
+- `scripts/resolve-training-profile.ts` and `scripts/run-selfplay-training-profile.ts` own launcher behavior over that resolved structure; their `.js` siblings are CLI compatibility wrappers and must not contain alternate precedence logic.
+- `ui/handlers/cpu-policy.ts`, `game/cpu-decision.ts`, and `game/cpu-turn-handler.ts` must consume that shared runtime capability resolver instead of re-implementing Lv6 decision-mode parsing separately.
 
 Current behavior is intentionally preserved:
 

@@ -3760,6 +3760,93 @@ function buildRetryFallbackDecision(gameState, cardState, playerKey, rng, option
     };
 }
 
+function listFallbackPlacementActions(fallbackDecision) {
+    const actions = [];
+    const seen = new Set();
+    const addMove = (move) => {
+        if (!move || !Number.isInteger(move.row) || !Number.isInteger(move.col)) return;
+        const key = `${move.row},${move.col}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        actions.push({ type: 'place', row: move.row, col: move.col });
+    };
+
+    if (fallbackDecision && fallbackDecision.action && fallbackDecision.action.type === 'place') {
+        addMove(fallbackDecision.action);
+    }
+    const legalMoves = fallbackDecision && Array.isArray(fallbackDecision.legalMoves)
+        ? fallbackDecision.legalMoves
+        : [];
+    for (const move of legalMoves) addMove(move);
+    return actions;
+}
+
+function getPlacementFlipsBeforeApply(gameState, cardState, playerKey, action) {
+    if (!action || action.type !== 'place') return null;
+    const pendingType = CardLogic.getPendingEffectType(cardState, playerKey) || null;
+    if (CardLogic.isFreePlacementPendingType(pendingType)) return null;
+    return Core.getFlipsWithContext(
+        gameState,
+        action.row,
+        action.col,
+        toPlayerValue(playerKey),
+        getSafeCardContext(cardState)
+    ).length;
+}
+
+function tryFallbackPlacementsFromSnapshot(state, fallbackSnapshot, fallbackStateVersion, fallbackDecision, gameIndex, actionCounterRef, playerKey) {
+    const placementActions = listFallbackPlacementActions(fallbackDecision);
+    let lastResult = null;
+    let lastAction = null;
+    let lastFlipsBefore = null;
+    let skippedInvalidPlacements = 0;
+
+    for (const placementAction of placementActions) {
+        applyDecisionSnapshotBaseline(state, fallbackSnapshot, fallbackStateVersion);
+        let flipsBefore = null;
+        try {
+            flipsBefore = getPlacementFlipsBeforeApply(state.gameState, state.cardState, playerKey, placementAction);
+        } catch (err) {
+            skippedInvalidPlacements += 1;
+            continue;
+        }
+        if (Number.isFinite(flipsBefore) && flipsBefore <= 0) {
+            skippedInvalidPlacements += 1;
+            continue;
+        }
+
+        const placementDecision = Object.assign({}, fallbackDecision, {
+            action: placementAction,
+            skippedInvalidPlacements
+        });
+        actionCounterRef.value += 1;
+        const placement = createAction(placementDecision, gameIndex, actionCounterRef.value, state.stateVersion);
+        const placementResult = applyActionSafe(state, playerKey, placement.action);
+        lastResult = placementResult;
+        lastAction = placement.action;
+        lastFlipsBefore = flipsBefore;
+        if (placementResult.ok) {
+            return {
+                ok: true,
+                decision: placementDecision,
+                action: placement.action,
+                result: placementResult,
+                flipsBefore,
+                skippedInvalidPlacements
+            };
+        }
+    }
+
+    return {
+        ok: false,
+        result: lastResult,
+        action: lastAction,
+        flipsBefore: lastFlipsBefore,
+        skippedInvalidPlacements,
+        attemptedPlacements: placementActions.length
+    };
+}
+
 function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actionCounterRef) {
     const firstSnapshot = buildDecisionSnapshot(state.gameState, state.cardState, playerKey, state.prng);
     const firstDecision = decideAction(state.gameState, state.cardState, playerKey, state.prng, options, firstSnapshot);
@@ -3810,6 +3897,7 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
             state.prng,
             options
         );
+        const fallbackStateVersion = state.stateVersion;
 
         actionCounterRef.value += 1;
         const forced = createAction(fallbackDecision, gameIndex, actionCounterRef.value, state.stateVersion);
@@ -3833,6 +3921,24 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
             return { decision: fallbackDecision, action: forced.action, result: forcedResult, decisionContext: fallbackSnapshot };
         }
 
+        const placementFallback = tryFallbackPlacementsFromSnapshot(
+            state,
+            fallbackSnapshot,
+            fallbackStateVersion,
+            fallbackDecision,
+            gameIndex,
+            actionCounterRef,
+            playerKey
+        );
+        if (placementFallback.ok) {
+            return {
+                decision: placementFallback.decision,
+                action: placementFallback.action,
+                result: placementFallback.result,
+                decisionContext: fallbackSnapshot
+            };
+        }
+
         const forcedErrMsg = String(forcedResult.errorMessage || '');
         if (forced.action && forced.action.type === 'pass' && forcedErrMsg.includes('Illegal pass')) {
             applyRejectedTurnStartBaseline(state, forcedResult);
@@ -3850,52 +3956,28 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
                     Number.isInteger(move.col)
                 ))
                 : [];
-            for (const move of passRejectedMoves) {
-                const alternateDecision = Object.assign({}, passRejectedFallback, {
-                    action: { type: 'place', row: move.row, col: move.col }
-                });
-                actionCounterRef.value += 1;
-                const alternate = createAction(alternateDecision, gameIndex, actionCounterRef.value, state.stateVersion);
-                state.skipTurnStartForNextAction = true;
-                const alternateResult = applyActionSafe(state, playerKey, alternate.action);
-                if (alternateResult.ok) {
-                    return {
-                        decision: alternateDecision,
-                        action: alternate.action,
-                        result: alternateResult,
-                        decisionContext: {
-                            gameState: state.gameState,
-                            cardState: state.cardState,
-                            prng: state.prng,
-                            turnStartApplied: true
-                        }
-                    };
-                }
-            }
-        }
-
-        const fallbackMoves = Array.isArray(fallbackDecision.legalMoves)
-            ? fallbackDecision.legalMoves.filter((move) => (
-                move &&
-                Number.isInteger(move.row) &&
-                Number.isInteger(move.col) &&
-                (move.row !== forced.action.row || move.col !== forced.action.col)
-            ))
-            : [];
-        for (const move of fallbackMoves) {
-            const alternateDecision = Object.assign({}, fallbackDecision, {
-                action: { type: 'place', row: move.row, col: move.col }
-            });
-            actionCounterRef.value += 1;
-            const alternate = createAction(alternateDecision, gameIndex, actionCounterRef.value, state.stateVersion);
-            applyDecisionSnapshotBaseline(state, fallbackSnapshot, state.stateVersion);
-            const alternateResult = applyActionSafe(state, playerKey, alternate.action);
-            if (alternateResult.ok) {
+            const passRejectedSnapshot = {
+                gameState: state.gameState,
+                cardState: state.cardState,
+                prng: state.prng,
+                turnStartApplied: true
+            };
+            const passRejectedStateVersion = state.stateVersion;
+            const passRejectedPlacement = tryFallbackPlacementsFromSnapshot(
+                state,
+                passRejectedSnapshot,
+                passRejectedStateVersion,
+                Object.assign({}, passRejectedFallback, { legalMoves: passRejectedMoves }),
+                gameIndex,
+                actionCounterRef,
+                playerKey
+            );
+            if (passRejectedPlacement.ok) {
                 return {
-                    decision: alternateDecision,
-                    action: alternate.action,
-                    result: alternateResult,
-                    decisionContext: fallbackSnapshot
+                    decision: passRejectedPlacement.decision,
+                    action: passRejectedPlacement.action,
+                    result: passRejectedPlacement.result,
+                    decisionContext: passRejectedSnapshot
                 };
             }
         }
@@ -3908,7 +3990,9 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
             `first=${first.actionType}:${first.action.type} retry=${retry.actionType}:${retry.action.type} ` +
             `forced=${forced.action.type}:${Number.isFinite(forced.action.row) ? forced.action.row : 'na'},${Number.isFinite(forced.action.col) ? forced.action.col : 'na'} ` +
             `pending=${forcedPendingBefore || 'none'} current=${fallbackCurrentPlayer} player=${playerKey} flipsBefore=${forcedFlipsBefore === null ? 'na' : forcedFlipsBefore} ` +
-            `legal=${Array.isArray(fallbackDecision.legalMoves) ? fallbackDecision.legalMoves.length : 'na'} ${msg}`
+            `legal=${Array.isArray(fallbackDecision.legalMoves) ? fallbackDecision.legalMoves.length : 'na'} ` +
+            `attemptedPlacements=${placementFallback.attemptedPlacements} skippedInvalidPlacements=${placementFallback.skippedInvalidPlacements} ` +
+            `lastPlacementFlipsBefore=${placementFallback.flipsBefore === null ? 'na' : placementFallback.flipsBefore} ${msg}`
         );
     }
     return { decision: retryDecision, action: retry.action, result, decisionContext: retrySnapshot };
@@ -3925,6 +4009,7 @@ function runSingleGame(gameIndex, seed, options) {
 
         const playerKey = toPlayerKey(state.gameState.currentPlayer);
         const playerPolicy = getPolicyForPlayer(normalizedOptions, playerKey);
+        const preDecisionCardState = state.cardState;
 
         const execution = applyDecisionWithRetry(state, gameIndex, ply, playerKey, playerPolicy, actionCounterRef);
         const decisionCardState = execution.decisionContext && execution.decisionContext.cardState
@@ -3977,7 +4062,7 @@ function runSingleGame(gameIndex, seed, options) {
         )
             ? decision.placementMetrics
             : null;
-        const deckStats = getDeckStatsForPlayer(state.cardState, playerKey);
+        const deckStats = getDeckStatsForPlayer(preDecisionCardState, playerKey);
 
         const record = {
             schemaVersion: normalizedOptions.schemaVersion,

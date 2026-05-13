@@ -7,7 +7,7 @@
 >
 > この文書は元の実装計画として残しているが、現行運用の正本ではない。安定した内部契約は `docs/architecture-contracts.md` §5.2 を優先する。
 >
-> 現行の運用入口は `scripts/resolve-training-profile.js` / `scripts/run-selfplay-training-profile.js` / `scripts/run-selfplay-training-cycle.js` で、profile 解決の正本は `scripts/load-training-profile.js` である。
+> 現行の運用入口は `scripts/resolve-training-profile.js` / `scripts/run-selfplay-training-profile.js` / `scripts/run-selfplay-training-cycle.js` だが、これらの `.js` は Node CLI 互換ラッパーである。実装正本は対応する `.ts` と `dist/scripts/*` のビルド出力で、profile 解決の正本は `scripts/load-training-profile.ts` である。
 >
 > 現在の resolved profile は `sharedTeacherSync`, `effectiveSharedTeacher`, `seedBankPlan`, `provenance` を持ち、launcher はその構造化結果を優先して使う。
 >
@@ -35,11 +35,11 @@
 
 既に存在する実装:
 
-- self-play実行基盤: `src/engine/selfplay-runner.js`
-- データ生成: `scripts/generate-selfplay-data.js`
-- 方針比較ベンチ: `scripts/benchmark-selfplay-policy.js`
-- CPU選択コア: `game/ai/cpu-policy-core.js`
-- CPU判断本体: `game/cpu-decision.js`（補助: `game/cpu-decision-board-utils.js`）
+- self-play実行基盤: `src/engine/selfplay-runner.ts`（`.js` は互換ラッパー）
+- データ生成: `scripts/generate-selfplay-data.ts`（`.js` は CLI 互換ラッパー）
+- 方針比較ベンチ: `scripts/benchmark-selfplay-policy.ts`（`.js` は CLI 互換ラッパー）
+- CPU選択コア: `game/ai/cpu-policy-core.ts`（`.js` は互換ラッパー）
+- CPU判断本体: `game/cpu-decision.ts`（補助: `game/cpu-decision-board-utils.ts`、`.js` は互換ラッパー）
 - Python学習雛形:
   - `ai/train/train_policy_onnx.py`
   - `ai/train/train_policy_table.py`
