@@ -10,6 +10,7 @@ const TurnPipeline = require('../game/turn/turn_pipeline');
 const Core = require('../game/logic/core');
 const CardLogic = require('../game/logic/cards');
 const { getSafeCardContext } = require('../game/logic/context');
+const SeededPRNG = require('../game/schema/prng');
 
 function parseArgs(argv) {
     const args = {
@@ -60,6 +61,38 @@ function readHardcases(inputPath) {
         });
 }
 
+function normalizePrngState(source) {
+    if (!source || typeof source !== 'object') return null;
+    const seed = Number.isFinite(Number(source.seed)) ? Number(source.seed) : Number(source._seed);
+    const calls = Number.isFinite(Number(source.calls)) ? Number(source.calls) : Number(source._calls);
+    if (!Number.isFinite(seed)) return null;
+    return {
+        seed,
+        calls: Number.isFinite(calls) ? Math.max(0, Math.floor(calls)) : 0
+    };
+}
+
+function findReplayPrngState(record, cardState) {
+    return normalizePrngState(record.prngState)
+        || normalizePrngState(record.snapshot && record.snapshot.prngState)
+        || normalizePrngState(cardState && cardState.prngState)
+        || normalizePrngState(cardState && cardState._defaultRandomSource)
+        || normalizePrngState({ seed: record.originalSeed, calls: 0 });
+}
+
+function createReplayPrng(record, cardState) {
+    const prngState = findReplayPrngState(record, cardState);
+    if (prngState && SeededPRNG && typeof SeededPRNG.fromState === 'function') {
+        return SeededPRNG.fromState(prngState);
+    }
+    if (prngState && SeededPRNG && typeof SeededPRNG.createPRNG === 'function') {
+        const prng = SeededPRNG.createPRNG(prngState.seed);
+        if (typeof prng.restoreState === 'function') prng.restoreState(prngState);
+        return prng;
+    }
+    return null;
+}
+
 function replayOne(record) {
     if (!record || record.schemaVersion !== 'selfplay_illegal_move_hardcase.v1') {
         throw new Error('unsupported hardcase schema');
@@ -70,6 +103,10 @@ function replayOne(record) {
     const action = record.forcedAction || record.lastPlacementAction;
     if (!gameState || !cardState || !action) {
         throw new Error('hardcase is missing snapshot/action');
+    }
+    const prng = createReplayPrng(record, cardState);
+    if (prng && typeof prng.random === 'function') {
+        cardState._defaultRandomSource = prng;
     }
 
     const pendingType = CardLogic.getPendingEffectType(cardState, record.player) || null;
@@ -82,10 +119,11 @@ function replayOne(record) {
         gameState,
         record.player,
         action,
-        null,
+        prng,
         {
             currentStateVersion: Number(record.stateVersion) || 0,
-            skipTurnStart: snapshot.turnStartApplied === true
+            skipTurnStart: snapshot.turnStartApplied === true,
+            prngState: prng && typeof prng.getState === 'function' ? prng.getState() : null
         }
     );
     return {
@@ -95,6 +133,7 @@ function replayOne(record) {
         action,
         pendingType,
         flipsBefore,
+        prngState: prng && typeof prng.getState === 'function' ? prng.getState() : null,
         ok: !!(result && result.ok),
         rejectedReason: result && result.rejectedReason ? result.rejectedReason : null,
         errorMessage: result && result.errorMessage ? result.errorMessage : null
@@ -134,5 +173,7 @@ if (require.main === module) {
 export = {
     parseArgs,
     readHardcases,
-    replayOne
+    replayOne,
+    normalizePrngState,
+    createReplayPrng
 };

@@ -3182,6 +3182,9 @@ function buildDecisionSnapshot(gameState, cardState, playerKey, rng) {
     const clonedCardState = deepClone(cardState);
     const previewEvents = [];
     const previewPrng = clonePrng(rng);
+    if (previewPrng && typeof previewPrng.random === 'function') {
+        clonedCardState._defaultRandomSource = previewPrng;
+    }
     try {
         TurnPipelinePhases.applyTurnStartPhase(
             CardLogic,
@@ -3709,6 +3712,9 @@ function applyDecisionSnapshotBaseline(state, snapshot, stateVersion) {
     state.cardState = snapshot.cardState;
     state.gameState = snapshot.gameState;
     if (snapshot.prng) state.prng = snapshot.prng;
+    if (state.prng && typeof state.prng.random === 'function' && state.cardState) {
+        state.cardState._defaultRandomSource = state.prng;
+    }
     state.stateVersion = stateVersion;
     state.skipTurnStartForNextAction = snapshot.turnStartApplied === true;
 }
@@ -3873,6 +3879,9 @@ function buildIllegalMoveHardcase(payload) {
         forcedFlipsBefore: Number.isFinite(source.forcedFlipsBefore) ? source.forcedFlipsBefore : null,
         forcedRejectedReason: forcedResult.rejectedReason || null,
         forcedErrorMessage: forcedResult.errorMessage || null,
+        prngState: fallbackSnapshot.prng && typeof fallbackSnapshot.prng.getState === 'function'
+            ? fallbackSnapshot.prng.getState()
+            : null,
         fallbackCurrentPlayer: fallbackSnapshot.gameState ? toPlayerKey(fallbackSnapshot.gameState.currentPlayer) : null,
         legalMoves: source.fallbackDecision && Array.isArray(source.fallbackDecision.legalMoves)
             ? deepClone(source.fallbackDecision.legalMoves)
@@ -3889,6 +3898,9 @@ function buildIllegalMoveHardcase(payload) {
             : null,
         snapshot: {
             turnStartApplied: fallbackSnapshot.turnStartApplied === true,
+            prngState: fallbackSnapshot.prng && typeof fallbackSnapshot.prng.getState === 'function'
+                ? fallbackSnapshot.prng.getState()
+                : null,
             gameState: fallbackSnapshot.gameState ? deepClone(fallbackSnapshot.gameState) : null,
             cardState: fallbackSnapshot.cardState ? deepClone(fallbackSnapshot.cardState) : null
         }
