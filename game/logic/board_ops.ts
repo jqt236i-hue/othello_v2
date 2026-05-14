@@ -633,6 +633,86 @@ function _findProliferationDestination(cardState: any, gameState: any, row: numb
     return candidates[_resolveRandomIndex(randomSource, candidates.length)] || candidates[0] || null;
 }
 
+function _collectBoardShapeEmptyCells(cardState: any, gameState: any): Array<{ row: number; col: number }> {
+    const out: Array<{ row: number; col: number }> = [];
+    const pushCell = (row: number, col: number): void => {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+        if (out.some((entry) => entry.row === row && entry.col === col)) return;
+        if (getCellValue(gameState, row, col) !== EMPTY) return;
+        if (_isBlockedDestinationCell(cardState, row, col)) return;
+        out.push({ row, col });
+    };
+    const dims = resolveBoardDims(gameState, cardState);
+    for (let row = 0; row < dims.rows; row += 1) {
+        for (let col = 0; col < dims.cols; col += 1) {
+            pushCell(row, col);
+        }
+    }
+    for (const descriptor of getExpansionDescriptors(gameState)) {
+        if (!descriptor) continue;
+        pushCell(descriptor.row, descriptor.col);
+    }
+    return out;
+}
+
+function _findStoneSalvationGodMarker(cardState: any, ownerKey: string): any {
+    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    const markerKind = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
+    return markers.find((marker: any) => (
+        marker &&
+        marker.kind === markerKind &&
+        marker.owner === ownerKey &&
+        marker.data &&
+        String(marker.data.type || '').toUpperCase() === 'STONE_SALVATION_GOD' &&
+        (_normalizeCounterValue(marker.data.remainingOwnerTurns) === null || (_normalizeCounterValue(marker.data.remainingOwnerTurns) || 0) > 0)
+    )) || null;
+}
+
+function _isStoneSalvationGodMarkerAt(cardState: any, row: number, col: number, ownerKey: string): boolean {
+    return _getSpecialMarkersAt(cardState, row, col).some((marker: any) => (
+        marker &&
+        marker.owner === ownerKey &&
+        marker.data &&
+        String(marker.data.type || '').toUpperCase() === 'STONE_SALVATION_GOD'
+    ));
+}
+
+function _reviveDestroyedStoneByStoneSalvationGod(cardState: any, gameState: any, row: number, col: number, ownerKey: string, cause: string | null, reason: string | null, meta: any): any {
+    const source = _findStoneSalvationGodMarker(cardState, ownerKey);
+    if (!source) return null;
+    const candidates = _collectBoardShapeEmptyCells(cardState, gameState);
+    if (!candidates.length) return { revived: false, reason: 'no_empty_cell' };
+    const randomSource = _resolveBoardOpsRandomSource(cardState, meta);
+    const destination = candidates[_resolveRandomIndex(randomSource, candidates.length)] || candidates[0] || null;
+    if (!destination) return { revived: false, reason: 'no_empty_cell' };
+    const reviveMeta = Object.assign(_clonePresentationMeta(meta), {
+        owner: ownerKey,
+        sourceSpecial: 'STONE_SALVATION_GOD',
+        revivedFromRow: row,
+        revivedFromCol: col,
+        revivedOwner: ownerKey,
+        sourceRow: source.row,
+        sourceCol: source.col
+    });
+    const spawnResult = spawnAt(
+        cardState,
+        gameState,
+        destination.row,
+        destination.col,
+        ownerKey as PlayerKey,
+        'STONE_SALVATION_GOD',
+        'stone_salvation_god_revive',
+        reviveMeta
+    );
+    return {
+        revived: !!(spawnResult && spawnResult.spawned),
+        row: destination.row,
+        col: destination.col,
+        stoneId: spawnResult && spawnResult.stoneId,
+        reason: spawnResult && spawnResult.spawned ? null : ((spawnResult && spawnResult.reason) || 'spawn_failed')
+    };
+}
+
 function _addSpecialStoneMarker(cardState: any, row: number, col: number, owner: string, data: any): any {
     _ensureCardState(cardState);
     const markerKind = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
@@ -1246,6 +1326,7 @@ function destroyAt(cardState: any, gameState: any, row: number, col: number, cau
         (m: any) => m && m.kind === specialKindForSalvation && m.row === row && m.col === col
     ));
     const ownerBeforeKeyForDestroy = (prev === (SharedConstants.BLACK || 1)) ? 'black' : 'white';
+    const wasStoneSalvationGodForDestroy = _isStoneSalvationGodMarkerAt(cardState, row, col, ownerBeforeKeyForDestroy);
     const recordSalvationDestroy = () => {
         const activeTurnPlayer = cardState._activeTurnPlayer;
         const beneficiaryPlayer = activeTurnPlayer === 'black'
@@ -1327,7 +1408,13 @@ function destroyAt(cardState: any, gameState: any, row: number, col: number, cau
             });
         }
         recordSalvationDestroy();
-        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED);
+        const stoneSalvationGodRevive = wasStoneSalvationGodForDestroy
+            ? null
+            : _reviveDestroyedStoneByStoneSalvationGod(cardState, gameState, row, col, ownerBeforeKeyForDestroy, cause, reason, meta);
+        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, stoneSalvationGodRevive && stoneSalvationGodRevive.revived ? {
+            stoneSalvationGodRevived: true,
+            stoneSalvationGodRevive
+        } : undefined);
     }
 
     let stoneId: string | null = null;
@@ -1355,7 +1442,14 @@ function destroyAt(cardState: any, gameState: any, row: number, col: number, cau
 
     recordSalvationDestroy();
 
-    return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED);
+    const stoneSalvationGodRevive = wasStoneSalvationGodForDestroy
+        ? null
+        : _reviveDestroyedStoneByStoneSalvationGod(cardState, gameState, row, col, ownerBeforeKeyForDestroy, cause, reason, meta);
+
+    return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, stoneSalvationGodRevive && stoneSalvationGodRevive.revived ? {
+        stoneSalvationGodRevived: true,
+        stoneSalvationGodRevive
+    } : undefined);
 }
 
 function changeAt(cardState: any, gameState: any, row: number, col: number, ownerAfterKey: PlayerKey, cause: string | null, reason: string | null, meta: any = {}): any {

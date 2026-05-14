@@ -1,6 +1,6 @@
 {
   "version": "2026-05-14",
-  "generatedAt": "2026-05-14T22:11:14.869Z",
+  "generatedAt": "2026-05-14T22:31:27.486Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -173,6 +173,14 @@
     {
       "path": "assets/images/stones/sna-white.png",
       "sha256": "2a51b80dbf550d6be0fb821db1f5df1b546bc88c0143e79d68b54fb07535d793"
+    },
+    {
+      "path": "assets/images/stones/STONE_SALVATION_GOD-black.png",
+      "sha256": "71e741084e73ce7dcd021aa47d5dfc1f1d7673f559bf015a0e61678e44ba0f32"
+    },
+    {
+      "path": "assets/images/stones/STONE_SALVATION_GOD-white.png",
+      "sha256": "02f50b48ef6f34992d8fd4f90521986284bff4f5f540888b69ce82d55e27fd64"
     },
     {
       "path": "assets/images/stones/TIME_BOMB-black.png",
