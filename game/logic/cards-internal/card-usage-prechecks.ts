@@ -104,6 +104,17 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             ? result
             : buildFailureResult();
     }
+    if (cardType === 'EXECUTION_WILL') {
+        if (typeof context.getExecutionWillTargetCount !== 'function')
+            return buildFailureResult();
+        const opponentKey = context.playerKey === 'black' ? 'white' : 'black';
+        const opponentHand = (context && context.cardState && context.cardState.hands && Array.isArray(context.cardState.hands[opponentKey]))
+            ? context.cardState.hands[opponentKey]
+            : [];
+        return context.getExecutionWillTargetCount(context.cardState, context.playerKey) > 0 && opponentHand.length > 0
+            ? result
+            : buildFailureResult();
+    }
     if (cardType === 'HEAVEN_BLESSING') {
         if (typeof context.buildHeavenBlessingOffers !== 'function')
             return buildFailureResult();

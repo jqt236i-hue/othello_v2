@@ -4,8 +4,7 @@ jest.mock('../game/card-effects/selection-flow', () => ({
     executePendingSelection: mockExecutePendingSelection
 }));
 
-import { handleHyperactiveInheritSelection } from '../game/card-effects/hyperactive-inherit.js';
-
+const { handleHyperactiveInheritSelection } = require('../game/card-effects/hyperactive-inherit.js');
 describe('hyperactive-inherit', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();

@@ -6,6 +6,11 @@
         [key: string]: unknown;
     }
 
+    interface UIImplSyncTarget {
+        read?: () => UIImpl;
+        write?: (value: UIImpl) => void;
+    }
+
     interface UIBootstrapAPI {
         installGameDI?: (di: unknown) => void;
         registerUIGlobals?: (obj: Record<string, unknown>) => void;
@@ -15,6 +20,7 @@
     interface OptionalModuleOptions {
         globalName?: string;
         requirePath?: string;
+        requirePaths?: string[];
         validate?: (candidate: unknown) => boolean;
         root?: unknown;
     }
@@ -42,7 +48,13 @@
     function resolveOptionalModule(options: OptionalModuleOptions): unknown | null {
         const opts = (options && typeof options === 'object') ? options : {};
         const globalName = typeof opts.globalName === 'string' ? opts.globalName.trim() : '';
+        const requirePaths = Array.isArray(opts.requirePaths)
+            ? opts.requirePaths
+                .map((path) => (typeof path === 'string' ? path.trim() : ''))
+                .filter((path) => !!path)
+            : [];
         const requirePath = typeof opts.requirePath === 'string' ? opts.requirePath.trim() : '';
+        if (requirePath) requirePaths.push(requirePath);
         const validate = typeof opts.validate === 'function' ? opts.validate : (): boolean => true;
         const roots = collectKnownRoots(opts.root);
 
@@ -56,11 +68,13 @@
             }
         }
 
-        if (requirePath && typeof require === 'function') {
-            try {
-                const candidate = require(requirePath);
-                if (candidate && validate(candidate)) return candidate;
-            } catch (e) { /* ignore */ }
+        if (requirePaths.length > 0 && typeof require === 'function') {
+            for (const modulePath of requirePaths) {
+                try {
+                    const candidate = require(modulePath);
+                    if (candidate && validate(candidate)) return candidate;
+                } catch (e) { /* ignore */ }
+            }
         }
 
         return null;
@@ -103,17 +117,64 @@
         return normalized.indexOf('__uiImpl_') === 0 ? normalized : `__uiImpl_${normalized}`;
     }
 
+    function resolveUIImplSyncTarget(key: unknown): UIImplSyncTarget | null {
+        const normalized = String(key || '').trim();
+        if (normalized !== 'turn_manager') return null;
+
+        const turnManager = resolveOptionalModule({
+            requirePaths: [
+                '../../game/turn-manager',
+                '../game/turn-manager'
+            ],
+            validate: (candidate): boolean => !!candidate && typeof candidate === 'object' && (
+                typeof (candidate as { getUIImpl?: unknown }).getUIImpl === 'function'
+                || typeof (candidate as { replaceUIImpl?: unknown }).replaceUIImpl === 'function'
+                || typeof (candidate as { setUIImpl?: unknown }).setUIImpl === 'function'
+            )
+        }) as {
+            getUIImpl?: () => UIImpl;
+            replaceUIImpl?: (value: UIImpl) => void;
+            setUIImpl?: (value: UIImpl) => void;
+        } | null;
+
+        if (!turnManager) return null;
+
+        const target: UIImplSyncTarget = {};
+        if (typeof turnManager.getUIImpl === 'function') {
+            target.read = (): UIImpl => {
+                const value = turnManager.getUIImpl ? turnManager.getUIImpl() : {};
+                return (value && typeof value === 'object') ? Object.assign({}, value) : {};
+            };
+        }
+        if (typeof turnManager.replaceUIImpl === 'function') {
+            target.write = (value: UIImpl): void => {
+                if (turnManager.replaceUIImpl) turnManager.replaceUIImpl(value);
+            };
+        } else if (typeof turnManager.setUIImpl === 'function') {
+            target.write = (value: UIImpl): void => {
+                if (turnManager.setUIImpl) turnManager.setUIImpl(value);
+            };
+        }
+        return (target.read || target.write) ? target : null;
+    }
+
     function readUIImpl(root: unknown, key: unknown): UIImpl {
+        const syncTarget = resolveUIImplSyncTarget(key);
+        const syncValue = (syncTarget && typeof syncTarget.read === 'function')
+            ? syncTarget.read()
+            : {};
         const prop = toUIImplKey(key);
         const roots = collectKnownRoots(root);
         for (let index = 0; index < roots.length; index += 1) {
             const scope = roots[index];
             try {
                 const candidate = (scope as Record<string, unknown>)[prop];
-                if (candidate && typeof candidate === 'object') return candidate as UIImpl;
+                if (candidate && typeof candidate === 'object') {
+                    return Object.assign({}, syncValue, candidate as UIImpl);
+                }
             } catch (e) { /* ignore */ }
         }
-        return {};
+        return Object.assign({}, syncValue);
     }
 
     function writeUIImpl(root: unknown, key: unknown, value: unknown): UIImpl {
@@ -123,6 +184,12 @@
         for (let index = 0; index < roots.length; index += 1) {
             try {
                 roots[index][prop as keyof typeof roots[typeof index]] = Object.assign({}, nextValue) as never;
+            } catch (e) { /* ignore */ }
+        }
+        const syncTarget = resolveUIImplSyncTarget(key);
+        if (syncTarget && typeof syncTarget.write === 'function') {
+            try {
+                syncTarget.write(Object.assign({}, nextValue));
             } catch (e) { /* ignore */ }
         }
         return nextValue;

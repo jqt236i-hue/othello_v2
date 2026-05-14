@@ -11,9 +11,14 @@
 }(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as Record<string, unknown>), function (SharedBoardUtilsModule: unknown) {
     'use strict';
 
-    interface BrowserProfile {
+    interface SharedProfile {
         browser?: { [key: string]: unknown };
         teacher?: { [key: string]: unknown };
+        default?: unknown;
+        [key: string]: unknown;
+    }
+
+    interface BrowserProfile {
         moveDecisionMode?: string;
         cardDecisionMode?: string;
         onnxRuntimeGuard?: { [key: string]: unknown };
@@ -82,16 +87,22 @@
     }
 
     function resolveCpuLv6BrowserProfile(sharedProfile: unknown): BrowserProfile | null {
-        const shared = sharedProfile && typeof sharedProfile === 'object' ? sharedProfile as BrowserProfile : null;
+        const rawShared = sharedProfile && typeof sharedProfile === 'object' ? sharedProfile as SharedProfile : null;
+        const shared = rawShared && rawShared.default && typeof rawShared.default === 'object'
+            ? rawShared.default as SharedProfile
+            : rawShared;
         return shared && shared.browser && typeof shared.browser === 'object'
-            ? shared
+            ? shared.browser as BrowserProfile
             : null;
     }
 
     function resolveCpuLv6TeacherProfile(sharedProfile: unknown): BrowserProfile | null {
-        const shared = sharedProfile && typeof sharedProfile === 'object' ? sharedProfile as BrowserProfile : null;
+        const rawShared = sharedProfile && typeof sharedProfile === 'object' ? sharedProfile as SharedProfile : null;
+        const shared = rawShared && rawShared.default && typeof rawShared.default === 'object'
+            ? rawShared.default as SharedProfile
+            : rawShared;
         return shared && shared.teacher && typeof shared.teacher === 'object'
-            ? shared
+            ? shared.teacher as BrowserProfile
             : null;
     }
 

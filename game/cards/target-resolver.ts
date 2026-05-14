@@ -2,15 +2,56 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
+function _require(id: string): any {
+    if (typeof __non_webpack_require__ !== 'undefined') {
+        return __non_webpack_require__(id);
+    }
+    if (typeof require === 'function') {
+        return require(id);
+    }
+    throw new Error('Unable to require ' + id);
+}
 
-const SharedConstants = _require('../../shared-constants');
-const SharedBoardUtils = _require('../../shared/shared-board-utils');
-const CardMarkers = _require('../logic/cards/markers');
-const CardSelectors = _require('../logic/cards/selectors');
-const CardTargets = _require('../logic/cards/targets');
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return undefined;
+}
+
+function loadRuntimeModule(id: string, globalKey: string): any {
+    const runtimeValue = getRuntimeGlobalValue(globalKey);
+    if (runtimeValue) return runtimeValue;
+
+    if (typeof module === 'object' && module.exports) {
+        const loaded = safeRequire(id);
+        if (loaded) {
+            if (typeof globalThis !== 'undefined' && !(globalThis as any)[globalKey]) {
+                (globalThis as any)[globalKey] = loaded;
+            }
+            return loaded;
+        }
+    }
+
+    return runtimeValue;
+}
+
+const SharedConstants = loadRuntimeModule('../../shared-constants', 'SharedConstants');
+const SharedBoardUtils = loadRuntimeModule('../../shared/shared-board-utils', 'SharedBoardUtils');
+const CardMarkers = loadRuntimeModule('../logic/cards/markers', 'CardMarkers');
+const CardSelectors = loadRuntimeModule('../logic/cards/selectors', 'CardSelectors');
+const CardTargets = loadRuntimeModule('../logic/cards/targets', 'CardTargets');
 
 const { BLACK, WHITE, EMPTY, DIRECTIONS, BOARD_SIZE } = SharedConstants || {};
 const BoardUtils = SharedBoardUtils || null;
@@ -1206,4 +1247,4 @@ export = {
     getEqualityTargets,
     getCornerTributeTargets,
     getLastResortTargets
-};
+};

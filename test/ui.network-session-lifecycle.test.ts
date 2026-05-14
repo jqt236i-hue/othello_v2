@@ -64,7 +64,7 @@ describe('NetworkSessionLifecycleController', () => {
       cloneData: jest.fn((value) => JSON.parse(JSON.stringify(value)))
     };
 
-    import { createNetworkSessionLifecycleController } from '../ui/network/session-lifecycle.js';
+    const { createNetworkSessionLifecycleController } = require('../ui/network/session-lifecycle.js');
     controller = createNetworkSessionLifecycleController(mockConfig);
   });
 

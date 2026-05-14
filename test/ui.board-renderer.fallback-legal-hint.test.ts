@@ -86,8 +86,7 @@ describe('board-renderer fallback legal hints', () => {
   });
 
   test('renderBoardFull passes protected and perma arrays to getLegalMoves', () => {
-    import * as boardRenderer from '../ui/board-renderer.js';
-
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
     expect(global.getLegalMoves).toHaveBeenCalledWith(
@@ -110,7 +109,7 @@ describe('board-renderer fallback legal hints', () => {
       cardId: 'udr_01'
     };
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
     const legalFreeCells = global.boardEl.querySelectorAll('.cell.legal-free');
@@ -127,7 +126,7 @@ describe('board-renderer fallback legal hints', () => {
       cardId: 'blockade_01'
     };
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoard();
 
     expect(global.boardEl.classList.contains('selection-mode')).toBe(true);
@@ -142,7 +141,7 @@ describe('board-renderer fallback legal hints', () => {
       cardId: 'blockade_01'
     };
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
     expect(global.boardEl.classList.contains('selection-mode')).toBe(true);
@@ -167,7 +166,7 @@ describe('board-renderer fallback legal hints', () => {
       firstTarget: { row: 0, col: 0 }
     };
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
     const firstCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
@@ -192,7 +191,7 @@ describe('board-renderer fallback legal hints', () => {
       maxSelections: 3
     };
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
     const firstCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
@@ -218,7 +217,7 @@ describe('board-renderer fallback legal hints', () => {
       firstTarget: { row: 0, col: 0 }
     };
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
     const firstCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
@@ -244,7 +243,7 @@ describe('board-renderer fallback legal hints', () => {
       maxSelections: 2
     };
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
     const firstCell = global.boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
@@ -265,7 +264,7 @@ describe('board-renderer fallback legal hints', () => {
       { type: 'PLAYBACK_EVENTS', events: [{ type: 'hyperactive_move', phase: 1 }] }
     ];
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoard();
 
     expect(global.renderBoardDiff).not.toHaveBeenCalled();
@@ -274,8 +273,7 @@ describe('board-renderer fallback legal hints', () => {
   });
 
   test('renderBoard toggles time-stop-active class from card state and pauses/resumes BGM', () => {
-    import * as boardRenderer from '../ui/board-renderer.js';
-
+    const boardRenderer = require('../ui/board-renderer.js');
     global.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 1, white: 0 };
     boardRenderer.renderBoard();
 
@@ -294,8 +292,7 @@ describe('board-renderer fallback legal hints', () => {
   test('renderBoard does not resume BGM if time stop started while BGM was already paused', () => {
     global.SoundEngine.allowBgmPlay = false;
     global.SoundEngine.bgm.paused = true;
-    import * as boardRenderer from '../ui/board-renderer.js';
-
+    const boardRenderer = require('../ui/board-renderer.js');
     global.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 1, white: 0 };
     boardRenderer.renderBoard();
 
@@ -307,8 +304,7 @@ describe('board-renderer fallback legal hints', () => {
   });
 
   test('renderBoardFull adds time-stop legal emphasis to legal cells during time stop', () => {
-    import * as boardRenderer from '../ui/board-renderer.js';
-
+    const boardRenderer = require('../ui/board-renderer.js');
     global.cardState.timeStopConsecutiveTurnsRemainingByPlayer = { black: 1, white: 0 };
     boardRenderer.renderBoardFull();
 
@@ -324,7 +320,7 @@ describe('board-renderer fallback legal hints', () => {
       { type: 'PLAYBACK_EVENTS', events: [{ type: 'hyperactive_move', phase: 1 }] }
     ];
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
     expect(global.getLegalMoves).not.toHaveBeenCalled();

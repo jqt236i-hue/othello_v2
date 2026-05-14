@@ -17,15 +17,42 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return undefined;
+}
 
-const BoardOpsModule = (typeof module === 'object' && module.exports)
-    ? _require('../board_ops')
-    : (typeof self !== 'undefined' ? (self as any).BoardOps : null);
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+const SharedConstants = (() => {
+    const runtimeSharedConstants = getRuntimeGlobalValue('SharedConstants');
+    if (runtimeSharedConstants) return runtimeSharedConstants;
+
+    if (typeof module === 'object' && module.exports) {
+        return safeRequire('../../../shared-constants') || runtimeSharedConstants;
+    }
+
+    return runtimeSharedConstants;
+})();
+
+const BoardOpsModule = getRuntimeGlobalValue('BoardOps') || ((typeof module === 'object' && module.exports)
+    ? safeRequire('../board_ops')
+    : (typeof self !== 'undefined' ? (self as any).BoardOps : null));
 
 const CardMarkersModule = (() => {
+    const runtimeCardMarkers = getRuntimeGlobalValue('CardMarkers');
+    if (runtimeCardMarkers) return runtimeCardMarkers;
     if (typeof module === 'object' && module.exports) {
         try {
             return _require('./markers');

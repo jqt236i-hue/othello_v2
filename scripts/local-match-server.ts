@@ -30,9 +30,12 @@ function readArgValue(name) {
 const argHost = readArgValue('host');
 const argPort = readArgValue('port');
 const HOST = argHost || process.env.MATCH_HOST || '127.0.0.1';
-const PORT = Number.isFinite(Number(argPort))
-    ? Number(argPort)
-    : (Number.isFinite(Number(process.env.MATCH_PORT)) ? Number(process.env.MATCH_PORT) : 8787);
+const parsedArgPort = argPort === '' ? Number.NaN : Number(argPort);
+const envPortValue = String(process.env.MATCH_PORT || '').trim();
+const parsedEnvPort = envPortValue === '' ? Number.NaN : Number(envPortValue);
+const PORT = Number.isFinite(parsedArgPort)
+    ? parsedArgPort
+    : (Number.isFinite(parsedEnvPort) ? parsedEnvPort : 8787);
 
 const ROOM_ID_CHARS = String(MatchAuthority.ROOM_ID_CHARS || 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789');
 const ROOM_ID_LENGTH = Number.isFinite(Number(MatchAuthority.ROOM_ID_LENGTH))
@@ -437,7 +440,13 @@ function buildPublishPayload(room, viewerSeatKey, options = {}) {
     const snapshot = Object.prototype.hasOwnProperty.call(options, 'snapshot')
         ? options.snapshot
         : toPublicSnapshot(room, viewerSeatKey);
-    if (options.previousSnapshotForChargeDelta && MatchAuthority && typeof MatchAuthority.restoreMissingChargeDeltaEvents === 'function') {
+    const publishMetaKind = options
+        && options.publishMeta
+        && typeof options.publishMeta === 'object'
+        ? String(options.publishMeta.kind || '').trim().toLowerCase()
+        : '';
+    const shouldRestoreChargeDelta = publishMetaKind !== 'accepted';
+    if (shouldRestoreChargeDelta && options.previousSnapshotForChargeDelta && MatchAuthority && typeof MatchAuthority.restoreMissingChargeDeltaEvents === 'function') {
         MatchAuthority.restoreMissingChargeDeltaEvents(options.previousSnapshotForChargeDelta, snapshot);
     }
     const payloadOptions = {
@@ -671,8 +680,18 @@ function applyCommandPublishToSnapshot(room, body, playerKey) {
         gameState: result.gameState,
         cardState: result.cardState
     };
+    if (MatchAuthority && typeof MatchAuthority.restoreMissingChargeDeltaEvents === 'function') {
+        MatchAuthority.restoreMissingChargeDeltaEvents(currentSnapshot, nextSnapshot);
+    }
+    const actionChargeDeltaEvents = Array.isArray(nextSnapshot && nextSnapshot.cardState && nextSnapshot.cardState.chargeDeltaEvents)
+        ? deepClone(nextSnapshot.cardState.chargeDeltaEvents)
+        : [];
+    const actionPresentationEvents = Array.isArray(result.presentationEvents)
+        ? result.presentationEvents
+        : ((result.cardState && Array.isArray(result.cardState.presentationEvents)) ? result.cardState.presentationEvents : []);
+    const playbackPresentationEvents = actionPresentationEvents.length > 0 ? actionPresentationEvents : result.events;
     const playbackAssembly = mapServerPresentationToPlaybackEvents(
-        result.presentationEvents,
+        playbackPresentationEvents,
         result.events,
         nextSnapshot
     );
@@ -682,15 +701,20 @@ function applyCommandPublishToSnapshot(room, body, playerKey) {
     const playbackEvents = (playbackAssembly && Array.isArray(playbackAssembly.playbackEvents))
         ? playbackAssembly.playbackEvents
         : [];
-    const actionPresentationEvents = Array.isArray(result.presentationEvents)
-        ? result.presentationEvents
-        : ((result.cardState && Array.isArray(result.cardState.presentationEvents)) ? result.cardState.presentationEvents : []);
     const actionEffectLogs = appendEffectLogMessages(
         buildNetworkCardUseEffectLogs(resolvedAction, playerKey),
         collectPipelineEffectLogMessages(result.events, actionPresentationEvents, playerKey)
     );
 
     const turnStartPlaybackAssembly = reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
+    if (
+        actionChargeDeltaEvents.length > 0
+        && nextSnapshot
+        && nextSnapshot.cardState
+        && (!Array.isArray(nextSnapshot.cardState.chargeDeltaEvents) || nextSnapshot.cardState.chargeDeltaEvents.length === 0)
+    ) {
+        nextSnapshot.cardState.chargeDeltaEvents = deepClone(actionChargeDeltaEvents);
+    }
     reportPlaybackAssemblyDiagnostics('local-server-turn-start', turnStartPlaybackAssembly && turnStartPlaybackAssembly.diagnostics, {
         networkDebugEnabled: toPublicNetworkDebugEnabled(room)
     });
@@ -1903,21 +1927,18 @@ async function handlePublish(req, res) {
     };
     const serverTime = Date.now();
     const preparedSnapshot = prepareSnapshotBroadcast(room, meta);
-    const responsePayload = buildPublishPayload(room, seatKey, Object.assign(
-        MatchAuthority.buildPublishResponseOptions({
-            ok: true,
-            serverTime,
-            playbackEvents: serverPlaybackEvents,
-            effectLogs: serverEffectLogs,
-            playbackDiagnostics: serverPlaybackDiagnostics,
-            publishKind: 'accepted',
-            operationId,
-            actionType,
-            receivedBaseVersion: baseVersion,
-            authoritativeStateVersion: room.stateVersion
-        }),
-        { previousSnapshotForChargeDelta }
-    ));
+    const responsePayload = buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
+        ok: true,
+        serverTime,
+        playbackEvents: serverPlaybackEvents,
+        effectLogs: serverEffectLogs,
+        playbackDiagnostics: serverPlaybackDiagnostics,
+        publishKind: 'accepted',
+        operationId,
+        actionType,
+        receivedBaseVersion: baseVersion,
+        authoritativeStateVersion: room.stateVersion
+    }));
     if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
         MatchAuthority.appendAuthorityLog(room, {
             kind: 'publish_accepted',
@@ -2184,15 +2205,21 @@ function patchRoomSnapshotForTests(roomId, patchFn) {
     return true;
 }
 
-export = {
-    createLocalMatchServer,
-    resetRoomsForTests,
-    patchRoomSnapshotForTests
-};
-
-if (require.main === module) {
+function startLocalMatchServerFromCli() {
     const server = createLocalMatchServer();
     server.listen(PORT, HOST, () => {
         console.log(`LOCAL_MATCH_SERVER:${HOST}:${PORT}`);
     });
+    return server;
+}
+
+export = {
+    createLocalMatchServer,
+    resetRoomsForTests,
+    patchRoomSnapshotForTests,
+    startLocalMatchServerFromCli
+};
+
+if (require.main === module) {
+    startLocalMatchServerFromCli();
 }

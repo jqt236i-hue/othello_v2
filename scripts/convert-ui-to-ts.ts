@@ -18,7 +18,6 @@ const files: FileInfo[] = [
   { src: 'ui/deck-builder-controller.js', typesPath: '../../src/types', wrapperRequire: '../dist/ui/deck-builder-controller', exportName: 'DeckBuilderController' },
   { src: 'ui/bootstrap.js', typesPath: '../../src/types', wrapperRequire: '../dist/ui/bootstrap', exportName: 'UIBootstrap' },
   { src: 'ui/board-renderer.js', typesPath: '../../src/types', wrapperRequire: '../dist/ui/board-renderer', exportName: 'BoardRenderer' },
-  { src: 'ui/story/story-steps.js', typesPath: '../../../src/types', wrapperRequire: '../../dist/ui/story/story-steps', exportName: 'StorySteps' },
   { src: 'ui/result-overlay.js', typesPath: '../../src/types', wrapperRequire: '../dist/ui/result-overlay', exportName: 'ResultOverlay' },
   { src: 'ui/handlers/match-mode.js', typesPath: '../../../src/types', wrapperRequire: '../../dist/ui/handlers/match-mode', exportName: 'MatchMode' },
   { src: 'ui/animation-utils.js', typesPath: '../../src/types', wrapperRequire: '../dist/ui/animation-utils', exportName: 'AnimationUtils' },
@@ -133,9 +132,6 @@ function convertFile(fileInfo: FileInfo) {
       break;
     case 'bootstrap':
       tsBody = transformUMD(content, 'UIBootstrap');
-      break;
-    case 'story-steps':
-      tsBody = transformUMD(content, 'StorySteps');
       break;
     case 'animation-engine':
       tsBody = transformUMD(content, 'AnimationEngine');

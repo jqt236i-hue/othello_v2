@@ -253,10 +253,9 @@ describe('FATE_WILL core game support', () => {
         test('controller entry cleared when the controller starts their next turn', () => {
             // Simulate: black used FATE_WILL, then white's (controlled) turn ran,
             // now black's turn starts -> should clear fateWillControllerByTurnOwner.white
-            import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
-            import * as CardLogicModule from '../game/logic/cards.js';
-            import * as Core from '../game/logic/core.js';
-
+            const TurnPipelinePhases = require('../game/turn/turn_pipeline_phases.js');
+            const CardLogicModule = require('../game/logic/cards.js');
+            const Core = require('../game/logic/core.js');
             const cs = {
                 turnIndex: 5,
                 lastTurnStartedFor: 'white', // white's turn just ended
@@ -296,10 +295,9 @@ describe('FATE_WILL core game support', () => {
         });
 
         test('controller entry NOT cleared if the current player is not the controller', () => {
-            import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
-            import * as CardLogicModule from '../game/logic/cards.js';
-            import * as Core from '../game/logic/core.js';
-
+            const TurnPipelinePhases = require('../game/turn/turn_pipeline_phases.js');
+            const CardLogicModule = require('../game/logic/cards.js');
+            const Core = require('../game/logic/core.js');
             const cs = {
                 turnIndex: 5,
                 lastTurnStartedFor: 'black',

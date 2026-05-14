@@ -13,7 +13,10 @@ const DeckCodecModule = _require('../shared/deck-codec');
 const DeckPresetStorage = _require('./storage/deck-presets');
 const DeckBuilderStateModule = _require('./deck-builder-state');
 const DeckBuilderRendererModule = _require('./deck-builder-renderer');
-const SharedBoardUtils = _require('../shared/shared-board-utils');
+const SharedBoardUtilsModule = _require('../shared/shared-board-utils');
+const SharedBoardUtils = SharedBoardUtilsModule && SharedBoardUtilsModule.default
+    ? SharedBoardUtilsModule.default
+    : SharedBoardUtilsModule;
 const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
 
     function ensureDependencies() {
@@ -103,10 +106,55 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
             return null;
         }
 
+        function collectNetworkMatchClientRootsForDeckBuilder() {
+            return [
+                rootRef,
+                rootRef && (rootRef as any).window,
+                rootRef && (rootRef as any).document && (rootRef as any).document.defaultView,
+                refs.body && refs.body.ownerDocument && refs.body.ownerDocument.defaultView,
+                (typeof document !== 'undefined' ? document.defaultView : null),
+                (typeof window !== 'undefined' ? window : null),
+                (typeof globalThis !== 'undefined' ? (globalThis as any).window : null),
+                (typeof globalThis !== 'undefined' ? (globalThis as any).document && (globalThis as any).document.defaultView : null),
+                (typeof globalThis !== 'undefined' ? globalThis : null)
+            ].filter((candidate, index, list) => candidate && list.indexOf(candidate) === index);
+        }
+
+        function isActiveNetworkMatchClientForDeckBuilder(client: any) {
+            return !!client
+                && typeof client === 'object'
+                && typeof client.isActive === 'function'
+                && client.isActive();
+        }
+
+        function snapshotActiveNetworkMatchClientForDeckBuilder() {
+            const snapshots = [] as Array<{ root: any; client: any }>;
+            for (const candidateRoot of collectNetworkMatchClientRootsForDeckBuilder()) {
+                try {
+                    const client = (candidateRoot as any).NetworkMatchClient;
+                    if (isActiveNetworkMatchClientForDeckBuilder(client)) snapshots.push({ root: candidateRoot, client });
+                } catch (e: any) { /* ignore */ }
+            }
+            return snapshots;
+        }
+
+        function restoreActiveNetworkMatchClientForDeckBuilder(snapshots: Array<{ root: any; client: any }>) {
+            for (const snapshot of snapshots) {
+                try {
+                    const current = snapshot.root.NetworkMatchClient;
+                    if (!isActiveNetworkMatchClientForDeckBuilder(current)) {
+                        snapshot.root.NetworkMatchClient = snapshot.client;
+                    }
+                } catch (e: any) { /* ignore */ }
+            }
+        }
+
         function mergeTurnManagerUiImpl(payload: any) {
             const sharedHelpers = resolveSharedUIBootstrapHelpers();
             if (sharedHelpers && typeof sharedHelpers.mergeUIImpl === 'function') {
+                const activeNetworkClient = snapshotActiveNetworkMatchClientForDeckBuilder();
                 sharedHelpers.mergeUIImpl(rootRef, 'turn_manager', payload);
+                restoreActiveNetworkMatchClientForDeckBuilder(activeNetworkClient);
                 return;
             }
             try {
@@ -354,9 +402,10 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
 
         function getRoomDeckMetadata() {
             try {
-                if (!rootRef.NetworkMatchClient || typeof rootRef.NetworkMatchClient.getRoomDeck !== 'function') return null;
-                if (typeof rootRef.NetworkMatchClient.isActive === 'function' && !rootRef.NetworkMatchClient.isActive()) return null;
-                const roomDeck = rootRef.NetworkMatchClient.getRoomDeck();
+                const networkClient = resolveNetworkMatchClientForDeckBuilder('getRoomDeck');
+                if (!networkClient || typeof networkClient.getRoomDeck !== 'function') return null;
+                if (typeof networkClient.isActive === 'function' && !networkClient.isActive()) return null;
+                const roomDeck = networkClient.getRoomDeck();
                 return (roomDeck && typeof roomDeck === 'object') ? roomDeck : null;
             } catch (e: any) {
                 return null;
@@ -365,38 +414,13 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
 
         function getRoomBoardConfigMetadata() {
             try {
-                if (!rootRef.NetworkMatchClient || typeof rootRef.NetworkMatchClient.getRoomBoardConfig !== 'function') return null;
-                if (typeof rootRef.NetworkMatchClient.isActive === 'function' && !rootRef.NetworkMatchClient.isActive()) return null;
-                const roomBoardConfig = rootRef.NetworkMatchClient.getRoomBoardConfig();
+                const networkClient = resolveNetworkMatchClientForDeckBuilder('getRoomBoardConfig');
+                if (!networkClient || typeof networkClient.getRoomBoardConfig !== 'function') return null;
+                if (typeof networkClient.isActive === 'function' && !networkClient.isActive()) return null;
+                const roomBoardConfig = networkClient.getRoomBoardConfig();
                 return roomBoardConfig ? normalizeBoardConfig(roomBoardConfig) : null;
             } catch (e: any) {
                 return null;
-            }
-        }
-
-        function isStoryModeActive() {
-            try {
-                return !!(
-                    rootRef.Story &&
-                    rootRef.Story.State &&
-                    typeof rootRef.Story.State.isActive === 'function' &&
-                    rootRef.Story.State.isActive()
-                );
-            } catch (e: any) {
-                return false;
-            }
-        }
-
-        function isTutorialModeActive() {
-            try {
-                return !!(
-                    rootRef.Tutorial &&
-                    rootRef.Tutorial.State &&
-                    typeof rootRef.Tutorial.State.isActive === 'function' &&
-                    rootRef.Tutorial.State.isActive()
-                );
-            } catch (e: any) {
-                return false;
             }
         }
 
@@ -410,12 +434,6 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
                 return {
                     reason: 'room',
                     boardConfig: cloneBoardConfig(roomBoardConfig)
-                };
-            }
-            if (isStoryModeActive() || isTutorialModeActive()) {
-                return {
-                    reason: isStoryModeActive() ? 'story' : 'tutorial',
-                    boardConfig: createDefaultBoardConfig()
                 };
             }
             return {
@@ -442,8 +460,6 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
             const label = formatBoardConfigLabel(boardConfig);
             const lockReason = resolveBoardConfigLockReason();
             if (lockReason === 'room') return `${label} / 部屋固定`;
-            if (lockReason === 'story') return `${label} / ストーリー固定`;
-            if (lockReason === 'tutorial') return `${label} / チュートリアル固定`;
             return label;
         }
 
@@ -451,12 +467,6 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
             const lockReason = resolveBoardConfigLockReason();
             if (lockReason === 'room') {
                 return 'ネット対戦中は部屋で決めた盤面サイズを使います';
-            }
-            if (lockReason === 'story') {
-                return 'ストーリー中は 8x8 固定です';
-            }
-            if (lockReason === 'tutorial') {
-                return 'チュートリアル中は 8x8 固定です';
             }
             return '次のリセット / 新規対局で反映';
         }
@@ -497,12 +507,46 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
 
         function readNetworkSeatKey() {
             try {
-                if (rootRef.NetworkMatchClient && typeof rootRef.NetworkMatchClient.getSeatKey === 'function') {
-                    const seatKey = String(rootRef.NetworkMatchClient.getSeatKey() || '').trim().toLowerCase();
+                const networkClient = resolveNetworkMatchClientForDeckBuilder('getSeatKey');
+                if (networkClient && typeof networkClient.getSeatKey === 'function') {
+                    const seatKey = String(networkClient.getSeatKey() || '').trim().toLowerCase();
                     if (seatKey === 'white') return 'white';
                 }
             } catch (e: any) { /* ignore */ }
             return 'black';
+        }
+
+        type NetworkMatchClientMethod = 'getRoomDeck' | 'getRoomBoardConfig' | 'getSeatKey';
+
+        function resolveNetworkMatchClientForDeckBuilder(requiredMethod?: NetworkMatchClientMethod) {
+            const candidateRoots = [
+                (typeof document !== 'undefined' ? document.defaultView : null),
+                (typeof window !== 'undefined' ? window : null),
+                (typeof globalThis !== 'undefined' ? (globalThis as any).window : null),
+                (typeof globalThis !== 'undefined' ? (globalThis as any).document && (globalThis as any).document.defaultView : null),
+                rootRef,
+                rootRef && (rootRef as any).window,
+                rootRef && (rootRef as any).document && (rootRef as any).document.defaultView,
+                refs.body && refs.body.ownerDocument && refs.body.ownerDocument.defaultView,
+                (typeof globalThis !== 'undefined' ? globalThis : null)
+            ];
+            for (const candidateRoot of candidateRoots) {
+                try {
+                    if (!candidateRoot) continue;
+                    const candidates = [
+                        (candidateRoot as any).NetworkMatchClient,
+                        (typeof Reflect !== 'undefined' ? Reflect.get(candidateRoot as object, 'NetworkMatchClient') : null),
+                        (candidateRoot as any).window && (candidateRoot as any).window.NetworkMatchClient
+                    ];
+                    for (const client of candidates) {
+                        if (!client || typeof client !== 'object') continue;
+                        if (requiredMethod && typeof client[requiredMethod] !== 'function') continue;
+                        if (typeof client.isActive === 'function' && !client.isActive()) continue;
+                        return client;
+                    }
+                } catch (e: any) { /* ignore */ }
+            }
+            return null;
         }
 
         function resolveRoomDeckInitOptions(roomDeck: any) {

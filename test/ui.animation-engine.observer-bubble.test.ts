@@ -43,8 +43,7 @@ describe('animation-engine observer bubble', () => {
   });
 
   test('observer_bubble を石アンカー近くに表示し、約3秒で消す', async () => {
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     await engine.executeEvent({
       type: 'observer_bubble',
       targets: [{ r: 2, col: 3, owner: 'black', gained: 4 }]
@@ -64,8 +63,7 @@ describe('animation-engine observer bubble', () => {
   });
 
   test('observer_bubble で text 指定がある場合はその文言を表示する', async () => {
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     await engine.executeEvent({
       type: 'observer_bubble',
       targets: [{ r: 2, col: 3, owner: 'white', gained: 0, text: '盤理観測してる場合じゃなかったわ' }]
@@ -78,8 +76,7 @@ describe('animation-engine observer bubble', () => {
   });
 
   test('observer_bubble の charge kind は盤面内の布石ポップアップとして表示する', async () => {
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     await engine.executeEvent({
       type: 'observer_bubble',
       targets: [{ r: 2, col: 3, owner: 'black', gained: 5, bubbleKind: 'charge' }]
@@ -107,9 +104,31 @@ describe('animation-engine observer bubble', () => {
     expect(document.querySelector('.board-charge-bubble')).toBeNull();
   });
 
-  test('同じ phase・同じマスの charge bubble は合算表示する', async () => {
-    import * as engine from '../ui/animation-engine.js';
+  test('raw CHARGE_BUBBLE playback event も charge kind として表示する', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const engine = require('../ui/animation-engine.js');
+    await engine.play([{
+      type: 'CHARGE_BUBBLE',
+      phase: 1,
+      row: 2,
+      col: 3,
+      player: 'black',
+      gained: 3,
+      meta: { sourceType: 'placement_flip_gain' }
+    }]);
 
+    const bubble = document.querySelector('.board-charge-bubble');
+    expect(bubble).not.toBeNull();
+    expect(bubble.dataset.row).toBe('2');
+    expect(bubble.dataset.col).toBe('3');
+    expect(bubble.dataset.bubbleKind).toBe('charge');
+    expect(bubble.textContent).toContain('+3');
+    expect(warnSpy).not.toHaveBeenCalledWith('[AnimationEngine] Unhandled event type:', 'CHARGE_BUBBLE');
+    warnSpy.mockRestore();
+  });
+
+  test('同じ phase・同じマスの charge bubble は合算表示する', async () => {
+    const engine = require('../ui/animation-engine.js');
     await engine.play([
       {
         type: 'observer_bubble',

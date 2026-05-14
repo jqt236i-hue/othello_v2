@@ -79,9 +79,9 @@ function setupBackgroundSkinControls(options?: any): ControllerApi | null {
   const opts = (options && typeof options === 'object') ? options : {};
   const rootRef = opts.root || (typeof window !== 'undefined' ? window : null);
   const docRef = opts.document || resolveDocument(rootRef);
-  const catalogModule = resolveModule(rootRef, 'BackgroundSkinCatalogModule', './catalog.js');
-  const selectionModule = resolveModule(rootRef, 'BackgroundSkinSelectionModule', './selection.js');
-  const runtimeModule = resolveModule(rootRef, 'BackgroundSkinRuntimeModule', './runtime.js');
+  const catalogModule = resolveModule(rootRef, 'BackgroundSkinCatalogModule', './catalog');
+  const selectionModule = resolveModule(rootRef, 'BackgroundSkinSelectionModule', './selection');
+  const runtimeModule = resolveModule(rootRef, 'BackgroundSkinRuntimeModule', './runtime');
   if (!docRef || !catalogModule || !selectionModule || !runtimeModule) return null;
 
   const optionsEl = opts.optionsEl || docRef.getElementById('backgroundSkinOptions');

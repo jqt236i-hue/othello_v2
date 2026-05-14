@@ -22,7 +22,8 @@ declare var resetGame: any;
 let _registerUIGlobals_debug: any = null;
 let _getUIBootstrapGlobals_debug: any = null;
 try {
-    const uiBootstrap = _require('../bootstrap');
+    let uiBootstrap = null;
+    try { uiBootstrap = _require('../bootstrap.js'); } catch (e) { uiBootstrap = _require('../bootstrap'); }
     if (uiBootstrap) {
         if (typeof uiBootstrap.registerUIGlobals === 'function') _registerUIGlobals_debug = uiBootstrap.registerUIGlobals;
         if (typeof uiBootstrap.getRegisteredUIGlobals === 'function') _getUIBootstrapGlobals_debug = uiBootstrap.getRegisteredUIGlobals;
@@ -705,6 +706,9 @@ function setupDebugControls(debugModeBtn: any, humanVsHumanBtn: any, visualTestB
     const seed = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {})) as any;
     _applyDebugLayoutState(seed.DEBUG_UNLIMITED_USAGE === true);
     _syncDebugFlags(seed.DEBUG_UNLIMITED_USAGE === true, seed.DEBUG_HUMAN_VS_HUMAN === true);
+    if (seed.DEBUG_UNLIMITED_USAGE === true && typeof seed.ensureDebugActionsLoaded === 'function') {
+        seed.ensureDebugActionsLoaded(() => {});
+    }
 
     if (debugModeBtn) {
         debugModeBtn.style.display = 'block';

@@ -1,6 +1,5 @@
 import * as fs from 'fs';
-import * as path from 'path';
-
+const path = require('path');
 describe('game ↔ UI boundary (headless)', () => {
   afterEach(() => {
     // Ensure module cache is cleared between tests
@@ -9,7 +8,7 @@ describe('game ↔ UI boundary (headless)', () => {
   });
 
   test('game/visual-effects-map exports DI and delegates when implanted', () => {
-    import * as vmap from '../game/visual-effects-map.js';
+    const vmap = require('../game/visual-effects-map.js');
     expect(typeof vmap.setUIImpl).toBe('function');
     expect(typeof vmap.applyStoneVisualEffect).toBe('function');
 
@@ -30,7 +29,7 @@ describe('game ↔ UI boundary (headless)', () => {
   });
 
   test('game/move-executor-visuals exports DI and delegates when implanted', () => {
-    import * as mv from '../game/move-executor-visuals.js';
+    const mv = require('../game/move-executor-visuals.js');
     expect(typeof mv.setUIImpl).toBe('function');
     expect(typeof mv.applyFlipAnimations).toBe('function');
 
@@ -54,10 +53,11 @@ describe('game ↔ UI boundary (headless)', () => {
   test('turn-manager loads safely and cooperates with ui/bootstrap registerUIGlobals', () => {
     jest.resetModules();
     const registerMock = jest.fn();
-    // Provide a mock ui/bootstrap before requiring the module
+    // Provide mocks for both source-path and dist-path resolutions.
     jest.doMock('../shared/ui-bootstrap-shared', () => ({ registerUIGlobals: registerMock }));
+    jest.doMock('../dist/shared/ui-bootstrap-shared', () => ({ registerUIGlobals: registerMock }));
 
-    import * as tm from '../game/turn-manager.js';
+    const tm = require('../game/turn-manager.js');
     expect(typeof tm.setUIImpl).toBe('function');
 
     // turn-manager attempts to register resetGame on bootstrap; ensure it called safely

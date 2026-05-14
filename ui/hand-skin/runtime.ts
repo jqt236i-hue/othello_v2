@@ -55,7 +55,7 @@ function resolveCatalogModule(rootRef: any): any {
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('./catalog');
+      return _require('./catalog.js');
     } catch (e) { /* ignore */ }
   }
   return null;
@@ -71,7 +71,7 @@ function resolveSelectionModule(rootRef: any): any {
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('./selection');
+      return _require('./selection.js');
     } catch (e) { /* ignore */ }
   }
   return null;
@@ -87,7 +87,7 @@ function resolveOwnerHelpersModule(rootRef: any): any {
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('../../utils/owner-helpers');
+      return _require('../../utils/owner-helpers.js');
     } catch (e) { /* ignore */ }
   }
   return null;

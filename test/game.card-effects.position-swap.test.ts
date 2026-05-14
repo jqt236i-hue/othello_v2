@@ -4,8 +4,7 @@ jest.mock('../game/card-effects/selection-flow', () => ({
     executePendingSelection: mockExecutePendingSelection
 }));
 
-import { handlePositionSwapSelection } from '../game/card-effects/position-swap.js';
-
+const { handlePositionSwapSelection } = require('../game/card-effects/position-swap.js');
 describe('position-swap', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();

@@ -8,7 +8,7 @@
  *  3. ABSOLUTE_PROTECTED marker persists across turn starts
  */
 
-import * as Core from '../game/logic/core.js';
+const Core = require('../game/logic/core.js');
 import * as CardLogic from '../game/logic/cards.js';
 import * as BoardOps from '../game/logic/board_ops.js';
 

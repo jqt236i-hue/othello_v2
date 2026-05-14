@@ -1,8 +1,7 @@
 import * as Shared from '../shared-constants.js';
-import * as CardLogic from '../game/logic/cards.js';
-import * as BoardOps from '../game/logic/board_ops.js';
-import * as TurnPipeline from '../game/turn/turn_pipeline.js';
-
+const CardLogic = require('../game/logic/cards.js');
+const BoardOps = require('../game/logic/board_ops.js');
+const TurnPipeline = require('../game/turn/turn_pipeline.js');
 function createPrng(randomValue = 0) {
   return {
     shuffle: (arr) => arr,
@@ -604,7 +603,7 @@ describe('WILL_HUNTER_KING（意志狩りの王）', () => {
     expect(cardState.markers.find((m) => m && m.id === 8401)).toBeUndefined();
   });
 
-  test('破壊神で選択されても破壊回避なら退避し、カード効果は解決扱いになる', () => {
+  test('破壊の意志で選択されても破壊回避なら退避し、カード効果は解決扱いになる', () => {
     const { cardState, gameState } = createState();
 
     for (let row = 0; row < 8; row++) {

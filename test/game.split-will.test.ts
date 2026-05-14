@@ -1,7 +1,6 @@
 import * as CardLogic from '../game/logic/cards.js';
-import * as Core from '../game/logic/core.js';
-import * as SharedConstants from '../shared-constants.js';
-
+const Core = require('../game/logic/core.js');
+const SharedConstants = require('../shared-constants.js');
 function createBombMarker(id, row, col, owner, remainingTurns) {
   return {
     id,

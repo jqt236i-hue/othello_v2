@@ -234,6 +234,17 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return DEFAULT_SERVER_URL;
     }
 
+    function isLoopbackServerUrl(url: string) {
+        if (!url) return false;
+        try {
+            const parsed = new URL(url);
+            const host = String(parsed.hostname || '').toLowerCase();
+            return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+        } catch (e: any) {
+            return false;
+        }
+    }
+
     function deriveInitialServerUrl() {
         try {
             if (typeof location !== 'undefined' && location.search) {
@@ -251,7 +262,19 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         try {
             if (typeof localStorage !== 'undefined') {
                 const byStorage = normalizeServerUrl(localStorage.getItem(SERVER_URL_STORAGE_KEY) || '');
-                if (byStorage) return byStorage;
+                if (byStorage) {
+                    try {
+                        if (
+                            typeof location !== 'undefined' &&
+                            location &&
+                            String(location.protocol || '') === 'https:' &&
+                            isLoopbackServerUrl(byStorage)
+                        ) {
+                            return deriveSameOriginServerUrl();
+                        }
+                    } catch (e: any) { /* ignore */ }
+                    return byStorage;
+                }
             }
         } catch (e: any) { /* ignore */ }
 
@@ -1108,6 +1131,25 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return !!currentSignature && currentSignature === snapshotSignature;
     }
 
+    function shouldSkipPublishResponseSnapshot(trackedPublish: any, snapshot: any) {
+        if (!trackedPublish || typeof trackedPublish !== 'object') return false;
+        if (trackedPublish.selfSnapshotReceived !== true) return false;
+
+        const snapshotVersion = getSnapshotStateVersion(snapshot);
+        const selfSnapshotVersion = Number.isFinite(Number(trackedPublish.selfSnapshotVersion))
+            ? Number(trackedPublish.selfSnapshotVersion)
+            : null;
+        const appliedStateVersion = getAppliedStateVersion();
+        if (snapshotVersion === null || selfSnapshotVersion === null) return false;
+        if (snapshotVersion !== selfSnapshotVersion) return false;
+        if (appliedStateVersion !== null && appliedStateVersion < snapshotVersion) return false;
+
+        const snapshotSignature = computeForceSyncPlaybackRecoverySignature(snapshot);
+        if (!snapshotSignature) return false;
+        const currentSignature = computeCurrentPlaybackRecoverySignature();
+        return !!currentSignature && currentSignature === snapshotSignature;
+    }
+
     // SSE stream variant: when the actor already drained playback locally
     // (any path that produced `requestMeta.playbackEvents`), the broadcast
     // snapshot would replay the same animations. Route those through shadow
@@ -1250,7 +1292,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return moduleRef.buildPublishCommandPayload(info, {
             playerKey,
             normalizePlayerKey,
-            pendingCoordinator: PendingCoordinatorModule
+            pendingCoordinator: PendingCoordinatorModule,
+            includePlayerParam: true
         });
     }
 
@@ -1421,13 +1464,29 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         const handSkinUiModule = resolveHandSkinUiModule();
         if (handSkinUiModule && typeof handSkinUiModule.readStoredHandSkinId === 'function') {
             try {
-                return String(handSkinUiModule.readStoredHandSkinId(root)).trim() || 'default';
+                const selected = String(handSkinUiModule.readStoredHandSkinId(root)).trim() || 'default';
+                if (selected !== 'default') return selected;
             } catch (e: any) { /* ignore */ }
         }
         const storageKey = String((handSkinUiModule && handSkinUiModule.HAND_SKIN_STORAGE_KEY) || 'othello.handSkin').trim() || 'othello.handSkin';
         try {
-            if (typeof localStorage !== 'undefined') {
-                return String(localStorage.getItem(storageKey) || '').trim() || 'default';
+            const storage = root && root.localStorage
+                ? root.localStorage
+                : (typeof localStorage !== 'undefined' ? localStorage : null);
+            if (storage) {
+                const raw = String(storage.getItem(storageKey) || '').trim();
+                if (!raw) return 'default';
+                try {
+                    const shared = require('../shared/observation-gacha-catalog-shared');
+                    const canonical = shared && typeof shared.normalizeCatalogItemId === 'function'
+                        ? String(shared.normalizeCatalogItemId(raw) || '').trim()
+                        : raw;
+                    const progress = require('./storage/gacha-progress');
+                    if (canonical && progress && typeof progress.isHandSkinOwned === 'function' && progress.isHandSkinOwned(root, canonical)) {
+                        return canonical;
+                    }
+                } catch (e: any) { /* ignore */ }
+                return raw;
             }
         } catch (e: any) { /* ignore */ }
         return 'default';
@@ -2561,23 +2620,29 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                     });
                 }
                 if (res.data && res.data.snapshot) {
+                    const shouldSkipPublishResponse = shouldSkipPublishResponseSnapshot(
+                        trackedPublish,
+                        res.data.snapshot
+                    );
                     const serverPlaybackEvents = Array.isArray(res.data.playbackEvents) ? res.data.playbackEvents : [];
                     const shouldShadowPlaybackResponse = shouldApplyPublishResponseAsShadowPlayback(
                         trackedPublish,
                         res.data.snapshot,
                         serverPlaybackEvents
                     );
-                    const applied = applySnapshotThroughCoordinator(res.data.snapshot, {
-                        source: 'publish_response',
-                        trackedPublish,
-                        applyOptions: {
-                            force: true,
-                            playbackEvents: shouldShadowPlaybackResponse ? [] : serverPlaybackEvents,
-                            shadowPlaybackEvents: shouldShadowPlaybackResponse ? serverPlaybackEvents : [],
-                            shadowPlaybackSource: shouldShadowPlaybackResponse ? 'publish_response_shadow' : undefined,
-                            skipResultOverlay: hasTrackedPublishPresentedResult(trackedPublish)
-                        }
-                    });
+                    const applied = shouldSkipPublishResponse
+                        ? false
+                        : applySnapshotThroughCoordinator(res.data.snapshot, {
+                            source: 'publish_response',
+                            trackedPublish,
+                            applyOptions: {
+                                force: true,
+                                playbackEvents: shouldShadowPlaybackResponse ? [] : serverPlaybackEvents,
+                                shadowPlaybackEvents: shouldShadowPlaybackResponse ? serverPlaybackEvents : [],
+                                shadowPlaybackSource: shouldShadowPlaybackResponse ? 'publish_response_shadow' : undefined,
+                                skipResultOverlay: hasTrackedPublishPresentedResult(trackedPublish)
+                            }
+                        });
                     if (applied) {
                         rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
                             source: 'publish_response',
@@ -2596,7 +2661,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                         recordNetworkTelemetry('publish_response_snapshot_skipped', {
                             operationId,
                             responseStateVersion,
-                            snapshotVersion: getSnapshotStateVersion(res.data.snapshot)
+                            snapshotVersion: getSnapshotStateVersion(res.data.snapshot),
+                            skipReason: shouldSkipPublishResponse ? 'self_snapshot_already_applied' : 'apply_rejected'
                         });
                     }
                 }
@@ -2688,10 +2754,26 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function getRoomBoardConfig() {
-        if (state.active !== true) return null;
-        return (state.roomBoardConfig && typeof state.roomBoardConfig === 'object')
-            ? cloneReadableNetworkStateValue(state.roomBoardConfig, null)
-            : null;
+        if (state.roomBoardConfig && typeof state.roomBoardConfig === 'object') {
+            return cloneReadableNetworkStateValue(state.roomBoardConfig, null);
+        }
+        const seatController = getNetworkSessionSeatController();
+        if (seatController && typeof seatController.normalizeRoomBoardConfig === 'function') {
+            const globalGameState = (typeof globalThis !== 'undefined' && (globalThis as any).gameState)
+                ? (globalThis as any).gameState
+                : null;
+            const rootGameState = (root && root.gameState) ? root.gameState : null;
+            const fallbackGameState = rootGameState || globalGameState;
+            const fallbackConfig = seatController.normalizeRoomBoardConfig(null, {
+                snapshot: fallbackGameState ? { gameState: fallbackGameState } : null,
+                payload: fallbackGameState ? { boardConfig: fallbackGameState.boardConfig } : null
+            });
+            if (fallbackConfig && typeof fallbackConfig === 'object') {
+                state.roomBoardConfig = fallbackConfig;
+                return cloneReadableNetworkStateValue(fallbackConfig, null);
+            }
+        }
+        return null;
     }
 
     function setRoomStateListener(listener: any) {
@@ -2840,4 +2922,14 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         getRoomBoardConfig,
         getNetworkTelemetry
     };
+    try {
+        if (typeof globalThis !== 'undefined') {
+            (globalThis as any).NetworkMatchClient = api;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined') {
+            (window as any).NetworkMatchClient = api;
+        }
+    } catch (e) { /* ignore */ }
 export = api;

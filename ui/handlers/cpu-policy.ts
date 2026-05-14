@@ -106,15 +106,32 @@ function _withLoadTimeout(promise: any, timeoutMs: any, label: string): Promise<
 }
 
 function _resolveCpuLv6SharedProfile(): any {
+  const readSharedProfile = (value: any): any => {
+    if (!value || typeof value !== 'object') return null;
+    if (value.browser && typeof value.browser === 'object') return value;
+    const defaultValue = value.default;
+    if (defaultValue && typeof defaultValue === 'object' && defaultValue.browser && typeof defaultValue.browser === 'object') {
+      return defaultValue;
+    }
+    return value;
+  };
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).CPU_LV6_SHARED_PROFILE && typeof (globalThis as any).CPU_LV6_SHARED_PROFILE === 'object') {
-      return (globalThis as any).CPU_LV6_SHARED_PROFILE;
+      return readSharedProfile((globalThis as any).CPU_LV6_SHARED_PROFILE);
     }
   } catch (e) { /* ignore */ }
   try {
     if (typeof _require === 'function') {
       const shared = _require('../../constants/cpu-lv6-shared-profile');
-      if (shared && typeof shared === 'object') return shared;
+      const resolved = readSharedProfile(shared);
+      if (resolved) return resolved;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof require === 'function') {
+      const shared = require('../../constants/cpu-lv6-shared-profile');
+      const resolved = readSharedProfile(shared);
+      if (resolved) return resolved;
     }
   } catch (e) { /* ignore */ }
   return null;
@@ -123,6 +140,12 @@ function _resolveCpuLv6SharedProfile(): any {
 let _cpuLv6RuntimeCapabilityModule: any = null;
 
 function _resolveCpuLv6RuntimeCapabilityModule(): any {
+  const readCapabilityModule = (moduleRef: any): any => {
+    if (moduleRef && typeof moduleRef.resolveCpuLv6BrowserRuntimeCapability === 'function') return moduleRef;
+    const defaultValue = moduleRef && typeof moduleRef === 'object' ? moduleRef.default : null;
+    if (defaultValue && typeof defaultValue.resolveCpuLv6BrowserRuntimeCapability === 'function') return defaultValue;
+    return null;
+  };
   if (
     _cpuLv6RuntimeCapabilityModule &&
     typeof _cpuLv6RuntimeCapabilityModule.resolveCpuLv6BrowserRuntimeCapability === 'function'
@@ -142,8 +165,19 @@ function _resolveCpuLv6RuntimeCapabilityModule(): any {
   try {
     if (typeof _require === 'function') {
       const moduleRef = _require('../../shared/cpu-lv6-runtime-capability');
-      if (moduleRef && typeof moduleRef.resolveCpuLv6BrowserRuntimeCapability === 'function') {
-        _cpuLv6RuntimeCapabilityModule = moduleRef;
+      const resolved = readCapabilityModule(moduleRef);
+      if (resolved) {
+        _cpuLv6RuntimeCapabilityModule = resolved;
+        return _cpuLv6RuntimeCapabilityModule;
+      }
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof require === 'function') {
+      const moduleRef = require('../../shared/cpu-lv6-runtime-capability');
+      const resolved = readCapabilityModule(moduleRef);
+      if (resolved) {
+        _cpuLv6RuntimeCapabilityModule = resolved;
         return _cpuLv6RuntimeCapabilityModule;
       }
     }
@@ -405,7 +439,10 @@ async function loadCpuPolicy(): Promise<void> {
     return;
   }
   try {
-    const whiteLevel = (cpuSmartness as any).white || 3;
+    const selectLevel = Number((document.getElementById('smartWhite') as HTMLSelectElement | null)?.value);
+    const whiteLevel = Number.isFinite(selectLevel)
+      ? Math.max(1, Math.min(6, Math.floor(selectLevel)))
+      : (((typeof cpuSmartness !== 'undefined' && cpuSmartness) ? (cpuSmartness as any).white : 3) || 3);
     _debugLog(`Attempting to load policy for level ${whiteLevel}`);
     (mccfrPolicy as any) = await (CpuPolicy as any).loadPolicyForLevel(whiteLevel);
     _debugLog('Policy loaded successfully:', mccfrPolicy);

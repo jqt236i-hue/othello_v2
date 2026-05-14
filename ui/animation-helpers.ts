@@ -28,7 +28,7 @@ interface AnimationShared {
 function getSharedModule(): AnimationShared | null {
   let Shared: AnimationShared | null = null;
   try {
-    Shared = (typeof _require === 'function') ? (_require('./animation-shared') as AnimationShared | null | undefined) ?? null : (typeof window !== 'undefined' ? (window as Window & { AnimationShared?: AnimationShared }).AnimationShared ?? null : null);
+    Shared = (typeof _require === 'function') ? (_require('./animation-shared.js') as AnimationShared | null | undefined) ?? null : (typeof window !== 'undefined' ? (window as Window & { AnimationShared?: AnimationShared }).AnimationShared ?? null : null);
   } catch (e) {
     Shared = (typeof window !== 'undefined' ? (window as Window & { AnimationShared?: AnimationShared }).AnimationShared ?? null : null);
   }
@@ -64,7 +64,10 @@ function getTimer(): TimerRegistry {
 function triggerFlip(disc: Element | null | undefined): void {
   try {
     const Shared = getSharedModule();
-    if (Shared && typeof Shared.triggerFlip === 'function') return Shared.triggerFlip(disc as Element);
+    if (Shared && typeof Shared.triggerFlip === 'function') {
+      Shared.triggerFlip(disc as Element);
+      return;
+    }
   } catch (e) { /* ignore */ }
   if (!disc) return;
   try {
@@ -77,7 +80,10 @@ function triggerFlip(disc: Element | null | undefined): void {
 function removeFlip(disc: Element | null | undefined): void {
   try {
     const Shared = getSharedModule();
-    if (Shared && typeof Shared.removeFlip === 'function') return Shared.removeFlip(disc as Element);
+    if (Shared && typeof Shared.removeFlip === 'function') {
+      Shared.removeFlip(disc as Element);
+      return;
+    }
   } catch (e) { /* ignore */ }
   if (!disc) return;
   try {

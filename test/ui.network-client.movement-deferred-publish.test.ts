@@ -288,7 +288,7 @@ describe.each(CASES)('NetworkMatchClient $label deferred publish', ({ handlerNam
     expect(global.gameState.board).toHaveLength(7);
     expect(global.gameState.board[0]).toHaveLength(9);
 
-    import * as handlers from '../game/card-effects/strong-wind.js';
+    const handlers = require('../game/card-effects/strong-wind.js');
     const result = await handlers[handlerName](6, 8, 'black');
 
     await new Promise((resolve) => setTimeout(resolve, 0));

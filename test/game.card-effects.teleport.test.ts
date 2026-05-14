@@ -4,8 +4,7 @@ jest.mock('../game/card-effects/selection-flow', () => ({
     executePendingSelection: mockExecutePendingSelection
 }));
 
-import { handleTeleportSelection } from '../game/card-effects/teleport.js';
-
+const { handleTeleportSelection } = require('../game/card-effects/teleport.js');
 describe('teleport', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();

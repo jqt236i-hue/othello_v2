@@ -15,7 +15,7 @@ describe('DebugActions.fillDebugHand', () => {
         ]
       }), { virtual: false });
 
-      import * as DebugActions from '../game/debug/debug-actions.js';
+      const DebugActions = require('../game/debug/debug-actions.js');
       const cardState = {
         hands: {
           black: ['alpha_01'],
@@ -41,7 +41,7 @@ describe('DebugActions.fillDebugHand', () => {
         ]
       }), { virtual: false });
 
-      import * as DebugActions from '../game/debug/debug-actions.js';
+      const DebugActions = require('../game/debug/debug-actions.js');
       const cardState = {
         hands: {
           black: ['legacy_01', 'alpha_01'],

@@ -20,7 +20,6 @@
 ## 更新漏れしやすい参照
 
 - `shared/deck-spec.js`
-- `shared/story-deck-spec.js`
 - `ui/handlers/rules-help.js`
 - `docs/`
 - `test/`

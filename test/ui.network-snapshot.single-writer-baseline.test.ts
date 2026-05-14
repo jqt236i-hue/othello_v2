@@ -93,7 +93,7 @@ describe('applySnapshot single-writer baseline', () => {
 
   afterEach(() => {
     try {
-      import * as pendingCoordinator from '../game/turn/pending-coordinator.js';
+      const pendingCoordinator = require('../game/turn/pending-coordinator.js');
       if (pendingCoordinator && typeof pendingCoordinator.clearPendingSelectionActionCache === 'function') {
         pendingCoordinator.clearPendingSelectionActionCache();
       }
@@ -117,7 +117,7 @@ describe('applySnapshot single-writer baseline', () => {
   });
 
   function createController(stateObj) {
-    import { createNetworkSnapshotController } from '../ui/network/snapshot.js';
+    const { createNetworkSnapshotController } = require('../ui/network/snapshot.js');
     return createNetworkSnapshotController({
       getState: () => stateObj,
       emitCardStateChange: global.emitCardStateChange,
@@ -253,7 +253,7 @@ describe('applySnapshot single-writer baseline', () => {
   });
 
   test('snapshot 実経路で same-type stale pending action cache を turnIndex 差分で prune する', () => {
-    import * as PendingCoordinator from '../game/turn/pending-coordinator.js';
+    const PendingCoordinator = require('../game/turn/pending-coordinator.js');
     global.ActionManager = {
       ActionManager: {
         createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })

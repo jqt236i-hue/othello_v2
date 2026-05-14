@@ -23,7 +23,7 @@ describe('ui stone visuals contract split', () => {
   });
 
   test('applyStoneVisualState applies final visual state immediately', () => {
-    import * as stoneVisuals from '../ui/stone-visuals.js';
+    const stoneVisuals = require('../ui/stone-visuals.js');
     const disc = document.querySelector('.disc');
 
     stoneVisuals.applyStoneVisualState(disc, {
@@ -37,7 +37,7 @@ describe('ui stone visuals contract split', () => {
   });
 
   test('applyStoneVisualState does not force white when newColor is 0', () => {
-    import * as stoneVisuals from '../ui/stone-visuals.js';
+    const stoneVisuals = require('../ui/stone-visuals.js');
     const disc = document.querySelector('.disc');
 
     stoneVisuals.applyStoneVisualState(disc, {
@@ -52,7 +52,7 @@ describe('ui stone visuals contract split', () => {
   });
 
   test('crossfadeStoneVisual uses the animated API and removes overlay remnants', async () => {
-    import * as stoneVisuals from '../ui/stone-visuals.js';
+    const stoneVisuals = require('../ui/stone-visuals.js');
     const disc = document.querySelector('.disc');
 
     let resolved = false;

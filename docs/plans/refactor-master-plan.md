@@ -135,7 +135,7 @@
 **タスク**:
 
 #### 1-1. 定数の単一ソース化
-- `ui/tutorial/tutorial-runtime.js:11` の `BOARD_SIZE = 8` を削除
+- `ui/` 層に残る `BOARD_SIZE = 8` の重複定義を削除
 - `game/ai/policy-onnx-runtime.js:22` の `MAX_HAND_SIZE = 5` を削除
 - `game/ai/cpu-policy-core.js`, `game/ai/policy-table-runtime.js`, `game/cpu-decision.js` の `dirs` を削除
 - `game/logic/cards/clone.js`, `game/logic/cards/living_will.js` の `BLACK`/`WHITE` 再定義を削除

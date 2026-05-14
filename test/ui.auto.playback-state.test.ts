@@ -60,7 +60,7 @@ describe('setupAutoToggle playback-state gating', () => {
   });
 
   test('blocks auto turns when the playback manager reports active playback', () => {
-    import * as autoModule from '../ui/handlers/auto.js';
+    const autoModule = require('../ui/handlers/auto.js');
     const button = document.getElementById('autoToggleBtn');
     autoModule.setupAutoToggle(button);
 

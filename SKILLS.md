@@ -41,7 +41,7 @@
 | `marker-duration-lifecycle-workflow` | marker の追加、duration、turn-start expire、STATUS_* をそろえる時 | `game/logic/cards/markers.js`, `game/logic/cards-internal/effect-timing.js`, `game/turn/pipeline_ui_adapter.js` |
 | `board-expansion-movement-workflow` | board expansion、movement card、expansion render / sound、CPU target をそろえる時 | `game/logic/core.js`, `game/logic/cards/expansion.js`, `game/logic/cards/movement.js`, `game/card-effects/position-swap.js`, `game/move-generator.js`, `game/cpu-turn-handler.js`, `ui/diff-renderer.js` |
 | `cpu-onnx-gate-workflow` | browser ONNX gate と benchmark / fallback をそろえる時 | `ui/handlers/cpu-policy.js`, `game/ai/policy-onnx-runtime.js`, `game/cpu-decision.js`, benchmark scripts |
-| `deck-builder-authoring-workflow` | deck builder と story-deck-lab の authoring UI を直す時 | `shared/deck-spec.js`, `shared/deck-codec.js`, `shared/story-deck-spec.js`, `shared/story-deck-codec.js`, `ui/handlers/deck-builder.js`, `ui/story-deck-lab/*` |
+| `deck-builder-authoring-workflow` | deck builder の authoring UI を直す時 | `shared/deck-spec.js`, `shared/deck-codec.js`, `ui/handlers/deck-builder.js` |
 | `design-plan-runbook-authoring-workflow` | design / plan / runbook 文書を作る時 | `docs/README.md`, `docs/*-plan*.md`, `*-runbook*.md`, `docs/architecture-contracts.md` |
 | `network-backend-worker-workflow` | local match server と worker authority を直す時 | `scripts/local-match-server.js`, `workers/match-worker.mjs`, `shared/network-action-schema.js`, `shared/playback-event-helpers.js`, `utils/match-authority.js` |
 | `network-selfmatch-bug-hunt-workflow` | Playwright で headed の 2 ブラウザを同室接続し、終局と UI / animation の崩れまで含めて network 特有の不具合を探す時 | 必要時の `tmp/playwright-network-verify/`, `ui/network-client.js`, `ui/network/snapshot.js`, `workers/match-worker.mjs`, `scripts/local-match-server.js` |
@@ -51,9 +51,8 @@
 | `safe-rational-refactor` | 局所整理を公開契約と責務境界を保ちながら進める時 | 既存コード全般 |
 | `selfplay-training-pipeline-workflow` | selfplay 学習 profile、gate、promotion を回す時 | `scripts/load-training-profile.js`, `scripts/resolve-training-profile.js`, `scripts/run-selfplay-training-profile.js`, `scripts/run-selfplay-training-cycle.js`, `scripts/clean-selfplay-artifacts.js`, `scripts/rollback-policy-model.js`, `ai/train/*` |
 | `selfplay-training-run-ops-workflow` | selfplay 学習 run の停止、再起動、run-tag 管理、監視コマンド提示を安全に回す時 | `scripts/load-training-profile.js`, `scripts/run-selfplay-training-profile.js`, `scripts/monitor-selfplay-training-run.js`, `data/runs/*` |
-| `story-tutorial-workflow` | tutorial / story の進行や overlay を直す時 | `ui/tutorial/*`, `ui/story/*`, `ui/handlers/tutorial.js`, `ui/handlers/story.js` |
 | `ui-bootstrap-load-order-workflow` | classic script の load order と DI を直す時 | `index.html`, `shared/ui-bootstrap-shared.js`, `ui/bootstrap.js`, `ui/handlers/init.js` |
-| `worker-public-sync-workflow` | root と worker-public mirror を同期する時 | `scripts/prepare-worker-assets.js`, `index.html`, `story-deck-lab.html`, `worker-public/*` |
+| `worker-public-sync-workflow` | root と worker-public mirror を同期する時 | `scripts/prepare-worker-assets.js`, `index.html`, `worker-public/*` |
 
 ## 4. 選び方の近道
 
@@ -66,7 +65,7 @@
 - marker の追加、duration、turn-start expire、STATUS_*: `marker-duration-lifecycle-workflow`
 - board expansion、movement card、position-swap、expansion render / sound、CPU target: `board-expansion-movement-workflow`
 - CPU の ONNX 利用条件、runtime guard、fallback: `cpu-onnx-gate-workflow`
-- deck builder / story-deck-lab / story deck spec・codec: `deck-builder-authoring-workflow`
+- deck builder / deck spec・codec: `deck-builder-authoring-workflow`
 - 設計書 / 計画書 / runbook / architecture contracts: `design-plan-runbook-authoring-workflow`
 - network authority / worker / seat token / SSE / smoke: `network-backend-worker-workflow`
 - Playwright で実ブラウザ 2 台を同室接続し、必要なら `tmp/playwright-network-verify/` に一時 runner を置いて network と見た目崩れを探す: `network-selfmatch-bug-hunt-workflow`
@@ -77,7 +76,6 @@
 - 段階的な構造変更の設計: `design-plan-runbook-authoring-workflow`
 - selfplay / training / load-resolve / preflight / gate / promotion / rollback: `selfplay-training-pipeline-workflow`
 - selfplay 学習 run の再起動 / log / monitor / stop: `selfplay-training-run-ops-workflow`
-- story / tutorial / overlay: `story-tutorial-workflow`
 - classic script 順と shared bootstrap / DI: `ui-bootstrap-load-order-workflow`
 - root から worker-public への prepare / mirror / deploy 同期: `worker-public-sync-workflow`
 

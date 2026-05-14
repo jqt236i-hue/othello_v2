@@ -134,8 +134,12 @@ const pendingCoordinatorModule = (function (root: any) {
             pendingSelectionActionByPlayer[normalizedPlayerKey] = null;
             return null;
         }
+        var storedAction = clonePendingSelectionAction(action) || Object.assign({}, action);
+        if (typeof storedAction.player === 'undefined' || storedAction.player === null || storedAction.player === '') {
+            storedAction.player = normalizedPlayerKey;
+        }
         pendingSelectionActionByPlayer[normalizedPlayerKey] = {
-            action: clonePendingSelectionAction(action),
+            action: storedAction,
             pendingType: normalizePendingType(pendingType)
         };
         return readPendingSelectionAction(normalizedPlayerKey);
@@ -380,6 +384,9 @@ const pendingCoordinatorModule = (function (root: any) {
         var normalizedPayload = Object.assign({}, actionPayload || {});
         var normalizedPlayerKey = normalizePlayerKey(playerKey);
         var cardStateRef = opts.cardState || null;
+        if (typeof normalizedPayload.player === 'undefined' || normalizedPayload.player === null || normalizedPayload.player === '') {
+            normalizedPayload.player = normalizedPlayerKey;
+        }
         if (shouldDeferNetworkPublishForPendingType(pendingType)) {
             normalizedPayload.deferNetworkPublish = true;
         }

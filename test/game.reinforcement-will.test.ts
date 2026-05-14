@@ -1,6 +1,6 @@
 'use strict';
 
-import * as Shared from '../shared-constants.js';
+const Shared = require('../shared-constants.js');
 import * as CardLogic from '../game/logic/cards.js';
 import * as TurnPipeline from '../game/turn/turn_pipeline.js';
 import * as BoardOps from '../game/logic/board_ops.js';

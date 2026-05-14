@@ -73,7 +73,7 @@ describe('gacha reveal player', () => {
         this.bgm.paused = false;
       })
     };
-    import * as mod from '../ui/gacha-reveal-player.js';
+    const mod = require('../ui/gacha-reveal-player.js');
     const player = mod.createGachaRevealPlayer({
       root: window,
       overlay: document.getElementById('gachaOverlay'),
@@ -124,7 +124,7 @@ describe('gacha reveal player', () => {
         this.bgm.paused = false;
       })
     };
-    import * as mod from '../ui/gacha-reveal-player.js';
+    const mod = require('../ui/gacha-reveal-player.js');
     const player = mod.createGachaRevealPlayer({
       root: window,
       overlay: document.getElementById('gachaOverlay'),
@@ -164,7 +164,7 @@ describe('gacha reveal player', () => {
     jest.useFakeTimers();
     setDom();
     const audio = createAudioStub();
-    import * as mod from '../ui/gacha-reveal-player.js';
+    const mod = require('../ui/gacha-reveal-player.js');
     const player = mod.createGachaRevealPlayer({
       root: window,
       overlay: document.getElementById('gachaOverlay'),
@@ -194,8 +194,7 @@ describe('gacha reveal player', () => {
 
   test('maps each rarity to a distinct reveal effect key', () => {
     jest.resetModules();
-    import * as mod from '../ui/gacha-reveal-player.js';
-
+    const mod = require('../ui/gacha-reveal-player.js');
     expect(mod.resolveRevealEffectKey('N')).toBe('subtle');
     expect(mod.resolveRevealEffectKey('R')).toBe('slash');
     expect(mod.resolveRevealEffectKey('SR')).toBe('prism');
@@ -208,7 +207,7 @@ describe('gacha reveal player', () => {
     jest.resetModules();
     setDom();
     window.DISABLE_ANIMATIONS = true;
-    import * as mod from '../ui/gacha-reveal-player.js';
+    const mod = require('../ui/gacha-reveal-player.js');
     const player = mod.createGachaRevealPlayer({
       root: window,
       overlay: document.getElementById('gachaOverlay')

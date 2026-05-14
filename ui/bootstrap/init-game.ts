@@ -17,7 +17,7 @@ declare const initPolicyOnnxModel: (() => Promise<void>) | undefined;
 declare const initPolicyTableModel: (() => Promise<void>) | undefined;
 declare const initLvMaxModels: (() => void) | undefined;
 declare const loadLvMaxModels: (() => void) | undefined;
-declare const resetGame: (() => void) | undefined;
+declare const resetGame: ((options?: any) => void) | undefined;
 declare const initWorkVisualsHelpers: (() => void) | undefined;
 declare const initWorkVisualDiagnosticsAuto: (() => void) | undefined;
 
@@ -35,7 +35,7 @@ async function initGameSystems(): Promise<void> {
     initLvMaxModels();
   }
   try {
-    if (typeof resetGame === 'function') resetGame();
+    if (typeof resetGame === 'function') resetGame({ skipNetworkPublish: true, source: 'bootstrap_init' });
   } catch (e: unknown) {
     const err = e as Error;
     console.error('[init] resetGame threw', err && err.message);

@@ -21,7 +21,7 @@ let _lastTurnNumber: any = null;
 function _getPlaybackStateModule(): any {
   if (typeof (window as any).PlaybackStateManager !== 'undefined' && (window as any).PlaybackStateManager) return (window as any).PlaybackStateManager;
   try {
-    return _require('../playback-state-manager');
+    return _require('../playback-state-manager.js');
   } catch (e) { /* ignore */ }
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackStateManager) return (globalThis as any).PlaybackStateManager;
@@ -47,7 +47,9 @@ function _isCardAnimatingForAuto(): boolean {
 
 function _hasPendingPresentationEvents(): boolean {
   try {
-    const cs = (typeof (window as any).cardState !== 'undefined') ? (window as any).cardState : ((typeof window !== 'undefined') ? (window as any).cardState : null);
+    const cs = (typeof window !== 'undefined' && (window as any).cardState)
+      ? (window as any).cardState
+      : ((typeof globalThis !== 'undefined' && (globalThis as any).cardState) ? (globalThis as any).cardState : null);
     if (!cs) return false;
     const pendingPersist = Array.isArray(cs._presentationEventsPersist) ? cs._presentationEventsPersist.length : 0;
     const pendingLive = Array.isArray(cs.presentationEvents) ? cs.presentationEvents.length : 0;
@@ -90,7 +92,13 @@ function _uiAutoTick(): void {
       return;
     }
 
-    const turnNum = (typeof (window as any).gameState !== 'undefined' && (window as any).gameState) ? (window as any).gameState.turnNumber : null;
+    const state = (typeof window !== 'undefined' && (window as any).gameState)
+      ? (window as any).gameState
+      : ((typeof globalThis !== 'undefined' && (globalThis as any).gameState) ? (globalThis as any).gameState : null);
+    const blackValue = (typeof window !== 'undefined' && (window as any).BLACK !== undefined)
+      ? (window as any).BLACK
+      : ((typeof globalThis !== 'undefined' && (globalThis as any).BLACK !== undefined) ? (globalThis as any).BLACK : 1);
+    const turnNum = state ? state.turnNumber : null;
     if (_lastTurnNumber !== null && turnNum === _lastTurnNumber) {
       _stallTickCount++;
     } else if (turnNum !== null) {
@@ -98,7 +106,7 @@ function _uiAutoTick(): void {
       _lastTurnNumber = turnNum;
     }
 
-    if (typeof (window as any).gameState !== 'undefined' && (window as any).gameState && (window as any).gameState.currentPlayer === (window as any).BLACK) {
+    if (state && state.currentPlayer === blackValue) {
       const winBusy = (typeof window !== 'undefined') && (
         _isPlaybackActiveForAuto() ||
         _isCardAnimatingForAuto() ||
@@ -106,7 +114,10 @@ function _uiAutoTick(): void {
       );
       const hasPendingPresentation = _hasPendingPresentationEvents();
       if (!(window as any).isProcessing && !(window as any).isCardAnimating && !winBusy && !hasPendingPresentation) {
-        if (typeof (window as any).processAutoBlackTurn === 'function') (window as any).processAutoBlackTurn();
+        const processAutoBlackTurnFn = (typeof window !== 'undefined' && typeof (window as any).processAutoBlackTurn === 'function')
+          ? (window as any).processAutoBlackTurn
+          : ((typeof globalThis !== 'undefined' && typeof (globalThis as any).processAutoBlackTurn === 'function') ? (globalThis as any).processAutoBlackTurn : null);
+        if (processAutoBlackTurnFn) processAutoBlackTurnFn();
       }
     }
   } catch (e) { /* ignore */ }
@@ -122,7 +133,10 @@ function _uiAutoEnable(): void {
   _lastAutoTickAt = 0;
   _autoTickCount = 0;
   _stallTickCount = 0;
-  _lastTurnNumber = (typeof (window as any).gameState !== 'undefined' && (window as any).gameState) ? (window as any).gameState.turnNumber : null;
+  const state = (typeof window !== 'undefined' && (window as any).gameState)
+    ? (window as any).gameState
+    : ((typeof globalThis !== 'undefined' && (globalThis as any).gameState) ? (globalThis as any).gameState : null);
+  _lastTurnNumber = state ? state.turnNumber : null;
   _uiAutoTick();
 }
 

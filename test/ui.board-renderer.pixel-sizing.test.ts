@@ -32,7 +32,7 @@ describe('board renderer pixel sizing', () => {
     const boardEl = document.getElementById('board');
     frameEl.getBoundingClientRect = () => ({ width: 750, height: 750 });
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.syncBoardPixelSizing(boardEl, { rows: 8, cols: 9 });
 
     expect(boardEl.style.width).toBe('783px');
@@ -50,7 +50,7 @@ describe('board renderer pixel sizing', () => {
     const boardEl = document.getElementById('board');
     frameEl.getBoundingClientRect = () => ({ width: 750, height: 750 });
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.syncBoardPixelSizing(boardEl, { rows: 8, cols: 8 });
 
     expect(boardEl.style.width).toBe('696px');
@@ -80,7 +80,7 @@ describe('board renderer pixel sizing', () => {
       return el;
     });
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.syncBoardPixelSizing(boardEl, { rows: 8, cols: 8 });
 
     expect(boardEl.style.width).toBe('422px');
@@ -96,7 +96,7 @@ describe('board renderer pixel sizing', () => {
     frameEl.getBoundingClientRect = () => ({ width: 750, height: 750 });
     boardEl.getBoundingClientRect = () => ({ width: 783, height: 696, left: 123.25, top: 87.75 });
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.syncBoardPixelSizing(boardEl, { rows: 8, cols: 9 });
 
     expect(boardEl.style.left).toBe('-0.25px');
@@ -111,7 +111,7 @@ describe('board renderer pixel sizing', () => {
     boardEl.style.boxSizing = 'border-box';
     boardEl.style.border = '4px solid #000';
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.syncBoardPixelSizing(boardEl, { rows: 8, cols: 9 });
 
     expect(boardEl.style.width).toBe('791px');
@@ -135,7 +135,7 @@ describe('board renderer pixel sizing', () => {
     frameEl.style.setProperty('--board-frame-outer-height', '780px');
     document.body.classList.add('board-oversize-active');
 
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.syncBoardPixelSizing(boardEl, { rows: 7, cols: 7 });
 
     expect(boardEl.style.width).toBe('');

@@ -1,8 +1,9 @@
+// @ts-nocheck
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vm from 'vm';
 
-const filePath = path.resolve(__dirname, '..', 'ui', 'layout-stage.js');
+const filePath = path.resolve(__dirname, '..', 'dist', 'ui', 'layout-stage.js');
 const source = fs.readFileSync(filePath, 'utf8');
 
 function createMockRoot(initialAttributes = {}) {
@@ -13,7 +14,9 @@ function createMockRoot(initialAttributes = {}) {
   return {
     classList: {
       add(...tokens) {
-        tokens.forEach((token) => classes.add(token));
+        tokens.forEach((token) => {
+          classes.add(token);
+        });
       },
       toggle(token, force) {
         const shouldAdd = force === undefined ? !classes.has(token) : !!force;
@@ -94,7 +97,9 @@ function runLayoutStage({
     console,
     setTimeout,
     clearTimeout,
-    Promise
+    Promise,
+    module: { exports: {} },
+    exports: {}
   };
   context.globalThis = context;
 

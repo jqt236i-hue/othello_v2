@@ -12,23 +12,33 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return null;
+}
+
 let CardExpansionModule: any = null;
 let CardMarkersModule: any = null;
 let SharedBoardUtilsModule: any = null;
 
-try {
-    CardExpansionModule = _require('./cards/expansion');
-} catch (e) { /* ignore */ }
-try {
-    CardMarkersModule = _require('./cards/markers');
-} catch (e) { /* ignore */ }
-try {
-    SharedBoardUtilsModule = _require('../../shared/shared-board-utils');
-} catch (e) { /* ignore */ }
+CardExpansionModule = getRuntimeGlobalValue('CardExpansion') || safeRequire('./cards/expansion');
+CardMarkersModule = getRuntimeGlobalValue('CardMarkers') || safeRequire('./cards/markers');
+SharedBoardUtilsModule = getRuntimeGlobalValue('SharedBoardUtils') || safeRequire('../../shared/shared-board-utils');
 
-const SharedConstants = (() => {
-    try { return _require('../../shared-constants'); } catch (e) { return undefined; }
-})();
+const SharedConstants = getRuntimeGlobalValue('SharedConstants') || safeRequire('../../shared-constants');
 
 const { EMPTY } = SharedConstants || {};
 const BoardUtils = SharedBoardUtilsModule || null;
@@ -42,10 +52,7 @@ function getCardMarkersModule(): any {
 }
 
 function getSpecialStoneRegistryModule(): any {
-    try {
-        return _require('../../shared/special-stone-registry');
-    } catch (e) { /* ignore */ }
-    return null;
+    return getRuntimeGlobalValue('SpecialStoneRegistry') || safeRequire('../../shared/special-stone-registry');
 }
 
 function isOverlayOnlySpecialStoneType(type: string): boolean {
@@ -58,44 +65,26 @@ function isOverlayOnlySpecialStoneType(type: string): boolean {
 }
 
 function getCardRegenModule(): any {
-    try {
-        return _require('./cards/regen');
-    } catch (e) { /* ignore */ }
-    return null;
+    return getRuntimeGlobalValue('CardRegen') || safeRequire('./cards/regen');
 }
 
 function getCardLivingWillModule(): any {
-    try {
-        return _require('./cards/living_will');
-    } catch (e) { /* ignore */ }
-    return null;
+    return getRuntimeGlobalValue('CardLivingWill') || safeRequire('./cards/living_will');
 }
 
 const MarkersAdapter = ((): any => {
-    try {
-        return _require('./markers_adapter');
-    } catch (e) {
-        return null;
-    }
+    return safeRequire('./markers_adapter');
 })();
 
 const MARKER_KINDS = (CardMarkersModule && CardMarkersModule.MARKER_KINDS)
     || (MarkersAdapter && MarkersAdapter.MARKER_KINDS);
 
 const DestroyOutcomeContract = ((): any => {
-    try {
-        return _require('../../shared/destroy-outcome-contract');
-    } catch (e) {
-        return null;
-    }
+    return getRuntimeGlobalValue('DestroyOutcomeContract') || safeRequire('../../shared/destroy-outcome-contract');
 })();
 
 const StoneStatusSnapshot = ((): any => {
-    try {
-        return _require('../../shared/stone-status-snapshot');
-    } catch (e) {
-        return null;
-    }
+    return getRuntimeGlobalValue('StoneStatusSnapshot') || safeRequire('../../shared/stone-status-snapshot');
 })();
 
 const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS)
@@ -601,6 +590,9 @@ function _resolveBoardOpsRandomSource(cardState: any, meta: any): any {
     }
     if (cardState && cardState._currentActionMeta && cardState._currentActionMeta.randomSource && typeof cardState._currentActionMeta.randomSource.random === 'function') {
         return cardState._currentActionMeta.randomSource;
+    }
+    if (cardState && cardState._defaultRandomSource && typeof cardState._defaultRandomSource.random === 'function') {
+        return cardState._defaultRandomSource;
     }
     throw new Error('BoardOps requires an injected deterministic PRNG.');
 }

@@ -1,6 +1,57 @@
-import * as fs from 'fs';
+// @ts-nocheck
 import * as path from 'path';
 import { JSDOM } from 'jsdom';
+
+function installGlobalRendererContext(window) {
+  for (const name of ['CARD_DEFS', 'GameVisualEffectsMap']) {
+    let value = window[name];
+    Object.defineProperty(window, name, {
+      configurable: true,
+      get() {
+        return value;
+      },
+      set(nextValue) {
+        value = nextValue;
+        global[name] = nextValue;
+      }
+    });
+    global[name] = value;
+  }
+  global.window = window;
+  global.document = window.document;
+  global.BLACK = window.BLACK;
+  global.WHITE = window.WHITE;
+  global.gameState = window.gameState;
+  global.cardState = window.cardState;
+  global.CARD_DEFS = window.CARD_DEFS;
+  global.onCardClick = window.onCardClick;
+  global.updateCardDetailPanel = window.updateCardDetailPanel;
+  global.StoneVisuals = window.StoneVisuals;
+  global.OwnerHelpers = window.OwnerHelpers;
+  global.MATCH_MODE = window.MATCH_MODE;
+  if (window.NetworkMatchClient) {
+    global.NetworkMatchClient = window.NetworkMatchClient;
+  } else {
+    delete global.NetworkMatchClient;
+  }
+}
+
+function clearGlobalRendererContext() {
+  delete global.window;
+  delete global.document;
+  delete global.BLACK;
+  delete global.WHITE;
+  delete global.gameState;
+  delete global.cardState;
+  delete global.CARD_DEFS;
+  delete global.GameVisualEffectsMap;
+  delete global.onCardClick;
+  delete global.updateCardDetailPanel;
+  delete global.StoneVisuals;
+  delete global.OwnerHelpers;
+  delete global.MATCH_MODE;
+  delete global.NetworkMatchClient;
+}
 
 function createBoard(rows = 8, cols = 8) {
   return Array.from({ length: rows }, () => Array(cols).fill(0));
@@ -79,11 +130,19 @@ function createRendererContext(options = {}) {
     };
   }
 
-  const rendererCode = fs.readFileSync(path.resolve(__dirname, '../cards/card-renderer.ts'), 'utf8');
-  window.eval(rendererCode);
+  jest.resetModules();
+  installGlobalRendererContext(window);
+  const rendererModule = require(path.resolve(__dirname, '../cards/card-renderer.js'));
+  window.drainVisibleChargeDeltaPopups = rendererModule.drainVisibleChargeDeltaPopups;
+  window.renderCardUI = rendererModule.renderCardUI;
+  window.createCardFaceElement = rendererModule.createCardFaceElement;
 
   return dom;
 }
+
+afterEach(() => {
+  clearGlobalRendererContext();
+});
 
 describe('card renderer hand inspection', () => {
   test('custom boards still update the charge HUD', () => {

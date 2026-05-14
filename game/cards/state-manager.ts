@@ -14,25 +14,50 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../shared-constants')
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
 
-const PlayerEncoding = (typeof module === 'object' && module.exports)
-    ? _require('../../shared/player-encoding')
-    : (typeof self !== 'undefined' ? (self as any).PlayerEncoding : undefined);
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return undefined;
+}
 
-const CardHandManager = (typeof module === 'object' && module.exports)
-    ? _require('../logic/cards-internal/hand-manager')
-    : (typeof self !== 'undefined' ? (self as any).CardHandManager : undefined);
+function loadRuntimeModule(id: string, globalKey: string): any {
+    const runtimeValue = getRuntimeGlobalValue(globalKey);
+    if (runtimeValue) return runtimeValue;
 
-const CardChargeLedger = (typeof module === 'object' && module.exports)
-    ? _require('../logic/cards-internal/charge-ledger')
-    : (typeof self !== 'undefined' ? (self as any).CardChargeLedger : undefined);
+    if (typeof module === 'object' && module.exports) {
+        const loaded = safeRequire(id);
+        if (loaded) {
+            if (typeof globalThis !== 'undefined' && !(globalThis as any)[globalKey]) {
+                (globalThis as any)[globalKey] = loaded;
+            }
+            return loaded;
+        }
+    }
 
-const CardMarkers = (typeof module === 'object' && module.exports)
-    ? _require('../logic/cards/markers')
-    : (typeof self !== 'undefined' ? (self as any).CardMarkers : undefined);
+    return runtimeValue;
+}
+
+const SharedConstants = loadRuntimeModule('../../shared-constants', 'SharedConstants');
+
+const PlayerEncoding = loadRuntimeModule('../../shared/player-encoding', 'PlayerEncoding');
+
+const CardHandManager = loadRuntimeModule('../logic/cards-internal/hand-manager', 'CardHandManager');
+
+const CardChargeLedger = loadRuntimeModule('../logic/cards-internal/charge-ledger', 'CardChargeLedger');
+
+const CardMarkers = loadRuntimeModule('../logic/cards/markers', 'CardMarkers');
 
 const { CHARGE_MAX, CARD_DEFS } = SharedConstants || {};
 const { normalizePlayerKey } = PlayerEncoding || {};

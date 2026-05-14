@@ -212,7 +212,7 @@ describe('NetworkMatchClient presence log', () => {
   });
 
   test('選択中の手スキンを create と update と presence で反映する', async () => {
-    import * as storageModule from '../ui/storage/gacha-progress.js';
+    const storageModule = require('../ui/storage/gacha-progress.js');
     storageModule.unlockHandSkinIds(window, ['gacha__n__hand-swap']);
     window.localStorage.setItem('othello.handSkin', 'gacha__n__hand-swap');
     require('../ui/network-client.js');

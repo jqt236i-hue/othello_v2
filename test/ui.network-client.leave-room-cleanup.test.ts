@@ -134,7 +134,7 @@ describe('NetworkMatchClient leaveRoom cleanup', () => {
     leaveStatus = 403;
     leavePayload = { ok: false, reason: 'SEAT_TOKEN_MISMATCH' };
 
-    import * as playbackState from '../ui/playback-state-manager.js';
+    const playbackState = require('../ui/playback-state-manager.js');
     const abortSpy = jest.spyOn(playbackState, 'abortPlayback');
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
@@ -163,7 +163,7 @@ describe('NetworkMatchClient leaveRoom cleanup', () => {
   });
 
   test('successful leave clears session, stored claim, and stream', async () => {
-    import * as playbackState from '../ui/playback-state-manager.js';
+    const playbackState = require('../ui/playback-state-manager.js');
     const abortSpy = jest.spyOn(playbackState, 'abortPlayback');
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;

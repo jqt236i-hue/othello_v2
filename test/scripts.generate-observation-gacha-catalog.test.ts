@@ -2,7 +2,7 @@ import * as path from 'path';
 
 describe('generate observation gacha catalog', () => {
   test('derives rarity and display name from assets/images/Gacha', () => {
-    import { generateObservationGachaCatalogs } from '../scripts/generate-observation-gacha-catalog.js';
+    const { generateObservationGachaCatalogs } = require('../scripts/generate-observation-gacha-catalog.js');
     const result = generateObservationGachaCatalogs({
       root: path.resolve(__dirname, '..'),
       write: false

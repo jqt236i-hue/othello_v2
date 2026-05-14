@@ -9,7 +9,6 @@ const cardEffectsHelpers = _require('./helpers');
 const { getPlayerKey, getPlayerDisplayName } = cardEffectsHelpers;
 const CardSystem = _require('../../card-system');
 const ControllerEvents = _require('../controller-events');
-const { emitLogAdded } = ControllerEvents;
 const LOG_MESSAGES = _require('../log-messages');
 const { isDebugLogAvailable, safeDebugLog } = _require('../../is-env-capable');
 
@@ -25,18 +24,32 @@ function resolvePendingCoordinator(): any {
     return cachedPendingCoordinator;
 }
 
+function emitPlacementLog(message: string): void {
+    const globalEmit = typeof globalThis !== 'undefined' ? (globalThis as { emitLogAdded?: unknown }).emitLogAdded : null;
+    if (typeof globalEmit === 'function') {
+        globalEmit(message);
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
+        ControllerEvents.emitLogAdded(message);
+    }
+}
+
 function readPlacementPendingType(move: any): string | null {
     if (!move) return null;
     const playerKey = typeof getPlayerKey === 'function' ? getPlayerKey(move.player) : null;
     if (!playerKey) return null;
-    const activeCardState = (CardSystem.cardState && typeof CardSystem.cardState === 'object')
+    const activeCardState = (typeof globalThis !== 'undefined' && (globalThis as { cardState?: unknown }).cardState && typeof (globalThis as { cardState?: unknown }).cardState === 'object')
+        ? (globalThis as { cardState?: unknown }).cardState
+        : (CardSystem.cardState && typeof CardSystem.cardState === 'object')
         ? CardSystem.cardState
         : null;
     if (!activeCardState) return null;
 
     const pendingCoordinator = resolvePendingCoordinator();
     if (pendingCoordinator && typeof pendingCoordinator.getPendingEffectType === 'function') {
-        return pendingCoordinator.getPendingEffectType(activeCardState, playerKey);
+        const coordinated = pendingCoordinator.getPendingEffectType(activeCardState, playerKey);
+        if (coordinated) return coordinated;
     }
     return (activeCardState.pendingEffectByPlayer
         && activeCardState.pendingEffectByPlayer[playerKey]
@@ -48,65 +61,63 @@ function logPlacementEffects(effects: any, player: any): void {
     const ownerName = getPlayerDisplayName(player);
 
     if (effects.rainbowStoneUsed) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.rainbowCharge(effects.chargeGained));
+        emitPlacementLog(LOG_MESSAGES.rainbowCharge(effects.chargeGained));
     }
     if (effects.silverStoneUsed) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.silverCharge(effects.chargeGained));
+        emitPlacementLog(LOG_MESSAGES.silverCharge(effects.chargeGained));
     }
     if (effects.goldStoneUsed) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.goldCharge(effects.chargeGained));
+        emitPlacementLog(LOG_MESSAGES.goldCharge(effects.chargeGained));
     }
     if (effects.crystalStoneUsed) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.crystalCharge(effects.crystalStoneGain || 0));
+        emitPlacementLog(LOG_MESSAGES.crystalCharge(effects.crystalStoneGain || 0));
     }
     if (effects.plunderAmount > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.plunderPoints(effects.plunderAmount));
+        emitPlacementLog(LOG_MESSAGES.plunderPoints(effects.plunderAmount));
     }
     if (effects.protected) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.protectNext(ownerName));
+        emitPlacementLog(LOG_MESSAGES.protectNext(ownerName));
         if (isDebugLogAvailable()) {
             safeDebugLog('[EFFECT] Protected stone formed (UI-only)', 'info');
         }
     }
     if (effects.permaProtected) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.permaProtectNext(ownerName));
+        emitPlacementLog(LOG_MESSAGES.permaProtectNext(ownerName));
     }
     if (effects.bombPlaced) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.timeBombPlaced(ownerName));
+        emitPlacementLog(LOG_MESSAGES.timeBombPlaced(ownerName));
     }
     if (effects.dragonPlaced) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.dragonPlaced(ownerName));
+        emitPlacementLog(LOG_MESSAGES.dragonPlaced(ownerName));
     }
     if (effects.destroyDragonPlaced) {
-        if (typeof emitLogAdded === 'function' && typeof LOG_MESSAGES.destroyDragonPlaced === 'function') {
-            emitLogAdded(LOG_MESSAGES.destroyDragonPlaced(ownerName));
+        if (typeof LOG_MESSAGES.destroyDragonPlaced === 'function') {
+            emitPlacementLog(LOG_MESSAGES.destroyDragonPlaced(ownerName));
         }
     }
     if (effects.ultimateDestroyGodPlaced) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.udgPlaced(ownerName));
+        emitPlacementLog(LOG_MESSAGES.udgPlaced(ownerName));
     }
     if (effects.ultimateHyperactivePlaced) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.ultimateHyperactivePlaced(ownerName));
+        emitPlacementLog(LOG_MESSAGES.ultimateHyperactivePlaced(ownerName));
     }
     if (effects.escapeHyperactivePlaced) {
-        if (typeof emitLogAdded === 'function' && typeof LOG_MESSAGES.escapeHyperactivePlaced === 'function') {
-            emitLogAdded(LOG_MESSAGES.escapeHyperactivePlaced(ownerName));
+        if (typeof LOG_MESSAGES.escapeHyperactivePlaced === 'function') {
+            emitPlacementLog(LOG_MESSAGES.escapeHyperactivePlaced(ownerName));
         }
     } else if (effects.extremeHyperactivePlaced) {
-        if (typeof emitLogAdded === 'function' && typeof LOG_MESSAGES.extremeHyperactivePlaced === 'function') {
-            emitLogAdded(LOG_MESSAGES.extremeHyperactivePlaced(ownerName));
+        if (typeof LOG_MESSAGES.extremeHyperactivePlaced === 'function') {
+            emitPlacementLog(LOG_MESSAGES.extremeHyperactivePlaced(ownerName));
         }
     } else if (effects.hyperactivePlaced) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.hyperactivePlaced(ownerName));
+        emitPlacementLog(LOG_MESSAGES.hyperactivePlaced(ownerName));
     }
     if (effects.doublePlaceActivated) {
-        if (typeof emitLogAdded === 'function') {
-            emitLogAdded(LOG_MESSAGES.doublePlaceActivated(
-                effects.multiPlaceActivatedName,
-                effects.multiPlaceRemaining,
-                effects.multiPlaceInfinite
-            ));
-        }
+        emitPlacementLog(LOG_MESSAGES.doublePlaceActivated(
+            effects.multiPlaceActivatedName,
+            effects.multiPlaceRemaining,
+            effects.multiPlaceInfinite
+        ));
     }
 }
 
@@ -128,13 +139,13 @@ function applyProtectionAfterMove(move: any, effects: any): any {
     }
 
     if (effects.regenTriggered && effects.regenTriggered > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.regenTriggered(effects.regenTriggered));
+        emitPlacementLog(LOG_MESSAGES.regenTriggered(effects.regenTriggered));
     }
     if (effects.regenCapture && effects.regenCapture > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.regenCapture(effects.regenCapture));
+        emitPlacementLog(LOG_MESSAGES.regenCapture(effects.regenCapture));
     }
     if (effects.breedingSpawned && effects.breedingSpawned > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.breedingSpawned(getPlayerDisplayName(move.player), effects.breedingSpawned));
+        emitPlacementLog(LOG_MESSAGES.breedingSpawned(getPlayerDisplayName(move.player), effects.breedingSpawned));
     }
 
     effects.pendingType = effects.pendingType || readPlacementPendingType(move);

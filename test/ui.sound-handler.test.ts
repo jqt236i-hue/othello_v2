@@ -5,15 +5,19 @@ import { JSDOM } from 'jsdom';
 import * as SoundHandlerModule from '../ui/handlers/sound.js';
 
 function loadSoundEngine(overrides = {}) {
-  const filePath = path.resolve(__dirname, '..', 'sound-engine.js');
-  const source = fs.readFileSync(filePath, 'utf8') + '\nmodule.exports = SoundEngine;';
+  const filePath = path.resolve(__dirname, '..', 'dist', 'sound-engine.js');
+  const source = fs.readFileSync(filePath, 'utf8') + '\nmodule.exports = module.exports.default || exports.default || SoundEngine;';
+  const moduleRef = { exports: {} };
   const context = Object.assign({
-    module: { exports: {} },
-    exports: {},
+    module: moduleRef,
+    exports: moduleRef.exports,
+    require: jest.fn(),
     console,
     updateBgmButtons: jest.fn(),
     Audio: function Audio() {}
   }, overrides);
+  if (!context.window) context.window = context;
+  if (!context.window.updateBgmButtons) context.window.updateBgmButtons = context.updateBgmButtons;
   vm.runInNewContext(source, context, { filename: filePath });
   return context.module.exports;
 }
@@ -142,16 +146,24 @@ describe('sound handler', () => {
     global.window = dom.window;
     global.document = document;
 
-    import * as gachaProgressStorage from '../ui/storage/gacha-progress.js';
-    import * as catalogAccess from '../ui/gacha/catalog-access.js';
-    import * as placementSoundSelection from '../ui/placement-sound-selection.js';
+    const gachaProgressStorage = require('../ui/storage/gacha-progress.js');
+    const catalogAccess = require('../ui/gacha/catalog-access.js');
+    const placementSoundSelection = require('../ui/placement-sound-selection.js');
+    const catalogModule = require('../shared/observation-gacha-catalog.generated.js');
+    const catalogSharedModule = require('../shared/observation-gacha-catalog-shared.js');
     dom.window.GachaProgressStorage = gachaProgressStorage;
     dom.window.ObservationGachaCatalogAccessModule = catalogAccess;
+    dom.window.ObservationGachaCatalogModule = catalogModule;
+    dom.window.ObservationGachaCatalogSharedModule = catalogSharedModule;
     dom.window.PlacementSoundSelectionModule = placementSoundSelection;
 
     global.SoundEngine = loadSoundEngine({
       localStorage: dom.window.localStorage,
-      PlacementSoundSelectionModule: placementSoundSelection
+      PlacementSoundSelectionModule: placementSoundSelection,
+      GachaProgressStorage: gachaProgressStorage,
+      ObservationGachaCatalogAccessModule: catalogAccess,
+      ObservationGachaCatalogModule: catalogModule,
+      ObservationGachaCatalogSharedModule: catalogSharedModule
     });
     gachaProgressStorage.unlockPlacementSoundIds(dom.window, ['gacha__n__placement_sound__type-1-standard']);
 

@@ -39,7 +39,7 @@ describe('cpu-turn-handler helpers', () => {
     jest.useFakeTimers();
     const cb = jest.fn();
     // Force require('./timers').waitMs to throw so shared helper falls back to setTimeout
-    import * as timersModule from '../game/timers.js';
+    const timersModule = require('../game/timers.js');
     const spy = jest.spyOn(timersModule, 'waitMs').mockImplementation(() => { throw new Error('no'); });
 
     mod.scheduleRetry(cb, 20);

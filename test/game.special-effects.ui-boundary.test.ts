@@ -1,6 +1,5 @@
 import * as fs from 'fs';
-import * as path from 'path';
-
+const path = require('path');
 describe('special-effects UI DI boundary', () => {
   const dir = path.resolve(__dirname, '..', 'game', 'special-effects');
   const files = fs.readdirSync(dir).filter(f => f.endsWith('.js'));

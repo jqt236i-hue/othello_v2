@@ -27,7 +27,13 @@ interface AssetManifest {
   [key: string]: any;
 }
 
-function resolveObservationCatalogModule(): any {
+function resolveObservationCatalogModule(rootRef?: any): any {
+  const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
+  try {
+    if (ctx && ctx.ObservationGachaCatalogModule) {
+      return ctx.ObservationGachaCatalogModule;
+    }
+  } catch (e) { /* ignore */ }
   try {
     return _require('../../shared/observation-gacha-catalog.generated.js');
   } catch (e) { /* ignore */ }
@@ -39,7 +45,13 @@ function resolveObservationCatalogModule(): any {
   return null;
 }
 
-function resolveObservationCatalogSharedModule(): any {
+function resolveObservationCatalogSharedModule(rootRef?: any): any {
+  const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
+  try {
+    if (ctx && ctx.ObservationGachaCatalogSharedModule) {
+      return ctx.ObservationGachaCatalogSharedModule;
+    }
+  } catch (e) { /* ignore */ }
   try {
     return _require('../../shared/observation-gacha-catalog-shared');
   } catch (e) { /* ignore */ }
@@ -96,7 +108,7 @@ function getObservationCatalog(options?: any): Catalog {
     return opts.catalog;
   }
 
-  const sharedModule = opts.catalogSharedModule || resolveObservationCatalogSharedModule();
+  const sharedModule = opts.catalogSharedModule || resolveObservationCatalogSharedModule(opts.root);
   const manifest = readLoadedAssetManifest(opts.root, opts);
   if (manifest && sharedModule && typeof sharedModule.buildCatalogFromAssetManifest === 'function') {
     const manifestCatalog = sharedModule.buildCatalogFromAssetManifest(manifest, {
@@ -107,7 +119,7 @@ function getObservationCatalog(options?: any): Catalog {
     }
   }
 
-  const generatedModule = opts.catalogModule || resolveObservationCatalogModule();
+  const generatedModule = opts.catalogModule || resolveObservationCatalogModule(opts.root);
   if (generatedModule && Array.isArray(generatedModule.items)) {
     return generatedModule;
   }
@@ -127,7 +139,7 @@ function getObservationCatalogItems(options?: any): CatalogItem[] {
 
 function getObservationCatalogItemsByKind(kind: string, options?: any): CatalogItem[] {
   const opts = (options && typeof options === 'object') ? options : {};
-  const sharedModule = opts.catalogSharedModule || resolveObservationCatalogSharedModule();
+  const sharedModule = opts.catalogSharedModule || resolveObservationCatalogSharedModule(opts.root);
   const items = getObservationCatalogItems(opts);
   if (!sharedModule || typeof sharedModule.filterCatalogItemsByKind !== 'function') {
     return items;

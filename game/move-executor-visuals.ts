@@ -204,6 +204,25 @@ function clearUIImpl() { __uiImpl_move_exec_visuals = {}; }
 
 // CommonJS (Node/tests) export. In browser script-tag mode, `module` is undefined.
 export = {
+    applyFlipAnimations,
+    setDiscColorAt,
+    removeBombOverlayAt,
+    clearAllStoneVisualEffectsAt,
+    syncDiscVisualToCurrentState,
+    getFlipAnimMs,
+    getPhaseGapMs,
+    getTurnTransitionGapMs,
+    animateFlipsWithDeferredColor,
+    animateRegenBack,
+    animateFadeOutAt,
+    animateDestroyAt,
+    animateHyperactiveMove,
+    animateHyperactiveMoveChain,
+    hasPlaybackEngine,
+    playDrawAnimation,
+    updateDeckVisual,
+    applyPendingSpecialstoneVisual,
+    runMoveVisualSequence,
     getMoveExecutorVisuals,
     setUIImpl,
     clearUIImpl

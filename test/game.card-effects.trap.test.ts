@@ -4,8 +4,7 @@ jest.mock('../game/card-effects/selection-flow', () => ({
     executePendingSelection: mockExecutePendingSelection
 }));
 
-import { handleTrapSelection, setUIImpl } from '../game/card-effects/trap.js';
-
+const { handleTrapSelection, setUIImpl } = require('../game/card-effects/trap.js');
 describe('trap', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();

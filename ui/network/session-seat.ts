@@ -162,10 +162,39 @@ function createNetworkSessionSeatController(config: any): any {
 
   function maybeResolveBoardConfig(value: any): any {
     const boardUtils = resolveSharedBoardUtils();
-    if (!boardUtils || typeof boardUtils.maybeResolveBoardConfig !== 'function') return null;
+    if (!boardUtils || typeof boardUtils.maybeResolveBoardConfig !== 'function') return maybeResolveInlineBoardConfig(value);
     try {
-      return boardUtils.maybeResolveBoardConfig(value);
+      return boardUtils.maybeResolveBoardConfig(value) || maybeResolveInlineBoardConfig(value);
     } catch (e) { /* ignore */ }
+    return maybeResolveInlineBoardConfig(value);
+  }
+
+  function maybeResolveInlineBoardConfig(value: any): any {
+    const source = resolveInlineBoardConfigSource(value);
+    if (!source) return null;
+    const rows = Number(source.rows);
+    const cols = Number(source.cols);
+    if (!Number.isFinite(rows) || !Number.isFinite(cols)) return null;
+    const normalizedRows = Math.max(1, Math.trunc(rows));
+    const normalizedCols = Math.max(1, Math.trunc(cols));
+    return {
+      rows: normalizedRows,
+      cols: normalizedCols,
+      standard8x8: source.standard8x8 === true || (normalizedRows === 8 && normalizedCols === 8)
+    };
+  }
+
+  function resolveInlineBoardConfigSource(value: any): any {
+    if (!value || typeof value !== 'object') return null;
+    if (value.roomBoardConfig && typeof value.roomBoardConfig === 'object') return value.roomBoardConfig;
+    if (value.boardConfig && typeof value.boardConfig === 'object') return value.boardConfig;
+    if (value.gameState && typeof value.gameState === 'object') return resolveInlineBoardConfigSource(value.gameState);
+    if (Number.isFinite(Number(value.rows)) || Number.isFinite(Number(value.cols))) return value;
+    if (Array.isArray(value.board)) {
+      const rows = value.board.length;
+      const cols = value.board.reduce((max: number, row: any) => Array.isArray(row) ? Math.max(max, row.length) : max, 0);
+      if (rows > 0 && cols > 0) return { rows, cols, standard8x8: rows === 8 && cols === 8 };
+    }
     return null;
   }
 
@@ -173,7 +202,10 @@ function createNetworkSessionSeatController(config: any): any {
     const opts = (options && typeof options === 'object') ? options : {};
     return (
       maybeResolveBoardConfig(value)
+      || maybeResolveBoardConfig(opts.payload && opts.payload.boardConfig)
+      || maybeResolveBoardConfig(opts.payload && opts.payload.roomBoardConfig)
       || maybeResolveBoardConfig(opts.snapshot && opts.snapshot.gameState)
+      || maybeResolveBoardConfig(opts.snapshot)
       || maybeResolveBoardConfig(opts.fallbackBoardConfig)
     );
   }
@@ -332,7 +364,8 @@ function createNetworkSessionSeatController(config: any): any {
     state.seatHandSkins = normalizeSeatHandSkins(payload.seatHandSkins);
     state.roomDeck = normalizeRoomDeck(payload.roomDeck);
     state.roomBoardConfig = normalizeRoomBoardConfig(payload.roomBoardConfig, {
-      snapshot: payload.snapshot
+      snapshot: payload.snapshot,
+      payload
     });
     state.networkDebugEnabled = normalizeNetworkDebugEnabled(payload.networkDebugEnabled);
 

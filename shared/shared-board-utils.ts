@@ -10,6 +10,8 @@
 (function (root: any, factory) {
     if (typeof module === 'object' && module.exports) {
         module.exports = factory(require('../shared-constants'), require('./board-utils'), require('./othello-core'));
+    } else if (root && root.SharedConstants) {
+        root.SharedBoardUtils = factory(root.SharedConstants, root.BoardUtils || null, root.OthelloCore || null);
     } else {
         root.SharedBoardUtils = factory(root.SharedConstants, null, null);
     }

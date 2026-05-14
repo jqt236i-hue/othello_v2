@@ -52,8 +52,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
   });
 
   test('removes has-disc after deferred destroy cleanup', () => {
-    import * as diff from '../ui/diff-renderer.js';
-
+    const diff = require('../ui/diff-renderer.js');
     gameState.board[0][0] = BLACK;
     diff.renderBoardDiff(boardEl);
 
@@ -75,8 +74,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
   });
 
   test('reconciles stale has-disc class even when state is unchanged', () => {
-    import * as diff from '../ui/diff-renderer.js';
-
+    const diff = require('../ui/diff-renderer.js');
     diff.renderBoardDiff(boardEl);
 
     const cell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
@@ -93,8 +91,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
   });
 
   test('reconciles stale legal hint classes even when state is unchanged', () => {
-    import * as diff from '../ui/diff-renderer.js';
-
+    const diff = require('../ui/diff-renderer.js');
     diff.renderBoardDiff(boardEl);
 
     const cell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
@@ -129,7 +126,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
       white: null
     };
 
-    import * as diff from '../ui/diff-renderer.js';
+    const diff = require('../ui/diff-renderer.js');
     diff.renderBoardDiff(boardEl);
 
     const legalCell = boardEl.querySelector('.cell[data-row="0"][data-col="0"]');
@@ -141,8 +138,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
   });
 
   test('updates POSITION_SWAP_WILL first-target highlight as pending selection changes', () => {
-    import * as diff from '../ui/diff-renderer.js';
-
+    const diff = require('../ui/diff-renderer.js');
     global.gameState.board[0][0] = BLACK;
     global.gameState.board[0][1] = WHITE;
     global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 1 }];
@@ -181,8 +177,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
   });
 
   test('updates BOARD_SHRINK_WILL selected-target highlight as pending selection changes', () => {
-    import * as diff from '../ui/diff-renderer.js';
-
+    const diff = require('../ui/diff-renderer.js');
     global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 2 }];
 
     diff.renderBoardDiff(boardEl);
@@ -218,8 +213,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
   });
 
   test('updates BOARD_SHRINK_GOD first-target highlight as pending selection changes', () => {
-    import * as diff from '../ui/diff-renderer.js';
-
+    const diff = require('../ui/diff-renderer.js');
     global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 1 }];
 
     diff.renderBoardDiff(boardEl);
@@ -249,8 +243,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
   });
 
   test('updates BOARD_EXPANSION_GOD selected-target highlight from firstTarget and selectedTargets', () => {
-    import * as diff from '../ui/diff-renderer.js';
-
+    const diff = require('../ui/diff-renderer.js');
     global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 7 }];
 
     diff.renderBoardDiff(boardEl);
@@ -287,8 +280,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
   });
 
   test('keeps the board grid size fixed even when shrink holes consume the full top edge', () => {
-    import * as diff from '../ui/diff-renderer.js';
-
+    const diff = require('../ui/diff-renderer.js');
     diff.renderBoardDiff(boardEl);
     expect(boardEl.style.getPropertyValue('--board-rows')).toBe('8');
     expect(boardEl.querySelector('.cell[data-row="0"][data-col="0"]')).toBeTruthy();
@@ -315,8 +307,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
   });
 
   test('renders shrink-created holes with frame styling and rerenders back to meteor styling when the variant changes', () => {
-    import * as diff from '../ui/diff-renderer.js';
-
+    const diff = require('../ui/diff-renderer.js');
     global.cardState.markers = [{
       id: 'shrink-hole',
       kind: 'specialStone',

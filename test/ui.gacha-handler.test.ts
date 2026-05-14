@@ -54,7 +54,7 @@ describe('gacha handler', () => {
     setDom();
     storageModule = require('../ui/storage/gacha-progress.js');
     storageModule.awardObservationStones(window, 250);
-    import * as mod from '../ui/handlers/gacha.js';
+    const mod = require('../ui/handlers/gacha.js');
     const fakeRevealPlayer = {
       play: jest.fn().mockResolvedValue({ finishedWith: 'animated' })
     };
@@ -98,7 +98,7 @@ describe('gacha handler', () => {
     storageModule = require('../ui/storage/gacha-progress.js');
     storageModule.awardObservationStones(window, 200);
     storageModule.applyPullResults(window, [{ item: { id: 'gacha__n__人の手', kind: 'hand_skin' } }]);
-    import * as mod from '../ui/handlers/gacha.js';
+    const mod = require('../ui/handlers/gacha.js');
     const fakeRevealPlayer = {
       play: jest.fn().mockResolvedValue({ finishedWith: 'animated' })
     };
@@ -122,7 +122,7 @@ describe('gacha handler', () => {
     setDom();
     storageModule = require('../ui/storage/gacha-progress.js');
     storageModule.awardObservationStones(window, 250);
-    import * as mod from '../ui/handlers/gacha.js';
+    const mod = require('../ui/handlers/gacha.js');
     const refreshLoadedAssetManifest = jest.fn().mockResolvedValue({ status: 'ok' });
     const fakeRevealPlayer = {
       play: jest.fn().mockResolvedValue({ finishedWith: 'animated' })
@@ -148,7 +148,7 @@ describe('gacha handler', () => {
     setDom();
     storageModule = require('../ui/storage/gacha-progress.js');
     storageModule.awardObservationStones(window, 1200);
-    import * as mod from '../ui/handlers/gacha.js';
+    const mod = require('../ui/handlers/gacha.js');
     const deferred = createDeferred();
     const fakeRevealPlayer = {
       play: jest.fn(() => deferred.promise)

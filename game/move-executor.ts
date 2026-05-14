@@ -510,6 +510,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
                 try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
             }
         });
+        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
         return;
     }
 

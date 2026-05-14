@@ -62,7 +62,7 @@
 ### 1.3 直編集不要の可能性が高い面
 
 - `ui/handlers/rules-help.js` は `cards/card-interaction-effects.js` を読む構造であり、time stop 専用分岐を持たない。したがって rules help は **card-interaction-effects 更新済みなら確認のみ** が妥当。
-- `shared/deck-spec.js` と `shared/story-deck-spec.js` には `TIME_STOP_GOD` の個別分岐が見当たらない。deck 面は **catalog / enable 状態で選択可能かの確認のみ** を基本とする。
+- `shared/deck-spec.js` には `TIME_STOP_GOD` の個別分岐が見当たらない。deck 面は **catalog / enable 状態で選択可能かの確認のみ** を基本とする。
 
 ### 1.4 未検証事項
 
@@ -110,7 +110,6 @@
 
 - `ui/handlers/rules-help.js`
 - `shared/deck-spec.js`
-- `shared/story-deck-spec.js`
 - `ui/network/snapshot.js`
 - `utils/match-authority.js`
 - `scripts/local-match-server.js`

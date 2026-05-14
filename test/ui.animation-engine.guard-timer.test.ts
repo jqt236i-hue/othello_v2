@@ -1,6 +1,5 @@
 import { JSDOM } from 'jsdom';
-import * as AnimationConstants from '../ui/animation-constants.js';
-
+const AnimationConstants = require('../ui/animation-constants.js');
 describe('animation-engine guard timer rendering', () => {
   let dom;
 

@@ -646,6 +646,109 @@ describe('NetworkMatchClient queued publish', () => {
     expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
   });
 
+  test('self SSE先着後のpublish応答で同一 version は重複適用されない', async () => {
+    global.BoardOps = {
+      emitPresentationEvent: jest.fn((state, ev) => {
+        if (!state || !ev) return;
+        if (!Array.isArray(state.presentationEvents)) state.presentationEvents = [];
+        state.presentationEvents.push(ev);
+      })
+    };
+
+    let resolvePublishResponse;
+    const echoedPlaybackEvents = [
+      {
+        type: 'move',
+        phase: 1,
+        targets: [{ from: { r: 3, col: 3 }, to: { r: 3, col: 4 } }]
+      },
+      {
+        type: 'flip',
+        phase: 2,
+        targets: [{ r: 3, col: 4, ownerBefore: -1, ownerAfter: 1 }]
+      }
+    ];
+
+    publishPayloads.length = 0;
+    publishCount = 0;
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/create') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'black',
+          seatToken: 'seat-token',
+          stateVersion: 10,
+          snapshot: createSnapshot(10)
+        });
+      }
+
+      if (path === '/api/match/publish') {
+        const body = JSON.parse(init.body || '{}');
+        publishPayloads.push(body);
+        publishCount += 1;
+        return await new Promise((resolve) => {
+          resolvePublishResponse = () => resolve(jsonResponse(200, {
+            ok: true,
+            roomId: 'ABC',
+            stateVersion: 11,
+            snapshot: createSnapshot(11),
+            playbackEvents: echoedPlaybackEvents,
+            operationId: body.operationId
+          }));
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+    expect(eventSources).toHaveLength(1);
+
+    const publishPromise = client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      action: createPlaceAction('black', 1)
+    });
+
+    await Promise.resolve();
+    expect(publishPayloads).toHaveLength(1);
+    const operationId = publishPayloads[0].operationId;
+
+    eventSources[0].onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        operationId,
+        playerKey: 'black',
+        actionType: 'place',
+        playbackEvents: echoedPlaybackEvents,
+        snapshot: createSnapshot(11)
+      })
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+
+    expect(typeof resolvePublishResponse).toBe('function');
+    resolvePublishResponse();
+
+    const publishResult = await publishPromise;
+    expect(publishResult.ok).toBe(true);
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+  });
+
   test('先行publish成功応答で後続ローカル状態を巻き戻さない', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;

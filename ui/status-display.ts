@@ -101,51 +101,13 @@ function getOwnSeatKeyForLabels(): string {
     return 'black';
 }
 
-function getTutorialStateApiForStatus(): any {
-    try {
-        if (typeof window !== 'undefined' && window && (window as any).Tutorial && (window as any).Tutorial.State) {
-            return (window as any).Tutorial.State;
-        }
-    } catch (e) { /* ignore */ }
+function resolveSpecialCpuPresentation(): any {
     return null;
 }
 
-function getStoryEncounterApiForStatus(): any {
-    try {
-        if (typeof window !== 'undefined' && window && (window as any).Story && (window as any).Story.Encounter) {
-            return (window as any).Story.Encounter;
-        }
-    } catch (e) { /* ignore */ }
-    return null;
-}
-
-function resolveStoryEncounterCpuPresentation(): any {
-    const encounterApi = getStoryEncounterApiForStatus();
-    if (!encounterApi || typeof encounterApi.resolveStoryEncounterPresentation !== 'function') {
-        return null;
-    }
-    return encounterApi.resolveStoryEncounterPresentation();
-}
-
-function resolveObserverDuelCpuPresentation(): any {
-    const stateApi = getTutorialStateApiForStatus();
-    if (!stateApi || typeof stateApi.isObserverDuelActive !== 'function' || !stateApi.isObserverDuelActive()) {
-        return null;
-    }
-
-    const scenario = typeof stateApi.getTutorialScenarioContext === 'function'
-        ? stateApi.getTutorialScenarioContext()
-        : null;
-    return {
-        imageSrc: scenario && scenario.observerImageSrc ? String(scenario.observerImageSrc) : 'assets/images/cpu/level6.png',
-        label: scenario && scenario.observerName ? String(scenario.observerName) : '盤理の観測者',
-        fadeOut: !!(scenario && scenario.observerDuelPostResultPhase === 'fade_out')
-    };
-}
-
-function applyObserverDuelCpuPanelState(observerDuelPresentation: any, charImg: any, levelLabel: any): void {
+function applySpecialCpuPanelState(specialPresentation: any, charImg: any, levelLabel: any): void {
     const panel = document.getElementById('cpu-character-panel');
-    const faded = !!(observerDuelPresentation && observerDuelPresentation.fadeOut === true);
+    const faded = !!(specialPresentation && specialPresentation.fadeOut === true);
     if (panel) {
         panel.style.transition = 'opacity 280ms ease';
         panel.style.opacity = faded ? '0.18' : '1';
@@ -695,12 +657,13 @@ function setCpuCharacterNetworkHeroState(charImg: any, enabled: boolean): void {
 }
 
 function updateCpuCharacter(): void {
-    const level = (cpuSmartness as any).white || 1;
-    const storyEncounterPresentation = resolveStoryEncounterCpuPresentation();
-    const observerDuelPresentation = resolveObserverDuelCpuPresentation();
-    const specialPresentation = storyEncounterPresentation || observerDuelPresentation;
+    const selectLevel = Number((document.getElementById('smartWhite') as HTMLSelectElement | null)?.value);
+    const level = Number.isFinite(selectLevel)
+        ? Math.max(1, Math.min(6, Math.floor(selectLevel)))
+        : (((typeof cpuSmartness !== 'undefined' && cpuSmartness) ? (cpuSmartness as any).white : 1) || 1);
+    const specialPresentation = resolveSpecialCpuPresentation();
     const useNetworkHeroPresentation = !specialPresentation && isNetworkModeForLabels();
-    const displayLevel = observerDuelPresentation ? 6 : level;
+    const displayLevel = level;
     const charImg = (getElement as any)('cpuCharacterImg');
     const levelLabel = (getElement as any)('cpuLevelLabel');
     const heroLabel = document.getElementById('hero-label');
@@ -735,7 +698,7 @@ function updateCpuCharacter(): void {
             charImg.src = img.src;
             if (useNetworkHeroPresentation) resetCpuCharacterLevelScale(charImg);
             else applyCpuCharacterLevelScale(charImg, displayLevel);
-            applyObserverDuelCpuPanelState(observerDuelPresentation, charImg, levelLabel);
+            applySpecialCpuPanelState(specialPresentation, charImg, levelLabel);
             try { positionCpuSpeechBubble(); } catch (e) { /* ignore */ }
         };
         img.onerror = () => {
@@ -748,7 +711,7 @@ function updateCpuCharacter(): void {
             }
             charImg.style.opacity = '0.3';
             resetCpuCharacterLevelScale(charImg);
-            applyObserverDuelCpuPanelState(observerDuelPresentation, charImg, levelLabel);
+            applySpecialCpuPanelState(specialPresentation, charImg, levelLabel);
             console.warn(`敵キャラクター画像が見つかりません: ${primaryPath}`);
         };
         img.src = primaryPath;

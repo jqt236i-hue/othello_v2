@@ -545,6 +545,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 actionType,
                 action: pendingAction,
                 playbackEvents,
+                skipLocalPlaybackWait: readMatchMode() === 'network' && contract.deferNetworkPublish === true && hasActiveNetworkPublishClient(),
                 humanMode: isHumanVsHumanModeEnabled(),
                 setProcessing: setSelectionProcessing,
                 onPublishFailed: () => {
@@ -587,7 +588,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             return true;
         }
 
-        if (contract && contract.waitForPlaybackIdle) {
+        if (contract && contract.waitForPlaybackIdle && !(readMatchMode() === 'network' && contract.deferNetworkPublish === true && hasActiveNetworkPublishClient())) {
             await waitForSelectionPlaybackIdle(playbackEvents);
         }
 

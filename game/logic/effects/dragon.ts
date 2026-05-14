@@ -16,13 +16,38 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return undefined;
+}
 
-const RandomSourceModule = (typeof module === 'object' && module.exports)
-    ? _require('../cards-internal/random-source')
-    : (typeof self !== 'undefined' ? ((self as any).CardRandomSource || null) : null);
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+const SharedConstants = (() => {
+    const runtimeSharedConstants = getRuntimeGlobalValue('SharedConstants');
+    if (runtimeSharedConstants) return runtimeSharedConstants;
+
+    if (typeof module === 'object' && module.exports) {
+        return safeRequire('../../../shared-constants') || runtimeSharedConstants;
+    }
+
+    return runtimeSharedConstants;
+})();
+
+const RandomSourceModule = getRuntimeGlobalValue('CardRandomSource') || ((typeof module === 'object' && module.exports)
+    ? safeRequire('../cards-internal/random-source')
+    : (typeof self !== 'undefined' ? ((self as any).CardRandomSource || null) : null));
 
 const { BLACK, WHITE } = SharedConstants || {};
 const P_BLACK = BLACK || 1;

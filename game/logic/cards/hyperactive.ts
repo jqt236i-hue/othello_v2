@@ -18,23 +18,52 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return undefined;
+}
+
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+const SharedConstants = (() => {
+    const runtimeSharedConstants = getRuntimeGlobalValue('SharedConstants');
+    if (runtimeSharedConstants) return runtimeSharedConstants;
+
+    if (typeof module === 'object' && module.exports) {
+        return safeRequire('../../../shared-constants') || runtimeSharedConstants;
+    }
+
+    return runtimeSharedConstants;
+})();
 
 const BoardUtils = (() => {
+    const runtimeBoardUtils = getRuntimeGlobalValue('SharedBoardUtils');
+    if (runtimeBoardUtils) return runtimeBoardUtils;
     if (typeof module === 'object' && module.exports) {
         try {
-            return _require('../../../shared/shared-board-utils');
+            return safeRequire('../../../shared/shared-board-utils');
         } catch (e) { /* ignore */ }
     }
     return (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null);
 })();
 
 const RandomSourceModule = (() => {
+    const runtimeRandomSource = getRuntimeGlobalValue('CardRandomSource');
+    if (runtimeRandomSource) return runtimeRandomSource;
     if (typeof module === 'object' && module.exports) {
         try {
-            return _require('../cards-internal/random-source');
+            return safeRequire('../cards-internal/random-source');
         } catch (e) { /* ignore */ }
     }
     return (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
@@ -43,7 +72,7 @@ const RandomSourceModule = (() => {
 const StoneStatusSnapshot = (() => {
     if (typeof module === 'object' && module.exports) {
         try {
-            return _require('../../../shared/stone-status-snapshot');
+            return safeRequire('../../../shared/stone-status-snapshot');
         } catch (e) { /* ignore */ }
     }
     const globalScope = (typeof globalThis !== 'undefined')
@@ -169,6 +198,7 @@ interface HyperactiveDeps {
     getCardContext?: (cardState: CardState) => any;
     swapOccupiedCellsWithPresentation?: (cardState: CardState, gameState: GameState, source: Position, target: Position, meta: any) => any;
     currentTurnPlayerKey?: PlayerKey;
+    randomSource?: any;
     decrementRemainingOwnerTurns?: boolean;
     inheritedHyperactiveTurns?: number;
     ultimateHyperactiveTurns?: number;
@@ -2063,7 +2093,8 @@ function _destroyGluttonousTarget(
         sourceCol,
         projectileOwner: ownerKey,
         projectileStone: 'gluttonous',
-        bite: true
+        bite: true,
+        randomSource: deps.randomSource || (cardState as { _boardOpsRandomSource?: any; _currentActionMeta?: any; _defaultRandomSource?: any })._boardOpsRandomSource || ((cardState as { _currentActionMeta?: any })._currentActionMeta && (cardState as { _currentActionMeta?: any })._currentActionMeta.randomSource) || (cardState as { _defaultRandomSource?: any })._defaultRandomSource || null
     };
 
     if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {

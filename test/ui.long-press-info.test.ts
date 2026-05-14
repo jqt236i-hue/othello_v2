@@ -37,7 +37,7 @@ describe('board cell long press info', () => {
   });
 
   test('short press keeps normal click behavior', () => {
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
     mod.attachBoardCellInteraction(cell, 2, 3);
@@ -59,7 +59,7 @@ describe('board cell long press info', () => {
       data: { type: 'BREEDING', remainingOwnerTurns: 2 }
     });
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
     mod.attachBoardCellInteraction(cell, 1, 1);
@@ -88,7 +88,7 @@ describe('board cell long press info', () => {
   test('long press on normal stone shows info and does not execute click action', () => {
     global.gameState.board[4][2] = global.BLACK;
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
     mod.attachBoardCellInteraction(cell, 4, 2);
@@ -117,7 +117,7 @@ describe('board cell long press info', () => {
       data: { type: 'LIVING_WILL', baseline: { owner: 'black', value: global.BLACK, markers: [] } }
     }];
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const shown = mod.showSpecialStoneInfoAt(2, 2);
 
     expect(shown).toBe(true);
@@ -134,7 +134,7 @@ describe('board cell long press info', () => {
       white: []
     };
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const shown = mod.showSpecialStoneInfoAt(4, 2);
 
     expect(shown).toBe(true);
@@ -154,7 +154,7 @@ describe('board cell long press info', () => {
       data: { type: 'TIME_STOP', remainingOwnerTurns: 4 }
     }];
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const shown = mod.showSpecialStoneInfoAt(2, 2);
 
     expect(shown).toBe(true);
@@ -176,7 +176,7 @@ describe('board cell long press info', () => {
       data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10 }
     });
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
     mod.attachBoardCellInteraction(cell, 2, 4);
@@ -199,7 +199,7 @@ describe('board cell long press info', () => {
       data: { type: 'ULTIMATE_HYPERACTIVE_GOD', remainingOwnerTurns: 10 }
     });
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
     mod.attachBoardCellInteraction(cell, 3, 5);
@@ -228,7 +228,7 @@ describe('board cell long press info', () => {
     }];
     global.gameState.board[2][6] = global.BLACK;
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const shown = mod.showSpecialStoneInfoAt(2, 6);
     expect(shown).toBe(true);
     expect(document.getElementById('stone-info-name').textContent).toBe('幽体石');
@@ -248,7 +248,7 @@ describe('board cell long press info', () => {
       data: { type: 'HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 1 }
     });
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
     mod.attachBoardCellInteraction(cell, 1, 4);
@@ -274,7 +274,7 @@ describe('board cell long press info', () => {
   });
 
   test('long press adds 多動状態/反転回避 tags for hyperactive-family stones', () => {
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const cases = [
       { type: 'HYPERACTIVE', name: '多動石' },
       { type: 'EXTREME_HYPERACTIVE', name: '極悪多動魔' },
@@ -319,7 +319,7 @@ describe('board cell long press info', () => {
       }
     }];
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const shown = mod.showSpecialStoneInfoAt(5, 5);
     expect(shown).toBe(true);
     expect(document.getElementById('stone-info-name').textContent).toBe('意志狩りの王');
@@ -341,7 +341,7 @@ describe('board cell long press info', () => {
       }
     }];
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const shown = mod.showSpecialStoneInfoAt(5, 4);
     expect(shown).toBe(true);
     expect(document.getElementById('stone-info-name').textContent).toBe('極悪多動魔');
@@ -363,7 +363,7 @@ describe('board cell long press info', () => {
       }
     }];
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const shown = mod.showSpecialStoneInfoAt(5, 6);
     expect(shown).toBe(true);
     expect(document.getElementById('stone-info-name').textContent).toBe('残像石');
@@ -385,7 +385,7 @@ describe('board cell long press info', () => {
       data: { type: 'TRAP', remainingOwnerTurns: 1 }
     }];
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const shown = mod.showSpecialStoneInfoAt(4, 4);
 
     expect(shown).toBe(true);
@@ -405,7 +405,7 @@ describe('board cell long press info', () => {
       data: { type: 'TRAP', remainingOwnerTurns: 1 }
     }];
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const shown = mod.showSpecialStoneInfoAt(4, 4);
 
     expect(shown).toBe(true);
@@ -432,7 +432,7 @@ describe('board cell long press info', () => {
       }
     ];
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const shown = mod.showSpecialStoneInfoAt(3, 3);
     expect(shown).toBe(true);
     expect(document.getElementById('stone-info-name').textContent).toBe('究極反転龍');
@@ -452,7 +452,7 @@ describe('board cell long press info', () => {
       data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 1, destroyEvadeRemaining: 1 }
     });
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
     mod.attachBoardCellInteraction(cell, 2, 2);
@@ -478,7 +478,7 @@ describe('board cell long press info', () => {
       data: { type: 'GLUTTONOUS', gluttonousMissStreak: 0 }
     });
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
     mod.attachBoardCellInteraction(cell, 1, 6);
@@ -503,7 +503,7 @@ describe('board cell long press info', () => {
       data: { type: 'OBSERVER', remainingOwnerTurns: 5 }
     });
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
     mod.attachBoardCellInteraction(cell, 5, 1);
@@ -526,7 +526,7 @@ describe('board cell long press info', () => {
       data: { type: 'METEOR_HOLE' }
     });
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
     mod.attachBoardCellInteraction(cell, 6, 6);
@@ -549,7 +549,7 @@ describe('board cell long press info', () => {
       data: { type: 'FREEZE', remainingOwnerTurns: 5 }
     });
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
     mod.attachBoardCellInteraction(cell, 2, 6);
@@ -573,7 +573,7 @@ describe('board cell long press info', () => {
       data: { type: 'ABSOLUTE_PROTECTED' }
     });
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const cell = document.createElement('div');
     document.getElementById('board').appendChild(cell);
     mod.attachBoardCellInteraction(cell, 3, 3);
@@ -602,7 +602,7 @@ describe('board cell long press info', () => {
       data: { type: 'ABSOLUTE_PROTECTED' }
     }];
 
-    import * as mod from '../ui/diff-renderer.js';
+    const mod = require('../ui/diff-renderer.js');
     const shown = mod.showSpecialStoneInfoAt(5, 2);
     expect(shown).toBe(true);
     expect(document.getElementById('stone-info-name').textContent).toBe('絶対保護石');

@@ -1,2 +1,4 @@
 const path = require('path');
-module.exports = require(path.join(__dirname, '..', '..', 'dist', 'ui', 'network', 'command-payload.js'));
+module.exports = process.env.JEST_WORKER_ID
+  ? require('./command-payload.ts')
+  : require(path.join(process.cwd(), 'dist', 'ui', 'network', 'command-payload.js'));

@@ -1,7 +1,7 @@
 // @jest-environment jsdom
-import * as assert from 'assert';
-import * as fs from 'fs';
-import * as path from 'path';
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 import { JSDOM } from 'jsdom';
 
 // Ensure DOM is available
@@ -53,7 +53,7 @@ describe('UI stone rendering', () => {
   });
 
   test('setDiscStoneImage helper creates the disc skeleton and sets black base render state', () => {
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     document.documentElement.classList.add('stone-base-images-ready');
     const disc = document.createElement('div');
     disc.className = 'disc black';
@@ -70,7 +70,7 @@ describe('UI stone rendering', () => {
   });
 
   test('setDiscStoneImage helper creates the disc skeleton and sets white base render state', () => {
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     document.documentElement.classList.add('stone-base-images-ready');
     const disc = document.createElement('div');
     disc.className = 'disc white';
@@ -87,7 +87,7 @@ describe('UI stone rendering', () => {
   });
 
   test('setDiscStoneImage keeps owner-color fallback only while base stone images are not ready', () => {
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     const disc = document.createElement('div');
     disc.className = 'disc black';
     boardRenderer.setDiscStoneImage(disc, BLACK);
@@ -116,7 +116,7 @@ describe('UI stone rendering', () => {
     gameState.board[3][3] = WHITE;
     gameState.board[3][4] = BLACK;
 
-    import * as diffRenderer from '../ui/diff-renderer.js';
+    const diffRenderer = require('../ui/diff-renderer.js');
     diffRenderer.renderBoardDiff(boardEl);
 
     const discs = boardEl.querySelectorAll('.disc');
@@ -177,7 +177,7 @@ describe('UI stone rendering', () => {
       { id: 14, kind: 'specialStone', row: 1, col: 4, owner: 'black', data: { type: 'EXTREME_HYPERACTIVE', flipEvadeRemaining: 3, destroyEvadeRemaining: 1 } }
     ];
 
-    import * as diffRenderer from '../ui/diff-renderer.js';
+    const diffRenderer = require('../ui/diff-renderer.js');
     diffRenderer.renderBoardDiff(boardEl);
 
     const dragonTimers = Array.from(boardEl.querySelectorAll('.dragon-timer')).map((el) => el.textContent).sort();
@@ -244,7 +244,7 @@ describe('UI stone rendering', () => {
       data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 3 }
     }];
 
-    import * as diffRenderer from '../ui/diff-renderer.js';
+    const diffRenderer = require('../ui/diff-renderer.js');
     diffRenderer.renderBoardDiff(boardEl);
 
     const disc = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .disc');
@@ -290,7 +290,7 @@ describe('UI stone rendering', () => {
       }
     ];
 
-    import * as diffRenderer from '../ui/diff-renderer.js';
+    const diffRenderer = require('../ui/diff-renderer.js');
     diffRenderer.renderBoardDiff(boardEl);
 
     const normalDisc = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .disc');
@@ -303,7 +303,7 @@ describe('UI stone rendering', () => {
   });
 
   test('board-renderer keeps living will aura as an overlay on special stones', () => {
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     const boardEl = document.getElementById('board') || document.createElement('div');
     boardEl.id = 'board';
     global.boardEl = boardEl;
@@ -351,7 +351,7 @@ describe('UI stone rendering', () => {
       data: { type: 'SEED', remainingOwnerTurns: 5 }
     }];
 
-    import * as diffRenderer from '../ui/diff-renderer.js';
+    const diffRenderer = require('../ui/diff-renderer.js');
     diffRenderer.renderBoardDiff(boardEl);
 
     const cell = boardEl.querySelector('.cell[data-row="2"][data-col="3"]');
@@ -391,7 +391,7 @@ describe('UI stone rendering', () => {
       }
     ];
 
-    import * as diffRenderer from '../ui/diff-renderer.js';
+    const diffRenderer = require('../ui/diff-renderer.js');
     diffRenderer.renderBoardDiff(boardEl);
 
     const disc = boardEl.querySelector('.cell[data-row="2"][data-col="3"] .disc');
@@ -432,7 +432,7 @@ describe('UI stone rendering', () => {
       }
     ];
 
-    import * as diffRenderer from '../ui/diff-renderer.js';
+    const diffRenderer = require('../ui/diff-renderer.js');
     diffRenderer.renderBoardDiff(boardEl);
 
     const disc = boardEl.querySelector('.cell[data-row="2"][data-col="4"] .disc');
@@ -446,7 +446,7 @@ describe('UI stone rendering', () => {
   });
 
   test('board-renderer keeps hidden trap as normal stone for both seats', () => {
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     if (typeof document === 'undefined') {
       const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
       global.window = dom.window;
@@ -492,7 +492,7 @@ describe('UI stone rendering', () => {
   });
 
   test('board-renderer shows bomb countdown for unified TIME_BOMB markers', () => {
-    import * as boardRenderer from '../ui/board-renderer.js';
+    const boardRenderer = require('../ui/board-renderer.js');
     if (typeof document === 'undefined') {
       const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
       global.window = dom.window;
@@ -550,7 +550,7 @@ describe('UI stone rendering', () => {
       }
     ];
 
-    import * as diffRenderer from '../ui/diff-renderer.js';
+    const diffRenderer = require('../ui/diff-renderer.js');
     diffRenderer.renderBoardDiff(boardEl);
 
     const cell = boardEl.querySelector('.cell[data-row="4"][data-col="4"]');
@@ -585,7 +585,7 @@ describe('UI stone rendering', () => {
       }
     ];
 
-    import * as diffRenderer from '../ui/diff-renderer.js';
+    const diffRenderer = require('../ui/diff-renderer.js');
     diffRenderer.renderBoardDiff(boardEl);
 
     const timer = boardEl.querySelector('.cell[data-row="2"][data-col="2"] .countdown-timer');

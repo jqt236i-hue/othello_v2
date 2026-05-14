@@ -109,16 +109,14 @@ describe('pipeline_ui_adapter effect logs (anchor expiry/anchor destroyed)', () 
     ]);
   });
 
-  test('logs crystal zero-gain wording without implying a number-cell bonus was gained', () => {
+  test('does not emit a crystal effect log when the next placement is not on a number cell', () => {
     const rawEvents = [
-      { type: 'placement_effects', effects: { crystalStoneUsed: true, crystalStoneGain: 0 } }
+      { type: 'placement_effects', effects: {} }
     ];
 
     const out = adapter.mapEffectLogsFromPipeline(rawEvents, [], 'black');
 
-    expect(out).toEqual([
-      '黒: 水晶石: 数字マスなしで増加なし'
-    ]);
+    expect(out).toEqual([]);
   });
 
 

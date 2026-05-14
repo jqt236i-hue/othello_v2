@@ -59,6 +59,37 @@ describe('throw-chain turn transition in TurnPipeline', () => {
     });
   });
 
+  test('DOUBLE_PLACE keeps turn for the second placement then passes turn', () => {
+    const { cardState, gameState } = makeChainBoardState(2);
+    cardState.pendingEffectByPlayer.black = { type: 'DOUBLE_PLACE', stage: 'awaitPlace' };
+
+    const res1 = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 1, col: 6 },
+      PRNG,
+      { skipTurnStart: true }
+    );
+    expect(res1.cardState.extraPlaceRemainingByPlayer.black).toBe(1);
+    expect(res1.cardState.multiPlaceSourceTypeByPlayer.black).toBe('DOUBLE_PLACE');
+    expect(res1.gameState.currentPlayer).toBe(Shared.BLACK);
+    expect(res1.gameState.turnNumber).toBe(1);
+
+    const res2 = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 2, col: 6 },
+      PRNG,
+      { skipTurnStart: true }
+    );
+    expect(res2.cardState.extraPlaceRemainingByPlayer.black).toBe(0);
+    expect(res2.cardState.multiPlaceSourceTypeByPlayer.black).toBeNull();
+    expect(res2.gameState.currentPlayer).toBe(Shared.WHITE);
+    expect(res2.gameState.turnNumber).toBe(2);
+  });
+
   test('TRIPLE_PLACE keeps turn until the third placement then passes turn', () => {
     const { cardState, gameState } = makeChainBoardState(3);
     cardState.pendingEffectByPlayer.black = { type: 'TRIPLE_PLACE', stage: 'awaitPlace' };

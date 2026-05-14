@@ -12,8 +12,16 @@ const DestroyOutcomeContract = (function() {
     try { return _require('../../shared/destroy-outcome-contract'); } catch (e) { return null; }
 })();
 const ControllerEvents = _require('../controller-events');
-const { emitLogAdded } = ControllerEvents;
-const LOG_MESSAGES = _require('../log-messages');
+function getEmitLogAdded(): ((message: string) => void) | null {
+    const runtimeGlobal = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
+    if (runtimeGlobal && typeof runtimeGlobal.emitLogAdded === 'function') return runtimeGlobal.emitLogAdded;
+    return ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function' ? ControllerEvents.emitLogAdded : null;
+}
+function getLogMessages(): any {
+    const runtimeGlobal = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
+    if (runtimeGlobal && runtimeGlobal.LOG_MESSAGES) return runtimeGlobal.LOG_MESSAGES;
+    return _require('../log-messages');
+}
 const GameControllerSlim = _require('../game-controller-slim');
 const CardLogic = _require('../logic/cards');
 const CardSystem = _require('../../card-system');
@@ -49,6 +57,7 @@ function isDestroyOutcomeResolved(result: any): boolean {
 }
 
 function getDestroySelectPrompt(): string {
+    const LOG_MESSAGES = getLogMessages();
     if (typeof LOG_MESSAGES !== 'undefined' && LOG_MESSAGES && typeof LOG_MESSAGES.destroySelectPrompt === 'function') {
         return LOG_MESSAGES.destroySelectPrompt();
     }
@@ -56,6 +65,7 @@ function getDestroySelectPrompt(): string {
 }
 
 function getDestroyRejectedMessage(context: any): string {
+    const LOG_MESSAGES = getLogMessages();
     if (context && context.result && context.result.ok === false && typeof LOG_MESSAGES !== 'undefined' && LOG_MESSAGES && typeof LOG_MESSAGES.destroyFailed === 'function') {
         return LOG_MESSAGES.destroyFailed();
     }
@@ -70,13 +80,18 @@ function wasDestroySelectionApplied(result: any): boolean {
 }
 
 function emitDestroyAppliedLog(context: any, playerKey: string, row: number, col: number): void {
+    const emitLogAdded = getEmitLogAdded();
+    const LOG_MESSAGES = getLogMessages();
     if (typeof emitLogAdded !== 'function') return;
     const selected = context && context.result && Array.isArray(context.result.rawEvents)
         ? context.result.rawEvents.find((event: any) => event && event.type === 'destroy_selected')
         : null;
     const outcomeKind = getDestroyOutcomeKind(selected);
     const playerLabel = playerKey === 'black' ? '黒' : '白';
-    const posText = GameControllerSlim.posToNotation(row, col);
+    const runtimeGlobal = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
+    const posText = runtimeGlobal && typeof runtimeGlobal.posToNotation === 'function'
+        ? runtimeGlobal.posToNotation(row, col)
+        : GameControllerSlim.posToNotation(row, col);
     if (outcomeKind === DESTROY_OUTCOME_KINDS.PROLIFERATED) {
         emitLogAdded(LOG_MESSAGES.destroyProliferated(playerLabel, posText));
         return;
@@ -105,12 +120,15 @@ function emitDestroyAppliedLog(context: any, playerKey: string, row: number, col
 }
 
 async function handleDestroySelection(row: number, col: number, playerKey: string): Promise<any> {
-    if (CardLogic && typeof CardLogic.getSelectableTargets === 'function') {
+    const runtimeGlobal = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
+    const cardLogic = runtimeGlobal && runtimeGlobal.CardLogic ? runtimeGlobal.CardLogic : null;
+    if (cardLogic && typeof cardLogic.getSelectableTargets === 'function') {
         // @compat - gameState is a runtime global set by game-controller-slim; no module export available
         const gameState = (typeof globalThis !== 'undefined' && (globalThis as any).gameState) ? (globalThis as any).gameState : null;
-        const targets = CardLogic.getSelectableTargets(CardSystem.cardState, gameState, playerKey) || [];
+        const targets = cardLogic.getSelectableTargets(CardSystem.cardState, gameState, playerKey) || [];
         const allowed = targets.some((target: any) => target && target.row === row && target.col === col);
         if (!allowed) {
+            const emitLogAdded = getEmitLogAdded();
             if (typeof emitLogAdded === 'function') emitLogAdded(getDestroySelectPrompt());
             return;
         }

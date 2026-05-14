@@ -54,7 +54,7 @@ describe('DiffRenderer board expansion cell rendering', () => {
   });
 
   test('keeps expansion classes after render updates', () => {
-    import * as diff from '../ui/diff-renderer.js';
+    const diff = require('../ui/diff-renderer.js');
     diff.resetRenderStats();
 
     diff.renderBoardDiff(boardEl);
@@ -73,7 +73,7 @@ describe('DiffRenderer board expansion cell rendering', () => {
   });
 
   test('renders multiple expansion cells when defined in cells[]', () => {
-    import * as diff from '../ui/diff-renderer.js';
+    const diff = require('../ui/diff-renderer.js');
     diff.resetRenderStats();
     global.gameState.boardExpansion = {
       active: true,
@@ -98,7 +98,7 @@ describe('DiffRenderer board expansion cell rendering', () => {
   });
 
   test('renders top/corner/bottom expansion cells with expected positions', () => {
-    import * as diff from '../ui/diff-renderer.js';
+    const diff = require('../ui/diff-renderer.js');
     diff.resetRenderStats();
     global.gameState.boardExpansion = {
       active: true,
@@ -135,7 +135,7 @@ describe('DiffRenderer board expansion cell rendering', () => {
   });
 
   test('adds fade-in class only to newly appeared expansion cells', () => {
-    import * as diff from '../ui/diff-renderer.js';
+    const diff = require('../ui/diff-renderer.js');
     diff.resetRenderStats();
 
     global.gameState.boardExpansion = null;
@@ -176,7 +176,7 @@ describe('DiffRenderer board expansion cell rendering', () => {
   });
 
   test('plays board_expansion_reveal only when a new expansion cell appears', () => {
-    import * as diff from '../ui/diff-renderer.js';
+    const diff = require('../ui/diff-renderer.js');
     diff.resetRenderStats();
 
     global.gameState.boardExpansion = null;
@@ -206,8 +206,8 @@ describe('DiffRenderer board expansion cell rendering', () => {
   });
 
   test('suppresses board_expansion_reveal when post-playback context requests it', () => {
-    import * as manager from '../ui/playback-state-manager.js';
-    import * as diff from '../ui/diff-renderer.js';
+    const manager = require('../ui/playback-state-manager.js');
+    const diff = require('../ui/diff-renderer.js');
     diff.resetRenderStats();
 
     global.gameState.boardExpansion = null;

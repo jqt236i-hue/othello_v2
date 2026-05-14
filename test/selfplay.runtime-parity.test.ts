@@ -3,7 +3,7 @@ const runner = require(path.resolve(__dirname, '..', 'src', 'engine', 'selfplay-
 const runtime = require(path.resolve(__dirname, '..', 'game', 'ai', 'policy-table-runtime.js'));
 const SharedBoardUtils = require(path.resolve(__dirname, '..', 'shared', 'shared-board-utils.js'));
 
-function transformCoord(row, col, size, t) {
+function transformCoord(row: number, col: number, size: number, t: number) {
   if (t === 0) return { row, col };
   if (t === 1) return { row: col, col: size - 1 - row };
   if (t === 2) return { row: size - 1 - row, col: size - 1 - col };

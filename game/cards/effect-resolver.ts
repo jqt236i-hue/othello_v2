@@ -3,30 +3,59 @@
  * @description Card effect resolution and context builders (restored from worker-public mirror)
  */
 
-// Runtime require (supports both Node and bundler)
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
+declare const __non_webpack_require__: NodeRequire | undefined;
 
-// Dependency imports with graceful degradation
-const SharedConstants = (function() {
-  try { return _require('../../shared-constants'); } catch (e) { return {}; }
-})();
-const CardHandManagerModule = (function() {
-  try { return _require('../logic/cards-internal/hand-manager'); } catch (e) { return null; }
-})();
-const CardChargeLedgerModule = (function() {
-  try { return _require('../logic/cards-internal/charge-ledger'); } catch (e) { return null; }
-})();
-const CardStateManagerModule = (function() {
-  try { return _require('./state-manager'); } catch (e) { return null; }
-})();
-const CardPendingStateManagerModule = (function() {
-  try { return _require('../logic/cards-internal/pending-state-manager'); } catch (e) { return null; }
-})();
-const CardUsagePrechecksModule = (function() {
-  try { return _require('../logic/cards-internal/card-usage-prechecks'); } catch (e) { return null; }
-})();
+function _require(id: string): any {
+  if (typeof __non_webpack_require__ !== 'undefined') {
+    return __non_webpack_require__(id);
+  }
+  if (typeof require === 'function') {
+    return require(id);
+  }
+  throw new Error('Unable to require ' + id);
+}
+
+function safeRequire(id: string): any {
+  try {
+    return _require(id);
+  } catch (e) {
+    return null;
+  }
+}
+
+function getRuntimeGlobalValue(key: string): any {
+  if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+    return (globalThis as any)[key];
+  }
+  if (typeof self !== 'undefined' && (self as any)[key]) {
+    return (self as any)[key];
+  }
+  return undefined;
+}
+
+function loadRuntimeModule(id: string, globalKey: string, fallbackValue: any = null): any {
+  const runtimeValue = getRuntimeGlobalValue(globalKey);
+  if (runtimeValue) return runtimeValue;
+
+  if (typeof module === 'object' && module.exports) {
+    const loaded = safeRequire(id);
+    if (loaded) {
+      if (typeof globalThis !== 'undefined' && !(globalThis as any)[globalKey]) {
+        (globalThis as any)[globalKey] = loaded;
+      }
+      return loaded;
+    }
+  }
+
+  return runtimeValue || fallbackValue;
+}
+
+const SharedConstants = loadRuntimeModule('../../shared-constants', 'SharedConstants', {});
+const CardHandManagerModule = loadRuntimeModule('../logic/cards-internal/hand-manager', 'CardHandManager');
+const CardChargeLedgerModule = loadRuntimeModule('../logic/cards-internal/charge-ledger', 'CardChargeLedger');
+const CardStateManagerModule = loadRuntimeModule('./state-manager', 'CardStateManager');
+const CardPendingStateManagerModule = loadRuntimeModule('../logic/cards-internal/pending-state-manager', 'CardPendingStateManager');
+const CardUsagePrechecksModule = loadRuntimeModule('../logic/cards-internal/card-usage-prechecks', 'CardUsagePrechecks');
 
 const {
   CARD_DEFS,
@@ -332,6 +361,7 @@ function getCardContext(cardState: any, deps: any) {
         s.data.type === 'GLUTTONOUS' ||
         s.data.type === 'ULTIMATE_DESTROY_GOD' ||
         s.data.type === 'GUARD' ||
+        s.data.type === 'STONE_SALVATION_GOD' ||
         s.data.type === 'FREEZE'
       ) {
         return true;
@@ -422,6 +452,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     getTimeStopGodDestroyableCount,
     getLossWillRemovableCount,
     getSalvationWillTargetCount,
+    getExecutionWillTargetCount,
     getReinforcementWillTargetCount,
     removeHandCardAt,
     addCardToDiscard,
@@ -516,6 +547,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
       timeStopGodSelfDestroyCount: timeStopSelfDestroyCount || TIME_STOP_GOD_SELF_DESTROY_COUNT,
       getLossWillRemovableCount,
       getSalvationWillTargetCount,
+      getExecutionWillTargetCount,
       getReinforcementWillTargetCount
     })
     : null;

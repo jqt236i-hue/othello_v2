@@ -53,7 +53,7 @@ describe('LIGHTNING_WILL legal hint rendering', () => {
   });
 
   test('pending中でも合法手のみを表示し、全空きマスを legal-free にしない', () => {
-    import * as diff from '../ui/diff-renderer.js';
+    const diff = require('../ui/diff-renderer.js');
     diff.renderBoardDiff(boardEl);
 
     const legalCell = boardEl.querySelector('.cell[data-row="2"][data-col="3"]');

@@ -18,13 +18,13 @@ describe('pipeline_ui_adapter normal logs', () => {
   test('formats outer expansion coordinates in normal logs', () => {
     const events = [{ type: 'destroy_selected', destroyed: true, target: { row: -1, col: -1 } }];
     const out = Adapter.mapEffectLogsFromPipeline(events, [], 'black');
-    expect(out).toEqual(['黒: 破壊神で左上外を破壊']);
+    expect(out).toEqual(['黒: 破壊の意志で左上外を破壊']);
   });
 
   test('formats regenerated destroy_selected as revival log', () => {
     const events = [{ type: 'destroy_selected', regenerated: true, target: { row: 4, col: 4 } }];
     const out = Adapter.mapEffectLogsFromPipeline(events, [], 'black');
-    expect(out).toEqual(['黒: 破壊神: E5 は復活した']);
+    expect(out).toEqual(['黒: 破壊の意志: E5 は復活した']);
   });
 
   test('uses shared special stone labels for status tick logs', () => {

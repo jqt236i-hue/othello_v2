@@ -110,7 +110,6 @@
 ### 4.4 直編集前に確認する面
 
 - `shared/deck-spec.js`
-- `shared/story-deck-spec.js`
 - snapshot / sanitize / public snapshot 関連 test
 
 ## 5. フェーズ計画
@@ -163,7 +162,7 @@ rg -n "強い意志|最強の意志|PERMA_PROTECT_NEXT_STONE|ABSOLUTE_PROTECT_NE
 4. `game/ai/cpu-policy-core.js` から `ABSOLUTE_PROTECT_NEXT_STONE` をカード評価対象として扱う分岐を削除する。
 5. `cards/catalog.js` と `cards/catalog.generated.js` を再生成する。
 6. `absolute_protect_01` / `ABSOLUTE_PROTECT_NEXT_STONE` の残り参照を検索し、**残してよいのは internal marker / visual 由来だけ**に絞る。
-7. `shared/deck-spec.js` / `shared/story-deck-spec.js` / rules help で独立カード前提が残っていないか確認する。
+7. `shared/deck-spec.js` / rules help で独立カード前提が残っていないか確認する。
 
 ### 完了条件
 

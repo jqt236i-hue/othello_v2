@@ -28,7 +28,7 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
   });
 
   test('INHERITED_HYPERACTIVE は見た目を上書きせず、継承タイマーと回避カウントを表示する', () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 
@@ -58,7 +58,7 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
   });
 
   test('flipEvadeRemaining は 0 でも表示する', () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 
@@ -76,7 +76,7 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
   });
 
   test('特殊石同期は通常石への描き戻しなしで visual を載せる', () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     const disc = document.createElement('div');
     disc.className = 'disc black';
     global.window.getEffectKeyForSpecialType = (type) => (type ? `effect-${String(type).toLowerCase()}` : null);
@@ -96,7 +96,7 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
   });
 
   test('通常特殊石と継承多動が共存する場合、反転回避回数は合算表示する', () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 
@@ -120,7 +120,7 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
   });
 
   test('flipEvadeRemaining が未設定(null)なら通常石で表示しない', () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 
@@ -138,7 +138,7 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
   });
 
   test('非多動系特殊石は flipEvadeRemaining=0 でも表示しない', () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 
@@ -156,7 +156,7 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
   });
 
   test('通常特殊石タイマーと継承タイマーを同時表示できる', () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 
@@ -179,7 +179,7 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
   });
 
   test('WILL_HUNTER_KING は破壊回避カウントを表示する', () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 
@@ -201,7 +201,7 @@ describe('animation-engine inherited hyperactive timer rendering', () => {
   });
 
   test('EXTREME_HYPERACTIVE は破壊回避カウントを表示する', () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     const disc = document.createElement('div');
     disc.className = 'disc black';
 

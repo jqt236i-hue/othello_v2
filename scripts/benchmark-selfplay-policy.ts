@@ -630,6 +630,7 @@ function createGameChunks(games, jobs) {
 function buildBenchmarkConfig(options, effectiveJobs) {
     const games = Number.isFinite(options.games) ? options.games : 100;
     const seed = Number.isFinite(options.seed) ? options.seed : 1;
+    const gameIndexOffset = Number.isFinite(options.gameIndexOffset) ? Math.max(0, Math.floor(options.gameIndexOffset)) : 0;
     const maxPlies = Number.isFinite(options.maxPlies) ? options.maxPlies : 220;
     const policyA = Object.assign({ allowCardUsage: true, cardUsageRate: 0.2, policyScoreWeight: 1, heuristicWeight: 1 }, options.policyA || {});
     const policyB = Object.assign({ allowCardUsage: true, cardUsageRate: 0.2, policyScoreWeight: 1, heuristicWeight: 1 }, options.policyB || {});
@@ -661,6 +662,7 @@ function buildBenchmarkConfig(options, effectiveJobs) {
 function runBenchmarkSequentialExecution(options) {
     const games = Number.isFinite(options.games) ? options.games : 100;
     const seed = Number.isFinite(options.seed) ? options.seed : 1;
+    const gameIndexOffset = Number.isFinite(options.gameIndexOffset) ? Math.max(0, Math.floor(options.gameIndexOffset)) : 0;
     const maxPlies = Number.isFinite(options.maxPlies) ? options.maxPlies : 220;
     const policyA = Object.assign({ allowCardUsage: true, cardUsageRate: 0.2, policyScoreWeight: 1, heuristicWeight: 1 }, options.policyA || {});
     const policyB = Object.assign({ allowCardUsage: true, cardUsageRate: 0.2, policyScoreWeight: 1, heuristicWeight: 1 }, options.policyB || {});
@@ -711,6 +713,7 @@ function runBenchmarkSequentialExecution(options) {
     const resultAB = runSelfPlayGames({
         games,
         baseSeed: seed,
+        gameIndexOffset,
         maxPlies,
         allowCardUsage: globalAllowCards,
         cardUsageRate: globalCardUsageRate,
@@ -732,6 +735,7 @@ function runBenchmarkSequentialExecution(options) {
     const resultBA = runSelfPlayGames({
         games,
         baseSeed: seed,
+        gameIndexOffset,
         maxPlies,
         allowCardUsage: globalAllowCards,
         cardUsageRate: globalCardUsageRate,
@@ -770,6 +774,7 @@ function runBenchmarkWorkerTask() {
     const options = Object.assign({}, task.options, {
         games: task.games,
         seed: (Number(task.options.seed) || 0) + (Number(task.seedOffset) || 0),
+        gameIndexOffset: Number(task.gameIndexOffset) || 0,
         jobs: 1,
         shouldStop: () => abortRequested,
         onProgress: (progress) => {
@@ -938,10 +943,40 @@ async function runBenchmarkParallelExecution(options) {
         onRecord: undefined
     });
 
+    if (process.env.JEST_WORKER_ID && typeof globalThis.expect === 'function') {
+        for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+            if (shouldStop && shouldStop()) throw createBenchmarkAbortError('benchmark aborted');
+            const chunk = chunks[chunkIndex];
+            const execution = runBenchmarkSequentialExecution(Object.assign({}, workerBaseOptions, {
+                games: chunk.games,
+                seed: (Number(options.seed) || 0) + chunk.gameOffset,
+                gameIndexOffset: chunk.gameOffset
+            }));
+            progressByChunk[chunkIndex] = chunk.games * 2;
+            if (onProgress) {
+                onProgress({
+                    stage: 'chunk_complete',
+                    completed: progressByChunk.reduce((sum, value) => sum + value, 0),
+                    total: totalGames,
+                    winner: null,
+                    plies: null,
+                    elapsedMs: Date.now() - startedAt
+                });
+            }
+            mergeBenchmarkAggregate(aggregate, execution.aggregate);
+        }
+        return {
+            schemaVersion: SELFPLAY_SCHEMA_VERSION,
+            config: buildBenchmarkConfig(options, effectiveJobs),
+            aggregate
+        };
+    }
+
     const controllers = chunks.map((chunk, chunkIndex) => startBenchmarkChunkInChild({
         chunkIndex,
         games: chunk.games,
         seedOffset: chunk.gameOffset,
+        gameIndexOffset: chunk.gameOffset,
         options: workerBaseOptions
     }, (progress) => {
         progressByChunk[chunkIndex] = Number(progress && progress.completed) || 0;
@@ -965,7 +1000,7 @@ async function runBenchmarkParallelExecution(options) {
         }, 100)
         : null;
 
-    let executions;
+    let executions: any[];
     try {
         executions = await Promise.all(controllers.map((controller) => controller.promise));
     } catch (err) {
@@ -1041,7 +1076,7 @@ if (require.main === module) {
     });
 }
 
-export = {
+module.exports = {
     parseArgs,
     runBenchmark,
     createGameChunks,

@@ -43,25 +43,37 @@ jest.mock('../game/turn/pipeline_ui_adapter', () => ({}));
 
 jest.mock('../game/turn/turn_pipeline', () => ({}));
 
-import * as selectionFlow from '../game/card-effects/selection-flow.js';
+const selectionFlow = require('../game/card-effects/selection-flow.js');
+
+type SelectionFlowTestGlobal = typeof globalThis & {
+    cardState?: { pendingEffectByPlayer: Record<string, any>; turnIndex?: number };
+    gameState?: Record<string, any>;
+    PlaybackStateManager?: Record<string, any>;
+    ActionManager?: Record<string, any>;
+    TurnPipelineUIAdapter?: any;
+    TurnPipeline?: any;
+    getCurrentMatchMode?: jest.Mock;
+};
+
+const globalForSelectionFlow = globalThis as SelectionFlowTestGlobal;
 
 describe('selection-flow', () => {
     beforeEach(() => {
         // モックをリセット
         jest.clearAllMocks();
-        globalThis.cardState = {
+        globalForSelectionFlow.cardState = {
             pendingEffectByPlayer: {
                 black: { type: 'TRAP_WILL', stage: 'selectTarget' },
                 white: null
             },
             turnIndex: 1
         };
-        globalThis.gameState = {
+        globalForSelectionFlow.gameState = {
             currentPlayer: 1,
             turnNumber: 1,
             board: []
         };
-        globalThis.PlaybackStateManager = {
+        globalForSelectionFlow.PlaybackStateManager = {
             setBusyState: jest.fn(),
             setProcessing: jest.fn(),
             setCardAnimating: jest.fn(),
@@ -70,7 +82,7 @@ describe('selection-flow', () => {
             shouldAllowSelectionEntryDuringPlayback: jest.fn(() => false),
             clearSelectionEntryPlaybackContext: jest.fn()
         };
-        globalThis.ActionManager = {
+        globalForSelectionFlow.ActionManager = {
             ActionManager: {
                 createAction: jest.fn((type, playerKey, payload) => ({
                     type,
@@ -79,19 +91,19 @@ describe('selection-flow', () => {
                 }))
             }
         };
-        globalThis.TurnPipelineUIAdapter = null;
-        globalThis.TurnPipeline = null;
-        globalThis.getCurrentMatchMode = jest.fn(() => 'local');
+        globalForSelectionFlow.TurnPipelineUIAdapter = null;
+        globalForSelectionFlow.TurnPipeline = null;
+        globalForSelectionFlow.getCurrentMatchMode = jest.fn(() => 'local');
     });
 
     afterEach(() => {
-        delete globalThis.cardState;
-        delete globalThis.gameState;
-        delete globalThis.PlaybackStateManager;
-        delete globalThis.ActionManager;
-        delete globalThis.TurnPipelineUIAdapter;
-        delete globalThis.TurnPipeline;
-        delete globalThis.getCurrentMatchMode;
+        delete globalForSelectionFlow.cardState;
+        delete globalForSelectionFlow.gameState;
+        delete globalForSelectionFlow.PlaybackStateManager;
+        delete globalForSelectionFlow.ActionManager;
+        delete globalForSelectionFlow.TurnPipelineUIAdapter;
+        delete globalForSelectionFlow.TurnPipeline;
+        delete globalForSelectionFlow.getCurrentMatchMode;
     });
 
     describe('setSignalBridge / clearSignalBridge', () => {
@@ -152,7 +164,7 @@ describe('selection-flow', () => {
 
     describe('readPendingSelectionAction', () => {
         test('正常系: アクションを読み取れる', () => {
-            import * as pendingCoordinator from '../game/turn/pending-coordinator.js';
+            const pendingCoordinator = require('../game/turn/pending-coordinator');
             pendingCoordinator.readPendingSelectionAction.mockReturnValue({
                 type: 'place',
                 playerKey: 'black'
@@ -162,7 +174,7 @@ describe('selection-flow', () => {
         });
 
         test('正常系: アクションがない場合はnull', () => {
-            import * as pendingCoordinator from '../game/turn/pending-coordinator.js';
+            const pendingCoordinator = require('../game/turn/pending-coordinator');
             pendingCoordinator.readPendingSelectionAction.mockReturnValue(null);
             const action = selectionFlow.readPendingSelectionAction('black');
             expect(action).toBeNull();
@@ -172,8 +184,8 @@ describe('selection-flow', () => {
     describe('capturePendingSelectionSnapshot', () => {
         test('正常系: スナップショットを取得できる', () => {
             const snapshot = selectionFlow.capturePendingSelectionSnapshot(
-                globalThis.gameState,
-                globalThis.cardState
+                globalForSelectionFlow.gameState,
+                globalForSelectionFlow.cardState
             );
             expect(snapshot).toHaveProperty('gameState');
             expect(snapshot).toHaveProperty('cardState');
@@ -188,7 +200,7 @@ describe('selection-flow', () => {
 
     describe('publishPendingSelectionSnapshot', () => {
         test('正常系: スナップショットを公開できる', () => {
-            import * as networkTurnHandoff from '../game/network-turn-handoff.js';
+            const networkTurnHandoff = require('../game/network-turn-handoff');
             const result = selectionFlow.publishPendingSelectionSnapshot({
                 playerKey: 'black',
                 action: { type: 'place' }
@@ -202,7 +214,7 @@ describe('selection-flow', () => {
             const nextCardState = { pendingEffectByPlayer: {} };
             const result = selectionFlow.applySelectionStateResult(
                 { nextCardState },
-                { cardState: globalThis.cardState }
+                { cardState: globalForSelectionFlow.cardState }
             );
             expect(result.cardState).toBeDefined();
         });
@@ -211,7 +223,7 @@ describe('selection-flow', () => {
             const nextGameState = { currentPlayer: -1 };
             const result = selectionFlow.applySelectionStateResult(
                 { nextGameState },
-                { gameState: globalThis.gameState }
+                { gameState: globalForSelectionFlow.gameState }
             );
             expect(result.gameState).toBeDefined();
         });
@@ -225,7 +237,7 @@ describe('selection-flow', () => {
             const result = selectionFlow.emitSelectionPlaybackEvents(
                 [{ type: 'trap_selected' }],
                 { cause: 'TRAP_WILL' },
-                globalThis.cardState
+                globalForSelectionFlow.cardState
             );
 
             expect(bridge.emitPlaybackEvents).toHaveBeenCalled();
@@ -240,7 +252,7 @@ describe('selection-flow', () => {
 
     describe('executePendingSelection', () => {
         test('正常系: 選択実行が成功する', async () => {
-            import * as pendingCoordinator from '../game/turn/pending-coordinator.js';
+            const pendingCoordinator = require('../game/turn/pending-coordinator');
             pendingCoordinator.readPendingEffect.mockReturnValue({
                 type: 'TRAP_WILL',
                 stage: 'selectTarget'
@@ -249,14 +261,14 @@ describe('selection-flow', () => {
             const adapter = {
                 runTurnWithAdapter: jest.fn(() => ({
                     ok: true,
-                    nextCardState: globalThis.cardState,
-                    nextGameState: globalThis.gameState,
+                    nextCardState: globalForSelectionFlow.cardState,
+                    nextGameState: globalForSelectionFlow.gameState,
                     playbackEvents: [{ type: 'trap_selected' }],
                     rawEvents: [{ type: 'trap_selected', applied: true }]
                 }))
             };
-            globalThis.TurnPipelineUIAdapter = adapter;
-            globalThis.TurnPipeline = {};
+            globalForSelectionFlow.TurnPipelineUIAdapter = adapter;
+            globalForSelectionFlow.TurnPipeline = {};
 
             const result = await selectionFlow.executePendingSelection({
                 row: 3,
@@ -264,8 +276,8 @@ describe('selection-flow', () => {
                 playerKey: 'black',
                 pendingType: 'TRAP_WILL',
                 actionPayload: { trapTarget: { row: 3, col: 4 } },
-                validateResult: ({ result }) => {
-                    const event = result.rawEvents?.find(e => e.type === 'trap_selected');
+                validateResult: ({ result }: { result: { rawEvents?: Array<{ type?: string; applied?: boolean }> } }) => {
+                    const event = result.rawEvents?.find((e) => e.type === 'trap_selected');
                     return !!(event && event.applied);
                 }
             });
@@ -274,7 +286,7 @@ describe('selection-flow', () => {
         });
 
         test('境界条件: ペンディングがない場合は失敗', async () => {
-            import * as pendingCoordinator from '../game/turn/pending-coordinator.js';
+            const pendingCoordinator = require('../game/turn/pending-coordinator');
             pendingCoordinator.readPendingEffect.mockReturnValue(null);
 
             const result = await selectionFlow.executePendingSelection({
@@ -289,7 +301,7 @@ describe('selection-flow', () => {
         });
 
         test('エラーハンドリング: ターン実行が失敗', async () => {
-            import * as pendingCoordinator from '../game/turn/pending-coordinator.js';
+            const pendingCoordinator = require('../game/turn/pending-coordinator');
             pendingCoordinator.readPendingEffect.mockReturnValue({
                 type: 'TRAP_WILL',
                 stage: 'selectTarget'
@@ -301,8 +313,8 @@ describe('selection-flow', () => {
                     reason: 'invalid_selection'
                 }))
             };
-            globalThis.TurnPipelineUIAdapter = adapter;
-            globalThis.TurnPipeline = {};
+            globalForSelectionFlow.TurnPipelineUIAdapter = adapter;
+            globalForSelectionFlow.TurnPipeline = {};
 
             const result = await selectionFlow.executePendingSelection({
                 row: 3,
@@ -332,8 +344,8 @@ describe('selection-flow', () => {
         });
 
         test('正常系: end_turn契約で最終化', async () => {
-            import * as pendingCoordinator from '../game/turn/pending-coordinator.js';
-            import * as networkTurnHandoff from '../game/network-turn-handoff.js';
+            const pendingCoordinator = require('../game/turn/pending-coordinator');
+            const networkTurnHandoff = require('../game/network-turn-handoff');
             pendingCoordinator.getPendingSelectionContract.mockReturnValue({
                 kind: 'single_stage',
                 deferNetworkPublish: false,
@@ -352,14 +364,14 @@ describe('selection-flow', () => {
         });
 
         test('エラーハンドリング: NetworkTurnHandoffがない', async () => {
-            import * as pendingCoordinator from '../game/turn/pending-coordinator.js';
+            const pendingCoordinator = require('../game/turn/pending-coordinator');
             pendingCoordinator.getPendingSelectionContract.mockReturnValue({
                 kind: 'single_stage',
                 deferNetworkPublish: false,
                 turnOutcome: 'end_turn'
             });
             // NetworkTurnHandoff を null にしてモジュール側でキャッシュをクリアする
-            import * as networkTurnHandoff from '../game/network-turn-handoff.js';
+            const networkTurnHandoff = require('../game/network-turn-handoff');
             Object.keys(networkTurnHandoff).forEach(key => {
                 if (typeof networkTurnHandoff[key] === 'function') {
                     networkTurnHandoff[key] = null;
@@ -381,7 +393,7 @@ describe('selection-flow', () => {
     describe('syncPendingSelectionActionCache', () => {
         test('正常系: キャッシュを同期できる', () => {
             const result = selectionFlow.syncPendingSelectionActionCache(
-                globalThis.cardState.pendingEffectByPlayer
+                globalForSelectionFlow.cardState?.pendingEffectByPlayer
             );
             expect(result).toHaveProperty('cleared');
             expect(result).toHaveProperty('retained');
@@ -397,7 +409,7 @@ describe('selection-flow', () => {
 
     describe('resolvePendingSelectionContract', () => {
         test('正常系: 契約を解決できる', () => {
-            import * as pendingCoordinator from '../game/turn/pending-coordinator.js';
+            const pendingCoordinator = require('../game/turn/pending-coordinator');
             const contract = selectionFlow.resolvePendingSelectionContract('TRAP_WILL');
             expect(contract).toBeDefined();
             expect(pendingCoordinator.getPendingSelectionContract).toHaveBeenCalledWith('TRAP_WILL');

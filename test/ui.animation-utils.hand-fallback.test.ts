@@ -59,7 +59,7 @@ function appendCpuLevelSelect(docRef, id, value) {
 }
 
 function unlockAltGachaHandSkin(rootRef) {
-  import * as storageModule from '../ui/storage/gacha-progress.js';
+  const storageModule = require('../ui/storage/gacha-progress.js');
   storageModule.unlockHandSkinIds(rootRef, [ALT_GACHA_HAND_SKIN_ID]);
 }
 
@@ -113,8 +113,7 @@ describe('animation-utils hand fallback', () => {
   test('playHandAnimation completes even when Element.animate is unavailable', async () => {
     const wrapper = document.getElementById('handWrapper');
     wrapper.animate = undefined;
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     await new Promise((resolve, reject) => {
       const to = setTimeout(() => reject(new Error('timeout')), 2200);
       mod.playHandAnimation(global.BLACK, 0, 0, () => {
@@ -132,11 +131,10 @@ describe('animation-utils hand fallback', () => {
     unlockAltGachaHandSkin(window);
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
     window.cpuSmartness = { black: 3, white: 1 };
-    import * as handSkin from '../ui/handlers/hand-skin.js';
+    const handSkin = require('../ui/handlers/hand-skin.js');
     window.syncDisplayedHandSkin = handSkin.syncDisplayedHandSkin;
     window.resolveHandAnimationContext = handSkin.resolveHandAnimationContext;
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     const promise = new Promise((resolve, reject) => {
       const to = setTimeout(() => reject(new Error('timeout')), 2200);
       mod.playHandAnimation(global.BLACK, 0, 0, () => {
@@ -155,8 +153,7 @@ describe('animation-utils hand fallback', () => {
   test('playDrawCardHandAnimation resolves without Element.animate', async () => {
     const wrapper = document.getElementById('handWrapper');
     wrapper.animate = undefined;
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     await expect(mod.playDrawCardHandAnimation({ player: 'black', count: 1 })).resolves.toBeUndefined();
     expect(document.getElementById('handLayer').style.display).toBe('none');
   });
@@ -167,11 +164,10 @@ describe('animation-utils hand fallback', () => {
     unlockAltGachaHandSkin(window);
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
     window.cpuSmartness = { black: 1, white: 4 };
-    import * as handSkin from '../ui/handlers/hand-skin.js';
+    const handSkin = require('../ui/handlers/hand-skin.js');
     window.syncDisplayedHandSkin = handSkin.syncDisplayedHandSkin;
     window.resolveHandAnimationContext = handSkin.resolveHandAnimationContext;
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     const promise = mod.playDrawCardHandAnimation({ player: 'white', count: 1, cpu: true, cpuLevel: 4 });
     await Promise.resolve();
 
@@ -189,11 +185,10 @@ describe('animation-utils hand fallback', () => {
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
     appendCpuLevelSelect(document, 'smartBlack', 1);
     appendCpuLevelSelect(document, 'smartWhite', 4);
-    import * as handSkin from '../ui/handlers/hand-skin.js';
+    const handSkin = require('../ui/handlers/hand-skin.js');
     window.syncDisplayedHandSkin = handSkin.syncDisplayedHandSkin;
     window.resolveHandAnimationContext = handSkin.resolveHandAnimationContext;
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     expect(window.cpuSmartness).toBeUndefined();
 
     const promise = mod.playDrawCardHandAnimation({ player: 'white', count: 1 });
@@ -213,7 +208,7 @@ describe('animation-utils hand fallback', () => {
     handBottom.dataset.ownerKey = 'white';
     handTop.dataset.ownerKey = 'black';
 
-    import * as mod from '../ui/animation-utils.js';
+    const mod = require('../ui/animation-utils.js');
     const promise = mod.playDrawCardHandAnimation({ player: 'white', count: 1 });
     await Promise.resolve();
     const held = wrapper.querySelector('.held-draw-card');
@@ -241,7 +236,7 @@ describe('animation-utils hand fallback', () => {
     handBottom.getBoundingClientRect = () => ({ left: 180, top: 500, width: 180, height: 120, right: 360, bottom: 620 });
     handTop.getBoundingClientRect = () => ({ left: 120, top: 60, width: 180, height: 120, right: 300, bottom: 180 });
 
-    import * as mod from '../ui/animation-utils.js';
+    const mod = require('../ui/animation-utils.js');
     const promise = mod.playDrawCardHandAnimation({ player: 'white', count: 1 });
     await Promise.resolve();
 
@@ -254,8 +249,7 @@ describe('animation-utils hand fallback', () => {
   test('playClearHandAnimation initializes staged reveal state with zero visible cards', async () => {
     const hand = document.getElementById('hand-black');
     hand.innerHTML = '<div class="card-item visible"></div><div class="card-item visible"></div>';
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     await expect(mod.playClearHandAnimation({ player: 'black', count: 2, reason: 'rebuild_will' })).resolves.toBeUndefined();
     expect(window.__handSequentialRevealState).toMatchObject({ playerKey: 'black', visibleCount: 0, reason: 'rebuild_will' });
   });
@@ -288,8 +282,7 @@ describe('animation-utils hand fallback', () => {
     cards[0].animate = keepAnimate;
     cards[1].animate = removeAnimate;
 
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     await expect(mod.playClearHandAnimation({
       player: 'black',
       count: 1,
@@ -311,8 +304,7 @@ describe('animation-utils hand fallback', () => {
     };
     window.__handSequentialRevealState = { playerKey: 'black', visibleCount: 0, reason: 'rebuild_will' };
 
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     await expect(mod.playDrawCardHandAnimation({ player: 'black', cardId: 'deck_a', count: 1 })).resolves.toBeUndefined();
     expect(window.__handSequentialRevealState).toMatchObject({ playerKey: 'black', visibleCount: 1, reason: 'rebuild_will' });
 
@@ -330,8 +322,7 @@ describe('animation-utils hand fallback', () => {
     };
     window.__handSequentialRevealState = { playerKey: 'black', visibleCount: 0, reason: 'rebuild_will' };
 
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     await expect(mod.playDrawCardHandAnimation({ player: '1', cardId: 'deck_a', count: 1 })).resolves.toBeUndefined();
     expect(window.__handSequentialRevealState).toBeNull();
   });
@@ -349,7 +340,7 @@ describe('animation-utils hand fallback', () => {
     deck.getBoundingClientRect = () => ({ left: 300, top: 520, width: 120, height: 160, right: 420, bottom: 680 });
     hand.getBoundingClientRect = () => ({ left: 180, top: 560, width: 180, height: 120, right: 360, bottom: 680 });
 
-    import * as mod from '../ui/animation-utils.js';
+    const mod = require('../ui/animation-utils.js');
     let drawPromise = Promise.resolve();
 
     mod.playHandAnimation(global.BLACK, 0, 0, () => {
@@ -378,8 +369,7 @@ describe('animation-utils hand fallback', () => {
       document.getElementById('hand-black').innerHTML = '<div class="card-item card-fade-prep"></div>';
     });
 
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     await expect(mod.playDirectHandAddAnimation({
       player: 'black',
       cardId: 'triple_01',
@@ -399,8 +389,7 @@ describe('animation-utils hand fallback', () => {
       document.getElementById('hand-black').innerHTML = '<div class="card-item card-fade-prep"></div>';
     });
 
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     await expect(mod.playDirectHandAddAnimation({
       player: 'black',
       cardId: 'triple_01',
@@ -429,7 +418,7 @@ describe('animation-utils hand fallback', () => {
     window.__handFadeInState = { playerKey: 'black', count: 1, token: 'fade-token' };
     window.__handFadeInHint = { playerKey: 'black', count: 1, token: 'fade-token' };
 
-    import * as mod from '../ui/animation-utils.js';
+    const mod = require('../ui/animation-utils.js');
     expect(mod.getQueuedHandFadeInState()).toMatchObject({ playerKey: 'black', count: 1, token: 'fade-token' });
 
     mod.settleOwnerHandFadeIn('black');
@@ -447,8 +436,7 @@ describe('animation-utils hand fallback', () => {
       document.getElementById('hand-black').innerHTML = '<div class="card-item card-fade-prep" style="--card-fade-in-duration: 1s;"></div>';
     });
 
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     await expect(mod.playDirectHandAddAnimation({
       player: 'black',
       cardId: 'other_card',
@@ -474,8 +462,7 @@ describe('animation-utils hand fallback', () => {
       document.getElementById('hand-black').innerHTML = '<div class="card-item card-fade-prep" data-render="initial"></div>';
     });
 
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     await expect(mod.playDirectHandAddAnimation({
       player: 'black',
       cardId: 'triple_01',
@@ -510,8 +497,7 @@ describe('animation-utils hand fallback', () => {
     }));
 
     window._currentPlaybackScope = 'draw-scope';
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     const promise = mod.playDrawCardHandAnimation({ player: 'black', count: 1 });
     timerApi.clearScope('draw-scope');
     await jest.advanceTimersByTimeAsync(3000);
@@ -530,8 +516,7 @@ describe('animation-utils hand fallback', () => {
     }));
 
     window._currentPlaybackScope = 'card-use-scope';
-    import * as mod from '../ui/animation-utils.js';
-
+    const mod = require('../ui/animation-utils.js');
     const promise = mod.playCardUseHandAnimation({ player: 'black', owner: 'black', cardId: 'card_1', cost: 5, name: 'Test' });
     timerApi.clearScope('card-use-scope');
     await jest.advanceTimersByTimeAsync(4000);
@@ -580,7 +565,7 @@ describe('animation-utils hand fallback', () => {
       bottom: 450
     });
 
-    import * as mod from '../ui/animation-utils.js';
+    const mod = require('../ui/animation-utils.js');
     const promise = mod.playCardUseHandAnimation({
       player: 'black',
       owner: 'black',
@@ -649,7 +634,7 @@ describe('animation-utils hand fallback', () => {
       bottom: 0
     });
 
-    import * as mod from '../ui/animation-utils.js';
+    const mod = require('../ui/animation-utils.js');
     const promise = mod.playCardUseHandAnimation({
       player: 'black',
       owner: 'black',
@@ -714,7 +699,7 @@ describe('animation-utils hand fallback', () => {
       bottom: 450
     });
 
-    import * as mod from '../ui/animation-utils.js';
+    const mod = require('../ui/animation-utils.js');
     const promise = mod.playCardUseHandAnimation({
       player: 'black',
       owner: 'black',
@@ -773,7 +758,7 @@ describe('animation-utils hand fallback', () => {
       bottom: 450
     });
 
-    import * as mod from '../ui/animation-utils.js';
+    const mod = require('../ui/animation-utils.js');
     const promise = mod.playCardUseHandAnimation({
       player: 'black',
       owner: 'black',
@@ -852,7 +837,7 @@ describe('animation-utils hand fallback', () => {
     });
     handEl.appendChild(sourceCardEl);
 
-    import * as mod from '../ui/animation-utils.js';
+    const mod = require('../ui/animation-utils.js');
     const promise = mod.playCardUseHandAnimation({
       player: 'black',
       owner: 'black',
@@ -912,7 +897,7 @@ describe('animation-utils hand fallback', () => {
       bottom: 450
     });
 
-    import * as mod from '../ui/animation-utils.js';
+    const mod = require('../ui/animation-utils.js');
     const onDisappear = jest.fn(() => Promise.resolve());
     const promise = mod.playCardUseHandAnimation({
       player: 'black',
@@ -972,7 +957,7 @@ describe('animation-utils hand fallback', () => {
       return cardEl;
     });
 
-    import * as mod from '../ui/animation-utils.js';
+    const mod = require('../ui/animation-utils.js');
     const promise = mod.playCardUseHandAnimation({
       player: 'white',
       owner: 'white',

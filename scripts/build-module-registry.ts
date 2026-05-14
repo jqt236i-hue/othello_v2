@@ -47,9 +47,45 @@ const BROWSER_ROOT_MODULES = new Set([
     'ui.js'
 ]);
 
+const DIST_EXCLUDED_BROWSER_MODULES = new Set([
+    'shared/observation-gacha-catalog.generated.js',
+    'shared/gacha-hand-catalog.generated.js'
+]);
+
+const EXTRA_BROWSER_MODULES: Array<{ source: string; key: string; aliases?: string[] }> = [
+    { source: 'utils/owner-helpers.js', key: 'legacy/utils/owner-helpers' },
+    { source: 'game/logic/cards/breeding.js', key: 'legacy/game/logic/cards/breeding' },
+    { source: 'game/logic/cards/sniper.js', key: 'legacy/game/logic/cards/sniper' },
+    { source: 'game/logic/cards/lightning.js', key: 'legacy/game/logic/cards/lightning' },
+    { source: 'game/logic/cards/destroy_dragon.js', key: 'legacy/game/logic/cards/destroy_dragon' },
+    {
+        source: 'shared/observation-gacha-catalog.generated.js',
+        key: 'shared/observation-gacha-catalog.generated',
+        aliases: ['shared/observation-gacha-catalog.generated.js']
+    },
+    {
+        source: 'shared/gacha-hand-catalog.generated.js',
+        key: 'shared/gacha-hand-catalog.generated',
+        aliases: ['shared/gacha-hand-catalog.generated.js']
+    },
+    {
+        source: 'data/dialogue/fixed-commentary-data.js',
+        key: 'data/dialogue/fixed-commentary-data',
+        aliases: ['data/dialogue/fixed-commentary-data.js']
+    },
+    {
+        source: 'game/card-effects-applier.js',
+        key: 'game/card-effects-applier',
+        aliases: ['game/card-effects-applier.js']
+    }
+];
+
 function isBrowserModule(rel: string): boolean {
     if (rel.startsWith('dist/') || rel.startsWith('worker-public/')) return false;
     if (rel.includes('/src/types/')) return false;
+    if (rel.includes('__tests__')) return false;
+    if (rel.includes('.test.')) return false;
+    if (DIST_EXCLUDED_BROWSER_MODULES.has(rel)) return false;
     if (BROWSER_ROOT_MODULES.has(rel)) return true;
     return BROWSER_MODULE_PREFIXES.some(prefix => rel.startsWith(prefix));
 }
@@ -64,6 +100,24 @@ function walkDir(dir: string, base: string, files: string[]): void {
             const rel = path.relative(base, full).replace(/\\/g, '/');
             files.push(rel);
         }
+    }
+}
+
+function appendRegisteredModule(lines: string[], moduleKey: string, content: string): void {
+    const moduleDir = path.posix.dirname(moduleKey);
+    const cjsDir = moduleDir === '.' ? '' : moduleDir;
+    let transformed = content
+        .replace(/(?:const|let|var)\s+_require\s*=\s*\(?typeof\s+__non_webpack_require__[\s\S]*?:\s*require\s*\)?\s*;?\s*/g, '');
+    transformed = 'var __cjsDir=' + JSON.stringify(cjsDir) + ';var _require=function(id){return window.require(id,__cjsDir);};var require=_require;var __require=_require;\n' + transformed;
+    const jsonEncoded = JSON.stringify(transformed);
+    lines.push('  _r(' + JSON.stringify(moduleKey) + ', ' + jsonEncoded + ');');
+    lines.push('');
+}
+
+function appendRegisteredModuleWithJsAlias(lines: string[], moduleKey: string, content: string): void {
+    appendRegisteredModule(lines, moduleKey, content);
+    if (!moduleKey.endsWith('.js')) {
+        appendRegisteredModule(lines, moduleKey + '.js', content);
     }
 }
 
@@ -106,29 +160,22 @@ function buildRegistry(): void {
         // Module key is the relative path without .js extension
         const moduleKey = rel.replace(/\.js$/, '');
 
-        // Remove all `_require` alias declarations — some dist files have duplicates
-        // (concatenated shim + compiled code). We inject a single `_require` at the top
-        // of each factory that resolves relative paths using __dirname.
-        //
-        // Patterns matched:
-        //   const _require = typeof __non_webpack_require__ !== 'undefined' ? __non_webpack_require__ : require;
-        //   const _require = (typeof __non_webpack_require__ !== 'undefined')
-        //       ? __non_webpack_require__
-        //       : require;
-        let transformed = content
-            .replace(/(?:const|let|var)\s+_require\s*=\s*\(?typeof\s+__non_webpack_require__[\s\S]*?:\s*require\s*\)?\s*;?\s*/g, '');
-        // Inject _require and require with __dirname capture.
-        // Modules compiled as CommonJS use `_require('../foo')` or `require('../foo')`
-        // relative to their own location. The runtime's currentDir gets reset after
-        // synchronous module loading, so lazy requires (in async functions called later)
-        // need explicit __dirname resolution.
-        transformed = 'var __cjsDir=typeof __dirname==="string"?__dirname:"";var _require=function(id){return window.require(id,__cjsDir);};var require=_require;var __require=_require;\n' + transformed;
+        appendRegisteredModuleWithJsAlias(lines, moduleKey, content);
+    }
 
-        // Encode module source as JSON string for safe embedding.
-        const jsonEncoded = JSON.stringify(transformed);
-
-        lines.push('  _r(' + JSON.stringify(moduleKey) + ', ' + jsonEncoded + ');');
-        lines.push('');
+    for (const extra of EXTRA_BROWSER_MODULES) {
+        const fullPath = path.join(ROOT, extra.source);
+        let content: string;
+        try {
+            content = fs.readFileSync(fullPath, 'utf8');
+        } catch {
+            skipped.push(extra.source + ' (missing extra)');
+            continue;
+        }
+        appendRegisteredModule(lines, extra.key, content);
+        for (const alias of extra.aliases || []) {
+            appendRegisteredModule(lines, alias, content);
+        }
     }
 
     lines.push('})();');
@@ -139,10 +186,16 @@ function buildRegistry(): void {
     console.log('[module-registry] wrote ' + jsFiles.length + ' modules to ' + path.relative(ROOT, OUT));
     if (skipped.length > 0) {
         console.log('[module-registry] skipped ' + skipped.length + ' files:');
-        skipped.forEach(s => console.log('  - ' + s));
+        skipped.forEach(s => {
+            console.log('  - ' + s);
+        });
     }
 }
 
 if (require.main === module) {
     buildRegistry();
 }
+
+export = {
+    buildRegistry
+};

@@ -1,2 +1,2 @@
 const path = require('path');
-module.exports = require(path.join(__dirname, '..', '..', 'dist', 'scripts', 'promotion-helpers.js'));
+module.exports = require(path.join(process.cwd(), 'dist', 'scripts', 'promotion-helpers.js'));

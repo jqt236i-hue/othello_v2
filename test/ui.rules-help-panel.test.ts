@@ -1,7 +1,6 @@
 import { JSDOM } from 'jsdom';
-import * as fs from 'fs';
-import * as path from 'path';
-
+const fs = require('fs');
+const path = require('path');
 describe('rules help panel', () => {
   function setDom(html) {
     const dom = new JSDOM(html);
@@ -32,7 +31,7 @@ describe('rules help panel', () => {
   });
 
   test('opens by button and closes by outside click', () => {
-    import * as mod from '../ui/handlers/rules-help.js';
+    const mod = require('../ui/handlers/rules-help.js');
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
 
@@ -53,7 +52,7 @@ describe('rules help panel', () => {
   });
 
   test('outside click still reaches board handler', () => {
-    import * as mod from '../ui/handlers/rules-help.js';
+    const mod = require('../ui/handlers/rules-help.js');
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
     const board = document.getElementById('board');
@@ -71,7 +70,7 @@ describe('rules help panel', () => {
   });
 
   test('closes by top-right close button', () => {
-    import * as mod from '../ui/handlers/rules-help.js';
+    const mod = require('../ui/handlers/rules-help.js');
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
     const closeBtn = document.getElementById('rules-help-close-btn');
@@ -127,7 +126,7 @@ describe('rules help panel', () => {
       ]
     };
 
-    import * as mod from '../ui/handlers/rules-help.js';
+    const mod = require('../ui/handlers/rules-help.js');
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
 
@@ -216,7 +215,7 @@ describe('rules help panel', () => {
       ]
     };
 
-    import * as mod from '../ui/handlers/rules-help.js';
+    const mod = require('../ui/handlers/rules-help.js');
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
     mod.setupRulesHelp(btn, panel);
@@ -302,7 +301,7 @@ describe('rules help panel', () => {
       ]
     };
 
-    import * as mod from '../ui/handlers/rules-help.js';
+    const mod = require('../ui/handlers/rules-help.js');
     const btn = document.getElementById('rulesHelpBtn');
     const panel = document.getElementById('rules-help-panel');
     mod.setupRulesHelp(btn, panel);

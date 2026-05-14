@@ -152,14 +152,7 @@ function createNetworkSnapshotController(config: any): any {
 
     function setBusyState(active: boolean): boolean {
         if (runtime && typeof runtime.setBusyState === 'function') {
-            if (active === true) {
-                return runtime.setBusyState({
-                    processing: true,
-                    cardAnimating: true,
-                    playbackActive: true
-                });
-            }
-            return runtime.setBusyState(false);
+            return runtime.setBusyState(active === true);
         }
         return false;
     }
@@ -645,14 +638,14 @@ function createNetworkSnapshotController(config: any): any {
 
         if (shouldEmitShadowPlayback) {
             clearTransientPresentationQueues(cardStateRef);
-        } else if (refreshState && refreshState.boardUpdateRequested === true && shouldClearUndrainedPlaybackQueues(cardStateRef, playbackEvents, opts)) {
+        } else if (opts.clearUndrainedPlayback === true && refreshState && refreshState.boardUpdateRequested === true && shouldClearUndrainedPlaybackQueues(cardStateRef, playbackEvents, opts)) {
             clearTransientPresentationQueues(cardStateRef);
             clearBusyStateAndPlaybackLock();
-        } else if (shouldReleaseUnclaimedPlaybackBusyState(cardStateRef, playbackEvents)) {
+        } else if (opts.releaseUnclaimedPlayback === true && shouldReleaseUnclaimedPlaybackBusyState(cardStateRef, playbackEvents)) {
             clearBusyStateAndPlaybackLock();
         } else if (shouldReleaseRestoredQueueBusyState(cardStateRef, presentationState, busyStateBeforeSnapshot)) {
             clearTransientPresentationQueues(cardStateRef);
-            clearBusyStateAndPlaybackLock();
+            setBusyState(false);
         }
         if (shouldReleaseStalePlaybackLockAfterSnapshot(cardStateRef, presentationState)) {
             clearBusyStateAndPlaybackLock();

@@ -213,7 +213,9 @@ describe('GUARD_WILL / GUARDIAN_GOD (守る意志/守護神)', () => {
       }
     );
 
-    CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4);
+    CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4, {
+      randomSource: { random: () => 0.5 }
+    });
     expect(gameState.board[4][5]).toBe(-1);
   });
 

@@ -1,1 +1,1 @@
-module.exports = require("./dist/game/presentation");
+module.exports = require("../dist/game/presentation");

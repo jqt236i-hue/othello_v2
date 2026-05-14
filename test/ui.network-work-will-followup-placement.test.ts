@@ -34,7 +34,7 @@ describe('network WORK_WILL follow-up placement', () => {
     global.window.requestAnimationFrame = global.requestAnimationFrame;
     global.window.cancelAnimationFrame = global.cancelAnimationFrame;
 
-    import * as playbackStateManager from '../ui/playback-state-manager.js';
+    const playbackStateManager = require('../ui/playback-state-manager.js');
     playbackStateManager.abortPlayback();
     playbackStateManager.setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
     global.PlaybackStateManager = playbackStateManager;
@@ -160,8 +160,7 @@ describe('network WORK_WILL follow-up placement', () => {
 
   test('does not auto-replay board click after server-authored WORK_WILL publish succeeds', async () => {
     require('../cards/card-interaction.js');
-    import * as turnManager from '../game/turn-manager.js';
-
+    const turnManager = require('../game/turn-manager.js');
     window.useSelectedCard();
 
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
@@ -188,8 +187,7 @@ describe('network WORK_WILL follow-up placement', () => {
 
   test('drops early board click when server-authored WORK_WILL publish fails', async () => {
     require('../cards/card-interaction.js');
-    import * as turnManager from '../game/turn-manager.js';
-
+    const turnManager = require('../game/turn-manager.js');
     window.useSelectedCard();
     turnManager.handleCellClick(2, 3);
 

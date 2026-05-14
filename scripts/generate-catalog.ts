@@ -50,13 +50,26 @@ function generateBrowserFile(outPath: string) {
   fs.writeFileSync(outPath, content, 'utf8');
 }
 
+function generateTsFile(outPath: string) {
+  const obj = toBrowserCatalog(generate());
+  const content = '// @ts-nocheck\n' +
+    '// Auto-generated from cards/catalog.json - do not edit directly.\n' +
+    '// Use: node scripts/generate-catalog.js to regenerate.\n' +
+    'const CardCatalog = ' + JSON.stringify(obj, null, 2) + ';\n\n' +
+    'export = CardCatalog;\n';
+  fs.writeFileSync(outPath, content, 'utf8');
+}
+
 if (require.main === module) {
   const generatedPath = path.resolve(process.cwd(), 'cards', 'catalog.generated.js');
   const browserPath = path.resolve(process.cwd(), 'cards', 'catalog.js');
+  const tsPath = path.resolve(process.cwd(), 'cards', 'catalog.ts');
   generateFile(generatedPath);
   generateBrowserFile(browserPath);
+  generateTsFile(tsPath);
   console.log('Generated', generatedPath);
   console.log('Generated', browserPath);
+  console.log('Generated', tsPath);
 }
 
-export = {  generate, generateFile, toBrowserCatalog, generateBrowserFile  } as any;
+export = {  generate, generateFile, toBrowserCatalog, generateBrowserFile, generateTsFile  } as any;

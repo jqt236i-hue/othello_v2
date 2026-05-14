@@ -4,7 +4,7 @@
  */
 'use strict';
 
-import { JSDOM } from 'jsdom';
+const { JSDOM } = require('jsdom');
 import * as path from 'path';
 
 function makeDom() {

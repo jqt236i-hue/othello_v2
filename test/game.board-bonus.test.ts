@@ -110,7 +110,7 @@ describe('数字マス（初期配置・配置報酬）', () => {
     }
   });
 
-  test('CRYSTAL_STONE は次の数字マス布石だけを4倍にして配置石が消滅する', () => {
+  test('CRYSTAL_STONE は次の数字マス布石だけを2倍にし、配置石は通常石のまま残る', () => {
     const prng = createDeterministicPrng();
     const cardState = CardLogic.createCardState(prng);
     const targetKey = Object.keys(cardState.boardBonusByCell || {}).find((key) => {
@@ -148,12 +148,12 @@ describe('数字マス（初期配置・配置報酬）', () => {
     const chargeBubbles = (result.presentationEvents || []).filter((ev) => ev && ev.type === 'CHARGE_BUBBLE');
     const combinedBubble = chargeBubbles[0] || null;
 
-    expect(Number(cardState.charge.black || 0) - blackChargeBefore).toBe(1 + (targetBonus * 4));
-    expect(bonusEvent).toMatchObject({ bonus: targetBonus, gained: targetBonus * 4, multiplier: 4, boostedBy: 'CRYSTAL_STONE' });
-    expect(placementEffects && placementEffects.effects).toMatchObject({ crystalStoneUsed: true, crystalStoneGain: targetBonus * 4, chargeGained: 1 });
+    expect(Number(cardState.charge.black || 0) - blackChargeBefore).toBe(1 + (targetBonus * 2));
+    expect(bonusEvent).toMatchObject({ bonus: targetBonus, gained: targetBonus * 2, multiplier: 2, boostedBy: 'CRYSTAL_STONE' });
+    expect(placementEffects && placementEffects.effects).toMatchObject({ crystalStoneUsed: true, crystalStoneGain: targetBonus * 2, chargeGained: 1 });
     expect(chargeBubbles).toHaveLength(1);
-    expect(combinedBubble).toMatchObject({ row, col, gained: targetBonus * 4 + 1 });
+    expect(combinedBubble).toMatchObject({ row, col, gained: targetBonus * 2 + 1 });
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
-    expect(gameState.board[row][col]).toBe(Shared.EMPTY);
+    expect(gameState.board[row][col]).toBe(Shared.BLACK);
   });
 });

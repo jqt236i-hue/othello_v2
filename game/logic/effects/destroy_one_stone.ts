@@ -18,10 +18,12 @@ function _require(id: string): any {
 }
 
 const BoardOpsModule = (() => {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).BoardOps) return (globalThis as any).BoardOps;
     try { return _require('../board_ops'); } catch (e) { return undefined; }
 })();
 
 const DestroyOutcomeContract = (() => {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).DestroyOutcomeContract) return (globalThis as any).DestroyOutcomeContract;
     try {
         return _require('../../../shared/destroy-outcome-contract');
     } catch (_e) {
@@ -207,7 +209,12 @@ function applyDestroyOneStone(cardState: CardState, gameState: GameState, player
 
     // Prefer BoardOps.destroyAt to ensure unified behavior and presentation event emission
     if (BoardOps && typeof BoardOps.destroyAt === 'function') {
-        const res = BoardOps.destroyAt(cardState, gameState, row, col, 'DESTROY_ONE_STONE', 'destroy_one_stone');
+        const randomSource = (cardState as { _boardOpsRandomSource?: any; _currentActionMeta?: any; _defaultRandomSource?: any })._boardOpsRandomSource
+            || ((cardState as { _currentActionMeta?: any })._currentActionMeta && (cardState as { _currentActionMeta?: any })._currentActionMeta.randomSource)
+            || (cardState as { _defaultRandomSource?: any })._defaultRandomSource
+            || null;
+        const meta = randomSource && typeof randomSource.random === 'function' ? { randomSource } : undefined;
+        const res = BoardOps.destroyAt(cardState, gameState, row, col, 'DESTROY_ONE_STONE', 'destroy_one_stone', meta);
         if (isDestroyResolved(res)) {
             const cs = cardState as any;
             cs.pendingEffectByPlayer = cs.pendingEffectByPlayer || { black: null, white: null };

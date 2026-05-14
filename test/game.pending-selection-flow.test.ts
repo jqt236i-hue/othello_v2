@@ -7,7 +7,7 @@ import * as BoardExpansionEffects from '../game/card-effects/board-expansion.js'
 import * as BoardShrinkEffects from '../game/card-effects/board-shrink.js';
 
 function attachPlaybackStateManager() {
-  import * as playbackStateManager from '../ui/playback-state-manager.js';
+  const playbackStateManager = require('../ui/playback-state-manager.js');
   playbackStateManager.clearPlaybackLock();
   global.PlaybackStateManager = playbackStateManager;
   flow.setSignalBridge({
@@ -37,7 +37,7 @@ function attachPlaybackStateManager() {
       return true;
     },
     emitPlaybackEvents: (events, meta, cardStateValue) => {
-      import * as presentationHelper from '../game/logic/presentation.js';
+      const presentationHelper = require('../game/logic/presentation.js');
       return presentationHelper.emitPresentationEvent(cardStateValue || global.cardState || null, {
         type: 'PLAYBACK_EVENTS',
         events,
@@ -739,7 +739,7 @@ describe('pending selection flow contracts', () => {
         createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
       }
     };
-    import * as networkTurnHandoff from '../game/network-turn-handoff.js';
+    const networkTurnHandoff = require('../game/network-turn-handoff.js');
     const finalizeNetworkTurnHandoff = jest
       .spyOn(networkTurnHandoff, 'finalizeNetworkTurnHandoff')
       .mockResolvedValue({ ok: true });

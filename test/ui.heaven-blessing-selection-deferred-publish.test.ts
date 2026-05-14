@@ -121,7 +121,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     global.cardState = initial.cardState;
     global.isProcessing = false;
     global.isCardAnimating = false;
-    import * as playbackStateManager from '../ui/playback-state-manager.js';
+    const playbackStateManager = require('../ui/playback-state-manager.js');
     playbackStateManager.clearPlaybackLock();
     global.PlaybackStateManager = playbackStateManager;
 

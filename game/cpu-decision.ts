@@ -28,8 +28,6 @@ declare const handleSwapSelection: (...args: any[]) => any;
 declare const handlePositionSwapSelection: (...args: any[]) => any;
 declare const handleTemptSelection: (...args: any[]) => any;
 declare const HAND_LIMIT: number;
-declare const isCornerRecoveryCardType: (...args: any[]) => boolean;
-declare const isCornerHoldCardType: (...args: any[]) => boolean;
 declare let cardState: any;
 declare let gameState: any;
 declare const CARD_DEFS: any;
@@ -306,13 +304,21 @@ const isStandardBoard8x8 = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoa
 
 const isCornerCell = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.isCornerCell === 'function')
     ? CpuDecisionBoardUtilsModule.isCornerCell
-    : function isCornerCellFallback(row: any, col: any) {
+    : function isCornerCellFallback(row: any, col: any, board?: any) {
+        const boardUtils = resolveSharedBoardUtilsModule();
+        if (boardUtils && typeof boardUtils.isCornerCell === 'function') {
+            return boardUtils.isCornerCell(row, col, board);
+        }
         return (row === 0 || row === 7) && (col === 0 || col === 7);
     };
 
 const isEdgeCell = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.isEdgeCell === 'function')
     ? CpuDecisionBoardUtilsModule.isEdgeCell
-    : function isEdgeCellFallback(row: any, col: any) {
+    : function isEdgeCellFallback(row: any, col: any, board?: any) {
+        const boardUtils = resolveSharedBoardUtilsModule();
+        if (boardUtils && typeof boardUtils.isEdgeCell === 'function') {
+            return boardUtils.isEdgeCell(row, col, board);
+        }
         return row === 0 || row === 7 || col === 0 || col === 7;
     };
 
@@ -523,6 +529,17 @@ const WHITE_LV6_CORNER_SWING_KEEP_TYPES = new Set([
 ]);
 
 function resolvePolicyTableRuntime(): any {
+    const globalModule = readGlobalModule('CpuPolicyTableRuntime');
+    if (
+        globalModule &&
+        (
+            typeof globalModule.chooseMove === 'function' ||
+            typeof globalModule.getActionScoreForKey === 'function'
+        )
+    ) {
+        CpuPolicyTableRuntime = globalModule;
+        return globalModule;
+    }
     const resolvedModule = resolveModuleReference(CpuPolicyTableRuntime, {
         globalKey: 'CpuPolicyTableRuntime',
         isValid: (moduleRef: any) => !!(
@@ -538,6 +555,19 @@ function resolvePolicyTableRuntime(): any {
 }
 
 function resolvePolicyOnnxRuntime(): any {
+    const globalModule = readGlobalModule('CpuPolicyOnnxRuntime');
+    if (
+        globalModule &&
+        (
+            typeof globalModule.chooseMove === 'function' ||
+            typeof globalModule.chooseCard === 'function' ||
+            typeof globalModule.choosePendingTarget === 'function' ||
+            typeof globalModule.evaluatePosition === 'function'
+        )
+    ) {
+        CpuPolicyOnnxRuntime = globalModule;
+        return globalModule;
+    }
     const resolvedModule = resolveModuleReference(CpuPolicyOnnxRuntime, {
         globalKey: 'CpuPolicyOnnxRuntime',
         isValid: (moduleRef: any) => !!(
@@ -1246,8 +1276,9 @@ function canRerankOnnxCardChoice(level: any, usableCardIds: any): any {
     if (!Number.isFinite(level) || level < 6) return false;
     if (!Array.isArray(usableCardIds) || usableCardIds.length <= 1) return false;
     if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') return false;
-    if (typeof CardLogic === 'undefined' || !CardLogic) return false;
-    if (typeof CardLogic.getCardCost !== 'function' || typeof CardLogic.getCardDef !== 'function') return false;
+    const cardLogicRef = resolveCardLogicForCpuDecision();
+    if (!cardLogicRef) return false;
+    if (typeof cardLogicRef.getCardCost !== 'function' || typeof cardLogicRef.getCardDef !== 'function') return false;
     return true;
 }
 
@@ -1256,15 +1287,17 @@ function scoreCardForOnnxRerank(cardId: any, playerKey: any, level: any, legalMo
     if (!canRerankOnnxCardChoice(level, usableCardIds)) return Number.NEGATIVE_INFINITY;
 
     const context = prebuiltContext || buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds);
+    const cardLogicRef = resolveCardLogicForCpuDecision();
+    if (!cardLogicRef) return Number.NEGATIVE_INFINITY;
     const decision = CpuPolicyCore.scoreCardUseDecision(
         cardId,
-        CardLogic.getCardCost,
-        CardLogic.getCardDef,
+        cardLogicRef.getCardCost,
+        cardLogicRef.getCardDef,
         context
     );
     if (!decision || !Number.isFinite(decision.score)) return Number.NEGATIVE_INFINITY;
 
-    const cardDef = CardLogic.getCardDef(cardId);
+    const cardDef = cardLogicRef.getCardDef(cardId);
     const cardType = resolveCardType(cardId, cardDef);
     const whiteLv6Mode = level >= 6 && playerKey === 'white';
     let score = Number(decision.score);
@@ -1402,8 +1435,9 @@ async function selectCardFromOnnxPolicyAsync(playerKey: any, level: any, legalMo
                 `[CPU] Lv${level} ${playerKey}: ONNXカードを再評価 ${selectedCardId} -> ${resolvedCardId} gap=${Number.isFinite(reranked.gap) ? reranked.gap.toFixed(1) : 'NA'}`
             );
         }
-        const cardDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
-            ? CardLogic.getCardDef(resolvedCardId)
+        const cardLogicRef = resolveCardLogicForCpuDecision();
+        const cardDef = (cardLogicRef && typeof cardLogicRef.getCardDef === 'function')
+            ? cardLogicRef.getCardDef(resolvedCardId)
             : null;
         return { cardId: resolvedCardId, cardDef };
     } catch (e) {
@@ -1473,8 +1507,8 @@ function selectCardBySharedPolicyTableCore(playerKey: any, level: any, legalMove
         if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') return learnedChoice;
         const score = CpuPolicyCore.scoreCardUseDecision(
             learnedChoice.cardId,
-            CardLogic.getCardCost,
-            CardLogic.getCardDef,
+            cardLogicRef.getCardCost,
+            cardLogicRef.getCardDef,
             context
         );
         if (!score || score.shouldUse === true) {
@@ -1485,22 +1519,22 @@ function selectCardBySharedPolicyTableCore(playerKey: any, level: any, legalMove
     if (CpuPolicyCore && typeof CpuPolicyCore.chooseCardWithRiskProfile === 'function') {
         const selected = CpuPolicyCore.chooseCardWithRiskProfile(
             usableCardIds,
-            CardLogic.getCardCost,
-            CardLogic.getCardDef,
+            cardLogicRef.getCardCost,
+            cardLogicRef.getCardDef,
             context
         );
         if (selected && selected.cardId) return selected;
     }
 
-    const usableSortedByCost = usableCardIds.slice().sort((a, b) => CardLogic.getCardCost(b) - CardLogic.getCardCost(a));
+    const usableSortedByCost = usableCardIds.slice().sort((a, b) => cardLogicRef.getCardCost(b) - cardLogicRef.getCardCost(a));
     if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') {
         return createCardChoiceFromId(usableSortedByCost[0] || null);
     }
     for (const cardId of usableSortedByCost) {
         const score = CpuPolicyCore.scoreCardUseDecision(
             cardId,
-            CardLogic.getCardCost,
-            CardLogic.getCardDef,
+            cardLogicRef.getCardCost,
+            cardLogicRef.getCardDef,
             context
         );
         if (!score || score.shouldUse === true) {
@@ -2126,6 +2160,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     INFINITE_CHAIN_WILL: makePlanPressureProfile(5, 7, 5, 6),
     CLONE_WILL: makePlanPressureProfile(2, 2, 2, 3),
     CONDEMN_WILL: makePlanPressureProfile(1, 2, 1, 1),
+    EXECUTION_WILL: makePlanPressureProfile(1, 2, 1, 2),
     CORNER_TRIBUTE: makePlanPressureProfile(1, 3, 0, 2),
     CORROSION_WILL: makePlanPressureProfile(1, 2, 1, 1),
     CROSS_BOMB: makePlanPressureProfile(3, 4, 3, 3),
@@ -2374,7 +2409,7 @@ function isCardChoiceAllowedByPlan(playerKey: any, level: any, legalMovesCount: 
             maxLegalFlips >= 3 &&
             maxLegalGain >= 3) ||
         (cardType === 'CRYSTAL_STONE' &&
-            maxLegalBoardBonus >= 2) ||
+            maxLegalBoardBonus >= 3) ||
         (cardType === 'PLUNDER_WILL' &&
             maxLegalFlips >= 3 &&
             maxLegalGain >= 3 &&
@@ -2396,10 +2431,10 @@ function isCardChoiceAllowedByPlan(playerKey: any, level: any, legalMovesCount: 
         !forceUseCard &&
         !criticalLowDiscEmergency &&
         !highYieldChargeRecovery &&
-        !isCornerRecoveryCardType(cardType) &&
+        !isRecoveryCardType(cardType) &&
         !WHITE_LV6_CORNER_SWING_KEEP_TYPES.has(cardType)
     ) {
-        if (!(lowDiscEmergency && isCornerHoldCardType(cardType))) {
+        if (!(lowDiscEmergency && isHoldCardType(cardType))) {
             return false;
         }
     }
@@ -3364,7 +3399,7 @@ function cpuMaybeUseCardWithPolicy(playerKey: any): any {
  * @returns {Object} 選択された手
  */
 function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
-    const level = cpuSmartness[playerKey] || 1;
+    const level = resolveCpuSmartnessLevel(playerKey);
 
     // 人間プレイヤーの場合はエラー（このコードは呼ばれてはいけない）
     if (level < 0) {
@@ -6128,8 +6163,9 @@ async function cpuSelectCaptureWillWithPolicy(playerKey: any): Promise<any> {
 // { type: 'useCard', cardId, cardDef }
 // { type: 'pass' }
 function computeCpuAction(playerKey: any): any {
-    const level = cpuSmartness[playerKey] || 1;
-    const player = playerKey === 'black' ? BLACK : WHITE;
+    const player = playerKey === 'black'
+        ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+        : (typeof WHITE !== 'undefined' ? WHITE : -1);
     const protection = getActiveProtectionForPlayer(player);
     const perma = (typeof getFlipBlockers === 'function') ? getFlipBlockers() : [];
     const legalMoves = getLegalMoves(gameState, protection, perma);

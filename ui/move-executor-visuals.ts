@@ -13,6 +13,7 @@ let PlaybackStateModule: any = (typeof _require === 'function') ? (function () {
   try { return _require('./playback-state-manager'); } catch (e) { return (typeof window !== 'undefined' ? (window as any).PlaybackStateManager : null); }
 }()) : (typeof window !== 'undefined' ? (window as any).PlaybackStateManager : null);
 let AnimationUtilsModule: any = (typeof _require === 'function') ? (function () {
+  try { return _require('./animation-utils.js'); } catch (e) { /* try source path below */ }
   try { return _require('./animation-utils'); } catch (e) { return (typeof window !== 'undefined' ? window : null); }
 }()) : (typeof window !== 'undefined' ? window : null);
 
@@ -67,11 +68,14 @@ function applyFlipAnimations(flipsToAnimate: any[]): void {
   });
 }
 
-const StoneVisuals = (typeof _require === 'function') ? _require('./stone-visuals') : (typeof window !== 'undefined' ? (window as any).StoneVisuals : null);
+const StoneVisuals = (typeof _require === 'function') ? (function () {
+  try { return _require('./stone-visuals.js'); } catch (e) { /* try source path below */ }
+  try { return _require('./stone-visuals'); } catch (e) { return (typeof window !== 'undefined' ? (window as any).StoneVisuals : null); }
+}()) : (typeof window !== 'undefined' ? (window as any).StoneVisuals : null);
 
 function setDiscColorAt(row: number, col: number, color: number): void {
   if (!_assertNotDuringPlayback()) return;
-  if (StoneVisuals && typeof StoneVisuals.setDiscColorAt === 'function') return StoneVisuals.setDiscColorAt(row, col, color);
+  if (StoneVisuals && typeof StoneVisuals.setDiscColorAt === 'function') { StoneVisuals.setDiscColorAt(row, col, color); return; }
   const cell = (boardEl as any).querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
   const disc = cell ? cell.querySelector('.disc') : null;
   if (!disc) return;
@@ -84,7 +88,7 @@ function setDiscColorAt(row: number, col: number, color: number): void {
 
 function removeBombOverlayAt(row: number, col: number): void {
   if (!_assertNotDuringPlayback()) return;
-  if (StoneVisuals && typeof StoneVisuals.removeBombOverlayAt === 'function') return StoneVisuals.removeBombOverlayAt(row, col);
+  if (StoneVisuals && typeof StoneVisuals.removeBombOverlayAt === 'function') { StoneVisuals.removeBombOverlayAt(row, col); return; }
   const cell = (boardEl as any).querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
   const disc = cell ? cell.querySelector('.disc') : null;
   if (!disc) return;
@@ -97,7 +101,7 @@ function removeBombOverlayAt(row: number, col: number): void {
 
 function clearAllStoneVisualEffectsAt(row: number, col: number): void {
   if (!_assertNotDuringPlayback()) return;
-  if (StoneVisuals && typeof StoneVisuals.clearAllStoneVisualEffectsAt === 'function') return StoneVisuals.clearAllStoneVisualEffectsAt(row, col);
+  if (StoneVisuals && typeof StoneVisuals.clearAllStoneVisualEffectsAt === 'function') { StoneVisuals.clearAllStoneVisualEffectsAt(row, col); return; }
   const cell = (boardEl as any).querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
   const disc = cell ? cell.querySelector('.disc') : null;
   if (!disc) return;
@@ -129,7 +133,7 @@ function clearAllStoneVisualEffectsAt(row: number, col: number): void {
 
 function syncDiscVisualToCurrentState(row: number, col: number): void {
   if (!_assertNotDuringPlayback()) return;
-  if (StoneVisuals && typeof StoneVisuals.syncDiscVisualToCurrentState === 'function') return StoneVisuals.syncDiscVisualToCurrentState(row, col);
+  if (StoneVisuals && typeof StoneVisuals.syncDiscVisualToCurrentState === 'function') { StoneVisuals.syncDiscVisualToCurrentState(row, col); return; }
   const cell = (boardEl as any).querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
   const disc = cell ? cell.querySelector('.disc') : null;
   if (!disc) return;

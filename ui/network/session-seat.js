@@ -1,3 +1,5 @@
 "use strict";
 /** @type {any} */
-module.exports = require('../../dist/ui/network/session-seat');
+module.exports = process.env.JEST_WORKER_ID
+  ? require('./session-seat.ts')
+  : require('../../dist/ui/network/session-seat');

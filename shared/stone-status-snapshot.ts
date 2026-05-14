@@ -208,7 +208,10 @@
         const tags: string[] = [];
 
         if (opts && opts.hasGuard) tags.push('守る意志適用中');
-        if ((!opts || opts.includeSpecialStone !== false) && nonOverlaySnapshots.length > 0) tags.push('特殊石');
+        if ((!opts || opts.includeSpecialStone !== false) && (
+            nonOverlaySnapshots.length > 0
+            || snapshots.some((snapshot) => normalizeSpecialStoneType(snapshot && snapshot.type) === 'INHERITED_HYPERACTIVE')
+        )) tags.push('特殊石');
         if (livingWillAura) tags.push('生きる意志付与');
         if (primarySnapshot && primarySnapshot.hasGhost) tags.push('幽体');
         if (snapshots.some((snapshot) => snapshot.hasMobility)) tags.push('多動状態');

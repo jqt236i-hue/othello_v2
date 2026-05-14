@@ -45,6 +45,7 @@ const DEFENSIVE_CARD_TYPES = new Set([
     'HEAVEN_BLESSING',
     'REVEAL_HAND_WILL',
     'CONDEMN_WILL',
+    'EXECUTION_WILL',
     'TRAP_WILL',
     'EXTEND_LIFE_WILL',
     'EXTEND_LIFE_GOD',
@@ -401,6 +402,7 @@ const CONDITION_DEPENDENT_DESTROY_CARD_TYPES = new Set([
     'REINFORCEMENT_WILL',
     'CORROSION_WILL',
     'SALVATION_WILL',
+    'EXECUTION_WILL',
     'CORNER_TRIBUTE'
 ]);
 
@@ -422,6 +424,7 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     CLONE_WILL: -1,
     CELL_TELEPORT_WILL: -4,
     CONDEMN_WILL: 4,
+    EXECUTION_WILL: 6,
     REVEAL_HAND_WILL: 2,
     CORROSION_WILL: 4,
     CROSS_BOMB: -2,
@@ -509,6 +512,7 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'CELL_TELEPORT_WILL',
     'CLONE_WILL',
     'CONDEMN_WILL',
+    'EXECUTION_WILL',
     'REVEAL_HAND_WILL',
     'CORNER_TRIBUTE',
     'CORROSION_WILL',
@@ -596,6 +600,7 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     INFINITE_CHAIN_WILL: { trailingBias: 12, lowMobilityBias: 12, leadBias: -10, cornerNowBias: -10, handPressureBias: 4, endgameBias: 2 },
     CLONE_WILL: { midLateBias: 4, cornerNowBias: 4, endgameBias: -4 },
     CONDEMN_WILL: { trailingBias: 2, handPressureBias: 4, cornerNowBias: -2 },
+    EXECUTION_WILL: { trailingBias: 4, handPressureBias: 6, cornerNowBias: -2 },
     REVEAL_HAND_WILL: { openingBias: 4, midLateBias: 4, endgameBias: -10, handPressureBias: 2, trailingBias: 2, cornerNowBias: -2 },
     CORNER_TRIBUTE: { trailingBias: 8, cornerEmergencyBias: 8, leadBias: -6, handPressureBias: 2 },
     CORROSION_WILL: { midLateBias: 2, handPressureBias: 2, endgameBias: -2 },
@@ -824,6 +829,7 @@ function buildCardTypeUsageStyle() {
         'ROBOT_VACUUM_WILL',
         'GLUTTONOUS_WILL',
         'CONDEMN_WILL',
+        'EXECUTION_WILL',
         'LOSS_WILL',
         'CORROSION_WILL',
         'ESCAPE_WILL'
@@ -995,6 +1001,7 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     INFINITE_CHAIN_WILL: { archetype: 'explosiveComeback', placementWeight: 2, flipBias: 7, oppAdjBias: 6, bonusBias: 3, stabilityBias: -1 },
     CLONE_WILL: { archetype: 'spawnMobile', placementWeight: 0, ownAdjBias: 1, edgeBias: 2 },
     CONDEMN_WILL: { archetype: 'economyCycle', placementWeight: 0 },
+    EXECUTION_WILL: { archetype: 'economyCycle', placementWeight: 0 },
     REVEAL_HAND_WILL: { archetype: 'economyCycle', placementWeight: 0 },
     CORNER_TRIBUTE: { archetype: 'economyCycle', placementWeight: 0 },
     CORROSION_WILL: { archetype: 'controlBoard', placementWeight: 0, cornerBias: 3, oppAdjBias: 2 },
@@ -1555,6 +1562,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const isHeavenBlessing = cardType === 'HEAVEN_BLESSING';
     const isRevealHandWill = cardType === 'REVEAL_HAND_WILL';
     const isCondemnWill = cardType === 'CONDEMN_WILL';
+    const isExecutionWill = cardType === 'EXECUTION_WILL';
     const isExtendLifeWill = cardType === 'EXTEND_LIFE_WILL';
     const isExtendLifeGod = cardType === 'EXTEND_LIFE_GOD';
     const isExtendLifeCard = isExtendLifeWill || isExtendLifeGod;
@@ -2009,7 +2017,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     }
 
     if (isCrystalStone) {
-        const multiplier = 4;
+        const multiplier = 2;
         const gross = maxLegalBoardBonus * multiplier;
         const net = gross - cardCost;
         score -= 18;
@@ -2261,6 +2269,19 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (hasCornerMoveNow && !cornerEmergency && oppHandSize <= 2 && !ctx.forceUseCard) score -= 18;
         if (ctx.handSize >= 4) score += 8;
         if (endgamePhase && oppHandSize <= 1) score -= 30;
+    }
+
+    if (isExecutionWill) {
+        score += 16 + (oppHandSize * 18);
+        if (oppHandSize >= 4) score += 30;
+        else if (oppHandSize <= 1) score -= 96;
+        else if (oppHandSize <= 2 && !cornerEmergency) score -= 24;
+        if (cornerEmergency || trailingHard) score += 30;
+        else if (trailing) score += 16;
+        if (leadStable && oppHandSize <= 2 && !ctx.forceUseCard) score -= 24;
+        if (hasCornerMoveNow && !cornerEmergency && oppHandSize <= 2 && !ctx.forceUseCard) score -= 12;
+        if (ctx.handSize >= 4) score += 6;
+        if (endgamePhase && oppHandSize <= 1) score -= 20;
     }
 
     if (isExtendLifeCard) {
@@ -2768,6 +2789,7 @@ function scoreCardRetentionPriority(cardId, getCardCost, getCardDef, context) {
     const isHeavenBlessing = cardType === 'HEAVEN_BLESSING';
     const isRevealHandWill = cardType === 'REVEAL_HAND_WILL';
     const isCondemnWill = cardType === 'CONDEMN_WILL';
+    const isExecutionWill = cardType === 'EXECUTION_WILL';
     const isProtectedNextStone = cardType === 'PROTECTED_NEXT_STONE';
     const isAfterimageWill = cardType === 'AFTERIMAGE_WILL';
     const isGhostWill = cardType === 'GHOST_WILL';
@@ -2987,6 +3009,13 @@ function scoreCardRetentionPriority(cardId, getCardCost, getCardDef, context) {
         else if (oppHandSize <= 2 && !cornerEmergency) score -= 48;
         if (cornerEmergency || ctx.discDiff <= -8) score += 24;
         if (ctx.discDiff >= 6 && oppHandSize <= 2) score -= 32;
+    }
+    if (isExecutionWill) {
+        score += Math.min(132, oppHandSize * 28);
+        if (oppHandSize <= 1) score -= 120;
+        else if (oppHandSize <= 2 && !cornerEmergency) score -= 36;
+        if (cornerEmergency || ctx.discDiff <= -8) score += 26;
+        if (ctx.discDiff >= 6 && oppHandSize <= 2) score -= 24;
     }
     if (isTrapWill) {
         if (cornerEmergency || ctx.discDiff <= -8) score += 28;

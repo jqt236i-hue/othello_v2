@@ -1,6 +1,22 @@
-import * as fs from 'fs';
+// @ts-nocheck
 import * as path from 'path';
 import { JSDOM } from 'jsdom';
+
+function loadStatusDisplayIntoWindow(window) {
+  jest.resetModules();
+  const statusDisplay = require(path.join(__dirname, '..', 'ui', 'status-display.js'));
+  window.showCpuSpeechBubble = statusDisplay.showCpuSpeechBubble;
+  window.hideCpuSpeechBubble = statusDisplay.hideCpuSpeechBubble;
+  window.positionCpuSpeechBubble = statusDisplay.positionCpuSpeechBubble;
+  window.showHeroSpeechBubble = statusDisplay.showHeroSpeechBubble;
+  window.hideHeroSpeechBubble = statusDisplay.hideHeroSpeechBubble;
+  window.showRoundBonusDisplay = statusDisplay.showRoundBonusDisplay;
+  window.clearRoundDisplayBonus = statusDisplay.clearRoundDisplayBonus;
+  window.updateCpuCharacter = statusDisplay.updateCpuCharacter;
+  window.updateStatus = statusDisplay.updateStatus;
+  window.updateFateWillBanner = statusDisplay.updateFateWillBanner;
+  window.updateRoundDisplay = statusDisplay.updateRoundDisplay;
+}
 
 describe('status-display network seat labels', () => {
   test('normalizes padded uppercase seat key before applying network labels', () => {
@@ -14,9 +30,6 @@ describe('status-display network seat labels', () => {
     );
 
     const { window } = dom;
-    const jsPath = path.join(__dirname, '..', 'ui', 'status-display.js');
-    const code = fs.readFileSync(jsPath, 'utf8');
-
     window.cpuSmartness = { white: 2 };
     window.CPU_LEVEL_NAMES = { 2: 'CPU Lv2' };
     window.getElement = (key) => {
@@ -49,7 +62,7 @@ describe('status-display network seat labels', () => {
     global.getElement = window.getElement;
     global.Image = window.Image;
 
-    window.eval(code);
+    loadStatusDisplayIntoWindow(window);
     window.updateCpuCharacter();
 
     expect(window.document.getElementById('hero-label').textContent).toBe('白:Beta');
@@ -78,9 +91,6 @@ describe('status-display network seat labels', () => {
     );
 
     const { window } = dom;
-    const jsPath = path.join(__dirname, '..', 'ui', 'status-display.js');
-    const code = fs.readFileSync(jsPath, 'utf8');
-
     window.cpuSmartness = { white: 2 };
     window.CPU_LEVEL_NAMES = { 2: 'CPU Lv2' };
     window.getElement = (key) => {
@@ -109,7 +119,7 @@ describe('status-display network seat labels', () => {
     global.getElement = window.getElement;
     global.Image = window.Image;
 
-    window.eval(code);
+    loadStatusDisplayIntoWindow(window);
     window.updateCpuCharacter();
 
     expect(window.document.getElementById('cpu-character-img').classList.contains('is-network-opponent-hero')).toBe(false);

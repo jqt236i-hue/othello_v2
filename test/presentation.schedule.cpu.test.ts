@@ -32,7 +32,7 @@ describe('presentation handler CPU scheduling', () => {
     const scheduleCpuTurn = jest.fn();
     mockPresentationRuntime({ scheduleCpuTurn });
 
-    import * as ph from '../ui/presentation-handler.js';
+    const ph = require('../ui/presentation-handler.js');
     const payload = { type: 'SCHEDULE_CPU_TURN', delayMs: 0 };
 
     ph.handlePresentationEvent(payload);
@@ -44,7 +44,7 @@ describe('presentation handler CPU scheduling', () => {
     const scheduleCpuTurn = jest.fn();
     mockPresentationRuntime({ scheduleCpuTurn });
 
-    import * as ph from '../ui/presentation-handler.js';
+    const ph = require('../ui/presentation-handler.js');
     const payload = {
       type: 'SCHEDULE_CPU_TURN',
       delayMs: 0,
@@ -64,7 +64,7 @@ describe('presentation handler CPU scheduling', () => {
     global.GamePresentationRuntime = null;
 
     try {
-      import * as ph from '../ui/presentation-handler.js';
+      const ph = require('../ui/presentation-handler.js');
       ph.handlePresentationEvent({ type: 'SCHEDULE_CPU_TURN', delayMs: 0 });
 
       expect(global.processCpuTurn).not.toHaveBeenCalled();
@@ -92,7 +92,7 @@ describe('presentation handler CPU scheduling', () => {
     global.getCurrentMatchMode = jest.fn(() => 'cpu');
     global.addLog = jest.fn();
 
-    import * as ph from '../ui/presentation-handler.js';
+    const ph = require('../ui/presentation-handler.js');
     await ph.handlePresentationEvent({
       type: 'PLAYBACK_EVENTS',
       events: [{
@@ -132,7 +132,7 @@ describe('presentation handler CPU scheduling', () => {
     global.gameState.board[3][4] = -1;
     global.addLog = jest.fn();
 
-    import * as ph from '../ui/presentation-handler.js';
+    const ph = require('../ui/presentation-handler.js');
     await ph.handlePresentationEvent({
       type: 'CARD_USED',
       player: 'black',
@@ -172,7 +172,7 @@ describe('presentation handler CPU scheduling', () => {
     };
     global.addLog = jest.fn();
 
-    import * as ph from '../ui/presentation-handler.js';
+    const ph = require('../ui/presentation-handler.js');
     await ph.handlePresentationEvent({
       type: 'PLAYBACK_EVENTS',
       events: [{

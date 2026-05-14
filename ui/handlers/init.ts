@@ -9,7 +9,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-import type { GameState } from '../../src/types';
+import type { GameState as GameStateType } from '../../src/types';
 
 declare const UIBootstrap: {
   installGameDI: () => void;
@@ -34,13 +34,11 @@ declare const setupBgmControls: ((playBtn: HTMLElement | null, pauseBtn: HTMLEle
 declare const setupRulesHelp: ((btn: HTMLElement | null, panel: HTMLElement | null) => void) | undefined;
 declare const setupGachaControls: ((opts: { root: Window }) => void) | undefined;
 declare const setupHandSkinControls: ((opts: Record<string, unknown>) => void) | undefined;
-declare const setupStoryControls: ((btn: HTMLElement | null, overlay: HTMLElement | null, tutorialOverlay: HTMLElement | null) => void) | undefined;
-declare const setupStoryBattleUi: ((opts: Record<string, unknown>) => void) | undefined;
 declare const destroySelectedHandCard: (() => void) | undefined;
 declare const useSelectedCard: (() => void) | undefined;
 declare const toggleCardDetailExpanded: (() => void) | undefined;
 declare const passCurrentTurn: (() => void) | undefined;
-declare const GameState: GameState | undefined;
+declare const GameState: GameStateType | undefined;
 
 const InitBootstrapShared = ((): typeof SharedUIBootstrap | null => {
   if (typeof _require === 'function') {
@@ -57,7 +55,7 @@ const InitBootstrapShared = ((): typeof SharedUIBootstrap | null => {
 function _getUiBootstrapModule(): typeof UIBootstrap | null {
   if (typeof _require === 'function') {
     try {
-      const directBootstrap = _require('../bootstrap');
+      const directBootstrap = _require('../bootstrap.js');
       if (directBootstrap && typeof directBootstrap.installGameDI === 'function') {
         return directBootstrap;
       }
@@ -92,9 +90,6 @@ interface InitDomElements {
   bgmPauseBtn: HTMLElement | null;
   bgmTrackSelect: HTMLSelectElement | null;
   bgmVolSlider: HTMLInputElement | null;
-  storyBtn: HTMLElement | null;
-  storyMenuOverlay: HTMLElement | null;
-  tutorialOverlay: HTMLElement | null;
   rulesHelpBtn: HTMLElement | null;
   rulesHelpPanel: HTMLElement | null;
   gachaOpenBtn: HTMLElement | null;
@@ -219,6 +214,17 @@ async function initializeUI(): Promise<void> {
   }
 
   setUiInitializedFlag(true);
+
+  try {
+    if (typeof window !== 'undefined') {
+      Object.defineProperty(window, 'cpuSmartness', {
+        configurable: false,
+        enumerable: false,
+        get: () => undefined,
+        set: () => {}
+      });
+    }
+  } catch (e) { /* ignore */ }
 
   if (typeof initNetworkAndDebug === 'function') {
     await initNetworkAndDebug();

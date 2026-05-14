@@ -15,7 +15,7 @@ describe('PlaybackStateManager runtime helpers', () => {
 
   afterEach(() => {
     try {
-      import * as manager from '../ui/playback-state-manager.js';
+      const manager = require('../ui/playback-state-manager.js');
       if (manager && typeof manager.clearPlaybackLock === 'function') {
         manager.clearPlaybackLock();
       }
@@ -30,8 +30,7 @@ describe('PlaybackStateManager runtime helpers', () => {
   });
 
   test('syncLegacyWindowFlags mirrors card animation and processing flags', () => {
-    import * as manager from '../ui/playback-state-manager.js';
-
+    const manager = require('../ui/playback-state-manager.js');
     const result = manager.syncLegacyWindowFlags({
       readCardAnimating: () => true,
       readProcessing: () => true
@@ -47,8 +46,7 @@ describe('PlaybackStateManager runtime helpers', () => {
   });
 
   test('setInteractionLock mirrors processing and card animation flags together', () => {
-    import * as manager from '../ui/playback-state-manager.js';
-
+    const manager = require('../ui/playback-state-manager.js');
     manager.setInteractionLock(true);
 
     expect(manager.getPlaybackActive()).toBe(true);
@@ -67,8 +65,7 @@ describe('PlaybackStateManager runtime helpers', () => {
   });
 
   test('playback stale helpers reflect animation engine state and configured timeout', () => {
-    import * as manager from '../ui/playback-state-manager.js';
-
+    const manager = require('../ui/playback-state-manager.js');
     global.window.PASS_STALE_PLAYBACK_MS = 2500;
     global.window.AnimationEngine = { isPlaying: true };
 
@@ -85,8 +82,7 @@ describe('PlaybackStateManager runtime helpers', () => {
   });
 
   test('playback stale helpers fall back to elapsed playback time when engine state is unavailable', () => {
-    import * as manager from '../ui/playback-state-manager.js';
-
+    const manager = require('../ui/playback-state-manager.js');
     global.window.PASS_STALE_PLAYBACK_MS = 2000;
     delete global.window.AnimationEngine;
 
@@ -102,8 +98,7 @@ describe('PlaybackStateManager runtime helpers', () => {
   });
 
   test('clearPlaybackLock clears startedAt so the next playback starts fresh', () => {
-    import * as manager from '../ui/playback-state-manager.js';
-
+    const manager = require('../ui/playback-state-manager.js');
     delete global.window.AnimationEngine;
     global.window.PASS_STALE_PLAYBACK_MS = 2000;
 
@@ -122,7 +117,7 @@ describe('PlaybackStateManager runtime helpers', () => {
   });
 
   test('ensureDebugRuntime aborts stuck playback that was started through the manager', () => {
-    import * as manager from '../ui/playback-state-manager.js';
+    const manager = require('../ui/playback-state-manager.js');
     const abortPlayback = jest.fn();
     const board = document.getElementById('board');
 
@@ -145,8 +140,7 @@ describe('PlaybackStateManager runtime helpers', () => {
   });
 
   test('board update context is one-shot and mirrors legacy suppress flag', () => {
-    import * as manager from '../ui/playback-state-manager.js';
-
+    const manager = require('../ui/playback-state-manager.js');
     const armed = manager.armBoardUpdateContext({
       suppressFallbackFlip: true,
       suppressBoardExpansionRevealSound: true,
@@ -184,8 +178,7 @@ describe('PlaybackStateManager runtime helpers', () => {
   });
 
   test('clearPlaybackLock clears stale board update context', () => {
-    import * as manager from '../ui/playback-state-manager.js';
-
+    const manager = require('../ui/playback-state-manager.js');
     manager.setPlaybackActive(true);
     manager.armBoardUpdateContext({
       suppressFallbackFlip: true,
@@ -202,8 +195,7 @@ describe('PlaybackStateManager runtime helpers', () => {
   });
 
   test('abortPlayback clears playback timing and busy flags together', () => {
-    import * as manager from '../ui/playback-state-manager.js';
-
+    const manager = require('../ui/playback-state-manager.js');
     manager.setInteractionLock(true);
     manager.setPlaybackStartedAt(1234);
     manager.armBoardUpdateContext({
@@ -223,7 +215,7 @@ describe('PlaybackStateManager runtime helpers', () => {
   });
 
   test('abortPlayback invokes the registered playback abort handle only once', () => {
-    import * as manager from '../ui/playback-state-manager.js';
+    const manager = require('../ui/playback-state-manager.js');
     const abort = jest.fn(() => true);
 
     manager.registerPlaybackAbortHandle({ abort });

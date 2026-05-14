@@ -1,7 +1,7 @@
 describe('visual-effects map shared between game/ui', () => {
   beforeEach(() => {
     jest.resetModules();
-    import { JSDOM } from 'jsdom';
+    const { JSDOM } = require('jsdom');
     const dom = new JSDOM('<!doctype html><html><body></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
@@ -62,7 +62,7 @@ describe('visual-effects map shared between game/ui', () => {
     expect(disc.querySelector('.special-stone-img')).toBeNull();
   });
 
-  test('preloadStoneVisualEffectKeys preloads crystal family images once', () => {
+  test('preloadStoneVisualEffectKeys preloads gold/silver/rainbow images once', () => {
     const created = [];
     const FakeImage = function () {
       this.onload = null;
@@ -84,20 +84,27 @@ describe('visual-effects map shared between game/ui', () => {
       'goldStone',
       'silverStone',
       'rainbowStone',
-      'crystalStone',
-      'crystalStone'
+      'rainbowStone'
     ]);
     expect(first.started).toEqual(expect.arrayContaining([
       'assets/images/stones/gold_stone.png',
       'assets/images/stones/silver.stone.png',
-      'assets/images/stones/rainbow_stone.png',
-      'assets/images/stones/crystal_stone.png'
+      'assets/images/stones/rainbow_stone.png'
     ]));
-    expect(created.filter((src) => src === 'assets/images/stones/crystal_stone.png')).toHaveLength(1);
+    expect(created.filter((src) => src === 'assets/images/stones/rainbow_stone.png')).toHaveLength(1);
 
-    const second = window.preloadStoneVisualEffectKeys(['crystalStone']);
+    const second = window.preloadStoneVisualEffectKeys(['rainbowStone']);
     expect(second.started).toHaveLength(0);
-    expect(second.skipped).toContain('assets/images/stones/crystal_stone.png');
+    expect(second.skipped).toContain('assets/images/stones/rainbow_stone.png');
+  });
+
+  test('CRYSTAL_STONE no longer resolves to a special stone visual', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.CRYSTAL_STONE).toBeUndefined();
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.CRYSTAL).toBeUndefined();
   });
 
   test('X_BOMB と CROSS_BOMB が別の石画像へ解決される', async () => {

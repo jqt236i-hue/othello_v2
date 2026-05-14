@@ -17,26 +17,50 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
-
-const BoardOpsModule = (typeof module === 'object' && module.exports)
-    ? _require('../board_ops')
-    : (typeof self !== 'undefined' ? (self as any).BoardOps : null);
-
-const RandomSourceModule = (typeof module === 'object' && module.exports)
-    ? _require('../cards-internal/random-source')
-    : (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
-
-const { BLACK, WHITE, EMPTY } = SharedConstants || {};
-
-if (BLACK === undefined || WHITE === undefined || EMPTY === undefined) {
-    throw new Error('SharedConstants missing required values');
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return undefined;
 }
 
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+const SharedConstants = (() => {
+    const runtimeSharedConstants = getRuntimeGlobalValue('SharedConstants');
+    if (runtimeSharedConstants) return runtimeSharedConstants;
+
+    if (typeof module === 'object' && module.exports) {
+        return safeRequire('../../../shared-constants') || runtimeSharedConstants;
+    }
+
+    return runtimeSharedConstants;
+})();
+
+const BoardOpsModule = getRuntimeGlobalValue('BoardOps') || ((typeof module === 'object' && module.exports)
+    ? safeRequire('../board_ops')
+    : (typeof self !== 'undefined' ? (self as any).BoardOps : null));
+
+const RandomSourceModule = getRuntimeGlobalValue('CardRandomSource') || ((typeof module === 'object' && module.exports)
+    ? safeRequire('../cards-internal/random-source')
+    : (typeof self !== 'undefined' ? (self as any).CardRandomSource : null));
+
+const { BLACK, WHITE, EMPTY } = SharedConstants || {};
+const P_BLACK = (BLACK === undefined || BLACK === null) ? 1 : BLACK;
+const P_WHITE = (WHITE === undefined || WHITE === null) ? -1 : WHITE;
+const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
+
 function normalizeExpansionOwner(owner: any): number {
-    return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
+    return (owner === P_BLACK || owner === P_WHITE) ? owner : P_EMPTY;
 }
 
 interface BoardDims {

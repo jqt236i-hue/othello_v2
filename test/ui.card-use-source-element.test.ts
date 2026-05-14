@@ -27,7 +27,7 @@ describe('card use source element selection', () => {
     `);
     global.window = dom.window;
     global.document = dom.window.document;
-    import * as playbackStateManager from '../ui/playback-state-manager.js';
+    const playbackStateManager = require('../ui/playback-state-manager.js');
     playbackStateManager.abortPlayback();
     playbackStateManager.setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
     global.PlaybackStateManager = playbackStateManager;

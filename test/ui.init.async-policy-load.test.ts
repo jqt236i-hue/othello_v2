@@ -48,7 +48,7 @@ describe('initializeUI async policy loading', () => {
       installGameDI: jest.fn()
     }), { virtual: false });
 
-    import * as initModule from '../ui/handlers/init.js';
+    const initModule = require('../ui/handlers/init.js');
     const initPromise = initModule.initializeUI();
 
     expect(global.__uiInitialized).toBe(false);

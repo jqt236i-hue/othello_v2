@@ -20,8 +20,7 @@ describe('move-executor presentation emission', () => {
         global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
 
-        import * as moveExecutor from '../game/move-executor.js';
-
+        const moveExecutor = require('../game/move-executor.js');
         const move = { row: 2, col: 3, player: 1 };
         const playerKey = 'black';
 
@@ -58,8 +57,7 @@ describe('move-executor presentation emission', () => {
             publishSnapshot: jest.fn()
         };
 
-        import * as moveExecutor from '../game/move-executor.js';
-
+        const moveExecutor = require('../game/move-executor.js');
         const fakeRes = {
             ok: true,
             nextGameState: global.gameState,
@@ -101,8 +99,7 @@ describe('move-executor presentation emission', () => {
             publishSnapshot: jest.fn()
         };
 
-        import * as moveExecutor from '../game/move-executor.js';
-
+        const moveExecutor = require('../game/move-executor.js');
         const fakeRes = {
             ok: true,
             nextGameState: global.gameState,
@@ -159,8 +156,7 @@ describe('move-executor presentation emission', () => {
             publishSnapshot: jest.fn()
         };
 
-        import * as moveExecutor from '../game/move-executor.js';
-
+        const moveExecutor = require('../game/move-executor.js');
         const nextCardState = {
             pendingEffectByPlayer: { black: null, white: null },
             turnIndex: 1,
@@ -207,8 +203,7 @@ describe('move-executor presentation emission', () => {
         global.renderCardUI = jest.fn();
         global.emitCardStateChange = jest.fn();
 
-        import * as moveExecutor from '../game/move-executor.js';
-
+        const moveExecutor = require('../game/move-executor.js');
         const fakeRes = {
             ok: true,
             nextGameState: global.gameState,
@@ -235,8 +230,7 @@ describe('move-executor presentation emission', () => {
         global.renderCardUI = jest.fn();
         global.emitCardStateChange = jest.fn(() => true);
 
-        import * as moveExecutor from '../game/move-executor.js';
-
+        const moveExecutor = require('../game/move-executor.js');
         const fakeRes = {
             ok: true,
             nextGameState: global.gameState,
@@ -264,7 +258,7 @@ describe('move-executor presentation emission', () => {
             setBusyState: jest.fn()
         };
 
-        import * as moveExecutor from '../game/move-executor.js';
+        const moveExecutor = require('../game/move-executor.js');
         const adapter = {
             runTurnWithAdapter: jest.fn(() => ({ skippedLocalExecution: true }))
         };

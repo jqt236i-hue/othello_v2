@@ -11,7 +11,6 @@ Browser UI, input, playback, and bootstrap-time DI. Read `.github/instructions/u
 | Network client state | `network-client.ts`, `network/*` | `network-client.ts` is a compatibility shell; module logic lives under `network/`. Server snapshots are authoritative. |
 | UI handlers | `handlers/*` | Handlers wire controls/controllers/globals. Business logic belongs in the target submodule. |
 | Gacha UI | `gacha/*` | Keep transaction, catalog resolution, reveal stage, overlay view/controller separated. |
-| Story / tutorial | `story/*`, `tutorial/*`, `handlers/story.ts`, `handlers/tutorial.ts` | Tutorial has its own state machine; story may delegate tutorial scenarios. |
 | Cosmetic skins | `hand-skin/*`, `background-skin/*`, `cosmetics/*` | Follow `catalog` → `selection` → `runtime` → `controller` pattern. |
 
 ## Non-obvious contracts

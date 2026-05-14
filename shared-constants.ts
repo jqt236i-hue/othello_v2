@@ -162,8 +162,8 @@ const CARD_DEFS_FALLBACK = [
 
     { id: 'regen_01', name: '復活の意志', type: 'REGEN_WILL', cost: 12, desc: '次に置いた石は復活可能回数3を持つ。反転または破壊されるたびに1回消費して元の色へ戻り、そのマスを起点に挟める列があれば成立する方向の石を反転する。' },
 
-    // DESTROY_ONE_STONE (破壊神) - 1 card, cost: 19
-    { id: 'destroy_01', name: '破壊神', type: 'DESTROY_ONE_STONE', cost: 19, desc: '盤上の石を1つ選び、破壊する。' },
+    // DESTROY_ONE_STONE (破壊の意志) - 1 card, cost: 19
+    { id: 'destroy_01', name: '破壊の意志', type: 'DESTROY_ONE_STONE', cost: 19, desc: '盤上の石を1つ選び、破壊する。' },
 
     // TIME_BOMB (時限爆弾) - 1 card, cost: 13
     { id: 'bomb_01', name: '時限爆弾', type: 'TIME_BOMB', cost: 13, desc: '盤面上の自分の石1つを時限爆弾化。3ターン後に周囲9マスを破壊。反転されると解除。' },
@@ -233,6 +233,8 @@ const CARD_DEFS_FALLBACK = [
     { id: 'reveal_hand_01', name: '観測の意志', type: 'REVEAL_HAND_WILL', cost: 2, desc: '現在の相手手札をすべて表にする。使用後に相手が引いたカードは表にならない。' },
     // CONDEMN_WILL (断罪の意志) - 1 card, cost: 8
     { id: 'condemn_01', name: '断罪の意志', type: 'CONDEMN_WILL', cost: 8, desc: '相手手札を公開し、1枚選んで破壊する。' },
+    // EXECUTION_WILL (執行の意志) - 1 card, cost: 2
+    { id: 'execution_01', name: '執行の意志', type: 'EXECUTION_WILL', cost: 2, desc: '直前の相手ターンで自分の石が破壊されていた場合に使用可能。相手手札をランダムで最大3枚破壊する。' },
 
     // GOLD_STONE (金の意志) - 1 card, cost: 6
     { id: 'gold_stone', name: '金の意志', type: 'GOLD_STONE', cost: 6, desc: '次の反転で得る布石が4倍。使用後その石は消滅する。' },
@@ -243,8 +245,8 @@ const CARD_DEFS_FALLBACK = [
     // SILVER_STONE (銀の意志) - 1 card, cost: 3
     { id: 'silver_stone', name: '銀の意志', type: 'SILVER_STONE', cost: 3, desc: '次の反転で得る布石が3倍。使用後その石は消滅する。' },
 
-    // CRYSTAL_STONE（水晶の意志） - 1 card, cost: 8
-    { id: 'crystal_stone', name: '水晶の意志', type: 'CRYSTAL_STONE', cost: 8, desc: '次に得る数字マスの布石が4倍。使用後その石は消滅する。' },
+    // CRYSTAL_STONE（演算の意志） - 1 card, cost: 6
+    { id: 'crystal_stone', name: '演算の意志', type: 'CRYSTAL_STONE', cost: 6, desc: '次に得る数字マスの布石が2倍。数字マス以外では何も起こらない。' },
 
     // EXTEND_LIFE_WILL (延命の意志) - 1 card, cost: 4
     { id: 'extend_life_01', name: '延命の意志', type: 'EXTEND_LIFE_WILL', cost: 4, desc: '盤面上の自分の特殊石1つを選び、その持続ターン(remainingOwnerTurns)を2倍にする。' },
@@ -259,6 +261,9 @@ const CARD_DEFS_FALLBACK = [
 
     // GUARDIAN_GOD (守護神) - 1 card, cost: 10
     { id: 'guardian_god_01', name: '守護神', type: 'GUARDIAN_GOD', cost: 10, desc: '自分の石1つに完全保護を付与する。10ターン持続。' },
+
+    // STONE_SALVATION_GOD (石救済神) - 1 card, cost: 25
+    { id: 'stone_salvation_god_01', name: '石救済神', type: 'STONE_SALVATION_GOD', cost: 25, desc: '次に置く石を救済神化する。救済神は反転されず、10ターン持続。盤面にいる間、自分の石が破壊されると破壊された自石を通常石としてランダムな空きマスに復活させる。救済神自身は復活しない。' },
 
     // DESTROY_DRAGON_WILL (破壊龍) - 1 card, cost: 7
     { id: 'destroy_dragon_01', name: '破壊龍', type: 'DESTROY_DRAGON_WILL', cost: 7, desc: '次に置く石を破壊龍化。配置時と自ターン開始時に周囲1マス（8方向）の敵石をランダム1個だけ破壊する。3ターン持続。反転保護を持つ特殊石。' },
@@ -363,6 +368,7 @@ export const CARD_TYPES = [
     'CORROSION_WILL',
     'GUARD_WILL',
     'GUARDIAN_GOD',
+    'STONE_SALVATION_GOD',
     'DESTROY_DRAGON_WILL',
     'LIGHTNING_WILL',
     'ULTIMATE_DESTROY_GOD',

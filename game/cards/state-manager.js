@@ -1,2 +1,2 @@
 const path = require('path');
-module.exports = require(path.join(__dirname, '..', '..', 'dist', 'game', 'cards', 'state-manager.js'));
+module.exports = require(path.join(process.cwd(), 'dist', 'game', 'cards', 'state-manager.js'));

@@ -226,4 +226,10 @@ const LeaderboardClient = {
   resolveServerBaseUrl
 };
 
+try {
+  if (typeof globalThis !== 'undefined') {
+    (globalThis as any).LeaderboardClient = LeaderboardClient;
+  }
+} catch (e) { /* ignore */ }
+
 export = LeaderboardClient;

@@ -28,7 +28,7 @@ describe('special-effects bombs fallback animation batching', () => {
       });
     });
 
-    import { processBombs } from '../game/special-effects/bombs.js';
+    const { processBombs } = require('../game/special-effects/bombs.js');
     await processBombs([{
       type: 'bombs_exploded',
       details: {
@@ -57,7 +57,7 @@ describe('special-effects bombs fallback animation batching', () => {
     };
     global.AnimationEngine = { play: jest.fn(() => Promise.resolve()) };
 
-    import { explodeBombUI } from '../game/special-effects/bombs.js';
+    const { explodeBombUI } = require('../game/special-effects/bombs.js');
     await explodeBombUI(0, 0);
 
     expect(global.AnimationEngine.play).toHaveBeenCalledWith([

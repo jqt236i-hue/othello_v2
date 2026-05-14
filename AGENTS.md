@@ -1,94 +1,107 @@
-# カードオセロ / AGENTS.md
+# PROJECT KNOWLEDGE BASE
 
-最終更新: 2026-04-04
+**Generated:** 2026-05-14
+**Commit:** 42f0d20
+**Branch:** codex/lv6-training-strategy-hardening
 
-## 0. この文書の役割
+## OVERVIEW
 
-- この文書は、この repo で作業するときの読む順、調べる順、直す順、確認順をまとめた導線です。
-- 仕様は `01-rulebook.md`、強制ルールは `.github/copilot-instructions.md`、局所差分は `.github/instructions/*.instructions.md`、定型作業は `SKILLS.md` と `.github/skills/**/SKILL.md` が担当します。
-- ここに書くのは「どう進めるか」です。仕様や hard rule の正本を重複定義しません。
+カードオセロは、ブラウザ UI・headless game logic・network Worker・selfplay/CPU training を同じ repo で扱う JavaScript/TypeScript 中心のゲームです。仕様正本は `01-rulebook.md`、内部構造の正本は `docs/architecture-contracts.md`、root 実装が正本で `worker-public/` は mirror です。
 
-## 最小共通ルール
+## STRUCTURE
 
-- 仕様の一次情報は `01-rulebook.md`。挙動や見え方を変える変更は、関連実装より先にここを更新する。
-- 外部のコード保管先への送信、外部確認前提の提案、外部依存の追加はしない。事前合意がある場合だけ例外とする。
-- `game/` は `ui/` に直接依存しない。`ui/` は `game/` の公開 API / event / DI だけを使う。
-- `cpu/` は読み取り専用で扱い、DOM / UI / 音 / タイマーを直接操作しない。
-- `owner` / `player` / 色などの揺れは入口で正規化し、内部表現を混在させない。
-- 定数は `shared-constants.js` と `constants/` を単一ソースにし、重複定義しない。
-- debug 動作は `?debug=1` などの明示条件でだけ有効化し、通常時に副作用を出さない。
-- ユーザー向けの説明では、カード名・効果名・状態名・UI要素名を、まず `01-rulebook.md` や画面表示に沿った日本語名 / 表示名で書く。コード上のID・関数名・event type は必要な時だけ補足として併記する。
-- UI は `events[]` を順番どおりに再生し、再生中の盤面 DOM の書き手は 1 つに絞る。フリップ演出は Spec B を守る。
-- root を正本にし、`worker-public/` は mirror として扱う。必要時は `npm run worker:prepare` で同期する。
-- 既定の実装戦術は、根本原因を最も明快に解消し、責務境界・契約・単一ソースを改善できる経路を選ぶこととする。
-- 差分の小ささは目的ではない。同等に正しい案が複数ある場合の比較要素としてのみ扱う。
-- 局所修正で十分ならその責務境界で完結させる。ただし責務の混線、契約不整合、重複経路、再発不具合がある時は、master plan / phase / 完了条件 / 検証束を先に固定し、抽出・統合・置換を含む構造変更を選ぶ。
-- 修正は根本原因を先に特定し、前後で同条件の確認結果を残す。
-- この共通節を更新する時は `AGENTS.md` と `.github/copilot-instructions.md` の両方に同じ内容を入れる。
+```text
+othello_v2/
+├── 01-rulebook.md              # ゲーム仕様・カード仕様・UI表示仕様の一次情報
+├── index.html                  # main browser entry
+├── entry-browser.js            # classic browser bootstrap / module loading
+├── cards/                      # display catalog and card UI surfaces
+├── game/                       # headless rules, turn flow, CPU runtime helpers
+├── ui/                         # browser UI, playback, input, DI, network client
+├── shared/                     # browser/worker/headless portable helpers and codecs
+├── constants/                  # single-source constants
+├── utils/                      # authority / normalization helpers shared across runtimes
+├── workers/                    # Cloudflare Worker authority entry
+├── scripts/                    # build, check, codegen, local server, selfplay orchestration
+├── ai/train/                   # Python training scripts and setup
+├── test/                       # main Jest tests
+├── tests/                      # Jest setup and visual-regression tooling
+└── worker-public/              # generated/mirrored deploy surface; do not edit first
+```
 
-## 読む順
+## WHERE TO LOOK
 
-1. 挙動や見た目が絡むなら `01-rulebook.md`
-2. hard rule が必要なら `.github/copilot-instructions.md`
-3. モジュール境界・ランタイム契約・authority・DI・Single Visual Writer が絡むなら `docs/architecture-contracts.md`
-4. 触るファイルに対応する `.github/instructions/*.instructions.md`
-5. 反復作業や広い作業なら `SKILLS.md` と対応する `.github/skills/**/SKILL.md`
-6. 局所事情だけ必要なら対象ディレクトリの `README.ai.md`
+| Task | Location | Notes |
+| --- | --- | --- |
+| Player-visible behavior | `01-rulebook.md` | Update before implementation when rules, cards, UI timing, or visible text change. |
+| Hard rules / completion | `.github/copilot-instructions.md` | Repo-wide must-follow constraints. |
+| Architecture boundary | `docs/architecture-contracts.md` | Module contracts, authority, DI, runtime equivalence. |
+| Browser boot | `index.html`, `entry-browser.js`, `ui/bootstrap.ts`, `ui/bootstrap/init-*.ts` | Load order and DI are fragile. |
+| Game progression | `game/turn/*`, `game/turn-manager.ts`, `game/move-executor.ts` | Keep headless; UI bridge is explicit. |
+| Card logic | `cards/catalog.json`, `game/logic/cards/*`, `game/card-effects/*` | Catalog display, pure logic, and pending/UI bridge are separate layers. |
+| CPU runtime | `game/cpu-decision.ts`, `game/cpu-turn-handler.ts`, `game/ai/*` | `cpu/` is compatibility/read-only; runtime policy lives under `game/`. |
+| Network client | `ui/network-client.ts`, `ui/network/*` | Server snapshot is authoritative; UI reconciles/presents. |
+| Network backend | `workers/match-worker.ts`, `scripts/local-match-server.ts`, `utils/match-authority.ts` | Keep Worker and local server contracts aligned. |
+| Shared helpers | `shared/*`, `utils/owner-helpers.ts`, `shared-constants.ts`, `constants/*` | Avoid local copies of normalization/constants. |
+| Browser integration tests | `test/e2e/*`, `tests/visual-regression/*` | `test/e2e/` is Playwright-on-Jest with local static server; `tests/` is harness/visual tooling. |
+| Worker mirror | `scripts/prepare-worker-assets.ts`, `worker-public/*` | Sync via `npm run worker:prepare`; never source-edit mirror. |
+| Training | `scripts/run-selfplay-*`, `src/engine/selfplay-runner.ts`, `ai/train/*` | JS orchestrates profiles; Python trains model artifacts. |
+| Tests | `test/*.test.ts`, `game/ai/__tests__`, `scripts/__tests__` | Main suite is `test/`; `tests/` is setup/visual tooling. |
 
-## 着手前に決めること
+## CODE MAP
 
-- 目的、影響ファイル、更新が必要な仕様面を先に固定する。
-- 今回が責務境界内の修正で完結するか、構造変更が要るかを先に分類する。構造変更なら master plan を先に置く。
-- root 正本ファイルと、生成物 / mirror を切り分ける。
-- 先に関連 test / check / search を決め、変更後に同条件で見直す。
-- 同じ箇所に未コミット変更がある時は、上書き可否を明示してから触る。
+| Symbol / file | Type | Role |
+| --- | --- | --- |
+| `entry-browser.js` | browser bootstrap | Large classic loader for runtime modules and compatibility globals. |
+| `ui/bootstrap.ts` | DI/bootstrap module | Installs UI/game/network dependency bridges. |
+| `workers/match-worker.ts` | Worker source | Canonical server-authoritative match state. |
+| `workers/match-worker.mjs` | Worker shim | Thin entry over built worker output. |
+| `game/logic/cards.ts` | rules hub | Central card rule registry / resolution surface. |
+| `game/turn/turn_pipeline.ts` | turn pipeline | Headless turn sequence entry. |
+| `ui/network/snapshot-canonical.ts` | network helper | Snapshot normalization/version inspection. |
+| `utils/owner-helpers.ts` | shared utility | Canonical owner/player/layout normalization implementation. |
+| `utils/match-authority.ts` | authority helper | Canonical seat token / operationId / projection / SSE helper. |
+| `shared/player-encoding.ts` | shared codec | Pure black/white player codec. |
+| `scripts/build-module-registry.ts` | generator | Source for `public/module-registry.js`. |
 
-## 調査順の基本
+## CONVENTIONS
 
-1. 仕様または外部契約
-2. root 側の公開入口
-3. 既存の共通 helper / 定数 / 生成経路
-4. 関連 test
-5. `worker-public/` や deploy などの派生面
+- Priority order: `01-rulebook.md` → `.github/copilot-instructions.md` → `docs/architecture-contracts.md` → this file → `.github/instructions/*.instructions.md` → `SKILLS.md` / local `README.ai.md`.
+- Root files are source of truth; `dist/` and `worker-public/` are generated or mirrored surfaces.
+- Prefer `.ts` when a `.ts`/`.js` pair exists. Adjacent `.js` is usually a dist wrapper; check `docs/typescript-migration-js-allowlist.md` before editing `.js`.
+- `game/` stays headless. `ui/` consumes public APIs, events, and DI hooks only.
+- `events[]` playback order and Single Visual Writer are part of the UI contract.
+- Debug behavior is gated by explicit flags such as `?debug=1`; normal play must not get debug side effects.
+- `owner` / `player` / color forms are normalized at boundaries; do not mix internal representations.
+- Generated catalogs and manifests come from scripts, not hand edits.
 
-## 代表的な入口
+## ANTI-PATTERNS (THIS PROJECT)
 
-- 内部アーキテクチャ契約（モジュール境界・ランタイム契約・authority・DI）: `docs/architecture-contracts.md`
-- UI / load order: `index.html`, `ui/bootstrap.js`, `ui/handlers/init.js`
-- ゲーム進行: `game/turn/*`, `game/turn-manager.js`, `game/move-executor.js`
-- カード: `cards/catalog.json`, `game/logic/cards.js`, `game/card-effects/*`
-- CPU: `game/cpu-decision.js`, `game/cpu-turn-handler.js`, `game/ai/*`
-- network client: `ui/network-client.js`, `ui/network/snapshot.js`, `ui/network/session-seat.js`
-- network backend: `workers/match-worker.mjs`, `scripts/local-match-server.js`, `scripts/match-network-smoke.js`
-- worker-public sync: `scripts/prepare-worker-assets.js`, `worker-public/*`
+- Treating client-authored state, `snapshot-runtime.ts`, or preview state as authority.
+- Adding DOM/window/sound/timer dependencies to `game/`, `shared/`, CPU logic, or card logic.
+- Creating a second board DOM writer during playback or reordering `events[]`.
+- Editing `worker-public/`, `dist/`, generated catalog files, or `public/module-registry.js` as source.
+- Hiding failures with broad catch, silent return, or success-shaped fallback.
+- Duplicating constants, Lv6 decision-mode parsing, owner/player normalization, or card target/cost checks.
+- Running long selfplay/training jobs when a focused preflight or test is enough.
 
-## 編集順
+## COMMANDS
 
-1. 仕様変更が必要なら `01-rulebook.md` を先に直す。
-2. 局所修正で十分なら、root 側の正本をその責務境界で完結するように直す。不要な拡散は避けるが、差分の小ささ自体は目的にしない。
-3. 局所修正で根本原因を解消できないなら、master plan / phase / 完了条件 / 検証束を先に固定し、抽出・統合・置換を含む構造変更として進める。
-4. 生成物や mirror は最後に揃える。
-5. rename / delete は残り参照を検索してから確定する。
-6. 無関係な掃除を同じ差分に混ぜない。
+```powershell
+npm run typecheck
+npm run build:ts
+npm run checkall
+npm run test:jest
+npm run test:network:parity
+npm run test:visual
+npm run match:check
+npm run worker:prepare
+```
 
-## 確認順
+## NOTES
 
-- docs-only でなければ、変更範囲の近い test / check から先に回す。
-- docs-only なら、役割の重複、参照漏れ、frontmatter / `applyTo` / file existence を確認する。
-- `worker-public/` に影響がある時は `npm run worker:prepare` を含める。
-- 削除や統合をした時は `rg` で残り参照を消したことを確認する。
-
-## 完了報告
-
-- 何を変えたか
-- なぜその置き場所にしたか
-- 実行した test / check と結果
-- `01-rulebook.md` を更新したかどうかと理由
-- 画面表示や `01-rulebook.md` に沿った日本語名を優先し、専門用語を避けた短い説明
-
-## 止まる条件
-
-- 仕様矛盾があり、正しい挙動を決められない
-- 破壊的変更や新規依存追加が必要
-- root 正本を決められない
-- 未承認の同一箇所変更で上書きリスクが高い
+- `npm test` runs `pretest` → `npm run checkall` before Jest.
+- Network parity has an explicit package script; prefer it over ad-hoc broad runs for publish/snapshot/reconnect changes.
+- Docs-only changes still need role-overlap, reference, frontmatter / `applyTo`, and file-existence checks.
+- After root model deployment or any root-to-worker mirror impact, run `npm run worker:prepare`.
+- User-facing reports should use Japanese display names from the screen or `01-rulebook.md` first; code IDs are secondary.

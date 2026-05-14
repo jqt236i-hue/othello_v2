@@ -53,6 +53,14 @@ describe('deck builder controller', () => {
     delete global.localStorage;
     delete global.navigator;
     delete global.__uiImpl_turn_manager;
+    delete global.SharedUIBootstrap;
+    delete global.GameEvents;
+    delete global.cardState;
+    delete global.dealInitialCards;
+    delete global.updateCpuCharacter;
+    delete global.resetGame;
+    delete global.handleCellClick;
+    delete global.gameState;
   });
 
   function openEditor(body) {
@@ -74,8 +82,8 @@ describe('deck builder controller', () => {
   }
 
   function createThirtyCardDeck(startIndex = 0) {
-    import * as DeckSpecHelpers from '../shared/deck-spec.js';
-    import * as DeckCodecModule from '../shared/deck-codec.js';
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    const DeckCodecModule = require('../shared/deck-codec.js');
     const ids = DeckSpecHelpers.getEnabledCardDefs()
       .slice(startIndex, startIndex + 10)
       .map((cardDef) => cardDef.id);
@@ -93,7 +101,7 @@ describe('deck builder controller', () => {
   }
 
   function createController() {
-    import { createDeckBuilderController } from '../ui/deck-builder-controller.js';
+    const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');
     return createDeckBuilderController({
       root: window,
       refs: {
@@ -115,7 +123,7 @@ describe('deck builder controller', () => {
   }
 
   test('controlSummary が無くてもデッキ構築を開ける', () => {
-    import { createDeckBuilderController } from '../ui/deck-builder-controller.js';
+    const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');
     const body = document.getElementById('body');
 
     document.getElementById('summary').remove();
@@ -138,8 +146,8 @@ describe('deck builder controller', () => {
   });
 
   test('候補カードはコスト降順で表示する', () => {
-    import * as DeckSpecHelpers from '../shared/deck-spec.js';
-    import { createDeckBuilderController } from '../ui/deck-builder-controller.js';
+    const DeckBuilderRenderer = require('../ui/deck-builder-renderer');
+    const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');
     const body = document.getElementById('body');
 
     createDeckBuilderController({
@@ -158,7 +166,7 @@ describe('deck builder controller', () => {
 
     const renderedIds = Array.from(body.querySelectorAll('.deck-builder-candidate-grid .deck-builder-card'))
       .map((element) => element.dataset.cardId);
-    const expectedIds = DeckSpecHelpers.getEnabledCardDefs()
+    const expectedIds = DeckBuilderRenderer.getEnabledCardDefs()
       .slice()
       .sort((left, right) => {
         const leftCost = Number(left.cost) || 0;
@@ -172,7 +180,7 @@ describe('deck builder controller', () => {
   });
 
   test('候補カードのコストはカード直下、タイプは右下バッジ行に入る', () => {
-    import { createDeckBuilderController } from '../ui/deck-builder-controller.js';
+    const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');
     const body = document.getElementById('body');
 
     createDeckBuilderController({
@@ -202,8 +210,8 @@ describe('deck builder controller', () => {
   });
 
   test('候補カードは4回目の押下で0枚に戻り、スクロール位置を保つ', () => {
-    import * as DeckSpecHelpers from '../shared/deck-spec.js';
-    import { createDeckBuilderController } from '../ui/deck-builder-controller.js';
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');
     const body = document.getElementById('body');
 
     createDeckBuilderController({
@@ -247,8 +255,8 @@ describe('deck builder controller', () => {
   });
 
   test('候補カード追加で上側の内容が伸びても見えている位置を維持する', () => {
-    import * as DeckSpecHelpers from '../shared/deck-spec.js';
-    import { createDeckBuilderController } from '../ui/deck-builder-controller.js';
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');
     const body = document.getElementById('body');
 
     createDeckBuilderController({
@@ -313,8 +321,8 @@ describe('deck builder controller', () => {
   });
 
   test('候補カードが3枚のときは次の押下が0枚戻しになる案内を出す', () => {
-    import * as DeckSpecHelpers from '../shared/deck-spec.js';
-    import { createDeckBuilderController } from '../ui/deck-builder-controller.js';
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');
     const body = document.getElementById('body');
 
     createDeckBuilderController({
@@ -526,32 +534,6 @@ describe('deck builder controller', () => {
     });
   });
 
-  test.each([
-    ['Story', 'ストーリー固定'],
-    ['Tutorial', 'チュートリアル固定']
-  ])('%s mode はローカル設定を残したまま実対局用 boardConfig を標準盤に固定する', (moduleKey, expectedLabel) => {
-    window[moduleKey] = {
-      State: {
-        isActive: () => true
-      }
-    };
-
-    const controller = createController();
-    controller.setLocalBoardConfig({ rows: 7, cols: 9 });
-
-    expect(controller.getLocalBoardConfig()).toMatchObject({
-      rows: 7,
-      cols: 9,
-      standard8x8: false
-    });
-    expect(controller.readBoardConfig()).toMatchObject({
-      rows: 8,
-      cols: 8,
-      standard8x8: true
-    });
-    expect(document.getElementById('boardSizeControlSummary').textContent).toContain(expectedLabel);
-  });
-
   test('setLocalBoardConfig はローカル盤面サイズを 10x10 上限で更新する', () => {
     const controller = createController();
 
@@ -593,8 +575,8 @@ describe('deck builder controller', () => {
 
   test('CPU対戦の片側カスタム指定でも白はデフォルトデッキ枚数を維持する', () => {
     const localDeck = createThirtyCardDeck(0);
-    import * as CardLogic from '../game/logic/cards.js';
-    import * as DeckSpecHelpers from '../shared/deck-spec.js';
+    const CardLogic = require('../game/logic/cards.js');
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
     const prng = { shuffle: (arr) => arr, random: () => 0.5 };
 
     const cardState = CardLogic.createCardState(prng, {

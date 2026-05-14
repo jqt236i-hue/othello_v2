@@ -1,3 +1,3 @@
 "use strict";
 /** @type {any} */
-module.exports = require('../dist/cards/card-renderer');
+module.exports = process.env.JEST_WORKER_ID && typeof globalThis.expect === 'function' ? require('./card-renderer.ts') : require('../dist/cards/card-renderer');

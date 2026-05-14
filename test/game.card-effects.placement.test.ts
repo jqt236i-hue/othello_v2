@@ -57,15 +57,12 @@ describe('applyProtectionAfterMove', () => {
         expect(res.pendingType).toBe('FREE_PLACEMENT');
     });
 
-    test('logs crystal zero-gain wording without implying a bonus was gained', () => {
+    test('does not log crystal wording when the next placement is not on a number cell', () => {
         const move = { row: 2, col: 3, player: 1 };
-        const effects = {
-            crystalStoneUsed: true,
-            crystalStoneGain: 0
-        };
+        const effects = {};
 
         applyProtectionAfterMove(move, effects);
 
-        expect(global.emitLogAdded).toHaveBeenCalledWith('水晶の意志：数字マスなしで増加なし');
+        expect(global.emitLogAdded).not.toHaveBeenCalled();
     });
 });

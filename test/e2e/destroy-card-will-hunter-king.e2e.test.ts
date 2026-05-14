@@ -27,7 +27,7 @@ describe('DESTROY_ONE_STONE destroy evade E2E', () => {
     serverProc = null;
   }, 30000);
 
-  test('破壊神で意志狩りの王を選んだ時は破壊回避して表示も移動先へ残る', async () => {
+  test('破壊の意志で意志狩りの王を選んだ時は破壊回避して表示も移動先へ残る', async () => {
     page = await browser.newPage();
 
     await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);

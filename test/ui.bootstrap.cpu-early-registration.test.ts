@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import * as path from 'path';
+const path = require('path');
 import { JSDOM } from 'jsdom';
 
 describe('UI bootstrap early CPU registration', () => {
@@ -21,7 +21,7 @@ describe('UI bootstrap early CPU registration', () => {
     const mockCpu = { processCpuTurn: jest.fn(), processAutoBlackTurn: jest.fn() };
     jest.doMock('../game/cpu-turn-handler', () => mockCpu);
 
-    import * as uiBoot from '../ui/bootstrap.js';
+    const uiBoot = require('../ui/bootstrap.js');
     // Call installGameDI (returns impl) to perform the registration logic
     const impl = uiBoot.installGameDI();
 
@@ -161,7 +161,7 @@ describe('UI bootstrap early CPU registration', () => {
     jest.doMock('../game/turn-manager', () => ({ setUIImpl: setUIImplMock }));
     jest.doMock('../game/cpu-turn-handler', () => ({}));
 
-    import * as uiBoot from '../ui/bootstrap.js';
+    const uiBoot = require('../ui/bootstrap.js');
     uiBoot.installGameDI();
 
     expect(setUIImplMock.mock.calls.length).toBeGreaterThan(0);
@@ -216,7 +216,7 @@ describe('UI bootstrap early CPU registration', () => {
     global.resetRenderStats = jest.fn();
     global.hideCpuSpeechBubble = jest.fn();
 
-    import * as playbackState from '../ui/playback-state-manager.js';
+    const playbackState = require('../ui/playback-state-manager.js');
     global.PlaybackStateManager = playbackState;
     global.window.PlaybackStateManager = playbackState;
 
@@ -242,7 +242,7 @@ describe('UI bootstrap early CPU registration', () => {
     jest.doMock('../game/turn-manager', () => ({ setUIImpl: setUIImplMock }));
     jest.doMock('../game/cpu-turn-handler', () => ({}));
 
-    import * as uiBoot from '../ui/bootstrap.js';
+    const uiBoot = require('../ui/bootstrap.js');
     uiBoot.installGameDI();
 
     const uiImpl = setUIImplMock.mock.calls

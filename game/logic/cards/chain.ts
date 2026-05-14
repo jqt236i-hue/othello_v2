@@ -17,17 +17,24 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
+const RuntimeSharedConstants = (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants)
+    ? (globalThis as any).SharedConstants
     : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+const SharedConstants = RuntimeSharedConstants || ((typeof module === 'object' && module.exports)
+    ? _require('../../../shared-constants')
+    : undefined);
 
-const CardFlips = (typeof module === 'object' && module.exports)
-    ? _require('./flips')
-    : (typeof self !== 'undefined' ? (self as any).CardFlips : undefined);
+const CardFlips = (typeof globalThis !== 'undefined' && (globalThis as any).CardFlips)
+    ? (globalThis as any).CardFlips
+    : ((typeof module === 'object' && module.exports)
+        ? _require('./flips')
+        : (typeof self !== 'undefined' ? (self as any).CardFlips : undefined));
 
-const RandomSourceModule = (typeof module === 'object' && module.exports)
-    ? _require('../cards-internal/random-source')
-    : (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
+const RandomSourceModule = (typeof globalThis !== 'undefined' && (globalThis as any).CardRandomSource)
+    ? (globalThis as any).CardRandomSource
+    : ((typeof module === 'object' && module.exports)
+        ? _require('../cards-internal/random-source')
+        : (typeof self !== 'undefined' ? (self as any).CardRandomSource : null));
 
 const { DIRECTIONS } = SharedConstants || {};
 

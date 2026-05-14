@@ -236,7 +236,7 @@ describe('NetworkMatchClient swap deferred publish', () => {
     expect(global.gameState.board).toHaveLength(7);
     expect(global.gameState.board[0]).toHaveLength(9);
 
-    import { handleSwapSelection } from '../game/card-effects/swap.js';
+    const { handleSwapSelection } = require('../game/card-effects/swap.js');
     await handleSwapSelection(6, 8, 'black');
 
     await new Promise((resolve) => setTimeout(resolve, 0));

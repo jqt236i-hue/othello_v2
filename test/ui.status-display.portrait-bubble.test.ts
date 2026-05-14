@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as fs from 'fs';
 import * as path from 'path';
 import { JSDOM } from 'jsdom';
@@ -34,8 +35,6 @@ function setupPortraitBubbleDom() {
   );
 
   const { window } = dom;
-  const jsPath = path.join(__dirname, '..', 'ui', 'status-display.js');
-  const code = fs.readFileSync(jsPath, 'utf8');
   const boardFrame = window.document.getElementById('board-frame');
   const heroImg = window.document.getElementById('hero-character-img');
   const cpuImg = window.document.getElementById('cpu-character-img');
@@ -81,7 +80,10 @@ function setupPortraitBubbleDom() {
 
   global.window = window;
   global.document = window.document;
-  window.eval(code);
+  jest.resetModules();
+  const statusDisplay = require(path.join(__dirname, '..', 'ui', 'status-display.js'));
+  window.showHeroSpeechBubble = statusDisplay.showHeroSpeechBubble;
+  window.showCpuSpeechBubble = statusDisplay.showCpuSpeechBubble;
 
   return { dom, window, boardFrame };
 }
@@ -94,7 +96,7 @@ function teardownPortraitBubbleDom(dom) {
 
 describe('status-display portrait commentary bubbles', () => {
   test('showPortraitSpeechBubble only resets the same speaker role', () => {
-    const jsPath = path.join(__dirname, '..', 'ui', 'status-display.js');
+    const jsPath = path.join(__dirname, '..', 'ui', 'status-display.ts');
     const js = fs.readFileSync(jsPath, 'utf8');
 
     expect(js).toMatch(/function\s+showPortraitSpeechBubble[\s\S]*hidePortraitSpeechBubble\(config\.role\);/);

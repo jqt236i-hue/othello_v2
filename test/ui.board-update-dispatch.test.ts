@@ -9,7 +9,7 @@ describe('ui board update dispatch', () => {
     global.emitBoardUpdate = jest.fn(() => true);
     global.renderBoard = jest.fn();
 
-    import * as dispatch from '../ui/board-update-dispatch.js';
+    const dispatch = require('../ui/board-update-dispatch.js');
     expect(dispatch.requestBoardUpdate({
       source: 'unit-test',
       reason: 'preferred_path'
@@ -25,7 +25,7 @@ describe('ui board update dispatch', () => {
   test('falls back to renderBoard when emitBoardUpdate is unavailable', () => {
     global.renderBoard = jest.fn();
 
-    import * as dispatch from '../ui/board-update-dispatch.js';
+    const dispatch = require('../ui/board-update-dispatch.js');
     expect(dispatch.requestBoardUpdate()).toBe(true);
 
     expect(global.renderBoard).toHaveBeenCalledTimes(1);
@@ -37,7 +37,7 @@ describe('ui board update dispatch', () => {
     global.renderBoard = jest.fn();
 
     try {
-      import * as dispatch from '../ui/board-update-dispatch.js';
+      const dispatch = require('../ui/board-update-dispatch.js');
       expect(dispatch.requestBoardUpdate()).toBe(false);
 
       expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
@@ -57,7 +57,7 @@ describe('ui board update dispatch', () => {
     global.renderBoard = jest.fn();
 
     try {
-      import * as dispatch from '../ui/board-update-dispatch.js';
+      const dispatch = require('../ui/board-update-dispatch.js');
       expect(dispatch.requestBoardUpdate()).toBe(false);
 
       expect(warnSpy).toHaveBeenCalledWith('[BoardUpdateDispatch] emitBoardUpdate threw', failure);
@@ -75,7 +75,7 @@ describe('ui board update dispatch', () => {
     });
 
     try {
-      import * as dispatch from '../ui/board-update-dispatch.js';
+      const dispatch = require('../ui/board-update-dispatch.js');
       expect(dispatch.requestBoardUpdate()).toBe(false);
 
       expect(warnSpy).toHaveBeenCalledWith('[BoardUpdateDispatch] renderBoard fallback failed', failure);
@@ -88,7 +88,7 @@ describe('ui board update dispatch', () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
     try {
-      import * as dispatch from '../ui/board-update-dispatch.js';
+      const dispatch = require('../ui/board-update-dispatch.js');
       expect(dispatch.requestBoardUpdate()).toBe(false);
       expect(warnSpy).toHaveBeenCalledWith('[BoardUpdateDispatch] no board update entrypoint available');
     } finally {

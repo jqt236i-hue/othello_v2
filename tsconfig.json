@@ -37,6 +37,7 @@
       "workers/**/*",
       "scripts/**/*",
       "cards/**/*",
+      "cpu/**/*.ts",
       "src/**/*",
       "utils/**/*.ts",
       "shared-constants.ts",

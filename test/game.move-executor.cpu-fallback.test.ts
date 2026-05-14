@@ -16,8 +16,7 @@ describe('move-executor CPU scheduling fallback', () => {
         // nextGameState currentPlayer should be WHITE to force CPU scheduling
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
 
-        import * as moveExecutor from '../game/move-executor.js';
-
+        const moveExecutor = require('../game/move-executor.js');
         const move = { row: 2, col: 3, player: 1 };
         const playerKey = 'black';
 
@@ -52,7 +51,7 @@ describe('move-executor CPU scheduling fallback', () => {
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)), turnNumber: 12 };
         global.isProcessing = false;
 
-        import * as moveExecutor from '../game/move-executor.js';
+        const moveExecutor = require('../game/move-executor.js');
         const move = { row: 2, col: 3, player: 1 };
         const playerKey = 'black';
 
@@ -88,7 +87,7 @@ describe('move-executor CPU scheduling fallback', () => {
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)), turnNumber: 8 };
         global.isProcessing = false;
 
-        import * as moveExecutor from '../game/move-executor.js';
+        const moveExecutor = require('../game/move-executor.js');
         const move = { row: 2, col: 3, player: 1 };
         const playerKey = 'black';
 

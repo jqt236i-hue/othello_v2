@@ -1,10 +1,9 @@
 import * as SharedConstants from '../shared-constants.js';
-import * as Core from '../game/logic/core.js';
-import * as CardLogic from '../game/logic/cards.js';
-import * as BoardOps from '../game/logic/board_ops.js';
-import * as TurnPipeline from '../game/turn/turn_pipeline.js';
-import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
-
+const Core = require('../game/logic/core.js');
+const CardLogic = require('../game/logic/cards.js');
+const BoardOps = require('../game/logic/board_ops.js');
+const TurnPipeline = require('../game/turn/turn_pipeline.js');
+const TurnPipelinePhases = require('../game/turn/turn_pipeline_phases.js');
 const CORE_API = { BLACK: SharedConstants.BLACK, WHITE: SharedConstants.WHITE };
 
 function createPrng(randomValue = 0) {

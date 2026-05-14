@@ -30,7 +30,7 @@ describe('animation-engine playback-state integration', () => {
 
     jest.doMock('../ui/playback-state-manager', () => playbackStateMock);
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     await engine.handleWatchdog();
 
     expect(playbackStateMock.abortPlayback).toHaveBeenCalledTimes(1);
@@ -43,7 +43,7 @@ describe('animation-engine playback-state integration', () => {
     };
     jest.doMock('../ui/playback-state-manager', () => playbackStateMock);
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     engine.abortAndSync();
 
     expect(playbackStateMock.abortPlayback).toHaveBeenCalledTimes(1);
@@ -52,8 +52,8 @@ describe('animation-engine playback-state integration', () => {
 
   test('external abort prevents a late finalize from clearing a newer playback lock', async () => {
     jest.unmock('../ui/playback-state-manager');
-    import * as manager from '../ui/playback-state-manager.js';
-    import * as engine from '../ui/animation-engine.js';
+    const manager = require('../ui/playback-state-manager.js');
+    const engine = require('../ui/animation-engine.js');
     let resolveFirstPhase = null;
     let resolveSecondPhase = null;
     const executePhaseSpy = jest.spyOn(engine, 'executePhase')
@@ -92,6 +92,26 @@ describe('animation-engine playback-state integration', () => {
     executePhaseSpy.mockRestore();
   });
 
+  test('pre-armed snapshot playback lock does not log overlapping playback warning', async () => {
+    jest.unmock('../ui/playback-state-manager');
+    const manager = require('../ui/playback-state-manager.js');
+    const engine = require('../ui/animation-engine.js');
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    manager.setBusyState({
+      processing: true,
+      cardAnimating: true,
+      playbackActive: true
+    });
+
+    try {
+      await engine.play([{ type: 'move', phase: 1, targets: [] }]);
+      expect(warnSpy).not.toHaveBeenCalledWith('[AnimationEngine] Already playing. Aborting previous...');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   test('cell teleport playback arms board update context to suppress expansion reveal sound', async () => {
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
@@ -121,7 +141,7 @@ describe('animation-engine playback-state integration', () => {
     board.appendChild(fromCell);
     board.appendChild(toCell);
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     await engine.play([
       {
         type: 'move',

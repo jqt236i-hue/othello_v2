@@ -336,7 +336,7 @@ describe('cpu decision refactor helpers', () => {
     global.cardState.charge = { white: 30, black: 10 };
     global.CardLogic = {
       getUsableCardIds: () => ['destroy_01'],
-      getCardDef: () => ({ id: 'destroy_01', name: '破壊神', type: 'DESTROY_ONE_STONE' }),
+      getCardDef: () => ({ id: 'destroy_01', name: '破壊の意志', type: 'DESTROY_ONE_STONE' }),
       getCardCost: () => 14
     };
     global.CpuPolicyTableRuntime = {
@@ -451,7 +451,7 @@ describe('cpu decision refactor helpers', () => {
       canUseCard: () => true,
       getUsableCardIds: () => ['crystal_01'],
       getCardDef: () => ({ id: 'crystal_01', name: 'crystal_01', type: 'CRYSTAL_STONE' }),
-      getCardCost: () => 7
+      getCardCost: () => 6
     };
 
     const res = cpuDecision.selectCardToUse('white');

@@ -57,7 +57,7 @@ function createSpecialMarker(row, col, type, extraData) {
 }
 
 function createController(stateRef) {
-  import { createNetworkSnapshotController } from '../ui/network/snapshot.js';
+  const { createNetworkSnapshotController } = require('../ui/network/snapshot.js');
   return createNetworkSnapshotController({
     getState: () => stateRef,
     emitCardStateChange: global.emitCardStateChange,

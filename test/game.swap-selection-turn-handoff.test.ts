@@ -75,7 +75,7 @@ describe('SWAP_WITH_ENEMY selection turn handoff', () => {
     global.MATCH_MODE = 'cpu';
     global.DEBUG_HUMAN_VS_HUMAN = false;
     global.requestAnimationFrame = jest.fn();
-    import * as playbackStateManager from '../ui/playback-state-manager.js';
+    const playbackStateManager = require('../ui/playback-state-manager.js');
     playbackStateManager.clearPlaybackLock();
     global.PlaybackStateManager = playbackStateManager;
   });
@@ -119,8 +119,7 @@ describe('SWAP_WITH_ENEMY selection turn handoff', () => {
     }));
     globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
 
-    import { handleSwapSelection } from '../game/card-effects/swap.js';
-
+    const { handleSwapSelection } = require('../game/card-effects/swap.js');
     const pendingPromise = handleSwapSelection(2, 2, 'black');
     await Promise.resolve();
     await Promise.resolve();

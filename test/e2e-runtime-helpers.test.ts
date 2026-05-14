@@ -1,7 +1,6 @@
 import * as http from 'http';
 
-import { startStaticServer, stopStaticServer } from './e2e/e2e-runtime-helpers.js';
-
+const { startStaticServer, stopStaticServer } = require('./e2e/e2e-runtime-helpers.js');
 function waitForListening(server) {
   return new Promise((resolve, reject) => {
     if (!server || typeof server.once !== 'function') {

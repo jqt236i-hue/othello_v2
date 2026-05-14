@@ -26,7 +26,6 @@ describe('card text clarity css', () => {
 
     expect(readCardNameBlock(css, '.card-item.visible.cost-tier-gold .card-name')).not.toMatch(/-webkit-text-stroke\s*:/);
     expect(readCardNameBlock(css, '.card-item.visible[data-card-id="rainbow_stone"] .card-name')).not.toMatch(/-webkit-text-stroke\s*:/);
-    expect(readCardNameBlock(css, '.card-item.visible[data-card-id="crystal_stone"] .card-name')).not.toMatch(/-webkit-text-stroke\s*:/);
   });
 
   test('special and rainbow name plates keep the same horizontal anchor as normal cards', () => {

@@ -1,7 +1,6 @@
 'use strict';
 
-import { JSDOM } from 'jsdom';
-
+const { JSDOM } = require('jsdom');
 function createBoard() {
     return Array.from({ length: 8 }, () => Array(8).fill(0));
 }
@@ -101,8 +100,7 @@ describe('FATE_WILL legal hints', () => {
             localPlayerKey: 'black',
             fateMap: { black: null, white: 'black' }
         });
-        import * as diffRenderer from '../ui/diff-renderer.js';
-
+        const diffRenderer = require('../ui/diff-renderer.js');
         diffRenderer.renderBoardDiff(global.boardEl);
 
         const legalCell = global.boardEl.querySelector('.cell[data-row="2"][data-col="3"]');
@@ -117,8 +115,7 @@ describe('FATE_WILL legal hints', () => {
             localPlayerKey: 'black',
             fateMap: { black: 'white', white: null }
         });
-        import * as diffRenderer from '../ui/diff-renderer.js';
-
+        const diffRenderer = require('../ui/diff-renderer.js');
         diffRenderer.renderBoardDiff(global.boardEl);
 
         const legalCell = global.boardEl.querySelector('.cell[data-row="2"][data-col="3"]');
@@ -134,8 +131,7 @@ describe('FATE_WILL legal hints', () => {
             isNetwork: true,
             fateMap: { black: null, white: 'black' }
         });
-        import * as diffRenderer from '../ui/diff-renderer.js';
-
+        const diffRenderer = require('../ui/diff-renderer.js');
         diffRenderer.renderBoardDiff(global.boardEl);
 
         const legalCell = global.boardEl.querySelector('.cell[data-row="2"][data-col="3"]');
@@ -151,8 +147,7 @@ describe('FATE_WILL legal hints', () => {
             isNetwork: true,
             fateMap: { black: null, white: 'black' }
         });
-        import * as diffRenderer from '../ui/diff-renderer.js';
-
+        const diffRenderer = require('../ui/diff-renderer.js');
         diffRenderer.renderBoardDiff(global.boardEl);
 
         const legalCell = global.boardEl.querySelector('.cell[data-row="2"][data-col="3"]');
@@ -168,8 +163,7 @@ describe('FATE_WILL legal hints', () => {
             isHvH: true,
             fateMap: { black: null, white: null }
         });
-        import * as diffRenderer from '../ui/diff-renderer.js';
-
+        const diffRenderer = require('../ui/diff-renderer.js');
         diffRenderer.renderBoardDiff(global.boardEl);
 
         const legalCell = global.boardEl.querySelector('.cell[data-row="2"][data-col="3"]');

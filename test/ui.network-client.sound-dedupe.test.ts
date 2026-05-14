@@ -79,7 +79,7 @@ describe('NetworkMatchClient sound dedupe', () => {
       playEffectByKey
     };
 
-    import * as animationEngine from '../ui/animation-engine.js';
+    const animationEngine = require('../ui/animation-engine.js');
     playbackPromises = [];
     global.BoardOps = {
       emitPresentationEvent: jest.fn((state, ev) => {

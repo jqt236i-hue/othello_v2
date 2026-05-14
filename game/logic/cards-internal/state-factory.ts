@@ -123,6 +123,7 @@ function createCardState(prng: PRNG | null, options: any, context: Context): any
         markers: [],
         _nextMarkerId: 1,
         _nextCreatedSeq: 1,
+        _defaultRandomSource: p,
         presentationEvents: [],
         _nextStoneId: openingPlacements.length + 1,
         stoneIdMap,

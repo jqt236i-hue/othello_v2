@@ -16,9 +16,36 @@ function _isDebugAllowed(): boolean {
   } catch (e) { return false; }
 }
 
+function _resolvePlaybackStateManager(): any {
+  try {
+    if (typeof window !== 'undefined' && (window as any).PlaybackStateManager) return (window as any).PlaybackStateManager;
+  } catch (e) { /* ignore */ }
+  if (typeof _require === 'function') {
+    try { return _require('../playback-state-manager.js'); } catch (e) { /* ignore */ }
+  }
+  return null;
+}
+
+function _resolvePlaybackRuntime(): any {
+  try {
+    if (typeof window !== 'undefined' && (window as any).PlaybackRuntime) return (window as any).PlaybackRuntime;
+  } catch (e) { /* ignore */ }
+  if (typeof _require === 'function') {
+    try { return _require('../playback-runtime.js'); } catch (e) { /* ignore */ }
+  }
+  return null;
+}
+
 function _syncPlaybackWindowFlags(): any {
   try {
-    const playbackState = (typeof (window as any).PlaybackStateManager !== 'undefined') ? (window as any).PlaybackStateManager : null;
+    const playbackRuntime = _resolvePlaybackRuntime();
+    const playbackState = _resolvePlaybackStateManager();
+    if (playbackRuntime && typeof playbackRuntime.syncLegacyWindowFlags === 'function') {
+      return playbackRuntime.syncLegacyWindowFlags(playbackState, {
+        readCardAnimating: _readCardAnimatingFlag,
+        readProcessing: _readProcessingFlag
+      });
+    }
     if (playbackState && typeof playbackState.syncLegacyWindowFlags === 'function') {
       return playbackState.syncLegacyWindowFlags();
     }
@@ -28,7 +55,7 @@ function _syncPlaybackWindowFlags(): any {
 
 function _readCardAnimatingFlag(): boolean {
   try {
-    const playbackState = (typeof (window as any).PlaybackStateManager !== 'undefined') ? (window as any).PlaybackStateManager : null;
+    const playbackState = _resolvePlaybackStateManager();
     if (playbackState && typeof playbackState.getCardAnimating === 'function') {
       return playbackState.getCardAnimating() === true;
     }
@@ -38,7 +65,7 @@ function _readCardAnimatingFlag(): boolean {
 
 function _readProcessingFlag(): boolean {
   try {
-    const playbackState = (typeof (window as any).PlaybackStateManager !== 'undefined') ? (window as any).PlaybackStateManager : null;
+    const playbackState = _resolvePlaybackStateManager();
     if (playbackState && typeof playbackState.getProcessing === 'function') {
       return playbackState.getProcessing() === true;
     }
@@ -49,7 +76,7 @@ function _readProcessingFlag(): boolean {
 function _setPlaybackBusyFlags(options?: any): any {
   const config = (options && typeof options === 'object') ? options : { processing: options === true, cardAnimating: options === true };
   try {
-    const playbackState = (typeof (window as any).PlaybackStateManager !== 'undefined') ? (window as any).PlaybackStateManager : null;
+    const playbackState = _resolvePlaybackStateManager();
     if (playbackState && typeof playbackState.setBusyState === 'function') {
       playbackState.setBusyState(config);
       return _syncPlaybackWindowFlags();
@@ -79,7 +106,8 @@ async function initNetworkAndDebug(): Promise<void> {
           }
           const preloadRes = await (window as any).UIBootstrap.preloadAssets(manifest, { timeoutMs: 5000 });
           if (!preloadRes.success) {
-            console.warn('[init] asset preloading incomplete', preloadRes.failed);
+            const log = debugAllowed ? console.warn : console.info;
+            log('[init] asset preloading incomplete', preloadRes.failed);
           }
         }
       } catch (e) { /* ignore */ }
@@ -108,6 +136,28 @@ async function initNetworkAndDebug(): Promise<void> {
     }
 
     if (debugAllowed) {
+      const playbackState = _resolvePlaybackStateManager();
+      const playbackRuntime = _resolvePlaybackRuntime();
+      if (playbackRuntime && typeof playbackRuntime.syncLegacyWindowFlags === 'function') {
+        playbackRuntime.syncLegacyWindowFlags(playbackState, {
+          readCardAnimating: _readCardAnimatingFlag,
+          readProcessing: _readProcessingFlag
+        });
+      }
+      if (playbackRuntime && typeof playbackRuntime.ensureDebugRuntime === 'function') {
+        playbackRuntime.ensureDebugRuntime(playbackState, {
+          readCardAnimating: _readCardAnimatingFlag,
+          readProcessing: _readProcessingFlag,
+          abortPlayback: () => {
+            try {
+              if ((window as any).AnimationEngine && typeof (window as any).AnimationEngine.abortAndSync === 'function') {
+                (window as any).AnimationEngine.abortAndSync();
+              }
+            } catch (e) { /* ignore */ }
+          },
+          getBoardElement: () => document.getElementById('board')
+        });
+      }
       (window as any).__telemetry__ = (window as any).__telemetry__ || { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 };
       (window as any).getTelemetrySnapshot = function () { return Object.assign({}, (window as any).__telemetry__); };
       (window as any).resetTelemetry = function () { (window as any).__telemetry__ = { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 }; };
@@ -118,7 +168,9 @@ async function initNetworkAndDebug(): Promise<void> {
         }, 250);
       }
 
-      if (typeof (window as any)._uiMirrorIntervalId === 'undefined' || (window as any)._uiMirrorIntervalId === null) {
+      const usingPlaybackRuntime = playbackRuntime && typeof playbackRuntime.ensureDebugRuntime === 'function';
+
+      if (!usingPlaybackRuntime && (typeof (window as any)._uiMirrorIntervalId === 'undefined' || (window as any)._uiMirrorIntervalId === null)) {
         (window as any)._uiMirrorIntervalId = setInterval(() => {
           if (typeof window !== 'undefined') {
             (window as any).isCardAnimating = _readCardAnimatingFlag();
@@ -127,7 +179,7 @@ async function initNetworkAndDebug(): Promise<void> {
         }, 100);
       }
 
-      if (typeof (window as any)._playbackWatchdogId === 'undefined' || (window as any)._playbackWatchdogId === null) {
+      if (!usingPlaybackRuntime && (typeof (window as any)._playbackWatchdogId === 'undefined' || (window as any)._playbackWatchdogId === null)) {
         (window as any)._playbackWatchdogId = setInterval(() => {
           try {
             if ((window as any).VisualPlaybackActive === true) {

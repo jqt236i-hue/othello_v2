@@ -1,8 +1,7 @@
 import * as adapter from '../game/turn/pipeline_ui_adapter.js';
-import * as SharedConstants from '../shared-constants.js';
-import * as CardLogic from '../game/logic/cards.js';
-import * as TurnPipeline from '../game/turn/turn_pipeline.js';
-
+const SharedConstants = require('../shared-constants.js');
+const CardLogic = require('../game/logic/cards.js');
+const TurnPipeline = require('../game/turn/turn_pipeline.js');
 describe('pipeline_ui_adapter sound cue mapping', () => {
   test('trap_selected から trap_select の sound_effect を追加する', () => {
     const out = adapter.appendSoundEffectPlaybackEvents([], [{ type: 'trap_selected', applied: true }]);
@@ -1196,22 +1195,6 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     expect(gainCue).toBeTruthy();
     expect(gainCue.phase).toBe(12);
-    expect(stoneCue).toBeUndefined();
-  });
-
-  test('水晶の意志の自己破壊は stone_destroy ではなく charge_gain_common を再生する', () => {
-    const base = [{
-      type: 'destroy',
-      phase: 13,
-      targets: [{ r: 1, col: 6, cause: 'SYSTEM', reason: 'crystal_stone_sacrifice' }]
-    }];
-
-    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
-    const gainCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'charge_gain_common');
-    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
-
-    expect(gainCue).toBeTruthy();
-    expect(gainCue.phase).toBe(13);
     expect(stoneCue).toBeUndefined();
   });
 

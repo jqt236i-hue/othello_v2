@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -8,7 +9,8 @@ const {
     VERIFY_ROOT_FILES,
     createPrepareConfig,
     prepareWorkerAssets,
-    verifyMirrors
+    verifyMirrors,
+    shouldMirrorRelativePath
 } = require('../scripts/prepare-worker-assets');
 
 function writeFile(filePath, content) {
@@ -33,6 +35,55 @@ describe('prepare-worker-assets', () => {
 
     test('verifies assets as part of mirrored directories', () => {
         expect(VERIFY_DIRS).toContain('assets');
+    });
+
+    test('verifies worker runtime root files are mirrored', () => {
+        expect(ROOT_FILES).toContain('entry-browser.js');
+        expect(ROOT_FILES).toContain('public/runtime.js');
+        expect(ROOT_FILES).toContain('public/module-registry.js');
+        expect(VERIFY_ROOT_FILES).toContain('entry-browser.js');
+        expect(VERIFY_ROOT_FILES).toContain('public/runtime.js');
+        expect(VERIFY_ROOT_FILES).toContain('public/module-registry.js');
+    });
+
+    test('excludes temp, AGENTS, ts/types files from worker mirror', () => {
+        const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-prepare-filter-'));
+        cleanupDirs.push(rootDir);
+        const outDir = path.join(rootDir, 'worker-public-out');
+        const options = {
+            rootDir,
+            outDir,
+            rootFiles: [],
+            verifyRootFiles: [],
+            dirs: ['assets'],
+            verifyDirs: ['assets'],
+            optionalFiles: [],
+            generatedOptionalAssets: []
+        };
+        const config = createPrepareConfig(options);
+
+        writeFile(path.join(rootDir, 'assets', 'keep.js'), 'ok');
+        writeFile(path.join(rootDir, 'assets', 'AGENTS.md'), 'skip');
+        writeFile(path.join(rootDir, 'assets', 'asset-manifest.json.tmp-1-2'), 'skip');
+        writeFile(path.join(rootDir, 'assets', '__tests__', 'sample.test.js'), 'skip');
+        writeFile(path.join(rootDir, 'assets', 'src', 'types', 'index.js'), 'skip');
+        writeFile(path.join(rootDir, 'assets', 'src', 'runtime.ts'), 'skip');
+
+        prepareWorkerAssets(options);
+
+        expect(fs.existsSync(path.join(outDir, 'assets', 'keep.js'))).toBe(true);
+        expect(fs.existsSync(path.join(outDir, 'assets', 'AGENTS.md'))).toBe(false);
+        expect(fs.existsSync(path.join(outDir, 'assets', 'asset-manifest.json.tmp-1-2'))).toBe(false);
+        expect(fs.existsSync(path.join(outDir, 'assets', '__tests__', 'sample.test.js'))).toBe(false);
+        expect(fs.existsSync(path.join(outDir, 'assets', 'src', 'types', 'index.js'))).toBe(false);
+        expect(fs.existsSync(path.join(outDir, 'assets', 'src', 'runtime.ts'))).toBe(false);
+
+        expect(() => verifyMirrors([], [], config)).not.toThrow();
+        expect(shouldMirrorRelativePath('assets/keep.js')).toBe(true);
+        expect(shouldMirrorRelativePath('assets/AGENTS.md')).toBe(false);
+        expect(shouldMirrorRelativePath('assets/file.ts')).toBe(false);
+        expect(shouldMirrorRelativePath('assets/asset-manifest.json.tmp-1-2')).toBe(false);
+        expect(shouldMirrorRelativePath('game/logic/module-resolver.js')).toBe(false);
     });
 
     test('detects worker-public index.html drift in a temp mirror', () => {

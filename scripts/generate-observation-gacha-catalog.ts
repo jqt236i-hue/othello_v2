@@ -84,7 +84,7 @@ function buildCatalogModulePayload(catalog: any, globalName: string): string {
 
     const catalog = ${payload};
     const frozenItems = Array.isArray(catalog.items)
-        ? catalog.items.map((item: any) => Object.freeze(item))
+        ? catalog.items.map((item) => Object.freeze(item))
         : [];
     catalog.items = Object.freeze(frozenItems);
     return Object.freeze(catalog);

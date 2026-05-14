@@ -1,7 +1,6 @@
 import * as http from 'http';
 
-import { createLocalMatchServer, resetRoomsForTests, patchRoomSnapshotForTests } from '../scripts/local-match-server.js';
-
+const { createLocalMatchServer, resetRoomsForTests, patchRoomSnapshotForTests } = require('../scripts/local-match-server.js');
 function requestJson(port, method, path, payload) {
   return new Promise((resolve, reject) => {
     const req = http.request({

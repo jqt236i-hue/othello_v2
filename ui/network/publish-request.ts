@@ -113,9 +113,20 @@ function buildPublishRequest(info: PublishRequestInfo, options: PublishRequestOp
     actor: undefined,
     params: {}
   };
-  const requestTurnIndex = Number.isFinite(Number(opts.turnIndex))
+  const hasPendingSelectionState = !!(
+    commandPayload.params &&
+    typeof commandPayload.params === 'object' &&
+    (commandPayload.params as Record<string, unknown>).pendingSelectionState
+  );
+  const commandTurnIndex = Number.isFinite(Number(commandPayload.turnIndex))
+    ? Math.trunc(Number(commandPayload.turnIndex))
+    : null;
+  const optionTurnIndex = Number.isFinite(Number(opts.turnIndex))
     ? Math.trunc(Number(opts.turnIndex))
-    : (Number.isFinite(Number(commandPayload.turnIndex)) ? Math.trunc(Number(commandPayload.turnIndex)) : null);
+    : null;
+  const requestTurnIndex = hasPendingSelectionState && commandTurnIndex !== null
+    ? commandTurnIndex
+    : (optionTurnIndex !== null ? optionTurnIndex : commandTurnIndex);
 
   requestPayload.actor = commandPayload.actor || playerKey;
   requestPayload.params = commandPayload.params || {};

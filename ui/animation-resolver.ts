@@ -87,7 +87,8 @@ function resolveMethod(modulePath: string, globalName: string, methodName: strin
 }
 
 function getAnimationShared(): AnimationShared | null {
-  return (resolveModuleOrGlobal('./animation-helpers', 'AnimationHelpers') as AnimationShared | null)
+  return (resolveModuleOrGlobal('./animation-shared.js', 'AnimationShared') as AnimationShared | null)
+    || (resolveModuleOrGlobal('./animation-helpers.js', 'AnimationHelpers') as AnimationShared | null)
     || (resolveGlobal('AnimationShared') as AnimationShared | null)
     || null;
 }

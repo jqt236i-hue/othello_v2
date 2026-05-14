@@ -49,7 +49,7 @@ function resolveCatalogModule(): HandSkinCatalogModule | null {
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('../hand-skin/catalog') ?? null;
+      return _require('../hand-skin/catalog.js') ?? null;
     } catch (e) { /* ignore */ }
   }
   return null;
@@ -63,7 +63,7 @@ function resolveSelectionModule(): HandSkinSelectionModule | null {
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('../hand-skin/selection') ?? null;
+      return _require('../hand-skin/selection.js') ?? null;
     } catch (e) { /* ignore */ }
   }
   return null;
@@ -77,7 +77,7 @@ function resolveRuntimeModule(): HandSkinRuntimeModule | null {
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('../hand-skin/runtime') ?? null;
+      return _require('../hand-skin/runtime.js') ?? null;
     } catch (e) { /* ignore */ }
   }
   return null;
@@ -91,7 +91,7 @@ function resolveControllerModule(): HandSkinControllerModule | null {
   } catch (e) { /* ignore */ }
   if (typeof _require === 'function') {
     try {
-      return _require('../hand-skin/controller') ?? null;
+      return _require('../hand-skin/controller.js') ?? null;
     } catch (e) { /* ignore */ }
   }
   return null;

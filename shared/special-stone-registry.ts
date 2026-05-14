@@ -180,6 +180,12 @@
             destroyProtected: true,
             overlayOnlyVisual: true
         }),
+        STONE_SALVATION_GOD: Object.freeze({
+            name: '救済神',
+            desc: '反転されない。盤面にいる間、自分の石が破壊されると破壊された自石を通常石としてランダムな空きマスに復活させる。10ターン後は同色の通常石に戻る。',
+            flipProtected: true,
+            timerClass: 'countdown-timer'
+        }),
         TRAP: Object.freeze({
             name: '罠石',
             desc: '次の相手ターン中に反転されると発動する。'

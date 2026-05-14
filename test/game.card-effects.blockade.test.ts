@@ -4,8 +4,7 @@ jest.mock('../game/card-effects/selection-flow', () => ({
     executePendingSelection: mockExecutePendingSelection
 }));
 
-import { handleBlockadeSelection } from '../game/card-effects/blockade.js';
-
+const { handleBlockadeSelection } = require('../game/card-effects/blockade.js');
 describe('blockade', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();

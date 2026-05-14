@@ -1,3 +1,4 @@
+// @ts-nocheck
 const {
     runSelfPlayGames,
     runSingleGame,
@@ -8,13 +9,12 @@ const {
     buildSelectionTrace,
     encodeBoard
 } = require('../src/engine/selfplay-runner');
-import * as Core from '../game/logic/core.js';
-import * as CardLogic from '../game/logic/cards.js';
-import * as CpuPolicyCore from '../game/ai/cpu-policy-core.js';
-import * as CpuLv6LookaheadProfile from '../game/ai/cpu-lv6-lookahead-profile.js';
-import * as CpuDecision from '../game/cpu-decision.js';
-import * as TurnPipeline from '../game/turn/turn_pipeline.js';
-
+const Core = require('../game/logic/core.js');
+const CardLogic = require('../game/logic/cards.js');
+const CpuPolicyCore = require('../game/ai/cpu-policy-core.js');
+const CpuLv6LookaheadProfile = require('../game/ai/cpu-lv6-lookahead-profile.js');
+const CpuDecision = require('../game/cpu-decision.js');
+const TurnPipeline = require('../game/turn/turn_pipeline.js');
 describe('selfplay runner', () => {
     beforeEach(() => {
         jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -781,7 +781,7 @@ describe('selfplay runner', () => {
         ]));
     });
 
-    test('retries with refreshed state after an invalid action rejection', () => {
+    test('retries from a clean baseline after an invalid action rejection', () => {
         const forcedRetryState = Core.createGameState();
         forcedRetryState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
         forcedRetryState.board[0][0] = 1;
@@ -813,11 +813,12 @@ describe('selfplay runner', () => {
         expect(applyTurnSafeSpy).toHaveBeenCalledTimes(2);
         const retriedAction = applyTurnSafeSpy.mock.calls[1][3];
         expect(retriedAction.type).toBe('place');
-        expect(retriedAction.row).toBe(0);
-        expect(retriedAction.col).toBe(2);
+        expect(retriedAction.row).toBe(2);
+        expect(retriedAction.col).toBe(3);
+        expect(retriedAction).not.toEqual(expect.objectContaining({ row: 0, col: 2 }));
         expect(result.records).toHaveLength(1);
-        expect(result.records[0].row).toBe(0);
-        expect(result.records[0].col).toBe(2);
+        expect(result.records[0].row).toBe(2);
+        expect(result.records[0].col).toBe(3);
     });
 
     test('falls back to a deterministic legal place after repeated unknown place rejection', () => {
@@ -860,11 +861,11 @@ describe('selfplay runner', () => {
         expect(applyTurnSafeSpy).toHaveBeenCalledTimes(3);
         const fallbackAction = applyTurnSafeSpy.mock.calls[2][3];
         expect(fallbackAction.type).toBe('place');
-        expect(fallbackAction.row).toBe(0);
-        expect(fallbackAction.col).toBe(2);
+        expect(fallbackAction.row).toBe(2);
+        expect(fallbackAction.col).toBe(3);
         expect(result.records).toHaveLength(1);
-        expect(result.records[0].row).toBe(0);
-        expect(result.records[0].col).toBe(2);
+        expect(result.records[0].row).toBe(2);
+        expect(result.records[0].col).toBe(3);
     });
 
 

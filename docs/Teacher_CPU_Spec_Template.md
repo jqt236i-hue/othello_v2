@@ -127,7 +127,7 @@
 | QUAD_CHAIN_WILL | 四連鎖の意志 | 22 | 攻撃 |
 | INFINITE_CHAIN_WILL | 無限連鎖の意志 | 50 | 攻撃 |
 | REGEN_WILL | 復活の意志 | 12 | 防御 |
-| DESTROY_ONE_STONE | 破壊神 | 14 | 攻撃 |
+| DESTROY_ONE_STONE | 破壊の意志 | 14 | 攻撃 |
 | TIME_BOMB | 時限爆弾 | 13 | 攻撃 |
 | ULTIMATE_REVERSE_DRAGON | 究極反転龍 | 30 | 攻撃 |
 | BREEDING_WILL | 繁殖の意志 | 16 | 展開 |

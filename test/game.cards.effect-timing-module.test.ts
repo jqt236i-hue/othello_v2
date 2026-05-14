@@ -17,7 +17,7 @@ describe('CardEffectTiming module', () => {
       incomeStep: 1
     }));
 
-    import * as CardEffectTiming from '../game/logic/cards-internal/effect-timing.js';
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const processRiboWillTurnStartEffects = jest.fn(() => ({
       entries: [{ id: 'ribo-1' }],
       totalRepaid: 1,
@@ -103,7 +103,7 @@ describe('CardEffectTiming module', () => {
   });
 
   test('onTurnStart emits STATUS_REMOVED when FREEZE duration ends', () => {
-    import * as CardEffectTiming from '../game/logic/cards-internal/effect-timing.js';
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const removeMarkersAt = jest.fn();
     const emitPresentationEvent = jest.fn();
     const markers = [
@@ -157,7 +157,7 @@ describe('CardEffectTiming module', () => {
   });
 
   test('onTurnStart promotes owner PERMA_PROTECTED into ABSOLUTE_PROTECTED on threshold', () => {
-    import * as CardEffectTiming from '../game/logic/cards-internal/effect-timing.js';
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const emitPresentationEvent = jest.fn();
     const markers = [
       {
@@ -220,7 +220,7 @@ describe('CardEffectTiming module', () => {
   });
 
   test('applyPlacementEffects handles last resort continuation without clearing pending effect', () => {
-    import * as CardEffectTiming from '../game/logic/cards-internal/effect-timing.js';
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const addChargeWithTotal = jest.fn();
     const cardState = {
       pendingEffectByPlayer: {
@@ -265,7 +265,7 @@ describe('CardEffectTiming module', () => {
   });
 
   test('onTurnStart uses injected CardWorkModule when available', () => {
-    import * as CardEffectTiming from '../game/logic/cards-internal/effect-timing.js';
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const processWorkEffects = jest.fn(() => ({
       gained: 2,
       row: 3,
@@ -328,7 +328,7 @@ describe('CardEffectTiming module', () => {
   });
 
   test('applyPlacementEffects uses injected CardWorkModule for armed WORK_WILL placement', () => {
-    import * as CardEffectTiming from '../game/logic/cards-internal/effect-timing.js';
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const addMarker = jest.fn((cardState, kind, row, col, owner, data) => {
       if (!Array.isArray(cardState.markers)) cardState.markers = [];
       cardState.markers.push({ kind, row, col, owner, data });
@@ -392,7 +392,7 @@ describe('CardEffectTiming module', () => {
   });
 
   test('applyPlacementEffects preserves armed WORK_WILL when injected CardWorkModule is missing', () => {
-    import * as CardEffectTiming from '../game/logic/cards-internal/effect-timing.js';
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const workDebugLog = jest.fn();
     const cardState = {
       markers: [],
@@ -429,7 +429,7 @@ describe('CardEffectTiming module', () => {
   });
 
   test('applyPlacementEffects preserves armed WORK_WILL when injected CardWorkModule throws', () => {
-    import * as CardEffectTiming from '../game/logic/cards-internal/effect-timing.js';
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const workDebugError = jest.fn();
     const placeWorkStone = jest.fn(() => {
       throw new Error('boom');
@@ -471,7 +471,7 @@ describe('CardEffectTiming module', () => {
   });
 
   test('applyPlacementEffects preserves armed WORK_WILL when injected CardWorkModule reports not placed', () => {
-    import * as CardEffectTiming from '../game/logic/cards-internal/effect-timing.js';
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const workDebugLog = jest.fn();
     const placeWorkStone = jest.fn(() => ({ placed: false }));
     const cardState = {
@@ -510,7 +510,7 @@ describe('CardEffectTiming module', () => {
   });
 
   test('applyPlacementEffects preserves armed WORK_WILL when injected CardWorkModule returns undefined', () => {
-    import * as CardEffectTiming from '../game/logic/cards-internal/effect-timing.js';
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const workDebugLog = jest.fn();
     const placeWorkStone = jest.fn(() => undefined);
     const cardState = {
@@ -550,7 +550,7 @@ describe('CardEffectTiming module', () => {
   });
 
   test('applyPlacementEffects preserves armed WORK_WILL when injected CardWorkModule returns empty object', () => {
-    import * as CardEffectTiming from '../game/logic/cards-internal/effect-timing.js';
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const workDebugLog = jest.fn();
     const placeWorkStone = jest.fn(() => ({}));
     const cardState = {
@@ -590,7 +590,7 @@ describe('CardEffectTiming module', () => {
   });
 
   test('applyPlacementEffects uses injected placement effect modules', () => {
-    import * as CardEffectTiming from '../game/logic/cards-internal/effect-timing.js';
+    const CardEffectTiming = require('../game/logic/cards-internal/effect-timing.js');
     const addChargeWithTotal = jest.fn((cardState, playerKey, amount) => amount);
     const applyPlunderWill = jest.fn(() => ({ plundered: 2 }));
     const applyProtectedNextStone = jest.fn(() => ({ applied: true }));

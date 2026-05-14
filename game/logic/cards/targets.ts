@@ -17,19 +17,41 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return undefined;
+}
 
-const BoardUtils = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared/shared-board-utils')
-    : (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null);
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+const SharedConstants = (() => {
+    const runtimeSharedConstants = getRuntimeGlobalValue('SharedConstants');
+    if (runtimeSharedConstants) return runtimeSharedConstants;
+
+    if (typeof module === 'object' && module.exports) {
+        return safeRequire('../../../shared-constants') || runtimeSharedConstants;
+    }
+
+    return runtimeSharedConstants;
+})();
+
+const BoardUtils = getRuntimeGlobalValue('SharedBoardUtils') || ((typeof module === 'object' && module.exports)
+    ? safeRequire('../../../shared/shared-board-utils')
+    : (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null));
 
 const { EMPTY } = SharedConstants || {};
-
-if (EMPTY === undefined) {
-    throw new Error('SharedConstants not loaded');
-}
+const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
 
 interface BoardConfig {
     rows: number;
@@ -133,7 +155,7 @@ function getExpansionCells(gameState: GameState): ExpansionCell[] {
         if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
         const normalizedOwner = (owner === (SharedConstants as any).BLACK || owner === (SharedConstants as any).WHITE)
             ? owner
-            : EMPTY;
+            : P_EMPTY;
         cells.push({
             side: resolveExpansionSide(side, row, col, gameState),
             row,
@@ -202,14 +224,14 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
         m.data.type === 'GUARD'
     );
     // Prefer CardUtils if available (handles bombs and special stones uniformly)
-    const CardUtils = (typeof require === 'function') ? require('./utils') : (typeof globalThis !== 'undefined' ? (globalThis as any).CardUtils : null);
+    const CardUtils = getRuntimeGlobalValue('CardUtils') || ((typeof require === 'function') ? require('./utils') : null);
     forEachBoardShapeCell(gameState, (r, c) => {
         if (isGuarded(r, c)) return;
         // Must be a special stone or bomb owned by opponent and not an empty cell
         if (CardUtils && typeof CardUtils.isSpecialStoneAt === 'function') {
             if (!CardUtils.isSpecialStoneAt(cardState, r, c)) return;
             if (CardUtils.getSpecialOwnerAt(cardState, r, c) !== opponentKey) return;
-            if (getCellValue(gameState, r, c) === EMPTY) return;
+            if (getCellValue(gameState, r, c) === P_EMPTY) return;
             res.push({ row: r, col: c });
             return;
         }
@@ -217,7 +239,7 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
         const marker = (cardState.markers || []).find((m: any) => m.kind === 'specialStone' && m.row === r && m.col === c);
         if (!marker) return;
         if (marker.owner !== opponentKey) return;
-        if (getCellValue(gameState, r, c) === EMPTY) return;
+        if (getCellValue(gameState, r, c) === P_EMPTY) return;
         res.push({ row: r, col: c });
     });
     return res;

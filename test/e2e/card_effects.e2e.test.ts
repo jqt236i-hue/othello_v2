@@ -1,14 +1,21 @@
 import { chromium } from 'playwright';
-import { startStaticServer, stopStaticServer, stopPlaywrightBrowser } from './e2e-runtime-helpers.js';
-
+declare const require: any;
+declare const describe: any;
+declare const beforeAll: any;
+declare const afterAll: any;
+declare const test: any;
+declare const expect: any;
+declare const window: any;
+declare const document: any;
+const { startStaticServer, stopStaticServer, stopPlaywrightBrowser } = require('./e2e-runtime-helpers.js');
 function startServer(port = 0) {
   return startStaticServer(port);
 }
 
 describe('Card effects E2E', () => {
-  let serverProc;
-  let browser;
-  let serverPort = null;
+  let serverProc: any;
+  let browser: any;
+  let serverPort: any = null;
   beforeAll(async () => {
     serverProc = startServer(0);
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -25,8 +32,8 @@ describe('Card effects E2E', () => {
 
   test('using a card via DebugActions applies effect and logs usage', async () => {
     const page = await browser.newPage();
-    const consoles = [];
-    page.on('console', msg => {
+    const consoles: Array<{ type: string; text: string }> = [];
+    page.on('console', (msg: any) => {
       try { consoles.push({ type: msg.type(), text: msg.text() }); } catch (e) { /* ignore */ }
     });
 
@@ -34,6 +41,7 @@ describe('Card effects E2E', () => {
 
     // Wait for game state
     await page.waitForFunction(() => !!(window.gameState && Array.isArray(window.gameState.board) && window.gameState.board.length === 8), { timeout: 10000 });
+    await page.click('button:has-text("DEBUG: OFF")');
 
     // Ensure debug helper is present
     await page.waitForFunction(() => typeof window.DebugActions === 'object' && typeof window.DebugActions.fillDebugHand === 'function', { timeout: 5000 });
@@ -56,7 +64,7 @@ describe('Card effects E2E', () => {
       const usableIds = (window.CardLogic && typeof window.CardLogic.getUsableCardIds === 'function')
         ? (window.CardLogic.getUsableCardIds(window.cardState, window.gameState, 'black') || [])
         : [];
-      const immediateUsableIds = usableIds.filter((cardId) => {
+      const immediateUsableIds = usableIds.filter((cardId: string) => {
         const def = (window.CardLogic && typeof window.CardLogic.getCardDef === 'function')
           ? window.CardLogic.getCardDef(cardId)
           : null;
@@ -104,7 +112,7 @@ describe('Card effects E2E', () => {
         try {
           window.useSelectedCard();
           return { ok: true, id };
-        } catch (e) { return { ok: false, reason: e && e.message } }
+        } catch (e: any) { return { ok: false, reason: e && e.message } }
       } catch (e) { return { ok: false, reason: 'eval_error' } }
     });
     expect(applyRes.ok).toBeTruthy();
@@ -151,11 +159,11 @@ describe('Card effects E2E', () => {
     await page.waitForTimeout(600);
 
     const beforeClick = await page.evaluate(() => {
-      const clickables = Array.from(document.querySelectorAll('#hand-black .card-item.clickable'));
+      const clickables = Array.from(document.querySelectorAll('#hand-black .card-item.clickable')) as HTMLElement[];
       const usableIds = (window.CardLogic && typeof window.CardLogic.getUsableCardIds === 'function')
         ? (window.CardLogic.getUsableCardIds(window.cardState, window.gameState, 'black') || [])
         : [];
-      const immediateUsableIds = usableIds.filter((cardId) => {
+      const immediateUsableIds = usableIds.filter((cardId: string) => {
         const def = (window.CardLogic && typeof window.CardLogic.getCardDef === 'function')
           ? window.CardLogic.getCardDef(cardId)
           : null;
@@ -166,8 +174,8 @@ describe('Card effects E2E', () => {
         }
         return window.PendingCoordinator.requiresPendingTarget(type) !== true;
       });
-      const target = clickables.find((el) => immediateUsableIds.includes(el.dataset.cardId))
-        || clickables.find((el) => usableIds.includes(el.dataset.cardId))
+      const target = (clickables.find((el: any) => immediateUsableIds.includes(el.dataset.cardId)) as HTMLElement | undefined)
+        || (clickables.find((el: any) => usableIds.includes(el.dataset.cardId)) as HTMLElement | undefined)
         || clickables[0]
         || null;
       if (target) {
@@ -206,11 +214,11 @@ describe('Card effects E2E', () => {
 
     const afterUse = await page.evaluate(() => ({
       lastUsedBlack: window.cardState && window.cardState.lastUsedCardByPlayer && window.cardState.lastUsedCardByPlayer.black,
-      recentLogs: Array.from(document.querySelectorAll('#log .logEntry')).slice(-5).map((el) => el.textContent)
+        recentLogs: Array.from(document.querySelectorAll('#log .logEntry')).slice(-5).map((el: any) => el.textContent)
     }));
 
     expect(afterUse.lastUsedBlack).toBeTruthy();
-    expect(afterUse.recentLogs.some((entry) => entry.indexOf('黒がカードを使用') !== -1)).toBe(true);
+    expect(afterUse.recentLogs.some((entry: string) => entry.indexOf('黒がカードを使用') !== -1)).toBe(true);
 
     await page.close();
   }, 60000);

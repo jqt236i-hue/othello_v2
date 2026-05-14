@@ -14,21 +14,30 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
+const RuntimeSharedConstants = (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants)
+    ? (globalThis as any).SharedConstants
     : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+const SharedConstants = RuntimeSharedConstants || ((typeof module === 'object' && module.exports)
+    ? _require('../../../shared-constants')
+    : undefined);
 
-const CardUtilsModule = (typeof module === 'object' && module.exports)
-    ? (() => { try { return _require('./utils'); } catch (_e) { return null; } })()
-    : (typeof self !== 'undefined' ? (self as any).CardUtils : null);
+const CardUtilsModule = (typeof globalThis !== 'undefined' && (globalThis as any).CardUtils)
+    ? (globalThis as any).CardUtils
+    : ((typeof module === 'object' && module.exports)
+        ? (() => { try { return _require('./utils'); } catch (_e) { return null; } })()
+        : (typeof self !== 'undefined' ? (self as any).CardUtils : null));
 
-const BoardOpsModule = (typeof module === 'object' && module.exports)
-    ? (() => { try { return _require('../board_ops'); } catch (_e) { return null; } })()
-    : (typeof self !== 'undefined' ? (self as any).BoardOps : null);
+const BoardOpsModule = (typeof globalThis !== 'undefined' && (globalThis as any).BoardOps)
+    ? (globalThis as any).BoardOps
+    : ((typeof module === 'object' && module.exports)
+        ? (() => { try { return _require('../board_ops'); } catch (_e) { return null; } })()
+        : (typeof self !== 'undefined' ? (self as any).BoardOps : null));
 
-const RandomSourceModule = (typeof module === 'object' && module.exports)
-    ? (() => { try { return _require('../cards-internal/random-source'); } catch (_e) { return null; } })()
-    : (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
+const RandomSourceModule = (typeof globalThis !== 'undefined' && (globalThis as any).CardRandomSource)
+    ? (globalThis as any).CardRandomSource
+    : ((typeof module === 'object' && module.exports)
+        ? (() => { try { return _require('../cards-internal/random-source'); } catch (_e) { return null; } })()
+        : (typeof self !== 'undefined' ? (self as any).CardRandomSource : null));
 
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 
@@ -247,9 +256,15 @@ function processWillHunterKingEffectsAtTurnStartAnchor(cardState: any, gameState
             projectileOwner: playerKey,
             projectileStone: 'will_hunter_king'
         };
+        const previousBoardOpsRandomSource = cardState && cardState._boardOpsRandomSource;
+        if (cardState && !previousBoardOpsRandomSource) cardState._boardOpsRandomSource = randomSource;
         const destroyResult = boardOps && typeof boardOps.destroyAt === 'function'
             ? boardOps.destroyAt(cardState, gameState, target.row, target.col, 'WILL_HUNTER_KING', 'will_hunter_king_slash', destroyMeta)
             : { destroyed: false };
+        if (cardState) {
+            if (previousBoardOpsRandomSource) cardState._boardOpsRandomSource = previousBoardOpsRandomSource;
+            else delete cardState._boardOpsRandomSource;
+        }
         if (destroyResult && destroyResult.destroyed) {
             result.destroyed.push({
                 row: target.row,

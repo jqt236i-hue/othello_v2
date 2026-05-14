@@ -1,8 +1,35 @@
 // @ts-nocheck
+import './match-worker-runtime-preload.js';
 import deepClone from '../utils/deepClone.js';
 import matchAuthority from '../utils/match-authority.js';
 import networkActionSchemaModule from '../shared/network-action-schema.js';
 import playbackEventHelpersModule from '../shared/playback-event-helpers.js';
+import sharedConstantsModule from '../shared-constants.js';
+import sharedBoardUtilsModule from '../shared/shared-board-utils.js';
+import deckSpecHelpersModule from '../shared/deck-spec.js';
+import deckCodecModule from '../shared/deck-codec.js';
+import playerEncodingModule from '../shared/player-encoding.js';
+import destroyOutcomeContractModule from '../shared/destroy-outcome-contract.js';
+import stoneStatusSnapshotModule from '../shared/stone-status-snapshot.js';
+import specialStoneRegistryModule from '../shared/special-stone-registry.js';
+import cardRandomSourceModule from '../game/logic/cards-internal/random-source.js';
+import cardStateFactoryModule from '../game/logic/cards-internal/state-factory.js';
+import cardModuleResolverModule from '../game/logic/cards-internal/module-resolver.js';
+import cardPresentationHelpersModule from '../game/logic/cards-internal/presentation-helpers.js';
+import cardHandManagerModule from '../game/logic/cards-internal/hand-manager.js';
+import cardChargeLedgerModule from '../game/logic/cards-internal/charge-ledger.js';
+import cardPendingStateManagerModule from '../game/logic/cards-internal/pending-state-manager.js';
+import cardUsagePrechecksModule from '../game/logic/cards-internal/card-usage-prechecks.js';
+import cardEffectTimingModule from '../game/logic/cards-internal/effect-timing.js';
+import cardMarkersModule from '../game/logic/cards/markers.js';
+import boardOpsModule from '../game/logic/board_ops.js';
+import destroyOneStoneEffectsModule from '../game/logic/effects/destroy_one_stone.js';
+import swapWithEnemyEffectsModule from '../game/logic/effects/swap_with_enemy.js';
+import cardStateManagerModule from '../game/cards/state-manager.js';
+import cardEffectResolverModule from '../game/cards/effect-resolver.js';
+import cardTimingProcessorModule from '../game/cards/timing-processor.js';
+import cardTargetResolverModule from '../game/cards/target-resolver.js';
+import cardStatusCellsEffectsModule from '../game/cards/effects/status-cells.js';
 
 const MatchAuthority = matchAuthority || {};
 const ROOM_ID_CHARS = String(MatchAuthority.ROOM_ID_CHARS || 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789');
@@ -44,6 +71,39 @@ let deckModulesPromise = null;
 let turnStartModulesPromise = null;
 let turnPipelineModulesPromise = null;
 let debugActionsModulePromise = null;
+let workerSharedConstantsPromise = null;
+let workerSharedBoardUtilsPromise = null;
+let workerDeckGlobalsPromise = null;
+let workerCardGlobalsPromise = null;
+
+const WORKER_PRELOAD_MODULES = Object.freeze({
+    '../shared-constants.js': sharedConstantsModule,
+    '../shared/shared-board-utils.js': sharedBoardUtilsModule,
+    '../shared/deck-spec.js': deckSpecHelpersModule,
+    '../shared/deck-codec.js': deckCodecModule,
+    '../shared/player-encoding.js': playerEncodingModule,
+    '../shared/destroy-outcome-contract.js': destroyOutcomeContractModule,
+    '../shared/stone-status-snapshot.js': stoneStatusSnapshotModule,
+    '../shared/special-stone-registry.js': specialStoneRegistryModule,
+    '../game/logic/cards-internal/random-source.js': cardRandomSourceModule,
+    '../game/logic/cards-internal/state-factory.js': cardStateFactoryModule,
+    '../game/logic/cards-internal/module-resolver.js': cardModuleResolverModule,
+    '../game/logic/cards-internal/presentation-helpers.js': cardPresentationHelpersModule,
+    '../game/logic/cards-internal/hand-manager.js': cardHandManagerModule,
+    '../game/logic/cards-internal/charge-ledger.js': cardChargeLedgerModule,
+    '../game/logic/cards-internal/pending-state-manager.js': cardPendingStateManagerModule,
+    '../game/logic/cards-internal/card-usage-prechecks.js': cardUsagePrechecksModule,
+    '../game/logic/cards-internal/effect-timing.js': cardEffectTimingModule,
+    '../game/logic/cards/markers.js': cardMarkersModule,
+    '../game/logic/board_ops.js': boardOpsModule,
+    '../game/logic/effects/destroy_one_stone.js': destroyOneStoneEffectsModule,
+    '../game/logic/effects/swap_with_enemy.js': swapWithEnemyEffectsModule,
+    '../game/cards/state-manager.js': cardStateManagerModule,
+    '../game/cards/effect-resolver.js': cardEffectResolverModule,
+    '../game/cards/timing-processor.js': cardTimingProcessorModule,
+    '../game/cards/target-resolver.js': cardTargetResolverModule,
+    '../game/cards/effects/status-cells.js': cardStatusCellsEffectsModule
+});
 
 const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -53,7 +113,9 @@ const CORS_HEADERS = {
 
 function withCORS(response) {
     const headers = new Headers(response.headers);
-    Object.entries(CORS_HEADERS).forEach(([key, value]) => headers.set(key, value));
+    Object.entries(CORS_HEADERS).forEach(([key, value]) => {
+        headers.set(key, value);
+    });
     return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
@@ -201,19 +263,285 @@ function makeSeatToken() {
     throw new Error('MatchAuthority.makeSeatToken is required');
 }
 
+function getRuntimeGlobalScope() {
+    if (typeof globalThis !== 'undefined') return globalThis;
+    if (typeof self !== 'undefined') return self;
+    return null;
+}
+
+function setRuntimeGlobalValue(key, value) {
+    const scope = getRuntimeGlobalScope();
+    if (!scope || !key) return value;
+    scope[key] = value;
+    return value;
+}
+
+function importWorkerGlobal(importPath, globalKey) {
+    const mod = Object.prototype.hasOwnProperty.call(WORKER_PRELOAD_MODULES, importPath)
+        ? WORKER_PRELOAD_MODULES[importPath]
+        : null;
+    if (!mod) {
+        return Promise.reject(new Error(`Worker preload module missing: ${importPath}`));
+    }
+    const scope = getRuntimeGlobalScope();
+    const runtimeValue = scope && globalKey ? scope[globalKey] : null;
+    const moduleExports = mod && mod['module.exports'] ? mod['module.exports'] : null;
+    const resolved = runtimeValue || moduleExports || mod.default || mod;
+    if (globalKey && resolved) {
+        setRuntimeGlobalValue(globalKey, resolved);
+    }
+    return Promise.resolve(resolved);
+}
+
+function ensureWorkerSharedConstants() {
+    if (!workerSharedConstantsPromise) {
+        workerSharedConstantsPromise = importWorkerGlobal('../shared-constants.js', 'SharedConstants');
+    }
+    return workerSharedConstantsPromise;
+}
+
+function ensureWorkerSharedBoardUtils() {
+    if (!workerSharedBoardUtilsPromise) {
+        workerSharedBoardUtilsPromise = ensureWorkerSharedConstants()
+            .then(() => importWorkerGlobal('../shared/shared-board-utils.js', 'SharedBoardUtils'));
+    }
+    return workerSharedBoardUtilsPromise;
+}
+
+function ensureWorkerDeckGlobals() {
+    if (!workerDeckGlobalsPromise) {
+        workerDeckGlobalsPromise = Promise.all([
+            ensureWorkerSharedConstants(),
+            importWorkerGlobal('../shared/deck-spec.js', 'DeckSpecHelpers'),
+            importWorkerGlobal('../shared/deck-codec.js', 'DeckCodecModule')
+        ]).then(([, deckSpecHelpers, deckCodecModule]) => ({
+            deckSpecHelpers,
+            deckCodecModule
+        }));
+    }
+    return workerDeckGlobalsPromise;
+}
+
+function ensureWorkerCardGlobals() {
+    if (!workerCardGlobalsPromise) {
+        const requiredGlobals = [
+            ['../shared/player-encoding.js', 'PlayerEncoding'],
+            ['../shared/destroy-outcome-contract.js', 'DestroyOutcomeContract'],
+            ['../shared/stone-status-snapshot.js', 'StoneStatusSnapshot'],
+            ['../shared/special-stone-registry.js', 'SpecialStoneRegistry'],
+            ['../game/logic/cards-internal/random-source.js', 'CardRandomSource'],
+            ['../game/logic/cards-internal/state-factory.js', 'CardStateFactory'],
+            ['../game/logic/cards-internal/module-resolver.js', 'CardModuleResolver'],
+            ['../game/logic/cards-internal/presentation-helpers.js', 'CardPresentationHelpers'],
+            ['../game/logic/cards-internal/hand-manager.js', 'CardHandManager'],
+            ['../game/logic/cards-internal/charge-ledger.js', 'CardChargeLedger'],
+            ['../game/logic/cards-internal/pending-state-manager.js', 'CardPendingStateManager'],
+            ['../game/logic/cards-internal/card-usage-prechecks.js', 'CardUsagePrechecks'],
+            ['../game/logic/cards-internal/effect-timing.js', 'CardEffectTiming'],
+            ['../game/logic/cards/markers.js', 'CardMarkers'],
+            ['../game/logic/board_ops.js', 'BoardOps'],
+            ['../game/cards/state-manager.js', 'CardStateManager'],
+            ['../game/cards/effect-resolver.js', 'CardEffectResolver'],
+            ['../game/cards/timing-processor.js', 'CardTimingProcessor'],
+            ['../game/cards/target-resolver.js', 'CardTargetResolver']
+        ];
+        const optionalGlobals = [
+            ['../game/logic/cards/utils.js', 'CardUtils'],
+            ['../game/logic/cards/targets.js', 'CardTargets'],
+            ['../game/logic/cards/selectors.js', 'CardSelectors'],
+            ['../game/logic/cards/movement.js', 'CardMovement'],
+            ['../game/logic/cards/teleport.js', 'CardTeleport'],
+            ['../game/logic/cards/clone.js', 'CardClone'],
+            ['../game/logic/cards/meteor.js', 'CardMeteor'],
+            ['../game/logic/cards/shrink.js', 'CardShrink'],
+            ['../game/logic/cards/breeding.js', 'CardBreeding'],
+            ['../game/logic/cards/flips.js', 'CardFlips'],
+            ['../game/logic/cards/regen.js', 'CardRegen'],
+            ['../game/logic/cards/living_will.js', 'CardLivingWill'],
+            ['../game/logic/cards/sniper.js', 'CardSniper'],
+            ['../game/logic/cards/lightning.js', 'CardLightning'],
+            ['../game/logic/cards/time_bomb.js', 'CardTimeBomb'],
+            ['../game/logic/cards/udg.js', 'CardUdg'],
+            ['../game/logic/cards/hyperactive.js', 'CardHyperactive'],
+            ['../game/logic/cards/will_hunter_king.js', 'CardWillHunterKing'],
+            ['../game/logic/effects/dragon.js', 'DragonEffects'],
+            ['../game/logic/effects/destroy_one_stone.js', 'DestroyOneStoneEffects'],
+            ['../game/logic/effects/swap_with_enemy.js', 'SwapWithEnemyEffects'],
+            ['../game/cards/effects/status-cells.js', 'CardStatusCellsEffects'],
+            ['../game/cards/effects/protect.js', 'CardProtectEffects'],
+            ['../game/cards/effects/trap.js', 'CardTrapEffects'],
+            ['../game/cards/effects/ownership.js', 'CardOwnershipEffects'],
+            ['../game/cards/effects/board-expansion-apply.js', 'CardBoardExpansionApply'],
+            ['../game/cards/effects/position-swap.js', 'CardPositionSwapEffects']
+        ];
+        workerCardGlobalsPromise = ensureWorkerDeckGlobals()
+            .then(() => ensureWorkerSharedBoardUtils())
+            .then(() => requiredGlobals.reduce(
+                (promise, [importPath, globalKey]) => promise.then(() => importWorkerGlobal(importPath, globalKey)),
+                Promise.resolve()
+            ))
+            .then(() => optionalGlobals.reduce(
+                (promise, [importPath, globalKey]) => promise.then(() => importWorkerGlobal(importPath, globalKey).catch(() => null)),
+                Promise.resolve()
+            ));
+    }
+    return workerCardGlobalsPromise;
+}
+
+function normalizeWorkerTurnPipelinePlayer(Core, player) {
+    const blackValue = Core && Number.isFinite(Number(Core.BLACK)) ? Number(Core.BLACK) : 1;
+    const whiteValue = Core && Number.isFinite(Number(Core.WHITE)) ? Number(Core.WHITE) : -1;
+    if (player === blackValue || player === 'black') return 'black';
+    if (player === whiteValue || player === 'white') return 'white';
+    return null;
+}
+
+function createWorkerTurnPipelineModule(CardLogic, Core, TurnPipelinePhases, BoardOps) {
+    function applyTurn(cardState, gameState, playerKey, action, prng, options) {
+        const events = [];
+        const p = prng || undefined;
+        const opts = (options && typeof options === 'object') ? options : {};
+        const normalizedPlayerKey = normalizeWorkerTurnPipelinePlayer(Core, playerKey) || playerKey;
+        const previousBoardOpsRandomSource = cardState && cardState._boardOpsRandomSource;
+        if (cardState && p && typeof p.random === 'function') {
+            cardState._boardOpsRandomSource = p;
+        }
+        try {
+            if (opts.skipTurnStart !== true) {
+                TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, p);
+            }
+            TurnPipelinePhases.applyCardUsagePhase(CardLogic, cardState, gameState, normalizedPlayerKey, action, events, p);
+            if (cardState) {
+                cardState._currentActionMeta = {
+                    actionId: action && action.actionId ? action.actionId : null,
+                    turnIndex: cardState.turnIndex || 0,
+                    plyIndex: 0,
+                    randomSource: (p && typeof p.random === 'function') ? p : null
+                };
+            }
+            try {
+                TurnPipelinePhases.applyActionPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, action, events, p, BoardOps);
+            } finally {
+                if (cardState) {
+                    delete cardState._currentActionMeta;
+                }
+            }
+            const presentationEvents = (typeof CardLogic.flushPresentationEvents === 'function')
+                ? CardLogic.flushPresentationEvents(cardState)
+                : ((cardState && Array.isArray(cardState.presentationEvents)) ? cardState.presentationEvents.slice() : []);
+            return { gameState, cardState, events, presentationEvents };
+        } finally {
+            if (cardState) {
+                if (previousBoardOpsRandomSource && typeof previousBoardOpsRandomSource.random === 'function') {
+                    cardState._boardOpsRandomSource = previousBoardOpsRandomSource;
+                } else {
+                    delete cardState._boardOpsRandomSource;
+                }
+            }
+        }
+    }
+
+    function applyTurnSafe(cardState, gameState, playerKey, action, prng, options) {
+        const cs = deepClone(cardState);
+        const gs = deepClone(gameState);
+        const actionPlayerKey = normalizeWorkerTurnPipelinePlayer(Core, playerKey);
+        const currentPlayerKey = normalizeWorkerTurnPipelinePlayer(Core, gs && gs.currentPlayer);
+        const currentVersion = (options && typeof options.currentStateVersion === 'number')
+            ? options.currentStateVersion
+            : 0;
+        let effectivePipelinePlayerKey = actionPlayerKey;
+
+        if (actionPlayerKey && currentPlayerKey && actionPlayerKey !== currentPlayerKey) {
+            const fateWillController = (cs && cs.fateWillControllerByTurnOwner || {})[currentPlayerKey];
+            if (fateWillController === actionPlayerKey) {
+                effectivePipelinePlayerKey = currentPlayerKey;
+            } else {
+                return {
+                    ok: false,
+                    gameState: gs,
+                    cardState: cs,
+                    events: [{ type: 'action_rejected', player: playerKey, reason: 'OUT_OF_TURN', message: 'playerKey does not match gameState.currentPlayer' }],
+                    nextStateVersion: currentVersion,
+                    rejectedReason: 'OUT_OF_TURN'
+                };
+            }
+        }
+
+        if (action && action.actionId && options && Array.isArray(options.previousActionIds) && options.previousActionIds.includes(action.actionId)) {
+            return {
+                ok: false,
+                gameState: gs,
+                cardState: cs,
+                events: [{ type: 'action_rejected', player: playerKey, reason: 'DUPLICATE_ACTION', message: 'actionId already seen' }],
+                nextStateVersion: currentVersion,
+                rejectedReason: 'DUPLICATE_ACTION'
+            };
+        }
+
+        if (action && typeof action.turnIndex === 'number' && options && typeof options.currentStateVersion === 'number' && action.turnIndex !== options.currentStateVersion) {
+            return {
+                ok: false,
+                gameState: gs,
+                cardState: cs,
+                events: [{ type: 'action_rejected', player: playerKey, reason: 'OUT_OF_ORDER', message: 'action.turnIndex does not match currentStateVersion' }],
+                nextStateVersion: currentVersion,
+                rejectedReason: 'OUT_OF_ORDER'
+            };
+        }
+
+        try {
+            const result = applyTurn(cs, gs, effectivePipelinePlayerKey || playerKey, action, prng, options);
+            return {
+                ok: true,
+                gameState: result.gameState,
+                cardState: result.cardState,
+                events: result.events,
+                presentationEvents: result.presentationEvents || [],
+                nextStateVersion: currentVersion + 1,
+                stateHash: null
+            };
+        } catch (error) {
+            const rawMsg = (error && error.message) ? String(error.message) : 'unknown_error';
+            let reason = 'UNKNOWN';
+            if (rawMsg.includes('Illegal move')) reason = 'ILLEGAL_MOVE';
+            else if (rawMsg.includes('applyCardUsage failed')) reason = 'CARD_USE_FAILED';
+            else if (rawMsg.includes('requires')) reason = 'MISSING_REQUIRED_TARGET';
+            else if (rawMsg.includes('Unknown action.type')) reason = 'UNKNOWN_ACTION_TYPE';
+            return {
+                ok: false,
+                gameState: gs,
+                cardState: cs,
+                events: [{ type: 'action_rejected', player: playerKey, reason, message: rawMsg }],
+                nextStateVersion: currentVersion,
+                rejectedReason: reason,
+                errorMessage: rawMsg
+            };
+        }
+    }
+
+    return {
+        applyTurn,
+        applyTurnSafe
+    };
+}
+
 function loadCoreLogicModule() {
     if (!coreLogicModulePromise) {
-        coreLogicModulePromise = import('../game/logic/core.js').then((mod) => mod.default || mod);
+        coreLogicModulePromise = Promise.all([
+            ensureWorkerSharedConstants(),
+            ensureWorkerSharedBoardUtils()
+        ]).then(() => import('../game/logic/core.js').then((mod) => {
+            const resolved = mod.default || mod;
+            setRuntimeGlobalValue('Core', resolved);
+            return resolved;
+        }));
     }
     return coreLogicModulePromise;
 }
 
 function loadDeckModules() {
     if (!deckModulesPromise) {
-        deckModulesPromise = Promise.all([
-            import('../shared/deck-spec.js').then((mod) => mod.default || mod),
-            import('../shared/deck-codec.js').then((mod) => mod.default || mod)
-        ]).then(([deckSpecHelpers, deckCodecModule]) => ({ deckSpecHelpers, deckCodecModule }));
+        deckModulesPromise = ensureWorkerDeckGlobals();
     }
     return deckModulesPromise;
 }
@@ -221,8 +549,8 @@ function loadDeckModules() {
 function loadTurnStartModules() {
     if (!turnStartModulesPromise) {
         turnStartModulesPromise = Promise.all([
-            import('../game/logic/core.js').then((mod) => mod.default || mod),
-            import('../game/logic/cards.js').then((mod) => mod.default || mod),
+            loadCoreLogicModule(),
+            ensureWorkerCardGlobals().then(() => import('../game/logic/cards.js').then((mod) => mod.default || mod)),
             import('../game/turn/turn_pipeline_phases.js').then((mod) => mod.default || mod),
             import('../game/schema/prng.js').then((mod) => mod.default || mod)
         ]).then(([Core, CardLogic, TurnPipelinePhases, SeededPRNG]) => ({
@@ -238,12 +566,15 @@ function loadTurnStartModules() {
 function loadTurnPipelineModules() {
     if (!turnPipelineModulesPromise) {
         turnPipelineModulesPromise = Promise.all([
-            import('../game/turn/turn_pipeline.js').then((mod) => mod.default || mod),
-            import('../game/schema/prng.js').then((mod) => mod.default || mod),
+            ensureWorkerCardGlobals(),
+            loadCoreLogicModule(),
+            import('../game/logic/cards.js').then((mod) => mod.default || mod),
+            import('../game/turn/turn_pipeline_phases.js').then((mod) => mod.default || mod),
             import('../game/turn/pipeline_ui_adapter.js').then((mod) => mod.default || mod),
-            import('../game/logic/cards.js').then((mod) => mod.default || mod)
-        ]).then(([TurnPipeline, SeededPRNG, TurnPipelineUIAdapter, CardLogic]) => ({
-            TurnPipeline,
+            import('../game/logic/board_ops.js').then((mod) => mod.default || mod),
+            import('../game/schema/prng.js').then((mod) => mod.default || mod)
+        ]).then(([, Core, CardLogic, TurnPipelinePhases, TurnPipelineUIAdapter, BoardOps, SeededPRNG]) => ({
+            TurnPipeline: createWorkerTurnPipelineModule(CardLogic, Core, TurnPipelinePhases, BoardOps),
             SeededPRNG,
             TurnPipelineUIAdapter,
             CardLogic
@@ -816,8 +1147,12 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
         gameState: result.gameState,
         cardState: result.cardState
     };
+    const actionPresentationEvents = Array.isArray(result.presentationEvents)
+        ? result.presentationEvents
+        : ((result.cardState && Array.isArray(result.cardState.presentationEvents)) ? result.cardState.presentationEvents : []);
+    const playbackPresentationEvents = actionPresentationEvents.length > 0 ? actionPresentationEvents : result.events;
     const playbackAssembly = mapServerPresentationToPlaybackEvents(
-        result.presentationEvents,
+        playbackPresentationEvents,
         result.events,
         nextSnapshot,
         TurnPipelineUIAdapter,
@@ -829,9 +1164,6 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
     const playbackEvents = (playbackAssembly && Array.isArray(playbackAssembly.playbackEvents))
         ? playbackAssembly.playbackEvents
         : [];
-    const actionPresentationEvents = Array.isArray(result.presentationEvents)
-        ? result.presentationEvents
-        : ((result.cardState && Array.isArray(result.cardState.presentationEvents)) ? result.cardState.presentationEvents : []);
     const actionEffectLogs = appendEffectLogMessages(
         buildNetworkCardUseEffectLogs(resolvedAction, playerKey, CardLogic),
         collectPipelineEffectLogMessages(result.events, actionPresentationEvents, playerKey, TurnPipelineUIAdapter)
@@ -1708,7 +2040,7 @@ export class MatchRoomDurableObject {
     }
 
     async saveRoom() {
-        await this.state.storage.put(ROOM_STORAGE_KEY, this.room);
+        await this.state.storage.put(ROOM_STORAGE_KEY, deepClone(this.room));
     }
 
     async removeRoom() {
@@ -2592,7 +2924,7 @@ export class MatchRoomDurableObject {
             ? MatchAuthority.computeAuthoritativeStateHash(room.snapshot)
             : (room.authoritativeStateHash || null);
         const previousSnapshotForChargeDelta = deepClone(room.snapshot);
-        let nextSnapshot;
+        let nextSnapshot = null;
         let serverPlaybackEvents = [];
         let serverEffectLogs = [];
         let serverPlaybackDiagnostics = null;

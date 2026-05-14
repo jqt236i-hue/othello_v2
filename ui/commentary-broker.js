@@ -1,2 +1,2 @@
 const path = require('path');
-module.exports = require(path.join(__dirname, '..', '..', 'dist', 'ui', 'commentary-broker.js'));
+module.exports = require(path.join(process.cwd(), 'dist', 'ui', 'commentary-broker.js'));

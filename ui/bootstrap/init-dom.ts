@@ -18,9 +18,6 @@ interface InitDomElements {
   bgmPauseBtn: HTMLElement | null;
   bgmTrackSelect: HTMLSelectElement | null;
   bgmVolSlider: HTMLInputElement | null;
-  storyBtn: HTMLElement | null;
-  storyMenuOverlay: HTMLElement | null;
-  tutorialOverlay: HTMLElement | null;
   rulesHelpBtn: HTMLElement | null;
   rulesHelpPanel: HTMLElement | null;
   gachaOpenBtn: HTMLElement | null;
@@ -106,8 +103,7 @@ function getInitDomElements(): InitDomElements {
   return {
     resetBtn: $('resetBtn'), muteBtn: $('muteBtn'), seTypeSelect: $('seTypeSelect') as HTMLSelectElement | null,
     seVolSlider: $('seVolSlider') as HTMLInputElement | null, bgmPlayBtn: $('bgmPlayBtn'), bgmPauseBtn: $('bgmPauseBtn'),
-    bgmTrackSelect: $('bgmTrackSelect') as HTMLSelectElement | null, bgmVolSlider: $('bgmVolSlider') as HTMLInputElement | null, storyBtn: $('storyBtn'),
-    storyMenuOverlay: $('storyMenuOverlay'), tutorialOverlay: $('tutorialOverlay'),
+    bgmTrackSelect: $('bgmTrackSelect') as HTMLSelectElement | null, bgmVolSlider: $('bgmVolSlider') as HTMLInputElement | null,
     rulesHelpBtn: $('rulesHelpBtn'), rulesHelpPanel: $('rules-help-panel'), gachaOpenBtn: $('gachaOpenBtn'),
     gachaOverlay: $('gachaOverlay'), gachaModal: $('gachaModal'), gachaCloseBtn: $('gachaCloseBtn'),
     gachaBalanceValue: $('gachaBalanceValue'), gachaDetailToggleBtn: $('gachaDetailToggleBtn'),

@@ -711,6 +711,9 @@ function buildRoomPayload(options) {
     if (Object.prototype.hasOwnProperty.call(opts, 'selectedHandSkinId')) {
         payload.selectedHandSkinId = normalizeSeatHandSkinId(opts.selectedHandSkinId);
     }
+    if (Object.prototype.hasOwnProperty.call(opts, 'operationId')) {
+        payload.operationId = normalizeOperationId(opts.operationId) || null;
+    }
     if (Object.prototype.hasOwnProperty.call(opts, 'actionType')) {
         payload.actionType = opts.actionType ? String(opts.actionType) : null;
     }
@@ -1023,15 +1026,22 @@ function restoreMissingChargeDeltaEvents(previousSnapshot, nextSnapshot) {
         const after = normalizeChargeValueForAuthority(nextCharge[playerKey]);
         const delta = after - before;
         if (delta === 0) continue;
-        events.push({
-            seq,
-            player: playerKey,
-            before,
-            after,
-            delta,
-            reason: 'network_snapshot_charge_sync'
-        });
-        seq += 1;
+        const direction = delta > 0 ? 1 : -1;
+        const steps = Math.abs(delta);
+        let cursor = before;
+        for (let step = 0; step < steps; step += 1) {
+            const next = cursor + direction;
+            events.push({
+                seq,
+                player: playerKey,
+                before: cursor,
+                after: next,
+                delta: direction,
+                reason: 'network_snapshot_charge_sync'
+            });
+            seq += 1;
+            cursor = next;
+        }
     }
     nextCardState.chargeDeltaEvents = events;
     return nextSnapshot;

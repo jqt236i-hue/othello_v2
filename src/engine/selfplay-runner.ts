@@ -15,20 +15,20 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 const path = require('path');
 /** @type {any} */
-const Core = require('../../game/logic/core');
-const CardLogic = require('../../game/logic/cards');
-const TurnPipeline = require('../../game/turn/turn_pipeline');
-const TurnPipelinePhases = require('../../game/turn/turn_pipeline_phases');
-const SeededPRNG = require('../../game/schema/prng');
+const Core = require('../../game/logic/core.js');
+const CardLogic = require('../../game/logic/cards.js');
+const TurnPipeline = require('../../game/turn/turn_pipeline.js');
+const TurnPipelinePhases = require('../../game/turn/turn_pipeline_phases.js');
+const SeededPRNG = require('../../game/schema/prng.js');
 const deepClone = require('../../utils/deepClone');
-const CpuPolicyCore = require('../../game/ai/cpu-policy-core');
-const CpuPolicyTableRuntime = require('../../game/ai/policy-table-runtime');
-const CpuLv6LookaheadProfile = require('../../game/ai/cpu-lv6-lookahead-profile');
+const CpuPolicyCore = require('../../game/ai/cpu-policy-core.js');
+const CpuPolicyTableRuntime = require('../../game/ai/policy-table-runtime.js');
+const CpuLv6LookaheadProfile = require('../../game/ai/cpu-lv6-lookahead-profile.js');
 const SharedBoardUtils = require(path.resolve(__dirname, '..', '..', 'shared', 'shared-board-utils.js'));
 const OthelloCore = require(path.resolve(__dirname, '..', '..', 'shared', 'othello-core.js'));
 const SharedCardHeuristics = require(path.resolve(__dirname, '..', '..', 'shared', 'shared-card-heuristics.js'));
-const PendingTargetSelector = require('../../game/turn-handlers/pending-target-selector');
-const PendingCoordinator = require('../../game/turn/pending-coordinator');
+const PendingTargetSelector = require('../../game/turn-handlers/pending-target-selector.js');
+const PendingCoordinator = require('../../game/turn/pending-coordinator.js');
 
 const SELFPLAY_SCHEMA_VERSION = 'selfplay.v2';
 const LEGACY_SELFPLAY_SCHEMA_VERSION = 'selfplay.v1';
@@ -2211,15 +2211,7 @@ function getLegalMovesForAction(gameState, cardState, playerKey) {
         ? Core.getFreePlacementMoves(gameState, player, context)
         : Core.getLegalMoves(gameState, player, context);
     if (!Array.isArray(moves) || moves.length <= 0) return [];
-    return moves.filter((move) => {
-        if (!move || !Number.isInteger(move.row) || !Number.isInteger(move.col)) return false;
-        if (isFreePlacement) return true;
-        try {
-            return Core.getFlipsWithContext(gameState, move.row, move.col, player, context).length > 0;
-        } catch (e) {
-            return false;
-        }
-    });
+    return moves.filter((move) => !!(move && Number.isInteger(move.row) && Number.isInteger(move.col)));
 }
 
 function getDirectUsableCardIds(cardState, gameState, playerKey) {
@@ -3709,9 +3701,9 @@ function applyActionSafe(state, playerKey, action) {
 }
 
 function applyDecisionSnapshotBaseline(state, snapshot, stateVersion) {
-    state.cardState = snapshot.cardState;
-    state.gameState = snapshot.gameState;
-    if (snapshot.prng) state.prng = snapshot.prng;
+    state.cardState = deepClone(snapshot.cardState);
+    state.gameState = deepClone(snapshot.gameState);
+    if (snapshot.prng) state.prng = clonePrng(snapshot.prng);
     if (state.prng && typeof state.prng.random === 'function' && state.cardState) {
         state.cardState._defaultRandomSource = state.prng;
     }
@@ -3946,7 +3938,7 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
     const retryOpts = Object.assign({}, options);
     if (first.actionType === 'use_card') retryOpts.allowCardUsage = false;
     if (first.actionType === 'destroy_hand_card') retryOpts.allowHandDestroy = false;
-    const retrySnapshot = buildDecisionSnapshot(state.gameState, state.cardState, playerKey, state.prng);
+    const retrySnapshot = firstSnapshot;
     const retryDecision = decideAction(state.gameState, state.cardState, playerKey, state.prng, retryOpts, retrySnapshot);
     actionCounterRef.value += 1;
     const retry = createAction(retryDecision, gameIndex, actionCounterRef.value, state.stateVersion);

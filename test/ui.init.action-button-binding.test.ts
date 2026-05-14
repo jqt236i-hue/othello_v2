@@ -44,7 +44,7 @@ describe('initializeUI action button binding', () => {
   });
 
   test('UI初期化時に効果音を先読みする', () => {
-    import * as initModule from '../ui/handlers/init.js';
+    const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
 
     expect(global.SoundEngine.primeEffectSounds).toHaveBeenCalledTimes(1);
@@ -53,7 +53,7 @@ describe('initializeUI action button binding', () => {
   });
 
   test('破壊ボタン押下で既存処理を呼ぶ', () => {
-    import * as initModule from '../ui/handlers/init.js';
+    const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
 
     document.getElementById('destroy-card-btn').click();
@@ -66,7 +66,7 @@ describe('initializeUI action button binding', () => {
   test('通常カードの使用ボタン押下では既存処理だけを呼ぶ', () => {
     global.cardState.selectedCardId = 'WORK_WILL_001';
     global.CardLogic.getCardDef.mockReturnValue({ id: 'WORK_WILL_001', type: 'WORK_WILL' });
-    import * as initModule from '../ui/handlers/init.js';
+    const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
 
     document.getElementById('use-card-btn').click();
@@ -79,7 +79,7 @@ describe('initializeUI action button binding', () => {
   test('宝箱カードの使用ボタン押下でも既存処理だけを呼ぶ', () => {
     global.cardState.selectedCardId = 'TREASURE_BOX_001';
     global.CardLogic.getCardDef.mockReturnValue({ id: 'TREASURE_BOX_001', type: 'TREASURE_BOX' });
-    import * as initModule from '../ui/handlers/init.js';
+    const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
 
     document.getElementById('use-card-btn').click();

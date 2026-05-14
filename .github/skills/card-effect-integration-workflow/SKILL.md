@@ -35,7 +35,7 @@ argument-hint: 'どの既存カードをどう変えたいか。削除, 仕様�
 - `cards/catalog.generated.js`
 - `game/logic/cards.js`, `game/logic/cards-internal/*`, `game/card-effects/*`
 - `game/cpu-decision.js` と関連 CPU helper
-- `ui/handlers/rules-help.js`, presentation / pending target 周り, `shared/deck-spec.js`, `shared/story-deck-spec.js`
+- `ui/handlers/rules-help.js`, presentation / pending target 周り, `shared/deck-spec.js`
 
 ## Common Traps
 

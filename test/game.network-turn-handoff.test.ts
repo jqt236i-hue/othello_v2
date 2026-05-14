@@ -21,7 +21,7 @@ describe('network-turn-handoff', () => {
   });
 
   test('turn start の playbackEvents を publish 前に後続 phase へずらして連結する', async () => {
-    import * as handoff from '../game/network-turn-handoff.js';
+    const handoff = require('../game/network-turn-handoff.js');
     const publishSnapshot = jest.fn();
     const onTurnStart = jest.fn(async (currentPlayer) => {
       expect(currentPlayer).toBe('black');
@@ -58,7 +58,7 @@ describe('network-turn-handoff', () => {
   });
 
   test('command publish では playbackEvents を保ちつつ snapshot を送らない', async () => {
-    import * as handoff from '../game/network-turn-handoff.js';
+    const handoff = require('../game/network-turn-handoff.js');
     const publishSnapshot = jest.fn();
     const snapshot = { gameState: { turnNumber: 4 }, cardState: { foo: 'bar' } };
 
@@ -87,7 +87,7 @@ describe('network-turn-handoff', () => {
       pendingEffectByPlayer: { black: null, white: null },
       fateWillControllerByTurnOwner: { black: null, white: null }
     };
-    import * as handoff from '../game/network-turn-handoff.js';
+    const handoff = require('../game/network-turn-handoff.js');
     const publishSnapshot = jest.fn();
     const scheduleCpuTurn = jest.fn();
     const setProcessing = jest.fn();
@@ -118,7 +118,7 @@ describe('network-turn-handoff', () => {
       pendingEffectByPlayer: { black: null, white: null },
       fateWillControllerByTurnOwner: { black: null, white: null }
     };
-    import * as handoff from '../game/network-turn-handoff.js';
+    const handoff = require('../game/network-turn-handoff.js');
     const publishSnapshot = jest.fn();
     const scheduleCpuTurn = jest.fn(() => false);
     const setProcessing = jest.fn();
@@ -148,7 +148,7 @@ describe('network-turn-handoff', () => {
       pendingEffectByPlayer: { black: null, white: null },
       fateWillControllerByTurnOwner: { black: null, white: null }
     };
-    import * as handoff from '../game/network-turn-handoff.js';
+    const handoff = require('../game/network-turn-handoff.js');
     const publishSnapshot = jest.fn();
     const scheduleCpuTurn = jest.fn(() => {
       throw new Error('scheduler blew up');
@@ -176,7 +176,7 @@ describe('network-turn-handoff', () => {
       pendingEffectByPlayer: { black: null, white: null },
       fateWillControllerByTurnOwner: { black: null, white: 'black' }
     };
-    import * as handoff from '../game/network-turn-handoff.js';
+    const handoff = require('../game/network-turn-handoff.js');
     const publishSnapshot = jest.fn();
     const scheduleCpuTurn = jest.fn();
     const setProcessing = jest.fn();
@@ -203,7 +203,7 @@ describe('network-turn-handoff', () => {
       pendingEffectByPlayer: { black: null, white: null },
       fateWillControllerByTurnOwner: { black: 'white', white: null }
     };
-    import * as handoff from '../game/network-turn-handoff.js';
+    const handoff = require('../game/network-turn-handoff.js');
     const publishSnapshot = jest.fn();
     const scheduleCpuTurn = jest.fn();
     const setProcessing = jest.fn();
@@ -230,7 +230,7 @@ describe('network-turn-handoff', () => {
 
   test('game over なら turn start や CPU scheduling を行わず結果表示と publish だけ行う', async () => {
     global.isGameOver = jest.fn(() => true);
-    import * as handoff from '../game/network-turn-handoff.js';
+    const handoff = require('../game/network-turn-handoff.js');
     const publishSnapshot = jest.fn();
     const onTurnStart = jest.fn();
     const scheduleCpuTurn = jest.fn();
@@ -286,7 +286,7 @@ describe('network-turn-handoff', () => {
       .mockReturnValueOnce(true)
       .mockReturnValueOnce(false);
 
-    import * as handoff from '../game/network-turn-handoff.js';
+    const handoff = require('../game/network-turn-handoff.js');
     const publishSnapshot = jest.fn();
     const onTurnStart = jest.fn(async () => ({
       playbackEvents: [{ type: 'escape_explosion', phase: 1 }]
@@ -316,7 +316,7 @@ describe('network-turn-handoff', () => {
       pendingEffectByPlayer: { black: null, white: null },
       fateWillControllerByTurnOwner: { black: null, white: null }
     };
-    import * as handoff from '../game/network-turn-handoff.js';
+    const handoff = require('../game/network-turn-handoff.js');
     const publishSnapshot = jest.fn(() => Promise.resolve({ ok: false, reason: 'OUT_OF_TURN' }));
     const onPublishFailed = jest.fn();
     const scheduleCpuTurn = jest.fn();

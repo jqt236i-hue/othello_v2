@@ -37,7 +37,7 @@ describe('initializeUI hand skin wiring', () => {
   });
 
   test('UI初期化時に手スキン設定を接続する', () => {
-    import * as initModule from '../ui/handlers/init.js';
+    const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
 
     expect(global.setupHandSkinControls).toHaveBeenCalledWith(expect.objectContaining({

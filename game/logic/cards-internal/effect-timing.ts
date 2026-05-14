@@ -533,7 +533,7 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
                 restoreTrackedLivingWill(cardState, gameState, livingWillMarker, marker.row, marker.col, data.type, 'SYSTEM', 'duration_end', context, constants);
             }
         }
-        if (data.type !== 'FREEZE' && typeof helpers.isFrozenCellForCard === 'function' && helpers.isFrozenCellForCard(cardState, marker.row, marker.col)) {
+        if (data.type !== 'FREEZE' && frozenCellsActiveAtTurnStart.has(`${marker.row},${marker.col}`)) {
             continue;
         }
         if (dataType === 'SEED' && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
@@ -543,7 +543,7 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
             }
             continue;
         }
-        if ((dataType === 'GUARD' || dataType === 'BLOCKADE' || dataType === 'FREEZE' || dataType === 'GHOST' || dataType === 'PROLIFERATION') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
+        if ((dataType === 'GUARD' || dataType === 'BLOCKADE' || dataType === 'FREEZE' || dataType === 'GHOST' || dataType === 'PROLIFERATION' || dataType === 'STONE_SALVATION_GOD') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
             data.remainingOwnerTurns -= 1;
             if (data.remainingOwnerTurns <= 0 && typeof helpers.removeMarkersAt === 'function') {
                 if (dataType === 'GHOST') {
@@ -577,6 +577,26 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
                     restoreTrackedLivingWill(cardState, gameState, livingWillMarker, marker.row, marker.col, data.type, 'SYSTEM', 'duration_end', context, constants);
                     continue;
                 }
+                if (dataType === 'STONE_SALVATION_GOD' && BoardOpsModule && typeof BoardOpsModule.revertSpecialStoneAt === 'function') {
+                    const revertRes = BoardOpsModule.revertSpecialStoneAt(
+                        cardState,
+                        gameState,
+                        marker.row,
+                        marker.col,
+                        'STONE_SALVATION_GOD',
+                        marker.owner,
+                        'SYSTEM',
+                        'duration_end',
+                        {
+                            special: data.type,
+                            owner: marker.owner,
+                            timer: 0
+                        }
+                    );
+                    if (revertRes && revertRes.reverted) {
+                        continue;
+                    }
+                }
                 emitDurationEndStatusRemoved(cardState, helpers, marker, data);
                 const livingWillMarker = getTrackedLivingWillMarker(cardState, marker.row, marker.col, data.type, context);
                 helpers.removeMarkersAt(cardState, marker.row, marker.col, {
@@ -592,6 +612,12 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
     const workMod = getWorkModule(context);
     if (workMod && typeof workMod.processWorkEffects === 'function') {
         try {
+            const workAnchor = cardState && (cardState as any).workAnchorPosByPlayer
+                ? (cardState as any).workAnchorPosByPlayer[playerKey]
+                : null;
+            if (workAnchor && frozenCellsActiveAtTurnStart.has(`${workAnchor.row},${workAnchor.col}`)) {
+                return summary;
+            }
             const res = workMod.processWorkEffects(cardState, gameState, playerKey);
             if (!cardState.presentationEvents) (cardState as any).presentationEvents = [];
             const row = Number.isInteger(res && res.row) ? res.row : null;
@@ -659,12 +685,8 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
             (gameState as any).board[row][col] = constants.EMPTY;
         }
     } else if (numberCellMultiplierConfig) {
-        effects[numberCellMultiplierConfig.effectFlag] = true;
-        if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-            BoardOpsModule.destroyAt(cardState, gameState, row, col, 'SYSTEM', numberCellMultiplierConfig.destroyReason);
-        } else {
-            (gameState as any).board[row][col] = constants.EMPTY;
-        }
+        // Number-cell multipliers only modify the board-bonus gain.
+        // Non-number cells should behave like a normal placement.
     }
 
     if (pending && pending.type === 'PLUNDER_WILL') {
@@ -685,10 +707,6 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
     effects.chargeGained = Number.isFinite(Number(actualChargeGained))
         ? Number(actualChargeGained)
         : chargeGain;
-    if (chargeMultiplierConfig && chargeMultiplierConfig.gainField && effects[chargeMultiplierConfig.gainField] == null) {
-        effects[chargeMultiplierConfig.gainField] = 0;
-    }
-
     if (pending && pending.type === 'PROTECTED_NEXT_STONE') {
         const res = applyProtectedNextStoneEffect(cardState, playerKey, row, col, getProtectedNextStoneModule(context));
         if (res && res.applied) effects.protected = true;
@@ -751,6 +769,14 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
             remainingOwnerTurns: constants.ULTIMATE_DESTROY_GOD_TURNS
         });
         effects.ultimateDestroyGodPlaced = true;
+    }
+
+    if (pending && pending.type === 'STONE_SALVATION_GOD' && typeof helpers.addMarker === 'function') {
+        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+            type: 'STONE_SALVATION_GOD',
+            remainingOwnerTurns: 10
+        });
+        effects.stoneSalvationGodPlaced = true;
     }
 
     if (pending && pending.type === 'SNIPER_WILL' && typeof helpers.addMarker === 'function') {

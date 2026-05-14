@@ -1,6 +1,6 @@
 import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+const os = require('os');
+const path = require('path');
 const {
     buildSeedBank,
     commitSeedBankUsage

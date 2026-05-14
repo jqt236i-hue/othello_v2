@@ -230,18 +230,17 @@ describe('UDR and Crystal regressions', () => {
     test('Crystal zero-gain placement log does not imply a number-cell bonus was gained', () => {
         applyProtectionAfterMove(
             { row: 2, col: 3, player: Core.BLACK },
-            { crystalStoneUsed: true, crystalStoneGain: 0 }
+            { }
         );
 
-        expect(global.emitLogAdded).toHaveBeenCalledWith('水晶の意志：数字マスなしで増加なし');
-        expect(global.emitLogAdded).not.toHaveBeenCalledWith('水晶の意志：次の数字マス布石4倍');
+        expect(global.emitLogAdded).not.toHaveBeenCalled();
     });
 
     test('Crystal zero-gain pipeline summary does not imply a number-cell bonus was gained', () => {
         const logs = adapter.mapEffectLogsFromPipeline([
-            { type: 'placement_effects', effects: { crystalStoneUsed: true, crystalStoneGain: 0 } }
+            { type: 'placement_effects', effects: {} }
         ], [], 'black');
 
-        expect(logs).toEqual(['黒: 水晶石: 数字マスなしで増加なし']);
+        expect(logs).toEqual([]);
     });
 });

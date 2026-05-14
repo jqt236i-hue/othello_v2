@@ -604,8 +604,10 @@ function handlePresentationEvent(ev: any): any {
           name: (ev.meta && ev.meta.name) ? ev.meta.name : null
         }]
       }];
-      emitCpuReactionToEnemyCard(ev);
       const emittedHeroCardReaction = emitHeroCardCommentaryFromEvent(ev);
+      if (!emittedHeroCardReaction) {
+        emitCpuReactionToEnemyCard(ev);
+      }
       return playPlaybackEvents(
         { events: playback },
         {

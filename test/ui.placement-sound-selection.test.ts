@@ -7,9 +7,8 @@ describe('placement sound selection', () => {
 
   test('lists the default sound and unlocked placement sounds from the observation catalog', () => {
     const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'https://example.test/' });
-    import * as storageModule from '../ui/storage/gacha-progress.js';
-    import * as selectionModule from '../ui/placement-sound-selection.js';
-
+    const storageModule = require('../ui/storage/gacha-progress.js');
+    const selectionModule = require('../ui/placement-sound-selection.js');
     dom.window.GachaProgressStorage = storageModule;
     dom.window.ObservationGachaCatalogAccessModule = {
       getObservationCatalogItemsByKind: jest.fn(() => ([
@@ -40,8 +39,7 @@ describe('placement sound selection', () => {
 
   test('selected sound falls back to default when storage points to an unowned sound', () => {
     const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'https://example.test/' });
-    import * as selectionModule from '../ui/placement-sound-selection.js';
-
+    const selectionModule = require('../ui/placement-sound-selection.js');
     dom.window.localStorage.setItem('othello.placementSound', 'gacha__n__placement_sound__type-1-standard');
     dom.window.ObservationGachaCatalogAccessModule = {
       getObservationCatalogItemsByKind: jest.fn(() => ([

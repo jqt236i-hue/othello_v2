@@ -3,7 +3,7 @@ import * as path from 'path';
 
 describe('status-display cpu image scaling', () => {
   test('uses CSS variable based level scaling without JS pixel width override', () => {
-    const jsPath = path.join(__dirname, '..', 'ui', 'status-display.js');
+    const jsPath = path.join(__dirname, '..', 'ui', 'status-display.ts');
     const js = fs.readFileSync(jsPath, 'utf8');
     const cssPath = path.join(__dirname, '..', 'styles-layout.css');
     const css = fs.readFileSync(cssPath, 'utf8');

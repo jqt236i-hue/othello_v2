@@ -88,8 +88,7 @@ describe('network legal hints for join seat', () => {
   });
 
   test('board-renderer shows legal hints for white joiner on white turn', () => {
-    import * as boardRenderer from '../ui/board-renderer.js';
-
+    const boardRenderer = require('../ui/board-renderer.js');
     boardRenderer.renderBoardFull();
 
     const legalCell = global.boardEl.querySelector('.cell[data-row="2"][data-col="3"]');
@@ -99,8 +98,7 @@ describe('network legal hints for join seat', () => {
   });
 
   test('diff-renderer shows legal hints for white joiner on white turn', () => {
-    import * as diffRenderer from '../ui/diff-renderer.js';
-
+    const diffRenderer = require('../ui/diff-renderer.js');
     diffRenderer.renderBoardDiff(global.boardEl);
 
     const legalCell = global.boardEl.querySelector('.cell[data-row="2"][data-col="3"]');
@@ -110,8 +108,7 @@ describe('network legal hints for join seat', () => {
   });
 
   test('diff-renderer adds time-stop legal emphasis when time stop class is active', () => {
-    import * as diffRenderer from '../ui/diff-renderer.js';
-
+    const diffRenderer = require('../ui/diff-renderer.js');
     document.documentElement.classList.add('time-stop-active');
     document.body.classList.add('time-stop-active');
     diffRenderer.renderBoardDiff(global.boardEl);

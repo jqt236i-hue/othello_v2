@@ -56,7 +56,7 @@ describe('TurnPipelinePhases turn start pending cache sync', () => {
     };
     jest.doMock('../game/turn/pending-coordinator', () => pendingCoordinatorMock, { virtual: false });
 
-    import * as isolatedTurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
+    const isolatedTurnPipelinePhases = require('../game/turn/turn_pipeline_phases.js');
     const prng = createPrng();
     const cardState = CardLogic.createCardState(prng);
     const gameState = Core.createGameState();

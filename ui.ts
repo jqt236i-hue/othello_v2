@@ -18,19 +18,9 @@ import type { CardState, GameState, PlayerKey } from 'src/types';
  * - ui/event-handlers.js - イベントハンドラ
  */
 
-// ===== Global UI State =====
-// (shared with other modules via window scope)
-
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
-
-
 export let isProcessing = false;
 export let mccfrPolicy: any = null;
-export let cpuSmartness = { black: 1, white: 1 }; // 1:標準,2:位置重視,3:反転重視
+let cpuSmartness = { black: 1, white: 1 }; // 1:標準,2:位置重視,3:反転重視
 
 // Register UI globals via UIBootstrap to centralize global exposure
 try {
@@ -39,7 +29,6 @@ try {
         uiBootstrap.registerUIGlobals({
             isProcessing,
             mccfrPolicy,
-            cpuSmartness,
             DEBUG_HUMAN_VS_HUMAN: false
         });
     }
@@ -285,7 +274,7 @@ export function isCardEffectOnlyLogLine(text?: string) {
 
     // Card usage/effect lines should live in the effect-only panel.
     const cardEffectHints = [
-        '破壊神',
+        '破壊の意志',
         '時限爆弾',
         '究極反転龍',
         '繁殖石',
@@ -336,6 +325,12 @@ export function _resolveHeroCommentaryContextHelpers() {
 
 export function _resolveCommentaryBroker() {
     if (_heroCommentaryBroker) return _heroCommentaryBroker;
+    try {
+        if (typeof window !== 'undefined' && (window as any).CommentaryBroker) {
+            _heroCommentaryBroker = (window as any).CommentaryBroker;
+            return _heroCommentaryBroker;
+        }
+    } catch (e) { /* ignore */ }
     try {
         if (typeof globalThis !== 'undefined' && (globalThis as any).CommentaryBroker) {
             _heroCommentaryBroker = (globalThis as any).CommentaryBroker;
@@ -608,18 +603,18 @@ if (typeof (window as any).GameEvents !== 'undefined' && (window as any).GameEve
  * - Special effects (bombs, dragons, pending card effects)
  */
 export function renderBoard() {
-    // Delegate to the canonical implementation in ui/board-renderer.js.
-    try {
-        const mod = require('./ui/board-renderer');
-        if (mod && typeof mod.renderBoard === 'function') return mod.renderBoard();
-    } catch (e) { /* ignore require failures in browser */ }
-
     // If the board renderer has already installed a global function, use it.
     try {
         if (typeof window !== 'undefined' && typeof (window as any).renderBoard === 'function' && (window as any).renderBoard !== renderBoard) {
             return (window as any).renderBoard();
         }
     } catch (e) { /* ignore */ }
+
+    // Delegate to the canonical implementation in ui/board-renderer.js.
+    try {
+        const mod = require('./ui/board-renderer');
+        if (mod && typeof mod.renderBoard === 'function') return mod.renderBoard();
+    } catch (e) { /* ignore require failures in browser */ }
 }
 
 // ===== Occupancy UI =====
@@ -735,7 +730,6 @@ export function preloadImmediateSpecialStoneImages() {
                 'goldStone',
                 'silverStone',
                 'rainbowStone',
-                'crystalStone'
             ]);
         }
     } catch (e) { /* defensive */ }
@@ -985,7 +979,6 @@ export default {
     updateCpuCharacter,
     isProcessing,
     mccfrPolicy,
-    cpuSmartness,
     clearEffectLivePanel,
     requestCardUiSync,
     ensureWorkVisualsApplied,

@@ -51,7 +51,12 @@ const { createGameState, isGameOver } = Core;
 const TurnPipelinePhases = _require('./turn/turn_pipeline_phases');
 const { isDebugLogAvailable } = _require('../is-env-capable');
 const { ensureCurrentPlayerCanActOrPass } = _require('./pass-handler');
-const OwnerHelpersModule = _require('../utils/owner-helpers');
+let OwnerHelpersModule: any = null;
+try {
+    OwnerHelpersModule = _require('../utils/owner-helpers');
+} catch (e) {
+    OwnerHelpersModule = null;
+}
 const MoveGeneratorModule = _require('./move-generator');
 const BoardPresentation = _require('./logic/presentation');
 const TurnPipelineUIAdapter = _require('./turn/pipeline_ui_adapter');
@@ -71,7 +76,7 @@ const { resetCpuTurnHandlerState } = _require('./cpu-turn-handler');
  */
 
 // Shared timing constants for turn/animation sequencing
-var getAnimationTiming;
+var getAnimationTiming: any;
 if (typeof require === 'function') {
     try { ({ getAnimationTiming } = _require('../constants/animation-constants')); } catch (e) { /* ignore */ }
 }
@@ -111,9 +116,12 @@ function readTurnManagerProcessing() {
     if (playbackState && typeof playbackState.getProcessing === 'function') {
         return playbackState.getProcessing() === true;
     }
+    const globalProcessing = (typeof globalThis !== 'undefined' && typeof (globalThis as any).isProcessing !== 'undefined')
+        ? (globalThis as any).isProcessing
+        : undefined;
     const localProcessing = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isProcessing !== 'undefined')
         ? __uiImpl.isProcessing
-        : (typeof isProcessing !== 'undefined' ? isProcessing : false);
+        : (typeof isProcessing !== 'undefined' ? isProcessing : globalProcessing);
     return localProcessing;
 }
 
@@ -122,9 +130,12 @@ function readTurnManagerCardAnimating() {
     if (playbackState && typeof playbackState.getCardAnimating === 'function') {
         return playbackState.getCardAnimating() === true;
     }
+    const globalCardAnimating = (typeof globalThis !== 'undefined' && typeof (globalThis as any).isCardAnimating !== 'undefined')
+        ? (globalThis as any).isCardAnimating
+        : undefined;
     const localCardAnimating = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isCardAnimating !== 'undefined')
         ? __uiImpl.isCardAnimating
-        : (typeof isCardAnimating !== 'undefined' ? isCardAnimating : false);
+        : (typeof isCardAnimating !== 'undefined' ? isCardAnimating : globalCardAnimating);
     return localCardAnimating;
 }
 
@@ -166,18 +177,28 @@ function setTurnManagerBusyState(options: any) {
         if (hasProcessing) isProcessing = nextProcessing;
     } catch (e) { /* ignore */ }
     try {
+        if (hasProcessing && typeof globalThis !== 'undefined') (globalThis as any).isProcessing = nextProcessing;
+    } catch (e) { /* ignore */ }
+    try {
         if (hasCardAnimating) isCardAnimating = nextCardAnimating;
     } catch (e) { /* ignore */ }
-    // Write to module-level variables instead of globalThis
+    try {
+        if (hasCardAnimating && typeof globalThis !== 'undefined') (globalThis as any).isCardAnimating = nextCardAnimating;
+    } catch (e) { /* ignore */ }
     try {
         if (hasPlaybackActive) {
             VisualPlaybackActive = nextPlaybackActive;
+            if (typeof globalThis !== 'undefined') (globalThis as any).VisualPlaybackActive = nextPlaybackActive;
             if (nextPlaybackActive) {
                 if (!Number.isFinite(Number(__playbackActiveSince))) {
                     __playbackActiveSince = Date.now();
                 }
+                if (typeof globalThis !== 'undefined' && !Number.isFinite(Number((globalThis as any).__playbackActiveSince))) {
+                    (globalThis as any).__playbackActiveSince = __playbackActiveSince;
+                }
             } else {
                 __playbackActiveSince = null;
+                if (typeof globalThis !== 'undefined') (globalThis as any).__playbackActiveSince = null;
             }
         }
     } catch (e) { /* ignore */ }
@@ -194,7 +215,21 @@ function isVisualPlaybackActiveForTurnManager() {
     if (playbackState && typeof playbackState.getPlaybackActive === 'function') {
         return playbackState.getPlaybackActive() === true;
     }
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).VisualPlaybackActive !== 'undefined') {
+            return (globalThis as any).VisualPlaybackActive === true;
+        }
+    } catch (e) { /* ignore */ }
     return VisualPlaybackActive === true;
+}
+
+function emitLogAddedForTurnManager(message: any, level?: any) {
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).emitLogAdded === 'function') {
+            return (globalThis as any).emitLogAdded(message, level);
+        }
+    } catch (e) { /* ignore */ }
+    return emitLogAdded(message, level);
 }
 
 function clearPlaybackLockForTurnManager() {
@@ -218,7 +253,7 @@ function getPlaybackStartedAtForTurnManager() {
         return Number.isFinite(startedAt) ? startedAt : null;
     }
     try {
-        const startedAt = Number(__playbackActiveSince);
+        const startedAt = Number(typeof __playbackActiveSince !== 'undefined' ? __playbackActiveSince : (globalThis as any).__playbackActiveSince);
         return Number.isFinite(startedAt) ? startedAt : null;
     } catch (e) { /* ignore */ }
     return null;
@@ -290,6 +325,14 @@ function emitPresentationEventViaBoardOps(ev: any) {
 let __uiImpl_turn_manager: any = {};
 function setUIImpl(obj: any) {
     __uiImpl_turn_manager = Object.assign({}, __uiImpl_turn_manager, obj || {});
+    return getUIImpl();
+}
+function replaceUIImpl(obj: any) {
+    __uiImpl_turn_manager = Object.assign({}, obj || {});
+    return getUIImpl();
+}
+function getUIImpl() {
+    return Object.assign({}, __uiImpl_turn_manager);
 }
 
 // Module-scoped UI locks (local state; replaces globalThis writes)
@@ -464,31 +507,36 @@ function isHumanVsHumanModeEnabled() {
 
 function isNetworkModeForTurnManager() {
     try {
-        if (OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function') {
-            return OwnerHelpersModule.isNetworkMode(typeof globalThis !== 'undefined' ? globalThis : null);
-        }
-    } catch (e) { /* ignore */ }
-    try {
         // globalThis read — UI/bootstrap dependency, keep
         const matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
             ? (globalThis as any).getCurrentMatchMode()
             : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
-        return matchMode === 'network';
+        if (matchMode === 'network') return true;
+    } catch (e) { /* ignore */ }
+    try {
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function') {
+            return OwnerHelpersModule.isNetworkMode(typeof globalThis !== 'undefined' ? globalThis : null);
+        }
     } catch (e) { /* ignore */ }
     return false;
 }
 
 function resolveNetworkLocalPlayerKey() {
     try {
-        if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveLocalPlayerKey === 'function') {
-            return OwnerHelpersModule.resolveLocalPlayerKey(typeof globalThis !== 'undefined' ? globalThis : null);
-        }
-    } catch (e) { /* ignore */ }
-    try {
         const nmClient = getNetworkMatchClientForTurnManager();
         if (nmClient && typeof nmClient.getSeatKey === 'function') {
             const seatKey = nmClient.getSeatKey();
             if (seatKey === 'white' || seatKey === 'black') return seatKey;
+        }
+        if (typeof globalThis !== 'undefined') {
+            const globalKeys = [
+                (globalThis as any).LOCAL_PLAYER_KEY,
+                (globalThis as any).__LOCAL_PLAYER_KEY,
+                (globalThis as any).BOARD_VIEWER_KEY
+            ];
+            for (const key of globalKeys) {
+                if (key === 'white' || key === 'black') return key;
+            }
         }
         // LOCAL_PLAYER_KEY / BOARD_VIEWER_KEY via DI (setUIImpl)
         const impl = __uiImpl_turn_manager;
@@ -499,11 +547,26 @@ function resolveNetworkLocalPlayerKey() {
             }
         }
     } catch (e) { /* ignore */ }
+    try {
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveLocalPlayerKey === 'function') {
+            return OwnerHelpersModule.resolveLocalPlayerKey(typeof globalThis !== 'undefined' ? globalThis : null);
+        }
+    } catch (e) { /* ignore */ }
     return 'black';
 }
 
 function canLocalUserOperateCurrentTurn() {
     const currentPlayerKey = getPlayerKey(gameState.currentPlayer);
+    try {
+        const controllerMap = cardState && cardState.fateWillControllerByTurnOwner;
+        const controllerKey = controllerMap && controllerMap[currentPlayerKey];
+        const explicitLocalKey = (typeof globalThis !== 'undefined')
+            ? ((globalThis as any).LOCAL_PLAYER_KEY || (globalThis as any).__LOCAL_PLAYER_KEY || (globalThis as any).BOARD_VIEWER_KEY)
+            : null;
+        if ((controllerKey === 'black' || controllerKey === 'white') && (explicitLocalKey === 'black' || explicitLocalKey === 'white')) {
+            return controllerKey === explicitLocalKey;
+        }
+    } catch (e) { /* ignore */ }
     const isNetworkMode = isNetworkModeForTurnManager();
     const isHvH = !!(
         (__uiImpl_turn_manager && __uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN) ||
@@ -560,6 +623,22 @@ function publishNetworkResetSnapshot() {
             playbackEvents: []
         });
     } catch (e) { /* ignore */ }
+}
+
+function shouldPublishNetworkResetSnapshotAtResetStart(options?: any) {
+    try {
+        if (options && typeof options === 'object' && options.skipNetworkPublish === true) {
+            return false;
+        }
+        if (!isNetworkModeForTurnManager()) return false;
+        const client = getNetworkMatchClientForTurnManager();
+        if (!client || typeof client.publishSnapshot !== 'function') return false;
+        if (typeof client.isActive === 'function') {
+            return client.isActive() === true;
+        }
+        return true;
+    } catch (e) { /* ignore */ }
+    return false;
 }
 
 function getPlayerKey(player: any) {
@@ -689,7 +768,7 @@ function clearPendingSelectionActionCacheForTurnManager() {
     return false;
 }
 
-function resetGame() {
+function resetGame(options?: any) {
     // Auto mode removed: nothing to stop or reset
 
     // Hard cleanup before rebuilding state (F5 相当の再起動に近づける)
@@ -698,6 +777,7 @@ function resetGame() {
     resetGameGeneration += 1;
     const currentResetGeneration = resetGameGeneration;
     const isCurrentResetGeneration = () => currentResetGeneration === resetGameGeneration;
+    const shouldPublishNetworkResetSnapshot = shouldPublishNetworkResetSnapshotAtResetStart(options);
     resetCpuTurnSchedulingStateForTurnManager();
     setTurnManagerBusyState({
         processing: false,
@@ -731,10 +811,13 @@ function resetGame() {
     };
 
     // Read CPU smartness from UI helper if available (avoid direct DOM access in game/)
+    const cpuSmartnessRef = (typeof cpuSmartness !== 'undefined' && cpuSmartness && typeof cpuSmartness === 'object')
+        ? cpuSmartness
+        : { black: 1, white: 1 };
     if (__uiImpl_turn_manager && typeof __uiImpl_turn_manager.readCpuSmartness === 'function') {
         const vals = __uiImpl_turn_manager.readCpuSmartness();
-        cpuSmartness.black = clampCpuLevel((vals && vals.black) || cpuSmartness.black || 1);
-        cpuSmartness.white = clampCpuLevel((vals && vals.white) || cpuSmartness.white || 1);
+        cpuSmartnessRef.black = clampCpuLevel((vals && vals.black) || cpuSmartnessRef.black || 1);
+        cpuSmartnessRef.white = clampCpuLevel((vals && vals.white) || cpuSmartnessRef.white || 1);
     }
 
     if (typeof updateCpuCharacter === 'function') {
@@ -773,7 +856,10 @@ function resetGame() {
         }
     }
 
-    (globalThis as any).gameState = createGameState(boardConfig);
+    const createGameStateForReset = (typeof globalThis !== 'undefined' && typeof (globalThis as any).createGameState === 'function')
+        ? (globalThis as any).createGameState
+        : createGameState;
+    (globalThis as any).gameState = createGameStateForReset(boardConfig);
     try {
         // initCardState may rely on PRNG; if unavailable, tests should mock or skip
         if (typeof initCardState === 'function') initCardState(undefined, cardInitOptions);
@@ -797,7 +883,7 @@ function resetGame() {
     if (ActionManagerModule && ActionManagerModule.ActionManager) {
         ActionManagerModule.ActionManager.reset();
         try { ActionManagerModule.ActionManager.clearStorage(); } catch (e) { /* ignore */ }
-        console.log('[resetGame] ActionManager reset and cleared storage');
+        if (isDebugLogAvailable()) console.log('[resetGame] ActionManager reset and cleared storage');
     }
 
     // Clear UI log via helper if available (game/ must not touch DOM)
@@ -809,7 +895,7 @@ function resetGame() {
         emitGameReset({ turnNumber: 0 });
     } catch (e) { /* ignore */ }
 
-    emitLogAdded(`ゲーム開始 (黒: Lv${cpuSmartness.black}, 白: Lv${cpuSmartness.white})`, 'normal');
+    emitLogAddedForTurnManager(`ゲーム開始 (黒: Lv${cpuSmartnessRef.black}, 白: Lv${cpuSmartnessRef.white})`, 'normal');
     try { emitBoardUpdate(); } catch (e) { /* ignore */ }
     try { emitGameStateChange(); } catch (e) { /* ignore */ }
 
@@ -833,7 +919,9 @@ function resetGame() {
             })
             .finally(() => {
                 if (!isCurrentResetGeneration()) return;
-                publishNetworkResetSnapshot();
+                if (shouldPublishNetworkResetSnapshot) {
+                    publishNetworkResetSnapshot();
+                }
             });
     };
 
@@ -849,13 +937,13 @@ function resetGame() {
                 if (!isCurrentResetGeneration()) return;
                 setTurnManagerBusyState({ processing: false });
                 runTurnStartAndPublishResetSnapshot();
-                emitLogAdded('カード配布完了', 'normal');
+                emitLogAddedForTurnManager('カード配布完了', 'normal');
 
     })
     .catch((err: any) => {
                 if (!isCurrentResetGeneration()) return;
                 console.error('Deal animation error:', err);
-                emitLogAdded('エラー: カード配布に失敗しました', 'normal');
+                emitLogAddedForTurnManager('エラー: カード配布に失敗しました', 'normal');
             })
             .finally(() => {
                 if (!isCurrentResetGeneration()) return;
@@ -872,7 +960,7 @@ function resetGame() {
             processing: false
         });
         runTurnStartAndPublishResetSnapshot();
-        emitLogAdded('カード配布完了', 'normal');
+        emitLogAddedForTurnManager('カード配布完了', 'normal');
     }
 
 }
@@ -1102,6 +1190,8 @@ if (typeof module !== 'undefined' && module.exports) {
         handleCellClick,
         isAnimationInProgress,
         setUIImpl,
+        replaceUIImpl,
+        getUIImpl,
         startActionSaveInterval,
         stopActionSaveInterval,
         watchdogPing,
@@ -1139,6 +1229,8 @@ export = {
     handleCellClick,
     isAnimationInProgress,
     setUIImpl,
+    replaceUIImpl,
+    getUIImpl,
     startActionSaveInterval,
     stopActionSaveInterval,
     watchdogPing,

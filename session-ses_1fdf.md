@@ -157,9 +157,9 @@ Looking at the grep results more carefully:
   - `ui/handlers/cpu-policy.ts`: `../../constants/cpu-lv6-shared-profile.js`, `../../shared/cpu-lv6-runtime-capability.js`
   - `ui/handlers/hand-skin.ts`: `../hand-skin/catalog.js`, `../hand-skin/selection.js`, `../hand-skin/runtime.js`, `../hand-skin/controller.js`
   - `ui/storage/gacha-progress.ts`: `../../shared/observation-gacha-catalog-shared.js`
-  - `ui/story/story-encounter.ts`: `../sound-engine-access.js`
-  - `ui/story/story-controller.ts`: `../sound-engine-access.js`
-  - `ui/story/story-battle-ui.ts`: `../sound-engine-access.js`
+  - `ui/legacy-battle/encounter.ts`: `../sound-engine-access.js`
+  - `ui/legacy-battle/controller.ts`: `../sound-engine-access.js`
+  - `ui/legacy-battle/battle-ui.ts`: `../sound-engine-access.js`
 
 So there are indeed many `.js` imports in `.ts` files under `ui/`. The user's count of "27件" might have been from a more targeted grep.
 
@@ -1427,9 +1427,9 @@ wrapper ファイル（`module.exports = require(...dist...)`）は修正対象�
 - `ui/handlers/cpu-policy.ts`: `_require('../../constants/cpu-lv6-shared-profile.js')`, `_require('../../shared/cpu-lv6-runtime-capability.js')`
 - `ui/handlers/hand-skin.ts`: `_require('../hand-skin/catalog.js') ?? null;`, `_require('../hand-skin/selection.js') ?? null;`, `_require('../hand-skin/runtime.js') ?? null;`, `_require('../hand-skin/controller.js') ?? null;`
 - `ui/storage/gacha-progress.ts`: `_require('../../shared/observation-gacha-catalog-shared.js')`
-- `ui/story/story-encounter.ts`: `_require('../sound-engine-access.js')`
-- `ui/story/story-controller.ts`: `_require('../sound-engine-access.js')`
-- `ui/story/story-battle-ui.ts`: `_require('../sound-engine-access.js')`
+- `ui/legacy-battle/encounter.ts`: `_require('../sound-engine-access.js')`
+- `ui/legacy-battle/controller.ts`: `_require('../sound-engine-access.js')`
+- `ui/legacy-battle/battle-ui.ts`: `_require('../sound-engine-access.js')`
 
 これらを分類します。
 
@@ -1572,9 +1572,9 @@ _Thinking:_
 21. `ui/result-overlay.ts`: `../shared/gacha-helpers.js` → `../shared/gacha-helpers`, `./storage/gacha-progress.js` → `./storage/gacha-progress`
 22. `ui/status-display.ts`: `./result-overlay.js` → `./result-overlay`
 23. `ui/storage/gacha-progress.ts`: `../../shared/observation-gacha-catalog-shared.js` → `../../shared/observation-gacha-catalog-shared`
-24. `ui/story/story-battle-ui.ts`: `../sound-engine-access.js` → `../sound-engine-access`
-25. `ui/story/story-controller.ts`: `../sound-engine-access.js` → `../sound-engine-access`
-26. `ui/story/story-encounter.ts`: `../sound-engine-access.js` → `../sound-engine-access`
+24. `ui/legacy-battle/battle-ui.ts`: `../sound-engine-access.js` → `../sound-engine-access`
+25. `ui/legacy-battle/controller.ts`: `../sound-engine-access.js` → `../sound-engine-access`
+26. `ui/legacy-battle/encounter.ts`: `../sound-engine-access.js` → `../sound-engine-access`
 27. `ui/tutorial/tutorial-controller.ts`: `../sound-engine-access.js` → `../sound-engine-access`
 
 これらを一括で置換します。`replaceAll` で各ファイルを修正します。

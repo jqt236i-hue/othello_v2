@@ -19,8 +19,7 @@ describe('animation-utils animateFadeOutAt', () => {
       getTimer: () => mockTimer
     }));
 
-    import * as anim from '../ui/animation-utils.js';
-
+    const anim = require('../ui/animation-utils.js');
     // create minimal cell with disc
     const disc = { classList: { contains: () => false, add() {}, remove() {} }, parentElement: { removeChild() {} }, addEventListener() {}, removeEventListener() {} };
     const cell = { querySelector: () => disc };
@@ -47,8 +46,7 @@ describe('animation-utils animateFadeOutAt', () => {
       getTimer: () => timer
     }));
 
-    import * as anim from '../ui/animation-utils.js';
-
+    const anim = require('../ui/animation-utils.js');
     let addedClass = null;
     const disc = {
       classList: {
@@ -129,7 +127,7 @@ describe('animation-utils animateHyperactiveMove chained fallback', () => {
       })
     }));
 
-    import * as anim from '../ui/animation-utils.js';
+    const anim = require('../ui/animation-utils.js');
     const cellB = boardEl.querySelector('.cell[data-row="3"][data-col="4"]');
     const cellC = boardEl.querySelector('.cell[data-row="3"][data-col="5"]');
     const disc = document.createElement('div');
@@ -157,7 +155,7 @@ describe('animation-utils animateHyperactiveMove chained fallback', () => {
       })
     }));
 
-    import * as anim from '../ui/animation-utils.js';
+    const anim = require('../ui/animation-utils.js');
     const board = document.getElementById('board');
     const fxLayer = document.getElementById('card-fx-layer');
     fxLayer.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 1000, right: 1000, bottom: 1000 });
@@ -235,7 +233,7 @@ describe('animation-utils animateHyperactiveMove chained fallback', () => {
       })
     }));
 
-    import * as anim from '../ui/animation-utils.js';
+    const anim = require('../ui/animation-utils.js');
     const board = document.getElementById('board');
     const fxLayer = document.getElementById('card-fx-layer');
     fxLayer.getBoundingClientRect = () => ({ left: 0, top: 0, width: 1000, height: 1000, right: 1000, bottom: 1000 });

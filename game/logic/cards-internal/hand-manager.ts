@@ -577,6 +577,21 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (!Array.isArray(salvationList) || salvationList.length === 0) continue;
         }
 
+        if (type === 'EXECUTION_WILL') {
+            const opponentKey = playerKey === 'black' ? 'white' : 'black';
+            const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey]))
+                ? cardState.hands[opponentKey]
+                : [];
+            if (opponentHand.length === 0) continue;
+            const executionLedger = (cardState as any).prevOpponentTurnDestroyedStonesByPlayer
+                || (cardState as any).prevOpponentTurnDestroyedNormalByPlayer;
+            const executionList = executionLedger && executionLedger[playerKey];
+            const destroyedOwnStoneCount = Array.isArray(executionList)
+                ? executionList.filter((entry: any) => entry && entry.owner === playerKey).length
+                : 0;
+            if (destroyedOwnStoneCount <= 0) continue;
+        }
+
         if (gameState) {
             if (type === 'LAST_RESORT') {
                 if (typeof helpers.canUseLastResortForPlayer !== 'function') continue;

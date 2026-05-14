@@ -91,7 +91,7 @@ describe('network snapshot pending presentation reconcile', () => {
   });
 
   function createController(stateObj) {
-    import { createNetworkSnapshotController } from '../ui/network/snapshot.js';
+    const { createNetworkSnapshotController } = require('../ui/network/snapshot.js');
     return createNetworkSnapshotController({
       getState: () => stateObj,
       emitCardStateChange: global.emitCardStateChange,

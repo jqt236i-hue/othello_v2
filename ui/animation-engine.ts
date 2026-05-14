@@ -323,6 +323,20 @@ const {
         _normalizeEvent(ev: any) {
             if (!ev || typeof ev !== 'object') return ev;
             const out = Object.assign({}, ev);
+            if (String(ev.type || '').toUpperCase() === 'CHARGE_BUBBLE') {
+                out.type = EVENT_TYPES.OBSERVER_BUBBLE;
+                out.rawType = ev.rawType || 'CHARGE_BUBBLE';
+                out.targets = [{
+                    r: Object.prototype.hasOwnProperty.call(ev, 'r') ? ev.r : ev.row,
+                    col: ev.col,
+                    owner: ev.owner || ev.player || (ev.meta && ev.meta.owner) || null,
+                    gained: Number(ev.gained) || 0,
+                    text: (typeof ev.text === 'string' && ev.text.trim()) ? ev.text.trim() : null,
+                    bubbleKind: 'charge',
+                    sourceType: (ev.meta && ev.meta.sourceType) ? ev.meta.sourceType : null
+                }];
+                return out;
+            }
             if (Array.isArray(ev.targets)) {
                 out.targets = ev.targets.map((t: any) => this._normalizeTarget(t, ev.type));
             }
@@ -515,7 +529,6 @@ const {
         }
 
         _shouldPlayPlaceHandAnimation(target: any) {
-            if (this._getCurrentMatchMode() !== 'network') return false;
             const descriptor = this._resolvePlaceHandDescriptor(target);
             return !!descriptor;
         }
@@ -1423,7 +1436,8 @@ const {
                 event.targets.some((target: any) => String(target && target.cause ? target.cause : '').toUpperCase() === 'CELL_TELEPORT_WILL')
             ));
 
-            if (this._isPlaybackStateActive()) {
+            const hasActivePlaybackRun = this.isPlaying === true || this._activePlaybackRunId !== null;
+            if (this._isPlaybackStateActive() && hasActivePlaybackRun) {
                 console.warn('[AnimationEngine] Already playing. Aborting previous...');
                 this.isAborted = true;
                 // Wait a short settle period
@@ -1726,7 +1740,7 @@ const {
 
         // Abort externally and apply final state (used by Single Visual Writer fallback)
         abortAndSync() {
-            console.warn('[AnimationEngine] abortAndSync called — stopping playback and syncing state');
+            console.info('[AnimationEngine] abortAndSync called — stopping playback and syncing state');
             // Telemetry increment for aborts
             if (typeof window !== 'undefined') { window.__telemetry__ = window.__telemetry__ || { watchdogFired: 0, singleVisualWriterHits: 0, abortCount: 0 }; window.__telemetry__.abortCount = (window.__telemetry__.abortCount || 0) + 1; }
             try {

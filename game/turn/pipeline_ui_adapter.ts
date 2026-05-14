@@ -714,7 +714,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     ]);
 
     function _matchesSpawnCauseAndReason(subject: any, cause: any, reasonPrefix: any) {
-        return String(subject && subject.cause ? subject.cause : '').toUpperCase() === String(cause || '').toUpperCase() &&
+        const expectedCause = String(cause || '').toUpperCase();
+        const subjectCause = String(subject && subject.cause ? subject.cause : '').toUpperCase();
+        return (!expectedCause || subjectCause === expectedCause) &&
             String(subject && subject.reason ? subject.reason : '').toLowerCase().indexOf(String(reasonPrefix || '').toLowerCase()) === 0;
     }
 
@@ -749,7 +751,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     function _isCloneLikeSpawnPresentationEvent(ev: any, spawnMeta: any) {
         const spawnCause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
         return (
-            (spawnCause === 'CLONE_WILL' || spawnCause === 'PROLIFERATION_WILL') &&
+            (spawnCause === 'CLONE_WILL' || spawnCause === 'SPLIT_WILL' || spawnCause === 'PROLIFERATION_WILL') &&
             spawnMeta &&
             Number.isInteger(spawnMeta.fromRow) &&
             Number.isInteger(spawnMeta.fromCol)
@@ -1034,7 +1036,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
 
         let type = 'spawn';
-        let targets;
+        let targets: any;
         if (_isCloneLikeSpawnPresentationEvent(ev, spawnMeta)) {
             if (overlapSpec) {
                 phaseState.currentPhase++;
@@ -1077,7 +1079,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const isGluttonousEatDestroy = _isGluttonousEatDestroyPresentationEvent(ev);
         const isSuperCrushDestroy = _isSuperCrushDestroyPresentationEvent(ev);
         const isWillHunterKingSlashDestroy = _isWillHunterKingSlashDestroyPresentationEvent(ev);
-        let phase;
+        let phase: any;
 
         if (isGluttonousEatDestroy) {
             phaseState.willHunterKingSlashPhase = null;
@@ -1178,7 +1180,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             phaseState.gluttonousEatActionId === null ||
             moveActionId === null ||
             phaseState.gluttonousEatActionId === moveActionId;
-        let phase;
+        let phase: any;
         if (_isGluttonousEatMovePresentationEvent(ev) && phaseState.gluttonousEatPhase !== null && isGluttonousActionMatched) {
             phase = phaseState.gluttonousEatPhase;
         } else if (_isSuperCrushMovePresentationEvent(ev) && phaseState.superCrushPhase !== null && isSuperCrushActionMatched) {
@@ -1260,7 +1262,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     }
                     break;
                 }
-                case 'CHANGE':
+                case 'CHANGE': {
                     const changeMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
                     pEvent.type = 'flip';
                     pEvent.targets = [{
@@ -1274,6 +1276,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     }];
                     pEvent.phase = _planChangePlaybackPhase(phaseState, ev);
                     break;
+                }
                 case 'MOVE': {
                     const forcedSwapPairIndex = _findExtremeForcedSwapMovePairPresentationIndex(presentationEvents, presIndex);
                     if (forcedSwapPairIndex >= 0) {
@@ -1375,7 +1378,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     pEvent.phase = phaseState.currentPhase;
                     break;
                 case 'DRAW_CARD':
-                case 'HAND_ADD':
+                case 'HAND_ADD': {
                     _preparePassivePlaybackPhaseState(phaseState);
                     const handAddReason = ev.reason || (ev.meta && ev.meta.reason) || null;
                     const isCaptureWillHandAdd = String(handAddReason || '').trim().toLowerCase() === 'capture_will';
@@ -1404,7 +1407,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     phaseState.currentPhase++;
                     pEvent.phase = phaseState.currentPhase;
                     break;
-                case 'CARD_USED':
+                }
+                case 'CARD_USED': {
                     _preparePassivePlaybackPhaseState(phaseState);
                     const visualDescriptor = (PlaybackEventHelpers && typeof PlaybackEventHelpers.createCardVisualDescriptor === 'function')
                         ? PlaybackEventHelpers.createCardVisualDescriptor(ev.cardId || null, ev.meta || null)
@@ -1423,6 +1427,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     phaseState.currentPhase++;
                     pEvent.phase = phaseState.currentPhase;
                     break;
+                }
                 case 'WORK_INCOME':
                     _preparePassivePlaybackPhaseState(phaseState);
                     pEvent.type = 'log';
@@ -2032,7 +2037,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
     function _isGoldSilverSelfDestroyTarget(target: any) {
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
-        return reason === 'gold_stone_sacrifice' || reason === 'rainbow_stone_sacrifice' || reason === 'silver_stone_sacrifice' || reason === 'crystal_stone_sacrifice';
+        return reason === 'gold_stone_sacrifice' || reason === 'rainbow_stone_sacrifice' || reason === 'silver_stone_sacrifice';
     }
 
     function _isGoldSilverSelfDestroyEvent(ev: any) {
@@ -2670,6 +2675,22 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             _pushSoundCue(ctx, 'stone_destroy', condemnPhase, 'condemn_selected');
         }
 
+        const executionPhase = _findPhase(
+            ctx.base,
+            (ev: any) => ev &&
+                ev.type === 'hand_remove' &&
+                Array.isArray(ev.targets) &&
+                ev.targets.some((target: any) => String(target && target.reason ? target.reason : '').toLowerCase() === 'execution_will'),
+            _findPhase(
+                ctx.base,
+                (ev: any) => ev && ev.type === 'card_use_animation',
+                ctx.fallbackPhase
+            )
+        );
+        if (_hasRawEvent(ctx.raw, 'execution_will_resolved', (ev: any) => Number(ev && ev.destroyedCount) > 0)) {
+            _pushSoundCue(ctx, 'stone_destroy', executionPhase, 'execution_will_resolved');
+        }
+
         const workIncomePhase = _findPhase(
             ctx.base,
             (ev: any) => ev && ev.rawType === 'WORK_INCOME',
@@ -2893,9 +2914,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const gain = Number.isFinite(Number(effects && effects.crystalStoneGain))
             ? Math.max(0, Number(effects.crystalStoneGain))
             : 0;
-        return gain > 0
-            ? `水晶石: 数字マス布石 +${gain}（4倍）`
-            : '水晶石: 数字マスなしで増加なし';
+        return `演算の意志：数字マス布石 +${gain}（2倍）`;
     }
 
     function _normalizePlayerKey(v: any) {
@@ -3085,11 +3104,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     push(_observerExpiredLogText(ev));
                     break;
                 case 'destroy_selected':
-                    if (ev.destroyed) push(`破壊神で${_toPosText(ev.target)}を破壊`);
-                    else if (ev.regenerated) push(`破壊神: ${_toPosText(ev.target)} は復活した`);
-                    else if (ev.proliferated) push(`破壊神: ${_toPosText(ev.target)} は石を残したまま増殖`);
-                    else if (ev.blockedByGhost) push(`破壊神: ${_toPosText(ev.target)} は幽体化で無効化`);
-                    else if (ev.evaded) push(`破壊神: ${_toPosText(ev.target)} は回避した`);
+                    if (ev.destroyed) push(`破壊の意志で${_toPosText(ev.target)}を破壊`);
+                    else if (ev.regenerated) push(`破壊の意志: ${_toPosText(ev.target)} は復活した`);
+                    else if (ev.proliferated) push(`破壊の意志: ${_toPosText(ev.target)} は石を残したまま増殖`);
+                    else if (ev.blockedByGhost) push(`破壊の意志: ${_toPosText(ev.target)} は幽体化で無効化`);
+                    else if (ev.evaded) push(`破壊の意志: ${_toPosText(ev.target)} は回避した`);
                     break;
                 case 'strong_wind_selected':
                     if (ev.applied) push(`強風で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動`);
@@ -3141,6 +3160,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     break;
                 case 'salvation_will_resolved':
                     push(`救済の意志: 破壊石${Number(ev.spawnedCount) || 0}個を通常石として救済${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
+                    break;
+                case 'execution_will_resolved':
+                    push(`執行の意志: 相手手札を${Number(ev.destroyedCount) || 0}枚破壊`);
+                    break;
+                case 'equality_will_resolved':
+                    push(`平等の意志: 通常石${Number(ev.spawnedCount) || 0}個を生成${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
                     break;
                 case 'heaven_blessing_selected':
                     if (ev.applied) push('天の恵みでカード獲得');

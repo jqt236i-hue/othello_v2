@@ -192,6 +192,24 @@
         return count;
     }
 
+    function isRawBoardVisualEvent(event: unknown): boolean {
+        const type = String(event && typeof event === 'object' ? (event as Record<string, unknown>).type || '' : '').trim().toUpperCase();
+        return type === 'SPAWN' || type === 'CHANGE' || type === 'DESTROY' || type === 'MOVE';
+    }
+
+    function isBoardVisualPlaybackEvent(event: unknown): boolean {
+        const type = String(event && typeof event === 'object' ? (event as Record<string, unknown>).type || '' : '').trim().toLowerCase();
+        return type === 'spawn' || type === 'flip' || type === 'destroy' || type === 'move';
+    }
+
+    function playbackEventKey(event: unknown): string {
+        try {
+            return JSON.stringify(event);
+        } catch (e) {
+            return String(event || '');
+        }
+    }
+
     function createAssemblyDiagnostics(rawEvents: unknown[], playbackEvents: unknown[]): AssemblyDiagnostics {
         const rawPlaceCount = countRawPlaceEvents(rawEvents);
         const placeHandAnimationCount = countPlaceHandAnimationEvents(playbackEvents);
@@ -266,6 +284,42 @@
                 throw new Error('PlaybackEventHelpers.assemblePlaybackEvents expected adapter.appendSoundEffectPlaybackEvents to return an array');
             }
             playbackEvents = playbackWithSound;
+        }
+
+        if (adapter && typeof adapter.mapToPlaybackEvents === 'function') {
+            const rawBoardEvents = rawEvents.filter(isRawBoardVisualEvent);
+            if (rawBoardEvents.length > 0) {
+                const rawBoardPlaybackEvents = adapter.mapToPlaybackEvents(
+                    rawBoardEvents,
+                    snapshot && (snapshot as { cardState?: unknown }).cardState,
+                    snapshot && (snapshot as { gameState?: unknown }).gameState
+                );
+                if (!Array.isArray(rawBoardPlaybackEvents)) {
+                    throw new Error('PlaybackEventHelpers.assemblePlaybackEvents expected adapter.mapToPlaybackEvents for raw board events to return an array');
+                }
+                const existingKeys = new Set(playbackEvents.map(playbackEventKey));
+                const missingBoardPlaybackEvents = rawBoardPlaybackEvents
+                    .filter(isBoardVisualPlaybackEvent)
+                    .filter((event) => !existingKeys.has(playbackEventKey(event)));
+                if (missingBoardPlaybackEvents.length > 0) {
+                    playbackEvents = (rawPlacePlaybackEvents as unknown[])
+                        .concat(missingBoardPlaybackEvents as unknown[])
+                        .concat(playbackEvents.filter((event) => !rawPlacePlaybackEvents.some((placeEvent) => playbackEventKey(placeEvent) === playbackEventKey(event))));
+                }
+            }
+        }
+
+        if (rawPlacePlaybackEvents.length > 0 && playbackEvents.length > 0) {
+            const hasRawPrefix = rawPlacePlaybackEvents.every((event, index) => {
+                try {
+                    return JSON.stringify(playbackEvents[index]) === JSON.stringify(event);
+                } catch (e) {
+                    return false;
+                }
+            });
+            if (!hasRawPrefix) {
+                playbackEvents = (rawPlacePlaybackEvents as unknown[]).concat(playbackEvents);
+            }
         }
 
         const diagnostics = createAssemblyDiagnostics(rawEvents, playbackEvents);

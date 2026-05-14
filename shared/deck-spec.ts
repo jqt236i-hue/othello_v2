@@ -1,5 +1,7 @@
 (function (root: any, factory) {
-    if (typeof module !== 'undefined' && module.exports) {
+    if (root && root.SharedConstants) {
+        root.DeckSpecHelpers = factory(root.SharedConstants, root.CardCatalog || null);
+    } else if (typeof module !== 'undefined' && module.exports) {
         let cardCatalog = null;
         try {
             cardCatalog = require('../cards/catalog.json');

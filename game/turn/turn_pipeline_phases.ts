@@ -134,8 +134,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return { ok: true, playerKey };
     }
 
-    const CHARGE_MAX = Number.isFinite(Number(SharedConstantsModule && SharedConstantsModule.CHARGE_MAX))
-        ? Number(SharedConstantsModule.CHARGE_MAX)
+    const resolvedChargeMax = Number(SharedConstantsModule && SharedConstantsModule.CHARGE_MAX);
+    const CHARGE_MAX = Number.isFinite(resolvedChargeMax)
+        ? resolvedChargeMax
         : 99;
     const OwnerHelpersModule = (() => { try { return _require('../../utils/owner-helpers'); } catch (e) { return null; } })();
 
@@ -1173,6 +1174,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (!cardState || !amount) return 0;
         if (!cardState.charge) cardState.charge = { black: 0, white: 0 };
         if (!cardState.chargeGainedTotal) cardState.chargeGainedTotal = { black: 0, white: 0 };
+        const before = cardState.charge[playerKey] || 0;
+        const chargeMax = Number.isFinite(Number(CHARGE_MAX)) && Number(CHARGE_MAX) > 0
+            ? Number(CHARGE_MAX)
+            : 99;
         const opts = (options && typeof options === 'object') ? options : null;
         const boardAnchor = (opts && opts.popupKind === 'board')
             ? resolveBoardChargeAnchor(opts)
@@ -1187,9 +1192,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             ? CardUtilsModule.addChargeWithDelta(cardState, playerKey, amount, reason, deltaMeta)
             : null;
         let added = deltaRes ? (Number(deltaRes.delta) || 0) : 0;
-        if (!deltaRes) {
-            const before = cardState.charge[playerKey] || 0;
-            const after = Math.min(CHARGE_MAX, before + amount);
+        if (!deltaRes || (Number(amount) > 0 && added <= 0 && before < chargeMax && (cardState.charge[playerKey] || 0) <= before)) {
+            const after = Math.min(chargeMax, before + amount);
             cardState.charge[playerKey] = after;
             added = after - before;
         }
@@ -1893,7 +1897,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     } else if (t === 'GLUTTONOUS') {
                         const ownerKey = owner;
                         const res = CardLogic.processGluttonousMoveAtAnchor(cardState, gameState, ownerKey, row, col, p, {
-                            currentTurnPlayerKey: playerKey
+                            currentTurnPlayerKey: playerKey,
+                            randomSource: p
                         });
                         if (res && res.moved && res.moved.length) {
                             events.push({ type: 'hyperactive_moved_start', details: res.moved });
@@ -2338,6 +2343,33 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         player: playerKey,
                         opponent: res.opponentKey || (playerKey === 'black' ? 'white' : 'black'),
                         revealedCount: Number(res.revealedCount) || 0
+                    });
+                }
+
+                if (pendingType === 'EXECUTION_WILL') {
+                    const res = (typeof CardLogic.applyExecutionWill === 'function')
+                        ? CardLogic.applyExecutionWill(cardState, playerKey, p)
+                        : { applied: false, reason: 'missing_logic', destroyedCount: 0, destroyedCardIds: [] };
+                    if (!res || res.applied !== true) {
+                        throw new Error(`EXECUTION_WILL resolve failed: ${res && res.reason ? res.reason : 'unknown'}`);
+                    }
+                    const opponentKey = res.opponentKey || (playerKey === 'black' ? 'white' : 'black');
+                    const destroyedCardIds = Array.isArray(res.destroyedCardIds) ? res.destroyedCardIds.slice() : [];
+                    const destroyedCount = Number(res.destroyedCount) || destroyedCardIds.length;
+                    emitHandRemovePresentation(CardLogic, cardState, {
+                        player: opponentKey,
+                        count: destroyedCount,
+                        reason: 'execution_will',
+                        cardId: destroyedCount === 1 ? destroyedCardIds[0] : null,
+                        cardIds: destroyedCardIds
+                    });
+                    events.push({
+                        type: 'execution_will_resolved',
+                        player: playerKey,
+                        opponent: opponentKey,
+                        requestedCount: Number(res.requestedCount) || destroyedCount,
+                        destroyedCount,
+                        destroyedCardIds
                     });
                 }
 
@@ -3217,9 +3249,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 } else if (pendingType === 'SILVER_STONE') {
                     spawnMeta.special = 'SILVER';
                     spawnMeta.owner = playerKey;
-                } else if (pendingType === 'CRYSTAL_STONE') {
-                    spawnMeta.special = 'CRYSTAL';
-                    spawnMeta.owner = playerKey;
                 } else if (pendingType === 'CROSS_BOMB') {
                     // Show bomb-like special visual briefly before immediate cross explosion.
                     spawnMeta.special = 'CROSS_BOMB';
@@ -3391,7 +3420,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
             // 4) Apply placement effects (charge, special stones, etc.)
             const effects = CardLogic.applyPlacementEffects(cardState, gameState, playerKey, action.row, action.col, flipCount);
-            if (numberCellMultiplierConfig && effects && numberCellMultiplierConfig.gainField) {
+            if (numberCellMultiplierConfig && effects && numberCellMultiplierConfig.gainField && boardBonusGained > 0) {
+                effects[numberCellMultiplierConfig.effectFlag] = true;
                 effects[numberCellMultiplierConfig.gainField] = boardBonusGained;
             }
             events.push({ type: 'placement_effects', player: playerKey, row: action.row, col: action.col, effects });
@@ -3629,7 +3659,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             }
 
             if (keepTurnForContinuation) {
-                gameState.currentPlayer = player;
+                gameState.currentPlayer = playerValue;
                 gameState.consecutivePasses = 0;
                 gameState.turnNumber = turnNumberBeforePlace;
             } else {

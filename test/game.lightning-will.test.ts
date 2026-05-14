@@ -318,7 +318,9 @@ describe('LIGHTNING_WILL（落雷）', () => {
       }
     );
 
-    const out = CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4);
+    const out = CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4, {
+      randomSource: createPrng(0.3)
+    });
 
     expect(gameState.board[4][5]).toBe(Shared.WHITE);
     expect(Array.isArray(out.converted)).toBe(true);

@@ -17,13 +17,18 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
+const RuntimeSharedConstants = (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants)
+    ? (globalThis as any).SharedConstants
     : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+const SharedConstants = RuntimeSharedConstants || ((typeof module === 'object' && module.exports)
+    ? _require('../../../shared-constants')
+    : undefined);
 
-const SharedBoardUtils = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared/shared-board-utils')
-    : (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null);
+const SharedBoardUtils = (typeof globalThis !== 'undefined' && (globalThis as any).SharedBoardUtils)
+    ? (globalThis as any).SharedBoardUtils
+    : ((typeof module === 'object' && module.exports)
+        ? _require('../../../shared/shared-board-utils')
+        : (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null));
 
 const {
     BLACK,
@@ -528,7 +533,7 @@ function ensureExpansionCellForCard(gameState: GameState, row: number, col: numb
 
 function buildInitialBoardBonusMap(prng: any, boardOrConfig: any): Record<string, number> {
     const distribution = getNormalizedInitialBonusDistribution();
-    const baseCandidates = collectInitialBoardBonusCandidates(resolveCardBoardConfig({}));
+    const baseCandidates = collectInitialBoardBonusCandidates({ rows: 8, cols: 8 });
     const candidates = collectInitialBoardBonusCandidates(boardOrConfig);
     const baseCandidateCount = baseCandidates.length > 0 ? baseCandidates.length : 60;
     const baseDistributionTotal = distribution.reduce((sum, entry) => sum + entry.count, 0);

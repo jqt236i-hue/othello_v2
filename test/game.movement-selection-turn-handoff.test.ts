@@ -95,7 +95,7 @@ describe.each(CASES)('$label selection turn handoff', ({ handlerName, pendingTyp
     global.MATCH_MODE = 'cpu';
     global.DEBUG_HUMAN_VS_HUMAN = false;
     global.requestAnimationFrame = jest.fn();
-    import * as playbackStateManager from '../ui/playback-state-manager.js';
+    const playbackStateManager = require('../ui/playback-state-manager.js');
     playbackStateManager.clearPlaybackLock();
     global.PlaybackStateManager = playbackStateManager;
   });
@@ -131,8 +131,7 @@ describe.each(CASES)('$label selection turn handoff', ({ handlerName, pendingTyp
   });
 
   test('waits for playback, starts next turn, and schedules white CPU after selection', async () => {
-    import * as handlers from '../game/card-effects/strong-wind.js';
-
+    const handlers = require('../game/card-effects/strong-wind.js');
     await handlers[handlerName](2, 2, 'black');
 
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
@@ -166,8 +165,7 @@ describe.each(CASES)('$label selection turn handoff', ({ handlerName, pendingTyp
     }));
     globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
 
-    import * as handlers from '../game/card-effects/strong-wind.js';
-
+    const handlers = require('../game/card-effects/strong-wind.js');
     const pendingPromise = handlers[handlerName](2, 2, 'black');
     await Promise.resolve();
     await Promise.resolve();

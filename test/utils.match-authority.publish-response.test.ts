@@ -182,6 +182,7 @@ describe('match authority publish response payload', () => {
       turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black' },
       playbackEvents: [{ type: 'observer_bubble', phase: 1 }],
       effectLogs: ['黒: ok', '', '黒: ok'],
+      operationId: ' op_stream_echo ',
       actionType: 'place',
       playerKey: 'white',
       serverTime: 321
@@ -196,6 +197,7 @@ describe('match authority publish response payload', () => {
       seatHandSkins: { black: 'fancy-hand', white: '' },
       playbackEvents: [{ type: 'observer_bubble', phase: 1 }],
       effectLogs: ['黒: ok'],
+      operationId: 'op_stream_echo',
       actionType: 'place',
       playerKey: 'white',
       serverTime: 321

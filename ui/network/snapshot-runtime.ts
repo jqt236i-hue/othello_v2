@@ -141,13 +141,11 @@ function createNetworkSnapshotRuntime(config?: any): any {
       ? {
         processing: active.processing === true,
         cardAnimating: active.cardAnimating === true,
-        playbackActive: active.playbackActive === true,
-        hasPlaybackActive: Object.prototype.hasOwnProperty.call(active, 'playbackActive')
+        playbackActive: active.playbackActive === true
       }
       : {
         processing: active === true,
-        cardAnimating: active === true,
-        hasPlaybackActive: false
+        cardAnimating: active === true
       };
     const playbackState = resolvePlaybackStateModule();
     if (!playbackState || typeof playbackState !== 'object') return false;
@@ -162,7 +160,7 @@ function createNetworkSnapshotRuntime(config?: any): any {
     if (typeof playbackState.setCardAnimating === 'function') {
       playbackState.setCardAnimating(next.cardAnimating);
     }
-    if (next.hasPlaybackActive && typeof playbackState.setPlaybackActive === 'function') {
+    if (Object.prototype.hasOwnProperty.call(next, 'playbackActive') && typeof playbackState.setPlaybackActive === 'function') {
       playbackState.setPlaybackActive(next.playbackActive);
     }
     return true;

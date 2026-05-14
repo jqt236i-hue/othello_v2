@@ -4,8 +4,7 @@ jest.mock('../game/card-effects/selection-flow', () => ({
     executePendingSelection: mockExecutePendingSelection
 }));
 
-import { handleBoardExpansionSelection } from '../game/card-effects/board-expansion.js';
-
+const { handleBoardExpansionSelection } = require('../game/card-effects/board-expansion.js');
 describe('board-expansion', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();

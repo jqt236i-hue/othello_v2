@@ -34,9 +34,31 @@ function getTimer(): TimerRegistry {
   if (typeof TimerRegistry !== 'undefined') {
     return TimerRegistry as TimerRegistry;
   }
+  const timerHost: any = (() => {
+    try {
+      if (typeof window !== 'undefined' && typeof window.setTimeout === 'function' && typeof window.clearTimeout === 'function') {
+        return window;
+      }
+    } catch (e) { /* ignore */ }
+    try {
+      if (typeof globalThis !== 'undefined' && typeof (globalThis as any).setTimeout === 'function' && typeof (globalThis as any).clearTimeout === 'function') {
+        return globalThis as any;
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  })();
   return {
-    setTimeout: (fn: () => void, ms: number) => window.setTimeout(fn, ms),
-    clearTimeout: (id: number) => window.clearTimeout(id),
+    setTimeout: (fn: () => void, ms: number) => {
+      if (!timerHost) {
+        fn();
+        return 0;
+      }
+      return timerHost.setTimeout(fn, ms) as number;
+    },
+    clearTimeout: (id: number) => {
+      if (!timerHost) return;
+      timerHost.clearTimeout(id);
+    },
     clearAll: () => { /* no-op */ },
     pendingCount: () => 0,
     newScope: () => null,

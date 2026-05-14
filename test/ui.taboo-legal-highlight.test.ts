@@ -63,7 +63,7 @@ describe('TABOO_REVERSE_WILL legal hint highlight', () => {
   });
 
   test('shows normal-only as green and taboo-available cells as red', () => {
-    import * as diff from '../ui/diff-renderer.js';
+    const diff = require('../ui/diff-renderer.js');
     diff.renderBoardDiff(boardEl);
 
     const tabooAndNormalCell = boardEl.querySelector('.cell[data-row="2"][data-col="3"]');

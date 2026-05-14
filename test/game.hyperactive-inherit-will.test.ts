@@ -1,9 +1,8 @@
 import * as SharedConstants from '../shared-constants.js';
-import * as CardLogic from '../game/logic/cards.js';
-import * as Core from '../game/logic/core.js';
-import * as BoardOps from '../game/logic/board_ops.js';
-import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
-
+const CardLogic = require('../game/logic/cards.js');
+const Core = require('../game/logic/core.js');
+const BoardOps = require('../game/logic/board_ops.js');
+const TurnPipelinePhases = require('../game/turn/turn_pipeline_phases.js');
 function createStates() {
   const prng = { shuffle: (arr) => arr, random: () => 0.5 };
   const cardState = CardLogic.createCardState(prng);

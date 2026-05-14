@@ -40,7 +40,7 @@ describe('turn_pipeline applyTurnSafe out-of-turn guard', () => {
       jest.doMock('../game/turn/turn_pipeline_phases', () => phaseMocks);
       jest.doMock('../game/logic/board_ops', () => ({}));
 
-      import * as isolatedTurnPipeline from '../game/turn/turn_pipeline.js';
+      const isolatedTurnPipeline = require('../game/turn/turn_pipeline.js');
       isolatedTurnPipeline.applyTurn(
         { turnIndex: 0, presentationEvents: [], pendingEffectByPlayer: { black: null, white: null } },
         { currentPlayer: -1, board: Array.from({ length: 8 }, () => Array(8).fill(0)) },

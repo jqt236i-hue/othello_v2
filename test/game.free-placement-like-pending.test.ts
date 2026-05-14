@@ -55,7 +55,7 @@ describe('free-placement-like pending cards', () => {
     global.cardState = cardState;
     global.gameState = gameState;
 
-    import * as MoveGenerator from '../game/move-generator.js';
+    const MoveGenerator = require('../game/move-generator.js');
     const moves = MoveGenerator.generateMovesForPlayer(Core.BLACK, {
       type: pendingType,
       stage: null,

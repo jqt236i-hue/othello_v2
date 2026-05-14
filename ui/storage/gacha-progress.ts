@@ -33,7 +33,7 @@ const OWNED_KIND_ORDER = Object.freeze(['hand_skin', 'background_skin', 'placeme
 let ObservationGachaCatalogSharedModule: any = null;
 if (typeof _require === 'function') {
   try {
-    ObservationGachaCatalogSharedModule = _require('../../shared/observation-gacha-catalog-shared');
+    ObservationGachaCatalogSharedModule = _require('../../shared/observation-gacha-catalog-shared.js');
   } catch (e) { /* ignore */ }
 }
 if (!ObservationGachaCatalogSharedModule) {
@@ -159,7 +159,16 @@ function resolveStorage(rootRef: any): Storage | null {
   return null;
 }
 
+function exposeStorageModule(rootRef: any): void {
+  try {
+    if (!rootRef || typeof rootRef !== 'object') return;
+    if (!rootRef.GachaProgressStorage) rootRef.GachaProgressStorage = GachaProgressStorage;
+    if (!rootRef.GachaProgressStorageModule) rootRef.GachaProgressStorageModule = GachaProgressStorage;
+  } catch (e) { /* ignore */ }
+}
+
 function readState(rootRef: any): any {
+  exposeStorageModule(rootRef);
   const storage = resolveStorage(rootRef);
   if (!storage) return createDefaultState();
   try {
@@ -172,6 +181,7 @@ function readState(rootRef: any): any {
 }
 
 function writeState(rootRef: any, nextState: any): any {
+  exposeStorageModule(rootRef);
   const normalized = normalizeState(nextState);
   const storage = resolveStorage(rootRef);
   if (!storage) return normalized;

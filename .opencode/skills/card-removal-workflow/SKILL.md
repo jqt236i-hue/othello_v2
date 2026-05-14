@@ -12,7 +12,7 @@ argument-hint: '削除したいカードの cardId / type / 表示名。複数�
 
 - 既存カードを `enabled: false` ではなく完全削除したい時
 - cardId / type / 表示名を含め、カードの存在を repo から消したい時
-- カード削除後に default deck, custom deck, story deck, rules help, test, docs まで残骸ゼロにしたい時
+- カード削除後に default deck, custom deck, rules help, test, docs まで残骸ゼロにしたい時
 - 1 枚だけでなく、複数カードをまとめて整理・廃止したい時
 
 ## Do Not Use
@@ -36,7 +36,7 @@ argument-hint: '削除したいカードの cardId / type / 表示名。複数�
 - `shared-constants.ts`
 - `game/logic/cards.ts`, `game/logic/cards-internal/*`, `game/card-effects/*`
 - `game/cpu-decision.ts`, `game/cpu-turn-handler.ts`, `game/ai/*`
-- `shared/deck-spec.ts`, `shared/story-deck-spec.ts`
+- `shared/deck-spec.ts`
 - `ui/handlers/rules-help.ts` と関連 presentation / surface
 - `docs/`, `test/`
 - `scripts/prepare-worker-assets.ts`, `worker-public/*`
@@ -46,7 +46,7 @@ argument-hint: '削除したいカードの cardId / type / 表示名。複数�
 - `cards/catalog.json` だけ消して `cards/catalog.js` / `cards/catalog.generated.js` を再生成しないこと
 - `cardId` は消したが `type` や表示名の参照が rules help / docs / tests に残ること
 - pending target / deferred publish / CPU target 選択の分岐だけ残ること
-- deck spec や story deck 側に削除カードが残り、既存 deck の normalize が壊れること
+- deck spec 側に削除カードが残り、既存 deck の normalize が壊れること
 - root を直さず `worker-public/` を直接触ること
 - 削除なのに `enabled: false` のまま残し、実質的に抹消できていないこと
 
@@ -56,9 +56,9 @@ argument-hint: '削除したいカードの cardId / type / 表示名。複数�
 2. 外から見える仕様やカード一覧が変わるなら、関連実装より先に `01-rulebook.md` を更新する。
 3. `cards/catalog.json` を正本として対象カードを削除し、`npm run generate:catalog` で `cards/catalog.js` と `cards/catalog.generated.js` を再生成する。
 4. `game/` 側の card effect, pending selection, turn progression, CPU 判断, presentation hook にそのカード専用分岐や `type` 判定が残っていないかを消す。
-5. `shared/deck-spec.ts`, `shared/story-deck-spec.ts`, `ui/handlers/rules-help.ts`, `docs/`, `test/` を含め、`cardId`, `type`, 表示名で残り参照を全文検索し、削除または別カードへ置換する。
+5. `shared/deck-spec.ts`, `ui/handlers/rules-help.ts`, `docs/`, `test/` を含め、`cardId`, `type`, 表示名で残り参照を全文検索し、削除または別カードへ置換する。
 6. 削除によって generated / mirror / surface の公開面が変わるなら、root を直したあとでだけ `npm run worker:prepare` を実行して `worker-public/` をそろえる。
-7. 削除後に関連 deck / story deck / rules help / card surface / effect test を回し、削除カード前提の fixture や期待値を修正する。
+7. 削除後に関連 deck / rules help / card surface / effect test を回し、削除カード前提の fixture や期待値を修正する。
 8. 最後に、同じ 3 軸検索をもう一度行い、意図した historical docs や audit メモを除いて実参照が残っていないことを確認する。
 
 ## Validation Bundle
@@ -73,6 +73,6 @@ argument-hint: '削除したいカードの cardId / type / 表示名。複数�
 
 - `cards/catalog.json`, `cards/catalog.js`, `cards/catalog.generated.js` がそろっている
 - logic, pending target, CPU, presentation の削除波及を確認している
-- `shared/deck-spec.ts`, `shared/story-deck-spec.ts`, `ui/handlers/rules-help.ts`, `docs/`, `test/` の残り参照を確認している
+- `shared/deck-spec.ts`, `ui/handlers/rules-help.ts`, `docs/`, `test/` の残り参照を確認している
 - root 正本を更新してから必要な mirror 同期だけを行っている
 - 実行した generate / test / search と `01-rulebook.md` 更新有無を報告できる

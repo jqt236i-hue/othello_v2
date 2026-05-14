@@ -1,14 +1,25 @@
 import { chromium } from 'playwright';
-import { startStaticServer, stopStaticServer, stopPlaywrightBrowser } from './e2e-runtime-helpers.js';
-
+declare const require: any;
+declare const describe: any;
+declare const beforeAll: any;
+declare const afterAll: any;
+declare const test: any;
+declare const expect: any;
+declare const window: any;
+declare const document: any;
+declare const emitBoardUpdate: any;
+declare const renderBoard: any;
+declare const preloadWorkStoneImages: any;
+declare const ensureWorkVisualsApplied: any;
+const { startStaticServer, stopStaticServer, stopPlaywrightBrowser } = require('./e2e-runtime-helpers.js');
 function startServer(port = 0) {
   return startStaticServer(port);
 }
 
 describe('Special effects E2E', () => {
-  let serverProc;
-  let browser;
-  let serverPort = null;
+  let serverProc: any;
+  let browser: any;
+  let serverPort: any = null;
   beforeAll(async () => {
     serverProc = startServer(0);
     await new Promise(resolve => setTimeout(resolve, 500));
@@ -28,6 +39,7 @@ describe('Special effects E2E', () => {
 
     await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
     await page.waitForFunction(() => !!(window.gameState && Array.isArray(window.gameState.board) && window.gameState.board.length === 8), { timeout: 10000 });
+    await page.click('button:has-text("DEBUG: OFF")');
 
     // Wait for debug module available
     // Ensure DebugActions is loaded (inject if missing)

@@ -1,3 +1,5 @@
 "use strict";
 /** @type {any} */
-module.exports = require('../dist/ui/deck-builder-controller');
+module.exports = process.env.JEST_WORKER_ID
+  ? require('./deck-builder-controller.ts')
+  : require('../dist/ui/deck-builder-controller');

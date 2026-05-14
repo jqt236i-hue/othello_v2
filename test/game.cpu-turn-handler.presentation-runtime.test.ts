@@ -27,7 +27,7 @@ describe('game cpu turn handler presentation runtime', () => {
     global.WHITE = -1;
     global.gameState = { currentPlayer: -1, turnNumber: 12 };
 
-    import { PresentationRuntime } from '../game/cpu-turn-handler.js';
+    const { PresentationRuntime } = require('../game/cpu-turn-handler.js');
     const processCpuTurn = jest.fn();
 
     PresentationRuntime.scheduleCpuTurn(
@@ -61,7 +61,7 @@ describe('game cpu turn handler presentation runtime', () => {
     global.gameState.board[3][3] = 1;
     global.gameState.board[3][4] = -1;
 
-    import { PresentationRuntime } from '../game/cpu-turn-handler.js';
+    const { PresentationRuntime } = require('../game/cpu-turn-handler.js');
     const entry = await PresentationRuntime.requestEnemyCardCommentaryFromPlayback([{
       type: 'card_use_animation',
       phase: 1,
@@ -82,7 +82,7 @@ describe('game cpu turn handler presentation runtime', () => {
   });
 
   test('flushPendingPresentationEvents clears persisted duplicates when live events exist', () => {
-    import { PresentationRuntime } from '../game/cpu-turn-handler.js';
+    const { PresentationRuntime } = require('../game/cpu-turn-handler.js');
     const state = {
       _presentationEventsPersist: [{ type: 'STALE' }]
     };
@@ -97,7 +97,7 @@ describe('game cpu turn handler presentation runtime', () => {
   });
 
   test('createBoardUpdateDrainController serializes overlapping drains', async () => {
-    import { PresentationRuntime } from '../game/cpu-turn-handler.js';
+    const { PresentationRuntime } = require('../game/cpu-turn-handler.js');
     const controller = PresentationRuntime.createBoardUpdateDrainController();
     const firstDrain = createDeferred();
     const secondDrainStarted = createDeferred();

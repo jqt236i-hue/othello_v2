@@ -44,7 +44,7 @@ describe('initializeUI side panel toggle', () => {
   }
 
   test('初期表示は展開状態で、ボタン押下で折りたたみ/再展開できる', () => {
-    import * as initModule from '../ui/handlers/init.js';
+    const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
 
     const sidePanel = document.getElementById('side-panel');
@@ -72,7 +72,7 @@ describe('initializeUI side panel toggle', () => {
     document.documentElement.classList.add('layout-profile-phone-portrait');
     document.documentElement.setAttribute('data-layout-profile', 'layout-profile-phone-portrait');
 
-    import * as initModule from '../ui/handlers/init.js';
+    const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
 
     const sidePanel = document.getElementById('side-panel');

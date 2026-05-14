@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+// @ts-nocheck
 import * as path from 'path';
 import { JSDOM } from 'jsdom';
 
@@ -16,8 +16,6 @@ function setupStatusDisplayDom(gameStateOverride) {
   );
 
   const { window } = dom;
-  const jsPath = path.join(__dirname, '..', 'ui', 'status-display.js');
-  const code = fs.readFileSync(jsPath, 'utf8');
   const boardFrame = window.document.getElementById('board-frame');
   const effectPanel = window.document.getElementById('effect-live-panel');
   const roundPanel = window.document.getElementById('round-display-panel');
@@ -94,7 +92,11 @@ function setupStatusDisplayDom(gameStateOverride) {
   global.Image = window.Image;
   global.gameState = window.gameState;
 
-  window.eval(code);
+  jest.resetModules();
+  const statusDisplay = require(path.join(__dirname, '..', 'ui', 'status-display.js'));
+  window.showRoundBonusDisplay = statusDisplay.showRoundBonusDisplay;
+  window.clearRoundDisplayBonus = statusDisplay.clearRoundDisplayBonus;
+  window.updateRoundDisplay = statusDisplay.updateRoundDisplay;
 
   return { dom, window, roundPanel };
 }

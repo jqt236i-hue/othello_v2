@@ -17,16 +17,60 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../shared-constants')
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
 
-const SharedBoardUtils = (typeof module === 'object' && module.exports)
-    ? _require('../../shared/shared-board-utils')
-    : (typeof self !== 'undefined' ? ((self as any).SharedBoardUtils || null) : null);
+function getRuntimeSharedConstants(): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants) {
+        return (globalThis as any).SharedConstants;
+    }
+    if (typeof self !== 'undefined' && (self as any).SharedConstants) {
+        return (self as any).SharedConstants;
+    }
+    return undefined;
+}
+
+const SharedConstants = (() => {
+    const runtimeSharedConstants = getRuntimeSharedConstants();
+    if (runtimeSharedConstants) return runtimeSharedConstants;
+
+    if (typeof module === 'object' && module.exports) {
+        const loaded = safeRequire('../../shared-constants');
+        if (loaded) {
+            if (typeof globalThis !== 'undefined' && !(globalThis as any).SharedConstants) {
+                (globalThis as any).SharedConstants = loaded;
+            }
+            return loaded;
+        }
+    }
+
+    return runtimeSharedConstants;
+})();
+
+const SharedBoardUtils = (() => {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).SharedBoardUtils) {
+        return (globalThis as any).SharedBoardUtils;
+    }
+    if (typeof self !== 'undefined' && (self as any).SharedBoardUtils) {
+        return (self as any).SharedBoardUtils;
+    }
+    if (typeof module === 'object' && module.exports) {
+        const loaded = safeRequire('../../shared/shared-board-utils');
+        if (loaded && typeof globalThis !== 'undefined' && !(globalThis as any).SharedBoardUtils) {
+            (globalThis as any).SharedBoardUtils = loaded;
+        }
+        return loaded || null;
+    }
+    return null;
+})();
 
 const BoardUtilsModule = (typeof module === 'object' && module.exports)
-    ? _require('../../shared/board-utils')
+    ? (safeRequire('../../shared/board-utils') || null)
     : null;
 
 const { BLACK, WHITE, EMPTY, DIRECTIONS } = SharedConstants || {};

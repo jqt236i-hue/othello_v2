@@ -178,7 +178,6 @@ async function validateGamePage(page) {
     "\u30AC\u30C1\u30E3",
     "\u30E9\u30F3\u30AD\u30F3\u30B0",
     "\u30C7\u30C3\u30AD",
-    "STORY",
     "help",
     "SKIN"
   ];
@@ -204,10 +203,6 @@ async function validateGamePage(page) {
   console.log("[smoke] reset OK");
 }
 
-async function validateStoryDeckLab(page) {
-  await page.waitForFunction(() => document.readyState === "complete", { timeout: 10000 });
-}
-
 (async () => {
   const server = startServe();
   let browser;
@@ -216,7 +211,6 @@ async function validateStoryDeckLab(page) {
     const baseUrl = `http://127.0.0.1:${port}`;
     browser = await chromium.launch({ headless: true });
     await openPage(browser, `${baseUrl}/?debug=1`, "worker-public/index.html", validateGamePage);
-    await openPage(browser, `${baseUrl}/story-deck-lab.html?debug=1`, "worker-public/story-deck-lab.html", validateStoryDeckLab);
     console.log(`[browser-smoke] success ${baseUrl}`);
   } finally {
     if (browser) {

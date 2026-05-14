@@ -12,11 +12,34 @@ declare const gameState: any;
 declare const EMPTY: any;
 declare const CardLogic: any;
 declare const MarkersAdapter: any;
-declare const getFlips: any;
 
-if (typeof CoreLogic === 'undefined') {
+const MoveGeneratorCoreLogic = (() => {
+    try {
+        if (typeof CoreLogic !== 'undefined' && CoreLogic) return CoreLogic;
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).CoreLogic) return (globalThis as any).CoreLogic;
+    } catch (e) { /* ignore */ }
+    if (typeof require === 'function') {
+        try { return require('./logic/core'); } catch (e) { /* ignore */ }
+    }
+    return null;
+})();
+
+if (!MoveGeneratorCoreLogic) {
     console.error('CoreLogic is not loaded.');
 }
+
+const MoveGeneratorLegacyCore = (() => {
+    if (typeof require === 'function') {
+        try {
+            return require('./game-core-logic');
+        } catch (e) {
+            return null;
+        }
+    }
+    return null;
+})();
 
 const MoveGeneratorBoardOps = (() => {
     if (typeof require === 'function') {
@@ -49,6 +72,21 @@ const MoveGeneratorMarkersAdapter = (() => {
     }
     return null;
 })();
+
+function getFlipsForMoveGeneration(state: any, row: number, col: number, player: any, protection: any, perma: any) {
+    const legacyGetFlips = (MoveGeneratorLegacyCore && typeof MoveGeneratorLegacyCore.getFlips === 'function')
+        ? MoveGeneratorLegacyCore.getFlips
+        : null;
+    if (legacyGetFlips) {
+        return legacyGetFlips(state, row, col, player, protection, perma);
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getFlips === 'function') {
+            return (globalThis as any).getFlips(state, row, col, player, protection, perma);
+        }
+    } catch (e) { /* ignore */ }
+    throw new Error('MoveGenerator.getFlips dependency unavailable');
+}
 
 function isSpecialOrBombMarkerForMoveGeneration(marker: any) {
     if (!marker) return false;
@@ -100,7 +138,7 @@ function getLegalMoves(state: any, protectedStones: any, permaProtectedStones: a
         };
     }
 
-    return CoreLogic.getLegalMoves(state, state.currentPlayer, context);
+    return MoveGeneratorCoreLogic.getLegalMoves(state, state.currentPlayer, context);
 }
 
 // ===== Shared Move Helpers =====
@@ -303,7 +341,7 @@ function generateFreePlacementMoves(player: any, protection: any, perma: any, ef
             if (typeof CardLogic !== 'undefined' && typeof CardLogic.isBlockedCell === 'function' && typeof cardState !== 'undefined') {
                 if (CardLogic.isBlockedCell(cardState, r, c, gameState)) continue;
             }
-            const flips = getFlips(gameState, r, c, player, protection, perma);
+            const flips = getFlipsForMoveGeneration(gameState, r, c, player, protection, perma);
             moves.push({ row: r, col: c, flips, effectUsed, player, playerValue: player });
         }
     }
@@ -315,7 +353,7 @@ function generateFreePlacementMoves(player: any, protection: any, perma: any, ef
                 continue;
             }
         }
-        const flips = getFlips(gameState, expansion.row, expansion.col, player, protection, perma);
+        const flips = getFlipsForMoveGeneration(gameState, expansion.row, expansion.col, player, protection, perma);
         moves.push({ row: expansion.row, col: expansion.col, flips, effectUsed, player, playerValue: player });
     }
     return moves;
@@ -344,7 +382,7 @@ function generateSwapMoves(player: any, legal: any, protection: any, perma: any)
                 if (hasSpecialOrBomb) continue;
                 const clonedState = deepCloneState(gameState);
                 setCellValueForMoveGeneration(clonedState, r, c, EMPTY);
-                const swapFlips = getFlips(clonedState, r, c, player, protection, perma);
+                const swapFlips = getFlipsForMoveGeneration(clonedState, r, c, player, protection, perma);
                 moves.push({ row: r, col: c, flips: swapFlips, effectUsed: 'SWAP_WITH_ENEMY', player, playerValue: player });
             }
         }
@@ -366,7 +404,7 @@ function generateSwapMoves(player: any, legal: any, protection: any, perma: any)
 
         const clonedState = deepCloneState(gameState);
         if (!setCellValueForMoveGeneration(clonedState, expansion.row, expansion.col, EMPTY)) continue;
-        const swapFlips = getFlips(clonedState, expansion.row, expansion.col, player, protection, perma);
+        const swapFlips = getFlipsForMoveGeneration(clonedState, expansion.row, expansion.col, player, protection, perma);
         moves.push({ row: expansion.row, col: expansion.col, flips: swapFlips, effectUsed: 'SWAP_WITH_ENEMY', player, playerValue: player });
     }
 
@@ -377,6 +415,12 @@ function generateSwapMoves(player: any, legal: any, protection: any, perma: any)
  * 特定セルの手を検索
  */
 function findMoveForCell(player: any, row: number, col: number, pending: any, protection: any, perma: any) {
+    try {
+        const legacyFindMoveForCell = (typeof globalThis !== 'undefined') ? (globalThis as any).findMoveForCell : null;
+        if (typeof legacyFindMoveForCell === 'function' && legacyFindMoveForCell !== findMoveForCell) {
+            return legacyFindMoveForCell(player, row, col, pending, protection, perma);
+        }
+    } catch (e) { /* ignore */ }
     const moves = generateMovesForPlayer(player, pending, protection, perma);
     return moves.find((m: any) => m.row === row && m.col === col) || null;
 }

@@ -1,10 +1,30 @@
-export {};
+// @ts-nocheck
 const global: Record<string, any> = globalThis;
 describe('cpu turn handler commentary', () => {
+  afterEach(() => {
+    jest.resetModules();
+    jest.unmock('../dist/game/ai/cpu-commentary-runtime');
+    delete global.BLACK;
+    delete global.WHITE;
+    delete global.cpuSmartness;
+    delete global.CpuCommentaryRuntime;
+    delete global.gameState;
+    delete global.cardState;
+    delete global.isCardAnimating;
+    delete global.isProcessing;
+    delete global.VisualPlaybackActive;
+    delete global.isDebugLogAvailable;
+    delete global.emitLogAdded;
+    delete global.playHandAnimation;
+    delete global.executeMove;
+    delete global.generateMovesForPlayer;
+  });
+
   test('shared runtime helper prefix is used for white CPU commentary logs', async () => {
     jest.resetModules();
 
     const requestCommentaryMock = jest.fn(async () => '行くぞ');
+    global.CpuCommentaryRuntime = { requestCommentary: requestCommentaryMock };
     jest.doMock('../dist/game/ai/cpu-commentary-runtime', () => ({
       requestCommentary: requestCommentaryMock
     }));
@@ -62,6 +82,7 @@ describe('cpu turn handler commentary', () => {
     const requestCommentaryMock = jest.fn()
       .mockResolvedValueOnce('読むぞ')
       .mockResolvedValueOnce('角だ');
+    global.CpuCommentaryRuntime = { requestCommentary: requestCommentaryMock };
     jest.doMock('../dist/game/ai/cpu-commentary-runtime', () => ({
       requestCommentary: requestCommentaryMock
     }));
@@ -123,6 +144,7 @@ describe('cpu turn handler commentary', () => {
     jest.resetModules();
 
     const requestCommentaryMock = jest.fn(async () => '読むぞ');
+    global.CpuCommentaryRuntime = { requestCommentary: requestCommentaryMock };
     jest.doMock('../dist/game/ai/cpu-commentary-runtime', () => ({
       requestCommentary: requestCommentaryMock
     }));

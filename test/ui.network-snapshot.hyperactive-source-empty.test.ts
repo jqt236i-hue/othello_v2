@@ -133,7 +133,7 @@ describe('Network snapshot hyperactive source-empty handling', () => {
     ]);
     diff.renderBoardDiff(global.boardEl);
 
-    import { createNetworkSnapshotController } from '../ui/network/snapshot.js';
+    const { createNetworkSnapshotController } = require('../ui/network/snapshot.js');
     const controllerState = { stateVersion: 1, lastResultVersionShown: null, resultShownForUnversioned: false };
     const controller = createNetworkSnapshotController({
       getState: () => controllerState,
@@ -216,7 +216,7 @@ describe('Network snapshot hyperactive source-empty handling', () => {
     ]);
     diff.renderBoardDiff(global.boardEl);
 
-    import { createNetworkSnapshotController } from '../ui/network/snapshot.js';
+    const { createNetworkSnapshotController } = require('../ui/network/snapshot.js');
     const controllerState = { stateVersion: 1, lastResultVersionShown: null, resultShownForUnversioned: false };
     const controller = createNetworkSnapshotController({
       getState: () => controllerState,
@@ -290,7 +290,7 @@ describe('Network snapshot hyperactive source-empty handling', () => {
     ]);
     diff.renderBoardDiff(global.boardEl);
 
-    import { createNetworkSnapshotController } from '../ui/network/snapshot.js';
+    const { createNetworkSnapshotController } = require('../ui/network/snapshot.js');
     const controllerState = { stateVersion: 1, lastResultVersionShown: null, resultShownForUnversioned: false };
     const controller = createNetworkSnapshotController({
       getState: () => controllerState,
@@ -348,7 +348,7 @@ describe('Network snapshot hyperactive source-empty handling', () => {
     ]);
     diff.renderBoardDiff(global.boardEl);
 
-    import { createNetworkSnapshotController } from '../ui/network/snapshot.js';
+    const { createNetworkSnapshotController } = require('../ui/network/snapshot.js');
     const controllerState = { stateVersion: 1, lastResultVersionShown: null, resultShownForUnversioned: false };
     const controller = createNetworkSnapshotController({
       getState: () => controllerState,

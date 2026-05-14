@@ -24,7 +24,7 @@ function resolveGachaProgressStorage(rootRef: any): any {
     }
   } catch (e) { /* ignore */ }
   try {
-    return _require('../storage/gacha-progress');
+    return _require('../storage/gacha-progress.js');
   } catch (e) { /* ignore */ }
   return null;
 }
@@ -43,8 +43,57 @@ function resolveObservationGachaCatalogModule(rootRef: any): any {
   return null;
 }
 
+function resolveObservationGachaCatalogSharedModule(rootRef: any): any {
+  const ctx = resolveRootRef(rootRef);
+  if (ctx && ctx.ObservationGachaCatalogSharedModule) return ctx.ObservationGachaCatalogSharedModule;
+  try {
+    if (typeof globalThis !== 'undefined' && (globalThis as any).ObservationGachaCatalogSharedModule) {
+      return (globalThis as any).ObservationGachaCatalogSharedModule;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    return _require('../../shared/observation-gacha-catalog-shared.js');
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function readLoadedAssetManifest(rootRef: any): any {
+  const ctx = resolveRootRef(rootRef);
+  const candidates = [
+    ctx && ctx.UIBootstrap,
+    ctx && ctx.SharedUIBootstrap,
+    (typeof globalThis !== 'undefined' && (globalThis as any).UIBootstrap) ? (globalThis as any).UIBootstrap : null,
+    (typeof globalThis !== 'undefined' && (globalThis as any).SharedUIBootstrap) ? (globalThis as any).SharedUIBootstrap : null
+  ];
+  for (const candidate of candidates) {
+    try {
+      if (candidate && typeof candidate.getLoadedAssetManifest === 'function') {
+        const manifest = candidate.getLoadedAssetManifest();
+        if (manifest && typeof manifest === 'object' && Array.isArray(manifest.files)) return manifest;
+      }
+    } catch (e) { /* ignore */ }
+  }
+  return null;
+}
+
 function normalizeCatalogItemId(value: any): string {
   return String(value || '').trim();
+}
+
+function normalizeKnownCatalogItemId(value: any, rootRef: any): string {
+  const normalized = normalizeCatalogItemId(value);
+  if (!normalized) return '';
+  const sharedModule = resolveObservationGachaCatalogSharedModule(rootRef);
+  if (sharedModule && typeof sharedModule.normalizeCatalogItemId === 'function') {
+    const canonical = normalizeCatalogItemId(sharedModule.normalizeCatalogItemId(normalized));
+    if (canonical) return canonical;
+  }
+  const catalogModule = resolveObservationGachaCatalogModule(rootRef);
+  if (catalogModule && typeof catalogModule.normalizeCatalogItemId === 'function') {
+    const canonical = normalizeCatalogItemId(catalogModule.normalizeCatalogItemId(normalized));
+    if (canonical) return canonical;
+  }
+  return normalized;
 }
 
 interface CatalogItem {
@@ -78,11 +127,20 @@ function cloneItem(item: any): CatalogItem | null {
 }
 
 function collectGeneratedItems(rootRef: any, kind: string): CatalogItem[] {
+  const sharedModule = resolveObservationGachaCatalogSharedModule(rootRef);
+  const manifest = readLoadedAssetManifest(rootRef);
+  const manifestCatalog = manifest && sharedModule && typeof sharedModule.buildCatalogFromAssetManifest === 'function'
+    ? sharedModule.buildCatalogFromAssetManifest(manifest, {
+      generatedAt: manifest.generatedAt || manifest.version || null
+    })
+    : null;
+  const manifestItems = Array.isArray(manifestCatalog && manifestCatalog.items) ? manifestCatalog.items : [];
   const catalogModule = resolveObservationGachaCatalogModule(rootRef);
   const catalog = catalogModule && typeof catalogModule.getCatalog === 'function'
     ? catalogModule.getCatalog()
     : catalogModule;
-  const items = Array.isArray(catalog && catalog.items) ? catalog.items : [];
+  const generatedItems = Array.isArray(catalog && catalog.items) ? catalog.items : [];
+  const items = generatedItems.concat(manifestItems);
   return items
     .filter((item: any) => item && item.kind === kind)
     .map(cloneItem)
@@ -124,7 +182,7 @@ function createOwnedCosmeticCatalogApi(options?: any): CosmeticCatalogApi {
   }
 
   function getDefinition(itemId: string, rootRef: any, optionsArg?: any): CatalogItem | null {
-    const normalized = normalizeCatalogItemId(itemId) || defaultId;
+    const normalized = normalizeKnownCatalogItemId(itemId, rootRef) || defaultId;
     const allowUnowned = !!(optionsArg && optionsArg.allowUnowned);
     const items = getAllItems(rootRef);
     const found = items.find((item) => item.id === normalized) || items.find((item) => item.id === defaultId) || items[0] || null;
@@ -137,13 +195,13 @@ function createOwnedCosmeticCatalogApi(options?: any): CosmeticCatalogApi {
   function listOwnedIds(rootRef: any): string[] {
     const storage = resolveGachaProgressStorage(rootRef);
     if (storage && listOwnedMethodName && typeof storage[listOwnedMethodName] === 'function') {
-      return storage[listOwnedMethodName](rootRef).map(normalizeCatalogItemId).filter(Boolean);
+      return storage[listOwnedMethodName](rootRef).map((itemId: any) => normalizeKnownCatalogItemId(itemId, rootRef)).filter(Boolean);
     }
     return [defaultId];
   }
 
   function isOwned(rootRef: any, itemId: string): boolean {
-    const normalized = normalizeCatalogItemId(itemId);
+    const normalized = normalizeKnownCatalogItemId(itemId, rootRef);
     if (!normalized) return false;
     if (normalized === defaultId) return true;
     const storage = resolveGachaProgressStorage(rootRef);
@@ -160,7 +218,7 @@ function createOwnedCosmeticCatalogApi(options?: any): CosmeticCatalogApi {
   }
 
   function normalizeSelectedId(value: any, rootRef: any, optionsArg?: any): string {
-    const normalized = normalizeCatalogItemId(value) || defaultId;
+    const normalized = normalizeKnownCatalogItemId(value, rootRef) || defaultId;
     const allowUnowned = !!(optionsArg && optionsArg.allowUnowned);
     const definition = getAllItems(rootRef).find((item) => item.id === normalized);
     if (definition && (allowUnowned || isOwned(rootRef, normalized))) return normalized;

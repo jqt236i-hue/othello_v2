@@ -1,3 +1,15 @@
 "use strict";
 /** @type {any} */
-module.exports = require('../../dist/ui/handlers/match-mode');
+const mod = require('../../dist/ui/handlers/match-mode');
+
+try {
+  const root = (typeof window !== 'undefined') ? window : globalThis;
+  if (root && typeof mod.setupMatchModeControls === 'function') {
+    root.setupMatchModeControls = mod.setupMatchModeControls;
+    root.MatchMode = mod;
+  }
+} catch (e) {
+  // ignore in non-browser contexts
+}
+
+module.exports = mod;

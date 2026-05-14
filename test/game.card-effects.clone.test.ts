@@ -4,8 +4,7 @@ jest.mock('../game/card-effects/selection-flow', () => ({
     executePendingSelection: mockExecutePendingSelection
 }));
 
-import { handleCloneSelection, handleSplitSelection } from '../game/card-effects/clone.js';
-
+const { handleCloneSelection, handleSplitSelection } = require('../game/card-effects/clone.js');
 describe('clone', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();

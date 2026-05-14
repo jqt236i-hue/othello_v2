@@ -13,7 +13,6 @@ argument-hint: 'worker-public のどこを扱いたいか。prepare, sync, path,
 - root の変更を `worker-public/` へ反映したい時
 - `scripts/prepare-worker-assets.js` を触る時
 - script path や load order が root と mirror でずれる時
-- `story-deck-lab.html` のような mirror 対象 page が root と `worker-public/` でずれる時
 - Cloudflare worker へ配布する asset や deploy 手順を確認したい時
 
 ## Read First
@@ -26,7 +25,7 @@ argument-hint: 'worker-public のどこを扱いたいか。prepare, sync, path,
 ## Primary Files
 
 - `scripts/prepare-worker-assets.js`
-- `worker-public/*` と mirror 対象の root file (`index.html`, `story-deck-lab.html` など)
+- `worker-public/*` と mirror 対象の root file（`index.html` など）
 - `wrangler.toml`
 - `docs/network-worker-deploy.md`
 - `package.json` の `worker:*` scripts と path / order test
@@ -36,7 +35,6 @@ argument-hint: 'worker-public のどこを扱いたいか。prepare, sync, path,
 - `worker-public/` を直編集して root より先に進めること
 - `npm run worker:prepare` を飛ばして mirror を手で合わせること
 - root 側の classic-script / DI 問題までこの skill で抱え込み、`ui-bootstrap-load-order-workflow` と境界をぼかすこと
-- `story-deck-lab.html` の authoring 変更と mirror 同期を混ぜ、page shell / prepare の確認を落とすこと
 - path / order 変更後の verify を省くこと
 - deploy と mirror 同期を同じ意味で扱い、前提をぼかすこと
 
@@ -47,8 +45,7 @@ argument-hint: 'worker-public のどこを扱いたいか。prepare, sync, path,
 3. `scripts/prepare-worker-assets.js` と `wrangler.toml` の契約を確認する。
 4. root 側の classic-script / DI 問題は `ui-bootstrap-load-order-workflow` で扱い、この skill では mirror / prepare / deploy の整合に集中する。
 5. path / order 変更時は verify を先に通し、deploy はその後に限定する。
-6. `story-deck-lab.html` のような mirror 対象 page は、正本を決めた上で page test と prepare をセットで確認する。
-7. tutorial / story のような二重配置は、正本を決めてから同期する。
+6. root 側に mirror 対象 page がある時は、正本を決めた上で page test と prepare をセットで確認する。
 
 ## Validation Bundle
 
@@ -56,7 +53,6 @@ argument-hint: 'worker-public のどこを扱いたいか。prepare, sync, path,
 - `test/scripts.prepare-worker-assets.test.js`
 - `test/index.card-module-scripts.test.js`
 - `test/index.local-script-paths.test.js`
-- `story-deck-lab.html` に影響する時は `test/story-deck-lab.page.test.js`
 - 必要時だけ deploy 前確認を追加する
 
 ## Completion Checklist

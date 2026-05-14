@@ -100,7 +100,7 @@ describe('initializeUI playback runtime delegation', () => {
   });
 
   test('delegates debug playback runtime setup to PlaybackRuntime', async () => {
-    import * as initModule from '../ui/handlers/init.js';
+    const initModule = require('../ui/handlers/init.js');
     await initModule.initializeUI();
 
     expect(playbackRuntimeMock.syncLegacyWindowFlags).toHaveBeenCalled();
@@ -117,7 +117,7 @@ describe('initializeUI playback runtime delegation', () => {
     busyState.processing = true;
     global.window.DISABLE_ANIMATIONS = true;
 
-    import * as initModule from '../ui/handlers/init.js';
+    const initModule = require('../ui/handlers/init.js');
     await initModule.initializeUI();
 
     expect(playbackStateMock.setBusyState).toHaveBeenCalledWith(expect.objectContaining({

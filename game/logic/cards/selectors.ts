@@ -17,23 +17,48 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return undefined;
+}
 
-const CardUtils = (typeof module === 'object' && module.exports)
-    ? (() => { try { return _require('./utils'); } catch (e) { return null; } })()
-    : (typeof self !== 'undefined' ? (self as any).CardUtils : null);
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
 
-const SharedBoardUtils = (typeof module === 'object' && module.exports)
-    ? (() => { try { return _require('../../../shared/shared-board-utils'); } catch (e) { return null; } })()
-    : (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null);
+const SharedConstants = (() => {
+    const runtimeSharedConstants = getRuntimeGlobalValue('SharedConstants');
+    if (runtimeSharedConstants) return runtimeSharedConstants;
+
+    if (typeof module === 'object' && module.exports) {
+        return safeRequire('../../../shared-constants') || runtimeSharedConstants;
+    }
+
+    return runtimeSharedConstants;
+})();
+
+const CardUtils = getRuntimeGlobalValue('CardUtils') || ((typeof module === 'object' && module.exports)
+    ? (() => { try { return safeRequire('./utils'); } catch (e) { return null; } })()
+    : (typeof self !== 'undefined' ? (self as any).CardUtils : null));
+
+const SharedBoardUtils = getRuntimeGlobalValue('SharedBoardUtils') || ((typeof module === 'object' && module.exports)
+    ? (() => { try { return safeRequire('../../../shared/shared-board-utils'); } catch (e) { return null; } })()
+    : (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null));
 
 const { EMPTY, ORTHOGONAL_DIRECTIONS } = SharedConstants || {};
-
-if (EMPTY === undefined) {
-    throw new Error('SharedConstants not loaded');
-}
+const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
+const CARD_ORTHOGONAL_DIRECTIONS = Array.isArray(ORTHOGONAL_DIRECTIONS)
+    ? ORTHOGONAL_DIRECTIONS
+    : [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
 function isBlockingMarkerType(type: string): boolean {
     return type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE';
@@ -301,7 +326,7 @@ function getDestroyTargets(cardState: CardState, gameState: GameState): TargetCe
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
-        if (owner === EMPTY) return;
+        if (owner === P_EMPTY) return;
         const guarded = markers.some((m: any) =>
             m &&
             m.kind === 'specialStone' &&
@@ -364,7 +389,7 @@ function getPositionSwapTargets(cardState: CardState, gameState: GameState, play
     const first = pending && pending.firstTarget ? pending.firstTarget : null;
 
     const pushIfOccupied = (row: number, col: number, ownerValue: number) => {
-        if (ownerValue === EMPTY) return;
+        if (ownerValue === P_EMPTY) return;
         if (first && first.row === row && first.col === col) return;
         if (isPositionSwapProtectedCell(cardState, row, col)) return;
         res.push({ row, col });
@@ -385,7 +410,7 @@ function _getStrongWindDirectionDestination(cardState: CardState, gameState: Gam
     const nr = row + dr;
     const nc = col + dc;
     if (!hasBoardShapeCell(gameState, nr, nc)) return null;
-    if (getCellValue(gameState, nr, nc) !== EMPTY) return null;
+    if (getCellValue(gameState, nr, nc) !== P_EMPTY) return null;
     if (isBlockedCell(cardState, nr, nc)) return null;
 
     let tr = nr;
@@ -394,7 +419,7 @@ function _getStrongWindDirectionDestination(cardState: CardState, gameState: Gam
         const rr = tr + dr;
         const cc = tc + dc;
         if (!hasBoardShapeCell(gameState, rr, cc)) break;
-        if (getCellValue(gameState, rr, cc) !== EMPTY) break;
+        if (getCellValue(gameState, rr, cc) !== P_EMPTY) break;
         if (isBlockedCell(cardState, rr, cc)) break;
         tr = rr;
         tc = cc;
@@ -406,9 +431,9 @@ function _getStrongWindDirectionDestination(cardState: CardState, gameState: Gam
 function getStrongWindTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
-        if (owner === EMPTY) return;
+        if (owner === P_EMPTY) return;
         let movable = false;
-        for (const d of ORTHOGONAL_DIRECTIONS) {
+        for (const d of CARD_ORTHOGONAL_DIRECTIONS) {
             if (_getStrongWindDirectionDestination(cardState, gameState, r, c, d[0], d[1])) {
                 movable = true;
                 break;
@@ -429,7 +454,7 @@ function _collectVerticalCrushDestination(cardState: CardState, gameState: GameS
     let destination: DestinationCell | null = null;
     for (let r = firstRow; hasBoardShapeCell(gameState, r, col); r += dr) {
         if (isBlockedCell(cardState, r, col)) break;
-        if (getCellValue(gameState, r, col) !== EMPTY && isGuardProtectedCell(cardState, r, col)) break;
+        if (getCellValue(gameState, r, col) !== P_EMPTY && isGuardProtectedCell(cardState, r, col)) break;
         destination = { row: r, col };
     }
     return destination;
@@ -438,7 +463,7 @@ function _collectVerticalCrushDestination(cardState: CardState, gameState: GameS
 function _getVerticalCrushTargets(cardState: CardState, gameState: GameState, dr: number): TargetCell[] {
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
-        if (owner === EMPTY) return;
+        if (owner === P_EMPTY) return;
         const destination = _collectVerticalCrushDestination(cardState, gameState, r, c, dr);
         if (!destination) return;
         if (destination.row === r && destination.col === c) return;
@@ -542,7 +567,7 @@ function getTeleportTargets(cardState: CardState, gameState: GameState): TargetC
     let hasDestination = false;
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (hasDestination) return;
-        if (owner !== EMPTY) return;
+        if (owner !== P_EMPTY) return;
         if (isBlockedCell(cardState, r, c)) return;
         hasDestination = true;
     });
@@ -550,7 +575,7 @@ function getTeleportTargets(cardState: CardState, gameState: GameState): TargetC
 
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
-        if (owner === EMPTY) return;
+        if (owner === P_EMPTY) return;
         res.push({ row: r, col: c });
     });
     return res;
@@ -579,7 +604,7 @@ function hasCloneSpawnSpace(cardState: CardState, gameState: GameState, row: num
             const nr = row + dr;
             const nc = col + dc;
             if (!hasBoardShapeCell(gameState, nr, nc)) continue;
-            if (getCellValue(gameState, nr, nc) !== EMPTY) continue;
+            if (getCellValue(gameState, nr, nc) !== P_EMPTY) continue;
             if (isBlockedCell(cardState, nr, nc)) continue;
             return true;
         }
@@ -668,7 +693,7 @@ function getExpansionCells(gameState: GameState): ExpansionCell[] {
         if (cells.some((cell) => cell && cell.row === r && cell.col === c)) return;
         const normalizedOwner = (owner === SharedConstants.BLACK || owner === SharedConstants.WHITE)
             ? owner
-            : EMPTY;
+            : P_EMPTY;
         cells.push({
             side: resolveExpansionSide(side, r, c, gameState),
             row: r,
@@ -828,8 +853,8 @@ function getCellTeleportDestinations(cardState: CardState, gameState: GameState)
         if (seen.has(key)) return;
         seen.add(key);
         const activeCell = activeByKey.get(key) || null;
-        const owner = activeCell ? Number(activeCell.owner) : EMPTY;
-        if (owner !== EMPTY) return;
+        const owner = activeCell ? Number(activeCell.owner) : P_EMPTY;
+        if (owner !== P_EMPTY) return;
         if (isBlockedCell(cardState, row, col)) return;
         candidates.push({
             row,
@@ -862,7 +887,7 @@ function getCellTeleportTargets(cardState: CardState, gameState: GameState): Tar
 
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
-        if (owner === EMPTY) return;
+        if (owner === P_EMPTY) return;
         if (isMeteorHoleCell(cardState, r, c)) return;
         res.push({ row: r, col: c });
     });
@@ -876,7 +901,7 @@ function getBlockadeTargets(cardState: CardState, gameState: GameState): TargetC
     if (!gs || !gs.board) return [];
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
-        if (owner !== EMPTY) return;
+        if (owner !== P_EMPTY) return;
         if (isBlockedCell(cardState, r, c)) return;
         if (hasSeedMarkerAt(cardState, r, c)) return;
         res.push({ row: r, col: c });
@@ -978,7 +1003,7 @@ function getSeedTargets(cardState: CardState, gameState: GameState): TargetCell[
     if (!gs || !gs.board) return [];
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
-        if (owner !== EMPTY) return;
+        if (owner !== P_EMPTY) return;
         if (isBlockedCell(cardState, r, c)) return;
         if (hasSeedMarkerAt(cardState, r, c)) return;
         res.push({ row: r, col: c });

@@ -422,4 +422,14 @@ const VisualEffectsMap = {
   getSupportedEffectKeys
 };
 
+try {
+  if (typeof window !== 'undefined' && window) {
+    (window as any).UIVisualEffectsMap = VisualEffectsMap;
+    (window as any).applyStoneVisualEffect = applyStoneVisualEffect;
+    (window as any).removeStoneVisualEffect = removeStoneVisualEffect;
+    (window as any).preloadStoneVisualEffectKeys = preloadStoneVisualEffectKeys;
+    (window as any).clearStoneVisualEffectState = clearStoneVisualEffectState;
+  }
+} catch (e) { /* ignore */ }
+
 export = VisualEffectsMap;

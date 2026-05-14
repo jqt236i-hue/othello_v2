@@ -17,11 +17,34 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return undefined;
+}
+
+const SharedConstants = (() => {
+    const runtimeSharedConstants = getRuntimeGlobalValue('SharedConstants');
+    if (runtimeSharedConstants) return runtimeSharedConstants;
+
+    if (typeof module === 'object' && module.exports) {
+        try {
+            return _require('../../../shared-constants');
+        } catch (e) {
+            return runtimeSharedConstants;
+        }
+    }
+
+    return runtimeSharedConstants;
+})();
 
 const MarkersAdapterModule = (() => {
+    const runtimeMarkersAdapter = getRuntimeGlobalValue('MarkersAdapter');
+    if (runtimeMarkersAdapter) return runtimeMarkersAdapter;
     if (typeof module === 'object' && module.exports) {
         try {
             return _require('../markers_adapter');
@@ -31,6 +54,8 @@ const MarkersAdapterModule = (() => {
 })();
 
 const CardUtilsModule = (() => {
+    const runtimeCardUtils = getRuntimeGlobalValue('CardUtils');
+    if (runtimeCardUtils) return runtimeCardUtils;
     if (typeof module === 'object' && module.exports) {
         try {
             return _require('./utils');
@@ -40,6 +65,8 @@ const CardUtilsModule = (() => {
 })();
 
 const CardExpansionModule = (() => {
+    const runtimeCardExpansion = getRuntimeGlobalValue('CardExpansion');
+    if (runtimeCardExpansion) return runtimeCardExpansion;
     if (typeof module === 'object' && module.exports) {
         try {
             return _require('./expansion');
@@ -49,6 +76,8 @@ const CardExpansionModule = (() => {
 })();
 
 const PresentationModule = (() => {
+    const runtimePresentation = getRuntimeGlobalValue('PresentationHelper');
+    if (runtimePresentation) return runtimePresentation;
     if (typeof module === 'object' && module.exports) {
         try {
             return _require('../presentation');
@@ -348,7 +377,7 @@ function getSpecialMarkerAt(cardState: CardState, row: number, col: number): { k
         marker &&
         marker.row === row &&
         marker.col === col &&
-        String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase() !== 'LIVING_WILL'
+        !isNormalVisualSpecialMarker(marker)
     ));
     if (special) return { kind: 'specialStone', category: getMarkerCategory(special), marker: special };
     const bomb = findBombMarkerAt(cardState, row, col);
@@ -363,6 +392,11 @@ function isSpecialStoneAt(cardState: CardState, row: number, col: number): boole
 function getSpecialOwnerAt(cardState: CardState, row: number, col: number): PlayerKey | null {
     const entry = getSpecialMarkerAt(cardState, row, col);
     return entry && entry.marker ? entry.marker.owner : null;
+}
+
+function isNormalVisualSpecialMarker(marker: any): boolean {
+    const type = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+    return type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'LIVING_WILL' || type === 'TRAP';
 }
 
 function clearStoneIdAtForCard(cardState: CardState, gameState: GameState, row: number, col: number): void {

@@ -29,6 +29,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         'assets/images/stones/normal_stone-black.png',
         'assets/images/stones/normal_stone-white.png'
     ];
+    const IMAGE_ASSET_PATH_PATTERN = /\.(png|jpe?g|webp|svg)(?:[?#].*)?$/i;
 
     function getDocumentClassList() {
         try {
@@ -170,6 +171,11 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 }
             });
         });
+    }
+
+    function isImageAssetPath(path: any) {
+        if (!path) return false;
+        return IMAGE_ASSET_PATH_PATTERN.test(String(path).trim());
     }
 
     function preloadSpecialStoneVisuals() {
@@ -921,6 +927,25 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             }
         } catch (e: any) { /* ignore */ }
 
+        // Inject UI-cross-boundary modules into game/pass-handler via DI
+        try {
+            const passHandler = require('../game/pass-handler');
+            if (passHandler) {
+                try {
+                    const playbackStateManager = require('./playback-state-manager');
+                    if (playbackStateManager && typeof passHandler.setPlaybackStateManager === 'function') {
+                        passHandler.setPlaybackStateManager(playbackStateManager);
+                    }
+                } catch (e: any) { /* ignore */ }
+                try {
+                    const networkClient = require('./network-client');
+                    if (networkClient && typeof passHandler.setNetworkMatchClient === 'function') {
+                        passHandler.setNetworkMatchClient(networkClient);
+                    }
+                } catch (e: any) { /* ignore */ }
+            }
+        } catch (e: any) { /* ignore */ }
+
         // Commentary broker initialization
         try {
             const commentaryBroker = require('./commentary-broker');
@@ -1008,7 +1033,14 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             const tm = require('../game/turn-manager');
             if (tm && typeof tm.setUIImpl === 'function') {
                 tm.setUIImpl({
-                    readCpuSmartness: () => ({ black: 1, white: 1 }),
+                    readCpuSmartness: () => {
+                        const readLevel = (id: string) => {
+                            const el = (typeof document !== 'undefined') ? document.getElementById(id) as HTMLSelectElement | null : null;
+                            const n = Number(el && el.value);
+                            return Number.isFinite(n) ? Math.max(1, Math.min(6, Math.floor(n))) : 1;
+                        };
+                        return { black: readLevel('smartBlack'), white: readLevel('smartWhite') };
+                    },
                     isDocumentHidden: () => (typeof document !== 'undefined' && document.hidden) || false,
                     pulseDeckUI: () => {},
                     scheduleCpuTurn: (ms: any, cb: any) => { timersImpl.waitMs(ms || 0).then(cb); },
@@ -1044,7 +1076,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
 
         function preloadAssets(manifest: any, opts: any = {}) {
             opts = Object.assign({ timeoutMs: 5000 }, opts || {});
-            const required = (manifest && manifest.files) ? manifest.files.map((f: any) => f.path) : [];
+            const required = (manifest && manifest.files) ? manifest.files.map((f: any) => f.path).filter(isImageAssetPath) : [];
             if (!required.length) return Promise.resolve({ success: true, loaded: [], failed: [] });
             const stoneBaseReadyPromise = ensureStoneBaseImagesReady({ timeoutMs: opts.timeoutMs });
 

@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+// @ts-nocheck
 import * as path from 'path';
 import { JSDOM } from 'jsdom';
 
@@ -12,18 +12,18 @@ function createEventBus() {
     },
     emit(eventName, payload) {
       const bucket = listeners.get(eventName) || [];
-      bucket.forEach((handler) => handler(payload));
+      bucket.forEach((handler) => {
+        handler(payload);
+      });
     }
   };
 }
 
 describe('ui card sync scheduler', () => {
-  let dom;
-  let windowRef;
-  let rafQueue;
-  let gameEvents;
-
-  const uiCode = fs.readFileSync(path.resolve(__dirname, '../ui.js'), 'utf8');
+  let dom: any;
+  let windowRef: any;
+  let rafQueue: any[];
+  let gameEvents: any;
 
   async function flushMicrotasks() {
     await Promise.resolve();
@@ -32,7 +32,9 @@ describe('ui card sync scheduler', () => {
 
   function flushRafQueue() {
     const queued = rafQueue.splice(0);
-    queued.forEach((callback) => callback());
+    queued.forEach((callback) => {
+      callback();
+    });
   }
 
   beforeEach(() => {
@@ -87,12 +89,21 @@ describe('ui card sync scheduler', () => {
       gameEvents
     };
 
-    windowRef.eval(uiCode);
+    jest.resetModules();
+    global.window = windowRef;
+    global.document = windowRef.document;
+    global.requestAnimationFrame = windowRef.requestAnimationFrame;
+    global.cancelAnimationFrame = windowRef.cancelAnimationFrame;
+    require(path.resolve(__dirname, '../ui.ts'));
     windowRef.renderBoard = jest.fn();
   });
 
   afterEach(() => {
     if (dom && dom.window) dom.window.close();
+    delete global.window;
+    delete global.document;
+    delete global.requestAnimationFrame;
+    delete global.cancelAnimationFrame;
   });
 
   test('coalesces repeated CARD_STATE_CHANGED notifications while idle', async () => {

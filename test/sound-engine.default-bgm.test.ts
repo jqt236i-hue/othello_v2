@@ -3,15 +3,19 @@ import * as path from 'path';
 import * as vm from 'vm';
 
 function loadSoundEngine(overrides = {}) {
-  const filePath = path.resolve(__dirname, '..', 'sound-engine.js');
-  const source = fs.readFileSync(filePath, 'utf8') + '\nmodule.exports = SoundEngine;';
+  const filePath = path.resolve(__dirname, '..', 'dist', 'sound-engine.js');
+  const source = fs.readFileSync(filePath, 'utf8') + '\nmodule.exports = module.exports.default || exports.default || SoundEngine;';
+  const moduleRef = { exports: {} };
   const context = Object.assign({
-    module: { exports: {} },
-    exports: {},
+    module: moduleRef,
+    exports: moduleRef.exports,
+    require: jest.fn(),
     console,
     updateBgmButtons: jest.fn(),
     Audio: function Audio() {}
   }, overrides);
+  if (!context.window) context.window = context;
+  if (!context.window.updateBgmButtons) context.window.updateBgmButtons = context.updateBgmButtons;
   vm.runInNewContext(source, context, { filename: filePath });
   return context.module.exports;
 }
@@ -272,12 +276,12 @@ describe('SoundEngine default BGM', () => {
     expect(sources[1].start).toHaveBeenCalledWith(0, 2);
   });
 
-  test('playEffectByKey accepts direct filePath overrides', () => {
+  test('effect API accepts direct filePath overrides', () => {
     const soundEngine = loadSoundEngine();
 
-    expect(soundEngine.getEffectFilePath('tutorial_story_effect', {
-      filePath: 'assets/story/sound-ef/テキストをクリックするとき.mp3'
-    })).toBe('assets/story/sound-ef/テキストをクリックするとき.mp3');
+    expect(soundEngine.getEffectFilePath('stone_place', {
+      filePath: 'assets/audio/sound-effect/カードを使ったとき.mp3'
+    })).toBe('assets/audio/sound-effect/カードを使ったとき.mp3');
   });
 
   test('effect keys can resolve direct asset paths outside the default effect directory', () => {
@@ -308,7 +312,7 @@ describe('SoundEngine default BGM', () => {
     const soundEngine = loadSoundEngine();
 
     expect(soundEngine.getEffectFilePath('ultimate_anchor_move')).toBe(
-      'assets/audio/sound-effect/究極反転龍・究極破壊神が移動したタイミング.mp3'
+      'assets/audio/sound-effect/究極反転龍・究極破壊神・意志狩りの王が移動したタイミング.mp3'
     );
   });
 
@@ -395,7 +399,7 @@ describe('SoundEngine default BGM', () => {
 
   test('stone placement sound resolves the selected unlocked gacha sound asset path', () => {
     const selectedSoundId = 'gacha__n__placement_sound__type-1-standard';
-    import * as placementSoundSelection from '../ui/placement-sound-selection.js';
+    const placementSoundSelection = require('../ui/placement-sound-selection.js');
     const soundEngine = loadSoundEngine({
       localStorage: {
         getItem: jest.fn(() => selectedSoundId),

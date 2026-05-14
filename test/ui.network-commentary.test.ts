@@ -67,7 +67,7 @@ describe('NetworkCommentaryController', () => {
       seatKey: 'black'
     };
 
-    import { createNetworkCommentaryController } from '../ui/network/commentary.js';
+    const { createNetworkCommentaryController } = require('../ui/network/commentary.js');
     controller = createNetworkCommentaryController({
       getState: () => stateObj,
       addLog: jest.fn()

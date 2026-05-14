@@ -375,6 +375,34 @@ describe('cpu-policy-core', () => {
         }));
     });
 
+    test('chooseHandDestroyTargetForCycle immediately destroys EXECUTION_WILL when currently unusable', () => {
+        const selected = core.chooseHandDestroyTargetForCycle(
+            ['execution_01'],
+            [],
+            () => 2,
+            () => ({ id: 'execution_01', type: 'EXECUTION_WILL' }),
+            {
+                level: 6,
+                playerValue: -1,
+                legalMovesCount: 0,
+                ownCharge: 60,
+                handSize: 1,
+                empties: 20,
+                discDiff: 0,
+                ownCorners: 0,
+                oppCorners: 0,
+                ownEdges: 0,
+                oppEdges: 0,
+                hasCornerMoveNow: false,
+                cornerEmergency: false
+            }
+        );
+        expect(selected).toEqual(expect.objectContaining({
+            cardId: 'execution_01',
+            reason: 'bucket3_currently_unusable'
+        }));
+    });
+
     test('chooseHandDestroyTargetForCycle immediately destroys REINFORCEMENT_WILL when currently unusable', () => {
         const selected = core.chooseHandDestroyTargetForCycle(
             ['reinforcement_01'],

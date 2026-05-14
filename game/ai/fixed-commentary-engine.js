@@ -1,3 +1,3 @@
 "use strict";
 /** @type {any} */
-module.exports = require('../dist/game/ai/fixed-commentary-engine');
+module.exports = require('../../dist/game/ai/fixed-commentary-engine');

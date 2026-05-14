@@ -1,2 +1,2 @@
 const path = require('path');
-module.exports = require(path.join(__dirname, '..', '..', 'dist', 'scripts', 'replay-adoption-gate.js'));
+module.exports = require(path.join(process.cwd(), 'dist', 'scripts', 'replay-adoption-gate.js'));

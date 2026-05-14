@@ -4,7 +4,7 @@ describe('gacha transaction module', () => {
   });
 
   test('returns a structured insufficient balance error', () => {
-    import * as mod from '../ui/gacha/gacha-transaction.js';
+    const mod = require('../ui/gacha/gacha-transaction.js');
     const result = mod.commitPullTransaction({}, 1, {
       helpersModule: {
         OBSERVATION_STONE_PULL_COST: 100,
@@ -28,7 +28,7 @@ describe('gacha transaction module', () => {
   });
 
   test('returns a structured success payload when a mixed reward pull resolves', () => {
-    import * as mod from '../ui/gacha/gacha-transaction.js';
+    const mod = require('../ui/gacha/gacha-transaction.js');
     const rollObservationGacha = jest.fn(() => ({
       rarity: 'N',
       item: {
@@ -81,7 +81,7 @@ describe('gacha transaction module', () => {
   });
 
   test('derives mixed catalog items from loaded asset manifest before generated fallback', () => {
-    import * as mod from '../ui/gacha/gacha-transaction.js';
+    const mod = require('../ui/gacha/gacha-transaction.js');
     const items = mod.getCatalogItems({
       assetManifest: {
         generatedAt: '2026-04-12T00:00:00.000Z',
@@ -122,7 +122,7 @@ describe('gacha transaction module', () => {
   });
 
   test('refunds spent stones when roll resolution fails after spending', () => {
-    import * as mod from '../ui/gacha/gacha-transaction.js';
+    const mod = require('../ui/gacha/gacha-transaction.js');
     const awardObservationStones = jest.fn();
     const applyPullResults = jest.fn();
 

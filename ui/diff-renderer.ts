@@ -58,6 +58,7 @@ let previousBoardState: any = null;
 let cellCache: any[] = [];
 let cellCacheMap = new Map();
 let boardDomSignature: any = null;
+let boardDomElement: any = null;
 let lastBoardExpansionRevealSoundKey: any = null;
 let suppressBoardExpansionRevealSoundThisRender = false;
 
@@ -1373,7 +1374,7 @@ function buildCurrentCellState() {
     const player = gameState.currentPlayer;
     // Minimal, single-site guard: if cardState is missing or incomplete, use an empty context
     // to avoid throwing inside CardLogic.getCardContext during early-init race.
-    let context;
+    let context: any;
     if (cardState && Array.isArray(cardState.markers)) {
         context = CardLogic.getCardContext(cardState);
     } else {
@@ -2356,6 +2357,13 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
  * @returns {number} 更新されたセル数
  */
 function renderBoardDiff(boardEl: any) {
+    if (boardEl && boardDomElement && boardDomElement !== boardEl) {
+        previousBoardState = null;
+        cellCache = [];
+        cellCacheMap = new Map();
+        boardDomSignature = null;
+    }
+    if (boardEl) boardDomElement = boardEl;
     // Single Visual Writer detection: prevent diff/rerender during active playback
     const boardUpdateSyncContext = _peekBoardUpdateSyncContextForDiff();
     const allowBoardUpdateDuringPlayback = !!(
@@ -2367,7 +2375,10 @@ function renderBoardDiff(boardEl: any) {
         && typeof PlaybackStateModule.shouldDeferBoardUpdate === 'function'
         && PlaybackStateModule.shouldDeferBoardUpdate({ cardState: _getCardStateForDiffPlayback() }) === true
     );
-    if ((_isVisualPlaybackActiveForDiff() || _hasPendingPlaybackEvents()) && shouldDeferBoardUpdate && !allowBoardUpdateDuringPlayback) {
+    const hasPendingPlaybackEvents = _hasPendingPlaybackEvents();
+    const visualPlaybackActive = _isVisualPlaybackActiveForDiff();
+    const boardHasPlaybackLock = !!(boardEl && boardEl.classList && boardEl.classList.contains('playback-locked'));
+    if ((hasPendingPlaybackEvents || (visualPlaybackActive && boardHasPlaybackLock)) && shouldDeferBoardUpdate && !allowBoardUpdateDuringPlayback) {
         if (typeof window !== 'undefined' && window.__DEV__ === true) {
             throw new Error('renderBoardDiff called during active VisualPlayback (dev fail-fast)');
         } else {
@@ -2506,7 +2517,10 @@ function forceFullRender(boardEl: any) {
  */
 function resetRenderStats() {
     previousBoardState = null;
+    cellCache = [];
+    cellCacheMap = new Map();
     boardDomSignature = null;
+    boardDomElement = null;
     lastBoardExpansionRevealSoundKey = null;
 }
 

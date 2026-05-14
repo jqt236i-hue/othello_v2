@@ -17,10 +17,55 @@ if (typeof CardLogic === 'undefined') {
 // - window.DEBUG_UNLIMITED_USAGE: Unlimited card usage mode
 
 function _getDebugActions() {
-    if (typeof DebugActions !== 'undefined') return DebugActions;
+    const resolved = _resolveDebugActionsRuntimeModule();
+    if (resolved) return resolved;
     if (typeof require === 'function') {
-        try { return require('../game/debug/debug-actions'); } catch (e) { /* ignore */ }
+        try {
+            const required = require('../game/debug/debug-actions');
+            return _rememberResolvedDebugActions(required);
+        } catch (e) { /* ignore */ }
     }
+    return null;
+}
+
+function _rememberResolvedDebugActions(candidate) {
+    if (!candidate || typeof candidate !== 'object') return null;
+    const hasFill = typeof candidate.fillDebugHand === 'function';
+    const hasVisual = typeof candidate.applyVisualTestBoard === 'function';
+    if (!hasFill && !hasVisual) return null;
+    try {
+        if (typeof window !== 'undefined') {
+            window.DebugActions = candidate;
+        }
+    } catch (e) { /* ignore */ }
+    return candidate;
+}
+
+function _resolveDebugActionsRuntimeModule() {
+    try {
+        if (typeof DebugActions !== 'undefined') {
+            const direct = _rememberResolvedDebugActions(DebugActions);
+            if (direct) return direct;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && window.DebugActions) {
+            const globalResolved = _rememberResolvedDebugActions(window.DebugActions);
+            if (globalResolved) return globalResolved;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && window.module && window.module.exports) {
+            const moduleResolved = _rememberResolvedDebugActions(window.module.exports);
+            if (moduleResolved) return moduleResolved;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && window.exports) {
+            const exportsResolved = _rememberResolvedDebugActions(window.exports);
+            if (exportsResolved) return exportsResolved;
+        }
+    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -40,7 +85,8 @@ function ensureDebugActionsLoaded(cb) {
     try {
         if (typeof window === 'undefined') return cb && cb(null);
         if (!_isDebugAllowed()) return cb && cb(null);
-        if (typeof DebugActions !== 'undefined') return cb && cb(DebugActions);
+        const existing = _resolveDebugActionsRuntimeModule();
+        if (existing) return cb && cb(existing);
         if (window.__debugActionsLoading) {
             window.__debugActionsWaiters = window.__debugActionsWaiters || [];
             if (cb) window.__debugActionsWaiters.push(cb);
@@ -57,7 +103,8 @@ function ensureDebugActionsLoaded(cb) {
             window.__debugActionsLoaded = true;
             const waiters = window.__debugActionsWaiters || [];
             window.__debugActionsWaiters = [];
-            for (const fn of waiters) { try { fn(DebugActions); } catch (e) { /* Intentionally empty: one bad callback must not break others */ } }
+            const resolved = _resolveDebugActionsRuntimeModule();
+            for (const fn of waiters) { try { fn(resolved); } catch (e) { /* Intentionally empty: one bad callback must not break others */ } }
         };
         s.onerror = () => {
             window.__debugActionsLoading = false;
@@ -316,8 +363,8 @@ function _appendCardDisplayBadges(cardEl, cardDef, cost, tier) {
     if (typeLabel) {
         const typeBadge = document.createElement('div');
         typeBadge.className = 'card-type-badge';
-        var _iconMap = { '採掘':'\u26CF\uFE0E', '守護':'\u26E8\uFE0E', '戦闘':'\u2694\uFE0E', '執行':'\u2696\uFE0E', '禁忌':'\u26A0\uFE0E', '殲滅':'\u2620\uFE0E', '繁栄':'\u2728', '特殊':'\u2726' };
-        var _icon = _iconMap[typeLabel] || '';
+        const _iconMap = { '採掘':'\u26CF\uFE0E', '守護':'\u26E8\uFE0E', '戦闘':'\u2694\uFE0E', '執行':'\u2696\uFE0E', '禁忌':'\u26A0\uFE0E', '殲滅':'\u2620\uFE0E', '繁栄':'\u2728', '特殊':'\u2726' };
+        const _icon = _iconMap[typeLabel] || '';
         typeBadge.textContent = _icon ? (_icon + ' ' + typeLabel) : typeLabel;
         badgeRow.appendChild(typeBadge);
     }
@@ -341,25 +388,28 @@ function _appendCardDisplayBadges(cardEl, cardDef, cost, tier) {
 }
 
 function _setSelectedCardSelection(cardId, ownerKey) {
-    if (!cardState || typeof cardState !== 'object') return;
+    const stateRef = _getCardStateRef();
+    if (!stateRef || typeof stateRef !== 'object') return;
     if (!cardId) {
-        cardState.selectedCardId = null;
-        cardState.selectedCardOwnerKey = null;
+        stateRef.selectedCardId = null;
+        stateRef.selectedCardOwnerKey = null;
         return;
     }
-    cardState.selectedCardId = cardId;
-    cardState.selectedCardOwnerKey = _normalizeOwnerKey(ownerKey);
+    stateRef.selectedCardId = cardId;
+    stateRef.selectedCardOwnerKey = _normalizeOwnerKey(ownerKey);
 }
 
 function _clearSelectedCardSelection() {
-    if (!cardState || typeof cardState !== 'object') return;
-    cardState.selectedCardId = null;
-    cardState.selectedCardOwnerKey = null;
+    const stateRef = _getCardStateRef();
+    if (!stateRef || typeof stateRef !== 'object') return;
+    stateRef.selectedCardId = null;
+    stateRef.selectedCardOwnerKey = null;
 }
 
 function _getSelectedCardOwnerKey(defaultOwnerKey) {
-    if (cardState && (cardState.selectedCardOwnerKey === 'white' || cardState.selectedCardOwnerKey === 'black')) {
-        return cardState.selectedCardOwnerKey;
+    const stateRef = _getCardStateRef();
+    if (stateRef && (stateRef.selectedCardOwnerKey === 'white' || stateRef.selectedCardOwnerKey === 'black')) {
+        return stateRef.selectedCardOwnerKey;
     }
     return _normalizeOwnerKey(defaultOwnerKey);
 }
@@ -1049,8 +1099,9 @@ function _clearHeavenSelection(playerKey) {
 }
 
 function _doesPlayerOwnCard(playerKey, cardId) {
-    if (!playerKey || !cardId || !cardState || !cardState.hands) return false;
-    const hand = Array.isArray(cardState.hands[playerKey]) ? cardState.hands[playerKey] : [];
+    const stateRef = _getCardStateRef();
+    if (!playerKey || !cardId || !stateRef || !stateRef.hands) return false;
+    const hand = Array.isArray(stateRef.hands[playerKey]) ? stateRef.hands[playerKey] : [];
     return hand.includes(cardId);
 }
 
@@ -1477,6 +1528,20 @@ function _getUiRootRef() {
     if (typeof window !== 'undefined' && window) return window;
     try {
         if (typeof globalThis !== 'undefined' && globalThis) return globalThis;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function _getCardStateRef() {
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis && (globalThis as any).cardState && typeof (globalThis as any).cardState === 'object') {
+            return (globalThis as any).cardState;
+        }
+    } catch (e) { /* ignore */ }
+    const rootRef = _getUiRootRef();
+    if (rootRef && rootRef.cardState && typeof rootRef.cardState === 'object') return rootRef.cardState;
+    try {
+        if (typeof cardState !== 'undefined' && cardState && typeof cardState === 'object') return cardState;
     } catch (e) { /* ignore */ }
     return null;
 }
@@ -2297,19 +2362,16 @@ function _startNetworkOnlyPendingSelectionPublish(options) {
     const networkClient = _getActiveNetworkMatchClient();
     if (!networkClient) return false;
 
-    const settleSuccessAfterPlayback = () => {
-        const waitForPlaybackFn = (typeof waitForPlaybackIdle === 'function')
-            ? waitForPlaybackIdle
-            : ((typeof window !== 'undefined' && typeof window.waitForPlaybackIdle === 'function') ? window.waitForPlaybackIdle : null);
-
-        Promise.resolve(typeof waitForPlaybackFn === 'function' ? waitForPlaybackFn() : undefined)
-            .catch(() => {})
-            .then(() => {
-                _setPendingSelectionBusy(false);
-                if (typeof renderCardUI === 'function') {
-                    try { renderCardUI(); } catch (e) { /* ignore */ }
-                }
-            });
+    const settleSuccessAfterPublish = () => {
+        try {
+            if (_playbackStateModule && typeof _playbackStateModule.clearPlaybackLock === 'function') {
+                _playbackStateModule.clearPlaybackLock();
+            }
+        } catch (e) { /* ignore */ }
+        _setPendingSelectionBusy(false);
+        if (typeof renderCardUI === 'function') {
+            try { renderCardUI(); } catch (e) { /* ignore */ }
+        }
     };
 
     Promise.resolve()
@@ -2329,7 +2391,7 @@ function _startNetworkOnlyPendingSelectionPublish(options) {
             if (typeof opts.onSuccess === 'function') {
                 opts.onSuccess(publishResult);
             }
-            settleSuccessAfterPlayback();
+            settleSuccessAfterPublish();
         })
         .catch(() => {
             if (typeof opts.onFailure === 'function') {
@@ -2714,7 +2776,8 @@ function onCardClick(cardId, ownerKey) {
     const clickedOwnerKey = (ownerKey === 'white' || ownerKey === 'black')
         ? ownerKey
         : null;
-    const pending = cardState.pendingEffectByPlayer[actionOwnerKey];
+    const stateRef = _getCardStateRef();
+    const pending = stateRef && stateRef.pendingEffectByPlayer ? stateRef.pendingEffectByPlayer[actionOwnerKey] : null;
     if (_isCardAnimatingNow() && !isDebugUnlimited && !_releaseStaleVisualPlaybackLock()) return;
 
     _closeCardDetailTagTabIfOpen();
@@ -2727,7 +2790,7 @@ function onCardClick(cardId, ownerKey) {
         playUiEffectSound('hand_card_select');
         _settleLingeringHandFadeForOwner(clickedOwnerKey);
 
-        if (cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(actionOwnerKey) === clickedOwnerKey) {
+        if (stateRef && stateRef.selectedCardId === cardId && _getSelectedCardOwnerKey(actionOwnerKey) === clickedOwnerKey) {
             _clearSelectedCardSelection();
         } else {
             _setSelectedCardSelection(cardId, clickedOwnerKey);
@@ -2745,7 +2808,7 @@ function onCardClick(cardId, ownerKey) {
     playUiEffectSound('hand_card_select');
     _settleLingeringHandFadeForOwner(actionOwnerKey);
 
-    if (cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(actionOwnerKey) === actionOwnerKey) {
+    if (stateRef && stateRef.selectedCardId === cardId && _getSelectedCardOwnerKey(actionOwnerKey) === actionOwnerKey) {
         _clearSelectedCardSelection();
     } else {
         _setSelectedCardSelection(cardId, actionOwnerKey);
@@ -2930,7 +2993,7 @@ function cancelPendingSelection(specificPlayerKey) {
     if (pending.type === 'POSITION_SWAP_WILL') {
         addLog(`${playerKey === 'black' ? '黒' : '白'}の入替の意志をキャンセルしました`);
     } else if (pending.type === 'DESTROY_ONE_STONE') {
-        addLog(`${playerKey === 'black' ? '黒' : '白'}の破壊神をキャンセルしました`);
+        addLog(`${playerKey === 'black' ? '黒' : '白'}の破壊の意志をキャンセルしました`);
     } else {
         addLog(`${playerKey === 'black' ? '黒' : '白'}の対象選択をキャンセルしました`);
     }

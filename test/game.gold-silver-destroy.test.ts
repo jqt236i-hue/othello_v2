@@ -209,7 +209,7 @@ describe('金/銀の意志 — 即時破壊', () => {
         expect(effects.chargeGained).toBe(18);
     });
 
-    test('CRYSTAL_STONE: 配置直後に盤面が EMPTY になり、SPAWN → DESTROY イベントが出る', () => {
+    test('CRYSTAL_STONE: 数字マス以外では通常石のまま残り、DESTROY イベントを出さない', () => {
         const gs = makeGameState();
         const cs = makeCardState('CRYSTAL_STONE');
 
@@ -218,14 +218,13 @@ describe('金/銀の意志 — 即時破壊', () => {
 
         const effects = CardLogic.applyPlacementEffects(cs, gs, 'black', 2, 3, 1);
 
-        expect(gs.board[2][3]).toBe(0);
-        expect(effects.crystalStoneUsed).toBe(true);
+        expect(gs.board[2][3]).toBe(1);
+        expect(effects.crystalStoneUsed).toBeUndefined();
         expect(effects.chargeGained).toBe(1);
-        expect(effects.crystalStoneGain).toBe(0);
+        expect(effects.crystalStoneGain).toBeUndefined();
 
         const allEvents = (cs._presentationEventsPersist || []).concat(cs.presentationEvents || []);
         const destroyEvents = allEvents.filter(e => e.type === 'DESTROY' && e.row === 2 && e.col === 3);
-        expect(destroyEvents.length).toBeGreaterThanOrEqual(1);
-        expect(destroyEvents[0].reason).toBe('crystal_stone_sacrifice');
+        expect(destroyEvents).toHaveLength(0);
     });
 });

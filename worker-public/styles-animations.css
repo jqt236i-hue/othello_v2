@@ -181,8 +181,7 @@ the fade-in starts. */
     }
     .card-item.visible.cost-tier-gold::before,
     .card-item.visible.cost-tier-special::before,
-    .card-item.visible[data-card-id="rainbow_stone"]::before,
-    .card-item.visible[data-card-id="crystal_stone"]::before {
+    .card-item.visible[data-card-id="rainbow_stone"]::before {
         animation: none !important;
     }
 }

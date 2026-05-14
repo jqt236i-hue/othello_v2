@@ -92,18 +92,18 @@ describe('CardLogic commitDraw reshuffle cycle policy', () => {
     expect(cardState.decks.white.filter((cardId) => cardId === enabledIds[0])).toHaveLength(3);
   });
 
-  test('initialDeckCardIdsByPlayer accepts duplicate-heavy story encounter decks', () => {
-    const storyDeckIds = Array(15).fill('perma_01').concat(Array(15).fill('observer_01'));
+  test('initialDeckCardIdsByPlayer accepts duplicate-heavy custom decks', () => {
+    const duplicateDeckIds = Array(15).fill('perma_01').concat(Array(15).fill('observer_01'));
     const prng = { shuffle: (arr) => arr, random: () => 0.5 };
     const cardState = CardLogic.createCardState(prng, {
       initialDeckCardIdsByPlayer: {
-        black: storyDeckIds
+        black: duplicateDeckIds
       }
     });
 
     expect(cardState.initialDeckSize).toBe(30);
     expect(cardState.initialDeckSizeByPlayer.black).toBe(30);
-    expect(cardState.decks.black).toEqual(storyDeckIds);
+    expect(cardState.decks.black).toEqual(duplicateDeckIds);
     expect(cardState.decks.black.filter((cardId) => cardId === 'perma_01')).toHaveLength(15);
     expect(cardState.decks.black.filter((cardId) => cardId === 'observer_01')).toHaveLength(15);
     expect(cardState.decks.white).toHaveLength(cardState.initialDeckSizeByPlayer.white);

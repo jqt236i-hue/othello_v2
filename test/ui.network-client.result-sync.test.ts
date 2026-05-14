@@ -235,7 +235,7 @@ describe('NetworkMatchClient result sync', () => {
   });
 
   test('visual playback only does not rearm busy lock on force sync when local queues are empty', () => {
-    import * as playbackState from '../ui/playback-state-manager.js';
+    const playbackState = require('../ui/playback-state-manager.js');
     global.isProcessing = false;
     global.isCardAnimating = false;
     global.cardState = {
@@ -270,7 +270,7 @@ describe('NetworkMatchClient result sync', () => {
   });
 
   test('force snapshot without playback clears stale board update context', () => {
-    import * as playbackState from '../ui/playback-state-manager.js';
+    const playbackState = require('../ui/playback-state-manager.js');
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
 

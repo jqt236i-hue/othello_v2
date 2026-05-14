@@ -5,7 +5,7 @@ describe('presentation flush persisted events', () => {
   });
 
   test('flushPersistedEvents forwards persisted events to BoardOps after registration', () => {
-    import * as ph from '../game/logic/presentation.js';
+    const ph = require('../game/logic/presentation.js');
     const cardState = { presentationEvents: [] };
     global.cardState = cardState;
     // persist one event (BoardOps missing)
@@ -23,7 +23,7 @@ describe('presentation flush persisted events', () => {
   });
 
   test('flushPersistedEvents drains persisted events even when CardLogic returns []', () => {
-    import * as ph from '../game/logic/presentation.js';
+    const ph = require('../game/logic/presentation.js');
     const cardState = { presentationEvents: [] };
     global.cardState = cardState;
     ph.emitPresentationEvent(cardState, { type: 'SCHEDULE_CPU_TURN', delayMs: 10 });

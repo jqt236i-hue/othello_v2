@@ -16,12 +16,12 @@
 - `game/logic/cards.js` also needs browser global fallbacks for already-loaded `CardHandManager` and `CardMarkers`; otherwise `resetGame()` reaches card initialization but render/turn-start paths throw missing manager/marker helpers.
 - `index.html` and `worker-public/index.html` must load `shared/player-encoding.js`, `game/cards/state-manager.js`, `game/cards/effect-resolver.js`, `game/cards/timing-processor.js`, and `game/cards/target-resolver.js` before `game/logic/cards.js` so the browser factory receives its extracted card modules.
 - Browser QA against `http://127.0.0.1:8012/?debug=1` now initializes 64 board cells, draws the first black card, and reset/help controls remain clickable without `module is not defined` or `require is not defined` errors.
-- `http://127.0.0.1:8012/story-deck-lab.html?debug=1` boots cleanly with no console messages and no CommonJS globals.
+- `http://127.0.0.1:8012/legacy-deck-lab.html?debug=1` boots cleanly with no console messages and no CommonJS globals.
 
 ## 2026-04-30 Task 7 Browser Smoke
 - Added `npm run test:browser:smoke`, backed by `scripts/browser-boot-smoke.js`, to start `npm run serve` against the default `worker-public` root on an ephemeral local port.
 - The smoke opens `worker-public/index.html?debug=1`, fails on `module is not defined` / `require is not defined`, waits for `#board` to render at least 64 cells, and clicks visible `#resetBtn` before rechecking board rendering.
-- The same smoke also opens `worker-public/story-deck-lab.html?debug=1` for boot coverage and applies the same CommonJS ReferenceError guard.
+- The same smoke also opens `worker-public/legacy-deck-lab.html?debug=1` for boot coverage and applies the same CommonJS ReferenceError guard.
 - Verification: `npm run test:browser:smoke` passed with `[browser-smoke] success http://127.0.0.1:<port>` after filtering known headless ONNX/WebGPU environment warnings as non-blocking.
 
 ## 2026-04-30 Task 8 Worker Export Readiness

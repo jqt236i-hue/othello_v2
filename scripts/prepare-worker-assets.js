@@ -1,3 +1,7 @@
 "use strict";
 /** @type {any} */
-module.exports = require('../dist/scripts/prepare-worker-assets');
+const dist = require('../dist/scripts/prepare-worker-assets');
+if (require.main === module) {
+    dist.prepareWorkerAssets();
+}
+module.exports = dist;

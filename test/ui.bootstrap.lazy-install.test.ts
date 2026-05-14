@@ -1,6 +1,5 @@
 import * as path from 'path';
-import { JSDOM } from 'jsdom';
-
+const { JSDOM } = require('jsdom');
 describe('ui/bootstrap lazy install', () => {
   afterEach(() => {
     jest.resetModules();
@@ -15,8 +14,7 @@ describe('ui/bootstrap lazy install', () => {
     jest.doMock('../game/cpu-turn-handler', cpuFactory);
     jest.doMock('../game/turn-manager', turnManagerFactory);
 
-    import * as uiBoot from '../ui/bootstrap.js';
-
+    const uiBoot = require('../ui/bootstrap.js');
     expect(typeof uiBoot.installGameDI).toBe('function');
     expect(typeof uiBoot.isGameDIInstalled).toBe('function');
     expect(uiBoot.isGameDIInstalled()).toBe(false);

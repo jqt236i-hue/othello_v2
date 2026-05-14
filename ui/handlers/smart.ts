@@ -9,7 +9,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-declare const cpuSmartness: Record<string, number>;
 declare const updateCpuCharacter: (() => void) | undefined;
 declare const addLog: ((msg: string) => void) | undefined;
 declare const CpuPolicy: {
@@ -21,6 +20,8 @@ interface SmartOption {
   v: string;
   t: string;
 }
+
+const localCpuLevels: Record<string, number> = { black: 1, white: 1 };
 
 function clampCpuLevel(value: unknown): number {
   const n = Number(value);
@@ -45,20 +46,20 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
       el.textContent = opt.t;
       smartBlack.appendChild(el);
     });
-    cpuSmartness.black = clampCpuLevel(cpuSmartness.black || 1);
-    smartBlack.value = String(cpuSmartness.black);
+    localCpuLevels.black = clampCpuLevel(localCpuLevels.black || 1);
+    smartBlack.value = String(localCpuLevels.black);
     smartBlack.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
       const newLevel = clampCpuLevel(target.value);
-      cpuSmartness.black = newLevel;
+      localCpuLevels.black = newLevel;
       target.value = String(newLevel);
-      console.log(`[CPU Level] Black changed to level ${cpuSmartness.black}`);
+      console.log(`[CPU Level] Black changed to level ${localCpuLevels.black}`);
       // Reload policy if MCCFR is available
       if (typeof CpuPolicy !== 'undefined' && CpuPolicy && CpuPolicy.loadPolicyForLevel) {
         try {
-          mccfrPolicy = await CpuPolicy.loadPolicyForLevel(cpuSmartness.black);
+          mccfrPolicy = await CpuPolicy.loadPolicyForLevel(localCpuLevels.black);
           if (typeof addLog === 'function') {
-            addLog(`黒レベル ${cpuSmartness.black} のポリシーを読み込みました`);
+            addLog(`黒レベル ${localCpuLevels.black} のポリシーを読み込みました`);
           }
         } catch (err) {
           console.warn('Policy reload failed:', err);
@@ -74,23 +75,23 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
       el.textContent = opt.t;
       smartWhite.appendChild(el);
     });
-    cpuSmartness.white = clampCpuLevel(cpuSmartness.white || 1);
-    smartWhite.value = String(cpuSmartness.white);
+    localCpuLevels.white = clampCpuLevel(localCpuLevels.white || 1);
+    smartWhite.value = String(localCpuLevels.white);
     smartWhite.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
       const newLevel = clampCpuLevel(target.value);
-      cpuSmartness.white = newLevel;
+      localCpuLevels.white = newLevel;
       target.value = String(newLevel);
-      console.log(`[CPU Level] White changed to level ${cpuSmartness.white}`);
+      console.log(`[CPU Level] White changed to level ${localCpuLevels.white}`);
       if (typeof updateCpuCharacter === 'function') {
         updateCpuCharacter();
       }
       // Reload policy for new level
       if (typeof CpuPolicy !== 'undefined' && CpuPolicy && CpuPolicy.loadPolicyForLevel) {
         try {
-          mccfrPolicy = await CpuPolicy.loadPolicyForLevel(cpuSmartness.white);
+          mccfrPolicy = await CpuPolicy.loadPolicyForLevel(localCpuLevels.white);
           if (typeof addLog === 'function') {
-            addLog(`レベル ${cpuSmartness.white} のポリシーを読み込みました`);
+            addLog(`レベル ${localCpuLevels.white} のポリシーを読み込みました`);
           }
         } catch (err) {
           console.warn('Policy reload failed:', err);

@@ -56,12 +56,21 @@ const SPECIAL_STONE_BUBBLE_SPEECH: Record<string, Record<string, readonly string
     }),
     INHERITED_HYPERACTIVE: Object.freeze({
         inherit_selected: Object.freeze(['よし、お前に落ち着きの無さを継がせる。', 'その石だ、走る役目を渡す。', '決めた、お前が次の多動だ。', 'じっとしてるには向かない顔だな。', 'その一石、せわしなさで染める。']),
-        inherit_applied: Object.freeze(['継承完了、さあ落ち着かなくなれ。', '走る癖、ちゃんと移ったぞ。', '今日からお前も多動石だ。', '足の速さじゃない、心の忙しさを渡した。', '継いだな、その石はもう止まらない。'])
+        inherit_applied: Object.freeze(['継承完了、さあ落ち着かなくなれ。', '走る癖、ちゃんと移ったぞ。', '今日からお前も多動石だ。', '足の速さじゃない、心の忙しさを渡した。', '継いだな、その石はもう止まらない。']),
+        duration_end: Object.freeze(['走り切った、ここで普通の石に戻る。', '忙しさはここまでだ、少し落ち着くよ。', '継いだ衝動が抜けた、盤面に静けさが戻る。', 'もう十分動いた、あとは通常石として残る。', '多動の役目は終わり、次の一手へ渡す。']),
+        living_will_restored: GENERIC_LIVING_WILL_RESTORED_LINES
     }),
     PROLIFERATION: Object.freeze({
         proliferation_triggered: Object.freeze(['壊しに来た？ じゃあ増えるね。', '一体分の覚悟で、二体ぶん返すよ。', '触れた瞬間、仲間がもう一人。', 'その一手、私の増殖に変わったよ。', '潰すつもりが、増やしちゃったね。'])
     }),
+    REGEN: Object.freeze({
+        regen_triggered: Object.freeze(['倒れても芽は残る、もう一度盤に戻るよ。', '再生完了、まだこのマスは渡さない。', '砕けた分だけ根を張った、ここから復帰だ。', '消えたと思った？ 芽吹きはここからだよ。', '再生の意志が残っていた、もう一度立つ。'])
+    }),
+    TIME_STOP: Object.freeze({
+        time_stop_triggered: Object.freeze(['時を止める、動けるのは私だけだ。', '盤上の時間を凍らせる、次の一手を奪う。', '止まれ、ここから先は私の間合いだ。', '一瞬を支配する、それで十分だ。', '時は止まった、動き出す前に決める。'])
+    }),
     WILL_HUNTER_KING: Object.freeze({
+        place: Object.freeze(['王の狩場だ、異能の石から首を差し出せ。', '盤上の意志を嗅ぎ分ける、狩りの始まりだ。', '特殊石の気配がするな、王が刈り取りに来たぞ。', '目立つ力ほど狙いやすい、まずは一つ沈める。', '意志を掲げた石から順に、王の獲物になる。']),
         special_destroy_triggered: Object.freeze(['光る首ほど、刈った時によく響く。', '特殊石の断末魔は、王の耳によく馴染む。', '異能ごと断つ、それが王の狩りだ。', '盤の切り札ほど、落とす価値がある。', '珍しい石から沈む、実にいい眺めだ。'])
     }),
     ABSOLUTE_PROTECTED: Object.freeze({

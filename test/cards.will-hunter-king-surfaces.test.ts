@@ -1,6 +1,5 @@
 import * as fs from 'fs';
-import * as path from 'path';
-
+const path = require('path');
 const generator = require(path.resolve(__dirname, '..', 'scripts', 'generate-catalog.js'));
 
 const EXPECTED_BASE_CARD = Object.freeze({

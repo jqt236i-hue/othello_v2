@@ -1,6 +1,5 @@
 import * as Core from '../game/logic/core.js';
-import * as CardLogic from '../game/logic/cards.js';
-
+const CardLogic = require('../game/logic/cards.js');
 function createStates(rows = 8, cols = rows) {
   const cardState = CardLogic.createCardState({ shuffle: (arr) => arr, random: () => 0.5 });
   const gameState = {
@@ -50,7 +49,7 @@ describe('move-generator expansion pending regression', () => {
     global.cardState = cardState;
     global.gameState = gameState;
 
-    import * as MoveGenerator from '../game/move-generator.js';
+    const MoveGenerator = require('../game/move-generator.js');
     const moves = MoveGenerator.generateMovesForPlayer(Core.BLACK, {
       type: pendingType,
       stage: 'awaitPlace',
@@ -75,7 +74,7 @@ describe('move-generator expansion pending regression', () => {
       cells: [{ side: 'right', row: 0, col: 10, owner: Core.EMPTY }]
     };
 
-    import * as MoveGenerator from '../game/move-generator.js';
+    const MoveGenerator = require('../game/move-generator.js');
     const moves = MoveGenerator.generateMovesForPlayer(Core.BLACK, {
       type: pendingType,
       stage: 'awaitPlace',
@@ -97,7 +96,7 @@ describe('move-generator expansion pending regression', () => {
     gameState.board[0][0] = Core.WHITE;
     gameState.board[1][0] = Core.BLACK;
 
-    import * as MoveGenerator from '../game/move-generator.js';
+    const MoveGenerator = require('../game/move-generator.js');
     const moves = MoveGenerator.generateSwapMoves(Core.BLACK, [], [], []);
 
     expect(moves).toEqual(expect.arrayContaining([
@@ -129,7 +128,7 @@ describe('move-generator expansion pending regression', () => {
     gameState.board[2][8] = Core.WHITE;
     gameState.board[2][7] = Core.BLACK;
 
-    import * as MoveGenerator from '../game/move-generator.js';
+    const MoveGenerator = require('../game/move-generator.js');
     const moves = MoveGenerator.generateSwapMoves(Core.BLACK, [], [], []);
 
     expect(moves).toEqual(expect.arrayContaining([
@@ -152,7 +151,7 @@ describe('move-generator expansion pending regression', () => {
       gameState.board[3][1] = Core.WHITE;
       gameState.board[3][2] = Core.BLACK;
 
-      import * as MoveGenerator from '../game/move-generator.js';
+      const MoveGenerator = require('../game/move-generator.js');
       const moves = MoveGenerator.generateMovesForPlayer(Core.BLACK, {
         type: pendingType,
         stage: 'selectTarget',

@@ -65,8 +65,19 @@ async function handleCloneSelection(row: number, col: number, playerKey: string)
     });
 }
 
+async function handleSplitSelection(row: number, col: number, playerKey: string): Promise<any> {
+    return handleCloneLikeSelection(row, col, playerKey, {
+        pendingType: 'SPLIT_WILL',
+        actionTargetKey: 'splitTarget',
+        selectedEventType: 'split_selected',
+        selectionFailLog: '周囲に空きがある自分の石を選んでください',
+        playbackCause: 'SPLIT_WILL',
+        successLogBuilder: (spawnedCount: number) => `分裂の意志: ${spawnedCount}個を生成`
+    });
+}
+
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { handleCloneSelection };
+    module.exports = { handleCloneSelection, handleSplitSelection };
 }
 
 export {};

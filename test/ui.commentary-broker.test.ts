@@ -7,8 +7,7 @@ describe('ui commentary broker', () => {
     const addLog = jest.fn();
     const showCpuSpeechBubble = jest.fn();
     const requestCommentary = jest.fn(async () => '読み切った');
-    import * as broker from '../ui/commentary-broker.js';
-
+    const broker = require('../ui/commentary-broker.js');
     broker.resetState().initBroker({
       root: {
         CpuCommentaryRuntime: { requestCommentary }
@@ -47,8 +46,7 @@ describe('ui commentary broker', () => {
     const addLog = jest.fn();
     const showHeroSpeechBubble = jest.fn();
     const requestCommentary = jest.fn(async () => 'まだ遊べる。');
-    import * as broker from '../ui/commentary-broker.js';
-
+    const broker = require('../ui/commentary-broker.js');
     broker.resetState().initBroker({
       root: {
         CpuCommentaryRuntime: { requestCommentary }

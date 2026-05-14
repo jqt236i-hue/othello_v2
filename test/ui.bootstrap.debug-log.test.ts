@@ -19,8 +19,7 @@ describe('ui bootstrap debug logging', () => {
     global.location = dom.window.location;
 
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    import * as bootstrap from '../ui/bootstrap.js';
-
+    const bootstrap = require('../ui/bootstrap.js');
     bootstrap.addLog('quiet entry');
     expect(Array.from(document.querySelectorAll('#log .logEntry')).map((el) => el.textContent)).toEqual(['quiet entry']);
     expect(logSpy).not.toHaveBeenCalled();
@@ -42,9 +41,8 @@ describe('ui bootstrap debug logging', () => {
     global.location = dom.window.location;
 
     const infoSpy = jest.spyOn(console, 'info').mockImplementation(() => {});
-    import * as bootstrap from '../ui/bootstrap.js';
-    import * as envCapable from '../is-env-capable.js';
-
+    const bootstrap = require('../ui/bootstrap.js');
+    const envCapable = require('../is-env-capable.js');
     expect(envCapable.isDebugLogAvailable()).toBe(false);
 
     bootstrap.registerUIGlobals({ DEBUG_UNLIMITED_USAGE: true });
@@ -72,9 +70,8 @@ describe('ui bootstrap debug logging', () => {
     global.location = dom.window.location;
 
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    import * as bootstrap from '../ui/bootstrap.js';
-    import * as envCapable from '../is-env-capable.js';
-
+    const bootstrap = require('../ui/bootstrap.js');
+    const envCapable = require('../is-env-capable.js');
     expect(envCapable.isDebugLogAvailable()).toBe(true);
     expect(global.window.debugLog).toBe(bootstrap.debugLog);
 

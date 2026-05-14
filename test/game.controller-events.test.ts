@@ -15,7 +15,7 @@ describe('controller event helpers', () => {
       }
     };
 
-    import * as controllerEvents from '../game/controller-events.js';
+    const controllerEvents = require('../game/controller-events.js');
     expect(controllerEvents.emitBoardUpdate()).toBe(true);
     expect(emit).toHaveBeenCalledWith('BOARD_UPDATED', null);
   });
@@ -35,7 +35,7 @@ describe('controller event helpers', () => {
     };
 
     try {
-      import * as controllerEvents from '../game/controller-events.js';
+      const controllerEvents = require('../game/controller-events.js');
       expect(controllerEvents.emitBoardUpdate({
         source: 'unit-test',
         reason: 'listener_throw'
@@ -53,7 +53,7 @@ describe('controller event helpers', () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
     try {
-      import * as controllerEvents from '../game/controller-events.js';
+      const controllerEvents = require('../game/controller-events.js');
       expect(controllerEvents.emitCardStateChange({
         source: 'unit-test',
         reason: 'missing_event_bus'

@@ -18,9 +18,6 @@ interface InitDomElements {
   bgmPauseBtn: HTMLElement | null;
   bgmTrackSelect: HTMLSelectElement | null;
   bgmVolSlider: HTMLInputElement | null;
-  storyBtn: HTMLElement | null;
-  storyMenuOverlay: HTMLElement | null;
-  tutorialOverlay: HTMLElement | null;
   rulesHelpBtn: HTMLElement | null;
   rulesHelpPanel: HTMLElement | null;
   gachaOpenBtn: HTMLElement | null;
@@ -115,8 +112,6 @@ declare const setupBgmControls: ((playBtn: HTMLElement | null, pauseBtn: HTMLEle
 declare const setupRulesHelp: ((btn: HTMLElement | null, panel: HTMLElement | null) => void) | undefined;
 declare const setupGachaControls: ((opts: { root: Window }) => void) | undefined;
 declare const setupHandSkinControls: ((opts: Record<string, unknown>) => void) | undefined;
-declare const setupStoryControls: ((btn: HTMLElement | null, overlay: HTMLElement | null, tutorialOverlay: HTMLElement | null) => void) | undefined;
-declare const setupStoryBattleUi: ((opts: Record<string, unknown>) => void) | undefined;
 declare const destroySelectedHandCard: (() => void) | undefined;
 declare const useSelectedCard: (() => void) | undefined;
 declare const toggleCardDetailExpanded: (() => void) | undefined;
@@ -195,11 +190,6 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   if (typeof setupHandSkinControls === 'function') {
     setupHandSkinControls({ button: refs.handSkinBtn, panel: refs.handSkinPanel, closeBtn: refs.handSkinCloseBtn, optionsEl: refs.handSkinOptions, handImage: refs.handImage, root });
   }
-  if (typeof setupStoryControls === 'function') setupStoryControls(refs.storyBtn, refs.storyMenuOverlay, refs.tutorialOverlay);
-  if (typeof setupStoryBattleUi === 'function') {
-    setupStoryBattleUi({ root, soundRefs: { muteBtn: refs.muteBtn, seVolSlider: refs.seVolSlider, bgmVolSlider: refs.bgmVolSlider, bgmTrackSelect: refs.bgmTrackSelect } });
-  }
-
   if (refs.sidePanel && refs.sidePanelToggleBtn) {
     const applySidePanelCollapsedState = (collapsed: boolean) => {
       const isCollapsed = collapsed === true;

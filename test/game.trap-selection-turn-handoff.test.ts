@@ -70,7 +70,7 @@ describe('TRAP_WILL selection turn handoff', () => {
     global.MATCH_MODE = 'cpu';
     global.DEBUG_HUMAN_VS_HUMAN = false;
     global.requestAnimationFrame = jest.fn();
-    import * as playbackStateManager from '../ui/playback-state-manager.js';
+    const playbackStateManager = require('../ui/playback-state-manager.js');
     playbackStateManager.clearPlaybackLock();
     global.PlaybackStateManager = playbackStateManager;
   });
@@ -106,8 +106,7 @@ describe('TRAP_WILL selection turn handoff', () => {
   });
 
   test('waits for playback, starts next turn, and schedules white CPU after trap selection', async () => {
-    import { handleTrapSelection } from '../game/card-effects/trap.js';
-
+    const { handleTrapSelection } = require('../game/card-effects/trap.js');
     await handleTrapSelection(2, 2, 'black');
 
     expect(global.onTurnStart).toHaveBeenCalledWith(global.WHITE);
@@ -136,8 +135,7 @@ describe('TRAP_WILL selection turn handoff', () => {
     }));
     globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
 
-    import { handleTrapSelection } from '../game/card-effects/trap.js';
-
+    const { handleTrapSelection } = require('../game/card-effects/trap.js');
     const pendingPromise = handleTrapSelection(2, 2, 'black');
     await Promise.resolve();
     await Promise.resolve();

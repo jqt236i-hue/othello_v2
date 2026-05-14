@@ -3,8 +3,7 @@
 @media (max-width: 56.25em) {
     #gachaOpenBtn,
     #leaderboardOpenBtn,
-    #deckBuilderOpenBtn,
-    #storyBtn {
+    #deckBuilderOpenBtn {
         left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
         min-width: calc(80px * var(--layout-stage-scale));
         padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
@@ -21,10 +20,6 @@
 
     #deckBuilderOpenBtn {
         bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(124px * var(--layout-stage-scale)));
-    }
-
-    #storyBtn {
-        bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(86px * var(--layout-stage-scale)));
     }
 
     #rulesHelpBtn {
@@ -142,43 +137,6 @@
     #networkChatMessages {
         min-height: calc(56px * var(--layout-stage-scale));
         max-height: calc(84px * var(--layout-stage-scale));
-    }
-
-    #tutorialOverlay .tutorial-observer-stage {
-        top: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-top));
-    }
-
-    #tutorialOverlay .tutorial-observer-image {
-        width: calc(126px * var(--layout-stage-scale));
-        height: calc(126px * var(--layout-stage-scale));
-    }
-
-    #tutorialOverlay .tutorial-support-stage {
-        transform: translate(calc(112px * var(--layout-stage-scale)), calc(-44%));
-        width: min(calc(164px * var(--layout-stage-scale)), 32vw);
-    }
-
-    #tutorialOverlay .tutorial-dialog-window {
-        width: min(calc(720px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
-        bottom: calc(max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(8px * var(--layout-stage-scale)));
-    }
-
-    #tutorialOverlay.tutorial-passthrough .tutorial-dialog-window {
-        left: max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        width: min(calc(332px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
-        bottom: calc(max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(12px * var(--layout-stage-scale)));
-    }
-
-    #tutorialOverlay .tutorial-choice-panel {
-        width: min(calc(720px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
-        bottom: calc(max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(196px * var(--layout-stage-scale)));
-    }
-
-    #storyMenuOverlay .story-menu-panel {
-        left: max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        right: max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-right));
-        bottom: calc(max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(162px * var(--layout-stage-scale)));
-        width: auto;
     }
 
 }
@@ -316,11 +274,6 @@ html.layout-profile-phone-portrait #leaderboardOpenBtn {
 html.layout-profile-phone-portrait #deckBuilderOpenBtn {
     left: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left));
     bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(132px * var(--layout-stage-scale)));
-}
-
-html.layout-profile-phone-portrait #storyBtn {
-    left: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left));
-    bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(88px * var(--layout-stage-scale)));
 }
 
 html.layout-profile-phone-portrait #deck-white,
@@ -651,24 +604,6 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
         min-width: 0;
         padding: calc(9px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
         font-size: calc(13px * var(--layout-stage-scale));
-    }
-
-    .story-result-body {
-        grid-template-columns: 1fr;
-        gap: calc(12px * var(--layout-stage-scale));
-    }
-
-    .story-result-portrait-wrap {
-        min-height: calc(132px * var(--layout-stage-scale));
-    }
-
-    .story-result-panel .result-counts,
-    .story-result-panel .result-score-meta {
-        width: 100%;
-    }
-
-    .story-result-panel .result-counts {
-        justify-content: center;
     }
 
     .result-dialogues .character-name {
@@ -1524,19 +1459,6 @@ html.sim-aspect-5-4 #hero-character-img {
         padding: var(--layout-size-card-badge-large-pad-y) var(--layout-size-card-badge-large-pad-x);
     }
 
-    html.layout-stage-enabled:not(.layout-profile-phone-portrait) body.story-battle-active #card-detail-panel {
-        right: max(12px, env(safe-area-inset-right)) !important;
-        bottom: calc(max(12px, env(safe-area-inset-bottom)) + clamp(calc(154px * var(--layout-stage-scale)), 22vh, calc(228px * var(--layout-stage-scale)))) !important;
-        left: auto !important;
-        top: auto !important;
-        width: clamp(calc(190px * var(--layout-stage-scale)), 20vw, calc(230px * var(--layout-stage-scale))) !important;
-        transform: none !important;
-    }
-
-    html.layout-profile-tablet-4x3.layout-stage-enabled body.story-battle-active #card-detail-panel {
-        right: max(12px, env(safe-area-inset-right)) !important;
-        bottom: calc(max(12px, env(safe-area-inset-bottom)) + clamp(calc(154px * var(--layout-stage-scale)), 22vh, calc(228px * var(--layout-stage-scale)))) !important;
-    }
 }
 
 /* Stage-first desktop/tablet layout: keep 1920x1080 relative composition stable. */

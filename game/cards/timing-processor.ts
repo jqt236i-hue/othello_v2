@@ -17,29 +17,52 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../shared-constants')
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
 
-const CardEffectTimingModule = (typeof module === 'object' && module.exports)
-    ? _require('../logic/cards-internal/effect-timing')
-    : (typeof self !== 'undefined' ? (self as any).CardEffectTiming : null);
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return undefined;
+}
 
-const CardTimeBombModule = (typeof module === 'object' && module.exports)
-    ? _require('../logic/cards/time_bomb')
-    : (typeof self !== 'undefined' ? (self as any).CardTimeBomb : null);
+function loadRuntimeModule(id: string, globalKey: string): any {
+    const runtimeValue = getRuntimeGlobalValue(globalKey);
+    if (runtimeValue) return runtimeValue;
 
-const DragonEffectsModule = (typeof module === 'object' && module.exports)
-    ? _require('../logic/effects/dragon')
-    : (typeof self !== 'undefined' ? (self as any).DragonEffects : null);
+    if (typeof module === 'object' && module.exports) {
+        const loaded = safeRequire(id);
+        if (loaded) {
+            if (typeof globalThis !== 'undefined' && !(globalThis as any)[globalKey]) {
+                (globalThis as any)[globalKey] = loaded;
+            }
+            return loaded;
+        }
+    }
 
-const CardUdgModule = (typeof module === 'object' && module.exports)
-    ? _require('../logic/cards/udg')
-    : (typeof self !== 'undefined' ? (self as any).CardUdg : null);
+    return runtimeValue;
+}
 
-const CardHyperactiveModule = (typeof module === 'object' && module.exports)
-    ? _require('../logic/cards/hyperactive')
-    : (typeof self !== 'undefined' ? (self as any).CardHyperactive : null);
+const SharedConstants = loadRuntimeModule('../../shared-constants', 'SharedConstants');
+
+const CardEffectTimingModule = loadRuntimeModule('../logic/cards-internal/effect-timing', 'CardEffectTiming');
+
+const CardTimeBombModule = loadRuntimeModule('../logic/cards/time_bomb', 'CardTimeBomb');
+
+const DragonEffectsModule = loadRuntimeModule('../logic/effects/dragon', 'DragonEffects');
+
+const CardUdgModule = loadRuntimeModule('../logic/cards/udg', 'CardUdg');
+
+const CardHyperactiveModule = loadRuntimeModule('../logic/cards/hyperactive', 'CardHyperactive');
 
 const { EMPTY } = SharedConstants || {};
 

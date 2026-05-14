@@ -1,12 +1,4 @@
 // @ts-nocheck
-import type { CardState, GameState, PlayerKey } from '../src/types';
-
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
-
 // Auto-generated from cards/catalog.json - do not edit directly.
 // Use: node scripts/generate-catalog.js to regenerate.
 const CardCatalog = {
@@ -238,12 +230,12 @@ const CardCatalog = {
     },
     {
       "id": "destroy_01",
-      "name_ja": "破壊神",
+      "name_ja": "破壊の意志",
       "type": "DESTROY_ONE_STONE",
       "cost": 19,
       "desc_ja": "盤上の石1つを破壊する。",
       "display_type_ja": "執行",
-      "name": "破壊神",
+      "name": "破壊の意志",
       "desc": "盤上の石1つを破壊する。"
     },
     {
@@ -305,6 +297,16 @@ const CardCatalog = {
       "display_type_ja": "繁栄",
       "name": "複製の意志",
       "desc": "盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を複製する。生成では反転しない。特殊石は残り持続ターンなどを引き継ぐ。周囲に空きがない石は対象外。"
+    },
+    {
+      "id": "split_01",
+      "name_ja": "分裂の意志",
+      "type": "SPLIT_WILL",
+      "cost": 12,
+      "desc_ja": "盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を分裂させる。生成では反転しない。特殊石は元石・生成石とも残り持続ターンを半減する。周囲に空きがない石は対象外。",
+      "display_type_ja": "繁栄",
+      "name": "分裂の意志",
+      "desc": "盤面上の自分の石1つを選び、周囲8マスの空きからランダム1マスへ同じ石を分裂させる。生成では反転しない。特殊石は元石・生成石とも残り持続ターンを半減する。周囲に空きがない石は対象外。"
     },
     {
       "id": "seed_01",
@@ -580,6 +582,16 @@ const CardCatalog = {
       "desc": "相手手札を公開し、1枚選んで破壊する。"
     },
     {
+      "id": "execution_01",
+      "name_ja": "執行の意志",
+      "type": "EXECUTION_WILL",
+      "cost": 2,
+      "desc_ja": "直前の相手ターンで自分の石が破壊されていた場合に使用可能。相手手札をランダムで最大3枚破壊する。",
+      "display_type_ja": "執行",
+      "name": "執行の意志",
+      "desc": "直前の相手ターンで自分の石が破壊されていた場合に使用可能。相手手札をランダムで最大3枚破壊する。"
+    },
+    {
       "id": "gold_stone",
       "name_ja": "金の意志",
       "type": "GOLD_STONE",
@@ -611,13 +623,13 @@ const CardCatalog = {
     },
     {
       "id": "crystal_stone",
-      "name_ja": "水晶の意志",
+      "name_ja": "演算の意志",
       "type": "CRYSTAL_STONE",
-      "cost": 8,
-      "desc_ja": "次に得る数字マスの布石を4倍にする。使用後その石は消滅。",
+      "cost": 6,
+      "desc_ja": "次に得る数字マスの布石を2倍にする。数字マス以外では何も起こらない。",
       "display_type_ja": "採掘",
-      "name": "水晶の意志",
-      "desc": "次に得る数字マスの布石を4倍にする。使用後その石は消滅。"
+      "name": "演算の意志",
+      "desc": "次に得る数字マスの布石を2倍にする。数字マス以外では何も起こらない。"
     },
     {
       "id": "extend_life_01",
@@ -694,10 +706,10 @@ const CardCatalog = {
       "name_ja": "究極破壊神",
       "type": "ULTIMATE_DESTROY_GOD",
       "cost": 25,
-      "desc_ja": "反転0でも空きマスに配置可能。次に置く石を破壊神化。置いた時に周囲1マス（8方向）の敵石を破壊。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）の敵石を破壊。移動先が無いときはその場で破壊。5ターン持続。",
+      "desc_ja": "反転0でも空きマスに配置可能。次に置く石を究極破壊神化。置いた時に周囲1マス（8方向）の敵石を破壊。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）の敵石を破壊。移動先が無いときはその場で破壊。5ターン持続。",
       "display_type_ja": "戦闘",
       "name": "究極破壊神",
-      "desc": "反転0でも空きマスに配置可能。次に置く石を破壊神化。置いた時に周囲1マス（8方向）の敵石を破壊。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）の敵石を破壊。移動先が無いときはその場で破壊。5ターン持続。"
+      "desc": "反転0でも空きマスに配置可能。次に置く石を究極破壊神化。置いた時に周囲1マス（8方向）の敵石を破壊。自ターン開始時はランダムな空きマスへ移動してから周囲1マス（8方向）の敵石を破壊。移動先が無いときはその場で破壊。5ターン持続。"
     },
     {
       "id": "ultimate_hyperactive_01",
@@ -841,6 +853,5 @@ const CardCatalog = {
     }
   ]
 };
-
 
 export = CardCatalog;

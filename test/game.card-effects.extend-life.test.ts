@@ -4,8 +4,7 @@ jest.mock('../game/card-effects/selection-flow', () => ({
     executePendingSelection: mockExecutePendingSelection
 }));
 
-import { handleCorrosionSelection, handleExtendLifeSelection } from '../game/card-effects/extend-life.js';
-
+const { handleCorrosionSelection, handleExtendLifeSelection } = require('../game/card-effects/extend-life.js');
 describe('extend-life', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();

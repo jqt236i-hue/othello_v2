@@ -1577,12 +1577,7 @@ try {
 }
 
 // dist/game/ai/policy-table-runtime
-try {
-  var _mod190 = require("./dist/game/ai/policy-table-runtime");
-  if (_mod190) Object.assign(window, _mod190);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/game/ai/policy-table-runtime: " + e.message);
-}
+// Node-only table runtime depends on zlib; keep browser boot lazy and let CPU code feature-detect it.
 
 // dist/data/dialogue/fixed-commentary-data
 try {
@@ -1664,118 +1659,6 @@ try {
   console.warn("[boot] skip " + "dist/game/game-controller-slim: " + e.message);
 }
 
-// dist/ui/tutorial/tutorial-state
-try {
-  var _mod201 = require("./dist/ui/tutorial/tutorial-state");
-  if (_mod201) Object.assign(window, _mod201);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/tutorial/tutorial-state: " + e.message);
-}
-
-// dist/ui/tutorial/tutorial-storage
-try {
-  var _mod202 = require("./dist/ui/tutorial/tutorial-storage");
-  if (_mod202) Object.assign(window, _mod202);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/tutorial/tutorial-storage: " + e.message);
-}
-
-// dist/ui/tutorial/tutorial-steps
-try {
-  var _mod203 = require("./dist/ui/tutorial/tutorial-steps");
-  if (_mod203) Object.assign(window, _mod203);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/tutorial/tutorial-steps: " + e.message);
-}
-
-// dist/ui/tutorial/typewriter
-try {
-  var _mod204 = require("./dist/ui/tutorial/typewriter");
-  if (_mod204) Object.assign(window, _mod204);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/tutorial/typewriter: " + e.message);
-}
-
-// dist/ui/tutorial/tutorial-overlay
-try {
-  var _mod205 = require("./dist/ui/tutorial/tutorial-overlay");
-  if (_mod205) Object.assign(window, _mod205);
-  if (_mod205) window.TutorialOverlayModule = _mod205;
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/tutorial/tutorial-overlay: " + e.message);
-}
-
-// dist/ui/tutorial/tutorial-action-wait
-try {
-  var _mod206 = require("./dist/ui/tutorial/tutorial-action-wait");
-  if (_mod206) Object.assign(window, _mod206);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/tutorial/tutorial-action-wait: " + e.message);
-}
-
-// dist/ui/tutorial/tutorial-runtime
-try {
-  var _mod207 = require("./dist/ui/tutorial/tutorial-runtime");
-  if (_mod207) Object.assign(window, _mod207);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/tutorial/tutorial-runtime: " + e.message);
-}
-
-// dist/ui/tutorial/tutorial-scenario-duel
-try {
-  var _mod208 = require("./dist/ui/tutorial/tutorial-scenario-duel");
-  if (_mod208) Object.assign(window, _mod208);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/tutorial/tutorial-scenario-duel: " + e.message);
-}
-
-// dist/ui/tutorial/tutorial-controller
-try {
-  var _mod209 = require("./dist/ui/tutorial/tutorial-controller");
-  if (_mod209) Object.assign(window, _mod209);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/tutorial/tutorial-controller: " + e.message);
-}
-
-// dist/ui/story/story-state
-try {
-  var _mod210 = require("./dist/ui/story/story-state");
-  if (_mod210) Object.assign(window, _mod210);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/story/story-state: " + e.message);
-}
-
-// dist/ui/story/story-steps
-try {
-  var _mod211 = require("./dist/ui/story/story-steps");
-  if (_mod211) Object.assign(window, _mod211);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/story/story-steps: " + e.message);
-}
-
-// dist/ui/story/story-encounter
-try {
-  var _mod212 = require("./dist/ui/story/story-encounter");
-  if (_mod212) Object.assign(window, _mod212);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/story/story-encounter: " + e.message);
-}
-
-// dist/ui/story/story-controller
-try {
-  var _mod213 = require("./dist/ui/story/story-controller");
-  if (_mod213) Object.assign(window, _mod213);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/story/story-controller: " + e.message);
-}
-
-// dist/ui/story/story-battle-ui
-try {
-  var _mod214 = require("./dist/ui/story/story-battle-ui");
-  if (_mod214) Object.assign(window, _mod214);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/story/story-battle-ui: " + e.message);
-}
 
 // dist/ui/handlers/auto
 try {
@@ -1841,6 +1724,7 @@ try {
 try {
   var _mod222 = require("./dist/ui/background-skin/selection");
   if (_mod222) Object.assign(window, _mod222);
+  if (_mod222) window.BackgroundSkinSelectionModule = _mod222;
 } catch (e) {
   console.warn("[boot] skip " + "dist/ui/background-skin/selection: " + e.message);
 }
@@ -1849,6 +1733,7 @@ try {
 try {
   var _mod223 = require("./dist/ui/background-skin/runtime");
   if (_mod223) Object.assign(window, _mod223);
+  if (_mod223) window.BackgroundSkinRuntimeModule = _mod223;
 } catch (e) {
   console.warn("[boot] skip " + "dist/ui/background-skin/runtime: " + e.message);
 }
@@ -1914,21 +1799,6 @@ try {
   console.warn("[boot] skip " + "dist/ui/handlers/hand-skin: " + e.message);
 }
 
-// dist/ui/handlers/story
-try {
-  var _mod230 = require("./dist/ui/handlers/story");
-  if (_mod230) Object.assign(window, _mod230);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/handlers/story: " + e.message);
-}
-
-// dist/ui/handlers/tutorial
-try {
-  var _mod231 = require("./dist/ui/handlers/tutorial");
-  if (_mod231) Object.assign(window, _mod231);
-} catch (e) {
-  console.warn("[boot] skip " + "dist/ui/handlers/tutorial: " + e.message);
-}
 
 // dist/ui/handlers/cpu-policy
 try {
@@ -2014,15 +1884,16 @@ try { window.HandSkinRuntimeModule = window.HandSkinRuntimeModule || require("./
 try { window.HandSkinControllerModule = window.HandSkinControllerModule || require("./dist/ui/hand-skin/controller"); } catch (e) {}
 // Background skin
 try { window.BackgroundSkinCatalogModule = window.BackgroundSkinCatalogModule || require("./dist/ui/background-skin/catalog"); } catch (e) {}
+try { window.BackgroundSkinSelectionModule = window.BackgroundSkinSelectionModule || require("./dist/ui/background-skin/selection"); } catch (e) {}
+try { window.BackgroundSkinRuntimeModule = window.BackgroundSkinRuntimeModule || require("./dist/ui/background-skin/runtime"); } catch (e) {}
 try { window.BackgroundSkinControllerModule = window.BackgroundSkinControllerModule || require("./dist/ui/background-skin/controller"); } catch (e) {}
 // Cosmetic
 try { window.CosmeticCatalogSharedModule = window.CosmeticCatalogSharedModule || require("./dist/ui/cosmetics/catalog-shared"); } catch (e) {}
 try { window.GachaHandCatalogSharedModule = window.GachaHandCatalogSharedModule || require("./dist/shared/gacha-hand-catalog-shared"); } catch (e) {}
 try { window.GachaHandCatalogModule = window.GachaHandCatalogModule || require("./dist/shared/gacha-hand-catalog.generated"); } catch (e) {}
-// Sound & tutorial & presentation
+// Sound & presentation
 try { window.PlacementSoundSelectionModule = window.PlacementSoundSelectionModule || require("./dist/ui/placement-sound-selection"); } catch (e) {}
 try { window.SoundEngineAccessModule = window.SoundEngineAccessModule || require("./dist/ui/sound-engine-access"); } catch (e) {}
-try { window.TutorialOverlayModule = window.TutorialOverlayModule || require("./dist/ui/tutorial/tutorial-overlay"); } catch (e) {}
 try { window.AnimationUtils = window.AnimationUtils || require("./dist/ui/animation-utils"); } catch (e) {}
 try { window.ResultOverlayModule = window.ResultOverlayModule || require("./dist/ui/result-overlay"); } catch (e) {}
 // Core game namespace objects
@@ -2080,12 +1951,26 @@ if (typeof _mod130 !== "undefined" && _mod130) window.NetworkSnapshotPresentatio
 if (typeof _mod131 !== "undefined" && _mod131) window.NetworkSnapshotModule = _mod131;
 if (typeof _mod132 !== "undefined" && _mod132) window.NetworkSessionSeatModule = _mod132;
 if (typeof _mod133 !== "undefined" && _mod133) window.NetworkSessionLifecycleModule = _mod133;
-if (typeof _mod205 !== "undefined" && _mod205) window.TutorialOverlayModule = _mod205;
 if (typeof _mod220 !== "undefined" && _mod220) window.CosmeticCatalogSharedModule = _mod220;
 if (typeof _mod221 !== "undefined" && _mod221) window.BackgroundSkinCatalogModule = _mod221;
+if (typeof _mod222 !== "undefined" && _mod222) window.BackgroundSkinSelectionModule = _mod222;
+if (typeof _mod223 !== "undefined" && _mod223) window.BackgroundSkinRuntimeModule = _mod223;
 if (typeof _mod224 !== "undefined" && _mod224) window.BackgroundSkinControllerModule = _mod224;
 if (typeof _mod94 !== "undefined" && _mod94) window.AnimationUtils = _mod94;
 if (typeof _mod136 !== "undefined" && _mod136) window.HandAnimationUtilsModule = _mod136;
+
+try {
+  window.setTimeout(function() {
+    try {
+      Object.defineProperty(window, "cpuSmartness", {
+        configurable: false,
+        enumerable: false,
+        get: function() { return undefined; },
+        set: function() {}
+      });
+    } catch (e) {}
+  }, 500);
+} catch (e) {}
 
 // ===== Browser runtime shims =====
 window.getElement = function(k) {

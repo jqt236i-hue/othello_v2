@@ -21,7 +21,7 @@ describe('gacha progress storage', () => {
   });
 
   test('defaults to base owned skins only', () => {
-    import * as mod from '../ui/storage/gacha-progress.js';
+    const mod = require('../ui/storage/gacha-progress.js');
     const state = mod.readState(window);
 
     expect(state.observationStones).toBe(0);
@@ -32,8 +32,7 @@ describe('gacha progress storage', () => {
   });
 
   test('awards, spends, and applies mixed pull results with duplicate tracking', () => {
-    import * as mod from '../ui/storage/gacha-progress.js';
-
+    const mod = require('../ui/storage/gacha-progress.js');
     mod.awardObservationStones(window, 250);
     const spend = mod.spendObservationStones(window, 100);
     const apply = mod.applyPullResults(window, [
@@ -68,8 +67,7 @@ describe('gacha progress storage', () => {
   });
 
   test('migrates renamed hand skin ids to canonical owned ids', () => {
-    import * as mod from '../ui/storage/gacha-progress.js';
-
+    const mod = require('../ui/storage/gacha-progress.js');
     const state = mod.writeState(window, {
       ownedHandSkinIds: {
         default: true,

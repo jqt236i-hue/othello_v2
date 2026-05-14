@@ -363,8 +363,7 @@
 }
 
 .card-item.visible.cost-tier-special .card-special-art,
-.card-item.visible[data-card-id="rainbow_stone"] .card-special-art,
-.card-item.visible[data-card-id="crystal_stone"] .card-special-art {
+.card-item.visible[data-card-id="rainbow_stone"] .card-special-art {
     --card-special-art-opacity: 0.37;
 }
 
@@ -597,43 +596,6 @@
         linear-gradient(135deg, rgba(255, 104, 135, 0.98) 0%, rgba(255, 193, 92, 0.96) 32%, rgba(96, 208, 255, 0.96) 66%, rgba(115, 91, 255, 0.96) 100%);
 }
 
-.card-item.visible[data-card-id="crystal_stone"] {
-    --card-tier-bg-a: #83ecff;
-    --card-tier-bg-b: #9dcfff;
-    --card-tier-bg-c: #8a86ff;
-    --card-tier-hi: rgba(255, 255, 255, 0.42);
-    --card-tier-border: #e8fbff;
-    --card-tier-text: #fbffff;
-    --card-tier-badge-bg-a: rgba(192, 247, 255, 0.98);
-    --card-tier-badge-bg-b: rgba(139, 172, 255, 0.97);
-    --card-tier-badge-hi: rgba(255, 255, 255, 0.48);
-    --card-tier-badge-text: #f9feff;
-    --card-tier-badge-border: rgba(232, 251, 255, 0.96);
-    --card-tier-cost-glyph: '◉';
-    --card-tier-name-color: #fbffff;
-    --card-tier-name-plate-bg-a: rgba(84, 122, 171, 0.95);
-    --card-tier-name-plate-bg-b: rgba(46, 68, 108, 0.95);
-    --card-tier-symbol: '◈';
-    --card-tier-symbol-color: rgba(200, 240, 255, 0.06);
-    --card-tier-hover-glow: rgba(120, 220, 255, 0.3);
-    background:
-        radial-gradient(128% 112% at 16% 8%, rgba(255, 255, 255, 0.48) 0%, transparent 40%),
-        linear-gradient(148deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 22%, transparent 22%, transparent 38%, rgba(255, 255, 255, 0.16) 38%, rgba(255, 255, 255, 0.06) 54%, transparent 54%, transparent 71%, rgba(255, 255, 255, 0.18) 71%, rgba(255, 255, 255, 0.04) 100%),
-        linear-gradient(135deg, #7fefff 0%, #b7f7ff 18%, #9fdaff 42%, #7db7ff 64%, #a79cff 84%, #8be7ff 100%);
-    box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.4),
-        inset 0 -2px 0 rgba(40, 69, 118, 0.24),
-        0 0 14px rgba(116, 220, 255, 0.28),
-        0 3px 10px rgba(0, 0, 0, 0.42);
-}
-
-.card-item.visible[data-card-id="crystal_stone"] .card-cost-badge {
-    background:
-        radial-gradient(circle at 28% 22%, rgba(255, 255, 255, 0.54) 0%, transparent 42%),
-        linear-gradient(180deg, rgba(255, 255, 255, 0.48) 0%, transparent 44%),
-        linear-gradient(135deg, rgba(197, 248, 255, 0.99) 0%, rgba(123, 214, 255, 0.97) 45%, rgba(150, 157, 255, 0.96) 100%);
-}
-
 .card-item.visible.cost-tier-special .card-name,
 .card-item.visible[data-card-id="rainbow_stone"] .card-name {
     width: calc(100% - (14px * var(--layout-stage-scale)));
@@ -685,18 +647,6 @@
     animation: foil-sweep 3s ease-in-out infinite;
 }
 
-.card-item.visible[data-card-id="crystal_stone"]::before {
-    background: linear-gradient(
-        135deg,
-        transparent 20%,
-        rgba(255, 255, 255, 0.14) 32%,
-        rgba(200, 240, 255, 0.1) 40%,
-        transparent 52%
-    );
-    background-size: 250% 250%;
-    animation: foil-sweep 3.5s ease-in-out infinite;
-}
-
 /* --- Round 2E: Emboss/gold text on high-tier cards --- */
 .card-item.visible.cost-tier-purple .card-name {
     text-shadow:
@@ -724,13 +674,6 @@
         0 1px 1px rgba(0, 0, 0, 0.5),
         0 -1px 0 rgba(255, 255, 255, 0.12),
         0 0 4px rgba(255, 255, 255, 0.14);
-}
-
-.card-item.visible[data-card-id="crystal_stone"] .card-name {
-    text-shadow:
-        0 1px 1px rgba(0, 0, 0, 0.4),
-        0 -1px 0 rgba(255, 255, 255, 0.15),
-        0 0 4px rgba(200, 240, 255, 0.14);
 }
 
 .card-item.hidden {
@@ -881,9 +824,7 @@
 #hand-black .card-item.visible.cost-tier-special,
 #hand-white .card-item.visible.cost-tier-special,
 #hand-black .card-item.visible[data-card-id="rainbow_stone"],
-#hand-white .card-item.visible[data-card-id="rainbow_stone"],
-#hand-black .card-item.visible[data-card-id="crystal_stone"],
-#hand-white .card-item.visible[data-card-id="crystal_stone"] {
+#hand-white .card-item.visible[data-card-id="rainbow_stone"] {
     animation: none;
 }
 
@@ -892,9 +833,7 @@
 #hand-black .card-item.visible.cost-tier-special::before,
 #hand-white .card-item.visible.cost-tier-special::before,
 #hand-black .card-item.visible[data-card-id="rainbow_stone"]::before,
-#hand-white .card-item.visible[data-card-id="rainbow_stone"]::before,
-#hand-black .card-item.visible[data-card-id="crystal_stone"]::before,
-#hand-white .card-item.visible[data-card-id="crystal_stone"]::before {
+#hand-white .card-item.visible[data-card-id="rainbow_stone"]::before {
     animation: none;
     background-position: 50% 50%;
 }

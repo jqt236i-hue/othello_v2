@@ -1,2 +1,2 @@
 const path = require('path');
-module.exports = require(path.join(__dirname, '..', '..', 'dist', 'constants', 'difficulty-constants.js'));
+module.exports = require(path.join(process.cwd(), 'dist', 'constants', 'difficulty-constants.js'));

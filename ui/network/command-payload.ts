@@ -36,7 +36,7 @@ function resolvePendingCoordinatorModule(override?: any): any {
   if (override && typeof override === 'object') return override;
   if (pendingCoordinatorModule) return pendingCoordinatorModule;
   try {
-    pendingCoordinatorModule = _require('../../game/turn/pending-coordinator');
+    pendingCoordinatorModule = _require('../../../game/turn/pending-coordinator');
   } catch (e) { /* ignore */ }
   if (!pendingCoordinatorModule && typeof globalThis !== 'undefined' && (globalThis as any).PendingCoordinator) {
     pendingCoordinatorModule = (globalThis as any).PendingCoordinator;
@@ -145,6 +145,16 @@ function buildPublishCommandPayload(info: any, options?: any): any {
           action: action
         }
       );
+      if (
+        opts.includePlayerParam === true
+        && serialized.actionType === 'place'
+        && params
+        && typeof params === 'object'
+        && params.pendingSelectionState
+        && (typeof params.player === 'undefined' || params.player === null || params.player === '')
+      ) {
+        params.player = serialized.actor || playerKey;
+      }
       serialized.params = params;
       if (!schema || typeof schema.shouldUseCommandPayload !== 'function' || schema.shouldUseCommandPayload(serialized)) {
         return serialized;

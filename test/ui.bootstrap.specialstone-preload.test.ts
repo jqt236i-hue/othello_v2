@@ -34,7 +34,7 @@ describe('ui/bootstrap special stone preload', () => {
       return { started: ['assets/images/stones/ultimate_reverse_dragon-black.png'], skipped: [] };
     });
 
-    import * as uiBootstrap from '../ui/bootstrap.js';
+    const uiBootstrap = require('../ui/bootstrap.js');
     const result = uiBootstrap.preloadSpecialStoneVisuals();
 
     expect(global.getSupportedEffectKeys).toHaveBeenCalledTimes(1);
@@ -53,7 +53,7 @@ describe('ui/bootstrap special stone preload', () => {
     global.getSupportedEffectKeys = jest.fn(() => ['ultimateDragon', 'ultimateDestroyGod']);
     global.preloadStoneVisualEffectKeys = jest.fn(() => ({ started: [], skipped: [] }));
 
-    import * as uiBootstrap from '../ui/bootstrap.js';
+    const uiBootstrap = require('../ui/bootstrap.js');
     uiBootstrap.installGameDI();
 
     expect(global.preloadStoneVisualEffectKeys).toHaveBeenCalledTimes(1);

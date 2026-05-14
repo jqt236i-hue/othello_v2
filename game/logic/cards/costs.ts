@@ -17,9 +17,12 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const SharedConstants = (typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
+const RuntimeSharedConstants = (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants)
+    ? (globalThis as any).SharedConstants
     : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+const SharedConstants = RuntimeSharedConstants || ((typeof module === 'object' && module.exports)
+    ? _require('../../../shared-constants')
+    : undefined);
 
 const { CARD_DEFS } = SharedConstants || {};
 

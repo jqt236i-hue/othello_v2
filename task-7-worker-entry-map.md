@@ -38,7 +38,6 @@ Source prepare config in `scripts/prepare-worker-assets.ts` declares root files:
 
 ```text
 index.html
-story-deck-lab.html
 is-env-capable.js
 shared-constants.js
 card-system.js
@@ -51,7 +50,6 @@ styles-board.css
 styles-cards.css
 styles-layout.css
 styles-responsive.css
-styles-story-deck-lab.css
 styles-stone-shadows.css
 styles-variables.css
 ```

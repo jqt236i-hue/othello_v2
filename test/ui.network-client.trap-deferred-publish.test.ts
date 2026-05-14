@@ -229,7 +229,7 @@ describe('NetworkMatchClient trap deferred publish', () => {
     expect(global.gameState.board).toHaveLength(7);
     expect(global.gameState.board[0]).toHaveLength(9);
 
-    import { handleTrapSelection } from '../game/card-effects/trap.js';
+    const { handleTrapSelection } = require('../game/card-effects/trap.js');
     await handleTrapSelection(6, 8, 'black');
 
     await new Promise((resolve) => setTimeout(resolve, 0));

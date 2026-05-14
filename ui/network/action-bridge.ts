@@ -15,7 +15,7 @@ function resolveCardLogicModule(override?: any): any {
   if (override && typeof override === 'object') return override;
   if (cardLogicModule) return cardLogicModule;
   try {
-    cardLogicModule = _require('../../game/logic/cards');
+    cardLogicModule = _require('../../game/logic/cards.js');
   } catch (e) { /* ignore */ }
   if (!cardLogicModule && typeof globalThis !== 'undefined' && (globalThis as any).CardLogic) {
     cardLogicModule = (globalThis as any).CardLogic;
@@ -27,7 +27,7 @@ function resolvePendingCoordinatorModule(override?: any): any {
   if (override && typeof override === 'object') return override;
   if (pendingCoordinatorModule) return pendingCoordinatorModule;
   try {
-    pendingCoordinatorModule = _require('../../game/turn/pending-coordinator');
+    pendingCoordinatorModule = _require('../../game/turn/pending-coordinator.js');
   } catch (e) { /* ignore */ }
   if (!pendingCoordinatorModule && typeof globalThis !== 'undefined' && (globalThis as any).PendingCoordinator) {
     pendingCoordinatorModule = (globalThis as any).PendingCoordinator;
@@ -241,7 +241,8 @@ function createNetworkActionBridge(config?: any): any {
           const cardType = resolveCardTypeForId(cardId, {
             cardLogicModule: cfg.cardLogicModule
           });
-          if (!cardType && !hasCardInHand(cardStateArg, playerKey, cardId, cfg.normalizePlayerKey)) {
+          const pendingCoordinator = resolvePendingCoordinatorModule(cfg.pendingCoordinatorModule);
+          if (pendingCoordinator && !cardType) {
             return {
               ok: false,
               rejectedReason: 'PENDING_CARD_TYPE_UNRESOLVED',

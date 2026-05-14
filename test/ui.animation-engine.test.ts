@@ -7,15 +7,14 @@ describe('animation-engine _sleep', () => {
     jest.doMock('../ui/animation-shared.js', () => ({ isNoAnim: () => true, getTimer: () => ({ setTimeout: () => {}, clearTimeout: () => {}, clearAll: () => {} }) }));
     // Minimal fake document so the PlaybackEngine constructor succeeds in node tests
     global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     // _sleep should resolve immediately (no waiting) when NOANIM mode is active
     await expect(engine._sleep(1000)).resolves.toBeUndefined();
   });
 
   test('returns 500ms fade only for breeding spawn targets', () => {
     global.document = { getElementById: () => ({ classList: { add() {}, remove() {} }, querySelector: () => null, getBoundingClientRect: () => ({}) }) };
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     expect(engine.getSpawnFadeInMs({ cause: 'BREEDING', reason: 'breeding_spawn' })).toBe(500);
     expect(engine.getSpawnFadeInMs({ cause: 'BREEDING', reason: 'breeding_spawn_immediate' })).toBe(500);
     expect(engine.getSpawnFadeInMs({ cause: 'SYSTEM', reason: 'standard_place' })).toBe(0);
@@ -28,8 +27,7 @@ describe('animation-engine _sleep', () => {
       init: jest.fn(),
       playEffectByKey
     };
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     await engine.executePhase([
       { type: 'sound_effect', phase: 5, targets: [{ soundKey: 'charge_gain_common' }] },
       { type: 'sound_effect', phase: 5, targets: [{ soundKey: 'treasure_gain' }] }
@@ -53,7 +51,7 @@ describe('animation-engine _sleep', () => {
       playEffectByKey
     };
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     engine._sleep = jest.fn(() => Promise.resolve());
 
     await engine.play([
@@ -76,8 +74,7 @@ describe('animation-engine _sleep', () => {
       showRoundBonusDisplay: jest.fn()
     };
 
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     await engine.executePhase([
       {
         type: 'round_bonus_banner',
@@ -102,7 +99,7 @@ describe('animation-engine _sleep', () => {
     global.window = {};
     global.emitBoardUpdate = jest.fn();
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     engine._sleep = jest.fn(() => Promise.resolve());
     const executePhaseSpy = jest.spyOn(engine, 'executePhase').mockResolvedValue(undefined);
 
@@ -131,7 +128,7 @@ describe('animation-engine _sleep', () => {
   });
 
   test('network の place_hand_animation -> 特殊 spawn では通常石への描き戻しなしで配置する', async () => {
-    import { JSDOM } from 'jsdom';
+    const { JSDOM } = require('jsdom');
     const dom = new JSDOM(`
       <!doctype html>
       <html>
@@ -160,7 +157,7 @@ describe('animation-engine _sleep', () => {
     global.window.applyStoneVisualEffect = applyStoneVisualEffect;
     global.emitBoardUpdate = jest.fn();
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     global.window.MATCH_MODE = 'network';
     global.window.playHandAnimation = jest.fn((player, row, col, done) => {
       if (typeof done === 'function') done();
@@ -213,8 +210,7 @@ describe('animation-engine _sleep', () => {
       getCardDef: jest.fn(() => ({ id: 'TREASURE_BOX_001', type: 'TREASURE_BOX' }))
     };
 
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     await engine.executePhase([
       { type: 'card_use_animation', phase: 1, targets: [{ player: 'white', owner: 'white', cardId: 'TREASURE_BOX_001' }] }
     ]);
@@ -243,8 +239,7 @@ describe('animation-engine _sleep', () => {
       getCardDef: jest.fn(() => ({ id: 'WORK_WILL_001', type: 'WORK_WILL' }))
     };
 
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     await engine.executePhase([
       { type: 'card_use_animation', phase: 1, targets: [{ player: 'white', owner: 'white', cardId: 'WORK_WILL_001' }] }
     ]);
@@ -269,8 +264,7 @@ describe('animation-engine _sleep', () => {
       init: jest.fn(),
       playEffectByKey
     };
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     await engine.executePhase([
       { type: 'sound_effect', phase: 5, targets: [{ soundKey: 'stone_destroy' }] }
     ]);
@@ -295,8 +289,7 @@ describe('animation-engine _sleep', () => {
       init: jest.fn(),
       playEffectByKey
     };
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     await engine.executePhase([
       { type: 'sound_effect', phase: 5, targets: [{ soundKey: 'charge_gain_common' }] }
     ]);
@@ -321,8 +314,7 @@ describe('animation-engine _sleep', () => {
       init: jest.fn(),
       playEffectByKey
     };
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     await engine.executePhase([
       {
         type: 'card_use_animation',

@@ -72,6 +72,7 @@ export type CardType =
   | 'HEAVEN_BLESSING'
   | 'REVEAL_HAND_WILL'
   | 'CONDEMN_WILL'
+  | 'EXECUTION_WILL'
   | 'GOLD_STONE'
   | 'RAINBOW_STONE'
   | 'SILVER_STONE'

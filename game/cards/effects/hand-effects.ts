@@ -1,6 +1,6 @@
 /**
  * @file hand-effects.ts
- * @description Hand effects: Heaven Blessing, Reveal Hand, Condemn
+ * @description Hand effects: Heaven Blessing, Reveal Hand, Condemn, Execution
  */
 
 import type { CardState, PlayerKey } from '../../../src/types';
@@ -150,9 +150,69 @@ function applyCondemnWill(cardState: CardState, playerKey: PlayerKey, targetInde
     return { applied: true, destroyedCardId };
 }
 
+function applyExecutionWill(cardState: CardState, playerKey: PlayerKey, prng: any, deps: any): Record<string, any> {
+    const readCardPendingEffect = deps && deps.readCardPendingEffect;
+    const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
+    const removeHandCardAt = deps && deps.removeHandCardAt;
+    const addCardToDiscard = deps && deps.addCardToDiscard;
+    const resolveDeterministicRandomIndex = deps && deps.resolveDeterministicRandomIndex;
+
+    if (
+        typeof readCardPendingEffect !== 'function' ||
+        typeof clearCardPendingEffect !== 'function' ||
+        typeof removeHandCardAt !== 'function' ||
+        typeof addCardToDiscard !== 'function' ||
+        typeof resolveDeterministicRandomIndex !== 'function'
+    ) {
+        return { applied: false, reason: 'deps_missing' };
+    }
+
+    const pending = readCardPendingEffect(cardState, playerKey);
+    if (!pending || pending.type !== 'EXECUTION_WILL' || pending.stage !== null) {
+        return { applied: false, reason: 'pending_not_found' };
+    }
+
+    const opponentKey = playerKey === 'black' ? 'white' : 'black';
+    const opponentHand = (cardState.hands && Array.isArray(cardState.hands[opponentKey])) ? cardState.hands[opponentKey] : null;
+    if (!opponentHand) {
+        return { applied: false, reason: 'invalid_hand' };
+    }
+
+    const requestedCount = Math.min(3, opponentHand.length);
+    if (requestedCount <= 0) {
+        clearCardPendingEffect(cardState, playerKey);
+        return { applied: false, reason: 'opponent_hand_empty', opponentKey, requestedCount: 0, destroyedCount: 0, destroyedCardIds: [] };
+    }
+
+    const destroyedCardIds: string[] = [];
+    for (let destroyIndex = 0; destroyIndex < requestedCount; destroyIndex += 1) {
+        if (opponentHand.length <= 0) break;
+        const handIndex = resolveDeterministicRandomIndex(
+            opponentHand.length,
+            prng,
+            null,
+            'CardHandEffects.applyExecutionWill'
+        );
+        const removed = removeHandCardAt(cardState, opponentKey, handIndex);
+        if (!removed || !removed.cardId) break;
+        addCardToDiscard(cardState, removed.cardId, removed.cardCopyId);
+        destroyedCardIds.push(removed.cardId);
+    }
+
+    clearCardPendingEffect(cardState, playerKey);
+    return {
+        applied: destroyedCardIds.length > 0,
+        opponentKey,
+        requestedCount,
+        destroyedCount: destroyedCardIds.length,
+        destroyedCardIds
+    };
+}
+
 export = {
     applyHeavenBlessingChoice,
     applyRevealHandWill,
     parseHiddenHandToken,
-    applyCondemnWill
+    applyCondemnWill,
+    applyExecutionWill
 };

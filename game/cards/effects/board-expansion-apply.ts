@@ -1,7 +1,9 @@
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
 (function (root: any, factory: any) {
-    if (typeof module === 'object' && module.exports) {
+    if (root && root.SharedConstants) {
+        root.CardBoardExpansionApply = factory(root.SharedConstants);
+    } else if (typeof module === 'object' && module.exports) {
         module.exports = factory(require('../../../shared-constants'));
     } else {
         root.CardBoardExpansionApply = factory(root.SharedConstants);

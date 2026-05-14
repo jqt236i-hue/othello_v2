@@ -1,7 +1,7 @@
 describe('DiffRenderer flip suppression (post-playback sync)', () => {
   beforeEach(() => {
     // Minimal DOM (this repo's Jest environment may be "node", so create JSDOM explicitly)
-    import { JSDOM } from 'jsdom';
+    const { JSDOM } = require('jsdom');
     const dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
     global.window = dom.window;
     global.document = dom.window.document;
@@ -33,9 +33,8 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
   });
 
   test('does not apply fallback .flip when __suppressNextDiffFlip is set', () => {
-    import * as playbackState from '../ui/playback-state-manager.js';
-    import * as diff from '../ui/diff-renderer.js';
-
+    const playbackState = require('../ui/playback-state-manager.js');
+    const diff = require('../ui/diff-renderer.js');
     // Initial state: black stone at (0,0)
     gameState.board[0][0] = BLACK;
     diff.forceFullRender(boardEl);
@@ -61,10 +60,9 @@ describe('DiffRenderer flip suppression (post-playback sync)', () => {
   });
 
   test('does not apply fallback .flip when snapshot sync is allowed during pending playback', () => {
-    import * as playbackState from '../ui/playback-state-manager.js';
-    import * as boardUpdateSyncRuntime from '../ui/board-update-sync-runtime.js';
-    import * as diff from '../ui/diff-renderer.js';
-
+    const playbackState = require('../ui/playback-state-manager.js');
+    const boardUpdateSyncRuntime = require('../ui/board-update-sync-runtime.js');
+    const diff = require('../ui/diff-renderer.js');
     gameState.board[0][0] = BLACK;
     diff.forceFullRender(boardEl);
 

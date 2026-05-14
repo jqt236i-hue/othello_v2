@@ -2,7 +2,7 @@ require('../game/turn-manager');
 
 describe('turn-manager scheduling', () => {
   beforeEach(() => {
-    import * as adapter from '../game/turn/pipeline_ui_adapter.js';
+    const adapter = require('../game/turn/pipeline_ui_adapter.js');
     if (adapter && typeof adapter.clearDeferredGeneratedThrowChainPlayback === 'function') {
       adapter.clearDeferredGeneratedThrowChainPlayback();
     }
@@ -23,11 +23,11 @@ describe('turn-manager scheduling', () => {
   });
 
   afterEach(() => {
-    import * as adapter from '../game/turn/pipeline_ui_adapter.js';
+    const adapter = require('../game/turn/pipeline_ui_adapter.js');
     if (adapter && typeof adapter.clearDeferredGeneratedThrowChainPlayback === 'function') {
       adapter.clearDeferredGeneratedThrowChainPlayback();
     }
-    import * as cpuTurnHandler from '../game/cpu-turn-handler.js';
+    const cpuTurnHandler = require('../game/cpu-turn-handler.js');
     if (cpuTurnHandler && typeof cpuTurnHandler.resetCpuTurnHandlerState === 'function') {
       cpuTurnHandler.resetCpuTurnHandlerState();
     }
@@ -71,10 +71,10 @@ describe('turn-manager scheduling', () => {
 
   test('handleCellClick executes move immediately after hand animation callback', async () => {
     // Spy on internal timers module to ensure no settle-delay wait is used
-    import * as timersModule from '../game/timers.js';
+    const timersModule = require('../game/timers.js');
     const spy = jest.spyOn(timersModule, 'waitMs').mockImplementation(() => Promise.resolve());
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.handleCellClick(0, 0);
     expect(global.executeMove).toHaveBeenCalled();
     expect(spy).not.toHaveBeenCalled();
@@ -90,7 +90,7 @@ describe('turn-manager scheduling', () => {
     global.emitPresentationEventViaBoardOps = jest.fn();
     global.playHandAnimation = jest.fn();
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.handleCellClick(0, 0);
 
     expect(global.executeMove).toHaveBeenCalledTimes(1);
@@ -109,7 +109,7 @@ describe('turn-manager scheduling', () => {
     };
     global.handleGuardSelection = jest.fn();
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.handleCellClick(2, 3);
 
     expect(global.handleGuardSelection).toHaveBeenCalledWith(2, 3, 'black');
@@ -118,7 +118,7 @@ describe('turn-manager scheduling', () => {
   });
 
   test('handleCellClick allows pending board selection during card-use animation handoff', () => {
-    import * as playbackStateManager from '../ui/playback-state-manager.js';
+    const playbackStateManager = require('../ui/playback-state-manager.js');
     playbackStateManager.clearPlaybackLock();
     playbackStateManager.armSelectionEntryPlaybackContext({
       playerKey: 'black',
@@ -137,7 +137,7 @@ describe('turn-manager scheduling', () => {
     };
     global.handleGuardSelection = jest.fn();
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.handleCellClick(2, 3);
 
     expect(global.handleGuardSelection).toHaveBeenCalledWith(2, 3, 'black');
@@ -153,7 +153,7 @@ describe('turn-manager scheduling', () => {
       }
     };
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.handleCellClick(4, 4);
 
     expect(global.findMoveForCell).not.toHaveBeenCalled();
@@ -170,7 +170,7 @@ describe('turn-manager scheduling', () => {
       _presentationEventsPersist: queues._presentationEventsPersist
     };
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.handleCellClick(0, 0);
 
     expect(global.findMoveForCell).not.toHaveBeenCalled();
@@ -187,7 +187,7 @@ describe('turn-manager scheduling', () => {
       _presentationEventsPersist: queues._presentationEventsPersist
     };
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.handleCellClick(0, 0);
 
     expect(global.findMoveForCell).toHaveBeenCalled();
@@ -199,7 +199,7 @@ describe('turn-manager scheduling', () => {
     global.isCardAnimating = true;
     global.AnimationEngine = { isPlaying: false };
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.handleCellClick(0, 0);
 
     expect(global.findMoveForCell).toHaveBeenCalled();
@@ -212,7 +212,7 @@ describe('turn-manager scheduling', () => {
     global.isCardAnimating = true;
     global.AnimationEngine = { isPlaying: true };
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.handleCellClick(0, 0);
 
     expect(global.findMoveForCell).not.toHaveBeenCalled();
@@ -238,7 +238,7 @@ describe('turn-manager scheduling', () => {
       clearPlaybackLock
     };
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.handleCellClick(0, 0);
 
     expect(clearPlaybackLock).toHaveBeenCalledTimes(1);
@@ -267,7 +267,7 @@ describe('turn-manager scheduling', () => {
       clearPlaybackLock
     };
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.handleCellClick(0, 0);
 
     expect(abortPlayback).toHaveBeenCalledTimes(1);
@@ -286,7 +286,7 @@ describe('turn-manager scheduling', () => {
     global.cardState = { pendingEffectByPlayer: { white: null } };
     global.findMoveForCell = jest.fn((player, r, c) => ({ player, row: r, col: c, flips: [] }));
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.handleCellClick(2, 3);
 
     expect(global.executeMove).toHaveBeenCalledTimes(1);
@@ -302,7 +302,7 @@ describe('turn-manager scheduling', () => {
     global.cardState = { pendingEffectByPlayer: { white: null } };
     global.findMoveForCell = jest.fn((player, r, c) => ({ player, row: r, col: c, flips: [] }));
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.handleCellClick(4, 5);
 
     expect(global.executeMove).toHaveBeenCalledTimes(1);
@@ -329,7 +329,7 @@ describe('turn-manager scheduling', () => {
 
     const uiResetSpy = jest.fn();
     const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.setUIImpl({
       resetTransientUIState: uiResetSpy,
       readCpuSmartness: () => ({ black: 2, white: 3 }),
@@ -381,7 +381,7 @@ describe('turn-manager scheduling', () => {
       _presentationEventsPersist: []
     };
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.setUIImpl({
       resetTransientUIState: jest.fn(),
       readCpuSmartness: () => ({ black: 2, white: 3 }),
@@ -425,7 +425,7 @@ describe('turn-manager scheduling', () => {
       }
     };
 
-    import * as PendingCoordinator from '../game/turn/pending-coordinator.js';
+    const PendingCoordinator = require('../game/turn/pending-coordinator.js');
     PendingCoordinator.createPendingSelectionAction(
       'black',
       'POSITION_SWAP_WILL',
@@ -436,7 +436,7 @@ describe('turn-manager scheduling', () => {
       turnIndex: 5
     }));
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.setUIImpl({
       resetTransientUIState: jest.fn(),
       readCpuSmartness: () => ({ black: 2, white: 3 }),
@@ -478,7 +478,7 @@ describe('turn-manager scheduling', () => {
       onTurnStart: jest.fn(() => Promise.resolve())
     };
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.setUIImpl({
       resetTransientUIState: jest.fn(),
       readCpuSmartness: () => ({ black: 2, white: 3 }),
@@ -503,7 +503,7 @@ describe('turn-manager scheduling', () => {
   });
 
   test('resetGame は前ゲームの CPU retry latch をクリアして新規対局の再試行を許可する', async () => {
-    import * as cpuTurnHandler from '../game/cpu-turn-handler.js';
+    const cpuTurnHandler = require('../game/cpu-turn-handler.js');
     const waitMs = jest.fn(() => new Promise(() => {}));
     cpuTurnHandler.setTimers({ waitMs });
 
@@ -541,7 +541,7 @@ describe('turn-manager scheduling', () => {
     global.updateCpuCharacter = jest.fn();
     global.dealInitialCards = jest.fn(() => new Promise(() => {}));
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.setUIImpl({
       resetTransientUIState: jest.fn(),
       readCpuSmartness: () => ({ black: 2, white: 3 }),
@@ -555,7 +555,7 @@ describe('turn-manager scheduling', () => {
   });
 
   test('resetGame は遅延 generated throw chain hand_add queue をクリアする', () => {
-    import * as adapter from '../game/turn/pipeline_ui_adapter.js';
+    const adapter = require('../game/turn/pipeline_ui_adapter.js');
     const queuedBoard = Array.from({ length: 8 }, () => Array(8).fill(0));
     const queuedPipeline = {
       applyTurnSafe: jest.fn(() => ({
@@ -609,7 +609,7 @@ describe('turn-manager scheduling', () => {
       _presentationEventsPersist: []
     };
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.setUIImpl({
       resetTransientUIState: jest.fn(),
       readCpuSmartness: () => ({ black: 2, white: 3 }),
@@ -675,7 +675,7 @@ describe('turn-manager scheduling', () => {
       _presentationEventsPersist: []
     };
 
-    import * as rm from '../game/turn-manager.js';
+    const rm = require('../game/turn-manager.js');
     rm.setUIImpl({
       readCpuSmartness: () => ({ black: 2, white: 3 }),
       clearLogUI: jest.fn()
@@ -694,5 +694,109 @@ describe('turn-manager scheduling', () => {
       },
       playbackEvents: []
     });
+  });
+
+  test('network mode の boot resetGame は skipNetworkPublish 指定で reset_game command publish を送らない', async () => {
+    const publishSnapshot = jest.fn(() => Promise.resolve({ ok: true }));
+    global.MATCH_MODE = 'network';
+    global.NetworkMatchClient = {
+      isActive: () => true,
+      getSeatKey: () => 'white',
+      publishSnapshot
+    };
+
+    global.cpuSmartness = { black: 2, white: 3 };
+    global.createGameState = jest.fn(() => ({
+      currentPlayer: global.BLACK,
+      turnNumber: 0,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    }));
+    global.initCardState = jest.fn(() => {
+      global.cardState = {
+        pendingEffectByPlayer: { black: null, white: null },
+        presentationEvents: [],
+        _presentationEventsPersist: [],
+        hands: { black: [], white: [] },
+        turnCountByPlayer: { black: 0, white: 0 }
+      };
+    });
+    global.emitLogAdded = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    global.updateCpuCharacter = jest.fn();
+    global.TurnPipelinePhases = { applyTurnStartPhase: jest.fn() };
+    global.cardState = {
+      pendingEffectByPlayer: {},
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+
+    const rm = require('../game/turn-manager.js');
+    rm.setUIImpl({
+      readCpuSmartness: () => ({ black: 2, white: 3 }),
+      clearLogUI: jest.fn()
+    });
+
+    rm.resetGame({ skipNetworkPublish: true, source: 'bootstrap_init' });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(publishSnapshot).not.toHaveBeenCalled();
+  });
+
+  test('起動時 resetGame が後から network active になっても stale reset_game publish を送らない', async () => {
+    const publishSnapshot = jest.fn(() => Promise.resolve({ ok: true }));
+    let networkActive = false;
+    let dealResolve;
+    global.MATCH_MODE = 'cpu';
+    global.NetworkMatchClient = {
+      isActive: () => networkActive,
+      getSeatKey: () => 'white',
+      publishSnapshot
+    };
+
+    global.cpuSmartness = { black: 2, white: 3 };
+    global.createGameState = jest.fn(() => ({
+      currentPlayer: global.BLACK,
+      turnNumber: 0,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    }));
+    global.initCardState = jest.fn(() => {
+      global.cardState = {
+        pendingEffectByPlayer: { black: null, white: null },
+        presentationEvents: [],
+        _presentationEventsPersist: [],
+        hands: { black: [], white: [] },
+        turnCountByPlayer: { black: 0, white: 0 }
+      };
+    });
+    global.emitLogAdded = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    global.updateCpuCharacter = jest.fn();
+    global.TurnPipelinePhases = { applyTurnStartPhase: jest.fn() };
+    global.dealInitialCards = jest.fn(() => new Promise((resolve) => {
+      dealResolve = resolve;
+    }));
+    global.cardState = {
+      pendingEffectByPlayer: {},
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+
+    const rm = require('../game/turn-manager.js');
+    rm.setUIImpl({
+      readCpuSmartness: () => ({ black: 2, white: 3 }),
+      clearLogUI: jest.fn()
+    });
+
+    rm.resetGame();
+
+    global.MATCH_MODE = 'network';
+    networkActive = true;
+    dealResolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(publishSnapshot).not.toHaveBeenCalled();
   });
 });

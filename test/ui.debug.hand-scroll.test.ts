@@ -1,6 +1,5 @@
 import * as path from 'path';
-import { JSDOM } from 'jsdom';
-
+const { JSDOM } = require('jsdom');
 function dispatchPointer(target, type, props) {
   const ev = new Event(type, { bubbles: true, cancelable: true });
   const p = props || {};

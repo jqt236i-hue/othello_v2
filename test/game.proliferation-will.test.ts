@@ -1,9 +1,8 @@
 import * as Shared from '../shared-constants.js';
-import * as CardLogic from '../game/logic/cards.js';
-import * as BoardOps from '../game/logic/board_ops.js';
-import * as TurnPipeline from '../game/turn/turn_pipeline.js';
-import * as TurnPipelineUIAdapter from '../game/turn/pipeline_ui_adapter.js';
-
+const CardLogic = require('../game/logic/cards.js');
+const BoardOps = require('../game/logic/board_ops.js');
+const TurnPipeline = require('../game/turn/turn_pipeline.js');
+const TurnPipelineUIAdapter = require('../game/turn/pipeline_ui_adapter.js');
 const PROLIFERATION_DURATION = 10;
 
 function createPrng(randomValues = [0]) {
@@ -230,7 +229,7 @@ describe('PROLIFERATION_WILL（増殖の意志）', () => {
     expect(findProliferationMarker(cardState, 0, 0)).toBeTruthy();
   });
 
-  test('破壊神の破壊対象になっても selection は成立し、pending を消費して増殖する', () => {
+  test('破壊の意志の破壊対象になっても selection は成立し、pending を消費して増殖する', () => {
     const { cardState, gameState, prng } = createState([0]);
 
     for (let row = 2; row <= 4; row++) {

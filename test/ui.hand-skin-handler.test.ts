@@ -1,5 +1,5 @@
 import * as fs from 'fs';
-import * as path from 'path';
+const path = require('path');
 import { JSDOM } from 'jsdom';
 
 describe('hand skin handler', () => {
@@ -41,7 +41,7 @@ describe('hand skin handler', () => {
   }
 
   function unlockAltGachaHandSkin() {
-    import * as storageModule from '../ui/storage/gacha-progress.js';
+    const storageModule = require('../ui/storage/gacha-progress.js');
     storageModule.unlockHandSkinIds(window, [ALT_GACHA_HAND_SKIN_ID]);
     return storageModule;
   }
@@ -61,8 +61,7 @@ describe('hand skin handler', () => {
   test('applies stored unlocked gacha hand skin and updates selected option state', () => {
     unlockAltGachaHandSkin();
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
-    import * as mod from '../ui/handlers/hand-skin.js';
-
+    const mod = require('../ui/handlers/hand-skin.js');
     const api = mod.setupHandSkinControls({ root: window });
     expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
 
@@ -78,11 +77,10 @@ describe('hand skin handler', () => {
   });
 
   test('legacy renamed hand skin ids resolve to the canonical renamed skin', () => {
-    import * as storageModule from '../ui/storage/gacha-progress.js';
+    const storageModule = require('../ui/storage/gacha-progress.js');
     storageModule.unlockHandSkinIds(window, ['gacha__n__hand-swap']);
     window.localStorage.setItem('othello.handSkin', 'gacha__n__hand-swap');
-    import * as mod from '../ui/handlers/hand-skin.js';
-
+    const mod = require('../ui/handlers/hand-skin.js');
     const api = mod.setupHandSkinControls({ root: window });
 
     expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
@@ -92,7 +90,7 @@ describe('hand skin handler', () => {
 
   test('opens and closes panel, and clicking an option persists the selection', () => {
     unlockAltGachaHandSkin();
-    import * as mod from '../ui/handlers/hand-skin.js';
+    const mod = require('../ui/handlers/hand-skin.js');
     mod.setupHandSkinControls({ root: window });
 
     const button = document.getElementById('handSkinBtn');
@@ -117,8 +115,7 @@ describe('hand skin handler', () => {
 
   test('unowned gacha skin in storage falls back to default', () => {
     window.localStorage.setItem('othello.handSkin', 'gacha__n__小鬼の手');
-    import * as mod from '../ui/handlers/hand-skin.js';
-
+    const mod = require('../ui/handlers/hand-skin.js');
     const api = mod.setupHandSkinControls({ root: window });
 
     expect(api.getSelectedSkinId()).toBe('default');
@@ -126,11 +123,10 @@ describe('hand skin handler', () => {
   });
 
   test('owned gacha skins appear in the skin selector and can be applied', () => {
-    import * as storageModule from '../ui/storage/gacha-progress.js';
+    const storageModule = require('../ui/storage/gacha-progress.js');
     storageModule.unlockHandSkinIds(window, ['gacha__n__小鬼の手']);
     window.localStorage.setItem('othello.handSkin', 'gacha__n__小鬼の手');
-    import * as mod from '../ui/handlers/hand-skin.js';
-
+    const mod = require('../ui/handlers/hand-skin.js');
     const api = mod.setupHandSkinControls({ root: window });
     const options = Array.from(document.querySelectorAll('.hand-skin-option'));
     const gachaOption = options.find((button) => button.getAttribute('data-hand-skin-id') === 'gacha__n__小鬼の手');
@@ -143,15 +139,14 @@ describe('hand skin handler', () => {
   });
 
   test('asset manifest update refreshes selector and display for newly added gacha hand skins', () => {
-    import * as bootstrap from '../ui/bootstrap.js';
-    import * as storageModule from '../ui/storage/gacha-progress.js';
+    const bootstrap = require('../ui/bootstrap.js');
+    const storageModule = require('../ui/storage/gacha-progress.js');
     const manifestOnlySkinId = 'gacha__ur__天空の手';
     const manifestOnlySkinPath = 'assets/images/Gacha/UR/天空の手.png';
     storageModule.unlockHandSkinIds(window, [manifestOnlySkinId]);
     window.localStorage.setItem('othello.handSkin', manifestOnlySkinId);
     bootstrap.setLoadedAssetManifest(null, { root: window, dispatch: false });
-    import * as mod from '../ui/handlers/hand-skin.js';
-
+    const mod = require('../ui/handlers/hand-skin.js');
     const api = mod.setupHandSkinControls({ root: window });
     expect(api.getSelectedSkinId()).toBe('default');
     expect(document.querySelector(`[data-hand-skin-id="${manifestOnlySkinId}"]`)).toBeNull();
@@ -174,8 +169,7 @@ describe('hand skin handler', () => {
     window.cpuSmartness = { white: 6 };
     unlockAltGachaHandSkin();
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
-    import * as mod from '../ui/handlers/hand-skin.js';
-
+    const mod = require('../ui/handlers/hand-skin.js');
     const api = mod.setupHandSkinControls({ root: window });
     const handImage = document.getElementById('handImage');
 
@@ -203,8 +197,7 @@ describe('hand skin handler', () => {
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
     appendCpuLevelSelect('smartBlack', 1);
     appendCpuLevelSelect('smartWhite', 4);
-    import * as mod from '../ui/handlers/hand-skin.js';
-
+    const mod = require('../ui/handlers/hand-skin.js');
     const api = mod.setupHandSkinControls({ root: window });
     const handImage = document.getElementById('handImage');
     const visual = mod.resolveHandVisualOptions(window, 'white');
@@ -233,8 +226,7 @@ describe('hand skin handler', () => {
     window.cpuSmartness = { white: 4 };
     unlockAltGachaHandSkin();
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
-    import * as mod from '../ui/handlers/hand-skin.js';
-
+    const mod = require('../ui/handlers/hand-skin.js');
     mod.setupHandSkinControls({ root: window });
 
     const handImage = document.getElementById('handImage');
@@ -248,8 +240,7 @@ describe('hand skin handler', () => {
     window.cpuSmartness = { black: 3, white: 1 };
     unlockAltGachaHandSkin();
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
-    import * as mod from '../ui/handlers/hand-skin.js';
-
+    const mod = require('../ui/handlers/hand-skin.js');
     const visual = mod.resolveHandVisualOptions(window, 'black');
     expect(visual).toMatchObject({ ownerKey: 'black', cpu: true, cpuLevel: 3 });
 
@@ -274,8 +265,7 @@ describe('hand skin handler', () => {
     window.cpuSmartness = { white: 4 };
     unlockAltGachaHandSkin();
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
-    import * as mod from '../ui/handlers/hand-skin.js';
-
+    const mod = require('../ui/handlers/hand-skin.js');
     mod.setupHandSkinControls({ root: window });
 
     const handImage = document.getElementById('handImage');
@@ -294,8 +284,7 @@ describe('hand skin handler', () => {
     };
     unlockAltGachaHandSkin();
     window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
-    import * as mod from '../ui/handlers/hand-skin.js';
-
+    const mod = require('../ui/handlers/hand-skin.js');
     mod.setupHandSkinControls({ root: window });
 
     const handImage = document.getElementById('handImage');
@@ -320,8 +309,7 @@ describe('hand skin handler', () => {
       updateHandSkin
     };
     unlockAltGachaHandSkin();
-    import * as mod from '../ui/handlers/hand-skin.js';
-
+    const mod = require('../ui/handlers/hand-skin.js');
     const api = mod.setupHandSkinControls({ root: window });
     api.selectSkin(ALT_GACHA_HAND_SKIN_ID);
 

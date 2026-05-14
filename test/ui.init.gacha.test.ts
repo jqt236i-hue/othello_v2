@@ -1,6 +1,5 @@
 import * as path from 'path';
-import { JSDOM } from 'jsdom';
-
+const { JSDOM } = require('jsdom');
 describe('initializeUI gacha wiring', () => {
   beforeEach(() => {
     jest.resetModules();
@@ -48,7 +47,7 @@ describe('initializeUI gacha wiring', () => {
   });
 
   test('UI初期化時にガチャ設定を接続する', () => {
-    import * as initModule from '../ui/handlers/init.js';
+    const initModule = require('../ui/handlers/init.js');
     initModule.initializeUI();
 
     expect(global.setupGachaControls).toHaveBeenCalledWith({

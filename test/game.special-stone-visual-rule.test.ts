@@ -1,7 +1,6 @@
 import * as Shared from '../shared-constants.js';
-import * as CardUtils from '../game/logic/cards/utils.js';
-import * as CardLogic from '../game/logic/cards.js';
-
+const CardUtils = require('../game/logic/cards/utils.js');
+const CardLogic = require('../game/logic/cards.js');
 function createCardState() {
   return {
     markers: [],

@@ -1,12 +1,3 @@
-declare const __non_webpack_require__: NodeRequire | undefined;
+import runtime = require('./visual-effects-map.runtime');
 
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
-
-import type { CardState, GameState, PlayerKey } from '../src/types';
-
-/** @type {any} */
-('../dist/game/visual-effects-map');
-
-export = require;
+export = runtime;

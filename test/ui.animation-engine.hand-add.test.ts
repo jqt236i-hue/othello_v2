@@ -37,7 +37,7 @@ describe('animation-engine hand_add', () => {
   });
 
   test('delegates draw-style hand_add to draw-hand animation helper', async () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     await engine.executeEvent({
       type: 'hand_add',
       targets: [{ player: 'black', cardId: 'card_1', count: 1 }]
@@ -51,7 +51,7 @@ describe('animation-engine hand_add', () => {
 
   test('keeps HAND_ADD adaptation thin and leaves visual resolution to draw-hand animation helper', async () => {
     global.window.resolveHandVisualOptions = jest.fn(() => ({ ownerKey: 'white', cpu: true, cpuLevel: 4 }));
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     await engine.executeEvent({
       type: 'hand_add',
       targets: [{ player: 'white', cardId: 'card_2', count: 1 }]
@@ -64,7 +64,7 @@ describe('animation-engine hand_add', () => {
   });
 
   test('passes through explicit CPU visual metadata already attached to HAND_ADD payload', async () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     await engine.executeEvent({
       type: 'hand_add',
       targets: [{ player: 'white', cardId: 'card_2', count: 1, cpu: true, cpuLevel: 4 }]
@@ -76,7 +76,7 @@ describe('animation-engine hand_add', () => {
   });
 
   test('delegates generated throw-chain hand_add to direct hand animation helper', async () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     await engine.executeEvent({
       type: 'hand_add',
       targets: [{ player: 'black', cardId: 'triple_01', count: 1, reason: 'generated_throw_chain', sourceType: 'DOUBLE_PLACE' }]
@@ -92,7 +92,7 @@ describe('animation-engine hand_add', () => {
   });
 
   test('delegates capture_to_hand_animation to capture hand animation helper', async () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     await engine.executeEvent({
       type: 'capture_to_hand_animation',
       targets: [{
@@ -129,7 +129,7 @@ describe('animation-engine hand_add', () => {
   });
 
   test('delegates card_use_animation to card-use hand animation helper', async () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     const sourceCardEl = { nodeType: 1 };
     const sourceCardRect = { left: 220, top: 500, width: 90, height: 120, right: 310, bottom: 620 };
     const disappearPlaybackEvents = [{
@@ -172,7 +172,7 @@ describe('animation-engine hand_add', () => {
   });
 
   test('delegates place_hand_animation to placement hand helper for remote network moves', async () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     global.window.MATCH_MODE = 'network';
     global.window.LOCAL_PLAYER_KEY = 'black';
 
@@ -186,7 +186,7 @@ describe('animation-engine hand_add', () => {
   });
 
   test('plays place_hand_animation for local network moves from authoritative playback', async () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     global.window.MATCH_MODE = 'network';
     global.window.LOCAL_PLAYER_KEY = 'black';
 
@@ -199,8 +199,21 @@ describe('animation-engine hand_add', () => {
     expect(global.window.playHandAnimation).toHaveBeenCalledWith(global.BLACK, 2, 5, expect.any(Function));
   });
 
+  test('delegates place_hand_animation in local CPU mode', async () => {
+    const engine = require('../ui/animation-engine.js');
+    global.window.MATCH_MODE = 'cpu';
+
+    await engine.executeEvent({
+      type: 'place_hand_animation',
+      targets: [{ player: 'black', owner: 'black', r: 2, col: 3 }]
+    });
+
+    expect(global.window.playHandAnimation).toHaveBeenCalledTimes(1);
+    expect(global.window.playHandAnimation).toHaveBeenCalledWith(global.BLACK, 2, 3, expect.any(Function));
+  });
+
   test('delegates hand_remove to clear-hand animation helper', async () => {
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     await engine.executeEvent({
       type: 'hand_remove',
       targets: [{ player: 'black', count: 2, reason: 'rebuild_will', cardId: 'x1', cardIds: ['x1', 'x2'] }]
@@ -213,8 +226,7 @@ describe('animation-engine hand_add', () => {
   });
 
   test('card_use_animation 自体では card_use_button を直接再生しない', async () => {
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     await engine.executeEvent({
       type: 'card_use_animation',
       targets: [{ player: 'white', owner: 'white', cardId: 'enemy_card_1', cost: 5, name: 'Enemy Card' }]
@@ -225,8 +237,7 @@ describe('animation-engine hand_add', () => {
   });
 
   test('treasure box の card_use_animation でも直接 sound を鳴らさない', async () => {
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     await engine.executeEvent({
       type: 'card_use_animation',
       targets: [{ player: 'white', owner: 'white', cardId: 'TREASURE_BOX_001', cost: 8, name: '宝箱' }]

@@ -15,7 +15,6 @@ declare const TurnPipeline: any;
 declare const ActionManager: any;
 declare let isProcessing: any;
 declare const processCpuTurn: any;
-declare const globalThis: any;
 declare const getPlayerName: any;
 declare const emitBoardUpdate: any;
 declare const emitGameStateChange: any;
@@ -54,27 +53,37 @@ let passHandlerPendingCoordinator: any = null;
 let passHandlerTurnPipelineModule: any = null;
 if (typeof require === 'function') {
     try { timers = require('./timers'); } catch (e) { /* ignore */ }
-    try { OwnerHelpersModule = require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
-    try { passHandlerNetworkTurnHandoff = require('./network-turn-handoff'); } catch (e) { /* ignore */ }
-    try { passHandlerPendingCoordinator = require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
-    try { passHandlerTurnPipelineModule = require('./turn/turn_pipeline'); } catch (e) { /* ignore */ }
+    try { OwnerHelpersModule = require('../utils/owner-helpers.js'); } catch (e) { /* ignore */ }
+    try { passHandlerNetworkTurnHandoff = require('./network-turn-handoff.js'); } catch (e) { /* ignore */ }
+    try { passHandlerPendingCoordinator = require('./turn/pending-coordinator.js'); } catch (e) { /* ignore */ }
+    try { passHandlerTurnPipelineModule = require('./turn/turn_pipeline.js'); } catch (e) { /* ignore */ }
 }
 // DI imports for UI-cross-boundary modules (graceful degradation via try/catch)
 let playbackStateManagerModule: any = null;
 let cpuTurnHandlerModule: any = null;
 let networkMatchClientModule: any = null;
 if (typeof require === 'function') {
-    try { playbackStateManagerModule = require('../dist/ui/playback-state-manager'); } catch (e) { /* ignore */ }
     try { cpuTurnHandlerModule = require('./cpu-turn-handler'); } catch (e) { /* ignore */ }
     try { networkMatchClientModule = require('../dist/ui/network-client'); } catch (e) { /* ignore */ }
+}
+
+function setPlaybackStateManager(module: any) {
+    playbackStateManagerModule = module;
+}
+
+function setNetworkMatchClient(module: any) {
+    networkMatchClientModule = module;
 }
 
 function getPlaybackStateForPassHandler() {
     if (playbackStateManagerModule) return playbackStateManagerModule;
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) {
-            return globalThis.PlaybackStateManager;
+        if (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackStateManager) {
+            return (globalThis as any).PlaybackStateManager;
         }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof require === 'function') return require('../dist/ui/playback-state-manager');
     } catch (e) { /* ignore */ }
     return null;
 }
@@ -217,32 +226,37 @@ function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
 
 function getCurrentMatchModeSafe() {
     try {
-        if (OwnerHelpersModule && typeof OwnerHelpersModule.getCurrentMatchMode === 'function') {
-            return OwnerHelpersModule.getCurrentMatchMode();
+        if (typeof globalThis !== 'undefined' && (globalThis as any).MATCH_MODE) {
+            return (globalThis as any).MATCH_MODE;
         }
     } catch (e) { /* ignore */ }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.MATCH_MODE) {
-            return globalThis.MATCH_MODE;
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.getCurrentMatchMode === 'function') {
+            return OwnerHelpersModule.getCurrentMatchMode();
         }
     } catch (e) { /* ignore */ }
     return null;
 }
 
+function isExplicitNetworkMatchMode() {
+    return String(getCurrentMatchModeSafe() || '').trim().toLowerCase() === 'network';
+}
+
 function isHumanVsHumanModeEnabled() {
-    const debugHvH = typeof globalThis !== 'undefined' && globalThis.DEBUG_HUMAN_VS_HUMAN === true;
+    const debugHvH = typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
     const matchMode = getCurrentMatchModeSafe();
     return debugHvH || matchMode === 'network';
 }
 
 function isNetworkModeEnabled() {
+    const matchMode = getCurrentMatchModeSafe();
+    if (isExplicitNetworkMatchMode()) return true;
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function') {
             return OwnerHelpersModule.isNetworkMode();
         }
     } catch (e) { /* ignore */ }
-    const matchMode = getCurrentMatchModeSafe();
-    return matchMode === 'network';
+    return false;
 }
 
 function isCpuControlledPlayer(playerKey: string) {
@@ -256,8 +270,11 @@ function isCpuControlledPlayer(playerKey: string) {
 function publishNetworkSnapshot(meta: any) {
     let client = networkMatchClientModule;
     try {
-        if (!client && typeof globalThis !== 'undefined' && globalThis.NetworkMatchClient) {
-            client = globalThis.NetworkMatchClient;
+        if (!client && typeof globalThis !== 'undefined' && (globalThis as any).NetworkMatchClient) {
+            client = (globalThis as any).NetworkMatchClient;
+        }
+        if (!client && typeof require === 'function') {
+            try { client = require('../dist/ui/network-client'); } catch (e) { /* ignore */ }
         }
         if (!client) return;
         if (typeof client.publishSnapshot !== 'function') return;
@@ -301,6 +318,12 @@ function hasUsableCardFor(playerKey: string) {
 function resolveCoreApi() {
     if (typeof Core !== 'undefined' && Core && typeof Core.getLegalMoves === 'function') return Core;
     if (typeof CoreLogic !== 'undefined' && CoreLogic && typeof CoreLogic.getLegalMoves === 'function') return CoreLogic;
+    if (typeof require === 'function') {
+        try {
+            const coreModule = require('./logic/core');
+            if (coreModule && typeof coreModule.getLegalMoves === 'function') return coreModule;
+        } catch (e) { /* ignore */ }
+    }
     return null;
 }
 
@@ -545,6 +568,9 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishActio
 
 async function finalizePassTurnHandoff(lastPlayerKey: string, publishAction: any) {
     const safeLastPlayerKey = normalizePlayerKey(lastPlayerKey, 'black');
+    if (isExplicitNetworkMatchMode()) {
+        return legacyFinalizePassTurnHandoff(safeLastPlayerKey, publishAction);
+    }
     const finalizeTurn = (passHandlerNetworkTurnHandoff && typeof passHandlerNetworkTurnHandoff.finalizeNetworkTurnHandoff === 'function')
         ? passHandlerNetworkTurnHandoff.finalizeNetworkTurnHandoff
         : null;
@@ -638,12 +664,14 @@ export = {
     processPassTurn,
     hasUsableCardFor,
     ensureCurrentPlayerCanActOrPass,
-    setPassHandlerTimerService
+    setPassHandlerTimerService,
+    setPlaybackStateManager,
+    setNetworkMatchClient
 };
 // @compat - backward-compat exports for legacy callers
 try {
     if (typeof globalThis !== 'undefined') {
-        try { globalThis.processPassTurn = processPassTurn; } catch (e) { /* ignore */ }
-        try { globalThis.ensureCurrentPlayerCanActOrPass = ensureCurrentPlayerCanActOrPass; } catch (e) { /* ignore */ }
+        try { (globalThis as any).processPassTurn = processPassTurn; } catch (e) { /* ignore */ }
+        try { (globalThis as any).ensureCurrentPlayerCanActOrPass = ensureCurrentPlayerCanActOrPass; } catch (e) { /* ignore */ }
     }
 } catch (e) { /* ignore */ }

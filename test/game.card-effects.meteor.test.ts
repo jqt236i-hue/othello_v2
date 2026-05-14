@@ -4,8 +4,7 @@ jest.mock('../game/card-effects/selection-flow', () => ({
     executePendingSelection: mockExecutePendingSelection
 }));
 
-import { handleMeteorSelection } from '../game/card-effects/meteor.js';
-
+const { handleMeteorSelection } = require('../game/card-effects/meteor.js');
 describe('meteor', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();

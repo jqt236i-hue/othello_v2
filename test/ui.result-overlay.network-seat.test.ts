@@ -48,7 +48,7 @@ describe('result overlay seat perspective', () => {
     window.NetworkMatchClient = { getSeatKey: () => 'white' };
     global.countDiscs.mockReturnValue({ black: 24, white: 40 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const overlay = document.getElementById('result-overlay');
@@ -63,7 +63,7 @@ describe('result overlay seat perspective', () => {
     window.NetworkMatchClient = { getSeatKey: () => 'white' };
     global.countDiscs.mockReturnValue({ black: 41, white: 23 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const overlay = document.getElementById('result-overlay');
@@ -78,7 +78,7 @@ describe('result overlay seat perspective', () => {
     window.NetworkMatchClient = { getSeatKey: () => ' WHITE ' };
     global.countDiscs.mockReturnValue({ black: 24, white: 40 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const overlay = document.getElementById('result-overlay');
@@ -92,7 +92,7 @@ describe('result overlay seat perspective', () => {
   test('座席情報が無い場合は従来通り黒視点で判定する', () => {
     global.countDiscs.mockReturnValue({ black: 39, white: 25 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const overlay = document.getElementById('result-overlay');
@@ -106,7 +106,7 @@ describe('result overlay seat perspective', () => {
   test('勝敗タイトルと最終スコアの間に黒白の石枚数を表示する', () => {
     global.countDiscs.mockReturnValue({ black: 48, white: 16 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const title = document.querySelector('.result-title');
@@ -124,8 +124,8 @@ describe('result overlay seat perspective', () => {
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
 
     try {
-      import * as mod from '../ui/result-overlay.js';
-      import * as storageModule from '../ui/storage/gacha-progress.js';
+      const mod = require('../ui/result-overlay.js');
+      const storageModule = require('../ui/storage/gacha-progress.js');
       mod.showResultOverlay();
 
       const rewardLine = document.querySelector('.result-observation-stones');
@@ -145,8 +145,8 @@ describe('result overlay seat perspective', () => {
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(1 - Number.EPSILON);
 
     try {
-      import * as mod from '../ui/result-overlay.js';
-      import * as storageModule from '../ui/storage/gacha-progress.js';
+      const mod = require('../ui/result-overlay.js');
+      const storageModule = require('../ui/storage/gacha-progress.js');
       mod.showResultOverlay();
 
       const rewardLine = document.querySelector('.result-observation-stones');
@@ -163,8 +163,8 @@ describe('result overlay seat perspective', () => {
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
 
     try {
-      import * as mod from '../ui/result-overlay.js';
-      import * as storageModule from '../ui/storage/gacha-progress.js';
+      const mod = require('../ui/result-overlay.js');
+      const storageModule = require('../ui/storage/gacha-progress.js');
       mod.showResultOverlay();
 
       const rewardLine = document.querySelector('.result-observation-stones');
@@ -183,8 +183,8 @@ describe('result overlay seat perspective', () => {
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.75);
 
     try {
-      import * as mod from '../ui/result-overlay.js';
-      import * as storageModule from '../ui/storage/gacha-progress.js';
+      const mod = require('../ui/result-overlay.js');
+      const storageModule = require('../ui/storage/gacha-progress.js');
       mod.showResultOverlay();
 
       const rewardLine = document.querySelector('.result-observation-stones');
@@ -204,8 +204,8 @@ describe('result overlay seat perspective', () => {
     const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0);
 
     try {
-      import * as mod from '../ui/result-overlay.js';
-      import * as storageModule from '../ui/storage/gacha-progress.js';
+      const mod = require('../ui/result-overlay.js');
+      const storageModule = require('../ui/storage/gacha-progress.js');
       mod.showResultOverlay();
 
       const rewardLine = document.querySelector('.result-observation-stones');
@@ -219,7 +219,7 @@ describe('result overlay seat perspective', () => {
   });
 
   test('結果表示 state helper は version/unversioned の表示済みフラグを初期化する', () => {
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     const state = mod.createEmptyResultPresentationState();
     state.lastResultVersionShown = 12;
     state.resultShownForUnversioned = true;
@@ -236,7 +236,7 @@ describe('result overlay seat perspective', () => {
     global.cardState.totalFlipCountByPlayer = { black: 12, white: 9 };
     global.cardState.cornerCaptureCountByPlayer = { black: 3, white: 1 };
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const labels = Array.from(document.querySelectorAll('.result-stat-label')).map((el) => el.textContent);
@@ -253,7 +253,7 @@ describe('result overlay seat perspective', () => {
   test('盤面が全マス自色なら完全勝利表示になる', () => {
     global.countDiscs.mockReturnValue({ black: 64, white: 0 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const overlay = document.getElementById('result-overlay');
@@ -269,7 +269,7 @@ describe('result overlay seat perspective', () => {
     window.NetworkMatchClient = { getSeatKey: () => 'white' };
     global.countDiscs.mockReturnValue({ black: 64, white: 0 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const overlay = document.getElementById('result-overlay');
@@ -284,7 +284,7 @@ describe('result overlay seat perspective', () => {
   test('空きマスがあっても盤面石が自色のみなら完全勝利表示になる', () => {
     global.countDiscs.mockReturnValue({ black: 35, white: 0 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const overlay = document.getElementById('result-overlay');
@@ -300,7 +300,7 @@ describe('result overlay seat perspective', () => {
     window.NetworkMatchClient = { getSeatKey: () => 'white' };
     global.countDiscs.mockReturnValue({ black: 35, white: 0 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const overlay = document.getElementById('result-overlay');
@@ -321,7 +321,7 @@ describe('result overlay seat perspective', () => {
     global.cardState.turnIndex = 0;
     global.gameState.turnNumber = -1;
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const totalScore = document.querySelector('.result-total-score-value');
@@ -345,7 +345,7 @@ describe('result overlay seat perspective', () => {
     global.cardState.cornerCaptureCountByPlayer = { black: 2, white: 0 };
     global.cardState.turnCountByPlayer = { black: 20, white: 19 };
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const breakdownText = (document.querySelector('.result-score-breakdown') || {}).textContent || '';
@@ -359,7 +359,7 @@ describe('result overlay seat perspective', () => {
     global.cardState.cornerCaptureCountByPlayer = { black: 1, white: 0 };
     global.cardState.turnCountByPlayer = { black: 40, white: 39 };
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const breakdownText = (document.querySelector('.result-score-breakdown') || {}).textContent || '';
@@ -373,7 +373,7 @@ describe('result overlay seat perspective', () => {
   test('詳細統計は初期非表示でボタン押下で展開される', () => {
     global.countDiscs.mockReturnValue({ black: 40, white: 24 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const toggleBtn = document.querySelector('.result-detail-toggle');
@@ -398,7 +398,7 @@ describe('result overlay seat perspective', () => {
     global.cardState.turnIndex = 0;
     global.gameState.turnNumber = -1;
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const key = 'othello_cpu_leaderboard_v5';
@@ -414,7 +414,7 @@ describe('result overlay seat perspective', () => {
     global.countDiscs.mockReturnValue({ black: 52, white: 12 });
     global.cardState.turnCountByPlayer = { black: 40, white: 40 };
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const metaText = (document.querySelector('.result-score-meta') || {}).textContent || '';
@@ -432,7 +432,7 @@ describe('result overlay seat perspective', () => {
     };
     global.countDiscs.mockReturnValue({ black: 44, white: 20 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     expect(submitScore).toHaveBeenCalled();
@@ -446,7 +446,7 @@ describe('result overlay seat perspective', () => {
     };
     global.countDiscs.mockReturnValue({ black: 44, white: 20 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     expect(submitScore).not.toHaveBeenCalled();
@@ -462,7 +462,7 @@ describe('result overlay seat perspective', () => {
     };
     global.countDiscs.mockReturnValue({ black: 36, white: 28 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const restartBtn = document.querySelector('.result-btn-row .premium-btn.primary');
@@ -484,7 +484,7 @@ describe('result overlay seat perspective', () => {
     };
     global.countDiscs.mockReturnValue({ black: 30, white: 34 });
 
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     mod.showResultOverlay();
 
     const restartBtn = document.querySelector('.result-btn-row .premium-btn.primary');
@@ -497,7 +497,7 @@ describe('result overlay seat perspective', () => {
   });
 
   test('syncResultPresentationFromSnapshot は stateVersion ごとに 1 回だけ結果表示する', () => {
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     const showResult = jest.fn();
     global.isGameOver = jest.fn(() => true);
     const syncState = {
@@ -526,7 +526,7 @@ describe('result overlay seat perspective', () => {
   });
 
   test('syncResultPresentationFromSnapshot は非終局 snapshot で既存 overlay を閉じる', () => {
-    import * as mod from '../ui/result-overlay.js';
+    const mod = require('../ui/result-overlay.js');
     global.isGameOver = jest.fn(() => false);
     const overlay = document.createElement('div');
     overlay.id = 'result-overlay';
@@ -600,8 +600,7 @@ describe('showResult __resultToken race condition', () => {
   // readers), and that the overlay IS shown even when it is subsequently deleted.
   test('__resultToken が消えても遅延オーバーレイ表示はガードで止まらない（修正後の動作）', () => {
     jest.useFakeTimers();
-    import * as mod from '../ui/result-overlay.js';
-
+    const mod = require('../ui/result-overlay.js');
     mod.showResult();
 
     expect(typeof global.gameState.__resultToken).toBe('number');
@@ -622,8 +621,7 @@ describe('showResult __resultToken race condition', () => {
   // the result overlay must still appear while the game remains terminal.
   test('__resultToken が消えても終局なら結果オーバーレイを表示すべき（レースバグ）', () => {
     jest.useFakeTimers();
-    import * as mod from '../ui/result-overlay.js';
-
+    const mod = require('../ui/result-overlay.js');
     mod.showResult();
 
     // Simulate follow-up snapshot replacing gameState without __resultToken

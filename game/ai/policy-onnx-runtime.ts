@@ -302,6 +302,45 @@ function getStatus() {
 
 let _ort: any = null;
 try { _ort = _require('onnxruntime-web'); } catch (e) { /* ignore */ }
+if (!_ort) {
+    try {
+        const maybeOrt = (typeof globalThis !== 'undefined' && (globalThis as any))
+            ? (globalThis as any).ort
+            : null;
+        if (maybeOrt) {
+            _ort = maybeOrt;
+        }
+    } catch (e) { /* ignore */ }
+}
+if (_ort && _ort.env && typeof _ort.env === 'object') {
+    try {
+        _ort.env.logLevel = 'error';
+    } catch (e) { /* ignore */ }
+}
+
+function isWebGpuExecutionOptIn() {
+    try {
+        const scope: any = (typeof globalThis !== 'undefined') ? globalThis : null;
+        if (scope && scope.ENABLE_ONNX_WEBGPU === true) return true;
+        if (typeof location !== 'undefined' && typeof location.search === 'string') {
+            if (/[?&]onnxWebGpu=1(?:&|$)/.test(location.search)) return true;
+            if (/[?&]onnxWebGpu=true(?:&|$)/i.test(location.search)) return true;
+        }
+    } catch (e) {
+        return false;
+    }
+    return false;
+}
+
+async function createInferenceSession(ortApi: any, modelUrl: any) {
+    const preferredProviders = isWebGpuExecutionOptIn() ? ['webgpu', 'wasm'] : ['wasm'];
+    try {
+        return await ortApi.InferenceSession.create(modelUrl, { executionProviders: preferredProviders });
+    } catch (primaryErr) {
+        if (preferredProviders.length === 1 && preferredProviders[0] === 'wasm') throw primaryErr;
+        return await ortApi.InferenceSession.create(modelUrl, { executionProviders: ['wasm'] });
+    }
+}
 
 function resolveOrtApi(requireSession: any): any {
     if (_ort && typeof _ort.Tensor === 'function' &&
@@ -368,12 +407,7 @@ async function loadFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any) {
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _metaUrl;
 
     try {
-        let session: any = null;
-        try {
-            session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['webgpu', 'wasm'] });
-        } catch (primaryErr) {
-            session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['wasm'] });
-        }
+        const session = await createInferenceSession(ortApi, targetModel);
         const meta = await loadMetaJson(targetMeta, fetchImpl);
         _session = session;
         _meta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
@@ -407,12 +441,7 @@ async function loadCardModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any)
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _cardMetaUrl;
 
     try {
-        let session: any = null;
-        try {
-            session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['webgpu', 'wasm'] });
-        } catch (primaryErr) {
-            session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['wasm'] });
-        }
+        const session = await createInferenceSession(ortApi, targetModel);
         const meta = await loadMetaJson(targetMeta, fetchImpl);
         _cardSession = session;
         _cardMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
@@ -448,12 +477,7 @@ async function loadTargetModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: an
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _targetMetaUrl;
 
     try {
-        let session: any = null;
-        try {
-            session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['webgpu', 'wasm'] });
-        } catch (primaryErr) {
-            session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['wasm'] });
-        }
+        const session = await createInferenceSession(ortApi, targetModel);
         const meta = await loadMetaJson(targetMeta, fetchImpl);
         _targetSession = session;
         _targetMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
@@ -487,12 +511,7 @@ async function loadValueModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _valueMetaUrl;
 
     try {
-        let session: any = null;
-        try {
-            session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['webgpu', 'wasm'] });
-        } catch (primaryErr) {
-            session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['wasm'] });
-        }
+        const session = await createInferenceSession(ortApi, targetModel);
         const meta = await loadMetaJson(targetMeta, fetchImpl);
         _valueSession = session;
         _valueMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };

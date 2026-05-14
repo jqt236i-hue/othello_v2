@@ -5,7 +5,7 @@ describe('ui playback engine dispatch', () => {
   });
 
   test('dispatchPresentationEvent routes playback and scheduled turn separately', async () => {
-    import * as playbackEngine from '../ui/playback-engine.js';
+    const playbackEngine = require('../ui/playback-engine.js');
     const animationEngine = { play: jest.fn().mockResolvedValue(undefined) };
     const scheduleCpuTurnEvent = jest.fn();
 
@@ -36,7 +36,7 @@ describe('ui playback engine dispatch', () => {
   });
 
   test('playPresentationEvents consumes buffered presentation events', async () => {
-    import * as playbackEngine from '../ui/playback-engine.js';
+    const playbackEngine = require('../ui/playback-engine.js');
     const animationEngine = { play: jest.fn().mockResolvedValue(undefined) };
     const cardState = {
       presentationEvents: [{

@@ -6,6 +6,8 @@ import _generate_asset_manifest from './generate-asset-manifest';
 const { generateManifest } = _generate_asset_manifest;
 import _generate_observation_gacha_catalog from './generate-observation-gacha-catalog';
 const { generateObservationGachaCatalogs } = _generate_observation_gacha_catalog;
+import _build_module_registry from './build-module-registry';
+const { buildRegistry } = _build_module_registry;
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -13,28 +15,34 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-const ROOT = path.resolve(__dirname, '..');
+function findRepoRoot(startDir: string): string {
+    let dir = startDir;
+    while (dir !== path.dirname(dir)) {
+        if (fs.existsSync(path.join(dir, 'package.json'))) {
+            return dir;
+        }
+        dir = path.dirname(dir);
+    }
+    return startDir;
+}
+const ROOT = findRepoRoot(path.resolve(__dirname, '..'));
 const OUT_DIR = path.join(ROOT, 'worker-public');
 const WORKER_ASSET_MAX_BYTES = 25 * 1024 * 1024;
 
 const ROOT_FILES = Object.freeze([
     'index.html',
-    'story-deck-lab.html',
-    'is-env-capable.js',
+    'entry-browser.js',
     'shared-constants.js',
-    'card-system.js',
-    'game-events.js',
-    'sound-engine.js',
-    'ui.js',
     'styles-animations.css',
     'styles-base.css',
     'styles-board.css',
     'styles-cards.css',
     'styles-layout.css',
     'styles-responsive.css',
-    'styles-story-deck-lab.css',
     'styles-stone-shadows.css',
-    'styles-variables.css'
+    'styles-variables.css',
+    'public/runtime.js',
+    'public/module-registry.js'
 ]);
 
 const DIRS = Object.freeze([
@@ -84,6 +92,37 @@ const GENERATED_OPTIONAL_ASSETS = Object.freeze([
         compression: 'gzip'
     }
 ]);
+
+const EXCLUDED_MIRROR_RELATIVE_PATHS = new Set([
+    'game/logic/card-usage-prechecks.js',
+    'game/logic/charge-ledger.js',
+    'game/logic/module-resolver.js',
+    'game/logic/presentation-helpers.js',
+    'game/logic/random-source.js'
+]);
+
+function normalizeRelativePath(relativePath: string) {
+    return String(relativePath || '').split(path.sep).join('/');
+}
+
+function shouldMirrorRelativePath(relativePath: string) {
+    const normalized = normalizeRelativePath(relativePath);
+    if (!normalized) return false;
+    if (EXCLUDED_MIRROR_RELATIVE_PATHS.has(normalized)) return false;
+
+    const baseName = path.posix.basename(normalized);
+    if (baseName === 'AGENTS.md') return false;
+    if (baseName.includes('.tmp-')) return false;
+
+    if (/\.(ts|tsx|d\.ts)$/i.test(baseName)) return false;
+    if (/\.test\.(js|ts|tsx)$/i.test(baseName)) return false;
+    if (baseName.endsWith('.map')) return false;
+
+    if (normalized.includes('/__tests__/')) return false;
+    if (normalized.includes('/src/types/')) return false;
+
+    return true;
+}
 
 function cloneList(list: any[]) {
     return Array.isArray(list) ? list.slice() : [];
@@ -135,6 +174,7 @@ function ensureDir(dirPath: string) {
 
 function copyFileByRelative(relativePath: any, config: any) {
     const settings = createPrepareConfig(config);
+    if (!shouldMirrorRelativePath(relativePath)) return;
     const src = path.join(settings.rootDir, relativePath);
     if (!fs.existsSync(src)) return;
     const dst = path.join(settings.outDir, relativePath);
@@ -220,16 +260,18 @@ function writeGeneratedOptionalAssets(generatedAssets: any, config: any) {
     }
 }
 
-function copyDirectoryRecursive(srcDir: any, dstDir: any) {
+function copyDirectoryRecursive(srcDir: any, dstDir: any, relativePrefix: string = '') {
     if (!fs.existsSync(srcDir)) return;
     ensureDir(dstDir);
     const entries = fs.readdirSync(srcDir, { withFileTypes: true });
     for (const entry of entries) {
         const srcPath = path.join(srcDir, entry.name);
         const dstPath = path.join(dstDir, entry.name);
+        const nextRelative = relativePrefix ? path.join(relativePrefix, entry.name) : entry.name;
         if (entry.isDirectory()) {
-            copyDirectoryRecursive(srcPath, dstPath);
+            copyDirectoryRecursive(srcPath, dstPath, nextRelative);
         } else if (entry.isFile()) {
+            if (!shouldMirrorRelativePath(nextRelative)) continue;
             ensureDir(path.dirname(dstPath));
             fs.copyFileSync(srcPath, dstPath);
         }
@@ -249,6 +291,7 @@ function listFilesRecursive(baseDir: any, relativePrefix: any) {
             continue;
         }
         if (entry.isFile()) {
+            if (!shouldMirrorRelativePath(nextRelative)) continue;
             out.push(nextRelative);
         }
     }
@@ -339,7 +382,7 @@ function prepareWorkerAssets(options: any) {
     for (const dir of settings.dirs) {
         const srcDir = path.join(settings.rootDir, dir);
         const dstDir = path.join(settings.outDir, dir);
-        copyDirectoryRecursive(srcDir, dstDir);
+        copyDirectoryRecursive(srcDir, dstDir, dir);
     }
 
     copyableOptionalFiles.forEach((relativePath: any) => copyFileByRelative(relativePath, settings));
@@ -353,6 +396,7 @@ function prepareWorkerAssets(options: any) {
 
 function refreshGeneratedCatalogArtifacts(settings: any) {
     const rootDir = settings && settings.rootDir ? settings.rootDir : ROOT;
+    buildRegistry();
     const assetsDir = path.join(rootDir, 'assets');
     if (fs.existsSync(assetsDir)) {
         generateManifest({ root: rootDir });
@@ -381,5 +425,6 @@ export = {
     prepareWorkerAssets,
     verifyMirrors,
     verifyMirroredFile,
-    listFilesRecursive
+    listFilesRecursive,
+    shouldMirrorRelativePath
 };

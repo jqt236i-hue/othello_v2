@@ -1076,6 +1076,9 @@ describe('match worker publish sanitize', () => {
 
   test('accepts command publish payload without snapshot fallback', () => {
     const result = runCommandPublishPlaceScenario();
+    const playbackEvents = Array.isArray(result.broadcastMeta && result.broadcastMeta.playbackEvents)
+      ? result.broadcastMeta.playbackEvents
+      : [];
 
     expect(result.status).toBe(200);
     expect(result.payload.ok).toBe(true);
@@ -1084,7 +1087,44 @@ describe('match worker publish sanitize', () => {
     expect(result.internalGameState.currentPlayer).toBe(-1);
     expect(result.internalCardState.turnIndex).toBeGreaterThanOrEqual(1);
     expect(Array.isArray(result.broadcastMeta && result.broadcastMeta.playbackEvents)).toBe(true);
+    expect(playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'spawn',
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            r: 2,
+            col: 3,
+            reason: 'standard_place'
+          })
+        ])
+      }),
+      expect.objectContaining({
+        type: 'flip',
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            r: 3,
+            col: 3,
+            reason: 'standard_flip'
+          })
+        ])
+      }),
+      expect.objectContaining({
+        type: 'observer_bubble',
+        rawType: 'CHARGE_BUBBLE',
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            r: 2,
+            col: 3,
+            owner: 'black',
+            gained: 1,
+            bubbleKind: 'charge',
+            sourceType: 'placement_flip_gain'
+          })
+        ])
+      })
+    ]));
     expect(result.broadcastMeta.playbackEvents).toEqual(expect.not.arrayContaining([
+      expect.objectContaining({ type: 'CHARGE_BUBBLE' }),
       expect.objectContaining({ type: 'SPAWN' }),
       expect.objectContaining({ type: 'CHANGE' }),
       expect.objectContaining({ type: 'CARD_USED' }),

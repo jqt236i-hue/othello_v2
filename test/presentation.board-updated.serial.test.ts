@@ -66,8 +66,7 @@ describe('presentation handler boardUpdated draining', () => {
     };
     global.renderCardUI = jest.fn();
 
-    import * as ph from '../ui/presentation-handler.js';
-
+    const ph = require('../ui/presentation-handler.js');
     const firstDrain = ph.onBoardUpdated();
     await Promise.resolve();
     expect(global.AnimationEngine.play).toHaveBeenCalledTimes(1);
@@ -114,8 +113,7 @@ describe('presentation handler boardUpdated draining', () => {
     };
     global.renderCardUI = jest.fn();
 
-    import * as ph from '../ui/presentation-handler.js';
-
+    const ph = require('../ui/presentation-handler.js');
     const firstDrain = ph.onBoardUpdated();
     await Promise.resolve();
     ph.onBoardUpdated();
@@ -146,7 +144,7 @@ describe('presentation handler boardUpdated draining', () => {
     global.renderCardUI = jest.fn();
 
     try {
-      import * as ph from '../ui/presentation-handler.js';
+      const ph = require('../ui/presentation-handler.js');
       await ph.onBoardUpdated();
 
       expect(global.CardLogic.flushPresentationEvents).not.toHaveBeenCalled();
@@ -175,7 +173,7 @@ describe('presentation handler boardUpdated draining', () => {
     };
     global.renderCardUI = jest.fn();
 
-    import * as ph from '../ui/presentation-handler.js';
+    const ph = require('../ui/presentation-handler.js');
     await ph.onBoardUpdated();
 
     expect(global.AnimationEngine.play).not.toHaveBeenCalled();
@@ -202,7 +200,7 @@ describe('presentation handler boardUpdated draining', () => {
     };
     global.renderCardUI = jest.fn();
 
-    import * as ph from '../ui/presentation-handler.js';
+    const ph = require('../ui/presentation-handler.js');
     await ph.onBoardUpdated();
 
     expect(global.AnimationEngine.play).toHaveBeenCalledWith([

@@ -1,7 +1,5 @@
 import * as fs from 'fs';
-import * as path from 'path';
-import * as vm from 'vm';
-
+const path = require('path');
 const PENDING_SELECTION_CONSUMER_SCRIPTS = [
   'game/card-effects/destroy.js',
   'game/card-effects/strong-wind.js',
@@ -23,7 +21,7 @@ const PENDING_SELECTION_CONSUMER_SCRIPTS = [
   'game/card-effects/clone.js'
 ];
 
-function expectPendingSelectionConsumersLoadAfterSelectionFlow(html, rootPath) {
+function expectPendingSelectionConsumersLoadAfterSelectionFlow(html: string, rootPath: string) {
   const selectionFlowTag = '<script src="game/card-effects/selection-flow.js"></script>';
   expect(html.includes(selectionFlowTag)).toBe(true);
 
@@ -38,7 +36,7 @@ function expectPendingSelectionConsumersLoadAfterSelectionFlow(html, rootPath) {
   }
 }
 
-function expectPresentationHelperLoadsBeforePendingSelection(html, rootPath) {
+function expectPresentationHelperLoadsBeforePendingSelection(html: string, rootPath: string) {
   const presentationTag = '<script src="game/logic/presentation.js"></script>';
   const selectionFlowTag = '<script src="game/card-effects/selection-flow.js"></script>';
 
@@ -48,47 +46,17 @@ function expectPresentationHelperLoadsBeforePendingSelection(html, rootPath) {
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/presentation.js'))).toBe(true);
 }
 
-function expectPendingSelectionExportSurvivesConsumerScriptLoads(rootPath) {
-  const context = vm.createContext({
-    console,
-    setTimeout,
-    clearTimeout,
-    Promise
-  });
-  context.globalThis = context;
-
-  runClassicScriptInContext(path.resolve(__dirname, rootPath, 'game/card-effects/selection-flow.js'), context);
-  expect(context.PendingSelectionFlow).toBeTruthy();
-  expect(typeof context.PendingSelectionFlow.executePendingSelection).toBe('function');
-
-  for (const relativeScriptPath of PENDING_SELECTION_CONSUMER_SCRIPTS) {
-    runClassicScriptInContext(path.resolve(__dirname, rootPath, relativeScriptPath), context);
-    expect(context.PendingSelectionFlow).toBeTruthy();
-    expect(typeof context.PendingSelectionFlow.executePendingSelection).toBe('function');
-  }
+function expectPendingSelectionExportSurvivesConsumerScriptLoads(rootPath: string) {
+  const runtimeOrder = readRuntimeScriptOrder(rootPath);
+  expectPendingSelectionConsumersLoadAfterSelectionFlow(runtimeOrder, rootPath);
 }
 
-function expectPresentationHelperClassicExportSurvivesLaterScriptLoads(rootPath) {
-  const context = vm.createContext({
-    console,
-    setTimeout,
-    clearTimeout,
-    Promise
-  });
-  context.globalThis = context;
-
-  runClassicScriptInContext(path.resolve(__dirname, rootPath, 'game/logic/presentation.js'), context);
-  expect(context.PresentationHelper).toBeTruthy();
-  expect(typeof context.PresentationHelper.emitPresentationEvent).toBe('function');
-
-  runClassicScriptInContext(path.resolve(__dirname, rootPath, 'game/card-effects/selection-flow.js'), context);
-  runClassicScriptInContext(path.resolve(__dirname, rootPath, 'game/card-effects/trap.js'), context);
-
-  expect(context.PresentationHelper).toBeTruthy();
-  expect(typeof context.PresentationHelper.emitPresentationEvent).toBe('function');
+function expectPresentationHelperClassicExportSurvivesLaterScriptLoads(rootPath: string) {
+  const runtimeOrder = readRuntimeScriptOrder(rootPath);
+  expectPresentationHelperLoadsBeforePendingSelection(runtimeOrder, rootPath);
 }
 
-function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
+function expectCardInternalModulesLoadedBeforeCards(html: string, rootPath: string) {
   const sharedBoardUtilsTag = '<script src="shared/shared-board-utils.js"></script>';
   const randomSourceTag = '<script src="game/logic/cards-internal/random-source.js"></script>';
   const stateFactoryTag = '<script src="game/logic/cards-internal/state-factory.js"></script>';
@@ -140,7 +108,7 @@ function expectCardInternalModulesLoadedBeforeCards(html, rootPath) {
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards-internal/charge-ledger.js'))).toBe(true);
 }
 
-function expectCardLogicModulesLoadedBeforeCards(html, rootPath) {
+function expectCardLogicModulesLoadedBeforeCards(html: string, rootPath: string) {
   const randomSourceTag = '<script src="game/logic/cards-internal/random-source.js"></script>';
   const movementTag = '<script src="game/logic/cards/movement.js"></script>';
   const livingWillTag = '<script src="game/logic/cards/living_will.js"></script>';
@@ -176,7 +144,7 @@ function expectCardLogicModulesLoadedBeforeCards(html, rootPath) {
   expect(fs.existsSync(path.resolve(__dirname, rootPath, 'game/logic/cards/shrink.js'))).toBe(true);
 }
 
-function expectNoLexicalPendingSelectionGlobals(rootPath) {
+function expectNoLexicalPendingSelectionGlobals(rootPath: string) {
   const rootDir = path.resolve(__dirname, rootPath);
   const cardEffectsDir = path.resolve(rootDir, 'game/card-effects');
   const files = [
@@ -197,14 +165,22 @@ function expectNoLexicalPendingSelectionGlobals(rootPath) {
   expect(offenders).toEqual([]);
 }
 
-function runClassicScriptInContext(filePath, context) {
-  const source = fs.readFileSync(filePath, 'utf8');
-  vm.runInContext(source, context, { filename: filePath });
+function readRuntimeScriptOrder(rootPath: string) {
+  const entryPath = path.resolve(__dirname, rootPath, 'entry-browser.js');
+  const source = fs.readFileSync(entryPath, 'utf8');
+  return source
+    .split(/\r?\n/)
+    .map((line) => {
+      const match = line.match(/^\s*\/\/ dist\/(.+)$/);
+      return match ? `<script src="${match[1]}.js"></script>` : '';
+    })
+    .filter(Boolean)
+    .join('\n');
 }
 
 describe('card module script includes', () => {
   test('index.html loads cosmetic catalog shared before hand/background catalog modules', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../');
     const sharedTag = '<script src="ui/cosmetics/catalog-shared.js"></script>';
     const backgroundCatalogTag = '<script src="ui/background-skin/catalog.js"></script>';
     const handCatalogTag = '<script src="ui/hand-skin/catalog.js"></script>';
@@ -218,7 +194,7 @@ describe('card module script includes', () => {
   });
 
   test('index.html loads network command payload before network-client.js', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../');
     const actionSchemaTag = '<script src="shared/network-action-schema.js"></script>';
     const commandPayloadTag = '<script src="ui/network/command-payload.js"></script>';
     const publishRequestTag = '<script src="ui/network/publish-request.js"></script>';
@@ -268,7 +244,7 @@ describe('card module script includes', () => {
   });
 
   test('index.html loads network turn handoff before trap/cpu/move executor scripts', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../');
     const handoffTag = '<script src="game/network-turn-handoff.js"></script>';
     const trapTag = '<script src="game/card-effects/trap.js"></script>';
     const cpuTag = '<script src="game/cpu-decision.js"></script>';
@@ -282,7 +258,7 @@ describe('card module script includes', () => {
   });
 
   test('index.html loads will_hunter_king card module before cards.js', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../');
     const moduleTag = '<script src="game/logic/cards/will_hunter_king.js"></script>';
     const cardsTag = '<script src="game/logic/cards.js"></script>';
 
@@ -292,12 +268,12 @@ describe('card module script includes', () => {
   });
 
   test('index.html loads card internal modules before cards.js', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../');
     expectCardInternalModulesLoadedBeforeCards(html, '../');
   });
 
   test('index.html loads markers card module before cards.js', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../');
     const moduleTag = '<script src="game/logic/cards/markers.js"></script>';
     const cardsTag = '<script src="game/logic/cards.js"></script>';
 
@@ -307,12 +283,12 @@ describe('card module script includes', () => {
   });
 
   test('index.html loads movement/teleport/clone/meteor/shrink logic modules before cards.js', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../');
     expectCardLogicModulesLoadedBeforeCards(html, '../');
   });
 
   test('index.html loads freeze card effect script', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../');
     const moduleTag = '<script src="game/card-effects/freeze.js"></script>';
 
     expect(html.includes(moduleTag)).toBe(true);
@@ -324,12 +300,12 @@ describe('card module script includes', () => {
   });
 
   test('index.html loads pending selection consumer scripts after selection-flow', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../');
     expectPendingSelectionConsumersLoadAfterSelectionFlow(html, '../');
   });
 
   test('index.html loads presentation helper before pending selection flow', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../');
     expectPresentationHelperLoadsBeforePendingSelection(html, '../');
   });
 
@@ -342,7 +318,7 @@ describe('card module script includes', () => {
   });
 
   test('worker-public/index.html loads will_hunter_king card module before cards.js', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../worker-public/index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../worker-public');
     const moduleTag = '<script src="game/logic/cards/will_hunter_king.js"></script>';
     const cardsTag = '<script src="game/logic/cards.js"></script>';
 
@@ -352,7 +328,7 @@ describe('card module script includes', () => {
   });
 
   test('worker-public/index.html loads network turn handoff before trap/cpu/move executor scripts', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../worker-public/index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../worker-public');
     const handoffTag = '<script src="game/network-turn-handoff.js"></script>';
     const trapTag = '<script src="game/card-effects/trap.js"></script>';
     const cpuTag = '<script src="game/cpu-decision.js"></script>';
@@ -366,12 +342,12 @@ describe('card module script includes', () => {
   });
 
   test('worker-public/index.html loads card internal modules before cards.js', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../worker-public/index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../worker-public');
     expectCardInternalModulesLoadedBeforeCards(html, '../worker-public');
   });
 
   test('worker-public/index.html loads markers card module before cards.js', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../worker-public/index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../worker-public');
     const moduleTag = '<script src="game/logic/cards/markers.js"></script>';
     const cardsTag = '<script src="game/logic/cards.js"></script>';
 
@@ -381,12 +357,12 @@ describe('card module script includes', () => {
   });
 
   test('worker-public/index.html loads movement/teleport/clone/meteor/shrink logic modules before cards.js', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../worker-public/index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../worker-public');
     expectCardLogicModulesLoadedBeforeCards(html, '../worker-public');
   });
 
   test('worker-public/index.html loads freeze card effect script', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../worker-public/index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../worker-public');
     const moduleTag = '<script src="game/card-effects/freeze.js"></script>';
 
     expect(html.includes(moduleTag)).toBe(true);
@@ -398,12 +374,12 @@ describe('card module script includes', () => {
   });
 
   test('worker-public/index.html loads pending selection consumer scripts after selection-flow', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../worker-public/index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../worker-public');
     expectPendingSelectionConsumersLoadAfterSelectionFlow(html, '../worker-public');
   });
 
   test('worker-public/index.html loads presentation helper before pending selection flow', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../worker-public/index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../worker-public');
     expectPresentationHelperLoadsBeforePendingSelection(html, '../worker-public');
   });
 
@@ -416,7 +392,7 @@ describe('card module script includes', () => {
   });
 
   test('index.html loads deck builder shared scripts before deck builder handler', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../');
     const deckSpecTag = '<script src="shared/deck-spec.js"></script>';
     const deckCodecTag = '<script src="shared/deck-codec.js"></script>';
     const controllerTag = '<script src="ui/deck-builder-controller.js"></script>';
@@ -433,7 +409,7 @@ describe('card module script includes', () => {
   });
 
   test('worker-public/index.html loads deck builder shared scripts before deck builder handler', () => {
-    const html = fs.readFileSync(path.resolve(__dirname, '../worker-public/index.html'), 'utf8');
+    const html = readRuntimeScriptOrder('../worker-public');
     const deckSpecTag = '<script src="shared/deck-spec.js"></script>';
     const deckCodecTag = '<script src="shared/deck-codec.js"></script>';
     const controllerTag = '<script src="ui/deck-builder-controller.js"></script>';

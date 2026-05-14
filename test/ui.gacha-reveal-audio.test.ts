@@ -33,7 +33,7 @@ describe('gacha reveal audio session', () => {
   });
 
   test('keeps BGM paused after the pull audio ends and resumes it when the reveal is closed', async () => {
-    import * as mod from '../ui/gacha/gacha-reveal-audio.js';
+    const mod = require('../ui/gacha/gacha-reveal-audio.js');
     const audio = createAudioStub();
     const root = {
       SoundEngine: {
@@ -71,7 +71,7 @@ describe('gacha reveal audio session', () => {
   });
 
   test('destroy stops active pull audio and resumes paused BGM immediately', async () => {
-    import * as mod from '../ui/gacha/gacha-reveal-audio.js';
+    const mod = require('../ui/gacha/gacha-reveal-audio.js');
     const audio = createAudioStub();
     const root = {
       SoundEngine: {
@@ -103,7 +103,7 @@ describe('gacha reveal audio session', () => {
   });
 
   test('pauses BGM even when the controller does not expose paused=false explicitly', async () => {
-    import * as mod from '../ui/gacha/gacha-reveal-audio.js';
+    const mod = require('../ui/gacha/gacha-reveal-audio.js');
     const audio = createAudioStub();
     const root = {
       SoundEngine: {
@@ -136,7 +136,7 @@ describe('gacha reveal audio session', () => {
   });
 
   test('a later play after destroy can pause and resume BGM again', async () => {
-    import * as mod from '../ui/gacha/gacha-reveal-audio.js';
+    const mod = require('../ui/gacha/gacha-reveal-audio.js');
     const firstAudio = createAudioStub();
     const secondAudio = createAudioStub();
     const createAudio = jest
@@ -185,9 +185,9 @@ describe('gacha reveal audio session', () => {
       url: 'http://localhost/'
     });
     const { window } = dom;
-    const soundEngineSource = fs.readFileSync(path.resolve(__dirname, '../sound-engine.js'), 'utf8');
-    const gachaAudioSource = fs.readFileSync(path.resolve(__dirname, '../ui/gacha/gacha-reveal-audio.js'), 'utf8');
-    window.eval(`var require = undefined; var module = undefined; var exports = undefined;\n${soundEngineSource}\n${gachaAudioSource}\nwindow.__configureGachaSoundTest = function () {\n  SoundEngine.bgm = { paused: false };\n  SoundEngine.allowBgmPlay = true;\n  SoundEngine.pauseCalls = 0;\n  SoundEngine.playCalls = 0;\n  SoundEngine.pauseBgm = function () {\n    this.pauseCalls += 1;\n    this.allowBgmPlay = false;\n    this.bgm.paused = true;\n  };\n  SoundEngine.playBgm = function () {\n    this.playCalls += 1;\n    this.allowBgmPlay = true;\n    this.bgm.paused = false;\n  };\n};\nwindow.__readGachaSoundTestState = function () {\n  return { pauseCalls: SoundEngine.pauseCalls, playCalls: SoundEngine.playCalls };\n};`);
+    const soundEngineSource = fs.readFileSync(path.resolve(__dirname, '../dist/sound-engine.js'), 'utf8');
+    const gachaAudioSource = fs.readFileSync(path.resolve(__dirname, '../dist/ui/gacha/gacha-reveal-audio.js'), 'utf8');
+    window.eval(`var require = function () { throw new Error('unexpected require'); };\n(function () { var module = { exports: {} }; var exports = module.exports;\n${soundEngineSource}\nwindow.__SoundEngineUnderTest = module.exports.default || exports.default || SoundEngine; }());\n(function () { var module = { exports: {} }; var exports = module.exports;\n${gachaAudioSource}\nwindow.GachaRevealAudioModule = module.exports; }()); require = undefined;\nwindow.SoundEngineAccessModule = { resolveSoundEngine: function () { return window.__SoundEngineUnderTest; } };\nwindow.__configureGachaSoundTest = function () {\n  window.__SoundEngineUnderTest.bgm = { paused: false };\n  window.__SoundEngineUnderTest.allowBgmPlay = true;\n  window.__SoundEngineUnderTest.pauseCalls = 0;\n  window.__SoundEngineUnderTest.playCalls = 0;\n  window.__SoundEngineUnderTest.pauseBgm = function () {\n    this.pauseCalls += 1;\n    this.allowBgmPlay = false;\n    this.bgm.paused = true;\n  };\n  window.__SoundEngineUnderTest.playBgm = function () {\n    this.playCalls += 1;\n    this.allowBgmPlay = true;\n    this.bgm.paused = false;\n  };\n};\nwindow.__readGachaSoundTestState = function () {\n  return { pauseCalls: window.__SoundEngineUnderTest.pauseCalls, playCalls: window.__SoundEngineUnderTest.playCalls };\n};`);
 
     expect(window.SoundEngine).toBeUndefined();
     window.__configureGachaSoundTest();

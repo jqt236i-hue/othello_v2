@@ -81,7 +81,14 @@ function flushPersistedEvents(): boolean {
     return false;
 }
 
-export = {
+const PresentationHelper = {
     emitPresentationEvent,
     flushPersistedEvents
 };
+
+try {
+    const root = (typeof globalThis !== 'undefined' ? globalThis : undefined) as any; // globalThis — bootstrap DI
+    if (root) root.PresentationHelper = PresentationHelper;
+} catch (_e) { /* ignore global registration failures */ }
+
+export = PresentationHelper;

@@ -4,6 +4,9 @@
  */
 
 const CardRegen = (function (root: any, factory: any) {
+    if (root && root.SharedConstants) {
+        return (root.CardRegen = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardMarkers || null));
+    }
     if (typeof module === 'object' && module.exports) {
         let CardMarkersModule = null;
         try {

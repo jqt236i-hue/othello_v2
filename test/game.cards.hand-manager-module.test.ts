@@ -4,7 +4,7 @@ describe('CardHandManager module', () => {
   });
 
   test('commitDraw and destroyHandCard keep hand state consistent', () => {
-    import * as CardHandManager from '../game/logic/cards-internal/hand-manager.js';
+    const CardHandManager = require('../game/logic/cards-internal/hand-manager.js');
     const cardState = {
       hands: { black: [], white: [] },
       decks: { black: ['card_a', 'card_b'], white: [] },
@@ -44,7 +44,7 @@ describe('CardHandManager module', () => {
   });
 
   test('getUsableCardIds respects unlock turn and target availability', () => {
-    import * as CardHandManager from '../game/logic/cards-internal/hand-manager.js';
+    const CardHandManager = require('../game/logic/cards-internal/hand-manager.js');
     const defsById = {
       ribo_card: { id: 'ribo_card', type: 'RIBO_WILL', cost: 0, name: 'Ribo' },
       last_card: { id: 'last_card', type: 'LAST_RESORT', cost: 0, name: 'Last' },
@@ -94,7 +94,7 @@ describe('CardHandManager module', () => {
   });
 
   test('copy ids keep reveal ledger stable across destroy, redraw, and discard restore', () => {
-    import * as CardHandManager from '../game/logic/cards-internal/hand-manager.js';
+    const CardHandManager = require('../game/logic/cards-internal/hand-manager.js');
     const context = {
       constants: {
         MAX_HAND_SIZE: 5,
@@ -145,7 +145,7 @@ describe('CardHandManager module', () => {
   });
 
   test('TIME_STOP_GOD is destroyed immediately when it enters hand', () => {
-    import * as CardHandManager from '../game/logic/cards-internal/hand-manager.js';
+    const CardHandManager = require('../game/logic/cards-internal/hand-manager.js');
     const cardId = 'time_stop_god_01';
     const context = {
       constants: {

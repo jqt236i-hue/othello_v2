@@ -61,7 +61,7 @@ describe.each(CASES)('animation-engine move variants %s', (cause, reason, midpoi
       };
     });
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     await engine.handleMove({
       type: 'move',
       targets: [{
@@ -140,7 +140,7 @@ describe.each([
       };
     });
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     await engine.handleMove({
       type: 'move',
       targets: [{
@@ -204,7 +204,7 @@ describe.each([
       return originalRemoveChild(node);
     });
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     await engine.handleMove({
       type: 'move',
       targets: [{
@@ -260,7 +260,7 @@ describe.each([
       finished
     }));
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     const playbackPromise = engine.handleMove({
       type: 'move',
       targets: [{
@@ -356,7 +356,7 @@ describe('animation-engine extreme forced swap playback', () => {
       };
     });
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     const playPromise = engine.handleMove({
       type: 'move',
       meta: { sequence: 'extreme_hyperactive_forced_swap' },
@@ -459,7 +459,7 @@ describe('animation-engine extreme forced swap playback', () => {
       };
     });
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     window.getEffectKeyForSpecialType = jest.fn((specialType) => (
       String(specialType || '').toUpperCase() === 'EXTREME_HYPERACTIVE' ? 'extremeHyperactiveStone' : null
     ));
@@ -542,7 +542,7 @@ describe('animation-engine extreme forced swap playback', () => {
 
     window.DISABLE_ANIMATIONS = true;
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     await engine.handleMove({
       type: 'move',
       meta: { sequence: 'extreme_hyperactive_forced_swap' },
@@ -574,8 +574,7 @@ describe('animation-engine extreme forced swap playback', () => {
   });
 
   test('ignores malformed forced-swap payloads without throwing', async () => {
-    import * as engine from '../ui/animation-engine.js';
-
+    const engine = require('../ui/animation-engine.js');
     await expect(engine.handleMove({
       type: 'move',
       meta: { sequence: 'extreme_hyperactive_forced_swap' },
@@ -644,7 +643,7 @@ describe('animation-engine move animation finish fallback', () => {
       finished
     }));
 
-    import * as engine from '../ui/animation-engine.js';
+    const engine = require('../ui/animation-engine.js');
     const settled = jest.fn();
     const playbackPromise = engine.handleMove({
       type: 'move',

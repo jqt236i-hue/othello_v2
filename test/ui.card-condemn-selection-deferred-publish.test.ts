@@ -114,7 +114,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     global.document = dom.window.document;
     global.location = dom.window.location;
     global.localStorage = dom.window.localStorage;
-    import * as playbackStateManager from '../ui/playback-state-manager.js';
+    const playbackStateManager = require('../ui/playback-state-manager.js');
     playbackStateManager.abortPlayback();
     playbackStateManager.setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
     global.PlaybackStateManager = playbackStateManager;

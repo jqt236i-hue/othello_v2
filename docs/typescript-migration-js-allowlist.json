@@ -1,0 +1,278 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-10",
+  "entries": {
+    "data/dialogue/fixed-commentary-data.js": {
+      "category": "legacy-implementation",
+      "reason": "Fixed commentary data remains a browser-loadable legacy data module until the dialogue catalog is generated from a TypeScript source."
+    },
+    "entry-browser-augmented.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era browser bootstrap variant retained for diagnostics during the TypeScript source-of-truth transition."
+    },
+    "entry-browser-classic.js": {
+      "category": "legacy-implementation",
+      "reason": "Classic browser bootstrap variant retained for compatibility diagnostics during the TypeScript source-of-truth transition."
+    },
+    "game/card-effects/selection-flow.js": {
+      "category": "legacy-implementation",
+      "reason": "Browser pending-selection compatibility facade retained while TypeScript selection-flow remains the source-of-truth for Jest and CommonJS resolution."
+    },
+    "game/debug/debug-actions.js": {
+      "category": "dist-wrapper",
+      "reason": "Gameplay debug runtime is TS source-of-truth; JS remains a dist wrapper for CommonJS consumers."
+    },
+    "game/logic/cards/breeding.js": {
+      "category": "dist-wrapper",
+      "reason": "Card logic module is TS source-of-truth; JS remains a dist wrapper for CommonJS consumers."
+    },
+    "game/logic/cards/sniper.js": {
+      "category": "dist-wrapper",
+      "reason": "Card logic module is TS source-of-truth; JS remains a dist wrapper for CommonJS consumers."
+    },
+    "game/network-turn-handoff.runtime.js": {
+      "category": "runtime-projection",
+      "reason": "Browser runtime projection retained until generated from the TS source-of-truth path."
+    },
+    "game/visual-effects-map.runtime.js": {
+      "category": "runtime-projection",
+      "reason": "Browser runtime projection retained until generated from the TS source-of-truth path."
+    },
+    "scripts/add-module-tracking.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era tooling script retained for troubleshooting."
+    },
+    "scripts/augment-entry-v2.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era entry bootstrap rewrite helper retained for troubleshooting."
+    },
+    "scripts/augment-entry.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era entry bootstrap rewrite helper retained for troubleshooting."
+    },
+    "scripts/boot-debug.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era browser boot debug helper retained for troubleshooting."
+    },
+    "scripts/boot-debug2.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era browser boot debug helper retained for troubleshooting."
+    },
+    "scripts/browser-boot-smoke.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era browser smoke helper retained for troubleshooting."
+    },
+    "scripts/boot-test.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era browser boot test helper retained for troubleshooting."
+    },
+    "scripts/boot-test2.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era browser boot test helper retained for troubleshooting."
+    },
+    "scripts/boot-test3.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era browser boot test helper retained for troubleshooting."
+    },
+    "scripts/check-bootstrap.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era validation helper retained for troubleshooting."
+    },
+    "scripts/check-format.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era validation helper retained for troubleshooting."
+    },
+    "scripts/check-init-factory.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era validation helper retained for troubleshooting."
+    },
+    "scripts/check-registry-content.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era registry helper retained for troubleshooting."
+    },
+    "scripts/check-registry-content2.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era registry helper retained for troubleshooting."
+    },
+    "scripts/check-registry-dups.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era registry helper retained for troubleshooting."
+    },
+    "scripts/check-registry-dups2.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era registry helper retained for troubleshooting."
+    },
+    "scripts/clean-dist-require.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era dist cleanup helper retained for troubleshooting."
+    },
+    "scripts/compare-test-baseline.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era test baseline helper retained for troubleshooting."
+    },
+    "scripts/cross-ref-scripts.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era utility helper retained for troubleshooting."
+    },
+    "scripts/debug-single.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era debug helper retained for troubleshooting."
+    },
+    "scripts/debug-single2.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era debug helper retained for troubleshooting."
+    },
+    "scripts/dedup-require.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era require cleanup helper retained for troubleshooting."
+    },
+    "scripts/find-initdom.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era lookup helper retained for troubleshooting."
+    },
+    "scripts/find-missing.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era lookup helper retained for troubleshooting."
+    },
+    "scripts/find-pc.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era lookup helper retained for troubleshooting."
+    },
+    "scripts/find-reset.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era lookup helper retained for troubleshooting."
+    },
+    "scripts/fix-cpu-decision-final.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era one-off CPU decision patch helper retained for troubleshooting only."
+    },
+    "scripts/fix-cpu-decision-remaining.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era one-off CPU decision patch helper retained for troubleshooting only."
+    },
+    "scripts/fix-cpu-decision-ts.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era one-off CPU decision TypeScript patch helper retained for troubleshooting only."
+    },
+    "scripts/fix-duplicate-require.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era one-off require cleanup helper retained for troubleshooting only."
+    },
+    "scripts/fix-require-v2.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era one-off require cleanup helper retained for troubleshooting only."
+    },
+    "scripts/inspect-bisect.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era inspection helper retained for troubleshooting."
+    },
+    "scripts/inspect-deep.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era inspection helper retained for troubleshooting."
+    },
+    "scripts/inspect-escape.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era inspection helper retained for troubleshooting."
+    },
+    "scripts/inspect-exact.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era inspection helper retained for troubleshooting."
+    },
+    "scripts/inspect-failures.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era inspection helper retained for troubleshooting."
+    },
+    "scripts/inspect-raw.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era inspection helper retained for troubleshooting."
+    },
+    "scripts/inspect-ui-failure.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era UI failure inspection helper retained for troubleshooting."
+    },
+    "scripts/inspect-vm.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era VM inspection helper retained for troubleshooting."
+    },
+    "scripts/list-registry.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era registry helper retained for troubleshooting."
+    },
+    "scripts/map-require-paths.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era require path mapping helper retained for troubleshooting."
+    },
+    "scripts/rebuild-entry-classic.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era classic entry rebuild helper retained for troubleshooting."
+    },
+    "scripts/rebuild-entry-safe.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era safe entry rebuild helper retained for troubleshooting."
+    },
+    "scripts/remove-fn-require.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era require cleanup helper retained for troubleshooting."
+    },
+    "scripts/remove-local-require.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era require cleanup helper retained for troubleshooting."
+    },
+    "scripts/test-json.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era utility helper retained for troubleshooting."
+    },
+    "scripts/validate-new.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era validation helper retained for troubleshooting."
+    },
+    "scripts/validate-registry.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era validation helper retained for troubleshooting."
+    },
+    "scripts/validate-single.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era validation helper retained for troubleshooting."
+    },
+    "fix_registry_turnmanager.js": {
+      "category": "legacy-implementation",
+      "reason": "Migration-era one-off registry patch helper retained for troubleshooting only."
+    },
+    "ui/handlers/match-mode.js": {
+      "category": "dist-wrapper",
+      "reason": "UI match-mode source is TypeScript; JS keeps the minimal browser global compatibility shell."
+    },
+    "ui/bootstrap.js": {
+      "category": "legacy-implementation",
+      "reason": "Classic browser bootstrap compatibility shim remains hand-authored while ui/bootstrap.ts is the CommonJS source-of-truth."
+    },
+    "utils/owner-helpers.js": {
+      "category": "dist-wrapper",
+      "reason": "Owner normalization helper is TS source-of-truth; JS remains a dist wrapper for CommonJS consumers."
+    },
+    "scripts/serve-with-fallback.js": {
+      "category": "node-cli-adapter",
+      "reason": "Node CLI adapter to dist script main entry."
+    },
+    "scripts/local-match-server.js": {
+      "category": "node-cli-adapter",
+      "reason": "Node CLI adapter to dist script main entry with a build-first error message."
+    },
+    "src/types/card.js": {
+      "category": "runtime-projection",
+      "reason": "TS type-only module emits runtime shim for compatibility."
+    },
+    "src/types/events.js": {
+      "category": "runtime-projection",
+      "reason": "TS type-only module emits runtime shim for compatibility."
+    },
+    "src/types/game.js": {
+      "category": "runtime-projection",
+      "reason": "TS type-only module emits runtime shim for compatibility."
+    },
+    "ui/event-handlers.js": {
+      "category": "runtime-projection",
+      "reason": "UI split shim retained for browser compatibility."
+    }
+  }
+}

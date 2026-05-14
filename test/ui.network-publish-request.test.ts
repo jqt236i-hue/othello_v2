@@ -87,4 +87,45 @@ describe('NetworkPublishRequestModule', () => {
     expect(result.requestPayload.baseVersion).toBe(42);
     expect(result.requestPayload.turnIndex).toBe(25);
   });
+
+  test('uses command turnIndex for pending selection publish', () => {
+    const result = NetworkPublishRequestModule.buildPublishRequest({
+      action: {
+        type: 'place',
+        playerKey: 'black',
+        swapTarget: { row: 3, col: 3 },
+        pendingSelectionState: {
+          type: 'SWAP_WITH_ENEMY',
+          stage: 'selectTarget',
+          cardId: 'swap_01'
+        },
+        turnIndex: 1
+      }
+    }, {
+      playerKey: 'black',
+      roomId: 'ROOM123',
+      seatKey: 'black',
+      seatToken: 'seat-token',
+      operationId: 'op_123',
+      baseVersion: 3,
+      turnIndex: 2,
+      buildPublishCommandPayload: () => ({
+        actionType: 'place',
+        actor: 'black',
+        params: {
+          player: 'black',
+          swapTarget: { row: 3, col: 3 },
+          pendingSelectionState: {
+            type: 'SWAP_WITH_ENEMY',
+            stage: 'selectTarget',
+            cardId: 'swap_01'
+          }
+        },
+        turnIndex: 1
+      })
+    });
+
+    expect(result.requestPayload.baseVersion).toBe(3);
+    expect(result.requestPayload.turnIndex).toBe(1);
+  });
 });

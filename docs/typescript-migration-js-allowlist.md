@@ -38,9 +38,9 @@ npm run worker:prepare # PASS ✅
 |----------|------|------|----------|
 | **dist-wrapper** | 366件 | TS正本への互換forwarding層 | 不要。消すと互換性破壊 |
 | **generated** | 4件 | ビルド・生成ツールの出力 | 不要。generatorで管理 |
-| **legacy-implementation** | 52件 | Node.jsツール・デバッグ・検証スクリプト | 不要。実行環境が異なる |
+| **legacy-implementation** | 27件 | Node.jsツール・デバッグ・検証スクリプト | 不要。実行環境が異なる |
 | **test-or-tooling** | 3件 | テストファイル | 不要。テスト基盤として正当化 |
-| **合計** | **425件** | - | - |
+| **合計** | **400件** | - | - |
 
 ※ `dist-wrapper`は348件→366件に増加（unknownからの再分類18件を含む）
 
@@ -74,19 +74,19 @@ npm run worker:prepare # PASS ✅
 
 **今後の方針**: 維持。生成元の`.json`/`.ts`を正本とし、`.js`は生成物として管理。
 
-### 3.4 legacy-implementation（52件）
+### 3.4 legacy-implementation（27件）
 
 **定義**: Node.js環境で実行されるツール・デバッグ・検証スクリプト。ブラウザゲームの実行経路には含まれない。
 
 **内訳**:
 
-#### ブート・検証スクリプト（22件）
-`scripts/boot-debug.js`, `scripts/boot-test.js`, `scripts/boot-test2.js`, `scripts/browser-boot-smoke.js`, `scripts/clean-dist-require.js`, `scripts/compare-test-baseline.js`, `scripts/debug-single.js`, `scripts/dedup-require.js`, `scripts/find-initdom.js`, `scripts/find-pc.js`, `scripts/find-reset.js`, `scripts/fix-cpu-decision-final.js`, `scripts/fix-cpu-decision-remaining.js`, `scripts/fix-cpu-decision-ts.js`, `scripts/fix-duplicate-require.js`, `scripts/fix-require-v2.js`, `scripts/inspect-bisect.js`, `scripts/rebuild-entry-classic.js`, `scripts/rebuild-entry-safe.js`, `scripts/remove-fn-require.js`, `scripts/remove-local-require.js`, `scripts/validate-single.js`
+#### ブート・検証スクリプト（11件）
+`scripts/browser-boot-smoke.js`, `scripts/clean-dist-require.js`, `scripts/compare-test-baseline.js`, `scripts/debug-single.js`, `scripts/dedup-require.js`, `scripts/find-initdom.js`, `scripts/find-pc.js`, `scripts/find-reset.js`, `scripts/remove-fn-require.js`, `scripts/remove-local-require.js`, `scripts/validate-single.js`
 
 **残存理由**: 過去の移行作業で使用した一時的なデバッグ・検証スクリプト。現在は使用されていない可能性が高いが、削除は別途検討。
 
-#### ツール・ユーティリティスクリプト（30件）
-`scripts/add-module-tracking.js`, `scripts/augment-entry-v2.js`, `scripts/augment-entry.js`, `scripts/boot-debug2.js`, `scripts/boot-test3.js`, `scripts/check-bootstrap.js`, `scripts/check-format.js`, `scripts/check-init-factory.js`, `scripts/check-registry-content.js`, `scripts/check-registry-content2.js`, `scripts/check-registry-dups.js`, `scripts/check-registry-dups2.js`, `scripts/cross-ref-scripts.js`, `scripts/debug-single2.js`, `scripts/find-missing.js`, `scripts/fix-globals.js`, `scripts/inspect-deep.js`, `scripts/inspect-escape.js`, `scripts/inspect-exact.js`, `scripts/inspect-failures.js`, `scripts/inspect-raw.js`, `scripts/inspect-ui-failure.js`, `scripts/inspect-vm.js`, `scripts/list-registry.js`, `scripts/map-require-paths.js`, `scripts/patch-entry.js`, `scripts/serve-with-fallback.js`, `scripts/test-json.js`, `scripts/validate-new.js`, `scripts/validate-registry.js`
+#### ツール・ユーティリティスクリプト（16件）
+`scripts/add-module-tracking.js`, `scripts/check-bootstrap.js`, `scripts/check-format.js`, `scripts/check-init-factory.js`, `scripts/check-registry-content.js`, `scripts/check-registry-content2.js`, `scripts/check-registry-dups.js`, `scripts/check-registry-dups2.js`, `scripts/cross-ref-scripts.js`, `scripts/debug-single2.js`, `scripts/find-missing.js`, `scripts/list-registry.js`, `scripts/serve-with-fallback.js`, `scripts/test-json.js`, `scripts/validate-new.js`, `scripts/validate-registry.js`
 
 **残存理由**: Node.js環境で実行される開発・検証ツール。ゲームの実行経路には含まれない。
 
@@ -235,3 +235,4 @@ npm run worker:prepare # PASS ✅
 |------|----------|------|
 | 2026-05-08 | 初版作成。unknown 52件の調査・再分類を実施 | Prometheus |
 | 2026-05-08 | TS移行完了を宣言。R1-R4解消を確認 | Prometheus |
+| 2026-05-09 | 不要なlegacy-implementationスクリプト25件を削除し、allowlistを更新 | Prometheus |

@@ -317,7 +317,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
   test('HEAVEN_BLESSING の pending use_card は authority publish に寄せてローカル pending を作らない', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
-    import * as CardLogic from '../game/logic/cards.js';
+    const CardLogic = require('../game/logic/cards.js');
     expect(client).toBeTruthy();
 
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });

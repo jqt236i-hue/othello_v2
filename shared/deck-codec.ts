@@ -4,7 +4,9 @@
  */
 
 (function (root: any, factory: (deckSpecHelpers: any) => any) {
-    if (typeof module !== 'undefined' && module.exports) {
+    if (root && root.DeckSpecHelpers) {
+        root.DeckCodecModule = factory(root.DeckSpecHelpers);
+    } else if (typeof module !== 'undefined' && module.exports) {
         module.exports = factory(require('./deck-spec'));
     } else {
         root.DeckCodecModule = factory(root.DeckSpecHelpers);

@@ -4,8 +4,7 @@ jest.mock('../game/card-effects/selection-flow', () => ({
     executePendingSelection: mockExecutePendingSelection
 }));
 
-import { handleTimeBombSelection } from '../game/card-effects/time-bomb.js';
-
+const { handleTimeBombSelection } = require('../game/card-effects/time-bomb.js');
 describe('time-bomb', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();

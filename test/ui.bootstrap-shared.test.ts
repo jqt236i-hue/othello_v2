@@ -7,6 +7,12 @@ describe('shared/ui-bootstrap-shared', () => {
     jest.resetModules();
     try { delete global.__uiImpl_turn_manager; } catch (e) { /* ignore */ }
     try { delete global.SharedUIBootstrap; } catch (e) { /* ignore */ }
+    try { delete global.PlaybackStateManager; } catch (e) { /* ignore */ }
+    try { delete global.PlaybackRuntime; } catch (e) { /* ignore */ }
+    try { delete global.CoreLogic; } catch (e) { /* ignore */ }
+    try { delete global.CardLogic; } catch (e) { /* ignore */ }
+    try { delete global.resetGame; } catch (e) { /* ignore */ }
+    try { delete global.handleCellClick; } catch (e) { /* ignore */ }
   });
 
   test('register and get work', () => {
@@ -27,8 +33,8 @@ describe('shared/ui-bootstrap-shared', () => {
     };
 
     jest.isolateModules(() => {
-      jest.doMock(path.resolve(__dirname, '..', 'ui', 'playback-state-manager.js'), () => playbackStateMock, { virtual: false });
-      jest.doMock(path.resolve(__dirname, '..', 'ui', 'playback-runtime.js'), () => playbackRuntimeMock, { virtual: false });
+      global.PlaybackStateManager = playbackStateMock;
+      global.PlaybackRuntime = playbackRuntimeMock;
       const shared = require(sharedPath);
       expect(shared.resolvePlaybackStateManager()).toBe(playbackStateMock);
       expect(shared.resolvePlaybackRuntime()).toBe(playbackRuntimeMock);
@@ -38,6 +44,8 @@ describe('shared/ui-bootstrap-shared', () => {
   test('mergeUIImpl syncs the turn-manager impl to root and globalThis', () => {
     jest.isolateModules(() => {
       const shared = require(sharedPath);
+      global.CoreLogic = require(path.resolve(__dirname, '..', 'game', 'logic', 'core.js'));
+      const turnManager = require(path.resolve(__dirname, '..', 'game', 'turn-manager.js'));
       const root = {};
       const buildCardInitOptions = jest.fn(() => ({ initialDeckSpec: null }));
 
@@ -47,6 +55,34 @@ describe('shared/ui-bootstrap-shared', () => {
       expect(root.__uiImpl_turn_manager.buildCardInitOptions).toBe(buildCardInitOptions);
       expect(global.__uiImpl_turn_manager.buildCardInitOptions).toBe(buildCardInitOptions);
       expect(shared.readUIImpl(root, 'turn_manager').buildCardInitOptions).toBe(buildCardInitOptions);
+      expect(turnManager.getUIImpl().buildCardInitOptions).toBe(buildCardInitOptions);
+    });
+  });
+
+  test('writeUIImpl replaces the turn-manager impl while keeping root and global mirrors in sync', () => {
+    jest.isolateModules(() => {
+      const shared = require(sharedPath);
+      global.CoreLogic = require(path.resolve(__dirname, '..', 'game', 'logic', 'core.js'));
+      const turnManager = require(path.resolve(__dirname, '..', 'game', 'turn-manager.js'));
+      const root = {};
+      const initialBuildCardInitOptions = jest.fn(() => ({ boardConfig: { rows: 8, cols: 8 } }));
+      const replacementReadBoardConfig = jest.fn(() => ({ rows: 6, cols: 6 }));
+
+      turnManager.setUIImpl({
+        buildCardInitOptions: initialBuildCardInitOptions,
+        keepLegacyFlag: true
+      });
+      shared.writeUIImpl(root, 'turn_manager', { readBoardConfig: replacementReadBoardConfig });
+
+      expect(root.__uiImpl_turn_manager).toEqual({
+        readBoardConfig: replacementReadBoardConfig
+      });
+      expect(global.__uiImpl_turn_manager).toEqual({
+        readBoardConfig: replacementReadBoardConfig
+      });
+      expect(turnManager.getUIImpl()).toEqual({
+        readBoardConfig: replacementReadBoardConfig
+      });
     });
   });
 });

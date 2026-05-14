@@ -16,19 +16,34 @@ declare function debugLog(message: string, level: string, meta: any): void;
 // Wrapper for CoreLogic (Shared between Browser and Headless)
 // This file maintains the legacy global function interface for browser compatibility.
 
+const GameCoreLogicCore = (() => {
+    try {
+        if (typeof CoreLogic !== 'undefined' && CoreLogic) return CoreLogic;
+    } catch (e: any) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any).CoreLogic) {
+            return (globalThis as any).CoreLogic;
+        }
+    } catch (e: any) { /* ignore */ }
+    if (typeof _require === 'function') {
+        try { return _require('./logic/core'); } catch (e: any) { /* ignore */ }
+    }
+    return null;
+})();
+
 // Check if CoreLogic is loaded
-if (typeof CoreLogic === 'undefined') {
+if (!GameCoreLogicCore) {
     console.error('CoreLogic is not loaded. Please include game/logic/core.js');
 }
 
 // ===== Game State Management =====
 
 function createGameState(boardConfig: any) {
-    return CoreLogic.createGameState(boardConfig);
+    return GameCoreLogicCore.createGameState(boardConfig);
 }
 
 function copyGameState(state: any) {
-    return CoreLogic.copyGameState(state);
+    return GameCoreLogicCore.copyGameState(state);
 }
 
 // ===== Move Logic =====
@@ -71,15 +86,15 @@ function getFlips(state: any, row: any, col: any, player: any, protectedStones: 
         };
     }
 
-    return CoreLogic.getFlipsWithContext(state, row, col, player, context);
+    return GameCoreLogicCore.getFlipsWithContext(state, row, col, player, context);
 }
 
 function applyMove(state: any, move: any) {
-    return CoreLogic.applyMove(state, move);
+    return GameCoreLogicCore.applyMove(state, move);
 }
 
 function applyPass(state: any) {
-    const newState = CoreLogic.applyPass(state);
+    const newState = GameCoreLogicCore.applyPass(state);
 
     // Maintain logging side-effect
     if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
@@ -94,11 +109,19 @@ function applyPass(state: any) {
 }
 
 function isGameOver(state: any) {
-    return CoreLogic.isGameOver(state);
+    return GameCoreLogicCore.isGameOver(state);
 }
 
 function countDiscs(state: any) {
-    return CoreLogic.countDiscs(state);
+    return GameCoreLogicCore.countDiscs(state);
 }
 
-export {};
+export = {
+    createGameState,
+    copyGameState,
+    getFlips,
+    applyMove,
+    applyPass,
+    isGameOver,
+    countDiscs
+};

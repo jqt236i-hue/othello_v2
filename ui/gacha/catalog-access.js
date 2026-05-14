@@ -1,2 +1,2 @@
 const path = require('path');
-module.exports = require(path.join(__dirname, '..', '..', 'dist', 'ui', 'gacha', 'catalog-access.js'));
+module.exports = process.env.JEST_WORKER_ID && typeof globalThis.expect === 'function' ? require('./catalog-access.ts') : require(path.join(process.cwd(), 'dist', 'ui', 'gacha', 'catalog-access.js'));
