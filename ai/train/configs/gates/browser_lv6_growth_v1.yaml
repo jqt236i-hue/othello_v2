@@ -7,7 +7,7 @@ description: >
 trainCycleArgs:
   - --quality-gate
   - --quality-gate-games
-  - "40"
+  - "60"
   - --quality-gate-seed-count
   - "3"
   - --quality-gate-seed-stride
@@ -24,9 +24,9 @@ trainCycleArgs:
   - "2"
   - --quality-gate-strength-first
   - --quick-games
-  - "80"
+  - "120"
   - --final-games
-  - "160"
+  - "240"
   - --threshold
   - "0.006"
   - --adoption-seed-count

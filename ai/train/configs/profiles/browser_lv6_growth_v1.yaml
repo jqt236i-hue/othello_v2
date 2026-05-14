@@ -31,9 +31,9 @@ trainCycleArgs:
   - --max-hours
   - "300"
   - --train-games
-  - "7000"
+  - "9000"
   - --eval-games
-  - "240"
+  - "320"
   - --selfplay-jobs
   - "10"
   - --adoption-jobs
@@ -49,17 +49,17 @@ trainCycleArgs:
   - --selfplay-policy-mix-rate
   - "1.0"
   - --selfplay-policy-model-pool-size
-  - "1"
+  - "4"
   - --selfplay-policy-pool-sampling
-  - uniform
+  - recency
   - --selfplay-policy-pool-recency-decay
-  - "1.0"
+  - "1.6"
   - --selfplay-policy-current-anchor-rate
-  - "1.0"
+  - "0.70"
   - --selfplay-card-usage-rate-jitter
   - "0.01"
   - --selfplay-card-usage-rate-schedule
-  - "0.28@1,0.36@4,0.46@8,0.56@12,0.60@16"
+  - "0.20@1,0.28@4,0.36@8,0.48@12,0.60@20"
   - --selfplay-tactical-weight-min
   - "0.70"
   - --selfplay-tactical-weight-max
@@ -81,13 +81,13 @@ trainCycleArgs:
   - --selfplay-heuristic-weight-max
   - "1.0"
   - --selfplay-teacher-committee-weight-min
-  - "0"
+  - "24"
   - --selfplay-teacher-committee-weight-max
-  - "0"
+  - "40"
   - --selfplay-teacher-committee-consensus-bonus-min
-  - "0"
+  - "280"
   - --selfplay-teacher-committee-consensus-bonus-max
-  - "0"
+  - "520"
   - --selfplay-use-candidate-every-iteration
   - --onnx-epochs
   - "9999"
