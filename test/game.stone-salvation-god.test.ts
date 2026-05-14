@@ -5,7 +5,7 @@ import * as CardLogic from '../game/logic/cards.js';
 declare const require: any;
 const BoardOps: typeof import('../game/logic/board_ops.js') = require('../game/logic/board_ops.js');
 const Core: typeof import('../game/logic/core.js') = require('../game/logic/core.js');
-const VisualEffectsMap: any = require('../game/visual-effects-map.js');
+const VisualEffectsMap: any = require('../game/visual-effects-map.runtime.js');
 
 declare const describe: any;
 declare const test: any;
@@ -84,7 +84,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     gameState.board[2][2] = Shared.WHITE;
     cardState.markers.push(
       { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
-      { id: 2, kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'GUARD', remainingOwnerTurns: 3 } }
+      { id: 2, kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'OBSERVER', remainingOwnerTurns: 3 } }
     );
 
     const destroyedOwn = BoardOps.destroyAt(cardState, gameState, 1, 1, 'TEST', 'destroy_own', { randomSource: prng });
