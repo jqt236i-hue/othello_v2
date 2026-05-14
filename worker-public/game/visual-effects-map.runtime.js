@@ -140,6 +140,15 @@ const GAME_STONE_VISUAL_EFFECTS = {
         },
         dataAttributes: {}
     },
+    stoneSalvationGod: {
+        cssClass: 'stone-salvation-god',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/STONE_SALVATION_GOD-black.png',
+            '-1': 'assets/images/stones/STONE_SALVATION_GOD-white.png'
+        },
+        dataAttributes: {}
+    },
     sniperStone: {
         cssClass: 'sniper-stone',
         cssMethod: 'pseudoElement',
@@ -329,6 +338,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'BREEDING_WILL': 'breedingStone',
     'PROLIFERATION_WILL': 'proliferationStone',
     'ULTIMATE_DESTROY_GOD': 'ultimateDestroyGod',
+    'STONE_SALVATION_GOD': 'stoneSalvationGod',
     'SNIPER_WILL': 'sniperStone',
     'LIGHTNING_WILL': 'lightningStone',
     'OBSERVER_WILL': 'observerStone',
@@ -481,6 +491,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'BREEDING': 'breedingStone',
     'PROLIFERATION': 'proliferationStone',
     'ULTIMATE_DESTROY_GOD': 'ultimateDestroyGod',
+    'STONE_SALVATION_GOD': 'stoneSalvationGod',
     'SNIPER': 'sniperStone',
     'LIGHTNING': 'lightningStone',
     'OBSERVER': 'observerStone',

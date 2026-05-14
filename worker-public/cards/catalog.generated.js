@@ -547,6 +547,14 @@ window.CardCatalog = {
       "display_type_ja": "守護"
     },
     {
+      "id": "stone_salvation_god_01",
+      "name_ja": "石救済神",
+      "type": "STONE_SALVATION_GOD",
+      "cost": 25,
+      "desc_ja": "次に置く石を救済神化する。救済神は反転されず、10ターン持続。盤面にいる間、自分の石が破壊されると破壊された自石を通常石としてランダムな空きマスに復活させる。救済神自身は復活しない。",
+      "display_type_ja": "守護"
+    },
+    {
       "id": "destroy_dragon_01",
       "name_ja": "破壊龍",
       "type": "DESTROY_DRAGON_WILL",
