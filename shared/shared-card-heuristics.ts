@@ -29,6 +29,7 @@
         'PERMA_PROTECT_NEXT_STONE',
         'GUARD_WILL',
         'GUARDIAN_GOD',
+        'STONE_SALVATION_GOD',
         'REGEN_WILL',
         'BLOCKADE_WILL'
     ]);

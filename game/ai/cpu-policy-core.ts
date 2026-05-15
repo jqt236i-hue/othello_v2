@@ -52,6 +52,7 @@ const DEFENSIVE_CARD_TYPES = new Set([
     'SNIPER_WILL',
     'LIGHTNING_WILL',
     'SALVATION_WILL',
+    'STONE_SALVATION_GOD',
     'REINFORCEMENT_WILL',
     'LIVING_WILL'
 ]);
@@ -149,7 +150,8 @@ const CORNER_HOLD_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
             'SNIPER_WILL',
             'LIGHTNING_WILL',
             'DESTROY_DRAGON_WILL',
-            'WILL_HUNTER_KING'
+            'WILL_HUNTER_KING',
+            'STONE_SALVATION_GOD'
         ]
     )
     : new Set([
@@ -164,7 +166,8 @@ const CORNER_HOLD_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
         'SNIPER_WILL',
         'LIGHTNING_WILL',
         'DESTROY_DRAGON_WILL',
-        'WILL_HUNTER_KING'
+        'WILL_HUNTER_KING',
+        'STONE_SALVATION_GOD'
     ]);
 
 const CHARGE_RAMP_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeuristics.createExtendedTypeSet === 'function')
@@ -229,7 +232,8 @@ const STABILITY_CARD_TYPES = new Set([
     'LIVING_WILL',
     'OBSERVER_WILL',
     'DESTROY_DRAGON_WILL',
-    'WILL_HUNTER_KING'
+    'WILL_HUNTER_KING',
+    'STONE_SALVATION_GOD'
 ]);
 
 const SWING_CARD_TYPES = new Set([
@@ -472,6 +476,7 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     RIBO_WILL: 4,
     ROBOT_VACUUM_WILL: 4,
     SALVATION_WILL: 8,
+    STONE_SALVATION_GOD: 10,
     SEED_WILL: 2,
     SUPPLY_WILL: 8,
     SILVER_STONE: 10,
@@ -560,6 +565,7 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'RIBO_WILL',
     'ROBOT_VACUUM_WILL',
     'SALVATION_WILL',
+    'STONE_SALVATION_GOD',
     'SEED_WILL',
     'SUPPLY_WILL',
     'SILVER_STONE',
@@ -648,6 +654,7 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     RIBO_WILL: { midLateBias: 6, handPressureBias: 4, leadBias: -8, endgameBias: -10 },
     ROBOT_VACUUM_WILL: { midLateBias: 4, cornerEmergencyBias: 2, endgameBias: -4 },
     SALVATION_WILL: { trailingBias: 4, handPressureBias: 2, endgameBias: -2 },
+    STONE_SALVATION_GOD: { leadBias: 4, trailingBias: 2, cornerNowBias: 4, cornerEmergencyBias: 4, edgeEmergencyBias: 2, endgameBias: 2 },
     SEED_WILL: { openingBias: 6, midLateBias: 4, endgameBias: -8, handPressureBias: 4, cornerNowBias: -2 },
     SUPPLY_WILL: { openingBias: 6, midLateBias: 2, endgameBias: -12, cornerNowBias: -4, handPressureBias: -8 },
     SILVER_STONE: { openingBias: 4, handPressureBias: 2, cornerNowBias: 2 },
@@ -1050,6 +1057,7 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     RIBO_WILL: { archetype: 'economyCycle', placementWeight: 0, bonusBias: 1, flipBias: 1 },
     ROBOT_VACUUM_WILL: { archetype: 'spawnMobile', placementWeight: 3, edgeBias: 2, oppAdjBias: 3, stabilityBias: 2 },
     SALVATION_WILL: { archetype: 'recoveryReposition', placementWeight: 0, ownAdjBias: 2, stabilityBias: 2 },
+    STONE_SALVATION_GOD: { archetype: 'anchorProtect', placementWeight: 3, cornerBias: 4, edgeBias: 3, ownAdjBias: 3, stabilityBias: 5 },
     SEED_WILL: { archetype: 'spawnMobile', placementWeight: 0, edgeBias: 2, emptyAdjBias: 3, ownAdjBias: 2, stabilityBias: 1 },
     SUPPLY_WILL: { archetype: 'economyCycle', placementWeight: 0 },
     SILVER_STONE: { archetype: 'economyCycle', placementWeight: 2, flipBias: 4 },
