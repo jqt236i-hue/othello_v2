@@ -1,6 +1,6 @@
 # TypeScript移行完了宣言・残存JSファイル許容リスト
 
-> **Status**: 完了（2026-05-08）
+> **Status**: 完了（2026-05-15）
 > **基準コミット**: `efff49c`
 > **対象リポジトリ**: カードオセロ（card-othello）
 
@@ -38,7 +38,7 @@ npm run worker:prepare # PASS ✅
 |----------|------|------|----------|
 | **dist-wrapper** | 366件 | TS正本への互換forwarding層 | 不要。消すと互換性破壊 |
 | **generated** | 4件 | ビルド・生成ツールの出力 | 不要。generatorで管理 |
-| **legacy-implementation** | 27件 | Node.jsツール・デバッグ・検証スクリプト | 不要。実行環境が異なる |
+| **legacy-implementation** | 30件 | Node.jsツール・デバッグ・検証スクリプト | 不要。実行環境が異なる |
 | **test-or-tooling** | 3件 | テストファイル | 不要。テスト基盤として正当化 |
 | **合計** | **400件** | - | - |
 
@@ -159,14 +159,10 @@ npm run worker:prepare # PASS ✅
 - `scripts/__tests__/test-sprt.test.js` (59行) → **test-or-tooling**
   - 理由: Jestテストファイル
 
-#### legacy-implementation（30件）
+#### legacy-implementation（整理後の現存ファイル）
 `scripts/`下のツール・デバッグスクリプト：
 - `scripts/add-module-tracking.js` (56行) → **legacy-implementation**
   - 理由: Playwrightを使ったモジュール追跡ツール
-- `scripts/augment-entry-v2.js` (33行) → **legacy-implementation**
-- `scripts/augment-entry.js` (30行) → **legacy-implementation**
-- `scripts/boot-debug2.js` (44行) → **legacy-implementation**
-- `scripts/boot-test3.js` (63行) → **legacy-implementation**
 - `scripts/check-bootstrap.js` (14行) → **legacy-implementation**
 - `scripts/check-format.js` (16行) → **legacy-implementation**
 - `scripts/check-init-factory.js` (16行) → **legacy-implementation**
@@ -177,17 +173,7 @@ npm run worker:prepare # PASS ✅
 - `scripts/cross-ref-scripts.js` (46行) → **legacy-implementation**
 - `scripts/debug-single2.js` (11行) → **legacy-implementation**
 - `scripts/find-missing.js` (21行) → **legacy-implementation**
-- `scripts/fix-globals.js` (18行) → **legacy-implementation**
-- `scripts/inspect-deep.js` (31行) → **legacy-implementation**
-- `scripts/inspect-escape.js` (78行) → **legacy-implementation**
-- `scripts/inspect-exact.js` (43行) → **legacy-implementation**
-- `scripts/inspect-failures.js` (56行) → **legacy-implementation**
-- `scripts/inspect-raw.js` (63行) → **legacy-implementation**
-- `scripts/inspect-ui-failure.js` (30行) → **legacy-implementation**
-- `scripts/inspect-vm.js` (104行) → **legacy-implementation**
 - `scripts/list-registry.js` (8行) → **legacy-implementation**
-- `scripts/map-require-paths.js` (52行) → **legacy-implementation**
-- `scripts/patch-entry.js` (35行) → **legacy-implementation**
 - `scripts/serve-with-fallback.js` (7行) → **legacy-implementation**
   - 理由: `dist/scripts/serve-with-fallback` を読むwrapperだが、Node.js専用
 - `scripts/test-json.js` (47行) → **legacy-implementation**
@@ -236,3 +222,4 @@ npm run worker:prepare # PASS ✅
 | 2026-05-08 | 初版作成。unknown 52件の調査・再分類を実施 | Prometheus |
 | 2026-05-08 | TS移行完了を宣言。R1-R4解消を確認 | Prometheus |
 | 2026-05-09 | 不要なlegacy-implementationスクリプト25件を削除し、allowlistを更新 | Prometheus |
+| 2026-05-15 | 削除済みJSのallowlist記載を整理 | Codex |
