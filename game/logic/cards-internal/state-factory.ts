@@ -149,6 +149,7 @@ function createCardState(prng: PRNG | null, options: any, context: Context): any
         breedingSproutByOwner: { black: [], white: [] },
         _breedingSproutClearedTokenByOwner: { black: null, white: null },
         prevOpponentTurnDestroyedStonesByPlayer: { black: [], white: [] },
+        pendingStoneSalvationGodRevivesByPlayer: { black: [], white: [] },
         fateWillControllerByTurnOwner: { black: null, white: null }
     };
     ensureCardCopyState(cardState);
@@ -403,6 +404,14 @@ function copyCardState(cs: any, context: Context): any {
         prevOpponentTurnDestroyedStonesByPlayer: cloneSalvationDestroyedLedger(
             cardState.prevOpponentTurnDestroyedStonesByPlayer || cardState.prevOpponentTurnDestroyedNormalByPlayer
         ),
+        pendingStoneSalvationGodRevivesByPlayer: {
+            black: Array.isArray(cardState.pendingStoneSalvationGodRevivesByPlayer && cardState.pendingStoneSalvationGodRevivesByPlayer.black)
+                ? cardState.pendingStoneSalvationGodRevivesByPlayer.black.map((entry: any) => ({ ...entry, meta: entry && entry.meta ? { ...entry.meta } : undefined }))
+                : [],
+            white: Array.isArray(cardState.pendingStoneSalvationGodRevivesByPlayer && cardState.pendingStoneSalvationGodRevivesByPlayer.white)
+                ? cardState.pendingStoneSalvationGodRevivesByPlayer.white.map((entry: any) => ({ ...entry, meta: entry && entry.meta ? { ...entry.meta } : undefined }))
+                : []
+        },
         fateWillControllerByTurnOwner: (cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
             ? {
                 black: cardState.fateWillControllerByTurnOwner.black || null,

@@ -44,6 +44,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         'SNIPER_WILL',
         'LIGHTNING_WILL',
         'DESTROY_DRAGON',
+        'DESTROY_DRAGON_WILL',
         'DRAGON',
         'BREEDING',
         'ROBOT_VACUUM',
@@ -55,6 +56,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const SPECIAL_DURATION_REVERT_SPECIALS = new Set([
         'BREEDING',
         'DESTROY_DRAGON',
+        'DESTROY_DRAGON_WILL',
         'DRAGON',
         'GHOST',
         'INHERITED_HYPERACTIVE',
@@ -71,6 +73,22 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const SOUND_EVENT_TYPE = 'sound_effect';
     const CARD_EFFECT_FLIP_SOUND_KEY = 'card_effect_flip';
     const ULTIMATE_ANCHOR_MOVE_SOUND_KEY = 'ultimate_anchor_move';
+    const STONE_SALVATION_GOD_CAUSE = 'STONE_SALVATION_GOD';
+    const STONE_SALVATION_GOD_REVIVE_REASON = 'stone_salvation_god_revive';
+    const SPECIAL_DESTROY_TARGET_PROFILES = Object.freeze({
+        sniperShot: Object.freeze({
+            causes: Object.freeze(['SNIPER_WILL']),
+            reasonPrefix: 'sniper_shot'
+        }),
+        lightningDestroyed: Object.freeze({
+            causes: Object.freeze(['LIGHTNING_WILL']),
+            reasonPrefix: 'lightning_destroyed'
+        }),
+        robotVacuumSuck: Object.freeze({
+            causes: Object.freeze(['ROBOT_VACUUM']),
+            reasonPrefix: 'robot_vacuum_suck'
+        })
+    });
     const CARD_EFFECT_FLIP_RAW_EVENT_TYPES = new Set([
         'dragon_converted_start',
         'dragon_converted_immediate',
@@ -710,8 +728,29 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             rawResolvedType: 'salvation_will_resolved',
             soundSourceType: 'salvation_spawn',
             phaseStartIndex: 1
+        }),
+        Object.freeze({
+            cause: STONE_SALVATION_GOD_CAUSE,
+            reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON,
+            soundSourceType: STONE_SALVATION_GOD_REVIVE_REASON,
+            phaseStartIndex: 0,
+            alwaysAdvancePhase: true
         })
     ]);
+    const DEFERRED_SPAWN_PLAYBACK_PROFILES = Object.freeze([
+        Object.freeze({
+            cause: STONE_SALVATION_GOD_CAUSE,
+            reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON
+        })
+    ]);
+
+    function _isDeferredSpawnPresentationEvent(ev: any) {
+        return !!(
+            ev &&
+            ev.type === 'SPAWN' &&
+            DEFERRED_SPAWN_PLAYBACK_PROFILES.some((profile: any) => _matchesSpawnCauseAndReason(ev, profile.cause, profile.reasonPrefix))
+        );
+    }
 
     function _matchesSpawnCauseAndReason(subject: any, cause: any, reasonPrefix: any) {
         const expectedCause = String(cause || '').toUpperCase();
@@ -1026,7 +1065,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 phase: phaseState.currentPhase
             })));
         }
-        if (spawnProfile && sequentialSpawnIndex !== null && sequentialSpawnIndex >= spawnProfile.phaseStartIndex) {
+        if (
+            spawnProfile &&
+            (
+                (spawnProfile as any).alwaysAdvancePhase === true ||
+                (sequentialSpawnIndex !== null && sequentialSpawnIndex >= spawnProfile.phaseStartIndex)
+            )
+        ) {
             phaseState.currentPhase++;
             phase = phaseState.currentPhase;
         }
@@ -1199,6 +1244,59 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return phase;
     }
 
+    function _getPresentationEffectBlockKey(ev: any) {
+        if (!ev || (ev.type !== 'DESTROY' && ev.type !== 'MOVE')) return null;
+        const meta = (ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
+        const cause = String(ev.cause || '').toUpperCase();
+        const sourceRow = Number.isInteger(ev.sourceRow)
+            ? ev.sourceRow
+            : (Number.isInteger(meta.sourceRow) ? meta.sourceRow : null);
+        const sourceCol = Number.isInteger(ev.sourceCol)
+            ? ev.sourceCol
+            : (Number.isInteger(meta.sourceCol) ? meta.sourceCol : null);
+        const projectileOwner = String(ev.projectileOwner || meta.projectileOwner || '').trim();
+        const actionId = String(ev.actionId || '').trim();
+        return [
+            actionId,
+            cause,
+            sourceRow === null ? '' : String(sourceRow),
+            sourceCol === null ? '' : String(sourceCol),
+            projectileOwner
+        ].join('|');
+    }
+
+    function _orderDeferredSpawnsForPlayback(presEvents: any) {
+        if (!Array.isArray(presEvents) || presEvents.length <= 1) return Array.isArray(presEvents) ? presEvents.slice() : [];
+        const ordered: any[] = [];
+        const pendingSpawns: any[] = [];
+        let currentBlockKey: string | null = null;
+        const flushSpawns = () => {
+            if (!pendingSpawns.length) return;
+            ordered.push(...pendingSpawns);
+            pendingSpawns.length = 0;
+        };
+
+        for (const ev of presEvents) {
+            if (_isDeferredSpawnPresentationEvent(ev)) {
+                pendingSpawns.push(ev);
+                continue;
+            }
+            const nextBlockKey = _getPresentationEffectBlockKey(ev);
+            if (!nextBlockKey) {
+                flushSpawns();
+                currentBlockKey = null;
+            } else if (pendingSpawns.length && currentBlockKey === null) {
+                flushSpawns();
+            } else if (pendingSpawns.length && currentBlockKey !== null && nextBlockKey !== currentBlockKey) {
+                flushSpawns();
+            }
+            ordered.push(ev);
+            currentBlockKey = nextBlockKey;
+        }
+        flushSpawns();
+        return ordered;
+    }
+
     /**
      * Converts presentation events (BoardOps output) into PlaybackEvents.
      * This expects events to be JSON-safe presentationEvents as emitted by BoardOps.
@@ -1207,7 +1305,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const playbackEvents = [];
         const phaseState = _createPlaybackPhaseState();
 
-        const presentationEvents = Array.isArray(presEvents) ? presEvents : [];
+        const presentationEvents = _orderDeferredSpawnsForPlayback(presEvents);
         const consumedPresentationIndexes = new Set();
         for (let presIndex = 0; presIndex < presentationEvents.length; presIndex += 1) {
             if (consumedPresentationIndexes.has(presIndex)) continue;
@@ -1603,7 +1701,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     continue;
             }
 
-            if (ev.type !== 'DESTROY' && ev.type !== 'MOVE') {
+            if (ev.type !== 'DESTROY' && ev.type !== 'MOVE' && !_isDeferredSpawnPresentationEvent(ev)) {
                 phaseState.superCrushPhase = null;
                 phaseState.superCrushActionId = null;
             }
@@ -2009,22 +2107,30 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return _isSpecialDurationExpiredDestroyEvent(ev) || _isSpecialDurationExpiredStatusRemovedEvent(ev);
     }
 
+    function _matchesCauseReasonProfile(subject: any, profile: any) {
+        if (!profile) return false;
+        const subjectCause = String(subject && subject.cause ? subject.cause : '').toUpperCase();
+        const subjectReason = String(subject && subject.reason ? subject.reason : '').toLowerCase();
+        const causes = Array.isArray(profile.causes)
+            ? profile.causes
+            : (profile.cause ? [profile.cause] : []);
+        const matchesCause = !causes.length || causes.some((cause: any) => (
+            subjectCause === String(cause || '').toUpperCase()
+        ));
+        return matchesCause &&
+            subjectReason.indexOf(String(profile.reasonPrefix || '').toLowerCase()) === 0;
+    }
+
     function _isSniperShotDestroyTarget(target: any) {
-        const cause = String(target && target.cause ? target.cause : '').toUpperCase();
-        const reason = String(target && target.reason ? target.reason : '').toLowerCase();
-        return cause === 'SNIPER_WILL' && reason.indexOf('sniper_shot') >= 0;
+        return _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).sniperShot);
     }
 
     function _isLightningDestroyTarget(target: any) {
-        const cause = String(target && target.cause ? target.cause : '').toUpperCase();
-        const reason = String(target && target.reason ? target.reason : '').toLowerCase();
-        return cause === 'LIGHTNING_WILL' && reason.indexOf('lightning_destroyed') >= 0;
+        return _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).lightningDestroyed);
     }
 
     function _isRobotVacuumSuckDestroyTarget(target: any) {
-        const cause = String(target && target.cause ? target.cause : '').toUpperCase();
-        const reason = String(target && target.reason ? target.reason : '').toLowerCase();
-        return cause === 'ROBOT_VACUUM' && reason.indexOf('robot_vacuum_suck') >= 0;
+        return _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).robotVacuumSuck);
     }
 
     function _isBoardShrinkDestroyTarget(target: any) {
@@ -2836,7 +2942,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (s === 'TIME_BOMB') return '時限爆弾';
         if (s === 'TIME_STOP') return '時間停石';
         if (s === 'DRAGON') return '究極反転龍';
-        if (s === 'DESTROY_DRAGON') return '破壊龍';
+        if (s === 'DESTROY_DRAGON' || s === 'DESTROY_DRAGON_WILL') return '破壊龍';
         if (s === 'ULTIMATE_DESTROY_GOD') return '究極破壊神';
         if (s === 'SNIPER') return '狙撃石';
         if (s === 'LIGHTNING') return '落雷石';

@@ -43,6 +43,77 @@ const {
     const LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY = '__skipNextCardUseAnimationUntilByKey';
     const LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY = '__skipNextCardUseButtonSoundCount';
     const LOCAL_CARD_USE_PLAYBACK_SKIP_MS = 30000;
+    const STONE_SALVATION_GOD_CAUSE = 'STONE_SALVATION_GOD';
+    const STONE_SALVATION_GOD_REVIVE_REASON = 'stone_salvation_god_revive';
+    const POSITIVE_SPAWN_LIKE_EFFECTS = Object.freeze([
+        Object.freeze({ cause: 'BREEDING', reasonPrefix: 'breeding_spawn' }),
+        Object.freeze({ cause: 'EQUALITY_WILL', reasonPrefix: 'equality_will_spawn' }),
+        Object.freeze({ cause: 'REINFORCEMENT_WILL', reasonPrefix: 'reinforcement_will_spawn' }),
+        Object.freeze({ cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' }),
+        Object.freeze({ cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON }),
+        Object.freeze({ cause: 'CLONE_WILL', reasonPrefix: 'clone_spawn' }),
+        Object.freeze({ cause: 'SPLIT_WILL', reasonPrefix: 'split_spawn' }),
+        Object.freeze({ cause: 'PROLIFERATION_WILL', reasonPrefix: 'proliferation_spawn' })
+    ]);
+    const POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS = Object.freeze([
+        Object.freeze({ cause: 'EQUALITY_WILL', reasonPrefix: 'equality_will_spawn' }),
+        Object.freeze({ cause: 'REINFORCEMENT_WILL', reasonPrefix: 'reinforcement_will_spawn' }),
+        Object.freeze({ cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' }),
+        Object.freeze({ cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON })
+    ]);
+    const DESTROY_SOURCE_ANIMATION_PROFILES = Object.freeze([
+        Object.freeze({
+            causes: Object.freeze(['SNIPER_WILL']),
+            reasonPrefix: 'sniper_shot',
+            sourceResolver: '_resolveSniperSource',
+            animationMethod: 'animateSniperProjectile'
+        }),
+        Object.freeze({
+            causes: Object.freeze(['DESTROY_DRAGON', 'DESTROY_DRAGON_WILL']),
+            reasonPrefix: 'destroy_dragon_breath',
+            sourceResolver: '_resolveDestroyDragonSource',
+            animationMethod: 'animateDestroyDragonBreath'
+        }),
+        Object.freeze({
+            causes: Object.freeze(['ULTIMATE_DESTROY_GOD']),
+            reasonPrefix: 'udg_destroyed',
+            sourceResolver: '_resolveSniperSource',
+            animationMethod: 'animateUdgLightningStrike'
+        }),
+        Object.freeze({
+            causes: Object.freeze(['LIGHTNING_WILL']),
+            reasonPrefix: 'lightning_destroyed',
+            sourceResolver: '_resolveSniperSource',
+            animationMethod: 'animateUdgLightningStrike'
+        }),
+        Object.freeze({
+            causes: Object.freeze(['WILL_HUNTER_KING']),
+            reasonPrefix: 'will_hunter_king_slash',
+            sourceResolver: null,
+            animationMethod: 'animateWillHunterKingSlash'
+        }),
+        Object.freeze({
+            causes: Object.freeze(['ROBOT_VACUUM']),
+            reasonPrefix: 'robot_vacuum_suck',
+            sourceResolver: '_resolveRobotVacuumSource',
+            animationMethod: 'animateRobotVacuumSuction',
+            afterDestroy: 'clearCell'
+        })
+    ]);
+
+    function matchesCauseAndReasonPrefix(cause: any, reason: any, profile: any) {
+        if (!profile) return false;
+        const normalizedCause = String(cause || '').toUpperCase();
+        const normalizedReason = String(reason || '').toLowerCase();
+        const causes = Array.isArray(profile.causes)
+            ? profile.causes
+            : (profile.cause ? [profile.cause] : []);
+        const matchesCause = !causes.length || causes.some((expectedCause: any) => (
+            normalizedCause === String(expectedCause || '').toUpperCase()
+        ));
+        return matchesCause &&
+            normalizedReason.indexOf(String(profile.reasonPrefix || '').toLowerCase()) === 0;
+    }
 
     function hasRegenBackFlip(events: any) {
         return (events || []).some((e: any) =>
@@ -372,6 +443,28 @@ const {
             return String(target && target.reason ? target.reason : '').toLowerCase();
         }
 
+        _resolveDestroySourceAnimationProfile(target: any) {
+            const cause = this._getTargetCause(target);
+            const reason = this._getTargetReason(target);
+            for (const profile of DESTROY_SOURCE_ANIMATION_PROFILES as any) {
+                if (!matchesCauseAndReasonPrefix(cause, reason, profile)) continue;
+                const resolverName = profile.sourceResolver;
+                if (resolverName) {
+                    const resolver = (this as any)[resolverName];
+                    if (typeof resolver !== 'function' || !resolver.call(this, target)) continue;
+                }
+                return profile;
+            }
+            return null;
+        }
+
+        async _playDestroySourceAnimation(target: any, profile: any) {
+            if (!profile || !profile.animationMethod) return;
+            const animationMethod = (this as any)[profile.animationMethod];
+            if (typeof animationMethod !== 'function') return;
+            await animationMethod.call(this, target);
+        }
+
         _isSuperCrushCause(cause: any) {
             return cause === 'SUPER_BUOYANCY_WILL' || cause === 'SUPER_GRAVITY_WILL';
         }
@@ -550,15 +643,9 @@ const {
             if (eventType !== EVENT_TYPES.SPAWN && eventType !== EVENT_TYPES.PLACE && !isCloneLikeMove) {
                 return false;
             }
-            return (
-                (normalizedCause === 'BREEDING' && normalizedReason.indexOf('breeding_spawn') === 0) ||
-                (normalizedCause === 'EQUALITY_WILL' && normalizedReason.indexOf('equality_will_spawn') === 0) ||
-                (normalizedCause === 'REINFORCEMENT_WILL' && normalizedReason.indexOf('reinforcement_will_spawn') === 0) ||
-                (normalizedCause === 'SALVATION_WILL' && normalizedReason.indexOf('salvation_spawn') === 0) ||
-                (normalizedCause === 'CLONE_WILL' && normalizedReason.indexOf('clone_spawn') === 0) ||
-                (normalizedCause === 'SPLIT_WILL' && normalizedReason.indexOf('split_spawn') === 0) ||
-                (normalizedCause === 'PROLIFERATION_WILL' && normalizedReason.indexOf('proliferation_spawn') === 0)
-            );
+            return POSITIVE_SPAWN_LIKE_EFFECTS.some((profile) => (
+                matchesCauseAndReasonPrefix(normalizedCause, normalizedReason, profile)
+            ));
         }
 
         _resolveEffectTargetHighlightTone(eventType: any, target: any) {
@@ -656,16 +743,10 @@ const {
             if (!target) return 0;
             const cause = this._getTargetCause(target);
             const reason = this._getTargetReason(target);
-            const isEqualityWillSpawn =
-                cause === 'EQUALITY_WILL' &&
-                reason.indexOf('equality_will_spawn') === 0;
-            const isReinforcementWillSpawn =
-                cause === 'REINFORCEMENT_WILL' &&
-                reason.indexOf('reinforcement_will_spawn') === 0;
-            const isSalvationWillSpawn =
-                cause === 'SALVATION_WILL' &&
-                reason.indexOf('salvation_spawn') === 0;
-            if (!isEqualityWillSpawn && !isReinforcementWillSpawn && !isSalvationWillSpawn) return 0;
+            const shouldKeepVisible = POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS.some((profile) => (
+                matchesCauseAndReasonPrefix(cause, reason, profile)
+            ));
+            if (!shouldKeepVisible) return 0;
             return POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS;
         }
 
@@ -2262,11 +2343,13 @@ const {
                 if (!disc && !shouldPreserveDestroyPlaybackWithoutDisc) return;
 
                 await this._runWithEffectTargetHighlight(cell, EVENT_TYPES.DESTROY, t, async () => {
+                    const sourceAnimationProfile = this._resolveDestroySourceAnimationProfile(t);
                     const useGhostOnlyDestroy = !disc || (
                         isSuperCrushCollision &&
                         (superCrushDestinationContext && superCrushDestinationContext.sourceHadDisc === false)
                     );
                     if (useGhostOnlyDestroy) {
+                        await this._playDestroySourceAnimation(t, sourceAnimationProfile);
                         if (preserveDiscOnDestroy) {
                             await this._sleep(Math.max(120, Math.floor(FADE_OUT_MS / 2)));
                             return;
@@ -2279,23 +2362,8 @@ const {
                         return;
                     }
 
-                    if (destroyCause === 'SNIPER_WILL' && this._resolveSniperSource(t)) {
-                        await this.animateSniperProjectile(t);
-                    }
-                    if (destroyCause === 'DESTROY_DRAGON' && destroyReason === 'destroy_dragon_breath' && this._resolveDestroyDragonSource(t)) {
-                        await this.animateDestroyDragonBreath(t);
-                    }
-                    if (destroyCause === 'ULTIMATE_DESTROY_GOD' && destroyReason === 'udg_destroyed' && this._resolveSniperSource(t)) {
-                        await this.animateUdgLightningStrike(t);
-                    }
-                    if (destroyCause === 'LIGHTNING_WILL' && destroyReason === 'lightning_destroyed' && this._resolveSniperSource(t)) {
-                        await this.animateUdgLightningStrike(t);
-                    }
-                    if (destroyCause === 'WILL_HUNTER_KING' && destroyReason.indexOf('will_hunter_king_slash') === 0) {
-                        await this.animateWillHunterKingSlash(t);
-                    }
-                    if (destroyCause === 'ROBOT_VACUUM' && destroyReason === 'robot_vacuum_suck' && this._resolveRobotVacuumSource(t)) {
-                        await this.animateRobotVacuumSuction(t);
+                    await this._playDestroySourceAnimation(t, sourceAnimationProfile);
+                    if (sourceAnimationProfile && sourceAnimationProfile.afterDestroy === 'clearCell') {
                         if (preserveDiscOnDestroy) {
                             await this._sleep(Math.max(120, Math.floor(FADE_OUT_MS / 2)));
                             return;

@@ -65,6 +65,19 @@ const CardUdgModule = loadRuntimeModule('../logic/cards/udg', 'CardUdg');
 const CardHyperactiveModule = loadRuntimeModule('../logic/cards/hyperactive', 'CardHyperactive');
 
 const { EMPTY } = SharedConstants || {};
+const TIME_BOMB_DESTROY_CAUSE = 'TIME_BOMB';
+const TIME_BOMB_DESTROY_REASON = 'bomb_explosion';
+const TIME_BOMB_PROJECTILE_STONE = 'time_bomb';
+
+function buildTimeBombDestroyMeta(bomb: any, forbiddenEvadeCells: Array<{row: number; col: number}>): any {
+    return {
+        sourceRow: bomb && Number.isInteger(bomb.row) ? bomb.row : null,
+        sourceCol: bomb && Number.isInteger(bomb.col) ? bomb.col : null,
+        projectileOwner: bomb && bomb.owner ? bomb.owner : null,
+        projectileStone: TIME_BOMB_PROJECTILE_STONE,
+        forbiddenEvadeCells
+    };
+}
 
 function onTurnStart(cardState: CardState, playerKey: string, gameState: GameState, prng: any, effectTimingContext: any) {
     if (!CardEffectTimingModule || typeof CardEffectTimingModule.onTurnStart !== 'function') {
@@ -147,9 +160,15 @@ function tickBombAt(cardState: CardState, gameState: GameState, bomb: any, activ
         for (const target of targets) {
             let destroyedRes = false;
             if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-                const res = BoardOpsModule.destroyAt(cardState, gameState, target.row, target.col, 'TIME_BOMB', 'bomb_explosion', {
-                    forbiddenEvadeCells
-                });
+                const res = BoardOpsModule.destroyAt(
+                    cardState,
+                    gameState,
+                    target.row,
+                    target.col,
+                    TIME_BOMB_DESTROY_CAUSE,
+                    TIME_BOMB_DESTROY_REASON,
+                    buildTimeBombDestroyMeta(b, forbiddenEvadeCells)
+                );
                 destroyedRes = !!(res && res.destroyed);
             }
             else if (typeof destroyAt === 'function') {

@@ -4533,9 +4533,15 @@ const {
      * @param {string} playerKey
      * @param {Object} [prng]
      */
-    function onTurnStart(cardState: any, playerKey: any, gameState: any, prng: any) {
+    function onTurnStart(cardState: any, playerKey: any, gameState: any, prng: any, options?: any) {
         if (!CardTimingProcessorModule || typeof CardTimingProcessorModule.onTurnStart !== 'function') {
             throw new Error('[cards.js] CardTimingProcessor.onTurnStart not available');
+        }
+        const opts = (options && typeof options === 'object') ? options : {};
+        // Direct CardLogic callers do not run the full turn pipeline, so keep the rescue
+        // pre-phase here. The pipeline consumes it explicitly before continuous effects.
+        if (opts.skipStoneSalvationGodRevives !== true && BoardOpsModule && typeof BoardOpsModule.consumeStoneSalvationGodRevives === 'function') {
+            BoardOpsModule.consumeStoneSalvationGodRevives(cardState, gameState, playerKey, { randomSource: prng });
         }
         return CardTimingProcessorModule.onTurnStart(
             cardState,
@@ -4544,6 +4550,13 @@ const {
             prng,
             getCardEffectTimingContext()
         );
+    }
+
+    function consumeStoneSalvationGodRevives(cardState: any, gameState: any, playerKey: any, meta?: any) {
+        if (!BoardOpsModule || typeof BoardOpsModule.consumeStoneSalvationGodRevives !== 'function') {
+            return { revived: [], failed: [], requestedCount: 0, revivedCount: 0 };
+        }
+        return BoardOpsModule.consumeStoneSalvationGodRevives(cardState, gameState, playerKey, meta || {});
     }
 
     /**
@@ -5818,6 +5831,7 @@ const cardsApi: any = {
 
         // Game flow
         onTurnStart,
+        consumeStoneSalvationGodRevives,
         onTurnEnd,
         applyPlacementEffects,
         tickBombs,

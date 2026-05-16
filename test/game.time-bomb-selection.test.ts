@@ -66,4 +66,32 @@ describe('TIME_BOMB selection behavior', () => {
     const bomb = (cardState.markers || []).find((m) => isBombMarker(m) && m.row === 4 && m.col === 4);
     expect(bomb).toBeFalsy();
   });
+
+  test('turn-start bomb destroy presentation carries bomb source metadata', () => {
+    const { cardState, gameState } = createStates();
+    cardState.turnIndex = 10;
+    gameState.board[3][3] = 1;
+    gameState.board[3][4] = -1;
+    cardState.markers.push({
+      id: 'bomb-a',
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      createdSeq: 1,
+      data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 1, placedTurn: 1 }
+    });
+
+    const result = CardLogic.tickBombAt(cardState, gameState, cardState.markers[0], 'black');
+    const destroyEvent = (cardState.presentationEvents || []).find((ev) => ev && ev.type === 'DESTROY');
+
+    expect(result.destroyed.length).toBeGreaterThan(0);
+    expect(destroyEvent).toBeTruthy();
+    expect(destroyEvent.meta).toMatchObject({
+      sourceRow: 3,
+      sourceCol: 3,
+      projectileOwner: 'black',
+      projectileStone: 'time_bomb'
+    });
+  });
 });

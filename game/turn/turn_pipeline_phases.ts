@@ -1662,6 +1662,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             const presentationStartIndex = Array.isArray(cardState.presentationEvents)
                 ? cardState.presentationEvents.length
                 : 0;
+            if (typeof CardLogic.consumeStoneSalvationGodRevives === 'function') {
+                const rescueRes = CardLogic.consumeStoneSalvationGodRevives(cardState, gameState, playerKey, { randomSource: p });
+                if (rescueRes && Number(rescueRes.requestedCount) > 0) {
+                    events.push({
+                        type: 'stone_salvation_god_revived_start',
+                        player: playerKey,
+                        requestedCount: Number(rescueRes.requestedCount) || 0,
+                        revivedCount: Number(rescueRes.revivedCount) || 0,
+                        revived: Array.isArray(rescueRes.revived) ? rescueRes.revived.slice() : [],
+                        failed: Array.isArray(rescueRes.failed) ? rescueRes.failed.slice() : []
+                    });
+                }
+            }
             const workMarkersBeforeStart = snapshotWorkMarkers(cardState);
             const specialStoneSpeechBeforeStart = snapshotSpecialStoneSpeechMarkers(cardState);
             // Snapshot timers before any turn-start processing (for visual timer updates).
@@ -1688,7 +1701,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 }
             } catch (e) { /* ignore snapshot failures */ }
 
-            const turnStartSummary = CardLogic.onTurnStart(cardState, playerKey, gameState, p) || null;
+            const turnStartSummary = CardLogic.onTurnStart(cardState, playerKey, gameState, p, {
+                // Rescue revives already ran at the top of this phase so their playback
+                // stays before continuous destruction effects.
+                skipStoneSalvationGodRevives: true
+            }) || null;
             events.push({ type: 'turn_start', player: playerKey });
             if (turnStartSummary && turnStartSummary.ribo && Array.isArray(turnStartSummary.ribo.entries)) {
                 for (const entry of turnStartSummary.ribo.entries) {

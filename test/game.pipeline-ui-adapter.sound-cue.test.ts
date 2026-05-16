@@ -809,6 +809,152 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cues).toEqual([5, 6, 7, 8, 9, 10, 11, 12, 13, 14]);
   });
 
+  test('Stone Salvation God revive uses the positive spawn sound cue', () => {
+    const base = [{
+      type: 'spawn',
+      phase: 4,
+      targets: [{
+        r: 4,
+        col: 4,
+        ownerAfter: 'black',
+        cause: 'STONE_SALVATION_GOD',
+        reason: 'stone_salvation_god_revive'
+      }]
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cue = out.find((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.phase === 4 &&
+      ev.meta &&
+      ev.meta.sourceType === 'stone_salvation_god_revive' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'breeding_spawn'
+    ));
+
+    expect(cue).toBeTruthy();
+  });
+
+  test('SNIPER_WILL shot keeps its destroy cue when Stone Salvation God revive follows', () => {
+    const base = [
+      {
+        type: 'destroy',
+        phase: 3,
+        targets: [{
+          r: 1,
+          col: 1,
+          cause: 'SNIPER_WILL',
+          reason: 'sniper_shot',
+          meta: { sourceRow: 4, sourceCol: 4 }
+        }]
+      },
+      {
+        type: 'spawn',
+        phase: 4,
+        targets: [{
+          r: 5,
+          col: 5,
+          ownerAfter: 'black',
+          cause: 'STONE_SALVATION_GOD',
+          reason: 'stone_salvation_god_revive'
+        }]
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const sniperCue = out.find((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.phase === 3 &&
+      ev.meta &&
+      ev.meta.sourceType === 'sniper_shot' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'stone_destroy'
+    ));
+    const reviveCue = out.find((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.phase === 4 &&
+      ev.meta &&
+      ev.meta.sourceType === 'stone_salvation_god_revive' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'breeding_spawn'
+    ));
+
+    expect(sniperCue).toBeTruthy();
+    expect(reviveCue).toBeTruthy();
+  });
+
+  test('later turn-start sniper shots keep destroy and revive cues per source anchor', () => {
+    const base = [
+      {
+        type: 'destroy',
+        phase: 3,
+        targets: [{
+          r: 1,
+          col: 1,
+          cause: 'SNIPER_WILL',
+          reason: 'sniper_shot',
+          meta: { sourceRow: 0, sourceCol: 0, projectileOwner: 'white' }
+        }]
+      },
+      {
+        type: 'spawn',
+        phase: 4,
+        targets: [{
+          r: 5,
+          col: 5,
+          ownerAfter: 'black',
+          cause: 'STONE_SALVATION_GOD',
+          reason: 'stone_salvation_god_revive'
+        }]
+      },
+      {
+        type: 'destroy',
+        phase: 5,
+        targets: [{
+          r: 2,
+          col: 2,
+          cause: 'SNIPER_WILL',
+          reason: 'sniper_shot',
+          meta: { sourceRow: 7, sourceCol: 7, projectileOwner: 'white' }
+        }]
+      },
+      {
+        type: 'spawn',
+        phase: 6,
+        targets: [{
+          r: 5,
+          col: 6,
+          ownerAfter: 'black',
+          cause: 'STONE_SALVATION_GOD',
+          reason: 'stone_salvation_god_revive'
+        }]
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const cues = out
+      .filter((ev) => ev && ev.type === 'sound_effect')
+      .map((ev) => ({
+        phase: ev.phase,
+        soundKey: ev.targets && ev.targets[0] && ev.targets[0].soundKey,
+        sourceType: ev.meta && ev.meta.sourceType
+      }))
+      .filter((ev) => ev.sourceType === 'sniper_shot' || ev.sourceType === 'stone_salvation_god_revive');
+
+    expect(cues).toEqual([
+      { phase: 3, soundKey: 'stone_destroy', sourceType: 'sniper_shot' },
+      { phase: 4, soundKey: 'breeding_spawn', sourceType: 'stone_salvation_god_revive' },
+      { phase: 5, soundKey: 'stone_destroy', sourceType: 'sniper_shot' },
+      { phase: 6, soundKey: 'breeding_spawn', sourceType: 'stone_salvation_god_revive' }
+    ]);
+  });
+
   test('condemn_selected 成功時は card_use_animation の phase で stone_destroy を再生する', () => {
     const base = [{
       type: 'card_use_animation',

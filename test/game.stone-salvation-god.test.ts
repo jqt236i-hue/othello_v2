@@ -1,11 +1,14 @@
 /* eslint-env jest */
 import * as Shared from '../shared-constants.js';
 import * as CardLogic from '../game/logic/cards.js';
+import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
 
 declare const require: any;
 const BoardOps: typeof import('../game/logic/board_ops.js') = require('../game/logic/board_ops.js');
 const Core: typeof import('../game/logic/core.js') = require('../game/logic/core.js');
 const VisualEffectsMap: any = require('../game/visual-effects-map.runtime.js');
+const CardCatalog: any = require('../cards/catalog.json');
+const CardInteractionEffects: any = require('../cards/card-interaction-effects.js');
 
 declare const describe: any;
 declare const test: any;
@@ -47,14 +50,20 @@ function findMarker(cardState: any, type: string) {
 describe('STONE_SALVATION_GOD（石救済神）', () => {
   test('catalog entry exists with correct id, type, and cost', () => {
     const def = getStoneSalvationGodDef();
+    const catalogDef = (CardCatalog.cards || []).find((card: any) => card && card.type === 'STONE_SALVATION_GOD');
     expect(def).toBeTruthy();
     expect(def.id).toBe('stone_salvation_god_01');
+    expect(def.name).toBe('救済神');
     expect(def.type).toBe('STONE_SALVATION_GOD');
     expect(Number(def.cost)).toBe(25);
+    expect(catalogDef).toBeTruthy();
+    expect(catalogDef.name_ja).toBe('救済神');
+    expect(catalogDef.display_type_ja).toBe('繁栄');
     expect(VisualEffectsMap.PENDING_TYPE_TO_EFFECT_KEY.STONE_SALVATION_GOD).toBe('stoneSalvationGod');
     expect(VisualEffectsMap.SPECIAL_TYPE_TO_EFFECT_KEY.STONE_SALVATION_GOD).toBe('stoneSalvationGod');
     expect(VisualEffectsMap.STONE_VISUAL_EFFECTS.stoneSalvationGod.imagePathByOwner['1']).toContain('STONE_SALVATION_GOD-black.png');
     expect(VisualEffectsMap.STONE_VISUAL_EFFECTS.stoneSalvationGod.imagePathByOwner['-1']).toContain('STONE_SALVATION_GOD-white.png');
+    expect(CardInteractionEffects.resolveCardEffectTags({ type: 'STONE_SALVATION_GOD' }).map((tag: any) => tag.label)).toEqual(['反転保護', '10ターン持続']);
   });
 
   test('next placed stone becomes a 10-turn flip-protected salvation god', () => {
@@ -77,7 +86,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     expect(Core.getFlipsWithContext(gameState, 3, 1, Shared.WHITE, CardLogic.getCardContext(cardState))).toEqual([]);
   });
 
-  test('destroyed own stone revives as a normal stone without reviving the salvation god itself', () => {
+  test('destroyed own stone queues a normal-stone revive for the owner turn start without reviving the salvation god itself', () => {
     const { cardState, gameState, prng } = createState([0]);
     gameState.board[0][0] = Shared.BLACK;
     gameState.board[1][1] = Shared.BLACK;
@@ -88,15 +97,22 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     );
 
     const destroyedOwn = BoardOps.destroyAt(cardState, gameState, 1, 1, 'TEST', 'destroy_own', { randomSource: prng });
-    const reviveEvents = cardState.presentationEvents.filter((event: any) => event && event.type === 'SPAWN' && event.reason === 'stone_salvation_god_revive');
+    const immediateReviveEvents = cardState.presentationEvents.filter((event: any) => event && event.type === 'SPAWN' && event.reason === 'stone_salvation_god_revive');
 
     expect(destroyedOwn.destroyed).toBe(true);
-    expect(destroyedOwn.stoneSalvationGodRevived).toBe(true);
+    expect(destroyedOwn.stoneSalvationGodReviveQueued).toBe(true);
     expect(gameState.board[1][1]).toBe(Shared.EMPTY);
+    expect(gameState.board[0][1]).toBe(Shared.EMPTY);
+    expect(cardState.pendingStoneSalvationGodRevivesByPlayer.black).toHaveLength(1);
+    expect(immediateReviveEvents).toHaveLength(0);
+
+    CardLogic.onTurnStart(cardState, 'black', gameState, prng);
+    const reviveEvents = cardState.presentationEvents.filter((event: any) => event && event.type === 'SPAWN' && event.reason === 'stone_salvation_god_revive');
+
     expect(gameState.board[0][1]).toBe(Shared.BLACK);
-    expect((cardState.markers || []).some((marker: any) => marker && marker.row === 0 && marker.col === 1)).toBe(false);
     expect(reviveEvents).toHaveLength(1);
     expect(reviveEvents[0]).toMatchObject({ row: 0, col: 1, ownerAfter: 'black', cause: 'STONE_SALVATION_GOD', reason: 'stone_salvation_god_revive' });
+    expect(cardState.pendingStoneSalvationGodRevivesByPlayer.black).toEqual([]);
 
     const destroyedGod = BoardOps.destroyAt(cardState, gameState, 0, 0, 'TEST', 'destroy_god', { randomSource: prng });
     const reviveEventsAfterGodDestroy = cardState.presentationEvents.filter((event: any) => event && event.type === 'SPAWN' && event.reason === 'stone_salvation_god_revive');
@@ -104,6 +120,58 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     expect(destroyedGod.destroyed).toBe(true);
     expect(destroyedGod.stoneSalvationGodRevived).toBeUndefined();
     expect(reviveEventsAfterGodDestroy).toHaveLength(1);
+  });
+
+  test('queued revive expires if the salvation god is gone before owner turn start', () => {
+    const { cardState, gameState, prng } = createState([0]);
+    gameState.board[0][0] = Shared.BLACK;
+    gameState.board[1][1] = Shared.BLACK;
+    cardState.markers.push({
+      id: 1,
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: 'black',
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+    });
+
+    const destroyedOwn = BoardOps.destroyAt(cardState, gameState, 1, 1, 'TEST', 'destroy_own', { randomSource: prng });
+    expect(destroyedOwn.stoneSalvationGodReviveQueued).toBe(true);
+    expect(cardState.pendingStoneSalvationGodRevivesByPlayer.black).toHaveLength(1);
+
+    BoardOps.destroyAt(cardState, gameState, 0, 0, 'TEST', 'destroy_god', { randomSource: prng });
+    CardLogic.onTurnStart(cardState, 'black', gameState, prng);
+
+    const reviveEvents = cardState.presentationEvents.filter((event: any) => event && event.type === 'SPAWN' && event.reason === 'stone_salvation_god_revive');
+    expect(reviveEvents).toHaveLength(0);
+    expect(cardState.pendingStoneSalvationGodRevivesByPlayer.black).toEqual([]);
+  });
+
+  test('turn-start pipeline plays queued salvation revive before continuous destruction effects', () => {
+    const { cardState, gameState, prng } = createState([0]);
+    gameState.board[0][0] = Shared.BLACK;
+    gameState.board[1][1] = Shared.BLACK;
+    gameState.board[7][7] = Shared.BLACK;
+    gameState.board[7][6] = Shared.WHITE;
+    cardState.markers.push(
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
+      { id: 2, kind: 'specialStone', row: 7, col: 7, owner: 'black', data: { type: 'SNIPER', remainingOwnerTurns: 3 } }
+    );
+
+    BoardOps.destroyAt(cardState, gameState, 1, 1, 'TEST', 'destroy_own', { randomSource: prng });
+    const events: any[] = [];
+    TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, 'black', events, prng);
+
+    const visualEvents = (cardState.presentationEvents || []).filter((event: any) => (
+      event &&
+      (
+        (event.type === 'SPAWN' && event.reason === 'stone_salvation_god_revive') ||
+        (event.type === 'DESTROY' && event.cause === 'SNIPER_WILL')
+      )
+    ));
+
+    expect(visualEvents.map((event: any) => event.type)).toEqual(['SPAWN', 'DESTROY']);
+    expect(events.some((event: any) => event && event.type === 'stone_salvation_god_revived_start' && event.revivedCount === 1)).toBe(true);
   });
 
   test('duration decreases on owner turns only and expiry reverts to normal stone', () => {

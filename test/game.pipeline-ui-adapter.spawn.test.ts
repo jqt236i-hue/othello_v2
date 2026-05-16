@@ -174,6 +174,318 @@ describe('pipeline_ui_adapter spawn mapping', () => {
     expect(mapped[2].phase).toBeGreaterThan(mapped[1].phase);
   });
 
+  test('plays Stone Salvation God revive after the destroy phase', () => {
+    const out = mapPlaybackEvents([
+      {
+        type: 'DESTROY',
+        row: 1,
+        col: 1,
+        stoneId: 'old-1',
+        ownerBefore: 'black',
+        cause: 'METEOR_WILL',
+        reason: 'meteor_cell_destroy',
+        meta: {}
+      },
+      {
+        type: 'SPAWN',
+        row: 4,
+        col: 4,
+        stoneId: 'revive-1',
+        ownerAfter: 'black',
+        cause: 'STONE_SALVATION_GOD',
+        reason: 'stone_salvation_god_revive',
+        meta: {
+          sourceSpecial: 'STONE_SALVATION_GOD',
+          revivedFromRow: 1,
+          revivedFromCol: 1
+        }
+      }
+    ]);
+
+    const destroy = out.find((ev) => ev && ev.type === 'destroy');
+    const spawn = out.find((ev) => ev && ev.type === 'spawn');
+
+    expect(destroy).toBeTruthy();
+    expect(spawn).toBeTruthy();
+    expect(spawn.phase).toBeGreaterThan(destroy.phase);
+    expect(spawn.targets[0]).toMatchObject({
+      r: 4,
+      col: 4,
+      cause: 'STONE_SALVATION_GOD',
+      reason: 'stone_salvation_god_revive'
+    });
+  });
+
+  test('keeps super buoyancy collision and move together before Stone Salvation God revive', () => {
+    const out = mapPlaybackEvents([
+      {
+        type: 'DESTROY',
+        row: 2,
+        col: 4,
+        stoneId: 'hit-own',
+        ownerBefore: 'black',
+        cause: 'SUPER_BUOYANCY_WILL',
+        reason: 'super_buoyancy_collision',
+        meta: { collisionProgress: 0.5 }
+      },
+      {
+        type: 'SPAWN',
+        row: 6,
+        col: 6,
+        stoneId: 'revived',
+        ownerAfter: 'black',
+        cause: 'STONE_SALVATION_GOD',
+        reason: 'stone_salvation_god_revive',
+        meta: {
+          sourceSpecial: 'STONE_SALVATION_GOD',
+          revivedFromRow: 2,
+          revivedFromCol: 4
+        }
+      },
+      {
+        type: 'MOVE',
+        prevRow: 4,
+        prevCol: 4,
+        row: 1,
+        col: 4,
+        stoneId: 'mover',
+        ownerBefore: 'black',
+        ownerAfter: 'black',
+        cause: 'SUPER_BUOYANCY_WILL',
+        reason: 'super_buoyancy_move'
+      }
+    ]);
+
+    const destroy = out.find((ev) => ev && ev.type === 'destroy');
+    const move = out.find((ev) => ev && ev.type === 'move');
+    const spawn = out.find((ev) => ev && ev.type === 'spawn');
+
+    expect(destroy).toBeTruthy();
+    expect(move).toBeTruthy();
+    expect(spawn).toBeTruthy();
+    expect(move.phase).toBe(destroy.phase);
+    expect(spawn.phase).toBeGreaterThan(move.phase);
+  });
+
+  test('defers interleaved Stone Salvation God revives until after the whole destroy batch', () => {
+    const out = mapPlaybackEvents([
+      {
+        type: 'DESTROY',
+        row: 1,
+        col: 1,
+        stoneId: 'bombed-1',
+        ownerBefore: 'black',
+        cause: 'TIME_BOMB',
+        reason: 'time_bomb_explode',
+        meta: {}
+      },
+      {
+        type: 'SPAWN',
+        row: 5,
+        col: 5,
+        stoneId: 'revive-1',
+        ownerAfter: 'black',
+        cause: 'STONE_SALVATION_GOD',
+        reason: 'stone_salvation_god_revive',
+        meta: { sourceSpecial: 'STONE_SALVATION_GOD' }
+      },
+      {
+        type: 'DESTROY',
+        row: 1,
+        col: 2,
+        stoneId: 'bombed-2',
+        ownerBefore: 'black',
+        cause: 'TIME_BOMB',
+        reason: 'time_bomb_explode',
+        meta: {}
+      },
+      {
+        type: 'SPAWN',
+        row: 5,
+        col: 6,
+        stoneId: 'revive-2',
+        ownerAfter: 'black',
+        cause: 'STONE_SALVATION_GOD',
+        reason: 'stone_salvation_god_revive',
+        meta: { sourceSpecial: 'STONE_SALVATION_GOD' }
+      }
+    ]);
+
+    const destroys = out.filter((ev) => ev && ev.type === 'destroy');
+    const spawns = out.filter((ev) => ev && ev.type === 'spawn');
+
+    expect(destroys).toHaveLength(2);
+    expect(spawns).toHaveLength(2);
+    expect(destroys[0].phase).toBe(destroys[1].phase);
+    expect(spawns[0].phase).toBeGreaterThan(destroys[0].phase);
+    expect(spawns[1].phase).toBeGreaterThan(spawns[0].phase);
+  });
+
+  test('keeps delayed Stone Salvation God turn-start revive before later continuous destroy playback', () => {
+    const out = mapPlaybackEvents([
+      {
+        type: 'SPAWN',
+        row: 5,
+        col: 5,
+        stoneId: 'revived-a',
+        ownerAfter: 'black',
+        cause: 'STONE_SALVATION_GOD',
+        reason: 'stone_salvation_god_revive',
+        meta: {
+          sourceSpecial: 'STONE_SALVATION_GOD',
+          revivedFromRow: 1,
+          revivedFromCol: 1,
+          sourceRow: 3,
+          sourceCol: 3
+        }
+      },
+      {
+        type: 'DESTROY',
+        row: 5,
+        col: 5,
+        stoneId: 'revived-a',
+        ownerBefore: 'black',
+        cause: 'TIME_BOMB',
+        reason: 'bomb_explosion',
+        meta: { sourceRow: 7, sourceCol: 7, projectileOwner: 'white', projectileStone: 'time_bomb' }
+      },
+      {
+        type: 'SPAWN',
+        row: 6,
+        col: 6,
+        stoneId: 'revived-b',
+        ownerAfter: 'black',
+        cause: 'STONE_SALVATION_GOD',
+        reason: 'stone_salvation_god_revive',
+        meta: {
+          sourceSpecial: 'STONE_SALVATION_GOD',
+          revivedFromRow: 5,
+          revivedFromCol: 5,
+          sourceRow: 3,
+          sourceCol: 3
+        }
+      }
+    ]);
+
+    const ordered = out
+      .filter((ev) => ev && (ev.type === 'destroy' || ev.type === 'spawn'))
+      .map((ev) => ({
+        type: ev.type,
+        phase: ev.phase,
+        stoneId: ev.targets[0].stoneId,
+        cause: ev.targets[0].cause
+      }));
+
+    expect(ordered.map((ev) => `${ev.type}:${ev.stoneId}`)).toEqual([
+      'spawn:revived-a',
+      'destroy:revived-a',
+      'spawn:revived-b'
+    ]);
+    expect(ordered[1].phase).toBeGreaterThan(ordered[0].phase);
+    expect(ordered[2].phase).toBeGreaterThan(ordered[1].phase);
+  });
+
+  test('keeps sniper shot projectile metadata before Stone Salvation God revive', () => {
+    const out = mapPlaybackEvents([
+      {
+        type: 'DESTROY',
+        row: 1,
+        col: 1,
+        stoneId: 'sniped',
+        ownerBefore: 'black',
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        meta: { sourceRow: 4, sourceCol: 4 }
+      },
+      {
+        type: 'SPAWN',
+        row: 5,
+        col: 5,
+        stoneId: 'revived',
+        ownerAfter: 'black',
+        cause: 'STONE_SALVATION_GOD',
+        reason: 'stone_salvation_god_revive',
+        meta: { sourceSpecial: 'STONE_SALVATION_GOD' }
+      }
+    ]);
+
+    const destroy = out.find((ev) => ev && ev.type === 'destroy');
+    const spawn = out.find((ev) => ev && ev.type === 'spawn');
+
+    expect(destroy).toBeTruthy();
+    expect(spawn).toBeTruthy();
+    expect(destroy.targets[0]).toMatchObject({
+      cause: 'SNIPER_WILL',
+      reason: 'sniper_shot',
+      sourceRow: 4,
+      sourceCol: 4
+    });
+    expect(spawn.phase).toBeGreaterThan(destroy.phase);
+  });
+
+  test('plays later turn-start sniper shots and Stone Salvation God revives per source anchor', () => {
+    const out = mapPlaybackEvents([
+      {
+        type: 'DESTROY',
+        row: 1,
+        col: 1,
+        stoneId: 'sniped-a',
+        ownerBefore: 'black',
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        meta: { sourceRow: 0, sourceCol: 0, projectileOwner: 'white' }
+      },
+      {
+        type: 'SPAWN',
+        row: 5,
+        col: 5,
+        stoneId: 'revived-a',
+        ownerAfter: 'black',
+        cause: 'STONE_SALVATION_GOD',
+        reason: 'stone_salvation_god_revive',
+        meta: { sourceSpecial: 'STONE_SALVATION_GOD', revivedFromRow: 1, revivedFromCol: 1 }
+      },
+      {
+        type: 'DESTROY',
+        row: 2,
+        col: 2,
+        stoneId: 'sniped-b',
+        ownerBefore: 'black',
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        meta: { sourceRow: 7, sourceCol: 7, projectileOwner: 'white' }
+      },
+      {
+        type: 'SPAWN',
+        row: 5,
+        col: 6,
+        stoneId: 'revived-b',
+        ownerAfter: 'black',
+        cause: 'STONE_SALVATION_GOD',
+        reason: 'stone_salvation_god_revive',
+        meta: { sourceSpecial: 'STONE_SALVATION_GOD', revivedFromRow: 2, revivedFromCol: 2 }
+      }
+    ]);
+
+    const ordered = out
+      .filter((ev) => ev && (ev.type === 'destroy' || ev.type === 'spawn'))
+      .map((ev) => ({
+        type: ev.type,
+        phase: ev.phase,
+        stoneId: ev.targets[0].stoneId,
+        sourceRow: ev.targets[0].sourceRow,
+        sourceCol: ev.targets[0].sourceCol,
+        reason: ev.targets[0].reason
+      }));
+
+    expect(ordered.map((ev) => ev.stoneId)).toEqual(['sniped-a', 'revived-a', 'sniped-b', 'revived-b']);
+    expect(ordered[1].phase).toBeGreaterThan(ordered[0].phase);
+    expect(ordered[2].phase).toBeGreaterThan(ordered[1].phase);
+    expect(ordered[3].phase).toBeGreaterThan(ordered[2].phase);
+    expect(ordered[0]).toMatchObject({ sourceRow: 0, sourceCol: 0, reason: 'sniper_shot' });
+    expect(ordered[2]).toMatchObject({ sourceRow: 7, sourceCol: 7, reason: 'sniper_shot' });
+  });
+
   test('keeps breeding, clone, split, proliferation, and normal spawns on their current mapping', () => {
     const out = mapPlaybackEvents([
       {

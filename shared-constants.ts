@@ -263,7 +263,7 @@ const CARD_DEFS_FALLBACK = [
     { id: 'guardian_god_01', name: '守護神', type: 'GUARDIAN_GOD', cost: 10, desc: '自分の石1つに完全保護を付与する。10ターン持続。' },
 
     // STONE_SALVATION_GOD (石救済神) - 1 card, cost: 25
-    { id: 'stone_salvation_god_01', name: '石救済神', type: 'STONE_SALVATION_GOD', cost: 25, desc: '次に置く石を救済神化する。救済神は反転されず、10ターン持続。盤面にいる間、自分の石が破壊されると破壊された自石を通常石としてランダムな空きマスに復活させる。救済神自身は復活しない。' },
+    { id: 'stone_salvation_god_01', name: '救済神', type: 'STONE_SALVATION_GOD', cost: 25, desc: '次に置く石を救済神化する。救済神は反転されず、10ターン持続。盤面にいる間、自分の石が破壊されると破壊された自石を通常石としてランダムな空きマスに復活させる。救済神自身は復活しない。' },
 
     // DESTROY_DRAGON_WILL (破壊龍) - 1 card, cost: 7
     { id: 'destroy_dragon_01', name: '破壊龍', type: 'DESTROY_DRAGON_WILL', cost: 7, desc: '次に置く石を破壊龍化。配置時と自ターン開始時に周囲1マス（8方向）の敵石をランダム1個だけ破壊する。3ターン持続。反転保護を持つ特殊石。' },

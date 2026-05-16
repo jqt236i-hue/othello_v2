@@ -1458,6 +1458,118 @@ describe('animation-engine guard timer rendering', () => {
     delete global.animateFadeOutAt;
   });
 
+  test('sniper shot still fires projectile when target disc was already removed', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
+
+    const sourceCell = document.createElement('div');
+    sourceCell.className = 'cell';
+    sourceCell.dataset.row = '1';
+    sourceCell.dataset.col = '1';
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '2';
+    targetCell.dataset.col = '2';
+
+    board.appendChild(sourceCell);
+    board.appendChild(targetCell);
+
+    const projectileSpy = jest.spyOn(engine, 'animateSniperProjectile').mockResolvedValue(undefined);
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 2,
+        col: 2,
+        ownerBefore: 'black',
+        cause: 'SNIPER_WILL',
+        reason: 'sniper_shot',
+        sourceRow: 1,
+        sourceCol: 1
+      }]
+    });
+
+    expect(projectileSpy).toHaveBeenCalledTimes(1);
+    projectileSpy.mockRestore();
+    sleepSpy.mockRestore();
+  });
+
+  test.each([
+    ['destroy dragon breath legacy cause', 'DESTROY_DRAGON', 'destroy_dragon_breath', 'animateDestroyDragonBreath'],
+    ['destroy dragon breath', 'DESTROY_DRAGON_WILL', 'destroy_dragon_breath', 'animateDestroyDragonBreath'],
+    ['ultimate destroy god lightning', 'ULTIMATE_DESTROY_GOD', 'udg_destroyed', 'animateUdgLightningStrike'],
+    ['lightning will strike', 'LIGHTNING_WILL', 'lightning_destroyed', 'animateUdgLightningStrike'],
+    ['will hunter king slash', 'WILL_HUNTER_KING', 'will_hunter_king_slash', 'animateWillHunterKingSlash'],
+    ['robot vacuum suction', 'ROBOT_VACUUM', 'robot_vacuum_suck', 'animateRobotVacuumSuction']
+  ])('%s still plays source animation when target disc was already removed', async (_label, cause, reason, methodName) => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
+
+    const sourceCell = document.createElement('div');
+    sourceCell.className = 'cell';
+    sourceCell.dataset.row = '1';
+    sourceCell.dataset.col = '1';
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '2';
+    targetCell.dataset.col = '2';
+
+    board.appendChild(sourceCell);
+    board.appendChild(targetCell);
+
+    const sourceAnimationSpy = jest.spyOn(engine, methodName).mockResolvedValue(undefined);
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 2,
+        col: 2,
+        ownerBefore: 'black',
+        cause,
+        reason,
+        sourceRow: 1,
+        sourceCol: 1
+      }]
+    });
+
+    expect(sourceAnimationSpy).toHaveBeenCalledTimes(1);
+    sourceAnimationSpy.mockRestore();
+    sleepSpy.mockRestore();
+  });
+
+  test('generic card destroy still shows a ghost fade when target disc was already removed', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '2';
+    targetCell.dataset.col = '2';
+    board.appendChild(targetCell);
+
+    const ghostSpy = jest.spyOn(engine, '_animateDestroyGhostAtCell').mockResolvedValue(undefined);
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+
+    await engine.handleDestroy({
+      type: 'destroy',
+      targets: [{
+        r: 2,
+        col: 2,
+        ownerBefore: 'black',
+        cause: 'TIME_BOMB',
+        reason: 'bomb_explosion'
+      }]
+    });
+
+    expect(ghostSpy).toHaveBeenCalledTimes(1);
+    ghostSpy.mockRestore();
+    sleepSpy.mockRestore();
+  });
+
   test('robot vacuum destroy triggers suction animation and skips fade-out path', async () => {
     global.animateFadeOutAt = jest.fn(() => Promise.resolve());
     const engine = require('../ui/animation-engine');
@@ -2036,6 +2148,46 @@ describe('animation-engine guard timer rendering', () => {
         col: 6,
         cause: 'SALVATION_WILL',
         reason: 'salvation_spawn',
+        ownerAfter: 'black',
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(sleepSpy).toHaveBeenCalled();
+    expect(sleepSpy.mock.calls.some(([ms]) => Number(ms) >= (AnimationConstants.POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS - 20))).toBe(true);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+    sleepSpy.mockRestore();
+  });
+
+  test('Stone Salvation God revive keeps purple cell highlight visible briefly', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '3';
+    targetCell.dataset.col = '6';
+    board.appendChild(targetCell);
+
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+
+    await engine.handleSpawn({
+      type: 'spawn',
+      targets: [{
+        r: 3,
+        col: 6,
+        cause: 'STONE_SALVATION_GOD',
+        reason: 'stone_salvation_god_revive',
         ownerAfter: 'black',
         after: { color: 1, special: null, timer: null, owner: 'black' }
       }]

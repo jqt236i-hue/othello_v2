@@ -668,6 +668,23 @@ function _findStoneSalvationGodMarker(cardState: any, ownerKey: string): any {
     )) || null;
 }
 
+function _ensurePendingStoneSalvationGodRevives(cardState: any): any {
+    _ensureCardState(cardState);
+    if (
+        !cardState.pendingStoneSalvationGodRevivesByPlayer ||
+        typeof cardState.pendingStoneSalvationGodRevivesByPlayer !== 'object'
+    ) {
+        cardState.pendingStoneSalvationGodRevivesByPlayer = { black: [], white: [] };
+    }
+    if (!Array.isArray(cardState.pendingStoneSalvationGodRevivesByPlayer.black)) {
+        cardState.pendingStoneSalvationGodRevivesByPlayer.black = [];
+    }
+    if (!Array.isArray(cardState.pendingStoneSalvationGodRevivesByPlayer.white)) {
+        cardState.pendingStoneSalvationGodRevivesByPlayer.white = [];
+    }
+    return cardState.pendingStoneSalvationGodRevivesByPlayer;
+}
+
 function _isStoneSalvationGodMarkerAt(cardState: any, row: number, col: number, ownerKey: string): boolean {
     return _getSpecialMarkersAt(cardState, row, col).some((marker: any) => (
         marker &&
@@ -677,7 +694,24 @@ function _isStoneSalvationGodMarkerAt(cardState: any, row: number, col: number, 
     ));
 }
 
-function _reviveDestroyedStoneByStoneSalvationGod(cardState: any, gameState: any, row: number, col: number, ownerKey: string, cause: string | null, reason: string | null, meta: any): any {
+function _queueDestroyedStoneForStoneSalvationGod(cardState: any, row: number, col: number, ownerKey: string, cause: string | null, reason: string | null, meta: any): any {
+    const source = _findStoneSalvationGodMarker(cardState, ownerKey);
+    if (!source) return null;
+    const pending = _ensurePendingStoneSalvationGodRevives(cardState);
+    const entry = {
+        row,
+        col,
+        owner: ownerKey,
+        cause: cause || null,
+        reason: reason || null,
+        meta: _clonePresentationMeta(meta),
+        queuedTurnIndex: Number.isFinite(Number(cardState && cardState.turnIndex)) ? Number(cardState.turnIndex) : null
+    };
+    pending[ownerKey].push(entry);
+    return { queued: true, entry };
+}
+
+function _reviveDestroyedStoneByStoneSalvationGod(cardState: any, gameState: any, pendingEntry: any, ownerKey: string, meta: any): any {
     const source = _findStoneSalvationGodMarker(cardState, ownerKey);
     if (!source) return null;
     const candidates = _collectBoardShapeEmptyCells(cardState, gameState);
@@ -685,14 +719,17 @@ function _reviveDestroyedStoneByStoneSalvationGod(cardState: any, gameState: any
     const randomSource = _resolveBoardOpsRandomSource(cardState, meta);
     const destination = candidates[_resolveRandomIndex(randomSource, candidates.length)] || candidates[0] || null;
     if (!destination) return { revived: false, reason: 'no_empty_cell' };
-    const reviveMeta = Object.assign(_clonePresentationMeta(meta), {
+    const reviveMeta = Object.assign(_clonePresentationMeta(pendingEntry && pendingEntry.meta), {
         owner: ownerKey,
         sourceSpecial: 'STONE_SALVATION_GOD',
-        revivedFromRow: row,
-        revivedFromCol: col,
+        revivedFromRow: pendingEntry && Number.isInteger(pendingEntry.row) ? pendingEntry.row : null,
+        revivedFromCol: pendingEntry && Number.isInteger(pendingEntry.col) ? pendingEntry.col : null,
         revivedOwner: ownerKey,
         sourceRow: source.row,
-        sourceCol: source.col
+        sourceCol: source.col,
+        delayedRevive: true,
+        destroyedCause: pendingEntry && pendingEntry.cause ? pendingEntry.cause : null,
+        destroyedReason: pendingEntry && pendingEntry.reason ? pendingEntry.reason : null
     });
     const spawnResult = spawnAt(
         cardState,
@@ -710,6 +747,41 @@ function _reviveDestroyedStoneByStoneSalvationGod(cardState: any, gameState: any
         col: destination.col,
         stoneId: spawnResult && spawnResult.stoneId,
         reason: spawnResult && spawnResult.spawned ? null : ((spawnResult && spawnResult.reason) || 'spawn_failed')
+    };
+}
+
+function consumeStoneSalvationGodRevives(cardState: any, gameState: any, ownerKey: string, meta: any = {}): any {
+    const pending = _ensurePendingStoneSalvationGodRevives(cardState);
+    const ownerPending = Array.isArray(pending[ownerKey]) ? pending[ownerKey].slice() : [];
+    pending[ownerKey] = [];
+    const revived: any[] = [];
+    const failed: any[] = [];
+    if (!ownerPending.length) return { revived, failed, requestedCount: 0, revivedCount: 0 };
+    if (!_findStoneSalvationGodMarker(cardState, ownerKey)) {
+        return {
+            revived,
+            failed: ownerPending.map((entry: any) => Object.assign({}, entry, { reason: 'source_missing' })),
+            requestedCount: ownerPending.length,
+            revivedCount: 0
+        };
+    }
+    for (const entry of ownerPending) {
+        const result = _reviveDestroyedStoneByStoneSalvationGod(cardState, gameState, entry, ownerKey, meta);
+        if (result && result.revived) {
+            revived.push(Object.assign({}, entry, {
+                row: result.row,
+                col: result.col,
+                stoneId: result.stoneId
+            }));
+        } else {
+            failed.push(Object.assign({}, entry, { reason: (result && result.reason) || 'source_missing' }));
+        }
+    }
+    return {
+        revived,
+        failed,
+        requestedCount: ownerPending.length,
+        revivedCount: revived.length
     };
 }
 
@@ -1408,12 +1480,11 @@ function destroyAt(cardState: any, gameState: any, row: number, col: number, cau
             });
         }
         recordSalvationDestroy();
-        const stoneSalvationGodRevive = wasStoneSalvationGodForDestroy
+        const stoneSalvationGodReviveQueued = wasStoneSalvationGodForDestroy
             ? null
-            : _reviveDestroyedStoneByStoneSalvationGod(cardState, gameState, row, col, ownerBeforeKeyForDestroy, cause, reason, meta);
-        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, stoneSalvationGodRevive && stoneSalvationGodRevive.revived ? {
-            stoneSalvationGodRevived: true,
-            stoneSalvationGodRevive
+            : _queueDestroyedStoneForStoneSalvationGod(cardState, row, col, ownerBeforeKeyForDestroy, cause, reason, meta);
+        return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, stoneSalvationGodReviveQueued && stoneSalvationGodReviveQueued.queued ? {
+            stoneSalvationGodReviveQueued: true
         } : undefined);
     }
 
@@ -1442,13 +1513,12 @@ function destroyAt(cardState: any, gameState: any, row: number, col: number, cau
 
     recordSalvationDestroy();
 
-    const stoneSalvationGodRevive = wasStoneSalvationGodForDestroy
+    const stoneSalvationGodReviveQueued = wasStoneSalvationGodForDestroy
         ? null
-        : _reviveDestroyedStoneByStoneSalvationGod(cardState, gameState, row, col, ownerBeforeKeyForDestroy, cause, reason, meta);
+        : _queueDestroyedStoneForStoneSalvationGod(cardState, row, col, ownerBeforeKeyForDestroy, cause, reason, meta);
 
-    return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, stoneSalvationGodRevive && stoneSalvationGodRevive.revived ? {
-        stoneSalvationGodRevived: true,
-        stoneSalvationGodRevive
+    return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, stoneSalvationGodReviveQueued && stoneSalvationGodReviveQueued.queued ? {
+        stoneSalvationGodReviveQueued: true
     } : undefined);
 }
 
@@ -1734,5 +1804,6 @@ export = {
     allocateStoneId,
     emitPresentationEvent,
     setActionContext,
-    clearActionContext
+    clearActionContext,
+    consumeStoneSalvationGodRevives
 };
