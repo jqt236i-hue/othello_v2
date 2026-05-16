@@ -4370,23 +4370,7 @@ function runSelfPlayGames(options) {
     const allRecords = [];
     const gameSummaries = [];
     const totals = { black: 0, white: 0, draw: 0 };
-    const endedByCounts = Object.create(null);
-    const hardcaseTagCounts = Object.create(null);
-    const hardcasePrimaryTagCounts = Object.create(null);
     let totalPlies = 0;
-    let retryGames = 0;
-    let retryAttemptSum = 0;
-    let maxRetryAttempt = 0;
-    let finalDiscDiffAbsSum = 0;
-    let finalCornerDiffAbsSum = 0;
-    let finalEdgeDiffAbsSum = 0;
-    let finalBlackCornerShareSum = 0;
-    let finalBlackEdgeShareSum = 0;
-
-    const incrementCounter = (counts, key, amount) => {
-        const safeKey = String(key || 'unknown').trim() || 'unknown';
-        counts[safeKey] = Number(counts[safeKey] || 0) + (Number.isFinite(amount) ? Number(amount) : 1);
-    };
 
     for (let i = 0; i < opts.games; i++) {
         if (opts.shouldStop && opts.shouldStop()) {
@@ -4409,67 +4393,25 @@ function runSelfPlayGames(options) {
         gameSummaries.push(one.summary);
         totals[one.summary.winner] += 1;
         totalPlies += one.summary.plies;
-        incrementCounter(endedByCounts, one.summary.endedBy || 'unknown', 1);
-        const retryAttempt = Number.isFinite(one.summary.retryAttempt)
-            ? Number(one.summary.retryAttempt)
-            : 0;
-        if (retryAttempt > 0) {
-            retryGames += 1;
-            retryAttemptSum += retryAttempt;
-            if (retryAttempt > maxRetryAttempt) maxRetryAttempt = retryAttempt;
-        }
-        finalDiscDiffAbsSum += Math.abs(Number(one.summary.blackCount || 0) - Number(one.summary.whiteCount || 0));
-        finalCornerDiffAbsSum += Math.abs(Number(one.summary.blackCorners || 0) - Number(one.summary.whiteCorners || 0));
-        finalEdgeDiffAbsSum += Math.abs(Number(one.summary.blackEdges || 0) - Number(one.summary.whiteEdges || 0));
-        const totalCorners = Number(one.summary.blackCorners || 0) + Number(one.summary.whiteCorners || 0);
-        const totalEdges = Number(one.summary.blackEdges || 0) + Number(one.summary.whiteEdges || 0);
-        finalBlackCornerShareSum += totalCorners > 0
-            ? (Number(one.summary.blackCorners || 0) / totalCorners)
-            : 0.5;
-        finalBlackEdgeShareSum += totalEdges > 0
-            ? (Number(one.summary.blackEdges || 0) / totalEdges)
-            : 0.5;
 
         for (const rec of one.records) {
             if (opts.onRecord) opts.onRecord(rec);
             else allRecords.push(rec);
-            const hardcaseTags = Array.isArray(rec && rec.hardcaseTags) ? rec.hardcaseTags : [];
-            for (const tag of hardcaseTags) {
-                incrementCounter(hardcaseTagCounts, tag, 1);
-            }
-            if (hardcaseTags.length > 0) {
-                incrementCounter(hardcasePrimaryTagCounts, rec && rec.hardcasePrimaryTag ? rec.hardcasePrimaryTag : hardcaseTags[0], 1);
-            }
         }
         if (opts.onGameEnd) opts.onGameEnd(one.summary);
     }
 
-    const completedGames = gameSummaries.length;
     return {
         records: opts.onRecord ? [] : allRecords,
         gameSummaries,
         summary: {
             schemaVersion: opts.schemaVersion,
-            totalGames: completedGames,
+            totalGames: gameSummaries.length,
             plannedGames: opts.games,
-            aborted: completedGames < opts.games,
+            aborted: gameSummaries.length < opts.games,
             totalPlies,
-            avgPlies: completedGames > 0 ? totalPlies / completedGames : 0,
-            wins: totals,
-            endedByCounts,
-            retryGames,
-            retryAttemptSum,
-            avgRetryAttempt: retryGames > 0 ? retryAttemptSum / retryGames : 0,
-            maxRetryAttempt,
-            hardcaseTagCounts,
-            hardcasePrimaryTagCounts,
-            avgFinalDiscDiffAbs: completedGames > 0 ? finalDiscDiffAbsSum / completedGames : 0,
-            avgFinalCornerDiffAbs: completedGames > 0 ? finalCornerDiffAbsSum / completedGames : 0,
-            avgFinalEdgeDiffAbs: completedGames > 0 ? finalEdgeDiffAbsSum / completedGames : 0,
-            avgFinalBlackCornerShare: completedGames > 0 ? finalBlackCornerShareSum / completedGames : 0.5,
-            avgFinalWhiteCornerShare: completedGames > 0 ? 1 - (finalBlackCornerShareSum / completedGames) : 0.5,
-            avgFinalBlackEdgeShare: completedGames > 0 ? finalBlackEdgeShareSum / completedGames : 0.5,
-            avgFinalWhiteEdgeShare: completedGames > 0 ? 1 - (finalBlackEdgeShareSum / completedGames) : 0.5
+            avgPlies: gameSummaries.length > 0 ? totalPlies / gameSummaries.length : 0,
+            wins: totals
         }
     };
 }

@@ -197,40 +197,6 @@ describe('selfplay runner', () => {
         expect(result.records.length).toBeGreaterThan(0);
     });
 
-    test('selfplay summary exposes retry, ending, and hardcase aggregates', () => {
-        const result = runSelfPlayGames({
-            games: 2,
-            baseSeed: 21,
-            maxPlies: 80,
-            allowCardUsage: true,
-            cardUsageRate: 0.25
-        });
-
-        expect(result.summary).toEqual(expect.objectContaining({
-            endedByCounts: expect.any(Object),
-            retryGames: expect.any(Number),
-            retryAttemptSum: expect.any(Number),
-            avgRetryAttempt: expect.any(Number),
-            maxRetryAttempt: expect.any(Number),
-            hardcaseTagCounts: expect.any(Object),
-            hardcasePrimaryTagCounts: expect.any(Object),
-            avgFinalDiscDiffAbs: expect.any(Number),
-            avgFinalCornerDiffAbs: expect.any(Number),
-            avgFinalEdgeDiffAbs: expect.any(Number),
-            avgFinalBlackCornerShare: expect.any(Number),
-            avgFinalWhiteCornerShare: expect.any(Number),
-            avgFinalBlackEdgeShare: expect.any(Number),
-            avgFinalWhiteEdgeShare: expect.any(Number)
-        }));
-        expect(
-            Object.values(result.summary.endedByCounts).reduce((sum, count) => sum + Number(count || 0), 0)
-        ).toBe(result.summary.totalGames);
-        expect(result.summary.avgFinalBlackCornerShare).toBeGreaterThanOrEqual(0);
-        expect(result.summary.avgFinalBlackCornerShare).toBeLessThanOrEqual(1);
-        expect(result.summary.avgFinalBlackEdgeShare).toBeGreaterThanOrEqual(0);
-        expect(result.summary.avgFinalBlackEdgeShare).toBeLessThanOrEqual(1);
-    });
-
     test('records per-player deck metrics when deck sizes diverge', () => {
         const realInitGame = CardLogic.initGame;
         jest.spyOn(CardLogic, 'initGame').mockImplementation((prng) => {

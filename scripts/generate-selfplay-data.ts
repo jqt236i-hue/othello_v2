@@ -812,57 +812,22 @@ function buildIllegalMoveHardcaseOutPath(outPath) {
 function combineSummary(shardResults) {
     const rows = Array.isArray(shardResults) ? shardResults : [];
     const wins = { black: 0, white: 0, draw: 0 };
-    const endedByCounts = Object.create(null);
-    const hardcaseTagCounts = Object.create(null);
-    const hardcasePrimaryTagCounts = Object.create(null);
     let totalGames = 0;
     let totalPlies = 0;
     let hardcaseRecords = 0;
     let illegalMoveHardcaseRecords = 0;
-    let retryGames = 0;
-    let retryAttemptSum = 0;
-    let maxRetryAttempt = 0;
-    let finalDiscDiffAbsWeightedSum = 0;
-    let finalCornerDiffAbsWeightedSum = 0;
-    let finalEdgeDiffAbsWeightedSum = 0;
-    let finalBlackCornerShareWeightedSum = 0;
-    let finalBlackEdgeShareWeightedSum = 0;
-    const incrementCounter = (counts, key, amount) => {
-        const safeKey = String(key || 'unknown').trim() || 'unknown';
-        counts[safeKey] = Number(counts[safeKey] || 0) + (Number.isFinite(amount) ? Number(amount) : 1);
-    };
-    const mergeCounterMap = (target, source) => {
-        if (!source || typeof source !== 'object') return;
-        for (const [key, value] of Object.entries(source)) {
-            incrementCounter(target, key, Number(value) || 0);
-        }
-    };
     for (const one of rows) {
         const s = one && one.summary ? one.summary : null;
         if (!s) continue;
-        const shardGames = Number(s.totalGames || 0);
-        totalGames += shardGames;
+        totalGames += Number(s.totalGames || 0);
         totalPlies += Number(s.totalPlies || 0);
         hardcaseRecords += Number(s.hardcaseRecords || 0);
         illegalMoveHardcaseRecords += Number(s.illegalMoveHardcaseRecords || 0);
-        retryGames += Number(s.retryGames || 0);
-        retryAttemptSum += Number(s.retryAttemptSum || 0);
-        maxRetryAttempt = Math.max(maxRetryAttempt, Number(s.maxRetryAttempt || 0));
-        finalDiscDiffAbsWeightedSum += (Number(s.avgFinalDiscDiffAbs || 0) * shardGames);
-        finalCornerDiffAbsWeightedSum += (Number(s.avgFinalCornerDiffAbs || 0) * shardGames);
-        finalEdgeDiffAbsWeightedSum += (Number(s.avgFinalEdgeDiffAbs || 0) * shardGames);
-        finalBlackCornerShareWeightedSum += (Number(s.avgFinalBlackCornerShare || 0.5) * shardGames);
-        finalBlackEdgeShareWeightedSum += (Number(s.avgFinalBlackEdgeShare || 0.5) * shardGames);
         const w = s.wins || {};
         wins.black += Number(w.black || 0);
         wins.white += Number(w.white || 0);
         wins.draw += Number(w.draw || 0);
-        mergeCounterMap(endedByCounts, s.endedByCounts);
-        mergeCounterMap(hardcaseTagCounts, s.hardcaseTagCounts);
-        mergeCounterMap(hardcasePrimaryTagCounts, s.hardcasePrimaryTagCounts);
     }
-    const avgFinalBlackCornerShare = totalGames > 0 ? (finalBlackCornerShareWeightedSum / totalGames) : 0.5;
-    const avgFinalBlackEdgeShare = totalGames > 0 ? (finalBlackEdgeShareWeightedSum / totalGames) : 0.5;
     return {
         schemaVersion: SELFPLAY_SCHEMA_VERSION,
         totalGames,
@@ -870,21 +835,7 @@ function combineSummary(shardResults) {
         avgPlies: totalGames > 0 ? totalPlies / totalGames : 0,
         hardcaseRecords,
         illegalMoveHardcaseRecords,
-        wins,
-        endedByCounts,
-        retryGames,
-        retryAttemptSum,
-        avgRetryAttempt: retryGames > 0 ? retryAttemptSum / retryGames : 0,
-        maxRetryAttempt,
-        hardcaseTagCounts,
-        hardcasePrimaryTagCounts,
-        avgFinalDiscDiffAbs: totalGames > 0 ? finalDiscDiffAbsWeightedSum / totalGames : 0,
-        avgFinalCornerDiffAbs: totalGames > 0 ? finalCornerDiffAbsWeightedSum / totalGames : 0,
-        avgFinalEdgeDiffAbs: totalGames > 0 ? finalEdgeDiffAbsWeightedSum / totalGames : 0,
-        avgFinalBlackCornerShare,
-        avgFinalWhiteCornerShare: 1 - avgFinalBlackCornerShare,
-        avgFinalBlackEdgeShare,
-        avgFinalWhiteEdgeShare: 1 - avgFinalBlackEdgeShare
+        wins
     };
 }
 
