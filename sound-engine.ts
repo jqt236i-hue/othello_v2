@@ -64,7 +64,8 @@ const SoundEngine = {
         { name: 'c-othello-2', file: 'assets/audio/bgm/c-othello-2.mp3' },
         { name: '盤喰いの小鬼戦', file: 'assets/audio/bgm/盤喰いの小鬼戦.mp3', loopStart: 1.655 },
         { name: '幻想即興曲', file: 'assets/audio/bgm/幻想即興曲.mp3' },
-        { name: 'ノクターン', file: 'assets/audio/bgm/ノクターン.mp3' }
+        { name: 'ノクターン', file: 'assets/audio/bgm/ノクターン.mp3' },
+        { name: 'The Observer’s Tears', file: 'assets/audio/bgm/The Observer’s Tears.mp3' }
     ] as BgmTrack[],
     effectBasePath: 'assets/audio/sound-effect/',
     effectSoundFiles: {

@@ -1669,7 +1669,7 @@
 
 - 起動時の既定BGMは `assets/audio/bgm/c-othello.mp3` を使用する
 - 起動時の BGM 音量スライダー既定値は `0.091` とする（従来 `0.07` の 1.3 倍）
-- BGM 選択一覧は `assets/audio/bgm/c-othello.mp3`、`assets/audio/bgm/c-othello-2.mp3`、`assets/audio/bgm/盤喰いの小鬼戦.mp3`、`assets/audio/bgm/幻想即興曲.mp3`、`assets/audio/bgm/ノクターン.mp3` の 5 曲を含める
+- BGM 選択一覧は `assets/audio/bgm/c-othello.mp3`、`assets/audio/bgm/c-othello-2.mp3`、`assets/audio/bgm/盤喰いの小鬼戦.mp3`、`assets/audio/bgm/幻想即興曲.mp3`、`assets/audio/bgm/ノクターン.mp3`、`assets/audio/bgm/The Observer’s Tears.mp3` の 6 曲を含める
 - BGM は曲ごとに `loopStart` 秒を持ってよく、`loopStart > 0` の曲は初回だけ 0 秒から再生し、ループ時は `loopStart` 秒へ戻す
 - `assets/audio/bgm/盤喰いの小鬼戦.mp3` は `loopStart = 1.655` とし、イントロはループしない
 - 効果音ファイルは `assets/audio/sound-effect/` を基本とし、配置音など skin 系は `assets/audio/sound-effect-skin/` を使ってよい

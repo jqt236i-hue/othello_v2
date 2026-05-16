@@ -154,13 +154,14 @@ describe('SoundEngine default BGM', () => {
   test('startup default track points to c-othello', () => {
     const soundEngine = loadSoundEngine();
 
-    expect(soundEngine.playlist).toHaveLength(5);
+    expect(soundEngine.playlist).toHaveLength(6);
     expect(soundEngine.playlist.map((track) => track.name)).toEqual([
       'c-othello',
       'c-othello-2',
       '盤喰いの小鬼戦',
       '幻想即興曲',
-      'ノクターン'
+      'ノクターン',
+      'The Observer’s Tears'
     ]);
     expect(soundEngine.currentTrackIndex).toBe(0);
     expect(soundEngine.playlist[0]).toEqual({
@@ -178,6 +179,10 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.playlist[4]).toEqual({
       name: 'ノクターン',
       file: 'assets/audio/bgm/ノクターン.mp3'
+    });
+    expect(soundEngine.playlist[5]).toEqual({
+      name: 'The Observer’s Tears',
+      file: 'assets/audio/bgm/The Observer’s Tears.mp3'
     });
   });
 

@@ -1,6 +1,6 @@
 {
   "version": "2026-05-16",
-  "generatedAt": "2026-05-16T04:41:59.538Z",
+  "generatedAt": "2026-05-16T12:53:28.199Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -36,14 +36,6 @@
     },
     {
       "path": "assets/images/stones/DESTROY_DRAGON-white.png",
-      "sha256": "cc288ed753801c48b9ecec3fce7e5692ac4bdf6413ab8b7aa2f1b75a6990768b"
-    },
-    {
-      "path": "assets/images/stones/dragon-black.png",
-      "sha256": "143cc98aff3bd55432abe918118a2da6c383dfa855072aa72d5e2faac1821b92"
-    },
-    {
-      "path": "assets/images/stones/dragon-white.png",
       "sha256": "cc288ed753801c48b9ecec3fce7e5692ac4bdf6413ab8b7aa2f1b75a6990768b"
     },
     {
@@ -89,14 +81,6 @@
     {
       "path": "assets/images/stones/HYPERACTIVE_WILL-white.png",
       "sha256": "dd15b7c8aa8d9f16905bc919b931512447a05424c4c2bf6ab3f9b454bc0181e1"
-    },
-    {
-      "path": "assets/images/stones/kyuusai-black.png",
-      "sha256": "71e741084e73ce7dcd021aa47d5dfc1f1d7673f559bf015a0e61678e44ba0f32"
-    },
-    {
-      "path": "assets/images/stones/kyuusai-white.png",
-      "sha256": "02f50b48ef6f34992d8fd4f90521986284bff4f5f540888b69ce82d55e27fd64"
     },
     {
       "path": "assets/images/stones/normal_stone-black.png",
