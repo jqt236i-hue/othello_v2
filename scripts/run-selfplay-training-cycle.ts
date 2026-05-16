@@ -74,6 +74,35 @@ function shouldReuseStepArtifacts(args, stepName) {
     return stepIndex < restartIndex;
 }
 
+function normalizeSelfplayCandidateAdmission(mode) {
+    const normalized = String(mode || '').trim().toLowerCase();
+    if (!normalized) return 'promoted-only';
+    if (normalized === 'promoted-only' || normalized === 'quick-pass' || normalized === 'always') {
+        return normalized;
+    }
+    throw new Error('--selfplay-candidate-admission must be promoted-only, quick-pass, or always');
+}
+
+function shouldIncludeCandidateFilesAtStartup(args) {
+    return normalizeSelfplayCandidateAdmission(args && args.selfplayCandidateAdmission) === 'always';
+}
+
+function shouldAdmitCandidateGuide(args, result) {
+    if (result && result.promoted) return true;
+    const mode = normalizeSelfplayCandidateAdmission(args && args.selfplayCandidateAdmission);
+    if (mode === 'always') return true;
+    if (mode === 'promoted-only') return false;
+    const quickDecision = result && result.quickDecision ? result.quickDecision : null;
+    return !!(quickDecision && quickDecision.passed);
+}
+
+function describeSelfplayGuideUpdateMode(args) {
+    const mode = normalizeSelfplayCandidateAdmission(args && args.selfplayCandidateAdmission);
+    if (mode === 'always') return 'candidate-every-iteration';
+    if (mode === 'quick-pass') return 'candidate-quick-pass';
+    return 'promoted-only';
+}
+
 function getPrimaryResumeCheckpointPath(resumeCheckpointPaths) {
     return resumeCheckpointPaths && resumeCheckpointPaths.policy
         ? resumeCheckpointPaths.policy
@@ -336,6 +365,7 @@ function parseArgs(argv) {
         gateFinalIterationOnly: false,
         promoteOnPass: true,
         selfplayUsePromotedModelOnly: true,
+        selfplayCandidateAdmission: 'promoted-only',
         bootstrapPolicyModelPath: null,
         resumeCheckpointPath: null,
         resumePolicyCheckpointPath: null,
@@ -548,8 +578,21 @@ function parseArgs(argv) {
         if (a === '--no-gate-final-iteration-only') { args.gateFinalIterationOnly = false; continue; }
         if (a === '--promote') { args.promoteOnPass = true; continue; }
         if (a === '--no-promote') { args.promoteOnPass = false; continue; }
-        if (a === '--selfplay-use-promoted-model-only') { args.selfplayUsePromotedModelOnly = true; continue; }
-        if (a === '--selfplay-use-candidate-every-iteration') { args.selfplayUsePromotedModelOnly = false; continue; }
+        if (a === '--selfplay-use-promoted-model-only') {
+            args.selfplayUsePromotedModelOnly = true;
+            args.selfplayCandidateAdmission = 'promoted-only';
+            continue;
+        }
+        if (a === '--selfplay-use-candidate-every-iteration') {
+            args.selfplayUsePromotedModelOnly = false;
+            args.selfplayCandidateAdmission = 'always';
+            continue;
+        }
+        if (a === '--selfplay-candidate-admission') {
+            args.selfplayCandidateAdmission = normalizeSelfplayCandidateAdmission(argv[++i]);
+            args.selfplayUsePromotedModelOnly = args.selfplayCandidateAdmission === 'promoted-only';
+            continue;
+        }
         if (a === '--bootstrap-policy-model') { args.bootstrapPolicyModelPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--resume-checkpoint') { args.resumeCheckpointPath = path.resolve(process.cwd(), argv[++i]); continue; }
         if (a === '--resume-policy-checkpoint') { args.resumePolicyCheckpointPath = path.resolve(process.cwd(), argv[++i]); continue; }
@@ -620,6 +663,8 @@ function parseArgs(argv) {
     if (!Number.isFinite(args.selfplayPolicyCurrentAnchorRate) || args.selfplayPolicyCurrentAnchorRate < 0 || args.selfplayPolicyCurrentAnchorRate > 1) {
         throw new Error('--selfplay-policy-current-anchor-rate must be in [0,1]');
     }
+    args.selfplayCandidateAdmission = normalizeSelfplayCandidateAdmission(args.selfplayCandidateAdmission);
+    args.selfplayUsePromotedModelOnly = args.selfplayCandidateAdmission === 'promoted-only';
     if (!Number.isFinite(args.selfplayCardUsageRateJitter) || args.selfplayCardUsageRateJitter < 0 || args.selfplayCardUsageRateJitter > 1) {
         throw new Error('--selfplay-card-usage-rate-jitter must be in [0,1]');
     }
@@ -1177,6 +1222,7 @@ function printHelp() {
         '      --card-usage-rate <r>   Card usage rate [0..1] (default: 0.2)',
         '      --selfplay-policy-mix-rate <r> Probability to use guide model per player/game [0..1] (default: 1)',
         '      --selfplay-policy-model-pool-size <n> Recent promoted/candidate models kept in self-play pool (default: 4)',
+        '      --selfplay-candidate-admission <m> Candidate guide admission: promoted-only|quick-pass|always (default: promoted-only)',
         '      --selfplay-policy-pool-sampling <mode> Model-pool sampling mode uniform|recency (default: recency)',
         '      --selfplay-policy-pool-recency-decay <r> Recency decay (>0) for recency sampling (default: 2.5)',
         '      --selfplay-policy-current-anchor-rate <r> Probability to anchor one side to current guide model [0..1] (default: 0.35)',
@@ -1859,14 +1905,14 @@ function resolveNextCarryOverState(args, carryOver, result) {
     }
     if (!result || !result.paths) return nextState;
 
-    const shouldAdvanceGuide = !args.selfplayUsePromotedModelOnly || !!result.promoted;
+    const shouldAdvanceGuide = shouldAdmitCandidateGuide(args, result);
     if (result.paths.candidateModelPath && fs.existsSync(result.paths.candidateModelPath) && shouldAdvanceGuide) {
         const promotedModelPath = path.resolve(args.modelsDir, 'policy-table.json');
         nextState.guideModelPath = (result.promoted && fs.existsSync(promotedModelPath))
             ? promotedModelPath
             : result.paths.candidateModelPath;
         if (nextState.guideModelPath) {
-            if (args.selfplayUsePromotedModelOnly && result.promoted) {
+            if (result.promoted) {
                 nextState.guideModelPoolPaths = buildInitialGuideModelPoolPaths(
                     args.modelsDir,
                     nextState.guideModelPath,
@@ -2523,7 +2569,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
 function main() {
     const args = parseArgs(process.argv.slice(2));
     if (args.help) { printHelp(); return; }
-    console.log(`[training-cycle] selfplay guide update mode=${args.selfplayUsePromotedModelOnly ? 'promoted-only' : 'candidate-every-iteration'}`);
+    console.log(`[training-cycle] selfplay guide update mode=${describeSelfplayGuideUpdateMode(args)}`);
     console.log(`[training-cycle] adoption baseline mode=${resolveAdoptionBaselineMode(args)} gate_final_iteration_only=${args.gateFinalIterationOnly ? 'on' : 'off'}`);
     console.log(`[training-cycle] reuse existing artifacts=${args.reuseExistingArtifacts ? 'on' : 'off'}`);
     console.log(`[training-cycle] target head=${args.trainTargetHeadEnabled ? 'on' : 'off'} cadence_every=${args.trainTargetEvery}`);
@@ -2569,8 +2615,8 @@ function main() {
         guideModelPath,
         args.selfplayPolicyModelPoolSize,
         {
-            includeCandidateFiles: !args.selfplayUsePromotedModelOnly,
-            includeArchiveFiles: !!args.selfplayUsePromotedModelOnly
+            includeCandidateFiles: shouldIncludeCandidateFilesAtStartup(args),
+            includeArchiveFiles: args.selfplayCandidateAdmission === 'promoted-only'
         }
     );
     let resumeCheckpointPaths = cloneResumeCheckpointPaths(args.resumeCheckpointPaths);
@@ -2770,6 +2816,10 @@ export = {
     parseArgs,
     TRAINING_CYCLE_STEP_ORDER,
     normalizeRestartFromStep,
+    normalizeSelfplayCandidateAdmission,
+    shouldAdmitCandidateGuide,
+    shouldIncludeCandidateFilesAtStartup,
+    describeSelfplayGuideUpdateMode,
     shouldReuseStepArtifacts,
     buildInitialGuideModelPoolPaths,
     buildIterationPaths,

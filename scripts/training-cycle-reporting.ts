@@ -176,6 +176,7 @@ const TRAINING_CYCLE_SUMMARY_CONFIG_KEYS = Object.freeze([
     'gateFinalIterationOnly',
     'promoteOnPass',
     'selfplayUsePromotedModelOnly',
+    'selfplayCandidateAdmission',
     'bootstrapPolicyModelPath',
     'resumeCheckpointPath',
     'resumePolicyCheckpointPath',

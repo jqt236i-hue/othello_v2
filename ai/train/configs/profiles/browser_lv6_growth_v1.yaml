@@ -88,7 +88,8 @@ trainCycleArgs:
   - "280"
   - --selfplay-teacher-committee-consensus-bonus-max
   - "520"
-  - --selfplay-use-candidate-every-iteration
+  - --selfplay-candidate-admission
+  - quick-pass
   - --onnx-epochs
   - "9999"
   - --onnx-batch-size
@@ -144,9 +145,9 @@ trainCycleArgs:
   - --no-train-target-head
   - --no-train-value-head
   - --min-visits
-  - "4"
+  - "8"
   - --shape-immediate
-  - "0.48"
+  - "0.32"
   - --onnx-corner-balance-sample-boost
   - "0.18"
   - --onnx-edge-balance-sample-boost

@@ -25,6 +25,8 @@ const {
     parseArgs,
     TRAINING_CYCLE_STEP_ORDER,
     buildInitialGuideModelPoolPaths,
+    shouldAdmitCandidateGuide,
+    shouldIncludeCandidateFilesAtStartup,
     buildIterationPaths,
     hasCoordinatePendingSelectionRecords,
     iterationTag,
@@ -64,6 +66,8 @@ describe('selfplay training cycle script', () => {
         expect(args.selfplayPolicyPoolSampling).toBe('recency');
         expect(args.selfplayPolicyPoolRecencyDecay).toBeCloseTo(2.5, 6);
         expect(args.selfplayPolicyCurrentAnchorRate).toBeCloseTo(0.35, 6);
+        expect(args.selfplayCandidateAdmission).toBe('promoted-only');
+        expect(shouldIncludeCandidateFilesAtStartup(args)).toBe(false);
         expect(args.selfplayCardUsageRateJitter).toBeCloseTo(0, 6);
         expect(args.selfplayCardUsageRateScheduleSpec).toBeNull();
         expect(args.selfplayCardUsageRateSchedule).toEqual([]);
@@ -1072,6 +1076,72 @@ describe('selfplay training cycle script', () => {
                 card: candidateCardCheckpointPath
             });
             expect(nextState.checkpointCarryOverSkipped).toBe(false);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('resolveNextCarryOverState rejects failed quick-pass candidate guide', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-carry-over-quick-pass-reject-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+        const currentGuidePath = path.join(modelsDir, 'policy-table.json');
+        const candidateModelPath = path.join(modelsDir, 'policy-table.candidate.test.it01.json');
+        fs.writeFileSync(currentGuidePath, '{}\n', 'utf8');
+        fs.writeFileSync(candidateModelPath, '{}\n', 'utf8');
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--selfplay-candidate-admission', 'quick-pass',
+                '--selfplay-policy-model-pool-size', '2'
+            ]);
+            const result = {
+                promoted: false,
+                quickDecision: { passed: false },
+                paths: { candidateModelPath }
+            };
+            expect(shouldAdmitCandidateGuide(args, result)).toBe(false);
+            const nextState = resolveNextCarryOverState(args, {
+                guideModelPath: currentGuidePath,
+                guideModelPoolPaths: [currentGuidePath]
+            }, result);
+
+            expect(nextState.guideModelPath).toBe(currentGuidePath);
+            expect(nextState.guideModelPoolPaths).toEqual([currentGuidePath]);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('resolveNextCarryOverState admits quick-pass candidate guide without promotion', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-carry-over-quick-pass-admit-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+        const currentGuidePath = path.join(modelsDir, 'policy-table.json');
+        const candidateModelPath = path.join(modelsDir, 'policy-table.candidate.test.it02.json');
+        fs.writeFileSync(currentGuidePath, '{}\n', 'utf8');
+        fs.writeFileSync(candidateModelPath, '{}\n', 'utf8');
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--selfplay-candidate-admission', 'quick-pass',
+                '--selfplay-policy-model-pool-size', '2'
+            ]);
+            const result = {
+                promoted: false,
+                quickDecision: { passed: true },
+                paths: { candidateModelPath }
+            };
+            expect(shouldAdmitCandidateGuide(args, result)).toBe(true);
+            const nextState = resolveNextCarryOverState(args, {
+                guideModelPath: currentGuidePath,
+                guideModelPoolPaths: [currentGuidePath]
+            }, result);
+
+            expect(nextState.guideModelPath).toBe(candidateModelPath);
+            expect(nextState.guideModelPoolPaths).toEqual([candidateModelPath, currentGuidePath]);
         } finally {
             fs.rmSync(tempDir, { recursive: true, force: true });
         }
