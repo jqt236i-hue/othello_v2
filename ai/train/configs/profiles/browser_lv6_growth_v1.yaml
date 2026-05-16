@@ -2,7 +2,7 @@ schemaVersion: training_profile.v1
 name: browser_lv6_growth_v1
 description: >
   ブラウザLv6の累積成長レーン。deploy 用の promoted-only 主線とは分離し、
-  root deploy からは bootstrap だけ取り込みつつ candidate を毎 iteration 継続学習する。
+  root deploy からは bootstrap だけ取り込みつつ quality gate 通過 candidate だけを継続学習に入れる。
   厳しい browser non-regression 判定は deploy レーン側に任せ、このレーンでは
   staged card exposure の tactical selfplay と fixed deploy anchor 比較で raw strength を積み上げる。
 runTagPrefix: browser_lv6_growth_v1
@@ -89,7 +89,7 @@ trainCycleArgs:
   - --selfplay-teacher-committee-consensus-bonus-max
   - "520"
   - --selfplay-candidate-admission
-  - quick-pass
+  - quality-pass
   - --onnx-epochs
   - "9999"
   - --onnx-batch-size

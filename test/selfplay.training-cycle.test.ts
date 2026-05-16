@@ -1147,6 +1147,76 @@ describe('selfplay training cycle script', () => {
         }
     });
 
+    test('resolveNextCarryOverState rejects quality-pass candidate guide when quality gate fails', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-carry-over-quality-pass-reject-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+        const currentGuidePath = path.join(modelsDir, 'policy-table.json');
+        const candidateModelPath = path.join(modelsDir, 'policy-table.candidate.test.it03.json');
+        fs.writeFileSync(currentGuidePath, '{}\n', 'utf8');
+        fs.writeFileSync(candidateModelPath, '{}\n', 'utf8');
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--quality-gate',
+                '--selfplay-candidate-admission', 'quality-pass',
+                '--selfplay-policy-model-pool-size', '2'
+            ]);
+            const result = {
+                promoted: false,
+                quickDecision: { passed: true },
+                qualityGateDecision: { passed: false },
+                paths: { candidateModelPath }
+            };
+            expect(shouldAdmitCandidateGuide(args, result)).toBe(false);
+            const nextState = resolveNextCarryOverState(args, {
+                guideModelPath: currentGuidePath,
+                guideModelPoolPaths: [currentGuidePath]
+            }, result);
+
+            expect(nextState.guideModelPath).toBe(currentGuidePath);
+            expect(nextState.guideModelPoolPaths).toEqual([currentGuidePath]);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    test('resolveNextCarryOverState admits quality-pass candidate guide after quick and quality pass', () => {
+        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-carry-over-quality-pass-admit-'));
+        const modelsDir = path.join(tempDir, 'models');
+        fs.mkdirSync(modelsDir, { recursive: true });
+        const currentGuidePath = path.join(modelsDir, 'policy-table.json');
+        const candidateModelPath = path.join(modelsDir, 'policy-table.candidate.test.it04.json');
+        fs.writeFileSync(currentGuidePath, '{}\n', 'utf8');
+        fs.writeFileSync(candidateModelPath, '{}\n', 'utf8');
+
+        try {
+            const args = parseArgs([
+                '--models-dir', modelsDir,
+                '--quality-gate',
+                '--selfplay-candidate-admission', 'quality-pass',
+                '--selfplay-policy-model-pool-size', '2'
+            ]);
+            const result = {
+                promoted: false,
+                quickDecision: { passed: true },
+                qualityGateDecision: { passed: true },
+                paths: { candidateModelPath }
+            };
+            expect(shouldAdmitCandidateGuide(args, result)).toBe(true);
+            const nextState = resolveNextCarryOverState(args, {
+                guideModelPath: currentGuidePath,
+                guideModelPoolPaths: [currentGuidePath]
+            }, result);
+
+            expect(nextState.guideModelPath).toBe(candidateModelPath);
+            expect(nextState.guideModelPoolPaths).toEqual([candidateModelPath, currentGuidePath]);
+        } finally {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
     test('resolveNextCarryOverState keeps previous checkpoint when promoted-only carry-over waits for promotion', () => {
         const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'training-carry-over-promoted-only-'));
         const modelsDir = path.join(tempDir, 'models');

@@ -77,10 +77,15 @@ function shouldReuseStepArtifacts(args, stepName) {
 function normalizeSelfplayCandidateAdmission(mode) {
     const normalized = String(mode || '').trim().toLowerCase();
     if (!normalized) return 'promoted-only';
-    if (normalized === 'promoted-only' || normalized === 'quick-pass' || normalized === 'always') {
+    if (
+        normalized === 'promoted-only' ||
+        normalized === 'quality-pass' ||
+        normalized === 'quick-pass' ||
+        normalized === 'always'
+    ) {
         return normalized;
     }
-    throw new Error('--selfplay-candidate-admission must be promoted-only, quick-pass, or always');
+    throw new Error('--selfplay-candidate-admission must be promoted-only, quality-pass, quick-pass, or always');
 }
 
 function shouldIncludeCandidateFilesAtStartup(args) {
@@ -93,12 +98,16 @@ function shouldAdmitCandidateGuide(args, result) {
     if (mode === 'always') return true;
     if (mode === 'promoted-only') return false;
     const quickDecision = result && result.quickDecision ? result.quickDecision : null;
-    return !!(quickDecision && quickDecision.passed);
+    if (!(quickDecision && quickDecision.passed)) return false;
+    if (mode === 'quick-pass') return true;
+    const qualityGateDecision = result && result.qualityGateDecision ? result.qualityGateDecision : null;
+    return qualityGateDecision ? !!qualityGateDecision.passed : !(args && args.qualityGateEnabled);
 }
 
 function describeSelfplayGuideUpdateMode(args) {
     const mode = normalizeSelfplayCandidateAdmission(args && args.selfplayCandidateAdmission);
     if (mode === 'always') return 'candidate-every-iteration';
+    if (mode === 'quality-pass') return 'candidate-quality-pass';
     if (mode === 'quick-pass') return 'candidate-quick-pass';
     return 'promoted-only';
 }
@@ -1222,7 +1231,7 @@ function printHelp() {
         '      --card-usage-rate <r>   Card usage rate [0..1] (default: 0.2)',
         '      --selfplay-policy-mix-rate <r> Probability to use guide model per player/game [0..1] (default: 1)',
         '      --selfplay-policy-model-pool-size <n> Recent promoted/candidate models kept in self-play pool (default: 4)',
-        '      --selfplay-candidate-admission <m> Candidate guide admission: promoted-only|quick-pass|always (default: promoted-only)',
+        '      --selfplay-candidate-admission <m> Candidate guide admission: promoted-only|quality-pass|quick-pass|always (default: promoted-only)',
         '      --selfplay-policy-pool-sampling <mode> Model-pool sampling mode uniform|recency (default: recency)',
         '      --selfplay-policy-pool-recency-decay <r> Recency decay (>0) for recency sampling (default: 2.5)',
         '      --selfplay-policy-current-anchor-rate <r> Probability to anchor one side to current guide model [0..1] (default: 0.35)',
