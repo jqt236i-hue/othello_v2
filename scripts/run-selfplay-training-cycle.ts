@@ -1653,6 +1653,159 @@ function readJsonSafe(filePath) {
     return JSON.parse(raw);
 }
 
+function toFiniteNumber(value, fallback = 0) {
+    return Number.isFinite(value) ? Number(value) : fallback;
+}
+
+function safeRate(numerator, denominator, fallback = 0) {
+    const num = Number(numerator);
+    const den = Number(denominator);
+    if (!Number.isFinite(num) || !Number.isFinite(den) || den <= 0) {
+        return fallback;
+    }
+    return num / den;
+}
+
+function topCounterEntries(counts, limit = 3) {
+    const rows = [];
+    const source = counts && typeof counts === 'object' ? counts : {};
+    for (const [key, value] of Object.entries(source)) {
+        const count = Number(value);
+        if (!Number.isFinite(count) || count <= 0) continue;
+        rows.push({ key, count });
+    }
+    rows.sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return String(a.key).localeCompare(String(b.key));
+    });
+    return rows.slice(0, Math.max(0, Math.floor(limit)));
+}
+
+function summarizeSelfplayDataset(summaryPayload) {
+    const summary = summaryPayload && summaryPayload.summary ? summaryPayload.summary : summaryPayload;
+    if (!summary || typeof summary !== 'object') return null;
+    const totalGames = toFiniteNumber(summary.totalGames, 0);
+    const wins = summary.wins && typeof summary.wins === 'object' ? summary.wins : {};
+    const blackWins = toFiniteNumber(wins.black, 0);
+    const whiteWins = toFiniteNumber(wins.white, 0);
+    const drawWins = toFiniteNumber(wins.draw, 0);
+    const endedByCounts = summary.endedByCounts && typeof summary.endedByCounts === 'object'
+        ? summary.endedByCounts
+        : {};
+    const maxPliesGames = toFiniteNumber(endedByCounts.max_plies, 0);
+    const retryGames = toFiniteNumber(summary.retryGames, 0);
+    const hardcaseRecords = toFiniteNumber(summary.hardcaseRecords, 0);
+    const illegalMoveHardcaseRecords = toFiniteNumber(summary.illegalMoveHardcaseRecords, 0);
+    return {
+        totalGames,
+        avgPlies: toFiniteNumber(summary.avgPlies, 0),
+        blackWinRate: safeRate(blackWins, totalGames, 0),
+        whiteWinRate: safeRate(whiteWins, totalGames, 0),
+        drawRate: safeRate(drawWins, totalGames, 0),
+        whiteBlackWinGap: safeRate(whiteWins, totalGames, 0) - safeRate(blackWins, totalGames, 0),
+        maxPliesGames,
+        maxPliesRate: safeRate(maxPliesGames, totalGames, 0),
+        retryGames,
+        retryGameRate: safeRate(retryGames, totalGames, 0),
+        avgRetryAttempt: toFiniteNumber(summary.avgRetryAttempt, 0),
+        maxRetryAttempt: toFiniteNumber(summary.maxRetryAttempt, 0),
+        hardcaseRecords,
+        hardcasesPerGame: safeRate(hardcaseRecords, totalGames, 0),
+        illegalMoveHardcaseRecords,
+        illegalMoveHardcasesPerGame: safeRate(illegalMoveHardcaseRecords, totalGames, 0),
+        avgFinalDiscDiffAbs: toFiniteNumber(summary.avgFinalDiscDiffAbs, 0),
+        avgFinalCornerDiffAbs: toFiniteNumber(summary.avgFinalCornerDiffAbs, 0),
+        avgFinalEdgeDiffAbs: toFiniteNumber(summary.avgFinalEdgeDiffAbs, 0),
+        avgFinalBlackCornerShare: toFiniteNumber(summary.avgFinalBlackCornerShare, 0.5),
+        avgFinalWhiteCornerShare: toFiniteNumber(summary.avgFinalWhiteCornerShare, 0.5),
+        avgFinalBlackEdgeShare: toFiniteNumber(summary.avgFinalBlackEdgeShare, 0.5),
+        avgFinalWhiteEdgeShare: toFiniteNumber(summary.avgFinalWhiteEdgeShare, 0.5),
+        topHardcaseTags: topCounterEntries(summary.hardcaseTagCounts, 5),
+        topHardcasePrimaryTags: topCounterEntries(summary.hardcasePrimaryTagCounts, 5),
+        endedByCounts
+    };
+}
+
+function summarizeGatePayload(payload) {
+    const decision = payload && payload.decision ? payload.decision : null;
+    if (!decision) return null;
+    return {
+        passed: !!decision.passed,
+        uplift: Number.isFinite(decision.uplift) ? Number(decision.uplift) : null,
+        upliftLowerBound: Number.isFinite(decision.upliftLowerBound) ? Number(decision.upliftLowerBound) : null,
+        threshold: Number.isFinite(decision.threshold) ? Number(decision.threshold) : null,
+        seedPassCount: Number.isFinite(decision.seedPassCount) ? Number(decision.seedPassCount) : null,
+        requiredMinSeedPassCount: Number.isFinite(decision.requiredMinSeedPassCount) ? Number(decision.requiredMinSeedPassCount) : null,
+        minSeedUplift: Number.isFinite(decision.minSeedUplift) ? Number(decision.minSeedUplift) : null,
+        requiredMinSeedUplift: Number.isFinite(decision.requiredMinSeedUplift) ? Number(decision.requiredMinSeedUplift) : null,
+        averageScore: Number.isFinite(decision.averageScore) ? Number(decision.averageScore) : null,
+        minSeedScore: Number.isFinite(decision.minSeedScore) ? Number(decision.minSeedScore) : null,
+        baselineCoreScore: Number.isFinite(decision.baselineCoreScore) ? Number(decision.baselineCoreScore) : null,
+        candidateCoreScore: Number.isFinite(decision.candidateCoreScore) ? Number(decision.candidateCoreScore) : null,
+        baselineWhiteScore: Number.isFinite(decision.baselineWhiteScore) ? Number(decision.baselineWhiteScore) : null,
+        candidateWhiteScore: Number.isFinite(decision.candidateWhiteScore) ? Number(decision.candidateWhiteScore) : null,
+        baselineQualityScore: Number.isFinite(decision.baselineQualityScore) ? Number(decision.baselineQualityScore) : null,
+        candidateQualityScore: Number.isFinite(decision.candidateQualityScore) ? Number(decision.candidateQualityScore) : null,
+        primaryFailureReason: typeof decision.primaryFailureReason === 'string' ? decision.primaryFailureReason : null,
+        failureReasons: Array.isArray(decision.failureReasons) ? decision.failureReasons.slice() : []
+    };
+}
+
+function buildIterationScorecard(iterationResult, artifacts) {
+    const promotionDetail = iterationResult && iterationResult.promotionDetail ? iterationResult.promotionDetail : {};
+    const quick = summarizeGatePayload(artifacts && artifacts.quickPayload);
+    const quality = summarizeGatePayload(artifacts && artifacts.qualityGatePayload);
+    const final = summarizeGatePayload(artifacts && artifacts.finalPayload);
+    const onnx = summarizeGatePayload(artifacts && artifacts.onnxGatePayload);
+    const train = summarizeSelfplayDataset(artifacts && artifacts.trainDataSummaryPayload);
+    const evalSummary = summarizeSelfplayDataset(artifacts && artifacts.evalDataSummaryPayload);
+    const issues = [];
+
+    if (train && train.illegalMoveHardcaseRecords > 0) issues.push('illegal-move-hardcases');
+    if (train && train.maxPliesRate >= 0.02) issues.push('too-many-max-plies-games');
+    if (train && train.retryGameRate >= 0.01) issues.push('retry-rate-high');
+    if (train && Array.isArray(train.topHardcasePrimaryTags) && train.topHardcasePrimaryTags.length > 0) {
+        issues.push(`top-hardcase:${train.topHardcasePrimaryTags[0].key}`);
+    }
+    if (Number.isFinite(promotionDetail.quickWhiteDelta) && Number(promotionDetail.quickWhiteDelta) < 0) {
+        issues.push('white-side-regression');
+    }
+    if (Number.isFinite(promotionDetail.quickQualityDelta) && Number(promotionDetail.quickQualityDelta) < 0) {
+        issues.push('quality-regression');
+    }
+    if (quick && quick.passed === false && quick.primaryFailureReason) {
+        issues.push(`quick-fail:${quick.primaryFailureReason}`);
+    }
+    if (quality && quality.passed === false && quality.primaryFailureReason) {
+        issues.push(`quality-fail:${quality.primaryFailureReason}`);
+    }
+    if (onnx && onnx.passed === false && onnx.primaryFailureReason) {
+        issues.push(`onnx-fail:${onnx.primaryFailureReason}`);
+    }
+
+    return {
+        selfplay: {
+            train,
+            eval: evalSummary
+        },
+        gates: {
+            quick,
+            quality,
+            final,
+            onnx
+        },
+        promotion: {
+            promoteEligible: !!promotionDetail.promoteEligible,
+            quickCoreDelta: Number.isFinite(promotionDetail.quickCoreDelta) ? Number(promotionDetail.quickCoreDelta) : null,
+            quickWhiteDelta: Number.isFinite(promotionDetail.quickWhiteDelta) ? Number(promotionDetail.quickWhiteDelta) : null,
+            quickQualityDelta: Number.isFinite(promotionDetail.quickQualityDelta) ? Number(promotionDetail.quickQualityDelta) : null,
+            quickUplift: Number.isFinite(promotionDetail.quickUplift) ? Number(promotionDetail.quickUplift) : null,
+            quickUpliftLowerBound: Number.isFinite(promotionDetail.quickUpliftLowerBound) ? Number(promotionDetail.quickUpliftLowerBound) : null
+        },
+        primaryIssues: Array.from(new Set(issues)).slice(0, 8)
+    };
+}
+
 function resolveQuickComponentDelta(quickPayload, quickDecision, baselineKey, candidateKey) {
     if (
         quickDecision &&
@@ -2394,6 +2547,8 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const onnxPrimaryOnnxGateMinSeedGuardPassed = promotionEligibility.onnxPrimaryOnnxGateMinSeedGuardPassed;
     const onnxGateAverageScore = promotionEligibility.onnxGateAverageScore;
     const onnxGateMinSeedScore = promotionEligibility.onnxGateMinSeedScore;
+    const trainDataSummaryPayload = readJsonSafe(p.trainDataSummaryPath);
+    const evalDataSummaryPayload = readJsonSafe(p.evalDataSummaryPath);
 
     let promoted = false;
     if (promoteEligible && args.promoteOnPass) {
@@ -2570,6 +2725,14 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         },
         steps
     };
+    iterationResult.scorecard = buildIterationScorecard(iterationResult, {
+        trainDataSummaryPayload,
+        evalDataSummaryPayload,
+        quickPayload,
+        qualityGatePayload,
+        finalPayload,
+        onnxGatePayload
+    });
     const warehouseManifest = buildIterationWarehouseManifest(args, iterationResult);
     writeTrainingWarehouseManifest(p.warehouseManifestPath, warehouseManifest);
     return iterationResult;
@@ -2781,6 +2944,24 @@ function main() {
         const quickWhiteDeltaLabel = Number.isFinite(quickWhiteDelta) ? quickWhiteDelta.toFixed(3) : 'n/a';
         const quickQualityDeltaLabel = Number.isFinite(quickQualityDelta) ? quickQualityDelta.toFixed(3) : 'n/a';
         console.log(`[training-cycle] iteration ${i} done gate_run=${!!(result.gateControl && result.gateControl.gateIterationAllowed)} quick_pass=${!!(result.quickDecision && result.quickDecision.passed)} quality_pass=${qualityGatePassed} final_pass=${finalPassed} onnx_gate_pass=${onnxGatePassed} promote_eligible=${promoteEligible} quick_uplift=${quickUpliftLabel} quick_core_delta=${quickCoreDeltaLabel} quick_white_delta=${quickWhiteDeltaLabel} quick_quality_delta=${quickQualityDeltaLabel} quick_non_regression_guard=${quickNonRegressionGuard} quick_uplift_guard=${quickUpliftGuard} quick_lb_guard=${quickLowerBoundGuard} gate_avg_guard=${gateAvgGuard} gate_min_seed_guard=${gateMinSeedGuard} promoted=${result.promoted}`);
+        if (result && result.scorecard) {
+            const trainScorecard = result.scorecard.selfplay ? result.scorecard.selfplay.train : null;
+            const topHardcase = trainScorecard && Array.isArray(trainScorecard.topHardcasePrimaryTags) && trainScorecard.topHardcasePrimaryTags.length > 0
+                ? trainScorecard.topHardcasePrimaryTags[0].key
+                : 'none';
+            const issueLabel = Array.isArray(result.scorecard.primaryIssues) && result.scorecard.primaryIssues.length > 0
+                ? result.scorecard.primaryIssues.join(',')
+                : 'none';
+            console.log(
+                `[training-cycle] iteration ${i} scorecard ` +
+                `hardcases=${trainScorecard ? trainScorecard.hardcaseRecords : 'n/a'} ` +
+                `illegal=${trainScorecard ? trainScorecard.illegalMoveHardcaseRecords : 'n/a'} ` +
+                `max_plies_rate=${trainScorecard && Number.isFinite(trainScorecard.maxPliesRate) ? trainScorecard.maxPliesRate.toFixed(3) : 'n/a'} ` +
+                `retry_rate=${trainScorecard && Number.isFinite(trainScorecard.retryGameRate) ? trainScorecard.retryGameRate.toFixed(3) : 'n/a'} ` +
+                `top_hardcase=${topHardcase} ` +
+                `issues=${issueLabel}`
+            );
+        }
         writeSummarySnapshot(
             args,
             startedAt,
@@ -2849,6 +3030,9 @@ export = {
     buildPromotionTargetBundleArgs,
     buildPromotionCommandArgs,
     resolveGateSeedConfig,
+    summarizeSelfplayDataset,
+    summarizeGatePayload,
+    buildIterationScorecard,
     resolveQuickComponentDelta,
     resolvePromotionEligibility,
     extractTrainingCycleFailureDetail,

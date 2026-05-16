@@ -44,6 +44,9 @@ const {
     shouldReuseStepArtifacts,
     shouldRunGateForIteration,
     resolveGateSeedConfig,
+    summarizeSelfplayDataset,
+    summarizeGatePayload,
+    buildIterationScorecard,
     resolveQuickComponentDelta,
     resolvePromotionEligibility,
     extractTrainingCycleFailureDetail,
@@ -2292,6 +2295,77 @@ describe('selfplay training cycle script', () => {
         const quickDecision = {};
         expect(resolveQuickComponentDelta(quickPayload, quickDecision, 'baselineCoreScore', 'candidateCoreScore'))
             .toBe(-Infinity);
+    });
+
+    test('buildIterationScorecard highlights selfplay and gate regressions', () => {
+        const trainSummaryPayload = {
+            summary: {
+                totalGames: 100,
+                avgPlies: 120,
+                hardcaseRecords: 35,
+                illegalMoveHardcaseRecords: 2,
+                wins: { black: 58, white: 36, draw: 6 },
+                endedByCounts: { game_over: 94, max_plies: 6 },
+                retryGames: 3,
+                avgRetryAttempt: 1.33,
+                maxRetryAttempt: 2,
+                hardcasePrimaryTagCounts: {
+                    tactical_miss_high: 12,
+                    corner_emergency: 8
+                }
+            }
+        };
+        const quickPayload = {
+            decision: {
+                passed: false,
+                uplift: -0.02,
+                upliftLowerBound: -0.05,
+                seedPassCount: 1,
+                requiredMinSeedPassCount: 3,
+                baselineWhiteScore: 0.55,
+                candidateWhiteScore: 0.49,
+                baselineQualityScore: 0.37,
+                candidateQualityScore: 0.35,
+                primaryFailureReason: 'min-seed-pass-count',
+                failureReasons: ['min-seed-pass-count', 'lower-bound']
+            }
+        };
+
+        expect(summarizeSelfplayDataset(trainSummaryPayload)).toEqual(expect.objectContaining({
+            totalGames: 100,
+            maxPliesRate: 0.06,
+            retryGameRate: 0.03,
+            illegalMoveHardcaseRecords: 2
+        }));
+        expect(summarizeGatePayload(quickPayload)).toEqual(expect.objectContaining({
+            passed: false,
+            primaryFailureReason: 'min-seed-pass-count'
+        }));
+
+        const scorecard = buildIterationScorecard({
+            promotionDetail: {
+                promoteEligible: false,
+                quickWhiteDelta: -0.06,
+                quickQualityDelta: -0.02,
+                quickCoreDelta: -0.01,
+                quickUplift: -0.02,
+                quickUpliftLowerBound: -0.05
+            }
+        }, {
+            trainDataSummaryPayload: trainSummaryPayload,
+            evalDataSummaryPayload: trainSummaryPayload,
+            quickPayload
+        });
+
+        expect(scorecard.primaryIssues).toEqual(expect.arrayContaining([
+            'illegal-move-hardcases',
+            'too-many-max-plies-games',
+            'retry-rate-high',
+            'top-hardcase:tactical_miss_high',
+            'white-side-regression',
+            'quality-regression',
+            'quick-fail:min-seed-pass-count'
+        ]));
     });
 
     test('buildTrainingCycleSummaryPayload derives latest paths from structured inputs', () => {

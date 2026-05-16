@@ -4,7 +4,7 @@ description: >
   ブラウザLv6の累積成長レーン。deploy 用の promoted-only 主線とは分離し、
   root deploy からは bootstrap だけ取り込みつつ quality gate 通過 candidate だけを継続学習に入れる。
   厳しい browser non-regression 判定は deploy レーン側に任せ、このレーンでは
-  staged card exposure の tactical selfplay と fixed deploy anchor 比較で raw strength を積み上げる。
+  staged card exposure の tactical selfplay と hardcase 収集、fixed deploy anchor 比較で raw strength を積み上げる。
 runTagPrefix: browser_lv6_growth_v1
 gateProfile: browser_lv6_growth_v1
 syncCpuLv6SharedTeacher: false
@@ -43,7 +43,6 @@ trainCycleArgs:
   - --max-plies
   - "180"
   - --with-cards
-  - --no-selfplay-hardcases
   - --card-usage-rate
   - "0.60"
   - --selfplay-policy-mix-rate
