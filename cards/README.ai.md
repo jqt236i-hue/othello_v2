@@ -15,12 +15,12 @@
 
 1. `cards/catalog.json` を直す
 2. `cards/catalog.js` と `cards/catalog.generated.js` をそろえる
-3. 効果が変わるなら `game/logic/cards.js`, `game/card-effects/*`, pending target, CPU, presentation を確認する
+3. 効果が変わるなら `game/logic/cards.ts`（`.js` は互換 shim）, `game/card-effects/*`, pending target, CPU, presentation を確認する
 
 ## 更新漏れしやすい参照
 
-- `shared/deck-spec.js`
-- `ui/handlers/rules-help.js`
+- `shared/deck-spec.ts / .js shim`
+- `ui/handlers/rules-help.ts / .js shim`
 - `docs/`
 - `test/`
 

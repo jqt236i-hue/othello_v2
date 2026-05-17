@@ -12,6 +12,7 @@
 ## Current operational/reference docs
 
 - `network-worker-deploy.md`: Worker 配信と再参加確認の運用手順。
+- `board-special-effects-current-behavior.md`: 盤面特殊効果の現行挙動調査メモ。
 - `LARGE_FILES.md`: 大きいファイルの扱いに関する補助ガイド。
 - `local-cpu-commentary.md`: ローカル CPU commentary の現行リファレンス。
 - `Card_Strategy_Full_Catalog.md`: カード戦略カタログ。

@@ -37,6 +37,8 @@ interface MeteorDeps {
     setCellValueForCard?(gameState: GameState, row: number, col: number, value: number): boolean;
     removeMarkersAt?(cardState: CardState, row: number, col: number): void;
     addMarker?(cardState: CardState, kind: string, row: number, col: number, playerKey: string, data: any): boolean;
+    applyHoleAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, meta: any): any;
+    runCellRemovalBlock?(cardState: CardState, gameState: GameState, fn: () => any, meta?: any): any;
     random?: { random(): number };
 }
 
@@ -63,6 +65,8 @@ function applyMeteorWill(cardState: CardState, gameState: GameState, playerKey: 
     const setCellValueForCard = deps.setCellValueForCard || (() => false);
     const removeMarkersAt = deps.removeMarkersAt || (() => {});
     const addMarker = deps.addMarker || (() => false);
+    const applyHoleAt = deps.applyHoleAt || null;
+    const runCellRemovalBlock = deps.runCellRemovalBlock || null;
     const random = deps.random || null;
 
     const targets = getMeteorTargets(cardState, gameState, playerKey);
@@ -73,45 +77,58 @@ function applyMeteorWill(cardState: CardState, gameState: GameState, playerKey: 
     if (cellValue === null) return { applied: false, reason: 'out_of_board' };
 
     let destroyed = false;
-    if (cellValue !== EMPTY) {
-        if (typeof destroyAt === 'function') {
-            const destroyOptions: any = { ignoreGuard: true, ignoreRegen: true };
-            if (random && typeof random.random === 'function') {
-                destroyOptions.random = random;
-            }
-            const result = destroyAt(
-                cardState,
-                gameState,
-                row,
-                col,
-                'METEOR_WILL',
-                'meteor_cell_destroy',
-                destroyOptions
-            );
-            destroyed = isDestroyResolved(result);
-            if (result && result.reason === 'out_of_board') {
-                return { applied: false, reason: 'out_of_board' };
-            }
-            if (result && result.reason === 'absolute_protected') {
-                return { applied: false, reason: 'absolute_protected' };
-            }
+    const applyHoleOnly = () => {
+        if (typeof applyHoleAt === 'function') {
+            return applyHoleAt(cardState, gameState, row, col, playerKey, {});
         }
-        if (!destroyed) {
-            clearStoneIdAtForCard(cardState, gameState, row, col);
-            setCellValueForCard(gameState, row, col, EMPTY);
-            removeMarkersAt(cardState, row, col);
-            destroyed = true;
-        }
-    } else {
         clearStoneIdAtForCard(cardState, gameState, row, col);
         setCellValueForCard(gameState, row, col, EMPTY);
         removeMarkersAt(cardState, row, col);
-    }
+        addMarker(cardState, 'specialStone', row, col, playerKey, {
+            type: 'METEOR_HOLE'
+        });
+        return { applied: true };
+    };
+    const removeCell = () => {
+        if (cellValue !== EMPTY) {
+            if (typeof destroyAt === 'function') {
+                const destroyOptions: any = { ignoreGuard: true, ignoreRegen: true };
+                if (random && typeof random.random === 'function') {
+                    destroyOptions.random = random;
+                    destroyOptions.randomSource = random;
+                }
+                const result = destroyAt(
+                    cardState,
+                    gameState,
+                    row,
+                    col,
+                    'METEOR_WILL',
+                    'meteor_cell_destroy',
+                    destroyOptions
+                );
+                destroyed = isDestroyResolved(result);
+                if (result && result.reason === 'out_of_board') {
+                    return { applied: false, reason: 'out_of_board' };
+                }
+                if (result && result.reason === 'absolute_protected') {
+                    return { applied: false, reason: 'absolute_protected' };
+                }
+            }
+            if (!destroyed) {
+                destroyed = true;
+            }
+        }
+        const holeResult = applyHoleOnly();
+        if (!holeResult || !holeResult.applied) {
+            return { applied: false, reason: (holeResult && holeResult.reason) || 'hole_failed' };
+        }
+        return { applied: true };
+    };
 
-    removeMarkersAt(cardState, row, col);
-    addMarker(cardState, 'specialStone', row, col, playerKey, {
-        type: 'METEOR_HOLE'
-    });
+    const result = (cellValue !== EMPTY && typeof runCellRemovalBlock === 'function')
+        ? runCellRemovalBlock(cardState, gameState, removeCell, { randomSource: random })
+        : removeCell();
+    if (!result || !result.applied) return result || { applied: false, reason: 'hole_failed' };
 
     (cardState as any).pendingEffectByPlayer[playerKey] = null;
     return { applied: true, row, col, destroyed };

@@ -269,7 +269,7 @@ const CardBreeding = /**
         const changeCause = deps.changeCause || 'BREEDING';
         const changeReason = deps.changeReason || 'breeding_flip';
 
-        for (const target of targets) {
+        const applyBatch = () => { for (const target of targets) {
             const context = getCardContext(cardState);
             const flips = getFlipsWithContext(gameState, target.row, target.col, player, context);
 
@@ -303,6 +303,16 @@ const CardBreeding = /**
                     flipped.push({ row: fr, col: fc });
                 }
             }
+        } };
+
+        if (deps.BoardOps && typeof deps.BoardOps.runSpawnBlock === 'function') {
+            deps.BoardOps.runSpawnBlock(cardState, gameState, applyBatch, {
+                cause,
+                reason,
+                owner: playerKey
+            });
+        } else {
+            applyBatch();
         }
 
         if (flipped.length > 0 && typeof clearHyperactiveAtPositions === 'function') {

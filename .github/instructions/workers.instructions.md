@@ -1,5 +1,5 @@
 ---
-applyTo: 'workers/**/*.mjs,workers/**/*.js,utils/match-authority.ts,utils/match-authority.js'
+applyTo: 'workers/**/*.ts,workers/**/*.mjs,workers/**/*.js,utils/match-authority.ts,utils/match-authority.js'
 ---
 
 # workers instruction

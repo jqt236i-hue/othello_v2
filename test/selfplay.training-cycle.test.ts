@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as fs from 'fs';
 const os = require('os');
 const path = require('path');
@@ -117,7 +118,7 @@ describe('selfplay training cycle script', () => {
         expect(args.adoptionTacticalBeamWidth).toBe(12);
         expect(args.adoptionPolicyScoreWeight).toBeCloseTo(2.0, 6);
         expect(args.adoptionHeuristicWeight).toBeCloseTo(0.85, 6);
-        expect(args.adoptionWhitePriority).toBeCloseTo(0.5, 6);
+        expect(args.adoptionWhitePriority).toBeCloseTo(1.0, 6);
         expect(args.adoptionQualityWeightCorner).toBeCloseTo(0.22, 6);
         expect(args.adoptionQualityWeightEdge).toBeCloseTo(0.10, 6);
         expect(args.adoptionQualityWeightCornerRecovery).toBeCloseTo(0.18, 6);
@@ -175,7 +176,7 @@ describe('selfplay training cycle script', () => {
         expect(args.onnxPrimaryMinQuickLowerBound).toBeCloseTo(-1, 6);
         expect(args.onnxPrimaryMinOnnxGateAvg).toBeCloseTo(0, 6);
         expect(args.onnxPrimaryMinOnnxGateMinSeed).toBeCloseTo(0, 6);
-        expect(args.onnxGateCandidateColorMode).toBe('both');
+        expect(args.onnxGateCandidateColorMode).toBe('white');
         expect(args.onnxGateMaxAverageLatencyMs).toBe(0);
         expect(args.onnxGateMaxP95LatencyMs).toBe(0);
         expect(args.onnxGateMaxMaxLatencyMs).toBe(0);
@@ -843,6 +844,7 @@ describe('selfplay training cycle script', () => {
             dataLane: 'train-main',
             selfplayJobs: 6,
             generateCardArgs: ['--with-cards', '--card-usage-rate', '0.2'],
+            selfplayDeckArgs: ['--white-deck-code', 'D1C1:hard_01*30'],
             selfplayDiversityArgs: ['--policy-mix-rate', '0.9'],
             guideModelArgs: ['--policy-model', 'guide.json', '--policy-model-pool', 'guide.json,older.json'],
             selfplayResumeArgs: ['--resume-chunk-size', '1000'],
@@ -861,6 +863,7 @@ describe('selfplay training cycle script', () => {
             '--jobs', '6',
             '--hardcase-out', 'train.hardcase.ndjson',
             '--with-cards', '--card-usage-rate', '0.2',
+            '--white-deck-code', 'D1C1:hard_01*30',
             '--policy-mix-rate', '0.9',
             '--policy-model', 'guide.json',
             '--policy-model-pool', 'guide.json,older.json',

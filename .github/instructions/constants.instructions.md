@@ -1,5 +1,5 @@
 ---
-applyTo: 'constants/**/*.js,shared-constants.js'
+applyTo: 'constants/**/*.ts,constants/**/*.js,shared-constants.ts,shared-constants.js'
 ---
 
 # constants instruction

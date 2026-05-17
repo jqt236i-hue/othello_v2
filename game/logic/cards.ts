@@ -1055,6 +1055,9 @@ const {
                                     spawnMetaFactory(spawnIndex, { row, col })
                                 );
                             },
+                            runSpawnBlock: BoardOpsModule && typeof BoardOpsModule.runSpawnBlock === 'function'
+                                ? BoardOpsModule.runSpawnBlock
+                                : null,
                             changeAt: (innerCardState: any, innerGameState: any, row: any, col: any, ownerKey: any, flipCause: any, flipReason: any, meta: any) => (
                                 BoardOpsModule.changeAt(innerCardState, innerGameState, row, col, ownerKey, flipCause, flipReason, meta)
                             )
@@ -1070,47 +1073,63 @@ const {
         if (!normalFlip || !usedSharedSpawnAndFlip) {
             spawned = [];
             flipped = [];
-            for (const target of targets) {
-                if (!target) continue;
-                const spawnIndex: number = spawned.length + 1;
-                const spawnMeta: any = spawnMetaFactory(spawnIndex, target);
-                let spawnRes = null;
-                if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
-                    spawnRes = BoardOpsModule.spawnAt(
-                        cardState,
-                        gameState,
-                        target.row,
-                        target.col,
-                        playerKey,
-                        cause,
-                        reason,
-                        spawnMeta
-                    );
-                } else {
-                    const playerValue = playerKey === 'white' ? WHITE : BLACK;
-                    const wroteCell = setCellValueForCard(gameState, target.row, target.col, playerValue);
-                    if (wroteCell) {
-                        const stoneId = allocateStoneId(cardState);
-                        setStoneIdAtForCard(cardState, gameState, target.row, target.col, stoneId);
-                        emitPresentationEvent(cardState, {
-                            type: 'SPAWN',
-                            stoneId,
-                            row: target.row,
-                            col: target.col,
-                            ownerAfter: playerKey,
+            const validTargets = targets.filter(Boolean);
+            if (BoardOpsModule && typeof BoardOpsModule.spawnMany === 'function') {
+                const batch = BoardOpsModule.spawnMany(
+                    cardState,
+                    gameState,
+                    validTargets,
+                    playerKey,
+                    cause,
+                    reason,
+                    {
+                        requestedCount: normalizedRequestedCount,
+                        metaFactory: (spawnIndex: any, target: any) => spawnMetaFactory(spawnIndex, target)
+                    }
+                );
+                spawned = Array.isArray(batch && batch.spawned) ? batch.spawned.slice() : [];
+            } else {
+                for (const target of validTargets) {
+                    const spawnIndex: number = spawned.length + 1;
+                    const spawnMeta: any = spawnMetaFactory(spawnIndex, target);
+                    let spawnRes = null;
+                    if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
+                        spawnRes = BoardOpsModule.spawnAt(
+                            cardState,
+                            gameState,
+                            target.row,
+                            target.col,
+                            playerKey,
                             cause,
                             reason,
-                            meta: spawnMeta
-                        });
-                        spawnRes = { spawned: true, stoneId };
+                            spawnMeta
+                        );
+                    } else {
+                        const playerValue = playerKey === 'white' ? WHITE : BLACK;
+                        const wroteCell = setCellValueForCard(gameState, target.row, target.col, playerValue);
+                        if (wroteCell) {
+                            const stoneId = allocateStoneId(cardState);
+                            setStoneIdAtForCard(cardState, gameState, target.row, target.col, stoneId);
+                            emitPresentationEvent(cardState, {
+                                type: 'SPAWN',
+                                stoneId,
+                                row: target.row,
+                                col: target.col,
+                                ownerAfter: playerKey,
+                                cause,
+                                reason,
+                                meta: spawnMeta
+                            });
+                            spawnRes = { spawned: true, stoneId };
+                        }
                     }
+                    if (!(spawnRes && spawnRes.spawned)) continue;
+                    spawned.push({
+                        row: target.row,
+                        col: target.col,
+                        stoneId: spawnRes.stoneId || null
+                    });
                 }
-                if (!(spawnRes && spawnRes.spawned)) continue;
-                spawned.push({
-                    row: target.row,
-                    col: target.col,
-                    stoneId: spawnRes.stoneId || null
-                });
             }
         }
 
@@ -1269,25 +1288,32 @@ const {
                     shortageDestroyCount,
                     prng
                 );
-                for (const target of targets) {
-                    if (!target) continue;
-                    let destroyed = false;
-                    if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-                        const destroyRes = BoardOpsModule.destroyAt(
-                            cardState,
-                            gameState,
-                            target.row,
-                            target.col,
-                            'RIBO_WILL',
-                            'ribo_repayment_shortage',
-                            { owner: playerKey }
-                        );
-                        destroyed = !!(destroyRes && destroyRes.destroyed);
-                    } else {
-                        destroyed = destroyAt(cardState, gameState, target.row, target.col);
+                const destroyTargets = () => {
+                    for (const target of targets) {
+                        if (!target) continue;
+                        let destroyed = false;
+                        if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
+                            const destroyRes = BoardOpsModule.destroyAt(
+                                cardState,
+                                gameState,
+                                target.row,
+                                target.col,
+                                'RIBO_WILL',
+                                'ribo_repayment_shortage',
+                                { owner: playerKey }
+                            );
+                            destroyed = !!(destroyRes && destroyRes.destroyed);
+                        } else {
+                            destroyed = destroyAt(cardState, gameState, target.row, target.col);
+                        }
+                        if (!destroyed) continue;
+                        entry.destroyed.push({ row: target.row, col: target.col });
                     }
-                    if (!destroyed) continue;
-                    entry.destroyed.push({ row: target.row, col: target.col });
+                };
+                if (BoardOpsModule && typeof BoardOpsModule.runDestroyBlock === 'function') {
+                    BoardOpsModule.runDestroyBlock(cardState, gameState, destroyTargets, { randomSource: prng });
+                } else {
+                    destroyTargets();
                 }
                 entry.destroyedCount = entry.destroyed.length;
                 summary.totalDestroyed += entry.destroyedCount;
@@ -1445,6 +1471,13 @@ const {
     const MARKER_CATEGORIES = (CardMarkersModule && CardMarkersModule.MARKER_CATEGORIES)
         || (MarkersAdapter && MarkersAdapter.MARKER_CATEGORIES)
         || { BOMB: 'bomb' };
+
+    function runBoardOpsDestroyBlock(cardState: any, gameState: any, fn: any, meta?: any) {
+        if (BoardOpsModule && typeof BoardOpsModule.runDestroyBlock === 'function') {
+            return BoardOpsModule.runDestroyBlock(cardState, gameState, fn, meta || {});
+        }
+        return (typeof fn === 'function') ? fn() : undefined;
+    }
 
     function requireCardMarkersMethod(name: any) {
         const fn = CardMarkersModule && CardMarkersModule[name];
@@ -1700,7 +1733,12 @@ const {
             if (marker.row !== fromRow || marker.col !== fromCol) continue;
             if (marker.kind === 'specialStone') {
                 const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-                if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE') continue;
+                if (
+                    markerTypeUpper === 'BLOCKADE' ||
+                    markerTypeUpper === 'METEOR_HOLE' ||
+                    markerTypeUpper === 'FREEZE' ||
+                    markerTypeUpper === 'SEED'
+                ) continue;
             }
             marker.row = toRow;
             marker.col = toCol;
@@ -2852,11 +2890,6 @@ const {
         return [];
     }
 
-    function getSplitTargets(cardState: any, gameState: any, playerKey: any) {
-        const delegated = callCardSelectorsMethod('getSplitTargets', [cardState, gameState, playerKey]);
-        return delegated.called && Array.isArray(delegated.value) ? delegated.value : [];
-    }
-
     function getBoardExpansionTargets(cardState: any, gameState: any, playerKey: any) {
         if (TargetResolver && typeof TargetResolver.getBoardExpansionTargets === 'function') {
             return TargetResolver.getBoardExpansionTargets(cardState, gameState, playerKey);
@@ -3366,6 +3399,9 @@ const {
                 spawnAt: BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function'
                     ? BoardOpsModule.spawnAt
                     : null,
+                runSpawnBlock: BoardOpsModule && typeof BoardOpsModule.runSpawnBlock === 'function'
+                    ? BoardOpsModule.runSpawnBlock
+                    : null,
                 setCellValueForCard,
                 addMarker
             });
@@ -3437,57 +3473,6 @@ const {
         return { applied: true, source: { row, col }, spawned };
     }
 
-    function applySplitWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
-        if (CardCloneModule && typeof CardCloneModule.applySplitWill === 'function') {
-            return CardCloneModule.applySplitWill(cardState, gameState, playerKey, row, col, prng, {
-                getSplitTargets,
-                getCellValueForCard,
-                getSpecialMarkers,
-                getBombMarkers,
-                collectEmptyNeighborCellsForCard,
-                spawnAt: BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function'
-                    ? BoardOpsModule.spawnAt
-                    : null,
-                setCellValueForCard,
-                addMarker
-            });
-        }
-        return { applied: false, reason: 'split_module_unavailable' };
-    }
-
-    function halveDurationValueForSplit(value: any) {
-        const current = Number(value);
-        if (!Number.isFinite(current) || current <= 0) return value;
-        return Math.max(1, Math.trunc(current / 2));
-    }
-
-    function halveDurationOnMarkerDataForSplit(data: any, markerCategory: any) {
-        if (!data || typeof data !== 'object') return null;
-        if (markerCategory === 'specialStone') {
-            if (!Number.isFinite(Number(data.remainingOwnerTurns)) || Number(data.remainingOwnerTurns) <= 0) return null;
-            const previous = Number(data.remainingOwnerTurns);
-            const next = halveDurationValueForSplit(previous);
-            data.remainingOwnerTurns = next;
-            return {
-                durationKey: 'remainingOwnerTurns',
-                previousDuration: previous,
-                nextDuration: next
-            };
-        }
-        if (markerCategory === MARKER_CATEGORIES.BOMB) {
-            if (!Number.isFinite(Number(data.remainingTurns)) || Number(data.remainingTurns) <= 0) return null;
-            const previous = Number(data.remainingTurns);
-            const next = halveDurationValueForSplit(previous);
-            data.remainingTurns = next;
-            return {
-                durationKey: 'remainingTurns',
-                previousDuration: previous,
-                nextDuration: next
-            };
-        }
-        return null;
-    }
-
     function applyBoardExpansionWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         if (CardBoardExpansionApplyModule && typeof CardBoardExpansionApplyModule.applyBoardExpansionWill === 'function') {
             return CardBoardExpansionApplyModule.applyBoardExpansionWill(cardState, gameState, playerKey, row, col, {
@@ -3531,12 +3516,18 @@ const {
                 destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
                     ? BoardOpsModule.destroyAt
                     : null,
+                applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
+                    ? BoardOpsModule.applyHoleAt
+                    : null,
+                runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
+                    ? BoardOpsModule.runCellRemovalBlock
+                    : null,
                 isDestroyResolved,
                 clearStoneIdAtForCard,
                 setCellValueForCard,
                 removeMarkersAt,
                 addMarker,
-                random: defaultPrng,
+                random: (cardState && cardState._defaultRandomSource) || defaultPrng,
                 isAbsoluteProtectedCell,
                 isFrozenCell
             });
@@ -3552,12 +3543,18 @@ const {
                 destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
                     ? BoardOpsModule.destroyAt
                     : null,
+                applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
+                    ? BoardOpsModule.applyHoleAt
+                    : null,
+                runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
+                    ? BoardOpsModule.runCellRemovalBlock
+                    : null,
                 isDestroyResolved,
                 clearStoneIdAtForCard,
                 setCellValueForCard,
                 removeMarkersAt,
                 addMarker,
-                random: defaultPrng,
+                random: (cardState && cardState._defaultRandomSource) || defaultPrng,
                 isAbsoluteProtectedCell,
                 isFrozenCell
             });
@@ -3587,6 +3584,12 @@ const {
                 getCellValueForCard,
                 destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
                     ? BoardOpsModule.destroyAt
+                    : null,
+                applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
+                    ? BoardOpsModule.applyHoleAt
+                    : null,
+                runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
+                    ? BoardOpsModule.runCellRemovalBlock
                     : null,
                 isDestroyResolved,
                 clearStoneIdAtForCard,
@@ -4134,6 +4137,9 @@ const {
                 setStoneIdAtForCard,
                 removeMarkersAt,
                 addMarker,
+                applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
+                    ? BoardOpsModule.applyHoleAt
+                    : null,
                 getMarkers
             });
         }
@@ -4368,6 +4374,9 @@ const {
                 destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
                     ? BoardOpsModule.destroyAt
                     : null,
+                runDestroyBlock: BoardOpsModule && typeof BoardOpsModule.runDestroyBlock === 'function'
+                    ? BoardOpsModule.runDestroyBlock
+                    : null,
                 isDestroyResolved,
                 destroyAtLegacy: destroyAt,
                 moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
@@ -4396,6 +4405,9 @@ const {
                 findSpecialMarkerAt,
                 destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
                     ? BoardOpsModule.destroyAt
+                    : null,
+                runDestroyBlock: BoardOpsModule && typeof BoardOpsModule.runDestroyBlock === 'function'
+                    ? BoardOpsModule.runDestroyBlock
                     : null,
                 isDestroyResolved,
                 destroyAtLegacy: destroyAt,
@@ -4538,11 +4550,6 @@ const {
             throw new Error('[cards.js] CardTimingProcessor.onTurnStart not available');
         }
         const opts = (options && typeof options === 'object') ? options : {};
-        // Direct CardLogic callers do not run the full turn pipeline, so keep the rescue
-        // pre-phase here. The pipeline consumes it explicitly before continuous effects.
-        if (opts.skipStoneSalvationGodRevives !== true && BoardOpsModule && typeof BoardOpsModule.consumeStoneSalvationGodRevives === 'function') {
-            BoardOpsModule.consumeStoneSalvationGodRevives(cardState, gameState, playerKey, { randomSource: prng });
-        }
         return CardTimingProcessorModule.onTurnStart(
             cardState,
             playerKey,
@@ -5071,7 +5078,10 @@ const {
             moveCoexistingSpecialMarkers
         }, opts);
         if (CardUdgModule && typeof CardUdgModule.processUltimateDestroyGodEffectsAtAnchor === 'function') {
-            return CardUdgModule.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
+            return runBoardOpsDestroyBlock(cardState, gameState, () =>
+                CardUdgModule.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps),
+                { randomSource: deps.random || opts.randomSource || opts.random }
+            );
         }
         console.warn('[cards.js] CardUdG module not available');
         return { destroyed: [] };
@@ -5085,7 +5095,10 @@ const {
             moveCoexistingSpecialMarkers
         }, opts);
         if (CardUdgModule && typeof CardUdgModule.processUltimateDestroyGodEffectsAtTurnStartAnchor === 'function') {
-            return CardUdgModule.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
+            return runBoardOpsDestroyBlock(cardState, gameState, () =>
+                CardUdgModule.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
+                { randomSource: deps.random || opts.randomSource || opts.random }
+            );
         }
         console.warn('[cards.js] CardUdG turn-start anchor processor not available');
         return { moved: [], destroyed: [], anchors: [], expired: [] };
@@ -5133,7 +5146,10 @@ const {
 
         const mod = resolveSniperModule();
         if (mod && typeof mod.processSniperWillEffectsAtTurnStartAnchor === 'function') {
-            return mod.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
+            return runBoardOpsDestroyBlock(cardState, gameState, () =>
+                mod.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
+                { randomSource: deps.random }
+            );
         }
         console.warn('[cards.js] CardSniper turn-start anchor processor not available');
         return { destroyed: [], expired: [] };
@@ -5180,10 +5196,16 @@ const {
 
         const mod = resolveLightningModule();
         if (mod && typeof mod.processLightningWillEffectsAtAnchor === 'function') {
-            return mod.processLightningWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
+            return runBoardOpsDestroyBlock(cardState, gameState, () =>
+                mod.processLightningWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps),
+                { randomSource: deps.random }
+            );
         }
         if (mod && typeof mod.processLightningWillEffectsAtTurnStartAnchor === 'function') {
-            return mod.processLightningWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
+            return runBoardOpsDestroyBlock(cardState, gameState, () =>
+                mod.processLightningWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
+                { randomSource: deps.random }
+            );
         }
         console.warn('[cards.js] CardLightning anchor processor not available');
         return { destroyed: [], expired: [] };
@@ -5221,7 +5243,13 @@ const {
 
         const mod = resolveWillHunterKingModule();
         if (mod && typeof mod.processWillHunterKingEffectsAtTurnStartAnchor === 'function') {
-            return mod.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
+            if (BoardOpsModule && typeof BoardOpsModule.runEffectBlock === 'function') {
+                return mod.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
+            }
+            return runBoardOpsDestroyBlock(cardState, gameState, () =>
+                mod.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
+                { randomSource: deps.random }
+            );
         }
         console.warn('[cards.js] CardWillHunterKing turn-start anchor processor not available');
         return { moved: [], destroyed: [], expired: [] };
@@ -5359,7 +5387,10 @@ const {
             random: defaultPrng
         }, opts || {});
         if (CardDestroyDragonModule && typeof CardDestroyDragonModule.processDestroyDragonEffectsAtAnchor === 'function') {
-            return CardDestroyDragonModule.processDestroyDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps);
+            return runBoardOpsDestroyBlock(cardState, gameState, () =>
+                CardDestroyDragonModule.processDestroyDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps),
+                { randomSource: deps.random || opts.randomSource || opts.random }
+            );
         }
         console.warn('[cards.js] CardDestroyDragon anchor processor not available');
         return { destroyed: [], expired: [] };
@@ -5367,11 +5398,15 @@ const {
 
     function processDestroyDragonEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
         if (CardDestroyDragonModule && typeof CardDestroyDragonModule.processDestroyDragonEffectsAtTurnStartAnchor === 'function') {
-            return CardDestroyDragonModule.processDestroyDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, {
+            const deps = {
                 destroyAt,
                 BoardOps: BoardOpsModule,
                 random: prng || defaultPrng
-            });
+            };
+            return runBoardOpsDestroyBlock(cardState, gameState, () =>
+                CardDestroyDragonModule.processDestroyDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
+                { randomSource: deps.random }
+            );
         }
         console.warn('[cards.js] CardDestroyDragon turn-start anchor processor not available');
         return { destroyed: [], expired: [] };
@@ -5477,7 +5512,10 @@ const {
             robotVacuumTurns: ROBOT_VACUUM_TURNS
         };
         if (CardHyperactiveModule && typeof CardHyperactiveModule.processRobotVacuumMoveAtAnchor === 'function') {
-            return CardHyperactiveModule.processRobotVacuumMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps);
+            return runBoardOpsDestroyBlock(cardState, gameState, () =>
+                CardHyperactiveModule.processRobotVacuumMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps),
+                { randomSource: prng || defaultPrng }
+            );
         }
         console.warn('[cards.js] CardHyperactive robot-vacuum module not available');
         return { moved: [], destroyed: [], flipped: [], ownerKey: playerKey, sucked: [], expired: [], suckedCount: 0 };
@@ -5860,7 +5898,6 @@ const cardsApi: any = {
         applyTeleportWill,
         applyCellTeleportWill,
         applyCloneWill,
-        applySplitWill,
         applyBoardExpansionWill,
         applyBoardExpansionGod,
         applyBoardShrinkWill,
@@ -5936,7 +5973,6 @@ const cardsApi: any = {
         getTeleportTargets,
         getCellTeleportTargets,
         getCloneTargets,
-        getSplitTargets,
         getBreedingTargets,
         getBoardExpansionTargets,
         getBoardExpansionGodTargets,

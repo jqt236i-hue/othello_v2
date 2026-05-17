@@ -69,9 +69,9 @@ const EXTRA_BROWSER_MODULES: Array<{ source: string; key: string; aliases?: stri
         aliases: ['shared/gacha-hand-catalog.generated.js']
     },
     {
-        source: 'data/dialogue/fixed-commentary-data.js',
-        key: 'data/dialogue/fixed-commentary-data',
-        aliases: ['data/dialogue/fixed-commentary-data.js']
+        source: 'game/ai/commentary-data.js',
+        key: 'game/ai/commentary-data',
+        aliases: ['game/ai/commentary-data.js']
     },
     {
         source: 'game/card-effects-applier.js',

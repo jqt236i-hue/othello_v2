@@ -9,6 +9,10 @@ const os = require('os');
 const path = require('path');
 const { fork } = require('child_process');
 const { runSelfPlayGames, SELFPLAY_SCHEMA_VERSION } = require('../src/engine/selfplay-runner');
+const {
+    DEFAULT_SELFPLAY_WHITE_DECK_CODE,
+    resolveInitialDeckCardIdsByPlayer
+} = require('./selfplay-deck-options');
 
 function parseArgs(argv) {
     const args = {
@@ -19,6 +23,8 @@ function parseArgs(argv) {
         out: null,
         policyA: { allowCardUsage: true, cardUsageRate: 0.2, policyScoreWeight: 1, heuristicWeight: 1 },
         policyB: { allowCardUsage: true, cardUsageRate: 0.2, policyScoreWeight: 1, heuristicWeight: 1 },
+        blackDeckCode: null,
+        whiteDeckCode: DEFAULT_SELFPLAY_WHITE_DECK_CODE,
         modelAPath: null,
         modelBPath: null,
         verbose: false,
@@ -49,6 +55,18 @@ function parseArgs(argv) {
         }
         if (a === '--out' || a === '-o') {
             args.out = path.resolve(process.cwd(), argv[++i]);
+            continue;
+        }
+        if (a === '--black-deck-code') {
+            args.blackDeckCode = String(argv[++i] || '').trim() || null;
+            continue;
+        }
+        if (a === '--white-deck-code') {
+            args.whiteDeckCode = String(argv[++i] || '').trim() || null;
+            continue;
+        }
+        if (a === '--no-white-deck-code') {
+            args.whiteDeckCode = null;
             continue;
         }
         if (a === '--a-no-cards') {
@@ -143,6 +161,8 @@ function printHelp() {
         '  -j, --jobs <n>       Parallel worker processes for benchmark games (default: 1)',
         '      --max-plies <n>  Max plies per game (default: 220)',
         '  -o, --out <path>     Optional JSON output path',
+        '      --white-deck-code <c> Fixed deckCode for white/CPU benchmark games (default: CPU white deck)',
+        '      --no-white-deck-code  Use the standard random default deck for white too',
         '      --a-with-cards   Enable cards for Policy A (default: on)',
         '      --a-no-cards     Disable cards for Policy A',
         '      --a-rate <r>     Card usage rate for Policy A (default: 0.2)',
@@ -669,6 +689,7 @@ function runBenchmarkSequentialExecution(options) {
     const onProgress = typeof options.onProgress === 'function' ? options.onProgress : null;
     const onRecordExternal = typeof options.onRecord === 'function' ? options.onRecord : null;
     const shouldStop = typeof options.shouldStop === 'function' ? options.shouldStop : null;
+    const initialDeckCardIdsByPlayer = resolveInitialDeckCardIdsByPlayer(options);
     const qualityAcc = createQualityAccumulator();
     const benchmarkStartedAt = Date.now();
     const totalGames = games * 2;
@@ -717,6 +738,7 @@ function runBenchmarkSequentialExecution(options) {
         maxPlies,
         allowCardUsage: globalAllowCards,
         cardUsageRate: globalCardUsageRate,
+        initialDeckCardIdsByPlayer,
         shouldStop,
         playerPolicies: {
             black: policyA,
@@ -739,6 +761,7 @@ function runBenchmarkSequentialExecution(options) {
         maxPlies,
         allowCardUsage: globalAllowCards,
         cardUsageRate: globalCardUsageRate,
+        initialDeckCardIdsByPlayer,
         shouldStop,
         playerPolicies: {
             black: policyB,

@@ -1,6 +1,6 @@
 ---
 name: 'network-backend-worker-workflow'
-description: 'local match server、Durable Object worker、seat token、SSE、heartbeat、leaderboard を、この repo の backend authority / projection 前提で安全に直すワークフロー。Use when editing scripts/local-match-server.js, scripts/match-network-smoke.js, workers/match-worker.mjs, docs/network-worker-deploy.md, or related network backend tests in this card-othello repository.'
+description: 'local match server、Durable Object worker、seat token、SSE、heartbeat、leaderboard を、この repo の backend authority / projection 前提で安全に直すワークフロー。Use when editing scripts/local-match-server.ts / .js shim, scripts/match-network-smoke.ts / .js shim, workers/match-worker.mjs, docs/network-worker-deploy.md, or related network backend tests in this card-othello repository.'
 argument-hint: 'backend のどこを直したいか。worker, local server, seat token, SSE, heartbeat, leaderboard なども書く'
 ---
 
@@ -25,11 +25,11 @@ argument-hint: 'backend のどこを直したいか。worker, local server, seat
 ## Primary Files
 
 - `workers/match-worker.mjs`
-- `scripts/local-match-server.js`
-- `shared/network-action-schema.js`
-- `shared/playback-event-helpers.js`
-- `utils/match-authority.js`
-- `scripts/match-network-smoke.js`
+- `scripts/local-match-server.ts / .js shim`
+- `shared/network-action-schema.ts / .js shim`
+- `shared/playback-event-helpers.ts / .js shim`
+- `utils/match-authority.ts / .js shim`
+- `scripts/match-network-smoke.ts / .js shim`
 - `docs/network-worker-deploy.md`
 
 ## Common Traps
@@ -46,7 +46,7 @@ argument-hint: 'backend のどこを直したいか。worker, local server, seat
 2. worker と local server のどちらが正本の契約かを決め、片方だけ先行しないようにする。
 3. seat token の新規 join、同 seat への rejoin、leave 後の rotated token、stale token revoke を join / stream / leave 全部で同じ契約にそろえる。
 4. seat token, SSE, heartbeat, reconnect, leaderboard の波及を同時に見る。
-5. `shared/network-action-schema.js`, `shared/playback-event-helpers.js`, `utils/match-authority.js` を先に見て、contract の分岐や event 組み立ての重複を増やさない。
+5. `shared/network-action-schema.ts / .js shim`, `shared/playback-event-helpers.ts / .js shim`, `utils/match-authority.ts / .js shim` を先に見て、contract の分岐や event 組み立ての重複を増やさない。
 6. backend smoke と関連 worker / local server test で契約を確認してから deploy 面を見る。
 
 ## Validation Bundle

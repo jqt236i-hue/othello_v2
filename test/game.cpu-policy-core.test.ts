@@ -2503,13 +2503,12 @@ describe('cpu-policy-core', () => {
     test('chooseHandDestroyTargetForCycle rotates clone-style volatile cards in white Lv6 stable lead', () => {
         const defs: Record<string, TestCardDef> = {
             clone: { id: 'clone', type: 'CLONE_WILL' },
-            split: { id: 'split', type: 'SPLIT_WILL' },
             guard: { id: 'guard', type: 'GUARD_WILL' },
             work: { id: 'work', type: 'WORK_WILL' }
         };
-        const costs: Record<string, number> = { clone: 14, split: 16, guard: 2, work: 11 };
+        const costs: Record<string, number> = { clone: 14, guard: 2, work: 11 };
         const selected = core.chooseHandDestroyTargetForCycle(
-            ['clone', 'split', 'guard', 'work'],
+            ['clone', 'guard', 'work'],
             [],
             (id: string) => costs[id],
             (id: string) => defs[id],
@@ -2527,7 +2526,7 @@ describe('cpu-policy-core', () => {
             }
         );
         expect(selected).toBeTruthy();
-        expect(['clone', 'split']).toContain(selected.cardId);
+        expect(selected.cardId).toBe('clone');
     });
 
     test('card type classifiers expose corner plan card groups', () => {
@@ -2831,64 +2830,6 @@ describe('cpu-policy-core', () => {
                 discDiff: -2,
                 empties: 28,
                 ownCharge: 32,
-                handSize: 4,
-                ownCorners: 1,
-                oppCorners: 1,
-                ownEdges: 2,
-                oppEdges: 2,
-                hasCornerMoveNow: false,
-                hasEdgeMoveNow: true,
-                cornerEmergency: false,
-                cloneSplitEligibleSourceCount: 0,
-                maxLegalFlips: 3,
-                maxLegalGain: 4,
-                avgLegalFlips: 2.6
-            }
-        );
-        expect(out.shouldUse).toBe(false);
-        expect(out.score).toBeLessThan(out.minUseScore);
-    });
-
-    test('scoreCardUseDecision suppresses SPLIT_WILL when setup budget is tight and gain is small', () => {
-        const out = core.scoreCardUseDecision(
-            'split',
-            () => 16,
-            () => ({ id: 'split', type: 'SPLIT_WILL' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 4,
-                discDiff: 2,
-                empties: 24,
-                ownCharge: 24,
-                handSize: 2,
-                ownCorners: 1,
-                oppCorners: 1,
-                ownEdges: 2,
-                oppEdges: 2,
-                hasCornerMoveNow: false,
-                hasEdgeMoveNow: false,
-                cornerEmergency: false,
-                reserveChargeFloor: 8,
-                maxLegalFlips: 2,
-                maxLegalGain: 2
-            }
-        );
-        expect(out.shouldUse).toBe(false);
-    });
-
-    test('scoreCardUseDecision suppresses SPLIT_WILL when only normal stones are available', () => {
-        const out = core.scoreCardUseDecision(
-            'split',
-            () => 16,
-            () => ({ id: 'split', type: 'SPLIT_WILL' }),
-            {
-                level: 6,
-                playerValue: -1,
-                legalMovesCount: 3,
-                discDiff: -2,
-                empties: 24,
-                ownCharge: 34,
                 handSize: 4,
                 ownCorners: 1,
                 oppCorners: 1,

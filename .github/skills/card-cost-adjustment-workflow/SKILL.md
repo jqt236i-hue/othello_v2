@@ -32,14 +32,14 @@ argument-hint: 'どのカードの cost をいくつからいくつへ変える�
 - `cards/catalog.json`
 - `cards/catalog.js`
 - `cards/catalog.generated.js`
-- `shared-constants.js`
-- `game/logic/cards/costs.js`, `game/logic/cards.js`
-- `game/cpu-decision.js`, `game/ai/cpu-policy-core.js`, `game/turn-handlers/pending-target-selector.js`
+- `shared-constants.ts`（`.js` は互換 shim）
+- `game/logic/cards/costs.ts`（`.js` は互換 shim）, `game/logic/cards.ts`（`.js` は互換 shim）
+- `game/cpu-decision.ts / .js shim`, `game/ai/cpu-policy-core.ts / .js shim`, `game/turn-handlers/pending-target-selector.ts / .js shim`
 - `ui/animation-utils.js`, `ui/deck-builder-renderer.js`, `ui/deck-builder-controller.js`
-- `cards/card-renderer.js`, `cards/card-interaction.js`
+- `cards/card-renderer.js`, `cards/card-interaction.ts / .js shim`
 - `styles-cards.css`
 - `docs/Card_Strategy_Full_Catalog.md`
-- `scripts/prepare-worker-assets.js`, `worker-public/*` は mirror のみ
+- `scripts/prepare-worker-assets.ts / .js shim`, `worker-public/*` は mirror のみ
 
 ## Common Traps
 
@@ -59,8 +59,8 @@ argument-hint: 'どのカードの cost をいくつからいくつへ変える�
 2. 外から見える仕様文書や一覧を変える必要があるか先に決める。公開仕様の変更なら `01-rulebook.md` を先に更新する。
 3. `cards/catalog.json` を正本として更新し、対象カードの `cardId`, 日本語名, 旧 cost を検索して波及面を洗う。
 4. `npm run generate:catalog` を実行し、`cards/catalog.js` と `cards/catalog.generated.js` を揃える。
-5. tier 境界を跨いだ時は `ui/animation-utils.js`, `cards/card-renderer.js`, `cards/card-interaction.js`, `ui/deck-builder-renderer.js`, `styles-cards.css` を確認し、数値と色が一致するかを見る。
-6. CPU / game 側は `game/logic/cards/costs.js`, `game/cpu-decision.js`, `game/ai/cpu-policy-core.js`, `game/turn-handlers/pending-target-selector.js` を見て、閾値や score への波及を確認する。
+5. tier 境界を跨いだ時は `ui/animation-utils.js`, `cards/card-renderer.js`, `cards/card-interaction.ts / .js shim`, `ui/deck-builder-renderer.js`, `styles-cards.css` を確認し、数値と色が一致するかを見る。
+6. CPU / game 側は `game/logic/cards/costs.js`, `game/cpu-decision.ts / .js shim`, `game/ai/cpu-policy-core.ts / .js shim`, `game/turn-handlers/pending-target-selector.ts / .js shim` を見て、閾値や score への波及を確認する。
 7. docs / tests / deck / help に旧 cost の説明や期待値が残っていれば同タスクで更新する。
 8. network / worker deploy 面まで影響を出す時だけ root から `npm run worker:prepare` を実行し、mirror を同期する。
 9. 最後に `cardId`, 日本語名, 旧 cost, 新 cost, `cost-tier-` で残り参照を見直す。

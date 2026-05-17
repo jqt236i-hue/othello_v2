@@ -2193,54 +2193,6 @@ describe('cpu decision refactor helpers', () => {
     expect(action.cloneTarget).toEqual({ row: 3, col: 3 });
   });
 
-  test('cpuSelectSplitWillWithPolicy avoids splitting long-lived own timed stone when plain source exists', async () => {
-    global.cpuSmartness.white = 6;
-    global.gameState = {
-      board: [
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 1, 0, 0, 0, 0],
-        [0, 0, 0, -1, -1, 0, 0, 0],
-        [0, 0, 0, 0, -1, 1, 0, 0],
-        [0, 0, 0, 0, 1, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0]
-      ],
-      currentPlayer: -1
-    };
-    global.cardState.markers = [
-      {
-        kind: 'specialStone',
-        owner: 'white',
-        row: 3,
-        col: 3,
-        data: { type: 'WORK', remainingOwnerTurns: 6 }
-      }
-    ];
-    global.cardState.pendingEffectByPlayer.white = { type: 'SPLIT_WILL', stage: 'selectTarget' };
-    global.CardLogic = {
-      getSelectableTargets: () => [{ row: 3, col: 3 }, { row: 4, col: 4 }],
-      applySplitWill: jest.fn(() => ({ applied: true }))
-    };
-    global.TurnPipeline = {};
-    global.TurnPipelineUIAdapter = {
-      runTurnWithAdapter: jest.fn(() => ({
-        ok: true,
-        nextCardState: {
-          ...global.cardState,
-          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
-        },
-        nextGameState: global.gameState,
-        playbackEvents: []
-      }))
-    };
-
-    await cpuDecision.cpuSelectSplitWillWithPolicy('white');
-
-    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
-    expect(action.splitTarget).toEqual({ row: 3, col: 3 });
-  });
-
   test('cpuSelectCloneWillWithPolicy clears pending when Lv6 has only normal-stone sources', async () => {
     global.cpuSmartness.white = 6;
     global.gameState = {

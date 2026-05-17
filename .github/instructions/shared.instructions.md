@@ -1,5 +1,5 @@
 ---
-applyTo: 'shared/**/*.js'
+applyTo: 'shared/**/*.ts,shared/**/*.js'
 ---
 
 # shared instruction

@@ -33,7 +33,6 @@ const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
 const WHITE = Number.isFinite(Number(SharedConstants && SharedConstants.WHITE))
     ? Number(SharedConstants.WHITE)
     : -1;
-const BOMB_CATEGORY = 'bomb';
 
 function resolveRandomSource(prng: any) {
     if (RandomSourceModule && typeof RandomSourceModule.resolveRandomSource === 'function') {
@@ -67,43 +66,6 @@ function cloneMarkerData(data: any): any {
     }
 }
 
-function halveDurationValueForSplit(value: number): number {
-    const current = Number(value);
-    if (!Number.isFinite(current) || current <= 0)
-        return value;
-    return Math.max(1, Math.trunc(current / 2));
-}
-
-function halveDurationOnMarkerDataForSplit(data: any, markerCategory: string): { durationKey: string; previousDuration: number; nextDuration: number } | null {
-    if (!data || typeof data !== 'object')
-        return null;
-    if (markerCategory === 'specialStone') {
-        if (!Number.isFinite(Number(data.remainingOwnerTurns)) || Number(data.remainingOwnerTurns) <= 0)
-            return null;
-        const previous = Number(data.remainingOwnerTurns);
-        const next = halveDurationValueForSplit(previous);
-        data.remainingOwnerTurns = next;
-        return {
-            durationKey: 'remainingOwnerTurns',
-            previousDuration: previous,
-            nextDuration: next
-        };
-    }
-    if (markerCategory === BOMB_CATEGORY) {
-        if (!Number.isFinite(Number(data.remainingTurns)) || Number(data.remainingTurns) <= 0)
-            return null;
-        const previous = Number(data.remainingTurns);
-        const next = halveDurationValueForSplit(previous);
-        data.remainingTurns = next;
-        return {
-            durationKey: 'remainingTurns',
-            previousDuration: previous,
-            nextDuration: next
-        };
-    }
-    return null;
-}
-
 function getPlayerValue(playerKey: string): number {
     return playerKey === 'black' ? BLACK : WHITE;
 }
@@ -135,12 +97,12 @@ function applySpawnWithValidation(spawnAt: any, setCellValueForCard: any, cardSt
 
 interface CloneDeps {
     getCloneTargets?(cardState: CardState, gameState: GameState, playerKey: string): Array<{row: number; col: number}>;
-    getSplitTargets?(cardState: CardState, gameState: GameState, playerKey: string): Array<{row: number; col: number}>;
     getCellValueForCard?(gameState: GameState, row: number, col: number): number | null;
     getSpecialMarkers?(cardState: CardState): any[];
     getBombMarkers?(cardState: CardState): any[];
     collectEmptyNeighborCellsForCard?(cardState: CardState, gameState: GameState, row: number, col: number): Array<{row: number; col: number}>;
     spawnAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, cause: string, reason: string, meta: any): any;
+    runSpawnBlock?(cardState: CardState, gameState: GameState, fn: () => any, meta?: any): any;
     setCellValueForCard?(gameState: GameState, row: number, col: number, value: number): boolean;
     addMarker?(cardState: CardState, kind: string, row: number, col: number, playerKey: string, data: any): boolean;
 }
@@ -165,6 +127,7 @@ function applyCloneWill(cardState: CardState, gameState: GameState, playerKey: s
     const getBombMarkers = deps.getBombMarkers || (() => []);
     const collectEmptyNeighborCellsForCard = deps.collectEmptyNeighborCellsForCard || (() => []);
     const spawnAt = deps.spawnAt || null;
+    const runSpawnBlock = typeof deps.runSpawnBlock === 'function' ? deps.runSpawnBlock : null;
     const setCellValueForCard = deps.setCellValueForCard || (() => false);
     const addMarker = deps.addMarker || (() => false);
     const targets = getCloneTargets(cardState, gameState, playerKey);
@@ -183,11 +146,15 @@ function applyCloneWill(cardState: CardState, gameState: GameState, playerKey: s
     const randomSource = resolveRandomSource(prng);
     const target = spawnTargets[resolveRandomIndex(randomSource, spawnTargets.length)] || spawnTargets[0];
     const spawned: Array<{row: number; col: number}> = [];
-    const spawnOutcome = applySpawnWithValidation(spawnAt, setCellValueForCard, cardState, gameState, target, playerKey, playerValue, 'CLONE_WILL', 'clone_spawn', {
+    const applyCloneSpawn = () => applySpawnWithValidation(spawnAt, setCellValueForCard, cardState, gameState, target, playerKey, playerValue, 'CLONE_WILL', 'clone_spawn', {
         fromRow: row,
         fromCol: col,
-        cloneVisual: true
+        cloneVisual: true,
+        spawnIntent: 'clone_spawn'
     });
+    const spawnOutcome = runSpawnBlock
+        ? runSpawnBlock(cardState, gameState, applyCloneSpawn, { cause: 'CLONE_WILL', reason: 'clone_spawn', owner: playerKey })
+        : applyCloneSpawn();
     if (!spawnOutcome.applied)
         return spawnOutcome as CloneResult;
     for (const special of sourceSpecials) {
@@ -196,93 +163,13 @@ function applyCloneWill(cardState: CardState, gameState: GameState, playerKey: s
     }
     for (const bomb of sourceBombs) {
         const owner = bomb.owner === 'white' ? 'white' : 'black';
-        addMarker(cardState, 'specialStone', target.row, target.col, owner, Object.assign({}, cloneMarkerData(bomb.data || {}), { category: BOMB_CATEGORY, type: (bomb.data && bomb.data.type) || 'TIME_BOMB' }));
+        addMarker(cardState, 'specialStone', target.row, target.col, owner, Object.assign({}, cloneMarkerData(bomb.data || {}), { category: 'bomb', type: (bomb.data && bomb.data.type) || 'TIME_BOMB' }));
     }
     spawned.push({ row: target.row, col: target.col });
     cs.pendingEffectByPlayer[playerKey] = null;
     return { applied: true, source: { row, col }, spawned };
 }
 
-function applySplitWill(cardState: CardState, gameState: GameState, playerKey: string, row: number, col: number, prng: any, deps: CloneDeps = {}): CloneResult {
-    const cs = cardState as any;
-    const pending = cs && cs.pendingEffectByPlayer ? cs.pendingEffectByPlayer[playerKey] : null;
-    if (!pending || pending.type !== 'SPLIT_WILL' || pending.stage !== 'selectTarget') {
-        return { applied: false, reason: 'not_pending' };
-    }
-    const getSplitTargets = deps.getSplitTargets || (() => []);
-    const getCellValueForCard = deps.getCellValueForCard || (() => null);
-    const getSpecialMarkers = deps.getSpecialMarkers || (() => []);
-    const getBombMarkers = deps.getBombMarkers || (() => []);
-    const collectEmptyNeighborCellsForCard = deps.collectEmptyNeighborCellsForCard || (() => []);
-    const spawnAt = deps.spawnAt || null;
-    const setCellValueForCard = deps.setCellValueForCard || (() => false);
-    const addMarker = deps.addMarker || (() => false);
-    const targets = getSplitTargets(cardState, gameState, playerKey);
-    const allowed = Array.isArray(targets) && targets.some((target: any) => target && target.row === row && target.col === col);
-    if (!allowed)
-        return { applied: false, reason: 'invalid_target' };
-    const sourceValue = getCellValueForCard(gameState, row, col);
-    const playerValue = getPlayerValue(playerKey);
-    if (sourceValue !== playerValue)
-        return { applied: false, reason: 'not_owner_stone' };
-    const sourceSpecials = getSpecialMarkers(cardState).filter((marker: any) => marker && marker.row === row && marker.col === col);
-    const sourceBombs = getBombMarkers(cardState).filter((marker: any) => marker && marker.row === row && marker.col === col);
-    const spawnTargets = collectEmptyNeighborCellsForCard(cardState, gameState, row, col);
-    if (!spawnTargets.length)
-        return { applied: false, reason: 'no_space' };
-    const randomSource = resolveRandomSource(prng);
-    const target = spawnTargets[resolveRandomIndex(randomSource, spawnTargets.length)] || spawnTargets[0];
-    const spawned: Array<{row: number; col: number}> = [];
-    const spawnOutcome = applySpawnWithValidation(spawnAt, setCellValueForCard, cardState, gameState, target, playerKey, playerValue, 'SPLIT_WILL', 'split_spawn', {
-        fromRow: row,
-        fromCol: col,
-        cloneVisual: true
-    });
-    if (!spawnOutcome.applied)
-        return spawnOutcome as CloneResult;
-    const durationChanges: Array<any> = [];
-    for (const special of sourceSpecials) {
-        const owner = special.owner === 'white' ? 'white' : 'black';
-        const sourceData = cloneMarkerData(special.data || {});
-        const duration = halveDurationOnMarkerDataForSplit(sourceData, 'specialStone');
-        special.data = sourceData;
-        addMarker(cardState, 'specialStone', target.row, target.col, owner, cloneMarkerData(sourceData));
-        if (duration) {
-            durationChanges.push({
-                row,
-                col,
-                owner,
-                special: sourceData.type || null,
-                durationKey: duration.durationKey,
-                previousDuration: duration.previousDuration,
-                nextDuration: duration.nextDuration
-            });
-        }
-    }
-    for (const bomb of sourceBombs) {
-        const owner = bomb.owner === 'white' ? 'white' : 'black';
-        const sourceData = cloneMarkerData(bomb.data || {});
-        const duration = halveDurationOnMarkerDataForSplit(sourceData, BOMB_CATEGORY);
-        bomb.data = sourceData;
-        addMarker(cardState, 'specialStone', target.row, target.col, owner, Object.assign({}, cloneMarkerData(sourceData), { category: BOMB_CATEGORY, type: (sourceData && sourceData.type) || 'TIME_BOMB' }));
-        if (duration) {
-            durationChanges.push({
-                row,
-                col,
-                owner,
-                special: 'TIME_BOMB',
-                durationKey: duration.durationKey,
-                previousDuration: duration.previousDuration,
-                nextDuration: duration.nextDuration
-            });
-        }
-    }
-    spawned.push({ row: target.row, col: target.col });
-    cs.pendingEffectByPlayer[playerKey] = null;
-    return { applied: true, source: { row, col }, spawned, durationChanges };
-}
-
 export = {
-    applyCloneWill,
-    applySplitWill
+    applyCloneWill
 };

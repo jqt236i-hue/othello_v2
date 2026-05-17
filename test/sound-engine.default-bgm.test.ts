@@ -182,7 +182,8 @@ describe('SoundEngine default BGM', () => {
     });
     expect(soundEngine.playlist[5]).toEqual({
       name: 'The Observer’s Tears',
-      file: 'assets/audio/bgm/The Observer’s Tears.mp3'
+      file: 'assets/audio/bgm/The Observer’s Tears.mp3',
+      loopEnd: 58.434783
     });
   });
 
@@ -250,6 +251,32 @@ describe('SoundEngine default BGM', () => {
     expect(sources[0].loop).toBe(true);
     expect(sources[0].loopStart).toBeCloseTo(1.655, 6);
     expect(sources[0].loopEnd).toBeCloseTo(12, 6);
+    expect(sources[0].start).toHaveBeenCalledWith(0, 0);
+  });
+
+  test('loopEnd-only track uses AudioBuffer looping from the head when Web Audio and fetch are available', async () => {
+    const { context, sources } = createMockAudioContext();
+    context.decodeAudioData = jest.fn(async () => ({ duration: 58.43483 }));
+    const fetchMock = jest.fn(async () => ({
+      ok: true,
+      arrayBuffer: async () => new ArrayBuffer(16)
+    }));
+    const soundEngine = loadSoundEngine({ fetch: fetchMock });
+    const loopTrackIndex = soundEngine.playlist.findIndex((track) => track && track.name === 'The Observer’s Tears');
+    soundEngine.ctx = context;
+    soundEngine.allowBgmPlay = true;
+
+    soundEngine.loadBgm(loopTrackIndex);
+    await flushAsyncWork();
+
+    expect(soundEngine.bgm.__bufferedLoop).toBe(true);
+    expect(soundEngine.bgm.paused).toBe(false);
+    expect(fetchMock).toHaveBeenCalledWith('assets/audio/bgm/The Observer’s Tears.mp3');
+    expect(context.decodeAudioData).toHaveBeenCalledTimes(1);
+    expect(sources).toHaveLength(1);
+    expect(sources[0].loop).toBe(true);
+    expect(sources[0].loopStart).toBeCloseTo(0, 6);
+    expect(sources[0].loopEnd).toBeCloseTo(58.434783, 6);
     expect(sources[0].start).toHaveBeenCalledWith(0, 0);
   });
 

@@ -54,14 +54,6 @@ function createNetworkCommentaryController(config?: any): any {
       broker.initBroker({
         root: rootRef,
         addLog: resolveLogWriter(),
-        getShowHeroSpeechBubble: () => {
-          try {
-            if (rootRef && typeof rootRef.showHeroSpeechBubble === 'function') {
-              return rootRef.showHeroSpeechBubble;
-            }
-          } catch (e) { /* ignore */ }
-          return null;
-        },
         getShowCpuSpeechBubble: () => {
           try {
             if (rootRef && typeof rootRef.showCpuSpeechBubble === 'function') {
@@ -138,14 +130,6 @@ function createNetworkCommentaryController(config?: any): any {
     return 'turn_start';
   }
 
-  function buildBoardSignature(board: any): string {
-    try {
-      return JSON.stringify(Array.isArray(board) ? board : []);
-    } catch (e) {
-      return '';
-    }
-  }
-
   function hasCardUseAnimation(playbackEvents: any[]): boolean {
     const events = Array.isArray(playbackEvents) ? playbackEvents : [];
     for (const ev of events) {
@@ -172,49 +156,6 @@ function createNetworkCommentaryController(config?: any): any {
 
     const actorCardId = lastUsedCardByPlayer[actorKey];
     return actorCardId ? String(actorCardId) : null;
-  }
-
-  function emitHeroReactionToRemoteCard(payload: any, snapshot: any, actorKey: string, playbackEvents: any[]): void {
-    if (!payload || payload.ok !== true) return;
-    if (hasCardUseAnimation(playbackEvents)) return;
-
-    const state = resolveState();
-    const localSeatKey = (normalizePlayerKey as any)(state.seatKey || '', 'black');
-    if (!localSeatKey || actorKey === localSeatKey) return;
-
-    const gameStateSnapshot = snapshot && snapshot.gameState ? snapshot.gameState : null;
-    if (!gameStateSnapshot || !Array.isArray(gameStateSnapshot.board)) return;
-
-    let runtimeHelpers = resolveFromGlobal('CommentaryRuntimeHelpers');
-    if (!runtimeHelpers) {
-      try {
-        runtimeHelpers = _require('../../shared/commentary-runtime-helpers');
-      } catch (e) { /* ignore */ }
-    }
-    const counts = countDiscsFromBoard(gameStateSnapshot.board);
-    const turnNumber = Number.isFinite(gameStateSnapshot.turnNumber) ? gameStateSnapshot.turnNumber : null;
-    const cardId = resolveCardId(payload, snapshot, actorKey, playbackEvents, runtimeHelpers);
-    const commentaryKey = [
-      'hero',
-      localSeatKey,
-      actorKey,
-      turnNumber !== null ? turnNumber : '',
-      cardId || '',
-      buildBoardSignature(gameStateSnapshot.board)
-    ].join('|');
-    const broker = ensureCommentaryBrokerInitialized();
-    if (!broker || typeof broker.requestCommentaryAndShow !== 'function') return;
-    broker.requestCommentaryAndShow({
-      eventType: 'card_used_by_enemy',
-      playerKey: localSeatKey,
-      speakerRole: 'hero',
-      turnNumber,
-      counts,
-      board: gameStateSnapshot.board,
-      cardId,
-      dedupeScope: 'hero-network-card',
-      dedupeKey: commentaryKey
-    });
   }
 
   function emitSnapshotCommentary(payload: any, snapshot: any, isSelfOperation: boolean, playbackEvents: any[]): void {
@@ -251,10 +192,6 @@ function createNetworkCommentaryController(config?: any): any {
       board: gameStateSnapshot.board,
       cardId
     });
-
-    if (eventType === 'card_used') {
-      emitHeroReactionToRemoteCard(payload, snapshot, actorKey, playbackEvents);
-    }
   }
 
   return {

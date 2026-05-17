@@ -90,7 +90,7 @@ function normalizeSpeakerRole(role: any): string {
   if (runtimeHelpers && typeof runtimeHelpers.normalizeSpeakerRole === 'function') {
     return runtimeHelpers.normalizeSpeakerRole(role, 'cpu');
   }
-  return String(role || '').trim().toLowerCase() === 'hero' ? 'hero' : 'cpu';
+  return 'cpu';
 }
 
 function buildFallbackContext(options?: any): any {
@@ -152,7 +152,7 @@ function formatCommentaryEntry(playerKey: string, speakerRole: string, text: str
   const runtimeHelpers = resolveCommentaryRuntimeHelpers();
   const prefix = (runtimeHelpers && typeof runtimeHelpers.getSpeakerPrefix === 'function')
     ? runtimeHelpers.getSpeakerPrefix(playerKey, normalizedRole)
-    : (normalizedRole === 'hero' ? '勇者' : (playerKey === 'white' ? '白CPU' : '黒CPU'));
+    : (playerKey === 'white' ? '白CPU' : '黒CPU');
   return {
     kind: 'commentary',
     speakerRole: normalizedRole,
@@ -167,14 +167,10 @@ function showCommentaryEntry(entry: any, options?: any): any {
   const opts = (options && typeof options === 'object') ? options : {};
   const safeEntry = entry && typeof entry === 'object' ? entry : null;
   if (!safeEntry || !safeEntry.line) return null;
-  const speakerRole = normalizeSpeakerRole(safeEntry.speakerRole);
-  const getter = speakerRole === 'hero'
-    ? (brokerConfig && brokerConfig.getShowHeroSpeechBubble)
-    : (brokerConfig && brokerConfig.getShowCpuSpeechBubble);
+  const getter = brokerConfig && brokerConfig.getShowCpuSpeechBubble;
   const showBubble = typeof getter === 'function' ? getter() : null;
   if (typeof showBubble === 'function' && opts.show !== false) {
-    if (speakerRole === 'hero') showBubble(safeEntry.line, safeEntry);
-    else showBubble(safeEntry.line, safeEntry);
+    showBubble(safeEntry.line, safeEntry);
   }
   const logWriter = resolveLogWriter();
   if (typeof logWriter === 'function' && opts.log === true) {

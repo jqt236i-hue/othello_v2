@@ -19,19 +19,12 @@ const HERO_IMAGE_SRC = 'assets/images/hero/hero.png';
 const NETWORK_OPPONENT_HERO_CLASS = 'is-network-opponent-hero';
 const NETWORK_WAITING_NAME = '接続待ち';
 const PORTRAIT_SPEECH_ROLE_CPU = 'cpu';
-const PORTRAIT_SPEECH_ROLE_HERO = 'hero';
 const PORTRAIT_SPEECH_CONFIG: any = {
     cpu: {
         role: PORTRAIT_SPEECH_ROLE_CPU,
         bubbleId: 'cpu-speech-bubble',
         imageId: 'cpu-character-img',
         panelId: 'cpu-character-panel'
-    },
-    hero: {
-        role: PORTRAIT_SPEECH_ROLE_HERO,
-        bubbleId: 'hero-speech-bubble',
-        imageId: 'hero-character-img',
-        panelId: 'hero-character-panel'
     }
 };
 let StatusDisplayOwnerHelpersModule: any = null;
@@ -144,7 +137,7 @@ function applyNetworkSeatLabels(levelLabel: any): boolean {
 }
 
 function normalizePortraitSpeechRole(value: any): string {
-    return value === PORTRAIT_SPEECH_ROLE_HERO ? PORTRAIT_SPEECH_ROLE_HERO : PORTRAIT_SPEECH_ROLE_CPU;
+    return PORTRAIT_SPEECH_ROLE_CPU;
 }
 
 function resolvePortraitSpeechConfig(value: any): any {
@@ -228,10 +221,6 @@ function keepPortraitSpeechBubbleOutsideBoard(bubble: any, role: string, boardRe
     const bubbleRect = bubble.getBoundingClientRect();
     const currentLeft = Number.parseFloat(bubble.style.left) || ((bubbleRect.left + bubbleRect.right) / 2);
 
-    if (role === PORTRAIT_SPEECH_ROLE_HERO && bubbleRect.right > boardRect.left - boardGap) {
-        bubble.style.left = `${currentLeft - (bubbleRect.right - (boardRect.left - boardGap))}px`;
-        return;
-    }
     if (role === PORTRAIT_SPEECH_ROLE_CPU && bubbleRect.left < boardRect.right + boardGap) {
         bubble.style.left = `${currentLeft + ((boardRect.right + boardGap) - bubbleRect.left)}px`;
     }
@@ -256,13 +245,8 @@ function positionPortraitSpeechBubble(value: any): void {
 
     if (boardRect) {
         const lanePadding = viewportMargin + boardGap;
-        if (config.role === PORTRAIT_SPEECH_ROLE_HERO) {
-            const laneWidth = Math.floor(boardRect.left - lanePadding);
-            if (laneWidth > 0) bubbleMaxWidth = Math.min(bubbleMaxWidth, laneWidth);
-        } else {
-            const laneWidth = Math.floor(viewportWidth - boardRect.right - lanePadding);
-            if (laneWidth > 0) bubbleMaxWidth = Math.min(bubbleMaxWidth, laneWidth);
-        }
+        const laneWidth = Math.floor(viewportWidth - boardRect.right - lanePadding);
+        if (laneWidth > 0) bubbleMaxWidth = Math.min(bubbleMaxWidth, laneWidth);
     }
 
     bubble.style.maxWidth = `${Math.max(1, Math.round(bubbleMaxWidth))}px`;
@@ -276,7 +260,6 @@ function positionPortraitSpeechBubble(value: any): void {
 
 function positionAllPortraitSpeechBubbles(): void {
     positionPortraitSpeechBubble(PORTRAIT_SPEECH_ROLE_CPU);
-    positionPortraitSpeechBubble(PORTRAIT_SPEECH_ROLE_HERO);
 }
 
 function bindPortraitSpeechViewportHandlers(): void {
@@ -293,7 +276,7 @@ function bindPortraitSpeechViewportHandlers(): void {
 function hidePortraitSpeechBubble(role?: string): void {
     const roles = role
         ? [normalizePortraitSpeechRole(role)]
-        : [PORTRAIT_SPEECH_ROLE_CPU, PORTRAIT_SPEECH_ROLE_HERO];
+        : [PORTRAIT_SPEECH_ROLE_CPU];
     roles.forEach((speakerRole) => {
         const bubble = getPortraitSpeechBubbleElement(speakerRole);
         if (!bubble) return;
@@ -312,10 +295,6 @@ function positionCpuSpeechBubble(): void {
 
 function hideCpuSpeechBubble(): void {
     hidePortraitSpeechBubble(PORTRAIT_SPEECH_ROLE_CPU);
-}
-
-function hideHeroSpeechBubble(): void {
-    hidePortraitSpeechBubble(PORTRAIT_SPEECH_ROLE_HERO);
 }
 
 function showPortraitSpeechBubble(text: string, options: any = {}): void {
@@ -551,11 +530,6 @@ function showCpuSpeechBubble(text: string, options: any = {}): void {
     showPortraitSpeechBubble(text, options);
 }
 
-function showHeroSpeechBubble(text: string, options: any = {}): void {
-    const bubbleOptions = Object.assign({}, options || {}, { speakerRole: PORTRAIT_SPEECH_ROLE_HERO });
-    showPortraitSpeechBubble(text, bubbleOptions);
-}
-
 const FATE_WILL_BANNER_ID = 'fate-will-banner';
 
 function _getCardStateForFateWillBanner(): any {
@@ -731,8 +705,6 @@ if (typeof window !== 'undefined') {
     try { (window as any).showCpuSpeechBubble = showCpuSpeechBubble; } catch (e) { /* ignore */ }
     try { (window as any).hideCpuSpeechBubble = hideCpuSpeechBubble; } catch (e) { /* ignore */ }
     try { (window as any).positionCpuSpeechBubble = positionCpuSpeechBubble; } catch (e) { /* ignore */ }
-    try { (window as any).showHeroSpeechBubble = showHeroSpeechBubble; } catch (e) { /* ignore */ }
-    try { (window as any).hideHeroSpeechBubble = hideHeroSpeechBubble; } catch (e) { /* ignore */ }
     try { (window as any).showRoundBonusDisplay = showRoundBonusDisplay; } catch (e) { /* ignore */ }
     try { (window as any).clearRoundDisplayBonus = clearRoundDisplayBonus; } catch (e) { /* ignore */ }
     try { (window as any).updateCpuCharacter = updateCpuCharacter; } catch (e) { /* ignore */ }
@@ -788,8 +760,6 @@ const StatusDisplayModule = {
     showCpuSpeechBubble,
     hideCpuSpeechBubble,
     positionCpuSpeechBubble,
-    showHeroSpeechBubble,
-    hideHeroSpeechBubble,
     showRoundBonusDisplay,
     clearRoundDisplayBonus,
     updateCpuCharacter,

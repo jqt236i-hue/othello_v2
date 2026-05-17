@@ -46,20 +46,19 @@ const {
     const STONE_SALVATION_GOD_CAUSE = 'STONE_SALVATION_GOD';
     const STONE_SALVATION_GOD_REVIVE_REASON = 'stone_salvation_god_revive';
     const POSITIVE_SPAWN_LIKE_EFFECTS = Object.freeze([
-        Object.freeze({ cause: 'BREEDING', reasonPrefix: 'breeding_spawn' }),
-        Object.freeze({ cause: 'EQUALITY_WILL', reasonPrefix: 'equality_will_spawn' }),
-        Object.freeze({ cause: 'REINFORCEMENT_WILL', reasonPrefix: 'reinforcement_will_spawn' }),
-        Object.freeze({ cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' }),
-        Object.freeze({ cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON }),
-        Object.freeze({ cause: 'CLONE_WILL', reasonPrefix: 'clone_spawn' }),
-        Object.freeze({ cause: 'SPLIT_WILL', reasonPrefix: 'split_spawn' }),
-        Object.freeze({ cause: 'PROLIFERATION_WILL', reasonPrefix: 'proliferation_spawn' })
+        Object.freeze({ spawnIntent: 'breeding_spawn', cause: 'BREEDING', reasonPrefix: 'breeding_spawn' }),
+        Object.freeze({ spawnIntent: 'normal_spawn', cause: 'EQUALITY_WILL', reasonPrefix: 'equality_will_spawn' }),
+        Object.freeze({ spawnIntent: 'normal_spawn', cause: 'REINFORCEMENT_WILL', reasonPrefix: 'reinforcement_will_spawn' }),
+        Object.freeze({ spawnIntent: 'salvation_spawn', cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' }),
+        Object.freeze({ spawnIntent: 'salvation_spawn', cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON }),
+        Object.freeze({ spawnIntent: 'clone_spawn', cause: 'CLONE_WILL', reasonPrefix: 'clone_spawn' }),
+        Object.freeze({ spawnIntent: 'proliferation_spawn', cause: 'PROLIFERATION_WILL', reasonPrefix: 'proliferation_spawn' })
     ]);
     const POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS = Object.freeze([
-        Object.freeze({ cause: 'EQUALITY_WILL', reasonPrefix: 'equality_will_spawn' }),
-        Object.freeze({ cause: 'REINFORCEMENT_WILL', reasonPrefix: 'reinforcement_will_spawn' }),
-        Object.freeze({ cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' }),
-        Object.freeze({ cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON })
+        Object.freeze({ spawnIntent: 'normal_spawn', cause: 'EQUALITY_WILL', reasonPrefix: 'equality_will_spawn' }),
+        Object.freeze({ spawnIntent: 'normal_spawn', cause: 'REINFORCEMENT_WILL', reasonPrefix: 'reinforcement_will_spawn' }),
+        Object.freeze({ spawnIntent: 'salvation_spawn', cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' }),
+        Object.freeze({ spawnIntent: 'salvation_spawn', cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON })
     ]);
     const DESTROY_SOURCE_ANIMATION_PROFILES = Object.freeze([
         Object.freeze({
@@ -113,6 +112,14 @@ const {
         ));
         return matchesCause &&
             normalizedReason.indexOf(String(profile.reasonPrefix || '').toLowerCase()) === 0;
+    }
+
+    function matchesSpawnProfileTarget(target: any, cause: any, reason: any, profile: any) {
+        if (!matchesCauseAndReasonPrefix(cause, reason, profile)) return false;
+        const expectedIntent = profile && profile.spawnIntent;
+        const actualIntent = target && target.meta && target.meta.spawnIntent;
+        if (!expectedIntent || actualIntent === undefined || actualIntent === null || actualIntent === '') return true;
+        return String(actualIntent).toLowerCase() === String(expectedIntent).toLowerCase();
     }
 
     function hasRegenBackFlip(events: any) {
@@ -644,7 +651,7 @@ const {
                 return false;
             }
             return POSITIVE_SPAWN_LIKE_EFFECTS.some((profile) => (
-                matchesCauseAndReasonPrefix(normalizedCause, normalizedReason, profile)
+                matchesSpawnProfileTarget(target, normalizedCause, normalizedReason, profile)
             ));
         }
 
@@ -675,15 +682,23 @@ const {
                 if (this._isPositiveSpawnLikeEffectTarget(eventType, target, cause, reason)) {
                     return HIGHLIGHT_TONE_POSITIVE;
                 }
+                const moveIntent = String(target && target.meta && target.meta.moveIntent ? target.meta.moveIntent : '').toLowerCase();
                 const isGluttonousEatMove =
+                    moveIntent === 'hyperactive_move' ||
                     cause === 'GLUTTONOUS_WILL' &&
                     reason.indexOf('gluttonous_eat_move') === 0;
                 const isFlipEvadeMove =
+                    moveIntent === 'evade_move' ||
                     reason.indexOf('flip_evade_move') >= 0;
                 const isDestroyEvadeMove =
+                    moveIntent === 'evade_move' ||
                     cause === 'DESTROY_EVADE' ||
                     reason.indexOf('destroy_evade_move') === 0;
-                return cause === 'STRONG_WIND_WILL' ||
+                return moveIntent === 'wind_move' ||
+                    moveIntent === 'crush_move' ||
+                    moveIntent === 'position_swap' ||
+                    moveIntent === 'teleport_move' ||
+                    cause === 'STRONG_WIND_WILL' ||
                     cause === 'SUPER_BUOYANCY_WILL' ||
                     cause === 'SUPER_GRAVITY_WILL' ||
                     cause === 'POSITION_SWAP_WILL' ||
@@ -744,7 +759,7 @@ const {
             const cause = this._getTargetCause(target);
             const reason = this._getTargetReason(target);
             const shouldKeepVisible = POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS.some((profile) => (
-                matchesCauseAndReasonPrefix(cause, reason, profile)
+                matchesSpawnProfileTarget(target, cause, reason, profile)
             ));
             if (!shouldKeepVisible) return 0;
             return POSITIVE_HIGHLIGHT_MIN_VISIBLE_MS;
@@ -2543,16 +2558,21 @@ const {
         _getMoveSemantics(target: any) {
             const cause = this._getTargetCause(target);
             const reason = this._getTargetReason(target);
+            const moveIntent = String(target && target.meta && target.meta.moveIntent ? target.meta.moveIntent : '').toLowerCase();
             const extremeForcedSwapRole = String(target && target.extremeForcedSwapRole ? target.extremeForcedSwapRole : '').toLowerCase();
             const isPositionSwapMove =
+                moveIntent === 'position_swap' ||
                 cause === 'POSITION_SWAP_WILL' ||
                 reason === 'position_swap';
             const isFlipEvadeMove =
+                moveIntent === 'evade_move' ||
                 reason.indexOf('flip_evade_move') >= 0;
             const isDestroyEvadeMove =
+                moveIntent === 'evade_move' ||
                 cause === 'DESTROY_EVADE' ||
                 reason.indexOf('destroy_evade_move') === 0;
             const isTeleportMove =
+                moveIntent === 'teleport_move' ||
                 cause === 'CELL_TELEPORT_WILL' ||
                 cause === 'TELEPORT_WILL' ||
                 reason === 'teleport_move';
@@ -2565,6 +2585,8 @@ const {
                 cause === 'EXTREME_HYPERACTIVE_WILL' &&
                 reason.indexOf('extreme_hyperactive_forced_swap') === 0;
             const isHyperactiveLikeMove = (
+                moveIntent === 'hyperactive_move' ||
+                moveIntent === 'anchor_move' ||
                 cause === 'HYPERACTIVE' ||
                 cause === 'AFTERIMAGE_WILL' ||
                 cause === 'ESCAPE_HYPERACTIVE' ||
@@ -2586,6 +2608,7 @@ const {
             return {
                 cause,
                 reason,
+                moveIntent,
                 isPositionSwapMove,
                 isFlipEvadeMove,
                 isDestroyEvadeMove,
@@ -2619,6 +2642,7 @@ const {
         _buildMoveGhostAnimationSpec(moveSemantics: any, deltaX: any, deltaY: any) {
             const normalizedCause = String(moveSemantics && moveSemantics.cause ? moveSemantics.cause : '').toUpperCase();
             const normalizedReason = String(moveSemantics && moveSemantics.reason ? moveSemantics.reason : '').toLowerCase();
+            const normalizedIntent = String(moveSemantics && moveSemantics.moveIntent ? moveSemantics.moveIntent : '').toLowerCase();
             const defaultSpec = {
                 keyframes: [
                     { transform: 'translate(0, 0)' },
@@ -2631,7 +2655,7 @@ const {
             const dominantTravel = Math.max(absX, absY);
             if (dominantTravel <= 0) return defaultSpec;
 
-            if (normalizedCause === 'STRONG_WIND_WILL' || normalizedReason.indexOf('strong_wind_move') === 0) {
+            if (normalizedIntent === 'wind_move' || normalizedCause === 'STRONG_WIND_WILL' || normalizedReason.indexOf('strong_wind_move') === 0) {
                 const gustOffset = Math.max(10, Math.round(dominantTravel * 0.14));
                 const gustX = absX >= absY
                     ? Math.round(deltaX * 0.58)
@@ -2649,7 +2673,10 @@ const {
                 };
             }
 
-            if (normalizedCause === 'SUPER_BUOYANCY_WILL' || normalizedReason.indexOf('super_buoyancy_move') === 0) {
+            if (
+                normalizedCause === 'SUPER_BUOYANCY_WILL' ||
+                (normalizedIntent === 'crush_move' && normalizedReason.indexOf('super_buoyancy_move') === 0)
+            ) {
                 const lift = Math.max(18, Math.round(dominantTravel * 0.2));
                 return {
                     keyframes: [
@@ -2661,7 +2688,10 @@ const {
                 };
             }
 
-            if (normalizedCause === 'SUPER_GRAVITY_WILL' || normalizedReason.indexOf('super_gravity_move') === 0) {
+            if (
+                normalizedCause === 'SUPER_GRAVITY_WILL' ||
+                (normalizedIntent === 'crush_move' && normalizedReason.indexOf('super_gravity_move') === 0)
+            ) {
                 const drop = Math.max(20, Math.round(dominantTravel * 0.22));
                 return {
                     keyframes: [

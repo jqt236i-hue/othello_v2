@@ -65,7 +65,7 @@ const SoundEngine = {
         { name: '盤喰いの小鬼戦', file: 'assets/audio/bgm/盤喰いの小鬼戦.mp3', loopStart: 1.655 },
         { name: '幻想即興曲', file: 'assets/audio/bgm/幻想即興曲.mp3' },
         { name: 'ノクターン', file: 'assets/audio/bgm/ノクターン.mp3' },
-        { name: 'The Observer’s Tears', file: 'assets/audio/bgm/The Observer’s Tears.mp3' }
+        { name: 'The Observer’s Tears', file: 'assets/audio/bgm/The Observer’s Tears.mp3', loopEnd: 58.434783 }
     ] as BgmTrack[],
     effectBasePath: 'assets/audio/sound-effect/',
     effectSoundFiles: {
@@ -165,8 +165,14 @@ const SoundEngine = {
         return Number.isFinite(duration) ? Math.max(loopStart, duration) : loopStart;
     },
 
+    _hasExplicitBgmLoopWindow(track: BgmTrack | null) {
+        const loopStart = this._resolveBgmLoopStart(track);
+        const loopEnd = Number(track && track.loopEnd);
+        return loopStart > 0 || (Number.isFinite(loopEnd) && loopEnd > loopStart);
+    },
+
     _canUseBufferedBgmLoop(track: BgmTrack | null) {
-        if (this._resolveBgmLoopStart(track) <= 0) return false;
+        if (!this._hasExplicitBgmLoopWindow(track)) return false;
         if (typeof fetch !== 'function') return false;
         const ctx = this.ctx || this._ensureAudioContext(false);
         return !!(
@@ -412,9 +418,10 @@ const SoundEngine = {
     _configureBgmLoop(audio: HTMLAudioElement | any, track: BgmTrack | null) {
         if (!audio) return;
         const loopStart = this._resolveBgmLoopStart(track);
+        const hasExplicitLoopWindow = this._hasExplicitBgmLoopWindow(track);
         audio.ontimeupdate = null;
         audio.onended = null;
-        if (loopStart <= 0) {
+        if (!hasExplicitLoopWindow) {
             audio.loop = true;
             return;
         }
@@ -423,8 +430,9 @@ const SoundEngine = {
         audio.ontimeupdate = () => {
             if (audio !== this.bgm) return;
             const duration = Number(audio.duration);
-            if (!Number.isFinite(duration) || duration <= loopStart) return;
-            if (Number(audio.currentTime) >= duration - 0.15) {
+            const loopEnd = this._resolveBgmLoopEnd(track, duration, loopStart);
+            if (!Number.isFinite(loopEnd) || loopEnd <= loopStart) return;
+            if (Number(audio.currentTime) >= loopEnd - 0.15) {
                 try {
                     audio.currentTime = loopStart;
                 } catch (e) { /* ignore */ }

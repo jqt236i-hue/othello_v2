@@ -4,7 +4,8 @@
     } else if (typeof module !== 'undefined' && module.exports) {
         let cardCatalog = null;
         try {
-            cardCatalog = require('../cards/catalog.json');
+            const path = require('path');
+            cardCatalog = require(path.resolve(process.cwd(), 'cards', 'catalog.json'));
         } catch (e) { /* ignore */ }
         module.exports = factory(require('../shared-constants'), cardCatalog);
     } else {
@@ -47,6 +48,7 @@
     const DEFAULT_DECK_SIZE = 30;
     const CUSTOM_DECK_SIZE = 30;
     const MAX_DUPLICATES_PER_CARD = 3;
+    const CPU_LV6_WHITE_DECK_CODE = 'D1C1:chest_01.hard_01.swap_01.position_swap_01.perma_01.strong_wind_01.super_buoyancy_01.super_gravity_01.tempt_01.capture_01.regen_01.udr_01.seed_01.teleport_01.hyperactive_01.will_hunter_king_01.loss_will_01.gold_stone.silver_stone.extend_life_01.guard_01.destroy_dragon_01.lightning_01.udg_01.ultimate_hyperactive_01.board_expand_01.board_shrink_01.blockade_01.observer_01.reinforcement_01';
 
     function createDeckSpecError(code: string, message: string, details?: unknown): DeckSpecError {
         const error = new Error(String(message || code || 'DECK_SPEC_ERROR')) as DeckSpecError;
@@ -136,6 +138,10 @@
 
     function getDefaultDeckSize(): number {
         return DEFAULT_DECK_SIZE;
+    }
+
+    function getCpuLv6WhiteDeckCode(): string {
+        return CPU_LV6_WHITE_DECK_CODE;
     }
 
     function getShuffleOnlyPrng(prng: unknown): ShufflePrng {
@@ -347,6 +353,7 @@
         DEFAULT_DECK_SIZE,
         CUSTOM_DECK_SIZE,
         MAX_DUPLICATES_PER_CARD,
+        CPU_LV6_WHITE_DECK_CODE,
         createDeckSpecError,
         getCatalogVersion,
         getEnabledCardDefs,
@@ -356,6 +363,7 @@
         getStandardDeckCardIds,
         getStandardDeckSize,
         getDefaultDeckSize,
+        getCpuLv6WhiteDeckCode,
         sampleDefaultDeckCardIds,
         createDefaultDeckSpec,
         normalizeDeckSpec,

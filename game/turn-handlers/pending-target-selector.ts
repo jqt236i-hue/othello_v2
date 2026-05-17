@@ -196,7 +196,6 @@ function buildPendingSelectionAction(context: PendingTargetSelectorContext): Rec
     case 'SEED_WILL': return buildBoardCellAction(context, 'chooseSeedTarget', 'seedTarget');
     case 'TRAP_WILL': return buildBoardCellAction(context, 'chooseTrapTarget', 'trapTarget');
     case 'CLONE_WILL': return buildBoardCellAction(context, 'chooseCloneTarget', 'cloneTarget');
-    case 'SPLIT_WILL': return buildBoardCellAction(context, 'chooseSplitTarget', 'splitTarget');
     case 'HYPERACTIVE_INHERIT_WILL': return buildBoardCellAction(context, 'chooseHyperactiveInheritTarget', 'hyperactiveInheritTarget');
     case 'TELEPORT_WILL': return buildBoardCellAction(context, 'chooseTeleportTarget', 'teleportTarget');
     case 'CELL_TELEPORT_WILL': return buildBoardCellAction(context, 'chooseCellTeleportTarget', 'teleportTarget');

@@ -46,7 +46,7 @@ argument-hint: '学習パイプラインのどこを直したいか。profile, p
 1. まず profile、preflight、gate、promotion のどこを直すかを分ける。
 2. profile ごとの output と deploy 面を別責務として保つ。
 3. gate や benchmark の前提を変える時は、関連 script を同じタスクでそろえる。
-4. ONNX gate を触る時は、training profile / cycle の wiring や採用順までならこの skill、`scripts/benchmark-policy-onnx-gate.js` / `ui/handlers/cpu-policy.js` / `game/ai/policy-onnx-runtime.js` / shared profile の gate 条件自体なら `cpu-onnx-gate-workflow` に切り替える。
+4. ONNX gate を触る時は、training profile / cycle の wiring や採用順までならこの skill、`scripts/benchmark-policy-onnx-gate.js` / `ui/handlers/cpu-policy.ts / .js shim` / `game/ai/policy-onnx-runtime.js` / shared profile の gate 条件自体なら `cpu-onnx-gate-workflow` に切り替える。
 5. reset や cleanup が必要なら、残すものと消すものを先に明確にする。
 6. 学習 run の起動 / 再起動まで含む時は、`selfplay-training-run-ops-workflow` に切り替え、run-tag / `launcher.log` / monitor / stop の案内までそろえる。
 7. 学習、gate、promotion を 1 本の流れで検証する。

@@ -140,7 +140,7 @@ describe('NetworkCommentaryController', () => {
       );
     });
 
-    test('カード使用時にヒーローの反応コメンタリーも発行する', () => {
+    test('カード使用時に勇者の反応コメンタリーは発行しない', () => {
       const payload = {
         ok: true,
         playerKey: 'white',
@@ -151,13 +151,9 @@ describe('NetworkCommentaryController', () => {
 
       controller.emitSnapshotCommentary(payload, snapshot, false, []);
 
-      expect(mockBroker.requestCommentaryAndShow).toHaveBeenCalledTimes(2);
-      expect(mockBroker.requestCommentaryAndShow).toHaveBeenNthCalledWith(2,
-        expect.objectContaining({
-          eventType: 'card_used_by_enemy',
-          speakerRole: 'hero',
-          playerKey: 'black'
-        })
+      expect(mockBroker.requestCommentaryAndShow).toHaveBeenCalledTimes(1);
+      expect(mockBroker.requestCommentaryAndShow).not.toHaveBeenCalledWith(
+        expect.objectContaining({ speakerRole: 'hero' })
       );
     });
   });

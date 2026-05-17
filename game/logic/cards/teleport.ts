@@ -44,6 +44,7 @@ interface TeleportDeps {
     clearStoneIdAtForCard?(cardState: CardState, gameState: GameState, row: number, col: number): void;
     removeMarkersAt?(cardState: CardState, row: number, col: number): void;
     addMarker?(cardState: CardState, kind: string, row: number, col: number, playerKey: string, data: any): boolean;
+    applyHoleAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, meta: any): any;
     getCellTeleportTargets?(cardState: CardState, gameState: GameState): Array<{row: number; col: number}>;
     getCellTeleportDestinations?(cardState: CardState, gameState: GameState): Array<{row: number; col: number; active?: boolean}>;
     ensureExpansionCellForCard?(gameState: GameState, row: number, col: number, value: number): boolean;
@@ -89,12 +90,18 @@ function moveMarkers(cardState: CardState, fromRow: number, fromCol: number, toR
     for (const marker of markers) {
         if (!marker) continue;
         if (marker.row !== fromRow || marker.col !== fromCol) continue;
+        const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+        if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE' || markerTypeUpper === 'FREEZE' || markerTypeUpper === 'SEED') continue;
         marker.row = toRow;
         marker.col = toCol;
     }
 }
 
 function leaveMeteorHoleAt(cardState: CardState, gameState: GameState, playerKey: string, row: number, col: number, deps: TeleportDeps) {
+    if (deps && typeof deps.applyHoleAt === 'function') {
+        deps.applyHoleAt(cardState, gameState, row, col, playerKey, {});
+        return;
+    }
     const clearStoneIdAtForCard = deps.clearStoneIdAtForCard || (() => {});
     const setCellValueForCard = deps.setCellValueForCard || (() => false);
     const removeMarkersAt = deps.removeMarkersAt || (() => {});
@@ -137,12 +144,13 @@ function applyTeleportWill(cardState: CardState, gameState: GameState, playerKey
     const randomSource = resolveRandomSource(prng);
     const to = destinations[resolveRandomIndex(randomSource, destinations.length)] || destinations[0];
 
-    moveMarkers(cardState, row, col, to.row, to.col, deps);
-
     if (typeof moveAt === 'function') {
         const result = moveAt(cardState, gameState, row, col, to.row, to.col, 'TELEPORT_WILL', 'teleport_move');
         if (!result || !result.moved) {
             return { applied: false, reason: 'move_failed' };
+        }
+        if (result.markerHandled !== true) {
+            moveMarkers(cardState, row, col, to.row, to.col, deps);
         }
     } else {
         const cleared = setCellValueForCard(gameState, row, col, EMPTY);
@@ -150,6 +158,7 @@ function applyTeleportWill(cardState: CardState, gameState: GameState, playerKey
         if (!cleared || !placed) {
             return { applied: false, reason: 'move_failed' };
         }
+        moveMarkers(cardState, row, col, to.row, to.col, deps);
     }
 
     cs.pendingEffectByPlayer[playerKey] = null;
@@ -194,6 +203,7 @@ function applyCellTeleportWill(cardState: CardState, gameState: GameState, playe
     }
 
     let moved = false;
+    let markerHandled = false;
     if (typeof moveAt === 'function') {
         const result = moveAt(cardState, gameState, row, col, to.row, to.col, 'CELL_TELEPORT_WILL', 'teleport_move');
         if (result && result.reason === 'out_of_board') {
@@ -203,6 +213,7 @@ function applyCellTeleportWill(cardState: CardState, gameState: GameState, playe
             return { applied: false, reason: 'absolute_protected' };
         }
         moved = !!(result && result.moved);
+        markerHandled = !!(result && result.markerHandled === true);
     }
 
     if (!moved) {
@@ -216,7 +227,9 @@ function applyCellTeleportWill(cardState: CardState, gameState: GameState, playe
         setStoneIdAtForCard(cardState, gameState, to.row, to.col, sourceStoneId);
     }
 
-    moveMarkers(cardState, row, col, to.row, to.col, deps);
+    if (!markerHandled) {
+        moveMarkers(cardState, row, col, to.row, to.col, deps);
+    }
     leaveMeteorHoleAt(cardState, gameState, playerKey, row, col, deps);
 
     cs.pendingEffectByPlayer[playerKey] = null;

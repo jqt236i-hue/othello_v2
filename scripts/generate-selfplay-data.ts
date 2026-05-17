@@ -23,6 +23,10 @@ const {
     validateSelfplayTeacherRangeArgs,
     validateSelfplayPolicyModelArgs
 } = require('./selfplay-training-arg-utils');
+const {
+    DEFAULT_SELFPLAY_WHITE_DECK_CODE,
+    resolveInitialDeckCardIdsByPlayer
+} = require('./selfplay-deck-options');
 
 const WORKER_ENV_FLAG = 'SELFPLAY_GENERATE_WORKER';
 const WORKER_TASK_ENV = 'SELFPLAY_GENERATE_WORKER_TASK';
@@ -94,6 +98,8 @@ function parseArgs(argv) {
         policyPoolSampling: teacherDefaults.policyPoolSampling,
         policyPoolRecencyDecay: teacherDefaults.policyPoolRecencyDecay,
         policyCurrentAnchorRate: teacherDefaults.policyCurrentAnchorRate,
+        blackDeckCode: null,
+        whiteDeckCode: DEFAULT_SELFPLAY_WHITE_DECK_CODE,
         seedFamily: 'train',
         dataLane: null,
         resolvedConfigPath: null,
@@ -146,6 +152,21 @@ function parseArgs(argv) {
         if (a === '--card-usage-rate') {
             args.cardUsageRate = Number(argv[++i]);
             specified.add('cardUsageRate');
+            continue;
+        }
+        if (a === '--black-deck-code') {
+            args.blackDeckCode = String(argv[++i] || '').trim() || null;
+            specified.add('blackDeckCode');
+            continue;
+        }
+        if (a === '--white-deck-code') {
+            args.whiteDeckCode = String(argv[++i] || '').trim() || null;
+            specified.add('whiteDeckCode');
+            continue;
+        }
+        if (a === '--no-white-deck-code') {
+            args.whiteDeckCode = null;
+            specified.add('whiteDeckCode');
             continue;
         }
         if (a === '--policy-mix-rate') {
@@ -351,6 +372,8 @@ function printHelp() {
         '      --with-cards          Enable card usage in self-play (default: on)',
         '      --no-cards            Disable card usage in self-play',
         '      --card-usage-rate <r> Probability of using a card if legal moves exist (default: 0.2)',
+        '      --white-deck-code <c> Fixed deckCode for white/CPU self-play (default: CPU white deck)',
+        '      --no-white-deck-code  Use the standard random default deck for white too',
         `      --policy-mix-rate <r> Per-player probability of using guide model each game [0..1] (default: ${teacherDefaults.policyMixRate})`,
         '      --card-usage-rate-jitter <r> Per-game card usage rate jitter (+/-r) [0..1] (default: 0)',
         `      --tactical-weight-min <r> Min tactical lookahead weight when guide model is used (default: ${teacherDefaults.tacticalWeightMin})`,
@@ -751,6 +774,7 @@ function runSelfPlayShard(options) {
         heuristicWeightMax: Number(opts.heuristicWeightMax),
         seedFamily: opts.seedFamily,
         dataLane: opts.dataLane,
+        initialDeckCardIdsByPlayer: resolveInitialDeckCardIdsByPlayer(opts),
         playerPolicies: null,
         playerPolicyResolver: modelResolver,
         onRecord: (record) => {
@@ -1175,6 +1199,8 @@ function createWorkerTask(args, shard, shardOutPath, hardcaseOutPath) {
         policyPoolSampling: args.policyPoolSampling,
         policyPoolRecencyDecay: args.policyPoolRecencyDecay,
         policyCurrentAnchorRate: args.policyCurrentAnchorRate,
+        blackDeckCode: args.blackDeckCode,
+        whiteDeckCode: args.whiteDeckCode,
         seedFamily: args.seedFamily,
         dataLane: args.dataLane,
         verbose: args.verbose,

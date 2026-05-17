@@ -136,14 +136,6 @@ function ensureCommentaryBrokerInitialized(): any {
     broker.initBroker({
       root: (typeof globalThis !== 'undefined') ? globalThis : null,
       addLog: (typeof addLog === 'function') ? addLog : null,
-      getShowHeroSpeechBubble: () => {
-        try {
-          if (typeof globalThis !== 'undefined' && typeof (globalThis as any).showHeroSpeechBubble === 'function') {
-            return (globalThis as any).showHeroSpeechBubble;
-          }
-        } catch (e) { /* ignore */ }
-        return null;
-      },
       getShowCpuSpeechBubble: () => {
         try {
           if (typeof globalThis !== 'undefined' && typeof (globalThis as any).showCpuSpeechBubble === 'function') {
@@ -217,33 +209,6 @@ function getCurrentMatchMode(): string {
     }
   } catch (e) { /* ignore */ }
   return 'cpu';
-}
-
-function resolveLocalHeroPlayerKey(): string | null {
-  const helpers = resolveOwnerHelpers();
-  if (helpers && typeof helpers.resolveLocalPlayerKey === 'function') {
-    const rootRef = (typeof window !== 'undefined' && window)
-      ? window
-      : (typeof globalThis !== 'undefined' ? globalThis : null);
-    const resolvedPlayerKey = helpers.resolveLocalPlayerKey(rootRef);
-    if (resolvedPlayerKey === 'black' || resolvedPlayerKey === 'white') {
-      return normalizeCommentaryPlayerKey(resolvedPlayerKey, 'black');
-    }
-  }
-
-  const matchMode = getCurrentMatchMode();
-  if (matchMode === 'network') {
-    try {
-      if (typeof window !== 'undefined'
-        && window
-        && (window as any).NetworkMatchClient
-        && typeof (window as any).NetworkMatchClient.getSeatKey === 'function') {
-        return normalizeCommentaryPlayerKey((window as any).NetworkMatchClient.getSeatKey(), 'black');
-      }
-    } catch (e) { /* ignore */ }
-    return null;
-  }
-  return 'black';
 }
 
 function buildBoardSignature(board: any): string {
@@ -358,103 +323,6 @@ function emitCpuReactionToEnemyCardFromPlayback(playbackEvents: any[]): boolean 
   return true;
 }
 
-function buildHeroCardEventFromPlayback(playbackEvents: any[], localPlayerKey: string): any {
-  const events = Array.isArray(playbackEvents) ? playbackEvents : [];
-  for (const ev of events) {
-    if (!ev || ev.type !== 'card_use_animation') continue;
-    const targets = Array.isArray(ev.targets) ? ev.targets : [];
-    for (const target of targets) {
-      if (!target || typeof target !== 'object') continue;
-      const ownerKey = normalizeCommentaryPlayerKey(target.owner || target.player, localPlayerKey);
-      return {
-        ownerKey,
-        localPlayerKey,
-        eventType: ownerKey === localPlayerKey ? 'card_used' : 'card_used_by_enemy',
-        cardId: target.cardId ? String(target.cardId) : null,
-        cardType: target.cardType ? String(target.cardType) : null
-      };
-    }
-  }
-  return null;
-}
-
-function buildHeroCardEventFromPresentationEvent(ev: any, localPlayerKey: string): any {
-  if (!ev || typeof ev !== 'object') return null;
-  const ownerKey = normalizeCommentaryPlayerKey(
-    (ev.meta && ev.meta.owner) ? ev.meta.owner : ev.player,
-    localPlayerKey
-  );
-  return {
-    ownerKey,
-    localPlayerKey,
-    eventType: ownerKey === localPlayerKey ? 'card_used' : 'card_used_by_enemy',
-    cardId: ev.cardId ? String(ev.cardId) : null,
-    cardType: ev.cardType
-      ? String(ev.cardType)
-      : ((ev.meta && (ev.meta.cardType || ev.meta.type))
-        ? String(ev.meta.cardType || ev.meta.type)
-        : null)
-  };
-}
-
-function createHeroCardCommentaryRequest(cardEvent: any): any {
-  if (!cardEvent || !cardEvent.localPlayerKey) return null;
-  const broker = ensureCommentaryBrokerInitialized();
-  if (!broker || typeof broker.requestCommentaryAndShow !== 'function') return null;
-
-  const state = (typeof gameState !== 'undefined' && gameState && typeof gameState === 'object')
-    ? gameState
-    : null;
-  if (!state || !Array.isArray(state.board)) return null;
-
-  const turnNumber = Number.isFinite(Number(state.turnNumber)) ? Number(state.turnNumber) : null;
-  const commentaryKey = [
-    getCurrentMatchMode(),
-    cardEvent.localPlayerKey,
-    cardEvent.eventType,
-    turnNumber !== null ? turnNumber : '',
-    cardEvent.cardId || '',
-    buildBoardSignature(state.board)
-  ].join('|');
-  const counts = countDiscsFromBoard(state.board);
-  return broker.requestCommentaryAndShow({
-    eventType: cardEvent.eventType,
-    playerKey: cardEvent.localPlayerKey,
-    speakerRole: 'hero',
-    turnNumber,
-    counts,
-    board: state.board,
-    cardId: cardEvent.cardId,
-    cardType: cardEvent.cardType,
-    dedupeScope: 'hero-card',
-    dedupeKey: commentaryKey,
-    show: true
-  });
-}
-
-function requestHeroCardCommentaryFromPlayback(playbackEvents: any[]): Promise<any> {
-  const localPlayerKey = resolveLocalHeroPlayerKey();
-  if (!localPlayerKey) return Promise.resolve(null);
-  const cardEvent = buildHeroCardEventFromPlayback(playbackEvents, localPlayerKey);
-  if (!cardEvent) return Promise.resolve(null);
-  const request = createHeroCardCommentaryRequest(cardEvent);
-  return request || Promise.resolve(null);
-}
-
-function emitHeroCardCommentaryFromPlayback(playbackEvents: any[]): void {
-  requestHeroCardCommentaryFromPlayback(playbackEvents);
-}
-
-function emitHeroCardCommentaryFromEvent(ev: any): boolean {
-  const localPlayerKey = resolveLocalHeroPlayerKey();
-  if (!localPlayerKey) return false;
-  const cardEvent = buildHeroCardEventFromPresentationEvent(ev, localPlayerKey);
-  if (!cardEvent) return false;
-  const request = createHeroCardCommentaryRequest(cardEvent);
-  if (!request) return false;
-  return true;
-}
-
 function isRawPresentationPlaybackBatch(payload: any[]): boolean {
   if (!Array.isArray(payload) || payload.length === 0) return false;
   for (let index = 0; index < payload.length; index += 1) {
@@ -507,9 +375,6 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
   if (!suppressPlayback) {
     if (opts.emitEnemyCardReaction !== false) {
       emitCpuReactionToEnemyCardFromPlayback(payload);
-    }
-    if (opts.emitHeroCardReaction !== false) {
-      emitHeroCardCommentaryFromPlayback(payload);
     }
   }
   if (suppressPlayback) return;
@@ -604,15 +469,11 @@ function handlePresentationEvent(ev: any): any {
           name: (ev.meta && ev.meta.name) ? ev.meta.name : null
         }]
       }];
-      const emittedHeroCardReaction = emitHeroCardCommentaryFromEvent(ev);
-      if (!emittedHeroCardReaction) {
-        emitCpuReactionToEnemyCard(ev);
-      }
+      emitCpuReactionToEnemyCard(ev);
       return playPlaybackEvents(
         { events: playback },
         {
-          emitEnemyCardReaction: false,
-          emitHeroCardReaction: !emittedHeroCardReaction
+          emitEnemyCardReaction: false
         }
       );
     }

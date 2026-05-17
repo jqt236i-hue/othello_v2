@@ -411,18 +411,23 @@ function createWorkerTurnPipelineModule(CardLogic, Core, TurnPipelinePhases, Boa
                 TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, p);
             }
             TurnPipelinePhases.applyCardUsagePhase(CardLogic, cardState, gameState, normalizedPlayerKey, action, events, p);
-            if (cardState) {
-                cardState._currentActionMeta = {
-                    actionId: action && action.actionId ? action.actionId : null,
-                    turnIndex: cardState.turnIndex || 0,
-                    plyIndex: 0,
-                    randomSource: (p && typeof p.random === 'function') ? p : null
-                };
+            const actionMeta = {
+                actionId: action && action.actionId ? action.actionId : null,
+                turnIndex: cardState && cardState.turnIndex ? cardState.turnIndex : 0,
+                plyIndex: 0,
+                randomSource: (p && typeof p.random === 'function') ? p : null
+            };
+            if (cardState && BoardOps && typeof BoardOps.setActionContext === 'function') {
+                BoardOps.setActionContext(cardState, actionMeta);
+            } else if (cardState) {
+                cardState._currentActionMeta = actionMeta;
             }
             try {
                 TurnPipelinePhases.applyActionPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, action, events, p, BoardOps);
             } finally {
-                if (cardState) {
+                if (cardState && BoardOps && typeof BoardOps.clearActionContext === 'function') {
+                    BoardOps.clearActionContext(cardState);
+                } else if (cardState) {
                     delete cardState._currentActionMeta;
                 }
             }

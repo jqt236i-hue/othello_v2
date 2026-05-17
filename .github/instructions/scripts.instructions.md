@@ -1,5 +1,5 @@
 ---
-applyTo: 'scripts/**/*.js'
+applyTo: 'scripts/**/*.ts,scripts/**/*.js'
 ---
 
 # scripts instruction

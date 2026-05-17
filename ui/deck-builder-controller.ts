@@ -654,6 +654,45 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
             return fallbackMode || 'cpu';
         }
 
+        function readCpuLevel(playerKey: string) {
+            try {
+                const source = rootRef && rootRef.cpuSmartness && typeof rootRef.cpuSmartness === 'object'
+                    ? rootRef.cpuSmartness
+                    : null;
+                const level = Number(source && source[playerKey]);
+                if (source && Number.isFinite(level)) return Math.max(1, Math.min(6, Math.floor(level)));
+            } catch (e: any) { /* ignore */ }
+
+            try {
+                const doc = (rootRef && rootRef.document)
+                    || (typeof document !== 'undefined' ? document : null);
+                const id = playerKey === 'white' ? 'smartWhite' : 'smartBlack';
+                const select = doc && typeof doc.getElementById === 'function'
+                    ? doc.getElementById(id)
+                    : null;
+                const level = Number(select && (select as HTMLSelectElement).value);
+                return Number.isFinite(level) ? Math.max(1, Math.min(6, Math.floor(level))) : 1;
+            } catch (e: any) { /* ignore */ }
+            return 1;
+        }
+
+        function resolveCpuLv6WhiteDeckSpec() {
+            if (readCurrentMatchMode() !== 'cpu') return null;
+            if (readCpuLevel('white') < 6) return null;
+            if (!DeckSpecHelpers || typeof DeckSpecHelpers.getCpuLv6WhiteDeckCode !== 'function') return null;
+            return DeckCodecModule.decodeDeckCode(DeckSpecHelpers.getCpuLv6WhiteDeckCode());
+        }
+
+        function buildCpuDeckInitOptions(blackDeckSpec: any) {
+            const whiteDeckSpec = resolveCpuLv6WhiteDeckSpec();
+            const initialDeckSpecByPlayer: any = {};
+            if (blackDeckSpec) initialDeckSpecByPlayer.black = blackDeckSpec;
+            if (whiteDeckSpec) initialDeckSpecByPlayer.white = whiteDeckSpec;
+            return Object.keys(initialDeckSpecByPlayer).length > 0
+                ? { initialDeckSpecByPlayer }
+                : {};
+        }
+
         function buildCardInitOptions() {
             const roomDeck = getRoomDeckMetadata();
             const baseOptions = {
@@ -669,15 +708,11 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
                     return Object.assign(baseOptions, { initialDeckSpec: effective.choice.deckSpec });
                 }
                 if (readCurrentMatchMode() === 'cpu') {
-                    return Object.assign(baseOptions, {
-                        initialDeckSpecByPlayer: {
-                            black: effective.choice.deckSpec
-                        }
-                    });
+                    return Object.assign(baseOptions, buildCpuDeckInitOptions(effective.choice.deckSpec));
                 }
                 return Object.assign(baseOptions, { initialDeckSpec: effective.choice.deckSpec });
             }
-            return baseOptions;
+            return Object.assign(baseOptions, buildCpuDeckInitOptions(null));
         }
 
         function readActiveDeckSpec() {

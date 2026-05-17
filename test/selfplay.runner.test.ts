@@ -97,6 +97,25 @@ describe('selfplay runner', () => {
         expect(a.records).toEqual(b.records);
     });
 
+    test('supports fixed white-only initial deck while black stays default', () => {
+        const result = runSingleGame(0, 123, {
+            maxPlies: 2,
+            allowCardUsage: false,
+            initialDeckCardIdsByPlayer: {
+                white: ['hard_01', 'swap_01']
+            }
+        });
+
+        expect(result.records[0]).toEqual(expect.objectContaining({
+            player: 'black',
+            initialDeckSize: 30
+        }));
+        expect(result.records[1]).toEqual(expect.objectContaining({
+            player: 'white',
+            initialDeckSize: 2
+        }));
+    });
+
     test('passes global game indexes through player policy resolver offsets', () => {
         const seen = [];
         runSelfPlayGames({
@@ -1227,13 +1246,6 @@ describe('selfplay runner', () => {
             applyName: 'applyFreezeWill',
             actionKey: 'freezeTarget',
             target: { row: 2, col: 5 }
-        },
-        {
-            pendingType: 'SPLIT_WILL',
-            getterName: 'getSplitTargets',
-            applyName: 'applySplitWill',
-            actionKey: 'splitTarget',
-            target: { row: 3, col: 3 }
         }
     ])('decideAction resolves $pendingType pending target instead of canceling', ({
         pendingType,

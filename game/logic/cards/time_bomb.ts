@@ -431,26 +431,33 @@ function tickBombs(cardState: CardState, gameState: GameState, playerKey: Player
                 if (value === null) return;
                 forbiddenEvadeCells.push({ row: r, col: c });
             });
-            for (const target of targets) {
-                if (!target) continue;
-                let destroyedRes = false;
-                if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                    const res = deps.BoardOps.destroyAt(
-                        cardState,
-                        gameState,
-                        target.row,
-                        target.col,
-                        TIME_BOMB_DESTROY_CAUSE,
-                        TIME_BOMB_DESTROY_REASON,
-                        buildTimeBombDestroyMeta(bomb, forbiddenEvadeCells)
-                    );
-                    destroyedRes = !!(res && res.destroyed);
-                } else {
-                    destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
+            const destroyTargets = () => {
+                for (const target of targets) {
+                    if (!target) continue;
+                    let destroyedRes = false;
+                    if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
+                        const res = deps.BoardOps.destroyAt(
+                            cardState,
+                            gameState,
+                            target.row,
+                            target.col,
+                            TIME_BOMB_DESTROY_CAUSE,
+                            TIME_BOMB_DESTROY_REASON,
+                            buildTimeBombDestroyMeta(bomb, forbiddenEvadeCells)
+                        );
+                        destroyedRes = !!(res && res.destroyed);
+                    } else {
+                        destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
+                    }
+                    if (destroyedRes) {
+                        destroyed.push({ row: target.row, col: target.col });
+                    }
                 }
-                if (destroyedRes) {
-                    destroyed.push({ row: target.row, col: target.col });
-                }
+            };
+            if (deps.BoardOps && typeof deps.BoardOps.runDestroyBlock === 'function') {
+                deps.BoardOps.runDestroyBlock(cardState, gameState, destroyTargets, {});
+            } else {
+                destroyTargets();
             }
             if (bomb.id !== undefined) {
                 removeIds.add(bomb.id);
@@ -518,24 +525,31 @@ function tickBombAt(cardState: CardState, gameState: GameState, bomb: any, activ
         if (value === null) return;
         forbiddenEvadeCells.push({ row: r, col: c });
     });
-    for (const target of targets) {
-        if (!target) continue;
-        let destroyedRes = false;
-        if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-            const res = deps.BoardOps.destroyAt(
-                cardState,
-                gameState,
-                target.row,
-                target.col,
-                TIME_BOMB_DESTROY_CAUSE,
-                TIME_BOMB_DESTROY_REASON,
-                buildTimeBombDestroyMeta(b, forbiddenEvadeCells)
-            );
-            destroyedRes = !!(res && res.destroyed);
-        } else {
-            destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
+    const destroyTargets = () => {
+        for (const target of targets) {
+            if (!target) continue;
+            let destroyedRes = false;
+            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
+                const res = deps.BoardOps.destroyAt(
+                    cardState,
+                    gameState,
+                    target.row,
+                    target.col,
+                    TIME_BOMB_DESTROY_CAUSE,
+                    TIME_BOMB_DESTROY_REASON,
+                    buildTimeBombDestroyMeta(b, forbiddenEvadeCells)
+                );
+                destroyedRes = !!(res && res.destroyed);
+            } else {
+                destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
+            }
+            if (destroyedRes) destroyed.push({ row: target.row, col: target.col });
         }
-        if (destroyedRes) destroyed.push({ row: target.row, col: target.col });
+    };
+    if (deps.BoardOps && typeof deps.BoardOps.runDestroyBlock === 'function') {
+        deps.BoardOps.runDestroyBlock(cardState, gameState, destroyTargets, {});
+    } else {
+        destroyTargets();
     }
 
     const cardMarkers = getCardMarkersModule();

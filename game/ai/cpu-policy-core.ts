@@ -99,7 +99,6 @@ const HIGH_VARIANCE_CARD_TYPES = new Set([
     'SUPER_GRAVITY_WILL',
     'CORNER_TRIBUTE',
     'WILL_HUNTER_KING',
-    'SPLIT_WILL',
     'SEED_WILL'
 ]);
 
@@ -269,8 +268,7 @@ const SWING_CARD_TYPES = new Set([
     'DESTROY_DRAGON_WILL',
     'SUPER_BUOYANCY_WILL',
     'SUPER_GRAVITY_WILL',
-    'CORNER_TRIBUTE',
-    'SPLIT_WILL'
+    'CORNER_TRIBUTE'
 ]);
 
 const EDGE_CONTEST_CARD_TYPES = new Set([
@@ -317,7 +315,6 @@ const LONG_HORIZON_CARD_TYPES = new Set([
     'DESTROY_DRAGON_WILL',
     'HYPERACTIVE_INHERIT_WILL',
     'EXTREME_HYPERACTIVE_WILL',
-    'SPLIT_WILL',
     'GLUTTONOUS_WILL',
     'WILL_HUNTER_KING'
 ]);
@@ -340,7 +337,6 @@ const WHITE_LV6_FAST_ROTATE_TYPES = new Set([
     'DOUBLE_PLACE',
     'BREEDING_WILL',
     'CLONE_WILL',
-    'SPLIT_WILL',
     'HYPERACTIVE_INHERIT_WILL',
     'ESCAPE_WILL',
     'RIBO_WILL',
@@ -376,7 +372,6 @@ const WHITE_LV6_DESTROY_WHEN_AHEAD_TYPES = new Set([
     'BOARD_EXPANSION_GOD',
     'BREEDING_WILL',
     'CLONE_WILL',
-    'SPLIT_WILL',
     'ESCAPE_WILL',
     'RIBO_WILL',
     'ROBOT_VACUUM_WILL',
@@ -481,7 +476,6 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     SUPPLY_WILL: 8,
     SILVER_STONE: 10,
     SNIPER_WILL: 4,
-    SPLIT_WILL: -3,
     STRONG_WIND_WILL: 6,
     SUPER_BUOYANCY_WILL: -3,
     SUPER_GRAVITY_WILL: -3,
@@ -570,7 +564,6 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'SUPPLY_WILL',
     'SILVER_STONE',
     'SNIPER_WILL',
-    'SPLIT_WILL',
     'STRONG_WIND_WILL',
     'SUPER_BUOYANCY_WILL',
     'SUPER_GRAVITY_WILL',
@@ -659,7 +652,6 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     SUPPLY_WILL: { openingBias: 6, midLateBias: 2, endgameBias: -12, cornerNowBias: -4, handPressureBias: -8 },
     SILVER_STONE: { openingBias: 4, handPressureBias: 2, cornerNowBias: 2 },
     SNIPER_WILL: { cornerNowBias: 6, edgeEmergencyBias: 2, endgameBias: -6 },
-    SPLIT_WILL: { openingBias: 4, midLateBias: 4, endgameBias: -6 },
     STRONG_WIND_WILL: { trailingBias: 6, edgeEmergencyBias: 4, cornerNowBias: -4 },
     SUPER_BUOYANCY_WILL: { trailingBias: 4, cornerEmergencyBias: 4, cornerNowBias: -4 },
     SUPER_GRAVITY_WILL: { trailingBias: 4, cornerEmergencyBias: 4, cornerNowBias: -4 },
@@ -815,7 +807,6 @@ function buildCardTypeUsageStyle() {
         'BOARD_EXPANSION_WILL',
         'BOARD_EXPANSION_GOD',
         'BREEDING_WILL',
-        'SPLIT_WILL',
     ], {
         leadBias: -12,
         trailingBias: 10,
@@ -1062,7 +1053,6 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     SUPPLY_WILL: { archetype: 'economyCycle', placementWeight: 0 },
     SILVER_STONE: { archetype: 'economyCycle', placementWeight: 2, flipBias: 4 },
     SNIPER_WILL: { archetype: 'anchorEngine', placementWeight: 3, mobilityBias: 3, oppAdjBias: -1, stabilityBias: 4 },
-    SPLIT_WILL: { archetype: 'spawnMobile', placementWeight: 0, ownAdjBias: 1, innerBias: 3 },
     STRONG_WIND_WILL: { archetype: 'recoveryReposition', placementWeight: 0, mobilityBias: 3, emptyAdjBias: 3 },
     SUPER_BUOYANCY_WILL: { archetype: 'recoveryReposition', placementWeight: 0, edgeBias: 3, oppAdjBias: 3 },
     SUPER_GRAVITY_WILL: { archetype: 'recoveryReposition', placementWeight: 0, edgeBias: 3, oppAdjBias: 3 },
@@ -1610,7 +1600,6 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const isRobotVacuumWill = cardType === 'ROBOT_VACUUM_WILL';
     const isExtremeHyperactiveWill = cardType === 'EXTREME_HYPERACTIVE_WILL';
     const isGluttonousWill = cardType === 'GLUTTONOUS_WILL';
-    const isSplitWill = cardType === 'SPLIT_WILL';
     const isSuperBuoyancyWill = cardType === 'SUPER_BUOYANCY_WILL';
     const isSuperGravityWill = cardType === 'SUPER_GRAVITY_WILL';
     const isSuperCrushWill = isSuperBuoyancyWill || isSuperGravityWill;
@@ -1734,7 +1723,7 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     const lowGainMargin = maxLegalGain <= 2;
     const resourceTight = !ctx.forceUseCard && remainingCharge <= Math.max(6, ctx.reserveChargeFloor + 2);
     const setupBudgetTight = whiteLv6Mode && resourceTight && !cornerEmergency && !criticalLowDiscEmergency;
-    if (ctx.level >= 6 && (isCloneWill || isSplitWill) && cloneSplitEligibleSourceCount === 0) {
+    if (ctx.level >= 6 && isCloneWill && cloneSplitEligibleSourceCount === 0) {
         return {
             cardId,
             cardDef,
@@ -2519,23 +2508,6 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
         if (ctx.ownCharge <= (cardCost + 8) && !ctx.forceUseCard) score -= 44;
     }
 
-    if (isSplitWill) {
-        score -= 28;
-        if (openingPhase) score += 16;
-        if (midLatePhase) score += 18;
-        if (endgamePhase) score -= 72;
-        if (hasCornerMoveNow) score += 36;
-        else if (hasEdgeMoveNow) score += 10;
-        if (cornerEmergency && !hasCornerMoveNow) score -= 52;
-        if (leadStable && !ctx.forceUseCard) score -= 18;
-        if (trailingHard) score += 14;
-        if (lowFlipMargin && !ctx.forceUseCard) score -= 96;
-        if (lowGainMargin && !cornerEmergency) score -= 54;
-        if (setupBudgetTight) score -= 92;
-        if (ctx.handSize <= 2 && !trailingHard) score -= 52;
-        if (!hasCornerMoveNow && !hasEdgeMoveNow && !cornerEmergency) score -= 34;
-    }
-
     if (isSuperCrushWill) {
         score -= 42;
         if (cornerEmergency || trailingHard) score += 96;
@@ -2833,7 +2805,6 @@ function scoreCardRetentionPriority(cardId, getCardCost, getCardDef, context) {
     const isObserverWill = cardType === 'OBSERVER_WILL';
     const isDestroyDragonWill = cardType === 'DESTROY_DRAGON_WILL';
     const isGluttonousWill = cardType === 'GLUTTONOUS_WILL';
-    const isSplitWill = cardType === 'SPLIT_WILL';
     const isTeleportWill = cardType === 'TELEPORT_WILL';
     const isCellTeleportWill = cardType === 'CELL_TELEPORT_WILL';
     const isSuperBuoyancyWill = cardType === 'SUPER_BUOYANCY_WILL';
@@ -3110,13 +3081,6 @@ function scoreCardRetentionPriority(cardId, getCardCost, getCardDef, context) {
         if (cornerEmergency || ctx.discDiff <= -10) score += 78;
         if (hasCornerMoveNow) score += 24;
         if (ctx.ownCharge <= 24 && !cornerEmergency) score -= 24;
-    }
-
-    if (isSplitWill) {
-        score += 55;
-        if (ctx.empties <= 14) score -= 105;
-        if (cornerEmergency && !hasCornerMoveNow) score -= 65;
-        if (hasCornerMoveNow) score += 25;
     }
 
     if (isSuperCrushWill) {

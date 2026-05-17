@@ -301,6 +301,7 @@ function processAnchor(cardState, gameState, playerKey, row, col, options) {
     return { destroyed, anchors, expired };
   }
 
+  const resolveAnchor = () => {
   const targets = collectAdjacentEnemyTargets(gameState, row, col, enemyValue);
   if (targets.length > 0) {
     const target = targets[resolveRandomIndex(targets.length, randomFn)];
@@ -333,6 +334,20 @@ function processAnchor(cardState, gameState, playerKey, row, col, options) {
 
   cleanupExpiredDestroyDragons(cardState);
   return { destroyed, anchors, expired };
+  };
+
+  if (options.BoardOps && typeof options.BoardOps.runEffectBlock === 'function') {
+    return options.BoardOps.runEffectBlock(cardState, gameState, {
+      kind: 'anchor_effect',
+      cause: 'DESTROY_DRAGON_WILL',
+      reason: 'destroy_dragon_breath',
+      owner: playerKey,
+      sourceRow: row,
+      sourceCol: col,
+      randomSource: options.random || null
+    }, resolveAnchor);
+  }
+  return resolveAnchor();
 }
 
 function processDestroyDragonEffects(cardState, gameState, playerKey, deps) {

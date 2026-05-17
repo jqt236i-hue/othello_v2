@@ -68,7 +68,7 @@ const VERIFY_DIRS = Object.freeze([
 const VERIFY_ROOT_FILES = Object.freeze(ROOT_FILES.slice());
 
 const OPTIONAL_FILES = Object.freeze([
-    'data/dialogue/fixed-commentary-data.js',
+    'game/ai/commentary-data.js',
     'data/models/policy-net.onnx',
     'data/models/policy-net.onnx.meta.json',
     'data/models/policy-card.onnx',

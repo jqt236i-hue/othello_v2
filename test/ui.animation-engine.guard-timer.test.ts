@@ -1071,7 +1071,6 @@ describe('animation-engine guard timer rendering', () => {
 
   test.each([
     ['CLONE_WILL', 'clone_spawn'],
-    ['SPLIT_WILL', 'split_spawn'],
     ['PROLIFERATION_WILL', 'proliferation_spawn']
   ])('%s after-state playback keeps purple highlight on destination until move finishes', async (cause, reason) => {
     const board = document.getElementById('board')!;

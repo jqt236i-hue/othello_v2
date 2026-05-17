@@ -158,6 +158,10 @@ function flushPresentationEvents(cardState: any, context: PresentationContext): 
 
 function swapOccupiedCellsWithPresentation(cardState: any, gameState: any, posA: Position, posB: Position, options: any, context: PresentationContext) {
     const opts = (options && typeof options === 'object') ? options : {};
+    const BoardOpsModule = getBoardOpsModule(context);
+    if (BoardOpsModule && typeof BoardOpsModule.swapOccupiedCells === 'function') {
+        return BoardOpsModule.swapOccupiedCells(cardState, gameState, posA, posB, opts);
+    }
     const constants = getConstants(context);
     const getCellValueForCard = requireContextFunction(context, 'getCellValueForCard');
     const setCellValueForCard = requireContextFunction(context, 'setCellValueForCard');

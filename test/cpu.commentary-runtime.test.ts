@@ -1,29 +1,30 @@
 let runtime = null;
 let engine = null;
-import * as data from '../data/dialogue/fixed-commentary-data.js';
+import * as data from '../game/ai/commentary-data';
 import * as shared from '../shared-constants.js';
-const COMMENTARY_PREFIX_PATTERN = /^(へへっ、|くそっ、|おっと、|ちっ、|よし、|くっ、|グヘヘ、|ケケッ、|グギッ、|ゲヒヒ、|ギャッ、|ケッ、|チッ、|グハハ、|ギリッ、|さて、|フフ、|まだだ、|見せよう、|なるほど、|把握している、|……|いいだろう、|当然だ、|侮るな、|観測どおり、|既定どおり、|想定内だ、|介入する、|誤差か、|把握済みだ、|再計算する、|収束した、|補正する、)+/;
-const CPU_AHEAD_EMOTION_MARKER = /(笑いが漏れる|血が騒ぐ|牙まで鳴る|熱を帯びる|高揚が声まで押し上げる|燃え上がる|観測熱|支配欲が高揚|拍動まで熱)/;
-const CPU_BEHIND_EMOTION_MARKER = /(喉が裂けても吠え返す|煮え立つ|ギラつく|血が沸き返る|執念が喉を焼く|怒りごと盤面へ叩き返す|執念が演算核で燃える|怒りが観測列|熱を帯びる)/;
-const CPU_CARD_AHEAD_MARKER = /(押し切る|差を広げる|逃がさない|まだ上げる)/;
-const CPU_CARD_BEHIND_MARKER = /(まだ返す|逆転へ寄せる|折れずに返す|ここから奪う)/;
-const CPU_CARD_HIT_AHEAD_MARKER = /(まだ押せる|返して黙らせる|主導権は渡さない|まだ崩れない)/;
-const CPU_CARD_HIT_BEHIND_MARKER = /(まだ返す|痛くても噛み返す|ここから立て直す|折れずに返す)/;
+const COMMENTARY_PREFIX_PATTERN = /^(へへっ、|このまま、|まだだ、|よし、|くっ、|見えてる、|置けないな、|動いたな、|まずいな、|さて、|この流れだ、|では、|なるほど、|読んでいる、|手がないな、|流れが変わった、|角は取った、|受け直す、|解析する、|優位を維持する、|再計算する、|実行する、|影響を確認する、|対象は把握した、|手番を送る、|盤面を更新する、|角を確保した、|損失を補正する、)+/;
+const CPU_AHEAD_EMOTION_MARKER = /(押し切れる|崩さず広げる|確定へ近づける)/;
+const CPU_BEHIND_EMOTION_MARKER = /(取り返す手はある|勝ち筋は残っている|再計算する)/;
+const CPU_CARD_AHEAD_MARKER = /(押し切る)/;
+const CPU_CARD_BEHIND_MARKER = /(まだ返す)/;
+const CPU_CARD_HIT_AHEAD_MARKER = /(主導権は渡さない)/;
+const CPU_CARD_HIT_BEHIND_MARKER = /(ここから立て直す)/;
 const CPU_CARD_USE_PREFIX_BY_LEVEL = Object.freeze({
-  1: /^ゲヒヒ、/,
-  4: /^見せよう、/,
-  6: /^介入する、/
+  1: /^よし、/,
+  4: /^では、/,
+  6: /^実行する、/
 });
 const CPU_CARD_HIT_PREFIX_BY_LEVEL = Object.freeze({
-  1: /^ギャッ、/,
+  1: /^くっ、/,
   4: /^なるほど、/,
-  6: /^誤差か、/
+  6: /^影響を確認する、/
 });
 const CPU_LEVEL_SAMPLES = [
-  { label: 'goblin', level: 1, marker: /小鬼|ゴブリン|牙/ },
-  { label: 'boss', level: 4, marker: /支配者|盤上の主|玉座/ },
-  { label: 'finalBoss', level: 6, marker: /観測|盤理|演算/ }
+  { label: 'goblin', level: 1, marker: /^へへっ、/ },
+  { label: 'boss', level: 4, marker: /^さて、/ },
+  { label: 'finalBoss', level: 6, marker: /^解析する、/ }
 ];
+const THIRD_PERSON_CPU_MARKER = /(ゴブリン|盤上の主|観測者)は/;
 
 function normalizeCommentaryBody(line) {
   return String(line || '')
@@ -149,25 +150,6 @@ describe('cpu commentary runtime', () => {
     expect(text.includes(data.CARD_EFFECT_SUMMARIES.SWAP_WITH_ENEMY)).toBe(true);
   });
 
-  test('speakerRole hero can request hero-side card commentary', async () => {
-    global.CPU_TALK_ENABLED = true;
-    runtime.setConfig({ maxChars: 200 });
-
-    const text = await runtime.requestCommentary({
-      eventType: 'card_used',
-      playerKey: 'black',
-      speakerRole: 'hero',
-      turnNumber: 12,
-      counts: { black: 20, white: 12 },
-      cardType: 'SWAP_WITH_ENEMY'
-    });
-
-    expect(typeof text).toBe('string');
-    expect(text).toContain('交換の意志');
-    expect(text).toContain(data.CARD_EFFECT_SUMMARIES.SWAP_WITH_ENEMY);
-    expect(text).toContain('を切る');
-  });
-
   test.each(CPU_LEVEL_SAMPLES)('cpu fixed pools keep exact rollout sizes for $label tier', ({ level }) => {
     for (const [, pool, expectedSize] of getCpuSharedPools(level)) {
       expect(Array.isArray(pool)).toBe(true);
@@ -176,10 +158,12 @@ describe('cpu commentary runtime', () => {
     }
   });
 
-  test.each(CPU_LEVEL_SAMPLES)('cpu level $level uses $label-style chatter markers', ({ level, marker }) => {
+  test.each(CPU_LEVEL_SAMPLES)('cpu level $level fixed pools avoid third-person narration', ({ level }) => {
     const chatterLines = data.getCpuChatterLines(level);
     expect(chatterLines.length).toBe(300);
-    expect(chatterLines.every((line) => marker.test(line))).toBe(true);
+    for (const [, pool] of getCpuSharedPools(level)) {
+      expect(pool.every((line) => !THIRD_PERSON_CPU_MARKER.test(line))).toBe(true);
+    }
   });
 
   test.each(CPU_LEVEL_SAMPLES)('cpu level $level keeps multiple chatter lead-in variants', ({ level }) => {
@@ -318,48 +302,6 @@ describe('cpu commentary runtime', () => {
 
     expect(used).toMatch(CPU_CARD_USE_PREFIX_BY_LEVEL[level]);
     expect(hit).toMatch(CPU_CARD_HIT_PREFIX_BY_LEVEL[level]);
-  });
-
-  test('hero fixed pools keep exact rollout sizes', () => {
-    const pools = [
-      ['heroChatterLines', data.heroChatterLines, 300],
-      ['heroAheadLines', data.heroAheadLines, 50],
-      ['heroBehindLines', data.heroBehindLines, 50],
-      ['heroCornerGainLines', data.heroCornerGainLines, 30],
-      ['heroCornerLossLines', data.heroCornerLossLines, 30]
-    ];
-
-    for (const [, pool, expectedSize] of pools) {
-      expect(Array.isArray(pool)).toBe(true);
-      expect(pool.length).toBe(expectedSize);
-      expect(new Set(pool).size).toBe(pool.length);
-    }
-  });
-
-  test('hero card commentary pools expand to 10 lines per catalog card and advantage context', () => {
-    const catalogTypes = getCatalogCardTypes();
-    let totalUseLines = 0;
-    let totalHitLines = 0;
-
-    expect(catalogTypes.length).toBeGreaterThan(0);
-
-    for (const cardType of catalogTypes) {
-      for (const advantage of ['ahead', 'even', 'behind']) {
-        const useLines = data.getHeroCardUseLines(cardType, advantage);
-        const hitLines = data.getHeroCardHitLines(cardType, advantage);
-
-        expect(useLines.length).toBe(10);
-        expect(hitLines.length).toBe(10);
-        expect(new Set(useLines).size).toBe(useLines.length);
-        expect(new Set(hitLines).size).toBe(hitLines.length);
-
-        totalUseLines += useLines.length;
-        totalHitLines += hitLines.length;
-      }
-    }
-
-    expect(totalUseLines).toBe(catalogTypes.length * 3 * 10);
-    expect(totalHitLines).toBe(catalogTypes.length * 3 * 10);
   });
 
   test('all catalog card types have commentary labels and summaries', () => {

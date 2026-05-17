@@ -1,6 +1,6 @@
 ---
 name: 'network-playback-workflow'
-description: 'network snapshot, reconnect, publish, playback queue の崩れを、この repo の snapshot/presentation 特性に合わせて安全に直すワークフロー。Use when editing ui/network-client.js, ui/network/snapshot.js, session-seat handling, reconnect sync, stale publish rollback, or related network playback tests in this card-othello repository.'
+description: 'network snapshot, reconnect, publish, playback queue の崩れを、この repo の snapshot/presentation 特性に合わせて安全に直すワークフロー。Use when editing ui/network-client.ts / .js shim, ui/network/snapshot.ts / .js shim, session-seat handling, reconnect sync, stale publish rollback, or related network playback tests in this card-othello repository.'
 argument-hint: 'network のどこを直したいか。snapshot, reconnect, publish, playback, stale rollback, trap defer なども書く'
 ---
 
@@ -26,11 +26,11 @@ argument-hint: 'network のどこを直したいか。snapshot, reconnect, publi
 
 ## Primary Files
 
-- `ui/network-client.js`
-- `ui/network/snapshot.js`
+- `ui/network-client.ts / .js shim`
+- `ui/network/snapshot.ts / .js shim`
 - `ui/network/session-seat.js`
-- `ui/playback-state-manager.js`
-- `shared/playback-event-helpers.js`
+- `ui/playback-state-manager.ts / .js shim`
+- `shared/playback-event-helpers.ts / .js shim`
 - `workers/match-worker.mjs` の public snapshot projection
 - 関連 test: `test/ui.network-client.result-sync.test.js`, `test/ui.network-client.action-bridge-next-snapshot.test.js`, `test/ui.network-client.trap-deferred-publish.test.js`, `test/ui.network-client.publish-base-version.test.js`, `test/ui.network-client.reconnect-sync.test.js`
 
@@ -46,7 +46,7 @@ argument-hint: 'network のどこを直したいか。snapshot, reconnect, publi
 ## Procedure
 
 1. 壊れ方を snapshot apply、local presentation queue、publish timing、stale rollback、trap defer のどこかに分類する。
-2. root 側の `ui/network-client.js`, `ui/network/snapshot.js`, `ui/playback-state-manager.js`, `shared/playback-event-helpers.js` を正本として調べる。
+2. root 側の `ui/network-client.ts / .js shim`, `ui/network/snapshot.ts / .js shim`, `ui/playback-state-manager.ts / .js shim`, `shared/playback-event-helpers.ts / .js shim` を正本として調べる。
 3. snapshot apply は `_meta.authority === 'server'` と `_meta.version` を前提にし、`projectedForSeat` mismatch は reject する前提で崩れ方を見る。
 4. remote snapshot と local presentation queue を別物として扱い、片方の都合をもう片方へ押し込まない。
 5. 早すぎる unlock や二重 publish は state manager / defer flag の責務で止める。

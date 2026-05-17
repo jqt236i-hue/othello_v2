@@ -2,9 +2,9 @@
   "version": 1,
   "updatedAt": "2026-05-15",
   "entries": {
-    "data/dialogue/fixed-commentary-data.js": {
-      "category": "legacy-implementation",
-      "reason": "Fixed commentary data remains a browser-loadable legacy data module until the dialogue catalog is generated from a TypeScript source."
+    "game/ai/commentary-data.js": {
+      "category": "dist-wrapper",
+      "reason": "CPU commentary data is TypeScript source-of-truth; JS wrapper is retained for CommonJS/browser compatibility."
     },
     "game/card-effects/selection-flow.js": {
       "category": "legacy-implementation",

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { JSDOM } from 'jsdom';
 
 describe('deck builder controller', () => {
@@ -27,6 +28,8 @@ describe('deck builder controller', () => {
       <input id="boardSizeColsInput" type="number" value="8" />
       <button id="boardSizeCloseBtn" type="button"></button>
       <div id="boardSizeEditorNote"></div>
+      <select id="smartBlack"><option value="1" selected>1</option><option value="6">6</option></select>
+      <select id="smartWhite"><option value="1" selected>1</option><option value="6">6</option></select>
     </body></html>`, { url: 'http://localhost/' });
 
     global.window = dom.window;
@@ -589,6 +592,32 @@ describe('deck builder controller', () => {
     expect(cardState.initialDeckSizeByPlayer.black).toBe(30);
     expect(cardState.initialDeckSizeByPlayer.white).toBe(DeckSpecHelpers.getDefaultDeckSize());
     expect(cardState.decks.white).toHaveLength(DeckSpecHelpers.getDefaultDeckSize());
+  });
+
+  test('CPU Lv6対戦では白CPUだけ専用デッキを初期化オプションへ入れる', () => {
+    window.getCurrentMatchMode = () => 'cpu';
+    document.getElementById('smartWhite').value = '6';
+    const controller = createController();
+
+    const options = controller.buildCardInitOptions();
+
+    expect(options.initialDeckSpecByPlayer.black).toBeUndefined();
+    expect(options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId)).toContain('reinforcement_01');
+    expect(options.initialDeckSpecByPlayer.white.cards.reduce((sum, entry) => sum + entry.count, 0)).toBe(30);
+  });
+
+  test('CPU Lv6対戦ではプレイヤー黒カスタムと白CPU専用デッキを両立する', () => {
+    const localDeck = createThirtyCardDeck(0);
+    localStorage.setItem('deck_builder_presets_v1', JSON.stringify(buildPresetState('preset_1', 'ローカル', localDeck.deckCode)));
+    window.getCurrentMatchMode = () => 'cpu';
+    document.getElementById('smartWhite').value = '6';
+
+    const controller = createController();
+    const options = controller.buildCardInitOptions();
+
+    expect(options.initialDeckSpecByPlayer.black).toEqual(localDeck.deckSpec);
+    expect(options.initialDeckSpecByPlayer.white.cards.map((entry) => entry.cardId)).toContain('reinforcement_01');
+    expect(options.initialDeckSpecByPlayer.white).not.toEqual(localDeck.deckSpec);
   });
 
   test('無効な保存済みプリセットは activePresetId を外してデフォルトデッキへ戻す', () => {

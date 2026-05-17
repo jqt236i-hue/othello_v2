@@ -379,6 +379,7 @@ const CardSniper = /**
             return { destroyed, expired };
         }
 
+        const resolveAnchor = () => {
         const target = pickNearestEnemyTarget(gameState, row, col, enemyValue, randomFn);
         if (target) {
             let destroyedRes = false;
@@ -442,6 +443,20 @@ const CardSniper = /**
 
         cleanupExpiredSnipers(cardState);
         return { destroyed, expired };
+        };
+
+        if (options.BoardOps && typeof options.BoardOps.runEffectBlock === 'function') {
+            return options.BoardOps.runEffectBlock(cardState, gameState, {
+                kind: 'anchor_effect',
+                cause: 'SNIPER_WILL',
+                reason: 'sniper_shot',
+                owner: playerKey,
+                sourceRow: row,
+                sourceCol: col,
+                randomSource: options.random || null
+            }, resolveAnchor);
+        }
+        return resolveAnchor();
     }
 
     return {

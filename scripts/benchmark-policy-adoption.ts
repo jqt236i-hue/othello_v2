@@ -21,6 +21,7 @@ const {
     buildSeedList,
     buildSeedSchedule
 } = require('./policy-seed-utils');
+const { DEFAULT_SELFPLAY_WHITE_DECK_CODE } = require('./selfplay-deck-options');
 
 function parseArgs(argv) {
     const args = {
@@ -38,6 +39,8 @@ function parseArgs(argv) {
         minSeedPassCount: 0,
         aRate: 0.2,
         bRate: 0.2,
+        blackDeckCode: null,
+        whiteDeckCode: DEFAULT_SELFPLAY_WHITE_DECK_CODE,
         tacticalWeight: 0,
         tacticalDepthOpening: 4,
         tacticalDepthMid: 6,
@@ -90,6 +93,9 @@ function parseArgs(argv) {
         if (a === '--min-seed-pass-count') { args.minSeedPassCount = Number(argv[++i]); specified.add('minSeedPassCount'); continue; }
         if (a === '--a-rate') { args.aRate = Number(argv[++i]); specified.add('aRate'); continue; }
         if (a === '--b-rate') { args.bRate = Number(argv[++i]); specified.add('bRate'); continue; }
+        if (a === '--black-deck-code') { args.blackDeckCode = String(argv[++i] || '').trim() || null; specified.add('blackDeckCode'); continue; }
+        if (a === '--white-deck-code') { args.whiteDeckCode = String(argv[++i] || '').trim() || null; specified.add('whiteDeckCode'); continue; }
+        if (a === '--no-white-deck-code') { args.whiteDeckCode = null; specified.add('whiteDeckCode'); continue; }
         if (a === '--tactical-weight') { args.tacticalWeight = Number(argv[++i]); specified.add('tacticalWeight'); continue; }
         if (a === '--tactical-depth-opening') { args.tacticalDepthOpening = Number(argv[++i]); specified.add('tacticalDepthOpening'); continue; }
         if (a === '--tactical-depth-mid') { args.tacticalDepthMid = Number(argv[++i]); specified.add('tacticalDepthMid'); continue; }
@@ -879,6 +885,8 @@ async function runOneSeed(options, seedIndex, totalSeeds, currentSeed, log, star
         jobs: benchmarkJobs,
         shouldStop,
         maxPlies: options.maxPlies,
+        blackDeckCode: options.blackDeckCode,
+        whiteDeckCode: options.whiteDeckCode,
         policyA: {
             allowCardUsage: true,
             cardUsageRate: options.aRate,

@@ -512,16 +512,6 @@ describe('pipeline_ui_adapter spawn mapping', () => {
         type: 'SPAWN',
         row: 1,
         col: 3,
-        stoneId: 'split-1',
-        ownerAfter: 'white',
-        cause: 'SPLIT_WILL',
-        reason: 'split_spawn',
-        meta: { fromRow: 4, fromCol: 5 }
-      },
-      {
-        type: 'SPAWN',
-        row: 1,
-        col: 4,
         stoneId: 'prolif-1',
         ownerAfter: 'white',
         cause: 'PROLIFERATION_WILL',
@@ -531,7 +521,7 @@ describe('pipeline_ui_adapter spawn mapping', () => {
       {
         type: 'SPAWN',
         row: 1,
-        col: 5,
+        col: 4,
         stoneId: 'normal-1',
         ownerAfter: 'black',
         cause: 'SYSTEM',
@@ -559,13 +549,6 @@ describe('pipeline_ui_adapter spawn mapping', () => {
         phase: 1,
         cause: 'CLONE_WILL',
         reason: 'clone_spawn',
-        clone: true
-      },
-      {
-        type: 'move',
-        phase: 1,
-        cause: 'SPLIT_WILL',
-        reason: 'split_spawn',
         clone: true
       },
       {

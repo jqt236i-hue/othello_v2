@@ -1,6 +1,6 @@
 ---
 name: 'board-expansion-movement-workflow'
-description: 'board expansion cell, movement target, expansion render / sound, CPU target choice を、geometry / diff-render 契約に合わせて安全に直すワークフロー。Use when editing game/logic/core.js, game/logic/cards/expansion.js, game/logic/cards/movement.js, game/card-effects/position-swap.js, game/move-generator.js, game/cpu-decision.js, game/cpu-turn-handler.js, ui/diff-renderer.js, or related expansion / movement tests in this card-othello repository.'
+description: 'board expansion cell, movement target, expansion render / sound, CPU target choice を、geometry / diff-render 契約に合わせて安全に直すワークフロー。Use when editing game/logic/core.ts / .js shim, game/logic/cards/expansion.ts / .js shim, game/logic/cards/movement.ts / .js shim, game/card-effects/position-swap.js, game/move-generator.js, game/cpu-decision.ts / .js shim, game/cpu-turn-handler.ts / .js shim, ui/diff-renderer.js, or related expansion / movement tests in this card-othello repository.'
 argument-hint: 'どの expansion / movement を直したいか。cell materialize, move target, reveal sound, CPU target, network multi-stage のどこかも書く'
 ---
 
@@ -24,16 +24,16 @@ argument-hint: 'どの expansion / movement を直したいか。cell materializ
 
 ## Primary Files
 
-- `game/logic/core.js`
-- `game/logic/cards/expansion.js`
-- `game/logic/cards/movement.js`
+- `game/logic/core.ts / .js shim`
+- `game/logic/cards/expansion.ts / .js shim`
+- `game/logic/cards/movement.ts / .js shim`
 - `game/move-generator.js`
 - `game/card-effects/board-expansion.js`
 - `game/card-effects/strong-wind.js` と関連 movement handler
 - `game/card-effects/position-swap.js`
-- `game/logic/cards/markers.js`
-- `game/cpu-decision.js`, `game/cpu-decision-board-utils.js`
-- `game/cpu-turn-handler.js`
+- `game/logic/cards/markers.ts / .js shim`
+- `game/cpu-decision.ts / .js shim`, `game/cpu-decision-board-utils.js`
+- `game/cpu-turn-handler.ts / .js shim`
 - `ui/diff-renderer.js`
 
 ## Common Traps
@@ -49,7 +49,7 @@ argument-hint: 'どの expansion / movement を直したいか。cell materializ
 1. 問題を geometry/state、selection、movement execution、render/sound、CPU のどこにあるかへ分類する。
 2. expansion state の正本は `core.js` と `expansion.js` に寄せ、既存の normalize / getter / setter を再利用する。
 3. move / swap で座標が変わる時は `markers.js` を含む linked state を shared helper 経由で更新し、場当たりの row / col 直書きを増やさない。
-4. `move-generator.js`、effect handler、`game/cpu-decision.js`、`game/cpu-turn-handler.js` の target 候補を同じ cell 集合にそろえる。
+4. `move-generator.js`、effect handler、`game/cpu-decision.ts / .js shim`、`game/cpu-turn-handler.ts / .js shim` の target 候補を同じ cell 集合にそろえる。
 5. `ui/diff-renderer.js` の reveal class / sound は state 契約が固まってから合わせる。
 6. `BOARD_EXPANSION_GOD` や network multi-stage selection が絡む時は `pending-selection-flow-workflow` も併用する。
 
