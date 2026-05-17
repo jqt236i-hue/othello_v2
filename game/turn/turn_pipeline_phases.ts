@@ -1621,6 +1621,32 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
     }
 
+    function collectTurnStartMarkerAnchors(cardState: any): any[] {
+        const sourceMarkers = (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
+            ? MarkersAdapter.getMarkers(cardState)
+            : (cardState.markers || []);
+        return sourceMarkers
+            .map((marker: any) => ({
+                isBomb: isBombCategoryMarker(marker),
+                marker,
+                createdSeq: (marker && marker.createdSeq) || 0
+            }))
+            .sort((a: any, b: any) => (a.createdSeq || 0) - (b.createdSeq || 0));
+    }
+
+    function pushTurnStartDetailsEvent(events: any, type: string, details: any): void {
+        if (!Array.isArray(events) || !Array.isArray(details) || details.length === 0) return;
+        events.push({ type, details });
+    }
+
+    function pushTurnStartResultDetails(events: any, result: any, mappings: Array<{ field: string; type: string }>): void {
+        if (!result || !Array.isArray(mappings)) return;
+        for (const mapping of mappings) {
+            if (!mapping) continue;
+            pushTurnStartDetailsEvent(events, mapping.type, result[mapping.field]);
+        }
+    }
+
     function applyTurnStartPhase(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, events: any, prng: any) {
         const p = prng || undefined;
 
@@ -1714,17 +1740,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 }
             }
 
-            // Start-of-turn effects: process all markers (bombs & special stones) in creation order
-            const sourceMarkers = (MarkersAdapter && typeof MarkersAdapter.getMarkers === 'function')
-                ? MarkersAdapter.getMarkers(cardState)
-                : (cardState.markers || []);
-            const markers = sourceMarkers
-                .map((m: any) => ({
-                    isBomb: isBombCategoryMarker(m),
-                    marker: m,
-                    createdSeq: (m.createdSeq || 0)
-                }))
-                .sort((a: any, b: any) => (a.createdSeq || 0) - (b.createdSeq || 0));
+            // Start-of-turn effects: process all markers (bombs & special stones) in creation order.
+            const markers = collectTurnStartMarkerAnchors(cardState);
 
             const observerMarkersBeforeStart = snapshotObserverMarkers(cardState);
             const hyperAggregated: { moved: any[]; destroyed: any[]; flipped: any[]; flippedByOwner: Record<string, any[]> } = { moved: [], destroyed: [], flipped: [], flippedByOwner: { black: [], white: [] } };
@@ -1745,26 +1762,36 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     if (t !== 'FREEZE' && isFrozenCell(cardState, row, col)) continue;
                     if (t === 'ULTIMATE_DESTROY_GOD' && owner === playerKey) {
                         const res = CardLogic.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, { randomSource: p });
-                        if (res && res.moved && res.moved.length) events.push({ type: 'udg_moved_start', details: res.moved });
-                        if (res && res.destroyed && res.destroyed.length) events.push({ type: 'udg_destroyed_start', details: res.destroyed });
-                        if (res && res.expired && res.expired.length) events.push({ type: 'udg_expired_start', details: res.expired });
+                        pushTurnStartResultDetails(events, res, [
+                            { field: 'moved', type: 'udg_moved_start' },
+                            { field: 'destroyed', type: 'udg_destroyed_start' },
+                            { field: 'expired', type: 'udg_expired_start' }
+                        ]);
                     } else if (t === 'DESTROY_DRAGON' && owner === playerKey) {
                         const res = CardLogic.processDestroyDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, p);
-                        if (res && res.destroyed && res.destroyed.length) events.push({ type: 'destroy_dragon_destroyed_start', details: res.destroyed });
-                        if (res && res.expired && res.expired.length) events.push({ type: 'destroy_dragon_expired_start', details: res.expired });
+                        pushTurnStartResultDetails(events, res, [
+                            { field: 'destroyed', type: 'destroy_dragon_destroyed_start' },
+                            { field: 'expired', type: 'destroy_dragon_expired_start' }
+                        ]);
                     } else if (t === 'SNIPER' && owner === playerKey) {
                         const res = CardLogic.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, p);
-                        if (res && res.destroyed && res.destroyed.length) events.push({ type: 'sniper_destroyed_start', details: res.destroyed });
-                        if (res && res.expired && res.expired.length) events.push({ type: 'sniper_expired_start', details: res.expired });
+                        pushTurnStartResultDetails(events, res, [
+                            { field: 'destroyed', type: 'sniper_destroyed_start' },
+                            { field: 'expired', type: 'sniper_expired_start' }
+                        ]);
                     } else if (t === 'LIGHTNING' && owner === playerKey) {
                         const res = CardLogic.processLightningWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, p);
-                        if (res && res.destroyed && res.destroyed.length) events.push({ type: 'lightning_destroyed_start', details: res.destroyed });
-                        if (res && res.expired && res.expired.length) events.push({ type: 'lightning_expired_start', details: res.expired });
+                        pushTurnStartResultDetails(events, res, [
+                            { field: 'destroyed', type: 'lightning_destroyed_start' },
+                            { field: 'expired', type: 'lightning_expired_start' }
+                        ]);
                     } else if (t === 'WILL_HUNTER_KING' && owner === playerKey) {
                         const res = CardLogic.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, p);
-                        if (res && res.destroyed && res.destroyed.length) events.push({ type: 'will_hunter_king_destroyed_start', details: res.destroyed });
-                        if (res && res.moved && res.moved.length) events.push({ type: 'will_hunter_king_moved_start', details: res.moved });
-                        if (res && res.expired && res.expired.length) events.push({ type: 'will_hunter_king_expired_start', details: res.expired });
+                        pushTurnStartResultDetails(events, res, [
+                            { field: 'destroyed', type: 'will_hunter_king_destroyed_start' },
+                            { field: 'moved', type: 'will_hunter_king_moved_start' },
+                            { field: 'expired', type: 'will_hunter_king_expired_start' }
+                        ]);
                     } else if (t === 'OBSERVER' && owner === playerKey) {
                         const res = CardLogic.processObserverWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, p);
                         if (res && res.triggered && Number(res.gained) > 0) {
@@ -1808,7 +1835,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         }
                     } else if (t === 'DRAGON' && owner === playerKey) {
                         const res = CardLogic.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, { randomSource: p });
-                        if (res && res.moved && res.moved.length) events.push({ type: 'dragon_moved_start', details: res.moved });
+                        pushTurnStartDetailsEvent(events, 'dragon_moved_start', res && res.moved);
                         if (res && res.converted && res.converted.length) {
                             awardBoardChargeGain(CardLogic, cardState, playerKey, res.converted.length, {
                                 anchorRow: row,
@@ -1818,10 +1845,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                             });
                             events.push({ type: 'dragon_converted_start', details: res.converted });
                         }
-                        if (res && res.destroyed && res.destroyed.length) events.push({ type: 'dragon_destroyed_anchor_start', details: res.destroyed });
+                        pushTurnStartDetailsEvent(events, 'dragon_destroyed_anchor_start', res && res.destroyed);
                     } else if (t === 'BREEDING' && owner === playerKey) {
                         const res = CardLogic.processBreedingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, p);
-                        if (res && res.spawned && res.spawned.length) events.push({ type: 'breeding_spawned_start', details: res.spawned });
+                        pushTurnStartDetailsEvent(events, 'breeding_spawned_start', res && res.spawned);
                         if (res && res.flipped && res.flipped.length) {
                             awardBoardChargeGain(CardLogic, cardState, playerKey, res.flipped.length, {
                                 anchorRow: row,
@@ -1830,7 +1857,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                             });
                             events.push({ type: 'breeding_flipped_start', details: res.flipped });
                         }
-                        if (res && res.destroyed && res.destroyed.length) events.push({ type: 'breeding_destroyed_anchor_start', details: res.destroyed });
+                        pushTurnStartDetailsEvent(events, 'breeding_destroyed_anchor_start', res && res.destroyed);
                     } else if (t === 'HYPERACTIVE' || t === 'ESCAPE_HYPERACTIVE' || t === 'INHERITED_HYPERACTIVE' || t === 'EXTREME_HYPERACTIVE') {
                         // Hyperactive-family moves can trigger for both owners; process per-anchor by owner
                         const ownerKey = owner;
@@ -1841,14 +1868,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         });
                         if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[TurnPipeline] hyperactive result', { row, col, owner: ownerKey, type: t, res });
                         if (res && res.moved && res.moved.length) {
-                            events.push({ type: 'hyperactive_moved_start', details: res.moved });
+                            pushTurnStartDetailsEvent(events, 'hyperactive_moved_start', res.moved);
                             hyperAggregated.moved.push(...res.moved);
                         }
-                        if (res && res.repelled && res.repelled.length) {
-                            events.push({ type: 'extreme_hyperactive_repelled_start', details: res.repelled });
-                        }
+                        pushTurnStartDetailsEvent(events, 'extreme_hyperactive_repelled_start', res && res.repelled);
                         if (res && res.destroyed && res.destroyed.length) {
-                            events.push({ type: 'hyperactive_destroyed_start', details: res.destroyed });
+                            pushTurnStartDetailsEvent(events, 'hyperactive_destroyed_start', res.destroyed);
                             hyperAggregated.destroyed.push(...res.destroyed);
                         }
                         if (res && res.flipped && res.flipped.length) {
@@ -1869,19 +1894,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                             currentTurnPlayerKey: playerKey
                         });
                         if (res && res.moved && res.moved.length) {
-                            events.push({ type: 'robot_vacuum_moved_start', details: res.moved });
+                            pushTurnStartDetailsEvent(events, 'robot_vacuum_moved_start', res.moved);
                             hyperAggregated.moved.push(...res.moved);
                         }
                         if (res && res.destroyed && res.destroyed.length) {
-                            events.push({ type: 'robot_vacuum_destroyed_start', details: res.destroyed });
+                            pushTurnStartDetailsEvent(events, 'robot_vacuum_destroyed_start', res.destroyed);
                             hyperAggregated.destroyed.push(...res.destroyed);
                         }
-                        if (res && res.expired && res.expired.length) {
-                            events.push({ type: 'robot_vacuum_expired_start', details: res.expired });
-                        }
-                        if (res && res.sucked && res.sucked.length) {
-                            events.push({ type: 'robot_vacuum_sucked_start', details: res.sucked });
-                        }
+                        pushTurnStartDetailsEvent(events, 'robot_vacuum_expired_start', res && res.expired);
+                        pushTurnStartDetailsEvent(events, 'robot_vacuum_sucked_start', res && res.sucked);
                         if (res && res.flipped && res.flipped.length) {
                             events.push({ type: 'robot_vacuum_flipped_start', details: res.flipped });
                             hyperAggregated.flipped.push(...res.flipped);
@@ -1901,11 +1922,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                             randomSource: p
                         });
                         if (res && res.moved && res.moved.length) {
-                            events.push({ type: 'hyperactive_moved_start', details: res.moved });
+                            pushTurnStartDetailsEvent(events, 'hyperactive_moved_start', res.moved);
                             hyperAggregated.moved.push(...res.moved);
                         }
                         if (res && res.destroyed && res.destroyed.length) {
-                            events.push({ type: 'hyperactive_destroyed_start', details: res.destroyed });
+                            pushTurnStartDetailsEvent(events, 'hyperactive_destroyed_start', res.destroyed);
                             hyperAggregated.destroyed.push(...res.destroyed);
                         }
                     } else if (t === 'ULTIMATE_HYPERACTIVE') {
@@ -1913,9 +1934,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         const res = CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, ownerKey, row, col, p, {
                             currentTurnPlayerKey: playerKey
                         });
-                        if (res && res.moved && res.moved.length) {
-                            events.push({ type: 'ultimate_hyperactive_moved_start', details: res.moved });
-                        }
+                        pushTurnStartDetailsEvent(events, 'ultimate_hyperactive_moved_start', res && res.moved);
                         if (res && res.flipped && res.flipped.length) {
                             events.push({ type: 'ultimate_hyperactive_flipped_start', details: res.flipped });
                             awardBoardChargeGain(CardLogic, cardState, ownerKey, res.flipped.length, {
@@ -1925,9 +1944,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                                 sourceType: 'ultimate_hyperactive_turn_start'
                             });
                         }
-                        if (res && res.destroyed && res.destroyed.length) {
-                            events.push({ type: 'ultimate_hyperactive_destroyed_start', details: res.destroyed });
-                        }
+                        pushTurnStartDetailsEvent(events, 'ultimate_hyperactive_destroyed_start', res && res.destroyed);
                     }
                 }
             }

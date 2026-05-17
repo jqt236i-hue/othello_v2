@@ -1118,6 +1118,142 @@ function applyHoleAt(cardState: any, gameState: any, row: number, col: number, o
     };
 }
 
+function _removeOccupiedCellForCellRemoval(
+    cardState: any,
+    gameState: any,
+    row: number,
+    col: number,
+    prev: any,
+    cause: string | null,
+    reason: string | null,
+    options: any
+): any {
+    const ownerBeforeKey = (prev === (SharedConstants.BLACK || 1)) ? 'black' : 'white';
+    const stoneId = getStoneIdAt(cardState, gameState, row, col);
+    const specialKindForSalvation = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
+    const wasSpecialStoneForSalvation = !!(Array.isArray(cardState.markers) && cardState.markers.some(
+        (m: any) => m && m.kind === specialKindForSalvation && m.row === row && m.col === col
+    ));
+    const wasStoneSalvationGod = _isStoneSalvationGodMarkerAt(cardState, row, col, ownerBeforeKey);
+    const removalPolicy = String(
+        (options && options.removalPolicy) ||
+        (options && options.policy) ||
+        'absolute_only'
+    );
+    const removalCause = String(
+        (options && options.removalCause) ||
+        (cause || '')
+    );
+    const removalKind = String(
+        (options && options.removalKind) ||
+        'meteor_hole'
+    );
+    const destroyMeta = _populateSpecialVisualMeta(cardState, row, col, _clonePresentationMeta(
+        options && options.destroyMeta && typeof options.destroyMeta === 'object' ? options.destroyMeta : {}
+    ));
+    destroyMeta.cellRemoval = true;
+    destroyMeta.removalPolicy = removalPolicy;
+    destroyMeta.removalKind = removalKind;
+    if (removalCause) destroyMeta.removalCause = removalCause;
+
+    setStoneIdAt(cardState, gameState, row, col, null);
+    setCellValue(gameState, row, col, EMPTY);
+    const cardMarkers = getCardMarkersModule();
+    if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
+        cardMarkers.removeMarkersAt(cardState, row, col);
+    } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
+        MarkersAdapter.removeMarkersAt(cardState, row, col);
+    } else if (Array.isArray(cardState.markers)) {
+        cardState.markers = cardState.markers.filter((m: any) => !(m && m.row === row && m.col === col));
+    }
+
+    emitPresentationEvent(cardState, {
+        type: 'DESTROY',
+        stoneId,
+        row,
+        col,
+        ownerBefore: ownerBeforeKey,
+        cause: cause || null,
+        reason: reason || null,
+        meta: destroyMeta
+    });
+
+    const activeTurnPlayer = cardState._activeTurnPlayer;
+    const beneficiaryPlayer = activeTurnPlayer === 'black'
+        ? 'white'
+        : (activeTurnPlayer === 'white' ? 'black' : null);
+    if (beneficiaryPlayer) {
+        if (!cardState.prevOpponentTurnDestroyedStonesByPlayer) {
+            cardState.prevOpponentTurnDestroyedStonesByPlayer = { black: [], white: [] };
+        }
+        if (!Array.isArray(cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer])) {
+            cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer] = [];
+        }
+        cardState.prevOpponentTurnDestroyedStonesByPlayer[beneficiaryPlayer].push({
+            row,
+            col,
+            owner: ownerBeforeKey,
+            wasSpecial: wasSpecialStoneForSalvation
+        });
+    }
+
+    const stoneSalvationGodReviveQueued = wasStoneSalvationGod
+        ? null
+        : _queueDestroyedStoneForStoneSalvationGod(cardState, row, col, ownerBeforeKey, cause, reason, destroyMeta);
+    return createDestroyOutcome(DESTROY_OUTCOME_KINDS.DESTROYED, Object.assign({
+        reason: 'cell_removed',
+        cellRemoval: true,
+        removalPolicy,
+        removalKind
+    }, stoneSalvationGodReviveQueued && stoneSalvationGodReviveQueued.queued ? {
+        stoneSalvationGodReviveQueued: true
+    } : {}));
+}
+
+function applyCellRemovalAt(
+    cardState: any,
+    gameState: any,
+    row: number,
+    col: number,
+    ownerKey: string,
+    cause: string | null,
+    reason: string | null,
+    options: any = {}
+): any {
+    _ensureCardState(cardState);
+    const pos = _normalizeCellPosition(row, col);
+    if (!pos) return { applied: false, reason: 'out_of_board', row, col };
+    row = pos.row;
+    col = pos.col;
+
+    const prev = getCellValue(gameState, row, col);
+    if (prev === null) return { applied: false, reason: 'out_of_board', row, col };
+    if (_isAbsoluteProtectedCell(cardState, row, col)) {
+        return { applied: false, reason: 'absolute_protected', row, col, destroyed: false };
+    }
+
+    let destroyed = false;
+    let destroyResult: any = null;
+    if (prev !== EMPTY) {
+        destroyResult = _removeOccupiedCellForCellRemoval(cardState, gameState, row, col, prev, cause, reason, options);
+        destroyed = true;
+    }
+
+    const holeMeta = Object.assign({}, (options && options.holeMeta && typeof options.holeMeta === 'object') ? options.holeMeta : {});
+    const holeResult = applyHoleAt(cardState, gameState, row, col, ownerKey, holeMeta);
+    if (!holeResult || !holeResult.applied) {
+        return {
+            applied: false,
+            reason: (holeResult && holeResult.reason) || 'hole_failed',
+            row,
+            col,
+            destroyed,
+            destroyResult
+        };
+    }
+    return { applied: true, row, col, destroyed, destroyResult, holeResult };
+}
+
 function _addSpecialStoneMarker(cardState: any, row: number, col: number, owner: string, data: any): any {
     _ensureCardState(cardState);
     const markerKind = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
@@ -2401,6 +2537,7 @@ export = {
     moveAt,
     swapOccupiedCells,
     applyHoleAt,
+    applyCellRemovalAt,
     getExpansionDescriptors,
     getCellValue,
     setCellValue,
