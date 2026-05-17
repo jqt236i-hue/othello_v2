@@ -27,7 +27,7 @@ argument-hint: 'どこを、何のために安全に整理したいか'
 
 - 今回触る module とその公開入口
 - 関連 test
-- 必要なら `shared-constants.js`, 正規化 helper, DI 入口ファイル
+- 必要なら `shared-constants.ts`（`.js` は互換 shim）, 正規化 helper, DI 入口ファイル
 
 ## Common Traps
 

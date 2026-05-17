@@ -19,7 +19,7 @@
 - 2026-03-14: Phase 2 の追加スライスとして EXTEND_LIFE_WILL / CORROSION_WILL の duration 操作を既存の cards/markers.js へ委譲済み。
 - 2026-03-14: Phase 2 の固定スコープとして STRONG_WIND_WILL / SUPER_BUOYANCY_WILL / SUPER_GRAVITY_WILL を cards/movement.js へ委譲済み。
 - 2026-03-14: Phase 2 の固定スコープとして TELEPORT_WILL / CELL_TELEPORT_WILL を cards/teleport.js へ委譲済み。
-- 2026-03-14: Phase 2 の固定スコープとして CLONE_WILL / SPLIT_WILL を cards/clone.js へ委譲済み。
+- 2026-03-14: Phase 2 の固定スコープとして CLONE_WILL を cards/clone.js へ委譲済み。
 - 2026-03-14: Phase 2 の固定スコープとして METEOR_WILL を cards/meteor.js へ委譲済み。
 - 2026-03-14: root 正本から npm run worker:prepare を実行し、mirror-verified を確認済み。
 - 2026-03-14: 完遂条件の代表回帰として index / pending / CPU / selfplay / presentation の Jest を再実行し、通過済み。
@@ -263,7 +263,7 @@ npx jest test/game.charge-delta-events.test.js test/game.ribo-will.test.js test/
 - [x] EXTEND_LIFE_WILL / CORROSION_WILL の duration 操作を既存の cards/markers.js へ委譲する
 - [x] STRONG_WIND_WILL / SUPER_BUOYANCY_WILL / SUPER_GRAVITY_WILL を 1 スライスとして bridge 化する
 - [x] TELEPORT_WILL / CELL_TELEPORT_WILL を 1 スライスとして bridge 化する
-- [x] CLONE_WILL / SPLIT_WILL を 1 スライスとして bridge 化する
+- [x] CLONE_WILL を 1 スライスとして bridge 化する
 - [x] METEOR_WILL を 1 スライスとして bridge 化する
 
 ### この runbook で扱わないもの

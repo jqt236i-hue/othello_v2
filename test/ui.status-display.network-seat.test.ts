@@ -8,8 +8,6 @@ function loadStatusDisplayIntoWindow(window) {
   window.showCpuSpeechBubble = statusDisplay.showCpuSpeechBubble;
   window.hideCpuSpeechBubble = statusDisplay.hideCpuSpeechBubble;
   window.positionCpuSpeechBubble = statusDisplay.positionCpuSpeechBubble;
-  window.showHeroSpeechBubble = statusDisplay.showHeroSpeechBubble;
-  window.hideHeroSpeechBubble = statusDisplay.hideHeroSpeechBubble;
   window.showRoundBonusDisplay = statusDisplay.showRoundBonusDisplay;
   window.clearRoundDisplayBonus = statusDisplay.clearRoundDisplayBonus;
   window.updateCpuCharacter = statusDisplay.updateCpuCharacter;

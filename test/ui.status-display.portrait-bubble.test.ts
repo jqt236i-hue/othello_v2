@@ -72,7 +72,7 @@ function setupPortraitBubbleDom() {
   });
 
   window.document.body.appendChild = (node) => {
-    if (node && (node.id === 'hero-speech-bubble' || node.id === 'cpu-speech-bubble')) {
+    if (node && node.id === 'cpu-speech-bubble') {
       bindDynamicBubbleRect(node);
     }
     return nativeAppendChild(node);
@@ -82,7 +82,6 @@ function setupPortraitBubbleDom() {
   global.document = window.document;
   jest.resetModules();
   const statusDisplay = require(path.join(__dirname, '..', 'ui', 'status-display.js'));
-  window.showHeroSpeechBubble = statusDisplay.showHeroSpeechBubble;
   window.showCpuSpeechBubble = statusDisplay.showCpuSpeechBubble;
 
   return { dom, window, boardFrame };
@@ -103,16 +102,11 @@ describe('status-display portrait commentary bubbles', () => {
     expect(js).not.toMatch(/function\s+showPortraitSpeechBubble[\s\S]*hidePortraitSpeechBubble\(\);/);
   });
 
-  test('keeps hero and cpu portrait bubbles outside the board on tablet widths', () => {
+  test('keeps cpu portrait bubble outside the board on tablet widths', () => {
     const { dom, window, boardFrame } = setupPortraitBubbleDom();
     try {
       const line = 'よし、言っとくけど盤面の機嫌がこっち向いてる。このくらいなら片手で読めるし、このまま先回りして終わらせる。';
       const boardRect = boardFrame.getBoundingClientRect();
-
-      window.showHeroSpeechBubble(line);
-      const heroBubble = window.document.getElementById('hero-speech-bubble');
-      expect(heroBubble).not.toBeNull();
-      expect(heroBubble.getBoundingClientRect().right).toBeLessThanOrEqual(boardRect.left - 12);
 
       window.showCpuSpeechBubble(line);
       const cpuBubble = window.document.getElementById('cpu-speech-bubble');

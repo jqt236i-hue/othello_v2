@@ -44,15 +44,15 @@ argument-hint: '追加するカードの id, type, cost, desc と、既存 type 
 - `cards/catalog.js`
 - `cards/catalog.generated.js`
 - `game/card-effects/*`
-- `game/logic/cards.js`, `game/logic/cards-internal/*`
-- `game/turn-handlers/pending-target-selector.js`
-- `game/cpu-decision.js`, `game/cpu-turn-handler.js`, `game/ai/cpu-policy-core.js`
-- `ui/presentation-handler.js`, `ui/stone-visuals.js`, `game/visual-effects-map.js`
-- `cards/card-interaction-effects.js`, `ui/handlers/rules-help.js`
-- `shared/deck-spec.js`
+- `game/logic/cards.ts`（`.js` は互換 shim）, `game/logic/cards-internal/*`
+- `game/turn-handlers/pending-target-selector.ts / .js shim`
+- `game/cpu-decision.ts / .js shim`, `game/cpu-turn-handler.ts / .js shim`, `game/ai/cpu-policy-core.ts / .js shim`
+- `ui/presentation-handler.ts / .js shim`, `ui/stone-visuals.js`, `game/visual-effects-map.js`
+- `cards/card-interaction-effects.ts / .js shim`, `ui/handlers/rules-help.ts / .js shim`
+- `shared/deck-spec.ts / .js shim`
 - `index.html`, `test/index.card-module-scripts.test.js`
 - `test/cards.catalog.test.js`, `test/cards.generate.test.js`, `test/selfplay.runner.test.js`
-- `scripts/prepare-worker-assets.js`, `worker-public/*` は mirror のみ
+- `scripts/prepare-worker-assets.ts / .js shim`, `worker-public/*` は mirror のみ
 
 ## Common Traps
 
@@ -63,7 +63,7 @@ argument-hint: '追加するカードの id, type, cost, desc と、既存 type 
 - `npm run generate:catalog` を忘れて browser と headless で card 定義がずれること
 - 新しい classic-script ファイルを足したのに `index.html` の読み込み順と `test/index.card-module-scripts.test.js` を見ていないこと
 - selection / deferred publish カードなのに `pending-selection-flow-workflow` と切り離して contract 差分を作ること
-- `cards/card-interaction-effects.js` の quick / detail 文言を放置し、card detail が catalog の先頭文 fallback だけになること
+- `cards/card-interaction-effects.ts / .js shim` の quick / detail 文言を放置し、card detail が catalog の先頭文 fallback だけになること
 - dirty tree のまま `npm run worker:prepare` を流して mirror 差分を雑に混ぜること
 
 ## Procedure
@@ -72,11 +72,11 @@ argument-hint: '追加するカードの id, type, cost, desc と、既存 type 
 2. 新カードの `id`, `type`, `cost`, `desc_ja`, `display_type_ja`, `enabled` を `cards/catalog.json` に追加する。
 3. `npm run generate:catalog` を実行し、`cards/catalog.js` と `cards/catalog.generated.js` を揃える。
 4. 既存 type 再利用なら、既存 handler と UI 文言で足りるか確認する。足りなければ個別文言と tests を追加する。
-5. 新 type なら `game/card-effects/*` と必要な `game/logic/cards.js` / `game/logic/cards-internal/*` に効果解決を実装する。`game/` に UI 依存は持ち込まない。
-6. 選択式カードや deferred publish が絡むカードなら `game/turn-handlers/pending-target-selector.js` と関連 pending state を更新し、CPU 自動選択の ranking を決める。selection contract が増える時は `pending-selection-flow-workflow` も併用する。
-7. CPU が使うカードなら `game/cpu-decision.js` と必要に応じて `game/ai/cpu-policy-core.js` を更新し、使用タイミングと fallback を決める。
-8. 新 visual や特殊石表示があるなら `ui/presentation-handler.js`, `ui/stone-visuals.js`, `game/visual-effects-map.js` を確認し、Single Visual Writer を崩さずに接続する。
-9. カード詳細や図鑑に個別説明が必要なら `cards/card-interaction-effects.js` と `ui/handlers/rules-help.js` を更新する。
+5. 新 type なら `game/card-effects/*` と必要な `game/logic/cards.ts`（`.js` は互換 shim） / `game/logic/cards-internal/*` に効果解決を実装する。`game/` に UI 依存は持ち込まない。
+6. 選択式カードや deferred publish が絡むカードなら `game/turn-handlers/pending-target-selector.ts / .js shim` と関連 pending state を更新し、CPU 自動選択の ranking を決める。selection contract が増える時は `pending-selection-flow-workflow` も併用する。
+7. CPU が使うカードなら `game/cpu-decision.ts / .js shim` と必要に応じて `game/ai/cpu-policy-core.ts / .js shim` を更新し、使用タイミングと fallback を決める。
+8. 新 visual や特殊石表示があるなら `ui/presentation-handler.ts / .js shim`, `ui/stone-visuals.js`, `game/visual-effects-map.js` を確認し、Single Visual Writer を崩さずに接続する。
+9. カード詳細や図鑑に個別説明が必要なら `cards/card-interaction-effects.ts / .js shim` と `ui/handlers/rules-help.ts / .js shim` を更新する。
 10. 新しい classic-script ファイルを追加した場合だけ `index.html` の load order を更新し、`test/index.card-module-scripts.test.js` で順序を確認する。
 11. `cardId`, `type`, 表示名で残り参照を検索し、docs / tests / deck まで漏れがないことを確認する。
 12. deploy 面まで触る時だけ root を正本として `npm run worker:prepare` を実行し、mirror を同期する。

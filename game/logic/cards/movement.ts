@@ -70,6 +70,9 @@ function moveMarkers(cardState: any, fromRow: number, fromCol: number, toRow: nu
             continue;
         if (marker.row !== fromRow || marker.col !== fromCol)
             continue;
+        const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+        if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE' || markerTypeUpper === 'FREEZE' || markerTypeUpper === 'SEED')
+            continue;
         marker.row = toRow;
         marker.col = toCol;
     }
@@ -207,11 +210,13 @@ function applyStrongWindWill(cardState: any, gameState: GameState, playerKey: st
     const selected = bestOptions[resolveRandomIndex(randomSource, bestOptions.length)] || bestOptions[0];
     const to = selected.target;
     const movedDistance = Math.abs(to.row - row) + Math.abs(to.col - col);
-    moveMarkers(cardState, row, col, to.row, to.col, deps);
     if (typeof moveAt === 'function') {
         const result = moveAt(cardState, gameState, row, col, to.row, to.col, 'STRONG_WIND_WILL', 'strong_wind_move');
         if (!result || !result.moved) {
             return { applied: false, reason: 'move_failed' };
+        }
+        if (result.markerHandled !== true) {
+            moveMarkers(cardState, row, col, to.row, to.col, deps);
         }
     }
     else {
@@ -220,6 +225,7 @@ function applyStrongWindWill(cardState: any, gameState: GameState, playerKey: st
         if (!cleared || !placed) {
             return { applied: false, reason: 'move_failed' };
         }
+        moveMarkers(cardState, row, col, to.row, to.col, deps);
     }
     cs.pendingEffectByPlayer[playerKey] = null;
     return {
@@ -245,6 +251,7 @@ function applyVerticalCrushWill(cardState: any, gameState: GameState, playerKey:
     const resolveDestroy = deps.isDestroyResolved || ((result: any) => !!(result && result.destroyed));
     const moveAt = deps.moveAt || null;
     const setCellValueForCard = deps.setCellValueForCard || (() => false);
+    const runDestroyBlock = typeof deps.runDestroyBlock === 'function' ? deps.runDestroyBlock : null;
     const cs = cardState as any;
     const pending = cs && cs.pendingEffectByPlayer ? cs.pendingEffectByPlayer[playerKey] : null;
     if (!pending || pending.type !== pendingType || pending.stage !== 'selectTarget') {
@@ -264,52 +271,69 @@ function applyVerticalCrushWill(cardState: any, gameState: GameState, playerKey:
         return { applied: false, reason: 'no_move_options' };
     const totalTravelDistance = Number(plan.movedDistance) || Math.abs(plan.to.row - row) || 1;
     const destroyed: Array<{row: number; col: number}> = [];
-    for (let index = 0; index < plan.destroyed.length; index += 1) {
-        const target = plan.destroyed[index];
-        if (!target)
-            continue;
-        const collisionDistance = Math.abs(target.row - row);
-        const collisionProgress = Math.max(0, Math.min(1, collisionDistance / totalTravelDistance));
-        if (typeof destroyAt === 'function') {
-            const result = destroyAt(cardState, gameState, target.row, target.col, pendingType, destroyReason, {
-                sourceRow: row,
-                sourceCol: col,
-                collisionIndex: index + 1,
-                collisionCount: plan.destroyed.length,
-                collisionProgress,
-                travelDistance: totalTravelDistance,
-                travelToRow: plan.to.row,
-                travelToCol: plan.to.col
+    let blockFailure: MovementResult | null = null;
+    const applyCrush = () => {
+        for (let index = 0; index < plan.destroyed.length; index += 1) {
+            const target = plan.destroyed[index];
+            if (!target)
+                continue;
+            const collisionDistance = Math.abs(target.row - row);
+            const collisionProgress = Math.max(0, Math.min(1, collisionDistance / totalTravelDistance));
+            if (typeof destroyAt === 'function') {
+                const result = destroyAt(cardState, gameState, target.row, target.col, pendingType, destroyReason, {
+                    sourceRow: row,
+                    sourceCol: col,
+                    collisionIndex: index + 1,
+                    collisionCount: plan.destroyed.length,
+                    collisionProgress,
+                    travelDistance: totalTravelDistance,
+                    travelToRow: plan.to.row,
+                    travelToCol: plan.to.col
+                });
+                if (!resolveDestroy(result)) {
+                    blockFailure = { applied: false, reason: 'destroy_failed', failedAt: { row: target.row, col: target.col } };
+                    return;
+                }
+            }
+            else {
+                const destroyedOk = destroyAtLegacy(cardState, gameState, target.row, target.col);
+                if (!destroyedOk) {
+                    blockFailure = { applied: false, reason: 'destroy_failed', failedAt: { row: target.row, col: target.col } };
+                    return;
+                }
+            }
+            destroyed.push({ row: target.row, col: target.col });
+        }
+        if (typeof moveAt === 'function') {
+            const result = moveAt(cardState, gameState, row, col, plan.to.row, plan.to.col, pendingType, moveReason, {
+                collisionCount: destroyed.length,
+                travelDistance: totalTravelDistance
             });
-            if (!resolveDestroy(result)) {
-                return { applied: false, reason: 'destroy_failed', failedAt: { row: target.row, col: target.col } };
+            if (!result || !result.moved) {
+                blockFailure = { applied: false, reason: 'move_failed' };
+                return;
+            }
+            if (result.markerHandled !== true) {
+                moveMarkers(cardState, row, col, plan.to.row, plan.to.col, deps);
             }
         }
         else {
-            const destroyedOk = destroyAtLegacy(cardState, gameState, target.row, target.col);
-            if (!destroyedOk) {
-                return { applied: false, reason: 'destroy_failed', failedAt: { row: target.row, col: target.col } };
+            const cleared = setCellValueForCard(gameState, row, col, EMPTY);
+            const placed = setCellValueForCard(gameState, plan.to.row, plan.to.col, cellValue);
+            if (!cleared || !placed) {
+                blockFailure = { applied: false, reason: 'move_failed' };
+                return;
             }
+            moveMarkers(cardState, row, col, plan.to.row, plan.to.col, deps);
         }
-        destroyed.push({ row: target.row, col: target.col });
-    }
-    moveMarkers(cardState, row, col, plan.to.row, plan.to.col, deps);
-    if (typeof moveAt === 'function') {
-        const result = moveAt(cardState, gameState, row, col, plan.to.row, plan.to.col, pendingType, moveReason, {
-            collisionCount: destroyed.length,
-            travelDistance: totalTravelDistance
-        });
-        if (!result || !result.moved) {
-            return { applied: false, reason: 'move_failed' };
-        }
+    };
+    if (runDestroyBlock) {
+        runDestroyBlock(cardState, gameState, applyCrush, {});
     }
     else {
-        const cleared = setCellValueForCard(gameState, row, col, EMPTY);
-        const placed = setCellValueForCard(gameState, plan.to.row, plan.to.col, cellValue);
-        if (!cleared || !placed) {
-            return { applied: false, reason: 'move_failed' };
-        }
+        applyCrush();
     }
+    if (blockFailure) return blockFailure;
     cs.pendingEffectByPlayer[playerKey] = null;
     return {
         applied: true,

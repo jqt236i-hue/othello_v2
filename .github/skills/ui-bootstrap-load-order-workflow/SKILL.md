@@ -1,18 +1,18 @@
 ---
 name: 'ui-bootstrap-load-order-workflow'
-description: 'index.html の script 順、shared/ui-bootstrap-shared.js と ui/bootstrap.js の DI、window 使用境界を、この repo の classic-script 前提で安全に直すワークフロー。Use when editing index.html, shared/ui-bootstrap-shared.js, ui/bootstrap.js, ui/handlers/init.js, scripts/check-window-usage.js, or related load-order/bootstrap tests in this card-othello repository.'
+description: 'index.html の script 順、shared/ui-bootstrap-shared.js と ui/bootstrap.ts / .js compatibility shim の DI、window 使用境界を、この repo の classic-script 前提で安全に直すワークフロー。Use when editing index.html, shared/ui-bootstrap-shared.js, ui/bootstrap.ts / .js compatibility shim, ui/handlers/init.ts / .js shim, scripts/check-window-usage.js, or related load-order/bootstrap tests in this card-othello repository.'
 argument-hint: 'load order や bootstrap のどこを直したいか。script 順, DI, window usage なども書く'
 ---
 
 # UI Bootstrap Load Order Workflow
 
-このスキルは、classic script 前提の load order、`shared/ui-bootstrap-shared.js` と `ui/bootstrap.js` の DI、`window` 使用境界を安全に直す時の手順です。
+このスキルは、classic script 前提の load order、`shared/ui-bootstrap-shared.js` と `ui/bootstrap.ts / .js compatibility shim` の DI、`window` 使用境界を安全に直す時の手順です。
 
 ## When to Use
 
 - `index.html` の script 順や preload 順を変える時
 - `shared/ui-bootstrap-shared.js` の shim / forwarding / lazy install を直したい時
-- `ui/bootstrap.js` の依存注入を直したい時
+- `ui/bootstrap.ts / .js compatibility shim` の依存注入を直したい時
 - `window` 使用や bootstrap 初期化順の不具合を直したい時
 - root と `worker-public/` の load order がずれている時
 
@@ -27,8 +27,8 @@ argument-hint: 'load order や bootstrap のどこを直したいか。script �
 
 - `index.html`
 - `shared/ui-bootstrap-shared.js`
-- `ui/bootstrap.js`
-- `ui/handlers/init.js`
+- `ui/bootstrap.ts / .js compatibility shim`
+- `ui/handlers/init.ts / .js shim`
 - `scripts/check-window-usage.js`
 - 関連 test: `test/index.card-module-scripts.test.js`, `test/index.local-script-paths.test.js`, `test/ui.bootstrap.cpu-early-registration.test.js`
 
@@ -42,7 +42,7 @@ argument-hint: 'load order や bootstrap のどこを直したいか。script �
 
 ## Procedure
 
-1. まず `index.html`, `shared/ui-bootstrap-shared.js`, `ui/bootstrap.js` の script 順と DI 入口を確認する。
+1. まず `index.html`, `shared/ui-bootstrap-shared.js`, `ui/bootstrap.ts / .js compatibility shim` の script 順と DI 入口を確認する。
 2. 問題が load order、DI、window usage、path mismatch のどこにあるかを分ける。
 3. 公開入口を増やさず、既存 bootstrap 経路の中で解決する。
 4. root 側の classic-script / DI 問題はこの skill で扱い、mirror / prepare / deploy の同期自体は `worker-public-sync-workflow` に分ける。

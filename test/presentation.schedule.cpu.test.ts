@@ -14,6 +14,14 @@ function mockPresentationRuntime(overrides) {
 }
 
 describe('presentation handler CPU scheduling', () => {
+  beforeEach(() => {
+    global.GameEvents = {
+      gameEvents: {
+        on: jest.fn()
+      }
+    };
+  });
+
   afterEach(() => {
     jest.clearAllTimers();
     jest.resetModules();
@@ -26,6 +34,7 @@ describe('presentation handler CPU scheduling', () => {
     delete global.getCurrentMatchMode;
     delete global.gameState;
     delete global.GamePresentationRuntime;
+    delete global.GameEvents;
   });
 
   test('SCHEDULE_CPU_TURN delegates to game presentation runtime', () => {
@@ -113,13 +122,9 @@ describe('presentation handler CPU scheduling', () => {
     expect(global.addLog).not.toHaveBeenCalled();
   });
 
-  test('CARD_USED local card event also emits hero card commentary', async () => {
+  test('CARD_USED local card event does not emit hero card commentary', async () => {
     jest.resetModules();
-    const requestCommentaryMock = jest.fn(async (context) => (
-      context && context.speakerRole === 'hero'
-        ? '交換の意志で流れを作る。'
-        : 'うるさいぞ！'
-    ));
+    const requestCommentaryMock = jest.fn(async () => 'うるさいぞ！');
     jest.doMock('../game/ai/cpu-commentary-runtime', () => ({
       requestCommentary: requestCommentaryMock
     }));
@@ -149,11 +154,7 @@ describe('presentation handler CPU scheduling', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(requestCommentaryMock).toHaveBeenCalledWith(expect.objectContaining({
-      eventType: 'card_used',
-      playerKey: 'black',
-      cardId: 'swap_01',
-      cardType: 'SWAP_WITH_ENEMY',
+    expect(requestCommentaryMock).not.toHaveBeenCalledWith(expect.objectContaining({
       speakerRole: 'hero'
     }));
     expect(global.addLog).not.toHaveBeenCalled();

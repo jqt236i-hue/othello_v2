@@ -34,6 +34,9 @@ function isTargetHeadEnabled(args: any) {
 }
 
 function buildAdoptionWeightArgs(args: any, adoptionCardRate: any) {
+    const deckArgs = args && args.selfplayWhiteDeckCode
+        ? ['--white-deck-code', String(args.selfplayWhiteDeckCode)]
+        : ['--no-white-deck-code'];
     return [
         '--a-rate', String(adoptionCardRate),
         '--b-rate', String(adoptionCardRate),
@@ -61,7 +64,7 @@ function buildAdoptionWeightArgs(args: any, adoptionCardRate: any) {
         '--quality-weight-card-immediate', String(args.adoptionQualityWeightCardImmediate),
         '--quality-weight-card-future', String(args.adoptionQualityWeightCardFuture),
         '--quality-weight-place-delta', String(args.adoptionQualityWeightPlaceDelta)
-    ];
+    ].concat(deckArgs);
 }
 
 function buildGenerateSelfplayDataArgs(options: any) {
@@ -77,6 +80,7 @@ function buildGenerateSelfplayDataArgs(options: any) {
     ].concat(
         options.hardcaseOutPath ? ['--hardcase-out', options.hardcaseOutPath] : [],
         options.generateCardArgs || [],
+        options.selfplayDeckArgs || [],
         options.selfplayDiversityArgs || [],
         options.guideModelArgs || [],
         options.selfplayResumeArgs || [],

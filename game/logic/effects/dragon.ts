@@ -306,7 +306,7 @@ function moveCoexistingMarkers(cardState: any, anchorEntry: any, fromRow: number
         if (marker.row !== fromRow || marker.col !== fromCol) continue;
         if (marker.kind === 'specialStone') {
             const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-            if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE') continue;
+            if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE' || markerTypeUpper === 'FREEZE' || markerTypeUpper === 'SEED') continue;
         }
         marker.row = toRow;
         marker.col = toCol;
@@ -567,6 +567,7 @@ function processDragonEffectsAtTurnStartAnchor(cardState: any, gameState: any, p
     const moveTarget = getRandomTurnStartMoveDestination(cardState, gameState, row, col, deps);
     if (moveTarget) {
         let movedRes = false;
+        let usedBoardOpsMove = false;
         if (BoardOps && typeof BoardOps.moveAt === 'function') {
             const res = BoardOps.moveAt(
                 cardState,
@@ -579,11 +580,14 @@ function processDragonEffectsAtTurnStartAnchor(cardState: any, gameState: any, p
                 'ultimate_reverse_dragon_move'
             );
             movedRes = !!(res && res.moved);
+            usedBoardOpsMove = !!(res && res.markerHandled === true);
         } else {
             movedRes = setCellValue(gameState, row, col, P_EMPTY) && setCellValue(gameState, moveTarget.row, moveTarget.col, player);
         }
         if (movedRes) {
-            moveCoexistingMarkers(cardState, dragon, row, col, moveTarget.row, moveTarget.col, deps);
+            if (!usedBoardOpsMove) {
+                moveCoexistingMarkers(cardState, dragon, row, col, moveTarget.row, moveTarget.col, deps);
+            }
             dragon.row = moveTarget.row;
             dragon.col = moveTarget.col;
             anchorRow = moveTarget.row;

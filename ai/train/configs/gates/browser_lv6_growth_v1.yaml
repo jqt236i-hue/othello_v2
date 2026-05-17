@@ -88,7 +88,7 @@ trainCycleArgs:
   - --adoption-tactical-beam-width
   - "3"
   - --adoption-white-priority
-  - "0.72"
+  - "1.0"
   - --adoption-quality-weight-corner
   - "0.08"
   - --adoption-quality-weight-edge

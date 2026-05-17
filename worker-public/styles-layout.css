@@ -3996,8 +3996,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     z-index: 110;
 }
 
-#cpu-speech-bubble,
-#hero-speech-bubble {
+#cpu-speech-bubble {
     position: fixed;
     left: 50%;
     top: calc(40px * var(--layout-stage-scale));
@@ -4022,8 +4021,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     word-break: break-word;
 }
 
-#cpu-speech-bubble::after,
-#hero-speech-bubble::after {
+#cpu-speech-bubble::after {
     content: "";
     position: absolute;
     left: 50%;
@@ -4034,8 +4032,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     border-color: var(--bg-panel-dark) transparent transparent transparent;
 }
 
-#cpu-speech-bubble.is-visible,
-#hero-speech-bubble.is-visible {
+#cpu-speech-bubble.is-visible {
     opacity: 1;
     visibility: visible;
 }

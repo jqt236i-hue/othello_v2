@@ -50,35 +50,6 @@ describe('pipeline_ui_adapter move mapping', () => {
     });
   });
 
-  test('maps SPLIT_WILL SPAWN into split move event from source cell', () => {
-    const pres = [{
-      type: 'SPAWN',
-      row: 5,
-      col: 4,
-      stoneId: 's109',
-      ownerAfter: 'black',
-      cause: 'SPLIT_WILL',
-      reason: 'split_spawn',
-      meta: { fromRow: 4, fromCol: 4, cloneVisual: true }
-    }];
-
-    const out = adapter.mapToPlaybackEvents(
-      pres,
-      { markers: [] },
-      { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
-    );
-
-    expect(Array.isArray(out)).toBe(true);
-    expect(out).toHaveLength(1);
-    expect(out[0].type).toBe('move');
-    expect(out[0].targets[0]).toMatchObject({
-      from: { r: 4, col: 4 },
-      to: { r: 5, col: 4 },
-      stoneId: 's109',
-      clone: true
-    });
-  });
-
   test('maps PROLIFERATION_WILL SPAWN into clone-like move event from proliferation origin', () => {
     const pres = [{
       type: 'SPAWN',

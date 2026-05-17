@@ -748,7 +748,7 @@ function moveCoexistingSpecialMarkers(cardState: CardState, anchorEntry: any, fr
         if (marker.row !== fromRow || marker.col !== fromCol) continue;
         if (marker.kind === 'specialStone') {
             const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-            if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE') continue;
+            if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE' || markerTypeUpper === 'FREEZE' || markerTypeUpper === 'SEED') continue;
         }
         marker.row = toRow;
         marker.col = toCol;
@@ -831,6 +831,7 @@ function applyExtremeHyperactiveRepel(cardState: CardState, gameState: GameState
             if (!target) continue;
 
             let movedRes = false;
+            let usedBoardOpsMove = false;
             if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
                 const res = deps.BoardOps.moveAt(
                     cardState,
@@ -848,6 +849,7 @@ function applyExtremeHyperactiveRepel(cardState: CardState, gameState: GameState
                     }
                 );
                 movedRes = !!(res && res.moved);
+                usedBoardOpsMove = !!(res && res.markerHandled === true);
             } else {
                 setBoardCell(gameState, fromRow, fromCol, EMPTY);
                 setBoardCell(gameState, target.row, target.col, sourceVal);
@@ -856,7 +858,9 @@ function applyExtremeHyperactiveRepel(cardState: CardState, gameState: GameState
 
             if (!movedRes) continue;
 
-            moveCoexistingSpecialMarkers(cardState, null, fromRow, fromCol, target.row, target.col);
+            if (!usedBoardOpsMove) {
+                moveCoexistingSpecialMarkers(cardState, null, fromRow, fromCol, target.row, target.col);
+            }
             repelled.push({
                 from: { row: fromRow, col: fromCol },
                 to: { row: target.row, col: target.col },
@@ -1092,6 +1096,7 @@ function resolveHyperactiveFlipEvasion(
             const fromRow = entry.row;
             const fromCol = entry.col;
 
+            let usedBoardOpsMove = false;
             if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
                 const res = deps.BoardOps.moveAt(
                     cardState,
@@ -1105,6 +1110,7 @@ function resolveHyperactiveFlipEvasion(
                     Object.assign({}, buildMovingStonePresentationMeta(cardState, fromRow, fromCol), { evade: true })
                 );
                 movedRes = !!(res && res.moved);
+                usedBoardOpsMove = !!(res && res.markerHandled === true);
             } else {
                 setBoardCell(gameState, fromRow, fromCol, EMPTY);
                 setBoardCell(gameState, target.row, target.col, ownerVal);
@@ -1112,7 +1118,9 @@ function resolveHyperactiveFlipEvasion(
             }
 
             if (movedRes) {
-                moveCoexistingSpecialMarkers(cardState, entry, fromRow, fromCol, target.row, target.col);
+                if (!usedBoardOpsMove) {
+                    moveCoexistingSpecialMarkers(cardState, entry, fromRow, fromCol, target.row, target.col);
+                }
                 entry.row = target.row;
                 entry.col = target.col;
                 consumeFlipEvade(entry, markerTypeUpper);
@@ -1512,6 +1520,7 @@ function moveHyperactiveOnce(
             }
 
             let vacated = false;
+            let usedBoardOpsVacate = false;
             if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
                 const res = deps.BoardOps.moveAt(
                     cardState,
@@ -1529,6 +1538,7 @@ function moveHyperactiveOnce(
                     }
                 );
                 vacated = !!(res && res.moved);
+                usedBoardOpsVacate = !!(res && res.markerHandled === true);
             } else {
                 setBoardCell(gameState, picked.row, picked.col, EMPTY);
                 setBoardCell(gameState, vacateTarget.row, vacateTarget.col, targetVal as number);
@@ -1540,7 +1550,9 @@ function moveHyperactiveOnce(
                 continue;
             }
 
-            moveCoexistingSpecialMarkers(cardState, entry, picked.row, picked.col, vacateTarget.row, vacateTarget.col);
+            if (!usedBoardOpsVacate) {
+                moveCoexistingSpecialMarkers(cardState, entry, picked.row, picked.col, vacateTarget.row, vacateTarget.col);
+            }
             repelled.push({
                 from: { row: picked.row, col: picked.col },
                 to: { row: vacateTarget.row, col: vacateTarget.col },
@@ -1580,6 +1592,7 @@ function moveHyperactiveOnce(
 
     let moveSucceeded = usedExtremeSwapFallback;
     if (!usedExtremeSwapFallback) {
+        let usedBoardOpsMove = false;
         if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
             const moveResult = deps.BoardOps.moveAt(
                 cardState,
@@ -1593,6 +1606,7 @@ function moveHyperactiveOnce(
                 buildMovingStonePresentationMeta(cardState, sourceRow, sourceCol)
             );
             moveSucceeded = !!(moveResult && moveResult.moved);
+            usedBoardOpsMove = !!(moveResult && moveResult.markerHandled === true);
         } else {
             setBoardCell(gameState, sourceRow, sourceCol, EMPTY);
             setBoardCell(gameState, target.row, target.col, ownerVal);
@@ -1601,7 +1615,9 @@ function moveHyperactiveOnce(
         if (!moveSucceeded) {
             return { moved, destroyed, flipped, repelled, ownerKey };
         }
-        moveCoexistingSpecialMarkers(cardState, entry, sourceRow, sourceCol, target.row, target.col);
+        if (!usedBoardOpsMove) {
+            moveCoexistingSpecialMarkers(cardState, entry, sourceRow, sourceCol, target.row, target.col);
+        }
         entry.row = target.row;
         entry.col = target.col;
     }
@@ -1906,6 +1922,7 @@ function processUltimateHyperactiveMoveAtAnchor(
             deps.getCardContext ? deps.getCardContext(cardState) : {}
         );
         let movedRes = false;
+        let usedBoardOpsMove = false;
         if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
             const res = deps.BoardOps.moveAt(
                 cardState,
@@ -1919,6 +1936,7 @@ function processUltimateHyperactiveMoveAtAnchor(
                 Object.assign({}, buildMovingStonePresentationMeta(cardState, sourceRow, sourceCol), { step })
             );
             movedRes = !!(res && res.moved);
+            usedBoardOpsMove = !!(res && res.markerHandled === true);
         } else {
             setBoardCell(gameState, sourceRow, sourceCol, EMPTY);
             setBoardCell(gameState, target.row, target.col, ownerVal);
@@ -1926,7 +1944,9 @@ function processUltimateHyperactiveMoveAtAnchor(
         }
 
         if (!movedRes) break;
-        moveCoexistingSpecialMarkers(cardState, entry, sourceRow, sourceCol, target.row, target.col);
+        if (!usedBoardOpsMove) {
+            moveCoexistingSpecialMarkers(cardState, entry, sourceRow, sourceCol, target.row, target.col);
+        }
         entry.row = target.row;
         entry.col = target.col;
         moved.push({ from, to: { row: target.row, col: target.col }, step, distance: target.distance });
@@ -2049,6 +2069,7 @@ function moveRobotVacuumOnce(
     const from: Position = { row: entry.row, col: entry.col };
 
     let movedRes = false;
+    let usedBoardOpsMove = false;
     if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
         const res = deps.BoardOps.moveAt(
             cardState,
@@ -2062,6 +2083,7 @@ function moveRobotVacuumOnce(
             buildMovingStonePresentationMeta(cardState, entry.row, entry.col)
         );
         movedRes = !!(res && res.moved);
+        usedBoardOpsMove = !!(res && res.markerHandled === true);
     } else {
         setBoardCell(gameState, entry.row, entry.col, EMPTY);
         setBoardCell(gameState, target.row, target.col, ownerVal);
@@ -2070,7 +2092,9 @@ function moveRobotVacuumOnce(
 
     if (!movedRes) return { moved, destroyed, flipped, ownerKey };
 
-    moveCoexistingSpecialMarkers(cardState, entry, from.row, from.col, target.row, target.col);
+    if (!usedBoardOpsMove) {
+        moveCoexistingSpecialMarkers(cardState, entry, from.row, from.col, target.row, target.col);
+    }
     entry.row = target.row;
     entry.col = target.col;
     moved.push({ from, to: { row: target.row, col: target.col }, specialType: 'ROBOT_VACUUM' });
@@ -2194,80 +2218,110 @@ function processGluttonousMoveAtAnchor(
         const target = adjacentEnemies.splice(index, 1)[0];
         if (!target) continue;
 
-        const from: Position = { row: entry.row, col: entry.col };
-        const destroyResult = _destroyGluttonousTarget(
-            cardState,
-            gameState,
-            ownerKey,
-            from.row,
-            from.col,
-            target.row,
-            target.col,
-            deps
-        );
-        if (!destroyResult || (!destroyResult.destroyed && !destroyResult.proliferated)) continue;
-
-        if (destroyResult.proliferated) {
-            const eatDetail = {
-                row: target.row,
-                col: target.col,
-                sourceRow: from.row,
-                sourceCol: from.col,
-                proliferated: true
-            };
-            ate.push(eatDetail);
-            if (entry.data && typeof entry.data === 'object') {
-                entry.data.gluttonousMissStreak = 0;
-            }
-            return { moved, destroyed, flipped, ownerKey, ate };
-        }
-
-        let movedRes = false;
-        if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
-            const res = deps.BoardOps.moveAt(
+        let eatResult: GluttonousMoveResult | null = null;
+        const resolveEat = () => {
+            const from: Position = { row: entry.row, col: entry.col };
+            const destroyResult = _destroyGluttonousTarget(
                 cardState,
                 gameState,
+                ownerKey,
                 from.row,
                 from.col,
                 target.row,
                 target.col,
-                'GLUTTONOUS_WILL',
-                'gluttonous_eat_move',
-                Object.assign({}, buildMovingStonePresentationMeta(cardState, from.row, from.col), {
+                deps
+            );
+            if (!destroyResult || (!destroyResult.destroyed && !destroyResult.proliferated)) return;
+
+            if (destroyResult.proliferated) {
+                const eatDetail = {
+                    row: target.row,
+                    col: target.col,
                     sourceRow: from.row,
                     sourceCol: from.col,
-                    ate: true
-                })
-            );
-            movedRes = !!(res && res.moved);
-        } else {
-            setBoardCell(gameState, from.row, from.col, EMPTY);
-            setBoardCell(gameState, target.row, target.col, ownerVal);
-            movedRes = true;
-        }
+                    proliferated: true
+                };
+                ate.push(eatDetail);
+                if (entry.data && typeof entry.data === 'object') {
+                    entry.data.gluttonousMissStreak = 0;
+                }
+                eatResult = { moved, destroyed, flipped, ownerKey, ate };
+                return;
+            }
 
-        if (!movedRes) {
+            let movedRes = false;
+            let usedBoardOpsMove = false;
+            if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
+                const res = deps.BoardOps.moveAt(
+                    cardState,
+                    gameState,
+                    from.row,
+                    from.col,
+                    target.row,
+                    target.col,
+                    'GLUTTONOUS_WILL',
+                    'gluttonous_eat_move',
+                    Object.assign({}, buildMovingStonePresentationMeta(cardState, from.row, from.col), {
+                        sourceRow: from.row,
+                        sourceCol: from.col,
+                        ate: true
+                    })
+                );
+                movedRes = !!(res && res.moved);
+                usedBoardOpsMove = !!(res && res.markerHandled === true);
+            } else {
+                setBoardCell(gameState, from.row, from.col, EMPTY);
+                setBoardCell(gameState, target.row, target.col, ownerVal);
+                movedRes = true;
+            }
+
+            if (!movedRes) {
+                const eatDetail = { row: target.row, col: target.col, sourceRow: from.row, sourceCol: from.col };
+                ate.push(eatDetail);
+                destroyed.push({ ...eatDetail, specialType: 'GLUTTONOUS' });
+                if (entry.data && typeof entry.data === 'object') {
+                    entry.data.gluttonousMissStreak = 0;
+                }
+                eatResult = { moved, destroyed, flipped, ownerKey, ate };
+                return;
+            }
+
+            if (!usedBoardOpsMove) {
+                moveCoexistingSpecialMarkers(cardState, entry, from.row, from.col, target.row, target.col);
+            }
+            entry.row = target.row;
+            entry.col = target.col;
+            moved.push({ from, to: { row: target.row, col: target.col }, specialType: 'GLUTTONOUS' });
             const eatDetail = { row: target.row, col: target.col, sourceRow: from.row, sourceCol: from.col };
             ate.push(eatDetail);
             destroyed.push({ ...eatDetail, specialType: 'GLUTTONOUS' });
             if (entry.data && typeof entry.data === 'object') {
                 entry.data.gluttonousMissStreak = 0;
             }
-            return { moved, destroyed, flipped, ownerKey, ate };
-        }
 
-        moveCoexistingSpecialMarkers(cardState, entry, from.row, from.col, target.row, target.col);
-        entry.row = target.row;
-        entry.col = target.col;
-        moved.push({ from, to: { row: target.row, col: target.col }, specialType: 'GLUTTONOUS' });
-        const eatDetail = { row: target.row, col: target.col, sourceRow: from.row, sourceCol: from.col };
-        ate.push(eatDetail);
-        destroyed.push({ ...eatDetail, specialType: 'GLUTTONOUS' });
-        if (entry.data && typeof entry.data === 'object') {
-            entry.data.gluttonousMissStreak = 0;
-        }
+            eatResult = { moved, destroyed, flipped, ownerKey, ate };
+        };
 
-        return { moved, destroyed, flipped, ownerKey, ate };
+        if (deps.BoardOps && typeof deps.BoardOps.runEffectBlock === 'function') {
+            deps.BoardOps.runEffectBlock(cardState, gameState, {
+                kind: 'anchor_effect',
+                randomSource: p,
+                cause: 'GLUTTONOUS_WILL',
+                reason: 'gluttonous_eat',
+                owner: ownerKey,
+                sourceRow: entry.row,
+                sourceCol: entry.col
+            }, resolveEat);
+        } else if (deps.BoardOps && typeof deps.BoardOps.runDestroyBlock === 'function') {
+            deps.BoardOps.runDestroyBlock(cardState, gameState, resolveEat, {
+                randomSource: p,
+                cause: 'GLUTTONOUS_WILL',
+                reason: 'gluttonous_eat'
+            });
+        } else {
+            resolveEat();
+        }
+        if (eatResult) return eatResult;
     }
 
     const from: Position = { row: entry.row, col: entry.col };
@@ -2278,6 +2332,7 @@ function processGluttonousMoveAtAnchor(
         const target = pickRobotVacuumApproachTarget(moveCandidates, enemies, p);
         if (target) {
             let movedRes = false;
+            let usedBoardOpsMove = false;
             if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
                 const res = deps.BoardOps.moveAt(
                     cardState,
@@ -2291,6 +2346,7 @@ function processGluttonousMoveAtAnchor(
                     buildMovingStonePresentationMeta(cardState, entry.row, entry.col)
                 );
                 movedRes = !!(res && res.moved);
+                usedBoardOpsMove = !!(res && res.markerHandled === true);
             } else {
                 setBoardCell(gameState, entry.row, entry.col, EMPTY);
                 setBoardCell(gameState, target.row, target.col, ownerVal);
@@ -2298,7 +2354,9 @@ function processGluttonousMoveAtAnchor(
             }
 
             if (movedRes) {
-                moveCoexistingSpecialMarkers(cardState, entry, entry.row, entry.col, target.row, target.col);
+                if (!usedBoardOpsMove) {
+                    moveCoexistingSpecialMarkers(cardState, entry, entry.row, entry.col, target.row, target.col);
+                }
                 entry.row = target.row;
                 entry.col = target.col;
                 movedTo = { row: target.row, col: target.col };
@@ -2379,6 +2437,7 @@ function processRobotVacuumMoveAtAnchor(
         };
     }
 
+    const resolveAnchor = (): RobotVacuumMoveResult => {
     const ownerKey = entry.owner as PlayerKey;
     const ownerVal = ownerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
     const randomSource = resolveDeterministicPrng(prng, deps, 'CardHyperactive.processRobotVacuumMoveAtAnchor');
@@ -2483,6 +2542,20 @@ function processRobotVacuumMoveAtAnchor(
         expired,
         suckedCount: sucked.length
     };
+    };
+
+    if (deps.BoardOps && typeof deps.BoardOps.runEffectBlock === 'function') {
+        return deps.BoardOps.runEffectBlock(cardState, gameState, {
+            kind: 'anchor_effect',
+            cause: 'ROBOT_VACUUM',
+            reason: 'robot_vacuum_suck',
+            owner: playerKey,
+            sourceRow: row,
+            sourceCol: col,
+            randomSource: resolveDeterministicPrng(prng, deps, 'CardHyperactive.processRobotVacuumMoveAtAnchor')
+        }, resolveAnchor);
+    }
+    return resolveAnchor();
 }
 
 function applyHyperactiveInheritWill(

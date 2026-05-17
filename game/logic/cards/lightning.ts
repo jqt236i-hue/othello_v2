@@ -302,6 +302,7 @@ function processAnchor(cardState, gameState, playerKey, row, col, options) {
     return { destroyed, anchors, expired };
   }
 
+  const resolveAnchor = () => {
   const targets = collectEnemyTargets(gameState, enemyValue);
   if (targets.length > 0) {
     const target = targets[resolveRandomIndex(targets.length, randomFn)];
@@ -334,6 +335,20 @@ function processAnchor(cardState, gameState, playerKey, row, col, options) {
 
   cleanupExpiredLightning(cardState);
   return { destroyed, anchors, expired };
+  };
+
+  if (options.BoardOps && typeof options.BoardOps.runEffectBlock === 'function') {
+    return options.BoardOps.runEffectBlock(cardState, gameState, {
+      kind: 'anchor_effect',
+      cause: 'LIGHTNING_WILL',
+      reason: 'lightning_destroyed',
+      owner: playerKey,
+      sourceRow: row,
+      sourceCol: col,
+      randomSource: options.random || null
+    }, resolveAnchor);
+  }
+  return resolveAnchor();
 }
 
 function processLightningWillEffects(cardState, gameState, playerKey, deps) {

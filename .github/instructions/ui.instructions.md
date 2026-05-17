@@ -1,5 +1,5 @@
 ---
-applyTo: 'ui/**/*.js'
+applyTo: 'ui/**/*.ts,ui/**/*.js'
 ---
 
 # ui/ instruction

@@ -1,6 +1,6 @@
 ---
 name: 'animation-visual-playback-workflow'
-description: 'PLAYBACK_EVENTS、Single Visual Writer、board render 差分、playback lock、visual regression を、この repo の events 順 / Spec B 前提で安全に直すワークフロー。Use when editing ui/animation-*.js, ui/diff-renderer.js, ui/playback-engine.js, ui/presentation-handler.js, ui/playback-state-manager.js, ui/board-renderer.js, ui/stone-visuals.js, or related animation/visual tests in this card-othello repository.'
+description: 'PLAYBACK_EVENTS、Single Visual Writer、board render 差分、playback lock、visual regression を、この repo の events 順 / Spec B 前提で安全に直すワークフロー。Use when editing ui/animation-*.js, ui/diff-renderer.js, ui/playback-engine.js, ui/presentation-handler.ts / .js shim, ui/playback-state-manager.ts / .js shim, ui/board-renderer.js, ui/stone-visuals.js, or related animation/visual tests in this card-othello repository.'
 argument-hint: 'どの演出崩れや再生崩れを直したいか。flip, board render, playback lock, visual regression なども書く'
 ---
 
@@ -28,9 +28,9 @@ argument-hint: 'どの演出崩れや再生崩れを直したいか。flip, boar
 - `ui/animation-utils.js`
 - `ui/board-renderer.js`
 - `ui/diff-renderer.js`
-- `ui/presentation-handler.js`
+- `ui/presentation-handler.ts / .js shim`
 - `ui/playback-engine.js`
-- `ui/playback-state-manager.js`
+- `ui/playback-state-manager.ts / .js shim`
 - `ui/stone-visuals.js`
 - 関連 test: `test/ui.animation-engine.*`, `test/ui.diff-renderer.flip.test.js`, `test/presentation.board-updated.serial.test.js`
 

@@ -65,7 +65,7 @@
 - hidden `TRAP` は引き続き「通常石として隠れている間は特殊石扱いしない」。
 - `TIME_BOMB` は引き続き timer を持ち、反転で解除され、起爆時は `bomb_explode` 系と destroy phase 契約を守る。
 - `意志狩りの王` やカード詳細タグの「特殊石」判定は、引き続き見た目基準で bombs を含む。
-- `LOSS_WILL`、`CLONE_WILL`、`SPLIT_WILL`、`DRAGON` 系などの bomb-specific behavior は維持する。
+- `LOSS_WILL`、`CLONE_WILL`、`DRAGON` 系などの bomb-specific behavior は維持する。
 - root を正本とし、`worker-public/` は最終 phase で `npm run worker:prepare` により同期する。
 
 ## 5. 置換する契約
@@ -188,7 +188,7 @@ npx jest --runInBand --runTestsByPath test\game.special-stone-visual-rule.test.j
 ### 作業
 
 1. `TIME_BOMB` の配置処理を `kind: 'specialStone'` + `data.type: 'TIME_BOMB'` + `data.category: 'bomb'` へ切り替える。
-2. `CLONE_WILL` / `SPLIT_WILL` など、bomb marker を複製する経路を新 shape へ切り替える。
+2. `CLONE_WILL` など、bomb marker を複製する経路を新 shape へ切り替える。
 3. debug / helper 生成経路も合わせる。
 4. `tickBombs()`、`tickBombAt()`、`removeBombAt()` 相当の処理は category helper を使うように更新する。
 5. 旧 shape 読み込みは残し、新旧混在状態でも tick / destroy / clone が壊れないようにする。

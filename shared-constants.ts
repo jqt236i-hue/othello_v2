@@ -96,7 +96,8 @@ try {
     // Node path: load JSON directly
     if (!catalogCards && typeof module === 'object' && module.exports) {
         // eslint-disable-next-line global-require
-        const json = require('./cards/catalog.json');
+        const path = require('path');
+        const json = require(path.resolve(process.cwd(), 'cards', 'catalog.json'));
         if (json && Array.isArray(json.cards)) {
             catalogCards = json.cards.map((c: any) => ({
                 id: c.id,

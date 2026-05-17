@@ -75,7 +75,7 @@ trainCycleArgs:
   - --adoption-heuristic-weight
   - "1.00"
   - --adoption-white-priority
-  - "0.70"
+  - "1.00"
   - --adoption-quality-weight-corner
   - "0.06"
   - --adoption-quality-weight-edge

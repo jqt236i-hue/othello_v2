@@ -623,10 +623,6 @@ function getCloneTargets(cardState: CardState, gameState: GameState, playerKey: 
     return res;
 }
 
-function getSplitTargets(cardState: CardState, gameState: GameState, playerKey: PlayerKey): TargetCell[] {
-    return getCloneTargets(cardState, gameState, playerKey);
-}
-
 function isMainBoardCell(row: number, col: number, gameState: GameState): boolean {
     if (SharedBoardUtils && typeof SharedBoardUtils.isMainBoardCell === 'function') {
         return SharedBoardUtils.isMainBoardCell(row, col, gameState);
@@ -1027,7 +1023,6 @@ export = {
     getCellTeleportTargets,
     getCellTeleportDestinations,
     getCloneTargets,
-    getSplitTargets,
     getBoardExpansionTargets,
     getBoardExpansionGodTargets,
     getBlockadeTargets,

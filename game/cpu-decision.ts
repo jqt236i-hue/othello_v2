@@ -2212,7 +2212,6 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     SUPPLY_WILL: makePlanPressureProfile(1, 2, 0, 2),
     SILVER_STONE: makePlanPressureProfile(1, 2, 0, 2),
     SNIPER_WILL: makePlanPressureProfile(1, 1, 1, 2),
-    SPLIT_WILL: makePlanPressureProfile(2, 2, 2, 3),
     STRONG_WIND_WILL: makePlanPressureProfile(2, 3, 2, 2),
     SUPER_BUOYANCY_WILL: makePlanPressureProfile(2, 4, 2, 0),
     SUPER_GRAVITY_WILL: makePlanPressureProfile(2, 4, 2, 0),
@@ -4530,25 +4529,6 @@ function scorePendingTargetByType(playerKey: any, pendingType: any, target: any,
         }
         if (emptyAdj <= 1) score -= 120;
         return score;
-    case 'SPLIT_WILL':
-        if (!own) return -2600;
-        if (level >= 6 && !isCloneSplitEligibleSource(playerKey, row, col, markerProfile)) return -8000;
-        if (corner) score -= 920;
-        else if (edge) score += 60;
-        score += (emptyAdj * 155) + (oppAdj * 80) - (ownAdj * 26);
-        score -= markerProfile.ownSpecialScore * 1.35;
-        score -= markerProfile.ownBombCount * 220;
-        score -= seatValue * 0.05;
-        if (timedProfile) {
-            score -= timedProfile.ownTimedScore * 0.95;
-            score -= timedProfile.ownRemainingSum * 42;
-            score -= timedProfile.ownTimedCount * 120;
-            score += timedProfile.ownCriticalCount * 180;
-        } else if (markerProfile.ownSpecialScore <= 0 && markerProfile.ownBombCount <= 0) {
-            score += 180;
-        }
-        if (emptyAdj <= 1) score -= 120;
-        return score;
     case 'METEOR_WILL':
         score += opp ? 240 : (own ? -260 : 40);
         if (corner) score += opp ? 260 : (own ? -4200 : 260);
@@ -5972,47 +5952,6 @@ async function cpuSelectCloneWillWithPolicy(playerKey: any): Promise<any> {
 }
 
 /**
- * 分裂の意志 対象選択
- * @param {string} playerKey - 'black' または 'white'
- */
-async function cpuSelectSplitWillWithPolicy(playerKey: any): Promise<any> {
-    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
-        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
-        : [];
-
-    if (!targets.length) {
-        cpuDebugLog(`[CPU] ${playerKey}: 分裂対象なし`);
-        clearCpuPendingEffect(playerKey);
-        return;
-    }
-
-    const eligibleTargets = filterCloneSplitTargetsForLv6(playerKey, targets);
-    if (!eligibleTargets.length) {
-        cpuDebugLog(`[CPU] ${playerKey}: 分裂対象なし (通常石は除外)`);
-        clearCpuPendingEffect(playerKey);
-        return;
-    }
-
-    const target = await choosePendingTargetWithPolicyAsync(playerKey, 'SPLIT_WILL', eligibleTargets, null) || eligibleTargets[0];
-    cpuDebugLog(`[CPU] ${playerKey}: 分裂ターゲット (${target.row}, ${target.col})`);
-
-    const pipelineResult = await runCpuPendingSelectionViaPipeline(
-        playerKey,
-        { splitTarget: { row: target.row, col: target.col } },
-        'SPLIT_WILL'
-    );
-    if (pipelineResult) return;
-
-    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySplitWill === 'function') {
-        const res = CardLogic.applySplitWill(cardState, gameState, playerKey, target.row, target.col);
-        if (!res || !res.applied) {
-            clearCpuPendingEffect(playerKey);
-        }
-        emitCpuSelectionStateChange();
-    }
-}
-
-/**
  * テレポート 対象選択
  * @param {string} playerKey - 'black' または 'white'
  */
@@ -6230,7 +6169,6 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectFreezeWillWithPolicy,
         cpuSelectSeedWillWithPolicy,
         cpuSelectCloneWillWithPolicy,
-        cpuSelectSplitWillWithPolicy,
         cpuSelectTemptWillWithPolicy,
         computeCpuAction,
         setCpuRng,

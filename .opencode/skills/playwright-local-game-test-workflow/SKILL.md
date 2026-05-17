@@ -40,9 +40,9 @@ argument-hint: '何をローカル実機確認したいか。single-player か r
 
 - `package.json`
 - `scripts/serve-with-fallback.ts`, `scripts/serve-with-fallback.js`
-- `scripts/local-match-server.ts`, `scripts/local-match-server.js`
+- `scripts/local-match-server.ts`, `scripts/local-match-server.ts / .js shim`
 - `index.html`（エントリポイント。**`file:///` で開かず、`npm run serve` 経由で配信する**）
-- `ui/bootstrap.js`
+- `ui/bootstrap.ts / .js compatibility shim`
 - `test/e2e/e2e-runtime-helpers.js`
 - `test/e2e/cpu.e2e.test.ts`
 - `test/e2e/card_effects.e2e.test.ts`

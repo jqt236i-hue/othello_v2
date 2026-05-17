@@ -202,6 +202,18 @@ Self-originated preview / recovery paths may suppress playback, shadow playback,
 Those branches are compatibility behavior only.
 They must not overrule newer authoritative state.
 
+### 6.5 Board effect blocks
+
+Board-changing card effects should execute inside an explicit effect block when they contain more than one presentation-relevant mutation or when rescue timing matters.
+
+- `BoardOps.runEffectBlock()` is the canonical boundary for one card effect / one turn-start anchor.
+- `runDestroyBlock()` remains the compatibility boundary for destroy-only batches.
+- `runCellRemovalBlock()` remains the compatibility boundary for destroy-plus-hole flows, and rescue revives must flush after the hole/status application.
+- Stone Salvation God rescue entries capture the active action/effect metadata when the destroy is queued, so the rescue `SPAWN` keeps the same effect block as its source `DESTROY` even if effect blocks are nested.
+- `runSpawnBlock()` remains spawn-specific and must preserve spawn block metadata; it is not a destroy/rescue boundary.
+- `effectBlockId` is presentation metadata, not game authority state.
+- `game/` remains headless: effect blocks may emit presentation events, but must not introduce DOM, sound, timer, or network dependencies.
+
 ## 7. Primary flow contracts
 
 ### 7.1 Card use to placement flow

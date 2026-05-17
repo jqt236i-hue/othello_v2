@@ -1,3 +1,4 @@
+// @ts-nocheck
 const {
     parseArgs,
     buildPresetArgs
@@ -41,7 +42,7 @@ describe('selfplay training preset script', () => {
         expect(preset).toContain('--quick-adoption-threshold');
         expect(preset).toContain('0.005');
         expect(preset).toContain('--quick-adoption-confidence-level');
-        expect(preset).toContain('0.90');
+        expect(preset).toContain('1.00');
         expect(preset).toContain('--final-adoption-threshold');
         expect(preset).toContain('0.02');
         expect(preset).toContain('--final-adoption-confidence-level');
@@ -129,7 +130,7 @@ describe('selfplay training preset script', () => {
         expect(preset).toContain('--adoption-use-guide-baseline');
         expect(preset).toContain('--no-carry-over-checkpoint');
         expect(preset).toContain('--adoption-white-priority');
-        expect(preset).toContain('0.50');
+        expect(preset).toContain('1.00');
         expect(preset).toContain('--onnx-gate-threshold');
         expect(preset).toContain('0.48');
         expect(preset).toContain('--onnx-gate-min-seed-score');
@@ -224,7 +225,7 @@ describe('selfplay training preset script', () => {
         expect(preset).toContain('--final-adoption-min-seed-pass-count');
         expect(preset).toContain('1');
         expect(preset).toContain('--adoption-white-priority');
-        expect(preset).toContain('0.70');
+        expect(preset).toContain('1.00');
         expect(preset).toContain('--adoption-quality-weight-corner');
         expect(preset).toContain('0.06');
         expect(preset).toContain('--adoption-quality-weight-card-future');

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -25,6 +26,15 @@ describe('selfplay generate data script', () => {
         expect(args.policyScoreWeightMax).toBeCloseTo(teacher.policyScoreWeightMax, 6);
         expect(args.heuristicWeightMin).toBeCloseTo(teacher.heuristicWeightMin, 6);
         expect(args.heuristicWeightMax).toBeCloseTo(teacher.heuristicWeightMax, 6);
+        expect(args.blackDeckCode).toBeNull();
+        expect(args.whiteDeckCode).toContain('D1C1:');
+        expect(args.whiteDeckCode).toContain('reinforcement_01');
+    });
+
+    test('parseArgs can disable the fixed white selfplay deck', () => {
+        const args = parseArgs(['--no-white-deck-code']);
+
+        expect(args.whiteDeckCode).toBeNull();
     });
 
     test('parseArgs accepts existing --policy-model path', () => {

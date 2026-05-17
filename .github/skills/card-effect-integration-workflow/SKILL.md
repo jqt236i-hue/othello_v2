@@ -33,9 +33,9 @@ argument-hint: 'どの既存カードをどう変えたいか。削除, 仕様�
 - `cards/catalog.json`
 - `cards/catalog.js`
 - `cards/catalog.generated.js`
-- `game/logic/cards.js`, `game/logic/cards-internal/*`, `game/card-effects/*`
-- `game/cpu-decision.js` と関連 CPU helper
-- `ui/handlers/rules-help.js`, presentation / pending target 周り, `shared/deck-spec.js`
+- `game/logic/cards.ts`（`.js` は互換 shim）, `game/logic/cards-internal/*`, `game/card-effects/*`
+- `game/cpu-decision.ts / .js shim` と関連 CPU helper
+- `ui/handlers/rules-help.ts / .js shim`, presentation / pending target 周り, `shared/deck-spec.ts / .js shim`
 
 ## Common Traps
 

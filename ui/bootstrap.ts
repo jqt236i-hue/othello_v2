@@ -12,7 +12,6 @@ declare const SharedUIBootstrap: any;
 declare const NetworkMatchClient: any;
 declare const waitForPlaybackIdle: (...args: any[]) => any;
 declare const hideCpuSpeechBubble: (...args: any[]) => any;
-declare const hideHeroSpeechBubble: (...args: any[]) => any;
 declare const resetRenderStats: (...args: any[]) => any;
 declare const clearEffectLivePanel: (...args: any[]) => any;
 declare const processCpuTurn: (...args: any[]) => any | undefined;
@@ -744,12 +743,6 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 : (root && typeof root.hideCpuSpeechBubble === 'function' ? root.hideCpuSpeechBubble : null);
             if (hideCpuSpeechBubbleFn) hideCpuSpeechBubbleFn();
         } catch (e: any) { /* ignore */ }
-        try {
-            const hideHeroSpeechBubbleFn = (typeof hideHeroSpeechBubble === 'function')
-                ? hideHeroSpeechBubble
-                : (root && typeof root.hideHeroSpeechBubble === 'function' ? root.hideHeroSpeechBubble : null);
-            if (hideHeroSpeechBubbleFn) hideHeroSpeechBubbleFn();
-        } catch (e: any) { /* ignore */ }
     }
 
     function removeNonPreservedChildren(parent: any, preservedChildren: any) {
@@ -953,14 +946,6 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 commentaryBroker.initBroker({
                     root: (typeof globalThis !== 'undefined') ? globalThis : null,
                     addLog,
-                    getShowHeroSpeechBubble: () => {
-                        try {
-                            if (typeof window !== 'undefined' && typeof window.showHeroSpeechBubble === 'function') {
-                                return window.showHeroSpeechBubble;
-                            }
-                        } catch (e: any) { /* ignore */ }
-                        return null;
-                    },
                     getShowCpuSpeechBubble: () => {
                         try {
                             if (typeof window !== 'undefined' && typeof window.showCpuSpeechBubble === 'function') {

@@ -12,10 +12,10 @@ let CommentaryContextHelpers: any = null;
 let CommentaryRuntimeHelpers: any = null;
 let OwnerHelpersModule: any = null;
 try {
-    Data = _require('../../data/dialogue/fixed-commentary-data');
+    Data = _require('./commentary-data');
 } catch (e) { Data = null; }
 if (!Data) {
-    try { Data = _require('../..//data/dialogue/fixed-commentary-data'); } catch (e) { Data = null; }
+    try { Data = _require('./commentary-data.js'); } catch (e) { Data = null; }
 }
 try { CommentaryContextHelpers = _require('../../shared/commentary-context-helpers'); } catch (e) { CommentaryContextHelpers = null; }
 try { CommentaryRuntimeHelpers = _require('../../shared/commentary-runtime-helpers'); } catch (e) { CommentaryRuntimeHelpers = null; }
@@ -24,38 +24,37 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
 
     const DEFAULT_DATA = {
         CARD_TYPE_LABELS: {},
-        CPU_COMMENTARY_DEFAULT_LEVEL: 3,
-        openingLines: ['開幕だ、盤面の温度を測る'],
-        middleAheadLines: ['この流れは押せる、丁寧に詰める'],
-        middleEvenLines: ['まだ拮抗、次の一手を研ぐ'],
-        middleBehindLines: ['苦しいが、逆転筋を探す'],
-        endAheadLines: ['終盤は優位、逃げ切る'],
-        endEvenLines: ['終盤で五分、精度で押す'],
-        endBehindLines: ['終盤で劣勢、最後まで噛みつく'],
-        chatterLines: ['今日は静かだ、でも手は止めない'],
-        tauntLines: ['その手は甘い、次で差を広げる'],
-        negativeLines: ['もう無理かも、でも一手は置く'],
-        bluffLines: ['余裕だ、…と言い聞かせる'],
-        boardSwingLines: ['盤面が一気に動いた、ここからが本番だ'],
-        passLines: ['打てる場所がない、次で取り返す'],
-        cardTargetLines: ['その狙いは見えている、返しを準備する'],
-        heroChatterLines: ['まだ五分だ、次の一手で流れを作る'],
-        heroAheadLines: ['この優位を崩さず、次も主導権を取る'],
-        heroBehindLines: ['苦しくても、ここから逆転の筋を拾う'],
-        heroCornerGainLines: ['角を取った、この流れを勝ち筋につなげる'],
-        heroCornerLossLines: ['角を取られた、でもここから立て直す'],
-        cornerFirstOwnedLines: ['角を先に取った、この流れは渡さない'],
-        cornerFirstLostLines: ['先に角を取られた、ここから立て直す'],
-        cornerStreakTwoOwnedLines: ['角を連続で取った、このまま押し切る'],
-        cornerStreakTwoLostLines: ['角を連続で取られた、受けを固める'],
-        cornerStreakThreeOwnedLines: ['角を3連続で取った、勝ち筋が太い'],
-        cornerStreakThreeLostLines: ['角を3連続で失った、まだ逆転は捨てない'],
-        cornerAllOwnedLines: ['四隅を全部取った、盤面は支配した'],
-        cornerAllLostLines: ['四隅を全部取られた、最後まで食らいつく'],
-        getCardUseLines: function () { return ['ここでカードを切る、流れを動かす']; },
-        getCardHitLines: function () { return ['そのカードは重い、受け切って返す']; },
-        getHeroCardUseLines: function () { return ['ここでカードを使う、この一手で流れを引き寄せる']; },
-        getHeroCardHitLines: function () { return ['相手がカードを切った、受けて返す手を探す']; }
+        CPU_COMMENTARY_DEFAULT_LEVEL: 4,
+        openingLines: ['盤面を見て次の手を考える'],
+        middleAheadLines: ['優位を崩さず、次の形を作る'],
+        middleEvenLines: ['まだ互角だ、次の一手を読む'],
+        middleBehindLines: ['不利だが、返す手は残っている'],
+        endAheadLines: ['終盤の優位を確実に守る'],
+        endEvenLines: ['終盤でもまだ勝負は動く'],
+        endBehindLines: ['終盤の不利を受けながら逆転を探す'],
+        chatterLines: ['盤面を見て次の手を考える'],
+        tauntLines: ['この流れなら主導権を取れる'],
+        negativeLines: ['不利だが、まだ立て直せる'],
+        bluffLines: ['無理をせず、次の形を作る'],
+        boardSwingLines: ['盤面が動いた、流れを読み直す'],
+        passLines: ['打てる場所がない、次に備える'],
+        cardTargetLines: ['狙いを確認し、返しを準備する'],
+        cornerFirstOwnedLines: ['角を先に取った、この流れを守る'],
+        cornerFirstLostLines: ['角を取られたが、ここから立て直す'],
+        cornerStreakTwoOwnedLines: ['角を続けて取った、形を固める'],
+        cornerStreakTwoLostLines: ['角を続けて取られた、辺を固め直す'],
+        cornerStreakThreeOwnedLines: ['角を重ねて取った、終盤まで形を残す'],
+        cornerStreakThreeLostLines: ['角を重ねて失った、中央で受ける'],
+        cornerAllOwnedLines: ['四隅を取った、終盤の形は強い'],
+        cornerAllLostLines: ['四隅を取られたが、返し筋を探す'],
+        getCardUseLines: function (cardType: any) {
+            const label = String(cardType || 'カード').trim() || 'カード';
+            return [`${label}の効果を使い、盤面を動かす`];
+        },
+        getCardHitLines: function (cardType: any) {
+            const label = String(cardType || 'カード').trim() || 'カード';
+            return [`相手の${label}を受け、盤面を立て直す`];
+        }
     };
 
     const DB = Data || DEFAULT_DATA;
@@ -74,40 +73,40 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
     const perSpeakerState = Object.create(null);
     const CPU_TONE_PREFIXES = Object.freeze({
         goblin: Object.freeze({
-            default: 'グヘヘ、',
-            ahead: 'ケケッ、',
-            behind: 'グギッ、',
-            card_used: 'ゲヒヒ、',
-            card_used_by_enemy: 'ギャッ、',
-            card_targeted: 'ケッ、',
-            pass: 'チッ、',
-            board_swing: 'グハハ、',
-            corner_owned: 'グヘヘ、',
-            corner_lost: 'ギリッ、'
+            default: 'へへっ、',
+            ahead: 'このまま、',
+            behind: 'まだだ、',
+            card_used: 'よし、',
+            card_used_by_enemy: 'くっ、',
+            card_targeted: '見えてる、',
+            pass: '置けないな、',
+            board_swing: '動いたな、',
+            corner_owned: 'よし、',
+            corner_lost: 'まずいな、'
         }),
         boss: Object.freeze({
             default: 'さて、',
-            ahead: 'フフ、',
+            ahead: 'この流れだ、',
             behind: 'まだだ、',
-            card_used: '見せよう、',
+            card_used: 'では、',
             card_used_by_enemy: 'なるほど、',
-            card_targeted: '把握している、',
-            pass: '……',
-            board_swing: 'いいだろう、',
-            corner_owned: '当然だ、',
-            corner_lost: '侮るな、'
+            card_targeted: '読んでいる、',
+            pass: '手がないな、',
+            board_swing: '流れが変わった、',
+            corner_owned: '角は取った、',
+            corner_lost: '受け直す、'
         }),
         finalBoss: Object.freeze({
-            default: '観測どおり、',
-            ahead: '既定どおり、',
-            behind: '想定内だ、',
-            card_used: '介入する、',
-            card_used_by_enemy: '誤差か、',
-            card_targeted: '把握済みだ、',
-            pass: 'まだだ、',
-            board_swing: '再計算する、',
-            corner_owned: '収束した、',
-            corner_lost: '補正する、'
+            default: '解析する、',
+            ahead: '優位を維持する、',
+            behind: '再計算する、',
+            card_used: '実行する、',
+            card_used_by_enemy: '影響を確認する、',
+            card_targeted: '対象は把握した、',
+            pass: '手番を送る、',
+            board_swing: '盤面を更新する、',
+            corner_owned: '角を確保した、',
+            corner_lost: '損失を補正する、'
         })
     });
 
@@ -136,10 +135,11 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
     function normalizeSpeakerRole(value: any) {
         try {
             if (CommentaryRuntimeHelpers && typeof CommentaryRuntimeHelpers.normalizeSpeakerRole === 'function') {
-                return CommentaryRuntimeHelpers.normalizeSpeakerRole(value, 'cpu');
+                const role = CommentaryRuntimeHelpers.normalizeSpeakerRole(value, 'cpu');
+                return role === 'cpu' ? 'cpu' : 'cpu';
             }
         } catch (e) { /* ignore */ }
-        return String(value || '').trim().toLowerCase() === 'hero' ? 'hero' : 'cpu';
+        return 'cpu';
     }
 
     function buildSpeakerStateKey(speakerRole: any, playerKey: any) {
@@ -155,10 +155,8 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
     }
 
     function initializeSpeakerStates() {
-        for (const speakerRole of ['cpu', 'hero']) {
-            for (const playerKey of ['black', 'white']) {
-                perSpeakerState[buildSpeakerStateKey(speakerRole, playerKey)] = createPlayerState();
-            }
+        for (const playerKey of ['black', 'white']) {
+            perSpeakerState[buildSpeakerStateKey('cpu', playerKey)] = createPlayerState();
         }
     }
 
@@ -532,36 +530,24 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
     }
 
     function resolveTonePrefix(eventType: any, advantage: any, speakerRole: any, level: any) {
-        if (speakerRole === 'cpu') {
-            const prefixes = (CPU_TONE_PREFIXES as any)[resolveCpuCommentaryTier(level)] || CPU_TONE_PREFIXES.boss;
-            if (eventType === 'card_used') return prefixes.card_used;
-            if (eventType === 'card_used_by_enemy') return prefixes.card_used_by_enemy;
-            if (eventType === 'card_targeted') return prefixes.card_targeted;
-            if (eventType === 'pass') return prefixes.pass;
-            if (eventType === 'board_swing') return prefixes.board_swing;
-            if (isCornerOwnedEventType(eventType)) return prefixes.corner_owned;
-            if (isCornerLostEventType(eventType)) return prefixes.corner_lost;
-            if (advantage === 'ahead') return prefixes.ahead;
-            if (advantage === 'behind') return prefixes.behind;
-            return prefixes.default;
-        }
-        if (eventType === 'card_used') return 'へへっ、';
-        if (eventType === 'card_used_by_enemy') return 'くそっ、';
-        if (eventType === 'card_targeted') return 'おっと、';
-        if (eventType === 'pass') return 'ちっ、';
-        if (eventType === 'board_swing') return 'よし、';
-        if (isCornerOwnedEventType(eventType)) return 'よし、';
-        if (isCornerLostEventType(eventType)) return 'くっ、';
-        if (advantage === 'ahead') return 'へへっ、';
-        if (advantage === 'behind') return 'くっ、';
-        return 'よし、';
+        const prefixes = (CPU_TONE_PREFIXES as any)[resolveCpuCommentaryTier(level)] || CPU_TONE_PREFIXES.boss;
+        if (eventType === 'card_used') return prefixes.card_used;
+        if (eventType === 'card_used_by_enemy') return prefixes.card_used_by_enemy;
+        if (eventType === 'card_targeted') return prefixes.card_targeted;
+        if (eventType === 'pass') return prefixes.pass;
+        if (eventType === 'board_swing') return prefixes.board_swing;
+        if (isCornerOwnedEventType(eventType)) return prefixes.corner_owned;
+        if (isCornerLostEventType(eventType)) return prefixes.corner_lost;
+        if (advantage === 'ahead') return prefixes.ahead;
+        if (advantage === 'behind') return prefixes.behind;
+        return prefixes.default;
     }
 
     function applyToneConsistency(line: any, eventType: any, advantage: any, speakerRole: any, level: any) {
         const raw = String(line || '').trim();
         if (!raw) return '';
         const body = raw
-            .replace(/^(へへっ、|くそっ、|おっと、|ちっ、|よし、|くっ、|グヘヘ、|ケケッ、|グギッ、|ゲヒヒ、|ギャッ、|ケッ、|チッ、|グハハ、|ギリッ、|さて、|フフ、|まだだ、|見せよう、|なるほど、|把握している、|……|いいだろう、|当然だ、|侮るな、|観測どおり、|既定どおり、|想定内だ、|介入する、|誤差か、|把握済みだ、|再計算する、|収束した、|補正する、)+/, '')
+            .replace(/^(へへっ、|このまま、|まだだ、|よし、|くっ、|見えてる、|置けないな、|動いたな、|まずいな、|さて、|この流れだ、|では、|なるほど、|読んでいる、|手がないな、|流れが変わった、|角は取った、|受け直す、|解析する、|優位を維持する、|再計算する、|実行する、|影響を確認する、|対象は把握した、|手番を送る、|盤面を更新する、|角を確保した、|損失を補正する、)+/, '')
             .replace(/[。！!？?]+$/g, '')
             .trim();
         if (!body) return '';
@@ -671,38 +657,6 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         return pickRandomLine(playerState, Array.isArray(lines) ? lines : []);
     }
 
-    function chooseHeroLine(playerState: any, eventType: any, advantage: any, context: any) {
-        if (isCornerOwnedEventType(eventType)) {
-            return pickRandomLine(
-                playerState,
-                resolveLinePool(DB.heroCornerGainLines, DEFAULT_DATA.heroCornerGainLines)
-            );
-        }
-        if (isCornerLostEventType(eventType)) {
-            return pickRandomLine(
-                playerState,
-                resolveLinePool(DB.heroCornerLossLines, DEFAULT_DATA.heroCornerLossLines)
-            );
-        }
-        if (eventType === 'card_used') {
-            const type = resolveCardType(context);
-            const factory = resolveLineFactory(DB.getHeroCardUseLines, DEFAULT_DATA.getHeroCardUseLines);
-            return pickRandomLine(playerState, factory(type, advantage));
-        }
-        if (eventType === 'card_used_by_enemy') {
-            const type = resolveCardType(context);
-            const factory = resolveLineFactory(DB.getHeroCardHitLines, DEFAULT_DATA.getHeroCardHitLines);
-            return pickRandomLine(playerState, factory(type, advantage));
-        }
-        if (advantage === 'ahead') {
-            return pickRandomLine(playerState, resolveLinePool(DB.heroAheadLines, DEFAULT_DATA.heroAheadLines));
-        }
-        if (advantage === 'behind') {
-            return pickRandomLine(playerState, resolveLinePool(DB.heroBehindLines, DEFAULT_DATA.heroBehindLines));
-        }
-        return pickRandomLine(playerState, resolveLinePool(DB.heroChatterLines, DEFAULT_DATA.heroChatterLines));
-    }
-
     function chooseCpuLine(playerState: any, eventType: any, phase: any, advantage: any, context: any, level: any) {
         if (eventType === 'game_start') {
             return pickCpuPoolLine(
@@ -790,7 +744,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         const corners = normalizeCorners(ctx, playerKey);
         const phase = normalizePhase(ctx.phase, ctx.turnNumber, (counts.black + counts.white));
         const advantage = resolveAdvantage(ctx, playerKey, counts, corners);
-        const commentaryLevel = speakerRole === 'cpu' ? resolveCpuCommentaryLevel(ctx) : null;
+        const commentaryLevel = resolveCpuCommentaryLevel(ctx);
 
         const own = playerKey === 'black' ? counts.black : counts.white;
         const opp = playerKey === 'black' ? counts.white : counts.black;
@@ -827,9 +781,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
             return '';
         }
 
-        const line = speakerRole === 'hero'
-            ? chooseHeroLine(playerState, eventType, advantage, ctx)
-            : chooseCpuLine(playerState, eventType, phase, advantage, ctx, commentaryLevel);
+        const line = chooseCpuLine(playerState, eventType, phase, advantage, ctx, commentaryLevel);
 
         const unified = applyToneConsistency(line, eventType, advantage, speakerRole, commentaryLevel);
         return sanitize(unified, Number(config.maxChars));
@@ -862,4 +814,4 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
 
 const engine = createEngine();
 
-export = engine;
+export = engine;

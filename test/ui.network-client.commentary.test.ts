@@ -69,7 +69,7 @@ describe('NetworkMatchClient commentary', () => {
     global.addLog = jest.fn();
     global.emitCardStateChange = jest.fn();
     global.emitGameStateChange = jest.fn();
-    global.emitBoardUpdate = jest.fn();
+    global.emitBoardUpdate = jest.fn(() => true);
     global.renderCardUI = jest.fn();
 
     global.EventSource = class MockEventSource {
@@ -173,13 +173,7 @@ describe('NetworkMatchClient commentary', () => {
     expect(global.addLog).not.toHaveBeenCalledWith('白CPU: 読み切った');
   });
 
-  test('remote use_card without playback animation also emits local hero enemy-card commentary', async () => {
-    requestCommentaryMock.mockImplementation(async (context) => (
-      context && context.speakerRole === 'hero'
-        ? '相手がカードを切った。受けて返す手を探す。'
-        : '読み切った'
-    ));
-
+  test('remote use_card without playback animation does not emit local hero enemy-card commentary', async () => {
     require('../ui/network-client.js');
     const client = window.NetworkMatchClient;
     expect(client).toBeTruthy();
@@ -215,13 +209,9 @@ describe('NetworkMatchClient commentary', () => {
       playerKey: 'white',
       cardId: 'swap_01'
     }));
-    expect(requestCommentaryMock).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      eventType: 'card_used_by_enemy',
-      playerKey: 'black',
-      cardId: 'swap_01',
+    expect(requestCommentaryMock).not.toHaveBeenCalledWith(expect.objectContaining({
       speakerRole: 'hero'
     }));
     expect(global.addLog).not.toHaveBeenCalledWith('白CPU: 読み切った');
-    expect(global.addLog).not.toHaveBeenCalledWith('勇者: 相手がカードを切った。受けて返す手を探す。');
   });
 });

@@ -1,5 +1,5 @@
 ---
-applyTo: 'game/**/*.js'
+applyTo: 'game/**/*.ts,game/**/*.js'
 ---
 
 # game/ instruction

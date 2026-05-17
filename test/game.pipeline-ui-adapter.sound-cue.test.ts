@@ -1468,7 +1468,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
-  test('SNIPER_WILL の sniper_shot が複数ある場合は命中数ぶん stone_destroy を再生する', () => {
+  test('SNIPER_WILL の sniper_shot が複数フェーズにある場合は各フェーズ1回 stone_destroy を再生する', () => {
     const base = [
       {
         type: 'destroy',
@@ -1506,7 +1506,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
-  test('LIGHTNING_WILL の lightning_destroyed が複数ある場合は命中数ぶん stone_destroy を再生する', () => {
+  test('LIGHTNING_WILL の lightning_destroyed が同一フェーズで複数対象に当たっても stone_destroy は1回だけ再生する', () => {
     const base = [
       {
         type: 'destroy',
@@ -1524,7 +1524,49 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       .map((ev) => ev.phase)
       .sort((a, b) => a - b);
 
-    expect(stoneCues).toEqual([10, 10]);
+    expect(stoneCues).toEqual([10]);
+  });
+
+  test('ULTIMATE_DESTROY_GOD の udg_destroyed は同時複数破壊なら1回、複数フェーズなら各フェーズ1回 stone_destroy を再生する', () => {
+    const base = [
+      {
+        type: 'destroy',
+        phase: 10,
+        targets: [
+          { r: 1, col: 1, cause: 'ULTIMATE_DESTROY_GOD', reason: 'udg_destroyed' },
+          { r: 1, col: 2, cause: 'ULTIMATE_DESTROY_GOD', reason: 'udg_destroyed' }
+        ]
+      },
+      {
+        type: 'spawn',
+        phase: 11,
+        targets: [
+          { r: 0, col: 1, cause: 'STONE_SALVATION_GOD', reason: 'stone_salvation_god_revive' }
+        ]
+      },
+      {
+        type: 'move',
+        phase: 12,
+        targets: [
+          { from: { r: 4, col: 4 }, to: { r: 4, col: 5 }, cause: 'ULTIMATE_DESTROY_GOD', reason: 'ultimate_destroy_god_move' }
+        ]
+      },
+      {
+        type: 'destroy',
+        phase: 13,
+        targets: [
+          { r: 5, col: 5, cause: 'ULTIMATE_DESTROY_GOD', reason: 'udg_destroyed' }
+        ]
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const stoneCues = out
+      .filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy')
+      .map((ev) => ev.phase)
+      .sort((a, b) => a - b);
+
+    expect(stoneCues).toEqual([10, 13]);
   });
 
   test('LIGHTNING_WILL の regen復活対象には stone_destroy を再生しない', () => {

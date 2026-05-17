@@ -717,7 +717,6 @@ const Targets = CardTargets || {};
             getTeleportTargets,
             getCellTeleportTargets,
             getCloneTargets,
-            getSplitTargets,
             getBoardExpansionTargets,
             getBoardShrinkTargets,
             getBlockadeTargets,
@@ -767,7 +766,6 @@ const Targets = CardTargets || {};
         if (type === 'TELEPORT_WILL') return getTeleportTargets(cardState, gameState);
         if (type === 'CELL_TELEPORT_WILL') return getCellTeleportTargets(cardState, gameState);
         if (type === 'CLONE_WILL') return getCloneTargets(cardState, gameState, playerKey);
-        if (type === 'SPLIT_WILL') return getSplitTargets(cardState, gameState, playerKey);
         if (type === 'BOARD_EXPANSION_WILL') return getBoardExpansionTargets(cardState, gameState, playerKey);
         if (type === 'BOARD_SHRINK_WILL') return getBoardShrinkTargets(cardState, gameState, playerKey);
         if (type === 'BLOCKADE_WILL') return getBlockadeTargets(cardState, gameState, playerKey);
@@ -947,10 +945,6 @@ const Targets = CardTargets || {};
             res.push({ row: cell.row, col: cell.col });
         }
         return res;
-    }
-
-    function getSplitTargets(cardState: any, gameState: any, playerKey: any) {
-        return getCloneTargets(cardState, gameState, playerKey);
     }
 
     function getBreedingTargets(cardState: any, gameState: any, playerKey: any) {
@@ -1232,7 +1226,6 @@ export = {
     getPositionSwapTargets,
     getSeedTargets,
     getCloneTargets,
-    getSplitTargets,
     getBreedingTargets,
     getMeteorTargets,
     getFreezeTargets,

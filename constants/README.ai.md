@@ -7,7 +7,7 @@
 
 ## 正本の置き方
 
-- 共有意味の定数: `shared-constants.js`
+- 共有意味の定数: `shared-constants.ts`（`shared-constants.js` は互換 shim）
 - 領域専用の定数: `constants/`
 
 ## 変更ルール

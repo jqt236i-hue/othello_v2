@@ -24,7 +24,7 @@
 - `game/` は `ui/` に直接依存しない。`ui/` は `game/` の公開 API / event / DI だけを使う。
 - `cpu/` は読み取り専用で扱い、DOM / UI / 音 / タイマーを直接操作しない。
 - `owner` / `player` / 色などの揺れは入口で正規化し、内部表現を混在させない。
-- 定数は `shared-constants.js` と `constants/` を単一ソースにし、重複定義しない。
+- 定数は `shared-constants.ts` と `constants/` を単一ソースにし、`shared-constants.js` は互換 shim として扱う。
 - debug 動作は `?debug=1` などの明示条件でだけ有効化し、通常時に副作用を出さない。
 - ユーザー向けの説明では、カード名・効果名・状態名・UI要素名を、まず `01-rulebook.md` や画面表示に沿った日本語名 / 表示名で書く。コード上のID・関数名・event type は必要な時だけ補足として併記する。
 - UI は `events[]` を順番どおりに再生し、再生中の盤面 DOM の書き手は 1 つに絞る。フリップ演出は Spec B を守る。

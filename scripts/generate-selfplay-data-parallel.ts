@@ -8,12 +8,17 @@ import * as path from 'path';
 import { spawn } from 'child_process';
 import _selfplay_teacher_defaults from './selfplay-teacher-defaults';
 import _selfplay_training_arg_utils from './selfplay-training-arg-utils';
+import * as _selfplay_deck_options from './selfplay-deck-options';
 const { getStandaloneSelfplayTeacherDefaults } = _selfplay_teacher_defaults;
 const {
     parsePolicyModelPoolPaths,
     validateSelfplayTeacherRangeArgs,
     validateSelfplayPolicyModelArgs
 } = _selfplay_training_arg_utils;
+const {
+    DEFAULT_SELFPLAY_WHITE_DECK_CODE,
+    buildDeckCodeArgs
+} = _selfplay_deck_options;
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -53,6 +58,8 @@ function parseArgs(argv: string[]) {
         policyPoolSampling: teacherDefaults.policyPoolSampling,
         policyPoolRecencyDecay: teacherDefaults.policyPoolRecencyDecay,
         policyCurrentAnchorRate: teacherDefaults.policyCurrentAnchorRate,
+        blackDeckCode: null,
+        whiteDeckCode: DEFAULT_SELFPLAY_WHITE_DECK_CODE,
         keepParts: false,
         verbose: false,
         help: false
@@ -70,6 +77,9 @@ function parseArgs(argv: string[]) {
         if (a === '--with-cards') { args.allowCardUsage = true; continue; }
         if (a === '--no-cards') { args.allowCardUsage = false; continue; }
         if (a === '--card-usage-rate') { args.cardUsageRate = Number(argv[++i]); continue; }
+        if (a === '--black-deck-code') { args.blackDeckCode = String(argv[++i] || '').trim() || null; continue; }
+        if (a === '--white-deck-code') { args.whiteDeckCode = String(argv[++i] || '').trim() || null; continue; }
+        if (a === '--no-white-deck-code') { args.whiteDeckCode = null; continue; }
         if (a === '--policy-mix-rate') { args.policyMixRate = Number(argv[++i]); continue; }
         if (a === '--card-usage-rate-jitter') { args.cardUsageRateJitter = Number(argv[++i]); continue; }
         if (a === '--tactical-weight-min') { args.tacticalWeightMin = Number(argv[++i]); continue; }
@@ -135,6 +145,8 @@ function printHelp() {
         '      --with-cards           Enable card usage in self-play (default: on)',
         '      --no-cards             Disable card usage in self-play',
         '      --card-usage-rate <r>  Probability of using card if legal (default: 0.2)',
+        '      --white-deck-code <c>  Fixed deckCode for white/CPU self-play (default: CPU white deck)',
+        '      --no-white-deck-code   Use the standard random default deck for white too',
         `      --policy-mix-rate <r>  Per-player probability of using guide model each game [0..1] (default: ${teacherDefaults.policyMixRate})`,
         '      --card-usage-rate-jitter <r>  Per-game card usage rate jitter (+/-r) [0..1] (default: 0)',
         `      --tactical-weight-min <r>  Min tactical lookahead weight when guide model is used (default: ${teacherDefaults.tacticalWeightMin})`,
@@ -204,6 +216,7 @@ function runShard(index: any, shard: any, args: any, partDir: any) {
         } else {
             cmdArgs.push('--no-cards', '--card-usage-rate', '0');
         }
+        cmdArgs.push(...buildDeckCodeArgs(args));
         cmdArgs.push(
             '--policy-mix-rate', String(args.policyMixRate),
             '--card-usage-rate-jitter', String(args.cardUsageRateJitter),

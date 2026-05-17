@@ -163,6 +163,6 @@ describe('ui card sync scheduler', () => {
     await flushMicrotasks();
 
     expect(windowRef.renderBoard).toHaveBeenCalledTimes(1);
-    expect(windowRef.CommentaryBroker.requestCommentaryAndShow).toHaveBeenCalledTimes(1);
+    expect(windowRef.CommentaryBroker.requestCommentaryAndShow).not.toHaveBeenCalled();
   });
 });

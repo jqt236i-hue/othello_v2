@@ -84,9 +84,25 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             causes: Object.freeze(['LIGHTNING_WILL']),
             reasonPrefix: 'lightning_destroyed'
         }),
+        destroyDragonBreath: Object.freeze({
+            causes: Object.freeze(['DESTROY_DRAGON_WILL', 'DESTROY_DRAGON']),
+            reasonPrefix: 'destroy_dragon_breath'
+        }),
+        udgDestroyed: Object.freeze({
+            causes: Object.freeze(['ULTIMATE_DESTROY_GOD']),
+            reasonPrefix: 'udg_destroyed'
+        }),
         robotVacuumSuck: Object.freeze({
             causes: Object.freeze(['ROBOT_VACUUM']),
             reasonPrefix: 'robot_vacuum_suck'
+        }),
+        gluttonousEat: Object.freeze({
+            causes: Object.freeze(['GLUTTONOUS_WILL']),
+            reasonPrefix: 'gluttonous_eat'
+        }),
+        willHunterKingSlash: Object.freeze({
+            causes: Object.freeze(['WILL_HUNTER_KING']),
+            reasonPrefix: 'will_hunter_king_slash'
         })
     });
     const CARD_EFFECT_FLIP_RAW_EVENT_TYPES = new Set([
@@ -621,6 +637,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             meta: ev && ev.meta ? ev.meta : null,
             rawType: ev && ev.type ? ev.type : null,
             actionId: ev && ev.actionId ? ev.actionId : null,
+            effectBlockId: ev && ev.effectBlockId ? ev.effectBlockId : (ev && ev.meta && ev.meta.effectBlockId ? ev.meta.effectBlockId : null),
             turnIndex: (ev && typeof ev.turnIndex === 'number')
                 ? ev.turnIndex
                 : (finalCardState && typeof finalCardState.turnIndex === 'number' ? finalCardState.turnIndex : 0),
@@ -710,12 +727,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
     const CARD_EFFECT_SPAWN_PROFILES = Object.freeze([
         Object.freeze({
+            spawnIntent: 'normal_spawn',
             reasonPrefix: 'equality_will_spawn',
             rawResolvedType: 'equality_will_resolved',
             soundSourceType: 'equality_will_spawn',
             phaseStartIndex: 2
         }),
         Object.freeze({
+            spawnIntent: 'normal_spawn',
             cause: 'REINFORCEMENT_WILL',
             reasonPrefix: 'reinforcement_will_spawn',
             rawResolvedType: 'reinforcement_will_resolved',
@@ -723,6 +742,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             phaseStartIndex: 1
         }),
         Object.freeze({
+            spawnIntent: 'salvation_spawn',
             cause: 'SALVATION_WILL',
             reasonPrefix: 'salvation_spawn',
             rawResolvedType: 'salvation_will_resolved',
@@ -730,6 +750,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             phaseStartIndex: 1
         }),
         Object.freeze({
+            spawnIntent: 'salvation_spawn',
             cause: STONE_SALVATION_GOD_CAUSE,
             reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON,
             soundSourceType: STONE_SALVATION_GOD_REVIVE_REASON,
@@ -760,7 +781,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function _isCardEffectSpawnEventLike(ev: any, profile: any) {
-        return !!profile && _matchesSpawnCauseAndReason(ev, profile.cause, profile.reasonPrefix);
+        if (!profile) return false;
+        const eventIntent = ev && ev.meta ? String(ev.meta.spawnIntent || '').toLowerCase() : '';
+        if (profile.spawnIntent && eventIntent && eventIntent !== String(profile.spawnIntent).toLowerCase()) {
+            return false;
+        }
+        return _matchesSpawnCauseAndReason(ev, profile.cause, profile.reasonPrefix);
     }
 
     function _isSeedSproutEventLike(ev: any) {
@@ -790,7 +816,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     function _isCloneLikeSpawnPresentationEvent(ev: any, spawnMeta: any) {
         const spawnCause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
         return (
-            (spawnCause === 'CLONE_WILL' || spawnCause === 'SPLIT_WILL' || spawnCause === 'PROLIFERATION_WILL') &&
+            (spawnCause === 'CLONE_WILL' || spawnCause === 'PROLIFERATION_WILL') &&
             spawnMeta &&
             Number.isInteger(spawnMeta.fromRow) &&
             Number.isInteger(spawnMeta.fromCol)
@@ -815,11 +841,17 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function _isGluttonousEatMovePresentationEvent(ev: any) {
+        const moveIntent = _getMoveIntent(ev);
+        if (moveIntent === 'hyperactive_move') {
+            return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'GLUTTONOUS_WILL';
+        }
         return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'GLUTTONOUS_WILL' &&
             String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('gluttonous_eat_move') === 0;
     }
 
     function _isSuperCrushMovePresentationEvent(ev: any) {
+        const moveIntent = _getMoveIntent(ev);
+        if (moveIntent === 'crush_move') return true;
         const cause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
         const reason = String(ev && ev.reason ? ev.reason : '').toLowerCase();
         return SUPER_CRUSH_CAUSES.has(cause) &&
@@ -827,6 +859,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function _isWillHunterKingSlashMovePresentationEvent(ev: any) {
+        const moveIntent = _getMoveIntent(ev);
+        if (moveIntent === 'anchor_move' || moveIntent === 'hyperactive_move') {
+            return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'WILL_HUNTER_KING';
+        }
         return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'WILL_HUNTER_KING' &&
             String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('will_hunter_king_slash_move') === 0;
     }
@@ -1247,6 +1283,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     function _getPresentationEffectBlockKey(ev: any) {
         if (!ev || (ev.type !== 'DESTROY' && ev.type !== 'MOVE')) return null;
         const meta = (ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
+        const effectBlockId = String(ev.effectBlockId || meta.effectBlockId || '').trim();
+        if (effectBlockId) return `effectBlock:${effectBlockId}`;
         const cause = String(ev.cause || '').toUpperCase();
         const sourceRow = Number.isInteger(ev.sourceRow)
             ? ev.sourceRow
@@ -1399,7 +1437,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         ownerBefore: ev.ownerBefore,
                         ownerAfter: ev.ownerAfter,
                         cause: ev.cause || null,
-                        reason: ev.reason || null
+                        reason: ev.reason || null,
+                        meta: (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null
                     }];
                     pEvent.phase = _planMovePlaybackPhase(phaseState, ev);
                     break;
@@ -2021,7 +2060,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return causes.has(cause);
     }
 
+    function _getMoveIntent(target: any) {
+        return String(target && target.meta && target.meta.moveIntent ? target.meta.moveIntent : '').toLowerCase();
+    }
+
     function _isHyperactiveMoveTarget(target: any) {
+        const moveIntent = _getMoveIntent(target);
+        if (moveIntent === 'hyperactive_move' || moveIntent === 'evade_move') return true;
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         const isFlipEvadeMove = reason.indexOf('flip_evade_move') >= 0;
@@ -2045,6 +2090,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function _isUltimateAnchorMoveTarget(target: any) {
+        const moveIntent = _getMoveIntent(target);
+        if (moveIntent === 'anchor_move') return true;
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         return (
@@ -2058,6 +2105,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function _isSuperCrushMoveTarget(target: any) {
+        const moveIntent = _getMoveIntent(target);
+        if (moveIntent === 'crush_move') return true;
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
         return (
@@ -2126,11 +2175,24 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function _isLightningDestroyTarget(target: any) {
-        return _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).lightningDestroyed);
+        return _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).lightningDestroyed) ||
+            _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).udgDestroyed);
+    }
+
+    function _isDestroyDragonBreathDestroyTarget(target: any) {
+        return _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).destroyDragonBreath);
     }
 
     function _isRobotVacuumSuckDestroyTarget(target: any) {
         return _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).robotVacuumSuck);
+    }
+
+    function _isGluttonousEatDestroyTarget(target: any) {
+        return _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).gluttonousEat);
+    }
+
+    function _isWillHunterKingSlashDestroyTarget(target: any) {
+        return _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).willHunterKingSlash);
     }
 
     function _isBoardShrinkDestroyTarget(target: any) {
@@ -2279,6 +2341,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 _pushSoundCue(ctx, soundKey, phase, sourceType, { allowRepeat: true });
             }
         }
+    }
+
+    function _pushCueForMatchingEventPhases(ctx: any, events: any, targetPredicate: any, soundKey: any, sourceType: any) {
+        const phases = _collectUniquePhases(events, (ev: any) => (
+            ev &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((target: any) => targetPredicate(target))
+        ));
+        _pushCueForPhases(ctx, phases, soundKey, sourceType);
     }
 
     function _pushRepeatedCueForCardEffectSpawnProfiles(ctx: any, events: any, soundKey: any) {
@@ -2545,6 +2616,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const strongWindPhase = _findPhase(
             ctx.base,
             (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
+                if (_getMoveIntent(t) === 'wind_move') return true;
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 const reason = String(t && t.reason ? t.reason : '').toLowerCase();
                 return cause === 'STRONG_WIND_WILL' || reason.indexOf('strong_wind_move') === 0;
@@ -2584,6 +2656,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const teleportPhase = _findPhase(
             ctx.base,
             (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
+                if (_getMoveIntent(t) === 'teleport_move') return true;
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
                 const reason = String(t && t.reason ? t.reason : '').toLowerCase();
                 return cause === 'TELEPORT_WILL' || reason.indexOf('teleport_move') === 0;
@@ -2841,7 +2914,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             if (_isBoardShrinkDestroyTarget(t)) return false;
             if (_isSniperShotDestroyTarget(t)) return false;
             if (_isLightningDestroyTarget(t)) return false;
+            if (_isDestroyDragonBreathDestroyTarget(t)) return false;
             if (_isRobotVacuumSuckDestroyTarget(t)) return false;
+            if (_isGluttonousEatDestroyTarget(t)) return false;
+            if (_isWillHunterKingSlashDestroyTarget(t)) return false;
             if (_isGoldSilverSelfDestroyTarget(t)) return false;
             if (_isSpecialDurationExpiredDestroyTarget(t)) return false;
             if (cause === 'TRAP_WILL' && (reason.indexOf('trap_expired') >= 0 || reason.indexOf('trap_disarmed') >= 0)) return false;
@@ -2857,7 +2933,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             ev.targets.some((t: any) => _isSniperShotDestroyTarget(t))
         ));
         if (sniperDestroyEvents.length > 0) {
-            _pushRepeatedCueForMatchingTargets(
+            _pushCueForMatchingEventPhases(
                 ctx,
                 sniperDestroyEvents,
                 (target: any) => _isSniperShotDestroyTarget(target) && _isDestroyRemovalOutcome(target),
@@ -2873,7 +2949,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             ev.targets.some((t: any) => _isLightningDestroyTarget(t))
         ));
         if (lightningDestroyEvents.length > 0) {
-            _pushRepeatedCueForMatchingTargets(
+            _pushCueForMatchingEventPhases(
                 ctx,
                 lightningDestroyEvents,
                 (target: any) => _isLightningDestroyTarget(target) && _isDestroyRemovalOutcome(target),
@@ -2882,11 +2958,59 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             );
         }
 
+        const destroyDragonDestroyEvents = ctx.base.filter((ev: any) => (
+            ev &&
+            ev.type === 'destroy' &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((t: any) => _isDestroyDragonBreathDestroyTarget(t))
+        ));
+        if (destroyDragonDestroyEvents.length > 0) {
+            _pushCueForMatchingEventPhases(
+                ctx,
+                destroyDragonDestroyEvents,
+                (target: any) => _isDestroyDragonBreathDestroyTarget(target) && _isDestroyRemovalOutcome(target),
+                'stone_destroy',
+                'destroy_dragon_breath'
+            );
+        }
+
         const robotVacuumSuckPhases = _collectUniquePhases(
             ctx.base,
             (ev: any) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t: any) => _isRobotVacuumSuckDestroyTarget(t))
         );
         _pushCueForPhases(ctx, robotVacuumSuckPhases, 'robot_vacuum_suck', 'robot_vacuum_suck');
+
+        const gluttonousDestroyEvents = ctx.base.filter((ev: any) => (
+            ev &&
+            ev.type === 'destroy' &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((t: any) => _isGluttonousEatDestroyTarget(t))
+        ));
+        if (gluttonousDestroyEvents.length > 0) {
+            _pushCueForMatchingEventPhases(
+                ctx,
+                gluttonousDestroyEvents,
+                (target: any) => _isGluttonousEatDestroyTarget(target) && _isDestroyRemovalOutcome(target),
+                'stone_destroy',
+                'gluttonous_eat'
+            );
+        }
+
+        const willHunterKingDestroyEvents = ctx.base.filter((ev: any) => (
+            ev &&
+            ev.type === 'destroy' &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((t: any) => _isWillHunterKingSlashDestroyTarget(t))
+        ));
+        if (willHunterKingDestroyEvents.length > 0) {
+            _pushCueForMatchingEventPhases(
+                ctx,
+                willHunterKingDestroyEvents,
+                (target: any) => _isWillHunterKingSlashDestroyTarget(target) && _isDestroyRemovalOutcome(target),
+                'stone_destroy',
+                'will_hunter_king_slash'
+            );
+        }
 
         const goldSilverSelfDestroyPhases = _collectUniquePhases(ctx.base, (ev: any) => _isGoldSilverSelfDestroyEvent(ev));
         _pushCueForPhases(ctx, goldSilverSelfDestroyPhases, 'charge_gain_common', 'gold_silver_self_destroy');
@@ -3487,7 +3611,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const suppressUiLogs = !!(action && action.__suppressUiLogs === true);
 
         // Build options for applyTurnSafe: include current state version and previous action ids if ActionManager is available
-        const options: Record<string, any> = { skipTurnStart: true };
+        const options: Record<string, any> = { skipTurnStart: !(action && action.__skipTurnStart === false) };
         if (typeof ActionManager !== 'undefined' && ActionManager.ActionManager) {
             try {
                 if (typeof ActionManager.ActionManager.getRecentActionIds === 'function') {

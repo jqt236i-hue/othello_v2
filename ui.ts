@@ -92,7 +92,6 @@ export function _hasPendingPlaybackOrPresentation(): boolean {
 export let _deferredUiSyncQueued = false;
 export let _deferredUiSyncNeedsBoardRender = false;
 export let _deferredUiSyncNeedsStatusUpdate = false;
-export let _deferredUiSyncNeedsHeroCommentary = false;
 export let _cardUiSyncQueued = false;
 export let _cardUiSyncFlushScheduled = false;
 export let _cardUiSyncDeferredUntilIdle = false;
@@ -116,24 +115,18 @@ export function _queueDeferredUiSyncWork(options?: any) {
     const opts = (options && typeof options === 'object') ? options : {};
     if (opts.renderBoard === true) _deferredUiSyncNeedsBoardRender = true;
     if (opts.updateStatus === true) _deferredUiSyncNeedsStatusUpdate = true;
-    if (opts.requestHeroCommentary === true) _deferredUiSyncNeedsHeroCommentary = true;
 }
 
 export function _flushDeferredUiSyncWork() {
     const shouldRenderBoard = _deferredUiSyncNeedsBoardRender;
     const shouldUpdateStatus = _deferredUiSyncNeedsStatusUpdate;
-    const shouldRequestHeroCommentary = _deferredUiSyncNeedsHeroCommentary;
     _deferredUiSyncNeedsBoardRender = false;
     _deferredUiSyncNeedsStatusUpdate = false;
-    _deferredUiSyncNeedsHeroCommentary = false;
     if (shouldRenderBoard) {
         try { renderBoard(); } catch (e) { /* ignore */ }
     }
     if (shouldUpdateStatus) {
         try { updateStatus(); } catch (e) { /* ignore */ }
-    }
-    if (shouldRequestHeroCommentary) {
-        try { _requestLocalHeroTurnCommentary(); } catch (e) { /* ignore */ }
     }
 }
 
@@ -300,46 +293,25 @@ export function isCardEffectOnlyLogLine(text?: string) {
     return cardEffectHints.some((k) => t.includes(k));
 }
 
-export let _heroCommentaryContextHelpers: any = null;
-export let _heroCommentaryOwnerHelpers: any = null;
-export let _heroCommentaryBroker: any = null;
-export const _heroCommentaryState = {
-    lastMatchMode: '',
-    lastSeatKey: ''
-};
-
-export function _resolveHeroCommentaryContextHelpers() {
-    if (_heroCommentaryContextHelpers) return _heroCommentaryContextHelpers;
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).CommentaryContextHelpers) {
-            _heroCommentaryContextHelpers = (globalThis as any).CommentaryContextHelpers;
-            return _heroCommentaryContextHelpers;
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        _heroCommentaryContextHelpers = require('./shared/commentary-context-helpers');
-        return _heroCommentaryContextHelpers;
-    } catch (e) { /* ignore */ }
-    return null;
-}
+export let _commentaryBroker: any = null;
 
 export function _resolveCommentaryBroker() {
-    if (_heroCommentaryBroker) return _heroCommentaryBroker;
+    if (_commentaryBroker) return _commentaryBroker;
     try {
         if (typeof window !== 'undefined' && (window as any).CommentaryBroker) {
-            _heroCommentaryBroker = (window as any).CommentaryBroker;
-            return _heroCommentaryBroker;
+            _commentaryBroker = (window as any).CommentaryBroker;
+            return _commentaryBroker;
         }
     } catch (e) { /* ignore */ }
     try {
         if (typeof globalThis !== 'undefined' && (globalThis as any).CommentaryBroker) {
-            _heroCommentaryBroker = (globalThis as any).CommentaryBroker;
-            return _heroCommentaryBroker;
+            _commentaryBroker = (globalThis as any).CommentaryBroker;
+            return _commentaryBroker;
         }
     } catch (e) { /* ignore */ }
     try {
-        _heroCommentaryBroker = require('./ui/commentary-broker');
-        return _heroCommentaryBroker;
+        _commentaryBroker = require('./ui/commentary-broker');
+        return _commentaryBroker;
     } catch (e) { /* ignore */ }
     return null;
 }
@@ -351,14 +323,6 @@ export function _ensureCommentaryBrokerInitialized() {
         broker.initBroker({
             root: (typeof globalThis !== 'undefined') ? globalThis : null,
             addLog: (typeof addLog === 'function') ? addLog : null,
-            getShowHeroSpeechBubble: () => {
-                try {
-                    if (typeof window !== 'undefined' && typeof (window as any).showHeroSpeechBubble === 'function') {
-                        return (window as any).showHeroSpeechBubble;
-                    }
-                } catch (e) { /* ignore */ }
-                return null;
-            },
             getShowCpuSpeechBubble: () => {
                 try {
                     if (typeof window !== 'undefined' && typeof (window as any).showCpuSpeechBubble === 'function') {
@@ -372,100 +336,7 @@ export function _ensureCommentaryBrokerInitialized() {
     return broker;
 }
 
-export function _resolveHeroCommentaryOwnerHelpers() {
-    if (_heroCommentaryOwnerHelpers) return _heroCommentaryOwnerHelpers;
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).OwnerHelpers) {
-            _heroCommentaryOwnerHelpers = (globalThis as any).OwnerHelpers;
-            return _heroCommentaryOwnerHelpers;
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        _heroCommentaryOwnerHelpers = require('./utils/owner-helpers');
-        return _heroCommentaryOwnerHelpers;
-    } catch (e) { /* ignore */ }
-    return null;
-}
-
-export function _normalizeHeroCommentaryPlayerKey(value: any, fallbackKey: string) {
-    const helpers = _resolveHeroCommentaryContextHelpers();
-    if (helpers && typeof helpers.normalizePlayerKey === 'function') {
-        return helpers.normalizePlayerKey(value, fallbackKey);
-    }
-    const normalized = String(value || '').trim().toLowerCase();
-    if (value === -1 || normalized === 'white' || normalized === '-1') return 'white';
-    if (value === 1 || normalized === 'black' || normalized === '1') return 'black';
-    return fallbackKey === 'white' ? 'white' : 'black';
-}
-
-export function _countDiscsForHeroCommentary(board: any[]) {
-    const rows = Array.isArray(board) ? board : [];
-    let black = 0;
-    let white = 0;
-    for (let row = 0; row < rows.length; row += 1) {
-        const line = Array.isArray(rows[row]) ? rows[row] : [];
-        for (let col = 0; col < line.length; col += 1) {
-            const value = Number(line[col]);
-            if (value === 1) black += 1;
-            else if (value === -1) white += 1;
-        }
-    }
-    return { black, white };
-}
-
-export function _getCurrentMatchModeForHeroCommentary() {
-    try {
-        if (typeof window !== 'undefined' && window && typeof (window as any).getCurrentMatchMode === 'function') {
-            return String((window as any).getCurrentMatchMode() || 'cpu').trim().toLowerCase() || 'cpu';
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-            return String((globalThis as any).getCurrentMatchMode() || 'cpu').trim().toLowerCase() || 'cpu';
-        }
-    } catch (e) { /* ignore */ }
-    return 'cpu';
-}
-
-export function _resolveLocalHeroSeatKey() {
-    const ownerHelpers = _resolveHeroCommentaryOwnerHelpers();
-    if (ownerHelpers && typeof ownerHelpers.resolveLocalPlayerKey === 'function') {
-        const rootRef = (typeof window !== 'undefined' && window)
-            ? window
-            : (typeof globalThis !== 'undefined' ? globalThis : null);
-        const resolvedPlayerKey = ownerHelpers.resolveLocalPlayerKey(rootRef);
-        if (resolvedPlayerKey === 'black' || resolvedPlayerKey === 'white') {
-            return _normalizeHeroCommentaryPlayerKey(resolvedPlayerKey, 'black');
-        }
-    }
-
-    const matchMode = _getCurrentMatchModeForHeroCommentary();
-    if (matchMode === 'network') {
-        try {
-            if (typeof window !== 'undefined'
-                && window
-                && (window as any).NetworkMatchClient
-                && typeof (window as any).NetworkMatchClient.getSeatKey === 'function') {
-                return _normalizeHeroCommentaryPlayerKey((window as any).NetworkMatchClient.getSeatKey(), 'black');
-            }
-        } catch (e) { /* ignore */ }
-        return null;
-    }
-    return 'black';
-}
-
-export function _getCurrentPlayerKeyForHeroCommentary(state: any) {
-    if (!state || typeof state !== 'object') return null;
-    const currentPlayer = state.currentPlayer;
-    if (currentPlayer === -1 || currentPlayer === 'white' || currentPlayer === '-1') return 'white';
-    if (currentPlayer === 1 || currentPlayer === 'black' || currentPlayer === '1') return 'black';
-    const normalized = String(currentPlayer || '').trim().toLowerCase();
-    if (normalized === 'white') return 'white';
-    if (normalized === 'black') return 'black';
-    return null;
-}
-
-export function _resetHeroCommentaryTracking(resetRuntime?: boolean) {
+export function _resetCommentaryTracking(resetRuntime?: boolean) {
     if (resetRuntime !== true) return;
     const broker = _ensureCommentaryBrokerInitialized();
     if (broker && typeof broker.resetState === 'function') {
@@ -475,79 +346,23 @@ export function _resetHeroCommentaryTracking(resetRuntime?: boolean) {
     }
 }
 
-export function _syncHeroCommentaryScope(matchMode: string, seatKey: string) {
-    if (_heroCommentaryState.lastMatchMode === matchMode && _heroCommentaryState.lastSeatKey === seatKey) return;
-    _heroCommentaryState.lastMatchMode = matchMode;
-    _heroCommentaryState.lastSeatKey = seatKey;
-    _resetHeroCommentaryTracking(true);
-}
-
-export function _requestLocalHeroTurnCommentary() {
-    const state = (typeof (window as any).gameState !== 'undefined' && (window as any).gameState && typeof (window as any).gameState === 'object')
-        ? (window as any).gameState
-        : null;
-    if (!state || !Array.isArray(state.board)) return;
-
-    const matchMode = _getCurrentMatchModeForHeroCommentary();
-    const localSeatKey = _resolveLocalHeroSeatKey();
-    if (!localSeatKey) return;
-
-    _syncHeroCommentaryScope(matchMode, localSeatKey);
-
-    const currentPlayerKey = _getCurrentPlayerKeyForHeroCommentary(state);
-    if (currentPlayerKey !== localSeatKey) return;
-
-    const contextHelpers = _resolveHeroCommentaryContextHelpers();
-    const turnNumber = Number.isFinite(Number(state.turnNumber)) ? Number(state.turnNumber) : null;
-    const counts = (contextHelpers && typeof contextHelpers.countDiscsFromBoard === 'function')
-        ? contextHelpers.countDiscsFromBoard(state.board)
-        : _countDiscsForHeroCommentary(state.board);
-    const hasGameplayStarted = (contextHelpers && typeof contextHelpers.hasCommentaryGameplayStarted === 'function')
-        ? contextHelpers.hasCommentaryGameplayStarted({
-            gameState: state,
-            board: state.board,
-            counts,
-            turnNumber
-        })
-        : ((turnNumber !== null && turnNumber > 0) || ((counts.black || 0) + (counts.white || 0)) > 4);
-    if (!hasGameplayStarted) return;
-
-    const turnKey = `${matchMode}|${localSeatKey}|${currentPlayerKey || ''}|${turnNumber !== null ? turnNumber : ''}`;
-    const broker = _ensureCommentaryBrokerInitialized();
-    if (!broker || typeof broker.requestCommentaryAndShow !== 'function') return;
-    broker.requestCommentaryAndShow({
-        eventType: 'turn_start',
-        playerKey: localSeatKey,
-        speakerRole: 'hero',
-        turnNumber,
-        counts,
-        board: state.board,
-        dedupeScope: 'hero-turn',
-        dedupeKey: turnKey
-    });
-}
-
 
 // ===== Event System Integration =====
 if (typeof (window as any).GameEvents !== 'undefined' && (window as any).GameEvents.gameEvents) {
     (window as any).GameEvents.gameEvents.on((window as any).GameEvents.EVENT_TYPES.BOARD_UPDATED, () => {
         _runWhenPlaybackIdle(() => {
             renderBoard();
-            _requestLocalHeroTurnCommentary();
         }, {
-            renderBoard: true,
-            requestHeroCommentary: true
+            renderBoard: true
         });
     });
     (window as any).GameEvents.gameEvents.on((window as any).GameEvents.EVENT_TYPES.GAME_STATE_CHANGED, () => {
         _runWhenPlaybackIdle(() => {
             renderBoard();
             updateStatus();
-            _requestLocalHeroTurnCommentary();
         }, {
             renderBoard: true,
-            updateStatus: true,
-            requestHeroCommentary: true
+            updateStatus: true
         });
     });
     (window as any).GameEvents.gameEvents.on((window as any).GameEvents.EVENT_TYPES.CARD_STATE_CHANGED, () => {
@@ -558,7 +373,7 @@ if (typeof (window as any).GameEvents !== 'undefined' && (window as any).GameEve
     });
     (window as any).GameEvents.gameEvents.on((window as any).GameEvents.EVENT_TYPES.GAME_RESET, () => {
         clearEffectLivePanel();
-        _resetHeroCommentaryTracking(true);
+        _resetCommentaryTracking(true);
     });
     (window as any).GameEvents.gameEvents.on((window as any).GameEvents.EVENT_TYPES.LOG_ADDED, (msg: any) => {
         const isObjectPayload = !!(msg && typeof msg === 'object' && typeof msg.text === 'string');

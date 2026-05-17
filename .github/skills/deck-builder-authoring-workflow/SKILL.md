@@ -1,6 +1,6 @@
 ---
 name: 'deck-builder-authoring-workflow'
-description: 'deck builder の authoring UI を、spec/codec と state/renderer/controller の責務を守って安全に直すワークフロー。Use when editing shared/deck-spec.js, shared/deck-codec.js, ui/deck-builder-*.js, ui/handlers/deck-builder.js, or related deck builder tests in this card-othello repository.'
+description: 'deck builder の authoring UI を、spec/codec と state/renderer/controller の責務を守って安全に直すワークフロー。Use when editing shared/deck-spec.ts / .js shim, shared/deck-codec.ts / .js shim, ui/deck-builder-*.js, ui/handlers/deck-builder.ts / .js shim, or related deck builder tests in this card-othello repository.'
 argument-hint: 'deck builder のどこを直したいか。spec, codec, state, renderer, controller のどこかも書く'
 ---
 
@@ -23,9 +23,9 @@ argument-hint: 'deck builder のどこを直したいか。spec, codec, state, r
 
 ## Primary Files
 
-- `shared/deck-spec.js`
-- `shared/deck-codec.js`
-- `ui/deck-builder-*.js`, `ui/handlers/deck-builder.js`
+- `shared/deck-spec.ts / .js shim`
+- `shared/deck-codec.ts / .js shim`
+- `ui/deck-builder-*.js`, `ui/handlers/deck-builder.ts / .js shim`
 - 関連 help / docs / tests
 
 ## Common Traps
@@ -36,7 +36,7 @@ argument-hint: 'deck builder のどこを直したいか。spec, codec, state, r
 
 ## Procedure
 
-1. まず `shared/deck-spec.js`, `shared/deck-codec.js` で仕様と保存形式を固定する。
+1. まず `shared/deck-spec.ts / .js shim`, `shared/deck-codec.ts / .js shim` で仕様と保存形式を固定する。
 2. その後で state、renderer、controller の順に責務を守って UI を直す。
 3. 構築制約や表示順は spec / codec 側の契約として先に決め、renderer 側に埋め込まない。
 4. help, docs, test の波及を最後にまとめて確認する。

@@ -62,7 +62,6 @@
 - 繁殖の意志 (`BREEDING_WILL`)
 - 増殖の意志 (`PROLIFERATION_WILL`)
 - 複製の意志 (`CLONE_WILL`)
-- 分裂の意志 (`SPLIT_WILL`)
 - テレポート (`TELEPORT_WILL`)
 - 十字爆弾 (`CROSS_BOMB`)
 - クロス爆弾 (`X_BOMB`)

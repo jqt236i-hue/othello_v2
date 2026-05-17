@@ -13,8 +13,7 @@ describe('ui commentary broker', () => {
         CpuCommentaryRuntime: { requestCommentary }
       },
       addLog,
-      getShowCpuSpeechBubble: () => showCpuSpeechBubble,
-      getShowHeroSpeechBubble: () => null
+      getShowCpuSpeechBubble: () => showCpuSpeechBubble
     });
 
     const board = Array.from({ length: 8 }, () => Array(8).fill(0));
@@ -42,9 +41,9 @@ describe('ui commentary broker', () => {
     }));
   });
 
-  test('dedupeScope suppresses duplicate hero commentary until resetState', async () => {
+  test('dedupeScope suppresses duplicate CPU commentary until resetState', async () => {
     const addLog = jest.fn();
-    const showHeroSpeechBubble = jest.fn();
+    const showCpuSpeechBubble = jest.fn();
     const requestCommentary = jest.fn(async () => 'まだ遊べる。');
     const broker = require('../ui/commentary-broker.js');
     broker.resetState().initBroker({
@@ -52,51 +51,50 @@ describe('ui commentary broker', () => {
         CpuCommentaryRuntime: { requestCommentary }
       },
       addLog,
-      getShowCpuSpeechBubble: () => null,
-      getShowHeroSpeechBubble: () => showHeroSpeechBubble
+      getShowCpuSpeechBubble: () => showCpuSpeechBubble
     });
 
     const board = Array.from({ length: 8 }, () => Array(8).fill(0));
     await broker.requestCommentaryAndShow({
       eventType: 'turn_start',
       playerKey: 'black',
-      speakerRole: 'hero',
+      speakerRole: 'cpu',
       turnNumber: 3,
       counts: { black: 4, white: 3 },
       board,
-      dedupeScope: 'hero-turn',
+      dedupeScope: 'cpu-turn',
       dedupeKey: 'cpu|black|3'
     });
     await broker.requestCommentaryAndShow({
       eventType: 'turn_start',
       playerKey: 'black',
-      speakerRole: 'hero',
+      speakerRole: 'cpu',
       turnNumber: 3,
       counts: { black: 4, white: 3 },
       board,
-      dedupeScope: 'hero-turn',
+      dedupeScope: 'cpu-turn',
       dedupeKey: 'cpu|black|3'
     });
 
     expect(requestCommentary).toHaveBeenCalledTimes(1);
     expect(addLog).not.toHaveBeenCalled();
-    expect(showHeroSpeechBubble).toHaveBeenCalledTimes(1);
+    expect(showCpuSpeechBubble).toHaveBeenCalledTimes(1);
 
     broker.resetState();
 
     await broker.requestCommentaryAndShow({
       eventType: 'turn_start',
       playerKey: 'black',
-      speakerRole: 'hero',
+      speakerRole: 'cpu',
       turnNumber: 3,
       counts: { black: 4, white: 3 },
       board,
-      dedupeScope: 'hero-turn',
+      dedupeScope: 'cpu-turn',
       dedupeKey: 'cpu|black|3'
     });
 
     expect(requestCommentary).toHaveBeenCalledTimes(2);
     expect(addLog).not.toHaveBeenCalled();
-    expect(showHeroSpeechBubble).toHaveBeenCalledTimes(2);
+    expect(showCpuSpeechBubble).toHaveBeenCalledTimes(2);
   });
 });

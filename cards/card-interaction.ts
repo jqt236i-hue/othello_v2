@@ -2579,7 +2579,6 @@ function _getPendingSelectionPrompt(pending) {
         HYPERACTIVE_INHERIT_WILL: '多動を継承する自分の石を選んでください',
         TIME_BOMB: '時限爆弾にする自分の石を選んでください',
         CLONE_WILL: '周囲に空きがある自分の石を選んでください',
-        SPLIT_WILL: '分裂させる自分の石を選んでください（持続ターンは半減）',
         BOARD_EXPANSION_WILL: '左右端マスを選んで盤面を拡張してください',
         BOARD_EXPANSION_GOD: '角マスを選んで盤面を拡張してください',
         CORROSION_WILL: '腐食の対象となる特殊石を選んでください',

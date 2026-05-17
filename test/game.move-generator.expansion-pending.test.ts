@@ -141,7 +141,7 @@ describe('move-generator expansion pending regression', () => {
     ]));
   });
 
-  test.each(['CAPTURE_WILL', 'HYPERACTIVE_INHERIT_WILL', 'CLONE_WILL', 'SPLIT_WILL'])(
+  test.each(['CAPTURE_WILL', 'HYPERACTIVE_INHERIT_WILL', 'CLONE_WILL'])(
     '%s blocks normal move generation while target selection is pending',
     (pendingType) => {
       const { cardState, gameState } = createStates();

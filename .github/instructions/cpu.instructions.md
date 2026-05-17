@@ -1,5 +1,5 @@
 ---
-applyTo: 'cpu/**/*.js'
+applyTo: 'cpu/**/*.ts,cpu/**/*.js'
 ---
 
 # cpu/ instruction

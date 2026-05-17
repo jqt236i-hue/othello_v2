@@ -44,6 +44,10 @@ const {
     buildPromotionCommandArgs
 } = require('./training-cycle-command-builders');
 const {
+    DEFAULT_SELFPLAY_WHITE_DECK_CODE,
+    buildDeckCodeArgs
+} = require('./selfplay-deck-options');
+const {
     extractTrainingCycleFailureDetail,
     annotateTrainingCycleError,
     writeSummarySnapshot
@@ -205,6 +209,8 @@ function parseArgs(argv) {
         maxPlies: 220,
         allowCardUsage: true,
         cardUsageRate: 0.2,
+        selfplayBlackDeckCode: null,
+        selfplayWhiteDeckCode: DEFAULT_SELFPLAY_WHITE_DECK_CODE,
         selfplayGenerateHardcases: true,
         selfplayPolicyMixRate: 1,
         selfplayPolicyModelPoolSize: 4,
@@ -317,7 +323,7 @@ function parseArgs(argv) {
         adoptionTacticalBeamWidth: 12,
         adoptionPolicyScoreWeight: 2.0,
         adoptionHeuristicWeight: 0.85,
-        adoptionWhitePriority: 0.5,
+        adoptionWhitePriority: 1.0,
         adoptionQualityWeightCorner: 0.22,
         adoptionQualityWeightEdge: 0.10,
         adoptionQualityWeightCornerRecovery: 0.18,
@@ -350,7 +356,7 @@ function parseArgs(argv) {
         onnxGateTimeoutMs: 180000,
         onnxGateBlackLevel: 6,
         onnxGateWhiteLevel: 6,
-        onnxGateCandidateColorMode: 'both',
+        onnxGateCandidateColorMode: 'white',
         promotionMode: 'strict',
         onnxPrimaryMaxQuickRegression: 0.05,
         onnxPrimaryRequireQuickRegression: false,
@@ -406,6 +412,9 @@ function parseArgs(argv) {
         if (a === '--selfplay-hardcases') { args.selfplayGenerateHardcases = true; continue; }
         if (a === '--no-selfplay-hardcases') { args.selfplayGenerateHardcases = false; continue; }
         if (a === '--card-usage-rate') { args.cardUsageRate = Number(argv[++i]); continue; }
+        if (a === '--selfplay-black-deck-code') { args.selfplayBlackDeckCode = String(argv[++i] || '').trim() || null; continue; }
+        if (a === '--selfplay-white-deck-code') { args.selfplayWhiteDeckCode = String(argv[++i] || '').trim() || null; continue; }
+        if (a === '--no-selfplay-white-deck-code') { args.selfplayWhiteDeckCode = null; continue; }
         if (a === '--selfplay-policy-mix-rate') { args.selfplayPolicyMixRate = Number(argv[++i]); continue; }
         if (a === '--selfplay-policy-model-pool-size') { args.selfplayPolicyModelPoolSize = Number(argv[++i]); continue; }
         if (a === '--selfplay-policy-pool-sampling') { args.selfplayPolicyPoolSampling = String(argv[++i] || '').trim().toLowerCase(); continue; }
@@ -1974,6 +1983,10 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
     const generateCardArgs = args.allowCardUsage
         ? ['--with-cards', '--card-usage-rate', String(selfplayCardUsageRate)]
         : ['--no-cards', '--card-usage-rate', '0'];
+    const selfplayDeckArgs = buildDeckCodeArgs({
+        blackDeckCode: args.selfplayBlackDeckCode,
+        whiteDeckCode: args.selfplayWhiteDeckCode
+    });
     const selfplayDiversityArgs = [
         '--policy-mix-rate', String(args.selfplayPolicyMixRate),
         '--policy-pool-sampling', String(args.selfplayPolicyPoolSampling),
@@ -2119,6 +2132,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         dataLane: 'train-main',
         selfplayJobs: args.selfplayJobs,
         generateCardArgs,
+        selfplayDeckArgs,
         selfplayDiversityArgs,
         guideModelArgs,
         selfplayResumeArgs,
@@ -2138,6 +2152,7 @@ function runIteration(args, iterationIndex, deadlineMs, carryOver) {
         dataLane: 'eval-suite',
         selfplayJobs: args.selfplayJobs,
         generateCardArgs,
+        selfplayDeckArgs,
         selfplayDiversityArgs,
         guideModelArgs,
         selfplayResumeArgs,

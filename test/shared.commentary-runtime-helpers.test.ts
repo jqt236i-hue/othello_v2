@@ -22,9 +22,10 @@ describe('CommentaryRuntimeHelpers', () => {
     expect(helpers.getCpuSpeakerPrefix('black')).toBe('黒CPU');
   });
 
-  test('returns 勇者 prefix for hero speaker role', () => {
-    expect(helpers.getSpeakerPrefix(' WHITE ', 'hero')).toBe('勇者');
-    expect(helpers.getSpeakerPrefix('black', ' HERO ')).toBe('勇者');
+  test('normalizes speaker role to CPU prefix', () => {
+    expect(helpers.normalizeSpeakerRole('unknown', 'cpu')).toBe('cpu');
+    expect(helpers.getSpeakerPrefix(' WHITE ', 'unknown')).toBe('白CPU');
+    expect(helpers.getSpeakerPrefix('black', '')).toBe('黒CPU');
   });
 
   test('resolves commentary runtime from global or require loader', () => {

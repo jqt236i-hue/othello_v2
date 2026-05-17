@@ -104,13 +104,10 @@
     }
 
     function normalizeSpeakerRole(value: unknown, fallbackRole: unknown): string {
-        const role = String(value || '').trim().toLowerCase();
-        if (role === 'cpu' || role === 'hero') return role;
-        return String(fallbackRole || '').trim().toLowerCase() === 'hero' ? 'hero' : 'cpu';
+        return 'cpu';
     }
 
     function getSpeakerPrefix(playerKey: unknown, speakerRole: unknown): string {
-        if (normalizeSpeakerRole(speakerRole, 'cpu') === 'hero') return '勇者';
         return normalizePlayerKey(playerKey, 'black') === 'white' ? '白CPU' : '黒CPU';
     }
 

@@ -1,5 +1,5 @@
 ---
-applyTo: 'game/debug/**/*.js,ui/handlers/debug.js'
+applyTo: 'game/debug/**/*.ts,game/debug/**/*.js,ui/handlers/debug.ts,ui/handlers/debug.js'
 ---
 
 # debug instruction

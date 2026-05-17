@@ -194,7 +194,7 @@ function moveCoexistingMarkers(cardState: any, fromRow: number, fromCol: number,
         if (!marker || marker.row !== fromRow || marker.col !== fromCol)
             continue;
         const typeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-        if (typeUpper === 'BLOCKADE' || typeUpper === 'METEOR_HOLE')
+        if (typeUpper === 'BLOCKADE' || typeUpper === 'METEOR_HOLE' || typeUpper === 'FREEZE' || typeUpper === 'SEED')
             continue;
         marker.row = toRow;
         marker.col = toCol;
@@ -240,6 +240,7 @@ function processWillHunterKingEffectsAtTurnStartAnchor(cardState: any, gameState
         result.expired.push({ row, col, owner: playerKey, reason: 'anchor_lost' });
         return result;
     }
+    const resolveAnchor = () => {
     const beforeTurns = Number.isFinite(Number(anchor.data && anchor.data.remainingOwnerTurns))
         ? Math.max(0, Math.trunc(Number(anchor.data.remainingOwnerTurns)))
         : 8;
@@ -296,7 +297,6 @@ function processWillHunterKingEffectsAtTurnStartAnchor(cardState: any, gameState
             };
             const moveResult = boardOps.moveAt(cardState, gameState, row, col, target.row, target.col, 'WILL_HUNTER_KING', 'will_hunter_king_slash_move', moveMeta);
             if (moveResult && moveResult.moved) {
-                moveCoexistingMarkers(cardState, row, col, target.row, target.col);
                 result.moved.push({
                     from: { row, col },
                     to: { row: target.row, col: target.col },
@@ -328,6 +328,19 @@ function processWillHunterKingEffectsAtTurnStartAnchor(cardState: any, gameState
         }
     }
     return result;
+    };
+    if (boardOps && typeof boardOps.runEffectBlock === 'function') {
+        return boardOps.runEffectBlock(cardState, gameState, {
+            kind: 'anchor_effect',
+            cause: 'WILL_HUNTER_KING',
+            reason: 'will_hunter_king_slash',
+            owner: playerKey,
+            sourceRow: row,
+            sourceCol: col,
+            randomSource
+        }, resolveAnchor);
+    }
+    return resolveAnchor();
 }
 
 export = {

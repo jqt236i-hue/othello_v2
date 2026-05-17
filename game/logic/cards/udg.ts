@@ -295,7 +295,7 @@ function moveCoexistingMarkers(cardState: CardState, anchorEntry: any, fromRow: 
         if (marker.row !== fromRow || marker.col !== fromCol) continue;
         if (marker.kind === 'specialStone') {
             const markerTypeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
-            if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE') continue;
+            if (markerTypeUpper === 'BLOCKADE' || markerTypeUpper === 'METEOR_HOLE' || markerTypeUpper === 'FREEZE' || markerTypeUpper === 'SEED') continue;
         }
         marker.row = toRow;
         marker.col = toCol;
@@ -349,24 +349,31 @@ function collectDestroyedNeighbors(cardState: CardState, gameState: GameState, p
     const neighborCells = getNeighborCellsSnapshot(gameState, sourceRow, sourceCol);
     const targets = neighborCells.filter((cell) => cell && cell.value === opponent);
     const forbiddenEvadeCells = neighborCells.map((cell) => ({ row: cell.row, col: cell.col }));
-    for (const target of targets) {
-        if (!target) continue;
-        let destroyedRes = false;
-        if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-            const res = deps.BoardOps.destroyAt(cardState, gameState, target.row, target.col, 'ULTIMATE_DESTROY_GOD', 'udg_destroyed', {
-                sourceRow,
-                sourceCol,
-                projectileOwner: playerKey,
-                projectileStone: 'udg_lightning',
-                forbiddenEvadeCells
-            });
-            destroyedRes = !!(res && res.destroyed);
-        } else {
-            destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
+    const destroyTargets = () => {
+        for (const target of targets) {
+            if (!target) continue;
+            let destroyedRes = false;
+            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
+                const res = deps.BoardOps.destroyAt(cardState, gameState, target.row, target.col, 'ULTIMATE_DESTROY_GOD', 'udg_destroyed', {
+                    sourceRow,
+                    sourceCol,
+                    projectileOwner: playerKey,
+                    projectileStone: 'udg_lightning',
+                    forbiddenEvadeCells
+                });
+                destroyedRes = !!(res && res.destroyed);
+            } else {
+                destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
+            }
+            if (destroyedRes) {
+                destroyed.push({ row: target.row, col: target.col });
+            }
         }
-        if (destroyedRes) {
-            destroyed.push({ row: target.row, col: target.col });
-        }
+    };
+    if (deps.BoardOps && typeof deps.BoardOps.runDestroyBlock === 'function') {
+        deps.BoardOps.runDestroyBlock(cardState, gameState, destroyTargets, {});
+    } else {
+        destroyTargets();
     }
 
     return destroyed;
@@ -395,26 +402,32 @@ function processUltimateDestroyGodTurnStartAnchorCore(cardState: CardState, game
     let anchorCol = udg.col;
     const moveTarget = getRandomTurnStartMoveDestination(cardState, gameState, udg.row, udg.col, deps);
     if (moveTarget) {
+        const fromRow = udg.row;
+        const fromCol = udg.col;
         let movedRes = false;
+        let usedBoardOpsMove = false;
         if (deps.BoardOps && typeof deps.BoardOps.moveAt === 'function') {
             const res = deps.BoardOps.moveAt(
                 cardState,
                 gameState,
-                udg.row,
-                udg.col,
+                fromRow,
+                fromCol,
                 moveTarget.row,
                 moveTarget.col,
                 'ULTIMATE_DESTROY_GOD',
                 'ultimate_destroy_god_move'
             );
             movedRes = !!(res && res.moved);
+            usedBoardOpsMove = !!(res && res.markerHandled === true);
         } else {
-            movedRes = setCellValue(gameState, udg.row, udg.col, EMPTY) && setCellValue(gameState, moveTarget.row, moveTarget.col, player);
+            movedRes = setCellValue(gameState, fromRow, fromCol, EMPTY) && setCellValue(gameState, moveTarget.row, moveTarget.col, player);
         }
         if (movedRes) {
-            moveCoexistingMarkers(cardState, udg, udg.row, udg.col, moveTarget.row, moveTarget.col, deps);
+            if (!usedBoardOpsMove) {
+                moveCoexistingMarkers(cardState, udg, fromRow, fromCol, moveTarget.row, moveTarget.col, deps);
+            }
             moved.push({
-                from: { row: udg.row, col: udg.col },
+                from: { row: fromRow, col: fromCol },
                 to: { row: moveTarget.row, col: moveTarget.col }
             });
             udg.row = moveTarget.row;
@@ -542,24 +555,31 @@ function processUltimateDestroyGodEffectsAtAnchor(cardState: CardState, gameStat
     const neighborCells = getNeighborCellsSnapshot(gameState, row, col);
     const targets = neighborCells.filter((cell) => cell && cell.value === opponent);
     const forbiddenEvadeCells = neighborCells.map((cell) => ({ row: cell.row, col: cell.col }));
-    for (const target of targets) {
-        if (!target) continue;
-        let destroyedRes = false;
-        if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-            const res = deps.BoardOps.destroyAt(cardState, gameState, target.row, target.col, 'ULTIMATE_DESTROY_GOD', 'udg_destroyed', {
-                sourceRow: row,
-                sourceCol: col,
-                projectileOwner: playerKey,
-                projectileStone: 'udg_lightning',
-                forbiddenEvadeCells
-            });
-            destroyedRes = !!(res && res.destroyed);
-        } else {
-            destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
+    const destroyTargets = () => {
+        for (const target of targets) {
+            if (!target) continue;
+            let destroyedRes = false;
+            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
+                const res = deps.BoardOps.destroyAt(cardState, gameState, target.row, target.col, 'ULTIMATE_DESTROY_GOD', 'udg_destroyed', {
+                    sourceRow: row,
+                    sourceCol: col,
+                    projectileOwner: playerKey,
+                    projectileStone: 'udg_lightning',
+                    forbiddenEvadeCells
+                });
+                destroyedRes = !!(res && res.destroyed);
+            } else {
+                destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
+            }
+            if (destroyedRes) {
+                destroyed.push({ row: target.row, col: target.col });
+            }
         }
-        if (destroyedRes) {
-            destroyed.push({ row: target.row, col: target.col });
-        }
+    };
+    if (deps.BoardOps && typeof deps.BoardOps.runDestroyBlock === 'function') {
+        deps.BoardOps.runDestroyBlock(cardState, gameState, destroyTargets, {});
+    } else {
+        destroyTargets();
     }
 
     const before = (udg.data && (udg.data.remainingOwnerTurns !== undefined && udg.data.remainingOwnerTurns !== null))
@@ -634,7 +654,18 @@ function processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState: CardState,
     const udg = ((cardState as any).markers || []).find((s: any) =>
         s.kind === 'specialStone' && s.data && s.data.type === 'ULTIMATE_DESTROY_GOD' && s.owner === playerKey && s.row === row && s.col === col
     );
-    const result = processUltimateDestroyGodTurnStartAnchorCore(cardState, gameState, udg, playerKey, player, opponent, deps);
+    const resolveAnchor = () => processUltimateDestroyGodTurnStartAnchorCore(cardState, gameState, udg, playerKey, player, opponent, deps);
+    const result = (deps.BoardOps && typeof deps.BoardOps.runEffectBlock === 'function')
+        ? deps.BoardOps.runEffectBlock(cardState, gameState, {
+            kind: 'anchor_effect',
+            cause: 'ULTIMATE_DESTROY_GOD',
+            reason: 'udg_destroyed',
+            owner: playerKey,
+            sourceRow: row,
+            sourceCol: col,
+            randomSource: deps.randomSource || null
+        }, resolveAnchor)
+        : resolveAnchor();
     moved.push(...result.moved);
     destroyed.push(...result.destroyed);
     anchors.push(...result.anchors);

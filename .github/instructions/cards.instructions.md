@@ -1,5 +1,5 @@
 ---
-applyTo: 'cards/**/*.js,cards/**/*.json'
+applyTo: 'cards/**/*.ts,cards/**/*.js,cards/**/*.json'
 ---
 
 # cards instruction

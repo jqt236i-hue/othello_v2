@@ -30,10 +30,10 @@ argument-hint: 'どの環境で何を見たいか。public か local か、creat
 ## Primary Files
 
 - 必要時に自分で用意して使う `tmp/playwright-network-verify/` 一時 runner 置き場
-- `ui/network-client.js`
-- `ui/network/snapshot.js`
+- `ui/network-client.ts / .js shim`
+- `ui/network/snapshot.ts / .js shim`
 - `workers/match-worker.mjs`
-- `scripts/local-match-server.js`
+- `scripts/local-match-server.ts / .js shim`
 - `test/ui.network-client.multi-stage-selection.test.js`
 - `test/ui.network-client.result-sync.test.js`
 - `test/ui.network-snapshot.move-source-empty.test.js`

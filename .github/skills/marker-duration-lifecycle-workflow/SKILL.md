@@ -1,6 +1,6 @@
 ---
 name: 'marker-duration-lifecycle-workflow'
-description: 'marker 追加, remainingOwnerTurns, turn-start expire, spawn meta / STATUS_* presentation を、game / pipeline adapter 契約に合わせて安全に直すワークフロー。Use when editing game/logic/cards/markers.js, game/logic/cards-internal/effect-timing.js, game/turn/pipeline_ui_adapter.js, game/turn/turn_pipeline_phases.js, or related marker duration tests in this card-othello repository.'
+description: 'marker 追加, remainingOwnerTurns, turn-start expire, spawn meta / STATUS_* presentation を、game / pipeline adapter 契約に合わせて安全に直すワークフロー。Use when editing game/logic/cards/markers.ts / .js shim, game/logic/cards-internal/effect-timing.ts / .js shim, game/turn/pipeline_ui_adapter.ts / .js shim, game/turn/turn_pipeline_phases.ts / .js shim, or related marker duration tests in this card-othello repository.'
 argument-hint: 'どの marker / duration / expire / STATUS_* を直したいか。addMarker, remainingOwnerTurns, duration_end, spawn meta なども書く'
 ---
 
@@ -24,11 +24,11 @@ argument-hint: 'どの marker / duration / expire / STATUS_* を直したいか�
 
 ## Primary Files
 
-- `game/logic/cards/markers.js`
-- `game/logic/cards-internal/effect-timing.js`
-- `game/turn/pipeline_ui_adapter.js`
-- `game/turn/turn_pipeline_phases.js`
-- `game/logic/cards.js`
+- `game/logic/cards/markers.ts / .js shim`
+- `game/logic/cards-internal/effect-timing.ts / .js shim`
+- `game/turn/pipeline_ui_adapter.ts / .js shim`
+- `game/turn/turn_pipeline_phases.ts / .js shim`
+- `game/logic/cards.ts`（`.js` は互換 shim）
 - 関連 test: `test/game.cards.markers-module.test.js`, `test/game.cards.markers-duration-module.test.js`, `test/game.cards.effect-timing-module.test.js`
 
 ## Common Traps

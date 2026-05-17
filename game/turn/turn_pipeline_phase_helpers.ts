@@ -94,7 +94,6 @@ const OBSERVER_CARD_ONE_LINERS = Object.freeze({
     SNIPER_WILL: '狙撃は毎開幕判定',
     BREEDING_WILL: '周囲へ石を増殖',
     CLONE_WILL: '隣接空きへ複製',
-    SPLIT_WILL: '隣接空きへ分裂',
     TELEPORT_WILL: '石を空きへ転送',
     BLOCKADE_WILL: '空き1マス封鎖',
     METEOR_WILL: 'マスごと1セル破壊',

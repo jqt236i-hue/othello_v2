@@ -41,6 +41,8 @@ interface ShrinkDeps {
     setCellValueForCard?(gameState: GameState, row: number, col: number, value: number): boolean;
     removeMarkersAt?(cardState: CardState, row: number, col: number): void;
     addMarker?(cardState: CardState, kind: string, row: number, col: number, playerKey: string, data: any): boolean;
+    applyHoleAt?(cardState: CardState, gameState: GameState, row: number, col: number, playerKey: string, meta: any): any;
+    runCellRemovalBlock?(cardState: CardState, gameState: GameState, fn: () => any, meta?: any): any;
     isAbsoluteProtectedCell?(cardState: CardState, row: number, col: number): boolean;
     isFrozenCell?(cardState: CardState, row: number, col: number): boolean;
     random?: { random(): number };
@@ -103,6 +105,7 @@ function applyHoleAt(cardState: CardState, gameState: GameState, playerKey: stri
     const setCellValueForCard = resolvedDeps.setCellValueForCard || (() => false);
     const removeMarkersAt = resolvedDeps.removeMarkersAt || (() => {});
     const addMarker = resolvedDeps.addMarker || (() => false);
+    const applyHoleAtDep = resolvedDeps.applyHoleAt || null;
     const isAbsoluteProtectedCell = resolvedDeps.isAbsoluteProtectedCell || (() => false);
     const isFrozenCell = resolvedDeps.isFrozenCell || (() => false);
     const random = resolvedDeps.random || null;
@@ -133,7 +136,7 @@ function applyHoleAt(cardState: CardState, gameState: GameState, playerKey: stri
                 col,
                 cardType,
                 destroyReason,
-                { ignoreGuard: true, ignoreRegen: true, random }
+                { ignoreGuard: true, ignoreRegen: true, random, randomSource: random }
             );
             destroyed = isDestroyResolved(result);
             if (result && (result.reason === 'out_of_board' || result.reason === 'absolute_protected' || result.reason === 'frozen_protected')) {
@@ -141,22 +144,31 @@ function applyHoleAt(cardState: CardState, gameState: GameState, playerKey: stri
             }
         }
         if (!destroyed) {
-            clearStoneIdAtForCard(cardState, gameState, row, col);
-            setCellValueForCard(gameState, row, col, EMPTY);
-            removeMarkersAt(cardState, row, col);
             destroyed = true;
+        }
+    }
+
+    if (typeof applyHoleAtDep === 'function') {
+        const holeResult = applyHoleAtDep(cardState, gameState, row, col, playerKey, {
+            visualVariant: BOARD_SHRINK_HOLE_VISUAL_VARIANT
+        });
+        if (!holeResult || !holeResult.applied) {
+            return {
+                applied: false,
+                reason: (holeResult && holeResult.reason) || 'hole_failed',
+                row,
+                col
+            };
         }
     } else {
         clearStoneIdAtForCard(cardState, gameState, row, col);
         setCellValueForCard(gameState, row, col, EMPTY);
         removeMarkersAt(cardState, row, col);
+        addMarker(cardState, 'specialStone', row, col, playerKey, {
+            type: 'METEOR_HOLE',
+            visualVariant: BOARD_SHRINK_HOLE_VISUAL_VARIANT
+        });
     }
-
-    removeMarkersAt(cardState, row, col);
-    addMarker(cardState, 'specialStone', row, col, playerKey, {
-        type: 'METEOR_HOLE',
-        visualVariant: BOARD_SHRINK_HOLE_VISUAL_VARIANT
-    });
     return { applied: true, row, col, destroyed };
 }
 
@@ -197,20 +209,27 @@ function applyBoardShrinkWill(cardState: CardState, gameState: GameState, player
 
     const changedTargets: Target[] = [];
     const skippedTargets: Array<Target & { reason: string }> = [];
-    for (const target of nextSelections) {
-        const result = applyHoleAt(cardState, gameState, playerKey, target.row, target.col, deps, {
-            cardType: 'BOARD_SHRINK_WILL',
-            destroyReason: 'board_shrink_cell_destroy'
-        });
-        if (result && result.applied) {
-            changedTargets.push({ row: target.row, col: target.col });
-        } else {
-            skippedTargets.push({
-                row: target.row,
-                col: target.col,
-                reason: result && result.reason ? result.reason : 'invalid_target'
+    const applySelections = () => {
+        for (const target of nextSelections) {
+            const result = applyHoleAt(cardState, gameState, playerKey, target.row, target.col, deps, {
+                cardType: 'BOARD_SHRINK_WILL',
+                destroyReason: 'board_shrink_cell_destroy'
             });
+            if (result && result.applied) {
+                changedTargets.push({ row: target.row, col: target.col });
+            } else {
+                skippedTargets.push({
+                    row: target.row,
+                    col: target.col,
+                    reason: result && result.reason ? result.reason : 'invalid_target'
+                });
+            }
         }
+    };
+    if (deps && typeof deps.runCellRemovalBlock === 'function') {
+        deps.runCellRemovalBlock(cardState, gameState, applySelections, { randomSource: deps.random || null });
+    } else {
+        applySelections();
     }
 
     cs.pendingEffectByPlayer[playerKey] = null;
@@ -258,20 +277,27 @@ function applyBoardShrinkGod(cardState: CardState, gameState: GameState, playerK
 
     const changedTargets: Target[] = [];
     const skippedTargets: Array<Target & { reason: string }> = [];
-    for (const target of lineCells) {
-        const result = applyHoleAt(cardState, gameState, playerKey, target.row, target.col, deps, {
-            cardType: 'BOARD_SHRINK_GOD',
-            destroyReason: 'board_shrink_god_cell_destroy'
-        });
-        if (result && result.applied) {
-            changedTargets.push({ row: target.row, col: target.col });
-        } else {
-            skippedTargets.push({
-                row: target.row,
-                col: target.col,
-                reason: result && result.reason ? result.reason : 'invalid_target'
+    const applyLine = () => {
+        for (const target of lineCells) {
+            const result = applyHoleAt(cardState, gameState, playerKey, target.row, target.col, deps, {
+                cardType: 'BOARD_SHRINK_GOD',
+                destroyReason: 'board_shrink_god_cell_destroy'
             });
+            if (result && result.applied) {
+                changedTargets.push({ row: target.row, col: target.col });
+            } else {
+                skippedTargets.push({
+                    row: target.row,
+                    col: target.col,
+                    reason: result && result.reason ? result.reason : 'invalid_target'
+                });
+            }
         }
+    };
+    if (deps && typeof deps.runCellRemovalBlock === 'function') {
+        deps.runCellRemovalBlock(cardState, gameState, applyLine, { randomSource: deps.random || null });
+    } else {
+        applyLine();
     }
 
     cs.pendingEffectByPlayer[playerKey] = null;

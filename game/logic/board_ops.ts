@@ -500,6 +500,101 @@ function _isBlockingMarkerType(type: string): boolean {
     return typeUpper === 'BLOCKADE' || typeUpper === 'METEOR_HOLE' || typeUpper === 'FREEZE';
 }
 
+function _isCellFixedMarkerType(type: string): boolean {
+    const typeUpper = String(type || '').toUpperCase();
+    return typeUpper === 'BLOCKADE' ||
+        typeUpper === 'METEOR_HOLE' ||
+        typeUpper === 'FREEZE' ||
+        typeUpper === 'SEED';
+}
+
+function _isStoneAttachedMoveMarker(marker: any): boolean {
+    if (!marker) return false;
+    const typeUpper = String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+    return !_isCellFixedMarkerType(typeUpper);
+}
+
+function _moveStoneAttachedMarkers(cardState: any, fromRow: number, fromCol: number, toRow: number, toCol: number): any[] {
+    if (!cardState || !Array.isArray(cardState.markers)) return [];
+    const moved: any[] = [];
+    for (const marker of cardState.markers) {
+        if (!marker) continue;
+        if (_normalizeBoardIndex(marker.row) !== fromRow || _normalizeBoardIndex(marker.col) !== fromCol) continue;
+        if (!_isStoneAttachedMoveMarker(marker)) continue;
+        marker.row = toRow;
+        marker.col = toCol;
+        moved.push(marker);
+    }
+    _moveLinkedMarkerPositions(cardState, fromRow, fromCol, toRow, toCol);
+    return moved;
+}
+
+function _swapStoneAttachedMarkers(cardState: any, aRow: number, aCol: number, bRow: number, bCol: number): void {
+    if (!cardState || !Array.isArray(cardState.markers)) return;
+    for (const marker of cardState.markers) {
+        if (!marker || !_isStoneAttachedMoveMarker(marker)) continue;
+        const row = _normalizeBoardIndex(marker.row);
+        const col = _normalizeBoardIndex(marker.col);
+        if (row === aRow && col === aCol) {
+            marker.row = bRow;
+            marker.col = bCol;
+        } else if (row === bRow && col === bCol) {
+            marker.row = aRow;
+            marker.col = aCol;
+        }
+    }
+    _swapLinkedMarkerPositions(cardState, aRow, aCol, bRow, bCol);
+}
+
+function _moveLinkedMarkerPositions(cardState: any, fromRow: number, fromCol: number, toRow: number, toCol: number): void {
+    const movePoint = (point: any) => {
+        if (!point || !Number.isInteger(point.row) || !Number.isInteger(point.col)) return point;
+        if (point.row === fromRow && point.col === fromCol) return { row: toRow, col: toCol };
+        return point;
+    };
+    if (cardState && cardState.workAnchorPosByPlayer) {
+        cardState.workAnchorPosByPlayer.black = movePoint(cardState.workAnchorPosByPlayer.black);
+        cardState.workAnchorPosByPlayer.white = movePoint(cardState.workAnchorPosByPlayer.white);
+    }
+    if (cardState && cardState.breedingSproutByOwner) {
+        for (const owner of ['black', 'white']) {
+            const points = Array.isArray(cardState.breedingSproutByOwner[owner]) ? cardState.breedingSproutByOwner[owner] : [];
+            cardState.breedingSproutByOwner[owner] = points.map(movePoint);
+        }
+    }
+    if (cardState && cardState.breedingFrontierByAnchorId && typeof cardState.breedingFrontierByAnchorId === 'object') {
+        for (const key of Object.keys(cardState.breedingFrontierByAnchorId)) {
+            const points = Array.isArray(cardState.breedingFrontierByAnchorId[key]) ? cardState.breedingFrontierByAnchorId[key] : [];
+            cardState.breedingFrontierByAnchorId[key] = points.map(movePoint);
+        }
+    }
+}
+
+function _swapLinkedMarkerPositions(cardState: any, aRow: number, aCol: number, bRow: number, bCol: number): void {
+    const swapPoint = (point: any) => {
+        if (!point || !Number.isInteger(point.row) || !Number.isInteger(point.col)) return point;
+        if (point.row === aRow && point.col === aCol) return { row: bRow, col: bCol };
+        if (point.row === bRow && point.col === bCol) return { row: aRow, col: aCol };
+        return point;
+    };
+    if (cardState && cardState.workAnchorPosByPlayer) {
+        cardState.workAnchorPosByPlayer.black = swapPoint(cardState.workAnchorPosByPlayer.black);
+        cardState.workAnchorPosByPlayer.white = swapPoint(cardState.workAnchorPosByPlayer.white);
+    }
+    if (cardState && cardState.breedingSproutByOwner) {
+        for (const owner of ['black', 'white']) {
+            const points = Array.isArray(cardState.breedingSproutByOwner[owner]) ? cardState.breedingSproutByOwner[owner] : [];
+            cardState.breedingSproutByOwner[owner] = points.map(swapPoint);
+        }
+    }
+    if (cardState && cardState.breedingFrontierByAnchorId && typeof cardState.breedingFrontierByAnchorId === 'object') {
+        for (const key of Object.keys(cardState.breedingFrontierByAnchorId)) {
+            const points = Array.isArray(cardState.breedingFrontierByAnchorId[key]) ? cardState.breedingFrontierByAnchorId[key] : [];
+            cardState.breedingFrontierByAnchorId[key] = points.map(swapPoint);
+        }
+    }
+}
+
 function _isFrozenCell(cardState: any, row: number, col: number): boolean {
     const cardMarkers = getCardMarkersModule();
     if (cardMarkers && typeof cardMarkers.isFrozenCellForCard === 'function') {
@@ -579,6 +674,27 @@ function _clonePresentationMeta(meta: any): any {
     const out = (meta && typeof meta === 'object') ? Object.assign({}, meta) : {};
     delete out.randomSource;
     delete out.prng;
+    return out;
+}
+
+function _clonePresentationMetaWithActionContext(cardState: any, meta: any): any {
+    const out = _clonePresentationMeta(meta);
+    const actionMeta = cardState && cardState._currentActionMeta && typeof cardState._currentActionMeta === 'object'
+        ? cardState._currentActionMeta
+        : null;
+    if (!actionMeta) return out;
+    if (out.actionId === undefined && actionMeta.actionId !== undefined && actionMeta.actionId !== null) {
+        out.actionId = actionMeta.actionId;
+    }
+    if (out.effectBlockId === undefined && actionMeta.effectBlockId !== undefined && actionMeta.effectBlockId !== null) {
+        out.effectBlockId = actionMeta.effectBlockId;
+    }
+    if (out.effectKind === undefined && actionMeta.effectKind !== undefined && actionMeta.effectKind !== null) {
+        out.effectKind = actionMeta.effectKind;
+    }
+    if (out.turnIndex === undefined && typeof actionMeta.turnIndex === 'number') {
+        out.turnIndex = actionMeta.turnIndex;
+    }
     return out;
 }
 
@@ -685,6 +801,14 @@ function _ensurePendingStoneSalvationGodRevives(cardState: any): any {
     return cardState.pendingStoneSalvationGodRevivesByPlayer;
 }
 
+function _ensureStoneSalvationGodBlockQueue(cardState: any): any[] {
+    _ensureCardState(cardState);
+    if (!Array.isArray(cardState._stoneSalvationGodReviveBlockQueue)) {
+        cardState._stoneSalvationGodReviveBlockQueue = [];
+    }
+    return cardState._stoneSalvationGodReviveBlockQueue;
+}
+
 function _isStoneSalvationGodMarkerAt(cardState: any, row: number, col: number, ownerKey: string): boolean {
     return _getSpecialMarkersAt(cardState, row, col).some((marker: any) => (
         marker &&
@@ -697,27 +821,33 @@ function _isStoneSalvationGodMarkerAt(cardState: any, row: number, col: number, 
 function _queueDestroyedStoneForStoneSalvationGod(cardState: any, row: number, col: number, ownerKey: string, cause: string | null, reason: string | null, meta: any): any {
     const source = _findStoneSalvationGodMarker(cardState, ownerKey);
     if (!source) return null;
-    const pending = _ensurePendingStoneSalvationGodRevives(cardState);
     const entry = {
         row,
         col,
         owner: ownerKey,
         cause: cause || null,
         reason: reason || null,
-        meta: _clonePresentationMeta(meta),
+        meta: _clonePresentationMetaWithActionContext(cardState, meta),
         queuedTurnIndex: Number.isFinite(Number(cardState && cardState.turnIndex)) ? Number(cardState.turnIndex) : null
     };
-    pending[ownerKey].push(entry);
+    _ensureStoneSalvationGodBlockQueue(cardState).push(entry);
     return { queued: true, entry };
 }
 
 function _reviveDestroyedStoneByStoneSalvationGod(cardState: any, gameState: any, pendingEntry: any, ownerKey: string, meta: any): any {
     const source = _findStoneSalvationGodMarker(cardState, ownerKey);
     if (!source) return null;
-    const candidates = _collectBoardShapeEmptyCells(cardState, gameState);
-    if (!candidates.length) return { revived: false, reason: 'no_empty_cell' };
+    const allCandidates = _collectBoardShapeEmptyCells(cardState, gameState);
+    const excludedCells = meta && meta.excludeReviveCells instanceof Set
+        ? meta.excludeReviveCells
+        : null;
+    const candidates = excludedCells && excludedCells.size > 0
+        ? allCandidates.filter((cell) => !excludedCells.has(`${cell.row},${cell.col}`))
+        : allCandidates;
+    const reviveCandidates = candidates.length ? candidates : allCandidates;
+    if (!reviveCandidates.length) return { revived: false, reason: 'no_empty_cell' };
     const randomSource = _resolveBoardOpsRandomSource(cardState, meta);
-    const destination = candidates[_resolveRandomIndex(randomSource, candidates.length)] || candidates[0] || null;
+    const destination = reviveCandidates[_resolveRandomIndex(randomSource, reviveCandidates.length)] || reviveCandidates[0] || null;
     if (!destination) return { revived: false, reason: 'no_empty_cell' };
     const reviveMeta = Object.assign(_clonePresentationMeta(pendingEntry && pendingEntry.meta), {
         owner: ownerKey,
@@ -727,7 +857,8 @@ function _reviveDestroyedStoneByStoneSalvationGod(cardState: any, gameState: any
         revivedOwner: ownerKey,
         sourceRow: source.row,
         sourceCol: source.col,
-        delayedRevive: true,
+        delayedRevive: false,
+        sameTurnRevive: true,
         destroyedCause: pendingEntry && pendingEntry.cause ? pendingEntry.cause : null,
         destroyedReason: pendingEntry && pendingEntry.reason ? pendingEntry.reason : null
     });
@@ -782,6 +913,208 @@ function consumeStoneSalvationGodRevives(cardState: any, gameState: any, ownerKe
         failed,
         requestedCount: ownerPending.length,
         revivedCount: revived.length
+    };
+}
+
+function _flushStoneSalvationGodDestroyBlock(cardState: any, gameState: any, meta: any = {}): any {
+    const queued = _ensureStoneSalvationGodBlockQueue(cardState).slice();
+    cardState._stoneSalvationGodReviveBlockQueue.length = 0;
+    const revived: any[] = [];
+    const failed: any[] = [];
+    if (!queued.length) return { revived, failed, requestedCount: 0, revivedCount: 0 };
+    const excludeReviveCells = new Set();
+    for (const entry of queued) {
+        if (!entry) continue;
+        if (Number.isInteger(entry.row) && Number.isInteger(entry.col)) {
+            excludeReviveCells.add(`${entry.row},${entry.col}`);
+        }
+    }
+    const reviveMeta = Object.assign({}, meta, { excludeReviveCells });
+
+    for (const entry of queued) {
+        const ownerKey = entry && entry.owner;
+        if (ownerKey !== 'black' && ownerKey !== 'white') {
+            failed.push(Object.assign({}, entry, { reason: 'invalid_owner' }));
+            continue;
+        }
+        const result = _reviveDestroyedStoneByStoneSalvationGod(cardState, gameState, entry, ownerKey, reviveMeta);
+        if (result && result.revived) {
+            revived.push(Object.assign({}, entry, {
+                row: result.row,
+                col: result.col,
+                stoneId: result.stoneId
+            }));
+        } else {
+            failed.push(Object.assign({}, entry, { reason: (result && result.reason) || 'source_missing' }));
+        }
+    }
+
+    return {
+        revived,
+        failed,
+        requestedCount: queued.length,
+        revivedCount: revived.length
+    };
+}
+
+function _nextEffectBlockId(cardState: any, meta: any = {}): string {
+    _ensureCardState(cardState);
+    if (meta && meta.effectBlockId) return String(meta.effectBlockId);
+    const current = Number.isFinite(Number(cardState._nextEffectBlockId))
+        ? Math.max(0, Math.trunc(Number(cardState._nextEffectBlockId)))
+        : 0;
+    cardState._nextEffectBlockId = current + 1;
+    const turnIndex = Number.isFinite(Number(cardState.turnIndex))
+        ? Math.max(0, Math.trunc(Number(cardState.turnIndex)))
+        : 0;
+    const cause = String(meta && meta.cause ? meta.cause : 'effect').toLowerCase().replace(/[^a-z0-9_]+/g, '_');
+    return `effect_${turnIndex}_${current}_${cause}`;
+}
+
+function runEffectBlock(cardState: any, gameState: any, options: any, fn: any): any {
+    _ensureCardState(cardState);
+    const meta = options && typeof options === 'object' ? options : {};
+    const previousActionMeta = cardState._currentActionMeta;
+    const hadPreviousActionMeta = cardState && Object.prototype.hasOwnProperty.call(cardState, '_currentActionMeta');
+    const effectBlockId = _nextEffectBlockId(cardState, meta);
+    const previousDepth = Number.isFinite(Number(cardState._stoneSalvationGodDestroyBlockDepth))
+        ? Number(cardState._stoneSalvationGodDestroyBlockDepth)
+        : 0;
+    const previousEffectDepth = Number.isFinite(Number(cardState._effectBlockDepth))
+        ? Number(cardState._effectBlockDepth)
+        : 0;
+    const rescueFlush = meta.rescueFlush !== false;
+    const nextActionMeta = Object.assign({}, previousActionMeta || {}, meta, {
+        effectBlockId,
+        effectKind: meta.kind || meta.effectKind || null,
+        actionId: meta.actionId || (previousActionMeta && previousActionMeta.actionId) || effectBlockId,
+        turnIndex: typeof meta.turnIndex === 'number'
+            ? meta.turnIndex
+            : (previousActionMeta && typeof previousActionMeta.turnIndex === 'number'
+                ? previousActionMeta.turnIndex
+                : (cardState.turnIndex || 0)),
+        plyIndex: typeof meta.plyIndex === 'number'
+            ? meta.plyIndex
+            : (previousActionMeta && typeof previousActionMeta.plyIndex === 'number'
+                ? previousActionMeta.plyIndex
+                : 0),
+        randomSource: meta.randomSource || (previousActionMeta && previousActionMeta.randomSource) || null
+    });
+    cardState._currentActionMeta = nextActionMeta;
+    cardState._effectBlockDepth = previousEffectDepth + 1;
+    if (rescueFlush) {
+        cardState._stoneSalvationGodDestroyBlockDepth = previousDepth + 1;
+    }
+    try {
+        return (typeof fn === 'function') ? fn() : undefined;
+    } finally {
+        try {
+            cardState._effectBlockDepth = previousEffectDepth;
+            if (rescueFlush) {
+                cardState._stoneSalvationGodDestroyBlockDepth = previousDepth;
+                if (previousEffectDepth === 0) {
+                    _flushStoneSalvationGodDestroyBlock(cardState, gameState, Object.assign({}, meta, { effectBlockId }));
+                }
+            }
+        } finally {
+            if (previousActionMeta && typeof previousActionMeta.plyIndex === 'number' && typeof nextActionMeta.plyIndex === 'number') {
+                previousActionMeta.plyIndex = nextActionMeta.plyIndex;
+            }
+            if (hadPreviousActionMeta) cardState._currentActionMeta = previousActionMeta;
+            else delete cardState._currentActionMeta;
+        }
+    }
+}
+
+function runDestroyBlock(cardState: any, gameState: any, fn: any, meta: any = {}): any {
+    _ensureCardState(cardState);
+    const currentActionMeta = cardState._currentActionMeta || null;
+    const previousEffectDepth = Number.isFinite(Number(cardState._effectBlockDepth))
+        ? Number(cardState._effectBlockDepth)
+        : 0;
+    const hasActiveEffectBlock = previousEffectDepth > 0 || !!(currentActionMeta && currentActionMeta.effectBlockId);
+    if (!hasActiveEffectBlock) {
+        return runEffectBlock(cardState, gameState, Object.assign({
+            kind: 'destroy_block',
+            effectKind: 'destroy_block'
+        }, meta || {}), fn);
+    }
+    const previousDepth = Number.isFinite(Number(cardState._stoneSalvationGodDestroyBlockDepth))
+        ? Number(cardState._stoneSalvationGodDestroyBlockDepth)
+        : 0;
+    cardState._stoneSalvationGodDestroyBlockDepth = previousDepth + 1;
+    try {
+        return (typeof fn === 'function') ? fn() : undefined;
+    } finally {
+        cardState._stoneSalvationGodDestroyBlockDepth = previousDepth;
+        if (previousDepth === 0) {
+            _flushStoneSalvationGodDestroyBlock(cardState, gameState, meta);
+        }
+    }
+}
+
+function runCellRemovalBlock(cardState: any, gameState: any, fn: any, meta: any = {}): any {
+    _ensureCardState(cardState);
+    const currentActionMeta = cardState._currentActionMeta || null;
+    const previousEffectDepth = Number.isFinite(Number(cardState._effectBlockDepth))
+        ? Number(cardState._effectBlockDepth)
+        : 0;
+    const hasActiveEffectBlock = previousEffectDepth > 0 || !!(currentActionMeta && currentActionMeta.effectBlockId);
+    if (!hasActiveEffectBlock) {
+        return runEffectBlock(cardState, gameState, Object.assign({
+            kind: 'cell_removal',
+            effectKind: 'cell_removal'
+        }, meta || {}), fn);
+    }
+    return runDestroyBlock(cardState, gameState, fn, meta);
+}
+
+function applyHoleAt(cardState: any, gameState: any, row: number, col: number, ownerKey: string, meta: any = {}): any {
+    _ensureCardState(cardState);
+    const prev = getCellValue(gameState, row, col);
+    if (prev === null) return { applied: false, reason: 'out_of_board', row, col };
+
+    setStoneIdAt(cardState, gameState, row, col, null);
+    setCellValue(gameState, row, col, EMPTY);
+
+    const removeOptions = meta && meta.removeOptions ? meta.removeOptions : undefined;
+    const cardMarkers = getCardMarkersModule();
+    if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
+        cardMarkers.removeMarkersAt(cardState, row, col, removeOptions);
+    } else if (MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
+        MarkersAdapter.removeMarkersAt(cardState, row, col, removeOptions);
+    } else if (Array.isArray(cardState.markers)) {
+        cardState.markers = cardState.markers.filter((m: any) => !(m && m.row === row && m.col === col));
+    }
+
+    const data: any = { type: 'METEOR_HOLE' };
+    if (meta && meta.visualVariant) data.visualVariant = meta.visualVariant;
+    const liveBefore = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0;
+    const persistBefore = Array.isArray(cardState._presentationEventsPersist) ? cardState._presentationEventsPersist.length : 0;
+    const marker = _addSpecialStoneMarker(cardState, row, col, ownerKey, data);
+    const liveAfter = Array.isArray(cardState.presentationEvents) ? cardState.presentationEvents.length : 0;
+    if (marker && liveAfter === liveBefore) {
+        if (Array.isArray(cardState._presentationEventsPersist) && cardState._presentationEventsPersist.length > persistBefore) {
+            for (let index = cardState._presentationEventsPersist.length - 1; index >= persistBefore; index--) {
+                const ev = cardState._presentationEventsPersist[index];
+                if (ev && ev.type === 'STATUS_APPLIED' && ev.row === row && ev.col === col && ev.meta && ev.meta.special === 'METEOR_HOLE') {
+                    cardState._presentationEventsPersist.splice(index, 1);
+                    break;
+                }
+            }
+        }
+        const statusMeta: any = { special: 'METEOR_HOLE', timer: null, owner: ownerKey };
+        if (meta && meta.visualVariant) statusMeta.visualVariant = meta.visualVariant;
+        emitPresentationEvent(cardState, { type: 'STATUS_APPLIED', row, col, meta: statusMeta });
+    }
+    return {
+        applied: !!marker,
+        row,
+        col,
+        owner: ownerKey,
+        previousValue: prev,
+        marker,
+        reason: marker ? null : 'marker_failed'
     };
 }
 
@@ -1065,11 +1398,22 @@ function _populateSpecialVisualMeta(cardState: any, row: number, col: number, me
 function emitPresentationEvent(cardState: any, ev: any): void {
     _ensureCardState(cardState);
     const metaSource = cardState._currentActionMeta || {};
-    const actionId = (ev.actionId !== undefined && ev.actionId !== null) ? ev.actionId : (metaSource.actionId || null);
+    const eventMeta = ev && ev.meta && typeof ev.meta === 'object' ? ev.meta : null;
+    const metaActionId = eventMeta && eventMeta.actionId !== undefined && eventMeta.actionId !== null ? eventMeta.actionId : null;
+    const metaEffectBlockId = eventMeta && eventMeta.effectBlockId !== undefined && eventMeta.effectBlockId !== null ? eventMeta.effectBlockId : null;
+    const actionId = (ev.actionId !== undefined && ev.actionId !== null) ? ev.actionId : (metaActionId || metaSource.actionId || null);
+    const effectBlockId = (ev.effectBlockId !== undefined && ev.effectBlockId !== null) ? ev.effectBlockId : (metaEffectBlockId || metaSource.effectBlockId || null);
     const turnIndex = (ev.turnIndex !== undefined && ev.turnIndex !== null) ? ev.turnIndex : (typeof metaSource.turnIndex === 'number' ? metaSource.turnIndex : (cardState.turnIndex || 0));
     const plyIndex = (ev.plyIndex !== undefined && ev.plyIndex !== null) ? ev.plyIndex : (typeof metaSource.plyIndex === 'number' ? metaSource.plyIndex : null);
 
-    const out = Object.assign({}, ev, { actionId, turnIndex, plyIndex });
+    const outMeta = (ev.meta && typeof ev.meta === 'object') ? Object.assign({}, ev.meta) : ev.meta;
+    if (effectBlockId && outMeta && typeof outMeta === 'object' && outMeta.effectBlockId === undefined) {
+        outMeta.effectBlockId = effectBlockId;
+    }
+    if (metaSource.effectKind && outMeta && typeof outMeta === 'object' && outMeta.effectKind === undefined) {
+        outMeta.effectKind = metaSource.effectKind;
+    }
+    const out = Object.assign({}, ev, { meta: outMeta, actionId, effectBlockId, turnIndex, plyIndex });
     cardState.presentationEvents.push(out);
     if (!cardState._presentationEventsPersist) cardState._presentationEventsPersist = [];
     cardState._presentationEventsPersist.push(out);
@@ -1158,6 +1502,10 @@ function spawnAt(cardState: any, gameState: any, row: number, col: number, owner
     setStoneIdAt(cardState, gameState, row, col, stoneId);
 
     const metaOut = _clonePresentationMeta(meta);
+    if (metaOut.spawnIntent === undefined || metaOut.spawnIntent === null) {
+        const inferredIntent = _inferSpawnIntent(cause, reason);
+        if (inferredIntent) metaOut.spawnIntent = inferredIntent;
+    }
     if (metaOut.special === undefined || metaOut.special === null) {
         const visual = _getSpecialVisualMeta(cardState, row, col);
         if (visual.special !== null) metaOut.special = visual.special;
@@ -1182,7 +1530,139 @@ function spawnAt(cardState: any, gameState: any, row: number, col: number, owner
     return { spawned: true, stoneId };
 }
 
-function destroyAt(cardState: any, gameState: any, row: number, col: number, cause: string | null, reason: string | null, meta: any = {}): any {
+function _inferSpawnIntent(cause: string | null, reason: string | null): string | null {
+    const causeUpper = String(cause || '').toUpperCase();
+    const reasonLower = String(reason || '').toLowerCase();
+    if (causeUpper === 'CLONE_WILL') return 'clone_spawn';
+    if (causeUpper === 'BREEDING') return 'breeding_spawn';
+    if (causeUpper === 'PROLIFERATION_WILL') return 'proliferation_spawn';
+    if (causeUpper === 'SALVATION_WILL') return 'salvation_spawn';
+    if (causeUpper === 'STONE_SALVATION_GOD') return 'salvation_spawn';
+    if (causeUpper === 'LIVING_WILL') return 'restore_spawn';
+    if (causeUpper === 'EQUALITY_WILL' || causeUpper === 'REINFORCEMENT_WILL' || reasonLower.indexOf('_spawn') >= 0) {
+        return 'normal_spawn';
+    }
+    return null;
+}
+
+function runSpawnBlock(cardState: any, gameState: any, fn: any, meta: any = {}): any {
+    _ensureCardState(cardState);
+    const currentActionMeta = cardState._currentActionMeta || null;
+    const previousEffectDepth = Number.isFinite(Number(cardState._effectBlockDepth))
+        ? Number(cardState._effectBlockDepth)
+        : 0;
+    const hasActiveEffectBlock = previousEffectDepth > 0 || !!(currentActionMeta && currentActionMeta.effectBlockId);
+    if (!hasActiveEffectBlock) {
+        return runEffectBlock(cardState, gameState, Object.assign({}, meta || {}, {
+            kind: 'spawn_block',
+            effectKind: 'spawn_block',
+            rescueFlush: false
+        }), () => runSpawnBlock(cardState, gameState, fn, meta));
+    }
+    const previousDepth = Number.isFinite(Number(cardState._spawnBlockDepth))
+        ? Number(cardState._spawnBlockDepth)
+        : 0;
+    cardState._spawnBlockDepth = previousDepth + 1;
+    const previousMeta = cardState._spawnBlockMeta;
+    cardState._spawnBlockMeta = Object.assign({}, previousMeta || {}, meta || {});
+    try {
+        return (typeof fn === 'function') ? fn() : undefined;
+    } finally {
+        cardState._spawnBlockDepth = previousDepth;
+        if (previousMeta === undefined) delete cardState._spawnBlockMeta;
+        else cardState._spawnBlockMeta = previousMeta;
+    }
+}
+
+function spawnMany(cardState: any, gameState: any, targets: any[], ownerKey: PlayerKey, cause: string | null, reason: string | null, options: any = {}): any {
+    _ensureCardState(cardState);
+    const list = Array.isArray(targets) ? targets.filter((target) => (
+        target && Number.isInteger(target.row) && Number.isInteger(target.col)
+    )) : [];
+    const requestedCount = Number.isFinite(Number(options && options.requestedCount))
+        ? Math.max(0, Math.trunc(Number(options.requestedCount)))
+        : list.length;
+    const metaFactory = options && typeof options.metaFactory === 'function'
+        ? options.metaFactory
+        : ((spawnIndex: number, target: any) => Object.assign({}, options && options.meta ? options.meta : {}, {
+            owner: ownerKey,
+            requestedCount,
+            spawnIndex
+        }));
+    const spawned: any[] = [];
+    const failed: any[] = [];
+    const result = runSpawnBlock(cardState, gameState, () => {
+        for (const target of list) {
+            const spawnIndex = spawned.length + 1;
+            const spawnMeta = metaFactory(spawnIndex, target) || {};
+            const spawnResult = spawnAt(
+                cardState,
+                gameState,
+                target.row,
+                target.col,
+                ownerKey,
+                cause,
+                reason,
+                spawnMeta
+            );
+            if (spawnResult && spawnResult.spawned) {
+                spawned.push({
+                    row: target.row,
+                    col: target.col,
+                    stoneId: spawnResult.stoneId || null
+                });
+            } else {
+                failed.push({
+                    row: target.row,
+                    col: target.col,
+                    reason: (spawnResult && spawnResult.reason) || 'spawn_failed'
+                });
+                if (options && options.stopOnFailure === true) break;
+            }
+        }
+        return { spawned, failed };
+    }, options && options.blockMeta ? options.blockMeta : {});
+    return {
+        applied: true,
+        requestedCount,
+        spawnedCount: spawned.length,
+        spawned,
+        failedCount: failed.length,
+        failed,
+        result
+    };
+}
+
+function _inferMoveIntent(cause: string | null, reason: string | null): string | null {
+    const causeUpper = String(cause || '').toUpperCase();
+    const reasonLower = String(reason || '').toLowerCase();
+    if (causeUpper === 'STRONG_WIND_WILL' || reasonLower.indexOf('strong_wind_move') === 0) return 'wind_move';
+    if (causeUpper === 'TELEPORT_WILL' || causeUpper === 'CELL_TELEPORT_WILL' || reasonLower.indexOf('teleport_move') === 0) return 'teleport_move';
+    if (causeUpper === 'SUPER_BUOYANCY_WILL' || causeUpper === 'SUPER_GRAVITY_WILL' || reasonLower.indexOf('super_buoyancy_move') === 0 || reasonLower.indexOf('super_gravity_move') === 0) return 'crush_move';
+    if (causeUpper === 'POSITION_SWAP_WILL' || reasonLower.indexOf('position_swap') === 0 || reasonLower.indexOf('extreme_hyperactive_forced_swap') === 0) return 'position_swap';
+    if (causeUpper === 'DESTROY_EVADE' || reasonLower.indexOf('destroy_evade_move') === 0 || reasonLower.indexOf('flip_evade_move') >= 0) return 'evade_move';
+    if (causeUpper === 'ULTIMATE_REVERSE_DRAGON' || causeUpper === 'ULTIMATE_DESTROY_GOD' || reasonLower.indexOf('ultimate_reverse_dragon_move') === 0 || reasonLower.indexOf('ultimate_destroy_god_move') === 0) return 'anchor_move';
+    if (
+        causeUpper === 'HYPERACTIVE' ||
+        causeUpper === 'AFTERIMAGE_WILL' ||
+        causeUpper === 'ESCAPE_HYPERACTIVE' ||
+        causeUpper === 'EXTREME_HYPERACTIVE_WILL' ||
+        causeUpper === 'HYPERACTIVE_INHERIT_WILL' ||
+        causeUpper === 'ROBOT_VACUUM' ||
+        causeUpper === 'ROBOT_VACUUM_WILL' ||
+        causeUpper === 'GLUTTONOUS_WILL' ||
+        causeUpper === 'ULTIMATE_HYPERACTIVE' ||
+        causeUpper === 'ULTIMATE_HYPERACTIVE_GOD' ||
+        causeUpper === 'WILL_HUNTER_KING' ||
+        reasonLower.indexOf('hyperactive') >= 0 ||
+        reasonLower.indexOf('gluttonous') >= 0 ||
+        reasonLower.indexOf('robot_vacuum_move') === 0 ||
+        reasonLower.indexOf('will_hunter_king_slash_move') === 0
+    ) return 'hyperactive_move';
+    return null;
+}
+
+function _destroyAtCore(cardState: any, gameState: any, row: number, col: number, cause: string | null, reason: string | null, meta: any = {}): any {
     _ensureCardState(cardState);
     const pos = _normalizeCellPosition(row, col);
     if (!pos) return { destroyed: false, reason: 'out_of_board' };
@@ -1522,6 +2002,21 @@ function destroyAt(cardState: any, gameState: any, row: number, col: number, cau
     } : undefined);
 }
 
+function destroyAt(cardState: any, gameState: any, row: number, col: number, cause: string | null, reason: string | null, meta: any = {}): any {
+    _ensureCardState(cardState);
+    const depth = Number.isFinite(Number(cardState._stoneSalvationGodDestroyBlockDepth))
+        ? Number(cardState._stoneSalvationGodDestroyBlockDepth)
+        : 0;
+    if (depth > 0) {
+        return _destroyAtCore(cardState, gameState, row, col, cause, reason, meta);
+    }
+    let result: any;
+    runDestroyBlock(cardState, gameState, () => {
+        result = _destroyAtCore(cardState, gameState, row, col, cause, reason, meta);
+    }, Object.assign({ cause, reason }, meta || {}));
+    return result;
+}
+
 function changeAt(cardState: any, gameState: any, row: number, col: number, ownerAfterKey: PlayerKey, cause: string | null, reason: string | null, meta: any = {}): any {
     _ensureCardState(cardState);
     const pos = _normalizeCellPosition(row, col);
@@ -1753,7 +2248,12 @@ function moveAt(cardState: any, gameState: any, fromRow: number, fromCol: number
 
     setCellValue(gameState, fromRow, fromCol, EMPTY);
     setCellValue(gameState, toRow, toCol, prev);
+    _moveStoneAttachedMarkers(cardState, fromRow, fromCol, toRow, toCol);
     const metaOut = _clonePresentationMeta(meta);
+    if (metaOut.moveIntent === undefined || metaOut.moveIntent === null) {
+        const inferredIntent = _inferMoveIntent(cause, reason);
+        if (inferredIntent) metaOut.moveIntent = inferredIntent;
+    }
     if (metaOut.special === undefined || metaOut.special === null) {
         const visual = _getSpecialVisualMeta(cardState, toRow, toCol);
         if (visual.special !== null) metaOut.special = visual.special;
@@ -1778,7 +2278,108 @@ function moveAt(cardState: any, gameState: any, fromRow: number, fromCol: number
         reason: reason || null,
         meta: metaOut
     });
-    return { moved: true };
+    return { moved: true, markerHandled: true };
+}
+
+function swapOccupiedCells(cardState: any, gameState: any, posA: any, posB: any, options: any = {}): any {
+    _ensureCardState(cardState);
+    if (!posA || !posB) return { swapped: false, reason: 'invalid_args' };
+    const aPos = _normalizeCellPosition(posA.row, posA.col);
+    const bPos = _normalizeCellPosition(posB.row, posB.col);
+    if (!aPos || !bPos) return { swapped: false, reason: 'invalid_args' };
+    const aRow = aPos.row;
+    const aCol = aPos.col;
+    const bRow = bPos.row;
+    const bCol = bPos.col;
+    if (aRow === bRow && aCol === bCol) return { swapped: false, reason: 'same_cell' };
+
+    const valueA = getCellValue(gameState, aRow, aCol);
+    const valueB = getCellValue(gameState, bRow, bCol);
+    if (valueA === null || valueB === null) return { swapped: false, reason: 'out_of_board' };
+    if (valueA === EMPTY || valueB === EMPTY) return { swapped: false, reason: 'empty' };
+    if (_isFrozenCell(cardState, aRow, aCol) || _isFrozenCell(cardState, bRow, bCol)) return { swapped: false, reason: 'frozen_source' };
+    if (_isAbsoluteProtectedCell(cardState, aRow, aCol) || _isAbsoluteProtectedCell(cardState, bRow, bCol)) return { swapped: false, reason: 'absolute_protected_source' };
+
+    const stoneIdA = getStoneIdAt(cardState, gameState, aRow, aCol);
+    const stoneIdB = getStoneIdAt(cardState, gameState, bRow, bCol);
+    const ownerA = valueA === (SharedConstants.BLACK || 1) ? 'black' : 'white';
+    const ownerB = valueB === (SharedConstants.BLACK || 1) ? 'black' : 'white';
+
+    setCellValue(gameState, aRow, aCol, valueB);
+    setCellValue(gameState, bRow, bCol, valueA);
+    setStoneIdAt(cardState, gameState, aRow, aCol, stoneIdB);
+    setStoneIdAt(cardState, gameState, bRow, bCol, stoneIdA);
+    _swapStoneAttachedMarkers(cardState, aRow, aCol, bRow, bCol);
+
+    const cause = options && Object.prototype.hasOwnProperty.call(options, 'cause') ? options.cause : null;
+    const reason = options && Object.prototype.hasOwnProperty.call(options, 'reason') ? options.reason : null;
+    const firstMeta = _clonePresentationMeta(options && options.firstMeta ? options.firstMeta : options && options.meta);
+    const secondMeta = _clonePresentationMeta(options && options.secondMeta ? options.secondMeta : options && options.meta);
+    const inferredIntent = _inferMoveIntent(cause, reason);
+    if ((firstMeta.moveIntent === undefined || firstMeta.moveIntent === null) && inferredIntent) firstMeta.moveIntent = inferredIntent;
+    if ((secondMeta.moveIntent === undefined || secondMeta.moveIntent === null) && inferredIntent) secondMeta.moveIntent = inferredIntent;
+
+    const firstVisual = _getSpecialVisualMeta(cardState, bRow, bCol);
+    if (firstMeta.special === undefined || firstMeta.special === null) {
+        if (firstVisual.special !== null) firstMeta.special = firstVisual.special;
+        if (firstVisual.timer !== null) firstMeta.timer = firstVisual.timer;
+        if (firstVisual.owner !== null) firstMeta.owner = firstVisual.owner;
+        if (firstVisual.inheritedTimer !== null) firstMeta.inheritedTimer = firstVisual.inheritedTimer;
+        if (firstVisual.inheritedOwner !== null) firstMeta.inheritedOwner = firstVisual.inheritedOwner;
+        if (firstVisual.flipEvadeRemaining !== null) firstMeta.flipEvadeRemaining = firstVisual.flipEvadeRemaining;
+        if (firstVisual.inheritedFlipEvadeRemaining !== null) firstMeta.inheritedFlipEvadeRemaining = firstVisual.inheritedFlipEvadeRemaining;
+        if (firstVisual.destroyEvadeRemaining !== null) firstMeta.destroyEvadeRemaining = firstVisual.destroyEvadeRemaining;
+    }
+    const secondVisual = _getSpecialVisualMeta(cardState, aRow, aCol);
+    if (secondMeta.special === undefined || secondMeta.special === null) {
+        if (secondVisual.special !== null) secondMeta.special = secondVisual.special;
+        if (secondVisual.timer !== null) secondMeta.timer = secondVisual.timer;
+        if (secondVisual.owner !== null) secondMeta.owner = secondVisual.owner;
+        if (secondVisual.inheritedTimer !== null) secondMeta.inheritedTimer = secondVisual.inheritedTimer;
+        if (secondVisual.inheritedOwner !== null) secondMeta.inheritedOwner = secondVisual.inheritedOwner;
+        if (secondVisual.flipEvadeRemaining !== null) secondMeta.flipEvadeRemaining = secondVisual.flipEvadeRemaining;
+        if (secondVisual.inheritedFlipEvadeRemaining !== null) secondMeta.inheritedFlipEvadeRemaining = secondVisual.inheritedFlipEvadeRemaining;
+        if (secondVisual.destroyEvadeRemaining !== null) secondMeta.destroyEvadeRemaining = secondVisual.destroyEvadeRemaining;
+    }
+
+    const actionId = options && options.actionId ? options.actionId : null;
+    const firstEvent: any = {
+        type: 'MOVE',
+        stoneId: stoneIdA,
+        row: bRow,
+        col: bCol,
+        prevRow: aRow,
+        prevCol: aCol,
+        ownerBefore: ownerA,
+        ownerAfter: ownerA,
+        cause,
+        reason,
+        meta: firstMeta
+    };
+    const secondEvent: any = {
+        type: 'MOVE',
+        stoneId: stoneIdB,
+        row: aRow,
+        col: aCol,
+        prevRow: bRow,
+        prevCol: bCol,
+        ownerBefore: ownerB,
+        ownerAfter: ownerB,
+        cause,
+        reason,
+        meta: secondMeta
+    };
+    if (actionId) {
+        firstEvent.actionId = actionId;
+        secondEvent.actionId = actionId;
+    }
+    emitPresentationEvent(cardState, firstEvent);
+    emitPresentationEvent(cardState, secondEvent);
+    return {
+        swapped: true,
+        first: { row: aRow, col: aCol },
+        second: { row: bRow, col: bCol }
+    };
 }
 
 function setActionContext(cardState: any, meta: any): void {
@@ -1792,10 +2393,14 @@ function clearActionContext(cardState: any): void {
 
 export = {
     spawnAt,
+    spawnMany,
+    runSpawnBlock,
     destroyAt,
     changeAt,
     revertSpecialStoneAt,
     moveAt,
+    swapOccupiedCells,
+    applyHoleAt,
     getExpansionDescriptors,
     getCellValue,
     setCellValue,
@@ -1805,5 +2410,8 @@ export = {
     emitPresentationEvent,
     setActionContext,
     clearActionContext,
-    consumeStoneSalvationGodRevives
+    consumeStoneSalvationGodRevives,
+    runEffectBlock,
+    runDestroyBlock,
+    runCellRemovalBlock
 };

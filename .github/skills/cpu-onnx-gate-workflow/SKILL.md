@@ -1,6 +1,6 @@
 ---
 name: 'cpu-onnx-gate-workflow'
-description: 'browser ONNX gate, runtime guard, benchmark script, fallback 判定を、この repo の shared profile と browser runtime 前提に合わせて安全に直すワークフロー。Use when editing scripts/benchmark-policy-onnx-gate.js, ui/handlers/cpu-policy.js, game/ai/policy-onnx-runtime.js, game/cpu-decision.js, or related ONNX gate tests in this card-othello repository.'
+description: 'browser ONNX gate, runtime guard, benchmark script, fallback 判定を、この repo の shared profile と browser runtime 前提に合わせて安全に直すワークフロー。Use when editing scripts/benchmark-policy-onnx-gate.js, ui/handlers/cpu-policy.ts / .js shim, game/ai/policy-onnx-runtime.js, game/cpu-decision.ts / .js shim, or related ONNX gate tests in this card-othello repository.'
 argument-hint: 'どの gate や fallback を直したいか。browser, runtime, benchmark, profile のどこかも書く'
 ---
 
@@ -26,9 +26,9 @@ argument-hint: 'どの gate や fallback を直したいか。browser, runtime, 
 
 - `constants/cpu-lv6-shared-profile.js`
 - `scripts/benchmark-policy-onnx-gate.js`
-- `ui/handlers/cpu-policy.js`
+- `ui/handlers/cpu-policy.ts / .js shim`
 - `game/ai/policy-onnx-runtime.js`
-- `game/cpu-decision.js`
+- `game/cpu-decision.ts / .js shim`
 - 関連 test: `test/ui.cpu-policy-handler.test.js`, `test/game.cpu-policy-table-runtime.test.js`, `test/selfplay.benchmark-policy.test.js`
 
 ## Common Traps

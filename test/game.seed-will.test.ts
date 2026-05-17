@@ -106,6 +106,54 @@ describe('SEED_WILL（種まきの意志）', () => {
     ]));
   });
 
+  test('spawnMany emits ordered SPAWN events with inferred spawn intent', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+    gameState.board = createEmptyBoard();
+
+    const result = BoardOps.spawnMany(
+      cardState,
+      gameState,
+      [{ row: 1, col: 1 }, { row: 1, col: 2 }],
+      'black',
+      'REINFORCEMENT_WILL',
+      'reinforcement_will_spawn',
+      { requestedCount: 2 }
+    );
+
+    expect(result).toMatchObject({ applied: true, requestedCount: 2, spawnedCount: 2, failedCount: 0 });
+    expect(gameState.board[1][1]).toBe(Core.BLACK);
+    expect(gameState.board[1][2]).toBe(Core.BLACK);
+    const spawnEvents = (cardState.presentationEvents || []).filter((event) => event && event.type === 'SPAWN');
+    expect(spawnEvents.map((event) => [event.row, event.col])).toEqual([[1, 1], [1, 2]]);
+    expect(spawnEvents.map((event) => event.meta && event.meta.spawnIndex)).toEqual([1, 2]);
+    expect(spawnEvents.every((event) => event.meta && event.meta.spawnIntent === 'normal_spawn')).toBe(true);
+  });
+
+  test('spawnMany keeps spawnIndex sequential for successful spawns when a target fails', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+    gameState.board = createEmptyBoard();
+
+    const result = BoardOps.spawnMany(
+      cardState,
+      gameState,
+      [{ row: 99, col: 99 }, { row: 1, col: 2 }],
+      'black',
+      'REINFORCEMENT_WILL',
+      'reinforcement_will_spawn',
+      { requestedCount: 2 }
+    );
+
+    expect(result).toMatchObject({ applied: true, requestedCount: 2, spawnedCount: 1, failedCount: 1 });
+    expect(gameState.board[1][2]).toBe(Core.BLACK);
+    const spawnEvents = (cardState.presentationEvents || []).filter((event) => event && event.type === 'SPAWN');
+    expect(spawnEvents.map((event) => [event.row, event.col])).toEqual([[1, 2]]);
+    expect(spawnEvents.map((event) => event.meta && event.meta.spawnIndex)).toEqual([1]);
+  });
+
   test('種マスは封鎖と凍結の対象にならない', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();

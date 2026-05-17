@@ -940,26 +940,33 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
         const validTargets = Array.from(targetMap.values());
         const forbiddenEvadeCells = validTargets.map((pos) => ({ row: pos.row, col: pos.col }));
         let destroyedCount = 0;
-        for (const pos of validTargets) {
-            const prev = (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function')
-                ? BoardOpsModule.getCellValue(gameState, pos.row, pos.col)
-                : (typeof helpers.getCellValueForCard === 'function' ? helpers.getCellValueForCard(gameState, pos.row, pos.col) : null);
-            if (prev === constants.EMPTY || prev === null) continue;
-            if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-                const res = BoardOpsModule.destroyAt(cardState, gameState, pos.row, pos.col, cause, reason, {
-                    forbiddenEvadeCells
-                });
-                if (res && res.destroyed) destroyedCount++;
-            } else {
-                if (typeof helpers.removeMarkersAt === 'function') {
-                    helpers.removeMarkersAt(cardState, pos.row, pos.col);
+        const destroyTargets = () => {
+            for (const pos of validTargets) {
+                const prev = (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function')
+                    ? BoardOpsModule.getCellValue(gameState, pos.row, pos.col)
+                    : (typeof helpers.getCellValueForCard === 'function' ? helpers.getCellValueForCard(gameState, pos.row, pos.col) : null);
+                if (prev === constants.EMPTY || prev === null) continue;
+                if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
+                    const res = BoardOpsModule.destroyAt(cardState, gameState, pos.row, pos.col, cause, reason, {
+                        forbiddenEvadeCells
+                    });
+                    if (res && res.destroyed) destroyedCount++;
+                } else {
+                    if (typeof helpers.removeMarkersAt === 'function') {
+                        helpers.removeMarkersAt(cardState, pos.row, pos.col);
+                    }
+                    if (typeof helpers.setCellValueForCard !== 'function' || !helpers.setCellValueForCard(gameState, pos.row, pos.col, constants.EMPTY)) continue;
+                    if (typeof helpers.clearStoneIdAtForCard === 'function') {
+                        helpers.clearStoneIdAtForCard(cardState, gameState, pos.row, pos.col);
+                    }
+                    destroyedCount++;
                 }
-                if (typeof helpers.setCellValueForCard !== 'function' || !helpers.setCellValueForCard(gameState, pos.row, pos.col, constants.EMPTY)) continue;
-                if (typeof helpers.clearStoneIdAtForCard === 'function') {
-                    helpers.clearStoneIdAtForCard(cardState, gameState, pos.row, pos.col);
-                }
-                destroyedCount++;
             }
+        };
+        if (BoardOpsModule && typeof BoardOpsModule.runDestroyBlock === 'function') {
+            BoardOpsModule.runDestroyBlock(cardState, gameState, destroyTargets, {});
+        } else {
+            destroyTargets();
         }
         return destroyedCount;
     }

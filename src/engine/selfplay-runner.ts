@@ -555,7 +555,6 @@ function buildPendingSelectionRecord(action, pendingType) {
         'corrosionTarget',
         'bombTarget',
         'cloneTarget',
-        'splitTarget',
         'blockadeTarget',
         'meteorTarget',
         'freezeTarget',
@@ -2820,20 +2819,6 @@ function chooseCloneTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
-function chooseSplitTarget(gameState, cardState, playerKey, rng) {
-    return chooseTargetBySimulation(
-        gameState,
-        cardState,
-        playerKey,
-        rng,
-        (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
-            CardLogic.applySplitWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
-        (target) => (evaluatePositionValue(target.row, target.col) * 1.25),
-        null,
-        'getSplitTargets'
-    );
-}
-
 function chooseHyperactiveInheritTarget(gameState, cardState, playerKey, rng) {
     return chooseTargetBySimulation(
         gameState,
@@ -3146,7 +3131,6 @@ function buildPendingSelectionAction(gameState, cardState, playerKey, pendingTyp
             chooseSeedTarget,
             chooseTrapTarget,
             chooseCloneTarget,
-            chooseSplitTarget,
             chooseHyperactiveInheritTarget,
             chooseTeleportTarget,
             chooseCellTeleportTarget,
@@ -3372,9 +3356,28 @@ function resolveWinner(gameState) {
     return { winner: 'draw', counts };
 }
 
-function createInitialState(seed) {
+function cloneInitialDeckCardIdsByPlayer(initialDeckCardIdsByPlayer) {
+    if (!initialDeckCardIdsByPlayer || typeof initialDeckCardIdsByPlayer !== 'object') return null;
+    const cloned = {};
+    let hasDeck = false;
+    for (const playerKey of ['black', 'white']) {
+        if (Array.isArray(initialDeckCardIdsByPlayer[playerKey])) {
+            cloned[playerKey] = initialDeckCardIdsByPlayer[playerKey].slice();
+            hasDeck = true;
+        }
+    }
+    return hasDeck ? cloned : null;
+}
+
+function createInitialState(seed, options) {
     const prng = SeededPRNG.createPRNG(seed);
-    const init = CardLogic.initGame(prng);
+    const initialDeckCardIdsByPlayer = cloneInitialDeckCardIdsByPlayer(
+        options && options.initialDeckCardIdsByPlayer
+    );
+    const init = CardLogic.initGame(
+        prng,
+        initialDeckCardIdsByPlayer ? { initialDeckCardIdsByPlayer } : undefined
+    );
     return {
         gameState: Core.createGameState(),
         cardState: init.cardState,
@@ -3385,6 +3388,7 @@ function createInitialState(seed) {
 
 function normalizeOptions(options) {
     const opts = options || {};
+    const initialDeckCardIdsByPlayer = cloneInitialDeckCardIdsByPlayer(opts.initialDeckCardIdsByPlayer);
     const policyMixRate = Number.isFinite(opts.policyMixRate)
         ? Math.max(0, Math.min(1, Number(opts.policyMixRate)))
         : 1;
@@ -3479,7 +3483,8 @@ function normalizeOptions(options) {
         shouldStop: typeof opts.shouldStop === 'function' ? opts.shouldStop : null,
         onRecord: typeof opts.onRecord === 'function' ? opts.onRecord : null,
         onGameEnd: typeof opts.onGameEnd === 'function' ? opts.onGameEnd : null,
-        onGameRetryHardcase: typeof opts.onGameRetryHardcase === 'function' ? opts.onGameRetryHardcase : null
+        onGameRetryHardcase: typeof opts.onGameRetryHardcase === 'function' ? opts.onGameRetryHardcase : null,
+        initialDeckCardIdsByPlayer
     };
 }
 
@@ -4075,7 +4080,7 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
 
 function runSingleGame(gameIndex, seed, options) {
     const normalizedOptions = normalizeOptions(options);
-    const state = createInitialState(seed);
+    const state = createInitialState(seed, normalizedOptions);
     const gameRecords = [];
     const actionCounterRef = { value: 0 };
 

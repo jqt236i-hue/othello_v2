@@ -1579,12 +1579,12 @@ try {
 // dist/game/ai/policy-table-runtime
 // Node-only table runtime depends on zlib; keep browser boot lazy and let CPU code feature-detect it.
 
-// dist/data/dialogue/fixed-commentary-data
+// dist/game/ai/commentary-data
 try {
-  var _mod191 = require("./dist/data/dialogue/fixed-commentary-data");
+  var _mod191 = require("./dist/game/ai/commentary-data");
   if (_mod191) Object.assign(window, _mod191);
 } catch (e) {
-  console.warn("[boot] skip " + "dist/data/dialogue/fixed-commentary-data: " + e.message);
+  console.warn("[boot] skip " + "dist/game/ai/commentary-data: " + e.message);
 }
 
 // dist/game/ai/fixed-commentary-engine
