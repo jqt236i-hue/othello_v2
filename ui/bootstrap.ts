@@ -1074,6 +1074,19 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                                 return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
                             } catch (e: any) { /* ignore */ }
                             return false;
+                        },
+                        getPlaybackStateManager: () => {
+                            try {
+                                const playbackStateManager = require('./playback-state-manager');
+                                if (playbackStateManager) return playbackStateManager;
+                            } catch (e: any) { /* ignore */ }
+                            try {
+                                return (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackStateManager)
+                                    ? (globalThis as any).PlaybackStateManager
+                                    : null;
+                            } catch (e: any) {
+                                return null;
+                            }
                         }
                     });
                 }

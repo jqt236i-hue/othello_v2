@@ -4,6 +4,9 @@ describe('cpu-turn-handler helpers', () => {
   afterEach(() => {
     // restore timers
     mod.setTimers(null);
+    if (typeof mod.setCpuUIImpl === 'function') {
+      mod.setCpuUIImpl({ getPlaybackStateManager: null, PlaybackStateManager: null });
+    }
     if (typeof mod.resetCpuTurnHandlerState === 'function') {
       mod.resetCpuTurnHandlerState();
     }
@@ -112,6 +115,9 @@ describe('cpu-turn-handler helpers', () => {
       getPlaybackActive: jest.fn(() => false),
       setProcessing: jest.fn()
     };
+    mod.setCpuUIImpl({
+      getPlaybackStateManager: () => global.PlaybackStateManager
+    });
     global.gameState = {
       currentPlayer: global.WHITE,
       turnNumber: 3,

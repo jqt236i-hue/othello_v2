@@ -332,10 +332,13 @@ function isOthelloModeForCpuTurnHandler() {
 }
 
 function getPlaybackStateForCpuTurn() {
-    // @compat - globalThis read, UI/bootstrap dependency (PlaybackStateManager)
     try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackStateManager) {
-            return (globalThis as any).PlaybackStateManager;
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.getPlaybackStateManager === 'function') {
+            const playbackState = __uiImpl_cpu.getPlaybackStateManager();
+            if (playbackState) return playbackState;
+        }
+        if (__uiImpl_cpu && __uiImpl_cpu.PlaybackStateManager) {
+            return __uiImpl_cpu.PlaybackStateManager;
         }
     } catch (e) { /* ignore */ }
     return null;
