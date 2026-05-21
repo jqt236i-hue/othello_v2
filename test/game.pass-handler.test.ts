@@ -408,10 +408,6 @@ describe('pass-handler flows', () => {
     test('network pass publish は command payload を送り snapshot を含めない', async () => {
         delete require.cache[modPath];
         const publishSnapshotMock = jest.fn();
-        jest.doMock('../dist/ui/network-client', () => ({
-            isActive: jest.fn(() => true),
-            publishSnapshot: publishSnapshotMock
-        }));
         (global as any).MATCH_MODE = 'network';
         (global as any).LOCAL_PLAYER_KEY = 'black';
         (global as any).cardState = {
@@ -443,6 +439,10 @@ describe('pass-handler flows', () => {
         });
 
         const ph = require('../game/pass-handler');
+        ph.setNetworkMatchClient({
+            isActive: jest.fn(() => true),
+            publishSnapshot: publishSnapshotMock
+        });
         const ok = await ph.processPassTurn('black', false);
 
         expect(ok).toBe(true);
@@ -456,9 +456,6 @@ describe('pass-handler flows', () => {
     test('pass reject clears processing through PlaybackStateManager when available', async () => {
         delete require.cache[modPath];
         const setBusyStateMock = jest.fn();
-        jest.doMock('../dist/ui/playback-state-manager', () => ({
-            setBusyState: setBusyStateMock
-        }));
         (global as any).isProcessing = true;
         (global as any).TurnPipeline = {
             applyTurnSafe: jest.fn(() => ({
@@ -471,6 +468,9 @@ describe('pass-handler flows', () => {
         };
 
         const ph = require('../game/pass-handler');
+        ph.setPlaybackStateManager({
+            setBusyState: setBusyStateMock
+        });
         await expect(ph.processPassTurn('black', false)).resolves.toBe(false);
 
         expect(setBusyStateMock).toHaveBeenCalledWith({ processing: false });

@@ -65,7 +65,6 @@ let networkMatchClientModule: any = null;
 let passHandlerRuntime: any = null;
 if (typeof require === 'function') {
     try { cpuTurnHandlerModule = require('./cpu-turn-handler'); } catch (e) { /* ignore */ }
-    try { networkMatchClientModule = require('../dist/ui/network-client'); } catch (e) { /* ignore */ }
 }
 
 function setPassHandlerRuntime(runtime: any) {
@@ -82,14 +81,6 @@ function setNetworkMatchClient(module: any) {
 
 function getPlaybackStateForPassHandler() {
     if (playbackStateManagerModule) return playbackStateManagerModule;
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackStateManager) {
-            return (globalThis as any).PlaybackStateManager;
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof require === 'function') return require('../dist/ui/playback-state-manager');
-    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -315,12 +306,6 @@ function isCpuControlledPlayer(playerKey: string) {
 function publishNetworkSnapshot(meta: any) {
     let client = networkMatchClientModule;
     try {
-        if (!client && typeof globalThis !== 'undefined' && (globalThis as any).NetworkMatchClient) {
-            client = (globalThis as any).NetworkMatchClient;
-        }
-        if (!client && typeof require === 'function') {
-            try { client = require('../dist/ui/network-client'); } catch (e) { /* ignore */ }
-        }
         if (!client) return;
         if (typeof client.publishSnapshot !== 'function') return;
         if (typeof client.isActive === 'function' && !client.isActive()) return;
