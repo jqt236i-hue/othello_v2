@@ -8,7 +8,7 @@ const CardBreeding = /**
     if (root && root.SharedConstants) {
         return root.CardBreeding = factory(root.SharedConstants, root.SharedBoardUtils || null, root.CardRandomSource || null);
     }
-    if (typeof module === 'object' && module.exports && typeof window === 'undefined') {
+    if (typeof module === 'object' && module.exports) {
         return module.exports = factory(
             require('../../../shared-constants'),
             require('../../../shared/shared-board-utils'),

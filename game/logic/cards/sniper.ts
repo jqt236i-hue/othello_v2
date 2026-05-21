@@ -8,7 +8,7 @@ const CardSniper = /**
     if (root && root.SharedConstants) {
         return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null);
     }
-    if (typeof module === 'object' && module.exports && typeof window === 'undefined') {
+    if (typeof module === 'object' && module.exports) {
         return module.exports = factory(require('../../../shared-constants'), require('../board_ops'), require('../cards-internal/random-source'));
     } else {
         return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null);
