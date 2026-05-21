@@ -353,6 +353,45 @@ describe('pass-handler flows', () => {
         }
     });
 
+    test('white CPU scheduling uses injected processCpuTurn before legacy global', async () => {
+        jest.useFakeTimers();
+        delete require.cache[modPath];
+        const legacyCpuTurnMock = jest.fn();
+        const injectedCpuTurnMock = jest.fn();
+        (global as any).processCpuTurn = legacyCpuTurnMock;
+        (global as any).CPU_TURN_DELAY_MS = 10;
+        (global as any).cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
+        (global as any).gameState = { currentPlayer: (global as any).BLACK, turnNumber: 3 };
+        (global as any).Core = { getLegalMoves: jest.fn(() => [{ row: 0, col: 0, flips: [[0, 1]] }]) };
+        (global as any).TurnPipeline = {
+            applyTurnSafe: jest.fn((cs: any, gs: any) => ({
+                ok: true,
+                gameState: Object.assign({}, gs, { currentPlayer: (global as any).WHITE, turnNumber: 4 }),
+                cardState: cs,
+                events: []
+            }))
+        };
+
+        try {
+            const ph = require('../game/pass-handler');
+            ph.setPassHandlerRuntime({
+                processCpuTurn: injectedCpuTurnMock,
+                readMatchMode: () => 'cpu',
+                readHumanVsHumanMode: () => false
+            });
+
+            await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
+            await jest.runOnlyPendingTimersAsync();
+
+            expect(injectedCpuTurnMock).toHaveBeenCalledTimes(1);
+            expect(legacyCpuTurnMock).not.toHaveBeenCalled();
+        } finally {
+            jest.clearAllTimers();
+            jest.useRealTimers();
+            delete (global as any).CPU_TURN_DELAY_MS;
+        }
+    });
+
     test('network mode と手番の表記揺れを正規化して自動パスを抑止する', () => {
         delete require.cache[modPath];
         (global as any).MATCH_MODE = 'network';

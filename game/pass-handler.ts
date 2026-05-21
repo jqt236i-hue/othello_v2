@@ -62,9 +62,14 @@ if (typeof require === 'function') {
 let playbackStateManagerModule: any = null;
 let cpuTurnHandlerModule: any = null;
 let networkMatchClientModule: any = null;
+let passHandlerRuntime: any = null;
 if (typeof require === 'function') {
     try { cpuTurnHandlerModule = require('./cpu-turn-handler'); } catch (e) { /* ignore */ }
     try { networkMatchClientModule = require('../dist/ui/network-client'); } catch (e) { /* ignore */ }
+}
+
+function setPassHandlerRuntime(runtime: any) {
+    passHandlerRuntime = (runtime && typeof runtime === 'object') ? runtime : null;
 }
 
 function setPlaybackStateManager(module: any) {
@@ -180,12 +185,15 @@ const WHITE_CPU_TURN_RETRY_DELAY_MS = 32;
 const WHITE_CPU_TURN_MAX_RETRIES = 2;
 
 function resolveCpuTurnFnForPass() {
-    try {
-        if (typeof processCpuTurn === 'function') return processCpuTurn;
-    } catch (e) { /* ignore */ }
+    if (passHandlerRuntime && typeof passHandlerRuntime.processCpuTurn === 'function') {
+        return passHandlerRuntime.processCpuTurn;
+    }
     if (cpuTurnHandlerModule && typeof cpuTurnHandlerModule.processCpuTurn === 'function') {
         return cpuTurnHandlerModule.processCpuTurn;
     }
+    try {
+        if (typeof processCpuTurn === 'function') return processCpuTurn;
+    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -225,6 +233,21 @@ function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
 }
 
 function getCurrentMatchModeSafe() {
+    if (passHandlerRuntime && typeof passHandlerRuntime.readMatchMode === 'function') {
+        try {
+            const mode = passHandlerRuntime.readMatchMode();
+            if (mode) return mode;
+        } catch (e) { /* ignore */ }
+    }
+    if (passHandlerRuntime && typeof passHandlerRuntime.getCurrentMatchMode === 'function') {
+        try {
+            const mode = passHandlerRuntime.getCurrentMatchMode();
+            if (mode) return mode;
+        } catch (e) { /* ignore */ }
+    }
+    if (passHandlerRuntime && typeof passHandlerRuntime.MATCH_MODE !== 'undefined') {
+        return passHandlerRuntime.MATCH_MODE;
+    }
     try {
         if (typeof globalThis !== 'undefined' && (globalThis as any).MATCH_MODE) {
             return (globalThis as any).MATCH_MODE;
@@ -243,30 +266,39 @@ function isExplicitNetworkMatchMode() {
 }
 
 function isHumanVsHumanModeEnabled() {
-    const debugHvH = typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
-    const matchMode = getCurrentMatchModeSafe();
+    let debugHvH = false;
+    if (passHandlerRuntime && typeof passHandlerRuntime.readHumanVsHumanMode === 'function') {
+        try { debugHvH = passHandlerRuntime.readHumanVsHumanMode() === true; } catch (e) { /* ignore */ }
+    } else if (passHandlerRuntime && typeof passHandlerRuntime.DEBUG_HUMAN_VS_HUMAN !== 'undefined') {
+        debugHvH = passHandlerRuntime.DEBUG_HUMAN_VS_HUMAN === true;
+    } else {
+        debugHvH = typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
+    }
+    const matchMode = String(getCurrentMatchModeSafe() || '').trim().toLowerCase();
     return debugHvH || matchMode === 'network';
 }
 
 function isOthelloModeEnabled() {
+    const matchMode = String(getCurrentMatchModeSafe() || '').trim().toLowerCase();
+    if (matchMode === 'reversi' || matchMode === 'othello') return true;
+    if (matchMode && matchMode !== 'cpu' && matchMode !== 'network') return false;
+    const modeContext = passHandlerRuntime || (typeof globalThis !== 'undefined' ? globalThis : null);
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.isReversiMode === 'function') {
-            return OwnerHelpersModule.isReversiMode(typeof globalThis !== 'undefined' ? globalThis : null);
+            return OwnerHelpersModule.isReversiMode(modeContext);
         }
         if (OwnerHelpersModule && typeof OwnerHelpersModule.isOthelloMode === 'function') {
-            return OwnerHelpersModule.isOthelloMode(typeof globalThis !== 'undefined' ? globalThis : null);
+            return OwnerHelpersModule.isOthelloMode(modeContext);
         }
     } catch (e) { /* ignore */ }
-    const matchMode = String(getCurrentMatchModeSafe() || '').trim().toLowerCase();
-    return matchMode === 'reversi' || matchMode === 'othello';
+    return false;
 }
 
 function isNetworkModeEnabled() {
-    const matchMode = getCurrentMatchModeSafe();
     if (isExplicitNetworkMatchMode()) return true;
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.isNetworkMode === 'function') {
-            return OwnerHelpersModule.isNetworkMode();
+            return OwnerHelpersModule.isNetworkMode(passHandlerRuntime || undefined);
         }
     } catch (e) { /* ignore */ }
     return false;
@@ -679,6 +711,7 @@ export = {
     hasUsableCardFor,
     ensureCurrentPlayerCanActOrPass,
     setPassHandlerTimerService,
+    setPassHandlerRuntime,
     setPlaybackStateManager,
     setNetworkMatchClient
 };
