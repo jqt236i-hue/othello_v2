@@ -32,15 +32,6 @@ if (typeof require === 'function') {
     try { ({ getAnimationTiming: _getAnimationTiming_baked } = _require('../../constants/animation-constants')); } catch (e) { /* ignore */ }
 }
 
-function _isNoAnim() {
-    try {
-        if (__uiImpl_breeding && __uiImpl_breeding.DISABLE_ANIMATIONS === true) return true;
-        if (typeof location !== 'undefined' && /[?&]noanim=1/.test(location.search)) return true;
-        if (typeof process !== 'undefined' && (process.env.NOANIM === '1' || process.env.NOANIM === 'true' || process.env.DISABLE_ANIMATIONS === '1')) return true;
-    } catch (e) { /* Intentionally empty: env feature check failure is non-critical */ }
-    return false;
-}
-
 /**
  * Process breeding effects (Stone spawning)
  * @async

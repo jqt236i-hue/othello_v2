@@ -38,16 +38,6 @@ function _assertNotDuringPlayback() {
     return true;
 }
 
-// Local NOANIM helper (mirrors logic in ui/stone-visuals.js)
-function _isNoAnim() {
-    try {
-        if (__uiImpl_move_exec_visuals && __uiImpl_move_exec_visuals.DISABLE_ANIMATIONS === true) return true;
-        if (typeof location !== 'undefined' && /[?&]noanim=1/.test(location.search)) return true;
-        if (typeof process !== 'undefined' && (process.env.NOANIM === '1' || process.env.NOANIM === 'true' || process.env.DISABLE_ANIMATIONS === '1')) return true;
-    } catch (e: any) { /* Intentionally empty: env feature check failure is non-critical */ }
-    return false;
-}
-
 function applyFlipAnimations(flipsToAnimate: any) {
     // Delegate to injected UI implementation if present
     if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.applyFlipAnimations === 'function') {
