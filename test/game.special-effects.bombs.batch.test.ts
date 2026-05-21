@@ -12,11 +12,23 @@ describe('special-effects bombs fallback animation batching', () => {
     global.PlaybackEngine = undefined; // force fallback path
   });
 
+  afterEach(() => {
+    const bombs = require('../game/special-effects/bombs.js');
+    if (bombs && typeof bombs.setUIImpl === 'function') {
+      bombs.setUIImpl({});
+    }
+    delete global.BLACK;
+    delete global.WHITE;
+    delete global.cardState;
+    delete global.gameState;
+    delete global.PlaybackEngine;
+  });
+
   test('explosion destroy animations are started in one batch', async () => {
     const calls = [];
     let active = 0;
     let maxConcurrent = 0;
-    global.animateFadeOutAt = jest.fn((row, col) => {
+    const animateFadeOutAt = jest.fn((row, col) => {
       calls.push([row, col]);
       active++;
       if (active > maxConcurrent) maxConcurrent = active;
@@ -28,7 +40,8 @@ describe('special-effects bombs fallback animation batching', () => {
       });
     });
 
-    const { processBombs } = require('../game/special-effects/bombs.js');
+    const { processBombs, setUIImpl } = require('../game/special-effects/bombs.js');
+    setUIImpl({ animateFadeOutAt });
     await processBombs([{
       type: 'bombs_exploded',
       details: {
@@ -37,7 +50,7 @@ describe('special-effects bombs fallback animation batching', () => {
       }
     }]);
 
-    expect(global.animateFadeOutAt).toHaveBeenCalledTimes(3);
+    expect(animateFadeOutAt).toHaveBeenCalledTimes(3);
     expect(calls).toEqual(expect.arrayContaining([[3, 3], [3, 4], [4, 3]]));
     expect(maxConcurrent).toBe(3);
   });
@@ -55,12 +68,13 @@ describe('special-effects bombs fallback animation batching', () => {
         { side: 'left', row: 0, col: -1, owner: 0 }
       ]
     };
-    global.AnimationEngine = { play: jest.fn(() => Promise.resolve()) };
+    const playAnimationEvents = jest.fn(() => Promise.resolve());
 
-    const { explodeBombUI } = require('../game/special-effects/bombs.js');
+    const { explodeBombUI, setUIImpl } = require('../game/special-effects/bombs.js');
+    setUIImpl({ playAnimationEvents });
     await explodeBombUI(0, 0);
 
-    expect(global.AnimationEngine.play).toHaveBeenCalledWith([
+    expect(playAnimationEvents).toHaveBeenCalledWith([
       expect.objectContaining({
         type: 'destroy',
         phase: 3,

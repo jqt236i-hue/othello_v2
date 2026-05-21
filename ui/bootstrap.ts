@@ -933,6 +933,22 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 }
             } catch (e: any) { /* ignore */ }
         }
+        try {
+            const bombs = require('../game/special-effects/bombs');
+            const animationUtils = require('./animation-utils');
+            const animationEngine = require('./animation-engine');
+            const playbackEngine = require('./playback-engine');
+            if (bombs && typeof bombs.setUIImpl === 'function') {
+                bombs.setUIImpl({
+                    animateFadeOutAt: animationUtils && animationUtils.animateFadeOutAt,
+                    animateDestroyAt: animationUtils && animationUtils.animateDestroyAt,
+                    playAnimationEvents: animationEngine && typeof animationEngine.play === 'function'
+                        ? (events: any) => animationEngine.play(events)
+                        : null,
+                    playPresentationEvents: playbackEngine && playbackEngine.playPresentationEvents
+                });
+            }
+        } catch (e: any) { /* ignore */ }
     }
 
     function installNetworkDI() {

@@ -14,6 +14,12 @@ const LOG_MESSAGES = _require('../log-messages');
 const { getPlayerKey } = _require('../card-effects/helpers');
 const GameControllerSlim = _require('../game-controller-slim');
 
+let __uiImpl_bombs: any = {};
+
+function setUIImpl(impl: any): void {
+    __uiImpl_bombs = impl && typeof impl === 'object' ? impl : {};
+}
+
 async function processBombs(precomputedEvents: any = null): Promise<void> {
     const bombMarkers = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.getBombMarkers === 'function')
         ? MarkersAdapter.getBombMarkers(cardState)
@@ -43,7 +49,7 @@ async function processBombs(precomputedEvents: any = null): Promise<void> {
         return;
     }
 
-    const hasPlayback = (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackEngine && typeof (globalThis as any).PlaybackEngine.playPresentationEvents === 'function'); // globalThis — UI/bootstrap dependency, keep
+    const hasPlayback = typeof __uiImpl_bombs.playPresentationEvents === 'function';
 
     const alreadyAnimated = new Set<string>();
 
@@ -68,14 +74,14 @@ async function processBombs(precomputedEvents: any = null): Promise<void> {
             alreadyAnimated.add(key);
 
             if (explodedKeySet.has(key)) {
-                // globalThis — UI/bootstrap dependency, keep
-                batch.push((globalThis as any).animateFadeOutAt(pos.row, pos.col, { // globalThis — UI/bootstrap dependency, keep
-                    createGhost: true,
-                    color: bombOwnerValByPos.get(key)
-                }));
-            } else {
-                // globalThis — UI/bootstrap dependency, keep
-                batch.push((globalThis as any).animateFadeOutAt(pos.row, pos.col)); // globalThis — UI/bootstrap dependency, keep
+                if (typeof __uiImpl_bombs.animateFadeOutAt === 'function') {
+                    batch.push(__uiImpl_bombs.animateFadeOutAt(pos.row, pos.col, {
+                        createGhost: true,
+                        color: bombOwnerValByPos.get(key)
+                    }));
+                }
+            } else if (typeof __uiImpl_bombs.animateFadeOutAt === 'function') {
+                batch.push(__uiImpl_bombs.animateFadeOutAt(pos.row, pos.col));
             }
         }
         if (batch.length > 0) await Promise.all(batch);
@@ -122,15 +128,18 @@ async function explodeBombUI(row: number, col: number): Promise<void> {
         }
     }
 
-    if (typeof (globalThis as any).AnimationEngine !== 'undefined' && (globalThis as any).AnimationEngine && typeof (globalThis as any).AnimationEngine.play === 'function') { // globalThis — UI/bootstrap dependency, keep
-        await (globalThis as any).AnimationEngine.play([{ type: 'destroy', phase: 3, targets }]); // globalThis — UI/bootstrap dependency, keep
+    if (typeof __uiImpl_bombs.playAnimationEvents === 'function') {
+        await __uiImpl_bombs.playAnimationEvents([{ type: 'destroy', phase: 3, targets }]);
     } else {
-        const tasks = targets.map((t: any) => (globalThis as any).animateDestroyAt(t.r, t.col)); // globalThis — UI/bootstrap dependency, keep
+        const tasks = typeof __uiImpl_bombs.animateDestroyAt === 'function'
+            ? targets.map((t: any) => __uiImpl_bombs.animateDestroyAt(t.r, t.col))
+            : [];
         await Promise.all(tasks);
     }
 }
 
 const Bombs = {
+    setUIImpl,
     processBombs,
     explodeBombUI
 };
