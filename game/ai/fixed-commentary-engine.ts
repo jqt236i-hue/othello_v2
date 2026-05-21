@@ -266,7 +266,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         try {
             const search = typeof config.readQuerySearch === 'function'
                 ? String(config.readQuerySearch() || '')
-                : (typeof location !== 'undefined' && location.search ? location.search : '');
+                : '';
             if (!search) return null;
             const params = new URLSearchParams(search);
             if (!params.has(name)) return null;

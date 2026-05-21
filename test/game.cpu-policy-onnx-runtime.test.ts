@@ -37,7 +37,9 @@ describe('policy-onnx-runtime', () => {
       enabled: true,
       minLevel: 6,
       sourceUrl: 'data/models/policy-net.onnx',
-      metaUrl: 'data/models/policy-net.onnx.meta.json'
+      metaUrl: 'data/models/policy-net.onnx.meta.json',
+      enableWebGpuExecution: false,
+      readQuerySearch: null
     });
   });
 
@@ -53,6 +55,37 @@ describe('policy-onnx-runtime', () => {
       legalMovesCount: 1
     });
     expect(selected).toBeNull();
+  });
+
+  test('loadFromUrl opts into WebGPU from injected query reader', async () => {
+    jest.resetModules();
+    const create = jest.fn(async () => ({
+      inputNames: ['obs'],
+      outputNames: ['logits'],
+      run: jest.fn()
+    }));
+    const InferenceSession = function InferenceSession() {};
+    InferenceSession.create = create;
+    global.ort = {
+      Tensor: function Tensor(type, data, dims) {
+        this.type = type;
+        this.data = data;
+        this.dims = dims;
+      },
+      InferenceSession
+    };
+    jest.doMock('onnxruntime-web', () => global.ort);
+    const freshRuntime = require(path.resolve(__dirname, '..', 'game', 'ai', 'policy-onnx-runtime.js'));
+    freshRuntime.configure({
+      enabled: true,
+      minLevel: 6,
+      readQuerySearch: () => '?onnxWebGpu=1'
+    });
+
+    const ok = await freshRuntime.loadFromUrl('model.onnx', 'meta.json', jest.fn(async () => ({ ok: false })));
+
+    expect(ok).toBe(true);
+    expect(create).toHaveBeenCalledWith('model.onnx', { executionProviders: ['webgpu', 'wasm'] });
   });
 
   test('chooseMove returns null on non-8x8 board even when model is loaded', async () => {

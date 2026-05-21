@@ -612,7 +612,15 @@ async function initPolicyOnnxModel(): Promise<void> {
         targetMetaUrl: targetMetaUrl,
         valueSourceUrl: valueModelUrl,
         valueMetaUrl: valueMetaUrl,
-        useCardSpecialist
+        useCardSpecialist,
+        enableWebGpuExecution: (typeof globalThis !== 'undefined' && (globalThis as any).ENABLE_ONNX_WEBGPU === true),
+        readQuerySearch: () => {
+          try {
+            return (typeof location !== 'undefined' && location && typeof location.search === 'string') ? location.search : '';
+          } catch (e) {
+            return '';
+          }
+        }
       });
     }
     const ok = await _withLoadTimeout(runtime.loadFromUrl(modelUrl, metaUrl), loadTimeoutMs, 'policy-onnx load');

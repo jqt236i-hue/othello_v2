@@ -84,7 +84,9 @@ let _valueMetaUrl = DEFAULT_VALUE_META_URL;
 let _config = {
     enabled: true,
     minLevel: 6,
-    useCardSpecialist: true
+    useCardSpecialist: true,
+    enableWebGpuExecution: false,
+    readQuerySearch: null as any
 };
 const LATENCY_SAMPLE_LIMIT = 512;
 const LATENCY_OPERATION_KEYS = Object.freeze([
@@ -208,6 +210,9 @@ function configure(config: any) {
     if (typeof config.valueSourceUrl === 'string' && config.valueSourceUrl.trim()) _valueSourceUrl = config.valueSourceUrl.trim();
     if (typeof config.valueMetaUrl === 'string' && config.valueMetaUrl.trim()) _valueMetaUrl = config.valueMetaUrl.trim();
     if (typeof config.useCardSpecialist === 'boolean') _config.useCardSpecialist = config.useCardSpecialist;
+    if (typeof config.enableWebGpuExecution === 'boolean') _config.enableWebGpuExecution = config.enableWebGpuExecution;
+    if (typeof config.readQuerySearch === 'function') _config.readQuerySearch = config.readQuerySearch;
+    if (config.readQuerySearch === null) _config.readQuerySearch = null;
     return getStatus();
 }
 
@@ -320,11 +325,13 @@ if (_ort && _ort.env && typeof _ort.env === 'object') {
 
 function isWebGpuExecutionOptIn() {
     try {
+        if (_config.enableWebGpuExecution === true) return true;
         const scope: any = (typeof globalThis !== 'undefined') ? globalThis : null;
         if (scope && scope.ENABLE_ONNX_WEBGPU === true) return true;
-        if (typeof location !== 'undefined' && typeof location.search === 'string') {
-            if (/[?&]onnxWebGpu=1(?:&|$)/.test(location.search)) return true;
-            if (/[?&]onnxWebGpu=true(?:&|$)/i.test(location.search)) return true;
+        if (typeof _config.readQuerySearch === 'function') {
+            const search = String(_config.readQuerySearch() || '');
+            if (/[?&]onnxWebGpu=1(?:&|$)/.test(search)) return true;
+            if (/[?&]onnxWebGpu=true(?:&|$)/i.test(search)) return true;
         }
     } catch (e) {
         return false;

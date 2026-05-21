@@ -89,7 +89,7 @@ describe('ui cpu-policy handler', () => {
 
     await handlers.initPolicyOnnxModel();
 
-    expect(configure).toHaveBeenCalledWith({
+    expect(configure).toHaveBeenCalledWith(expect.objectContaining({
       enabled: true,
       minLevel: 6,
       sourceUrl: 'data/models/policy-net.onnx',
@@ -101,7 +101,8 @@ describe('ui cpu-policy handler', () => {
       valueSourceUrl: 'data/models/policy-value.onnx',
       valueMetaUrl: 'data/models/policy-value.onnx.meta.json',
       useCardSpecialist: false
-    });
+    }));
+    expect(typeof configure.mock.calls[0][0].readQuerySearch).toBe('function');
     expect(loadFromUrl).toHaveBeenCalledWith('data/models/policy-net.onnx', 'data/models/policy-net.onnx.meta.json');
   });
 
