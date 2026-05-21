@@ -1138,6 +1138,51 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             return Number.isFinite(n) ? Math.max(1, Math.min(6, Math.floor(n))) : 1;
                         };
                         return { black: readLevel('smartBlack'), white: readLevel('smartWhite') };
+                    },
+                    waitForPlaybackIdle: () => {
+                        try {
+                            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).waitForPlaybackIdle === 'function') {
+                                return (globalThis as any).waitForPlaybackIdle();
+                            }
+                        } catch (e: any) { /* ignore */ }
+                        return undefined;
+                    },
+                    publishSnapshot: (meta: any) => {
+                        try {
+                            if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return undefined;
+                            const client = (globalThis as any).NetworkMatchClient;
+                            if (typeof client.publishSnapshot !== 'function') return undefined;
+                            if (typeof client.isActive === 'function' && client.isActive() !== true) return undefined;
+                            return client.publishSnapshot(meta);
+                        } catch (e: any) {
+                            return undefined;
+                        }
+                    },
+                    isNetworkPublishActive: () => {
+                        try {
+                            if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return false;
+                            const client = (globalThis as any).NetworkMatchClient;
+                            if (typeof client.publishSnapshot !== 'function') return false;
+                            if (typeof client.isActive === 'function') return client.isActive() === true;
+                            return true;
+                        } catch (e: any) {
+                            return false;
+                        }
+                    },
+                    playCardUseHandAnimation: (payload: any) => {
+                        try {
+                            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).playCardUseHandAnimation === 'function') {
+                                return (globalThis as any).playCardUseHandAnimation(payload);
+                            }
+                        } catch (e: any) { /* ignore */ }
+                        return undefined;
+                    },
+                    isVisualPlaybackActive: () => {
+                        try {
+                            return typeof globalThis !== 'undefined' && (globalThis as any).VisualPlaybackActive === true;
+                        } catch (e: any) {
+                            return false;
+                        }
                     }
                 });
             }

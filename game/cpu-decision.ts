@@ -31,7 +31,6 @@ declare const HAND_LIMIT: number;
 declare let cardState: any;
 declare let gameState: any;
 declare const CARD_DEFS: any;
-declare const waitForPlaybackIdle: any;
 declare const processCpuTurn: any;
 declare const assignCardPlayedSoundForCpu: (...args: any[]) => void;
 
@@ -1836,29 +1835,25 @@ function captureNetworkPublishSnapshot(gameStateValue: any, cardStateValue: any)
 }
 
 function publishCpuSelectionNetworkSnapshot(playerKey: any, action: any, playbackEvents: any, snapshotOverride?: any): any {
+    const meta = {
+        playerKey: playerKey || 'black',
+        actionType: 'place',
+        playbackEvents: Array.isArray(playbackEvents) ? playbackEvents : []
+    };
+    if (action && typeof action === 'object') (meta as any).action = action;
+    if (snapshotOverride) (meta as any).snapshot = snapshotOverride;
+
+    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.publishSnapshot === 'function') {
+        if (typeof cpuDecisionRuntime.isNetworkPublishActive === 'function'
+            && cpuDecisionRuntime.isNetworkPublishActive() !== true) {
+            return undefined;
+        }
+        return cpuDecisionRuntime.publishSnapshot(meta);
+    }
     if (cpuDecisionNetworkTurnHandoff && typeof cpuDecisionNetworkTurnHandoff.publishNetworkSnapshot === 'function') {
-        const meta = {
-            playerKey: playerKey || 'black',
-            actionType: 'place',
-            playbackEvents: Array.isArray(playbackEvents) ? playbackEvents : []
-        };
-        if (action && typeof action === 'object') (meta as any).action = action;
-        if (snapshotOverride) (meta as any).snapshot = snapshotOverride;
         return cpuDecisionNetworkTurnHandoff.publishNetworkSnapshot(meta);
     }
-    try {
-        if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return;
-        if (typeof (globalThis as any).NetworkMatchClient.publishSnapshot !== 'function') return;
-        if (typeof (globalThis as any).NetworkMatchClient.isActive === 'function' && !(globalThis as any).NetworkMatchClient.isActive()) return;
-        const meta = {
-            playerKey: playerKey || 'black',
-            actionType: 'place',
-            playbackEvents: Array.isArray(playbackEvents) ? playbackEvents : []
-        };
-        if (action && typeof action === 'object') (meta as any).action = action;
-        if (snapshotOverride) (meta as any).snapshot = snapshotOverride;
-        (globalThis as any).NetworkMatchClient.publishSnapshot(meta);
-    } catch (e) { /* ignore */ }
+    return undefined;
 }
 
 function readCpuDecisionMatchMode(): any {
@@ -1917,11 +1912,9 @@ async function waitForCpuSelectionPlaybackIdle(playbackEvents: any): Promise<any
     }
     if (!Array.isArray(playbackEvents) || !playbackEvents.length) return;
 
-    const waitForPlaybackFn = (typeof waitForPlaybackIdle === 'function')
-        ? waitForPlaybackIdle
-        : ((typeof globalThis !== 'undefined' && typeof (globalThis as any).waitForPlaybackIdle === 'function')
-            ? (globalThis as any).waitForPlaybackIdle
-            : null);
+    const waitForPlaybackFn = (cpuDecisionRuntime && typeof cpuDecisionRuntime.waitForPlaybackIdle === 'function')
+        ? cpuDecisionRuntime.waitForPlaybackIdle
+        : null;
 
     if (typeof waitForPlaybackFn !== 'function') return;
 
@@ -2004,18 +1997,6 @@ function finalizeCpuPendingSelectionFlow(playerKey: any, pendingType: any, playb
             }
 
             Promise.resolve(waitForCpuSelectionPlaybackIdle(normalizedPlaybackEvents)).then(() => {
-                try {
-                    if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkMatchClient && typeof (globalThis as any).NetworkMatchClient.publishSnapshot === 'function') {
-                        const meta = {
-                            playerKey: playerKey || 'black',
-                            actionType: 'place',
-                            playbackEvents: normalizedPlaybackEvents
-                        };
-                        if (action) (meta as any).action = action;
-                        (globalThis as any).NetworkMatchClient.publishSnapshot(meta);
-                        return;
-                    }
-                } catch (e) { /* ignore */ }
                 publishCpuSelectionNetworkSnapshot(playerKey, action, normalizedPlaybackEvents);
             }).catch(() => { /* ignore */ });
         });
@@ -2027,18 +2008,6 @@ function finalizeCpuPendingSelectionFlow(playerKey: any, pendingType: any, playb
     }
 
     return Promise.resolve(waitForCpuSelectionPlaybackIdle(normalizedPlaybackEvents)).then(() => {
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkMatchClient && typeof (globalThis as any).NetworkMatchClient.publishSnapshot === 'function') {
-                const meta = {
-                    playerKey: playerKey || 'black',
-                    actionType: 'place',
-                    playbackEvents: normalizedPlaybackEvents
-                };
-                if (action) (meta as any).action = action;
-                (globalThis as any).NetworkMatchClient.publishSnapshot(meta);
-                return;
-            }
-        } catch (e) { /* ignore */ }
         publishCpuSelectionNetworkSnapshot(playerKey, action, normalizedPlaybackEvents);
     }).catch(() => { /* ignore */ });
 }
@@ -3392,6 +3361,21 @@ function cpuMaybeDestroyHandCardWithPolicy(playerKey: any): any {
     return applyHandCardDestroy(playerKey, destroyChoice);
 }
 
+function playCpuCardUseHandAnimation(payload: any): void {
+    try {
+        const playFn = cpuDecisionRuntime && typeof cpuDecisionRuntime.playCardUseHandAnimation === 'function'
+            ? cpuDecisionRuntime.playCardUseHandAnimation
+            : null;
+        if (typeof playFn !== 'function') return;
+        const visualPlaybackActive = cpuDecisionRuntime && typeof cpuDecisionRuntime.isVisualPlaybackActive === 'function'
+            ? cpuDecisionRuntime.isVisualPlaybackActive() === true
+            : false;
+        if (visualPlaybackActive) return;
+        const result = playFn(payload);
+        if (result && typeof result.catch === 'function') result.catch(() => {});
+    } catch (e) { /* ignore */ }
+}
+
 /**
  * Apply a chosen card. Performs state changes and emits UI hooks.
  * Side-effectful: mutates cardState/gameState and triggers emitters.
@@ -3416,19 +3400,13 @@ function applyCardChoice(playerKey: any, cardChoice: any): any {
             : ((appliedCardDef && Number.isFinite(appliedCardDef.cost)) ? appliedCardDef.cost : null);
         const appliedCardName = pipelineResult.appliedCardName || (appliedCardDef && appliedCardDef.name) || null;
 
-        try {
-            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).playCardUseHandAnimation === 'function') {
-                if ((globalThis as any).VisualPlaybackActive !== true) {
-                    (globalThis as any).playCardUseHandAnimation({
-                        player: playerKey,
-                        owner: playerKey,
-                        cardId: appliedCardId,
-                        cost: appliedCardCost,
-                        name: appliedCardName
-                    }).catch(() => {});
-                }
-            }
-        } catch (e) { /* ignore */ }
+        playCpuCardUseHandAnimation({
+            player: playerKey,
+            owner: playerKey,
+            cardId: appliedCardId,
+            cost: appliedCardCost,
+            name: appliedCardName
+        });
 
         emitCpuCardUseLog(playerKey, level, appliedCardDef, appliedCardId);
         return true;
@@ -3489,20 +3467,14 @@ function applyCardChoice(playerKey: any, cardChoice: any): any {
     }
 
     // Browser safety fallback: if playback wiring misses in this build/order, play once directly.
-    // Duplicate calls are suppressed in playCardUseHandAnimation via timestamp guard.
-    try {
-        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).playCardUseHandAnimation === 'function') {
-            if ((globalThis as any).VisualPlaybackActive !== true) {
-                (globalThis as any).playCardUseHandAnimation({
-                    player: playerKey,
-                    owner: playerKey,
-                    cardId: cardId,
-                    cost: fallbackCardCost,
-                    name: fallbackCardName
-                }).catch(() => {});
-            }
-        }
-    } catch (e) { /* ignore */ }
+    // Duplicate calls are suppressed by the UI animation implementation via timestamp guard.
+    playCpuCardUseHandAnimation({
+        player: playerKey,
+        owner: playerKey,
+        cardId: cardId,
+        cost: fallbackCardCost,
+        name: fallbackCardName
+    });
 
     emitCpuCardUseLog(playerKey, level, cardDef || null, cardId || null);
 

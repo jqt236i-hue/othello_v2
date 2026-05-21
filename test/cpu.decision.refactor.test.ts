@@ -1969,6 +1969,46 @@ describe('cpu decision refactor helpers', () => {
     expect(emitLogAdded).toHaveBeenCalled();
   });
 
+  test('applyCardChoice prefers injected card-use animation over global function', () => {
+    global.CardLogic = { applyCardUsage: jest.fn(() => true) };
+    global.cardState.hands.white = ['c1'];
+    global.playCardUseHandAnimation = jest.fn(() => Promise.resolve());
+    const playCardUseHandAnimation = jest.fn(() => Promise.resolve());
+    cpuDecision.setCpuDecisionRuntime({
+      playCardUseHandAnimation,
+      isVisualPlaybackActive: () => false
+    });
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        appliedCardId: 'c1',
+        appliedCardDef: { name: 'C1', cost: 2 },
+        appliedCardCost: 2,
+        appliedCardName: 'C1',
+        nextCardState: {
+          ...global.cardState,
+          hands: { ...global.cardState.hands, white: [] },
+          hasUsedCardThisTurnByPlayer: { ...global.cardState.hasUsedCardThisTurnByPlayer, white: true }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    const ok = cpuDecision.applyCardChoice('white', { cardId: 'c1', cardDef: { name: 'C1', cost: 2 } });
+
+    expect(ok).toBe(true);
+    expect(playCardUseHandAnimation).toHaveBeenCalledWith({
+      player: 'white',
+      owner: 'white',
+      cardId: 'c1',
+      cost: 2,
+      name: 'C1'
+    });
+    expect(global.playCardUseHandAnimation).not.toHaveBeenCalled();
+  });
+
 
   test('cpuMaybeUseCardWithPolicy returns true when a card applied', () => {
     global.CardLogic = { applyCardUsage: jest.fn(() => true), canUseCard: () => true, getCardDef: (id) => ({ name: id }) };
