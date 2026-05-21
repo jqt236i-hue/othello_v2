@@ -22,6 +22,23 @@ describe('ui board update dispatch', () => {
     expect(global.renderBoard).not.toHaveBeenCalled();
   });
 
+  test('treats legacy emitBoardUpdate with no return value as success', () => {
+    global.emitBoardUpdate = jest.fn();
+    global.renderBoard = jest.fn();
+
+    const dispatch = require('../ui/board-update-dispatch.js');
+    expect(dispatch.requestBoardUpdate({
+      source: 'unit-test',
+      reason: 'legacy_void_emit'
+    })).toBe(true);
+
+    expect(global.emitBoardUpdate).toHaveBeenCalledWith({
+      source: 'unit-test',
+      reason: 'legacy_void_emit'
+    });
+    expect(global.renderBoard).not.toHaveBeenCalled();
+  });
+
   test('falls back to renderBoard when emitBoardUpdate is unavailable', () => {
     global.renderBoard = jest.fn();
 

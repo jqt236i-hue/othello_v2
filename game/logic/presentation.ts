@@ -22,6 +22,10 @@ interface CardState {
 
 let warnedNoBoardOps = false;
 
+function shouldWarnNoBoardOps(): boolean {
+    return !(typeof process !== 'undefined' && !!process.env && !!process.env.JEST_WORKER_ID);
+}
+
 function emitPresentationEvent(cardState: CardState | null, ev: PresentationEvent): boolean {
     try {
         const root = (typeof globalThis !== 'undefined' ? globalThis : undefined) as any; // globalThis — bootstrap DI
@@ -32,7 +36,7 @@ function emitPresentationEvent(cardState: CardState | null, ev: PresentationEven
     } catch (_e) { /* ignore */ }
 
     try {
-        if (!warnedNoBoardOps) {
+        if (!warnedNoBoardOps && shouldWarnNoBoardOps()) {
             console.warn('[presentation] BoardOps.emitPresentationEvent not available (events will be persisted)');
             warnedNoBoardOps = true;
         }

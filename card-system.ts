@@ -10,7 +10,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 
 try {
-    if (typeof window !== 'undefined' && typeof (window as any).CardLogic === 'undefined') {
+    const isJestRuntime = typeof process !== 'undefined' && !!process.env && !!process.env.JEST_WORKER_ID;
+    if (!isJestRuntime && typeof window !== 'undefined' && typeof (window as any).CardLogic === 'undefined') {
         console.error('CardLogic is not loaded. Please include game/logic/cards.js');
     }
 } catch (e) {

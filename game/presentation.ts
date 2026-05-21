@@ -7,6 +7,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 
 "use strict";
 let warnedNoBoardOps = false;
+
+function shouldWarnNoBoardOps(): boolean {
+    return !(typeof process !== 'undefined' && !!process.env && !!process.env.JEST_WORKER_ID);
+}
+
 function emitPresentationEvent(cardState: any, ev: any): boolean {
     try {
         const root: any = (typeof globalThis !== 'undefined' ? globalThis : undefined); // globalThis — bootstrap DI
@@ -17,7 +22,7 @@ function emitPresentationEvent(cardState: any, ev: any): boolean {
     }
     catch (_e: any) { /* ignore */ }
     try {
-        if (!warnedNoBoardOps) {
+        if (!warnedNoBoardOps && shouldWarnNoBoardOps()) {
             console.warn('[presentation] BoardOps.emitPresentationEvent not available (events will be persisted)');
             warnedNoBoardOps = true;
         }

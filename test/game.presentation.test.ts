@@ -33,8 +33,14 @@ describe('game/logic/presentation', () => {
     test('returns false and does not throw when BoardOps missing', () => {
         // No BoardOps provided
         if (typeof global.BoardOps !== 'undefined') delete global.BoardOps;
-        const pres = require(modPath);
-        const res = pres.emitPresentationEvent({}, { type: 'NOOP' });
-        expect(res).toBe(false);
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            const pres = require(modPath);
+            const res = pres.emitPresentationEvent({}, { type: 'NOOP' });
+            expect(res).toBe(false);
+            expect(warnSpy).not.toHaveBeenCalledWith('[presentation] BoardOps.emitPresentationEvent not available (events will be persisted)');
+        } finally {
+            warnSpy.mockRestore();
+        }
     });
 });

@@ -68,7 +68,7 @@ function requestBoardUpdate(options: BoardUpdateOptions): boolean {
     } catch (error) {
       return warnDispatchFailure('emitBoardUpdate threw', error);
     }
-    if (emitted === true) return true;
+    if (emitted !== false) return true;
     return warnDispatchFailure('emitBoardUpdate reported failure');
   }
 
