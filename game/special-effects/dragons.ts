@@ -18,7 +18,6 @@ declare const emitGameStateChange: any;
 declare const getPlayerName: any;
 declare const LOG_MESSAGES: any;
 declare const FLIP_ANIMATION_DURATION_MS: any;
-declare const removeRegenOverlayAt: any;
 declare const globalThis: any;
 declare const BoardOps: any;
 declare const CardUtils: any;
@@ -51,7 +50,56 @@ if (typeof require === 'function') {
 if (!BoardPresentation && typeof globalThis !== 'undefined' && globalThis.PresentationHelper) {
     BoardPresentation = globalThis.PresentationHelper;
 }
+
+let __uiImpl_dragons: any = {};
+function setUIImpl(obj: any) { __uiImpl_dragons = obj || {}; }
+
+function hasPlaybackEngineForDragons(): boolean {
+    return typeof __uiImpl_dragons.playPresentationEvents === 'function';
+}
+
+function getAnimationTimingForDragons(key: string): number | undefined {
+    if (__uiImpl_dragons && typeof __uiImpl_dragons.getAnimationTiming === 'function') {
+        try { return __uiImpl_dragons.getAnimationTiming(key); } catch (e) { /* ignore */ }
+    }
+    return undefined;
+}
+
+function setDiscColorForDragons(row: number, col: number, color: number): any {
+    if (__uiImpl_dragons && typeof __uiImpl_dragons.setDiscColorAt === 'function') {
+        return __uiImpl_dragons.setDiscColorAt(row, col, color);
+    }
+    if (mv && typeof mv.setDiscColorAt === 'function') return mv.setDiscColorAt(row, col, color);
+    return undefined;
+}
+
+function removeBombOverlayForDragons(row: number, col: number): any {
+    if (__uiImpl_dragons && typeof __uiImpl_dragons.removeBombOverlayAt === 'function') {
+        return __uiImpl_dragons.removeBombOverlayAt(row, col);
+    }
+    if (mv && typeof mv.removeBombOverlayAt === 'function') return mv.removeBombOverlayAt(row, col);
+    return undefined;
+}
+
+async function removeRegenOverlayForDragons(row: number, col: number): Promise<any> {
+    if (__uiImpl_dragons && typeof __uiImpl_dragons.removeRegenOverlayAt === 'function') {
+        return __uiImpl_dragons.removeRegenOverlayAt(row, col);
+    }
+    return undefined;
+}
+
+async function animateDragonFadeOut(row: number, col: number, options: any): Promise<any> {
+    if (__uiImpl_dragons && typeof __uiImpl_dragons.animateFadeOutAt === 'function') {
+        return __uiImpl_dragons.animateFadeOutAt(row, col, options);
+    }
+    if (mv && typeof mv.animateFadeOutAt === 'function') return mv.animateFadeOutAt(row, col, options);
+    return undefined;
+}
+
 function emitPresentationEventViaBoardOps(ev: any) {
+    if (__uiImpl_dragons && typeof __uiImpl_dragons.emitPresentationEvent === 'function') {
+        try { return __uiImpl_dragons.emitPresentationEvent(ev); } catch (e) { /* ignore */ }
+    }
     try {
         const pres = (typeof require === 'function') ? require('../logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
         if (pres && typeof pres.emitPresentationEvent === 'function') return pres.emitPresentationEvent(cardState, ev);
@@ -127,9 +175,7 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
         return;
     }
 
-    const hasUiPlayback = (typeof globalThis !== 'undefined'
-        && globalThis.PlaybackEngine
-        && typeof globalThis.PlaybackEngine.playPresentationEvents === 'function');
+    const hasUiPlayback = hasPlaybackEngineForDragons();
     if (hasUiPlayback) {
         // Keep regen cross-fade requests, but avoid legacy DOM animation path during active playback.
         if (regenRes.regened && regenRes.regened.length) {
@@ -153,13 +199,14 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
     }
 
     let delay = 800;
-    if (typeof require === 'function') {
+    const injectedDelay = getAnimationTimingForDragons('FLIP_ANIMATION_DURATION');
+    if (injectedDelay) {
+        delay = injectedDelay;
+    } else if (typeof require === 'function') {
         try {
             const { getAnimationTiming } = require('../../constants/animation-constants');
             delay = getAnimationTiming('FLIP_ANIMATION_DURATION') || delay;
         } catch (e) { /* ignore */ }
-    } else if (typeof globalThis !== 'undefined' && typeof globalThis.getAnimationTiming === 'function') {
-        delay = globalThis.getAnimationTiming('FLIP_ANIMATION_DURATION') || delay;
     }
 
     if (result.converted.length > 0) {
@@ -175,24 +222,14 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
         const allAnchorsFinal = hasAnchors && result.anchors.every((a: any) => a.remainingNow === 0);
         const showSplitAnimation = !allAnchorsFinal; // skip the artificial delay on the final-expiry activation
 
-        const setDiscColorAt = (row: number, col: number, color: number) => {
-            try { const vis = require('../move-executor-visuals'); if (vis && typeof vis.setDiscColorAt === 'function') return vis.setDiscColorAt(row, col, color); } catch (e) { /* ignore in non-UI */ }
-            return undefined;
-        };
-
-        const removeBombOverlayAt = (row: number, col: number) => {
-            try { const vis = require('../move-executor-visuals'); if (vis && typeof vis.removeBombOverlayAt === 'function') return vis.removeBombOverlayAt(row, col); } catch (e) { /* ignore in non-UI */ }
-            return undefined;
-        };
-
         // Ensure converted stones visually become the new color immediately.
         const initialColor = showSplitAnimation ? -player : player;
         for (const pos of result.converted) {
             if (regenedSet.has(`${pos.row},${pos.col}`)) continue; // Skip visual change for Regen stones
 
             // Bombs become normal stones when flipped, so remove bomb visuals immediately.
-            removeBombOverlayAt(pos.row, pos.col);
-            setDiscColorAt(pos.row, pos.col, initialColor);
+            removeBombOverlayForDragons(pos.row, pos.col);
+            setDiscColorForDragons(pos.row, pos.col, initialColor);
         }
 
         // Flip suppression is handled by applyFlipAnimations below for consistency.
@@ -206,7 +243,7 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
             await waitMs(delay);
             for (const pos of result.converted) {
                 if (regenedSet.has(`${pos.row},${pos.col}`)) continue;
-                setDiscColorAt(pos.row, pos.col, player);
+                setDiscColorForDragons(pos.row, pos.col, player);
             }
         }
 
@@ -223,15 +260,15 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
         if (regenRes.captureFlips && regenRes.captureFlips.length) {
             if (showSplitAnimation) {
                 for (const pos of regenRes.captureFlips) {
-                    setDiscColorAt(pos.row, pos.col, -player);
+                    setDiscColorForDragons(pos.row, pos.col, -player);
                 }
                 await waitMs(delay);
                 for (const pos of regenRes.captureFlips) {
-                    setDiscColorAt(pos.row, pos.col, player);
+                    setDiscColorForDragons(pos.row, pos.col, player);
                 }
             } else {
                 for (const pos of regenRes.captureFlips) {
-                    setDiscColorAt(pos.row, pos.col, player);
+                    setDiscColorForDragons(pos.row, pos.col, player);
                 }
             }
         }
@@ -239,7 +276,7 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
 
     // Animate destroyed anchors (fade-out) after conversions
     for (const pos of result.destroyed) {
-        if (mv && typeof mv.animateFadeOutAt === 'function') await mv.animateFadeOutAt(pos.row, pos.col, { createGhost: true, color: player, effectKey: 'ultimateDragon' });
+        await animateDragonFadeOut(pos.row, pos.col, { createGhost: true, color: player, effectKey: 'ultimateDragon' });
     }
 
     // Final UI sync after all animations
@@ -274,28 +311,12 @@ async function processUltimateReverseDragonImmediateAtPlacement(player: number, 
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.dragonConvertedImmediate(getPlayerName(player), result.converted.length));
     }
 
-    const delay = typeof FLIP_ANIMATION_DURATION_MS !== 'undefined' ? FLIP_ANIMATION_DURATION_MS : 800;
+    const delay = getAnimationTimingForDragons('FLIP_ANIMATION_DURATION')
+        || (typeof FLIP_ANIMATION_DURATION_MS !== 'undefined' ? FLIP_ANIMATION_DURATION_MS : 800);
     if (result.converted.length > 0) {
         emitBoardUpdate();
 
         const regenedSet = new Set((regenRes.regened || []).map((p: any) => `${p.row},${p.col}`));
-
-        const setDiscColorAt = (r: number, c: number, color: number) => {
-            try {
-                const vis = require('../move-executor-visuals');
-                if (vis && typeof vis.setDiscColorAt === 'function') return vis.setDiscColorAt(r, c, color);
-            } catch (e) { /* ignore */ }
-            return undefined;
-        };
-
-        // Timers abstraction (injected by UI)
-        let timers: any = null;
-        if (typeof require === 'function') {
-            try { timers = require('../timers'); } catch (e) { /* ignore */ }
-        }
-
-        const waitMs = (ms: number) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
-
 
         const ownerColor = player === BLACK ? BLACK : WHITE;
         const fromColor = -ownerColor;
@@ -304,9 +325,9 @@ async function processUltimateReverseDragonImmediateAtPlacement(player: number, 
         for (const pos of result.converted) {
             if (regenedSet.has(`${pos.row},${pos.col}`)) {
                 // Ensure regen overlay is removed so icon doesn't interfere with flip
-                await removeRegenOverlayAt(pos.row, pos.col);
+                await removeRegenOverlayForDragons(pos.row, pos.col);
             }
-            setDiscColorAt(pos.row, pos.col, fromColor);
+            setDiscColorForDragons(pos.row, pos.col, fromColor);
         }
 
         const flipCoords = result.converted
@@ -322,7 +343,7 @@ async function processUltimateReverseDragonImmediateAtPlacement(player: number, 
             await waitMs(delay);
         }
         for (const pos of result.converted) {
-            setDiscColorAt(pos.row, pos.col, ownerColor);
+            setDiscColorForDragons(pos.row, pos.col, ownerColor);
         }
 
         if (regenRes.regened && regenRes.regened.length) {
@@ -337,7 +358,7 @@ async function processUltimateReverseDragonImmediateAtPlacement(player: number, 
         if (regenRes.captureFlips && regenRes.captureFlips.length) {
             const capCoords = regenRes.captureFlips.map((p: any) => [p.row, p.col]);
             for (const pos of regenRes.captureFlips) {
-                setDiscColorAt(pos.row, pos.col, -ownerColor);
+                setDiscColorForDragons(pos.row, pos.col, -ownerColor);
             }
             if (capCoords.length > 0) {
                 for (const [r, c] of capCoords) {
@@ -355,6 +376,7 @@ async function processUltimateReverseDragonImmediateAtPlacement(player: number, 
 }
 
 export = {
+    setUIImpl,
     processUltimateReverseDragonsAtTurnStart,
     processUltimateReverseDragonImmediateAtPlacement
 };

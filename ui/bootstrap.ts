@@ -924,7 +924,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         } catch (e: any) { /* ignore */ }
 
         // Special-effects UI hooks: many modules accept setUIImpl; wire basic helpers
-        const specialModules = ['../game/special-effects/dragons', '../game/special-effects/hyperactive'];
+        const specialModules = ['../game/special-effects/hyperactive'];
         for (const p of specialModules) {
             try {
                 const m = require(p);
@@ -943,6 +943,28 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     animateFadeOutAt: animationUtils && animationUtils.animateFadeOutAt,
                     playPresentationEvents: playbackEngine && playbackEngine.playPresentationEvents,
                     getAnimationTiming: animationConstants && animationConstants.getAnimationTiming
+                });
+            }
+        } catch (e: any) { /* ignore */ }
+        try {
+            const dragons = require('../game/special-effects/dragons');
+            const moveVisuals = require('./move-executor-visuals');
+            const playbackEngine = require('./playback-engine');
+            const animationConstants = require('../constants/animation-constants');
+            const presentation = require('../game/logic/presentation');
+            if (dragons && typeof dragons.setUIImpl === 'function') {
+                dragons.setUIImpl({
+                    setDiscColorAt: moveVisuals && moveVisuals.setDiscColorAt,
+                    removeBombOverlayAt: moveVisuals && moveVisuals.removeBombOverlayAt,
+                    animateFadeOutAt: moveVisuals && moveVisuals.animateFadeOutAt,
+                    playPresentationEvents: playbackEngine && playbackEngine.playPresentationEvents,
+                    getAnimationTiming: animationConstants && animationConstants.getAnimationTiming,
+                    emitPresentationEvent: presentation && typeof presentation.emitPresentationEvent === 'function'
+                        ? (event: any) => presentation.emitPresentationEvent(
+                            (typeof globalThis !== 'undefined' ? (globalThis as any).cardState : null),
+                            event
+                        )
+                        : null
                 });
             }
         } catch (e: any) { /* ignore */ }
