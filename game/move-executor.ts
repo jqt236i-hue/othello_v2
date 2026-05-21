@@ -244,43 +244,27 @@ function isHumanVsHumanModeEnabled() {
 }
 
 function publishNetworkSnapshot(meta: any) {
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.publishSnapshot === 'function') {
+        if (typeof __uiImpl_move_executor.isNetworkPublishActive === 'function'
+            && __uiImpl_move_executor.isNetworkPublishActive() !== true) {
+            return undefined;
+        }
+        return __uiImpl_move_executor.publishSnapshot(meta || {});
+    }
     if (moveExecutorNetworkTurnHandoff && typeof moveExecutorNetworkTurnHandoff.publishNetworkSnapshot === 'function') {
         return moveExecutorNetworkTurnHandoff.publishNetworkSnapshot(meta);
     }
-    try {
-        if (typeof globalThis === 'undefined' || !globalThis.NetworkMatchClient) return;
-        if (typeof globalThis.NetworkMatchClient.publishSnapshot !== 'function') return;
-        if (typeof globalThis.NetworkMatchClient.isActive === 'function' && !globalThis.NetworkMatchClient.isActive()) return;
-        globalThis.NetworkMatchClient.publishSnapshot(meta || {});
-    } catch (e) { /* ignore */ }
-}
-// Centralized presentation helper
-let BoardPresentation = null;
-if (typeof require === 'function') {
-    try { BoardPresentation = require('./logic/presentation'); } catch (e) { /* ignore */ }
-}
-if (!BoardPresentation && typeof globalThis !== 'undefined' && globalThis.PresentationHelper) {
-    BoardPresentation = globalThis.PresentationHelper;
+    return undefined;
 }
 function emitPresentationEventViaBoardOps(ev: any) {
     try {
         if (__uiImpl_move_executor && typeof __uiImpl_move_executor.emitPresentationEvent === 'function') {
-            const handled = __uiImpl_move_executor.emitPresentationEvent(ev);
-            if (handled === true) return true;
+            return __uiImpl_move_executor.emitPresentationEvent(ev) !== false;
         }
     } catch (e) { /* ignore */ }
     try {
-        const pres = (typeof require === 'function') ? require('./logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
+        const pres = (typeof require === 'function') ? require('./logic/presentation') : null;
         if (pres && typeof pres.emitPresentationEvent === 'function') return pres.emitPresentationEvent(cardState, ev);
-    } catch (e) { /* ignore */ }
-    try {
-        const ops = (typeof globalThis !== 'undefined' && globalThis.BoardOps && typeof globalThis.BoardOps.emitPresentationEvent === 'function')
-            ? globalThis.BoardOps
-            : null;
-        if (ops) {
-            ops.emitPresentationEvent(cardState, ev);
-            return true;
-        }
     } catch (e) { /* ignore */ }
     // Silent fallback: presentation helper may not be available during early bootstrap.
     return false;

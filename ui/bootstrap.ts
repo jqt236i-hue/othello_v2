@@ -1252,6 +1252,28 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             now: () => Date.now(),
             // Let game/move-executor await the UI playback lifecycle (AnimationEngine / visual writer)
             waitForPlayback: uiMod.waitForPlaybackIdle,
+            publishSnapshot: (meta: any) => {
+                try {
+                    if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return undefined;
+                    const client = (globalThis as any).NetworkMatchClient;
+                    if (typeof client.publishSnapshot !== 'function') return undefined;
+                    if (typeof client.isActive === 'function' && client.isActive() !== true) return undefined;
+                    return client.publishSnapshot(meta);
+                } catch (e: any) {
+                    return undefined;
+                }
+            },
+            isNetworkPublishActive: () => {
+                try {
+                    if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return false;
+                    const client = (globalThis as any).NetworkMatchClient;
+                    if (typeof client.publishSnapshot !== 'function') return false;
+                    if (typeof client.isActive === 'function') return client.isActive() === true;
+                    return true;
+                } catch (e: any) {
+                    return false;
+                }
+            },
             emitPresentationEvent: (ev: any) => {
                 try {
                     if (typeof globalThis === 'undefined') return false;

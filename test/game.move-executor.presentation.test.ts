@@ -1,6 +1,7 @@
 describe('move-executor presentation emission', () => {
     const modPath = require.resolve('../game/move-executor');
     beforeEach(() => {
+        jest.resetModules();
         // clear module cache
         delete require.cache[modPath];
         // reset globals
@@ -44,6 +45,70 @@ describe('move-executor presentation emission', () => {
         expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalled();
         const call = global.BoardOps.emitPresentationEvent.mock.calls[0];
         expect(call[1] && call[1].type).toBe('PLAYBACK_EVENTS');
+    });
+
+    test('injected presentation hook is preferred over global BoardOps', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
+
+        const emitPresentationEvent = jest.fn(() => true);
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({ emitPresentationEvent });
+
+        const fakeRes = {
+            ok: true,
+            nextGameState: global.gameState,
+            nextCardState: global.cardState,
+            playbackEvents: [{ type: 'PLAYBACK_EVENTS', events: [] }],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+        await moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
+
+        expect(emitPresentationEvent).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'PLAYBACK_EVENTS'
+        }));
+        expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
+    });
+
+    test('injected network publisher is preferred over global NetworkMatchClient', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
+        global.NetworkMatchClient = {
+            isActive: jest.fn(() => true),
+            publishSnapshot: jest.fn()
+        };
+
+        const publishSnapshot = jest.fn();
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            publishSnapshot,
+            isNetworkPublishActive: () => true
+        });
+
+        const fakeRes = {
+            ok: true,
+            nextGameState: global.gameState,
+            nextCardState: global.cardState,
+            playbackEvents: [{ type: 'move', phase: 1, targets: [] }],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+        await moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
+
+        expect(publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+            playerKey: 'black',
+            actionType: 'place'
+        }));
+        expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
     });
 
     test('終局時は showResult 後にネットへ最終スナップショットを送る', async () => {
