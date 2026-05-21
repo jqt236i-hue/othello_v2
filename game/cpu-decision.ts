@@ -152,15 +152,6 @@ function resolveCpuSmartnessLevel(playerKey: any): number {
     if (smartness && Number.isFinite(smartness[playerKey])) {
         return Number(smartness[playerKey]);
     }
-    try {
-        const selectId = playerKey === 'black' ? 'smartBlack' : 'smartWhite';
-        const doc = (typeof document !== 'undefined') ? document : null;
-        const select = doc && typeof doc.getElementById === 'function'
-            ? doc.getElementById(selectId) as HTMLSelectElement | null
-            : null;
-        const value = select ? Number(select.value) : NaN;
-        if (Number.isFinite(value)) return Math.max(1, Math.min(6, Math.floor(value)));
-    } catch (e) { /* ignore */ }
     return 1;
 }
 

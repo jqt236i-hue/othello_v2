@@ -1135,6 +1135,37 @@ describe('cpu decision refactor helpers', () => {
     }));
   });
 
+  test('selectCpuMoveWithPolicy uses injected CPU smartness before legacy globals', () => {
+    const candidates = [{ row: 2, col: 2, flips: [] }, { row: 3, col: 3, flips: [] }];
+    global.cpuSmartness.white = 1;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 12, black: 12 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.CpuPolicyTableRuntime = {
+      chooseMove: jest.fn(() => candidates[1])
+    };
+    cpuDecision.setCpuDecisionRuntime({
+      readCpuSmartness: () => ({ white: 6, black: 1 })
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+
+    expect(move).toBe(candidates[1]);
+    expect(global.CpuPolicyTableRuntime.chooseMove).toHaveBeenCalledWith(candidates, expect.objectContaining({
+      level: 6,
+      playerKey: 'white'
+    }));
+  });
+
   test('selectCardToUse uses injected query reader for cpu trap-only debug mode', () => {
     global.cpuSmartness.white = 6;
     global.gameState = {
