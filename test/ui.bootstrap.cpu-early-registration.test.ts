@@ -95,6 +95,8 @@ describe('UI bootstrap early CPU registration', () => {
     window.UIBootstrap.installGameDI();
 
     expect(bridgeState.bridge).toBeTruthy();
+    expect(typeof bridgeState.bridge.readMatchMode).toBe('function');
+    expect(typeof bridgeState.bridge.readHumanVsHumanMode).toBe('function');
     expect(bridgeState.bridge.getPlaybackStateManager()).toBe(window.PlaybackStateManager);
     expect(bridgeState.bridge.emitPlaybackEvents([{ type: 'flip', phase: 1 }], { cause: 'FREEZE_WILL' }, window.cardState)).toBe(true);
     expect(window.PresentationHelper.emitPresentationEvent).toHaveBeenCalledWith(window.cardState, {

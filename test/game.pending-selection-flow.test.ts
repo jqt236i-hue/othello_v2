@@ -11,6 +11,8 @@ function attachPlaybackStateManager() {
   playbackStateManager.clearPlaybackLock();
   global.PlaybackStateManager = playbackStateManager;
   flow.setSignalBridge({
+    readMatchMode: () => global.MATCH_MODE,
+    readHumanVsHumanMode: () => global.DEBUG_HUMAN_VS_HUMAN === true,
     getPlaybackStateManager: () => playbackStateManager,
     waitForPlaybackIdle: () => {
       if (typeof global.waitForPlaybackIdle === 'function') {
@@ -725,6 +727,62 @@ describe('pending selection flow contracts', () => {
     });
 
     expect(result).toBe(false);
+    expect(flow.readPendingSelectionAction('black')).toBeNull();
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+    expect(ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+  });
+
+  test('finalizePendingSelectionFlow prefers bridge match mode over legacy global mode', async () => {
+    const ensureCurrentPlayerCanActOrPass = jest.fn();
+    const publishSnapshot = jest.fn(() => Promise.resolve({ ok: false, reason: 'OUT_OF_TURN' }));
+    attachPlaybackStateManager();
+    flow.setSignalBridge({
+      readMatchMode: () => 'network',
+      readHumanVsHumanMode: () => false,
+      publishSnapshot,
+      isNetworkPublishActive: () => true,
+      scheduleCpuTurn: (delay, callback) => setTimeout(callback, delay),
+      processCpuTurn: jest.fn()
+    });
+
+    global.MATCH_MODE = 'cpu';
+    global.cardState = {
+      turnIndex: 4,
+      pendingEffectByPlayer: {
+        black: { type: 'TRAP_WILL', stage: 'selectTarget' },
+        white: null
+      }
+    };
+    global.gameState = {
+      currentPlayer: 'white',
+      turnNumber: 8,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    global.isProcessing = true;
+    global.isCardAnimating = true;
+
+    const action = flow.createPendingSelectionAction('black', 'TRAP_WILL', {
+      trapTarget: { row: 2, col: 2 }
+    }, { cardState: global.cardState });
+
+    const result = await flow.finalizePendingSelectionFlow({
+      playerKey: 'black',
+      pendingType: 'TRAP_WILL',
+      action,
+      playbackEvents: [],
+      gameStateValue: global.gameState,
+      cardStateValue: global.cardState,
+      ensureCurrentPlayerCanActOrPass
+    });
+
+    expect(result).toBe(false);
+    expect(publishSnapshot).toHaveBeenCalledTimes(1);
     expect(flow.readPendingSelectionAction('black')).toBeNull();
     expect(global.isProcessing).toBe(false);
     expect(global.isCardAnimating).toBe(false);

@@ -7,6 +7,13 @@
       var flow = target && target.PendingSelectionFlow;
       if (flow && typeof flow.setSignalBridge === 'function') {
         flow.setSignalBridge({
+          readMatchMode: function () {
+            if (target && typeof target.getCurrentMatchMode === 'function') return target.getCurrentMatchMode();
+            return target ? target.MATCH_MODE : null;
+          },
+          readHumanVsHumanMode: function () {
+            return !!(target && target.DEBUG_HUMAN_VS_HUMAN === true);
+          },
           getPlaybackStateManager: function () { return target.PlaybackStateManager || null; },
           emitPlaybackEvents: function (events, meta, cardStateRef) {
             var helper = target && target.PresentationHelper;

@@ -367,6 +367,22 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function readMatchMode() {
+        const readMatchModeFromBridge = readSignalBridgeMethod('readMatchMode');
+        if (readMatchModeFromBridge) {
+            try {
+                const mode = readMatchModeFromBridge();
+                if (typeof mode !== 'undefined' && mode !== null) return mode;
+            } catch (e) { /* ignore and fall back to legacy root */ }
+        }
+        const getCurrentMatchModeFromBridge = readSignalBridgeMethod('getCurrentMatchMode');
+        if (getCurrentMatchModeFromBridge) {
+            try {
+                const mode = getCurrentMatchModeFromBridge();
+                if (typeof mode !== 'undefined' && mode !== null) return mode;
+            } catch (e) { /* ignore and fall back to legacy root */ }
+        }
+        const bridge = getSignalBridge();
+        if (bridge && typeof bridge.MATCH_MODE !== 'undefined') return bridge.MATCH_MODE;
         try {
             if (root && typeof root.getCurrentMatchMode === 'function') {
                 return root.getCurrentMatchMode();
@@ -429,6 +445,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function isHumanVsHumanModeEnabled() {
+        const readHumanVsHumanMode = readSignalBridgeMethod('readHumanVsHumanMode');
+        if (readHumanVsHumanMode) {
+            try {
+                const explicit = readHumanVsHumanMode();
+                if (typeof explicit !== 'undefined' && explicit !== null) return explicit === true;
+            } catch (e) { /* ignore and fall back to legacy root */ }
+        }
         return !!(root && (root.DEBUG_HUMAN_VS_HUMAN === true || readMatchMode() === 'network'));
     }
 

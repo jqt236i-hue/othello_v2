@@ -503,6 +503,22 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
 
     function buildPendingSelectionFlowBridge() {
         return {
+            readMatchMode: () => {
+                try {
+                    if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
+                        return (globalThis as any).getCurrentMatchMode();
+                    }
+                    if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
+                } catch (e: any) { /* ignore */ }
+                return null;
+            },
+            readHumanVsHumanMode: () => {
+                try {
+                    return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
+                } catch (e: any) {
+                    return false;
+                }
+            },
             getPlaybackStateManager: () => getPlaybackStateModuleForReset(),
             waitForPlaybackIdle: () => {
                 try {
