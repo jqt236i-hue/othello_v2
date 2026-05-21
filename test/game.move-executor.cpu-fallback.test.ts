@@ -1,16 +1,18 @@
 jest.useFakeTimers();
 
-describe('move-executor CPU scheduling fallback', () => {
+describe('move-executor CPU scheduling DI', () => {
     const modPath = require.resolve('../game/move-executor');
+    const distModPath = require.resolve('../dist/game/move-executor');
     beforeEach(() => {
         delete require.cache[modPath];
+        delete require.cache[distModPath];
         delete global.BoardOps;
         delete global.PresentationHelper;
         delete global.processCpuTurn;
         global.WHITE = -1;
     });
 
-    test('when UI scheduler is absent but global processCpuTurn exists, it is used', async () => {
+    test('uses injected scheduler and CPU processor instead of global processCpuTurn', async () => {
         global.BoardOps = { emitPresentationEvent: jest.fn() };
         global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
         // nextGameState currentPlayer should be WHITE to force CPU scheduling
@@ -34,7 +36,8 @@ describe('move-executor CPU scheduling fallback', () => {
         const pipeline = {}; // not used by adapter mock
 
         const mockCpu = jest.fn();
-        globalThis.processCpuTurn = mockCpu;
+        const scheduleCpuTurn = jest.fn((delay, cb) => setTimeout(cb, delay));
+        moveExecutor.setUIImpl({ scheduleCpuTurn, processCpuTurn: mockCpu });
 
         // Act
         await moveExecutor.executeMoveViaPipeline(move, false, playerKey, adapter, pipeline);
@@ -42,6 +45,7 @@ describe('move-executor CPU scheduling fallback', () => {
         // Fast-forward timers used for CPU delay
         jest.runAllTimers();
 
+        expect(scheduleCpuTurn).toHaveBeenCalled();
         expect(mockCpu).toHaveBeenCalled();
     });
 
@@ -68,7 +72,10 @@ describe('move-executor CPU scheduling fallback', () => {
         const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
         const pipeline = {};
         const mockCpu = jest.fn();
-        globalThis.processCpuTurn = mockCpu;
+        moveExecutor.setUIImpl({
+            scheduleCpuTurn: (_delay: number, cb: () => void) => setTimeout(cb, 0),
+            processCpuTurn: mockCpu
+        });
 
         await moveExecutor.executeMoveViaPipeline(move, false, playerKey, adapter, pipeline);
 
@@ -81,7 +88,7 @@ describe('move-executor CPU scheduling fallback', () => {
         expect(global.isProcessing).toBe(false);
     });
 
-    test('late CPU fallback clears processing when processCpuTurn never becomes available', async () => {
+    test('missing CPU processor declines scheduling and clears processing', async () => {
         global.BoardOps = { emitPresentationEvent: jest.fn() };
         global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)), turnNumber: 8 };
@@ -102,10 +109,13 @@ describe('move-executor CPU scheduling fallback', () => {
         };
 
         const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+        const scheduleCpuTurn = jest.fn((delay, cb) => setTimeout(cb, delay));
+        moveExecutor.setUIImpl({ scheduleCpuTurn, processCpuTurn: null });
 
         await moveExecutor.executeMoveViaPipeline(move, false, playerKey, adapter, {});
 
-        expect(global.isProcessing).toBe(true);
+        expect(scheduleCpuTurn).not.toHaveBeenCalled();
+        expect(global.isProcessing).toBe(false);
         jest.runAllTimers();
         expect(global.isProcessing).toBe(false);
     });

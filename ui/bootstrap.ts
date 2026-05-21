@@ -984,6 +984,14 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         // Provide scheduling helper to game/move-executor so CPU turns are delayed to allow visuals to complete
         _connect('./move-executor-visuals', '../game/move-executor', (uiMod: any, timers: any) => ({
             scheduleCpuTurn: (ms: any, cb: any) => { return timers.waitMs(ms || 0).then(cb); },
+            processCpuTurn: (() => {
+                try {
+                    const cpu = require('../game/cpu-turn-handler');
+                    return cpu && typeof cpu.processCpuTurn === 'function' ? cpu.processCpuTurn : null;
+                } catch (e: any) {
+                    return null;
+                }
+            })(),
             now: () => Date.now(),
             // Let game/move-executor await the UI playback lifecycle (AnimationEngine / visual writer)
             waitForPlayback: uiMod.waitForPlaybackIdle,

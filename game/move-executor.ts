@@ -180,6 +180,13 @@ function getTimeNow() {
     return null;
 }
 
+function getMoveExecutorCpuTurnProcessor() {
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.processCpuTurn === 'function') {
+        return __uiImpl_move_executor.processCpuTurn;
+    }
+    return null;
+}
+
 function shouldRunScheduledCpuTurn(expected: any) {
     const exp = expected || {};
     try {
@@ -435,76 +442,36 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
             publishSnapshot: publishNetworkSnapshot,
             onTurnStart: onTurnStartLogic,
             scheduleCpuTurn: ({ delayMs, expectedTurnNumber, nextPlayerKey }: any) => {
+                const scheduleFn = (__uiImpl_move_executor && typeof __uiImpl_move_executor.scheduleCpuTurn === 'function')
+                    ? __uiImpl_move_executor.scheduleCpuTurn
+                    : null;
+                const processScheduledCpuTurn = getMoveExecutorCpuTurnProcessor();
+                if (!scheduleFn || !processScheduledCpuTurn) {
+                    debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] CPU scheduling dependency missing', {
+                        hasScheduleCpuTurn: !!scheduleFn,
+                        hasProcessCpuTurn: !!processScheduledCpuTurn
+                    });
+                    return false;
+                }
                 const expectedCpuSchedule = {
                     playerKey: nextPlayerKey || 'white',
                     turnNumber: expectedTurnNumber
                 };
                 debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduling CPU', { CPU_DELAY: delayMs });
-                if (__uiImpl_move_executor && typeof __uiImpl_move_executor.scheduleCpuTurn === 'function') {
-                    __uiImpl_move_executor.scheduleCpuTurn(delayMs, () => {
-                        if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
-                            setMoveExecutorProcessing(false);
-                            debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale scheduled CPU callback', expectedCpuSchedule);
-                            return;
-                        }
-                        debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduled CPU callback firing, isProcessing, isCardAnimating', { isProcessing: (typeof isProcessing !== 'undefined') ? isProcessing : undefined, isCardAnimating: (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined });
+                scheduleFn(delayMs, () => {
+                    if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
                         setMoveExecutorProcessing(false);
-                        try { processCpuTurn(); } catch (e) {
-                            setMoveExecutorProcessing(false);
-                            debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] processCpuTurn threw', e);
-                        }
-                    });
-                    return true;
-                }
-
-                try {
-                    const globalCpu = (typeof globalThis !== 'undefined' && typeof globalThis.processCpuTurn === 'function') ? globalThis.processCpuTurn : null;
-                    const timerService = getMoveExecutorTimerService();
-                    const scheduleFn = timerService ? timerService.setTimeout.bind(timerService) : setTimeout;
-                    if (globalCpu) {
-                        debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] global processCpuTurn available; scheduling via setTimeout', { delay: delayMs });
-                        scheduleFn(() => {
-                            if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
-                                setMoveExecutorProcessing(false);
-                                debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale global CPU callback', expectedCpuSchedule);
-                                return;
-                            }
-                            setMoveExecutorProcessing(false);
-                            try { globalCpu(); } catch (err) {
-                                setMoveExecutorProcessing(false);
-                                debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] global processCpuTurn threw', err);
-                            }
-                        }, delayMs);
-                        return true;
+                        debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale scheduled CPU callback', expectedCpuSchedule);
+                        return;
                     }
-
-                        debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduleCpuTurn/processCpuTurn unavailable; retrying late global lookup');
-                        scheduleFn(() => {
-                            if (!shouldRunScheduledCpuTurn(expectedCpuSchedule)) {
-                                setMoveExecutorProcessing(false);
-                                debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale late CPU callback', expectedCpuSchedule);
-                                return;
-                            }
-                            const lateGlobalCpu = (typeof globalThis !== 'undefined' && typeof globalThis.processCpuTurn === 'function')
-                                ? globalThis.processCpuTurn
-                                : null;
-                            if (!lateGlobalCpu) {
-                                setMoveExecutorProcessing(false);
-                                debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] processCpuTurn unavailable in late fallback');
-                                return;
-                            }
-                            setMoveExecutorProcessing(false);
-                            try { lateGlobalCpu(); } catch (err) {
-                                setMoveExecutorProcessing(false);
-                                debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] late global processCpuTurn threw', err);
-                            }
-                        }, delayMs);
-                        return true;
-                } catch (e) {
+                    debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduled CPU callback firing, isProcessing, isCardAnimating', { isProcessing: (typeof isProcessing !== 'undefined') ? isProcessing : undefined, isCardAnimating: (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined });
                     setMoveExecutorProcessing(false);
-                    debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] error while trying CPU fallback', e);
-                    return false;
-                }
+                    try { processScheduledCpuTurn(); } catch (e) {
+                        setMoveExecutorProcessing(false);
+                        debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] processCpuTurn threw', e);
+                    }
+                });
+                return true;
             },
             onHumanTurnReady: ({ nextPlayerKey }: any) => {
                 if (nextPlayerKey === 'white' && humanMode) {
