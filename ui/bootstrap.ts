@@ -512,6 +512,23 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 } catch (e: any) { /* ignore */ }
                 return undefined;
             },
+            scheduleCpuTurn: (ms: any, cb: any) => {
+                try {
+                    const delay = Number.isFinite(Number(ms)) ? Math.max(0, Math.trunc(Number(ms))) : 0;
+                    return setTimeout(cb, delay);
+                } catch (e: any) {
+                    return undefined;
+                }
+            },
+            processCpuTurn: () => {
+                try {
+                    const globals = getRegisteredUIGlobals();
+                    if (globals && typeof globals.processCpuTurn === 'function') {
+                        return globals.processCpuTurn();
+                    }
+                } catch (e: any) { /* ignore */ }
+                return undefined;
+            },
             publishSnapshot: (meta: any) => {
                 try {
                     if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return undefined;

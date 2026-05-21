@@ -73,6 +73,14 @@ describe('TRAP_WILL selection turn handoff', () => {
     const playbackStateManager = require('../ui/playback-state-manager.js');
     playbackStateManager.clearPlaybackLock();
     global.PlaybackStateManager = playbackStateManager;
+    require('../game/card-effects/selection-flow.js').setSignalBridge({
+      getPlaybackStateManager: () => playbackStateManager,
+      waitForPlaybackIdle: () => global.waitForPlaybackIdle(),
+      scheduleCpuTurn: (delay, callback) => setTimeout(callback, delay),
+      processCpuTurn: () => global.processCpuTurn(),
+      publishSnapshot: (meta) => global.NetworkMatchClient.publishSnapshot(meta),
+      isNetworkPublishActive: () => global.NetworkMatchClient.isActive()
+    });
   });
 
   afterEach(() => {

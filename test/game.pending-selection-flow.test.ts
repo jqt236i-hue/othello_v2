@@ -18,6 +18,13 @@ function attachPlaybackStateManager() {
       }
       return undefined;
     },
+    scheduleCpuTurn: (delay, callback) => setTimeout(callback, delay),
+    processCpuTurn: () => {
+      if (typeof global.processCpuTurn === 'function') {
+        return global.processCpuTurn();
+      }
+      return undefined;
+    },
     publishSnapshot: (meta) => {
       if (!global.NetworkMatchClient || typeof global.NetworkMatchClient.publishSnapshot !== 'function') {
         return undefined;

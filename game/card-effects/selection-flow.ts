@@ -439,7 +439,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const expectedPlayerKey = (typeof opts.nextPlayerKey === 'undefined' || opts.nextPlayerKey === null)
             ? null
             : normalizeSelectionPlayerKey(opts.nextPlayerKey);
-        const tid = setTimeout(() => {
+        const scheduleCpuTurn = readSignalBridgeMethod('scheduleCpuTurn');
+        const processCpuTurn = readSignalBridgeMethod('processCpuTurn');
+        if (!scheduleCpuTurn || !processCpuTurn) return false;
+        const tid = scheduleCpuTurn(safeDelay, () => {
             try {
                 const gameStateRef = root && root.gameState ? root.gameState : null;
                 const currentPlayer = gameStateRef ? gameStateRef.currentPlayer : null;
@@ -447,12 +450,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 const currentPlayerKey = resolveSelectionTurnPlayerKeyOptional(currentPlayer);
                 if (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) return;
                 if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) return;
-                if (root && typeof root.processCpuTurn === 'function') {
-                    root.processCpuTurn();
-                }
+                processCpuTurn();
             } catch (e) { /* ignore */ }
-        }, safeDelay);
+        });
         if (tid && typeof tid.unref === 'function') tid.unref();
+        return true;
     }
 
     async function waitForSelectionPlaybackIdle(playbackEvents: any) {
