@@ -15,7 +15,7 @@ function createBoard(Shared, rows, cols) {
 }
 
 /**
- * Create a realistic GameState with the standard Othello opening position
+ * Create a realistic GameState with the standard Reversi opening position
  * placed on the board by default.
  *
  * The returned state includes board, currentPlayer, turnNumber,
@@ -31,7 +31,7 @@ function createBoard(Shared, rows, cols) {
 function createGameState(Shared, overrides) {
   var board = createBoard(Shared);
 
-  // Place the standard 4-stone Othello opening
+  // Place the standard 4-stone Reversi opening
   board[3][3] = Shared.BLACK;
   board[3][4] = Shared.WHITE;
   board[4][3] = Shared.WHITE;
@@ -92,7 +92,7 @@ function placeStones(gameState, entries) {
 }
 
 /**
- * Set up the standard 4-stone Othello opening on the given game state.
+ * Set up the standard 4-stone Reversi opening on the given game state.
  * Mutates gameState.board in place.
  *
  * @param {object} Shared - shared-constants module

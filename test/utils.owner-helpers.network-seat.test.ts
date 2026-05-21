@@ -161,7 +161,12 @@ describe('OwnerHelpers network seat helpers', () => {
     expect(OwnerHelpers.isNetworkMode({ MATCH_MODE: 'cpu' })).toBe(false);
   });
 
-  test('isOthelloMode reflects current mode getter/fallback', () => {
+  test('isReversiMode reflects current mode getter/fallback and legacy alias', () => {
+    expect(OwnerHelpers.isReversiMode({ getCurrentMatchMode: () => 'reversi' })).toBe(true);
+    expect(OwnerHelpers.isReversiMode({ getCurrentMatchMode: () => 'othello' })).toBe(true);
+    expect(OwnerHelpers.isReversiMode({ MATCH_MODE: 'reversi' })).toBe(true);
+    expect(OwnerHelpers.isReversiMode({ MATCH_MODE: 'othello' })).toBe(true);
+    expect(OwnerHelpers.isReversiMode({ MATCH_MODE: 'cpu' })).toBe(false);
     expect(OwnerHelpers.isOthelloMode({ getCurrentMatchMode: () => 'othello' })).toBe(true);
     expect(OwnerHelpers.isOthelloMode({ MATCH_MODE: 'othello' })).toBe(true);
     expect(OwnerHelpers.isOthelloMode({ MATCH_MODE: 'cpu' })).toBe(false);

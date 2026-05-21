@@ -22,7 +22,8 @@ interface HandSkinCatalogModule {
   getHandSkinDefinition?: (skinId: string, rootRef: Window) => HandSkinDefinition | null;
 }
 
-const HAND_SKIN_STORAGE_KEY = 'othello.handSkin';
+const HAND_SKIN_STORAGE_KEY = 'reversi.handSkin';
+const LEGACY_HAND_SKIN_STORAGE_KEY = 'othello.handSkin';
 
 function resolveCatalogModule(rootRef: Window & { HandSkinCatalogModule?: HandSkinCatalogModule }): HandSkinCatalogModule | null {
   const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
@@ -54,9 +55,12 @@ function readStoredHandSkinId(rootRef: Window & { HandSkinCatalogModule?: HandSk
   if (!canUseStorage(rootRef)) return fallbackId;
   try {
     if (catalogModule && typeof catalogModule.normalizeHandSkinId === 'function') {
-      return catalogModule.normalizeHandSkinId(rootRef.localStorage.getItem(HAND_SKIN_STORAGE_KEY), rootRef);
+      return catalogModule.normalizeHandSkinId(
+        rootRef.localStorage.getItem(HAND_SKIN_STORAGE_KEY) || rootRef.localStorage.getItem(LEGACY_HAND_SKIN_STORAGE_KEY),
+        rootRef
+      );
     }
-    return String(rootRef.localStorage.getItem(HAND_SKIN_STORAGE_KEY) || '').trim() || fallbackId;
+    return String(rootRef.localStorage.getItem(HAND_SKIN_STORAGE_KEY) || rootRef.localStorage.getItem(LEGACY_HAND_SKIN_STORAGE_KEY) || '').trim() || fallbackId;
   } catch (e) {
     if (typeof console !== 'undefined' && console.warn) {
       console.warn('[hand-skin] failed to read storage', e);
@@ -74,6 +78,7 @@ function writeStoredHandSkinId(rootRef: Window & { HandSkinCatalogModule?: HandS
   try {
     if (definition) {
       rootRef.localStorage.setItem(HAND_SKIN_STORAGE_KEY, definition.id);
+      rootRef.localStorage.setItem(LEGACY_HAND_SKIN_STORAGE_KEY, definition.id);
     }
     return true;
   } catch (e) {
@@ -86,6 +91,7 @@ function writeStoredHandSkinId(rootRef: Window & { HandSkinCatalogModule?: HandS
 
 export = {
   HAND_SKIN_STORAGE_KEY,
+  LEGACY_HAND_SKIN_STORAGE_KEY,
   readStoredHandSkinId,
   writeStoredHandSkinId
 };

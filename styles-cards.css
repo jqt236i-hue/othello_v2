@@ -1462,6 +1462,7 @@
     text-shadow: none;
 }
 
+#reversi-pass-btn,
 #othello-pass-btn {
     position: absolute;
     left: 50%;
@@ -1484,11 +1485,13 @@
     z-index: 165;
 }
 
+#reversi-pass-btn:hover:not(:disabled),
 #othello-pass-btn:hover:not(:disabled) {
     background: linear-gradient(180deg, #f8f8f8 0%, #dcdcdc 100%);
     border-color: #ffffff;
 }
 
+#reversi-pass-btn:disabled,
 #othello-pass-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;

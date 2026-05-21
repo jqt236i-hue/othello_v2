@@ -44,6 +44,7 @@ describe('pass-handler flows', () => {
     });
 
     test('handleBlackPassWhenNoMoves calls applyPassViaPipeline and continues without throwing', async () => {
+        jest.useFakeTimers();
         // Provide a fake TurnPipeline with applyTurnSafe that advances to white turn
         (global as any).TurnPipeline = {
             applyTurnSafe: jest.fn((cs: any, gs: any) => ({
@@ -53,10 +54,18 @@ describe('pass-handler flows', () => {
                 events: []
             }))
         };
-        const ph = require('../game/pass-handler');
+        try {
+            const ph = require('../game/pass-handler');
 
-        // Call the function and ensure it resolves
-        await expect(ph.handleBlackPassWhenNoMoves()).resolves.toBeUndefined();
+            // Call the function and ensure the delayed pass path resolves.
+            await expect(ph.handleBlackPassWhenNoMoves()).resolves.toBeUndefined();
+            await jest.runOnlyPendingTimersAsync();
+
+            expect((global as any).TurnPipeline.applyTurnSafe).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.clearAllTimers();
+            jest.useRealTimers();
+        }
     });
 
     test('processPassTurn handles pass and does not throw when TurnPipeline present', async () => {
@@ -73,6 +82,7 @@ describe('pass-handler flows', () => {
     });
 
     test('getLegalMoves 未定義でも handleBlackPassWhenNoMoves が投げない', async () => {
+        jest.useFakeTimers();
         delete require.cache[modPath];
         delete (global as any).getLegalMoves;
         (global as any).cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
@@ -85,8 +95,16 @@ describe('pass-handler flows', () => {
                 events: []
             }))
         };
-        const ph = require('../game/pass-handler');
-        await expect(ph.handleBlackPassWhenNoMoves()).resolves.toBeUndefined();
+        try {
+            const ph = require('../game/pass-handler');
+            await expect(ph.handleBlackPassWhenNoMoves()).resolves.toBeUndefined();
+            await jest.runOnlyPendingTimersAsync();
+
+            expect((global as any).TurnPipeline.applyTurnSafe).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.clearAllTimers();
+            jest.useRealTimers();
+        }
     });
 
     test('getLegalMoves 未定義でも processPassTurn が投げない', async () => {
@@ -300,6 +318,7 @@ describe('pass-handler flows', () => {
     });
 
     test('white CPU scheduling retries briefly when processCpuTurn becomes available after pass', async () => {
+        jest.useFakeTimers();
         delete require.cache[modPath];
         const cpuTurnMock = jest.fn();
         (global as any).processCpuTurn = cpuTurnMock;
@@ -318,17 +337,20 @@ describe('pass-handler flows', () => {
             }))
         };
 
-        const ph = require('../game/pass-handler');
-        await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
+        try {
+            const ph = require('../game/pass-handler');
+            await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
 
-        // Check that gameState was updated to white's turn
-        expect((global as any).gameState.currentPlayer).toBe((global as any).WHITE);
+            // Check that gameState was updated to white's turn
+            expect((global as any).gameState.currentPlayer).toBe((global as any).WHITE);
 
-        // The CPU turn should be scheduled (we verify by checking the mock was set up)
-        // In a real scenario, the timer would fire and call processCpuTurn
-        // For this test, we just verify the turn advanced and scheduling logic was reached
-        expect(cpuTurnMock).not.toHaveBeenCalled(); // Timer hasn't fired yet in sync test
-        delete (global as any).CPU_TURN_DELAY_MS;
+            // The CPU turn should be scheduled, but it must not fire before time advances.
+            expect(cpuTurnMock).not.toHaveBeenCalled();
+        } finally {
+            jest.clearAllTimers();
+            jest.useRealTimers();
+            delete (global as any).CPU_TURN_DELAY_MS;
+        }
     });
 
     test('network mode と手番の表記揺れを正規化して自動パスを抑止する', () => {

@@ -19,7 +19,7 @@ export const prologueStory = {
             {
               type: 'say',
               speaker: '主人公',
-              text: 'ここからカードオセロの物語が始まる。',
+              text: 'ここからカードリバーシの物語が始まる。',
               lineId: 'prologue_001'
             },
             { type: 'char', id: 'rival', pose: 'confident', slot: 'right', enter: 'fade' },

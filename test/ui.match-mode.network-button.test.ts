@@ -17,7 +17,7 @@ describe('match-mode network button behavior', () => {
   function buildUiRefs() {
     return {
       modeCpuBtn: document.getElementById('modeCpuBtn'),
-      modeOthelloBtn: document.getElementById('modeOthelloBtn'),
+      modeReversiBtn: document.getElementById('modeReversiBtn'),
       modeNetworkBtn: document.getElementById('modeNetworkBtn'),
       controlPanel: document.getElementById('control-panel'),
       networkPanel: document.getElementById('networkPanel'),
@@ -48,7 +48,7 @@ describe('match-mode network button behavior', () => {
     dom = new JSDOM(
       '<!doctype html><html><body>' +
       '<button id="modeCpuBtn">CPU</button>' +
-      '<button id="modeOthelloBtn">オセロ</button>' +
+      '<button id="modeReversiBtn">リバーシ</button>' +
       '<button id="modeNetworkBtn">ネット対戦</button>' +
       '<button id="autoToggleBtn">AUTO: OFF</button>' +
       '<div id="control-panel"></div>' +
@@ -177,11 +177,12 @@ describe('match-mode network button behavior', () => {
     expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: デフォルトデッキ / 作成時に送る盤面: 8x8');
   });
 
-  test('オセロモードはカード系UIを隠しCPUレベル選択を残す', async () => {
-    document.getElementById('modeOthelloBtn').click();
+  test('リバーシモードはカード系UIを隠しCPUレベル選択を残す', async () => {
+    document.getElementById('modeReversiBtn').click();
     await Promise.resolve();
 
-    expect(window.MatchMode.getCurrentMode()).toBe('othello');
+    expect(window.MatchMode.getCurrentMode()).toBe('reversi');
+    expect(document.body.classList.contains('reversi-mode-active')).toBe(true);
     expect(document.body.classList.contains('othello-mode-active')).toBe(true);
     expect(window.DEBUG_HUMAN_VS_HUMAN).toBe(false);
     expect(document.getElementById('hand-black').hidden).toBe(true);

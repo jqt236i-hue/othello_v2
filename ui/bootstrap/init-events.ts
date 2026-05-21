@@ -43,6 +43,7 @@ interface InitDomElements {
   humanVsHumanBtn: HTMLElement | null;
   visualTestBtn: HTMLElement | null;
   modeCpuBtn: HTMLElement | null;
+  modeReversiBtn: HTMLElement | null;
   modeOthelloBtn: HTMLElement | null;
   modeNetworkBtn: HTMLElement | null;
   controlPanel: HTMLElement | null;
@@ -97,6 +98,7 @@ interface InitDomElements {
   useBtn: HTMLElement | null;
   detailBtn: HTMLElement | null;
   passBtn: HTMLElement | null;
+  reversiPassBtn: HTMLElement | null;
   othelloPassBtn: HTMLElement | null;
 }
 
@@ -147,7 +149,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
 
   if (typeof setupMatchModeControls === 'function') {
     setupMatchModeControls({
-      modeCpuBtn: refs.modeCpuBtn, modeOthelloBtn: refs.modeOthelloBtn, modeNetworkBtn: refs.modeNetworkBtn,
+      modeCpuBtn: refs.modeCpuBtn, modeReversiBtn: refs.modeReversiBtn || refs.modeOthelloBtn, modeOthelloBtn: refs.modeOthelloBtn, modeNetworkBtn: refs.modeNetworkBtn,
       controlPanel: refs.controlPanel, networkPanel: refs.networkPanel,
       networkAdvancedSettings: refs.networkAdvancedSettings,
       networkRoomInput: refs.networkRoomIdInput, networkServerInput: refs.networkServerInput,
@@ -226,8 +228,9 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   if (refs.passBtn && typeof passCurrentTurn === 'function') {
     refs.passBtn.addEventListener('click', passCurrentTurn);
   }
-  if (refs.othelloPassBtn && typeof passCurrentTurn === 'function') {
-    refs.othelloPassBtn.addEventListener('click', passCurrentTurn);
+  const reversiPassBtn = refs.reversiPassBtn || refs.othelloPassBtn;
+  if (reversiPassBtn && typeof passCurrentTurn === 'function') {
+    reversiPassBtn.addEventListener('click', passCurrentTurn);
   }
 }
 

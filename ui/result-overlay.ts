@@ -275,28 +275,32 @@ function resolveCurrentMatchMode() {
     try {
         if (ResultOverlayOwnerHelpersModule && typeof ResultOverlayOwnerHelpersModule.getCurrentMatchMode === 'function') {
             const mode = ResultOverlayOwnerHelpersModule.getCurrentMatchMode(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : null));
-            if (mode === 'cpu' || mode === 'network' || mode === 'othello') return mode;
+            if (mode === 'cpu' || mode === 'network' || mode === 'reversi') return mode;
+            if (mode === 'othello') return 'reversi';
         }
     } catch (e: any) { /* ignore */ }
 
     try {
         if (typeof window !== 'undefined') {
             const mode = window.MATCH_MODE || window.__MATCH_MODE;
-            if (mode === 'cpu' || mode === 'network' || mode === 'othello') return mode;
+            if (mode === 'cpu' || mode === 'network' || mode === 'reversi') return mode;
+            if (mode === 'othello') return 'reversi';
         }
     } catch (e: any) { /* ignore */ }
 
     try {
         if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
             const mode = (globalThis as any).getCurrentMatchMode();
-            if (mode === 'cpu' || mode === 'network' || mode === 'othello') return mode;
+            if (mode === 'cpu' || mode === 'network' || mode === 'reversi') return mode;
+            if (mode === 'othello') return 'reversi';
         }
     } catch (e: any) { /* ignore */ }
 
     try {
         if (typeof globalThis !== 'undefined') {
             const mode = (globalThis as any).MATCH_MODE || (globalThis as any).__MATCH_MODE;
-            if (mode === 'cpu' || mode === 'network' || mode === 'othello') return mode;
+            if (mode === 'cpu' || mode === 'network' || mode === 'reversi') return mode;
+            if (mode === 'othello') return 'reversi';
         }
     } catch (e: any) { /* ignore */ }
 
@@ -887,7 +891,7 @@ function showResultOverlay() {
     const localOutcomeKey = resultView.localOutcomeKey;
     const title = resultView.title;
     const statusClass = resultView.statusClass;
-    const othelloMode = resolveCurrentMatchMode() === 'othello';
+    const othelloMode = resolveCurrentMatchMode() === 'reversi';
     const observationStoneSummary = othelloMode
         ? null
         : resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey);

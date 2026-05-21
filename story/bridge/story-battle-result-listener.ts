@@ -1,5 +1,9 @@
 import type { StoryBattleResult, StorySide } from '../core/story-schema';
-import { GAME_RESULT_EVENT, type GameResultEventDetail } from '../../shared/game-result-event';
+import {
+  GAME_RESULT_EVENT,
+  LEGACY_GAME_RESULT_EVENT,
+  type GameResultEventDetail
+} from '../../shared/game-result-event';
 
 export type StoryBattleResultRoot = {
   gameState?: unknown;
@@ -30,6 +34,7 @@ export function installStoryBattleResultListener(
   const restore = (): void => {
     if (typeof root.removeEventListener === 'function') {
       root.removeEventListener(GAME_RESULT_EVENT, onGameResult);
+      root.removeEventListener(LEGACY_GAME_RESULT_EVENT, onGameResult);
     }
     if (typeof originalShowResult === 'function') {
       root.showResult = originalShowResult;
@@ -81,6 +86,7 @@ export function installStoryBattleResultListener(
   }
   if (typeof root.addEventListener === 'function') {
     root.addEventListener(GAME_RESULT_EVENT, onGameResult);
+    root.addEventListener(LEGACY_GAME_RESULT_EVENT, onGameResult);
   }
 
   return restore;

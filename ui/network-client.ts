@@ -1468,7 +1468,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 if (selected !== 'default') return selected;
             } catch (e: any) { /* ignore */ }
         }
-        const storageKey = String((handSkinUiModule && handSkinUiModule.HAND_SKIN_STORAGE_KEY) || 'othello.handSkin').trim() || 'othello.handSkin';
+        const storageKey = String((handSkinUiModule && handSkinUiModule.HAND_SKIN_STORAGE_KEY) || 'reversi.handSkin').trim() || 'reversi.handSkin';
         try {
             const storage = root && root.localStorage
                 ? root.localStorage

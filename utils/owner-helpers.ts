@@ -248,15 +248,22 @@
             : null;
     }
 
+    function normalizeMatchMode(value) {
+        var mode = String(value || 'cpu').trim().toLowerCase();
+        if (mode === 'reversi' || mode === 'othello') return 'reversi';
+        if (mode === 'network') return 'network';
+        return 'cpu';
+    }
+
     function getCurrentMatchMode(rootRef) {
         const ctx = rootRef || root || (typeof globalThis !== 'undefined' ? globalThis : {});
         try {
             if (ctx && typeof ctx.getCurrentMatchMode === 'function') {
-                return String(ctx.getCurrentMatchMode() || 'cpu');
+                return normalizeMatchMode(ctx.getCurrentMatchMode());
             }
         } catch (e) { /* ignore */ }
         try {
-            if (ctx && ctx.MATCH_MODE) return String(ctx.MATCH_MODE);
+            if (ctx && ctx.MATCH_MODE) return normalizeMatchMode(ctx.MATCH_MODE);
         } catch (e) { /* ignore */ }
         return 'cpu';
     }
@@ -265,8 +272,12 @@
         return getCurrentMatchMode(rootRef) === 'network';
     }
 
+    function isReversiMode(rootRef) {
+        return getCurrentMatchMode(rootRef) === 'reversi';
+    }
+
     function isOthelloMode(rootRef) {
-        return getCurrentMatchMode(rootRef) === 'othello';
+        return isReversiMode(rootRef);
     }
 
     function isValidOwner(owner) {
@@ -291,7 +302,9 @@
         getFateWillControllerForTurnOwner: getFateWillControllerForTurnOwner,
         getFateWillControlledTurnOwnerForPlayer: getFateWillControlledTurnOwnerForPlayer,
         getCurrentMatchMode: getCurrentMatchMode,
+        normalizeMatchMode: normalizeMatchMode,
         isNetworkMode: isNetworkMode,
+        isReversiMode: isReversiMode,
         isOthelloMode: isOthelloMode
     };
 

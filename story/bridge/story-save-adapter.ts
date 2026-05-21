@@ -15,7 +15,7 @@ export type StoryStorageLike = {
 export function createLocalStorageStorySaveAdapter(storage: StoryStorageLike): StorySaveAdapter {
   return {
     load(scenarioId) {
-      const raw = storage.getItem(getStorySaveKey(scenarioId));
+      const raw = storage.getItem(getStorySaveKey(scenarioId)) || storage.getItem(getLegacyStorySaveKey(scenarioId));
       if (!raw) return null;
       const parsed = JSON.parse(raw) as SerializedStoryState;
       if (!parsed || parsed.scenarioId !== scenarioId) {
@@ -24,17 +24,21 @@ export function createLocalStorageStorySaveAdapter(storage: StoryStorageLike): S
       return parsed;
     },
     save(state) {
-      storage.setItem(
-        getStorySaveKey(state.scenarioId),
-        JSON.stringify({ ...state, lastPlayedAt: new Date().toISOString() })
-      );
+      const value = JSON.stringify({ ...state, lastPlayedAt: new Date().toISOString() });
+      storage.setItem(getStorySaveKey(state.scenarioId), value);
+      storage.setItem(getLegacyStorySaveKey(state.scenarioId), value);
     },
     clear(scenarioId) {
       storage.removeItem(getStorySaveKey(scenarioId));
+      storage.removeItem(getLegacyStorySaveKey(scenarioId));
     }
   };
 }
 
 export function getStorySaveKey(scenarioId: string): string {
+  return `card-reversi:story:${scenarioId}:save`;
+}
+
+export function getLegacyStorySaveKey(scenarioId: string): string {
   return `card-othello:story:${scenarioId}:save`;
 }

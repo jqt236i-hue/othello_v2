@@ -26,11 +26,11 @@ describe('NetworkMatchClient server URL initialization', () => {
 
   test('uses same origin on deployed https page when persisted server URL is loopback', () => {
     const client = loadClientWithLocation(
-      'https://card.othello.workers.dev/',
+      'https://card.reversi.workers.dev/',
       'http://127.0.0.1:8787'
     );
 
-    expect(client.getServerUrl()).toBe('https://card.othello.workers.dev');
+    expect(client.getServerUrl()).toBe('https://card.reversi.workers.dev');
   });
 
   test('keeps persisted loopback URL on local development page', () => {
@@ -44,7 +44,7 @@ describe('NetworkMatchClient server URL initialization', () => {
 
   test('uses query override before persisted URL', () => {
     const client = loadClientWithLocation(
-      'https://card.othello.workers.dev/?matchServer=https://match.example.test',
+      'https://card.reversi.workers.dev/?matchServer=https://match.example.test',
       'http://127.0.0.1:8787'
     );
 

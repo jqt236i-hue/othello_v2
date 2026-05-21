@@ -946,10 +946,29 @@ html.stone-images-loaded .disc.white {
     transform: none;
 }
 
+body.reversi-mode-active .board-bonus-number,
 body.othello-mode-active .board-bonus-number {
     display: none;
 }
 
+body.reversi-mode-active :is(
+    #deck-white,
+    #deck-black,
+    #hand-white,
+    #hand-black,
+    #card-detail-panel,
+    #discard-display,
+    #effect-live-panel,
+    #deckBuilderOpenBtn,
+    #deckBuilderControlSummary,
+    #gachaOpenBtn,
+    #charge-black,
+    #charge-white,
+    #charge-delta-black-increase,
+    #charge-delta-black-decrease,
+    #charge-delta-white-increase,
+    #charge-delta-white-decrease
+),
 body.othello-mode-active :is(
     #deck-white,
     #deck-black,

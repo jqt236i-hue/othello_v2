@@ -618,17 +618,22 @@ function resolveOthelloBrowserCpuRuntime(): any {
 function isOthelloModeForCpuDecision(): boolean {
     try {
         if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-            return (globalThis as any).getCurrentMatchMode() === 'othello';
+            const mode = String((globalThis as any).getCurrentMatchMode() || '').trim().toLowerCase();
+            return mode === 'reversi' || mode === 'othello';
         }
     } catch (e) { /* ignore */ }
     try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).isReversiModeActive === 'function') {
+            return (globalThis as any).isReversiModeActive() === true;
+        }
         if (typeof globalThis !== 'undefined' && typeof (globalThis as any).isOthelloModeActive === 'function') {
             return (globalThis as any).isOthelloModeActive() === true;
         }
     } catch (e) { /* ignore */ }
     try {
         return typeof globalThis !== 'undefined' &&
-            ((globalThis as any).MATCH_MODE === 'othello' || (globalThis as any).__MATCH_MODE === 'othello');
+            ((globalThis as any).MATCH_MODE === 'reversi' || (globalThis as any).__MATCH_MODE === 'reversi'
+                || (globalThis as any).MATCH_MODE === 'othello' || (globalThis as any).__MATCH_MODE === 'othello');
     } catch (e) {
         return false;
     }
@@ -3305,6 +3310,7 @@ function applyHandCardDestroy(playerKey: any, destroyChoice: any): any {
 }
 
 function cpuMaybeDestroyHandCardWithPolicy(playerKey: any): any {
+    if (isOthelloModeForCpuDecision()) return false;
     if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return false;
     if (readCpuPendingEffect(playerKey)) return false;
 
@@ -3434,6 +3440,7 @@ function applyCardChoice(playerKey: any, cardChoice: any): any {
 }
 
 function cpuMaybeUseCardWithPolicy(playerKey: any): any {
+    if (isOthelloModeForCpuDecision()) return false;
     // Backwards-compatible wrapper that selects then applies; preserves original behavior
     if (typeof cardState === 'undefined' || !cardState || !cardState.hasUsedCardThisTurnByPlayer) {
         // Defensive: in some browser load orders cardState may not be initialized yet

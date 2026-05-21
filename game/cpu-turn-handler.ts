@@ -312,6 +312,22 @@ function isHumanVsHumanModeEnabled() {
     return debugHvH || matchMode === 'network';
 }
 
+function isOthelloModeForCpuTurnHandler() {
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
+            const mode = String((globalThis as any).getCurrentMatchMode() || '').trim().toLowerCase();
+            return mode === 'reversi' || mode === 'othello';
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined') {
+            const mode = String((globalThis as any).MATCH_MODE || (globalThis as any).__MATCH_MODE || '').trim().toLowerCase();
+            return mode === 'reversi' || mode === 'othello';
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
 function getPlaybackStateForCpuTurn() {
     // @compat - globalThis read, UI/bootstrap dependency (PlaybackStateManager)
     try {
@@ -1593,6 +1609,7 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             : 1;
         const hasUsedCardThisTurn = !!(cardState && cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer[playerKey]);
         const hasPendingSelection = !!readCpuPendingSelection(playerKey);
+        const othelloMode = isOthelloModeForCpuTurnHandler();
 
         emitCpuCommentary('turn_start', playerKey, {
             level,
@@ -1600,7 +1617,7 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             hasUsedCardThisTurn
         });
 
-        if (!hasUsedCardThisTurn && !hasPendingSelection) {
+        if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
             const destroyHandCardWithPolicyFn = resolveRuntimeFunction('cpuMaybeDestroyHandCardWithPolicy')
                 || (typeof cpuMaybeDestroyHandCardWithPolicy === 'function' ? cpuMaybeDestroyHandCardWithPolicy : null);
             let destroyedForCycle = (typeof destroyHandCardWithPolicyFn === 'function')
@@ -1622,7 +1639,7 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             }
         }
 
-        if (!hasUsedCardThisTurn && !hasPendingSelection) {
+        if (!othelloMode && !hasUsedCardThisTurn && !hasPendingSelection) {
             const protectionPreview = getActiveProtectionSafe(selfColor);
             const permaPreview = getFlipBlockersSafe();
             const generateMovesForPlayerFn = resolveGenerateMovesForPlayer();
@@ -1741,7 +1758,7 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             const stillUsableCard = (cardLogicForRetry && typeof cardLogicForRetry.hasUsableCard === 'function')
                 ? !!cardLogicForRetry.hasUsableCard(cardState, gameState, playerKey)
                 : false;
-            if (stillUsableCard) {
+            if (!othelloMode && stillUsableCard) {
                 const expectedRetryTurnNumber = getCurrentTurnNumberSafe();
                 const onnxCardDecision = await maybeUseCardFromOnnx(playerKey, level, 0, []);
                 if (shouldAbortCpuForHumanMode(playerKey, 'after_onnx_retry')) {
@@ -1865,8 +1882,10 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             }
             try {
                 const cornersBeforeMove = countOwnedBasicCornersSafe(gameState, playerKey);
-                if (!Array.isArray(cardState.presentationEvents)) cardState.presentationEvents = [];
-                cardState.presentationEvents.push({ type: 'PLAY_HAND_ANIMATION', player: playerKey, row: move.row, col: move.col });
+                if (!othelloMode) {
+                    if (!Array.isArray(cardState.presentationEvents)) cardState.presentationEvents = [];
+                    cardState.presentationEvents.push({ type: 'PLAY_HAND_ANIMATION', player: playerKey, row: move.row, col: move.col });
+                }
                 executeMove(move);
                 const cornersAfterMove = countOwnedBasicCornersSafe(gameState, playerKey);
                 if (cornersAfterMove > cornersBeforeMove) {

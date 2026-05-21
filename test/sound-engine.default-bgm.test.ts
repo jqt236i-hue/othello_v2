@@ -156,8 +156,8 @@ describe('SoundEngine default BGM', () => {
 
     expect(soundEngine.playlist).toHaveLength(6);
     expect(soundEngine.playlist.map((track) => track.name)).toEqual([
-      'c-othello',
-      'c-othello-2',
+      'c-reversi',
+      'c-reversi-2',
       '盤喰いの小鬼戦',
       '幻想即興曲',
       'ノクターン',
@@ -165,12 +165,12 @@ describe('SoundEngine default BGM', () => {
     ]);
     expect(soundEngine.currentTrackIndex).toBe(5);
     expect(soundEngine.playlist[0]).toEqual({
-      name: 'c-othello',
-      file: 'assets/audio/bgm/c-othello.mp3'
+      name: 'c-reversi',
+      file: 'assets/audio/bgm/c-reversi.mp3'
     });
     expect(soundEngine.playlist[1]).toEqual({
-      name: 'c-othello-2',
-      file: 'assets/audio/bgm/c-othello-2.mp3'
+      name: 'c-reversi-2',
+      file: 'assets/audio/bgm/c-reversi-2.mp3'
     });
     expect(soundEngine.playlist[3]).toEqual({
       name: '幻想即興曲',

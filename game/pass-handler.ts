@@ -250,11 +250,15 @@ function isHumanVsHumanModeEnabled() {
 
 function isOthelloModeEnabled() {
     try {
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.isReversiMode === 'function') {
+            return OwnerHelpersModule.isReversiMode(typeof globalThis !== 'undefined' ? globalThis : null);
+        }
         if (OwnerHelpersModule && typeof OwnerHelpersModule.isOthelloMode === 'function') {
             return OwnerHelpersModule.isOthelloMode(typeof globalThis !== 'undefined' ? globalThis : null);
         }
     } catch (e) { /* ignore */ }
-    return String(getCurrentMatchModeSafe() || '').trim().toLowerCase() === 'othello';
+    const matchMode = String(getCurrentMatchModeSafe() || '').trim().toLowerCase();
+    return matchMode === 'reversi' || matchMode === 'othello';
 }
 
 function isNetworkModeEnabled() {

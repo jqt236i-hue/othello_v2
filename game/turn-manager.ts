@@ -523,6 +523,9 @@ function isNetworkModeForTurnManager() {
 
 function isOthelloModeForTurnManager() {
     try {
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.isReversiMode === 'function') {
+            return OwnerHelpersModule.isReversiMode(typeof globalThis !== 'undefined' ? globalThis : null);
+        }
         if (OwnerHelpersModule && typeof OwnerHelpersModule.isOthelloMode === 'function') {
             return OwnerHelpersModule.isOthelloMode(typeof globalThis !== 'undefined' ? globalThis : null);
         }
@@ -531,7 +534,7 @@ function isOthelloModeForTurnManager() {
         const matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
             ? (globalThis as any).getCurrentMatchMode()
             : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
-        return matchMode === 'othello';
+        return matchMode === 'reversi' || matchMode === 'othello';
     } catch (e) { /* ignore */ }
     return false;
 }
@@ -859,8 +862,9 @@ function resetGame(options?: any) {
             cardInitOptions = {};
         }
     }
-    if (isOthelloModeForTurnManager()) {
-        cardInitOptions = Object.assign({}, cardInitOptions, { plainOthello: true });
+    const plainReversiMode = isOthelloModeForTurnManager();
+    if (plainReversiMode) {
+        cardInitOptions = Object.assign({}, cardInitOptions, { plainReversi: true, plainOthello: true });
     }
 
     let boardConfig = (cardInitOptions && typeof cardInitOptions === 'object' && cardInitOptions.boardConfig)
@@ -942,6 +946,15 @@ function resetGame(options?: any) {
                 }
             });
     };
+
+    if (plainReversiMode) {
+        setTurnManagerBusyState({
+            cardAnimating: false,
+            processing: false
+        });
+        runTurnStartAndPublishResetSnapshot();
+        return;
+    }
 
     // Lock input during initial dealing animation
     setTurnManagerBusyState({

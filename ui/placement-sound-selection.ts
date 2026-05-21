@@ -6,7 +6,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-const PLACEMENT_SOUND_STORAGE_KEY = 'othello.placementSound';
+const PLACEMENT_SOUND_STORAGE_KEY = 'reversi.placementSound';
+const LEGACY_PLACEMENT_SOUND_STORAGE_KEY = 'othello.placementSound';
 const DEFAULT_PLACEMENT_SOUND_ID = 'default';
 const DEFAULT_PLACEMENT_SOUND_DEFINITION = Object.freeze({
   id: 'default',
@@ -113,7 +114,7 @@ function readStoredPlacementSoundId(rootRef: any): string {
   const storage = resolveStorage(rootRef);
   if (storage && typeof storage.getItem === 'function') {
     try {
-      const stored = String(storage.getItem(PLACEMENT_SOUND_STORAGE_KEY) || '').trim();
+      const stored = String(storage.getItem(PLACEMENT_SOUND_STORAGE_KEY) || storage.getItem(LEGACY_PLACEMENT_SOUND_STORAGE_KEY) || '').trim();
       if (stored) return stored;
     } catch (e) { /* ignore */ }
   }
@@ -126,6 +127,7 @@ function writeStoredPlacementSoundId(rootRef: any, soundId: string): string {
   if (storage && typeof storage.setItem === 'function') {
     try {
       storage.setItem(PLACEMENT_SOUND_STORAGE_KEY, selectedPlacementSoundId);
+      storage.setItem(LEGACY_PLACEMENT_SOUND_STORAGE_KEY, selectedPlacementSoundId);
     } catch (e) { /* ignore */ }
   }
   return selectedPlacementSoundId;
@@ -205,6 +207,7 @@ function resolveSelectedPlacementSoundFilePath(options: any = {}): string {
 
 const PlacementSoundSelection = {
   PLACEMENT_SOUND_STORAGE_KEY,
+  LEGACY_PLACEMENT_SOUND_STORAGE_KEY,
   DEFAULT_PLACEMENT_SOUND_ID,
   DEFAULT_PLACEMENT_SOUND_DEFINITION,
   normalizePlacementSoundId,

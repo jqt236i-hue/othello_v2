@@ -16,6 +16,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 const root: any = (typeof window !== 'undefined' ? window : globalThis);
 
 const MODE_CPU = 'cpu';
+const MODE_REVERSI = 'reversi';
 const MODE_OTHELLO = 'othello';
     const MODE_NETWORK = 'network';
     const CHAT_INPUT_FALLBACK_MAX = 20;
@@ -33,7 +34,7 @@ const MODE_OTHELLO = 'othello';
 
     const uiRefs: any = {
         modeCpuBtn: null,
-        modeOthelloBtn: null,
+        modeReversiBtn: null,
         modeNetworkBtn: null,
         controlPanel: null,
         networkPanel: null,
@@ -76,7 +77,7 @@ const MODE_OTHELLO = 'othello';
     };
 
     function normalizeMode(mode: any) {
-        if (mode === MODE_OTHELLO) return MODE_OTHELLO;
+        if (mode === MODE_REVERSI || mode === MODE_OTHELLO) return MODE_REVERSI;
         if (mode === MODE_NETWORK) return MODE_NETWORK;
         return MODE_CPU;
     }
@@ -98,8 +99,12 @@ const MODE_OTHELLO = 'othello';
         return currentMode === MODE_NETWORK;
     }
 
+    function isReversiModeActive() {
+        return currentMode === MODE_REVERSI;
+    }
+
     function isOthelloModeActive() {
-        return currentMode === MODE_OTHELLO;
+        return isReversiModeActive();
     }
 
     function normalizePlayerName(value: any) {
@@ -1101,10 +1106,11 @@ const MODE_OTHELLO = 'othello';
         } catch (e) { /* ignore */ }
     }
 
-    function applyOthelloModeUiState() {
-        const active = currentMode === MODE_OTHELLO;
+    function applyReversiModeUiState() {
+        const active = currentMode === MODE_REVERSI;
         try {
             if (document && document.body) {
+                document.body.classList.toggle('reversi-mode-active', active);
                 document.body.classList.toggle('othello-mode-active', active);
             }
             const hiddenElementIds = [
@@ -1133,13 +1139,15 @@ const MODE_OTHELLO = 'othello';
             });
         } catch (e) { /* ignore */ }
         try {
+            root.REVERSI_MODE_ACTIVE = active;
+            root.__REVERSI_MODE_ACTIVE = active;
             root.OTHELLO_MODE_ACTIVE = active;
             root.__OTHELLO_MODE_ACTIVE = active;
         } catch (e) { /* ignore */ }
     }
 
-    function resetGameForOthelloModeSwitch(prevMode: any, nextMode: any) {
-        if (prevMode !== MODE_OTHELLO && nextMode !== MODE_OTHELLO) return;
+    function resetGameForReversiModeSwitch(prevMode: any, nextMode: any) {
+        if (prevMode !== MODE_REVERSI && nextMode !== MODE_REVERSI) return;
         try {
             if (typeof root.resetGame === 'function') {
                 root.resetGame({ skipNetworkPublish: true });
@@ -1149,11 +1157,11 @@ const MODE_OTHELLO = 'othello';
 
     function refreshModeButtons() {
         const cpuActive = currentMode === MODE_CPU;
-        const othelloActive = currentMode === MODE_OTHELLO;
+        const reversiActive = currentMode === MODE_REVERSI;
         const networkActive = currentMode === MODE_NETWORK;
 
         if (uiRefs.modeCpuBtn) uiRefs.modeCpuBtn.style.outline = cpuActive ? '2px solid #90ee90' : '';
-        if (uiRefs.modeOthelloBtn) uiRefs.modeOthelloBtn.style.outline = othelloActive ? '2px solid #90ee90' : '';
+        if (uiRefs.modeReversiBtn) uiRefs.modeReversiBtn.style.outline = reversiActive ? '2px solid #90ee90' : '';
         if (uiRefs.modeNetworkBtn) uiRefs.modeNetworkBtn.style.outline = networkActive ? '2px solid #90ee90' : '';
 
         if (uiRefs.networkPanel) {
@@ -1232,10 +1240,11 @@ const MODE_OTHELLO = 'othello';
             root.getCurrentMatchMode = getCurrentMode;
             root.isLocalOrNetworkMode = isLocalOrNetworkMode;
             root.isNetworkModeActive = isNetworkModeActive;
+            root.isReversiModeActive = isReversiModeActive;
             root.isOthelloModeActive = isOthelloModeActive;
         } catch (e) { /* ignore */ }
 
-        applyOthelloModeUiState();
+        applyReversiModeUiState();
 
         syncHumanModeFlags(isHumanMode(currentMode));
         if (isHumanMode(currentMode)) {
@@ -1244,7 +1253,7 @@ const MODE_OTHELLO = 'othello';
 
         if (currentMode === MODE_NETWORK) {
             writeNetworkStatus('ネット対戦: 部屋作成か部屋参加を選んでください', false);
-        } else if (currentMode === MODE_OTHELLO) {
+        } else if (currentMode === MODE_REVERSI) {
             writeNetworkStatus('リバーシモード', false);
         } else {
             writeNetworkStatus('CPU対戦モード', false);
@@ -1253,7 +1262,7 @@ const MODE_OTHELLO = 'othello';
 
         applyNetworkDebugModeAccess();
 
-        resetGameForOthelloModeSwitch(prevMode, currentMode);
+        resetGameForReversiModeSwitch(prevMode, currentMode);
         refreshModeButtons();
         refreshBoardUi();
         try {
@@ -1264,7 +1273,7 @@ const MODE_OTHELLO = 'othello';
 
         if (!opts.silentLog && typeof addLog === 'function') {
             if (currentMode === MODE_CPU) addLog('モード: CPU対戦');
-            if (currentMode === MODE_OTHELLO) addLog('モード: リバーシ');
+            if (currentMode === MODE_REVERSI) addLog('モード: リバーシ');
             if (currentMode === MODE_NETWORK) addLog('モード: ネット対戦');
         }
     }
@@ -1587,7 +1596,7 @@ const MODE_OTHELLO = 'othello';
     function setupMatchModeControls(options: any) {
         const opts = options || {};
         uiRefs.modeCpuBtn = opts.modeCpuBtn || null;
-        uiRefs.modeOthelloBtn = opts.modeOthelloBtn || null;
+        uiRefs.modeReversiBtn = opts.modeReversiBtn || opts.modeOthelloBtn || null;
         uiRefs.modeNetworkBtn = opts.modeNetworkBtn || null;
         uiRefs.controlPanel = opts.controlPanel || null;
         uiRefs.networkPanel = opts.networkPanel || null;
@@ -1632,9 +1641,9 @@ const MODE_OTHELLO = 'othello';
                 setMode(MODE_CPU);
             });
         }
-        if (uiRefs.modeOthelloBtn) {
-            uiRefs.modeOthelloBtn.addEventListener('click', () => {
-                setMode(MODE_OTHELLO);
+        if (uiRefs.modeReversiBtn) {
+            uiRefs.modeReversiBtn.addEventListener('click', () => {
+                setMode(MODE_REVERSI);
             });
         }
         if (uiRefs.modeNetworkBtn) {
@@ -1665,5 +1674,6 @@ export = {
         getCurrentMode,
         isLocalOrNetworkMode,
         isNetworkModeActive,
+        isReversiModeActive,
         isOthelloModeActive
     };

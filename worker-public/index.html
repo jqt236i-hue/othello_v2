@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>カードオセロ</title>
+    <title>カードリバーシ</title>
     <link rel="icon" type="image/png" href="assets/images/stones/normal_stone-black.png">
     <script>
         (() => {
@@ -47,7 +47,7 @@
 <body>
     <!-- Top-Left Info Panel -->
     <div id="info-panel">
-        <h1>カードオセロ</h1>
+        <h1>カードリバーシ</h1>
     </div>
 
     <div id="round-display-panel" aria-live="polite" aria-atomic="true">ROUND 1</div>
@@ -150,7 +150,7 @@
                     <section class="rules-help-guide-section" aria-labelledby="rules-help-guide-rules-title">
                         <div id="rules-help-guide-rules-title" class="rules-help-guide-title">ルール</div>
                         <ul id="rules-help-rules-list">
-                            <li>このゲームは、通常のオセロにカード効果を加えた対戦です。</li>
+                            <li>このゲームは、通常のリバーシにカード効果を加えた対戦です。</li>
                             <li>自分の手番開始時に1枚ドローし、必要ならカードを1枚使ってから石を置きます。</li>
                             <li>石を反転させると布石を得られ、数字マスに置いたときも追加で布石を獲得します。</li>
                             <li>10ラウンドごとに、ラウンド開始時の両者へ同時にラウンド数の半分の布石が入ります。</li>
@@ -365,8 +365,8 @@
 
     <!-- Hero Character Display -->
     <div id="hero-character-panel">
-        <img id="hero-character-img" src="assets/images/hero/hero.png" alt="オセロの勇者">
-        <div id="hero-label">オセロの勇者</div>
+        <img id="hero-character-img" src="assets/images/hero/hero.png" alt="リバーシの勇者">
+        <div id="hero-label">リバーシの勇者</div>
     </div>
 
     <button id="gachaOpenBtn" class="btn-small" type="button" aria-controls="gachaOverlay" aria-expanded="false">ガチャ</button>
@@ -418,7 +418,7 @@
 
         <div id="board-frame">
             <div id="board"></div>
-            <button id="othello-pass-btn" type="button" hidden disabled>パス</button>
+            <button id="reversi-pass-btn" type="button" hidden disabled>パス</button>
             <!-- Occupancy UI (removed) -->
             <!-- Charge UI -->
             <div id="charge-black" class="charge-display"><span class="charge-label">布石:</span> <span class="charge-current">0</span><span class="charge-separator"> / </span><span class="charge-max">99</span></div>
@@ -476,7 +476,7 @@
             <div class="control-group match-mode-group">
                 <div class="control-label">MODE</div>
                 <button id="modeCpuBtn" class="btn-small" type="button">CPU</button>
-                <button id="modeOthelloBtn" class="btn-small" type="button">オセロ</button>
+                <button id="modeReversiBtn" class="btn-small" type="button">リバーシ</button>
                 <button id="modeNetworkBtn" class="btn-small" type="button" aria-controls="networkOverlay" aria-expanded="false">ネット対戦</button>
                 <button id="debugModeBtn" class="btn-small" type="button" aria-pressed="false"
                     style="background-color: #4a3828; color: #d7ccc8;">DEBUG: OFF</button>

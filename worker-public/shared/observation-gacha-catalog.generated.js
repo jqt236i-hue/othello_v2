@@ -9,7 +9,7 @@
 
     const catalog = {
     "version": 1,
-    "generatedAt": "2026-05-21T10:29:21.320Z",
+    "generatedAt": "2026-05-21T11:13:11.184Z",
     "sourceDir": "assets/images/Gacha",
     "items": [
         {
@@ -68,14 +68,14 @@
             "soundPath": ""
         },
         {
-            "id": "gacha__ssr__background_skin__カードオセロ",
-            "label": "カードオセロ",
+            "id": "gacha__ssr__background_skin__カードリバーシ",
+            "label": "カードリバーシ",
             "note": "レアリティ SSR / 背景",
             "rarity": "SSR",
             "kind": "background_skin",
-            "assetPath": "assets/images/Gacha/SSR/background/カードオセロ.png",
-            "imagePath": "assets/images/Gacha/SSR/background/カードオセロ.png",
-            "previewImagePath": "assets/images/Gacha/SSR/background/カードオセロ.png",
+            "assetPath": "assets/images/Gacha/SSR/background/カードリバーシ.png",
+            "imagePath": "assets/images/Gacha/SSR/background/カードリバーシ.png",
+            "previewImagePath": "assets/images/Gacha/SSR/background/カードリバーシ.png",
             "soundPath": ""
         },
         {

@@ -6,13 +6,15 @@ import { storyBattleStages } from '../content/story-battle-stages';
 import { storyDeckPresets } from '../content/story-deck-presets';
 import { buildStoryScenarioFromScript, parseStoryScript } from './story-script-parser';
 
-const TEXT_KEY = 'card-othello:story-editor:text:v2';
-const TITLE_KEY = 'card-othello:story-editor:title:v2';
-const TEXT_BACKUPS_KEY = 'card-othello:story-editor:text-backups:v1';
-const SPEAKER_MAP_KEY = 'card-othello:story-editor:speaker-map:v2';
-const ACTIVE_SPEAKER_KEY = 'card-othello:story-editor:active-speaker:v2';
-const RECENT_SPEAKERS_KEY = 'card-othello:story-editor:recent-speakers:v1';
-const CUSTOM_SPEAKERS_KEY = 'card-othello:story-editor:custom-speakers:v1';
+const STORAGE_PREFIX = 'card-reversi:story-editor:';
+const LEGACY_STORAGE_PREFIX = 'card-othello:story-editor:';
+const TEXT_KEY = `${STORAGE_PREFIX}text:v2`;
+const TITLE_KEY = `${STORAGE_PREFIX}title:v2`;
+const TEXT_BACKUPS_KEY = `${STORAGE_PREFIX}text-backups:v1`;
+const SPEAKER_MAP_KEY = `${STORAGE_PREFIX}speaker-map:v2`;
+const ACTIVE_SPEAKER_KEY = `${STORAGE_PREFIX}active-speaker:v2`;
+const RECENT_SPEAKERS_KEY = `${STORAGE_PREFIX}recent-speakers:v1`;
+const CUSTOM_SPEAKERS_KEY = `${STORAGE_PREFIX}custom-speakers:v1`;
 
 const DEFAULT_TITLE = '下書き1';
 const DEFAULT_SPEAKER = '主人公';
@@ -445,7 +447,10 @@ export function initStoryScriptEditor(doc: Document = document): void {
   });
   clearButton.addEventListener('click', () => {
     if (!storage) return;
-    [TEXT_KEY, TITLE_KEY, SPEAKER_MAP_KEY, ACTIVE_SPEAKER_KEY, RECENT_SPEAKERS_KEY, CUSTOM_SPEAKERS_KEY].forEach((key) => storage.removeItem(key));
+    [TEXT_KEY, TITLE_KEY, SPEAKER_MAP_KEY, ACTIVE_SPEAKER_KEY, RECENT_SPEAKERS_KEY, CUSTOM_SPEAKERS_KEY].forEach((key) => {
+      storage.removeItem(key);
+      storage.removeItem(getLegacyStoryEditorStorageKey(key));
+    });
     statusRoot.textContent = 'ブラウザ保存を削除しました。';
   });
   resetButton.addEventListener('click', () => {
@@ -1459,28 +1464,30 @@ function toCamelCase(value: string): string {
 
 function loadStoredText(storage: Storage | null, key: string): string | null {
   if (!storage) return null;
-  const value = storage.getItem(key);
+  const value = storage.getItem(key) || storage.getItem(getLegacyStoryEditorStorageKey(key));
   return value && value.trim() ? value : null;
 }
 
 function loadStoredValue(storage: Storage | null, key: string): string | null {
   if (!storage) return null;
-  return storage.getItem(key);
+  return storage.getItem(key) || storage.getItem(getLegacyStoryEditorStorageKey(key));
 }
 
 function trySaveText(storage: Storage | null, key: string, value: string): void {
   if (!storage) return;
   storage.setItem(key, value);
+  storage.setItem(getLegacyStoryEditorStorageKey(key), value);
 }
 
 function trySaveRawText(storage: Storage | null, key: string, value: string): void {
   if (!storage) return;
   storage.setItem(key, value);
+  storage.setItem(getLegacyStoryEditorStorageKey(key), value);
 }
 
 function loadTextBackups(storage: Storage | null): StoryEditorTextBackup[] {
   if (!storage) return [];
-  const raw = storage.getItem(TEXT_BACKUPS_KEY);
+  const raw = storage.getItem(TEXT_BACKUPS_KEY) || storage.getItem(getLegacyStoryEditorStorageKey(TEXT_BACKUPS_KEY));
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
@@ -1507,6 +1514,7 @@ function trySaveTextBackup(storage: Storage | null, title: string, text: string)
     text
   }, ...backups].slice(0, 20);
   storage.setItem(TEXT_BACKUPS_KEY, JSON.stringify(next));
+  storage.setItem(getLegacyStoryEditorStorageKey(TEXT_BACKUPS_KEY), JSON.stringify(next));
 }
 
 function loadLatestTextBackup(storage: Storage | null): StoryEditorTextBackup | null {
@@ -1515,7 +1523,7 @@ function loadLatestTextBackup(storage: Storage | null): StoryEditorTextBackup | 
 
 function loadStoredSpeakerList(storage: Storage | null, key: string): string[] {
   if (!storage) return [DEFAULT_SPEAKER];
-  const raw = storage.getItem(key);
+  const raw = storage.getItem(key) || storage.getItem(getLegacyStoryEditorStorageKey(key));
   if (!raw) return [DEFAULT_SPEAKER];
   try {
     const parsed = JSON.parse(raw);
@@ -1528,7 +1536,7 @@ function loadStoredSpeakerList(storage: Storage | null, key: string): string[] {
 
 function loadStoredTextList(storage: Storage | null, key: string, fallback: string[] = []): string[] {
   if (!storage) return [...fallback];
-  const raw = storage.getItem(key);
+  const raw = storage.getItem(key) || storage.getItem(getLegacyStoryEditorStorageKey(key));
   if (!raw) return [...fallback];
   try {
     const parsed = JSON.parse(raw);
@@ -1543,6 +1551,13 @@ function loadStoredTextList(storage: Storage | null, key: string, fallback: stri
 function trySaveStoredSpeakerList(storage: Storage | null, key: string, speakers: string[]): void {
   if (!storage) return;
   storage.setItem(key, JSON.stringify(speakers));
+  storage.setItem(getLegacyStoryEditorStorageKey(key), JSON.stringify(speakers));
+}
+
+function getLegacyStoryEditorStorageKey(key: string): string {
+  return key.startsWith(STORAGE_PREFIX)
+    ? `${LEGACY_STORAGE_PREFIX}${key.slice(STORAGE_PREFIX.length)}`
+    : key;
 }
 
 function downloadStoryEditorTextFile(doc: Document, fileName: string, text: string): boolean {

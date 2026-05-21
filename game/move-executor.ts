@@ -448,6 +448,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
                             return;
                         }
                         debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduled CPU callback firing, isProcessing, isCardAnimating', { isProcessing: (typeof isProcessing !== 'undefined') ? isProcessing : undefined, isCardAnimating: (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined });
+                        setMoveExecutorProcessing(false);
                         try { processCpuTurn(); } catch (e) {
                             setMoveExecutorProcessing(false);
                             debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] processCpuTurn threw', e);
@@ -468,6 +469,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
                                 debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale global CPU callback', expectedCpuSchedule);
                                 return;
                             }
+                            setMoveExecutorProcessing(false);
                             try { globalCpu(); } catch (err) {
                                 setMoveExecutorProcessing(false);
                                 debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] global processCpuTurn threw', err);
@@ -491,6 +493,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
                                 debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] processCpuTurn unavailable in late fallback');
                                 return;
                             }
+                            setMoveExecutorProcessing(false);
                             try { lateGlobalCpu(); } catch (err) {
                                 setMoveExecutorProcessing(false);
                                 debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] late global processCpuTurn threw', err);

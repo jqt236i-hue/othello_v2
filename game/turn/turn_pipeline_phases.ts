@@ -94,6 +94,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
     function isOthelloModeForTurnPipelinePhases() {
         try {
+            if (OwnerHelpersModule && typeof OwnerHelpersModule.isReversiMode === 'function') {
+                return OwnerHelpersModule.isReversiMode(typeof globalThis !== 'undefined' ? globalThis : null);
+            }
             if (OwnerHelpersModule && typeof OwnerHelpersModule.isOthelloMode === 'function') {
                 return OwnerHelpersModule.isOthelloMode(typeof globalThis !== 'undefined' ? globalThis : null);
             }
@@ -102,7 +105,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             const matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
                 ? (globalThis as any).getCurrentMatchMode()
                 : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
-            return matchMode === 'othello';
+            return matchMode === 'reversi' || matchMode === 'othello';
         } catch (e) { /* ignore */ }
         return false;
     }

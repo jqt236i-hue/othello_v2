@@ -7,7 +7,7 @@ import type { StoryInitialBoardCell, StoryInitialBoardSetup, StorySide } from '.
 
 type BoardEditorRoot = Record<string, any>;
 type EditMode = 'cycle' | 'black' | 'white' | 'empty';
-export type StoryBoardPreviewMode = 'cpu' | 'othello';
+export type StoryBoardPreviewMode = 'cpu' | 'reversi' | 'othello';
 type PreviewSharedBootstrap = {
   readUIImpl?: (root: Window, key: string) => Record<string, unknown>;
   writeUIImpl?: (root: Window, key: string, value: Record<string, unknown>) => void;
@@ -88,7 +88,7 @@ export function initStoryBoardEditor(doc: Document = document): void {
     refs.previewModeSelect.addEventListener('change', () => {
       state.previewMode = normalizePreviewMode(refs.previewModeSelect.value);
       persistState(root, state);
-      setStatus(`プレビュー対戦モードを${state.previewMode === 'othello' ? 'オセロ' : '通常'}に変更しました。`);
+      setStatus(`プレビュー対戦モードを${state.previewMode === 'reversi' ? 'リバーシ' : '通常'}に変更しました。`);
     });
 
     Object.entries(refs.brushButtons).forEach(([mode, button]) => {
@@ -409,7 +409,7 @@ export function buildStoryBoardPreviewInitOptions(
       }))
     }
   };
-  if (previewMode === 'othello') {
+  if (previewMode === 'reversi') {
     return {
       ...baseOptions,
       cardlessMode: true,
@@ -499,7 +499,7 @@ function countCells(cells: StoryInitialBoardCell[][], target: StoryInitialBoardC
 }
 
 function normalizePreviewMode(value: unknown): StoryBoardPreviewMode {
-  return value === 'othello' ? 'othello' : 'cpu';
+  return value === 'reversi' || value === 'othello' ? 'reversi' : 'cpu';
 }
 
 function clampCpuLevel(value: number): number {
@@ -665,7 +665,7 @@ function isPreviewBattleApplied(
     ? previewRoot.getCurrentMatchMode()
     : (previewRoot.MATCH_MODE || previewRoot.__MATCH_MODE);
   if (currentMode !== normalizedMode) return false;
-  if (normalizedMode === 'othello' && cardState?.cardlessMode !== true) return false;
+  if (normalizedMode === 'reversi' && cardState?.cardlessMode !== true) return false;
   if (normalizedMode === 'cpu' && cardState?.cardlessMode === true) return false;
   const expectedPlayer = setup.currentPlayer === 'white' ? -1 : 1;
   if (gameState.currentPlayer !== expectedPlayer) return false;
@@ -693,14 +693,17 @@ function applyPreviewMatchModeGlobals(previewWindow: Window, previewMode: StoryB
   const normalizedMode = normalizePreviewMode(previewMode);
   const previewRoot = previewWindow as unknown as BoardEditorRoot;
   const previewDoc = previewWindow.document;
-  const othelloActive = normalizedMode === 'othello';
+  const reversiActive = normalizedMode === 'reversi';
   try {
     previewRoot.MATCH_MODE = normalizedMode;
     previewRoot.__MATCH_MODE = normalizedMode;
     previewRoot.getCurrentMatchMode = () => normalizedMode;
-    previewRoot.isOthelloModeActive = () => othelloActive;
-    previewRoot.OTHELLO_MODE_ACTIVE = othelloActive;
-    previewRoot.__OTHELLO_MODE_ACTIVE = othelloActive;
+    previewRoot.isReversiModeActive = () => reversiActive;
+    previewRoot.isOthelloModeActive = () => reversiActive;
+    previewRoot.REVERSI_MODE_ACTIVE = reversiActive;
+    previewRoot.__REVERSI_MODE_ACTIVE = reversiActive;
+    previewRoot.OTHELLO_MODE_ACTIVE = reversiActive;
+    previewRoot.__OTHELLO_MODE_ACTIVE = reversiActive;
   } catch (error) {
     try {
       previewWindow.console.warn('[story-board-editor] preview mode global update failed:', error);
@@ -710,7 +713,8 @@ function applyPreviewMatchModeGlobals(previewWindow: Window, previewMode: StoryB
   }
 
   try {
-    previewDoc.body?.classList.toggle('othello-mode-active', othelloActive);
+    previewDoc.body?.classList.toggle('reversi-mode-active', reversiActive);
+    previewDoc.body?.classList.toggle('othello-mode-active', reversiActive);
     const hiddenElementIds = [
       'deck-white',
     'deck-black',
@@ -729,13 +733,13 @@ function applyPreviewMatchModeGlobals(previewWindow: Window, previewMode: StoryB
     hiddenElementIds.forEach((id) => {
       const element = previewDoc.getElementById(id);
       if (!element) return;
-      element.hidden = othelloActive;
-      element.setAttribute('aria-hidden', othelloActive ? 'true' : 'false');
+      element.hidden = reversiActive;
+      element.setAttribute('aria-hidden', reversiActive ? 'true' : 'false');
     });
     const cpuButton = previewDoc.getElementById('modeCpuBtn') as HTMLButtonElement | null;
-    const othelloButton = previewDoc.getElementById('modeOthelloBtn') as HTMLButtonElement | null;
+    const reversiButton = (previewDoc.getElementById('modeReversiBtn') || previewDoc.getElementById('modeOthelloBtn')) as HTMLButtonElement | null;
     if (cpuButton) cpuButton.style.outline = normalizedMode === 'cpu' ? '2px solid #90ee90' : '';
-    if (othelloButton) othelloButton.style.outline = othelloActive ? '2px solid #90ee90' : '';
+    if (reversiButton) reversiButton.style.outline = reversiActive ? '2px solid #90ee90' : '';
   } catch (error) {
     try {
       previewWindow.console.warn('[story-board-editor] preview mode UI update failed:', error);

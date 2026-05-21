@@ -23,7 +23,8 @@ interface BackgroundSkinCatalogModule {
   getBackgroundSkinDefinition?: (skinId: string, rootRef: Window) => BackgroundSkinDefinition | null;
 }
 
-const BACKGROUND_SKIN_STORAGE_KEY = 'othello.backgroundSkin';
+const BACKGROUND_SKIN_STORAGE_KEY = 'reversi.backgroundSkin';
+const LEGACY_BACKGROUND_SKIN_STORAGE_KEY = 'othello.backgroundSkin';
 
 function resolveCatalogModule(rootRef: Window & { BackgroundSkinCatalogModule?: BackgroundSkinCatalogModule }): BackgroundSkinCatalogModule | null {
   const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
@@ -49,9 +50,12 @@ function readStoredBackgroundSkinId(rootRef: Window & { BackgroundSkinCatalogMod
   if (!canUseStorage(rootRef)) return fallbackId;
   try {
     if (catalogModule && typeof catalogModule.normalizeBackgroundSkinId === 'function') {
-      return catalogModule.normalizeBackgroundSkinId(rootRef.localStorage.getItem(BACKGROUND_SKIN_STORAGE_KEY), rootRef);
+      return catalogModule.normalizeBackgroundSkinId(
+        rootRef.localStorage.getItem(BACKGROUND_SKIN_STORAGE_KEY) || rootRef.localStorage.getItem(LEGACY_BACKGROUND_SKIN_STORAGE_KEY),
+        rootRef
+      );
     }
-    return String(rootRef.localStorage.getItem(BACKGROUND_SKIN_STORAGE_KEY) || '').trim() || fallbackId;
+    return String(rootRef.localStorage.getItem(BACKGROUND_SKIN_STORAGE_KEY) || rootRef.localStorage.getItem(LEGACY_BACKGROUND_SKIN_STORAGE_KEY) || '').trim() || fallbackId;
   } catch (e) {
     return fallbackId;
   }
@@ -66,6 +70,7 @@ function writeStoredBackgroundSkinId(rootRef: Window & { BackgroundSkinCatalogMo
   try {
     if (definition) {
       rootRef.localStorage.setItem(BACKGROUND_SKIN_STORAGE_KEY, definition.id);
+      rootRef.localStorage.setItem(LEGACY_BACKGROUND_SKIN_STORAGE_KEY, definition.id);
     }
     return true;
   } catch (e) {
@@ -75,6 +80,7 @@ function writeStoredBackgroundSkinId(rootRef: Window & { BackgroundSkinCatalogMo
 
 export = {
   BACKGROUND_SKIN_STORAGE_KEY,
+  LEGACY_BACKGROUND_SKIN_STORAGE_KEY,
   readStoredBackgroundSkinId,
   writeStoredBackgroundSkinId
 };

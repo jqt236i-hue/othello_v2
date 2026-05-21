@@ -6,7 +6,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-const STORAGE_KEY = 'othello.gacha.progress.v1';
+const STORAGE_KEY = 'reversi.gacha.progress.v1';
+const LEGACY_STORAGE_KEY = 'othello.gacha.progress.v1';
 const STATE_VERSION = 3;
 const DEFAULT_OWNED_HAND_SKIN_IDS = Object.freeze(['default']);
 const DEFAULT_OWNED_BACKGROUND_SKIN_IDS = Object.freeze(['default', 'unobserved-night']);
@@ -172,7 +173,7 @@ function readState(rootRef: any): any {
   const storage = resolveStorage(rootRef);
   if (!storage) return createDefaultState();
   try {
-    const raw = storage.getItem(STORAGE_KEY);
+    const raw = storage.getItem(STORAGE_KEY) || storage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) return createDefaultState();
     return normalizeState(JSON.parse(raw));
   } catch (e) {
@@ -187,6 +188,7 @@ function writeState(rootRef: any, nextState: any): any {
   if (!storage) return normalized;
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+    storage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(normalized));
   } catch (e) { /* ignore */ }
   return normalized;
 }
@@ -353,6 +355,7 @@ function applyPullResults(rootRef: any, pulls: any): any {
 
 const GachaProgressStorage = {
   STORAGE_KEY,
+  LEGACY_STORAGE_KEY,
   STATE_VERSION,
   DEFAULT_OWNED_HAND_SKIN_IDS,
   DEFAULT_OWNED_BACKGROUND_SKIN_IDS,
