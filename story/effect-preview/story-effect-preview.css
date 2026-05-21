@@ -104,7 +104,7 @@ button.is-active {
   background: #20242c;
   padding: 12px;
   display: grid;
-  grid-template-columns: minmax(180px, 1.2fr) minmax(180px, 1.2fr) 120px minmax(140px, 0.8fr) minmax(140px, 0.8fr) auto;
+  grid-template-columns: minmax(170px, 1fr) minmax(170px, 1fr) 100px minmax(115px, 0.7fr) minmax(115px, 0.7fr) minmax(115px, 0.7fr) auto;
   gap: 10px;
   align-items: end;
 }
@@ -363,17 +363,31 @@ input[type="range"] {
   bottom: 0;
   left: 50%;
   height: 82%;
-  max-width: 58%;
+  max-width: none;
   object-fit: contain;
   object-position: bottom center;
-  transform: translateX(-50%);
-  opacity: 0;
+  transform: translateX(-50%) scaleX(var(--story-effect-character-flip, 1));
+  opacity: 1;
   filter: drop-shadow(0 24px 24px rgba(0, 0, 0, 0.36));
-  transition: height 180ms ease, left 180ms ease, opacity 180ms ease, transform 180ms ease;
+  transition: height 120ms ease, filter 120ms ease, transform 120ms ease;
+  pointer-events: auto;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
 }
 
-.story-effect-character.is-visible {
-  opacity: 1;
+.story-effect-character.is-selected {
+  filter:
+    drop-shadow(0 24px 24px rgba(0, 0, 0, 0.36))
+    drop-shadow(0 0 12px rgba(217, 184, 111, 0.58));
+  outline: 1px solid rgba(217, 184, 111, 0.54);
+  outline-offset: 8px;
+}
+
+.story-effect-character.is-dragging {
+  cursor: grabbing;
+  transition: none;
+  transform: translateX(-50%) scaleX(var(--story-effect-character-flip, 1)) scale(1.01);
 }
 
 #storyEffectStage.is-shaking-soft .story-effect-scene {

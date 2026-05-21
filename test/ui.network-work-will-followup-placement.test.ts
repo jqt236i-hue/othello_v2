@@ -148,6 +148,8 @@ describe('network WORK_WILL follow-up placement', () => {
     delete global.VisualPlaybackActive;
     delete global.__busyStateSince;
     delete global.__playbackActiveSince;
+    delete global.__serverAuthoredCardUseClickBuffer;
+    delete global.__captureServerAuthoredCardUseBoardClick;
     delete global.getActiveProtectionForPlayer;
     delete global.getFlipBlockers;
     delete global.findMoveForCell;
@@ -158,7 +160,7 @@ describe('network WORK_WILL follow-up placement', () => {
     jest.clearAllMocks();
   });
 
-  test('does not auto-replay board click after server-authored WORK_WILL publish succeeds', async () => {
+  test('replays early board click after server-authored WORK_WILL publish succeeds', async () => {
     require('../cards/card-interaction.js');
     const turnManager = require('../game/turn-manager.js');
     window.useSelectedCard();
@@ -169,17 +171,14 @@ describe('network WORK_WILL follow-up placement', () => {
     turnManager.handleCellClick(2, 3);
 
     expect(global.findMoveForCell).not.toHaveBeenCalled();
+    expect((global.__serverAuthoredCardUseClickBuffer || window.__serverAuthoredCardUseClickBuffer).click)
+      .toEqual({ row: 2, col: 3, playerKey: 'black' });
 
     global.__publishDeferred.resolve({ ok: true });
     await Promise.resolve();
     await Promise.resolve();
     jest.runOnlyPendingTimers();
     await Promise.resolve();
-
-    expect(global.findMoveForCell).not.toHaveBeenCalled();
-    expect(global.executeMove).not.toHaveBeenCalled();
-
-    turnManager.handleCellClick(2, 3);
 
     expect(global.findMoveForCell).toHaveBeenCalledWith(1, 2, 3, null, [], []);
     expect(global.executeMove).toHaveBeenCalledTimes(1);

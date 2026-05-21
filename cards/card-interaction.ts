@@ -1052,6 +1052,77 @@ function _setPendingSelectionBusy(active) {
     } catch (e) { /* ignore */ }
 }
 
+function _getServerAuthoredCardUseClickBuffer() {
+    const rootRef = _getUiRootRef();
+    if (!rootRef) return null;
+    if (!rootRef.__serverAuthoredCardUseClickBuffer || typeof rootRef.__serverAuthoredCardUseClickBuffer !== 'object') {
+        rootRef.__serverAuthoredCardUseClickBuffer = {
+            active: false,
+            playerKey: null,
+            ownerKey: null,
+            cardId: null,
+            click: null
+        };
+    }
+    if (typeof rootRef.__captureServerAuthoredCardUseBoardClick !== 'function') {
+        rootRef.__captureServerAuthoredCardUseBoardClick = function captureServerAuthoredCardUseBoardClick(row, col, playerKey) {
+            const buffer = rootRef.__serverAuthoredCardUseClickBuffer;
+            if (!buffer || buffer.active !== true) return false;
+            const normalizedPlayer = _normalizeOwnerKey(playerKey);
+            if (buffer.playerKey && normalizedPlayer && buffer.playerKey !== normalizedPlayer) return false;
+            if (!Number.isFinite(Number(row)) || !Number.isFinite(Number(col))) return false;
+            buffer.click = {
+                row: Math.trunc(Number(row)),
+                col: Math.trunc(Number(col)),
+                playerKey: normalizedPlayer || buffer.playerKey || null
+            };
+            return true;
+        };
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && globalThis && globalThis !== rootRef) {
+            globalThis.__serverAuthoredCardUseClickBuffer = rootRef.__serverAuthoredCardUseClickBuffer;
+            globalThis.__captureServerAuthoredCardUseBoardClick = rootRef.__captureServerAuthoredCardUseBoardClick;
+        }
+    } catch (e) { /* ignore */ }
+    return rootRef.__serverAuthoredCardUseClickBuffer;
+}
+
+function _beginServerAuthoredCardUseClickBuffer(playerKey, ownerKey, cardId) {
+    const buffer = _getServerAuthoredCardUseClickBuffer();
+    if (!buffer) return;
+    buffer.active = true;
+    buffer.playerKey = _normalizeOwnerKey(playerKey);
+    buffer.ownerKey = _normalizeOwnerKey(ownerKey);
+    buffer.cardId = cardId || null;
+    buffer.click = null;
+}
+
+function _consumeServerAuthoredCardUseClickBuffer(playerKey, ownerKey, cardId) {
+    const buffer = _getServerAuthoredCardUseClickBuffer();
+    if (!buffer || buffer.active !== true) return null;
+    const matches = (!buffer.playerKey || buffer.playerKey === _normalizeOwnerKey(playerKey))
+        && (!buffer.ownerKey || buffer.ownerKey === _normalizeOwnerKey(ownerKey))
+        && (!buffer.cardId || buffer.cardId === cardId);
+    const click = matches && buffer.click ? buffer.click : null;
+    buffer.active = false;
+    buffer.playerKey = null;
+    buffer.ownerKey = null;
+    buffer.cardId = null;
+    buffer.click = null;
+    return click;
+}
+
+function _clearServerAuthoredCardUseClickBuffer() {
+    const buffer = _getServerAuthoredCardUseClickBuffer();
+    if (!buffer) return;
+    buffer.active = false;
+    buffer.playerKey = null;
+    buffer.ownerKey = null;
+    buffer.cardId = null;
+    buffer.click = null;
+}
+
 function _createPendingSelectionAction(playerKey, pendingType, actionPayload) {
     if (_pendingSelectionFlowModule && typeof _pendingSelectionFlowModule.createPendingSelectionAction === 'function') {
         return _pendingSelectionFlowModule.createPendingSelectionAction(playerKey, pendingType, actionPayload, { cardState });
@@ -1763,6 +1834,16 @@ function _isNetworkMode() {
     return _getCurrentMatchMode() === 'network';
 }
 
+function _isReversiMode() {
+    try {
+        if (_ownerHelpersModule && typeof _ownerHelpersModule.isReversiMode === 'function') {
+            return _ownerHelpersModule.isReversiMode(typeof window !== 'undefined' ? window : null);
+        }
+    } catch (e) { /* ignore */ }
+    const mode = String(_getCurrentMatchMode() || '').trim().toLowerCase();
+    return mode === 'reversi' || mode === 'othello';
+}
+
 function _getNetworkLocalPlayerKey() {
     try {
         if (_ownerHelpersModule && typeof _ownerHelpersModule.resolveLocalPlayerKey === 'function') {
@@ -2036,6 +2117,7 @@ function _handleServerAuthoredCardUse(playerKey, ownerKey, cardId, runResult) {
     const publishPromise = _getRunResultPublishPromise(runResult);
     if (!publishPromise) return false;
 
+    _beginServerAuthoredCardUseClickBuffer(playerKey, ownerKey, cardId);
     _setPendingSelectionBusy(true);
     if (typeof renderCardUI === 'function') {
         try { renderCardUI(); } catch (e) { /* ignore */ }
@@ -2045,6 +2127,7 @@ function _handleServerAuthoredCardUse(playerKey, ownerKey, cardId, runResult) {
         .then((publishResult) => {
             _setPendingSelectionBusy(false);
             if (!publishResult || publishResult.ok !== true) {
+                _clearServerAuthoredCardUseClickBuffer();
                 const reason = publishResult && publishResult.reason
                     ? String(publishResult.reason)
                     : 'NETWORK_PUBLISH_FAILED';
@@ -2058,11 +2141,25 @@ function _handleServerAuthoredCardUse(playerKey, ownerKey, cardId, runResult) {
                 return;
             }
 
+            const bufferedClick = _consumeServerAuthoredCardUseClickBuffer(playerKey, ownerKey, cardId);
             if (cardState && cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(playerKey) === ownerKey) {
                 _clearSelectedCardSelection();
             }
             if (typeof renderCardUI === 'function') {
                 try { renderCardUI(); } catch (e) { /* ignore */ }
+            }
+            const rootRef = _getUiRootRef();
+            const globalRef = (typeof globalThis !== 'undefined' && globalThis) ? globalThis : null;
+            const clickHandler = (typeof handleCellClick === 'function')
+                ? handleCellClick
+                : (rootRef && typeof rootRef.handleCellClick === 'function'
+                    ? rootRef.handleCellClick
+                    : (globalRef && typeof globalRef.handleCellClick === 'function' ? globalRef.handleCellClick : null));
+            if (bufferedClick && typeof clickHandler === 'function') {
+                try {
+                    clickHandler(bufferedClick.row, bufferedClick.col);
+                    return;
+                } catch (e) { /* ignore */ }
             }
             if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
                 ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
@@ -2070,6 +2167,7 @@ function _handleServerAuthoredCardUse(playerKey, ownerKey, cardId, runResult) {
         })
         .catch((error) => {
             _setPendingSelectionBusy(false);
+            _clearServerAuthoredCardUseClickBuffer();
             const reason = (error && error.message)
                 ? String(error.message)
                 : 'PUBLISH_ERROR';
@@ -2562,6 +2660,15 @@ function _resolveCardDetailActionState(selectionContext) {
     };
 }
 
+function _syncReversiPassButton(actionState) {
+    const passBtn = document.getElementById('reversi-pass-btn') || document.getElementById('othello-pass-btn');
+    if (!passBtn) return;
+    const shouldShow = _isReversiMode() && actionState.canShowPass;
+    passBtn.hidden = !shouldShow;
+    passBtn.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+    passBtn.disabled = !shouldShow || !actionState.canPass;
+}
+
 function _getPendingSelectionPrompt(pending) {
     if (!pending || pending.stage !== 'selectTarget') return '';
     const simplePromptByType = {
@@ -2724,6 +2831,7 @@ function updateCardDetailPanel() {
         passBtn.style.display = actionState.canShowPass ? 'inline-block' : 'none';
         passBtn.disabled = !actionState.canPass;
     }
+    _syncReversiPassButton(actionState);
 
     _renderHeavenOverlay(playerKey);
 }

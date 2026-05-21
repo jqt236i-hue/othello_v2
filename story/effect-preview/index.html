@@ -55,13 +55,20 @@
           </div>
           <div class="story-effect-control-block">
             <label class="story-effect-field">
+              <span>縦位置</span>
+              <input id="storyEffectCharacterYInput" type="range" min="-18" max="22" value="0">
+            </label>
+          </div>
+          <div class="story-effect-control-block">
+            <label class="story-effect-field">
               <span>大きさ</span>
-              <input id="storyEffectCharacterSizeInput" type="range" min="45" max="115" value="82">
+              <input id="storyEffectCharacterSizeInput" type="range" min="45" max="180" value="82">
             </label>
           </div>
           <div class="story-effect-control-actions">
-            <button id="storyEffectApplyCharacterBtn" type="button">立ち絵を置く</button>
-            <button id="storyEffectHideCharacterBtn" type="button">この配置を消す</button>
+            <button id="storyEffectApplyCharacterBtn" type="button">立ち絵を追加</button>
+            <button id="storyEffectFlipCharacterBtn" type="button">反転</button>
+            <button id="storyEffectHideCharacterBtn" type="button">選択中を消す</button>
           </div>
         </section>
 
@@ -72,11 +79,7 @@
             <div class="story-effect-room-bed"></div>
             <div class="story-effect-room-floor"></div>
           </div>
-          <div id="storyEffectCharacterLayer">
-            <img id="storyEffectCharacterLeft" class="story-effect-character" alt="">
-            <img id="storyEffectCharacterCenter" class="story-effect-character" alt="">
-            <img id="storyEffectCharacterRight" class="story-effect-character" alt="">
-          </div>
+          <div id="storyEffectCharacterLayer"></div>
           <div id="storyEffectTone"></div>
           <div id="storyEffectOverlay"></div>
           <div id="storyEffectNoise"></div>

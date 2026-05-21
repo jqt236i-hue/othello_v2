@@ -2870,8 +2870,26 @@ export class MatchRoomDurableObject {
         }
 
         if (baseVersion === null || baseVersion !== room.stateVersion) {
-            const rejectedReason = MatchAuthority && typeof MatchAuthority.classifyVersionRejectionReason === 'function'
-                ? MatchAuthority.classifyVersionRejectionReason(baseVersion, room.stateVersion)
+            const versionRejectedOptions = MatchAuthority && typeof MatchAuthority.buildVersionRejectedPublishResponseOptions === 'function'
+                ? MatchAuthority.buildVersionRejectedPublishResponseOptions(room, {
+                    operationId,
+                    actionType,
+                    receivedBaseVersion: baseVersion,
+                    authoritativeStateVersion: room.stateVersion
+                })
+                : MatchAuthority.buildPublishResponseOptions({
+                    ok: false,
+                    rejectedReason: MatchAuthority && typeof MatchAuthority.classifyVersionRejectionReason === 'function'
+                        ? MatchAuthority.classifyVersionRejectionReason(baseVersion, room.stateVersion)
+                        : 'VERSION_MISMATCH',
+                    publishKind: 'rejected',
+                    operationId,
+                    actionType,
+                    receivedBaseVersion: baseVersion,
+                    authoritativeStateVersion: room.stateVersion
+                });
+            const rejectedReason = versionRejectedOptions && versionRejectedOptions.rejectedReason
+                ? versionRejectedOptions.rejectedReason
                 : 'VERSION_MISMATCH';
             if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
                 MatchAuthority.appendAuthorityLog(room, {
@@ -2884,15 +2902,7 @@ export class MatchRoomDurableObject {
                     rejectedReason
                 });
             }
-            return jsonResponse(409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
-                ok: false,
-                rejectedReason,
-                publishKind: 'rejected',
-                operationId,
-                actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion
-            })));
+            return jsonResponse(409, buildPublishPayload(room, seatKey, versionRejectedOptions));
         }
 
         const expectedPlayerKey = getCurrentPlayerKey(room.snapshot && room.snapshot.gameState);

@@ -9,7 +9,7 @@
 
     const catalog = {
     "version": 1,
-    "generatedAt": "2026-05-21T11:20:09.605Z",
+    "generatedAt": "2026-05-21T12:14:09.171Z",
     "sourceDir": "assets/images/Gacha",
     "items": [
         {

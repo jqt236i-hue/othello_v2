@@ -383,6 +383,22 @@ function hasQueuedPresentationEventsForTurnManager() {
     } catch (e) { /* ignore */ }
     return false;
 }
+
+function captureServerAuthoredCardUseBoardClickForTurnManager(row: number, col: number, playerKey: string) {
+    try {
+        const roots = [];
+        if (typeof globalThis !== 'undefined' && globalThis) roots.push(globalThis as any);
+        if (typeof window !== 'undefined' && window && !roots.includes(window as any)) roots.push(window as any);
+        for (const rootRef of roots) {
+            const captureFn = rootRef && typeof rootRef.__captureServerAuthoredCardUseBoardClick === 'function'
+                ? rootRef.__captureServerAuthoredCardUseBoardClick
+                : null;
+            if (captureFn && captureFn(row, col, playerKey) === true) return true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
 function handleCellClick(row: number, col: number) {
     if (isDebugLogAvailable()) {
         debugLog(`[CELL-CLICK] User clicked (${row},${col})`, 'debug', {
@@ -406,7 +422,10 @@ function handleCellClick(row: number, col: number) {
     const allowPendingSelectionDuringAnimation = shouldAllowPendingSelectionDuringAnimation(playerKey, pending, pendingDispatchKey);
 
     // Block while animations are running
-    if (isAnimationInProgress() && !allowPendingSelectionDuringAnimation) return;
+    if (isAnimationInProgress() && !allowPendingSelectionDuringAnimation) {
+        captureServerAuthoredCardUseBoardClickForTurnManager(row, col, playerKey);
+        return;
+    }
 
     if (pendingDispatchKey) {
         const pendingSelectionHandler = resolveBoardPendingSelectionHandlerForTurnManager(pendingDispatchKey);

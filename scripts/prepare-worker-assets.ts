@@ -30,6 +30,7 @@ const OUT_DIR = path.join(ROOT, 'worker-public');
 const WORKER_ASSET_MAX_BYTES = 25 * 1024 * 1024;
 
 const ROOT_FILES = Object.freeze([
+    '.assetsignore',
     'index.html',
     'entry-browser.js',
     'shared-constants.js',
@@ -77,6 +78,10 @@ const OPTIONAL_FILES = Object.freeze([
     'data/models/policy-target.onnx.meta.json',
     'data/models/policy-value.onnx',
     'data/models/policy-value.onnx.meta.json',
+    'data/models/policy-table.json',
+    'data/models/othello/policy-table.json',
+    'data/models/othello/value-table.json',
+    'story/ui/story.css',
     'node_modules/onnxruntime-web/dist/ort.min.js',
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs',
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm',
@@ -84,14 +89,7 @@ const OPTIONAL_FILES = Object.freeze([
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm'
 ]);
 
-const GENERATED_OPTIONAL_ASSETS = Object.freeze([
-    {
-        sourceRelativePath: 'data/models/policy-table.json',
-        manifestRelativePath: 'data/models/policy-table.json',
-        compressedRelativePath: 'data/models/policy-table.json.gz',
-        compression: 'gzip'
-    }
-]);
+const GENERATED_OPTIONAL_ASSETS = Object.freeze([]);
 
 const EXCLUDED_MIRROR_RELATIVE_PATHS = new Set([
     'game/logic/card-usage-prechecks.js',

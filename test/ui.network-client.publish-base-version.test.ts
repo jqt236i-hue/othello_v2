@@ -1015,6 +1015,82 @@ describe('NetworkMatchClient queued publish', () => {
     ]));
   });
 
+  test('VERSION_AHEAD 拒否は最新 state に同期して同じ operationId で一度だけ再送する', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    const syncedSnapshot = createSnapshot(11);
+    syncedSnapshot.gameState.turnNumber = 2;
+    syncedSnapshot.cardState.turnIndex = 2;
+    const acceptedSnapshot = createSnapshot(12);
+    acceptedSnapshot.gameState.currentPlayer = -1;
+    acceptedSnapshot.gameState.turnNumber = 3;
+    acceptedSnapshot.cardState.turnIndex = 3;
+
+    publishPayloads.length = 0;
+    let publishAttempts = 0;
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/state') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          stateVersion: 11,
+          snapshot: syncedSnapshot
+        });
+      }
+
+      if (path === '/api/match/publish') {
+        const body = JSON.parse(init.body || '{}');
+        publishPayloads.push(body);
+        publishAttempts += 1;
+        if (publishAttempts === 1) {
+          return jsonResponse(409, {
+            ok: false,
+            roomId: 'ABC',
+            rejectedReason: 'VERSION_AHEAD',
+            stateVersion: 11,
+            snapshot: syncedSnapshot
+          });
+        }
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          stateVersion: 12,
+          snapshot: acceptedSnapshot
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    const result = await client.publishCommand({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      action: createPlaceAction('black', 1)
+    });
+
+    expect(result.ok).toBe(true);
+    expect(publishPayloads).toHaveLength(2);
+    expect(publishPayloads[0].baseVersion).toBe(10);
+    expect(publishPayloads[1].baseVersion).toBe(11);
+    expect(publishPayloads[1].turnIndex).toBe(2);
+    expect(publishPayloads[1].action.turnIndex).toBe(2);
+    expect(publishPayloads[1].operationId).toBe(publishPayloads[0].operationId);
+    expect(client.getStateVersion()).toBe(12);
+
+    const telemetry = client.getNetworkTelemetry();
+    expect(telemetry.counts.publish_version_conflict_retry).toBe(1);
+    expect(telemetry.counts.publish_version_conflict_retry_accepted).toBe(1);
+  });
+
   test('idempotent replay 応答を telemetry に残す', async () => {
     global.fetch = jest.fn(async (url, init = {}) => {
       const parsedUrl = new URL(String(url));

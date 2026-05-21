@@ -11,10 +11,12 @@ type StoryEffectPreviewElements = {
   characterSelect: HTMLSelectElement;
   characterSlotSelect: HTMLSelectElement;
   characterXInput: HTMLInputElement;
+  characterYInput: HTMLInputElement;
   characterSizeInput: HTMLInputElement;
   applyCharacterButton: HTMLButtonElement;
+  flipCharacterButton: HTMLButtonElement;
   hideCharacterButton: HTMLButtonElement;
-  characterImages: Record<StoryEffectCharacterSlot, HTMLImageElement>;
+  characterLayer: HTMLElement;
   tone: HTMLElement;
   overlay: HTMLElement;
   noise: HTMLElement;
@@ -29,7 +31,7 @@ type StoryEffectPreviewElements = {
   stepSummary: HTMLElement;
 };
 
-type StoryEffectCharacterSlot = 'left' | 'center' | 'right';
+type StoryEffectCharacterPlacement = 'left' | 'center' | 'right';
 
 type StoryEffectPreviewAsset = {
   id: string;
@@ -42,7 +44,24 @@ type StoryEffectPreviewCatalog = {
   characters: StoryEffectPreviewAsset[];
 };
 
-const defaultCharacterXBySlot: Record<StoryEffectCharacterSlot, number> = {
+type StoryEffectCharacterDragState = {
+  id: string;
+  pointerId: number;
+  startClientX: number;
+  startClientY: number;
+  startX: number;
+  startY: number;
+};
+
+type StoryEffectCharacterState = {
+  characters: Map<string, HTMLImageElement>;
+  selectedId: string | null;
+  nextId: number;
+  nextZIndex: number;
+  drag: StoryEffectCharacterDragState | null;
+};
+
+const defaultCharacterXByPlacement: Record<StoryEffectCharacterPlacement, number> = {
   left: 28,
   center: 50,
   right: 72
@@ -59,14 +78,12 @@ export function initStoryEffectPreview(doc: Document = document): void {
     characterSelect: requireElement<HTMLSelectElement>(doc, 'storyEffectCharacterSelect'),
     characterSlotSelect: requireElement<HTMLSelectElement>(doc, 'storyEffectCharacterSlotSelect'),
     characterXInput: requireElement<HTMLInputElement>(doc, 'storyEffectCharacterXInput'),
+    characterYInput: requireElement<HTMLInputElement>(doc, 'storyEffectCharacterYInput'),
     characterSizeInput: requireElement<HTMLInputElement>(doc, 'storyEffectCharacterSizeInput'),
     applyCharacterButton: requireElement<HTMLButtonElement>(doc, 'storyEffectApplyCharacterBtn'),
+    flipCharacterButton: requireElement<HTMLButtonElement>(doc, 'storyEffectFlipCharacterBtn'),
     hideCharacterButton: requireElement<HTMLButtonElement>(doc, 'storyEffectHideCharacterBtn'),
-    characterImages: {
-      left: requireElement<HTMLImageElement>(doc, 'storyEffectCharacterLeft'),
-      center: requireElement<HTMLImageElement>(doc, 'storyEffectCharacterCenter'),
-      right: requireElement<HTMLImageElement>(doc, 'storyEffectCharacterRight')
-    },
+    characterLayer: requireElement(doc, 'storyEffectCharacterLayer'),
     tone: requireElement(doc, 'storyEffectTone'),
     overlay: requireElement(doc, 'storyEffectOverlay'),
     noise: requireElement(doc, 'storyEffectNoise'),
@@ -84,6 +101,13 @@ export function initStoryEffectPreview(doc: Document = document): void {
   let assetCatalog: StoryEffectPreviewCatalog = { backgrounds: [], characters: [] };
   let activePreset: StoryEffectPreset = storyEffectPresets[0];
   let runToken = 0;
+  const characterState: StoryEffectCharacterState = {
+    characters: new Map(),
+    selectedId: null,
+    nextId: 1,
+    nextZIndex: 1,
+    drag: null
+  };
 
   const stop = (): void => {
     runToken += 1;
@@ -106,13 +130,17 @@ export function initStoryEffectPreview(doc: Document = document): void {
   elements.replayButton.addEventListener('click', play);
   elements.stopButton.addEventListener('click', stop);
   elements.backgroundSelect.addEventListener('change', () => applyBackground(elements, assetCatalog));
-  elements.characterSlotSelect.addEventListener('change', () => syncCharacterControlsFromSlot(elements));
-  elements.applyCharacterButton.addEventListener('click', () => applyCharacter(elements, assetCatalog));
-  elements.hideCharacterButton.addEventListener('click', () => hideSelectedCharacter(elements));
+  elements.characterSlotSelect.addEventListener('change', () => applyCharacterPlacement(elements, characterState));
+  elements.characterXInput.addEventListener('input', () => applySelectedCharacterControls(elements, characterState));
+  elements.characterYInput.addEventListener('input', () => applySelectedCharacterControls(elements, characterState));
+  elements.characterSizeInput.addEventListener('input', () => applySelectedCharacterControls(elements, characterState));
+  elements.applyCharacterButton.addEventListener('click', () => addCharacter(elements, characterState, assetCatalog));
+  elements.flipCharacterButton.addEventListener('click', () => flipSelectedCharacter(elements, characterState));
+  elements.hideCharacterButton.addEventListener('click', () => removeSelectedCharacter(elements, characterState));
 
   renderPresetList(elements.list, activePreset.id, selectPreset);
   renderPresetInfo(elements, activePreset);
-  syncCharacterControlsFromSlot(elements);
+  syncCharacterControlsFromPlacement(elements, characterState);
   void loadEffectPreviewAssets().then((catalog) => {
     assetCatalog = catalog;
     renderAssetOptions(elements, assetCatalog);
@@ -193,39 +221,198 @@ function applyBackground(elements: StoryEffectPreviewElements, catalog: StoryEff
   elements.stage.classList.add('has-custom-background');
 }
 
-function applyCharacter(elements: StoryEffectPreviewElements, catalog: StoryEffectPreviewCatalog): void {
+function addCharacter(
+  elements: StoryEffectPreviewElements,
+  state: StoryEffectCharacterState,
+  catalog: StoryEffectPreviewCatalog
+): void {
   const asset = catalog.characters.find((item) => item.id === elements.characterSelect.value);
   if (!asset) return;
-  const slot = readCharacterSlot(elements);
-  const image = elements.characterImages[slot];
+  const id = `character-${state.nextId}`;
+  state.nextId += 1;
+  const image = elements.characterLayer.ownerDocument.createElement('img');
   const x = Number(elements.characterXInput.value);
+  const y = Number(elements.characterYInput.value);
   const size = Number(elements.characterSizeInput.value);
+  image.id = `storyEffectCharacter-${id}`;
+  image.className = 'story-effect-character';
   image.src = asset.path;
   image.alt = asset.label;
+  image.dataset.id = id;
   image.dataset.x = String(x);
+  image.dataset.y = String(y);
   image.dataset.size = String(size);
+  image.dataset.flipped = 'false';
   image.style.left = `${x}%`;
+  image.style.bottom = `${y}%`;
   image.style.height = `${size}%`;
-  image.classList.add('is-visible');
-  image.hidden = false;
+  image.style.zIndex = String(state.nextZIndex);
+  state.nextZIndex += 1;
+  bindCharacterPointerEvents(elements, state, image);
+  elements.characterLayer.append(image);
+  state.characters.set(id, image);
+  selectCharacter(elements, state, id);
 }
 
-function hideSelectedCharacter(elements: StoryEffectPreviewElements): void {
-  const image = elements.characterImages[readCharacterSlot(elements)];
-  image.classList.remove('is-visible');
-  image.hidden = true;
-  image.removeAttribute('src');
-  image.alt = '';
+function removeSelectedCharacter(elements: StoryEffectPreviewElements, state: StoryEffectCharacterState): void {
+  const image = getSelectedCharacter(state);
+  if (!image || !state.selectedId) return;
+  const removedId = state.selectedId;
+  image.remove();
+  state.characters.delete(removedId);
+  state.selectedId = null;
+  const lastCharacter = Array.from(state.characters.keys()).pop() ?? null;
+  if (lastCharacter) {
+    selectCharacter(elements, state, lastCharacter);
+  }
 }
 
-function syncCharacterControlsFromSlot(elements: StoryEffectPreviewElements): void {
-  const slot = readCharacterSlot(elements);
-  const image = elements.characterImages[slot];
-  elements.characterXInput.value = image.dataset.x ?? String(defaultCharacterXBySlot[slot]);
+function flipSelectedCharacter(elements: StoryEffectPreviewElements, state: StoryEffectCharacterState): void {
+  const image = getSelectedCharacter(state);
+  if (!image) return;
+  const flipped = image.dataset.flipped !== 'true';
+  image.dataset.flipped = flipped ? 'true' : 'false';
+  image.style.setProperty('--story-effect-character-flip', flipped ? '-1' : '1');
+  markSelectedCharacter(state);
+}
+
+function syncCharacterControlsFromPlacement(elements: StoryEffectPreviewElements, state: StoryEffectCharacterState): void {
+  const selected = getSelectedCharacter(state);
+  if (selected) {
+    syncCharacterControlsFromImage(elements, selected);
+    return;
+  }
+  const placement = readCharacterPlacement(elements);
+  elements.characterXInput.value = String(defaultCharacterXByPlacement[placement]);
+  elements.characterYInput.value = '0';
+  elements.characterSizeInput.value = '82';
+}
+
+function applyCharacterPlacement(elements: StoryEffectPreviewElements, state: StoryEffectCharacterState): void {
+  const placement = readCharacterPlacement(elements);
+  elements.characterXInput.value = String(defaultCharacterXByPlacement[placement]);
+  if (!getSelectedCharacter(state)) {
+    elements.characterYInput.value = '0';
+    elements.characterSizeInput.value = '82';
+  }
+}
+
+function syncCharacterControlsFromImage(elements: StoryEffectPreviewElements, image: HTMLImageElement): void {
+  elements.characterXInput.value = image.dataset.x ?? '50';
+  elements.characterYInput.value = image.dataset.y ?? '0';
   elements.characterSizeInput.value = image.dataset.size ?? '82';
 }
 
-function readCharacterSlot(elements: StoryEffectPreviewElements): StoryEffectCharacterSlot {
+function bindCharacterPointerEvents(
+  elements: StoryEffectPreviewElements,
+  state: StoryEffectCharacterState,
+  image: HTMLImageElement
+): void {
+  image.addEventListener('pointerdown', (event) => {
+    const id = image.dataset.id;
+    if (!id) return;
+    event.preventDefault();
+    selectCharacter(elements, state, id);
+    state.drag = {
+      id,
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: readNumberDataset(image, 'x', 50),
+      startY: readNumberDataset(image, 'y', 0)
+    };
+    image.classList.add('is-dragging');
+    image.setPointerCapture(event.pointerId);
+  });
+  image.addEventListener('pointermove', (event) => {
+    if (!state.drag || state.drag.pointerId !== event.pointerId || state.drag.id !== image.dataset.id) return;
+    event.preventDefault();
+    updateCharacterPositionFromDrag(elements, state, image, event.clientX, event.clientY);
+  });
+  const finishDrag = (event: PointerEvent): void => {
+    if (!state.drag || state.drag.pointerId !== event.pointerId || state.drag.id !== image.dataset.id) return;
+    image.classList.remove('is-dragging');
+    if (image.hasPointerCapture(event.pointerId)) {
+      image.releasePointerCapture(event.pointerId);
+    }
+    state.drag = null;
+  };
+  image.addEventListener('pointerup', finishDrag);
+  image.addEventListener('pointercancel', finishDrag);
+}
+
+function selectCharacter(elements: StoryEffectPreviewElements, state: StoryEffectCharacterState, id: string): void {
+  const image = state.characters.get(id);
+  if (!image) return;
+  state.selectedId = id;
+  image.style.zIndex = String(state.nextZIndex);
+  state.nextZIndex += 1;
+  syncCharacterControlsFromImage(elements, image);
+  markSelectedCharacter(state);
+}
+
+function markSelectedCharacter(state: StoryEffectCharacterState): void {
+  for (const [id, image] of state.characters) {
+    image.classList.toggle('is-selected', id === state.selectedId);
+  }
+}
+
+function applySelectedCharacterControls(elements: StoryEffectPreviewElements, state: StoryEffectCharacterState): void {
+  const image = getSelectedCharacter(state);
+  if (!image) return;
+  const x = clampNumber(Number(elements.characterXInput.value), Number(elements.characterXInput.min), Number(elements.characterXInput.max));
+  const y = clampNumber(Number(elements.characterYInput.value), Number(elements.characterYInput.min), Number(elements.characterYInput.max));
+  const size = clampNumber(Number(elements.characterSizeInput.value), Number(elements.characterSizeInput.min), Number(elements.characterSizeInput.max));
+  image.dataset.x = String(x);
+  image.dataset.y = String(y);
+  image.dataset.size = String(size);
+  image.style.left = `${x}%`;
+  image.style.bottom = `${y}%`;
+  image.style.height = `${size}%`;
+  markSelectedCharacter(state);
+}
+
+function updateCharacterPositionFromDrag(
+  elements: StoryEffectPreviewElements,
+  state: StoryEffectCharacterState,
+  image: HTMLImageElement,
+  clientX: number,
+  clientY: number
+): void {
+  if (!state.drag) return;
+  const stageRect = elements.stage.getBoundingClientRect();
+  const xMin = Number(elements.characterXInput.min);
+  const xMax = Number(elements.characterXInput.max);
+  const yMin = Number(elements.characterYInput.min);
+  const yMax = Number(elements.characterYInput.max);
+  const deltaX = ((clientX - state.drag.startClientX) / stageRect.width) * 100;
+  const deltaY = ((state.drag.startClientY - clientY) / stageRect.height) * 100;
+  const x = Math.round(clampNumber(state.drag.startX + deltaX, xMin, xMax));
+  const y = Math.round(clampNumber(state.drag.startY + deltaY, yMin, yMax));
+  image.dataset.x = String(x);
+  image.dataset.y = String(y);
+  image.style.left = `${x}%`;
+  image.style.bottom = `${y}%`;
+  elements.characterXInput.value = String(x);
+  elements.characterYInput.value = String(y);
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) return min;
+  return Math.max(min, Math.min(max, value));
+}
+
+function getSelectedCharacter(state: StoryEffectCharacterState): HTMLImageElement | null {
+  if (!state.selectedId) return null;
+  return state.characters.get(state.selectedId) ?? null;
+}
+
+function readNumberDataset(element: HTMLElement, key: string, fallback: number): number {
+  const value = Number(element.dataset[key]);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function readCharacterPlacement(elements: StoryEffectPreviewElements): StoryEffectCharacterPlacement {
   const value = elements.characterSlotSelect.value;
   if (value === 'left' || value === 'right') return value;
   return 'center';

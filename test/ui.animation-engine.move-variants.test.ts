@@ -77,6 +77,64 @@ describe.each(CASES)('animation-engine move variants %s', (cause, reason, midpoi
     expect(animateCalls[0]).toHaveLength(3);
     expect(String(animateCalls[0][1].transform)).toContain(midpointScale);
   });
+
+  test('animates network snapshot move when source cell is already empty', async () => {
+    const board = document.getElementById('board');
+    const fromCell = document.createElement('div');
+    const toCell = document.createElement('div');
+    const destinationDisc = document.createElement('div');
+    const animateCalls = [];
+
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '2';
+    fromCell.dataset.col = '2';
+    fromCell.getBoundingClientRect = () => ({ left: 20, top: 20, width: 50, height: 50 });
+
+    toCell.className = 'cell has-disc';
+    toCell.dataset.row = '2';
+    toCell.dataset.col = '4';
+    toCell.getBoundingClientRect = () => ({ left: 140, top: 20, width: 50, height: 50 });
+
+    destinationDisc.className = 'disc black';
+    toCell.appendChild(destinationDisc);
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    global.window.Element.prototype.animate = jest.fn((keyframes) => {
+      animateCalls.push(keyframes);
+      return {
+        addEventListener(eventName, handler) {
+          if (eventName === 'finish' && typeof handler === 'function') {
+            handler();
+          }
+        },
+        removeEventListener() {},
+        finished: Promise.resolve()
+      };
+    });
+
+    const engine = require('../ui/animation-engine.js');
+    await engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 2, col: 2 },
+        to: { r: 2, col: 4 },
+        ownerAfter: 'black',
+        cause,
+        reason,
+        meta: {
+          moveIntent: reason === 'strong_wind_move' ? 'wind_move' : 'crush_move'
+        },
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(animateCalls).toHaveLength(1);
+    expect(animateCalls[0]).toHaveLength(3);
+    expect(String(animateCalls[0][1].transform)).toContain(midpointScale);
+    expect(fromCell.querySelector('.disc')).toBeNull();
+    expect(toCell.querySelector('.disc.black')).toBe(destinationDisc);
+  });
 });
 
 describe.each([

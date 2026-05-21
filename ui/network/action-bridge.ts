@@ -250,29 +250,9 @@ function createNetworkActionBridge(config?: any): any {
             };
           }
 
-          if (!shouldDeferNetworkPublishForPendingType(cardType || '')) {
-            const immediateResult = originalRunTurnWithAdapter.call(
-              rootRef.TurnPipelineUIAdapter,
-              cardStateArg,
-              gameStateArg,
-              playerKey,
-              action,
-              turnPipeline
-            );
-            if (!immediateResult || immediateResult.ok === false) {
-              return immediateResult;
-            }
-            immediateResult.publishPromise = queueCommandPublish(playerKey, action, {
-              actionType: 'use_card',
-              playbackEvents: Array.isArray(immediateResult.playbackEvents) ? immediateResult.playbackEvents : [],
-              usedSnapshotFallback: true
-            });
-            return immediateResult;
-          }
-
           return {
             ok: true,
-            pendingSelectionActive: true,
+            pendingSelectionActive: shouldDeferNetworkPublishForPendingType(cardType || ''),
             skippedLocalExecution: true,
             publishPromise: queueCommandPublish(playerKey, action, { actionType: 'use_card' }),
             playbackEvents: [],

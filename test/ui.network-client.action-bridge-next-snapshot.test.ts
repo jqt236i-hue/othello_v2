@@ -476,7 +476,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     }));
   });
 
-  test('PendingCoordinator が無くても非 pending use_card はローカル実行しつつ publish できる', async () => {
+  test('PendingCoordinator が無くても use_card はローカル実行せず authority publish に寄せる', async () => {
     jest.doMock('../game/turn/pending-coordinator', () => null);
     jest.doMock('../game/logic/cards', () => {
       const actual = jest.requireActual('../game/logic/cards');
@@ -508,8 +508,9 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     expect(result).toEqual(expect.objectContaining({
       ok: true
     }));
-    expect(result.skippedLocalExecution).not.toBe(true);
-    expect(result.nextCardState.charge.black).toBe(7);
+    expect(result.skippedLocalExecution).toBe(true);
+    expect(result.nextCardState).toBe(global.cardState);
+    expect(global.cardState.charge.black).toBe(10);
     expect(typeof result.publishPromise.then).toBe('function');
 
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -521,11 +522,11 @@ describe('NetworkMatchClient action bridge snapshot', () => {
       params: { useCardId: 'plain_01' }
     }));
     expect(client.getState().publishTracker.operations[0].requestMeta).toEqual(expect.objectContaining({
-      usedSnapshotFallback: true
+      usedSnapshotFallback: false
     }));
   });
 
-  test('即時 use_card の publish 応答は一致時に shadow playback で再適用する', async () => {
+  test('即時 use_card の publish 応答は authority playback として適用する', async () => {
     jest.doMock('../game/turn/pending-coordinator', () => null);
     jest.doMock('../game/logic/cards', () => {
       const actual = jest.requireActual('../game/logic/cards');
@@ -608,17 +609,6 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
     expect(created.ok).toBe(true);
 
-    global.gameState = {
-      currentPlayer: 1,
-      turnNumber: 2
-    };
-    global.cardState = {
-      ...createSnapshot(20).cardState,
-      charge: { black: 7, white: 10 },
-      hasUsedCardThisTurnByPlayer: { black: true, white: false },
-      discard: ['plain_01']
-    };
-
     const result = window.TurnPipelineUIAdapter.runTurnWithAdapter(
       createSnapshot(20).cardState,
       createSnapshot(20).gameState,
@@ -633,7 +623,7 @@ describe('NetworkMatchClient action bridge snapshot', () => {
     const appliedEvent = telemetry.recentEvents.find((entry) => entry && entry.type === 'publish_response_snapshot_applied');
     expect(appliedEvent).toBeTruthy();
     expect(appliedEvent.details).toEqual(expect.objectContaining({
-      usedShadowPlayback: true
+      usedShadowPlayback: false
     }));
   });
 

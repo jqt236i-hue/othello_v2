@@ -13,6 +13,7 @@ describe('pass fail-safe when no legal moves', () => {
         <button id="use-card-btn">使用</button>
         <button id="toggle-card-detail-btn">詳細</button>
         <button id="pass-btn">パス</button>
+        <button id="reversi-pass-btn" hidden disabled>パス</button>
         <button id="cancel-card-btn" style="display:none;">キャンセル</button>
         <div id="use-card-reason"></div>
       </body></html>
@@ -139,6 +140,35 @@ describe('pass fail-safe when no legal moves', () => {
     window.passCurrentTurn();
     expect(global.processPassTurn).toHaveBeenCalledWith('black', false);
     expect(global.window.VisualPlaybackActive).toBe(false);
+  });
+
+  test('reversi mode exposes the standalone pass button when black has no legal moves', () => {
+    global.window.MATCH_MODE = 'reversi';
+    global.window.__MATCH_MODE = 'reversi';
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    const passBtn = document.getElementById('reversi-pass-btn');
+    expect(passBtn.hidden).toBe(false);
+    expect(passBtn.disabled).toBe(false);
+
+    passBtn.addEventListener('click', window.passCurrentTurn);
+    passBtn.click();
+    expect(global.processPassTurn).toHaveBeenCalledWith('black', false);
+  });
+
+  test('reversi mode keeps the standalone pass button hidden while legal moves exist', () => {
+    global.window.MATCH_MODE = 'reversi';
+    global.window.__MATCH_MODE = 'reversi';
+    global.Core = { getLegalMoves: () => [{ row: 2, col: 3, flips: [[3, 3]] }] };
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+
+    const passBtn = document.getElementById('reversi-pass-btn');
+    expect(passBtn.hidden).toBe(true);
+    expect(passBtn.disabled).toBe(true);
   });
 
   test('does not pass while visual playback is actively running', () => {

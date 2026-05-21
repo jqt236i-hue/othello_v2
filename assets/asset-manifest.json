@@ -1,6 +1,6 @@
 {
   "version": "2026-05-21",
-  "generatedAt": "2026-05-21T11:20:09.597Z",
+  "generatedAt": "2026-05-21T12:14:09.168Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -273,10 +273,6 @@
     {
       "path": "assets/images/other/観測石.png",
       "sha256": "2ecd16bbbbe9664cf3190619a89492c2a2c085889ca0475c157dc865c5af6b29"
-    },
-    {
-      "path": "assets/images/background/AAAAS.mp4",
-      "sha256": "24dbe20356d573bb3c922578b4aea2de80e685b18654063418b56d38d8b1ad0e"
     },
     {
       "path": "assets/images/background/default.png",

@@ -15,6 +15,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 const ROOT = process.cwd();
 const DIST = path.join(ROOT, 'dist');
 const OUT = path.join(ROOT, 'public', 'module-registry.js');
+const WRITE_RETRY_COUNT = 5;
+const WRITE_RETRY_DELAY_MS = 100;
 
 const BROWSER_MODULE_PREFIXES = [
     'cards/',
@@ -74,11 +76,6 @@ const EXTRA_BROWSER_MODULES: Array<{ source: string; key: string; aliases?: stri
         aliases: ['shared/gacha-hand-catalog.generated.js']
     },
     {
-        source: 'game/ai/commentary-data.js',
-        key: 'game/ai/commentary-data',
-        aliases: ['game/ai/commentary-data.js']
-    },
-    {
         source: 'game/card-effects-applier.js',
         key: 'game/card-effects-applier',
         aliases: ['game/card-effects-applier.js']
@@ -126,6 +123,28 @@ function appendRegisteredModuleWithJsAlias(lines: string[], moduleKey: string, c
     }
 }
 
+function sleepSync(ms: number): void {
+    const end = Date.now() + Math.max(0, ms);
+    while (Date.now() < end) {
+        // Short synchronous wait for transient Windows file locks.
+    }
+}
+
+function writeFileWithRetry(filePath: string, content: string): void {
+    let lastError: any = null;
+    for (let attempt = 0; attempt <= WRITE_RETRY_COUNT; attempt += 1) {
+        try {
+            fs.writeFileSync(filePath, content, 'utf8');
+            return;
+        } catch (error: any) {
+            lastError = error;
+            if (attempt >= WRITE_RETRY_COUNT) break;
+            sleepSync(WRITE_RETRY_DELAY_MS * (attempt + 1));
+        }
+    }
+    throw lastError;
+}
+
 function buildRegistry(options?: any): void {
     const opts = (options && typeof options === 'object') ? options : {};
     const rootDir = opts.rootDir ? path.resolve(String(opts.rootDir)) : ROOT;
@@ -147,6 +166,7 @@ function buildRegistry(options?: any): void {
     ];
 
     const skipped: string[] = [];
+    const registeredKeys = new Set<string>();
 
     for (const rel of jsFiles) {
         if (!isBrowserModule(rel)) {
@@ -172,10 +192,18 @@ function buildRegistry(options?: any): void {
         // Module key is the relative path without .js extension
         const moduleKey = rel.replace(/\.js$/, '');
 
+        registeredKeys.add(moduleKey);
+        if (!moduleKey.endsWith('.js')) {
+            registeredKeys.add(moduleKey + '.js');
+        }
         appendRegisteredModuleWithJsAlias(lines, moduleKey, content);
     }
 
     for (const extra of EXTRA_BROWSER_MODULES) {
+        if (registeredKeys.has(extra.key) || (extra.aliases || []).some(alias => registeredKeys.has(alias))) {
+            skipped.push(extra.source + ' (duplicate extra key)');
+            continue;
+        }
         const fullPath = path.join(rootDir, extra.source);
         let content: string;
         try {
@@ -185,8 +213,10 @@ function buildRegistry(options?: any): void {
             continue;
         }
         appendRegisteredModule(lines, extra.key, content);
+        registeredKeys.add(extra.key);
         for (const alias of extra.aliases || []) {
             appendRegisteredModule(lines, alias, content);
+            registeredKeys.add(alias);
         }
     }
 
@@ -194,7 +224,7 @@ function buildRegistry(options?: any): void {
     lines.push('');
 
     fs.mkdirSync(path.dirname(outFile), { recursive: true });
-    fs.writeFileSync(outFile, lines.join('\n'), 'utf8');
+    writeFileWithRetry(outFile, lines.join('\n'));
 
     console.log('[module-registry] wrote ' + jsFiles.length + ' modules to ' + path.relative(rootDir, outFile));
     if (skipped.length > 0) {

@@ -1242,6 +1242,28 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return '';
     }
 
+    function shouldRetryVersionConflictPublish(reasonValue: any, actionTypeValue: any, trackedPublish: any) {
+        if (!isVersionConflictReason(reasonValue)) return false;
+        const actionType = String(actionTypeValue || '').trim().toLowerCase();
+        if (actionType === 'reset_game' || actionType === 'rematch' || actionType === 'restart') return false;
+        if (trackedPublish && hasNewerQueuedPublish(trackedPublish.sequence)) return false;
+        return true;
+    }
+
+    function buildVersionConflictRetryPayload(payload: any) {
+        const retryTurnIndex = getCurrentPublishTurnIndex();
+        const retryPayload = Object.assign({}, payload, {
+            baseVersion: state.stateVersion,
+            turnIndex: retryTurnIndex
+        });
+        if (retryPayload.action && typeof retryPayload.action === 'object') {
+            retryPayload.action = Object.assign({}, retryPayload.action, {
+                turnIndex: retryTurnIndex
+            });
+        }
+        return retryPayload;
+    }
+
     function resolveRejectedPublishSnapshotHandling(entry: any, payload: any, rejectedReason: any, options: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const reason = String(rejectedReason || '').trim() || 'PUBLISH_REJECTED';
@@ -2130,7 +2152,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         const resolvedActionType = String(
             opts.actionType || (action && (action.type || action.actionType)) || 'action'
         ).trim();
-        return publishSnapshot({
+        return publishCommand({
             playerKey: normalizedPlayerKey,
             actionType: resolvedActionType,
             playbackEvents: Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [],
@@ -2540,7 +2562,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 });
 
                 markTrackedPublishInFlight(trackedPublish);
-                const res = await publishRequestWithRetry(payload);
+                let res = await publishRequestWithRetry(payload);
                 if (!res.ok || !res.data || res.data.ok !== true) {
                     const reason = (res.data && res.data.rejectedReason) || 'PUBLISH_REJECTED';
                     const localProjectedSnapshotHashBefore = getKnownProjectedSnapshotHash();
@@ -2598,9 +2620,51 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                             snapshotVersion: rejectionHandling.snapshotVersion
                         });
                     }
-                    settleTrackedPublish(trackedPublish);
-                    emitStatus(`ネット対戦: 操作が拒否されました (${reason})`, true);
-                    return { ok: false, reason };
+                    let retryAcceptedAfterResync = false;
+                    if (shouldRetryVersionConflictPublish(reason, queuedActionType, trackedPublish)) {
+                        try {
+                            await syncLatestStateWithRetry({ maxAttempts: 2, baseDelayMs: 150 });
+                            const retryPayload = buildVersionConflictRetryPayload(payload);
+                            recordNetworkTelemetry('publish_version_conflict_retry', {
+                                reason,
+                                operationId,
+                                sequence: trackedPublish.sequence,
+                                retryBaseVersion: retryPayload.baseVersion,
+                                retryTurnIndex: retryPayload.turnIndex
+                            });
+                            const retryRes = await publishRequestWithRetry(retryPayload);
+                            if (retryRes && retryRes.ok && retryRes.data && retryRes.data.ok === true) {
+                                res = retryRes;
+                                retryAcceptedAfterResync = true;
+                                recordNetworkTelemetry('publish_version_conflict_retry_accepted', {
+                                    reason,
+                                    operationId,
+                                    sequence: trackedPublish.sequence,
+                                    responseStateVersion: Number.isFinite(Number(retryRes.data.stateVersion))
+                                        ? Number(retryRes.data.stateVersion)
+                                        : null
+                                });
+                            } else {
+                                recordNetworkTelemetry('publish_version_conflict_retry_rejected', {
+                                    reason: (retryRes && retryRes.data && retryRes.data.rejectedReason) || 'PUBLISH_REJECTED',
+                                    operationId,
+                                    sequence: trackedPublish.sequence
+                                });
+                            }
+                        } catch (e: any) {
+                            recordNetworkTelemetry('publish_version_conflict_retry_failed', {
+                                reason,
+                                operationId,
+                                sequence: trackedPublish.sequence,
+                                error: e && e.message ? String(e.message) : String(e || '')
+                            });
+                        }
+                    }
+                    if (!retryAcceptedAfterResync) {
+                        settleTrackedPublish(trackedPublish);
+                        emitStatus(`ネット対戦: 操作が拒否されました (${reason})`, true);
+                        return { ok: false, reason };
+                    }
                 }
                 applyPayloadSessionState(res.data);
                 const responseStateVersion = Number.isFinite(Number(res.data.stateVersion))
@@ -2680,6 +2744,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             });
 
         return state.publishChain;
+    }
+
+    function publishCommand(meta: any) {
+        return publishSnapshot(meta);
     }
 
     async function requestRematch() {
@@ -2911,6 +2979,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         joinRoom,
         leaveRoom,
         syncLatestState,
+        publishCommand,
         publishSnapshot,
         requestRematch,
         applySnapshot,

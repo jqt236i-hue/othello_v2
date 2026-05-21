@@ -378,6 +378,29 @@ function buildPublishResponseOptions(options) {
     return response;
 }
 
+function buildVersionRejectedPublishResponseOptions(room, options) {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const authoritativeStateVersion = normalizeStateVersion(
+        Object.prototype.hasOwnProperty.call(opts, 'authoritativeStateVersion')
+            ? opts.authoritativeStateVersion
+            : (room && room.stateVersion)
+    );
+    const receivedBaseVersion = normalizeStateVersion(opts.receivedBaseVersion);
+    const rejectedReason = classifyVersionRejectionReason(
+        Object.prototype.hasOwnProperty.call(opts, 'receivedBaseVersion') ? opts.receivedBaseVersion : null,
+        authoritativeStateVersion
+    );
+    return buildPublishResponseOptions({
+        ok: false,
+        rejectedReason,
+        publishKind: 'rejected',
+        operationId: opts.operationId,
+        actionType: opts.actionType,
+        receivedBaseVersion,
+        authoritativeStateVersion
+    });
+}
+
 function normalizeEffectLogMessages(values) {
     const source = Array.isArray(values) ? values : [];
     const next = [];
@@ -1567,6 +1590,7 @@ const matchAuthority = {
     rememberAcceptedOperationBySeat,
     classifyVersionRejectionReason,
     isVersionRejectionReason,
+    buildVersionRejectedPublishResponseOptions,
     makeHiddenHandToken,
     parseHiddenHandToken,
     resolveAuthenticatedSeatKey,
