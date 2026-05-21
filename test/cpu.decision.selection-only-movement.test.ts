@@ -81,6 +81,9 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
   });
 
   afterEach(() => {
+    if (typeof cpuDecision.setCpuDecisionRuntime === 'function') {
+      cpuDecision.setCpuDecisionRuntime(null);
+    }
     delete global.BLACK;
     delete global.WHITE;
     delete global.cpuSmartness;
@@ -123,4 +126,5 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
     }));
     expect(global.NetworkMatchClient.publishSnapshot.mock.calls[0][0].snapshot).toBeUndefined();
   });
+
 });

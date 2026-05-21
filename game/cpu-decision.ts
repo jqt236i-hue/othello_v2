@@ -1019,6 +1019,11 @@ function logCpuOnnxLatencyDegrade(level: any, playerKey: any, operationKey: any,
 let cpuExecutionMode = 'browser';
 function setCpuExecutionMode(mode: any): any { cpuExecutionMode = mode === 'headless' ? 'headless' : 'browser'; }
 
+let cpuDecisionRuntime: any = null;
+function setCpuDecisionRuntime(runtime: any): any {
+    cpuDecisionRuntime = (runtime && typeof runtime === 'object') ? runtime : null;
+}
+
 let cpuTimerService: any = null;
 function setCpuTimerService(service: any): any { cpuTimerService = service; }
 function getCpuTimerService(): any {
@@ -1828,14 +1833,53 @@ function publishCpuSelectionNetworkSnapshot(playerKey: any, action: any, playbac
     } catch (e) { /* ignore */ }
 }
 
-function isCpuSelectionHumanVsHumanModeEnabled(): any {
-    const debugHvH = (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true);
-    let matchMode: any = null;
+function readCpuDecisionMatchMode(): any {
+    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readMatchMode === 'function') {
+        try {
+            const mode = cpuDecisionRuntime.readMatchMode();
+            if (mode) return mode;
+        } catch (e) { /* ignore */ }
+    }
+    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.getCurrentMatchMode === 'function') {
+        try {
+            const mode = cpuDecisionRuntime.getCurrentMatchMode();
+            if (mode) return mode;
+        } catch (e) { /* ignore */ }
+    }
+    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.MATCH_MODE !== 'undefined') {
+        return cpuDecisionRuntime.MATCH_MODE;
+    }
     try {
-        matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
+        return (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
             ? (globalThis as any).getCurrentMatchMode()
             : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
     } catch (e) { /* ignore */ }
+    return null;
+}
+
+function readCpuDecisionHumanVsHumanFlag(): boolean {
+    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readHumanVsHumanMode === 'function') {
+        try { return cpuDecisionRuntime.readHumanVsHumanMode() === true; } catch (e) { /* ignore */ }
+    }
+    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.DEBUG_HUMAN_VS_HUMAN !== 'undefined') {
+        return cpuDecisionRuntime.DEBUG_HUMAN_VS_HUMAN === true;
+    }
+    return (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true);
+}
+
+function resolveCpuDecisionProcessCpuTurn(): any {
+    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.processCpuTurn === 'function') {
+        return cpuDecisionRuntime.processCpuTurn;
+    }
+    try {
+        if (typeof processCpuTurn === 'function') return processCpuTurn;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function isCpuSelectionHumanVsHumanModeEnabled(): any {
+    const debugHvH = readCpuDecisionHumanVsHumanFlag();
+    const matchMode = String(readCpuDecisionMatchMode() || '').trim().toLowerCase();
     return debugHvH || matchMode === 'network';
 }
 
@@ -1867,7 +1911,8 @@ function scheduleCpuSelectionWhiteTurn(delayMs: any, expectedTurnNumber: any): a
         const currentTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
         if (activePlayerKey !== 'white') return;
         if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) return;
-        if (typeof processCpuTurn === 'function') processCpuTurn();
+        const cpuTurnFn = resolveCpuDecisionProcessCpuTurn();
+        if (cpuTurnFn) cpuTurnFn();
     }, safeDelay);
     if (tid && typeof tid.unref === 'function') tid.unref();
 }
@@ -6259,7 +6304,8 @@ if (typeof module !== 'undefined' && module.exports) {
         computeCpuAction,
         setCpuRng,
         setCpuTimerService,
-        setCpuExecutionMode
+        setCpuExecutionMode,
+        setCpuDecisionRuntime
     };
 }
 

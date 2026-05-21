@@ -999,6 +999,32 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             }
         } catch (e: any) { /* ignore */ }
 
+        try {
+            const cpuDecision = require('../game/cpu-decision');
+            if (cpuDecision && typeof cpuDecision.setCpuDecisionRuntime === 'function') {
+                let cpu: any = null;
+                try { cpu = require('../game/cpu-turn-handler'); } catch (e: any) { /* ignore */ }
+                cpuDecision.setCpuDecisionRuntime({
+                    processCpuTurn: cpu && typeof cpu.processCpuTurn === 'function' ? cpu.processCpuTurn : null,
+                    readMatchMode: () => {
+                        try {
+                            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
+                                return (globalThis as any).getCurrentMatchMode();
+                            }
+                            if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
+                        } catch (e: any) { /* ignore */ }
+                        return null;
+                    },
+                    readHumanVsHumanMode: () => {
+                        try {
+                            return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
+                        } catch (e: any) { /* ignore */ }
+                        return false;
+                    }
+                });
+            }
+        } catch (e: any) { /* ignore */ }
+
         // Commentary broker initialization
         try {
             const commentaryBroker = require('./commentary-broker');
