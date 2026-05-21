@@ -350,7 +350,7 @@ describe('animation-utils hand fallback', () => {
     await jest.advanceTimersByTimeAsync(550);
     expect(document.querySelector('.held-draw-card')).toBeNull();
 
-    await jest.advanceTimersByTimeAsync(1000);
+    await jest.advanceTimersByTimeAsync(350);
     let queuedDrawCard = null;
     for (let i = 0; i < 5; i++) {
       await Promise.resolve();

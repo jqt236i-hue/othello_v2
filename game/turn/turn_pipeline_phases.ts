@@ -19,6 +19,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
     const CardUtilsModule = (() => { try { return _require('../logic/cards/utils'); } catch (e) { return null; } })();
     const SharedConstantsModule = (() => { try { return _require('../../shared-constants'); } catch (e) { return null; } })();
+    const OwnerHelpersModule = (() => { try { return _require('../../utils/owner-helpers'); } catch (e) { return null; } })();
     const DestroyOutcomeContract = (() => { try { return _require('../../shared/destroy-outcome-contract'); } catch (e) { return null; } })();
     const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
         DESTROYED: 'destroyed',
@@ -91,6 +92,21 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return expectedTypes.some((type: any) => normalizePendingTypeForActionPhase(type) === normalizedPendingType);
     }
 
+    function isOthelloModeForTurnPipelinePhases() {
+        try {
+            if (OwnerHelpersModule && typeof OwnerHelpersModule.isOthelloMode === 'function') {
+                return OwnerHelpersModule.isOthelloMode(typeof globalThis !== 'undefined' ? globalThis : null);
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            const matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
+                ? (globalThis as any).getCurrentMatchMode()
+                : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
+            return matchMode === 'othello';
+        } catch (e) { /* ignore */ }
+        return false;
+    }
+
     function requirePendingActionValue(pending: any, expectedType: any, value: any, errorMessage: any) {
         if (!matchesPendingTypeForActionPhase(pending, expectedType)) return false;
         if (value == null) {
@@ -138,7 +154,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const CHARGE_MAX = Number.isFinite(resolvedChargeMax)
         ? resolvedChargeMax
         : 99;
-    const OwnerHelpersModule = (() => { try { return _require('../../utils/owner-helpers'); } catch (e) { return null; } })();
 
     const PhaseHelpersModule = (() => { try { return _require('./turn_pipeline_phase_helpers'); } catch (e) { return null; } })();
     const PendingCoordinatorModule = (() => { try { return _require('./pending-coordinator'); } catch (e) { return null; } })();
@@ -1681,7 +1696,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             }
 
             ensureGameRoundState(Core, gameState);
-            applyPendingRoundBonusAtTurnStart(CardLogic, Core, cardState, gameState, events);
+            const roundBonusSummary = applyPendingRoundBonusAtTurnStart(CardLogic, Core, cardState, gameState, events);
             const eventStartIndex = Array.isArray(events)
                 ? events.length
                 : 0;
@@ -1714,7 +1729,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 }
             } catch (e) { /* ignore snapshot failures */ }
 
-            const turnStartSummary = CardLogic.onTurnStart(cardState, playerKey, gameState, p) || null;
+            const othelloMode = isOthelloModeForTurnPipelinePhases();
+            const turnStartOptions = roundBonusSummary
+                ? { skipStoneSalvationGodRevives: true }
+                : undefined;
+            const turnStartSummary = othelloMode
+                ? null
+                : (CardLogic.onTurnStart(cardState, playerKey, gameState, p, turnStartOptions) || null);
             events.push({ type: 'turn_start', player: playerKey });
             if (turnStartSummary && turnStartSummary.ribo && Array.isArray(turnStartSummary.ribo.entries)) {
                 for (const entry of turnStartSummary.ribo.entries) {
@@ -1738,6 +1759,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         });
                     }
                 }
+            }
+
+            if (othelloMode) {
+                return { ok: true, events };
             }
 
             // Start-of-turn effects: process all markers (bombs & special stones) in creation order.
@@ -3335,6 +3360,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 });
             }
 
+            const othelloMode = isOthelloModeForTurnPipelinePhases();
             const bonusKey = `${action.row},${action.col}`;
             const bonusMap = (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
                 ? cardState.boardBonusByCell
@@ -3352,7 +3378,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             }
             const consumedMap = cardState.boardBonusConsumedByCell;
             const bonusValue = bonusMap ? Number(bonusMap[bonusKey] || 0) : 0;
-            if (bonusValue > 0 && consumedMap[bonusKey] !== true) {
+            if (!othelloMode && bonusValue > 0 && consumedMap[bonusKey] !== true) {
                 consumedMap[bonusKey] = true;
                 const appliedBonus = numberCellMultiplierConfig
                     ? bonusValue * Number(numberCellMultiplierConfig.multiplier || 1)
@@ -3436,32 +3462,36 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             }
 
             // 4) Apply placement effects (charge, special stones, etc.)
-            const effects = CardLogic.applyPlacementEffects(cardState, gameState, playerKey, action.row, action.col, flipCount);
-            if (numberCellMultiplierConfig && effects && numberCellMultiplierConfig.gainField && boardBonusGained > 0) {
+            const effects = othelloMode
+                ? {}
+                : CardLogic.applyPlacementEffects(cardState, gameState, playerKey, action.row, action.col, flipCount);
+            if (!othelloMode && numberCellMultiplierConfig && effects && numberCellMultiplierConfig.gainField && boardBonusGained > 0) {
                 effects[numberCellMultiplierConfig.effectFlag] = true;
                 effects[numberCellMultiplierConfig.gainField] = boardBonusGained;
             }
             events.push({ type: 'placement_effects', player: playerKey, row: action.row, col: action.col, effects });
-            const placementChargeBubble = buildPlacementChargeBubblePayload(
-                playerKey,
-                action.row,
-                action.col,
-                flipCount,
-                boardBonusGained,
-                effects
-            );
-            if (placementChargeBubble) {
-                emitBoardChargeBubblePresentation(CardLogic, cardState, placementChargeBubble);
+            if (!othelloMode) {
+                const placementChargeBubble = buildPlacementChargeBubblePayload(
+                    playerKey,
+                    action.row,
+                    action.col,
+                    flipCount,
+                    boardBonusGained,
+                    effects
+                );
+                if (placementChargeBubble) {
+                    emitBoardChargeBubblePresentation(CardLogic, cardState, placementChargeBubble);
+                }
+                emitSpecialStonePlacementBubbleFromEffects(
+                    CardLogic,
+                    cardState,
+                    playerKey,
+                    action.row,
+                    action.col,
+                    effects,
+                    p
+                );
             }
-            emitSpecialStonePlacementBubbleFromEffects(
-                CardLogic,
-                cardState,
-                playerKey,
-                action.row,
-                action.col,
-                effects,
-                p
-            );
 
             // GOLD/SILVER: the placed stone disappears on the opponent's next turn start.
 

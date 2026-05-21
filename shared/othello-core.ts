@@ -1,6 +1,6 @@
 /**
  * @file othello-core.ts
- * @description Core Othello game logic functions (shared across browser and headless)
+ * @description Core Reversi game logic functions (shared across browser and headless)
  */
 
 import { Board, BoardValue, PlayerValue, CellPosition, Direction } from '../src/types';
@@ -28,7 +28,7 @@ interface LegalMove {
 }
 
 /**
- * Get flips for a basic Othello move (8 directions).
+ * Get flips for a basic Reversi move (8 directions).
  */
 function getFlipsBasic(board: Board, row: number, col: number, playerValue: PlayerValue): FlipResult[] {
   if (!Array.isArray(board) || !Array.isArray(board[row])) return [];

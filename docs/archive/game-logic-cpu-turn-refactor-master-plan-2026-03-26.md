@@ -8,7 +8,7 @@
 
 ## 0. この文書の位置づけ
 
-この文書は、カードオセロ repo における **3 大巨大ファイル**のリファクタを、挙動を保ったまま段階的に進めるための master plan である。
+この文書は、カードリバーシ repo における **3 大巨大ファイル**のリファクタを、挙動を保ったまま段階的に進めるための master plan である。
 
 - 一次仕様は `01-rulebook.md` とする。挙動・見た目・イベント順が変わる変更は `01-rulebook.md` を先に更新してから着手する。
 - playback 中の Single Visual Writer invariant は維持する。`game/` は順序付き `events[]` を生成するだけに留め、`game/turn/pipeline_ui_adapter.js` が canonicalize し、既存の playback / presentation 経路だけが board DOM / state write を適用する。

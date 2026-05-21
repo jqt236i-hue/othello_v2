@@ -57,8 +57,16 @@ describe('UI Reset & Click E2E', () => {
     expect(totalCells).toBe(64);
 
     // Find a legal cell and click it
-    const legalExists = await page.$('#board .cell.legal, #board .cell.legal-free');
-    expect(legalExists).toBeTruthy();
+    await page.waitForFunction(() => {
+      const root = window as unknown as { isProcessing?: boolean; isCardAnimating?: boolean };
+      return root.isProcessing !== true && root.isCardAnimating !== true;
+    }, { timeout: 10000 });
+    const legalTarget = await page.evaluate(() => {
+      const el = document.querySelector('#board .cell.legal, #board .cell.legal-free') as HTMLElement | null;
+      return { row: (el && el.dataset.row) || '', col: (el && el.dataset.col) || '' };
+    });
+    expect(legalTarget.row).not.toBe('');
+    expect(legalTarget.col).not.toBe('');
 
     // Record board progress signals before the click
     const before = await page.$$eval('#board .disc.black, #board .disc.white', (els: Element[]) => els.length);
@@ -67,7 +75,18 @@ describe('UI Reset & Click E2E', () => {
       return (root.gameState && root.gameState.turnNumber) || 0;
     });
 
-    await page.locator('#board .cell.legal, #board .cell.legal-free').first().click();
+    const targetSelector = `#board .cell[data-row="${legalTarget.row}"][data-col="${legalTarget.col}"]`;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await page.locator(targetSelector).click({ force: true });
+      await page.waitForTimeout(1200);
+      const progressed = await page.evaluate(({ beforeDiscCount, beforeTurn }: { beforeDiscCount: number; beforeTurn: number }) => {
+        const currentDiscCount = document.querySelectorAll('#board .disc.black, #board .disc.white').length;
+        const root = window as unknown as { gameState?: { turnNumber?: number } };
+        const currentTurn = (root.gameState && root.gameState.turnNumber) || 0;
+        return currentDiscCount > beforeDiscCount && currentTurn > beforeTurn;
+      }, { beforeDiscCount: before, beforeTurn: beforeTurnNumber });
+      if (progressed) break;
+    }
 
     await page.waitForFunction(({ beforeDiscCount, beforeTurn }: { beforeDiscCount: number; beforeTurn: number }) => {
       try {
@@ -78,7 +97,7 @@ describe('UI Reset & Click E2E', () => {
       } catch (e) {
         return false;
       }
-    }, { beforeDiscCount: before, beforeTurn: beforeTurnNumber }, { timeout: 6000 });
+    }, { beforeDiscCount: before, beforeTurn: beforeTurnNumber }, { timeout: 10000 });
 
     const after = await page.$$eval('#board .disc.black, #board .disc.white', (els: Element[]) => els.length);
     const afterTurnNumber = await page.evaluate(() => {

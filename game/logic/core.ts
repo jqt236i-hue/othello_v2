@@ -1,6 +1,6 @@
 /**
  * @file core.ts
- * @description Core Othello Logic (Shared between Browser and Headless)
+ * @description Core Reversi Logic (Shared between Browser and Headless)
  * Pure functions only. No UI dependencies.
  */
 

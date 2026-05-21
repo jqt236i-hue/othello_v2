@@ -160,4 +160,10 @@ describe('OwnerHelpers network seat helpers', () => {
     expect(OwnerHelpers.isNetworkMode({ MATCH_MODE: 'network' })).toBe(true);
     expect(OwnerHelpers.isNetworkMode({ MATCH_MODE: 'cpu' })).toBe(false);
   });
+
+  test('isOthelloMode reflects current mode getter/fallback', () => {
+    expect(OwnerHelpers.isOthelloMode({ getCurrentMatchMode: () => 'othello' })).toBe(true);
+    expect(OwnerHelpers.isOthelloMode({ MATCH_MODE: 'othello' })).toBe(true);
+    expect(OwnerHelpers.isOthelloMode({ MATCH_MODE: 'cpu' })).toBe(false);
+  });
 });

@@ -2,7 +2,7 @@ import * as http from 'http';
 import * as Core from '../game/logic/core.js';
 import * as CardLogic from '../game/logic/cards.js';
 import * as MatchAuthority from '../utils/match-authority.js';
-import * as LocalMatchRuntime from '../game/local-match-runtime';
+import * as LocalMatchRuntime from '../scripts/local-match-runtime';
 import * as PendingTargetSelector from '../game/turn-handlers/pending-target-selector';
 import CardCatalog = require('../cards/catalog.json');
 import { createLocalMatchServer, resetRoomsForTests, patchRoomSnapshotForTests } from '../scripts/local-match-server.js';
@@ -411,7 +411,7 @@ describe('local match runtime parity', () => {
     expect(second.idempotentReplay).toBe(true);
     expect(second.stateVersion).toBe(first.stateVersion);
     expect(second.publishMeta).toEqual(expect.objectContaining({
-      kind: 'replayed',
+      kind: 'idempotent_replay',
       operationId: 'op_local_runtime_replay_1'
     }));
   });

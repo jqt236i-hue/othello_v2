@@ -1,5 +1,3 @@
-import * as zlib from 'zlib';
-
 const SharedBoardUtils: any = (() => {
     try { return require('../../shared/shared-board-utils'); } catch (e) { return null; }
 })();
@@ -415,6 +413,13 @@ async function loadFromUrl(url: string, fetchImpl?: any) {
             if (payload.compression !== 'gzip' || typeof payload.url !== 'string') return false;
             const compressedResponse = await f(payload.url, { cache: 'no-store' });
             if (!compressedResponse || compressedResponse.ok !== true || typeof compressedResponse.arrayBuffer !== 'function') return false;
+            if (typeof Buffer === 'undefined') return false;
+            let zlib: any;
+            try {
+                zlib = require('zlib');
+            } catch (e) {
+                return false;
+            }
             const compressed = Buffer.from(await compressedResponse.arrayBuffer());
             const uncompressed = zlib.gunzipSync(compressed);
             const parsed = JSON.parse(uncompressed.toString('utf8'));

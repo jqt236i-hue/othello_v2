@@ -145,7 +145,7 @@ full Jest blocker 解消時に、次を追加で再実行して PASS を確認�
 
 `http://127.0.0.1:8000/?qa=registry-fix` を実ブラウザで開き、次を確認した。
 
-- title が `カードオセロ`。
+- title が `カードリバーシ`。
 - 初期盤面が 8x8 で表示される。
 - `DEBUG` ボタン押下後に `DEBUG: ON` になる。
 - `window.DebugActions` が存在する。

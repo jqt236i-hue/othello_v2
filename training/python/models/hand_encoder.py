@@ -1,4 +1,4 @@
-"""Hand encoder for explicit card hand representation in Card Othello.
+"""Hand encoder for explicit card hand representation in Card Reversi.
 
 Each card is encoded as a structured vector (card_id embedding + cost + type one-hot).
 The hand (up to 5 cards) is aggregated with a DeepSets layer so the representation

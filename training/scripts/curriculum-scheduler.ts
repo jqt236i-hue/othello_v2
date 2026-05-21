@@ -1,8 +1,8 @@
 /**
  * @file curriculum-scheduler.ts
- * @description 4-stage curriculum learning scheduler for Card Othello AI training.
+ * @description 4-stage curriculum learning scheduler for Card Reversi AI training.
  *
- * Stage 1: Normal Othello only (no cards) - Basic strategy learning
+ * Stage 1: Normal Reversi only (no cards) - Basic strategy learning
  * Stage 2: Low-frequency simple cards - Card basics
  * Stage 3: Medium-frequency all cards - Card integration
  * Stage 4: Free play (MCTS optimized) - Strategic integration

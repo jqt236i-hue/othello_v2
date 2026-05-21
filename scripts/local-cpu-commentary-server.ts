@@ -156,7 +156,7 @@ async function requestModelLine(context: any, maxChars: any) {
         messages: [
             {
                 role: 'system',
-                content: 'あなたはカードオセロの白CPU。短い一言だけ返す。40文字以内。日本語。'
+                content: 'あなたはカードリバーシの白CPU。短い一言だけ返す。40文字以内。日本語。'
             },
             {
                 role: 'user',

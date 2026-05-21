@@ -178,6 +178,14 @@ function _isOwnerOnBottomSlot(playerKey: any) {
 }
 
 const HAND_WRAPPER_WIDTH = 180;
+const HAND_MOTION_SPEED_MULTIPLIER = 1.3;
+const scaleHandMotionDuration = (baseMs: number): number => Math.max(1, Math.round(baseMs / HAND_MOTION_SPEED_MULTIPLIER));
+const HAND_PLACE_APPROACH_MS = scaleHandMotionDuration(400);
+const HAND_PLACE_BOB_MS = scaleHandMotionDuration(150);
+const HAND_PLACE_RETREAT_MS = scaleHandMotionDuration(300);
+const HAND_DRAW_PICKUP_MS = 140;
+const HAND_DRAW_MOVE_MS = 360;
+const HAND_DRAW_RETREAT_MS = 220;
 
 function _resolveHandImageElement() {
     if (typeof document === 'undefined') return null;
@@ -1248,7 +1256,7 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
                 { transform: `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` },
                 { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
-                duration: 400,
+                duration: HAND_PLACE_APPROACH_MS,
                 easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
                 fill: 'forwards'
             }, sc);
@@ -1260,7 +1268,7 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
                 { transform: `translate(${dropX}px, ${dropY + bobOffset}px) rotate(${rotation}deg) scale(${scale * 0.95})` },
                 { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
-                duration: 150,
+                duration: HAND_PLACE_BOB_MS,
                 easing: 'ease-in-out'
             }, sc);
 
@@ -1284,7 +1292,7 @@ function playHandAnimation(player: any, row: any, col: any, onComplete: any, vis
                 { transform: `translate(${dropX}px, ${dropY}px) rotate(${rotation}deg) scale(${scale})` },
                 { transform: `translate(${dropX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
-                duration: 300,
+                duration: HAND_PLACE_RETREAT_MS,
                 easing: 'ease-in',
                 fill: 'forwards'
             }, sc);
@@ -1695,7 +1703,7 @@ function playDrawCardHandAnimation(payload: any) {
             }
             const now = Date.now();
             const last = Number(window.__lastDrawAnimAt || 0);
-            if (now - last < 80) {
+            if (last > 0 && now >= last && now - last < 80) {
                 _finalizeHandAddAnimation(data, { pulseDeck: true });
                 return Promise.resolve();
             }
@@ -1795,7 +1803,7 @@ function playDrawCardHandAnimation(payload: any) {
                 { transform: `translate(${startX}px, ${startY}px) rotate(${rotation}deg) scale(${scale})` },
                 { transform: `translate(${startX}px, ${startY + (fromBottom ? -14 : 14)}px) rotate(${rotation}deg) scale(${scale * 0.96})` }
             ], {
-                duration: 140,
+                duration: HAND_DRAW_PICKUP_MS,
                 easing: 'ease-out',
                 fill: 'forwards'
             }, sc);
@@ -1804,7 +1812,7 @@ function playDrawCardHandAnimation(payload: any) {
                 { transform: `translate(${startX}px, ${startY + (fromBottom ? -14 : 14)}px) rotate(${rotation}deg) scale(${scale * 0.96})` },
                 { transform: `translate(${endX}px, ${endY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
-                duration: 360,
+                duration: HAND_DRAW_MOVE_MS,
                 easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)',
                 fill: 'forwards'
             }, sc);
@@ -1816,7 +1824,7 @@ function playDrawCardHandAnimation(payload: any) {
                 { transform: `translate(${endX}px, ${endY}px) rotate(${rotation}deg) scale(${scale})` },
                 { transform: `translate(${endX}px, ${retreatY}px) rotate(${rotation}deg) scale(${scale})` }
             ], {
-                duration: 220,
+                duration: HAND_DRAW_RETREAT_MS,
                 easing: 'ease-in',
                 fill: 'forwards'
             }, sc);

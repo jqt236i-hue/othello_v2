@@ -1,5 +1,5 @@
 /**
- * Shared type definitions for the Card Othello game.
+ * Shared type definitions for the Card Reversi game.
  * Re-exports from src/types for backward compatibility.
  */
 

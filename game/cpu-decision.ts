@@ -101,6 +101,10 @@ let CpuPolicyOnnxRuntime: any = null;
 if (typeof require === 'function') {
     try { CpuPolicyOnnxRuntime = _require('./ai/policy-onnx-runtime'); } catch (e) { /* ignore */ }
 }
+let OthelloBrowserCpuRuntime: any = null;
+if (typeof require === 'function') {
+    try { OthelloBrowserCpuRuntime = _require('othello-ai/runtime/browser-cpu'); } catch (e) { /* ignore */ }
+}
 let SharedBoardUtilsModule: any = null;
 if (typeof require === 'function') {
     try { SharedBoardUtilsModule = _require('../shared/shared-board-utils'); } catch (e) { /* ignore */ }
@@ -132,9 +136,19 @@ function readGlobalValue(globalKey: string): any {
 
 function resolveCpuSmartnessLevel(playerKey: any): number {
     const smartness = readGlobalValue('cpuSmartness') || (typeof cpuSmartness !== 'undefined' ? cpuSmartness : null);
-    return smartness && Number.isFinite(smartness[playerKey])
-        ? Number(smartness[playerKey])
-        : 1;
+    if (smartness && Number.isFinite(smartness[playerKey])) {
+        return Number(smartness[playerKey]);
+    }
+    try {
+        const selectId = playerKey === 'black' ? 'smartBlack' : 'smartWhite';
+        const doc = (typeof document !== 'undefined') ? document : null;
+        const select = doc && typeof doc.getElementById === 'function'
+            ? doc.getElementById(selectId) as HTMLSelectElement | null
+            : null;
+        const value = select ? Number(select.value) : NaN;
+        if (Number.isFinite(value)) return Math.max(1, Math.min(6, Math.floor(value)));
+    } catch (e) { /* ignore */ }
+    return 1;
 }
 
 function resolveCardLogicForCpuDecision(): any {
@@ -584,6 +598,42 @@ function resolvePolicyOnnxRuntime(): any {
     return resolvedModule;
 }
 
+function resolveOthelloBrowserCpuRuntime(): any {
+    const globalModule = readGlobalModule('OthelloBrowserCpuRuntime');
+    if (globalModule && typeof globalModule.chooseMove === 'function') {
+        OthelloBrowserCpuRuntime = globalModule;
+        return globalModule;
+    }
+    const resolvedModule = resolveModuleReference(OthelloBrowserCpuRuntime, {
+        globalKey: 'OthelloBrowserCpuRuntime',
+        isValid: (moduleRef: any) => !!(
+            moduleRef &&
+            typeof moduleRef.chooseMove === 'function'
+        )
+    });
+    if (resolvedModule) OthelloBrowserCpuRuntime = resolvedModule;
+    return resolvedModule;
+}
+
+function isOthelloModeForCpuDecision(): boolean {
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
+            return (globalThis as any).getCurrentMatchMode() === 'othello';
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).isOthelloModeActive === 'function') {
+            return (globalThis as any).isOthelloModeActive() === true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        return typeof globalThis !== 'undefined' &&
+            ((globalThis as any).MATCH_MODE === 'othello' || (globalThis as any).__MATCH_MODE === 'othello');
+    } catch (e) {
+        return false;
+    }
+}
+
 function resolveCpuLv6RuntimeCapabilityModule(): any {
     const resolvedModule = resolveModuleReference(CpuLv6RuntimeCapabilityModule, {
         globalKey: 'CpuLv6RuntimeCapability',
@@ -698,6 +748,29 @@ function selectMoveFromLearnedPolicy(candidateMoves: any, playerKey: any, level:
         });
     } catch (e) {
         console.warn('[CPU] policy-table runtime failed, fallback to default policy', e);
+        return null;
+    }
+}
+
+function selectMoveFromOthelloPolicy(candidateMoves: any, playerKey: any, level: any): any {
+    if (!isOthelloModeForCpuDecision() || !Number.isFinite(level) || level < 6) return null;
+    const runtime = resolveOthelloBrowserCpuRuntime();
+    if (!runtime || typeof runtime.chooseMove !== 'function') return null;
+    try {
+        const boardRef = getCurrentCpuBoard();
+        if (!canUseStandardBoardCpuPolicy(boardRef, 'othello-policy-table-move', playerKey, level)) return null;
+        const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;
+        if (!status || status.loaded !== true || status.valueLoaded !== true) {
+            cpuDebugLog(`[CPU] Lv${level} ${playerKey}: リバーシ専用モデル未ロードのため通常判断へフォールバック`);
+            return null;
+        }
+        return runtime.chooseMove(candidateMoves, {
+            playerKey,
+            level,
+            board: boardRef
+        });
+    } catch (e) {
+        console.warn('[CPU] othello runtime failed, fallback to default policy', e);
         return null;
     }
 }
@@ -3426,6 +3499,12 @@ function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
             );
             return pendingPicked;
         }
+    }
+
+    const othelloMove = (level >= 6) ? selectMoveFromOthelloPolicy(prioritizedCandidateMoves, playerKey, level) : null;
+    if (othelloMove) {
+        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: リバーシ専用AI選択 (${othelloMove.row}, ${othelloMove.col}) - 反転${Array.isArray(othelloMove.flips) ? othelloMove.flips.length : 0}枚`);
+        return othelloMove;
     }
 
     const learnedMove = (level >= 6) ? selectMoveFromLearnedPolicy(prioritizedCandidateMoves, playerKey, level) : null;

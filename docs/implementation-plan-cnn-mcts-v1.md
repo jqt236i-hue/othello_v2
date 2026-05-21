@@ -1,15 +1,15 @@
-# カードオセロAI学習システム 統合改善実装計画書
+# カードリバーシAI学習システム 統合改善実装計画書
 
 **バージョン**: 1.0  
 **作成日**: 2026-04-27  
-**対象**: カードオセロ Lv6 CPU ONNX学習パイプライン  
+**対象**: カードリバーシ Lv6 CPU ONNX学習パイプライン  
 **目標**: Deep Research報告書「Gumbel AlphaZero + WDLヘッド + SPRT評価ゲート + 2層MCTS」統合アプローチの完全実装
 
 ---
 
 ## 1. エグゼクティブサマリー
 
-本計画書は、ディープリサーチエージェントによる横断調査の結果を統合し、カードオセロAI学習システムの全体的な改善を3フェーズに分けて段階的に実装するロードマップを示す。
+本計画書は、ディープリサーチエージェントによる横断調査の結果を統合し、カードリバーシAI学習システムの全体的な改善を3フェーズに分けて段階的に実装するロードマップを示す。
 
 **最終目標**: ブラウザ環境で動作する軽量CNNモデル（MCTS併用）として、既存のMLPベースシステムから完全に移行し、AlphaZero系の最新技術を取り入れた次世代学習パイプラインを構築する。
 
@@ -709,7 +709,7 @@ class EnsembleEvaluator:
 class CurriculumScheduler:
     def __init__(self, total_iterations=100):
         self.stages = [
-            # Stage 1: 通常オセロのみ（カード使用なし）
+            # Stage 1: 通常リバーシのみ（カード使用なし）
             CurriculumStage(
                 start_iter=0,
                 end_iter=int(total_iterations * 0.3),
@@ -1146,7 +1146,7 @@ npm run benchmark:winrate
 5. Danihelka et al. (2022) "Policy Improvement by Planning with Gumbel" - Gumbel MuZero
 
 ### カードゲームAI
-6. DeNA (2020) "オセロニアAI開発事例" - カード特性ベクトル
+6. DeNA (2020) "リバーシニアAI開発事例" - カード特性ベクトル
 7. Cardsformer (2022) - Hearthstoneカード埋め込み
 8. SabberStone - Hearthstoneシミュレータ
 
@@ -1186,4 +1186,4 @@ npm run benchmark:winrate
 
 ---
 
-**本計画書は、ディープリサーチレポート「カードオセロAI学習システム改善提案」に基づき、実装可能な形に具体化したものである。**
+**本計画書は、ディープリサーチレポート「カードリバーシAI学習システム改善提案」に基づき、実装可能な形に具体化したものである。**

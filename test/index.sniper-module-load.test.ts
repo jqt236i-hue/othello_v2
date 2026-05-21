@@ -2,10 +2,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 function assertSniperScriptOrder(html: string, targetLabel: string) {
-  const moduleRegistryTag = '<script src="public/module-registry.js?v=202605100670"></script>';
-  const entryBrowserTag = '<script src="entry-browser.js?v=202605100670"></script>';
-  const moduleRegistryIndex = html.indexOf(moduleRegistryTag);
-  const entryBrowserIndex = html.indexOf(entryBrowserTag);
+  const moduleRegistryMatch = html.match(/<script\s+src="public\/module-registry\.js\?v=\d+"><\/script>/);
+  const entryBrowserMatch = html.match(/<script\s+src="entry-browser\.js\?v=\d+"><\/script>/);
+  const moduleRegistryIndex = moduleRegistryMatch ? moduleRegistryMatch.index : -1;
+  const entryBrowserIndex = entryBrowserMatch ? entryBrowserMatch.index : -1;
 
   expect(moduleRegistryIndex).toBeGreaterThanOrEqual(0);
   expect(entryBrowserIndex).toBeGreaterThanOrEqual(0);
@@ -34,6 +34,29 @@ function assertSniperModuleRegistry(registry: string, targetLabel: string) {
   }
 }
 
+function assertOthelloAiRuntimeRegistry(registry: string, targetLabel: string) {
+  const requiredModules = [
+    'othello-ai/core/board',
+    'othello-ai/eval/value-table',
+    'othello-ai/runtime/browser-cpu',
+    'othello-ai/runtime/engine',
+    'othello-ai/search/teacher'
+  ];
+
+  for (const moduleId of requiredModules) {
+    expect(registry).toContain(`_r("${moduleId}"`);
+  }
+
+  if (!requiredModules.every((moduleId) => registry.includes(`_r("${moduleId}"`))) {
+    throw new Error(`${targetLabel}: othello AI runtime dependency modules are missing from registry`);
+  }
+
+  expect(registry).not.toContain('const zlib = __importStar(require("zlib"))');
+  if (registry.includes('const zlib = __importStar(require("zlib"))')) {
+    throw new Error(`${targetLabel}: browser policy-table runtime must not require Node zlib at module load`);
+  }
+}
+
 describe('sniper module load order', () => {
   test('index.html loads sniper.js before cards.js', () => {
     const htmlPath = path.join(__dirname, '..', 'index.html');
@@ -42,6 +65,7 @@ describe('sniper module load order', () => {
     const registryPath = path.join(__dirname, '..', 'public', 'module-registry.js');
     const registry = fs.readFileSync(registryPath, 'utf8');
     assertSniperModuleRegistry(registry, 'public/module-registry.js');
+    assertOthelloAiRuntimeRegistry(registry, 'public/module-registry.js');
   });
 
   test('worker-public/index.html loads sniper.js before cards.js', () => {
@@ -51,5 +75,6 @@ describe('sniper module load order', () => {
     const registryPath = path.join(__dirname, '..', 'worker-public', 'public', 'module-registry.js');
     const registry = fs.readFileSync(registryPath, 'utf8');
     assertSniperModuleRegistry(registry, 'worker-public/public/module-registry.js');
+    assertOthelloAiRuntimeRegistry(registry, 'worker-public/public/module-registry.js');
   });
 });

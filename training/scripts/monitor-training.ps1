@@ -1,4 +1,4 @@
-# カードオセロ CNN学習監視スクリプト
+# カードリバーシ CNN学習監視スクリプト
 $logFile = "C:\Users\quarr\Desktop\othello_v2\data\runs\browser_lv6_growth_v1\restart-cnn-v1-light.log"
 $trainPattern = "selfplay\] (\d+)/(\d+) completed"
 $iterationPattern = "iteration (\d+)/(\d+) start"
@@ -68,7 +68,7 @@ function Get-ProcessStatus {
 
 # メイン監視ループ
 Write-Host "`n========================================" -ForegroundColor Blue
-Write-Host "  カードオセロ CNN学習監視ツール" -ForegroundColor Blue
+Write-Host "  カードリバーシ CNN学習監視ツール" -ForegroundColor Blue
 Write-Host "========================================" -ForegroundColor Blue
 Write-Host "Ctrl+C で終了`n" -ForegroundColor DarkGray
 

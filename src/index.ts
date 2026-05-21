@@ -7,7 +7,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 
 "use strict";
 /**
- * Central type exports for the Card Othello game
+ * Central type exports for the Card Reversi game
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;

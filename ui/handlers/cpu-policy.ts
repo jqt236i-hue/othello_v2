@@ -239,6 +239,14 @@ function _getCpuModelLoadStatusStore(): any {
           sourceUrl: '',
           triedRoots: [],
           lastError: ''
+        },
+        othelloTable: {
+          loaded: false,
+          valueLoaded: false,
+          sourceUrl: '',
+          valueSourceUrl: '',
+          triedRoots: [],
+          lastError: ''
         }
       };
     }
@@ -255,7 +263,7 @@ function _setCpuModelLoadStatus(kind: string, patch: any): void {
 }
 
 function _reportCriticalModelLoadIssue(kind: string, message: string, extra?: any): void {
-  const normalizedKind = kind === 'table' ? 'table' : 'onnx';
+  const normalizedKind = kind === 'table' || kind === 'othelloTable' ? kind : 'onnx';
   const errorMessage = String(message || '').trim() || 'unknown error';
   const details = Object.assign({}, extra || {}, {
     loaded: false,
@@ -728,18 +736,125 @@ async function initPolicyTableModel(): Promise<void> {
   }
 }
 
+function _resolveOthelloBrowserCpuRuntime(): any {
+  try {
+    if (typeof window !== 'undefined' && (window as any).OthelloBrowserCpuRuntime) {
+      return (window as any).OthelloBrowserCpuRuntime;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof _require === 'function') {
+      const moduleRef = _require('othello-ai/runtime/browser-cpu');
+      if (moduleRef && typeof moduleRef.loadFromUrl === 'function') return moduleRef;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof require === 'function') {
+      const moduleRef = require('othello-ai/runtime/browser-cpu');
+      if (moduleRef && typeof moduleRef.loadFromUrl === 'function') return moduleRef;
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+async function initOthelloPolicyTableModel(): Promise<void> {
+  const runtime = _resolveOthelloBrowserCpuRuntime();
+  if (!runtime || typeof runtime.loadFromUrl !== 'function') return;
+
+  const policyRel = 'data/models/othello/policy-table.json';
+  const valueRel = 'data/models/othello/value-table.json';
+  let policyUrl = policyRel;
+  let valueUrl = valueRel;
+  const loadTimeoutMs = _getCpuModelLoadTimeoutMs();
+  const fetchImpl = (typeof window !== 'undefined' && typeof window.fetch === 'function')
+    ? window.fetch.bind(window)
+    : null;
+
+  if (fetchImpl) {
+    const resolvedPolicy = await _resolveSingleAsset(fetchImpl, policyRel);
+    const resolvedValue = await _resolveSingleAsset(fetchImpl, valueRel);
+    if (!resolvedPolicy || !resolvedValue) {
+      _reportCriticalModelLoadIssue(
+        'othelloTable',
+        'missing othello policy/value table asset; Reversi mode Lv6 falls back to heuristic CPU.',
+        {
+          sourceUrl: resolvedPolicy ? resolvedPolicy.url : '',
+          valueSourceUrl: resolvedValue ? resolvedValue.url : '',
+          triedRoots: _candidateAssetRoots()
+        }
+      );
+      return;
+    }
+    policyUrl = resolvedPolicy.url;
+    valueUrl = resolvedValue.url;
+    _setCpuModelLoadStatus('othelloTable', {
+      loaded: false,
+      valueLoaded: false,
+      sourceUrl: policyUrl,
+      valueSourceUrl: valueUrl,
+      triedRoots: Array.isArray(resolvedPolicy.triedRoots) ? resolvedPolicy.triedRoots.slice() : [],
+      lastError: ''
+    });
+  }
+
+  try {
+    if (typeof runtime.configure === 'function') {
+      runtime.configure({
+        enabled: true,
+        minLevel: 6,
+        sourceUrl: policyUrl,
+        valueSourceUrl: valueUrl
+      });
+    }
+    const policyOk = await _withLoadTimeout(runtime.loadFromUrl(policyUrl), loadTimeoutMs, 'othello policy-table load');
+    const valueOk = typeof runtime.loadValueModelFromUrl === 'function'
+      ? await _withLoadTimeout(runtime.loadValueModelFromUrl(valueUrl), loadTimeoutMs, 'othello value-table load')
+      : false;
+    if (policyOk && valueOk) {
+      const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;
+      _setCpuModelLoadStatus('othelloTable', {
+        loaded: true,
+        valueLoaded: true,
+        sourceUrl: policyUrl,
+        valueSourceUrl: valueUrl,
+        statesCount: status && Number.isFinite(status.statesCount) ? status.statesCount : undefined,
+        valueStatesCount: status && Number.isFinite(status.valueStatesCount) ? status.valueStatesCount : undefined,
+        valueAbstractStatesCount: status && Number.isFinite(status.valueAbstractStatesCount) ? status.valueAbstractStatesCount : undefined,
+        lastError: ''
+      });
+      _debugLog(`[CPU] othello policy/value tables loaded (policy=${policyUrl}, value=${valueUrl})`);
+      return;
+    }
+    const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;
+    _reportCriticalModelLoadIssue('othelloTable', status && status.lastError ? status.lastError : 'runtime returned not loaded', {
+      sourceUrl: policyUrl,
+      valueSourceUrl: valueUrl,
+      valueLoaded: !!valueOk
+    });
+    if (_isDebugEnabled()) console.warn('[CPU] othello policy/value tables not loaded', status && status.lastError ? status.lastError : '');
+  } catch (err: any) {
+    _reportCriticalModelLoadIssue('othelloTable', err && err.message ? err.message : 'load failed', {
+      sourceUrl: policyUrl,
+      valueSourceUrl: valueUrl
+    });
+    if (_isDebugEnabled()) console.warn('[CPU] othello policy/value table loading failed', err);
+  }
+}
+
 if (typeof window !== 'undefined') {
   (window as any).initLvMaxModels = initLvMaxModels;
   (window as any).loadCpuPolicy = loadCpuPolicy;
   (window as any).initPolicyOnnxModel = initPolicyOnnxModel;
   (window as any).initPolicyTableModel = initPolicyTableModel;
+  (window as any).initOthelloPolicyTableModel = initOthelloPolicyTableModel;
 }
 
 const CpuPolicyModule = {
   initLvMaxModels,
   loadCpuPolicy,
   initPolicyOnnxModel,
-  initPolicyTableModel
+  initPolicyTableModel,
+  initOthelloPolicyTableModel
 };
 
 export = CpuPolicyModule;

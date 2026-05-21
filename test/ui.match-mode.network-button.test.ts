@@ -17,6 +17,7 @@ describe('match-mode network button behavior', () => {
   function buildUiRefs() {
     return {
       modeCpuBtn: document.getElementById('modeCpuBtn'),
+      modeOthelloBtn: document.getElementById('modeOthelloBtn'),
       modeNetworkBtn: document.getElementById('modeNetworkBtn'),
       controlPanel: document.getElementById('control-panel'),
       networkPanel: document.getElementById('networkPanel'),
@@ -47,6 +48,7 @@ describe('match-mode network button behavior', () => {
     dom = new JSDOM(
       '<!doctype html><html><body>' +
       '<button id="modeCpuBtn">CPU</button>' +
+      '<button id="modeOthelloBtn">オセロ</button>' +
       '<button id="modeNetworkBtn">ネット対戦</button>' +
       '<button id="autoToggleBtn">AUTO: OFF</button>' +
       '<div id="control-panel"></div>' +
@@ -75,6 +77,23 @@ describe('match-mode network button behavior', () => {
       '<div id="networkStatusText"></div>' +
       '<div id="networkDeckInfo"></div>' +
       '<div id="networkTimerStatus"></div>' +
+      '<div id="deck-white"></div>' +
+      '<div id="deck-black"></div>' +
+      '<div id="hand-white"></div>' +
+      '<div id="hand-black"></div>' +
+      '<div id="card-detail-panel"></div>' +
+      '<div id="discard-display"></div>' +
+      '<div id="effect-live-panel"></div>' +
+      '<button id="deckBuilderOpenBtn"></button>' +
+      '<div id="deckBuilderControlSummary"></div>' +
+      '<button id="gachaOpenBtn"></button>' +
+      '<div class="control-group" id="cpuLevelGroup"><select id="smartBlack"></select><select id="smartWhite"></select></div>' +
+      '<div id="charge-black"></div>' +
+      '<div id="charge-white"></div>' +
+      '<div id="charge-delta-black-increase"></div>' +
+      '<div id="charge-delta-black-decrease"></div>' +
+      '<div id="charge-delta-white-increase"></div>' +
+      '<div id="charge-delta-white-decrease"></div>' +
       '</body></html>',
       { url: 'http://localhost/' }
     );
@@ -156,6 +175,19 @@ describe('match-mode network button behavior', () => {
 
   test('初期化直後に部屋盤面情報が未確定でも 8x8 表示へ安全にフォールバックする', () => {
     expect(document.getElementById('networkDeckInfo').textContent).toBe('作成時に送るデッキ: デフォルトデッキ / 作成時に送る盤面: 8x8');
+  });
+
+  test('オセロモードはカード系UIを隠しCPUレベル選択を残す', async () => {
+    document.getElementById('modeOthelloBtn').click();
+    await Promise.resolve();
+
+    expect(window.MatchMode.getCurrentMode()).toBe('othello');
+    expect(document.body.classList.contains('othello-mode-active')).toBe(true);
+    expect(window.DEBUG_HUMAN_VS_HUMAN).toBe(false);
+    expect(document.getElementById('hand-black').hidden).toBe(true);
+    expect(document.getElementById('card-detail-panel').hidden).toBe(true);
+    expect(document.getElementById('discard-display').hidden).toBe(true);
+    expect(document.getElementById('cpuLevelGroup').hidden).toBe(false);
   });
 
   test('ネット対戦モーダルの盤面サイズ変更は pending 表示と部屋作成 payload に反映される', async () => {

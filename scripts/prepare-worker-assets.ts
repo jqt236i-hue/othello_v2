@@ -396,7 +396,7 @@ function prepareWorkerAssets(options: any) {
 
 function refreshGeneratedCatalogArtifacts(settings: any) {
     const rootDir = settings && settings.rootDir ? settings.rootDir : ROOT;
-    buildRegistry();
+    buildRegistry({ rootDir });
     const assetsDir = path.join(rootDir, 'assets');
     if (fs.existsSync(assetsDir)) {
         generateManifest({ root: rootDir });

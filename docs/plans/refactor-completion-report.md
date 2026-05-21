@@ -19,7 +19,7 @@
 **新規ファイル**:
 - `shared/player-encoding.js` - プレイヤー色の正規化・変換
 - `shared/board-utils.js` - 盤面操作ユーティリティ
-- `shared/othello-core.js` - オセロ基本ロジック
+- `shared/othello-core.js` - リバーシ基本ロジック
 - `shared/charge-utils.js` - チャージ値正規化
 - `shared/types.d.js` - JSDoc型定義
 

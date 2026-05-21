@@ -18,7 +18,7 @@ from torch import nn
 
 
 class BatchGameState:
-    """Simple batched game state for Othello-like games."""
+    """Simple batched game state for Reversi-like games."""
 
     def __init__(self, batch_size: int, board_size: int = 8) -> None:
         self.batch_size = batch_size

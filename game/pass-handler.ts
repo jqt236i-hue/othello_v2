@@ -248,6 +248,15 @@ function isHumanVsHumanModeEnabled() {
     return debugHvH || matchMode === 'network';
 }
 
+function isOthelloModeEnabled() {
+    try {
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.isOthelloMode === 'function') {
+            return OwnerHelpersModule.isOthelloMode(typeof globalThis !== 'undefined' ? globalThis : null);
+        }
+    } catch (e) { /* ignore */ }
+    return String(getCurrentMatchModeSafe() || '').trim().toLowerCase() === 'othello';
+}
+
 function isNetworkModeEnabled() {
     const matchMode = getCurrentMatchModeSafe();
     if (isExplicitNetworkMatchMode()) return true;
@@ -307,6 +316,7 @@ function publishPassSnapshot(playerKey: string, actionOverride?: any) {
 }
 
 function hasUsableCardFor(playerKey: string) {
+    if (isOthelloModeEnabled()) return false;
     try {
         if (typeof CardLogic !== 'undefined' && typeof CardLogic.hasUsableCard === 'function') {
             return CardLogic.hasUsableCard(cardState, gameState, playerKey);

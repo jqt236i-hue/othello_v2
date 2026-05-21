@@ -2215,6 +2215,9 @@ function startLocalMatchServerFromCli() {
 
 export = {
     createLocalMatchServer,
+    applyCommandPublishToSnapshot,
+    makeInitialSnapshot,
+    buildInitialDeckSnapshotOptions,
     resetRoomsForTests,
     patchRoomSnapshotForTests,
     startLocalMatchServerFromCli

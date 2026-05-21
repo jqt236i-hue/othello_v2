@@ -3,7 +3,7 @@ import { pathToFileURL } from 'url';
 import { spawnSync } from 'child_process';
 import * as Core from '../game/logic/core.js';
 import * as MatchAuthority from '../utils/match-authority.js';
-import * as LocalMatchRuntime from '../game/local-match-runtime';
+import * as LocalMatchRuntime from '../scripts/local-match-runtime';
 
 const workerModulePath = pathToFileURL(path.resolve(__dirname, '../workers/match-worker.mjs')).href;
 const WORKER_RESULT_MARKER = '__WORKER_CARD_PATTERN_PARITY__';

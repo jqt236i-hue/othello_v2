@@ -7,6 +7,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch",
     "build:ts": "tsc -p tsconfig.build.json",
+    "build:browser": "npm run build:ts && node dist/scripts/build-module-registry.js",
     "serve": "node scripts/serve-with-fallback.js",
     "match:server": "npm run build:ts && node scripts/local-match-server.js",
     "match:server:net": "npm run build:ts && node scripts/local-match-server.js --host 0.0.0.0 --port 8787",

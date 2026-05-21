@@ -1,6 +1,6 @@
 /**
  * @file mcts-two-layer.ts
- * @description Two-layer MCTS (Duelyst-style IMC) for Card Othello.
+ * @description Two-layer MCTS (Duelyst-style IMC) for Card Reversi.
  *
  * Layer 1: Card selection (NO_CARD or use a card)
  * Layer 2: Placement search (standard MCTS after card effect)

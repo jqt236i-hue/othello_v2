@@ -597,7 +597,7 @@ describe('worker pendingEffectId contract', () => {
   });
 
   test.each([
-    ['missing pendingEffectId', { pendingSelectionState: { pendingEffectId: undefined } }],
+    ['missing pendingEffectId', { pendingSelectionState: { pendingEffectId: null } }],
     ['different pending card id', { pendingSelectionState: { cardId: 'swap_01' } }],
     ['different pending seat', { pendingSeat: 'white', publishSeat: 'black' }]
   ])('rejects %s before authoritative pending mutation', (_label, config) => {

@@ -1112,8 +1112,11 @@ const MODE_OTHELLO = 'othello';
                 'deck-black',
                 'hand-white',
                 'hand-black',
+                'card-detail-panel',
+                'discard-display',
                 'effect-live-panel',
                 'deckBuilderOpenBtn',
+                'deckBuilderControlSummary',
                 'gachaOpenBtn',
                 'charge-black',
                 'charge-white',
@@ -1242,7 +1245,7 @@ const MODE_OTHELLO = 'othello';
         if (currentMode === MODE_NETWORK) {
             writeNetworkStatus('ネット対戦: 部屋作成か部屋参加を選んでください', false);
         } else if (currentMode === MODE_OTHELLO) {
-            writeNetworkStatus('オセロモード', false);
+            writeNetworkStatus('リバーシモード', false);
         } else {
             writeNetworkStatus('CPU対戦モード', false);
             setNetworkOverlayVisible(false);
@@ -1261,7 +1264,7 @@ const MODE_OTHELLO = 'othello';
 
         if (!opts.silentLog && typeof addLog === 'function') {
             if (currentMode === MODE_CPU) addLog('モード: CPU対戦');
-            if (currentMode === MODE_OTHELLO) addLog('モード: オセロ');
+            if (currentMode === MODE_OTHELLO) addLog('モード: リバーシ');
             if (currentMode === MODE_NETWORK) addLog('モード: ネット対戦');
         }
     }
@@ -1661,5 +1664,6 @@ export = {
         setMode,
         getCurrentMode,
         isLocalOrNetworkMode,
-        isNetworkModeActive
+        isNetworkModeActive,
+        isOthelloModeActive
     };

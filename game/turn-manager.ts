@@ -521,6 +521,21 @@ function isNetworkModeForTurnManager() {
     return false;
 }
 
+function isOthelloModeForTurnManager() {
+    try {
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.isOthelloMode === 'function') {
+            return OwnerHelpersModule.isOthelloMode(typeof globalThis !== 'undefined' ? globalThis : null);
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
+            ? (globalThis as any).getCurrentMatchMode()
+            : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
+        return matchMode === 'othello';
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
 function resolveNetworkLocalPlayerKey() {
     try {
         const nmClient = getNetworkMatchClientForTurnManager();
@@ -844,6 +859,9 @@ function resetGame(options?: any) {
             cardInitOptions = {};
         }
     }
+    if (isOthelloModeForTurnManager()) {
+        cardInitOptions = Object.assign({}, cardInitOptions, { plainOthello: true });
+    }
 
     let boardConfig = (cardInitOptions && typeof cardInitOptions === 'object' && cardInitOptions.boardConfig)
         ? cardInitOptions.boardConfig
@@ -989,7 +1007,10 @@ async function onTurnStart(player: number) {
     // so that the *pipeline* (not UI) is the single writer of rule state.
     const _startEvents: any[] = [];
     let turnStartPlaybackEvents = [];
-    if (typeof TurnPipelinePhases.applyTurnStartPhase === 'function') {  // TurnPipelinePhases imported directly
+    const othelloMode = isOthelloModeForTurnManager();
+    if (othelloMode) {
+        _startEvents.push({ type: 'turn_start', player: playerKey });
+    } else if (typeof TurnPipelinePhases.applyTurnStartPhase === 'function') {  // TurnPipelinePhases imported directly
         try {
             if (!Core) {
                 console.error('[CRITICAL][onTurnStart] Core is undefined; TurnPipelinePhases.applyTurnStartPhase may fail');
@@ -1082,20 +1103,22 @@ async function onTurnStart(player: number) {
         requestUIRender();
     }
     // processBombs etc. are accessed via imported modules
-    if (typeof BombsModule.processBombs === 'function') {
-        await BombsModule.processBombs(_startEvents);
-    }
-    if (typeof UDGModule.processUltimateDestroyGodsAtTurnStart === 'function') {
-        await UDGModule.processUltimateDestroyGodsAtTurnStart(player, null, _startEvents);
-    }
-    if (typeof DragonsModule.processUltimateReverseDragonsAtTurnStart === 'function') {
-        await DragonsModule.processUltimateReverseDragonsAtTurnStart(player, _startEvents);
-    }
-    if (typeof BreedingModule.processBreedingEffectsAtTurnStart === 'function') {
-        await BreedingModule.processBreedingEffectsAtTurnStart(player, _startEvents);
-    }
-    if (typeof HyperactiveModule.processHyperactiveMovesAtTurnStart === 'function') {
-        await HyperactiveModule.processHyperactiveMovesAtTurnStart(player, null, _startEvents);
+    if (!othelloMode) {
+        if (typeof BombsModule.processBombs === 'function') {
+            await BombsModule.processBombs(_startEvents);
+        }
+        if (typeof UDGModule.processUltimateDestroyGodsAtTurnStart === 'function') {
+            await UDGModule.processUltimateDestroyGodsAtTurnStart(player, null, _startEvents);
+        }
+        if (typeof DragonsModule.processUltimateReverseDragonsAtTurnStart === 'function') {
+            await DragonsModule.processUltimateReverseDragonsAtTurnStart(player, _startEvents);
+        }
+        if (typeof BreedingModule.processBreedingEffectsAtTurnStart === 'function') {
+            await BreedingModule.processBreedingEffectsAtTurnStart(player, _startEvents);
+        }
+        if (typeof HyperactiveModule.processHyperactiveMovesAtTurnStart === 'function') {
+            await HyperactiveModule.processHyperactiveMovesAtTurnStart(player, null, _startEvents);
+        }
     }
 
     // 5. Update UI — queue a STATE_UPDATED presentation event; UI should consume and perform actual emits/renders

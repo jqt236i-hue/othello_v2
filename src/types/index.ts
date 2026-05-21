@@ -1,5 +1,5 @@
 /**
- * Central type exports for the Card Othello game
+ * Central type exports for the Card Reversi game
  */
 
 export * from './player';

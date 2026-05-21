@@ -72,7 +72,10 @@ function createCardState(prng: PRNG | null, options: any, context: Context): any
     const ensureCardCopyState = requireContextFunction(context, 'ensureCardCopyState');
 
     const boardConfig = resolveCardBoardConfig(options && options.boardConfig);
-    const initialDeckCardIdsByPlayer = resolveInitialDeckCardIdsByPlayer(options, p);
+    const plainOthello = !!(options && options.plainOthello);
+    const initialDeckCardIdsByPlayer = plainOthello
+        ? { black: [], white: [] }
+        : resolveInitialDeckCardIdsByPlayer(options, p);
 
     const buildDeck = (playerKey: string) => {
         const deck = Array.isArray(initialDeckCardIdsByPlayer[playerKey])
@@ -84,7 +87,7 @@ function createCardState(prng: PRNG | null, options: any, context: Context): any
 
     const blackDeck = buildDeck('black');
     const whiteDeck = buildDeck('white');
-    const boardBonusByCell = buildInitialBoardBonusMap(p, boardConfig);
+    const boardBonusByCell = plainOthello ? {} : buildInitialBoardBonusMap(p, boardConfig);
     const stoneIdMap = createStoneIdBoard(boardConfig);
     const openingPlacements = getOpeningPlacementsForState(boardConfig);
     openingPlacements.forEach((stone: any, index: number) => {

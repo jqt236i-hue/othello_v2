@@ -126,9 +126,16 @@ function appendRegisteredModuleWithJsAlias(lines: string[], moduleKey: string, c
     }
 }
 
-function buildRegistry(): void {
+function buildRegistry(options?: any): void {
+    const opts = (options && typeof options === 'object') ? options : {};
+    const rootDir = opts.rootDir ? path.resolve(String(opts.rootDir)) : ROOT;
+    const distDir = opts.distDir ? path.resolve(String(opts.distDir)) : path.join(rootDir, 'dist');
+    const outFile = opts.outFile ? path.resolve(String(opts.outFile)) : path.join(rootDir, 'public', 'module-registry.js');
+    if (!fs.existsSync(distDir)) {
+        return;
+    }
     const jsFiles: string[] = [];
-    walkDir(DIST, DIST, jsFiles);
+    walkDir(distDir, distDir, jsFiles);
 
     const lines: string[] = [
         '// Auto-generated module registry. Do not edit.',
@@ -147,7 +154,7 @@ function buildRegistry(): void {
             continue;
         }
 
-        const fullPath = path.join(DIST, rel);
+        const fullPath = path.join(distDir, rel);
         let content: string;
         try {
             content = fs.readFileSync(fullPath, 'utf8');
@@ -169,7 +176,7 @@ function buildRegistry(): void {
     }
 
     for (const extra of EXTRA_BROWSER_MODULES) {
-        const fullPath = path.join(ROOT, extra.source);
+        const fullPath = path.join(rootDir, extra.source);
         let content: string;
         try {
             content = fs.readFileSync(fullPath, 'utf8');
@@ -186,9 +193,10 @@ function buildRegistry(): void {
     lines.push('})();');
     lines.push('');
 
-    fs.writeFileSync(OUT, lines.join('\n'), 'utf8');
+    fs.mkdirSync(path.dirname(outFile), { recursive: true });
+    fs.writeFileSync(outFile, lines.join('\n'), 'utf8');
 
-    console.log('[module-registry] wrote ' + jsFiles.length + ' modules to ' + path.relative(ROOT, OUT));
+    console.log('[module-registry] wrote ' + jsFiles.length + ' modules to ' + path.relative(rootDir, outFile));
     if (skipped.length > 0) {
         console.log('[module-registry] skipped ' + skipped.length + ' files:');
         skipped.forEach(s => {

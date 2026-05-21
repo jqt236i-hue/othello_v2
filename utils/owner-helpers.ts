@@ -265,6 +265,10 @@
         return getCurrentMatchMode(rootRef) === 'network';
     }
 
+    function isOthelloMode(rootRef) {
+        return getCurrentMatchMode(rootRef) === 'othello';
+    }
+
     function isValidOwner(owner) {
         return owner === 1 || owner === -1 || owner === '1' || owner === '-1' || owner === 'black' || owner === 'white';
     }
@@ -287,7 +291,8 @@
         getFateWillControllerForTurnOwner: getFateWillControllerForTurnOwner,
         getFateWillControlledTurnOwnerForPlayer: getFateWillControlledTurnOwnerForPlayer,
         getCurrentMatchMode: getCurrentMatchMode,
-        isNetworkMode: isNetworkMode
+        isNetworkMode: isNetworkMode,
+        isOthelloMode: isOthelloMode
     };
 
     if (typeof module !== 'undefined' && module.exports) {

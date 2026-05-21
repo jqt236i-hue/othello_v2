@@ -1,4 +1,4 @@
-# カードオセロ / Copilot instructions
+# カードリバーシ / Copilot instructions
 
 最終更新: 2026-04-04
 

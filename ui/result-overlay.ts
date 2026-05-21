@@ -275,28 +275,28 @@ function resolveCurrentMatchMode() {
     try {
         if (ResultOverlayOwnerHelpersModule && typeof ResultOverlayOwnerHelpersModule.getCurrentMatchMode === 'function') {
             const mode = ResultOverlayOwnerHelpersModule.getCurrentMatchMode(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : null));
-            if (mode === 'cpu' || mode === 'network') return mode;
+            if (mode === 'cpu' || mode === 'network' || mode === 'othello') return mode;
         }
     } catch (e: any) { /* ignore */ }
 
     try {
         if (typeof window !== 'undefined') {
             const mode = window.MATCH_MODE || window.__MATCH_MODE;
-            if (mode === 'cpu' || mode === 'network') return mode;
+            if (mode === 'cpu' || mode === 'network' || mode === 'othello') return mode;
         }
     } catch (e: any) { /* ignore */ }
 
     try {
         if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
             const mode = (globalThis as any).getCurrentMatchMode();
-            if (mode === 'cpu' || mode === 'network') return mode;
+            if (mode === 'cpu' || mode === 'network' || mode === 'othello') return mode;
         }
     } catch (e: any) { /* ignore */ }
 
     try {
         if (typeof globalThis !== 'undefined') {
             const mode = (globalThis as any).MATCH_MODE || (globalThis as any).__MATCH_MODE;
-            if (mode === 'cpu' || mode === 'network') return mode;
+            if (mode === 'cpu' || mode === 'network' || mode === 'othello') return mode;
         }
     } catch (e: any) { /* ignore */ }
 
@@ -800,7 +800,8 @@ function syncResultPresentationFromSnapshot(options: any) {
     return false;
 }
 
-function createDetailStatsSection(counts: any, chargeTotals: any, cardUseTotals: any, flipTotals: any, cornerCaptureTotals: any) {
+function createDetailStatsSection(counts: any, chargeTotals: any, cardUseTotals: any, flipTotals: any, cornerCaptureTotals: any, options?: any) {
+    const othelloMode = !!(options && options.othelloMode);
     const section = document.createElement('div');
     section.className = 'result-detail-section';
 
@@ -814,8 +815,10 @@ function createDetailStatsSection(counts: any, chargeTotals: any, cardUseTotals:
     stats.className = 'result-stats';
     stats.hidden = true;
     stats.appendChild(createStatRow('石枚数', counts.black, counts.white));
-    stats.appendChild(createStatRow('獲得布石', chargeTotals.black, chargeTotals.white));
-    stats.appendChild(createStatRow('カード使用', cardUseTotals.black, cardUseTotals.white));
+    if (!othelloMode) {
+        stats.appendChild(createStatRow('獲得布石', chargeTotals.black, chargeTotals.white));
+        stats.appendChild(createStatRow('カード使用', cardUseTotals.black, cardUseTotals.white));
+    }
     stats.appendChild(createStatRow('総反転枚数', flipTotals.black, flipTotals.white));
     stats.appendChild(createStatRow('角取得数', cornerCaptureTotals.black, cornerCaptureTotals.white));
 
@@ -884,7 +887,10 @@ function showResultOverlay() {
     const localOutcomeKey = resultView.localOutcomeKey;
     const title = resultView.title;
     const statusClass = resultView.statusClass;
-    const observationStoneSummary = resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey);
+    const othelloMode = resolveCurrentMatchMode() === 'othello';
+    const observationStoneSummary = othelloMode
+        ? null
+        : resolveObservationStoneRewardSummary(counts, viewerKey, localOutcomeKey);
 
     const scoreSummary = computeScoreSummaryForViewer({
         counts,
@@ -894,8 +900,8 @@ function showResultOverlay() {
         flipTotals,
         cornerCaptureTotals
     });
-    const leaderboardState = updateCpuLeaderboard(scoreSummary, viewerKey);
-    submitSharedLeaderboardScore(scoreSummary, viewerKey);
+    const leaderboardState = othelloMode ? null : updateCpuLeaderboard(scoreSummary, viewerKey);
+    if (!othelloMode) submitSharedLeaderboardScore(scoreSummary, viewerKey);
 
     removeExistingResultOverlay();
 
@@ -914,40 +920,44 @@ function showResultOverlay() {
     const discCountsLine = createResultDiscCountsLine(counts);
     panel.appendChild(discCountsLine);
 
-    const totalScore = document.createElement('div');
-    totalScore.className = 'result-total-score';
-    const totalLabel = document.createElement('div');
-    totalLabel.className = 'result-total-score-label';
-    totalLabel.textContent = '最終スコア';
-    const totalValue = document.createElement('div');
-    totalValue.className = 'result-total-score-value';
-    totalValue.textContent = `${scoreSummary.total}`;
-    totalScore.appendChild(totalLabel);
-    totalScore.appendChild(totalValue);
-    panel.appendChild(totalScore);
+    if (!othelloMode) {
+        const totalScore = document.createElement('div');
+        totalScore.className = 'result-total-score';
+        const totalLabel = document.createElement('div');
+        totalLabel.className = 'result-total-score-label';
+        totalLabel.textContent = '最終スコア';
+        const totalValue = document.createElement('div');
+        totalValue.className = 'result-total-score-value';
+        totalValue.textContent = `${scoreSummary.total}`;
+        totalScore.appendChild(totalLabel);
+        totalScore.appendChild(totalValue);
+        panel.appendChild(totalScore);
 
-    const scoreMeta = createScoreMetaLine(scoreSummary, leaderboardState);
-    panel.appendChild(scoreMeta);
+        const scoreMeta = createScoreMetaLine(scoreSummary, leaderboardState);
+        panel.appendChild(scoreMeta);
+    }
 
     const observationStoneLine = createObservationStoneLine(observationStoneSummary);
     if (observationStoneLine) {
         panel.appendChild(observationStoneLine);
     }
 
-    const breakdown = document.createElement('div');
-    breakdown.className = 'result-score-breakdown';
-    breakdown.appendChild(createScoreSummaryRow('勝敗ボーナス', scoreSummary.baseBonus));
-    breakdown.appendChild(createScoreSummaryRow('速攻ボーナス', scoreSummary.speedBonus));
-    breakdown.appendChild(createScoreSummaryRow('黒一色ボーナス', scoreSummary.monoBonus));
-    breakdown.appendChild(createScoreSummaryRow('補助ボーナス', scoreSummary.supportBonus));
-    panel.appendChild(breakdown);
+    if (!othelloMode) {
+        const breakdown = document.createElement('div');
+        breakdown.className = 'result-score-breakdown';
+        breakdown.appendChild(createScoreSummaryRow('勝敗ボーナス', scoreSummary.baseBonus));
+        breakdown.appendChild(createScoreSummaryRow('速攻ボーナス', scoreSummary.speedBonus));
+        breakdown.appendChild(createScoreSummaryRow('黒一色ボーナス', scoreSummary.monoBonus));
+        breakdown.appendChild(createScoreSummaryRow('補助ボーナス', scoreSummary.supportBonus));
+        panel.appendChild(breakdown);
 
-    const supportDetail = document.createElement('div');
-    supportDetail.className = 'result-support-breakdown';
-    supportDetail.textContent = `補助内訳: 反転${scoreSummary.supportBreakdown.flipBonus} / 自石${scoreSummary.supportBreakdown.ownDiscBonus}`;
-    panel.appendChild(supportDetail);
+        const supportDetail = document.createElement('div');
+        supportDetail.className = 'result-support-breakdown';
+        supportDetail.textContent = `補助内訳: 反転${scoreSummary.supportBreakdown.flipBonus} / 自石${scoreSummary.supportBreakdown.ownDiscBonus}`;
+        panel.appendChild(supportDetail);
+    }
 
-    const detailSection = createDetailStatsSection(counts, chargeTotals, cardUseTotals, flipTotals, cornerCaptureTotals);
+    const detailSection = createDetailStatsSection(counts, chargeTotals, cardUseTotals, flipTotals, cornerCaptureTotals, { othelloMode });
     panel.appendChild(detailSection);
 
     const dialogContainer = createMonsterDialogue(counts, localOutcomeKey);
