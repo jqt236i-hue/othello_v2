@@ -69,7 +69,7 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
         cornerWeight: 4
     };
 
-    const config = Object.assign({}, DEFAULT_CONFIG);
+    const config: any = Object.assign({}, DEFAULT_CONFIG);
     const perSpeakerState = Object.create(null);
     const CPU_TONE_PREFIXES = Object.freeze({
         goblin: Object.freeze({
@@ -264,8 +264,11 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
 
     function readQueryFlag(name: any) {
         try {
-            if (typeof location === 'undefined' || !location.search) return null;
-            const params = new URLSearchParams(location.search);
+            const search = typeof config.readQuerySearch === 'function'
+                ? String(config.readQuerySearch() || '')
+                : (typeof location !== 'undefined' && location.search ? location.search : '');
+            if (!search) return null;
+            const params = new URLSearchParams(search);
             if (!params.has(name)) return null;
             return toBool(params.get(name));
         } catch (e) {
@@ -274,6 +277,12 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
     }
 
     function isEnabled() {
+        try {
+            if (typeof config.readCpuTalkEnabled === 'function') {
+                const forced = toBool(config.readCpuTalkEnabled());
+                if (forced !== null) return forced;
+            }
+        } catch (e) { /* ignore */ }
         try {
             if (typeof globalThis !== 'undefined') {
                 const forced = toBool((globalThis as any).CPU_TALK_ENABLED); // @compat - test flag

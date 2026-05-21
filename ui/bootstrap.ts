@@ -1036,6 +1036,29 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
                         } catch (e: any) { /* ignore */ }
                         return false;
+                    },
+                    readDebugFlag: (name: any) => {
+                        try {
+                            if (typeof name !== 'string' || typeof globalThis === 'undefined') return false;
+                            return (globalThis as any)[name] === true;
+                        } catch (e: any) { /* ignore */ }
+                        return false;
+                    },
+                    readQuerySearch: () => {
+                        try {
+                            return (typeof location !== 'undefined' && location && typeof location.search === 'string')
+                                ? location.search
+                                : '';
+                        } catch (e: any) { /* ignore */ }
+                        return '';
+                    },
+                    readCpuSmartness: () => {
+                        const readLevel = (id: string) => {
+                            const el = (typeof document !== 'undefined') ? document.getElementById(id) as HTMLSelectElement | null : null;
+                            const n = Number(el && el.value);
+                            return Number.isFinite(n) ? Math.max(1, Math.min(6, Math.floor(n))) : 1;
+                        };
+                        return { black: readLevel('smartBlack'), white: readLevel('smartWhite') };
                     }
                 });
             }
@@ -1061,6 +1084,27 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         // Commentary broker initialization
         try {
             const commentaryBroker = require('./commentary-broker');
+            try {
+                const cpuCommentaryRuntime = require('../game/ai/cpu-commentary-runtime');
+                if (cpuCommentaryRuntime && typeof cpuCommentaryRuntime.setConfig === 'function') {
+                    cpuCommentaryRuntime.setConfig({
+                        readCpuTalkEnabled: () => {
+                            try {
+                                return typeof globalThis !== 'undefined' ? (globalThis as any).CPU_TALK_ENABLED : undefined;
+                            } catch (e: any) { /* ignore */ }
+                            return undefined;
+                        },
+                        readQuerySearch: () => {
+                            try {
+                                return (typeof location !== 'undefined' && location && typeof location.search === 'string')
+                                    ? location.search
+                                    : '';
+                            } catch (e: any) { /* ignore */ }
+                            return '';
+                        }
+                    });
+                }
+            } catch (e: any) { /* ignore */ }
             if (commentaryBroker && typeof commentaryBroker.initBroker === 'function') {
                 commentaryBroker.initBroker({
                     root: (typeof globalThis !== 'undefined') ? globalThis : null,

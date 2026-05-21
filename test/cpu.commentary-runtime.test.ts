@@ -99,6 +99,27 @@ describe('cpu commentary runtime', () => {
     expect(text).toBeNull();
   });
 
+  test('can be enabled by injected query reader without global location', async () => {
+    runtime.setConfig({
+      readQuerySearch: () => '?cpuTalk=1'
+    });
+
+    const text = await runtime.requestCommentary({ eventType: 'turn_start' });
+
+    expect(typeof text).toBe('string');
+  });
+
+  test('injected CPU talk flag takes precedence over legacy global flag', async () => {
+    global.CPU_TALK_ENABLED = true;
+    runtime.setConfig({
+      readCpuTalkEnabled: () => false
+    });
+
+    const text = await runtime.requestCommentary({ eventType: 'turn_start' });
+
+    expect(text).toBeNull();
+  });
+
   test('returns fixed phrase when enabled', async () => {
     global.CPU_TALK_ENABLED = true;
 

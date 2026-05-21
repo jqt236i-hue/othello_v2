@@ -58,12 +58,16 @@ function isCpuDebugEnabled(): any {
         if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) return true;
     } catch (e) { /* ignore */ }
     try {
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readDebugFlag === 'function') {
+            const flag = cpuDecisionRuntime.readDebugFlag('DEBUG_CPU_LOG');
+            if (flag === true) return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
         if (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_CPU_LOG === true) return true;
     } catch (e) { /* ignore */ }
     try {
-        const qs = (typeof location !== 'undefined' && location && typeof location.search === 'string')
-            ? location.search
-            : '';
+        const qs = readCpuDecisionQuerySearch();
         if (/[?&]debug=(?:1|true)\b/i.test(qs)) return true;
     } catch (e) { /* ignore */ }
     return false;
@@ -135,6 +139,15 @@ function readGlobalValue(globalKey: string): any {
 }
 
 function resolveCpuSmartnessLevel(playerKey: any): number {
+    try {
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readCpuSmartness === 'function') {
+            const smartness = cpuDecisionRuntime.readCpuSmartness();
+            const value = smartness && smartness[playerKey];
+            if (Number.isFinite(Number(value))) {
+                return Math.max(1, Math.min(6, Math.floor(Number(value))));
+            }
+        }
+    } catch (e) { /* ignore and fall back to legacy globals */ }
     const smartness = readGlobalValue('cpuSmartness') || (typeof cpuSmartness !== 'undefined' ? cpuSmartness : null);
     if (smartness && Number.isFinite(smartness[playerKey])) {
         return Number(smartness[playerKey]);
@@ -1036,6 +1049,22 @@ function setCpuExecutionMode(mode: any): any { cpuExecutionMode = mode === 'head
 let cpuDecisionRuntime: any = null;
 function setCpuDecisionRuntime(runtime: any): any {
     cpuDecisionRuntime = (runtime && typeof runtime === 'object') ? runtime : null;
+}
+
+function readCpuDecisionQuerySearch(): string {
+    try {
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readQuerySearch === 'function') {
+            const qs = cpuDecisionRuntime.readQuerySearch();
+            return typeof qs === 'string' ? qs : String(qs || '');
+        }
+    } catch (e) { /* ignore and fall back to legacy location */ }
+    try {
+        return (typeof location !== 'undefined' && location && typeof location.search === 'string')
+            ? location.search
+            : '';
+    } catch (e) {
+        return '';
+    }
 }
 
 let cpuTimerService: any = null;
@@ -3042,11 +3071,11 @@ function isCardChoiceAllowedByHighConfidence(playerKey: any, level: any, legalMo
 function _isCpuTrapOnlyModeEnabled(playerKey: any): any {
     try {
         const root = (typeof globalThis !== 'undefined') ? globalThis : null;
-        if (!root) return false;
-        const qs = String((root.location && root.location.search) || '');
+        const qs = readCpuDecisionQuerySearch();
         const debugEnabled =
             /[?&]debug=(1|true)\b/i.test(qs) ||
-            (root as any).DEBUG_UNLIMITED_USAGE === true;
+            (cpuDecisionRuntime && typeof cpuDecisionRuntime.readDebugFlag === 'function' && cpuDecisionRuntime.readDebugFlag('DEBUG_UNLIMITED_USAGE') === true) ||
+            (root && (root as any).DEBUG_UNLIMITED_USAGE === true);
         if (!debugEnabled) return false;
         const enabled = /[?&]cpuTrapOnly=(1|true)\b/i.test(qs);
         if (!enabled) return false;

@@ -53,6 +53,9 @@ describe('UI bootstrap early CPU registration', () => {
     expect(setCpuDecisionRuntime.mock.calls[0][0].processCpuTurn).toBe(mockCpu.processCpuTurn);
     expect(typeof setCpuDecisionRuntime.mock.calls[0][0].readMatchMode).toBe('function');
     expect(typeof setCpuDecisionRuntime.mock.calls[0][0].readHumanVsHumanMode).toBe('function');
+    expect(typeof setCpuDecisionRuntime.mock.calls[0][0].readDebugFlag).toBe('function');
+    expect(typeof setCpuDecisionRuntime.mock.calls[0][0].readQuerySearch).toBe('function');
+    expect(typeof setCpuDecisionRuntime.mock.calls[0][0].readCpuSmartness).toBe('function');
     expect(setTurnPipelinePhasesRuntime).toHaveBeenCalledTimes(1);
     expect(typeof setTurnPipelinePhasesRuntime.mock.calls[0][0].readMatchMode).toBe('function');
     // Also mirrors to globalThis for legacy fallback
