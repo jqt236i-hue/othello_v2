@@ -22,6 +22,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const DestroyOutcomeContract = (() => { try { return _require('../../shared/destroy-outcome-contract'); } catch (e) { return null; } })();
     const SpecialStoneRegistry = (() => { try { return _require('../../shared/special-stone-registry'); } catch (e) { return null; } })();
     const StoneStatusSnapshot = (() => { try { return _require('../../shared/stone-status-snapshot'); } catch (e) { return null; } })();
+    const PresentationEffectProfiles = _require('../../shared/presentation-effect-profiles');
 
     const REGEN_CAUSE = 'REGEN';
     const REGEN_TRIGGER_REASON = 'regen_triggered';
@@ -73,38 +74,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const SOUND_EVENT_TYPE = 'sound_effect';
     const CARD_EFFECT_FLIP_SOUND_KEY = 'card_effect_flip';
     const ULTIMATE_ANCHOR_MOVE_SOUND_KEY = 'ultimate_anchor_move';
-    const STONE_SALVATION_GOD_CAUSE = 'STONE_SALVATION_GOD';
-    const STONE_SALVATION_GOD_REVIVE_REASON = 'stone_salvation_god_revive';
-    const SPECIAL_DESTROY_TARGET_PROFILES = Object.freeze({
-        sniperShot: Object.freeze({
-            causes: Object.freeze(['SNIPER_WILL']),
-            reasonPrefix: 'sniper_shot'
-        }),
-        lightningDestroyed: Object.freeze({
-            causes: Object.freeze(['LIGHTNING_WILL']),
-            reasonPrefix: 'lightning_destroyed'
-        }),
-        destroyDragonBreath: Object.freeze({
-            causes: Object.freeze(['DESTROY_DRAGON_WILL', 'DESTROY_DRAGON']),
-            reasonPrefix: 'destroy_dragon_breath'
-        }),
-        udgDestroyed: Object.freeze({
-            causes: Object.freeze(['ULTIMATE_DESTROY_GOD']),
-            reasonPrefix: 'udg_destroyed'
-        }),
-        robotVacuumSuck: Object.freeze({
-            causes: Object.freeze(['ROBOT_VACUUM']),
-            reasonPrefix: 'robot_vacuum_suck'
-        }),
-        gluttonousEat: Object.freeze({
-            causes: Object.freeze(['GLUTTONOUS_WILL']),
-            reasonPrefix: 'gluttonous_eat'
-        }),
-        willHunterKingSlash: Object.freeze({
-            causes: Object.freeze(['WILL_HUNTER_KING']),
-            reasonPrefix: 'will_hunter_king_slash'
-        })
-    });
+    const STONE_SALVATION_GOD_CAUSE = PresentationEffectProfiles.STONE_SALVATION_GOD_CAUSE;
+    const STONE_SALVATION_GOD_REVIVE_REASON = PresentationEffectProfiles.STONE_SALVATION_GOD_REVIVE_REASON;
+    const SPECIAL_DESTROY_TARGET_PROFILES = PresentationEffectProfiles.SPECIAL_DESTROY_TARGET_PROFILES;
     const CARD_EFFECT_FLIP_RAW_EVENT_TYPES = new Set([
         'dragon_converted_start',
         'dragon_converted_immediate',
@@ -774,19 +746,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function _matchesSpawnCauseAndReason(subject: any, cause: any, reasonPrefix: any) {
-        const expectedCause = String(cause || '').toUpperCase();
-        const subjectCause = String(subject && subject.cause ? subject.cause : '').toUpperCase();
-        return (!expectedCause || subjectCause === expectedCause) &&
-            String(subject && subject.reason ? subject.reason : '').toLowerCase().indexOf(String(reasonPrefix || '').toLowerCase()) === 0;
+        return PresentationEffectProfiles.matchesCauseReasonProfile(subject, { cause, reasonPrefix });
     }
 
     function _isCardEffectSpawnEventLike(ev: any, profile: any) {
-        if (!profile) return false;
-        const eventIntent = ev && ev.meta ? String(ev.meta.spawnIntent || '').toLowerCase() : '';
-        if (profile.spawnIntent && eventIntent && eventIntent !== String(profile.spawnIntent).toLowerCase()) {
-            return false;
-        }
-        return _matchesSpawnCauseAndReason(ev, profile.cause, profile.reasonPrefix);
+        return PresentationEffectProfiles.isSpawnEventLike(ev, profile);
     }
 
     function _isSeedSproutEventLike(ev: any) {
@@ -2157,17 +2121,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function _matchesCauseReasonProfile(subject: any, profile: any) {
-        if (!profile) return false;
-        const subjectCause = String(subject && subject.cause ? subject.cause : '').toUpperCase();
-        const subjectReason = String(subject && subject.reason ? subject.reason : '').toLowerCase();
-        const causes = Array.isArray(profile.causes)
-            ? profile.causes
-            : (profile.cause ? [profile.cause] : []);
-        const matchesCause = !causes.length || causes.some((cause: any) => (
-            subjectCause === String(cause || '').toUpperCase()
-        ));
-        return matchesCause &&
-            subjectReason.indexOf(String(profile.reasonPrefix || '').toLowerCase()) === 0;
+        return PresentationEffectProfiles.matchesCauseReasonProfile(subject, profile);
     }
 
     function _isSniperShotDestroyTarget(target: any) {

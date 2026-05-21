@@ -17,6 +17,7 @@ declare const playHandAnimation: any;
 const Constants = _require('./animation-constants');
 const Visuals = _require('./stone-visuals');
 const PlaybackStateManager = _require('./playback-state-manager');
+const PresentationEffectProfiles = _require('../shared/presentation-effect-profiles');
 
 const {
         EVENT_TYPES,
@@ -43,23 +44,10 @@ const {
     const LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY = '__skipNextCardUseAnimationUntilByKey';
     const LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY = '__skipNextCardUseButtonSoundCount';
     const LOCAL_CARD_USE_PLAYBACK_SKIP_MS = 30000;
-    const STONE_SALVATION_GOD_CAUSE = 'STONE_SALVATION_GOD';
-    const STONE_SALVATION_GOD_REVIVE_REASON = 'stone_salvation_god_revive';
-    const POSITIVE_SPAWN_LIKE_EFFECTS = Object.freeze([
-        Object.freeze({ spawnIntent: 'breeding_spawn', cause: 'BREEDING', reasonPrefix: 'breeding_spawn' }),
-        Object.freeze({ spawnIntent: 'normal_spawn', cause: 'EQUALITY_WILL', reasonPrefix: 'equality_will_spawn' }),
-        Object.freeze({ spawnIntent: 'normal_spawn', cause: 'REINFORCEMENT_WILL', reasonPrefix: 'reinforcement_will_spawn' }),
-        Object.freeze({ spawnIntent: 'salvation_spawn', cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' }),
-        Object.freeze({ spawnIntent: 'salvation_spawn', cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON }),
-        Object.freeze({ spawnIntent: 'clone_spawn', cause: 'CLONE_WILL', reasonPrefix: 'clone_spawn' }),
-        Object.freeze({ spawnIntent: 'proliferation_spawn', cause: 'PROLIFERATION_WILL', reasonPrefix: 'proliferation_spawn' })
-    ]);
-    const POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS = Object.freeze([
-        Object.freeze({ spawnIntent: 'normal_spawn', cause: 'EQUALITY_WILL', reasonPrefix: 'equality_will_spawn' }),
-        Object.freeze({ spawnIntent: 'normal_spawn', cause: 'REINFORCEMENT_WILL', reasonPrefix: 'reinforcement_will_spawn' }),
-        Object.freeze({ spawnIntent: 'salvation_spawn', cause: 'SALVATION_WILL', reasonPrefix: 'salvation_spawn' }),
-        Object.freeze({ spawnIntent: 'salvation_spawn', cause: STONE_SALVATION_GOD_CAUSE, reasonPrefix: STONE_SALVATION_GOD_REVIVE_REASON })
-    ]);
+    const POSITIVE_SPAWN_LIKE_EFFECTS = PresentationEffectProfiles.POSITIVE_SPAWN_LIKE_EFFECTS;
+    const POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS = PresentationEffectProfiles.POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS;
+    const matchesCauseAndReasonPrefix = PresentationEffectProfiles.matchesCauseAndReasonPrefix;
+    const matchesSpawnProfileTarget = PresentationEffectProfiles.matchesSpawnProfileTarget;
     const DESTROY_SOURCE_ANIMATION_PROFILES = Object.freeze([
         Object.freeze({
             causes: Object.freeze(['SNIPER_WILL']),
@@ -99,28 +87,6 @@ const {
             afterDestroy: 'clearCell'
         })
     ]);
-
-    function matchesCauseAndReasonPrefix(cause: any, reason: any, profile: any) {
-        if (!profile) return false;
-        const normalizedCause = String(cause || '').toUpperCase();
-        const normalizedReason = String(reason || '').toLowerCase();
-        const causes = Array.isArray(profile.causes)
-            ? profile.causes
-            : (profile.cause ? [profile.cause] : []);
-        const matchesCause = !causes.length || causes.some((expectedCause: any) => (
-            normalizedCause === String(expectedCause || '').toUpperCase()
-        ));
-        return matchesCause &&
-            normalizedReason.indexOf(String(profile.reasonPrefix || '').toLowerCase()) === 0;
-    }
-
-    function matchesSpawnProfileTarget(target: any, cause: any, reason: any, profile: any) {
-        if (!matchesCauseAndReasonPrefix(cause, reason, profile)) return false;
-        const expectedIntent = profile && profile.spawnIntent;
-        const actualIntent = target && target.meta && target.meta.spawnIntent;
-        if (!expectedIntent || actualIntent === undefined || actualIntent === null || actualIntent === '') return true;
-        return String(actualIntent).toLowerCase() === String(expectedIntent).toLowerCase();
-    }
 
     function hasRegenBackFlip(events: any) {
         return (events || []).some((e: any) =>
@@ -650,7 +616,7 @@ const {
             if (eventType !== EVENT_TYPES.SPAWN && eventType !== EVENT_TYPES.PLACE && !isCloneLikeMove) {
                 return false;
             }
-            return POSITIVE_SPAWN_LIKE_EFFECTS.some((profile) => (
+            return POSITIVE_SPAWN_LIKE_EFFECTS.some((profile: any) => (
                 matchesSpawnProfileTarget(target, normalizedCause, normalizedReason, profile)
             ));
         }
@@ -758,7 +724,7 @@ const {
             if (!target) return 0;
             const cause = this._getTargetCause(target);
             const reason = this._getTargetReason(target);
-            const shouldKeepVisible = POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS.some((profile) => (
+            const shouldKeepVisible = POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS.some((profile: any) => (
                 matchesSpawnProfileTarget(target, cause, reason, profile)
             ));
             if (!shouldKeepVisible) return 0;
