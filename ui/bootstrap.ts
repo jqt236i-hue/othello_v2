@@ -969,6 +969,17 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             }
         } catch (e: any) { /* ignore */ }
         try {
+            const udg = require('../game/special-effects/udg');
+            const animationUtils = require('./animation-utils');
+            const playbackEngine = require('./playback-engine');
+            if (udg && typeof udg.setUIImpl === 'function') {
+                udg.setUIImpl({
+                    animateFadeOutAt: animationUtils && animationUtils.animateFadeOutAt,
+                    playPresentationEvents: playbackEngine && playbackEngine.playPresentationEvents
+                });
+            }
+        } catch (e: any) { /* ignore */ }
+        try {
             const bombs = require('../game/special-effects/bombs');
             const animationUtils = require('./animation-utils');
             const animationEngine = require('./animation-engine');

@@ -10,6 +10,20 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  * @description Ultimate Destroy God effect handlers
  */
 
+let __uiImpl_udg: any = {};
+function setUIImpl(obj: any) { __uiImpl_udg = obj || {}; }
+
+function hasPlaybackEngineForUdg(): boolean {
+    return typeof __uiImpl_udg.playPresentationEvents === 'function';
+}
+
+async function animateUdgFadeOut(row: number, col: number, options?: any): Promise<any> {
+    if (__uiImpl_udg && typeof __uiImpl_udg.animateFadeOutAt === 'function') {
+        return __uiImpl_udg.animateFadeOutAt(row, col, options);
+    }
+    return undefined;
+}
+
 /**
  * Process ultimate destroy gods: destroy surrounding enemy stones (Destroy)
  * @async
@@ -22,7 +36,7 @@ async function processUltimateDestroyGodsAtTurnStart(player: number, precomputed
         : (cardState && cardState.markers ? cardState.markers.filter((m: any) => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_DESTROY_GOD') : []);
     if (!udgs.length) return;
 
-    const hasPlayback = (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackEngine && typeof (globalThis as any).PlaybackEngine.playPresentationEvents === 'function'); // globalThis - UI/bootstrap dependency
+    const hasPlayback = hasPlaybackEngineForUdg();
 
     const playerKey = player === BLACK ? 'black' : 'white';
     // Prefer precomputed result (from pipeline). If not provided, try to extract from events.
@@ -68,7 +82,7 @@ async function processUltimateDestroyGodsAtTurnStart(player: number, precomputed
     if (result.destroyed.length > 0) {
         const unique = new Map();
         for (const p of result.destroyed) unique.set(`${p.row},${p.col}`, p);
-        await Promise.all(Array.from(unique.values()).map(p => animateFadeOutAt(p.row, p.col)));
+        await Promise.all(Array.from(unique.values()).map(p => animateUdgFadeOut(p.row, p.col)));
     }
 
     // Fade-out expired anchors AFTER destroying surroundings
@@ -76,7 +90,7 @@ async function processUltimateDestroyGodsAtTurnStart(player: number, precomputed
         const unique = new Map();
         for (const p of result.expired) unique.set(`${p.row},${p.col}`, p);
         for (const p of unique.values()) {
-            await animateFadeOutAt(p.row, p.col, { createGhost: true, color: player, effectKey: 'ultimateDestroyGod' });
+            await animateUdgFadeOut(p.row, p.col, { createGhost: true, color: player, effectKey: 'ultimateDestroyGod' });
         }
     }
 
@@ -100,7 +114,7 @@ async function processUltimateDestroyGodImmediateAtPlacement(player: number, row
         if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.udgDestroyedImmediate(getPlayerName(player), result.destroyed.length));
         const unique = new Map();
         for (const p of result.destroyed) unique.set(`${p.row},${p.col}`, p);
-        await Promise.all(Array.from(unique.values()).map(p => animateFadeOutAt(p.row, p.col)));
+        await Promise.all(Array.from(unique.values()).map(p => animateUdgFadeOut(p.row, p.col)));
     }
 
     emitBoardUpdate();
@@ -109,6 +123,7 @@ async function processUltimateDestroyGodImmediateAtPlacement(player: number, row
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
+        setUIImpl,
         processUltimateDestroyGodsAtTurnStart,
         processUltimateDestroyGodImmediateAtPlacement
     };
