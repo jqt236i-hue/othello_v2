@@ -508,28 +508,43 @@ function shouldAllowPendingSelectionDuringAnimation(playerKey: any, pending: any
     }
 }
 
-function isHumanVsHumanModeEnabled() {
-    const debugHvH = !!(
-        (__uiImpl_turn_manager && __uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN) ||
-        (typeof window !== 'undefined' && (window as any).DEBUG_HUMAN_VS_HUMAN) ||
-        (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN)
-    );
-    let matchMode = null;
+function readTurnManagerMatchMode() {
+    const impl = __uiImpl_turn_manager || {};
     try {
-        // globalThis read — UI/bootstrap dependency, keep
-        matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
-            ? (globalThis as any).getCurrentMatchMode()
-            : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
+        if (typeof impl.readMatchMode === 'function') return impl.readMatchMode();
+        if (typeof impl.getCurrentMatchMode === 'function') return impl.getCurrentMatchMode();
+        if (typeof impl.MATCH_MODE !== 'undefined') return impl.MATCH_MODE;
     } catch (e) { /* ignore */ }
+    try {
+        const root = (typeof globalThis !== 'undefined') ? (globalThis as any) : null;
+        if (root && typeof root.getCurrentMatchMode === 'function') return root.getCurrentMatchMode();
+        if (root && typeof root.MATCH_MODE !== 'undefined') return root.MATCH_MODE;
+    } catch (e) { /* @compat fallback */ }
+    return null;
+}
+
+function isTurnManagerHumanVsHumanFlagEnabled() {
+    const impl = __uiImpl_turn_manager || {};
+    try {
+        if (typeof impl.readHumanVsHumanMode === 'function') return impl.readHumanVsHumanMode() === true;
+        if (typeof impl.DEBUG_HUMAN_VS_HUMAN !== 'undefined') return impl.DEBUG_HUMAN_VS_HUMAN === true;
+    } catch (e) { /* ignore */ }
+    try {
+        const root = (typeof globalThis !== 'undefined') ? (globalThis as any) : null;
+        return root && root.DEBUG_HUMAN_VS_HUMAN === true;
+    } catch (e) { /* @compat fallback */ }
+    return false;
+}
+
+function isHumanVsHumanModeEnabled() {
+    const debugHvH = isTurnManagerHumanVsHumanFlagEnabled();
+    const matchMode = readTurnManagerMatchMode();
     return debugHvH || matchMode === 'network';
 }
 
 function isNetworkModeForTurnManager() {
     try {
-        // globalThis read — UI/bootstrap dependency, keep
-        const matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
-            ? (globalThis as any).getCurrentMatchMode()
-            : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
+        const matchMode = readTurnManagerMatchMode();
         if (matchMode === 'network') return true;
     } catch (e) { /* ignore */ }
     try {
@@ -541,19 +556,15 @@ function isNetworkModeForTurnManager() {
 }
 
 function isOthelloModeForTurnManager() {
+    const matchMode = readTurnManagerMatchMode();
+    if (matchMode === 'reversi' || matchMode === 'othello') return true;
     try {
-        if (OwnerHelpersModule && typeof OwnerHelpersModule.isReversiMode === 'function') {
-            return OwnerHelpersModule.isReversiMode(typeof globalThis !== 'undefined' ? globalThis : null);
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.isReversiMode === 'function' && __uiImpl_turn_manager) {
+            return OwnerHelpersModule.isReversiMode(__uiImpl_turn_manager);
         }
-        if (OwnerHelpersModule && typeof OwnerHelpersModule.isOthelloMode === 'function') {
-            return OwnerHelpersModule.isOthelloMode(typeof globalThis !== 'undefined' ? globalThis : null);
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.isOthelloMode === 'function' && __uiImpl_turn_manager) {
+            return OwnerHelpersModule.isOthelloMode(__uiImpl_turn_manager);
         }
-    } catch (e) { /* ignore */ }
-    try {
-        const matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
-            ? (globalThis as any).getCurrentMatchMode()
-            : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
-        return matchMode === 'reversi' || matchMode === 'othello';
     } catch (e) { /* ignore */ }
     return false;
 }
@@ -605,11 +616,7 @@ function canLocalUserOperateCurrentTurn() {
         }
     } catch (e) { /* ignore */ }
     const isNetworkMode = isNetworkModeForTurnManager();
-    const isHvH = !!(
-        (__uiImpl_turn_manager && __uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN) ||
-        (typeof window !== 'undefined' && (window as any).DEBUG_HUMAN_VS_HUMAN) ||
-        (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN)
-    );
+    const isHvH = isTurnManagerHumanVsHumanFlagEnabled();
     // FATE_WILL: if another player controls this turn, only the controller can operate.
     // Applies in network mode and in local non-HvH mode.
     if (isNetworkMode || !isHvH) {
