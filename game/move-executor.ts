@@ -203,15 +203,43 @@ function shouldRunScheduledCpuTurn(expected: any) {
     return true;
 }
 
-function isHumanVsHumanModeEnabled() {
-    const debugHvH = (__uiImpl_move_executor && __uiImpl_move_executor.DEBUG_HUMAN_VS_HUMAN) ||
-        (typeof globalThis !== 'undefined' && globalThis.DEBUG_HUMAN_VS_HUMAN === true);
-    let matchMode = null;
+function readMoveExecutorMatchMode() {
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.readMatchMode === 'function') {
+        try {
+            const mode = __uiImpl_move_executor.readMatchMode();
+            if (mode) return mode;
+        } catch (e) { /* ignore */ }
+    }
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.getCurrentMatchMode === 'function') {
+        try {
+            const mode = __uiImpl_move_executor.getCurrentMatchMode();
+            if (mode) return mode;
+        } catch (e) { /* ignore */ }
+    }
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.MATCH_MODE !== 'undefined') {
+        return __uiImpl_move_executor.MATCH_MODE;
+    }
     try {
-        matchMode = (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function')
+        return (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function')
             ? globalThis.getCurrentMatchMode()
             : (typeof globalThis !== 'undefined' ? globalThis.MATCH_MODE : null);
     } catch (e) { /* ignore */ }
+    return null;
+}
+
+function readMoveExecutorHumanVsHumanFlag() {
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.readHumanVsHumanMode === 'function') {
+        try { return __uiImpl_move_executor.readHumanVsHumanMode() === true; } catch (e) { /* ignore */ }
+    }
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.DEBUG_HUMAN_VS_HUMAN !== 'undefined') {
+        return __uiImpl_move_executor.DEBUG_HUMAN_VS_HUMAN === true;
+    }
+    return (typeof globalThis !== 'undefined' && globalThis.DEBUG_HUMAN_VS_HUMAN === true);
+}
+
+function isHumanVsHumanModeEnabled() {
+    const debugHvH = readMoveExecutorHumanVsHumanFlag();
+    const matchMode = String(readMoveExecutorMatchMode() || '').trim().toLowerCase();
     return !!debugHvH || matchMode === 'network';
 }
 

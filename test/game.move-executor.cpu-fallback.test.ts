@@ -119,4 +119,41 @@ describe('move-executor CPU scheduling DI', () => {
         jest.runAllTimers();
         expect(global.isProcessing).toBe(false);
     });
+
+    test('injected match mode suppresses CPU scheduling before legacy global', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.MATCH_MODE = 'cpu';
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)), turnNumber: 9 };
+        global.isProcessing = false;
+
+        const moveExecutor = require('../game/move-executor.js');
+        const move = { row: 2, col: 3, player: 1 };
+        const playerKey = 'black';
+        const fakeRes = {
+            ok: true,
+            nextGameState: { currentPlayer: -1, turnNumber: 9 },
+            nextCardState: global.cardState,
+            playbackEvents: [{ type: 'PLAYBACK_EVENTS', events: [] }],
+            phases: {},
+            placementEffects: {},
+            immediate: {}
+        };
+        const adapter = { runTurnWithAdapter: jest.fn(() => fakeRes) };
+        const scheduleCpuTurn = jest.fn((delay, cb) => setTimeout(cb, delay));
+        const mockCpu = jest.fn();
+
+        moveExecutor.setUIImpl({
+            scheduleCpuTurn,
+            processCpuTurn: mockCpu,
+            readMatchMode: () => 'network',
+            readHumanVsHumanMode: () => false
+        });
+
+        await moveExecutor.executeMoveViaPipeline(move, false, playerKey, adapter, {});
+
+        expect(scheduleCpuTurn).not.toHaveBeenCalled();
+        expect(mockCpu).not.toHaveBeenCalled();
+        expect(global.isProcessing).toBe(false);
+    });
 });
