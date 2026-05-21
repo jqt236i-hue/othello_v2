@@ -21,6 +21,7 @@ describe('UI bootstrap early CPU registration', () => {
     const mockCpu = { processCpuTurn: jest.fn(), processAutoBlackTurn: jest.fn(), setCpuUIImpl: jest.fn() };
     const setPassHandlerRuntime = jest.fn();
     const setCpuDecisionRuntime = jest.fn();
+    const setTurnPipelinePhasesRuntime = jest.fn();
     jest.doMock('../game/cpu-turn-handler', () => mockCpu);
     jest.doMock('../game/pass-handler', () => ({
       setPassHandlerRuntime,
@@ -29,6 +30,9 @@ describe('UI bootstrap early CPU registration', () => {
     }));
     jest.doMock('../game/cpu-decision', () => ({
       setCpuDecisionRuntime
+    }));
+    jest.doMock('../game/turn/turn_pipeline_phases', () => ({
+      setTurnPipelinePhasesRuntime
     }));
 
     const uiBoot = require('../ui/bootstrap.js');
@@ -49,6 +53,8 @@ describe('UI bootstrap early CPU registration', () => {
     expect(setCpuDecisionRuntime.mock.calls[0][0].processCpuTurn).toBe(mockCpu.processCpuTurn);
     expect(typeof setCpuDecisionRuntime.mock.calls[0][0].readMatchMode).toBe('function');
     expect(typeof setCpuDecisionRuntime.mock.calls[0][0].readHumanVsHumanMode).toBe('function');
+    expect(setTurnPipelinePhasesRuntime).toHaveBeenCalledTimes(1);
+    expect(typeof setTurnPipelinePhasesRuntime.mock.calls[0][0].readMatchMode).toBe('function');
     // Also mirrors to globalThis for legacy fallback
     expect(typeof global.processCpuTurn === 'function' || typeof globalThis.processCpuTurn === 'function').toBe(true);
   });

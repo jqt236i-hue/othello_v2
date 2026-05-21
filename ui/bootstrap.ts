@@ -1025,6 +1025,23 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             }
         } catch (e: any) { /* ignore */ }
 
+        try {
+            const turnPipelinePhases = require('../game/turn/turn_pipeline_phases');
+            if (turnPipelinePhases && typeof turnPipelinePhases.setTurnPipelinePhasesRuntime === 'function') {
+                turnPipelinePhases.setTurnPipelinePhasesRuntime({
+                    readMatchMode: () => {
+                        try {
+                            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
+                                return (globalThis as any).getCurrentMatchMode();
+                            }
+                            if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
+                        } catch (e: any) { /* ignore */ }
+                        return null;
+                    }
+                });
+            }
+        } catch (e: any) { /* ignore */ }
+
         // Commentary broker initialization
         try {
             const commentaryBroker = require('./commentary-broker');

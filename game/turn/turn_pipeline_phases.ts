@@ -92,19 +92,50 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return expectedTypes.some((type: any) => normalizePendingTypeForActionPhase(type) === normalizedPendingType);
     }
 
+    let turnPipelinePhasesRuntime: any = null;
+    function setTurnPipelinePhasesRuntime(runtime: any) {
+        turnPipelinePhasesRuntime = (runtime && typeof runtime === 'object') ? runtime : null;
+    }
+
+    function readTurnPipelinePhasesMatchMode() {
+        if (turnPipelinePhasesRuntime && typeof turnPipelinePhasesRuntime.readMatchMode === 'function') {
+            try {
+                const mode = turnPipelinePhasesRuntime.readMatchMode();
+                if (mode) return mode;
+            } catch (e) { /* ignore */ }
+        }
+        if (turnPipelinePhasesRuntime && typeof turnPipelinePhasesRuntime.getCurrentMatchMode === 'function') {
+            try {
+                const mode = turnPipelinePhasesRuntime.getCurrentMatchMode();
+                if (mode) return mode;
+            } catch (e) { /* ignore */ }
+        }
+        if (turnPipelinePhasesRuntime && typeof turnPipelinePhasesRuntime.MATCH_MODE !== 'undefined') {
+            return turnPipelinePhasesRuntime.MATCH_MODE;
+        }
+        try {
+            return (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
+                ? (globalThis as any).getCurrentMatchMode()
+                : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
     function isOthelloModeForTurnPipelinePhases() {
+        const injectedMode = String(readTurnPipelinePhasesMatchMode() || '').trim().toLowerCase();
+        if (injectedMode === 'reversi' || injectedMode === 'othello') return true;
+        if (turnPipelinePhasesRuntime && typeof turnPipelinePhasesRuntime.MATCH_MODE !== 'undefined') return false;
+        if (turnPipelinePhasesRuntime && (typeof turnPipelinePhasesRuntime.readMatchMode === 'function' || typeof turnPipelinePhasesRuntime.getCurrentMatchMode === 'function') && injectedMode) return false;
         try {
             if (OwnerHelpersModule && typeof OwnerHelpersModule.isReversiMode === 'function') {
-                return OwnerHelpersModule.isReversiMode(typeof globalThis !== 'undefined' ? globalThis : null);
+                return OwnerHelpersModule.isReversiMode(turnPipelinePhasesRuntime || (typeof globalThis !== 'undefined' ? globalThis : null));
             }
             if (OwnerHelpersModule && typeof OwnerHelpersModule.isOthelloMode === 'function') {
-                return OwnerHelpersModule.isOthelloMode(typeof globalThis !== 'undefined' ? globalThis : null);
+                return OwnerHelpersModule.isOthelloMode(turnPipelinePhasesRuntime || (typeof globalThis !== 'undefined' ? globalThis : null));
             }
         } catch (e) { /* ignore */ }
         try {
-            const matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
-                ? (globalThis as any).getCurrentMatchMode()
-                : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
+            const matchMode = readTurnPipelinePhasesMatchMode();
             return matchMode === 'reversi' || matchMode === 'othello';
         } catch (e) { /* ignore */ }
         return false;
@@ -3737,4 +3768,4 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
     }
 
-export = { applyTurnStartPhase, applyCardUsagePhase, applyActionPhase };
+export = { applyTurnStartPhase, applyCardUsagePhase, applyActionPhase, setTurnPipelinePhasesRuntime };
