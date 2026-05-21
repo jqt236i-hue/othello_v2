@@ -169,12 +169,6 @@ function resolveRuntimeFunction(name: string): Function | null {
             if (typeof candidate === 'function') return candidate;
         }
     } catch (e) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined') {
-            const candidate = (window as any)[name];
-            if (typeof candidate === 'function') return candidate;
-        }
-    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -190,11 +184,6 @@ function resolveRuntimeValue(name: string): any {
     try {
         if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis, name)) {
             return (globalThis as any)[name];
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined' && Object.prototype.hasOwnProperty.call(window, name)) {
-            return (window as any)[name];
         }
     } catch (e) { /* ignore */ }
     return undefined;
@@ -328,10 +317,7 @@ function readCpuHumanVsHumanFlag(): boolean {
     if (__uiImpl_cpu && typeof __uiImpl_cpu.DEBUG_HUMAN_VS_HUMAN !== 'undefined') {
         return __uiImpl_cpu.DEBUG_HUMAN_VS_HUMAN === true;
     }
-    return !!(
-        (typeof window !== 'undefined' && (window as any).DEBUG_HUMAN_VS_HUMAN) ||
-        (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN)
-    );
+    return !!(typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN);
 }
 
 function isHumanVsHumanModeEnabled() {

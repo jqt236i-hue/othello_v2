@@ -64,6 +64,7 @@ describe('cpu turn handler network guard', () => {
     delete global.playHandAnimation;
     delete global.executeMove;
     delete global.cpuMaybeUseCardWithPolicy;
+    delete global.window;
   });
 
   test('runCpuTurn does not mutate state in network mode', async () => {
@@ -88,6 +89,20 @@ describe('cpu turn handler network guard', () => {
     expect(global.executeMove).not.toHaveBeenCalled();
     expect(global.cardState.hasUsedCardThisTurnByPlayer.white).toBe(false);
     expect(global.isProcessing).toBe(false);
+  });
+
+  test('runCpuTurn ignores test-only window human flag when injected mode is false', async () => {
+    delete global.MATCH_MODE;
+    global.window = { DEBUG_HUMAN_VS_HUMAN: true };
+    cpuHandler.setCpuUIImpl({
+      readMatchMode: () => 'cpu',
+      readHumanVsHumanMode: () => false
+    });
+
+    await cpuHandler.runCpuTurn('white');
+
+    expect(global.cpuMaybeUseCardWithPolicy).toHaveBeenCalledTimes(1);
+    expect(global.executeMove).toHaveBeenCalledTimes(1);
   });
 
   test('scheduled processCpuTurn retry also stays inert in network mode', async () => {
