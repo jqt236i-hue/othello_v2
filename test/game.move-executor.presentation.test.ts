@@ -13,7 +13,7 @@ describe('move-executor presentation emission', () => {
         delete global.showResult;
     });
 
-    test('executeMoveViaPipeline emits PLAYBACK_EVENTS via PresentationHelper when playbackEvents present', async () => {
+    test('executeMoveViaPipeline emits PLAYBACK_EVENTS via injected PresentationHelper runtime when playbackEvents present', async () => {
         // arrange
         global.BoardOps = { emitPresentationEvent: jest.fn() };
 
@@ -22,6 +22,15 @@ describe('move-executor presentation emission', () => {
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
 
         const moveExecutor = require('../game/move-executor.js');
+        const presentationRuntime = {
+            emitPresentationEvent: (cardState, ev) => {
+                global.BoardOps.emitPresentationEvent(cardState, ev);
+                return true;
+            }
+        };
+        const presentation = require('../game/logic/presentation');
+        presentation.setPresentationRuntime(presentationRuntime);
+        try { require('../dist/game/logic/presentation').setPresentationRuntime(presentationRuntime); } catch (e) { /* ignore */ }
         const move = { row: 2, col: 3, player: 1 };
         const playerKey = 'black';
 

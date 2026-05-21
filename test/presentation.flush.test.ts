@@ -14,6 +14,13 @@ describe('presentation flush persisted events', () => {
     // register BoardOps
     const mock = { emitPresentationEvent: jest.fn() };
     global.BoardOps = mock;
+    ph.setPresentationRuntime({
+      getCardState: () => global.cardState,
+      emitPresentationEvent: (cardState, ev) => {
+        global.BoardOps.emitPresentationEvent(cardState, ev);
+        return true;
+      }
+    });
 
     const flushed = ph.flushPersistedEvents();
     expect(flushed).toBe(true);
@@ -30,6 +37,13 @@ describe('presentation flush persisted events', () => {
     global.CardLogic = { flushPresentationEvents: jest.fn(() => []) };
     const mock = { emitPresentationEvent: jest.fn() };
     global.BoardOps = mock;
+    ph.setPresentationRuntime({
+      getCardState: () => global.cardState,
+      emitPresentationEvent: (cardState, ev) => {
+        global.BoardOps.emitPresentationEvent(cardState, ev);
+        return true;
+      }
+    });
 
     const flushed = ph.flushPersistedEvents();
     expect(flushed).toBe(true);

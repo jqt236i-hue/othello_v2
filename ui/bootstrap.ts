@@ -906,7 +906,40 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         return timersImpl;
     }
 
+    function configurePresentationRuntime() {
+        try {
+            const presentation = require('../game/logic/presentation');
+            if (!presentation || typeof presentation.setPresentationRuntime !== 'function') return;
+            presentation.setPresentationRuntime({
+                getCardState: () => {
+                    try {
+                        return (typeof globalThis !== 'undefined' && (globalThis as any).cardState)
+                            ? (globalThis as any).cardState
+                            : null;
+                    } catch (e: any) {
+                        return null;
+                    }
+                },
+                emitPresentationEvent: (cardStateValue: any, ev: any) => {
+                    try {
+                        if (typeof globalThis === 'undefined') return false;
+                        const boardOps = ((globalThis as any).BoardOps && typeof (globalThis as any).BoardOps.emitPresentationEvent === 'function')
+                            ? (globalThis as any).BoardOps
+                            : null;
+                        if (!boardOps) return false;
+                        boardOps.emitPresentationEvent(cardStateValue || null, ev);
+                        return true;
+                    } catch (e: any) {
+                        return false;
+                    }
+                }
+            });
+        } catch (e: any) { /* ignore */ }
+    }
+
     function installCardDI() {
+        configurePresentationRuntime();
+
         // Trap placement flash stays in UI and is invoked from game via DI.
         _connect('./animation-utils', '../game/card-effects/trap', (uiMod: any) => ({
             playTrapPlacementFlash: uiMod.playTrapPlacementFlash

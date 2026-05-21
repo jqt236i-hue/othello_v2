@@ -20,7 +20,18 @@ interface CardState {
     [key: string]: any;
 }
 
+interface PresentationRuntime {
+    emitPresentationEvent?: (cardState: CardState | null, ev: PresentationEvent) => any;
+    getCardState?: () => CardState | null;
+}
+
 let warnedNoBoardOps = false;
+let presentationRuntime: PresentationRuntime | null = null;
+
+function setPresentationRuntime(runtime: PresentationRuntime | null): PresentationRuntime | null {
+    presentationRuntime = (runtime && typeof runtime === 'object') ? runtime : null;
+    return presentationRuntime;
+}
 
 function shouldWarnNoBoardOps(): boolean {
     return !(typeof process !== 'undefined' && !!process.env && !!process.env.JEST_WORKER_ID);
@@ -28,10 +39,9 @@ function shouldWarnNoBoardOps(): boolean {
 
 function emitPresentationEvent(cardState: CardState | null, ev: PresentationEvent): boolean {
     try {
-        const root = (typeof globalThis !== 'undefined' ? globalThis : undefined) as any; // globalThis — bootstrap DI
-        if (root && root.BoardOps && typeof root.BoardOps.emitPresentationEvent === 'function') {
-            root.BoardOps.emitPresentationEvent(cardState, ev);
-            return true;
+        if (presentationRuntime && typeof presentationRuntime.emitPresentationEvent === 'function') {
+            const delivered = presentationRuntime.emitPresentationEvent(cardState, ev);
+            if (delivered !== false) return true;
         }
     } catch (_e) { /* ignore */ }
 
@@ -55,17 +65,18 @@ function emitPresentationEvent(cardState: CardState | null, ev: PresentationEven
 
 function flushPersistedEvents(): boolean {
     try {
-        const root = (typeof globalThis !== 'undefined' ? globalThis : undefined) as any; // globalThis — bootstrap DI
-        if (!(root && root.BoardOps && typeof root.BoardOps.emitPresentationEvent === 'function')) return false;
+        if (!presentationRuntime || typeof presentationRuntime.emitPresentationEvent !== 'function') return false;
         let flushedCount = 0;
-        const cardStateRef = root && root.cardState ? root.cardState : null;
+        const cardStateRef = typeof presentationRuntime.getCardState === 'function'
+            ? presentationRuntime.getCardState()
+            : null;
 
         try {
             const CardLogic = _require('./cards');
             if (CardLogic && typeof CardLogic.flushPresentationEvents === 'function') {
                 const events = CardLogic.flushPresentationEvents(cardStateRef) || [];
                 for (const ev of events) {
-                    try { root.BoardOps.emitPresentationEvent(cardStateRef, ev); } catch (_e) { /* ignore */ }
+                    try { presentationRuntime.emitPresentationEvent(cardStateRef, ev); } catch (_e) { /* ignore */ }
                 }
                 flushedCount += events.length;
             }
@@ -75,7 +86,7 @@ function flushPersistedEvents(): boolean {
             const persisted = cardStateRef._presentationEventsPersist.slice();
             cardStateRef._presentationEventsPersist.length = 0;
             for (const ev of persisted) {
-                try { root.BoardOps.emitPresentationEvent(cardStateRef, ev); } catch (_e) { /* ignore */ }
+                try { presentationRuntime.emitPresentationEvent(cardStateRef, ev); } catch (_e) { /* ignore */ }
             }
             flushedCount += persisted.length;
         }
@@ -86,13 +97,9 @@ function flushPersistedEvents(): boolean {
 }
 
 const PresentationHelper = {
+    setPresentationRuntime,
     emitPresentationEvent,
     flushPersistedEvents
 };
-
-try {
-    const root = (typeof globalThis !== 'undefined' ? globalThis : undefined) as any; // globalThis — bootstrap DI
-    if (root) root.PresentationHelper = PresentationHelper;
-} catch (_e) { /* ignore global registration failures */ }
 
 export = PresentationHelper;
