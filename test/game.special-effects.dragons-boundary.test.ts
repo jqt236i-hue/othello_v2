@@ -42,6 +42,7 @@ describe('special-effects dragons UI boundary', () => {
     delete global.emitGameStateChange;
     delete global.emitCardStateChange;
     delete global.PlaybackEngine;
+    delete global.PresentationHelper;
   });
 
   test('turn-start processing ignores global PlaybackEngine and uses injected visual hooks', async () => {
@@ -76,5 +77,36 @@ describe('special-effects dragons UI boundary', () => {
     });
     expect(global.emitBoardUpdate).toHaveBeenCalled();
     expect(global.emitGameStateChange).toHaveBeenCalled();
+  });
+
+  test('playback path ignores global PresentationHelper and uses injected presentation hook', async () => {
+    const emitPresentationEvent = jest.fn();
+    const globalPresentationHelper = { emitPresentationEvent: jest.fn() };
+    global.gameState.board[2][3] = global.BLACK;
+
+    const dragons = require('../game/special-effects/dragons.js');
+    global.PresentationHelper = globalPresentationHelper;
+    dragons.setUIImpl({
+      playPresentationEvents: jest.fn(),
+      emitPresentationEvent
+    });
+
+    await dragons.processUltimateReverseDragonsAtTurnStart(global.BLACK, [
+      { type: 'regen_triggered_start', details: [{ row: 2, col: 3 }] }
+    ]);
+
+    expect(globalPresentationHelper.emitPresentationEvent).not.toHaveBeenCalled();
+    expect(emitPresentationEvent).toHaveBeenCalledWith({
+      type: 'CROSSFADE_STONE',
+      row: 2,
+      col: 3,
+      effectKey: 'regenStone',
+      owner: global.BLACK,
+      newColor: global.BLACK,
+      durationMs: 600,
+      autoFadeOut: true,
+      fadeWholeStone: true
+    });
+    expect(global.emitBoardUpdate).toHaveBeenCalled();
   });
 });

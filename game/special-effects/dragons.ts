@@ -43,14 +43,6 @@ try {
         CHARGE_MAX = Number(globalThis.CHARGE_MAX);
     }
 }
-let BoardPresentation = null;
-if (typeof require === 'function') {
-    try { BoardPresentation = require('../logic/presentation'); } catch (e) { /* ignore */ }
-}
-if (!BoardPresentation && typeof globalThis !== 'undefined' && globalThis.PresentationHelper) {
-    BoardPresentation = globalThis.PresentationHelper;
-}
-
 let __uiImpl_dragons: any = {};
 function setUIImpl(obj: any) { __uiImpl_dragons = obj || {}; }
 
@@ -101,7 +93,7 @@ function emitPresentationEventViaBoardOps(ev: any) {
         try { return __uiImpl_dragons.emitPresentationEvent(ev); } catch (e) { /* ignore */ }
     }
     try {
-        const pres = (typeof require === 'function') ? require('../logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
+        const pres = (typeof require === 'function') ? require('../logic/presentation') : null;
         if (pres && typeof pres.emitPresentationEvent === 'function') return pres.emitPresentationEvent(cardState, ev);
     } catch (e) { /* ignore */ }
     try { console.warn('[dragons] Presentation helper not available'); } catch (e) { }
