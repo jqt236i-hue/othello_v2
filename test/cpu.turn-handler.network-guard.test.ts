@@ -13,6 +13,12 @@ describe('cpu turn handler network guard', () => {
     cpuHandler.setTimers({
       waitMs: () => Promise.resolve()
     });
+    cpuHandler.setCpuUIImpl({
+      readMatchMode: null,
+      readHumanVsHumanMode: null,
+      DEBUG_HUMAN_VS_HUMAN: false,
+      MATCH_MODE: undefined
+    });
     global.MATCH_MODE = 'network';
     global.cardState = {
       hasUsedCardThisTurnByPlayer: { white: false, black: false },
@@ -38,6 +44,12 @@ describe('cpu turn handler network guard', () => {
 
   afterEach(() => {
     cpuHandler.setTimers(null);
+    cpuHandler.setCpuUIImpl({
+      readMatchMode: null,
+      readHumanVsHumanMode: null,
+      DEBUG_HUMAN_VS_HUMAN: false,
+      MATCH_MODE: undefined
+    });
     delete global.MATCH_MODE;
     delete global.cardState;
     delete global.gameState;
@@ -55,6 +67,21 @@ describe('cpu turn handler network guard', () => {
   });
 
   test('runCpuTurn does not mutate state in network mode', async () => {
+    await cpuHandler.runCpuTurn('white');
+
+    expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
+    expect(global.executeMove).not.toHaveBeenCalled();
+    expect(global.cardState.hasUsedCardThisTurnByPlayer.white).toBe(false);
+    expect(global.isProcessing).toBe(false);
+  });
+
+  test('runCpuTurn uses injected match mode before global fallback', async () => {
+    delete global.MATCH_MODE;
+    cpuHandler.setCpuUIImpl({
+      readMatchMode: () => 'network',
+      readHumanVsHumanMode: () => false
+    });
+
     await cpuHandler.runCpuTurn('white');
 
     expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();

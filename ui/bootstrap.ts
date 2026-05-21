@@ -930,6 +930,25 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 const cpuGlobals: any = {};
                 if (typeof cpu.processCpuTurn === 'function') cpuGlobals.processCpuTurn = cpu.processCpuTurn;
                 if (typeof cpu.processAutoBlackTurn === 'function') cpuGlobals.processAutoBlackTurn = cpu.processAutoBlackTurn;
+                if (typeof cpu.setCpuUIImpl === 'function') {
+                    cpu.setCpuUIImpl({
+                        readMatchMode: () => {
+                            try {
+                                if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
+                                    return (globalThis as any).getCurrentMatchMode();
+                                }
+                                if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
+                            } catch (e: any) { /* ignore */ }
+                            return null;
+                        },
+                        readHumanVsHumanMode: () => {
+                            try {
+                                return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
+                            } catch (e: any) { /* ignore */ }
+                            return false;
+                        }
+                    });
+                }
                 if (Object.keys(cpuGlobals).length) {
                     try { registerUIGlobals(cpuGlobals); } catch (e: any) { /* ignore */ }
                     try { if (typeof globalThis !== 'undefined') { if (cpuGlobals.processCpuTurn) (globalThis as any).processCpuTurn = cpuGlobals.processCpuTurn; if (cpuGlobals.processAutoBlackTurn) (globalThis as any).processAutoBlackTurn = cpuGlobals.processAutoBlackTurn; } } catch (e: any) { /* ignore */ }

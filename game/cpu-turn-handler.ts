@@ -296,36 +296,53 @@ function resolveCpuControlledTurnOwnerKey(): PlayerKey | null {
     return effectiveOperatorKey === 'white' ? turnOwnerKey : null;
 }
 
-function isHumanVsHumanModeEnabled() {
-    const debugHvH = !!(
-        (__uiImpl_cpu && __uiImpl_cpu.DEBUG_HUMAN_VS_HUMAN) ||
+function readCpuMatchMode(): any {
+    if (__uiImpl_cpu && typeof __uiImpl_cpu.readMatchMode === 'function') {
+        try {
+            const mode = __uiImpl_cpu.readMatchMode();
+            if (mode) return mode;
+        } catch (e) { /* ignore */ }
+    }
+    if (__uiImpl_cpu && typeof __uiImpl_cpu.getCurrentMatchMode === 'function') {
+        try {
+            const mode = __uiImpl_cpu.getCurrentMatchMode();
+            if (mode) return mode;
+        } catch (e) { /* ignore */ }
+    }
+    if (__uiImpl_cpu && typeof __uiImpl_cpu.MATCH_MODE !== 'undefined') {
+        return __uiImpl_cpu.MATCH_MODE;
+    }
+    try {
+        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
+            return (globalThis as any).getCurrentMatchMode();
+        }
+        if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE || (globalThis as any).__MATCH_MODE;
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function readCpuHumanVsHumanFlag(): boolean {
+    if (__uiImpl_cpu && typeof __uiImpl_cpu.readHumanVsHumanMode === 'function') {
+        try { return __uiImpl_cpu.readHumanVsHumanMode() === true; } catch (e) { /* ignore */ }
+    }
+    if (__uiImpl_cpu && typeof __uiImpl_cpu.DEBUG_HUMAN_VS_HUMAN !== 'undefined') {
+        return __uiImpl_cpu.DEBUG_HUMAN_VS_HUMAN === true;
+    }
+    return !!(
         (typeof window !== 'undefined' && (window as any).DEBUG_HUMAN_VS_HUMAN) ||
         (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN)
     );
-    let matchMode = null;
-    try {
-        // globalThis read — UI/bootstrap dependency, keep
-        matchMode = (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
-            ? (globalThis as any).getCurrentMatchMode()
-            : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
-    } catch (e) { /* ignore */ }
+}
+
+function isHumanVsHumanModeEnabled() {
+    const debugHvH = readCpuHumanVsHumanFlag();
+    const matchMode = String(readCpuMatchMode() || '').trim().toLowerCase();
     return debugHvH || matchMode === 'network';
 }
 
 function isOthelloModeForCpuTurnHandler() {
-    try {
-        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-            const mode = String((globalThis as any).getCurrentMatchMode() || '').trim().toLowerCase();
-            return mode === 'reversi' || mode === 'othello';
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined') {
-            const mode = String((globalThis as any).MATCH_MODE || (globalThis as any).__MATCH_MODE || '').trim().toLowerCase();
-            return mode === 'reversi' || mode === 'othello';
-        }
-    } catch (e) { /* ignore */ }
-    return false;
+    const mode = String(readCpuMatchMode() || '').trim().toLowerCase();
+    return mode === 'reversi' || mode === 'othello';
 }
 
 function getPlaybackStateForCpuTurn() {

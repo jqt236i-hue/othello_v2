@@ -18,7 +18,7 @@ describe('UI bootstrap early CPU registration', () => {
   });
 
   test('installGameDI registers processCpuTurn when cpu-turn-handler exposes it', () => {
-    const mockCpu = { processCpuTurn: jest.fn(), processAutoBlackTurn: jest.fn() };
+    const mockCpu = { processCpuTurn: jest.fn(), processAutoBlackTurn: jest.fn(), setCpuUIImpl: jest.fn() };
     const setPassHandlerRuntime = jest.fn();
     jest.doMock('../game/cpu-turn-handler', () => mockCpu);
     jest.doMock('../game/pass-handler', () => ({
@@ -34,6 +34,9 @@ describe('UI bootstrap early CPU registration', () => {
     const globals = uiBoot.getRegisteredUIGlobals();
     expect(typeof globals.processCpuTurn).toBe('function');
     expect(typeof globals.processAutoBlackTurn).toBe('function');
+    expect(mockCpu.setCpuUIImpl).toHaveBeenCalledTimes(1);
+    expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readMatchMode).toBe('function');
+    expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readHumanVsHumanMode).toBe('function');
     expect(setPassHandlerRuntime).toHaveBeenCalledTimes(1);
     expect(setPassHandlerRuntime.mock.calls[0][0].processCpuTurn).toBe(mockCpu.processCpuTurn);
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].readMatchMode).toBe('function');
