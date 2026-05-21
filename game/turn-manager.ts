@@ -386,15 +386,11 @@ function hasQueuedPresentationEventsForTurnManager() {
 
 function captureServerAuthoredCardUseBoardClickForTurnManager(row: number, col: number, playerKey: string) {
     try {
-        const roots = [];
-        if (typeof globalThis !== 'undefined' && globalThis) roots.push(globalThis as any);
-        if (typeof window !== 'undefined' && window && !roots.includes(window as any)) roots.push(window as any);
-        for (const rootRef of roots) {
-            const captureFn = rootRef && typeof rootRef.__captureServerAuthoredCardUseBoardClick === 'function'
-                ? rootRef.__captureServerAuthoredCardUseBoardClick
-                : null;
-            if (captureFn && captureFn(row, col, playerKey) === true) return true;
-        }
+        const rootRef = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
+        const captureFn = rootRef && typeof rootRef.__captureServerAuthoredCardUseBoardClick === 'function'
+            ? rootRef.__captureServerAuthoredCardUseBoardClick
+            : null;
+        if (captureFn && captureFn(row, col, playerKey) === true) return true;
     } catch (e) { /* ignore */ }
     return false;
 }
