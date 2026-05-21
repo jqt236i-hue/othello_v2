@@ -924,15 +924,32 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         } catch (e: any) { /* ignore */ }
 
         // Special-effects UI hooks: many modules accept setUIImpl; wire basic helpers
-        const specialModules = ['../game/special-effects/hyperactive'];
-        for (const p of specialModules) {
-            try {
-                const m = require(p);
-                if (m && typeof m.setUIImpl === 'function') {
-                    m.setUIImpl({ /* currently no-op placeholders; UI modules provide visuals */ });
-                }
-            } catch (e: any) { /* ignore */ }
-        }
+        try {
+            const hyperactive = require('../game/special-effects/hyperactive');
+            const moveVisuals = require('./move-executor-visuals');
+            const playbackEngine = require('./playback-engine');
+            const animationConstants = require('../constants/animation-constants');
+            const presentation = require('../game/logic/presentation');
+            const timers = require('../game/timers');
+            if (hyperactive && typeof hyperactive.setUIImpl === 'function') {
+                hyperactive.setUIImpl({
+                    animateFadeOutAt: moveVisuals && moveVisuals.animateFadeOutAt,
+                    animateHyperactiveMove: moveVisuals && moveVisuals.animateHyperactiveMove,
+                    animateHyperactiveMoveChain: moveVisuals && moveVisuals.animateHyperactiveMoveChain,
+                    setDiscColorAt: moveVisuals && moveVisuals.setDiscColorAt,
+                    hasPlaybackEngine: () => !!(playbackEngine && typeof playbackEngine.playPresentationEvents === 'function'),
+                    getAnimationTiming: animationConstants && animationConstants.getAnimationTiming,
+                    waitMs: timers && timers.waitMs,
+                    requestFrame: timers && timers.requestFrame,
+                    emitPresentationEvent: presentation && typeof presentation.emitPresentationEvent === 'function'
+                        ? (event: any) => presentation.emitPresentationEvent(
+                            (typeof globalThis !== 'undefined' ? (globalThis as any).cardState : null),
+                            event
+                        )
+                        : null
+                });
+            }
+        } catch (e: any) { /* ignore */ }
         try {
             const breeding = require('../game/special-effects/breeding');
             const animationUtils = require('./animation-utils');

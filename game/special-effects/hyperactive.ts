@@ -34,16 +34,95 @@ try {
     CHARGE_MAX = (typeof globalThis !== 'undefined' && Number.isFinite(Number(globalThis.CHARGE_MAX))) ? Number(globalThis.CHARGE_MAX) : CHARGE_MAX;
 }
 
-let BoardPresentation = null;
-if (typeof require === 'function') {
-    try { BoardPresentation = require('../logic/presentation'); } catch (e) { /* ignore */ }
+let __uiImpl_hyperactive: any = {};
+function setUIImpl(obj: any) { __uiImpl_hyperactive = obj || {}; }
+
+function hasPlaybackEngineForHyperactive(): boolean {
+    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.hasPlaybackEngine === 'function') {
+        return __uiImpl_hyperactive.hasPlaybackEngine() === true;
+    }
+    return !!(mv && typeof mv.hasPlaybackEngine === 'function' && mv.hasPlaybackEngine());
 }
-if (!BoardPresentation && typeof globalThis !== 'undefined' && globalThis.PresentationHelper) {
-    BoardPresentation = globalThis.PresentationHelper;
+
+async function animateHyperactiveFadeOut(row: number, col: number, options?: any): Promise<any> {
+    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.animateFadeOutAt === 'function') {
+        return __uiImpl_hyperactive.animateFadeOutAt(row, col, options);
+    }
+    return mv && typeof mv.animateFadeOutAt === 'function'
+        ? mv.animateFadeOutAt(row, col, options)
+        : undefined;
 }
-function emitPresentationEventViaBoardOps(ev: any) {
+
+async function animateHyperactiveMove(from: any, to: any): Promise<any> {
+    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.animateHyperactiveMove === 'function') {
+        return __uiImpl_hyperactive.animateHyperactiveMove(from, to);
+    }
+    return mv && typeof mv.animateHyperactiveMove === 'function'
+        ? mv.animateHyperactiveMove(from, to)
+        : undefined;
+}
+
+async function animateHyperactiveMoveChain(moves: any[]): Promise<any> {
+    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.animateHyperactiveMoveChain === 'function') {
+        return __uiImpl_hyperactive.animateHyperactiveMoveChain(moves);
+    }
+    return mv && typeof mv.animateHyperactiveMoveChain === 'function'
+        ? mv.animateHyperactiveMoveChain(moves)
+        : undefined;
+}
+
+function setHyperactiveDiscColorAt(row: number, col: number, color: number): any {
+    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.setDiscColorAt === 'function') {
+        return __uiImpl_hyperactive.setDiscColorAt(row, col, color);
+    }
     try {
-        const pres = (typeof require === 'function') ? require('../logic/presentation') : (typeof globalThis !== 'undefined' ? globalThis.PresentationHelper : null);
+        const vis = require('../move-executor-visuals');
+        if (vis && typeof vis.setDiscColorAt === 'function') return vis.setDiscColorAt(row, col, color);
+    } catch (e) { /* ignore */ }
+    return undefined;
+}
+
+function getAnimationTimingForHyperactive(key: string): any {
+    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.getAnimationTiming === 'function') {
+        return __uiImpl_hyperactive.getAnimationTiming(key);
+    }
+    if (typeof require === 'function') {
+        try {
+            const { getAnimationTiming } = require('../../constants/animation-constants');
+            if (typeof getAnimationTiming === 'function') return getAnimationTiming(key);
+        } catch (e) { /* ignore */ }
+    }
+    return undefined;
+}
+
+function waitHyperactiveMs(ms: number): Promise<any> {
+    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.waitMs === 'function') {
+        return __uiImpl_hyperactive.waitMs(ms);
+    }
+    let timers: any = null;
+    if (typeof require === 'function') {
+        try { timers = require('../timers'); } catch (e) { /* ignore */ }
+    }
+    return timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve();
+}
+
+function requestHyperactiveFrame(): Promise<any> {
+    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.requestFrame === 'function') {
+        return __uiImpl_hyperactive.requestFrame();
+    }
+    let timers: any = null;
+    if (typeof require === 'function') {
+        try { timers = require('../timers'); } catch (e) { /* ignore */ }
+    }
+    return timers && typeof timers.requestFrame === 'function' ? timers.requestFrame() : Promise.resolve();
+}
+
+function emitPresentationEventViaBoardOps(ev: any) {
+    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.emitPresentationEvent === 'function') {
+        return __uiImpl_hyperactive.emitPresentationEvent(ev);
+    }
+    try {
+        const pres = (typeof require === 'function') ? require('../logic/presentation') : null;
         if (pres && typeof pres.emitPresentationEvent === 'function') return pres.emitPresentationEvent(cardState, ev);
     } catch (e) { /* ignore */ }
     try { console.warn('[hyperactive] Presentation helper not available'); } catch (e) { }
@@ -172,61 +251,32 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
     // Single Visual Writer: if PlaybackEngine is available in the browser, skip manual DOM animations here.
     // PresentationEvents already encode MOVE/CHANGE and will be consumed by PlaybackEngine.
     // Prefer canonical UI registration via injected globals/shared shim without importing ui/ from game/.
-    try {
-        if (mv && typeof mv.hasPlaybackEngine === 'function' && mv.hasPlaybackEngine()) {
-            return;
-        }
-    } catch (e) { /* ignore */ }
+    if (hasPlaybackEngineForHyperactive()) return;
 
     // Animate using the pre-move DOM first, then sync to post-move state.
     const allDestroyed = (result.destroyed || []).concat(result.ultimateDestroyed || []);
     if (allDestroyed.length > 0) {
         for (const pos of allDestroyed) {
-            if (mv && typeof mv.animateFadeOutAt === 'function') {
-                await mv.animateFadeOutAt(pos.row, pos.col);
-            }
+            await animateHyperactiveFadeOut(pos.row, pos.col);
         }
     }
     const allMoved = (result.moved || [])
         .concat(result.ultimateMoved || []);
     if (allMoved.length > 0) {
-        if (mv && typeof mv.animateHyperactiveMoveChain === 'function') {
-            await mv.animateHyperactiveMoveChain(allMoved);
+        if (
+            (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.animateHyperactiveMoveChain === 'function') ||
+            (mv && typeof mv.animateHyperactiveMoveChain === 'function')
+        ) {
+            await animateHyperactiveMoveChain(allMoved);
         } else {
             for (const m of allMoved) {
-                if (mv && typeof mv.animateHyperactiveMove === 'function') {
-                    await mv.animateHyperactiveMove(m.from, m.to);
-                }
+                await animateHyperactiveMove(m.from, m.to);
             }
         }
     }
     try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
 
-    let delay = 800;
-    if (typeof require === 'function') {
-        try {
-            const { getAnimationTiming } = require('../../constants/animation-constants');
-            delay = getAnimationTiming('FLIP_ANIMATION_DURATION') || delay;
-        } catch (e) { }
-    } else if (typeof globalThis !== 'undefined' && typeof globalThis.getAnimationTiming === 'function') {
-        delay = globalThis.getAnimationTiming('FLIP_ANIMATION_DURATION') || delay;
-    }
-
-    const setDiscColorAt = (row: number, col: number, color: number) => {
-        try {
-            const vis = require('../move-executor-visuals');
-            if (vis && typeof vis.setDiscColorAt === 'function') return vis.setDiscColorAt(row, col, color);
-        } catch (e) { /* ignore */ }
-        return undefined;
-    };
-
-    // Timers abstraction (injected by UI)
-    let timers: any = null;
-    if (typeof require === 'function') {
-        try { timers = require('../timers'); } catch (e) { /* ignore */ }
-    }
-
-    const waitMs = (ms: number) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
+    const delay = getAnimationTimingForHyperactive('FLIP_ANIMATION_DURATION') || 800;
 
     const allFlipped = (result.flipped || []).concat(result.ultimateFlipped || []);
     if (allFlipped.length > 0) {
@@ -238,7 +288,7 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
             const toColor = gameState.board[pos.row][pos.col];
             if (toColor !== BLACK && toColor !== WHITE) continue;
             const fromColor = -toColor;
-            setDiscColorAt(pos.row, pos.col, fromColor);
+            setHyperactiveDiscColorAt(pos.row, pos.col, fromColor);
         }
 
         const flipCoords = allFlipped
@@ -251,7 +301,7 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
                 const ownerBefore = ownerAfter === 'black' ? 'white' : 'black';
                 emitPresentationEventViaBoardOps({ type: 'CHANGE', row: r, col: c, ownerBefore, ownerAfter });
             }
-            await waitMs(delay);
+            await waitHyperactiveMs(delay);
         }
 
         // Finish initial flip colors
@@ -260,7 +310,7 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
 
             const toColor = gameState.board[pos.row][pos.col];
             if (toColor !== BLACK && toColor !== WHITE) continue;
-            setDiscColorAt(pos.row, pos.col, toColor);
+            setHyperactiveDiscColorAt(pos.row, pos.col, toColor);
         }
 
         // Regen back (Use universal cross-fade instead of flips)
@@ -276,7 +326,7 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
         if (regenCaptureFlips.length > 0) {
             for (const pos of regenCaptureFlips) {
                 const toColor = gameState.board[pos.row][pos.col];
-                setDiscColorAt(pos.row, pos.col, -toColor);
+                setHyperactiveDiscColorAt(pos.row, pos.col, -toColor);
             }
             const capCoords = regenCaptureFlips.map((p: any) => [p.row, p.col]);
             if (capCoords.length > 0) {
@@ -285,11 +335,11 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
                     const ownerBefore = ownerAfter === 'black' ? 'white' : 'black';
                     emitPresentationEventViaBoardOps({ type: 'CHANGE', row: r, col: c, ownerBefore, ownerAfter });
                 }
-                await waitMs(delay);
+                await waitHyperactiveMs(delay);
             }
             for (const pos of regenCaptureFlips) {
                 const toColor = gameState.board[pos.row][pos.col];
-                setDiscColorAt(pos.row, pos.col, toColor);
+                setHyperactiveDiscColorAt(pos.row, pos.col, toColor);
             }
         }
 
@@ -339,46 +389,18 @@ async function processHyperactiveImmediateAtPlacement(player: number, row: numbe
     // Animate using the pre-move DOM first, then sync to post-move state.
     if (result.destroyed.length > 0) {
         for (const pos of result.destroyed) {
-            if (mv && typeof mv.animateFadeOutAt === 'function') {
-                await mv.animateFadeOutAt(pos.row, pos.col);
-            }
+            await animateHyperactiveFadeOut(pos.row, pos.col);
         }
     }
     if (result.moved.length > 0) {
         for (const m of result.moved) {
-            if (mv && typeof mv.animateHyperactiveMove === 'function') {
-                await mv.animateHyperactiveMove(m.from, m.to);
-            }
+            await animateHyperactiveMove(m.from, m.to);
         }
     }
     emitBoardUpdate();
 
-    // Timers abstraction (injected by UI)
-    let timers: any = null;
-    if (typeof require === 'function') {
-        try { timers = require('../timers'); } catch (e) { /* ignore */ }
-    }
-    const waitMs = (ms: number) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
-
     if (result.flipped.length > 0) {
-        let _getAnimationTiming_hyper: any = null;
-        if (typeof require === 'function') {
-            try { ({ getAnimationTiming: _getAnimationTiming_hyper } = require('../../constants/animation-constants')); } catch (e) { /* ignore */ }
-        }
-        if (typeof _getAnimationTiming_hyper !== 'function' && typeof globalThis !== 'undefined' && typeof globalThis.getAnimationTiming === 'function') {
-            _getAnimationTiming_hyper = globalThis.getAnimationTiming;
-        }
-        const delay = (typeof _getAnimationTiming_hyper === 'function' ? _getAnimationTiming_hyper('FLIP_ANIMATION_DURATION') : undefined) || 800;
-
-        const setDiscColorAt = (r: number, c: number, color: number) => {
-            try { const mv = require('../move-executor-visuals'); if (mv && typeof mv.setDiscColorAt === 'function') return mv.setDiscColorAt(row, col, color); } catch (e) { /* ignore in non-UI */ }
-            try {
-                const vis = require('../move-executor-visuals');
-                if (vis && typeof vis.setDiscColorAt === 'function') return vis.setDiscColorAt(r, c, color);
-            } catch (e) { /* ignore */ }
-            return undefined;
-        };
-
+        const delay = getAnimationTimingForHyperactive('FLIP_ANIMATION_DURATION') || 800;
 
         const regenedSet = new Set(regenTriggered.map((p: any) => `${p.row},${p.col}`));
         const toColor = player;
@@ -386,7 +408,7 @@ async function processHyperactiveImmediateAtPlacement(player: number, row: numbe
         for (const pos of result.flipped) {
             if (regenedSet.has(`${pos.row},${pos.col}`)) continue; // Skip staging for Regen stones
 
-            setDiscColorAt(pos.row, pos.col, fromColor);
+            setHyperactiveDiscColorAt(pos.row, pos.col, fromColor);
         }
 
         const flipCoords = result.flipped
@@ -398,12 +420,12 @@ async function processHyperactiveImmediateAtPlacement(player: number, row: numbe
                 const ownerBefore = ownerAfter === 'black' ? 'white' : 'black';
                 emitPresentationEventViaBoardOps({ type: 'CHANGE', row: r, col: c, ownerBefore, ownerAfter });
             }
-            await waitMs(delay);
+            await waitHyperactiveMs(delay);
         }
 
         for (const pos of result.flipped) {
             if (regenedSet.has(`${pos.row},${pos.col}`)) continue; // Skip color sync for Regen stones
-            setDiscColorAt(pos.row, pos.col, toColor);
+            setHyperactiveDiscColorAt(pos.row, pos.col, toColor);
         }
 
         if (regenTriggered.length > 0) {
@@ -417,7 +439,7 @@ async function processHyperactiveImmediateAtPlacement(player: number, row: numbe
         if (regenCaptureFlips.length > 0) {
             for (const pos of regenCaptureFlips) {
                 const to = gameState.board[pos.row][pos.col];
-                setDiscColorAt(pos.row, pos.col, -to);
+                setHyperactiveDiscColorAt(pos.row, pos.col, -to);
             }
             const capCoords = regenCaptureFlips.map((p: any) => [p.row, p.col]);
             if (capCoords.length > 0) {
@@ -426,11 +448,11 @@ async function processHyperactiveImmediateAtPlacement(player: number, row: numbe
                     const ownerBefore = ownerAfter === 'black' ? 'white' : 'black';
                     emitPresentationEventViaBoardOps({ type: 'CHANGE', row: r, col: c, ownerBefore, ownerAfter });
                 }
-                await waitMs(delay);
+                await waitHyperactiveMs(delay);
             }
             for (const pos of regenCaptureFlips) {
                 const to = gameState.board[pos.row][pos.col];
-                setDiscColorAt(pos.row, pos.col, to);
+                setHyperactiveDiscColorAt(pos.row, pos.col, to);
             }
         }
 
@@ -456,13 +478,11 @@ async function processHyperactiveImmediateAtPlacement(player: number, row: numbe
     emitBoardUpdate();
     emitGameStateChange();
 
-    // Yield to UI paint cycle if a timer implementation is available
-    if (timers && typeof timers.requestFrame === 'function') {
-        await timers.requestFrame();
-    }
+    await requestHyperactiveFrame();
 }
 
 export = {
+    setUIImpl,
     processHyperactiveMovesAtTurnStart,
     processHyperactiveImmediateAtPlacement
 };

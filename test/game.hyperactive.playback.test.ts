@@ -50,4 +50,39 @@ describe('hyperactive playback detection', () => {
     delete (global as any).emitGameStateChange;
     delete (global as any).emitCardStateChange;
   });
+
+  test('prefers hyperactive UI injection over move visual globals', async () => {
+    jest.resetModules();
+    const animateHyperactiveMoveChain = jest.fn(async () => {});
+    const gameVisualChain = jest.fn(async () => {});
+    gameVisuals.setUIImpl({
+      hasPlaybackEngine: () => false,
+      animateHyperactiveMoveChain: gameVisualChain
+    });
+
+    (global as any).emitBoardUpdate = jest.fn();
+    (global as any).emitGameStateChange = jest.fn();
+    (global as any).emitCardStateChange = jest.fn();
+
+    const hyper = require('../game/special-effects/hyperactive');
+    hyper.setUIImpl({
+      hasPlaybackEngine: () => false,
+      animateHyperactiveMoveChain
+    });
+
+    const moved = [
+      { from: { row: 4, col: 4 }, to: { row: 4, col: 5 } }
+    ];
+
+    await hyper.processHyperactiveMovesAtTurnStart(1, { moved, destroyed: [], flipped: [] });
+
+    expect(animateHyperactiveMoveChain).toHaveBeenCalledWith(moved);
+    expect(gameVisualChain).not.toHaveBeenCalled();
+
+    hyper.setUIImpl({});
+    gameVisuals.clearUIImpl();
+    delete (global as any).emitBoardUpdate;
+    delete (global as any).emitGameStateChange;
+    delete (global as any).emitCardStateChange;
+  });
 });
