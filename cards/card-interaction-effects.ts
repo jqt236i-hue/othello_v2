@@ -5,6 +5,8 @@
  */
 
 // Optional dependency with graceful degradation
+declare const __non_webpack_require__: NodeRequire | undefined;
+
 const SpecialStoneRegistry = (function() {
   try {
     const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')

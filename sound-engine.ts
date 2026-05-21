@@ -50,7 +50,7 @@ const SoundEngine = {
     volume: 0.56,
     bgm: null as any,
     bgmVolume: 0.091,
-    currentTrackIndex: 0,
+    currentTrackIndex: 5,
     allowBgmPlay: true, // Default to true requested by user
     _bgmBufferedState: null as BgmBufferedState | null,
     _bgmBufferCache: {} as Record<string, AudioBuffer | Promise<AudioBuffer>>,
@@ -75,6 +75,7 @@ const SoundEngine = {
         clone_spawn: '石が複製されたタイミング.mp3',
         trap_select: '罠・時限爆弾の石を選択したタイミング.mp3',
         guard_select: '自分の石を選択したタイミング.mp3',
+        blockade_select: '封鎖の意志を置くタイミング.mp3',
         freeze_select: '凍結するマスを選択したタイミング.mp3',
         trap_triggered: '罠が発動したタイミング.mp3',
         trap_misfire: '罠が不発で消えたタイミング.mp3',

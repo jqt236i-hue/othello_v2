@@ -21,6 +21,11 @@ const BROWSER_MODULE_PREFIXES = [
     'constants/',
     'data/dialogue/',
     'game/',
+    'othello-ai/core/',
+    'othello-ai/eval/',
+    'othello-ai/runtime/',
+    'othello-ai/search/',
+    'story/',
     'shared/',
     'ui/',
     'utils/'

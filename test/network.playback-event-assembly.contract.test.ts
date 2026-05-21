@@ -780,6 +780,36 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
     expect(result.diagnostics.warnings).toEqual([]);
   });
 
+  test('playback assembly does not mutate authoritative snapshot state', () => {
+    const snapshot = {
+      cardState: {
+        turnIndex: 3,
+        hands: { black: ['meteor_01'], white: ['guard_01'] },
+        pendingEffectByPlayer: { black: null, white: null }
+      },
+      gameState: {
+        board: createBoard(8, 8),
+        currentPlayer: 1
+      }
+    };
+    const before = clone(snapshot);
+
+    helpers.assemblePlaybackEvents({
+      rawEvents: [
+        { type: 'place', row: 2, col: 3, player: 'black', actionId: 'place-immutability', turnIndex: 3 }
+      ],
+      presentationEvents: [
+        { type: 'DESTROY', row: 3, col: 3, owner: 'white', turnIndex: 3 }
+      ],
+      snapshot,
+      fallbackPlayerKey: 'black',
+      adapter,
+      normalizePlayerKey
+    });
+
+    expect(snapshot).toEqual(before);
+  });
+
   test('shared helper contract stays aligned across UI adapter, worker, and local match server', async () => {
     let room = null;
     let stream = null;

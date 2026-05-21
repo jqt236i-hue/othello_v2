@@ -641,18 +641,39 @@ html.stone-images-loaded .disc.white {
     background-color: transparent !important;
 }
 
+.disc.protected,
+.disc.perma-protected.perma-black,
+.disc.perma-protected.perma-white {
+    background: none !important;
+    box-shadow: none !important;
+}
+
+.disc.bomb,
+.disc.time-bomb-stone,
+.disc.time-stop-stone,
+.disc.ultimate-dragon,
+.disc.breeding-stone,
+.disc.ultimate-destroy-god,
+.disc.gold-stone,
+.disc.silver-stone,
+.disc.hyperactive-stone,
+.disc.sniper-stone,
+.disc.observer-stone,
+.disc.trap-stone {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
 .disc.protected {
     /* Use image-based protected visuals; allow inline/background-image to take effect */
-    background: none !important;
     /* visual border removed: image assets supply final rim */
-    box-shadow: none !important;
     filter: none;
 }
 
 .disc.perma-protected.perma-black {
     box-sizing: border-box;
     /* Perma-protected uses an image applied via JS; clear gradient to allow image to show. */
-    background: none !important;
     /* visual border/shine removed: image supplies the rim */
     box-shadow: none;
 }
@@ -660,7 +681,6 @@ html.stone-images-loaded .disc.white {
 .disc.perma-protected.perma-white {
     box-sizing: border-box;
     /* Perma-protected uses image-based visuals; let JS set the image */
-    background: none !important;
     /* visual border/shine removed: image supplies the rim */
     box-shadow: none;
 }
@@ -668,9 +688,6 @@ html.stone-images-loaded .disc.white {
 
 .disc.bomb {
     /* Use image-based special stone visuals for bombs */
-    background: none !important;
-    border: none !important;
-    box-shadow: none !important;
 }
 
 .disc.bomb.bomb-black {
@@ -682,15 +699,9 @@ html.stone-images-loaded .disc.white {
 }
 
 .disc.time-bomb-stone {
-    background: none !important;
-    border: none !important;
-    box-shadow: none !important;
 }
 
 .disc.time-stop-stone {
-    background: none !important;
-    border: none !important;
-    box-shadow: none !important;
 }
 
 .bomb-icon {
@@ -876,7 +887,6 @@ html.stone-images-loaded .disc.white {
  */
 .disc.protected-stone {
     /* background image is set by JavaScript based on owner */
-    background: none !important;
 }
 
 /* 強い石/弱い石は通常石の下地を隠し、黒縁の見え方を防ぐ */
@@ -918,11 +928,6 @@ html.stone-images-loaded .disc.white {
     }
 }
 
-/* Stone destruction fade-out animation */
-.disc.destroy-fade {
-    animation: fadeOutDestroy 0.5s ease-out forwards !important;
-}
-
 /* When selecting a target for a card, "placeable move" markers must not appear. */
 #board.selection-mode .cell.legal,
 #board.selection-mode .cell.legal-free {
@@ -941,42 +946,6 @@ html.stone-images-loaded .disc.white {
     transform: none;
 }
 
-@keyframes fadeOutDestroy {
-    0% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0.5;
-    }
-
-    100% {
-        opacity: 0;
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .disc.destroy-fade {
-        animation: none !important;
-        opacity: 0 !important;
-    }
-}
-
-/* Stone destruction "shatter" animation (used by animateDestroyAt) */
-.disc.shatter {
-    animation: shatterStone 0.3s ease-out forwards !important;
-}
-
-@keyframes shatterStone {
-    0% {
-        opacity: 1;
-    }
-
-    100% {
-        opacity: 0;
-    }
-}
-
 /**
  * Ultimate Reverse Dragon
  * - Owner別に龍画像を表示（::before 擬似要素）
@@ -984,9 +953,6 @@ html.stone-images-loaded .disc.white {
  * - 白所有 → 白龍
  */
 .disc.ultimate-dragon {
-    background: none !important;
-    box-shadow: none !important;
-    border: none !important;
 }
 
 .disc.ultimate-dragon.ud-black,
@@ -1040,9 +1006,6 @@ html.stone-images-loaded .disc.white {
 /* ===== Breeding Stone (繁殖の意志) ===== */
 .disc.breeding-stone {
     /* 背景を透明化 - 画像が表示できるように */
-    background: none !important;
-    box-shadow: none !important;
-    border: none !important;
 }
 
 .disc.breeding-stone[data-breeding="black"] {
@@ -1055,9 +1018,6 @@ html.stone-images-loaded .disc.white {
 
 .disc.ultimate-destroy-god {
     /* UDG is a full-skin stone; hide base disc gradients/borders */
-    background: none !important;
-    box-shadow: none !important;
-    border: none !important;
 }
 
 .disc.ultimate-destroy-god.ud-black,
@@ -1149,9 +1109,6 @@ html.stone-images-loaded .disc.white {
  * - フェードアウトアニメーション後に盤上から消滅
  */
 .disc.gold-stone {
-    background: none !important;
-    border: none !important;
-    box-shadow: none !important;
     /* Use default .disc sizing so gold stone matches other stones */
     width: 82%;
     height: 82%;
@@ -1164,9 +1121,6 @@ html.stone-images-loaded .disc.white {
  * - Same visual mechanism as Gold Stone
  */
 .disc.silver-stone {
-    background: none !important;
-    border: none !important;
-    box-shadow: none !important;
     width: 82%;
     height: 82%;
     top: 9%;
@@ -1178,24 +1132,11 @@ html.stone-images-loaded .disc.white {
     will-change: transform;
 }
 
-#card-fx-layer {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
-    z-index: 30;
-}
-
 .hyperactive-move-ghost {
-    z-index: 30;
+    z-index: var(--z-board-fx);
 }
 
 .disc.hyperactive-stone {
-    background: none !important;
-    box-shadow: none !important;
-    border: none !important;
 }
 
 .disc.hyperactive-stone.ud-black,
@@ -1209,9 +1150,6 @@ html.stone-images-loaded .disc.white {
 }
 
 .disc.sniper-stone {
-    background: none !important;
-    box-shadow: none !important;
-    border: none !important;
 }
 
 .disc.sniper-stone.ud-black,
@@ -1225,9 +1163,6 @@ html.stone-images-loaded .disc.white {
 }
 
 .disc.observer-stone {
-    background: none !important;
-    box-shadow: none !important;
-    border: none !important;
 }
 
 .disc.observer-stone.ud-black,
@@ -1241,9 +1176,6 @@ html.stone-images-loaded .disc.white {
 }
 
 .disc.trap-stone {
-    background: none !important;
-    box-shadow: none !important;
-    border: none !important;
 }
 
 .disc.trap-place-flash .disc__overlay-image {

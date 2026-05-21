@@ -819,40 +819,27 @@
 }
 
 /* Hand hot path: keep cues readable without perpetual shimmer/pulse/shine during play. */
-#hand-black .card-item.visible.cost-tier-gold,
-#hand-white .card-item.visible.cost-tier-gold,
-#hand-black .card-item.visible.cost-tier-special,
-#hand-white .card-item.visible.cost-tier-special,
-#hand-black .card-item.visible[data-card-id="rainbow_stone"],
-#hand-white .card-item.visible[data-card-id="rainbow_stone"] {
+:is(#hand-black, #hand-white) .card-item.visible:is(.cost-tier-gold, .cost-tier-special, [data-card-id="rainbow_stone"]),
+:is(#hand-black, #hand-white) .card-item.visible:is(.cost-tier-gold, .cost-tier-special, [data-card-id="rainbow_stone"])::before {
     animation: none;
 }
 
-#hand-black .card-item.visible.cost-tier-gold::before,
-#hand-white .card-item.visible.cost-tier-gold::before,
-#hand-black .card-item.visible.cost-tier-special::before,
-#hand-white .card-item.visible.cost-tier-special::before,
-#hand-black .card-item.visible[data-card-id="rainbow_stone"]::before,
-#hand-white .card-item.visible[data-card-id="rainbow_stone"]::before {
-    animation: none;
+:is(#hand-black, #hand-white) .card-item.visible:is(.cost-tier-gold, .cost-tier-special, [data-card-id="rainbow_stone"])::before {
     background-position: 50% 50%;
 }
 
-#hand-black .card-item.visible.clickable,
-#hand-white .card-item.visible.clickable {
-    transition: transform 120ms ease, box-shadow 120ms ease;
+:is(#hand-black, #hand-white) .card-item.visible.clickable {
+    transition: transform var(--motion-fast), box-shadow var(--motion-fast);
 }
 
-#hand-black .card-item.visible.clickable:hover,
-#hand-white .card-item.visible.clickable:hover {
+:is(#hand-black, #hand-white) .card-item.visible.clickable:hover {
     transform: translateY(-3px);
     box-shadow:
         0 7px 14px rgba(0, 0, 0, 0.42),
         0 0 6px var(--card-tier-hover-glow, rgba(255, 215, 0, 0.1));
 }
 
-#hand-black .card-item.selected,
-#hand-white .card-item.selected {
+:is(#hand-black, #hand-white) .card-item.selected {
     box-shadow:
         0 0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 239, 170, 0.96),
         0 12px 24px rgba(0, 0, 0, 0.46);
@@ -860,44 +847,35 @@
     animation: none;
 }
 
-#hand-black .card-item.selected::before,
-#hand-white .card-item.selected::before {
+:is(#hand-black, #hand-white) .card-item.selected::before {
     border-color: rgba(255, 241, 176, 0.88);
     box-shadow:
         inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.08),
         inset 0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 215, 0, 0.08);
 }
 
-#hand-black .card-item.selected .card-name,
-#hand-white .card-item.selected .card-name {
+:is(#hand-black, #hand-white) .card-item.selected .card-name {
     border-color: rgba(255, 231, 146, 0.82);
     box-shadow:
         0 0 0 calc(1px * var(--layout-stage-scale)) rgba(20, 12, 8, 0.3),
         0 4px 8px rgba(0, 0, 0, 0.22);
 }
 
-#hand-black .card-item.selected .card-cost-badge,
-#hand-black .card-item.selected .card-type-badge,
-#hand-white .card-item.selected .card-cost-badge,
-#hand-white .card-item.selected .card-type-badge {
+:is(#hand-black, #hand-white) .card-item.selected :is(.card-cost-badge, .card-type-badge) {
     border-color: rgba(255, 236, 156, 0.94);
     box-shadow:
         0 0 0 calc(1px * var(--layout-stage-scale)) rgba(22, 13, 8, 0.24),
         0 2px 4px rgba(0, 0, 0, 0.18);
 }
 
-#hand-black .card-item.selected.visible.clickable:hover,
-#hand-white .card-item.selected.visible.clickable:hover {
+:is(#hand-black, #hand-white) .card-item.selected.visible.clickable:hover {
     transform: translateY(-5px);
     box-shadow:
         0 0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 239, 170, 0.96),
         0 14px 26px rgba(0, 0, 0, 0.48);
 }
 
-#hand-black .card-item.affordable:not(.selected),
-#hand-black .card-item.usable:not(.selected),
-#hand-white .card-item.affordable:not(.selected),
-#hand-white .card-item.usable:not(.selected) {
+:is(#hand-black, #hand-white) .card-item:is(.affordable, .usable):not(.selected) {
     box-shadow:
         0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 241, 186, 0.82),
         0 8px 16px rgba(0, 0, 0, 0.42);
@@ -906,30 +884,21 @@
     animation: none;
 }
 
-#hand-black .card-item.affordable::before,
-#hand-black .card-item.usable::before,
-#hand-white .card-item.affordable::before,
-#hand-white .card-item.usable::before {
+:is(#hand-black, #hand-white) .card-item:is(.affordable, .usable)::before {
     border-color: rgba(255, 236, 164, 0.88);
     box-shadow:
         inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.07),
         inset 0 0 calc(12px * var(--layout-stage-scale)) rgba(255, 220, 120, 0.08);
 }
 
-#hand-black .card-item.affordable .card-name,
-#hand-black .card-item.usable .card-name,
-#hand-white .card-item.affordable .card-name,
-#hand-white .card-item.usable .card-name {
+:is(#hand-black, #hand-white) .card-item:is(.affordable, .usable) .card-name {
     border-color: rgba(255, 231, 150, 0.8);
     box-shadow:
         0 0 0 calc(1px * var(--layout-stage-scale)) rgba(20, 12, 8, 0.3),
         0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
-#hand-black .card-item.affordable.visible.clickable:hover:not(.selected),
-#hand-black .card-item.usable.visible.clickable:hover:not(.selected),
-#hand-white .card-item.affordable.visible.clickable:hover:not(.selected),
-#hand-white .card-item.usable.visible.clickable:hover:not(.selected) {
+:is(#hand-black, #hand-white) .card-item:is(.affordable, .usable).visible.clickable:hover:not(.selected) {
     transform: translateY(-5px) scale(1.01);
     box-shadow:
         0 0 0 calc(2px * var(--layout-stage-scale)) rgba(255, 247, 205, 0.9),
@@ -937,14 +906,7 @@
     filter: none;
 }
 
-#hand-black .card-item.affordable .card-cost-badge,
-#hand-black .card-item.usable .card-cost-badge,
-#hand-black .card-item.affordable .card-type-badge,
-#hand-black .card-item.usable .card-type-badge,
-#hand-white .card-item.affordable .card-cost-badge,
-#hand-white .card-item.usable .card-cost-badge,
-#hand-white .card-item.affordable .card-type-badge,
-#hand-white .card-item.usable .card-type-badge {
+:is(#hand-black, #hand-white) .card-item:is(.affordable, .usable) :is(.card-cost-badge, .card-type-badge) {
     box-shadow:
         0 0 6px rgba(255, 220, 130, 0.22),
         0 1px 2px rgba(0, 0, 0, 0.38);
@@ -1500,6 +1462,38 @@
     text-shadow: none;
 }
 
+#othello-pass-btn {
+    position: absolute;
+    left: 50%;
+    bottom: calc(-56px * var(--layout-stage-scale));
+    transform: translateX(-50%);
+    min-width: calc(112px * var(--layout-stage-scale));
+    min-height: calc(38px * var(--layout-stage-scale));
+    padding: calc(8px * var(--layout-stage-scale)) calc(24px * var(--layout-stage-scale));
+    border: calc(2px * var(--layout-stage-scale)) solid #ececec;
+    border-radius: calc(999px * var(--layout-stage-scale));
+    background: linear-gradient(180deg, #ffffff 0%, #e8e8e8 100%);
+    color: #151515;
+    font-size: calc(15px * var(--layout-stage-scale));
+    font-weight: 800;
+    letter-spacing: 0;
+    box-shadow:
+        0 calc(4px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.38),
+        inset 0 calc(1px * var(--layout-stage-scale)) 0 rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    z-index: 165;
+}
+
+#othello-pass-btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #f8f8f8 0%, #dcdcdc 100%);
+    border-color: #ffffff;
+}
+
+#othello-pass-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 #destroy-card-btn:hover:not(:disabled) {
     background: linear-gradient(to bottom, #aa5a5a, #8a3a3a);
     border-color: #e07070;
@@ -1779,7 +1773,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    z-index: 1025;
+    z-index: var(--z-card-fx);
     overflow: visible;
 }
 

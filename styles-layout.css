@@ -698,8 +698,8 @@ body.auto-mode-active #cancel-card-btn {
     justify-content: center;
     padding: calc(16px * var(--layout-stage-scale));
     box-sizing: border-box;
-    background: rgba(0, 0, 0, 0.56);
-    z-index: 13010;
+    background: var(--surface-overlay);
+    z-index: var(--z-modal-network);
 }
 
 #networkOverlay.is-open {
@@ -712,10 +712,10 @@ body.auto-mode-active #cancel-card-btn {
     display: flex;
     flex-direction: column;
     min-height: calc(240px * var(--layout-stage-scale));
-    background: rgba(30, 30, 30, 0.95);
+    background: var(--surface-modal);
     border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.15);
     border-radius: calc(10px * var(--layout-stage-scale));
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--shadow-modal);
     backdrop-filter: blur(5px);
 }
 
@@ -758,8 +758,8 @@ body.auto-mode-active #cancel-card-btn {
     justify-content: center;
     padding: calc(16px * var(--layout-stage-scale));
     box-sizing: border-box;
-    background: rgba(0, 0, 0, 0.56);
-    z-index: 13020;
+    background: var(--surface-overlay);
+    z-index: var(--z-modal-leaderboard);
 }
 
 #leaderboardOverlay.is-open {
@@ -772,10 +772,10 @@ body.auto-mode-active #cancel-card-btn {
     display: flex;
     flex-direction: column;
     min-height: calc(240px * var(--layout-stage-scale));
-    background: rgba(30, 30, 30, 0.95);
+    background: var(--surface-modal);
     border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.15);
     border-radius: calc(10px * var(--layout-stage-scale));
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--shadow-modal);
     backdrop-filter: blur(5px);
 }
 
@@ -818,8 +818,8 @@ body.auto-mode-active #cancel-card-btn {
     justify-content: center;
     padding: calc(16px * var(--layout-stage-scale));
     box-sizing: border-box;
-    background: rgba(0, 0, 0, 0.62);
-    z-index: 13021;
+    background: var(--surface-overlay-strong);
+    z-index: var(--z-modal-gacha);
 }
 
 #gachaOverlay.is-open {
@@ -831,10 +831,10 @@ body.auto-mode-active #cancel-card-btn {
     max-height: min(88vh, 760px);
     display: flex;
     flex-direction: column;
-    background: linear-gradient(180deg, rgba(37, 26, 20, 0.98), rgba(18, 13, 10, 0.98));
+    background: var(--surface-modal-gacha);
     border: var(--layout-size-border-thin) solid rgba(255, 236, 179, 0.18);
     border-radius: calc(12px * var(--layout-stage-scale));
-    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.62);
+    box-shadow: var(--shadow-modal-strong);
     backdrop-filter: blur(6px);
 }
 
@@ -1879,7 +1879,7 @@ body.auto-mode-active #cancel-card-btn {
     padding: calc(12px * var(--layout-stage-scale));
     box-sizing: border-box;
     background: rgba(0, 0, 0, 0.62);
-    z-index: 13030;
+    z-index: var(--z-modal-result);
 }
 
 #deckBuilderOverlay.is-open {
@@ -2081,6 +2081,7 @@ body.auto-mode-active #cancel-card-btn {
 }
 
 .deck-builder-card {
+    position: relative;
     min-height: calc(140px * var(--layout-stage-scale));
     cursor: pointer;
     padding-bottom: calc(24px * var(--layout-stage-scale));
@@ -2100,17 +2101,19 @@ body.auto-mode-active #cancel-card-btn {
 .deck-builder-count-badge {
     position: absolute;
     top: calc(4px * var(--layout-stage-scale));
-    left: calc(4px * var(--layout-stage-scale));
-    z-index: 2;
+    right: calc(4px * var(--layout-stage-scale));
+    z-index: 6;
     min-width: calc(24px * var(--layout-stage-scale));
-    padding: calc(2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    padding: calc(2px * var(--layout-stage-scale)) calc(5px * var(--layout-stage-scale));
     border-radius: calc(999px * var(--layout-stage-scale));
-    background: rgba(14, 12, 11, 0.88);
-    border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.16);
-    color: #ffecb3;
+    background: rgba(255, 224, 130, 0.96);
+    border: var(--layout-size-border-thin) solid rgba(60, 40, 12, 0.55);
+    color: #211915;
     font-size: calc(10px * var(--layout-stage-scale));
     font-weight: bold;
     text-align: center;
+    box-shadow: 0 calc(2px * var(--layout-stage-scale)) calc(6px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.42);
+    pointer-events: none;
 }
 
 .deck-builder-card .card-cost-badge {
@@ -2267,7 +2270,7 @@ body.time-stop-active {
     position: fixed;
     left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
     bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(52px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
-    z-index: 13020;
+    z-index: var(--z-floating-rules);
     min-width: calc(64px * var(--layout-stage-scale));
     padding: calc(8px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
     font-weight: 700;
@@ -2293,24 +2296,24 @@ body.time-stop-active {
 
 #gachaOpenBtn {
     bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(260px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
-    z-index: 13026;
+    z-index: var(--z-floating-overlay-control);
 }
 
 #leaderboardOpenBtn {
     bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(208px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
-    z-index: 13025;
+    z-index: var(--z-floating-control);
 }
 
 #deckBuilderOpenBtn {
     bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(156px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
-    z-index: 13024;
+    z-index: var(--z-floating-panel);
 }
 
 #handSkinBtn {
     position: fixed;
     left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
     bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + var(--layout-stage-bottom-safe-shift));
-    z-index: 13019;
+    z-index: calc(var(--z-floating-rules) - 1);
     min-width: calc(74px * var(--layout-stage-scale));
     min-height: calc(46px * var(--layout-stage-scale));
     padding: calc(8px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
@@ -2483,7 +2486,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     border: var(--layout-size-border-thin) solid var(--border-status);
     border-radius: calc(8px * var(--layout-stage-scale));
     box-shadow: var(--board-shadow-outer);
-    z-index: 13000;
+    z-index: var(--z-network-chat);
     overflow: hidden;
     pointer-events: auto;
     display: none;
@@ -2690,7 +2693,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     top: 50%;
     transform: translate(-50%, -50%);
     --rules-help-page-min-height: min(58vh, 500px);
-    z-index: 13010;
+    z-index: var(--z-modal-rules-help);
     width: min(860px, calc(100vw - 44px));
     max-height: min(80vh, 700px);
     background: var(--bg-panel-dark);
@@ -2728,7 +2731,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     transform: translate(-50%, calc(-50% + calc(8px * var(--layout-stage-scale)))) scale(0.98);
     transform-origin: center center;
     transition: opacity 160ms ease, transform 160ms ease;
-    z-index: 13024;
+    z-index: var(--z-floating-panel);
 }
 
 #handSkinPanel.is-open {

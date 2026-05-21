@@ -205,6 +205,37 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
+  test('blockade_selected 成功時は BLOCKADE の status_applied phase で blockade_select を再生する', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 13,
+      targets: [{ r: 3, col: 5, after: { special: 'BLOCKADE', timer: 3 } }],
+      meta: { special: 'BLOCKADE', timer: 3 }
+    }];
+    const raw = [{ type: 'blockade_selected', applied: true, target: { row: 3, col: 5 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'blockade_select');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(13);
+  });
+
+  test('blockade_selected が不成立なら blockade_select を再生しない', () => {
+    const base = [{
+      type: 'status_applied',
+      phase: 6,
+      targets: [{ r: 1, col: 7, after: { special: 'BLOCKADE', timer: 3 } }],
+      meta: { special: 'BLOCKADE', timer: 3 }
+    }];
+    const raw = [{ type: 'blockade_selected', applied: false, target: { row: 1, col: 7 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'blockade_select');
+
+    expect(cue).toBeUndefined();
+  });
+
   test('condemn_selected は相手手札の hand_remove phase で stone_destroy を再生する', () => {
     const base = [
       {

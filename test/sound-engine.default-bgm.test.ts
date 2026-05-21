@@ -151,7 +151,7 @@ describe('SoundEngine default BGM', () => {
     expect(soundEngine.effectVolumeScales.board_shrink_selected).toBe(0.7);
   });
 
-  test('startup default track points to c-othello', () => {
+  test('startup default track points to The Observer’s Tears', () => {
     const soundEngine = loadSoundEngine();
 
     expect(soundEngine.playlist).toHaveLength(6);
@@ -163,7 +163,7 @@ describe('SoundEngine default BGM', () => {
       'ノクターン',
       'The Observer’s Tears'
     ]);
-    expect(soundEngine.currentTrackIndex).toBe(0);
+    expect(soundEngine.currentTrackIndex).toBe(5);
     expect(soundEngine.playlist[0]).toEqual({
       name: 'c-othello',
       file: 'assets/audio/bgm/c-othello.mp3'

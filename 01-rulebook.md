@@ -966,6 +966,7 @@
 - 封鎖マスには強風の移動先としても入れない
 - 持続3ターン（封鎖を置いたプレイヤーのターン開始時のみ減算）
 - UI表示: 封鎖マスに半透明の赤いバツ印を表示し、中央に残りターン数を表示する
+- 対象マスを選択して封鎖マスが置かれるタイミングで、封鎖専用の効果音（`blockade_select`）を再生する
 
 ### 10.32.1 METEOR_WILL（隕石）
 
@@ -1661,7 +1662,7 @@
 
 ### 12.15 サウンド既定値
 
-- 起動時の既定BGMは `assets/audio/bgm/c-othello.mp3` を使用する
+- 起動時の既定BGMは `assets/audio/bgm/The Observer’s Tears.mp3` を使用する
 - 起動時の BGM 音量スライダー既定値は `0.091` とする（従来 `0.07` の 1.3 倍）
 - BGM 選択一覧は `assets/audio/bgm/c-othello.mp3`、`assets/audio/bgm/c-othello-2.mp3`、`assets/audio/bgm/盤喰いの小鬼戦.mp3`、`assets/audio/bgm/幻想即興曲.mp3`、`assets/audio/bgm/ノクターン.mp3`、`assets/audio/bgm/The Observer’s Tears.mp3` の 6 曲を含める
 - BGM は曲ごとに `loopStart` / `loopEnd` 秒を持ってよく、明示された範囲をループしてよい。`loopStart > 0` の曲は初回だけ 0 秒から再生し、ループ時は `loopStart` 秒へ戻す
@@ -1718,6 +1719,7 @@
   - `clone_spawn` → `石が複製されたタイミング.mp3`
   - `trap_select` → `罠・時限爆弾の石を選択したタイミング.mp3`（罠の意志と時限爆弾の石選択で共用）
   - `guard_select` → `自分の石を選択したタイミング.mp3`（守る意志と多動の継承の選択で共用）
+  - `blockade_select` → `封鎖の意志を置くタイミング.mp3`
   - `freeze_select` → `凍結するマスを選択したタイミング.mp3`
   - `trap_triggered` → `罠が発動したタイミング.mp3`
   - `trap_misfire` → `罠が不発で消えたタイミング.mp3`

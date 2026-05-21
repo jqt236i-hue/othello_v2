@@ -58,8 +58,37 @@ the fade-in starts. */
     animation: fadeOutDestroy 0.5s ease-out forwards !important;
 }
 
+.disc.shatter {
+    animation: shatterStone 0.3s ease-out forwards !important;
+}
+
+@keyframes fadeOutDestroy {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
+@keyframes shatterStone {
+    0% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
-    .disc.destroy-fade {
+    .disc.destroy-fade,
+    .disc.shatter {
         transition: none !important;
         animation: none !important;
         opacity: 0 !important;

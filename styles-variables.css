@@ -56,6 +56,63 @@
     --layout-priority-hand-scale: 1;
     --layout-priority-card-detail-scale: 1;
 
+    /* Shared z-index scale */
+    --z-board-fx: 30;
+    --z-card-fx: 1025;
+    --z-network-chat: 13000;
+    --z-modal-network: 13010;
+    --z-modal-rules-help: 13010;
+    --z-modal-leaderboard: 13020;
+    --z-modal-gacha: 13021;
+    --z-floating-rules: 13020;
+    --z-floating-panel: 13024;
+    --z-floating-control: 13025;
+    --z-floating-overlay-control: 13026;
+    --z-modal-result: 13030;
+
+    /* Shared surfaces and motion */
+    --surface-overlay: rgba(0, 0, 0, 0.56);
+    --surface-overlay-strong: rgba(0, 0, 0, 0.62);
+    --surface-modal: rgba(30, 30, 30, 0.95);
+    --surface-modal-gacha: linear-gradient(180deg, rgba(37, 26, 20, 0.98), rgba(18, 13, 10, 0.98));
+    --shadow-modal: 0 8px 28px rgba(0, 0, 0, 0.6);
+    --shadow-modal-strong: 0 10px 34px rgba(0, 0, 0, 0.62);
+    --motion-fast: 120ms ease;
+    --motion-panel: 160ms ease;
+    --motion-standard: 0.3s ease;
+
+    /* Aspect profile projection. Responsive CSS and simAspect both write these. */
+    --profile-board-max-size: var(--board-frame-inner-size, calc(var(--layout-anchor-board-size) * var(--layout-stage-scale) * var(--layout-priority-board-scale)));
+    --profile-side-right: calc(var(--layout-stage-offset-x) + max(var(--layout-anchor-side-right), env(safe-area-inset-right)));
+    --profile-side-bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-side-bottom) * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
+    --profile-side-width: calc(var(--layout-anchor-side-width) * var(--layout-stage-scale));
+    --profile-log-left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-log-left) * var(--layout-stage-scale)));
+    --profile-log-top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-log-top) * var(--layout-stage-scale)));
+    --profile-log-width: calc(var(--layout-anchor-log-width) * var(--layout-stage-scale));
+    --profile-log-max-height: calc(var(--layout-anchor-log-height) * var(--layout-stage-scale));
+    --profile-log-font-size: clamp(10px, calc(13px * var(--layout-stage-scale)), 13px);
+    --profile-log-padding: calc(10px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
+    --profile-effect-left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
+    --profile-effect-top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
+    --profile-effect-width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
+    --profile-effect-min-height: calc(var(--layout-anchor-effect-height) * var(--layout-stage-scale));
+    --profile-effect-max-height: none;
+    --profile-effect-padding: calc(9px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+    --profile-cpu-panel-top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-cpu-top) * var(--layout-stage-scale)));
+    --profile-cpu-panel-right: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-cpu-right) * var(--layout-stage-scale)));
+    --profile-cpu-image-size: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale) * var(--layout-cpu-image-scale));
+    --profile-cpu-label-font-size: clamp(13px, calc(var(--layout-anchor-cpu-label-font) * var(--layout-stage-scale)), var(--layout-anchor-cpu-label-font));
+    --profile-cpu-label-transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
+    --profile-hero-panel-left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-hero-left) * var(--layout-stage-scale)));
+    --profile-hero-panel-bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-hero-bottom) * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
+    --profile-hero-image-size: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale));
+    --profile-hero-image-transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
+    --profile-hero-image-hover-transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(1.04);
+    --profile-hero-label-font-size: clamp(13px, calc(var(--layout-anchor-hero-label-font) * var(--layout-stage-scale)), var(--layout-anchor-hero-label-font));
+    --profile-hero-label-transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
+    --profile-game-padding-bottom: calc(108px * var(--layout-stage-scale));
+    --profile-game-gap: calc(10px * var(--layout-stage-scale));
+
     /* Stage-scaled UI sizes (baseline locked to 1920x1080) */
     --layout-size-ui-gap: calc(15px * var(--layout-stage-scale));
     --layout-size-ui-gap-small: calc(8px * var(--layout-stage-scale));

@@ -274,4 +274,106 @@ describe('match authority public snapshot trap visibility', () => {
       { handIndex: null, cardId: null }
     ]);
   });
+
+  test('projectSnapshotForViewer hides selected opponent hand identity without mutating canonical snapshot', () => {
+    const snapshot = {
+      stateVersion: 11,
+      gameState: { currentPlayer: 1 },
+      cardState: {
+        hands: {
+          black: ['b1'],
+          white: ['meteor_01', 'guard_01']
+        },
+        selectedCardId: 'meteor_01',
+        selectedCardOwnerKey: 'white',
+        pendingEffectByPlayer: { black: null, white: null },
+        markers: [],
+        discard: []
+      }
+    };
+
+    const before = JSON.parse(JSON.stringify(snapshot));
+    const projected = MatchAuthority.projectSnapshotForViewer(snapshot, 'black');
+
+    expect(projected.cardState.hands.white).toEqual([
+      '__hidden_hand__:white:0',
+      '__hidden_hand__:white:1'
+    ]);
+    expect(projected.cardState.selectedCardId).toBeNull();
+    expect(projected.cardState.selectedCardOwnerKey).toBeNull();
+    expect(snapshot).toEqual(before);
+  });
+
+  test('projectSnapshotForViewer redacts condemn offers for non-entitled viewers and preserves owner choice space', () => {
+    const snapshot = {
+      stateVersion: 12,
+      gameState: { currentPlayer: 1 },
+      cardState: {
+        hands: {
+          black: ['condemn_01'],
+          white: ['meteor_01', 'guard_01']
+        },
+        pendingEffectByPlayer: {
+          black: {
+            type: 'CONDEMN_WILL',
+            stage: 'selectTarget',
+            cardId: 'condemn_01',
+            offers: [
+              { handIndex: 0, cardId: 'meteor_01' },
+              { handIndex: 1, cardId: 'guard_01' }
+            ]
+          },
+          white: null
+        },
+        markers: [],
+        discard: []
+      }
+    };
+
+    const blackView = MatchAuthority.projectSnapshotForViewer(snapshot, 'black');
+    const whiteView = MatchAuthority.projectSnapshotForViewer(snapshot, 'white');
+
+    expect(blackView.cardState.pendingEffectByPlayer.black.offers).toEqual([
+      { handIndex: 0, cardId: 'meteor_01' },
+      { handIndex: 1, cardId: 'guard_01' }
+    ]);
+    expect(whiteView.cardState.pendingEffectByPlayer.black.offers).toEqual([
+      { handIndex: 0, cardId: '__hidden_hand__:white:0' },
+      { handIndex: 1, cardId: '__hidden_hand__:white:1' }
+    ]);
+  });
+
+  test('projectSnapshotForViewer reveals only marked reveal-hand slots and keeps unrevealed cards hidden', () => {
+    const snapshot = {
+      stateVersion: 13,
+      gameState: { currentPlayer: 1 },
+      cardState: {
+        hands: {
+          black: ['reveal_hand_01'],
+          white: ['meteor_01', 'guard_01', 'trap_01']
+        },
+        pendingEffectByPlayer: { black: null, white: null },
+        _handCopyIdsByPlayer: {
+          black: [1],
+          white: [20, 21, 22]
+        },
+        _revealedHandCopyIdsByViewer: {
+          black: [21],
+          white: []
+        },
+        markers: [],
+        discard: []
+      }
+    };
+
+    const projected = MatchAuthority.projectSnapshotForViewer(snapshot, 'black');
+
+    expect(projected.cardState.hands.white).toEqual([
+      '__hidden_hand__:white:0',
+      'guard_01',
+      '__hidden_hand__:white:2'
+    ]);
+    expect(projected.cardState._handCopyIdsByPlayer).toBeUndefined();
+    expect(projected.cardState._revealedHandCopyIdsByViewer).toBeUndefined();
+  });
 });

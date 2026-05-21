@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ストーリー下書きエディタ</title>
+  <link rel="stylesheet" href="./story-script-editor.css">
+</head>
+<body>
+  <main id="storyEditorShell">
+    <header id="storyEditorHeader">
+      <div>
+        <h1>ストーリー下書きエディタ</h1>
+        <p>本文を主役にした下書き用です。左は差し込み補助、中央は本文、下は確認用に絞っています。</p>
+      </div>
+      <div id="storyEditorHeaderControls">
+        <label class="story-editor-field">
+          <span>下書き名</span>
+          <input id="storyEditorTitle" type="text" value="下書き1">
+        </label>
+        <div class="story-editor-button-row">
+          <button id="storyEditorSaveDraftBtn" type="button">ブラウザ保存</button>
+          <button id="storyEditorLoadDraftBtn" type="button">ブラウザ読込</button>
+          <button id="storyEditorRestoreBackupBtn" type="button">自動バックアップ復元</button>
+          <button id="storyEditorSaveTextFileBtn" type="button">テキスト保存</button>
+          <button id="storyEditorLoadTextFileBtn" type="button">テキスト読込</button>
+          <button id="storyEditorClearDraftBtn" type="button">ブラウザ保存削除</button>
+          <button id="storyEditorResetSampleBtn" type="button">サンプル</button>
+        </div>
+        <div id="storyEditorStatus">読み込み中...</div>
+        <input id="storyEditorTextFileInput" type="file" accept=".txt,.md,text/plain,text/markdown" hidden>
+      </div>
+    </header>
+
+    <section id="storyEditorTopTools" class="story-editor-panel">
+      <div class="story-editor-panel-head">
+        <div>
+          <h2>背景と音</h2>
+          <p>ここは本文のすぐ上に置いて、差し込みやすくします。</p>
+        </div>
+      </div>
+      <div class="story-editor-media-grid">
+        <section class="story-editor-media-block">
+          <h3>背景</h3>
+          <label class="story-editor-field">
+            <span>背景</span>
+            <select id="storyEditorBackgroundSelect"></select>
+          </label>
+          <button id="storyEditorInsertBackgroundBtn" type="button">背景を差し込む</button>
+        </section>
+
+        <section class="story-editor-media-block">
+          <h3>音楽</h3>
+          <label class="story-editor-field">
+            <span>音楽</span>
+            <select id="storyEditorBgmSelect"></select>
+          </label>
+          <button id="storyEditorInsertBgmBtn" type="button">音楽を差し込む</button>
+        </section>
+
+        <section class="story-editor-media-block">
+          <h3>効果音</h3>
+          <label class="story-editor-field">
+            <span>効果音</span>
+            <select id="storyEditorSeSelect"></select>
+          </label>
+          <button id="storyEditorInsertSeBtn" type="button">効果音を差し込む</button>
+        </section>
+      </div>
+    </section>
+
+    <section id="storyEditorWorkspace">
+      <aside class="story-editor-panel story-editor-helper">
+        <section class="story-editor-section">
+          <h2>話者</h2>
+          <div id="storyEditorSpeakerButtons" class="story-editor-chip-grid"></div>
+          <div id="storyEditorActiveSpeaker" class="story-editor-active-speaker"></div>
+          <details id="storyEditorPoseDetails" class="story-editor-inline-advanced" hidden>
+            <summary id="storyEditorPoseSummary">表情を付ける</summary>
+            <label class="story-editor-field">
+              <span>表情</span>
+              <select id="storyEditorPoseSelect"></select>
+            </label>
+          </details>
+          <div class="story-editor-inline-input">
+            <input id="storyEditorCustomSpeakerInput" type="text" placeholder="新しい話者名">
+            <button id="storyEditorRegisterSpeakerBtn" type="button">追加</button>
+          </div>
+          <div id="storyEditorSpeakerManageList" class="story-editor-speaker-manage-list"></div>
+        </section>
+
+        <section class="story-editor-section">
+          <h2>区切り</h2>
+          <label class="story-editor-field">
+            <span>章タイトル</span>
+            <input id="storyEditorChapterTitle" type="text" placeholder="例: 第一章　観測の罪">
+          </label>
+          <button id="storyEditorInsertChapterBtn" type="button">章タイトルを入れる</button>
+          <label class="story-editor-field">
+            <span>場面タイトル</span>
+            <input id="storyEditorSceneTitle" type="text" value="場面 1">
+          </label>
+          <button id="storyEditorInsertSceneBtn" type="button">場面タイトルを入れる</button>
+        </section>
+
+        <details class="story-editor-advanced">
+          <summary>分岐と対局</summary>
+          <div class="story-editor-section story-editor-section-tight">
+            <label class="story-editor-field">
+              <span>対局内容</span>
+              <select id="storyEditorBattleStageSelect"></select>
+            </label>
+            <div class="story-editor-inline-input">
+              <input id="storyEditorBattleWinTitle" type="text" placeholder="勝ち先の場面名">
+              <input id="storyEditorBattleLoseTitle" type="text" placeholder="負け先の場面名">
+            </div>
+            <label class="story-editor-field">
+              <span>引き分け先</span>
+              <input id="storyEditorBattleDrawTitle" type="text" placeholder="必要なら入力">
+            </label>
+            <button id="storyEditorInsertBattleBtn" type="button">対局を差し込む</button>
+
+            <div class="story-editor-inline-input">
+              <input id="storyEditorChoiceLabelOne" type="text" value="受けて立つ">
+              <input id="storyEditorChoiceTargetOne" type="text" placeholder="進み先の場面名">
+            </div>
+            <div class="story-editor-inline-input">
+              <input id="storyEditorChoiceLabelTwo" type="text" value="まず聞く">
+              <input id="storyEditorChoiceTargetTwo" type="text" placeholder="進み先の場面名">
+            </div>
+            <button id="storyEditorInsertChoiceBtn" type="button">選択肢を差し込む</button>
+
+            <label class="story-editor-field">
+              <span>移動先</span>
+              <input id="storyEditorJumpTargetTitle" type="text" placeholder="進み先の場面名">
+            </label>
+            <button id="storyEditorInsertJumpBtn" type="button">移動を差し込む</button>
+
+            <div class="story-editor-inline-input">
+              <input id="storyEditorFlagKey" type="text" placeholder="条件名">
+              <input id="storyEditorFlagValue" type="text" placeholder="値">
+            </div>
+            <button id="storyEditorInsertFlagBtn" type="button">条件を差し込む</button>
+          </div>
+        </details>
+
+        <details class="story-editor-advanced">
+          <summary>話者と立ち絵の対応</summary>
+          <label class="story-editor-field">
+            <span>話者名=立ち絵名</span>
+            <textarea id="storyEditorSpeakerMap" rows="5"></textarea>
+          </label>
+        </details>
+      </aside>
+
+      <section class="story-editor-main">
+        <section class="story-editor-panel story-editor-text-panel">
+          <div class="story-editor-panel-head">
+            <div>
+              <h2>本文</h2>
+              <p>ここだけ見て書けるようにしています。`Tab` で今の話者、行末の `Enter` で同じ話者の次行、`Shift+Enter` で今の行の次に同じ話者を足せます。</p>
+            </div>
+          </div>
+          <textarea id="storyEditorText" spellcheck="false"></textarea>
+        </section>
+      </section>
+    </section>
+
+    <section id="storyEditorFooter">
+      <section class="story-editor-panel">
+        <div class="story-editor-panel-head">
+          <div>
+            <h2>場面一覧</h2>
+            <p>クリックするとその場面へ移動します。</p>
+          </div>
+        </div>
+        <div id="storyEditorSceneList" class="story-editor-scene-list"></div>
+      </section>
+
+      <section class="story-editor-panel">
+        <div class="story-editor-panel-head">
+          <div>
+            <h2>修正点</h2>
+            <p>クリックするとその行へ移動します。</p>
+          </div>
+        </div>
+        <div id="storyEditorDiagnostics" class="story-editor-diagnostics"></div>
+      </section>
+    </section>
+
+    <details class="story-editor-advanced">
+      <summary>変換結果と依頼文を開く</summary>
+      <section class="story-editor-output-grid">
+        <section class="story-editor-panel">
+          <div class="story-editor-panel-head">
+            <div>
+              <h2>内部変換結果</h2>
+              <p>普段は見なくて大丈夫です。</p>
+            </div>
+            <button id="storyEditorCopyInternalBtn" type="button">コピー</button>
+          </div>
+          <textarea id="storyEditorInternalScript" readonly></textarea>
+        </section>
+        <section class="story-editor-panel">
+          <div class="story-editor-panel-head">
+            <div>
+              <h2>実装用出力</h2>
+              <p>必要な時だけ使います。</p>
+            </div>
+            <button id="storyEditorCopyStoryBtn" type="button">コピー</button>
+          </div>
+          <textarea id="storyEditorStoryOutput" readonly></textarea>
+        </section>
+        <section class="story-editor-panel">
+          <div class="story-editor-panel-head">
+            <div>
+              <h2>依頼文</h2>
+              <p>AI に渡すための下書きです。</p>
+            </div>
+            <button id="storyEditorCopyPromptBtn" type="button">コピー</button>
+          </div>
+          <textarea id="storyEditorPromptOutput" readonly></textarea>
+        </section>
+      </section>
+    </details>
+  </main>
+
+  <script src="../../public/runtime.js"></script>
+  <script src="../../public/module-registry.js"></script>
+  <script>
+    (function () {
+      var mod = null;
+      try {
+        mod = require('story/editor/script-editor');
+      } catch (e) {
+        console.error('[story-editor] failed to load module:', e && e.message ? e.message : e);
+      }
+      if (mod && typeof mod.initStoryScriptEditor === 'function') mod.initStoryScriptEditor(document);
+    }());
+  </script>
+</body>
+</html>

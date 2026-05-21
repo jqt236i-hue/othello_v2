@@ -279,18 +279,21 @@ function getRandomTurnStartMoveDestination(cardState: any, gameState: any, fromR
     }
     if (!candidates.length) return null;
     let randomSource = deps && deps.randomSource;
-    if (randomSource) {
-        if (RandomSourceModule && typeof RandomSourceModule.resolveRandomSource === 'function') {
-            randomSource = RandomSourceModule.resolveRandomSource(
-                randomSource,
-                null,
-                'DragonEffects.selectRandomEmptyDestination'
-            );
-        }
-    } else {
-        randomSource = { random: () => Math.random() };
+    if (RandomSourceModule && typeof RandomSourceModule.resolveRandomSource === 'function') {
+        randomSource = RandomSourceModule.resolveRandomSource(
+            randomSource,
+            null,
+            'DragonEffects.selectRandomEmptyDestination'
+        );
     }
-    const rawIndex = Math.floor(randomSource.random() * candidates.length);
+    if (!randomSource || typeof randomSource.random !== 'function') {
+        throw new Error('DragonEffects.selectRandomEmptyDestination requires an injected deterministic PRNG.');
+    }
+    const raw = Number(randomSource.random());
+    if (!Number.isFinite(raw)) {
+        throw new Error('DragonEffects.selectRandomEmptyDestination received a PRNG that returned a non-finite value.');
+    }
+    const rawIndex = Math.floor(Math.max(0, Math.min(0.999999, raw)) * candidates.length);
     const index = Math.max(0, Math.min(candidates.length - 1, rawIndex));
     return candidates[index] || candidates[0] || null;
 }

@@ -1314,6 +1314,12 @@ function validatePendingSelectionPublish(snapshotValue, playerKey, actionValue) 
         return { ok: false, rejectedReason: 'STALE_PENDING_SELECTION' };
     }
 
+    const requestedCardId = normalizeCardIdOptional(pendingSelectionState.cardId);
+    const expectedCardId = normalizeCardIdOptional(expectedPending.cardId);
+    if (requestedCardId && expectedCardId && requestedCardId !== expectedCardId) {
+        return { ok: false, rejectedReason: 'STALE_PENDING_SELECTION' };
+    }
+
     const expectedPendingEffectId = normalizePendingEffectId(expectedPending.pendingEffectId);
     const requestedPendingEffectId = normalizePendingEffectId(pendingSelectionState.pendingEffectId);
     if (expectedPendingEffectId && requestedPendingEffectId !== expectedPendingEffectId) {

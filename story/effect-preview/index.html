@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ストーリー演出プレビュー</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./story-effect-preview.css">
+</head>
+<body>
+  <main id="storyEffectPreviewShell">
+    <header id="storyEffectPreviewHeader">
+      <div>
+        <h1>ストーリー演出プレビュー</h1>
+        <p>ストーリー本文へ入れる演出を、名前で選んで見た目確認するための専用画面です。</p>
+      </div>
+      <div id="storyEffectPreviewControls">
+        <button id="storyEffectReplayBtn" type="button">再生</button>
+        <button id="storyEffectStopBtn" type="button">停止</button>
+      </div>
+    </header>
+
+    <section id="storyEffectPreviewLayout">
+      <aside id="storyEffectPresetList" aria-label="演出一覧"></aside>
+
+      <section id="storyEffectStagePanel">
+        <section id="storyEffectAssetControls">
+          <div class="story-effect-control-block">
+            <label class="story-effect-field">
+              <span>背景</span>
+              <select id="storyEffectBackgroundSelect"></select>
+            </label>
+          </div>
+          <div class="story-effect-control-block">
+            <label class="story-effect-field">
+              <span>立ち絵</span>
+              <select id="storyEffectCharacterSelect"></select>
+            </label>
+          </div>
+          <div class="story-effect-control-block">
+            <label class="story-effect-field">
+              <span>配置</span>
+              <select id="storyEffectCharacterSlotSelect">
+                <option value="left">左</option>
+                <option value="center" selected>中央</option>
+                <option value="right">右</option>
+              </select>
+            </label>
+          </div>
+          <div class="story-effect-control-block">
+            <label class="story-effect-field">
+              <span>横位置</span>
+              <input id="storyEffectCharacterXInput" type="range" min="8" max="92" value="50">
+            </label>
+          </div>
+          <div class="story-effect-control-block">
+            <label class="story-effect-field">
+              <span>大きさ</span>
+              <input id="storyEffectCharacterSizeInput" type="range" min="45" max="115" value="82">
+            </label>
+          </div>
+          <div class="story-effect-control-actions">
+            <button id="storyEffectApplyCharacterBtn" type="button">立ち絵を置く</button>
+            <button id="storyEffectHideCharacterBtn" type="button">この配置を消す</button>
+          </div>
+        </section>
+
+        <div id="storyEffectStage">
+          <div id="storyEffectBackground" class="story-effect-bg"></div>
+          <div class="story-effect-scene">
+            <div class="story-effect-room-window"></div>
+            <div class="story-effect-room-bed"></div>
+            <div class="story-effect-room-floor"></div>
+          </div>
+          <div id="storyEffectCharacterLayer">
+            <img id="storyEffectCharacterLeft" class="story-effect-character" alt="">
+            <img id="storyEffectCharacterCenter" class="story-effect-character" alt="">
+            <img id="storyEffectCharacterRight" class="story-effect-character" alt="">
+          </div>
+          <div id="storyEffectTone"></div>
+          <div id="storyEffectOverlay"></div>
+          <div id="storyEffectNoise"></div>
+          <div id="storyEffectScanline"></div>
+          <div id="storyEffectCrack"></div>
+          <div id="storyEffectLetterbox"></div>
+          <div id="storyEffectVignette"></div>
+          <div id="storyEffectText"></div>
+        </div>
+
+        <section id="storyEffectInfo">
+          <h2 id="storyEffectTitle"></h2>
+          <p id="storyEffectDescription"></p>
+          <label class="story-effect-field">
+            <span>本文へ入れる書き方</span>
+            <textarea id="storyEffectAuthoringText" readonly></textarea>
+          </label>
+          <div id="storyEffectStepSummary"></div>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script src="../../public/runtime.js"></script>
+  <script src="../../public/module-registry.js"></script>
+  <script>
+    (function () {
+      var mod = null;
+      try {
+        mod = require('story/effect-preview/story-effect-preview');
+      } catch (e) {
+        console.error('[story-effect-preview] failed to load module:', e && e.message ? e.message : e);
+      }
+      if (mod && typeof mod.initStoryEffectPreview === 'function') mod.initStoryEffectPreview(document);
+    }());
+  </script>
+</body>
+</html>

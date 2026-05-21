@@ -106,7 +106,7 @@ function pickRandomLine(lines: readonly string[] | null | undefined, prng?: { ra
     let value = Number(
         prng && typeof prng.random === 'function'
             ? prng.random()
-            : Math.random()
+            : Math.random() // network-authority-random-allowlist: observer/work bubble text only, not canonical gameplay state
     );
     if (!Number.isFinite(value)) value = 0;
     if (value < 0) value = 0;

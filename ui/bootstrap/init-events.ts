@@ -43,6 +43,7 @@ interface InitDomElements {
   humanVsHumanBtn: HTMLElement | null;
   visualTestBtn: HTMLElement | null;
   modeCpuBtn: HTMLElement | null;
+  modeOthelloBtn: HTMLElement | null;
   modeNetworkBtn: HTMLElement | null;
   controlPanel: HTMLElement | null;
   deckBuilderOpenBtn: HTMLElement | null;
@@ -96,6 +97,7 @@ interface InitDomElements {
   useBtn: HTMLElement | null;
   detailBtn: HTMLElement | null;
   passBtn: HTMLElement | null;
+  othelloPassBtn: HTMLElement | null;
 }
 
 declare const resetGame: (() => void) | undefined;
@@ -145,7 +147,7 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
 
   if (typeof setupMatchModeControls === 'function') {
     setupMatchModeControls({
-      modeCpuBtn: refs.modeCpuBtn, modeNetworkBtn: refs.modeNetworkBtn,
+      modeCpuBtn: refs.modeCpuBtn, modeOthelloBtn: refs.modeOthelloBtn, modeNetworkBtn: refs.modeNetworkBtn,
       controlPanel: refs.controlPanel, networkPanel: refs.networkPanel,
       networkAdvancedSettings: refs.networkAdvancedSettings,
       networkRoomInput: refs.networkRoomIdInput, networkServerInput: refs.networkServerInput,
@@ -223,6 +225,9 @@ function attachInitEventListeners(refs: InitDomElements, debugAllowed: boolean):
   }
   if (refs.passBtn && typeof passCurrentTurn === 'function') {
     refs.passBtn.addEventListener('click', passCurrentTurn);
+  }
+  if (refs.othelloPassBtn && typeof passCurrentTurn === 'function') {
+    refs.othelloPassBtn.addEventListener('click', passCurrentTurn);
   }
 }
 

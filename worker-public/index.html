@@ -7,12 +7,12 @@
     <title>カードオセロ</title>
     <link rel="icon" type="image/png" href="assets/images/stones/normal_stone-black.png">
     <script>
-        (function () {
+        (() => {
             try {
-                var params = new URLSearchParams((typeof location !== 'undefined' && location.search) ? location.search : '');
-                var raw = (params.get('simAspect') || params.get('sim-aspect') || '').trim().toLowerCase();
-                var normalized = raw.replace(/\s+/g, '');
-                var root = document.documentElement;
+                const params = new URLSearchParams((typeof location !== 'undefined' && location.search) ? location.search : '');
+                const raw = (params.get('simAspect') || params.get('sim-aspect') || '').trim().toLowerCase();
+                const normalized = raw.replace(/\s+/g, '');
+                const root = document.documentElement;
                 if (!root || !normalized) return;
                 if (normalized === '16:10' || normalized === '16x10' || normalized === '1610') {
                     root.classList.add('sim-aspect-16-10');
@@ -27,7 +27,7 @@
                     root.classList.add('sim-aspect-5-4');
                     root.setAttribute('data-sim-aspect', '5:4');
                 }
-            } catch (e) {
+            } catch {
                 // ignore malformed query
             }
         })();
@@ -41,6 +41,7 @@
     <link rel="stylesheet" href="styles-animations.css">
     <link rel="stylesheet" href="styles-responsive.css">
     <link rel="stylesheet" href="styles-stone-shadows.css">
+    <link rel="stylesheet" href="story/ui/story.css">
 </head>
 
 <body>
@@ -371,6 +372,7 @@
     <button id="gachaOpenBtn" class="btn-small" type="button" aria-controls="gachaOverlay" aria-expanded="false">ガチャ</button>
     <button id="leaderboardOpenBtn" class="btn-small" type="button" aria-controls="leaderboardOverlay" aria-expanded="false">ランキング</button>
     <button id="deckBuilderOpenBtn" class="btn-small" type="button" aria-controls="deckBuilderOverlay" aria-expanded="false">デッキ</button>
+    <button id="storyModeOpenBtn" class="btn-small" type="button" aria-controls="story-root" aria-expanded="false">ストーリー</button>
     <button id="rulesHelpBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="rules-help-panel">HELP</button>
     <button id="handSkinBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="handSkinPanel" aria-label="見た目設定">SKIN</button>
 
@@ -416,6 +418,7 @@
 
         <div id="board-frame">
             <div id="board"></div>
+            <button id="othello-pass-btn" type="button" hidden disabled>パス</button>
             <!-- Occupancy UI (removed) -->
             <!-- Charge UI -->
             <div id="charge-black" class="charge-display"><span class="charge-label">布石:</span> <span class="charge-current">0</span><span class="charge-separator"> / </span><span class="charge-max">99</span></div>
@@ -442,12 +445,12 @@
                 <div id="card-detail-effect-tags" aria-label="カード効果タグ"></div>
                 <div id="card-detail-more" style="display:none;"></div>
                 <div id="card-detail-actions">
-                    <button id="toggle-card-detail-btn" disabled>詳細</button>
-                    <button id="use-card-btn" disabled>使用</button>
-                    <button id="destroy-card-btn" disabled>破壊</button>
+                    <button id="toggle-card-detail-btn" type="button" disabled>詳細</button>
+                    <button id="use-card-btn" type="button" disabled>使用</button>
+                    <button id="destroy-card-btn" type="button" disabled>破壊</button>
                 </div>
-                <button id="pass-btn" disabled>パス</button>
-                <button id="cancel-card-btn" style="display:none;" onclick="cancelPendingDestroy()">キャンセル</button>
+                <button id="pass-btn" type="button" disabled>パス</button>
+                <button id="cancel-card-btn" type="button" style="display:none;" onclick="cancelPendingDestroy()">キャンセル</button>
                 <div id="use-card-reason"></div>
             </div>
         </div>
@@ -462,17 +465,18 @@
             <!-- Game Controls -->
             <div class="control-group">
                 <div class="control-label">GAME</div>
-                <button id="resetBtn" class="btn-small">リセット</button>
-                <button id="autoToggleBtn" class="btn-small">AUTO: OFF</button>
-                <button id="humanVsHumanBtn" class="btn-small"
+                <button id="resetBtn" class="btn-small" type="button">リセット</button>
+                <button id="autoToggleBtn" class="btn-small" type="button">AUTO: OFF</button>
+                <button id="humanVsHumanBtn" class="btn-small" type="button"
                     style="background-color: #5a3a2d; color: #ffb366; display: none;">人間vs人間: OFF</button>
-                <button id="visualTestBtn" class="btn-small"
+                <button id="visualTestBtn" class="btn-small" type="button"
                     style="background-color: #3a2a5a; color: #ffa500; display: none;">石ビジュアル</button>
             </div>
 
             <div class="control-group match-mode-group">
                 <div class="control-label">MODE</div>
-                <button id="modeCpuBtn" class="btn-small">CPU</button>
+                <button id="modeCpuBtn" class="btn-small" type="button">CPU</button>
+                <button id="modeOthelloBtn" class="btn-small" type="button">オセロ</button>
                 <button id="modeNetworkBtn" class="btn-small" type="button" aria-controls="networkOverlay" aria-expanded="false">ネット対戦</button>
                 <button id="debugModeBtn" class="btn-small" type="button" aria-pressed="false"
                     style="background-color: #4a3828; color: #d7ccc8;">DEBUG: OFF</button>
@@ -504,7 +508,7 @@
             <!-- Sound Effects -->
             <div class="control-group">
                 <div class="control-label">SE</div>
-                <button id="muteBtn" class="btn-small">🔊 ON</button>
+                <button id="muteBtn" class="btn-small" type="button">🔊 ON</button>
                 <select id="seTypeSelect" class="compact-select"></select>
                 <input type="range" id="seVolSlider" class="compact-slider" min="0" max="1" step="0.05">
             </div>
@@ -512,8 +516,8 @@
             <!-- BGM -->
             <div class="control-group">
                 <div class="control-label">BGM</div>
-                <button id="bgmPlayBtn" class="btn-small">▶</button>
-                <button id="bgmPauseBtn" class="btn-small">⏸</button>
+                <button id="bgmPlayBtn" class="btn-small" type="button">▶</button>
+                <button id="bgmPauseBtn" class="btn-small" type="button">⏸</button>
                 <select id="bgmTrackSelect" class="compact-select" style="max-width: 120px;"></select>
                 <input type="range" id="bgmVolSlider" class="compact-slider" min="0" max="0.5" step="0.01">
             </div>
@@ -563,9 +567,9 @@
                         <input id="networkEnableDebugCheckbox" type="checkbox" />
                         部屋作成時にデバッグモードを有効化
                     </label>
-                    <button id="networkCreateBtn" class="btn-small">部屋作成</button>
-                    <button id="networkJoinBtn" class="btn-small">参加</button>
-                    <button id="networkLeaveBtn" class="btn-small">退出</button>
+                    <button id="networkCreateBtn" class="btn-small" type="button">部屋作成</button>
+                    <button id="networkJoinBtn" class="btn-small" type="button">参加</button>
+                    <button id="networkLeaveBtn" class="btn-small" type="button">退出</button>
                     <button id="networkCopyRoomBtn" class="btn-small" type="button">部屋番号コピー</button>
                     <div id="networkStatusText"></div>
                     <div id="networkDeckInfo"></div>
@@ -631,6 +635,8 @@
             <div id="deckBuilderBody"></div>
         </div>
     </div>
+
+    <div id="story-root" hidden aria-hidden="true"></div>
 
     <!-- Active Effect Slots (Phase 2) -->
     <div id="active-black" class="active-effect-slot">

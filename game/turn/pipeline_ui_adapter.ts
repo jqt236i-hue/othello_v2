@@ -2589,6 +2589,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             _pushSoundCue(ctx, 'guard_select', hyperactiveInheritSelectPhase, 'hyperactive_inherit_selected');
         }
 
+        const blockadeSelectPhase = _findPhase(
+            ctx.base,
+            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'BLOCKADE',
+            ctx.fallbackPhase
+        );
+        if (_hasRawEvent(ctx.raw, 'blockade_selected', (ev: any) => !!(ev && ev.applied))) {
+            _pushSoundCue(ctx, 'blockade_select', blockadeSelectPhase, 'blockade_selected');
+        }
+
         const freezeSelectPhase = _findPhase(
             ctx.base,
             (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'FREEZE',

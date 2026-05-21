@@ -222,7 +222,7 @@ html.layout-profile-phone-portrait #side-panel {
     width: auto;
     align-items: flex-end;
     gap: calc(4px * var(--layout-stage-scale));
-    z-index: 13000;
+    z-index: var(--z-network-chat);
 }
 
 html.layout-profile-phone-portrait #side-panel.side-panel-collapsed {
@@ -739,462 +739,279 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
     }
 }
 
-/* 16:10 and narrower: start tightening side panels before 4:3 */
+/* Aspect profile variables: media queries and simAspect write the same projection tokens. */
 @media (max-aspect-ratio: 16/10) {
-    #board {
-        --board-max-size: min(66vmin, calc(490px * var(--layout-stage-scale)));
-    }
-
-    #side-panel {
-        right: calc(14px * var(--layout-stage-scale));
-        bottom: calc(14px * var(--layout-stage-scale));
-        width: clamp(calc(240px * var(--layout-stage-scale)), 25vw, calc(285px * var(--layout-stage-scale)));
-    }
-
-    #log {
-        left: calc(14px * var(--layout-stage-scale));
-        top: calc(14px * var(--layout-stage-scale));
-        transform: none;
-        width: clamp(calc(230px * var(--layout-stage-scale)), 23vw, calc(280px * var(--layout-stage-scale)));
-        max-height: 42vh;
-    }
-
-    #effect-live-panel {
-        left: calc(14px * var(--layout-stage-scale));
-        top: calc(calc(14px * var(--layout-stage-scale)) + 42vh + calc(8px * var(--layout-stage-scale)));
-        transform: none;
-        width: clamp(calc(185px * var(--layout-stage-scale)), 19vw, calc(225px * var(--layout-stage-scale)));
-        max-height: 24vh;
-        min-height: calc(128px * var(--layout-stage-scale));
-    }
-
-    #cpu-character-panel {
-        top: calc(14px * var(--layout-stage-scale));
-        right: calc(14px * var(--layout-stage-scale));
-    }
-
-    #cpu-character-img {
-        width: clamp(calc(220px * var(--layout-stage-scale)), 25vw, calc(290px * var(--layout-stage-scale)));
-        height: clamp(calc(220px * var(--layout-stage-scale)), 25vw, calc(290px * var(--layout-stage-scale)));
-    }
-
-    #hero-character-panel {
-        left: calc(14px * var(--layout-stage-scale));
-        bottom: calc(14px * var(--layout-stage-scale));
-    }
-
-    #hero-character-img {
-        width: clamp(calc(180px * var(--layout-stage-scale)), 21vw, calc(245px * var(--layout-stage-scale)));
-        height: clamp(calc(180px * var(--layout-stage-scale)), 21vw, calc(245px * var(--layout-stage-scale)));
-        transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.6vmin, calc(18px * var(--layout-stage-scale)))) scale(var(--layout-character-image-scale));
-    }
-
-    #hero-character-img:hover {
-        transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.6vmin, calc(18px * var(--layout-stage-scale)))) scale(calc(var(--layout-character-image-scale) * 1.08));
-    }
-
-    #hero-label {
-        transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.6vmin, calc(18px * var(--layout-stage-scale))));
+    :root {
+        --profile-board-max-size: min(66vmin, calc(490px * var(--layout-stage-scale)));
+        --profile-side-right: calc(14px * var(--layout-stage-scale));
+        --profile-side-bottom: calc(14px * var(--layout-stage-scale));
+        --profile-side-width: clamp(calc(240px * var(--layout-stage-scale)), 25vw, calc(285px * var(--layout-stage-scale)));
+        --profile-log-left: calc(14px * var(--layout-stage-scale));
+        --profile-log-top: calc(14px * var(--layout-stage-scale));
+        --profile-log-width: clamp(calc(230px * var(--layout-stage-scale)), 23vw, calc(280px * var(--layout-stage-scale)));
+        --profile-log-max-height: 42vh;
+        --profile-effect-left: calc(14px * var(--layout-stage-scale));
+        --profile-effect-top: calc(calc(14px * var(--layout-stage-scale)) + 42vh + calc(8px * var(--layout-stage-scale)));
+        --profile-effect-width: clamp(calc(185px * var(--layout-stage-scale)), 19vw, calc(225px * var(--layout-stage-scale)));
+        --profile-effect-min-height: calc(128px * var(--layout-stage-scale));
+        --profile-effect-max-height: 24vh;
+        --profile-cpu-panel-top: calc(14px * var(--layout-stage-scale));
+        --profile-cpu-panel-right: calc(14px * var(--layout-stage-scale));
+        --profile-cpu-image-size: clamp(calc(220px * var(--layout-stage-scale)), 25vw, calc(290px * var(--layout-stage-scale)));
+        --profile-hero-panel-left: calc(14px * var(--layout-stage-scale));
+        --profile-hero-panel-bottom: calc(14px * var(--layout-stage-scale));
+        --profile-hero-image-size: clamp(calc(180px * var(--layout-stage-scale)), 21vw, calc(245px * var(--layout-stage-scale)));
+        --profile-hero-image-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.6vmin, calc(18px * var(--layout-stage-scale)))) scale(var(--layout-character-image-scale));
+        --profile-hero-image-hover-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.6vmin, calc(18px * var(--layout-stage-scale)))) scale(calc(var(--layout-character-image-scale) * 1.08));
+        --profile-hero-label-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.6vmin, calc(18px * var(--layout-stage-scale))));
     }
 }
 
-/* 3:2 and narrower: tighten spacing further while keeping board readability */
 @media (max-aspect-ratio: 3/2) {
-    #game-container {
-        padding-bottom: 5vh;
-        gap: calc(8px * var(--layout-stage-scale));
-    }
-
-    #board {
-        --board-max-size: min(64vmin, calc(475px * var(--layout-stage-scale)));
-    }
-
-    #side-panel {
-        right: calc(12px * var(--layout-stage-scale));
-        bottom: calc(12px * var(--layout-stage-scale));
-        width: clamp(calc(230px * var(--layout-stage-scale)), 24vw, calc(270px * var(--layout-stage-scale)));
-    }
-
-    #log {
-        left: calc(12px * var(--layout-stage-scale));
-        top: calc(12px * var(--layout-stage-scale));
-        transform: none;
-        width: clamp(calc(220px * var(--layout-stage-scale)), 22vw, calc(260px * var(--layout-stage-scale)));
-        max-height: 38vh;
-        font-size: calc(12px * var(--layout-stage-scale));
-        padding: calc(10px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
-    }
-
-    #effect-live-panel {
-        left: calc(12px * var(--layout-stage-scale));
-        top: calc(calc(12px * var(--layout-stage-scale)) + 38vh + calc(8px * var(--layout-stage-scale)));
-        transform: none;
-        width: clamp(calc(175px * var(--layout-stage-scale)), 19vw, calc(215px * var(--layout-stage-scale)));
-        min-height: calc(124px * var(--layout-stage-scale));
-        max-height: 23vh;
-        overflow: hidden;
-        padding: calc(8px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
-    }
-
-    #cpu-character-panel {
-        top: calc(12px * var(--layout-stage-scale));
-        right: calc(12px * var(--layout-stage-scale));
-    }
-
-    #cpu-character-img {
-        width: clamp(calc(205px * var(--layout-stage-scale)), 24vw, calc(275px * var(--layout-stage-scale)));
-        height: clamp(calc(205px * var(--layout-stage-scale)), 24vw, calc(275px * var(--layout-stage-scale)));
-    }
-
-    #cpu-level-label {
-        font-size: clamp(calc(15px * var(--layout-stage-scale)), 1.9vw, calc(19px * var(--layout-stage-scale)));
-        transform: translateY(clamp(calc(-12px * var(--layout-stage-scale)), -0.8vmin, calc(-6px * var(--layout-stage-scale))));
-    }
-
-    #hero-character-panel {
-        left: calc(12px * var(--layout-stage-scale));
-        bottom: calc(12px * var(--layout-stage-scale));
-    }
-
-    #hero-character-img {
-        width: clamp(calc(170px * var(--layout-stage-scale)), 20vw, calc(230px * var(--layout-stage-scale)));
-        height: clamp(calc(170px * var(--layout-stage-scale)), 20vw, calc(230px * var(--layout-stage-scale)));
-        transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(var(--layout-character-image-scale));
-    }
-
-    #hero-character-img:hover {
-        transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(calc(var(--layout-character-image-scale) * 1.08));
-    }
-
-    #hero-label {
-        font-size: clamp(calc(14px * var(--layout-stage-scale)), 1.9vw, calc(18px * var(--layout-stage-scale)));
-        transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale))));
+    :root {
+        --profile-game-padding-bottom: 5vh;
+        --profile-game-gap: calc(8px * var(--layout-stage-scale));
+        --profile-board-max-size: min(64vmin, calc(475px * var(--layout-stage-scale)));
+        --profile-side-right: calc(12px * var(--layout-stage-scale));
+        --profile-side-bottom: calc(12px * var(--layout-stage-scale));
+        --profile-side-width: clamp(calc(230px * var(--layout-stage-scale)), 24vw, calc(270px * var(--layout-stage-scale)));
+        --profile-log-left: calc(12px * var(--layout-stage-scale));
+        --profile-log-top: calc(12px * var(--layout-stage-scale));
+        --profile-log-width: clamp(calc(220px * var(--layout-stage-scale)), 22vw, calc(260px * var(--layout-stage-scale)));
+        --profile-log-max-height: 38vh;
+        --profile-log-font-size: calc(12px * var(--layout-stage-scale));
+        --profile-log-padding: calc(10px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
+        --profile-effect-left: calc(12px * var(--layout-stage-scale));
+        --profile-effect-top: calc(calc(12px * var(--layout-stage-scale)) + 38vh + calc(8px * var(--layout-stage-scale)));
+        --profile-effect-width: clamp(calc(175px * var(--layout-stage-scale)), 19vw, calc(215px * var(--layout-stage-scale)));
+        --profile-effect-min-height: calc(124px * var(--layout-stage-scale));
+        --profile-effect-max-height: 23vh;
+        --profile-effect-padding: calc(8px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
+        --profile-cpu-panel-top: calc(12px * var(--layout-stage-scale));
+        --profile-cpu-panel-right: calc(12px * var(--layout-stage-scale));
+        --profile-cpu-image-size: clamp(calc(205px * var(--layout-stage-scale)), 24vw, calc(275px * var(--layout-stage-scale)));
+        --profile-cpu-label-font-size: clamp(calc(15px * var(--layout-stage-scale)), 1.9vw, calc(19px * var(--layout-stage-scale)));
+        --profile-cpu-label-transform: translateY(clamp(calc(-12px * var(--layout-stage-scale)), -0.8vmin, calc(-6px * var(--layout-stage-scale))));
+        --profile-hero-panel-left: calc(12px * var(--layout-stage-scale));
+        --profile-hero-panel-bottom: calc(12px * var(--layout-stage-scale));
+        --profile-hero-image-size: clamp(calc(170px * var(--layout-stage-scale)), 20vw, calc(230px * var(--layout-stage-scale)));
+        --profile-hero-image-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(var(--layout-character-image-scale));
+        --profile-hero-image-hover-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(calc(var(--layout-character-image-scale) * 1.08));
+        --profile-hero-label-font-size: clamp(calc(14px * var(--layout-stage-scale)), 1.9vw, calc(18px * var(--layout-stage-scale)));
+        --profile-hero-label-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale))));
     }
 }
 
-/* 4:3 and narrower: prevent fixed UI overlap with board */
 @media (max-aspect-ratio: 4/3) {
-    #game-container {
-        padding-bottom: 4vh;
-        gap: calc(8px * var(--layout-stage-scale));
-    }
-
-    #board {
-        --board-max-size: min(62vmin, calc(460px * var(--layout-stage-scale)));
-    }
-
-    #side-panel {
-        right: calc(12px * var(--layout-stage-scale));
-        bottom: calc(12px * var(--layout-stage-scale));
-        width: clamp(calc(220px * var(--layout-stage-scale)), 24vw, calc(260px * var(--layout-stage-scale)));
-    }
-
-    #log {
-        left: calc(12px * var(--layout-stage-scale));
-        top: calc(12px * var(--layout-stage-scale));
-        transform: none;
-        width: clamp(calc(210px * var(--layout-stage-scale)), 22vw, calc(250px * var(--layout-stage-scale)));
-        max-height: 34vh;
-        font-size: calc(12px * var(--layout-stage-scale));
-        padding: calc(10px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
-    }
-
-    #effect-live-panel {
-        left: calc(12px * var(--layout-stage-scale));
-        top: calc(calc(12px * var(--layout-stage-scale)) + 34vh + calc(8px * var(--layout-stage-scale)));
-        transform: none;
-        width: clamp(calc(170px * var(--layout-stage-scale)), 18vw, calc(210px * var(--layout-stage-scale)));
-        min-height: calc(120px * var(--layout-stage-scale));
-        max-height: 22vh;
-        overflow: hidden;
-        padding: calc(8px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
-    }
-
-    #cpu-character-panel {
-        top: calc(12px * var(--layout-stage-scale));
-        right: calc(12px * var(--layout-stage-scale));
-    }
-
-    #cpu-character-img {
-        width: clamp(calc(190px * var(--layout-stage-scale)), 24vw, calc(260px * var(--layout-stage-scale)));
-        height: clamp(calc(190px * var(--layout-stage-scale)), 24vw, calc(260px * var(--layout-stage-scale)));
-    }
-
-    #cpu-level-label {
-        font-size: clamp(calc(15px * var(--layout-stage-scale)), 1.9vw, calc(18px * var(--layout-stage-scale)));
-        transform: translateY(clamp(calc(-12px * var(--layout-stage-scale)), -0.8vmin, calc(-6px * var(--layout-stage-scale))));
-    }
-
-    #hero-character-panel {
-        left: calc(12px * var(--layout-stage-scale));
-        bottom: calc(12px * var(--layout-stage-scale));
-    }
-
-    #hero-character-img {
-        width: clamp(calc(160px * var(--layout-stage-scale)), 20vw, calc(220px * var(--layout-stage-scale)));
-        height: clamp(calc(160px * var(--layout-stage-scale)), 20vw, calc(220px * var(--layout-stage-scale)));
-        transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(var(--layout-character-image-scale));
-    }
-
-    #hero-character-img:hover {
-        transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(calc(var(--layout-character-image-scale) * 1.08));
-    }
-
-    #hero-label {
-        font-size: clamp(calc(14px * var(--layout-stage-scale)), 1.9vw, calc(18px * var(--layout-stage-scale)));
-        transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale))));
+    :root {
+        --profile-game-padding-bottom: 4vh;
+        --profile-board-max-size: min(62vmin, calc(460px * var(--layout-stage-scale)));
+        --profile-side-width: clamp(calc(220px * var(--layout-stage-scale)), 24vw, calc(260px * var(--layout-stage-scale)));
+        --profile-log-width: clamp(calc(210px * var(--layout-stage-scale)), 22vw, calc(250px * var(--layout-stage-scale)));
+        --profile-log-max-height: 34vh;
+        --profile-effect-top: calc(calc(12px * var(--layout-stage-scale)) + 34vh + calc(8px * var(--layout-stage-scale)));
+        --profile-effect-width: clamp(calc(170px * var(--layout-stage-scale)), 18vw, calc(210px * var(--layout-stage-scale)));
+        --profile-effect-min-height: calc(120px * var(--layout-stage-scale));
+        --profile-effect-max-height: 22vh;
+        --profile-cpu-image-size: clamp(calc(190px * var(--layout-stage-scale)), 24vw, calc(260px * var(--layout-stage-scale)));
+        --profile-cpu-label-font-size: clamp(calc(15px * var(--layout-stage-scale)), 1.9vw, calc(18px * var(--layout-stage-scale)));
+        --profile-hero-image-size: clamp(calc(160px * var(--layout-stage-scale)), 20vw, calc(220px * var(--layout-stage-scale)));
     }
 }
 
-/* tighter fallback for classic 5:4 monitors */
 @media (max-aspect-ratio: 5/4) {
-    #board {
-        --board-max-size: min(58vmin, calc(420px * var(--layout-stage-scale)));
-    }
-
-    #log {
-        width: clamp(calc(190px * var(--layout-stage-scale)), 21vw, calc(230px * var(--layout-stage-scale)));
-        max-height: 31vh;
-    }
-
-    #effect-live-panel {
-        width: clamp(calc(155px * var(--layout-stage-scale)), 17vw, calc(190px * var(--layout-stage-scale)));
-    }
-
-    #cpu-character-img {
-        width: clamp(calc(170px * var(--layout-stage-scale)), 22vw, calc(235px * var(--layout-stage-scale)));
-        height: clamp(calc(170px * var(--layout-stage-scale)), 22vw, calc(235px * var(--layout-stage-scale)));
-    }
-
-    #hero-character-img {
-        width: clamp(calc(145px * var(--layout-stage-scale)), 18vw, calc(195px * var(--layout-stage-scale)));
-        height: clamp(calc(145px * var(--layout-stage-scale)), 18vw, calc(195px * var(--layout-stage-scale)));
+    :root {
+        --profile-board-max-size: min(58vmin, calc(420px * var(--layout-stage-scale)));
+        --profile-log-width: clamp(calc(190px * var(--layout-stage-scale)), 21vw, calc(230px * var(--layout-stage-scale)));
+        --profile-log-max-height: 31vh;
+        --profile-effect-width: clamp(calc(155px * var(--layout-stage-scale)), 17vw, calc(190px * var(--layout-stage-scale)));
+        --profile-cpu-image-size: clamp(calc(170px * var(--layout-stage-scale)), 22vw, calc(235px * var(--layout-stage-scale)));
+        --profile-hero-image-size: clamp(calc(145px * var(--layout-stage-scale)), 18vw, calc(195px * var(--layout-stage-scale)));
     }
 }
 
-/* forced simulation via URL query: ?simAspect=16:10 */
-html.sim-aspect-16-10 #board {
-    --board-max-size: min(66vmin, calc(490px * var(--layout-stage-scale)));
+html.sim-aspect-16-10 {
+    --profile-board-max-size: min(66vmin, calc(490px * var(--layout-stage-scale)));
+    --profile-side-right: calc(14px * var(--layout-stage-scale));
+    --profile-side-bottom: calc(14px * var(--layout-stage-scale));
+    --profile-side-width: clamp(calc(240px * var(--layout-stage-scale)), 25vw, calc(285px * var(--layout-stage-scale)));
+    --profile-log-left: calc(14px * var(--layout-stage-scale));
+    --profile-log-top: calc(14px * var(--layout-stage-scale));
+    --profile-log-width: clamp(calc(230px * var(--layout-stage-scale)), 23vw, calc(280px * var(--layout-stage-scale)));
+    --profile-log-max-height: 42vh;
+    --profile-effect-left: calc(14px * var(--layout-stage-scale));
+    --profile-effect-top: calc(calc(14px * var(--layout-stage-scale)) + 42vh + calc(8px * var(--layout-stage-scale)));
+    --profile-effect-width: clamp(calc(185px * var(--layout-stage-scale)), 19vw, calc(225px * var(--layout-stage-scale)));
+    --profile-effect-min-height: calc(128px * var(--layout-stage-scale));
+    --profile-effect-max-height: 24vh;
+    --profile-cpu-panel-top: calc(14px * var(--layout-stage-scale));
+    --profile-cpu-panel-right: calc(14px * var(--layout-stage-scale));
+    --profile-cpu-image-size: clamp(calc(220px * var(--layout-stage-scale)), 25vw, calc(290px * var(--layout-stage-scale)));
+    --profile-hero-panel-left: calc(14px * var(--layout-stage-scale));
+    --profile-hero-panel-bottom: calc(14px * var(--layout-stage-scale));
+    --profile-hero-image-size: clamp(calc(180px * var(--layout-stage-scale)), 21vw, calc(245px * var(--layout-stage-scale)));
+    --profile-hero-image-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.6vmin, calc(18px * var(--layout-stage-scale)))) scale(var(--layout-character-image-scale));
+    --profile-hero-image-hover-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.6vmin, calc(18px * var(--layout-stage-scale)))) scale(calc(var(--layout-character-image-scale) * 1.08));
+    --profile-hero-label-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.6vmin, calc(18px * var(--layout-stage-scale))));
 }
 
-html.sim-aspect-16-10 #side-panel {
-    right: calc(14px * var(--layout-stage-scale));
-    bottom: calc(14px * var(--layout-stage-scale));
-    width: clamp(calc(240px * var(--layout-stage-scale)), 25vw, calc(285px * var(--layout-stage-scale)));
+html.sim-aspect-3-2 {
+    --profile-game-padding-bottom: 5vh;
+    --profile-game-gap: calc(8px * var(--layout-stage-scale));
+    --profile-board-max-size: min(64vmin, calc(475px * var(--layout-stage-scale)));
+    --profile-side-right: calc(12px * var(--layout-stage-scale));
+    --profile-side-bottom: calc(12px * var(--layout-stage-scale));
+    --profile-side-width: clamp(calc(230px * var(--layout-stage-scale)), 24vw, calc(270px * var(--layout-stage-scale)));
+    --profile-log-left: calc(12px * var(--layout-stage-scale));
+    --profile-log-top: calc(12px * var(--layout-stage-scale));
+    --profile-log-width: clamp(calc(220px * var(--layout-stage-scale)), 22vw, calc(260px * var(--layout-stage-scale)));
+    --profile-log-max-height: 38vh;
+    --profile-log-font-size: calc(12px * var(--layout-stage-scale));
+    --profile-log-padding: calc(10px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
+    --profile-effect-left: calc(12px * var(--layout-stage-scale));
+    --profile-effect-top: calc(calc(12px * var(--layout-stage-scale)) + 38vh + calc(8px * var(--layout-stage-scale)));
+    --profile-effect-width: clamp(calc(175px * var(--layout-stage-scale)), 19vw, calc(215px * var(--layout-stage-scale)));
+    --profile-effect-min-height: calc(124px * var(--layout-stage-scale));
+    --profile-effect-max-height: 23vh;
+    --profile-effect-padding: calc(8px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
+    --profile-cpu-panel-top: calc(12px * var(--layout-stage-scale));
+    --profile-cpu-panel-right: calc(12px * var(--layout-stage-scale));
+    --profile-cpu-image-size: clamp(calc(205px * var(--layout-stage-scale)), 24vw, calc(275px * var(--layout-stage-scale)));
+    --profile-cpu-label-font-size: clamp(calc(15px * var(--layout-stage-scale)), 1.9vw, calc(19px * var(--layout-stage-scale)));
+    --profile-cpu-label-transform: translateY(clamp(calc(-12px * var(--layout-stage-scale)), -0.8vmin, calc(-6px * var(--layout-stage-scale))));
+    --profile-hero-panel-left: calc(12px * var(--layout-stage-scale));
+    --profile-hero-panel-bottom: calc(12px * var(--layout-stage-scale));
+    --profile-hero-image-size: clamp(calc(170px * var(--layout-stage-scale)), 20vw, calc(230px * var(--layout-stage-scale)));
+    --profile-hero-image-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(var(--layout-character-image-scale));
+    --profile-hero-image-hover-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(calc(var(--layout-character-image-scale) * 1.08));
+    --profile-hero-label-font-size: clamp(calc(14px * var(--layout-stage-scale)), 1.9vw, calc(18px * var(--layout-stage-scale)));
+    --profile-hero-label-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale))));
 }
 
-html.sim-aspect-16-10 #log {
-    left: calc(14px * var(--layout-stage-scale));
-    top: calc(14px * var(--layout-stage-scale));
-    transform: none;
-    width: clamp(calc(230px * var(--layout-stage-scale)), 23vw, calc(280px * var(--layout-stage-scale)));
-    max-height: 42vh;
+html.sim-aspect-4-3 {
+    --profile-game-padding-bottom: 4vh;
+    --profile-game-gap: calc(8px * var(--layout-stage-scale));
+    --profile-board-max-size: min(62vmin, calc(460px * var(--layout-stage-scale)));
+    --profile-side-right: calc(12px * var(--layout-stage-scale));
+    --profile-side-bottom: calc(12px * var(--layout-stage-scale));
+    --profile-side-width: clamp(calc(220px * var(--layout-stage-scale)), 24vw, calc(260px * var(--layout-stage-scale)));
+    --profile-log-left: calc(12px * var(--layout-stage-scale));
+    --profile-log-top: calc(12px * var(--layout-stage-scale));
+    --profile-log-width: clamp(calc(210px * var(--layout-stage-scale)), 22vw, calc(250px * var(--layout-stage-scale)));
+    --profile-log-max-height: 34vh;
+    --profile-log-font-size: calc(12px * var(--layout-stage-scale));
+    --profile-log-padding: calc(10px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
+    --profile-effect-left: calc(12px * var(--layout-stage-scale));
+    --profile-effect-top: calc(calc(12px * var(--layout-stage-scale)) + 34vh + calc(8px * var(--layout-stage-scale)));
+    --profile-effect-width: clamp(calc(170px * var(--layout-stage-scale)), 18vw, calc(210px * var(--layout-stage-scale)));
+    --profile-effect-min-height: calc(120px * var(--layout-stage-scale));
+    --profile-effect-max-height: 22vh;
+    --profile-effect-padding: calc(8px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
+    --profile-cpu-panel-top: calc(12px * var(--layout-stage-scale));
+    --profile-cpu-panel-right: calc(12px * var(--layout-stage-scale));
+    --profile-cpu-image-size: clamp(calc(190px * var(--layout-stage-scale)), 24vw, calc(260px * var(--layout-stage-scale)));
+    --profile-cpu-label-font-size: clamp(calc(15px * var(--layout-stage-scale)), 1.9vw, calc(18px * var(--layout-stage-scale)));
+    --profile-cpu-label-transform: translateY(clamp(calc(-12px * var(--layout-stage-scale)), -0.8vmin, calc(-6px * var(--layout-stage-scale))));
+    --profile-hero-panel-left: calc(12px * var(--layout-stage-scale));
+    --profile-hero-panel-bottom: calc(12px * var(--layout-stage-scale));
+    --profile-hero-image-size: clamp(calc(160px * var(--layout-stage-scale)), 20vw, calc(220px * var(--layout-stage-scale)));
+    --profile-hero-image-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(var(--layout-character-image-scale));
+    --profile-hero-image-hover-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(calc(var(--layout-character-image-scale) * 1.08));
+    --profile-hero-label-font-size: clamp(calc(14px * var(--layout-stage-scale)), 1.9vw, calc(18px * var(--layout-stage-scale)));
+    --profile-hero-label-transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale))));
 }
 
-html.sim-aspect-16-10 #effect-live-panel {
-    left: calc(14px * var(--layout-stage-scale));
-    top: calc(calc(14px * var(--layout-stage-scale)) + 42vh + calc(8px * var(--layout-stage-scale)));
-    transform: none;
-    width: clamp(calc(185px * var(--layout-stage-scale)), 19vw, calc(225px * var(--layout-stage-scale)));
-    max-height: 24vh;
-    min-height: calc(128px * var(--layout-stage-scale));
+html.sim-aspect-5-4 {
+    --profile-board-max-size: min(58vmin, calc(420px * var(--layout-stage-scale)));
+    --profile-log-width: clamp(calc(190px * var(--layout-stage-scale)), 21vw, calc(230px * var(--layout-stage-scale)));
+    --profile-log-max-height: 31vh;
+    --profile-effect-width: clamp(calc(155px * var(--layout-stage-scale)), 17vw, calc(190px * var(--layout-stage-scale)));
+    --profile-cpu-image-size: clamp(calc(170px * var(--layout-stage-scale)), 22vw, calc(235px * var(--layout-stage-scale)));
+    --profile-hero-image-size: clamp(calc(145px * var(--layout-stage-scale)), 18vw, calc(195px * var(--layout-stage-scale)));
 }
 
-html.sim-aspect-16-10 #cpu-character-panel {
-    top: calc(14px * var(--layout-stage-scale));
-    right: calc(14px * var(--layout-stage-scale));
-}
-
-html.sim-aspect-16-10 #cpu-character-img {
-    width: clamp(calc(220px * var(--layout-stage-scale)), 25vw, calc(290px * var(--layout-stage-scale)));
-    height: clamp(calc(220px * var(--layout-stage-scale)), 25vw, calc(290px * var(--layout-stage-scale)));
-}
-
-html.sim-aspect-16-10 #hero-character-panel {
-    left: calc(14px * var(--layout-stage-scale));
-    bottom: calc(14px * var(--layout-stage-scale));
-}
-
-html.sim-aspect-16-10 #hero-character-img {
-    width: clamp(calc(180px * var(--layout-stage-scale)), 21vw, calc(245px * var(--layout-stage-scale)));
-    height: clamp(calc(180px * var(--layout-stage-scale)), 21vw, calc(245px * var(--layout-stage-scale)));
-    transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.6vmin, calc(18px * var(--layout-stage-scale)))) scale(var(--layout-character-image-scale));
-}
-
-html.sim-aspect-16-10 #hero-character-img:hover {
-    transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.6vmin, calc(18px * var(--layout-stage-scale)))) scale(calc(var(--layout-character-image-scale) * 1.08));
-}
-
-html.sim-aspect-16-10 #hero-label {
-    transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.6vmin, calc(18px * var(--layout-stage-scale))));
-}
-
-/* forced simulation via URL query: ?simAspect=3:2 */
-html.sim-aspect-3-2 #game-container {
-    padding-bottom: 5vh;
-    gap: calc(8px * var(--layout-stage-scale));
-}
-
-html.sim-aspect-3-2 #board {
-    --board-max-size: min(64vmin, calc(475px * var(--layout-stage-scale)));
-}
-
-html.sim-aspect-3-2 #side-panel {
-    right: calc(12px * var(--layout-stage-scale));
-    bottom: calc(12px * var(--layout-stage-scale));
-    width: clamp(calc(230px * var(--layout-stage-scale)), 24vw, calc(270px * var(--layout-stage-scale)));
-}
-
-html.sim-aspect-3-2 #log {
-    left: calc(12px * var(--layout-stage-scale));
-    top: calc(12px * var(--layout-stage-scale));
-    transform: none;
-    width: clamp(calc(220px * var(--layout-stage-scale)), 22vw, calc(260px * var(--layout-stage-scale)));
-    max-height: 38vh;
-    font-size: calc(12px * var(--layout-stage-scale));
-    padding: calc(10px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
-}
-
-html.sim-aspect-3-2 #effect-live-panel {
-    left: calc(12px * var(--layout-stage-scale));
-    top: calc(calc(12px * var(--layout-stage-scale)) + 38vh + calc(8px * var(--layout-stage-scale)));
-    transform: none;
-    width: clamp(calc(175px * var(--layout-stage-scale)), 19vw, calc(215px * var(--layout-stage-scale)));
-    min-height: calc(124px * var(--layout-stage-scale));
-    max-height: 23vh;
-    overflow: hidden;
-    padding: calc(8px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
-}
-
-html.sim-aspect-3-2 #cpu-character-panel {
-    top: calc(12px * var(--layout-stage-scale));
-    right: calc(12px * var(--layout-stage-scale));
-}
-
-html.sim-aspect-3-2 #cpu-character-img {
-    width: clamp(calc(205px * var(--layout-stage-scale)), 24vw, calc(275px * var(--layout-stage-scale)));
-    height: clamp(calc(205px * var(--layout-stage-scale)), 24vw, calc(275px * var(--layout-stage-scale)));
-}
-
-html.sim-aspect-3-2 #cpu-level-label {
-    font-size: clamp(calc(15px * var(--layout-stage-scale)), 1.9vw, calc(19px * var(--layout-stage-scale)));
-    transform: translateY(clamp(calc(-12px * var(--layout-stage-scale)), -0.8vmin, calc(-6px * var(--layout-stage-scale))));
-}
-
-html.sim-aspect-3-2 #hero-character-panel {
-    left: calc(12px * var(--layout-stage-scale));
-    bottom: calc(12px * var(--layout-stage-scale));
-}
-
-html.sim-aspect-3-2 #hero-character-img {
-    width: clamp(calc(170px * var(--layout-stage-scale)), 20vw, calc(230px * var(--layout-stage-scale)));
-    height: clamp(calc(170px * var(--layout-stage-scale)), 20vw, calc(230px * var(--layout-stage-scale)));
-    transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(var(--layout-character-image-scale));
-}
-
-html.sim-aspect-3-2 #hero-character-img:hover {
-    transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(calc(var(--layout-character-image-scale) * 1.08));
-}
-
-html.sim-aspect-3-2 #hero-label {
-    font-size: clamp(calc(14px * var(--layout-stage-scale)), 1.9vw, calc(18px * var(--layout-stage-scale)));
-    transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale))));
-}
-
-/* forced simulation via URL query: ?simAspect=4:3 */
-html.sim-aspect-4-3 #game-container {
-    padding-bottom: 4vh;
-    gap: calc(8px * var(--layout-stage-scale));
-}
-
-html.sim-aspect-4-3 #board {
-    --board-max-size: min(62vmin, calc(460px * var(--layout-stage-scale)));
-}
-
-html.sim-aspect-4-3 #side-panel {
-    right: calc(12px * var(--layout-stage-scale));
-    bottom: calc(12px * var(--layout-stage-scale));
-    width: clamp(calc(220px * var(--layout-stage-scale)), 24vw, calc(260px * var(--layout-stage-scale)));
-}
-
-html.sim-aspect-4-3 #log {
-    left: calc(12px * var(--layout-stage-scale));
-    top: calc(12px * var(--layout-stage-scale));
-    transform: none;
-    width: clamp(calc(210px * var(--layout-stage-scale)), 22vw, calc(250px * var(--layout-stage-scale)));
-    max-height: 34vh;
-    font-size: calc(12px * var(--layout-stage-scale));
-    padding: calc(10px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
-}
-
-html.sim-aspect-4-3 #effect-live-panel {
-    left: calc(12px * var(--layout-stage-scale));
-    top: calc(calc(12px * var(--layout-stage-scale)) + 34vh + calc(8px * var(--layout-stage-scale)));
-    transform: none;
-    width: clamp(calc(170px * var(--layout-stage-scale)), 18vw, calc(210px * var(--layout-stage-scale)));
-    min-height: calc(120px * var(--layout-stage-scale));
-    max-height: 22vh;
-    overflow: hidden;
-    padding: calc(8px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
-}
-
-html.sim-aspect-4-3 #cpu-character-panel {
-    top: calc(12px * var(--layout-stage-scale));
-    right: calc(12px * var(--layout-stage-scale));
-}
-
-html.sim-aspect-4-3 #cpu-character-img {
-    width: clamp(calc(190px * var(--layout-stage-scale)), 24vw, calc(260px * var(--layout-stage-scale)));
-    height: clamp(calc(190px * var(--layout-stage-scale)), 24vw, calc(260px * var(--layout-stage-scale)));
-}
-
-html.sim-aspect-4-3 #cpu-level-label {
-    font-size: clamp(calc(15px * var(--layout-stage-scale)), 1.9vw, calc(18px * var(--layout-stage-scale)));
-    transform: translateY(clamp(calc(-12px * var(--layout-stage-scale)), -0.8vmin, calc(-6px * var(--layout-stage-scale))));
-}
-
-html.sim-aspect-4-3 #hero-character-panel {
-    left: calc(12px * var(--layout-stage-scale));
-    bottom: calc(12px * var(--layout-stage-scale));
-}
-
-html.sim-aspect-4-3 #hero-character-img {
-    width: clamp(calc(160px * var(--layout-stage-scale)), 20vw, calc(220px * var(--layout-stage-scale)));
-    height: clamp(calc(160px * var(--layout-stage-scale)), 20vw, calc(220px * var(--layout-stage-scale)));
-    transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(var(--layout-character-image-scale));
-}
-
-html.sim-aspect-4-3 #hero-character-img:hover {
-    transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale)))) scale(calc(var(--layout-character-image-scale) * 1.08));
-}
-
-html.sim-aspect-4-3 #hero-label {
-    font-size: clamp(calc(14px * var(--layout-stage-scale)), 1.9vw, calc(18px * var(--layout-stage-scale)));
-    transform: translateY(clamp(calc(10px * var(--layout-stage-scale)), 1.4vmin, calc(16px * var(--layout-stage-scale))));
-}
-
-/* forced simulation via URL query: ?simAspect=5:4 */
+/* Public simAspect selectors are kept as compatibility anchors for tests and local inspection. */
+html.sim-aspect-16-10 #board,
+html.sim-aspect-3-2 #board,
+html.sim-aspect-4-3 #board,
 html.sim-aspect-5-4 #board {
-    --board-max-size: min(58vmin, calc(420px * var(--layout-stage-scale)));
+    --board-max-size: var(--profile-board-max-size);
 }
 
-html.sim-aspect-5-4 #log {
-    width: clamp(calc(190px * var(--layout-stage-scale)), 21vw, calc(230px * var(--layout-stage-scale)));
-    max-height: 31vh;
-}
-
+html.sim-aspect-4-3 #effect-live-panel,
 html.sim-aspect-5-4 #effect-live-panel {
-    width: clamp(calc(155px * var(--layout-stage-scale)), 17vw, calc(190px * var(--layout-stage-scale)));
+    width: var(--profile-effect-width);
 }
 
-html.sim-aspect-5-4 #cpu-character-img {
-    width: clamp(calc(170px * var(--layout-stage-scale)), 22vw, calc(235px * var(--layout-stage-scale)));
-    height: clamp(calc(170px * var(--layout-stage-scale)), 22vw, calc(235px * var(--layout-stage-scale)));
+#game-container {
+    padding-bottom: var(--profile-game-padding-bottom);
+    gap: var(--profile-game-gap);
 }
 
-html.sim-aspect-5-4 #hero-character-img {
-    width: clamp(calc(145px * var(--layout-stage-scale)), 18vw, calc(195px * var(--layout-stage-scale)));
-    height: clamp(calc(145px * var(--layout-stage-scale)), 18vw, calc(195px * var(--layout-stage-scale)));
+#board {
+    --board-max-size: var(--profile-board-max-size);
+}
+
+#side-panel {
+    right: var(--profile-side-right);
+    bottom: var(--profile-side-bottom);
+    width: var(--profile-side-width);
+}
+
+#log {
+    left: var(--profile-log-left);
+    top: var(--profile-log-top);
+    transform: none;
+    width: var(--profile-log-width);
+    max-height: var(--profile-log-max-height);
+    font-size: var(--profile-log-font-size);
+    padding: var(--profile-log-padding);
+}
+
+#effect-live-panel {
+    left: var(--profile-effect-left);
+    top: var(--profile-effect-top);
+    transform: none;
+    width: var(--profile-effect-width);
+    min-height: var(--profile-effect-min-height);
+    max-height: var(--profile-effect-max-height);
+    overflow: hidden;
+    padding: var(--profile-effect-padding);
+}
+
+#cpu-character-panel {
+    top: var(--profile-cpu-panel-top);
+    right: var(--profile-cpu-panel-right);
+}
+
+#cpu-character-img {
+    width: var(--profile-cpu-image-size);
+    height: var(--profile-cpu-image-size);
+}
+
+#cpu-level-label {
+    font-size: var(--profile-cpu-label-font-size);
+    transform: var(--profile-cpu-label-transform);
+}
+
+#hero-character-panel {
+    left: var(--profile-hero-panel-left);
+    bottom: var(--profile-hero-panel-bottom);
+}
+
+#hero-character-img {
+    width: var(--profile-hero-image-size);
+    height: var(--profile-hero-image-size);
+    transform: var(--profile-hero-image-transform);
+}
+
+#hero-character-img:hover {
+    transform: var(--profile-hero-image-hover-transform);
+}
+
+#hero-label {
+    font-size: var(--profile-hero-label-font-size);
+    transform: var(--profile-hero-label-transform);
 }
 
 @media (max-width: 56.25em) {

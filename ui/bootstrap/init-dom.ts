@@ -43,6 +43,7 @@ interface InitDomElements {
   humanVsHumanBtn: HTMLElement | null;
   visualTestBtn: HTMLElement | null;
   modeCpuBtn: HTMLElement | null;
+  modeOthelloBtn: HTMLElement | null;
   modeNetworkBtn: HTMLElement | null;
   controlPanel: HTMLElement | null;
   deckBuilderOpenBtn: HTMLElement | null;
@@ -96,6 +97,7 @@ interface InitDomElements {
   useBtn: HTMLElement | null;
   detailBtn: HTMLElement | null;
   passBtn: HTMLElement | null;
+  othelloPassBtn: HTMLElement | null;
 }
 
 function getInitDomElements(): InitDomElements {
@@ -113,7 +115,7 @@ function getInitDomElements(): InitDomElements {
     handSkinCloseBtn: $('handSkinCloseBtn'), handSkinOptions: $('handSkinOptions'),
     handImage: $('handImage') as HTMLImageElement | null, autoToggleBtn: $('autoToggleBtn'), smartBlack: $('smartBlack') as HTMLSelectElement | null,
     smartWhite: $('smartWhite') as HTMLSelectElement | null, debugModeBtn: $('debugModeBtn'), humanVsHumanBtn: $('humanVsHumanBtn'),
-    visualTestBtn: $('visualTestBtn'), modeCpuBtn: $('modeCpuBtn'), modeNetworkBtn: $('modeNetworkBtn'),
+    visualTestBtn: $('visualTestBtn'), modeCpuBtn: $('modeCpuBtn'), modeOthelloBtn: $('modeOthelloBtn'), modeNetworkBtn: $('modeNetworkBtn'),
     controlPanel: $('control-panel'), deckBuilderOpenBtn: $('deckBuilderOpenBtn'),
     deckBuilderControlSummary: $('deckBuilderControlSummary'), deckBuilderOverlay: $('deckBuilderOverlay'),
     deckBuilderCloseBtn: $('deckBuilderCloseBtn'), deckBuilderHeaderSummary: $('deckBuilderHeaderSummary'),
@@ -139,7 +141,7 @@ function getInitDomElements(): InitDomElements {
     networkChatInput: $('networkChatInput') as HTMLInputElement | null, networkChatSendBtn: $('networkChatSendBtn'),
     sidePanel: $('side-panel'), sidePanelToggleBtn: $('sidePanelToggleBtn'),
     destroyBtn: $('destroy-card-btn'), useBtn: $('use-card-btn'),
-    detailBtn: $('toggle-card-detail-btn'), passBtn: $('pass-btn')
+    detailBtn: $('toggle-card-detail-btn'), passBtn: $('pass-btn'), othelloPassBtn: $('othello-pass-btn')
   };
 }
 

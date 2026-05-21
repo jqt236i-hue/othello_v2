@@ -16,6 +16,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 const root: any = (typeof window !== 'undefined' ? window : globalThis);
 
 const MODE_CPU = 'cpu';
+const MODE_OTHELLO = 'othello';
     const MODE_NETWORK = 'network';
     const CHAT_INPUT_FALLBACK_MAX = 20;
     const PLAYER_NAME_MAX = 7;
@@ -32,6 +33,7 @@ const MODE_CPU = 'cpu';
 
     const uiRefs: any = {
         modeCpuBtn: null,
+        modeOthelloBtn: null,
         modeNetworkBtn: null,
         controlPanel: null,
         networkPanel: null,
@@ -74,6 +76,7 @@ const MODE_CPU = 'cpu';
     };
 
     function normalizeMode(mode: any) {
+        if (mode === MODE_OTHELLO) return MODE_OTHELLO;
         if (mode === MODE_NETWORK) return MODE_NETWORK;
         return MODE_CPU;
     }
@@ -93,6 +96,10 @@ const MODE_CPU = 'cpu';
 
     function isNetworkModeActive() {
         return currentMode === MODE_NETWORK;
+    }
+
+    function isOthelloModeActive() {
+        return currentMode === MODE_OTHELLO;
     }
 
     function normalizePlayerName(value: any) {
@@ -926,7 +933,9 @@ const MODE_CPU = 'cpu';
     function renderNetworkChatHistory(messages: any) {
         clearNetworkChatMessages();
         if (!Array.isArray(messages)) return;
-        messages.forEach((entry) => appendNetworkChatMessage(entry));
+        messages.forEach((entry) => {
+            appendNetworkChatMessage(entry);
+        });
     }
 
     function setNetworkChatExpanded(expanded: any) {
@@ -979,16 +988,6 @@ const MODE_CPU = 'cpu';
         uiRefs.controlPanel.style.overscrollBehavior = '';
     }
 
-    function updateCardDetailReserve() {
-        try {
-            if (!uiRefs.controlPanel || !document || !document.documentElement) return;
-            const height = Math.ceil(uiRefs.controlPanel.getBoundingClientRect().height || 0);
-            if (height <= 0) return;
-            const reserve = Math.max(170, height);
-            document.documentElement.style.setProperty('--card-detail-landscape-bottom-reserve', `${reserve}px`);
-        } catch (e) { /* ignore */ }
-    }
-
     function measureBaseControlPanelHeight() {
         if (!uiRefs.controlPanel) return 0;
         const panel = uiRefs.controlPanel;
@@ -1027,7 +1026,6 @@ const MODE_CPU = 'cpu';
         clearControlPanelConstraints();
         const fresh = measureBaseControlPanelHeight();
         if (fresh > 0) uiRefs.baseControlPanelHeight = fresh;
-        updateCardDetailReserve();
     }
 
     function scheduleControlPanelLayoutSync() {
@@ -1066,7 +1064,7 @@ const MODE_CPU = 'cpu';
 
         if (typeof ResizeObserver === 'function' && uiRefs.controlPanel) {
             uiRefs.layoutObserver = new ResizeObserver(() => {
-                updateCardDetailReserve();
+                scheduleControlPanelLayoutSync();
             });
             uiRefs.layoutObserver.observe(uiRefs.controlPanel);
         }
@@ -1103,11 +1101,56 @@ const MODE_CPU = 'cpu';
         } catch (e) { /* ignore */ }
     }
 
+    function applyOthelloModeUiState() {
+        const active = currentMode === MODE_OTHELLO;
+        try {
+            if (document && document.body) {
+                document.body.classList.toggle('othello-mode-active', active);
+            }
+            const hiddenElementIds = [
+                'deck-white',
+                'deck-black',
+                'hand-white',
+                'hand-black',
+                'effect-live-panel',
+                'deckBuilderOpenBtn',
+                'gachaOpenBtn',
+                'charge-black',
+                'charge-white',
+                'charge-delta-black-increase',
+                'charge-delta-black-decrease',
+                'charge-delta-white-increase',
+                'charge-delta-white-decrease'
+            ];
+            hiddenElementIds.forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.hidden = active;
+                el.setAttribute('aria-hidden', active ? 'true' : 'false');
+            });
+        } catch (e) { /* ignore */ }
+        try {
+            root.OTHELLO_MODE_ACTIVE = active;
+            root.__OTHELLO_MODE_ACTIVE = active;
+        } catch (e) { /* ignore */ }
+    }
+
+    function resetGameForOthelloModeSwitch(prevMode: any, nextMode: any) {
+        if (prevMode !== MODE_OTHELLO && nextMode !== MODE_OTHELLO) return;
+        try {
+            if (typeof root.resetGame === 'function') {
+                root.resetGame({ skipNetworkPublish: true });
+            }
+        } catch (e) { /* ignore */ }
+    }
+
     function refreshModeButtons() {
         const cpuActive = currentMode === MODE_CPU;
+        const othelloActive = currentMode === MODE_OTHELLO;
         const networkActive = currentMode === MODE_NETWORK;
 
         if (uiRefs.modeCpuBtn) uiRefs.modeCpuBtn.style.outline = cpuActive ? '2px solid #90ee90' : '';
+        if (uiRefs.modeOthelloBtn) uiRefs.modeOthelloBtn.style.outline = othelloActive ? '2px solid #90ee90' : '';
         if (uiRefs.modeNetworkBtn) uiRefs.modeNetworkBtn.style.outline = networkActive ? '2px solid #90ee90' : '';
 
         if (uiRefs.networkPanel) {
@@ -1186,7 +1229,10 @@ const MODE_CPU = 'cpu';
             root.getCurrentMatchMode = getCurrentMode;
             root.isLocalOrNetworkMode = isLocalOrNetworkMode;
             root.isNetworkModeActive = isNetworkModeActive;
+            root.isOthelloModeActive = isOthelloModeActive;
         } catch (e) { /* ignore */ }
+
+        applyOthelloModeUiState();
 
         syncHumanModeFlags(isHumanMode(currentMode));
         if (isHumanMode(currentMode)) {
@@ -1195,6 +1241,8 @@ const MODE_CPU = 'cpu';
 
         if (currentMode === MODE_NETWORK) {
             writeNetworkStatus('ネット対戦: 部屋作成か部屋参加を選んでください', false);
+        } else if (currentMode === MODE_OTHELLO) {
+            writeNetworkStatus('オセロモード', false);
         } else {
             writeNetworkStatus('CPU対戦モード', false);
             setNetworkOverlayVisible(false);
@@ -1202,6 +1250,7 @@ const MODE_CPU = 'cpu';
 
         applyNetworkDebugModeAccess();
 
+        resetGameForOthelloModeSwitch(prevMode, currentMode);
         refreshModeButtons();
         refreshBoardUi();
         try {
@@ -1212,6 +1261,7 @@ const MODE_CPU = 'cpu';
 
         if (!opts.silentLog && typeof addLog === 'function') {
             if (currentMode === MODE_CPU) addLog('モード: CPU対戦');
+            if (currentMode === MODE_OTHELLO) addLog('モード: オセロ');
             if (currentMode === MODE_NETWORK) addLog('モード: ネット対戦');
         }
     }
@@ -1534,6 +1584,7 @@ const MODE_CPU = 'cpu';
     function setupMatchModeControls(options: any) {
         const opts = options || {};
         uiRefs.modeCpuBtn = opts.modeCpuBtn || null;
+        uiRefs.modeOthelloBtn = opts.modeOthelloBtn || null;
         uiRefs.modeNetworkBtn = opts.modeNetworkBtn || null;
         uiRefs.controlPanel = opts.controlPanel || null;
         uiRefs.networkPanel = opts.networkPanel || null;
@@ -1576,6 +1627,11 @@ const MODE_CPU = 'cpu';
         if (uiRefs.modeCpuBtn) {
             uiRefs.modeCpuBtn.addEventListener('click', () => {
                 setMode(MODE_CPU);
+            });
+        }
+        if (uiRefs.modeOthelloBtn) {
+            uiRefs.modeOthelloBtn.addEventListener('click', () => {
+                setMode(MODE_OTHELLO);
             });
         }
         if (uiRefs.modeNetworkBtn) {

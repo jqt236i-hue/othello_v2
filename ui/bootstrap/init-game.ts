@@ -15,6 +15,7 @@ declare const CpuPolicy: {
 } | undefined;
 declare const initPolicyOnnxModel: (() => Promise<void>) | undefined;
 declare const initPolicyTableModel: (() => Promise<void>) | undefined;
+declare const initOthelloPolicyTableModel: (() => Promise<void>) | undefined;
 declare const initLvMaxModels: (() => void) | undefined;
 declare const loadLvMaxModels: (() => void) | undefined;
 declare const resetGame: ((options?: any) => void) | undefined;
@@ -30,6 +31,9 @@ async function initGameSystems(): Promise<void> {
   }
   if (typeof initPolicyTableModel === 'function') {
     await initPolicyTableModel();
+  }
+  if (typeof initOthelloPolicyTableModel === 'function') {
+    await initOthelloPolicyTableModel();
   }
   if (typeof initLvMaxModels === 'function' && typeof loadLvMaxModels === 'function') {
     initLvMaxModels();
