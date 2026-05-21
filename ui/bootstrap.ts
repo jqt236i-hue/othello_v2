@@ -924,7 +924,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         } catch (e: any) { /* ignore */ }
 
         // Special-effects UI hooks: many modules accept setUIImpl; wire basic helpers
-        const specialModules = ['../game/special-effects/breeding', '../game/special-effects/dragons', '../game/special-effects/hyperactive'];
+        const specialModules = ['../game/special-effects/dragons', '../game/special-effects/hyperactive'];
         for (const p of specialModules) {
             try {
                 const m = require(p);
@@ -933,6 +933,19 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 }
             } catch (e: any) { /* ignore */ }
         }
+        try {
+            const breeding = require('../game/special-effects/breeding');
+            const animationUtils = require('./animation-utils');
+            const playbackEngine = require('./playback-engine');
+            const animationConstants = require('../constants/animation-constants');
+            if (breeding && typeof breeding.setUIImpl === 'function') {
+                breeding.setUIImpl({
+                    animateFadeOutAt: animationUtils && animationUtils.animateFadeOutAt,
+                    playPresentationEvents: playbackEngine && playbackEngine.playPresentationEvents,
+                    getAnimationTiming: animationConstants && animationConstants.getAnimationTiming
+                });
+            }
+        } catch (e: any) { /* ignore */ }
         try {
             const bombs = require('../game/special-effects/bombs');
             const animationUtils = require('./animation-utils');

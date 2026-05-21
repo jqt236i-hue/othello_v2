@@ -32,6 +32,17 @@ if (typeof require === 'function') {
     try { ({ getAnimationTiming: _getAnimationTiming_baked } = _require('../../constants/animation-constants')); } catch (e) { /* ignore */ }
 }
 
+function hasPlaybackEngineForBreeding(): boolean {
+    return typeof __uiImpl_breeding.playPresentationEvents === 'function';
+}
+
+function getAnimationTimingForBreeding(key: string): number | undefined {
+    if (__uiImpl_breeding && typeof __uiImpl_breeding.getAnimationTiming === 'function') {
+        try { return __uiImpl_breeding.getAnimationTiming(key); } catch (e) { /* ignore */ }
+    }
+    return typeof _getAnimationTiming_baked === 'function' ? _getAnimationTiming_baked(key) : undefined;
+}
+
 /**
  * Process breeding effects (Stone spawning)
  * @async
@@ -42,7 +53,7 @@ if (typeof require === 'function') {
 async function processBreedingEffectsAtTurnStart(player: number, precomputedEvents: any = null) {
     const playerKey = player === BLACK ? 'black' : 'white';
 
-    const hasPlayback = (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackEngine && typeof (globalThis as any).PlaybackEngine.playPresentationEvents === 'function'); // globalThis - UI/bootstrap dependency
+    const hasPlayback = hasPlaybackEngineForBreeding();
 
     // Prefer a precomputed result from pipeline events if provided
     let result: any = null;
@@ -98,14 +109,14 @@ async function processBreedingEffectsAtTurnStart(player: number, precomputedEven
     // Flip animations for stones affected by the spawned stone
     if (result.flipped.length > 0) {
         // Flip animations are UI responsibilities. Preserve pacing but do not perform DOM changes here.
-        const delay = (typeof _getAnimationTiming_baked === 'function' ? _getAnimationTiming_baked('FLIP_ANIMATION_DURATION') : undefined) || 800;
+        const delay = getAnimationTimingForBreeding('FLIP_ANIMATION_DURATION') || 800;
         await waitMs(delay);
     }
 
     // After spawning and splitting, handle destroyed anchors (fade-out)
     for (const pos of result.destroyed) {
-        if (typeof animateFadeOutAt === 'function') {
-            await animateFadeOutAt(pos.row, pos.col);
+        if (__uiImpl_breeding && typeof __uiImpl_breeding.animateFadeOutAt === 'function') {
+            await __uiImpl_breeding.animateFadeOutAt(pos.row, pos.col);
         } else {
             await waitMs(300);
         }
@@ -144,7 +155,7 @@ async function processBreedingImmediateAtPlacement(player: number, row: number, 
 
     // Flip animation for affected stones: UI responsibility. Preserve pacing.
     if (result.flipped.length > 0) {
-        const delay = (typeof _getAnimationTiming_baked === 'function' ? _getAnimationTiming_baked('FLIP_ANIMATION_DURATION') : undefined) || 800;
+        const delay = getAnimationTimingForBreeding('FLIP_ANIMATION_DURATION') || 800;
         await waitMs(delay);
     }
 
