@@ -1057,14 +1057,8 @@ function readCpuDecisionQuerySearch(): string {
             const qs = cpuDecisionRuntime.readQuerySearch();
             return typeof qs === 'string' ? qs : String(qs || '');
         }
-    } catch (e) { /* ignore and fall back to legacy location */ }
-    try {
-        return (typeof location !== 'undefined' && location && typeof location.search === 'string')
-            ? location.search
-            : '';
-    } catch (e) {
-        return '';
-    }
+    } catch (e) { /* ignore */ }
+    return '';
 }
 
 let cpuTimerService: any = null;

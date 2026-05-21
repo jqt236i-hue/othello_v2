@@ -1135,6 +1135,38 @@ describe('cpu decision refactor helpers', () => {
     }));
   });
 
+  test('selectCardToUse uses injected query reader for cpu trap-only debug mode', () => {
+    global.cpuSmartness.white = 6;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [] },
+      pendingEffectByPlayer: { white: null },
+      hasUsedCardThisTurnByPlayer: { white: false },
+      charge: { white: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.CardLogic = {
+      getCardDef: jest.fn((id) => ({ id, type: 'TRAP_WILL' })),
+      getCardCost: jest.fn(() => 3),
+      getUsableCardIds: jest.fn((cs, _gs, playerKey) => cs.hands[playerKey].slice())
+    };
+    global.CARD_DEFS = [{ id: 'trap_debug_01', type: 'TRAP_WILL', enabled: true }];
+    cpuDecision.setCpuDecisionRuntime({
+      readQuerySearch: () => '?debug=1&cpuTrapOnly=1&cpuTrapOnlyFor=white',
+      readDebugFlag: () => false
+    });
+
+    const choice = cpuDecision.selectCardToUse('white');
+
+    expect(choice).toEqual(expect.objectContaining({ cardId: 'trap_debug_01' }));
+    expect(global.cardState.hands.white).toContain('trap_debug_01');
+    expect(global.cardState.charge.white).toBe(3);
+  });
+
   test('selectCpuMoveWithPolicy prefers corner plan even when learned score favors inner move', () => {
     const candidates = [
       { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
