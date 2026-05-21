@@ -84,6 +84,15 @@ othello_v2/
 - Choose verification by blast radius. Prefer focused tests/preflights first; use `npm run test:network:parity` for network contracts and `npm run worker:prepare` for root-to-worker mirror impact.
 - Do not run long selfplay or training jobs unless explicitly requested. Use a focused preflight or small sample before any expensive run.
 
+## COMMIT POLICY
+
+- When an implementation, fix, documentation update, or verification pass reaches a coherent stopping point, the agent may create a commit without waiting for an explicit user prompt.
+- Before committing, inspect `git status` and the relevant diff, and stage only files changed for the current task.
+- Do not include unrelated user changes, generated artifacts, mirror files, deleted assets, or work-in-progress changes unless they are required for the current task and were intentionally produced as part of it.
+- Keep commit messages short and concrete, in Japanese or English, so the completed work unit is clear from `git log`.
+- If tests or checks were run, report the commands and results in the final response.
+- If the change set is large, mixes unrelated edits, requires a product/rules decision, or cannot be separated safely, ask the user before committing.
+
 ## ANTI-PATTERNS (THIS PROJECT)
 
 - Treating client-authored state, `snapshot-runtime.ts`, or preview state as authority.
