@@ -30,6 +30,10 @@ describe('cpu decision refactor helpers', () => {
     delete global.DEBUG_HUMAN_VS_HUMAN;
     delete global.MATCH_MODE;
     delete global.CPU_TURN_DELAY_MS;
+    delete global.OthelloBrowserCpuRuntime;
+    if (typeof cpuDecision.setCpuDecisionRuntime === 'function') {
+      cpuDecision.setCpuDecisionRuntime(null);
+    }
   });
 
   test('selectCardToUse returns AISystem suggestion when present', () => {
@@ -1094,6 +1098,41 @@ describe('cpu decision refactor helpers', () => {
     expect(move).toBe(candidates[1]);
     expect(global.CpuPolicyTableRuntime.chooseMove).toHaveBeenCalled();
     expect(chooseMoveSpy).toHaveBeenCalled();
+  });
+
+  test('selectCpuMoveWithPolicy uses injected reversi mode before legacy match mode', () => {
+    const candidates = [{ row: 2, col: 2, flips: [] }, { row: 3, col: 3, flips: [] }];
+    global.MATCH_MODE = 'cpu';
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 12, black: 12 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.cpuSmartness.white = 6;
+    global.OthelloBrowserCpuRuntime = {
+      getStatus: jest.fn(() => ({ loaded: true, valueLoaded: true })),
+      chooseMove: jest.fn(() => candidates[1])
+    };
+    cpuDecision.setCpuDecisionRuntime({
+      readMatchMode: () => 'reversi',
+      readHumanVsHumanMode: () => false
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+
+    expect(move).toBe(candidates[1]);
+    expect(global.OthelloBrowserCpuRuntime.chooseMove).toHaveBeenCalledWith(candidates, expect.objectContaining({
+      playerKey: 'white',
+      level: 6,
+      board: global.gameState.board
+    }));
   });
 
   test('selectCpuMoveWithPolicy prefers corner plan even when learned score favors inner move', () => {

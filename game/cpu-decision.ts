@@ -617,6 +617,20 @@ function resolveOthelloBrowserCpuRuntime(): any {
 
 function isOthelloModeForCpuDecision(): boolean {
     try {
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readMatchMode === 'function') {
+            const mode = String(cpuDecisionRuntime.readMatchMode() || '').trim().toLowerCase();
+            if (mode) return mode === 'reversi' || mode === 'othello';
+        }
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.getCurrentMatchMode === 'function') {
+            const mode = String(cpuDecisionRuntime.getCurrentMatchMode() || '').trim().toLowerCase();
+            if (mode) return mode === 'reversi' || mode === 'othello';
+        }
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.MATCH_MODE !== 'undefined') {
+            const mode = String(cpuDecisionRuntime.MATCH_MODE || '').trim().toLowerCase();
+            return mode === 'reversi' || mode === 'othello';
+        }
+    } catch (e) { /* ignore */ }
+    try {
         if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
             const mode = String((globalThis as any).getCurrentMatchMode() || '').trim().toLowerCase();
             return mode === 'reversi' || mode === 'othello';
