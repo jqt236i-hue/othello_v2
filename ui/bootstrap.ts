@@ -1450,6 +1450,24 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         };
                         return { black: readLevel('smartBlack'), white: readLevel('smartWhite') };
                     },
+                    getCpuLv6SharedProfile: () => {
+                        try {
+                            return typeof globalThis !== 'undefined' ? (globalThis as any).CPU_LV6_SHARED_PROFILE : null;
+                        } catch (e: any) { /* ignore */ }
+                        return null;
+                    },
+                    readCpuLv6OnnxRuntimeGuard: () => {
+                        try {
+                            return typeof globalThis !== 'undefined' ? (globalThis as any).CPU_LV6_ONNX_RUNTIME_GUARD : null;
+                        } catch (e: any) { /* ignore */ }
+                        return null;
+                    },
+                    readCpuLv6PendingSelectionBudgetMs: () => {
+                        try {
+                            return typeof globalThis !== 'undefined' ? (globalThis as any).CPU_LV6_PENDING_SELECTION_ONNX_MAX_MS : undefined;
+                        } catch (e: any) { /* ignore */ }
+                        return undefined;
+                    },
                     waitForPlaybackIdle: () => {
                         try {
                             if (typeof globalThis !== 'undefined' && typeof (globalThis as any).waitForPlaybackIdle === 'function') {

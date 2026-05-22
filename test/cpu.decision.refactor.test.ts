@@ -733,7 +733,9 @@ describe('cpu decision refactor helpers', () => {
   });
 
   test('selectCardFromOnnxPolicyAsync falls back when card ONNX exceeds latency budget', async () => {
-    global.CPU_LV6_ONNX_RUNTIME_GUARD = { cardBudgetMs: 5 };
+    cpuDecision.setCpuDecisionRuntime({
+      readCpuLv6OnnxRuntimeGuard: () => ({ cardBudgetMs: 5 })
+    });
     global.cardState.hands.white = ['c_low', 'c_high'];
     global.CardLogic = {
       getCardDef: (id) => ({ name: id })
@@ -993,7 +995,9 @@ describe('cpu decision refactor helpers', () => {
       { row: 2, col: 3, flips: [{ row: 3, col: 3 }] },
       { row: 0, col: 0, flips: [{ row: 1, col: 1 }] }
     ];
-    global.CPU_LV6_ONNX_RUNTIME_GUARD = { moveBudgetMs: 5 };
+    cpuDecision.setCpuDecisionRuntime({
+      readCpuLv6OnnxRuntimeGuard: () => ({ moveBudgetMs: 5 })
+    });
     global.gameState = {
       board: Array.from({ length: 8 }, () => Array(8).fill(0)),
       currentPlayer: -1
@@ -1018,12 +1022,14 @@ describe('cpu decision refactor helpers', () => {
 
   test('cpuSelectTrapWillWithPolicy skips pending ONNX when latency gate is already exceeded', async () => {
     global.cpuSmartness.white = 6;
-    global.CPU_LV6_ONNX_RUNTIME_GUARD = {
-      minSamples: 1,
-      maxAverageLatencyMs: 5,
-      maxP95LatencyMs: 7,
-      maxMaxLatencyMs: 9
-    };
+    cpuDecision.setCpuDecisionRuntime({
+      readCpuLv6OnnxRuntimeGuard: () => ({
+        minSamples: 1,
+        maxAverageLatencyMs: 5,
+        maxP95LatencyMs: 7,
+        maxMaxLatencyMs: 9
+      })
+    });
     global.gameState = {
       board: Array.from({ length: 8 }, () => Array(8).fill(0)),
       currentPlayer: -1
@@ -2622,7 +2628,9 @@ describe('cpu decision refactor helpers', () => {
 
   test('cpuSelectTrapWillWithPolicy falls back when pending ONNX exceeds latency budget', async () => {
     global.cpuSmartness.white = 6;
-    global.CPU_LV6_PENDING_SELECTION_ONNX_MAX_MS = 5;
+    cpuDecision.setCpuDecisionRuntime({
+      readCpuLv6PendingSelectionBudgetMs: () => 5
+    });
     global.gameState = {
       board: Array.from({ length: 8 }, () => Array(8).fill(0)),
       currentPlayer: -1

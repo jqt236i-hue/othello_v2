@@ -843,8 +843,12 @@ function createLookaheadPriorScoreFn(playerKey: any, level: any, legalMovesCount
 
 function resolveCpuLv6SharedProfile(): any {
     try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).CPU_LV6_SHARED_PROFILE && typeof (globalThis as any).CPU_LV6_SHARED_PROFILE === 'object') {
-            return (globalThis as any).CPU_LV6_SHARED_PROFILE;
+        if (
+            cpuDecisionRuntime &&
+            typeof cpuDecisionRuntime.getCpuLv6SharedProfile === 'function'
+        ) {
+            const profile = cpuDecisionRuntime.getCpuLv6SharedProfile();
+            if (profile && typeof profile === 'object') return profile;
         }
     } catch (e) { /* ignore */ }
     try {
@@ -896,11 +900,11 @@ function resolveCpuCurrentTurnNumber(): any {
 function resolveCpuLv6OnnxRuntimeGuardOverrides(): any {
     try {
         if (
-            typeof globalThis !== 'undefined' &&
-            (globalThis as any).CPU_LV6_ONNX_RUNTIME_GUARD &&
-            typeof (globalThis as any).CPU_LV6_ONNX_RUNTIME_GUARD === 'object'
+            cpuDecisionRuntime &&
+            typeof cpuDecisionRuntime.readCpuLv6OnnxRuntimeGuard === 'function'
         ) {
-            return (globalThis as any).CPU_LV6_ONNX_RUNTIME_GUARD;
+            const guard = cpuDecisionRuntime.readCpuLv6OnnxRuntimeGuard();
+            if (guard && typeof guard === 'object') return guard;
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -908,7 +912,12 @@ function resolveCpuLv6OnnxRuntimeGuardOverrides(): any {
 
 function readLegacyPendingSelectionBudgetMs(): any {
     try {
-        return Number(globalThis && (globalThis as any).CPU_LV6_PENDING_SELECTION_ONNX_MAX_MS);
+        if (
+            cpuDecisionRuntime &&
+            typeof cpuDecisionRuntime.readCpuLv6PendingSelectionBudgetMs === 'function'
+        ) {
+            return Number(cpuDecisionRuntime.readCpuLv6PendingSelectionBudgetMs());
+        }
     } catch (e) { /* ignore */ }
     return NaN;
 }
