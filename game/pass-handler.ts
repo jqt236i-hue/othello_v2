@@ -307,7 +307,7 @@ function isOthelloModeEnabled() {
     const matchMode = String(getCurrentMatchModeSafe() || '').trim().toLowerCase();
     if (matchMode === 'reversi' || matchMode === 'othello') return true;
     if (matchMode && matchMode !== 'cpu' && matchMode !== 'network') return false;
-    const modeContext = passHandlerRuntime || (typeof globalThis !== 'undefined' ? globalThis : null);
+    const modeContext = passHandlerRuntime || {};
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.isReversiMode === 'function') {
             return OwnerHelpersModule.isReversiMode(modeContext);
