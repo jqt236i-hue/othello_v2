@@ -11,8 +11,8 @@ interface ModuleResolverOptions {
 function readGlobalModule(globalName: string): unknown {
     if (!globalName) return null;
     try {
-        if (typeof globalThis !== 'undefined' && globalThis && (globalThis as any)[globalName]) {
-            return (globalThis as any)[globalName];
+        if (typeof self !== 'undefined' && (self as any)[globalName]) {
+            return (self as any)[globalName];
         }
     } catch (_error) {
         void _error;

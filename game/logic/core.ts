@@ -26,9 +26,6 @@ function safeRequire(id: string): any {
 }
 
 function getRuntimeSharedConstants(): any {
-    if (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants) {
-        return (globalThis as any).SharedConstants;
-    }
     if (typeof self !== 'undefined' && (self as any).SharedConstants) {
         return (self as any).SharedConstants;
     }
@@ -36,29 +33,22 @@ function getRuntimeSharedConstants(): any {
 }
 
 const SharedConstants = (() => {
-    const runtimeSharedConstants = getRuntimeSharedConstants();
-    if (runtimeSharedConstants) return runtimeSharedConstants;
-
     if (typeof module === 'object' && module.exports) {
         const loaded = safeRequire('../../shared-constants');
         if (loaded) return loaded;
     }
 
-    return runtimeSharedConstants;
+    return getRuntimeSharedConstants();
 })();
 
 const SharedBoardUtils = (() => {
-    if (typeof globalThis !== 'undefined' && (globalThis as any).SharedBoardUtils) {
-        return (globalThis as any).SharedBoardUtils;
-    }
-    if (typeof self !== 'undefined' && (self as any).SharedBoardUtils) {
-        return (self as any).SharedBoardUtils;
-    }
     if (typeof module === 'object' && module.exports) {
         const loaded = safeRequire('../../shared/shared-board-utils');
-        return loaded || null;
+        if (loaded) return loaded;
     }
-    return null;
+    return (typeof self !== 'undefined' && (self as any).SharedBoardUtils)
+        ? (self as any).SharedBoardUtils
+        : null;
 })();
 
 const BoardUtilsModule = (typeof module === 'object' && module.exports)

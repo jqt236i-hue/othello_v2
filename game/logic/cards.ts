@@ -19,9 +19,6 @@ function _require(id: string): any {
 }
 
 function getRuntimeGlobalValue(key: string): any {
-    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
-        return (globalThis as any)[key];
-    }
     if (typeof self !== 'undefined' && (self as any)[key]) {
         return (self as any)[key];
     }
@@ -29,17 +26,17 @@ function getRuntimeGlobalValue(key: string): any {
 }
 
 // Import dependencies
-const SharedConstants = getRuntimeGlobalValue('SharedConstants') || _require('../../shared-constants');
-const DeckSpecHelpers = getRuntimeGlobalValue('DeckSpecHelpers') || _require('../../shared/deck-spec');
-const SharedBoardUtils = getRuntimeGlobalValue('SharedBoardUtils') || (function() { try { return _require('../../shared/shared-board-utils'); } catch (e) { return null; } })();
-const CardRandomSource = getRuntimeGlobalValue('CardRandomSource') || (function() { try { return _require('./cards-internal/random-source'); } catch (e) { return null; } })();
-const CardStateFactory = getRuntimeGlobalValue('CardStateFactory') || (function() { try { return _require('./cards-internal/state-factory'); } catch (e) { return null; } })();
-const CardModuleResolver = getRuntimeGlobalValue('CardModuleResolver') || (function() { try { return _require('./cards-internal/module-resolver'); } catch (e) { return null; } })();
-const CardPresentationHelpers = getRuntimeGlobalValue('CardPresentationHelpers') || (function() { try { return _require('./cards-internal/presentation-helpers'); } catch (e) { return null; } })();
-const CardStateManager = getRuntimeGlobalValue('CardStateManager') || (function() { try { return _require('../cards/state-manager'); } catch (e) { return null; } })();
-const CardEffectResolverModule = getRuntimeGlobalValue('CardEffectResolver') || (function() { try { return _require('../cards/effect-resolver'); } catch (e) { return null; } })();
-const CardTimingProcessorModule = getRuntimeGlobalValue('CardTimingProcessor') || (function() { try { return _require('../cards/timing-processor'); } catch (e) { return null; } })();
-const TargetResolver = getRuntimeGlobalValue('CardTargetResolver') || (function() { try { return _require('../cards/target-resolver'); } catch (e) { return null; } })();
+const SharedConstants = (function() { try { return _require('../../shared-constants'); } catch (e) { return null; } })() || getRuntimeGlobalValue('SharedConstants');
+const DeckSpecHelpers = (function() { try { return _require('../../shared/deck-spec'); } catch (e) { return null; } })() || getRuntimeGlobalValue('DeckSpecHelpers');
+const SharedBoardUtils = (function() { try { return _require('../../shared/shared-board-utils'); } catch (e) { return null; } })() || getRuntimeGlobalValue('SharedBoardUtils');
+const CardRandomSource = (function() { try { return _require('./cards-internal/random-source'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardRandomSource');
+const CardStateFactory = (function() { try { return _require('./cards-internal/state-factory'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardStateFactory');
+const CardModuleResolver = (function() { try { return _require('./cards-internal/module-resolver'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardModuleResolver');
+const CardPresentationHelpers = (function() { try { return _require('./cards-internal/presentation-helpers'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardPresentationHelpers');
+const CardStateManager = (function() { try { return _require('../cards/state-manager'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardStateManager');
+const CardEffectResolverModule = (function() { try { return _require('../cards/effect-resolver'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardEffectResolver');
+const CardTimingProcessorModule = (function() { try { return _require('../cards/timing-processor'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardTimingProcessor');
+const TargetResolver = (function() { try { return _require('../cards/target-resolver'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardTargetResolver');
 
 const {
         CARD_DEFS,
@@ -97,9 +94,9 @@ const {
         });
     }
 
-    const DestroyOutcomeContract = getRuntimeGlobalValue('DestroyOutcomeContract') || (function() { try { return _require('../../shared/destroy-outcome-contract'); } catch (e) { return null; } })();
-    const StoneStatusSnapshot = getRuntimeGlobalValue('StoneStatusSnapshot') || (function() { try { return _require('../../shared/stone-status-snapshot'); } catch (e) { return null; } })();
-    const SpecialStoneRegistry = getRuntimeGlobalValue('SpecialStoneRegistry') || (function() { try { return _require('../../shared/special-stone-registry'); } catch (e) { return null; } })();
+    const DestroyOutcomeContract = (function() { try { return _require('../../shared/destroy-outcome-contract'); } catch (e) { return null; } })() || getRuntimeGlobalValue('DestroyOutcomeContract');
+    const StoneStatusSnapshot = (function() { try { return _require('../../shared/stone-status-snapshot'); } catch (e) { return null; } })() || getRuntimeGlobalValue('StoneStatusSnapshot');
+    const SpecialStoneRegistry = (function() { try { return _require('../../shared/special-stone-registry'); } catch (e) { return null; } })() || getRuntimeGlobalValue('SpecialStoneRegistry');
 
     function isOverlayOnlySpecialStoneType(type: any) {
         if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isOverlayOnlySpecialStoneType === 'function') {
@@ -417,9 +414,6 @@ const {
 
     function isWorkDebugEnabled(cardState: any) {
         if (cardState && cardState.debugWorkLog === true) return true;
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as { [key: string]: any }).DEBUG_WORK_LOG === true) return true; // globalThis — test-only debug flag
-        } catch (e) { /* ignore */ }
         return false;
     }
 

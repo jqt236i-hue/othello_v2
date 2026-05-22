@@ -21,9 +21,6 @@ function safeRequire(id: string): any {
 }
 
 function getRuntimeGlobalValue(key: string): any {
-    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
-        return (globalThis as any)[key];
-    }
     if (typeof self !== 'undefined' && (self as any)[key]) {
         return (self as any)[key];
     }
@@ -34,11 +31,11 @@ let CardExpansionModule: any = null;
 let CardMarkersModule: any = null;
 let SharedBoardUtilsModule: any = null;
 
-CardExpansionModule = getRuntimeGlobalValue('CardExpansion') || safeRequire('./cards/expansion');
-CardMarkersModule = getRuntimeGlobalValue('CardMarkers') || safeRequire('./cards/markers');
-SharedBoardUtilsModule = getRuntimeGlobalValue('SharedBoardUtils') || safeRequire('../../shared/shared-board-utils');
+CardExpansionModule = safeRequire('./cards/expansion') || getRuntimeGlobalValue('CardExpansion');
+CardMarkersModule = safeRequire('./cards/markers') || getRuntimeGlobalValue('CardMarkers');
+SharedBoardUtilsModule = safeRequire('../../shared/shared-board-utils') || getRuntimeGlobalValue('SharedBoardUtils');
 
-const SharedConstants = getRuntimeGlobalValue('SharedConstants') || safeRequire('../../shared-constants');
+const SharedConstants = safeRequire('../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
 
 const { EMPTY } = SharedConstants || {};
 const BoardUtils = SharedBoardUtilsModule || null;
@@ -52,7 +49,7 @@ function getCardMarkersModule(): any {
 }
 
 function getSpecialStoneRegistryModule(): any {
-    return getRuntimeGlobalValue('SpecialStoneRegistry') || safeRequire('../../shared/special-stone-registry');
+    return safeRequire('../../shared/special-stone-registry') || getRuntimeGlobalValue('SpecialStoneRegistry');
 }
 
 function isOverlayOnlySpecialStoneType(type: string): boolean {
@@ -65,11 +62,11 @@ function isOverlayOnlySpecialStoneType(type: string): boolean {
 }
 
 function getCardRegenModule(): any {
-    return getRuntimeGlobalValue('CardRegen') || safeRequire('./cards/regen');
+    return safeRequire('./cards/regen') || getRuntimeGlobalValue('CardRegen');
 }
 
 function getCardLivingWillModule(): any {
-    return getRuntimeGlobalValue('CardLivingWill') || safeRequire('./cards/living_will');
+    return safeRequire('./cards/living_will') || getRuntimeGlobalValue('CardLivingWill');
 }
 
 const MarkersAdapter = ((): any => {
@@ -80,11 +77,11 @@ const MARKER_KINDS = (CardMarkersModule && CardMarkersModule.MARKER_KINDS)
     || (MarkersAdapter && MarkersAdapter.MARKER_KINDS);
 
 const DestroyOutcomeContract = ((): any => {
-    return getRuntimeGlobalValue('DestroyOutcomeContract') || safeRequire('../../shared/destroy-outcome-contract');
+    return safeRequire('../../shared/destroy-outcome-contract') || getRuntimeGlobalValue('DestroyOutcomeContract');
 })();
 
 const StoneStatusSnapshot = ((): any => {
-    return getRuntimeGlobalValue('StoneStatusSnapshot') || safeRequire('../../shared/stone-status-snapshot');
+    return safeRequire('../../shared/stone-status-snapshot') || getRuntimeGlobalValue('StoneStatusSnapshot');
 })();
 
 const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS)
@@ -134,9 +131,6 @@ function createDestroyOutcome(kindOrResult: string | any, details?: any): any {
 
 function isBoardOpsDebugEnabled(cardState: any): boolean {
     if (cardState && cardState.debugBoardOpsLog === true) return true;
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_BOARDOPS_LOG === true) return true; // globalThis — test-only debug flag
-    } catch (e) { /* ignore */ }
     return false;
 }
 

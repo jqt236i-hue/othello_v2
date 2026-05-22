@@ -274,8 +274,9 @@ function applyArmedWorkPlacement(cardState: any, gameState: any, playerKey: stri
             return { applied: false, consumed: false, result };
         }
         try {
-            if (typeof globalThis !== 'undefined') (globalThis as any)._lastWorkPlaced = { playerKey, row, col };
-            else if (typeof global !== 'undefined') (global as any)._lastWorkPlaced = { playerKey, row, col };
+            if (cardState && typeof cardState === 'object') {
+                cardState._lastWorkPlaced = { playerKey, row, col };
+            }
         } catch (e) { /* ignore */ }
         return { applied: true, consumed: true, result };
     } catch (e) {

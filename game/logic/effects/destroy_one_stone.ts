@@ -17,18 +17,27 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const BoardOpsModule = (() => {
-    if (typeof globalThis !== 'undefined' && (globalThis as any).BoardOps) return (globalThis as any).BoardOps;
-    try { return _require('../board_ops'); } catch (e) { return undefined; }
-})();
-
-const DestroyOutcomeContract = (() => {
-    if (typeof globalThis !== 'undefined' && (globalThis as any).DestroyOutcomeContract) return (globalThis as any).DestroyOutcomeContract;
+function safeRequire(id: string): any {
     try {
-        return _require('../../../shared/destroy-outcome-contract');
+        return _require(id);
     } catch (_e) {
         return null;
     }
+}
+
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return undefined;
+}
+
+const BoardOpsModule = (() => {
+    return safeRequire('../board_ops') || getRuntimeGlobalValue('BoardOps');
+})();
+
+const DestroyOutcomeContract = (() => {
+    return safeRequire('../../../shared/destroy-outcome-contract') || getRuntimeGlobalValue('DestroyOutcomeContract');
 })();
 
 const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS)
