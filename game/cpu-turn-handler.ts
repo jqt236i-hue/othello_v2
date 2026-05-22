@@ -1640,6 +1640,34 @@ async function processAutoBlackTurn(): Promise<void> {
     return runCpuTurn('black', { autoMode: true });
 }
 
+function handleCpuTurnError(playerKey: PlayerKey, selfName: string, error: any, autoMode: boolean): void {
+    const message = error && error.message ? error.message : String(error);
+    console.error(`[AI] Error in runCpuTurn for ${playerKey}:`, error);
+    console.error(`[AI] Error message: ${message}`);
+    console.error(`[AI] Error stack: ${error && error.stack ? error.stack : ''}`);
+    if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
+        debugLog(`[AI] CPU Error for ${playerKey}: ${message}`, 'error', {
+            errorStack: error && error.stack ? error.stack : '',
+            playerKey
+        });
+    }
+    const stuckPending = readCpuPendingSelection(playerKey);
+    if (stuckPending) {
+        debugCpuTrace('[AI] clearing stuck pending after CPU error', {
+            playerKey,
+            pendingType: stuckPending.type || 'unknown',
+            error: message
+        });
+        clearCpuPendingSelection(playerKey);
+    }
+    setCpuProcessing(false);
+    if (typeof emitLogAdded === 'function') {
+        emitLogAdded(`${selfName}の思考中にエラーが発生しました`);
+    }
+    resetPendingSelectRetryState(playerKey);
+    scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
+}
+
 async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode?: boolean } = {}): Promise<void> {
     const turnStartMs = Date.now();
     const isWhite = playerKey === 'white';
@@ -1956,7 +1984,7 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
         const thinkElapsedMs = Math.max(0, Date.now() - turnStartMs);
         const extraDelayMs = Math.max(0, minThinkMs - thinkElapsedMs);
 
-        const commitSelectedMove = () => {
+        const commitSelectedMove = async () => {
             if (shouldAbortCpuForHumanMode(playerKey, 'commit_selected_move')) {
                 return;
             }
@@ -1985,10 +2013,9 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
                 }
                 const executeMoveFn = resolveExecuteMoveFn();
                 if (typeof executeMoveFn !== 'function') {
-                    console.error('[AI] executeMove is not available');
-                    return;
+                    throw new Error('executeMove is not available');
                 }
-                executeMoveFn(move);
+                await executeMoveFn(move);
                 const cornersAfterMove = countOwnedBasicCornersSafe(gameState, playerKey);
                 if (cornersAfterMove > cornersBeforeMove) {
                     emitCpuCommentary('turn_start', playerKey, { level });
@@ -2006,39 +2033,17 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
                 minThinkMs,
                 extraDelayMs
             });
-            scheduleRetry(commitSelectedMove, extraDelayMs);
+            scheduleRetry(() => {
+                commitSelectedMove().catch((error: any) => {
+                    handleCpuTurnError(playerKey, selfName, error, autoMode);
+                });
+            }, extraDelayMs);
         } else {
-            commitSelectedMove();
+            await commitSelectedMove();
         }
         resetPendingSelectRetryState(playerKey);
     } catch (error) {
-        console.error(`[AI] Error in runCpuTurn for ${playerKey}:`, error);
-        console.error(`[AI] Error message: ${(error as any).message}`);
-        console.error(`[AI] Error stack: ${(error as any).stack}`);
-        if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
-            debugLog(`[AI] CPU Error for ${playerKey}: ${(error as any).message}`, 'error', {
-                errorStack: (error as any).stack,
-                playerKey
-            });
-        }
-        // Clear stuck pending to prevent infinite retry loop
-        const stuckPending = readCpuPendingSelection(playerKey);
-        if (stuckPending) {
-            debugCpuTrace('[AI] clearing stuck pending after CPU error', {
-                playerKey,
-                pendingType: stuckPending.type || 'unknown',
-                error: error && (error as any).message ? (error as any).message : String(error)
-            });
-            clearCpuPendingSelection(playerKey);
-        }
-        setCpuProcessing(false);
-        // If it's a critical logic error, we might want to skip the turn or alert the user
-        if (typeof emitLogAdded === 'function') {
-            emitLogAdded(`${selfName}の思考中にエラーが発生しました`);
-        }
-        resetPendingSelectRetryState(playerKey);
-        // Schedule retry so the game doesn't freeze permanently
-        scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
+        handleCpuTurnError(playerKey, selfName, error, autoMode);
     }
 }
 

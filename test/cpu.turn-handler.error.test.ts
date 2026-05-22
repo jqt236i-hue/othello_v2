@@ -78,4 +78,63 @@ describe('cpu-turn-handler error recovery', () => {
       consoleError.mockRestore();
     }
   });
+
+  test('runCpuTurn treats missing executeMove as recoverable instead of stopping on CPU turn', async () => {
+    const cpuTurnHandler = require('../game/cpu-turn-handler.js');
+    const waitMs = jest.fn(() => new Promise(() => {}));
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    global.cardState.pendingEffectByPlayer.white = null;
+    cpuTurnHandler.setTimers({ waitMs });
+    cpuTurnHandler.setCpuUIImpl({
+      resolveRuntimeValue: (name) => global[name],
+      setProcessing: (next) => {
+        global.isProcessing = next === true;
+      },
+      generateMovesForPlayer: () => [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }]
+    });
+
+    try {
+      await cpuTurnHandler.runCpuTurn('white');
+
+      expect(global.isProcessing).toBe(false);
+      expect(global.emitLogAdded).toHaveBeenCalledWith('白の思考中にエラーが発生しました');
+      expect(waitMs).toHaveBeenCalledTimes(1);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  test('runCpuTurn recovers when delayed move commit rejects', async () => {
+    const cpuTurnHandler = require('../game/cpu-turn-handler.js');
+    global.cpuSmartness.white = 6;
+    global.cardState.pendingEffectByPlayer.white = null;
+    const waitMs = jest
+      .fn()
+      .mockImplementationOnce(() => Promise.resolve())
+      .mockImplementation(() => new Promise(() => {}));
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleLog = jest.spyOn(console, 'log').mockImplementation(() => {});
+    cpuTurnHandler.setTimers({ waitMs });
+    cpuTurnHandler.setCpuUIImpl({
+      resolveRuntimeValue: (name) => global[name],
+      setProcessing: (next) => {
+        global.isProcessing = next === true;
+      },
+      generateMovesForPlayer: () => [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }],
+      executeMove: jest.fn(() => Promise.reject(new Error('forced execute failure')))
+    });
+
+    try {
+      await cpuTurnHandler.runCpuTurn('white');
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(global.isProcessing).toBe(false);
+      expect(global.emitLogAdded).toHaveBeenCalledWith('白の思考中にエラーが発生しました');
+      expect(waitMs).toHaveBeenCalledTimes(2);
+    } finally {
+      consoleError.mockRestore();
+      consoleLog.mockRestore();
+    }
+  });
 });
