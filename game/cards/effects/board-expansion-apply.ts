@@ -8,7 +8,7 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
     } else {
         root.CardBoardExpansionApply = factory(root.SharedConstants);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function (SharedConstants: any) {
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants: any) {
     'use strict';
 
     const { EMPTY } = SharedConstants || {};

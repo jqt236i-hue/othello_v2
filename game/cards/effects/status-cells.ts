@@ -6,7 +6,7 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
     } else {
         root.CardStatusCellsEffects = factory();
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this), function () {
+}(typeof self !== 'undefined' ? self : this, function () {
     'use strict';
 
 function applyStatusCellWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, config: any, deps: any): Record<string, any> {
