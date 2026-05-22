@@ -1,20 +1,8 @@
-// @ts-nocheck
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
-  ? __non_webpack_require__
-  : require;
-
-'use strict';
-
 /**
  * Deep clone helper for plain data objects used by game/card state.
  * Prefer structuredClone when available; fallback to JSON clone.
- *
- * @param {any} value
- * @returns {any}
  */
-function deepClone(value) {
+function deepClone<T>(value: T): T {
     if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
         try {
             return globalThis.structuredClone(value);
@@ -24,9 +12,7 @@ function deepClone(value) {
             // while stripping those non-cloneable helpers.
         }
     }
-    return JSON.parse(JSON.stringify(value));
+    return JSON.parse(JSON.stringify(value)) as T;
 }
 
-module.exports = deepClone;
-
-export {};
+export = deepClone;

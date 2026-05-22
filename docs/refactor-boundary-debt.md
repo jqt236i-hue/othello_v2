@@ -4,6 +4,17 @@ Last audited: 2026-05-22
 
 This note records the remaining high-risk type-safety debt after the runtime boundary contract gates were added.
 
+## Migration safety gate
+
+`npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
+It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
+
+Current authorized `@ts-nocheck` debt: 91 files.
+
+Recent reduction:
+
+- `utils/deepClone.ts` no longer uses `@ts-nocheck`; it is now a typed CommonJS `export =` helper.
+
 ## Current protected boundaries
 
 The following public boundary contracts are now represented by explicit TypeScript types and guarded by `npm run checkall` through `scripts/check-refactor-safety.ts`.

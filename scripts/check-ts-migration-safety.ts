@@ -1,0 +1,165 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
+const root = path.resolve(__dirname, '..', '..');
+
+const scanRoots = [
+  'cards',
+  'cpu',
+  'game',
+  'scripts',
+  'sound-engine.ts',
+  'src',
+  'test',
+  'training',
+  'ui',
+  'ui.ts',
+  'utils',
+  'workers'
+];
+
+const skipDirs = new Set([
+  '.git',
+  'coverage',
+  'dist',
+  'node_modules',
+  'worker-public'
+]);
+
+const allowedNoCheckDebt = new Set([
+  'cards/card-interaction.ts',
+  'cards/card-renderer.ts',
+  'cards/catalog.ts',
+  'cpu/cpu-turn.ts',
+  'game/ai/cpu-policy-core.ts',
+  'game/debug/debug-actions.ts',
+  'game/logic/cards/breeding.ts',
+  'game/logic/cards/destroy_dragon.ts',
+  'game/logic/cards/lightning.ts',
+  'game/logic/cards/sniper.ts',
+  'scripts/deploy-lane-model-to-root.ts',
+  'scripts/local-cpu-commentary-server.ts',
+  'scripts/local-match-runtime.ts',
+  'scripts/local-match-server.ts',
+  'scripts/match-network-smoke.ts',
+  'scripts/network-endgame-smoke.ts',
+  'scripts/prepare-worker-assets.ts',
+  'scripts/run-ui-level-match.ts',
+  'scripts/serve-with-fallback.ts',
+  'sound-engine.ts',
+  'src/board.ts',
+  'src/engine/engine.ts',
+  'src/engine/selfplay-runner.ts',
+  'src/index.ts',
+  'src/player.ts',
+  'src/protocol/actions.ts',
+  'src/protocol/events.ts',
+  'test/cards.equality-will-surfaces.test.ts',
+  'test/cpu.turn-handler.commentary.test.ts',
+  'test/game.equality-will.test.ts',
+  'test/scripts.prepare-worker-assets.test.ts',
+  'test/ui.card-renderer-hand-inspect.test.ts',
+  'test/ui.card-ui-sync.test.ts',
+  'test/ui.deck-builder-controller.test.ts',
+  'test/ui.layout-stage.profile-selection.test.ts',
+  'test/ui.network-charge-seat-layout.test.ts',
+  'test/ui.status-display.network-seat.test.ts',
+  'test/ui.status-display.portrait-bubble.test.ts',
+  'test/ui.status-display.round-display.test.ts',
+  'training/engine/selfplay-runner.ts',
+  'training/scripts/analyze-crystal-stone-quiet.ts',
+  'training/scripts/analyze-crystal-stone.ts',
+  'training/scripts/analyze-destroy-cycle.ts',
+  'training/scripts/analyze-selfplay-moves.ts',
+  'training/scripts/analyze-trap-will.ts',
+  'training/scripts/audit-card-context-parity.ts',
+  'training/scripts/audit-card-use-future-delta.ts',
+  'training/scripts/audit-corner-use-drift.ts',
+  'training/scripts/benchmark-policy-adoption.ts',
+  'training/scripts/benchmark-policy-onnx-gate.ts',
+  'training/scripts/benchmark-policy-quality-gate.ts',
+  'training/scripts/benchmark-selfplay-policy.ts',
+  'training/scripts/clean-selfplay-artifacts.ts',
+  'training/scripts/export-teacher-solutions.ts',
+  'training/scripts/generate-selfplay-data-parallel.ts',
+  'training/scripts/generate-selfplay-data.ts',
+  'training/scripts/load-training-profile.ts',
+  'training/scripts/monitor-selfplay-training-run.ts',
+  'training/scripts/preflight-deepcfr-training.ts',
+  'training/scripts/preflight-selfplay-training.ts',
+  'training/scripts/promote-policy-model.ts',
+  'training/scripts/replay-adoption-gate.ts',
+  'training/scripts/replay-selfplay-illegal-move-hardcase.ts',
+  'training/scripts/run-foundation-bootstrap.ts',
+  'training/scripts/run-hardcase-mining.ts',
+  'training/scripts/run-hardcase-retrain.ts',
+  'training/scripts/run-selfplay-training-cycle.ts',
+  'training/scripts/run-selfplay-training-preset.ts',
+  'training/scripts/run-selfplay-training-profile.ts',
+  'training/scripts/seed-bank-manager.ts',
+  'training/scripts/selfplay-deck-options.ts',
+  'training/scripts/training-artifact-status.ts',
+  'training/scripts/training-cycle-command-builders.ts',
+  'training/scripts/training-cycle-reporting.ts',
+  'training/scripts/training-cycle-steps.ts',
+  'training/scripts/training-profile-presets.ts',
+  'training/scripts/training-resolved-config-utils.ts',
+  'training/scripts/training-seed-bank-plan.ts',
+  'training/scripts/training-shared-teacher-args.ts',
+  'training/scripts/training-warehouse-manifest-utils.ts',
+  'training/tests/selfplay.generate-data.parallel-workers.test.ts',
+  'training/tests/selfplay.generate-data.test.ts',
+  'training/tests/selfplay.runner.test.ts',
+  'training/tests/selfplay.training-cycle.test.ts',
+  'training/tests/selfplay.training-preset.test.ts',
+  'ui.ts',
+  'utils/match-authority.ts',
+  'utils/match-runtime-core.ts',
+  'utils/owner-helpers.ts',
+  'workers/match-worker-runtime-preload.ts',
+  'workers/match-worker.ts'
+]);
+
+function normalizePath(value: string): string {
+  return value.replace(/\\/g, '/');
+}
+
+function walk(target: string, out: string[]): void {
+  const absolute = path.join(root, target);
+  if (!fs.existsSync(absolute)) return;
+  const stat = fs.statSync(absolute);
+  if (stat.isDirectory()) {
+    for (const name of fs.readdirSync(absolute)) {
+      if (skipDirs.has(name)) continue;
+      walk(path.join(target, name), out);
+    }
+    return;
+  }
+  if (target.endsWith('.ts')) out.push(normalizePath(target));
+}
+
+function hasTopLevelNoCheck(relativePath: string): boolean {
+  const source = fs.readFileSync(path.join(root, relativePath), 'utf8');
+  const firstLines = source.split(/\r?\n/, 6).join('\n');
+  return /^\/\/\s*@ts-nocheck\b/m.test(firstLines);
+}
+
+const files: string[] = [];
+for (const scanRoot of scanRoots) walk(scanRoot, files);
+
+const noCheckFiles = Array.from(new Set(files.filter(hasTopLevelNoCheck))).sort();
+const unauthorized = noCheckFiles.filter((file) => !allowedNoCheckDebt.has(file));
+const staleAllowlist = Array.from(allowedNoCheckDebt).filter((file) => !noCheckFiles.includes(file)).sort();
+
+if (unauthorized.length > 0) {
+  console.error('[ts-migration-safety] FAILED: unauthorized @ts-nocheck files found');
+  for (const file of unauthorized) console.error(` - ${file}`);
+  process.exit(2);
+}
+
+console.log(`[ts-migration-safety] authorized @ts-nocheck debt: ${noCheckFiles.length}`);
+if (staleAllowlist.length > 0) {
+  console.log(`[ts-migration-safety] stale allowlist entries ready for removal: ${staleAllowlist.length}`);
+  for (const file of staleAllowlist) console.log(` - ${file}`);
+}
+console.log('[ts-migration-safety] No unauthorized @ts-nocheck directives found.');
