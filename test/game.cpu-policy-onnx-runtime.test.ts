@@ -39,7 +39,9 @@ describe('policy-onnx-runtime', () => {
       sourceUrl: 'data/models/policy-net.onnx',
       metaUrl: 'data/models/policy-net.onnx.meta.json',
       enableWebGpuExecution: false,
-      readQuerySearch: null
+      readQuerySearch: null,
+      readWebGpuEnabled: null,
+      ortApi: global.ort
     });
   });
 

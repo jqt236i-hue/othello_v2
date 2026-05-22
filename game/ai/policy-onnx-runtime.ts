@@ -86,7 +86,9 @@ let _config = {
     minLevel: 6,
     useCardSpecialist: true,
     enableWebGpuExecution: false,
-    readQuerySearch: null as any
+    readQuerySearch: null as any,
+    readWebGpuEnabled: null as any,
+    ortApi: null as any
 };
 const LATENCY_SAMPLE_LIMIT = 512;
 const LATENCY_OPERATION_KEYS = Object.freeze([
@@ -213,6 +215,12 @@ function configure(config: any) {
     if (typeof config.enableWebGpuExecution === 'boolean') _config.enableWebGpuExecution = config.enableWebGpuExecution;
     if (typeof config.readQuerySearch === 'function') _config.readQuerySearch = config.readQuerySearch;
     if (config.readQuerySearch === null) _config.readQuerySearch = null;
+    if (typeof config.readWebGpuEnabled === 'function') _config.readWebGpuEnabled = config.readWebGpuEnabled;
+    if (config.readWebGpuEnabled === null) _config.readWebGpuEnabled = null;
+    if (Object.prototype.hasOwnProperty.call(config, 'ortApi')) {
+        _config.ortApi = config.ortApi || null;
+        applyOrtEnvLogLevel(_config.ortApi);
+    }
     return getStatus();
 }
 
@@ -307,27 +315,18 @@ function getStatus() {
 
 let _ort: any = null;
 try { _ort = _require('onnxruntime-web'); } catch (e) { /* ignore */ }
-if (!_ort) {
+function applyOrtEnvLogLevel(ortApi: any) {
+    if (!ortApi || !ortApi.env || typeof ortApi.env !== 'object') return;
     try {
-        const maybeOrt = (typeof globalThis !== 'undefined' && (globalThis as any))
-            ? (globalThis as any).ort
-            : null;
-        if (maybeOrt) {
-            _ort = maybeOrt;
-        }
+        ortApi.env.logLevel = 'error';
     } catch (e) { /* ignore */ }
 }
-if (_ort && _ort.env && typeof _ort.env === 'object') {
-    try {
-        _ort.env.logLevel = 'error';
-    } catch (e) { /* ignore */ }
-}
+applyOrtEnvLogLevel(_ort);
 
 function isWebGpuExecutionOptIn() {
     try {
         if (_config.enableWebGpuExecution === true) return true;
-        const scope: any = (typeof globalThis !== 'undefined') ? globalThis : null;
-        if (scope && scope.ENABLE_ONNX_WEBGPU === true) return true;
+        if (typeof _config.readWebGpuEnabled === 'function' && _config.readWebGpuEnabled() === true) return true;
         if (typeof _config.readQuerySearch === 'function') {
             const search = String(_config.readQuerySearch() || '');
             if (/[?&]onnxWebGpu=1(?:&|$)/.test(search)) return true;
@@ -350,9 +349,10 @@ async function createInferenceSession(ortApi: any, modelUrl: any) {
 }
 
 function resolveOrtApi(requireSession: any): any {
-    if (_ort && typeof _ort.Tensor === 'function' &&
-        (requireSession !== true || typeof _ort.InferenceSession === 'function')) {
-        return _ort;
+    const ortApi = _config.ortApi || _ort;
+    if (ortApi && typeof ortApi.Tensor === 'function' &&
+        (requireSession !== true || typeof ortApi.InferenceSession === 'function')) {
+        return ortApi;
     }
     return null;
 }
