@@ -5,9 +5,6 @@
 
 declare const cardState: any;
 declare const gameState: any;
-declare const TurnPipelinePhases: any;
-declare const CardLogic: any;
-declare const Core: any;
 declare const emitLogAdded: any;
 declare const LOG_MESSAGES: any;
 declare const emitBoardUpdate: any;
@@ -23,6 +20,12 @@ let BoardOpsModule: any = null;
 try { BoardOpsModule = (typeof require === 'function') ? require('../logic/board_ops') : (typeof BoardOps !== 'undefined' ? BoardOps : null); } catch (e) { BoardOpsModule = BoardOpsModule || null; }
 let CardUtilsModule: any = null;
 try { CardUtilsModule = (typeof require === 'function') ? require('../logic/cards/utils') : (typeof CardUtils !== 'undefined' ? CardUtils : null); } catch (e) { CardUtilsModule = CardUtilsModule || null; }
+let HyperactiveTurnPipelinePhasesModule: any = null;
+try { HyperactiveTurnPipelinePhasesModule = (typeof require === 'function') ? require('../turn/turn_pipeline_phases') : null; } catch (e) { HyperactiveTurnPipelinePhasesModule = HyperactiveTurnPipelinePhasesModule || null; }
+let HyperactiveCardLogicModule: any = null;
+try { HyperactiveCardLogicModule = (typeof require === 'function') ? require('../logic/cards') : null; } catch (e) { HyperactiveCardLogicModule = HyperactiveCardLogicModule || null; }
+let HyperactiveCoreModule: any = null;
+try { HyperactiveCoreModule = (typeof require === 'function') ? require('../logic/core') : null; } catch (e) { HyperactiveCoreModule = HyperactiveCoreModule || null; }
 // Shared constants (prefer canonical require, fall back to globals)
 let BLACK: any = null, WHITE: any = null, CHARGE_MAX = 99;
 try {
@@ -131,6 +134,21 @@ function emitPresentationEventViaBoardOps(ev: any) {
     return false;
 }
 
+function resolveHyperactiveTurnStartDeps() {
+    const phases = HyperactiveTurnPipelinePhasesModule
+        && typeof HyperactiveTurnPipelinePhasesModule.applyTurnStartPhase === 'function'
+        ? HyperactiveTurnPipelinePhasesModule
+        : null;
+    const logic = HyperactiveCardLogicModule && typeof HyperactiveCardLogicModule === 'object'
+        ? HyperactiveCardLogicModule
+        : null;
+    const core = HyperactiveCoreModule && typeof HyperactiveCoreModule === 'object'
+        ? HyperactiveCoreModule
+        : null;
+    if (!phases || !logic || !core) return null;
+    return { phases, logic, core };
+}
+
 /**
  * Process hyperactive stone moves at turn start (both players).
  * Runs AFTER bombs/dragons/breeding.
@@ -143,8 +161,9 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
     let events = Array.isArray(precomputedEvents) ? precomputedEvents.slice() : [];
     if (!result) {
         if (events.length === 0) {
-            if (typeof TurnPipelinePhases !== 'undefined' && typeof TurnPipelinePhases.applyTurnStartPhase === 'function') {
-                TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, events);
+            const deps = resolveHyperactiveTurnStartDeps();
+            if (deps) {
+                deps.phases.applyTurnStartPhase(deps.logic, deps.core, cardState, gameState, playerKey, events);
             } else {
                 console.error('[HYPERACTIVE] TurnPipelinePhases not available; cannot compute hyperactive moves safely from UI');
                 return;

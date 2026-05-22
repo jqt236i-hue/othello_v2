@@ -362,6 +362,16 @@ describe('FATE_WILL UI: controller can act on victim turn', () => {
 // ===== canLocalUserOperateCurrentTurn in turn-manager.js =====
 
 describe('FATE_WILL UI: canLocalUserOperateCurrentTurn', () => {
+    function installTurnManagerRuntime(tm) {
+        if (tm && typeof tm.setUIImpl === 'function') {
+            tm.setUIImpl({
+                getRuntimeRoot: () => global,
+                readRuntimeValue: (key) => global[key],
+                writeRuntimeValue: (key, value) => { global[key] = value; }
+            });
+        }
+    }
+
     function loadTurnManager(gameStateCurrent, localPlayerKey, fateWillActive, matchMode) {
         jest.resetModules();
         const dom = makeDom();
@@ -399,6 +409,7 @@ describe('FATE_WILL UI: canLocalUserOperateCurrentTurn', () => {
         global.PlaybackStateManager = null;
 
         const mod = require(path.resolve(__dirname, '..', 'game', 'turn-manager.js'));
+        installTurnManagerRuntime(mod);
         return mod;
     }
 
@@ -449,6 +460,7 @@ describe('FATE_WILL UI: canLocalUserOperateCurrentTurn', () => {
         global.PlaybackStateManager = null;
 
         const tm = require(path.resolve(__dirname, '..', 'game', 'turn-manager.js'));
+        installTurnManagerRuntime(tm);
         expect(tm.canLocalUserOperateCurrentTurn()).toBe(false);
     });
 
@@ -491,6 +503,7 @@ describe('FATE_WILL UI: canLocalUserOperateCurrentTurn', () => {
         global.PlaybackStateManager = null;
 
         const tm = require(path.resolve(__dirname, '..', 'game', 'turn-manager.js'));
+        installTurnManagerRuntime(tm);
         expect(tm.canLocalUserOperateCurrentTurn()).toBe(false);
     });
 });
@@ -553,12 +566,19 @@ describe('FATE_WILL UI: network placement auth', () => {
 
         const moveExecutor = require(path.resolve(__dirname, '..', 'game', 'move-executor.js'));
         moveExecutor.setUIImpl({
+            readMatchMode: () => global.MATCH_MODE,
             getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
             getTurnPipeline: () => global.TurnPipeline,
             getLocalPlayerKey: () => global.LOCAL_PLAYER_KEY,
             getActionManager: () => global.ActionManager
         });
         const turnManager = require(path.resolve(__dirname, '..', 'game', 'turn-manager.js'));
+        turnManager.setUIImpl({
+            getRuntimeRoot: () => global,
+            readRuntimeValue: (key) => global[key],
+            writeRuntimeValue: (key, value) => { global[key] = value; },
+            executeMove: moveExecutor.executeMove
+        });
         if (options && options.debugHvH) {
             turnManager.setUIImpl({ DEBUG_HUMAN_VS_HUMAN: true });
         }

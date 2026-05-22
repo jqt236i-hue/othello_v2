@@ -1,7 +1,6 @@
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
-const root: any = (typeof self !== 'undefined') ? self as any : (typeof global !== 'undefined' ? global as any : undefined);
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
@@ -26,9 +25,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
         if (typeof require === 'function') {
             try { cachedNetworkTurnHandoff = require('../network-turn-handoff'); } catch (e) { /* ignore */ }
-        }
-        if (!cachedNetworkTurnHandoff && root && root.NetworkTurnHandoff) {
-            cachedNetworkTurnHandoff = root.NetworkTurnHandoff;
         }
         return cachedNetworkTurnHandoff;
     }
@@ -60,9 +56,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (typeof require === 'function') {
             try { cachedPendingStateManager = require('../logic/cards-internal/pending-state-manager'); } catch (e) { /* ignore */ }
         }
-        if (!cachedPendingStateManager && root && root.CardPendingStateManager) {
-            cachedPendingStateManager = root.CardPendingStateManager;
-        }
         return cachedPendingStateManager;
     }
 
@@ -72,9 +65,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
         if (typeof require === 'function') {
             try { cachedPendingCoordinator = require('../turn/pending-coordinator'); } catch (e) { /* ignore */ }
-        }
-        if (!cachedPendingCoordinator && root && root.PendingCoordinator) {
-            cachedPendingCoordinator = root.PendingCoordinator;
         }
         return cachedPendingCoordinator;
     }
@@ -130,8 +120,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
     function cloneData(value: any) {
         try {
-            if (root && typeof root.structuredClone === 'function') {
-                return root.structuredClone(value);
+            if (typeof structuredClone === 'function') {
+                return structuredClone(value);
             }
         } catch (e) { /* ignore */ }
         return JSON.parse(JSON.stringify(value));
@@ -717,8 +707,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function resolveRootFunction(name: any) {
-        if (!root || typeof name !== 'string') return null;
-        return typeof root[name] === 'function' ? root[name] : null;
+        if (typeof name !== 'string') return null;
+        const bridgeFn = readSignalBridgeMethod(name);
+        if (bridgeFn) return bridgeFn;
+        if (name === 'ensureCurrentPlayerCanActOrPass') {
+            try {
+                const passHandler = _require('../pass-handler');
+                return passHandler && typeof passHandler.ensureCurrentPlayerCanActOrPass === 'function'
+                    ? passHandler.ensureCurrentPlayerCanActOrPass
+                    : null;
+            } catch (e) { /* ignore */ }
+        }
+        return null;
     }
 
     function resolveSelectionMessage(message: any, context: any) {

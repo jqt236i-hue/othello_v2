@@ -1,24 +1,47 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as ts from 'typescript';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
-
 const root = path.resolve(__dirname, '..', '..');
 
+type Violation = { file: string; line: number; label: string };
+
 function shouldCheck(filePath: string): boolean {
-    // Only check server-side / logic code where window usage is forbidden.
-    // Allow UI and scripts to use window intentionally.
     const allowedTargets = [
-        'game/', 'cpu/', 'logic/', 'src/', 'card-system.js', 'sound-engine.js', 'is-env-capable.js'
+        'game/',
+        'shared/',
+        'src/',
+        'card-system.js',
+        'shared-constants.js',
+        'sound-engine.js',
+        'is-env-capable.js'
     ];
-    for (const t of allowedTargets) {
-        if (filePath.indexOf(t) === 0) return true;
-    }
-    return false;
+    return allowedTargets.some((target) => filePath.indexOf(target) === 0);
+}
+
+function shouldEnforceGlobalThis(filePath: string): boolean {
+    return filePath.indexOf('game/') === 0;
+}
+
+function isGeneratedOrMirror(filePath: string): boolean {
+    return filePath.indexOf('dist/') === 0
+        || filePath.indexOf('worker-public/') === 0
+        || filePath.indexOf('public/') === 0
+        || filePath.endsWith('.d.ts')
+        || filePath.indexOf('.generated.') >= 0
+        || filePath.endsWith('.runtime.js');
+}
+
+function isSourceOfTruthFile(filePath: string): boolean {
+    if (isGeneratedOrMirror(filePath)) return false;
+    if (!(filePath.endsWith('.ts') || filePath.endsWith('.js'))) return false;
+    if (!shouldCheck(filePath)) return false;
+    if (!filePath.endsWith('.js')) return true;
+    const absolutePath = path.join(root, filePath);
+    const tsVariant = absolutePath.replace(/\.js$/, '.ts');
+    return !fs.existsSync(tsVariant);
 }
 
 function walk(dir: string): string[] {
@@ -36,58 +59,73 @@ function walk(dir: string): string[] {
     return results;
 }
 
-const files = walk(root).filter(f => f.endsWith('.js'));
-const violations: { file: string; line: number; label: string }[] = [];
-const globalThisRefs: { file: string; line: number; label: string }[] = [];
-for (const f of files) {
-    const rel = path.relative(root, f).replace(/\\/g, '/');
-    if (!shouldCheck(rel)) continue;
-    let content = '';
-    try { content = fs.readFileSync(f, 'utf8'); } catch (e) { continue; }
-    const res = [
-        { re: /\bwindow\./g, label: 'window.' },
-        { re: /\bdocument\./g, label: 'document.' },
-        { re: /require\(\s*['"]\.\.\/ui\/bootstrap['"]\s*\)/g, label: "require('../ui/bootstrap')" }
-    ];
-    for (const { re, label } of res) {
-        let m: RegExpExecArray | null;
-        while ((m = re.exec(content)) !== null) {
-            // report each occurrence with line number
-            const pos = m.index;
-            const before = content.slice(0, pos);
-            const line = before.split('\n').length;
-            violations.push({ file: rel, line, label });
-        }
-    }
-    // globalThis detection (warnings only — not yet enforced)
-    const globalThisPatterns = [
-        { re: /\bglobalThis\./g, label: 'globalThis.' },
-        { re: /\(globalThis as any\)\./g, label: '(globalThis as any).' }
-    ];
-    for (const { re, label } of globalThisPatterns) {
-        let m: RegExpExecArray | null;
-        while ((m = re.exec(content)) !== null) {
-            const pos = m.index;
-            const before = content.slice(0, pos);
-            const line = before.split('\n').length;
-            globalThisRefs.push({ file: rel, line, label });
-        }
-    }
+function toLine(sourceFile: ts.SourceFile, node: ts.Node): number {
+    return sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
 }
 
-// Print globalThis references first (always, even if violations exist)
+function collectPropertyAccessBase(node: ts.Node): ts.Expression | null {
+    if (ts.isPropertyAccessExpression(node) || ts.isPropertyAccessChain(node)) {
+        return node.expression;
+    }
+    return null;
+}
+
+const files = walk(root)
+    .map((absolutePath) => path.relative(root, absolutePath).replace(/\\/g, '/'))
+    .filter((relativePath) => isSourceOfTruthFile(relativePath));
+const violations: Violation[] = [];
+const globalThisRefs: Violation[] = [];
+for (const f of files) {
+    const absolutePath = path.join(root, f);
+    let content = '';
+    try { content = fs.readFileSync(absolutePath, 'utf8'); } catch (e) { continue; }
+    const scriptKind = f.endsWith('.ts') ? ts.ScriptKind.TS : ts.ScriptKind.JS;
+    const sourceFile = ts.createSourceFile(f, content, ts.ScriptTarget.Latest, true, scriptKind);
+
+    const visit = (node: ts.Node): void => {
+        const propertyBase = collectPropertyAccessBase(node);
+        if (propertyBase && ts.isIdentifier(propertyBase)) {
+            if (propertyBase.text === 'window') {
+                violations.push({ file: f, line: toLine(sourceFile, node), label: 'window.' });
+            } else if (propertyBase.text === 'document') {
+                violations.push({ file: f, line: toLine(sourceFile, node), label: 'document.' });
+            } else if (propertyBase.text === 'globalThis' && shouldEnforceGlobalThis(f)) {
+                globalThisRefs.push({ file: f, line: toLine(sourceFile, node), label: 'globalThis.' });
+            }
+        }
+        if (ts.isCallExpression(node)
+            && ts.isIdentifier(node.expression)
+            && node.expression.text === 'require'
+            && node.arguments.length > 0
+            && ts.isStringLiteralLike(node.arguments[0])
+            && node.arguments[0].text === '../ui/bootstrap') {
+            violations.push({
+                file: f,
+                line: toLine(sourceFile, node),
+                label: "require('../ui/bootstrap')"
+            });
+        }
+        ts.forEachChild(node, visit);
+    };
+
+    visit(sourceFile);
+}
+
 if (globalThisRefs.length > 0) {
-    console.log('\n[globalThis-check] globalThis references found in game/:');
-    globalThisRefs.forEach(v => console.log(` - ${v.file}:${v.line} (${v.label})`));
-    console.log(`\n[globalThis-check] ${globalThisRefs.length} references found in game/ (these will be reduced over time)`);
+    console.error('\n[globalThis-check] Forbidden globalThis property access found in source-of-truth game files:');
+    globalThisRefs.forEach(v => console.error(` - ${v.file}:${v.line} (${v.label})`));
 } else {
-    console.log('[globalThis-check] No globalThis references found in game/.');
+    console.log('[globalThis-check] No globalThis property access found in source-of-truth game files.');
 }
 
 if (violations.length > 0) {
     console.error('\n[STATIC-CHECK] Forbidden usage found in non-UI files:');
     violations.forEach(v => console.error(` - ${v.file}:${v.line} (${v.label})`));
     console.error('\nPlease register UI globals via `ui/bootstrap.registerUIGlobals` or migrate to UIBootstrap.');
+    process.exit(2);
+}
+if (globalThisRefs.length > 0) {
+    console.error('\nRemove runtime-root coupling from game/ before merging.');
     process.exit(2);
 }
 

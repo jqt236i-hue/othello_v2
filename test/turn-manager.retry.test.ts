@@ -20,6 +20,14 @@ describe('turn-manager scheduling', () => {
     global.findMoveForCell = jest.fn((player, r, c, pending, protection, perma) => ({ row: r, col: c, flips: [] }));
     global.executeMove = jest.fn();
     global.playHandAnimation = (player, row, col, cb) => { global.isCardAnimating = true; cb(); };
+    const turnManager = require('../game/turn-manager.js');
+    if (turnManager && typeof turnManager.setUIImpl === 'function') {
+      turnManager.setUIImpl({
+        getRuntimeRoot: () => global,
+        readRuntimeValue: (key) => global[key],
+        writeRuntimeValue: (key, value) => { global[key] = value; }
+      });
+    }
   });
 
   afterEach(() => {
@@ -33,6 +41,10 @@ describe('turn-manager scheduling', () => {
     }
     if (cpuTurnHandler && typeof cpuTurnHandler.setTimers === 'function') {
       cpuTurnHandler.setTimers(null);
+    }
+    const turnManager = require('../game/turn-manager.js');
+    if (turnManager && typeof turnManager.replaceUIImpl === 'function') {
+      turnManager.replaceUIImpl({});
     }
 
     delete global.timers;
@@ -346,6 +358,60 @@ describe('turn-manager scheduling', () => {
     } finally {
       consoleLog.mockRestore();
     }
+  });
+
+  test('resetGame は initialBoardSetup で盤面と手番を初期化する', () => {
+    global.cpuSmartness = { black: 2, white: 3 };
+    global.createGameState = jest.fn(() => ({
+      currentPlayer: global.BLACK,
+      turnNumber: 0,
+      consecutivePasses: 1,
+      pendingRoundBonus: { player: 'black', amount: 1 },
+      roundCompletionByPlayer: { black: true, white: true },
+      board: Array.from({ length: 6 }, () => Array(6).fill(0))
+    }));
+    global.initCardState = jest.fn(() => {});
+    global.emitLogAdded = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
+    global.updateCpuCharacter = jest.fn();
+    global.dealInitialCards = jest.fn(() => new Promise(() => {}));
+    global.cardState = {
+      pendingEffectByPlayer: {},
+      presentationEvents: [],
+      _presentationEventsPersist: []
+    };
+
+    const initialBoard = Array.from({ length: 6 }, () => Array(6).fill(0));
+    initialBoard[0][0] = 1;
+    initialBoard[0][1] = -1;
+    initialBoard[5][5] = 1;
+
+    const rm = require('../game/turn-manager.js');
+    rm.replaceUIImpl({
+      resetTransientUIState: jest.fn(),
+      readCpuSmartness: () => ({ black: 2, white: 3 }),
+      clearLogUI: jest.fn(),
+      buildCardInitOptions: () => ({
+        boardConfig: { rows: 6, cols: 6 },
+        initialBoardSetup: {
+          currentPlayer: 'white',
+          board: initialBoard
+        }
+      })
+    });
+
+    rm.resetGame();
+
+    expect(global.createGameState).toHaveBeenCalledWith({ rows: 6, cols: 6 });
+    expect(global.gameState.board).toEqual(initialBoard);
+    expect(global.gameState.currentPlayer).toBe(global.WHITE);
+    expect(global.gameState.consecutivePasses).toBe(0);
+    expect(global.gameState.pendingRoundBonus).toBeNull();
+    expect(global.gameState.roundCompletionByPlayer).toEqual({ black: false, white: false });
+    expect(global.initCardState).toHaveBeenCalledWith(undefined, expect.objectContaining({
+      initialBoardSetup: expect.any(Object)
+    }));
   });
 
   test('resetGame は stale playback lock を解除してから新規配布へ入る', () => {

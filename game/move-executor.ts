@@ -7,7 +7,6 @@ declare let cardState: any;
 declare let gameState: any;
 declare const BLACK: any;
 declare const WHITE: any;
-declare const CardLogic: any;
 declare const TurnPipeline: any;
 declare const TurnPipelineUIAdapter: any;
 declare let isProcessing: any;
@@ -17,12 +16,19 @@ declare const onTurnStart: any;
 declare const emitLogAdded: any;
 declare const CPU_TURN_DELAY_MS: any;
 declare const isDebugLogAvailable: any;
-declare const global: any;
 
 let __uiImpl_move_executor: any = {};
 function setUIImpl(obj: any) {
     const prev = __uiImpl_move_executor || {};
     __uiImpl_move_executor = Object.assign({}, prev, obj || {});
+}
+
+function writeMoveExecutorRuntimeValue(key: string, value: any): void {
+    try {
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.writeRuntimeValue === 'function') {
+            __uiImpl_move_executor.writeRuntimeValue(key, value);
+        }
+    } catch (e) { /* ignore */ }
 }
 
 // Import event emitters from controller-events; fall back to global scope
@@ -374,10 +380,6 @@ function assignMoveExecutorCardState(snapshot: any) {
     } catch (e) { /* ignore */ }
 }
 
-if (typeof CardLogic === 'undefined') {
-    console.error('CardLogic/CoreLogic is not loaded.');
-}
-
 async function executeMove(move: any) {
     try {
         const hadSelection = cardState.selectedCardId !== null;
@@ -516,8 +518,8 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
             afterTurnStart: () => {
                 try {
                     const now = getTimeNow();
-                    if (typeof now === 'number') global.__lastMoveCompletedAt = now; // @compat
-                } catch (e) { /* ignore environments without global */ }
+                    if (typeof now === 'number') writeMoveExecutorRuntimeValue('__lastMoveCompletedAt', now);
+                } catch (e) { /* ignore environments without runtime writer */ }
                 debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] after onTurnStart', { gameStateCurrentPlayer: gameState.currentPlayer, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
             },
             publishSnapshot: publishNetworkSnapshot,

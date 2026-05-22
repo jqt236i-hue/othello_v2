@@ -83,6 +83,10 @@ function attachPlaybackStateManager() {
       global.emitBoardUpdate();
       return true;
     },
+    ensureCurrentPlayerCanActOrPass: (...args) => {
+      if (typeof global.ensureCurrentPlayerCanActOrPass !== 'function') return false;
+      return global.ensureCurrentPlayerCanActOrPass(...args);
+    },
     getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
     getTurnPipeline: () => global.TurnPipeline,
     getActionManager: () => global.ActionManager,

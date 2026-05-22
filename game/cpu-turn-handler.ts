@@ -121,9 +121,9 @@ function setCpuUIImpl(obj: any): void {
 }
 const ANIMATION_RETRY_DELAY_MS = 80;
 
-// Local safe constants to avoid ReferenceError for undeclared globals in test environments
-const CONST_BLACK = (typeof BLACK !== 'undefined') ? BLACK : ((typeof global !== 'undefined' && typeof (global as any).BLACK !== 'undefined') ? (global as any).BLACK : 1);
-const CONST_WHITE = (typeof WHITE !== 'undefined') ? WHITE : ((typeof global !== 'undefined' && typeof (global as any).WHITE !== 'undefined') ? (global as any).WHITE : -1);
+// Local safe constants to avoid ReferenceError for undeclared runtime constants in test environments
+const CONST_BLACK = (typeof BLACK !== 'undefined') ? BLACK : 1;
+const CONST_WHITE = (typeof WHITE !== 'undefined') ? WHITE : -1;
 
 function getAnimationRetryDelayMs() {
     return ANIMATION_RETRY_DELAY_MS;

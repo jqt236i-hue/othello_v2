@@ -17,6 +17,12 @@ describe('turn-manager browser boundary', () => {
     global.findMoveForCell = jest.fn();
     global.executeMove = jest.fn();
     global.playHandAnimation = jest.fn();
+    const turnManager = require('../game/turn-manager.js');
+    turnManager.setUIImpl({
+      getRuntimeRoot: () => global,
+      readRuntimeValue: (key) => global[key],
+      writeRuntimeValue: (key, value) => { global[key] = value; }
+    });
   });
 
   afterEach(() => {
@@ -54,7 +60,7 @@ describe('turn-manager browser boundary', () => {
     expect(global.executeMove).not.toHaveBeenCalled();
   });
 
-  test('handleCellClick still uses the globalThis capture bridge', () => {
+  test('handleCellClick still uses the runtime capture bridge', () => {
     global.__captureServerAuthoredCardUseBoardClick = jest.fn(() => true);
 
     const turnManager = require('../game/turn-manager.js');

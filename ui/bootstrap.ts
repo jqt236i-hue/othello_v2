@@ -1645,6 +1645,13 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     }
                 } catch (e: any) { /* ignore */ }
             },
+            writeRuntimeValue: (key: string, value: any) => {
+                try {
+                    if (typeof globalThis !== 'undefined') {
+                        (globalThis as any)[key] = value;
+                    }
+                } catch (e: any) { /* ignore */ }
+            },
             applyCardStateSnapshot: (snapshot: any) => {
                 try {
                     if (!snapshot) return false;
@@ -1790,6 +1797,15 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             const tm = require('../game/turn-manager');
             if (tm && typeof tm.setUIImpl === 'function') {
                 tm.setUIImpl({
+                    getRuntimeRoot: () => {
+                        try { return typeof globalThis !== 'undefined' ? globalThis : null; } catch (e: any) { return null; }
+                    },
+                    readRuntimeValue: (key: string) => {
+                        try { return typeof globalThis !== 'undefined' ? (globalThis as any)[key] : undefined; } catch (e: any) { return undefined; }
+                    },
+                    writeRuntimeValue: (key: string, value: any) => {
+                        try { if (typeof globalThis !== 'undefined') (globalThis as any)[key] = value; } catch (e: any) { /* ignore */ }
+                    },
                     readCpuSmartness: () => {
                         const readLevel = (id: string) => {
                             const el = (typeof document !== 'undefined') ? document.getElementById(id) as HTMLSelectElement | null : null;

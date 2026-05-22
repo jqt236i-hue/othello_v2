@@ -108,6 +108,9 @@ describe('custom board reset bridge', () => {
 
     const turnManager = require('../game/turn-manager.js');
     turnManager.setUIImpl({
+      getRuntimeRoot: () => global,
+      readRuntimeValue: (key: string) => global[key],
+      writeRuntimeValue: (key: string, value: any) => { global[key] = value; },
       readCpuSmartness: () => ({ black: 1, white: 1 }),
       clearLogUI: jest.fn(),
       resetTransientUIState: jest.fn(),

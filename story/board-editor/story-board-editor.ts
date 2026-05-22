@@ -17,6 +17,12 @@ type PreviewTurnManagerModule = {
   replaceUIImpl?: (value: Record<string, unknown>) => void;
   setUIImpl?: (value: Record<string, unknown>) => void;
 };
+type StoryBoardPreviewInitOptions = {
+  boardConfig: { rows: number; cols: number };
+  initialBoardSetup: { currentPlayer: StorySide; board: number[][] };
+  cardlessMode?: true;
+  initialDeckCardIdsByPlayer?: { black: []; white: [] };
+};
 
 type BoardEditorState = {
   rows: 6 | 8;
@@ -169,7 +175,8 @@ export function initStoryBoardEditor(doc: Document = document): void {
         const previewWindow = await ensurePreviewWindow();
         await preparePreviewWindow(previewWindow, {
           previewMode: state.previewMode,
-          whiteCpuLevel: Number(refs.previewCpuLevel.value) || 3
+          whiteCpuLevel: Number(refs.previewCpuLevel.value) || 3,
+          initOptions: previewSetup
         });
         await stabilizePreviewBattle(previewWindow, previewSetup, state.previewMode);
         refs.previewStatus.textContent = 'CPUプレビューを開始しました。';
@@ -320,7 +327,7 @@ export function initStoryBoardEditor(doc: Document = document): void {
 
   async function preparePreviewWindow(
     previewWindow: Window,
-    options: { previewMode: StoryBoardPreviewMode; whiteCpuLevel: number }
+    options: { previewMode: StoryBoardPreviewMode; whiteCpuLevel: number; initOptions: StoryInitialBoardSetup }
   ): Promise<void> {
     await waitForPreviewResetOverride(previewWindow);
     await applyPreviewMatchMode(previewWindow, options.previewMode);
@@ -335,6 +342,10 @@ export function initStoryBoardEditor(doc: Document = document): void {
       blackLevelSelect.value = '1';
       blackLevelSelect.dispatchEvent(new previewWindow.Event('change', { bubbles: true }));
     }
+    resetPreviewBattleWithInitOptions(
+      previewWindow,
+      buildStoryBoardPreviewInitOptions(options.initOptions, options.previewMode)
+    );
   }
 
 }
@@ -389,12 +400,7 @@ function createDefaultBoardEditorState(size: 6 | 8): BoardEditorState {
 export function buildStoryBoardPreviewInitOptions(
   setup: StoryInitialBoardSetup,
   previewMode: StoryBoardPreviewMode
-): {
-  boardConfig: { rows: number; cols: number };
-  initialBoardSetup: { currentPlayer: StorySide; board: number[][] };
-  cardlessMode?: true;
-  initialDeckCardIdsByPlayer?: { black: []; white: [] };
-} {
+): StoryBoardPreviewInitOptions {
   const baseOptions = {
     boardConfig: {
       rows: setup.rows,
@@ -628,19 +634,82 @@ function delayPreviewResetOverride(previewWindow: Window, ms: number): Promise<v
   });
 }
 
+function resetPreviewBattleWithInitOptions(
+  previewWindow: Window,
+  initOptions: StoryBoardPreviewInitOptions
+): void {
+  const previewRoot = previewWindow as unknown as BoardEditorRoot;
+  const resetGame = previewRoot.resetGame;
+  if (typeof resetGame !== 'function') {
+    throw new Error('preview resetGame is not available.');
+  }
+
+  const turnManager = resolvePreviewTurnManager(previewWindow);
+  const shared = previewRoot.SharedUIBootstrap as PreviewSharedBootstrap | undefined;
+  const previous = readPreviewTurnManagerImpl(previewRoot, turnManager, shared);
+  const next = {
+    ...previous,
+    buildCardInitOptions: () => initOptions,
+    readBoardConfig: () => initOptions.boardConfig
+  };
+
+  writePreviewTurnManagerImpl(previewRoot, turnManager, shared, next);
+  try {
+    resetGame.call(previewWindow, { skipNetworkPublish: true, source: 'story_board_preview' });
+    previewRoot.__storyBoardPreviewInitialSetupApplied = true;
+  } finally {
+    writePreviewTurnManagerImpl(previewRoot, turnManager, shared, previous);
+  }
+}
+
+function readPreviewTurnManagerImpl(
+  previewRoot: BoardEditorRoot,
+  turnManager: PreviewTurnManagerModule | null,
+  shared?: PreviewSharedBootstrap
+): Record<string, unknown> {
+  if (turnManager && typeof turnManager.getUIImpl === 'function') {
+    return turnManager.getUIImpl();
+  }
+  if (shared && typeof shared.readUIImpl === 'function') {
+    return shared.readUIImpl(previewRoot as unknown as Window, 'turn_manager') ?? {};
+  }
+  const candidate = previewRoot.__uiImpl_turn_manager;
+  return candidate && typeof candidate === 'object' ? { ...candidate } : {};
+}
+
+function writePreviewTurnManagerImpl(
+  previewRoot: BoardEditorRoot,
+  turnManager: PreviewTurnManagerModule | null,
+  shared: PreviewSharedBootstrap | undefined,
+  value: Record<string, unknown>
+): void {
+  if (turnManager && typeof turnManager.replaceUIImpl === 'function') {
+    turnManager.replaceUIImpl(value);
+    return;
+  }
+  if (turnManager && typeof turnManager.setUIImpl === 'function') {
+    turnManager.setUIImpl(value);
+    return;
+  }
+  if (shared && typeof shared.writeUIImpl === 'function') {
+    shared.writeUIImpl(previewRoot as unknown as Window, 'turn_manager', value);
+    return;
+  }
+  previewRoot.__uiImpl_turn_manager = { ...value };
+}
+
 async function stabilizePreviewBattle(
   previewWindow: Window,
   setup: StoryInitialBoardSetup,
   previewMode: StoryBoardPreviewMode
 ): Promise<void> {
   const deadline = Date.now() + 8000;
-  let stableSince = 0;
   while (Date.now() <= deadline) {
+    const previewRoot = previewWindow as unknown as BoardEditorRoot;
+    if (previewRoot.__storyBoardPreviewInitialSetupApplied === true) return;
     if (isPreviewBattleApplied(previewWindow, setup, previewMode)) {
-      if (!stableSince) stableSince = Date.now();
-      if (Date.now() - stableSince >= 3000) return;
+      return;
     } else {
-      stableSince = 0;
       applyPreviewMatchModeGlobals(previewWindow, previewMode);
     }
     await delayPreviewResetOverride(previewWindow, 200);
