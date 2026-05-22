@@ -340,6 +340,41 @@ function emitPresentationEventViaBoardOps(ev: any) {
     return false;
 }
 
+function applyMoveExecutorCardStateSnapshot(snapshot: any) {
+    if (!snapshot) return false;
+    try {
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.applyCardStateSnapshot === 'function') {
+            if (__uiImpl_move_executor.applyCardStateSnapshot(snapshot) === true) return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        let cs = null;
+        if (typeof require === 'function') {
+            try { cs = require('../card-system'); } catch (e) { cs = null; }
+        }
+        if (cs && typeof cs.applyCardStateSnapshot === 'function') {
+            cs.applyCardStateSnapshot(snapshot);
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function assignMoveExecutorCardState(snapshot: any) {
+    if (!snapshot) return;
+    if (cardState && typeof cardState === 'object') {
+        for (const k in cardState) delete (cardState as any)[k];
+        Object.assign(cardState, snapshot);
+        return;
+    }
+    cardState = snapshot;
+    try {
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.setCardState === 'function') {
+            __uiImpl_move_executor.setCardState(cardState);
+        }
+    } catch (e) { /* ignore */ }
+}
+
 if (typeof CardLogic === 'undefined') {
     console.error('CardLogic/CoreLogic is not loaded.');
 }
@@ -427,38 +462,12 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
         : false;
     if (res.nextCardState) {
         try {
-            let applied = false;
-            try {
-                let cs = null;
-                if (typeof require === 'function') {
-                    try { cs = require('../card-system'); } catch (e) { cs = null; }
-                }
-                if (cs && typeof cs.applyCardStateSnapshot === 'function') {
-                    cs.applyCardStateSnapshot(res.nextCardState);
-                    applied = true;
-                } else if (typeof globalThis !== 'undefined' && typeof globalThis.applyCardStateSnapshot === 'function') {
-                    globalThis.applyCardStateSnapshot(res.nextCardState);
-                    applied = true;
-                }
-            } catch (e) { applied = false; }
-
+            const applied = applyMoveExecutorCardStateSnapshot(res.nextCardState);
             if (!applied) {
-                const snapshot = res.nextCardState;
-                if (typeof globalThis !== 'undefined' && globalThis.cardState && typeof globalThis.cardState === 'object') {
-                    for (const k in globalThis.cardState) delete globalThis.cardState[k]; // @compat
-                    Object.assign(globalThis.cardState, snapshot); // @compat
-                }
-                if (cardState && typeof cardState === 'object') {
-                    for (const k in cardState) delete (cardState as any)[k];
-                    Object.assign(cardState, snapshot);
-                } else {
-                    cardState = snapshot;
-                    try { if (typeof globalThis !== 'undefined') globalThis.cardState = cardState; } catch (e) { /* ignore */ } // @compat
-                }
+                assignMoveExecutorCardState(res.nextCardState);
             }
         } catch (e) {
-            cardState = res.nextCardState;
-            try { if (typeof globalThis !== 'undefined') globalThis.cardState = cardState; } catch (e2) { /* ignore */ } // @compat
+            assignMoveExecutorCardState(res.nextCardState);
         }
         if (!hasPlaybackEvents) {
             let cardStateNotified = false;

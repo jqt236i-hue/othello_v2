@@ -1564,6 +1564,31 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     }
                 } catch (e: any) { /* ignore */ }
             },
+            applyCardStateSnapshot: (snapshot: any) => {
+                try {
+                    if (!snapshot) return false;
+                    if (typeof globalThis !== 'undefined' && typeof (globalThis as any).applyCardStateSnapshot === 'function') {
+                        (globalThis as any).applyCardStateSnapshot(snapshot);
+                        return true;
+                    }
+                    if (typeof globalThis !== 'undefined' && (globalThis as any).cardState && typeof (globalThis as any).cardState === 'object') {
+                        const cardStateRef = (globalThis as any).cardState;
+                        for (const key in cardStateRef) delete cardStateRef[key];
+                        Object.assign(cardStateRef, snapshot);
+                        return true;
+                    }
+                } catch (e: any) { /* ignore */ }
+                return false;
+            },
+            setCardState: (nextCardState: any) => {
+                try {
+                    if (typeof globalThis === 'undefined') return false;
+                    (globalThis as any).cardState = nextCardState;
+                    return true;
+                } catch (e: any) {
+                    return false;
+                }
+            },
             getPlaybackStateManager: () => getPlaybackStateModuleForReset(),
             getTurnPipelineUIAdapter: () => {
                 try {
