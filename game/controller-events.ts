@@ -5,9 +5,35 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+let controllerEventsRuntime: any = null;
+
+function setControllerEventsRuntime(runtime: any): void {
+    controllerEventsRuntime = (runtime && typeof runtime === 'object') ? runtime : null;
+}
+
+function getGameEventsRuntime(): any {
+    try {
+        if (controllerEventsRuntime && typeof controllerEventsRuntime.getGameEvents === 'function') {
+            return controllerEventsRuntime.getGameEvents();
+        }
+        if (controllerEventsRuntime && controllerEventsRuntime.GameEvents) {
+            return controllerEventsRuntime.GameEvents;
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function resolveControllerEventType(name: string): string | null {
+    const gameEvents = getGameEventsRuntime();
+    const eventTypes = gameEvents && gameEvents.EVENT_TYPES;
+    const eventType = eventTypes && eventTypes[name];
+    return eventType ? String(eventType) : null;
+}
+
 function emitGameEvent(eventType: string | null, fallbackHandlers: Function[] = [], data?: any): boolean {
-    if (typeof (globalThis as any).GameEvents !== 'undefined' && (globalThis as any).GameEvents.gameEvents && eventType) {
-        (globalThis as any).GameEvents.gameEvents.emit(eventType, data);
+    const gameEvents = getGameEventsRuntime();
+    if (gameEvents && gameEvents.gameEvents && eventType) {
+        gameEvents.gameEvents.emit(eventType, data);
         return true;
     } else {
         let handled = false;
@@ -57,37 +83,27 @@ function emitNamedControllerEvent(eventName: string, eventType: string | null, d
 }
 
 function emitBoardUpdate(options?: any): boolean {
-    const eventType = (typeof (globalThis as any).GameEvents !== 'undefined' && (globalThis as any).GameEvents.EVENT_TYPES)
-        ? (globalThis as any).GameEvents.EVENT_TYPES.BOARD_UPDATED
-        : null;
+    const eventType = resolveControllerEventType('BOARD_UPDATED');
     return emitNamedControllerEvent('BOARD_UPDATED', eventType, null, options);
 }
 
 function emitGameStateChange(): boolean {
-    const eventType = (typeof (globalThis as any).GameEvents !== 'undefined' && (globalThis as any).GameEvents.EVENT_TYPES)
-        ? (globalThis as any).GameEvents.EVENT_TYPES.GAME_STATE_CHANGED
-        : null;
+    const eventType = resolveControllerEventType('GAME_STATE_CHANGED');
     return emitGameEvent(eventType, []);
 }
 
 function emitCardStateChange(options?: any): boolean {
-    const eventType = (typeof (globalThis as any).GameEvents !== 'undefined' && (globalThis as any).GameEvents.EVENT_TYPES)
-        ? (globalThis as any).GameEvents.EVENT_TYPES.CARD_STATE_CHANGED
-        : null;
+    const eventType = resolveControllerEventType('CARD_STATE_CHANGED');
     return emitNamedControllerEvent('CARD_STATE_CHANGED', eventType, null, options);
 }
 
 function emitGameReset(data?: any): boolean {
-    const eventType = (typeof (globalThis as any).GameEvents !== 'undefined' && (globalThis as any).GameEvents.EVENT_TYPES)
-        ? (globalThis as any).GameEvents.EVENT_TYPES.GAME_RESET
-        : null;
+    const eventType = resolveControllerEventType('GAME_RESET');
     return emitGameEvent(eventType, [], data || null);
 }
 
 function emitLogAdded(message: any, kind?: string): void {
-    const eventType = (typeof (globalThis as any).GameEvents !== 'undefined' && (globalThis as any).GameEvents.EVENT_TYPES)
-        ? (globalThis as any).GameEvents.EVENT_TYPES.LOG_ADDED
-        : null;
+    const eventType = resolveControllerEventType('LOG_ADDED');
     const messagePayload = (message && typeof message === 'object') ? message : null;
     const resolvedKind = messagePayload
         ? (String(messagePayload.kind || kind || 'normal').trim().toLowerCase() || 'normal')
@@ -113,6 +129,7 @@ function emitNormalLog(message: any): void {
 }
 
 const ControllerEvents = {
+    setControllerEventsRuntime,
     emitGameEvent,
     emitBoardUpdate,
     emitGameStateChange,

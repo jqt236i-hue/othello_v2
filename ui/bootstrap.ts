@@ -1437,6 +1437,21 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         } catch (e: any) { /* ignore */ }
 
         try {
+            const controllerEvents = require('../game/controller-events');
+            if (controllerEvents && typeof controllerEvents.setControllerEventsRuntime === 'function') {
+                controllerEvents.setControllerEventsRuntime({
+                    getGameEvents: () => {
+                        try {
+                            return typeof globalThis !== 'undefined' ? (globalThis as any).GameEvents : null;
+                        } catch (e: any) {
+                            return null;
+                        }
+                    }
+                });
+            }
+        } catch (e: any) { /* ignore */ }
+
+        try {
             const turnPipelinePhases = require('../game/turn/turn_pipeline_phases');
             if (turnPipelinePhases && typeof turnPipelinePhases.setTurnPipelinePhasesRuntime === 'function') {
                 turnPipelinePhases.setTurnPipelinePhasesRuntime({
