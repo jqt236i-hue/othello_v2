@@ -62,22 +62,6 @@
       "category": "legacy-implementation",
       "reason": "Migration-era debug helper retained for troubleshooting."
     },
-    "scripts/dedup-require.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era require cleanup helper retained for troubleshooting."
-    },
-    "scripts/find-initdom.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era lookup helper retained for troubleshooting."
-    },
-    "scripts/remove-fn-require.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era require cleanup helper retained for troubleshooting."
-    },
-    "scripts/remove-local-require.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era require cleanup helper retained for troubleshooting."
-    },
     "scripts/test-json.js": {
       "category": "legacy-implementation",
       "reason": "Migration-era utility helper retained for troubleshooting."

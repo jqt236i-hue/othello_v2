@@ -80,8 +80,8 @@ npm run worker:prepare # PASS ✅
 
 **内訳**:
 
-#### ブート・検証スクリプト（9件）
-`scripts/browser-boot-smoke.js`, `scripts/clean-dist-require.js`, `scripts/compare-test-baseline.js`, `scripts/debug-single.js`, `scripts/dedup-require.js`, `scripts/find-initdom.js`, `scripts/remove-fn-require.js`, `scripts/remove-local-require.js`, `scripts/validate-single.js`
+#### ブート・検証スクリプト（5件）
+`scripts/browser-boot-smoke.js`, `scripts/clean-dist-require.js`, `scripts/compare-test-baseline.js`, `scripts/debug-single.js`, `scripts/validate-single.js`
 
 **残存理由**: 過去の移行作業で使用した一時的なデバッグ・検証スクリプト。現在は使用されていない可能性が高いが、削除は別途検討。
 
