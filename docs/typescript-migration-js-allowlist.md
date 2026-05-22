@@ -80,13 +80,13 @@ npm run worker:prepare # PASS ✅
 
 **内訳**:
 
-#### ブート・検証スクリプト（5件）
-`scripts/browser-boot-smoke.js`, `scripts/clean-dist-require.js`, `scripts/compare-test-baseline.js`, `scripts/debug-single.js`, `scripts/validate-single.js`
+#### ブート・検証スクリプト（3件）
+`scripts/browser-boot-smoke.js`, `scripts/clean-dist-require.js`, `scripts/compare-test-baseline.js`
 
 **残存理由**: 過去の移行作業で使用した一時的なデバッグ・検証スクリプト。現在は使用されていない可能性が高いが、削除は別途検討。
 
-#### ツール・ユーティリティスクリプト（7件）
-`scripts/add-module-tracking.js`, `scripts/check-registry-content.js`, `scripts/check-registry-content2.js`, `scripts/cross-ref-scripts.js`, `scripts/serve-with-fallback.js`, `scripts/test-json.js`, `scripts/validate-registry.js`
+#### ツール・ユーティリティスクリプト（6件）
+`scripts/add-module-tracking.js`, `scripts/check-registry-content.js`, `scripts/check-registry-content2.js`, `scripts/cross-ref-scripts.js`, `scripts/serve-with-fallback.js`, `scripts/validate-registry.js`
 
 **残存理由**: Node.js環境で実行される開発・検証ツール。ゲームの実行経路には含まれない。
 
@@ -168,7 +168,6 @@ npm run worker:prepare # PASS ✅
 - `scripts/cross-ref-scripts.js` (46行) → **legacy-implementation**
 - `scripts/serve-with-fallback.js` (7行) → **legacy-implementation**
   - 理由: `dist/scripts/serve-with-fallback` を読むwrapperだが、Node.js専用
-- `scripts/test-json.js` (47行) → **legacy-implementation**
 - `scripts/validate-registry.js` (66行) → **legacy-implementation**
 
 ## 5. 今後の方針・ガバナンス
