@@ -2,19 +2,31 @@
 import './match-worker-runtime-preload.js';
 import type {
     DurableObjectStateLike,
+    MatchWorkerCardLogicModule,
+    MatchWorkerCoreModule,
     MatchRoomDurableObjectApi,
     MatchWorkerEntrypoint,
     MatchWorkerDeckGlobals,
+    MatchWorkerLeaderboardEntry,
+    MatchWorkerLeaderboardMode,
+    MatchWorkerLeaderboardStore,
     MatchWorkerPreparedSnapshotBroadcast,
+    MatchWorkerPrng,
     MatchWorkerRoomState,
     MatchWorkerRuntimeModule,
+    MatchWorkerSeededPrngModule,
     MatchWorkerSseStreamInfo,
+    MatchWorkerTurnPipelinePhasesModule,
     MatchWorkerTurnPipelineModule,
     MatchWorkerTurnPipelineModules,
     MatchWorkerTurnPipelineSafeResult,
     MatchWorkerTurnStartModules
 } from './match-worker-types';
-import type { MatchAuthoritySeatKey } from '../utils/match-authority-types';
+import type {
+    MatchAuthorityAcceptedOperationsBySeat,
+    MatchAuthorityRoomState,
+    MatchAuthoritySeatKey
+} from '../utils/match-authority-types';
 import type { GameState } from '../src/types';
 import {
     assertMatchRoomDurableObjectConstructor,
@@ -86,7 +98,7 @@ const OPERATION_ID_MAX_LENGTH = Number.isFinite(Number(MatchAuthority.OPERATION_
     ? Number(MatchAuthority.OPERATION_ID_MAX_LENGTH)
     : 128;
 
-let coreLogicModulePromise: Promise<MatchWorkerRuntimeModule> | null = null;
+let coreLogicModulePromise: Promise<MatchWorkerCoreModule> | null = null;
 let deckModulesPromise: Promise<MatchWorkerDeckGlobals> | null = null;
 let turnStartModulesPromise: Promise<MatchWorkerTurnStartModules> | null = null;
 let turnPipelineModulesPromise: Promise<MatchWorkerTurnPipelineModules> | null = null;
@@ -434,9 +446,9 @@ function normalizeWorkerTurnPipelinePlayer(Core: MatchWorkerRuntimeModule | null
 }
 
 function createWorkerTurnPipelineModule(
-    CardLogic: MatchWorkerRuntimeModule,
-    Core: MatchWorkerRuntimeModule,
-    TurnPipelinePhases: MatchWorkerRuntimeModule,
+    CardLogic: MatchWorkerCardLogicModule,
+    Core: MatchWorkerCoreModule,
+    TurnPipelinePhases: MatchWorkerTurnPipelinePhasesModule,
     BoardOps: MatchWorkerRuntimeModule
 ): MatchWorkerTurnPipelineModule {
     function applyTurn(cardState: unknown, gameState: unknown, playerKey: unknown, action: unknown, prng?: unknown, options?: Record<string, unknown> | null) {
@@ -589,7 +601,7 @@ function createWorkerTurnPipelineModule(
     };
 }
 
-function loadCoreLogicModule(): Promise<MatchWorkerRuntimeModule> {
+function loadCoreLogicModule(): Promise<MatchWorkerCoreModule> {
     if (!coreLogicModulePromise) {
         coreLogicModulePromise = Promise.all([
             ensureWorkerSharedConstants(),
@@ -597,7 +609,7 @@ function loadCoreLogicModule(): Promise<MatchWorkerRuntimeModule> {
         ]).then(() => import('../game/logic/core.js').then((mod) => {
             const resolved = resolveModuleDefault(mod);
             setRuntimeGlobalValue('Core', resolved);
-            return resolved;
+            return resolved as MatchWorkerCoreModule;
         }));
     }
     return coreLogicModulePromise;
@@ -614,9 +626,9 @@ function loadTurnStartModules(): Promise<MatchWorkerTurnStartModules> {
     if (!turnStartModulesPromise) {
         turnStartModulesPromise = Promise.all([
             loadCoreLogicModule(),
-            ensureWorkerCardGlobals().then(() => import('../game/logic/cards.js').then(resolveModuleDefault)),
-            import('../game/turn/turn_pipeline_phases.js').then(resolveModuleDefault),
-            import('../game/schema/prng.js').then(resolveModuleDefault)
+            ensureWorkerCardGlobals().then(() => import('../game/logic/cards.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerCardLogicModule)),
+            import('../game/turn/turn_pipeline_phases.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerTurnPipelinePhasesModule),
+            import('../game/schema/prng.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerSeededPrngModule)
         ]).then(([Core, CardLogic, TurnPipelinePhases, SeededPRNG]) => ({
             Core,
             CardLogic,
@@ -632,11 +644,11 @@ function loadTurnPipelineModules(): Promise<MatchWorkerTurnPipelineModules> {
         turnPipelineModulesPromise = Promise.all([
             ensureWorkerCardGlobals(),
             loadCoreLogicModule(),
-            import('../game/logic/cards.js').then(resolveModuleDefault),
-            import('../game/turn/turn_pipeline_phases.js').then(resolveModuleDefault),
+            import('../game/logic/cards.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerCardLogicModule),
+            import('../game/turn/turn_pipeline_phases.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerTurnPipelinePhasesModule),
             import('../game/turn/pipeline_ui_adapter.js').then(resolveModuleDefault),
             import('../game/logic/board_ops.js').then(resolveModuleDefault),
-            import('../game/schema/prng.js').then(resolveModuleDefault)
+            import('../game/schema/prng.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerSeededPrngModule)
         ]).then(([, Core, CardLogic, TurnPipelinePhases, TurnPipelineUIAdapter, BoardOps, SeededPRNG]) => ({
             TurnPipeline: createWorkerTurnPipelineModule(CardLogic, Core, TurnPipelinePhases, BoardOps),
             SeededPRNG,
@@ -654,33 +666,34 @@ function loadDebugActionsModule(): Promise<MatchWorkerRuntimeModule> {
     return debugActionsModulePromise;
 }
 
-function parseJsonBody(raw) {
+function parseJsonBody(raw: string | null | undefined): Record<string, unknown> | null {
     if (!raw) return {};
     try {
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        return asRecord(parsed);
     } catch (e) {
         return null;
     }
 }
 
-function normalizeRoomId(value) {
+function normalizeRoomId(value: unknown): string {
     const roomId = String(value || '').trim().toUpperCase();
     return roomId || '';
 }
 
-function isNetworkDebugFillHandAction(value) {
+function isNetworkDebugFillHandAction(value: unknown): boolean {
     return MatchAuthority.isNetworkDebugFillHandAction(value);
 }
 
-function isNetworkDebugFillHandPayload(value) {
+function isNetworkDebugFillHandPayload(value: unknown): boolean {
     return MatchAuthority.isNetworkDebugFillHandPayload(value);
 }
 
-function resolveNetworkDebugFillHandOptions(value) {
+function resolveNetworkDebugFillHandOptions(value: unknown): Record<string, unknown> {
     return MatchAuthority.resolveNetworkDebugFillHandOptions(value);
 }
 
-function normalizeNetworkPlayerName(value) {
+function normalizeNetworkPlayerName(value: unknown): string {
     if (MatchAuthority && typeof MatchAuthority.normalizeNetworkPlayerName === 'function') {
         return MatchAuthority.normalizeNetworkPlayerName(value);
     }
@@ -688,7 +701,7 @@ function normalizeNetworkPlayerName(value) {
     return Array.from(normalized).slice(0, NETWORK_PLAYER_NAME_MAX).join('');
 }
 
-function normalizeOperationId(value) {
+function normalizeOperationId(value: unknown): string {
     if (MatchAuthority && typeof MatchAuthority.normalizeOperationId === 'function') {
         return MatchAuthority.normalizeOperationId(value);
     }
@@ -697,77 +710,82 @@ function normalizeOperationId(value) {
     return Array.from(normalized).slice(0, OPERATION_ID_MAX_LENGTH).join('');
 }
 
-function ensureAcceptedOperationsBySeat(room) {
+function ensureAcceptedOperationsBySeat(room: MatchAuthorityRoomState | null | undefined): MatchAuthorityAcceptedOperationsBySeat {
     if (MatchAuthority && typeof MatchAuthority.ensureAcceptedOperationsBySeat === 'function') {
         return MatchAuthority.ensureAcceptedOperationsBySeat(room);
     }
     return { black: null, white: null };
 }
 
-function normalizeLeaderboardPlayerId(value) {
+function normalizeLeaderboardPlayerId(value: unknown): string | null {
     const normalized = String(value || '').trim();
     if (!LEADERBOARD_PLAYER_ID_RE.test(normalized)) return null;
     return normalized;
 }
 
-function normalizeLeaderboardPlayerName(value) {
+function normalizeLeaderboardPlayerName(value: unknown): string {
     const normalized = String(value || '').replace(/\s+/g, ' ').trim();
     const clipped = Array.from(normalized).slice(0, LEADERBOARD_PLAYER_NAME_MAX).join('');
     return clipped || 'ななし';
 }
 
-function normalizeLeaderboardMode(value) {
+function normalizeLeaderboardMode(value: unknown): MatchWorkerLeaderboardMode {
     if (value === 'network') return 'network';
     if (value === 'cpu') return 'cpu';
     return 'cpu';
 }
 
-function clampLeaderboardScore(value) {
+function clampLeaderboardScore(value: unknown): number {
     const score = Number(value);
     if (!Number.isFinite(score)) return 0;
     return Math.max(0, Math.min(100000, Math.trunc(score)));
 }
 
-function normalizeLeaderboardCpuLevel(value) {
+function normalizeLeaderboardCpuLevel(value: unknown): number | null {
     if (!Number.isFinite(Number(value))) return null;
     const level = Math.trunc(Number(value));
     return Math.max(1, Math.min(6, level));
 }
 
-function normalizeLeaderboardLimit(value) {
+function normalizeLeaderboardLimit(value: unknown): number {
     const parsed = Number(value);
     if (!Number.isFinite(parsed)) return LEADERBOARD_DEFAULT_LIMIT;
     return Math.max(1, Math.min(LEADERBOARD_MAX_LIMIT, Math.trunc(parsed)));
 }
 
-function normalizeLeaderboardEntry(value, fallbackPlayerId) {
+function normalizeLeaderboardEntry(value: unknown, fallbackPlayerId?: unknown): MatchWorkerLeaderboardEntry | null {
     if (!value || typeof value !== 'object') return null;
 
-    const playerId = normalizeLeaderboardPlayerId(value.playerId || fallbackPlayerId);
+    const entry = asRecord(value);
+    const playerId = normalizeLeaderboardPlayerId(entry.playerId || fallbackPlayerId);
     if (!playerId) return null;
 
-    const updatedAt = Number.isFinite(Number(value.updatedAt))
-        ? Math.max(0, Math.trunc(Number(value.updatedAt)))
+    const updatedAt = Number.isFinite(Number(entry.updatedAt))
+        ? Math.max(0, Math.trunc(Number(entry.updatedAt)))
         : Date.now();
-    const submittedAt = Number.isFinite(Number(value.submittedAt))
-        ? Math.max(0, Math.trunc(Number(value.submittedAt)))
+    const submittedAt = Number.isFinite(Number(entry.submittedAt))
+        ? Math.max(0, Math.trunc(Number(entry.submittedAt)))
         : updatedAt;
 
     return {
         playerId,
-        playerName: normalizeLeaderboardPlayerName(value.playerName),
-        bestScore: clampLeaderboardScore(value.bestScore),
-        lastScore: clampLeaderboardScore(value.lastScore),
-        mode: normalizeLeaderboardMode(value.mode),
-        cpuLevel: normalizeLeaderboardCpuLevel(value.cpuLevel),
-        scoreVersion: Number.isFinite(Number(value.scoreVersion)) ? Math.max(0, Math.trunc(Number(value.scoreVersion))) : null,
-        turnCount: Number.isFinite(Number(value.turnCount)) ? Math.max(0, Math.trunc(Number(value.turnCount))) : null,
+        playerName: normalizeLeaderboardPlayerName(entry.playerName),
+        bestScore: clampLeaderboardScore(entry.bestScore),
+        lastScore: clampLeaderboardScore(entry.lastScore),
+        mode: normalizeLeaderboardMode(entry.mode),
+        cpuLevel: normalizeLeaderboardCpuLevel(entry.cpuLevel),
+        scoreVersion: Number.isFinite(Number(entry.scoreVersion)) ? Math.max(0, Math.trunc(Number(entry.scoreVersion))) : null,
+        turnCount: Number.isFinite(Number(entry.turnCount)) ? Math.max(0, Math.trunc(Number(entry.turnCount))) : null,
         updatedAt,
         submittedAt
     };
 }
 
-function sortLeaderboardEntries(entries) {
+function isLeaderboardEntry(value: MatchWorkerLeaderboardEntry | null): value is MatchWorkerLeaderboardEntry {
+    return value !== null;
+}
+
+function sortLeaderboardEntries(entries: MatchWorkerLeaderboardEntry[]): void {
     entries.sort((a, b) => {
         if (b.bestScore !== a.bestScore) return b.bestScore - a.bestScore;
         if (a.updatedAt !== b.updatedAt) return a.updatedAt - b.updatedAt;
@@ -775,7 +793,7 @@ function sortLeaderboardEntries(entries) {
     });
 }
 
-async function makeInitialSnapshot(seed, options) {
+async function makeInitialSnapshot(seed: unknown, options: unknown): Promise<MatchAuthorityRoomState> {
     const { Core, CardLogic, TurnPipelinePhases, SeededPRNG } = await loadTurnStartModules();
     const opts = buildInitialDeckSnapshotOptions(options);
     const gameState = Core.createGameState(opts.boardConfig);
@@ -783,7 +801,7 @@ async function makeInitialSnapshot(seed, options) {
     const cardInitOptions = buildInitialDeckSnapshotOptions(opts);
     const cardState = CardLogic.createCardState(prng, cardInitOptions);
 
-    const startupEvents = [];
+    const startupEvents: unknown[] = [];
     TurnPipelinePhases.applyTurnStartPhase(
         CardLogic,
         Core,
@@ -802,27 +820,30 @@ async function makeInitialSnapshot(seed, options) {
     };
 }
 
-function mergeWithDefaultShape(defaultValue, overrideValue) {
+function mergeWithDefaultShape(defaultValue: unknown, overrideValue: unknown): unknown {
     return MatchAuthority.mergeWithDefaultShape(defaultValue, overrideValue);
 }
 
-function createWorkerTurnStartSeed(room, snapshot, playerKey) {
+function createWorkerTurnStartSeed(room: MatchWorkerRoomState | null | undefined, snapshot: unknown, playerKey: unknown): number {
     return MatchAuthority.createTurnStartSeed(room, snapshot, playerKey);
 }
 
-function createWorkerTurnStartPrng(room, snapshot, playerKey, SeededPRNG) {
-    const savedState = snapshot && snapshot.cardState && snapshot.cardState.prngState;
+function createWorkerTurnStartPrng(room: MatchWorkerRoomState | null | undefined, snapshot: unknown, playerKey: unknown, SeededPRNG: MatchWorkerSeededPrngModule): MatchWorkerPrng {
+    const snapshotRecord = asRecord(snapshot);
+    const cardStateRecord = asRecord(snapshotRecord.cardState);
+    const savedState = cardStateRecord.prngState;
+    const savedStateRecord = asRecord(savedState);
     if (
         savedState
         && typeof savedState === 'object'
-        && Number.isFinite(Number(savedState.seed))
-        && Number.isFinite(Number(savedState.calls))
+        && Number.isFinite(Number(savedStateRecord.seed))
+        && Number.isFinite(Number(savedStateRecord.calls))
         && typeof SeededPRNG.fromState === 'function'
     ) {
         try {
             return SeededPRNG.fromState({
-                seed: Math.trunc(Number(savedState.seed)),
-                calls: Math.max(0, Math.trunc(Number(savedState.calls)))
+                seed: Math.trunc(Number(savedStateRecord.seed)),
+                calls: Math.max(0, Math.trunc(Number(savedStateRecord.calls)))
             });
         } catch (e) {
             // Fall through to derived seed when the serialized state is unusable.
@@ -831,43 +852,53 @@ function createWorkerTurnStartPrng(room, snapshot, playerKey, SeededPRNG) {
     return SeededPRNG.createPRNG(createWorkerTurnStartSeed(room, snapshot, playerKey));
 }
 
-function normalizeCardStateForWorkerTurnStart(room, snapshot, CardLogic, SeededPRNG) {
+function normalizeCardStateForWorkerTurnStart(
+    room: MatchWorkerRoomState | null | undefined,
+    snapshot: unknown,
+    CardLogic: MatchWorkerCardLogicModule,
+    SeededPRNG: MatchWorkerSeededPrngModule
+): Record<string, unknown> | null {
     if (!snapshot || typeof snapshot !== 'object') return null;
-    const currentCardState = (snapshot.cardState && typeof snapshot.cardState === 'object')
-        ? snapshot.cardState
+    const snapshotRecord = snapshot as Record<string, unknown>;
+    const currentCardState = (snapshotRecord.cardState && typeof snapshotRecord.cardState === 'object')
+        ? snapshotRecord.cardState
         : {};
-    const currentPlayerKey = getCurrentPlayerKey(snapshot.gameState);
+    const currentPlayerKey = getCurrentPlayerKey(snapshotRecord.gameState);
     const baselinePrng = SeededPRNG.createPRNG(createWorkerTurnStartSeed(room, snapshot, currentPlayerKey));
     const baselineCardState = CardLogic.createCardState(baselinePrng, buildInitialDeckSnapshotOptions(room));
-    snapshot.cardState = mergeWithDefaultShape(baselineCardState, currentCardState);
-    if (!Array.isArray(snapshot.cardState.presentationEvents)) {
-        snapshot.cardState.presentationEvents = [];
+    snapshotRecord.cardState = mergeWithDefaultShape(baselineCardState, currentCardState);
+    const normalizedCardState = asRecord(snapshotRecord.cardState);
+    if (!Array.isArray(normalizedCardState.presentationEvents)) {
+        normalizedCardState.presentationEvents = [];
     }
-    if (!Array.isArray(snapshot.cardState._presentationEventsPersist)) {
-        snapshot.cardState._presentationEventsPersist = [];
+    if (!Array.isArray(normalizedCardState._presentationEventsPersist)) {
+        normalizedCardState._presentationEventsPersist = [];
     }
-    return snapshot.cardState;
+    return normalizedCardState;
 }
 
-function createCommandActionPrng(room, snapshot, SeededPRNG) {
-    const savedState = snapshot && snapshot.cardState && snapshot.cardState.prngState;
+function createCommandActionPrng(room: MatchWorkerRoomState | null | undefined, snapshot: unknown, SeededPRNG: MatchWorkerSeededPrngModule): MatchWorkerPrng {
+    const snapshotRecord = asRecord(snapshot);
+    const cardStateRecord = asRecord(snapshotRecord.cardState);
+    const savedState = cardStateRecord.prngState;
+    const savedStateRecord = asRecord(savedState);
     if (
         savedState
         && typeof savedState === 'object'
-        && Number.isFinite(Number(savedState.seed))
-        && Number.isFinite(Number(savedState.calls))
+        && Number.isFinite(Number(savedStateRecord.seed))
+        && Number.isFinite(Number(savedStateRecord.calls))
         && typeof SeededPRNG.fromState === 'function'
     ) {
         try {
             return SeededPRNG.fromState({
-                seed: Math.trunc(Number(savedState.seed)),
-                calls: Math.max(0, Math.trunc(Number(savedState.calls)))
+                seed: Math.trunc(Number(savedStateRecord.seed)),
+                calls: Math.max(0, Math.trunc(Number(savedStateRecord.calls)))
             });
         } catch (e) {
             // Fall through to derived seed.
         }
     }
-    return SeededPRNG.createPRNG(createWorkerTurnStartSeed(room, snapshot, getCurrentPlayerKey(snapshot && snapshot.gameState)));
+    return SeededPRNG.createPRNG(createWorkerTurnStartSeed(room, snapshot, getCurrentPlayerKey(snapshotRecord.gameState)));
 }
 
 function mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, snapshot, playbackAdapter, playerKey) {
@@ -1503,9 +1534,9 @@ function hasRoomDeckMetadataEntries(value) {
     );
 }
 
-function buildInitialDeckSnapshotOptions(value) {
-    const source = (value && typeof value === 'object') ? value : {};
-    const options = {};
+function buildInitialDeckSnapshotOptions(value: unknown): Record<string, unknown> {
+    const source = asRecord(value);
+    const options: Record<string, unknown> = {};
     const initialDeckSpecByPlayer = cloneInitialDeckSpecByPlayer(source.initialDeckSpecByPlayer);
     if (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white) {
         options.initialDeckSpecByPlayer = initialDeckSpecByPlayer;
@@ -3269,8 +3300,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         });
     }
 
-    async loadLeaderboardStore() {
-        const empty = {
+    async loadLeaderboardStore(): Promise<MatchWorkerLeaderboardStore> {
+        const empty: MatchWorkerLeaderboardStore = {
             version: LEADERBOARD_STORAGE_VERSION,
             players: {},
             updatedAt: Date.now()
@@ -3278,9 +3309,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
         const raw = await this.state.storage.get(LEADERBOARD_STORAGE_KEY);
         if (!raw || typeof raw !== 'object') return empty;
+        const rawRecord = asRecord(raw);
 
-        const playersRaw = (raw.players && typeof raw.players === 'object') ? raw.players : {};
-        const players = {};
+        const playersRaw = (rawRecord.players && typeof rawRecord.players === 'object') ? asRecord(rawRecord.players) : {};
+        const players: Record<string, MatchWorkerLeaderboardEntry> = {};
 
         for (const [key, entry] of Object.entries(playersRaw)) {
             const normalized = normalizeLeaderboardEntry(entry, key);
@@ -3288,8 +3320,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             players[normalized.playerId] = normalized;
         }
 
-        const updatedAt = Number.isFinite(Number(raw.updatedAt))
-            ? Math.max(0, Math.trunc(Number(raw.updatedAt)))
+        const updatedAt = Number.isFinite(Number(rawRecord.updatedAt))
+            ? Math.max(0, Math.trunc(Number(rawRecord.updatedAt)))
             : Date.now();
 
         return {
@@ -3299,7 +3331,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         };
     }
 
-    async saveLeaderboardStore(store) {
+    async saveLeaderboardStore(store: MatchWorkerLeaderboardStore): Promise<void> {
         await this.state.storage.put(LEADERBOARD_STORAGE_KEY, {
             version: LEADERBOARD_STORAGE_VERSION,
             players: (store && store.players && typeof store.players === 'object') ? store.players : {},
@@ -3307,10 +3339,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         });
     }
 
-    listLeaderboardEntries(store, limit) {
+    listLeaderboardEntries(store: MatchWorkerLeaderboardStore, limit: unknown): Array<Record<string, unknown>> {
         const rows = Object.values((store && store.players) || {})
             .map((entry) => normalizeLeaderboardEntry(entry))
-            .filter(Boolean);
+            .filter(isLeaderboardEntry);
 
         sortLeaderboardEntries(rows);
 
@@ -3328,7 +3360,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }));
     }
 
-    async handleLeaderboardSubmit(body) {
+    async handleLeaderboardSubmit(body: Record<string, unknown>): Promise<Response> {
         const playerId = normalizeLeaderboardPlayerId(body && body.playerId);
         if (!playerId) {
             return jsonResponse(400, { ok: false, reason: 'PLAYER_ID_REQUIRED' });
@@ -3367,7 +3399,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
         const allRows = Object.values(store.players)
             .map((entry) => normalizeLeaderboardEntry(entry))
-            .filter(Boolean);
+            .filter(isLeaderboardEntry);
         sortLeaderboardEntries(allRows);
 
         if (allRows.length > LEADERBOARD_MAX_STORED_PLAYERS) {
@@ -3400,7 +3432,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         });
     }
 
-    async handleLeaderboardList(urlObj) {
+    async handleLeaderboardList(urlObj: URL): Promise<Response> {
         const limit = normalizeLeaderboardLimit(urlObj && urlObj.searchParams ? urlObj.searchParams.get('limit') : LEADERBOARD_DEFAULT_LIMIT);
         const store = await this.loadLeaderboardStore();
         const entries = this.listLeaderboardEntries(store, limit);

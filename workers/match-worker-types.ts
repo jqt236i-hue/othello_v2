@@ -47,12 +47,82 @@ export interface MatchWorkerPreparedSnapshotBroadcast {
 
 export interface MatchWorkerLeaderboardStore {
     version: number;
-    players: Record<string, unknown>;
+    players: Record<string, MatchWorkerLeaderboardEntry>;
     updatedAt: number;
+}
+
+export type MatchWorkerLeaderboardMode = 'cpu' | 'network';
+
+export interface MatchWorkerLeaderboardEntry {
+    playerId: string;
+    playerName: string;
+    bestScore: number;
+    lastScore: number;
+    mode: MatchWorkerLeaderboardMode;
+    cpuLevel: number | null;
+    scoreVersion: number | null;
+    turnCount: number | null;
+    updatedAt: number;
+    submittedAt: number;
 }
 
 export interface MatchWorkerRuntimeModule {
     [key: string]: unknown;
+}
+
+export interface MatchWorkerPrng {
+    random(): number;
+    getState?: () => unknown;
+    [key: string]: unknown;
+}
+
+export interface MatchWorkerCoreModule extends MatchWorkerRuntimeModule {
+    BLACK?: unknown;
+    WHITE?: unknown;
+    createGameState(boardConfig?: unknown): unknown;
+    applyPass?: (gameState: unknown, playerKey?: unknown, options?: unknown) => unknown;
+}
+
+export interface MatchWorkerCardLogicModule extends MatchWorkerRuntimeModule {
+    createCardState(prng?: unknown, options?: unknown): unknown;
+    flushPresentationEvents?: (cardState: unknown) => unknown;
+}
+
+export interface MatchWorkerTurnPipelinePhasesModule extends MatchWorkerRuntimeModule {
+    applyTurnStartPhase(
+        CardLogic: MatchWorkerCardLogicModule,
+        Core: MatchWorkerCoreModule,
+        cardState: unknown,
+        gameState: unknown,
+        playerKey: unknown,
+        events: unknown[],
+        prng?: unknown
+    ): void;
+    applyCardUsagePhase(
+        CardLogic: MatchWorkerCardLogicModule,
+        cardState: unknown,
+        gameState: unknown,
+        playerKey: unknown,
+        action: unknown,
+        events: unknown[],
+        prng?: unknown
+    ): void;
+    applyActionPhase(
+        CardLogic: MatchWorkerCardLogicModule,
+        Core: MatchWorkerCoreModule,
+        cardState: unknown,
+        gameState: unknown,
+        playerKey: unknown,
+        action: unknown,
+        events: unknown[],
+        prng?: unknown,
+        BoardOps?: MatchWorkerRuntimeModule
+    ): void;
+}
+
+export interface MatchWorkerSeededPrngModule extends MatchWorkerRuntimeModule {
+    createPRNG(seed?: unknown): MatchWorkerPrng;
+    fromState?(state: unknown): MatchWorkerPrng;
 }
 
 export interface MatchWorkerDeckGlobals {
@@ -61,10 +131,10 @@ export interface MatchWorkerDeckGlobals {
 }
 
 export interface MatchWorkerTurnStartModules {
-    Core: MatchWorkerRuntimeModule;
-    CardLogic: MatchWorkerRuntimeModule;
-    TurnPipelinePhases: MatchWorkerRuntimeModule;
-    SeededPRNG: MatchWorkerRuntimeModule;
+    Core: MatchWorkerCoreModule;
+    CardLogic: MatchWorkerCardLogicModule;
+    TurnPipelinePhases: MatchWorkerTurnPipelinePhasesModule;
+    SeededPRNG: MatchWorkerSeededPrngModule;
 }
 
 export interface MatchWorkerTurnPipelineResult {
@@ -103,9 +173,9 @@ export interface MatchWorkerTurnPipelineModule {
 
 export interface MatchWorkerTurnPipelineModules {
     TurnPipeline: MatchWorkerTurnPipelineModule;
-    SeededPRNG: MatchWorkerRuntimeModule;
+    SeededPRNG: MatchWorkerSeededPrngModule;
     TurnPipelineUIAdapter: MatchWorkerRuntimeModule;
-    CardLogic: MatchWorkerRuntimeModule;
+    CardLogic: MatchWorkerCardLogicModule;
 }
 
 export interface MatchWorkerEntrypoint {
