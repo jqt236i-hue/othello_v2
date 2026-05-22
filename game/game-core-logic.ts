@@ -20,11 +20,6 @@ const GameCoreLogicCore = (() => {
     try {
         if (typeof CoreLogic !== 'undefined' && CoreLogic) return CoreLogic;
     } catch (e: any) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).CoreLogic) {
-            return (globalThis as any).CoreLogic;
-        }
-    } catch (e: any) { /* ignore */ }
     if (typeof _require === 'function') {
         try { return _require('./logic/core'); } catch (e: any) { /* ignore */ }
     }
@@ -53,8 +48,7 @@ function getFlips(state: any, row: any, col: any, player: any, protectedStones: 
     // Prefer centralized helper to obtain card-related context when available
     let context: any = null;
     try {
-        const _gt: any = typeof globalThis !== 'undefined' ? globalThis : null;
-        const ctxHelper = (typeof require === 'function') ? require('./logic/context') : (_gt ? _gt.GameLogicContext : null);
+        const ctxHelper = (typeof require === 'function') ? require('./logic/context') : null;
         if (ctxHelper && typeof ctxHelper.getSafeCardContext === 'function') {
             context = ctxHelper.getSafeCardContext(typeof cardState !== 'undefined' ? cardState : undefined, protectedStones, permaProtectedStones);
         }
