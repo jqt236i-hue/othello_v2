@@ -1,4 +1,6 @@
 import type {
+  MatchAuthorityAcceptedOperationEntry,
+  MatchAuthorityAcceptedOperationHistoryBySeat,
   MatchAuthorityBufferedSseEventRecord,
   MatchAuthorityBufferedSseReplayEvent,
   MatchAuthorityPublicSnapshot,
@@ -109,5 +111,36 @@ describe('match-authority public contract types', () => {
     expect(projected.stateVersion).toBe(3);
     expect(joined).toBe('white');
     expect(leaveResult && leaveResult.seatToken).toBe('next-token');
+  });
+
+  test('accepted operation helpers expose typed idempotency history', () => {
+    const room: MatchAuthorityRoomState = {
+      lastAcceptedOperationBySeat: {
+        black: { operationId: 'op-1', stateVersion: 1, updatedAt: 100 },
+        white: null
+      }
+    };
+
+    const history: MatchAuthorityAcceptedOperationHistoryBySeat =
+      MatchAuthority.ensureAcceptedOperationHistoryBySeat(room);
+    const remembered: MatchAuthorityAcceptedOperationEntry | null =
+      MatchAuthority.rememberAcceptedOperationBySeat(room, 'black', {
+        operationId: 'op-2',
+        stateVersion: 2,
+        updatedAt: 200
+      });
+    const found: MatchAuthorityAcceptedOperationEntry | null =
+      MatchAuthority.findAcceptedOperationBySeat(room, 'black', 'op-2');
+    const resolved: MatchAuthorityAcceptedOperationEntry | null =
+      MatchAuthority.resolveAcceptedOperation(room, 'black', 'op-3', {
+        operationId: 'op-3',
+        stateVersion: 3,
+        updatedAt: 300
+      });
+
+    expect(history.black[0].operationId).toBe('op-1');
+    expect(remembered && remembered.operationId).toBe('op-2');
+    expect(found && found.stateVersion).toBe(2);
+    expect(resolved && resolved.updatedAt).toBe(300);
   });
 });

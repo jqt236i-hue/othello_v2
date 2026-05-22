@@ -2,6 +2,11 @@ import type { MatchAuthorityPublicApi } from './match-authority-types';
 
 const REQUIRED_MATCH_AUTHORITY_PUBLIC_FUNCTIONS: Array<keyof MatchAuthorityPublicApi> = [
     'normalizePublishMeta',
+    'ensureAcceptedOperationsBySeat',
+    'ensureAcceptedOperationHistoryBySeat',
+    'findAcceptedOperationBySeat',
+    'resolveAcceptedOperation',
+    'rememberAcceptedOperationBySeat',
     'buildPublishResponsePayload',
     'buildRoomPayload',
     'buildRoomPayloadFromRoom',

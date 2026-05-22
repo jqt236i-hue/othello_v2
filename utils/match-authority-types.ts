@@ -239,6 +239,20 @@ export interface MatchAuthorityBufferedSseReplayEvent {
 
 export interface MatchAuthorityPublicApi {
     normalizePublishMeta(value: unknown): MatchAuthorityPublishMeta;
+    ensureAcceptedOperationsBySeat(roomValue: MatchAuthorityRoomState | null | undefined): MatchAuthorityAcceptedOperationsBySeat;
+    ensureAcceptedOperationHistoryBySeat(roomValue: MatchAuthorityRoomState | null | undefined): MatchAuthorityAcceptedOperationHistoryBySeat;
+    findAcceptedOperationBySeat(roomValue: MatchAuthorityRoomState | null | undefined, seatKey: unknown, operationId: unknown): MatchAuthorityAcceptedOperationEntry | null;
+    resolveAcceptedOperation(
+        roomValue: MatchAuthorityRoomState | null | undefined,
+        seatKey: unknown,
+        operationId: unknown,
+        fallbackEntry?: unknown
+    ): MatchAuthorityAcceptedOperationEntry | null;
+    rememberAcceptedOperationBySeat(
+        roomValue: MatchAuthorityRoomState | null | undefined,
+        seatKey: unknown,
+        entry: unknown
+    ): MatchAuthorityAcceptedOperationEntry | null;
     buildPublishResponsePayload(options: MatchAuthorityPublishResponseOptions): MatchAuthorityPublishResponsePayload;
     buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAuthorityRoomPayload;
     buildRoomPayloadFromRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: MatchAuthorityRoomPayloadFromRoomOptions | null): MatchAuthorityRoomPayload;
