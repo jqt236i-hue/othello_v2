@@ -1221,11 +1221,5 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = Api;
 }
 
-try {
-    if (typeof globalThis !== 'undefined') {
-        (globalThis as any).CpuPolicyOnnxRuntime = Api; // @compat - backward-compat export
-    }
-} catch (e) { /* ignore */ }
-
 export = Api;
 
