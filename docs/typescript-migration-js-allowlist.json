@@ -38,17 +38,9 @@
       "category": "legacy-implementation",
       "reason": "Migration-era browser smoke helper retained for troubleshooting."
     },
-    "scripts/clean-dist-require.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era dist cleanup helper retained for troubleshooting."
-    },
     "scripts/compare-test-baseline.js": {
       "category": "legacy-implementation",
       "reason": "Migration-era test baseline helper retained for troubleshooting."
-    },
-    "scripts/validate-registry.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era validation helper retained for troubleshooting."
     },
     "ui/handlers/match-mode.js": {
       "category": "dist-wrapper",
