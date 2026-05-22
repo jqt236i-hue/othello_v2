@@ -1,4 +1,3 @@
-// @ts-nocheck
 const path = require('path');
 
 const generator = require(path.resolve(__dirname, '..', 'scripts', 'generate-catalog.js'));
