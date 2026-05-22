@@ -1,6 +1,7 @@
-// @ts-nocheck
-import { createLocalMatchServer, resetRoomsForTests } from './local-match-server';
-import * as Core from '../game/logic/core';
+import LocalMatchServer = require('./local-match-server');
+import Core = require('../game/logic/core');
+
+const { createLocalMatchServer, resetRoomsForTests } = LocalMatchServer;
 
 const DEFAULT_GAMES = 5;
 const DEFAULT_MAX_STEPS = 240;

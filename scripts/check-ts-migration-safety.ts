@@ -36,7 +36,6 @@ const allowedNoCheckDebt = new Set([
   'scripts/local-match-runtime.ts',
   'scripts/local-match-server.ts',
   'scripts/match-network-smoke.ts',
-  'scripts/network-endgame-smoke.ts',
   'scripts/prepare-worker-assets.ts',
   'scripts/run-ui-level-match.ts',
   'sound-engine.ts',
