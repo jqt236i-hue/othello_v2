@@ -1,14 +1,7 @@
 #!/usr/bin/env node
-// @ts-nocheck
 'use strict';
 
 import * as http from 'http';
-
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
 
 function readArgValue(name: string) {
     const key = `--${name}`;
@@ -25,7 +18,11 @@ const MODEL_ENDPOINT = readArgValue('model-endpoint') || process.env.CPU_COMMENT
 const MODEL_NAME = readArgValue('model') || process.env.CPU_COMMENTARY_MODEL || 'local-model';
 const REQUEST_TIMEOUT_MS = Number(readArgValue('timeout-ms') || process.env.CPU_COMMENTARY_TIMEOUT_MS || 2500);
 
-function writeJson(res: any, statusCode: any, payload: any) {
+function getErrorMessage(error: any): string {
+    return error && typeof error.message === 'string' ? error.message : String(error);
+}
+
+function writeJson(res: http.ServerResponse, statusCode: number, payload: any) {
     const body = JSON.stringify(payload || {});
     res.writeHead(statusCode, {
         'Content-Type': 'application/json; charset=utf-8',
@@ -36,8 +33,8 @@ function writeJson(res: any, statusCode: any, payload: any) {
     res.end(body);
 }
 
-function parseBody(req: any) {
-    return new Promise((resolve: any, reject: any) => {
+function parseBody(req: http.IncomingMessage): Promise<any> {
+    return new Promise((resolve, reject) => {
         let raw = '';
         req.on('data', (chunk: any) => {
             raw += chunk;
@@ -187,7 +184,7 @@ async function requestModelLine(context: any, maxChars: any) {
     }
 }
 
-const server = http.createServer(async (req: any, res: any) => {
+const server = http.createServer(async (req: http.IncomingMessage, res: http.ServerResponse) => {
     if (req.method === 'OPTIONS') {
         writeJson(res, 204, {});
         return;
@@ -232,7 +229,7 @@ const server = http.createServer(async (req: any, res: any) => {
         } catch (e) {
             writeJson(res, 400, {
                 ok: false,
-                reason: e && e.message ? e.message : 'request_failed'
+                reason: e ? getErrorMessage(e) : 'request_failed'
             });
             return;
         }
