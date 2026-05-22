@@ -50,10 +50,6 @@
       "category": "legacy-implementation",
       "reason": "Migration-era validation helper retained for troubleshooting."
     },
-    "fix_registry_turnmanager.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era one-off registry patch helper retained for troubleshooting only."
-    },
     "ui/handlers/match-mode.js": {
       "category": "dist-wrapper",
       "reason": "UI match-mode source is TypeScript; JS keeps the minimal browser global compatibility shell."
