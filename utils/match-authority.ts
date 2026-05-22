@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -54,6 +53,18 @@ interface MatchAuthorityGachaHandCatalogShared {
 interface MatchAuthorityStateHash {
     [key: string]: unknown;
     computeStableHash?: (value: unknown) => string;
+}
+
+interface MatchAuthorityPublishResponseOptionInput extends MatchAuthorityPublishResponseOptions {
+    publishKind?: unknown;
+}
+
+interface MatchAuthorityCardLogicLike {
+    getCardDef?: (cardId: string) => { name?: unknown } | null | undefined;
+}
+
+interface MatchAuthorityPlaybackAdapterLike {
+    mapEffectLogsFromPipeline?: (rawEvents: unknown, presentationEvents: unknown, playerKey: unknown) => unknown;
 }
 
 function loadOptionalCommonJsModule<T extends object>(modulePath: string): T | null {
@@ -229,7 +240,7 @@ function buildPublicSeatMetadata(value: unknown): {
     };
 }
 
-function hasRequiredOperationId(value) {
+function hasRequiredOperationId(value: unknown): boolean {
     return normalizeOperationId(value) !== '';
 }
 
@@ -251,8 +262,8 @@ function ensureAcceptedOperationsBySeat(room: MatchAuthorityRoomState | null | u
 }
 
 function normalizeAcceptedOperationEntry(value: unknown): MatchAuthorityAcceptedOperationEntry | null {
-    const source = (value && typeof value === 'object') ? value : null;
-    if (!source) return null;
+    if (!value || typeof value !== 'object') return null;
+    const source = asRecord(value);
     const operationId = normalizeOperationId(source.operationId);
     if (!operationId) return null;
     return {
@@ -359,13 +370,13 @@ function rememberAcceptedOperationBySeat(
     return historyBySeat[normalizedSeat][historyBySeat[normalizedSeat].length - 1] || null;
 }
 
-function normalizeStateVersion(value) {
+function normalizeStateVersion(value: unknown): number | null {
     return Number.isFinite(Number(value))
         ? Number(value)
         : null;
 }
 
-function classifyVersionRejectionReason(receivedBaseVersionValue, authoritativeStateVersionValue) {
+function classifyVersionRejectionReason(receivedBaseVersionValue: unknown, authoritativeStateVersionValue: unknown): string {
     const receivedMissing = receivedBaseVersionValue === null
         || receivedBaseVersionValue === undefined
         || (typeof receivedBaseVersionValue === 'string' && receivedBaseVersionValue.trim() === '');
@@ -389,7 +400,7 @@ function classifyVersionRejectionReason(receivedBaseVersionValue, authoritativeS
     return VERSION_REJECTION_REASONS.MISMATCH;
 }
 
-function isVersionRejectionReason(reasonValue) {
+function isVersionRejectionReason(reasonValue: unknown): boolean {
     const normalized = String(reasonValue || '').trim();
     return normalized === VERSION_REJECTION_REASONS.MISMATCH
         || normalized === VERSION_REJECTION_REASONS.AHEAD
@@ -397,13 +408,13 @@ function isVersionRejectionReason(reasonValue) {
         || normalized === VERSION_REJECTION_REASONS.GAP;
 }
 
-function normalizePublishActionType(value) {
+function normalizePublishActionType(value: unknown): string | null {
     const normalized = String(value || '').trim().toLowerCase();
     return normalized || null;
 }
 
 function normalizePublishMeta(value: unknown): MatchAuthorityPublishMeta {
-    const source = (value && typeof value === 'object') ? value : {};
+    const source = asRecord(value);
     const normalizedKind = String(source.kind || '').trim().toLowerCase();
     const normalized = {
         kind: normalizedKind || null,
@@ -419,9 +430,9 @@ function normalizePublishMeta(value: unknown): MatchAuthorityPublishMeta {
     return normalized;
 }
 
-function buildPublishResponseOptions(options) {
-    const opts = (options && typeof options === 'object') ? options : {};
-    const response = {
+function buildPublishResponseOptions(options: MatchAuthorityPublishResponseOptionInput | null | undefined): MatchAuthorityPublishResponseOptions {
+    const opts = asRecord(options);
+    const response: MatchAuthorityPublishResponseOptions = {
         ok: opts.ok === true,
         publishMeta: normalizePublishMeta({
             kind: opts.publishKind,
@@ -458,8 +469,11 @@ function buildPublishResponseOptions(options) {
     return response;
 }
 
-function buildVersionRejectedPublishResponseOptions(room, options) {
-    const opts = (options && typeof options === 'object') ? options : {};
+function buildVersionRejectedPublishResponseOptions(
+    room: MatchAuthorityRoomState | null | undefined,
+    options: MatchAuthorityPublishResponseOptionInput | null | undefined
+): MatchAuthorityPublishResponseOptions {
+    const opts = asRecord(options);
     const authoritativeStateVersion = normalizeStateVersion(
         Object.prototype.hasOwnProperty.call(opts, 'authoritativeStateVersion')
             ? opts.authoritativeStateVersion
@@ -481,9 +495,9 @@ function buildVersionRejectedPublishResponseOptions(room, options) {
     });
 }
 
-function normalizeEffectLogMessages(values) {
+function normalizeEffectLogMessages(values: unknown): string[] {
     const source = Array.isArray(values) ? values : [];
-    const next = [];
+    const next: string[] = [];
     for (let index = 0; index < source.length; index += 1) {
         const text = String(source[index] || '').trim();
         if (!text) continue;
@@ -493,10 +507,11 @@ function normalizeEffectLogMessages(values) {
     return next;
 }
 
-function appendEffectLogMessages(...lists) {
-    const merged = [];
+function appendEffectLogMessages(...lists: unknown[]): string[] {
+    const merged: unknown[] = [];
     for (let index = 0; index < lists.length; index += 1) {
-        const list = Array.isArray(lists[index]) ? lists[index] : [];
+        const listCandidate = lists[index];
+        const list: unknown[] = Array.isArray(listCandidate) ? listCandidate : [];
         for (let innerIndex = 0; innerIndex < list.length; innerIndex += 1) {
             merged.push(list[innerIndex]);
         }
@@ -504,18 +519,19 @@ function appendEffectLogMessages(...lists) {
     return normalizeEffectLogMessages(merged);
 }
 
-function getSeatLabelJa(playerKey: PlayerKey | null | undefined): string {
+function getSeatLabelJa(playerKey: unknown): string {
     return normalizePlayerKey(playerKey) === 'white' ? '白' : '黒';
 }
 
-function resolveActionCardId(action) {
+function resolveActionCardId(action: unknown): string {
     if (!action || typeof action !== 'object') return '';
-    if (action.useCardId) return String(action.useCardId);
-    if (action.cardId) return String(action.cardId);
+    const source = asRecord(action);
+    if (source.useCardId) return String(source.useCardId);
+    if (source.cardId) return String(source.cardId);
     return '';
 }
 
-function resolveActionCardDisplayName(action, cardLogic) {
+function resolveActionCardDisplayName(action: unknown, cardLogic: MatchAuthorityCardLogicLike | null | undefined): string {
     const cardId = resolveActionCardId(action);
     if (!cardId) return '';
     const cardDef = (cardLogic && typeof cardLogic.getCardDef === 'function')
@@ -525,49 +541,66 @@ function resolveActionCardDisplayName(action, cardLogic) {
     return displayName || cardId;
 }
 
-function buildNetworkCardUseEffectLogs(action, playerKey, cardLogic) {
-    const actionType = String(action && (action.type || action.actionType) ? (action.type || action.actionType) : '').trim().toLowerCase();
+function buildNetworkCardUseEffectLogs(action: unknown, playerKey: unknown, cardLogic: MatchAuthorityCardLogicLike | null | undefined): string[] {
+    const source = asRecord(action);
+    const actionType = String(source.type || source.actionType || '').trim().toLowerCase();
     if (actionType !== 'use_card') return [];
     const displayName = resolveActionCardDisplayName(action, cardLogic);
     if (!displayName) return [];
     return [`${getSeatLabelJa(playerKey)}がカードを使用: ${displayName}`];
 }
 
-function collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, playbackAdapter) {
+function collectPipelineEffectLogMessages(
+    rawEvents: unknown,
+    presentationEvents: unknown,
+    playerKey: unknown,
+    playbackAdapter: MatchAuthorityPlaybackAdapterLike | null | undefined
+): string[] {
     const adapter = (playbackAdapter && typeof playbackAdapter.mapEffectLogsFromPipeline === 'function')
         ? playbackAdapter
         : null;
     if (!adapter) return [];
+    const mapEffectLogsFromPipeline = adapter.mapEffectLogsFromPipeline;
+    if (typeof mapEffectLogsFromPipeline !== 'function') return [];
     try {
         return normalizeEffectLogMessages(
-            adapter.mapEffectLogsFromPipeline(rawEvents, presentationEvents, playerKey) || []
+            mapEffectLogsFromPipeline(rawEvents, presentationEvents, playerKey) || []
         );
     } catch (e) {
         return [];
     }
 }
 
-function isNetworkDebugFillHandAction(value) {
+function isNetworkDebugFillHandAction(value: unknown): boolean {
     return String(value || '').trim().toLowerCase() === NETWORK_DEBUG_FILL_HAND_ACTION;
 }
 
-function isNetworkDebugFillHandPayload(value) {
+function isNetworkDebugFillHandPayload(value: unknown): boolean {
     if (!value || typeof value !== 'object') return false;
-    if (isNetworkDebugFillHandAction(value.actionType)) return true;
-    return isNetworkDebugFillHandAction(value.action && value.action.type);
+    const source = asRecord(value);
+    const action = asRecord(source.action);
+    if (isNetworkDebugFillHandAction(source.actionType)) return true;
+    return isNetworkDebugFillHandAction(action.type);
 }
 
-function resolveNetworkDebugFillHandOptions(value) {
-    if (!value || typeof value !== 'object') return {};
-    const action = value.action && typeof value.action === 'object' ? value.action : {};
-    const params = value.params && typeof value.params === 'object' ? value.params : {};
+function resolveNetworkDebugFillHandOptions(value: unknown): {
+    fillWhite: boolean;
+    replaceExisting: boolean;
+    cardIds?: unknown[];
+    charge?: number;
+    chargeByPlayer?: { black?: number; white?: number };
+} {
+    if (!value || typeof value !== 'object') return { fillWhite: false, replaceExisting: false };
+    const source = asRecord(value);
+    const action = asRecord(source.action);
+    const params = asRecord(source.params);
     const rawCardIds = Array.isArray(params.cardIds) ? params.cardIds : (Array.isArray(action.cardIds) ? action.cardIds : null);
     const rawCharge = Number.isFinite(Number(params.charge)) ? Number(params.charge) : (
         Number.isFinite(Number(action.charge)) ? Number(action.charge) : undefined
     );
     const rawChargeByPlayer = (params.chargeByPlayer && typeof params.chargeByPlayer === 'object')
-        ? params.chargeByPlayer
-        : ((action.chargeByPlayer && typeof action.chargeByPlayer === 'object') ? action.chargeByPlayer : null);
+        ? asRecord(params.chargeByPlayer)
+        : ((action.chargeByPlayer && typeof action.chargeByPlayer === 'object') ? asRecord(action.chargeByPlayer) : null);
     const chargeByPlayer = rawChargeByPlayer
         ? {
             black: Number.isFinite(Number(rawChargeByPlayer.black)) ? Number(rawChargeByPlayer.black) : undefined,
@@ -583,17 +616,17 @@ function resolveNetworkDebugFillHandOptions(value) {
     };
 }
 
-function isPlainObject(value) {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
     return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
-function mergeWithDefaultShape(defaultValue, overrideValue) {
+function mergeWithDefaultShape(defaultValue: unknown, overrideValue: unknown): unknown {
     if (Array.isArray(defaultValue)) {
         return Array.isArray(overrideValue) ? deepClone(overrideValue) : deepClone(defaultValue);
     }
 
     if (isPlainObject(defaultValue)) {
-        const result = deepClone(defaultValue);
+        const result = deepClone(defaultValue) as Record<string, unknown>;
         if (!isPlainObject(overrideValue)) {
             return result;
         }
@@ -611,24 +644,26 @@ function mergeWithDefaultShape(defaultValue, overrideValue) {
         : deepClone(overrideValue);
 }
 
-function mixTurnStartSeed(seed, value) {
+function mixTurnStartSeed(seed: unknown, value: unknown): number {
     const numeric = Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : 0;
     const normalizedSeed = (Number(seed) >>> 0) || 1;
     return ((normalizedSeed ^ (numeric >>> 0)) * 1664525 + 1013904223) >>> 0;
 }
 
-function createTurnStartSeed(room, snapshot, playerKey) {
-    const gameState = snapshot && snapshot.gameState;
-    const cardState = snapshot && snapshot.cardState;
-    let seed = Number.isFinite(Number(room && room.seed)) ? (Math.trunc(Number(room.seed)) >>> 0) : 1;
-    seed = mixTurnStartSeed(seed, snapshot && snapshot.stateVersion);
+function createTurnStartSeed(room: MatchAuthorityRoomState | null | undefined, snapshot: unknown, playerKey: unknown): number {
+    const snapshotRecord = asRecord(snapshot);
+    const gameState = asRecord(snapshotRecord.gameState);
+    const cardState = asRecord(snapshotRecord.cardState);
+    const roomSeed = room ? room.seed : undefined;
+    let seed = Number.isFinite(Number(roomSeed)) ? (Math.trunc(Number(roomSeed)) >>> 0) : 1;
+    seed = mixTurnStartSeed(seed, snapshotRecord.stateVersion);
     seed = mixTurnStartSeed(seed, gameState && gameState.turnNumber);
     seed = mixTurnStartSeed(seed, cardState && cardState.turnIndex);
     seed = mixTurnStartSeed(seed, normalizePlayerKey(playerKey) === 'white' ? 0x9E3779B1 : 0x243F6A88);
     return seed || 1;
 }
 
-function normalizeRoomBoardConfig(value, fallbackBoard) {
+function normalizeRoomBoardConfig(value: unknown, fallbackBoard?: unknown): unknown {
     const source = (value !== null && typeof value !== 'undefined') ? value : fallbackBoard;
     if (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardConfig === 'function') {
         const normalized = SharedBoardUtils.resolveBoardConfig(source);
@@ -637,9 +672,10 @@ function normalizeRoomBoardConfig(value, fallbackBoard) {
 
     const fallback = Array.isArray(source)
         ? source
-        : ((source && Array.isArray(source.board)) ? source.board : (Array.isArray(fallbackBoard) ? fallbackBoard : null));
-    const rows = Number(value && value.rows);
-    const cols = Number(value && value.cols);
+        : ((source && typeof source === 'object' && Array.isArray(asRecord(source).board)) ? asRecord(source).board : (Array.isArray(fallbackBoard) ? fallbackBoard : null));
+    const valueRecord = asRecord(value);
+    const rows = Number(valueRecord.rows);
+    const cols = Number(valueRecord.cols);
     const fallbackRows = Array.isArray(fallback) ? fallback.length : NaN;
     const fallbackCols = Array.isArray(fallback) && Array.isArray(fallback[0]) ? fallback[0].length : NaN;
     const normalizedRows = Number.isFinite(rows) && rows > 0
@@ -667,15 +703,17 @@ function normalizeRoomBoardConfig(value, fallbackBoard) {
     };
 }
 
-function resolveRoomBoardConfig(value) {
-    const source = (value && typeof value === 'object') ? value : {};
+function resolveRoomBoardConfig(value: unknown): unknown {
+    const source = asRecord(value);
+    const snapshot = asRecord(source.snapshot);
+    const gameState = asRecord(snapshot.gameState);
     return normalizeRoomBoardConfig(
         source.boardConfig || source.roomBoardConfig,
-        source.snapshot && source.snapshot.gameState && source.snapshot.gameState.board
+        gameState.board
     );
 }
 
-function assignOptionalRoomBoardConfig(target, source) {
+function assignOptionalRoomBoardConfig<T extends Record<string, unknown>>(target: T, source: unknown): T {
     if (
         target
         && typeof target === 'object'
@@ -683,7 +721,7 @@ function assignOptionalRoomBoardConfig(target, source) {
         && typeof source === 'object'
         && Object.prototype.hasOwnProperty.call(source, 'roomBoardConfig')
     ) {
-        target.roomBoardConfig = source.roomBoardConfig;
+        (target as Record<string, unknown>).roomBoardConfig = asRecord(source).roomBoardConfig;
     }
     return target;
 }
@@ -1012,29 +1050,30 @@ function applySeatLeaveToRoom(
     };
 }
 
-function shouldDisposeRoom(roomValue, streamCountValue) {
-    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+function shouldDisposeRoom(roomValue: unknown, streamCountValue: unknown): boolean {
+    const room = (roomValue && typeof roomValue === 'object') ? asRecord(roomValue) : null;
     if (!room) return false;
+    const seats = asRecord(room.seats);
     const streamCount = Number.isFinite(Number(streamCountValue))
         ? Math.max(0, Math.trunc(Number(streamCountValue)))
         : 0;
     return !(
         room.seats
-        && (room.seats.black || room.seats.white)
+        && (seats.black || seats.white)
     ) && streamCount === 0;
 }
 
-function makeHiddenHandToken(ownerKey, handIndex) {
+function makeHiddenHandToken(ownerKey: unknown, handIndex: unknown): string {
     const normalizedOwner = normalizePlayerKey(ownerKey);
     const idx = Number.isFinite(Number(handIndex)) ? Math.max(0, Math.trunc(Number(handIndex))) : 0;
     return `${HIDDEN_HAND_TOKEN_PREFIX}${normalizedOwner}:${idx}`;
 }
 
-function isHiddenHandTokenLike(value) {
+function isHiddenHandTokenLike(value: unknown): boolean {
     return typeof value === 'string' && value.startsWith(HIDDEN_HAND_TOKEN_PREFIX);
 }
 
-function parseHiddenHandToken(value) {
+function parseHiddenHandToken(value: unknown): { ownerKey: PlayerKey; handIndex: number } | null {
     const match = String(value || '').match(HIDDEN_HAND_TOKEN_RE);
     if (!match) return null;
     const ownerKey = normalizePlayerKey(match[1]);
@@ -1043,16 +1082,16 @@ function parseHiddenHandToken(value) {
     return { ownerKey, handIndex };
 }
 
-function normalizeProjectedHandIndex(value, fallbackIndex, handLength) {
-    if (!Number.isInteger(handLength) || handLength <= 0) return null;
-    if (Number.isInteger(value) && value >= 0 && value < handLength) return value;
-    if (Number.isInteger(fallbackIndex) && fallbackIndex >= 0 && fallbackIndex < handLength) return fallbackIndex;
+function normalizeProjectedHandIndex(value: unknown, fallbackIndex: unknown, handLength: unknown): number | null {
+    if (typeof handLength !== 'number' || !Number.isInteger(handLength) || handLength <= 0) return null;
+    if (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < handLength) return value;
+    if (typeof fallbackIndex === 'number' && Number.isInteger(fallbackIndex) && fallbackIndex >= 0 && fallbackIndex < handLength) return fallbackIndex;
     return null;
 }
 
-function normalizeCardCopyIdList(values) {
+function normalizeCardCopyIdList(values: unknown): number[] {
     if (!Array.isArray(values)) return [];
-    const next = [];
+    const next: number[] = [];
     for (const rawValue of values) {
         const numeric = Number(rawValue);
         if (!Number.isInteger(numeric) || numeric <= 0) continue;
@@ -1061,9 +1100,9 @@ function normalizeCardCopyIdList(values) {
     return next;
 }
 
-function normalizeHandCopyIdArray(values, targetLength) {
+function normalizeHandCopyIdArray(values: unknown, targetLength: unknown): Array<number | null> {
     const length = Number.isFinite(Number(targetLength)) ? Math.max(0, Math.trunc(Number(targetLength))) : 0;
-    const next = Array(length).fill(null);
+    const next: Array<number | null> = Array(length).fill(null);
     if (!Array.isArray(values)) return next;
     for (let index = 0; index < length; index += 1) {
         const numeric = Number(values[index]);
@@ -1098,24 +1137,26 @@ function classifySeatTokenRejectionReason(seatTokenValue: unknown): MatchAuthori
         : 'SEAT_TOKEN_REQUIRED';
 }
 
-function stripTransientPresentationState(nextSnapshot) {
-    const cardState = (nextSnapshot && nextSnapshot.cardState && typeof nextSnapshot.cardState === 'object')
-        ? nextSnapshot.cardState
+function stripTransientPresentationState(nextSnapshot: unknown): unknown {
+    const snapshot = asRecord(nextSnapshot);
+    const cardState = (snapshot.cardState && typeof snapshot.cardState === 'object')
+        ? asRecord(snapshot.cardState)
         : null;
     if (cardState) {
         cardState.presentationEvents = [];
         cardState._presentationEventsPersist = [];
         delete cardState._currentActionMeta;
     }
-    if (nextSnapshot && nextSnapshot.gameState && typeof nextSnapshot.gameState === 'object') {
-        delete nextSnapshot.gameState.__resultShown;
+    if (snapshot.gameState && typeof snapshot.gameState === 'object') {
+        delete asRecord(snapshot.gameState).__resultShown;
     }
     return nextSnapshot;
 }
 
-function stripTransientChargeDeltaState(nextSnapshot) {
-    const cardState = (nextSnapshot && nextSnapshot.cardState && typeof nextSnapshot.cardState === 'object')
-        ? nextSnapshot.cardState
+function stripTransientChargeDeltaState(nextSnapshot: unknown): unknown {
+    const snapshot = asRecord(nextSnapshot);
+    const cardState = (snapshot.cardState && typeof snapshot.cardState === 'object')
+        ? asRecord(snapshot.cardState)
         : null;
     if (cardState) {
         cardState.chargeDeltaEvents = [];
@@ -1123,18 +1164,20 @@ function stripTransientChargeDeltaState(nextSnapshot) {
     return nextSnapshot;
 }
 
-function normalizeChargeValueForAuthority(value) {
+function normalizeChargeValueForAuthority(value: unknown): number {
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return 0;
     return numeric;
 }
 
-function restoreMissingChargeDeltaEvents(previousSnapshot, nextSnapshot) {
-    const previousCardState = (previousSnapshot && previousSnapshot.cardState && typeof previousSnapshot.cardState === 'object')
-        ? previousSnapshot.cardState
+function restoreMissingChargeDeltaEvents(previousSnapshot: unknown, nextSnapshot: unknown): unknown {
+    const previousSnapshotRecord = asRecord(previousSnapshot);
+    const nextSnapshotRecord = asRecord(nextSnapshot);
+    const previousCardState = (previousSnapshotRecord.cardState && typeof previousSnapshotRecord.cardState === 'object')
+        ? asRecord(previousSnapshotRecord.cardState)
         : null;
-    const nextCardState = (nextSnapshot && nextSnapshot.cardState && typeof nextSnapshot.cardState === 'object')
-        ? nextSnapshot.cardState
+    const nextCardState = (nextSnapshotRecord.cardState && typeof nextSnapshotRecord.cardState === 'object')
+        ? asRecord(nextSnapshotRecord.cardState)
         : null;
     if (!previousCardState || !nextCardState) return nextSnapshot;
     if (Array.isArray(nextCardState.chargeDeltaEvents) && nextCardState.chargeDeltaEvents.length > 0) {
@@ -1142,14 +1185,21 @@ function restoreMissingChargeDeltaEvents(previousSnapshot, nextSnapshot) {
     }
 
     const previousCharge = (previousCardState.charge && typeof previousCardState.charge === 'object')
-        ? previousCardState.charge
+        ? asRecord(previousCardState.charge)
         : null;
     const nextCharge = (nextCardState.charge && typeof nextCardState.charge === 'object')
-        ? nextCardState.charge
+        ? asRecord(nextCardState.charge)
         : null;
     if (!previousCharge || !nextCharge) return nextSnapshot;
 
-    const events = [];
+    const events: Array<{
+        seq: number;
+        player: string;
+        before: number;
+        after: number;
+        delta: number;
+        reason: string;
+    }> = [];
     let seq = 1;
     for (const playerKey of PLAYER_KEYS) {
         const before = normalizeChargeValueForAuthority(previousCharge[playerKey]);
@@ -1177,29 +1227,32 @@ function restoreMissingChargeDeltaEvents(previousSnapshot, nextSnapshot) {
     return nextSnapshot;
 }
 
-function isTrapStoneLike(entry) {
+function isTrapStoneLike(entry: unknown): boolean {
     if (!entry || typeof entry !== 'object') return false;
-    if (entry.data && entry.data.type === 'TRAP') return true;
-    return entry.type === 'TRAP';
+    const source = asRecord(entry);
+    const data = asRecord(source.data);
+    if (data.type === 'TRAP') return true;
+    return source.type === 'TRAP';
 }
 
-function isTrapVisibleToViewer(entry, viewerSeatKey) {
+function isTrapVisibleToViewer(entry: unknown, viewerSeatKey: unknown): boolean {
     if (!isTrapStoneLike(entry)) return true;
-    const ownerKey = parseSeatKeyOptional(entry.owner);
+    const ownerKey = parseSeatKeyOptional(asRecord(entry).owner);
     if (!ownerKey) return false;
     return ownerKey === viewerSeatKey;
 }
 
-function sanitizeOwnerOnlyTrapState(cardState, viewerSeatKey) {
+function sanitizeOwnerOnlyTrapState(cardState: unknown, viewerSeatKey: unknown): unknown {
     if (!cardState || typeof cardState !== 'object') return cardState;
+    const state = asRecord(cardState);
     const viewer = parseSeatKeyOptional(viewerSeatKey);
 
-    if (Array.isArray(cardState.markers)) {
-        cardState.markers = cardState.markers.filter((marker) => isTrapVisibleToViewer(marker, viewer));
+    if (Array.isArray(state.markers)) {
+        state.markers = state.markers.filter((marker: unknown) => isTrapVisibleToViewer(marker, viewer));
     }
 
-    if (Array.isArray(cardState.specialStones)) {
-        cardState.specialStones = cardState.specialStones.filter((stone) => isTrapVisibleToViewer(stone, viewer));
+    if (Array.isArray(state.specialStones)) {
+        state.specialStones = state.specialStones.filter((stone: unknown) => isTrapVisibleToViewer(stone, viewer));
     }
 
     return cardState;
@@ -1209,13 +1262,14 @@ function sanitizeOwnerOnlyTrapState(cardState, viewerSeatKey) {
  * Returns the FATE_WILL controller seat key for the given turn owner, or null if none.
  * Reads from snapshot.cardState.fateWillControllerByTurnOwner.
  */
-function getFateWillControllerKey(snapshot: { cardState?: Partial<CardState> | null } | null | undefined, turnOwnerKey: PlayerKey | null | undefined): PlayerKey | null {
-    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object')
-        ? snapshot.cardState
+function getFateWillControllerKey(snapshot: unknown, turnOwnerKey: PlayerKey | null | undefined): PlayerKey | null {
+    const snapshotRecord = asRecord(snapshot);
+    const cardState = (snapshotRecord.cardState && typeof snapshotRecord.cardState === 'object')
+        ? asRecord(snapshotRecord.cardState)
         : null;
     if (!cardState) return null;
     const controllerMap = (cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
-        ? cardState.fateWillControllerByTurnOwner
+        ? asRecord(cardState.fateWillControllerByTurnOwner)
         : {};
     const owner = parseSeatKeyOptional(turnOwnerKey);
     if (!owner) return null;
@@ -1226,11 +1280,12 @@ function getFateWillControllerKey(snapshot: { cardState?: Partial<CardState> | n
  * Returns true if seatKey is the authenticated FATE_WILL controller for the current turn owner.
  * Only valid when it is currently the turn owner's turn (gameState.currentPlayer === turnOwnerKey).
  */
-function isFateWillControllerForCurrentTurn(snapshot: { gameState?: Partial<GameState> | null; cardState?: Partial<CardState> | null } | null | undefined, seatKey: PlayerKey | null | undefined): boolean {
+function isFateWillControllerForCurrentTurn(snapshot: unknown, seatKey: PlayerKey | null | undefined): boolean {
     const seat = parseSeatKeyOptional(seatKey);
     if (!seat) return false;
-    const gameState = (snapshot && snapshot.gameState && typeof snapshot.gameState === 'object')
-        ? snapshot.gameState
+    const snapshotRecord = asRecord(snapshot);
+    const gameState = (snapshotRecord.gameState && typeof snapshotRecord.gameState === 'object')
+        ? snapshotRecord.gameState as Partial<GameState>
         : null;
     const currentPlayerKey = getCurrentPlayerKey(gameState);
     if (seat === currentPlayerKey) return false;
@@ -1238,13 +1293,14 @@ function isFateWillControllerForCurrentTurn(snapshot: { gameState?: Partial<Game
     return controllerKey === seat;
 }
 
-function canViewerInspectOwnerHand(snapshot: { gameState?: Partial<GameState> | null; cardState?: Partial<CardState> | null } | null | undefined, viewerSeatKey: PlayerKey | null | undefined, ownerSeatKey: PlayerKey | null | undefined): boolean {
+function canViewerInspectOwnerHand(snapshot: unknown, viewerSeatKey: unknown, ownerSeatKey: unknown): boolean {
     const viewer = parseSeatKeyOptional(viewerSeatKey);
     const owner = parseSeatKeyOptional(ownerSeatKey);
     if (!viewer || !owner) return false;
     if (viewer === owner) return true;
-    const gameState = (snapshot && snapshot.gameState && typeof snapshot.gameState === 'object')
-        ? snapshot.gameState
+    const snapshotRecord = asRecord(snapshot);
+    const gameState = (snapshotRecord.gameState && typeof snapshotRecord.gameState === 'object')
+        ? snapshotRecord.gameState as Partial<GameState>
         : null;
     const currentPlayerKey = getCurrentPlayerKey(gameState);
     if (owner !== currentPlayerKey) return false;
@@ -1256,7 +1312,7 @@ function projectSnapshotForViewer(
     viewerSeatKey: PlayerKey | null | undefined,
     metadata?: MatchAuthorityProjectionMetadata
 ): MatchAuthorityPublicSnapshot {
-    const shot = deepClone(snapshotValue || {});
+    const shot = deepClone(snapshotValue || {}) as MatchAuthorityPublicSnapshot;
     const meta = (metadata && typeof metadata === 'object') ? metadata : {};
     if (Number.isFinite(Number(meta.stateVersion))) {
         shot.stateVersion = Number(meta.stateVersion);
@@ -1265,27 +1321,28 @@ function projectSnapshotForViewer(
         shot.updatedAt = Number(meta.updatedAt);
     }
 
-    const cardState = (shot.cardState && typeof shot.cardState === 'object') ? shot.cardState : null;
+    const cardState = (shot.cardState && typeof shot.cardState === 'object') ? asRecord(shot.cardState) : null;
     if (!cardState) return shot;
 
     const viewer = parseSeatKeyOptional(viewerSeatKey);
     sanitizeOwnerOnlyTrapState(cardState, viewer);
-    const hands = (cardState.hands && typeof cardState.hands === 'object') ? cardState.hands : {};
-    const sourceHands = {};
+    const hands = (cardState.hands && typeof cardState.hands === 'object') ? asRecord(cardState.hands) : {};
+    const sourceHands: Record<PlayerKey, unknown[]> = { black: [], white: [] };
     const handCopyIdsByPlayer = (cardState._handCopyIdsByPlayer && typeof cardState._handCopyIdsByPlayer === 'object')
-        ? cardState._handCopyIdsByPlayer
+        ? asRecord(cardState._handCopyIdsByPlayer)
         : {};
     const revealedHandCopyIdsByViewer = (cardState._revealedHandCopyIdsByViewer && typeof cardState._revealedHandCopyIdsByViewer === 'object')
-        ? cardState._revealedHandCopyIdsByViewer
+        ? asRecord(cardState._revealedHandCopyIdsByViewer)
         : {};
     const revealedCopyIdsForViewer = viewer
         ? new Set(normalizeCardCopyIdList(revealedHandCopyIdsByViewer[viewer]))
         : new Set();
     cardState.hands = cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {};
+    const projectedHands = asRecord(cardState.hands);
 
-    for (const ownerKey of PLAYER_KEYS) {
+    for (const ownerKey of PLAYER_KEYS as readonly PlayerKey[]) {
         const ownerHand = Array.isArray(hands[ownerKey])
-            ? hands[ownerKey].map((cardId, handIndex) => (
+            ? hands[ownerKey].map((cardId: unknown, handIndex: number) => (
                 isHiddenHandTokenLike(cardId)
                     ? makeHiddenHandToken(ownerKey, handIndex)
                     : cardId
@@ -1294,10 +1351,10 @@ function projectSnapshotForViewer(
         const ownerHandCopyIds = normalizeHandCopyIdArray(handCopyIdsByPlayer[ownerKey], ownerHand.length);
         sourceHands[ownerKey] = ownerHand;
         if (canViewerInspectOwnerHand(shot, viewer, ownerKey)) {
-            cardState.hands[ownerKey] = ownerHand.slice();
+            projectedHands[ownerKey] = ownerHand.slice();
             continue;
         }
-        cardState.hands[ownerKey] = ownerHand.map((cardId, handIndex) => {
+        projectedHands[ownerKey] = ownerHand.map((cardId: unknown, handIndex: number) => {
             const cardCopyId = ownerHandCopyIds[handIndex];
             const shouldReveal = viewer
                 && Number.isInteger(cardCopyId)
@@ -1327,17 +1384,19 @@ function projectSnapshotForViewer(
     }
 
     if (cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object') {
-        for (const ownerKey of PLAYER_KEYS) {
-            const pending = cardState.pendingEffectByPlayer[ownerKey];
+        const pendingEffectByPlayer = asRecord(cardState.pendingEffectByPlayer);
+        for (const ownerKey of PLAYER_KEYS as readonly PlayerKey[]) {
+            const pending = asRecord(pendingEffectByPlayer[ownerKey]);
             if (!pending || pending.type !== 'CONDEMN_WILL' || !Array.isArray(pending.offers)) continue;
             const opponentKey = getOpponentKey(ownerKey);
             const opponentHand = Array.isArray(sourceHands[opponentKey]) ? sourceHands[opponentKey] : [];
             const revealToViewer = canViewerInspectOwnerHand(shot, viewer, ownerKey);
-            pending.offers = pending.offers.map((offer, idx) => {
-                const parsedToken = offer && offer.cardId ? parseHiddenHandToken(offer.cardId) : null;
+            pending.offers = pending.offers.map((offer: unknown, idx: number) => {
+                const offerRecord = asRecord(offer);
+                const parsedToken = offerRecord.cardId ? parseHiddenHandToken(offerRecord.cardId) : null;
                 const fallbackIndex = parsedToken && Number.isInteger(parsedToken.handIndex) ? parsedToken.handIndex : idx;
                 const handIndex = normalizeProjectedHandIndex(
-                    offer && Number.isInteger(offer.handIndex) ? offer.handIndex : fallbackIndex,
+                    Number.isInteger(offerRecord.handIndex) ? offerRecord.handIndex : fallbackIndex,
                     idx,
                     opponentHand.length
                 );
@@ -1393,44 +1452,45 @@ function buildPublicSnapshot(
     if (!shot._meta || typeof shot._meta !== 'object') {
         shot._meta = {};
     }
-    shot._meta.projectedSnapshotHash = projectedSnapshotHash;
+    asRecord(shot._meta).projectedSnapshotHash = projectedSnapshotHash;
     return shot;
 }
 
-function cloneSnapshotHashSource(snapshotValue) {
-    const shot = deepClone(snapshotValue || {});
+function cloneSnapshotHashSource(snapshotValue: unknown): unknown {
+    const shot = deepClone(snapshotValue || {}) as Record<string, unknown>;
     if (shot && typeof shot === 'object' && shot._meta && typeof shot._meta === 'object') {
-        delete shot._meta.projectedSnapshotHash;
-        delete shot._meta.authoritativeStateHash;
+        const meta = asRecord(shot._meta);
+        delete meta.projectedSnapshotHash;
+        delete meta.authoritativeStateHash;
     }
     return shot;
 }
 
-function computeAuthoritativeStateHash(snapshotValue) {
+function computeAuthoritativeStateHash(snapshotValue: unknown): string | null {
     if (!StateHash || typeof StateHash.computeStableHash !== 'function') return null;
     return StateHash.computeStableHash(cloneSnapshotHashSource(snapshotValue));
 }
 
-function computeProjectedSnapshotHash(snapshotValue) {
+function computeProjectedSnapshotHash(snapshotValue: unknown): string | null {
     if (!StateHash || typeof StateHash.computeStableHash !== 'function') return null;
     return StateHash.computeStableHash(cloneSnapshotHashSource(snapshotValue));
 }
 
-function validatePendingSelectionPublish(snapshotValue, playerKey, actionValue) {
-    const action = (actionValue && typeof actionValue === 'object') ? actionValue : null;
+function validatePendingSelectionPublish(snapshotValue: unknown, playerKey: unknown, actionValue: unknown): { ok: boolean; pendingEffectId?: string | null; rejectedReason?: string } {
+    const action = (actionValue && typeof actionValue === 'object') ? asRecord(actionValue) : null;
     const pendingSelectionState = (action && action.pendingSelectionState && typeof action.pendingSelectionState === 'object')
-        ? action.pendingSelectionState
+        ? asRecord(action.pendingSelectionState)
         : null;
     if (!pendingSelectionState) {
         return { ok: true };
     }
 
-    const snapshot = (snapshotValue && typeof snapshotValue === 'object') ? snapshotValue : null;
-    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object') ? snapshot.cardState : null;
+    const snapshot = (snapshotValue && typeof snapshotValue === 'object') ? asRecord(snapshotValue) : null;
+    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object') ? asRecord(snapshot.cardState) : null;
     const pendingByPlayer = (cardState && cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object')
-        ? cardState.pendingEffectByPlayer
+        ? asRecord(cardState.pendingEffectByPlayer)
         : null;
-    const expectedPending = pendingByPlayer ? pendingByPlayer[normalizePlayerKey(playerKey)] : null;
+    const expectedPending = pendingByPlayer ? asRecord(pendingByPlayer[normalizePlayerKey(playerKey)]) : null;
     if (!expectedPending || !expectedPending.type) {
         const hasCompatibilityCardContext = !!(
             action
@@ -1469,16 +1529,18 @@ function validatePendingSelectionPublish(snapshotValue, playerKey, actionValue) 
     };
 }
 
-function normalizeCardIdOptional(value) {
+function normalizeCardIdOptional(value: unknown): string | null {
     const normalized = String(value || '').trim();
     return normalized || null;
 }
 
-function hasCardInHandForAuthority(cardState, ownerKey, cardId) {
-    const hands = cardState && cardState.hands && typeof cardState.hands === 'object'
-        ? cardState.hands
+function hasCardInHandForAuthority(cardState: unknown, ownerKey: unknown, cardId: unknown): boolean {
+    const state = asRecord(cardState);
+    const hands = state.hands && typeof state.hands === 'object'
+        ? asRecord(state.hands)
         : null;
-    const hand = hands && Array.isArray(hands[ownerKey]) ? hands[ownerKey] : [];
+    const owner = normalizePlayerKey(ownerKey);
+    const hand = hands && Array.isArray(hands[owner]) ? hands[owner] : [];
     const normalizedCardId = normalizeCardIdOptional(cardId);
     if (!normalizedCardId) return false;
     for (let index = 0; index < hand.length; index += 1) {
@@ -1489,8 +1551,9 @@ function hasCardInHandForAuthority(cardState, ownerKey, cardId) {
     return false;
 }
 
-function hasCardInDiscardForAuthority(cardState, cardId) {
-    const discard = cardState && Array.isArray(cardState.discard) ? cardState.discard : [];
+function hasCardInDiscardForAuthority(cardState: unknown, cardId: unknown): boolean {
+    const state = asRecord(cardState);
+    const discard = Array.isArray(state.discard) ? state.discard : [];
     const normalizedCardId = normalizeCardIdOptional(cardId);
     if (!normalizedCardId) return false;
     for (let index = 0; index < discard.length; index += 1) {
@@ -1501,19 +1564,21 @@ function hasCardInDiscardForAuthority(cardState, cardId) {
     return false;
 }
 
-function shouldStripCommittedPendingCardUse(cardState, playerKey, action, expectedPending) {
+function shouldStripCommittedPendingCardUse(cardState: unknown, playerKey: unknown, action: unknown, expectedPending: unknown): boolean {
+    const state = asRecord(cardState);
+    const actionRecord = asRecord(action);
+    const pendingRecord = asRecord(expectedPending);
     const normalizedPlayerKey = normalizePlayerKey(playerKey);
-    const normalizedUseCardId = normalizeCardIdOptional(action && action.useCardId);
-    const normalizedPendingCardId = normalizeCardIdOptional(expectedPending && expectedPending.cardId);
+    const normalizedUseCardId = normalizeCardIdOptional(actionRecord.useCardId);
+    const normalizedPendingCardId = normalizeCardIdOptional(pendingRecord.cardId);
     if (!normalizedUseCardId || !normalizedPendingCardId || normalizedUseCardId !== normalizedPendingCardId) {
         return false;
     }
 
-    const normalizedHandOwnerKey = normalizePlayerKey(action && action.useCardOwnerKey, normalizedPlayerKey);
+    const normalizedHandOwnerKey = normalizePlayerKey(actionRecord.useCardOwnerKey, normalizedPlayerKey);
     const hasUsedCardThisTurn = !!(
-        cardState
-        && cardState.hasUsedCardThisTurnByPlayer
-        && cardState.hasUsedCardThisTurnByPlayer[normalizedPlayerKey] === true
+        state.hasUsedCardThisTurnByPlayer
+        && asRecord(state.hasUsedCardThisTurnByPlayer)[normalizedPlayerKey] === true
     );
     const cardStillInHand = hasCardInHandForAuthority(cardState, normalizedHandOwnerKey, normalizedUseCardId);
     const cardAlreadyInDiscard = hasCardInDiscardForAuthority(cardState, normalizedUseCardId);
@@ -1521,37 +1586,37 @@ function shouldStripCommittedPendingCardUse(cardState, playerKey, action, expect
     return hasUsedCardThisTurn || cardAlreadyInDiscard || !cardStillInHand;
 }
 
-function sanitizePendingSelectionActionForAuthority(snapshotValue, playerKey, actionValue) {
-    const action = (actionValue && typeof actionValue === 'object') ? actionValue : null;
+function sanitizePendingSelectionActionForAuthority(snapshotValue: unknown, playerKey: unknown, actionValue: unknown): unknown {
+    const action = (actionValue && typeof actionValue === 'object') ? asRecord(actionValue) : null;
     if (!action) return actionValue;
 
     const pendingSelectionState = (action.pendingSelectionState && typeof action.pendingSelectionState === 'object')
-        ? action.pendingSelectionState
+        ? asRecord(action.pendingSelectionState)
         : null;
     if (!pendingSelectionState) return actionValue;
 
-    const snapshot = (snapshotValue && typeof snapshotValue === 'object') ? snapshotValue : null;
-    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object') ? snapshot.cardState : null;
+    const snapshot = (snapshotValue && typeof snapshotValue === 'object') ? asRecord(snapshotValue) : null;
+    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object') ? asRecord(snapshot.cardState) : null;
     const pendingByPlayer = (cardState && cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object')
-        ? cardState.pendingEffectByPlayer
+        ? asRecord(cardState.pendingEffectByPlayer)
         : null;
-    const expectedPending = pendingByPlayer ? pendingByPlayer[normalizePlayerKey(playerKey)] : null;
+    const expectedPending = pendingByPlayer ? asRecord(pendingByPlayer[normalizePlayerKey(playerKey)]) : null;
     if (!expectedPending || !expectedPending.type) return actionValue;
 
     if (!shouldStripCommittedPendingCardUse(cardState, playerKey, action, expectedPending)) {
         return actionValue;
     }
 
-    const nextAction = deepClone(action);
+    const nextAction = deepClone(action) as Record<string, unknown>;
     delete nextAction.useCardId;
     delete nextAction.useCardOwnerKey;
     return nextAction;
 }
 
-function appendAuthorityLog(roomValue, entryValue, limitValue) {
-    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+function appendAuthorityLog(roomValue: unknown, entryValue: unknown, limitValue: unknown): unknown[] {
+    const room = (roomValue && typeof roomValue === 'object') ? asRecord(roomValue) : null;
     if (!room) return [];
-    const entry = (entryValue && typeof entryValue === 'object') ? entryValue : {};
+    const entry = (entryValue && typeof entryValue === 'object') ? asRecord(entryValue) : {};
     const limit = Number.isFinite(Number(limitValue))
         ? Math.max(1, Math.trunc(Number(limitValue)))
         : AUTHORITY_LOG_LIMIT;

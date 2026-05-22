@@ -108,7 +108,6 @@ const allowedNoCheckDebt = new Set([
   'training/tests/selfplay.training-cycle.test.ts',
   'training/tests/selfplay.training-preset.test.ts',
   'ui.ts',
-  'utils/match-authority.ts',
   'utils/match-runtime-core.ts',
   'utils/owner-helpers.ts',
   'workers/match-worker-runtime-preload.ts',
