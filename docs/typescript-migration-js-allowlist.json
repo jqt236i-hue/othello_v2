@@ -38,23 +38,11 @@
       "category": "legacy-implementation",
       "reason": "Migration-era browser smoke helper retained for troubleshooting."
     },
-    "scripts/check-format.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era validation helper retained for troubleshooting."
-    },
-    "scripts/check-init-factory.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era validation helper retained for troubleshooting."
-    },
     "scripts/check-registry-content.js": {
       "category": "legacy-implementation",
       "reason": "Migration-era registry helper retained for troubleshooting."
     },
     "scripts/check-registry-content2.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era registry helper retained for troubleshooting."
-    },
-    "scripts/check-registry-dups.js": {
       "category": "legacy-implementation",
       "reason": "Migration-era registry helper retained for troubleshooting."
     },
@@ -75,10 +63,6 @@
       "reason": "Migration-era utility helper retained for troubleshooting."
     },
     "scripts/debug-single.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era debug helper retained for troubleshooting."
-    },
-    "scripts/debug-single2.js": {
       "category": "legacy-implementation",
       "reason": "Migration-era debug helper retained for troubleshooting."
     },
@@ -113,10 +97,6 @@
     "scripts/test-json.js": {
       "category": "legacy-implementation",
       "reason": "Migration-era utility helper retained for troubleshooting."
-    },
-    "scripts/validate-new.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era validation helper retained for troubleshooting."
     },
     "scripts/validate-registry.js": {
       "category": "legacy-implementation",
