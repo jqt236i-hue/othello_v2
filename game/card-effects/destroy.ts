@@ -13,18 +13,24 @@ const DestroyOutcomeContract = (function() {
 })();
 const ControllerEvents = _require('../controller-events');
 function getEmitLogAdded(): ((message: string) => void) | null {
-    const runtimeGlobal = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
-    if (runtimeGlobal && typeof runtimeGlobal.emitLogAdded === 'function') return runtimeGlobal.emitLogAdded;
+    if (__uiImpl_destroy && typeof __uiImpl_destroy.emitLogAdded === 'function') return __uiImpl_destroy.emitLogAdded;
     return ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function' ? ControllerEvents.emitLogAdded : null;
 }
 function getLogMessages(): any {
-    const runtimeGlobal = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
-    if (runtimeGlobal && runtimeGlobal.LOG_MESSAGES) return runtimeGlobal.LOG_MESSAGES;
+    if (__uiImpl_destroy && typeof __uiImpl_destroy.getLogMessages === 'function') {
+        const messages = __uiImpl_destroy.getLogMessages();
+        if (messages) return messages;
+    }
     return _require('../log-messages');
 }
 const GameControllerSlim = _require('../game-controller-slim');
-const CardLogic = _require('../logic/cards');
 const CardSystem = _require('../../card-system');
+
+let __uiImpl_destroy: any = {};
+
+function setUIImpl(obj: any): void {
+    __uiImpl_destroy = (obj && typeof obj === 'object') ? obj : {};
+}
 
 const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
     DESTROYED: 'destroyed',
@@ -88,9 +94,11 @@ function emitDestroyAppliedLog(context: any, playerKey: string, row: number, col
         : null;
     const outcomeKind = getDestroyOutcomeKind(selected);
     const playerLabel = playerKey === 'black' ? '黒' : '白';
-    const runtimeGlobal = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
-    const posText = runtimeGlobal && typeof runtimeGlobal.posToNotation === 'function'
-        ? runtimeGlobal.posToNotation(row, col)
+    const injectedPosToNotation = __uiImpl_destroy && typeof __uiImpl_destroy.posToNotation === 'function'
+        ? __uiImpl_destroy.posToNotation
+        : null;
+    const posText = injectedPosToNotation
+        ? injectedPosToNotation(row, col)
         : GameControllerSlim.posToNotation(row, col);
     if (outcomeKind === DESTROY_OUTCOME_KINDS.PROLIFERATED) {
         emitLogAdded(LOG_MESSAGES.destroyProliferated(playerLabel, posText));
@@ -120,11 +128,13 @@ function emitDestroyAppliedLog(context: any, playerKey: string, row: number, col
 }
 
 async function handleDestroySelection(row: number, col: number, playerKey: string): Promise<any> {
-    const runtimeGlobal = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
-    const cardLogic = runtimeGlobal && runtimeGlobal.CardLogic ? runtimeGlobal.CardLogic : null;
+    const cardLogic = __uiImpl_destroy && typeof __uiImpl_destroy.getCardLogic === 'function'
+        ? __uiImpl_destroy.getCardLogic()
+        : null;
     if (cardLogic && typeof cardLogic.getSelectableTargets === 'function') {
-        // @compat - gameState is a runtime global set by game-controller-slim; no module export available
-        const gameState = (typeof globalThis !== 'undefined' && (globalThis as any).gameState) ? (globalThis as any).gameState : null;
+        const gameState = __uiImpl_destroy && typeof __uiImpl_destroy.getGameState === 'function'
+            ? __uiImpl_destroy.getGameState()
+            : null;
         const targets = cardLogic.getSelectableTargets(CardSystem.cardState, gameState, playerKey) || [];
         const allowed = targets.some((target: any) => target && target.row === row && target.col === col);
         if (!allowed) {
@@ -154,6 +164,7 @@ async function executeDestroy(row: number, col: number, playerKey: string): Prom
 }
 
 const DestroyEffects = {
+    setUIImpl,
     handleDestroySelection,
     executeDestroy
 };

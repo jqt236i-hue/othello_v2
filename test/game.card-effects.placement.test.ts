@@ -1,4 +1,4 @@
-import { applyProtectionAfterMove, logPlacementEffects } from '../game/card-effects/placement.js';
+import { applyProtectionAfterMove, logPlacementEffects, setUIImpl } from '../game/card-effects/placement.js';
 import * as LOG_MESSAGES from '../game/log-messages.js';
 
 describe('applyProtectionAfterMove', () => {
@@ -13,9 +13,14 @@ describe('applyProtectionAfterMove', () => {
         global.BLACK = 1;
         global.WHITE = -1;
         global.cardState = { pendingEffectByPlayer: { black: { type: 'FREE_PLACEMENT' } } };
+        setUIImpl({
+            emitLogAdded: global.emitLogAdded,
+            getCardState: () => global.cardState
+        });
     });
 
     afterEach(() => {
+        setUIImpl({});
         delete global.emitLogAdded;
         delete global.isDebugLogAvailable;
         delete global.debugLog;

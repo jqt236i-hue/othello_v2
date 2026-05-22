@@ -1015,6 +1015,50 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             playTrapPlacementFlash: uiMod.playTrapPlacementFlash
         }));
 
+        try {
+            const placement = require('../game/card-effects/placement');
+            if (placement && typeof placement.setUIImpl === 'function') {
+                placement.setUIImpl({
+                    emitLogAdded: (message: any) => {
+                        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).emitLogAdded === 'function') {
+                            (globalThis as any).emitLogAdded(message);
+                        }
+                    },
+                    getCardState: () => {
+                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).cardState || null : null; } catch (e: any) { return null; }
+                    }
+                });
+            }
+        } catch (e: any) { /* ignore */ }
+
+        try {
+            const destroy = require('../game/card-effects/destroy');
+            if (destroy && typeof destroy.setUIImpl === 'function') {
+                destroy.setUIImpl({
+                    emitLogAdded: (message: any) => {
+                        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).emitLogAdded === 'function') {
+                            (globalThis as any).emitLogAdded(message);
+                        }
+                    },
+                    getLogMessages: () => {
+                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).LOG_MESSAGES || null : null; } catch (e: any) { return null; }
+                    },
+                    posToNotation: (row: number, col: number) => {
+                        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).posToNotation === 'function') {
+                            return (globalThis as any).posToNotation(row, col);
+                        }
+                        return `${row},${col}`;
+                    },
+                    getCardLogic: () => {
+                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).CardLogic || null : null; } catch (e: any) { return null; }
+                    },
+                    getGameState: () => {
+                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).gameState || null : null; } catch (e: any) { return null; }
+                    }
+                });
+            }
+        } catch (e: any) { /* ignore */ }
+
         configurePendingSelectionFlowBridge();
 
         // Action log storage adapter (UI-only localStorage access)

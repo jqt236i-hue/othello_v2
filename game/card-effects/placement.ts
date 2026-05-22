@@ -13,6 +13,11 @@ const LOG_MESSAGES = _require('../log-messages');
 const { isDebugLogAvailable, safeDebugLog } = _require('../../is-env-capable');
 
 let cachedPendingCoordinator: any = null;
+let __uiImpl_placement: any = {};
+
+function setUIImpl(obj: any): void {
+    __uiImpl_placement = (obj && typeof obj === 'object') ? obj : {};
+}
 
 function resolvePendingCoordinator(): any {
     if (cachedPendingCoordinator && typeof cachedPendingCoordinator === 'object') {
@@ -25,9 +30,11 @@ function resolvePendingCoordinator(): any {
 }
 
 function emitPlacementLog(message: string): void {
-    const globalEmit = typeof globalThis !== 'undefined' ? (globalThis as { emitLogAdded?: unknown }).emitLogAdded : null;
-    if (typeof globalEmit === 'function') {
-        globalEmit(message);
+    const injectedEmit = __uiImpl_placement && typeof __uiImpl_placement.emitLogAdded === 'function'
+        ? __uiImpl_placement.emitLogAdded
+        : null;
+    if (typeof injectedEmit === 'function') {
+        injectedEmit(message);
         return;
     }
     if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
@@ -39,8 +46,11 @@ function readPlacementPendingType(move: any): string | null {
     if (!move) return null;
     const playerKey = typeof getPlayerKey === 'function' ? getPlayerKey(move.player) : null;
     if (!playerKey) return null;
-    const activeCardState = (typeof globalThis !== 'undefined' && (globalThis as { cardState?: unknown }).cardState && typeof (globalThis as { cardState?: unknown }).cardState === 'object')
-        ? (globalThis as { cardState?: unknown }).cardState
+    const injectedCardState = __uiImpl_placement && typeof __uiImpl_placement.getCardState === 'function'
+        ? __uiImpl_placement.getCardState()
+        : null;
+    const activeCardState = (injectedCardState && typeof injectedCardState === 'object')
+        ? injectedCardState
         : (CardSystem.cardState && typeof CardSystem.cardState === 'object')
         ? CardSystem.cardState
         : null;
@@ -154,6 +164,7 @@ function applyProtectionAfterMove(move: any, effects: any): any {
 }
 
 const PlacementEffects = {
+    setUIImpl,
     applyProtectionAfterMove,
     logPlacementEffects
 };

@@ -4,7 +4,7 @@ jest.mock('../game/card-effects/selection-flow', () => ({
     executePendingSelection: mockExecutePendingSelection
 }));
 
-const { executeDestroy, handleDestroySelection } = require('../game/card-effects/destroy.js');
+const { executeDestroy, handleDestroySelection, setUIImpl } = require('../game/card-effects/destroy.js');
 describe('destroy', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();
@@ -17,9 +17,17 @@ describe('destroy', () => {
         global.emitLogAdded = jest.fn();
         global.cardState = {};
         global.gameState = {};
+        setUIImpl({
+            emitLogAdded: global.emitLogAdded,
+            getLogMessages: () => global.LOG_MESSAGES,
+            posToNotation: global.posToNotation,
+            getCardLogic: () => global.CardLogic || null,
+            getGameState: () => global.gameState || null
+        });
     });
 
     afterEach(() => {
+        setUIImpl({});
         delete global.LOG_MESSAGES;
         delete global.posToNotation;
         delete global.emitLogAdded;
@@ -31,6 +39,7 @@ describe('destroy', () => {
     test('module load: exported function presence', () => {
         expect(typeof handleDestroySelection).toBe('function');
         expect(typeof executeDestroy).toBe('function');
+        expect(typeof setUIImpl).toBe('function');
     });
 
     test('正常系: DESTROY_ONE_STONEでexecutePendingSelectionが正しく呼ばれる', async () => {
