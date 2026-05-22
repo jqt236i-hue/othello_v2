@@ -17,28 +17,41 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  * - game/special-effects/udg.js
  * - game/special-effects/protections.js
  *
- * The split modules attach the legacy global functions on the global scope
- * (e.g., processBombs), so this file intentionally does not implement
- * any effect logic. It only sanity-checks load order to avoid silent failures.
+ * This file intentionally does not implement any effect logic. It only
+ * sanity-checks split module exports to avoid silent failures.
  */
 
 (function () {
-    const required = [
-        'processBombs',
-        'processUltimateReverseDragonsAtTurnStart',
-        'processBreedingEffectsAtTurnStart',
-        'processHyperactiveMovesAtTurnStart',
-        'processUltimateDestroyGodsAtTurnStart'
+    const requiredModules = [
+        { id: './special-effects/bombs', name: 'processBombs' },
+        { id: './special-effects/dragons', name: 'processUltimateReverseDragonsAtTurnStart' },
+        { id: './special-effects/breeding', name: 'processBreedingEffectsAtTurnStart' },
+        { id: './special-effects/hyperactive', name: 'processHyperactiveMovesAtTurnStart' },
+        { id: './special-effects/udg', name: 'processUltimateDestroyGodsAtTurnStart' }
     ];
 
-    if (typeof CardLogic === 'undefined') {
+    let cardsModule: any = null;
+    try {
+        cardsModule = _require('./logic/cards');
+    } catch (e) { /* ignore */ }
+    if (!cardsModule) {
         console.error('[special-effects-handler] CardLogic is not loaded. Include game/logic/cards.js before special-effects scripts.');
         return;
     }
 
-    const missing = required.filter((k: any) => typeof globalThis !== 'undefined' && typeof (globalThis as any)[k] !== 'function');
+    const missing: string[] = [];
+    for (const entry of requiredModules) {
+        try {
+            const mod = _require(entry.id);
+            if (!mod || typeof mod[entry.name] !== 'function') {
+                missing.push(entry.name);
+            }
+        } catch (e) {
+            missing.push(entry.name);
+        }
+    }
     if (missing.length > 0) {
-        console.warn('[special-effects-handler] Missing split effect globals (load order issue?):', missing);
+        console.warn('[special-effects-handler] Missing split effect exports:', missing);
     }
 }());
 
