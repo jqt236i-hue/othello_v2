@@ -38,19 +38,16 @@ const allowedNoCheckDebt = new Set([
   'training/scripts/benchmark-policy-onnx-gate.ts',
   'training/scripts/benchmark-policy-quality-gate.ts',
   'training/scripts/benchmark-selfplay-policy.ts',
-  'training/scripts/export-teacher-solutions.ts',
   'training/scripts/generate-selfplay-data-parallel.ts',
   'training/scripts/generate-selfplay-data.ts',
   'training/scripts/promote-policy-model.ts',
   'training/scripts/replay-adoption-gate.ts',
-  'training/scripts/replay-selfplay-illegal-move-hardcase.ts',
   'training/scripts/run-foundation-bootstrap.ts',
   'training/scripts/run-hardcase-mining.ts',
   'training/scripts/run-hardcase-retrain.ts',
   'training/scripts/run-selfplay-training-cycle.ts',
   'training/scripts/run-selfplay-training-preset.ts',
   'training/scripts/run-selfplay-training-profile.ts',
-  'training/scripts/seed-bank-manager.ts',
   'ui.ts'
 ]);
 
