@@ -18,8 +18,7 @@ function hasUsableWaitMs(t: any): boolean {
 function scheduleRetry(fn: any, delayMs: number = 80, timers: any = null) {
     let t: any = timers;
     if (!t) {
-        try { t = require('./timers'); } catch (e) { /* use global fallback */ }
-        if (!t && typeof globalThis !== 'undefined') t = (globalThis as any).timers || null;
+        try { t = _require('./timers'); } catch (e) { /* use setTimeout fallback */ }
     }
 
     if (hasUsableWaitMs(t)) {
