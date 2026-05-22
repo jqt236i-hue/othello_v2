@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use strict';
 
 const SHARED_TEACHER_ARG_SPECS = Object.freeze([

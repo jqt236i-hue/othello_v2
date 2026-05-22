@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 48 files.
+Current authorized `@ts-nocheck` debt: 47 files.
 
 Recent reduction:
 
@@ -45,6 +45,7 @@ Recent reduction:
 - `test/ui.layout-stage.profile-selection.test.ts` and `test/ui.network-charge-seat-layout.test.ts` no longer use `@ts-nocheck`; layout profile and network charge layout regressions now typecheck without local suppressions.
 - `test/ui.card-renderer-hand-inspect.test.ts`, `test/ui.card-ui-sync.test.ts`, and `test/ui.deck-builder-controller.test.ts` no longer use `@ts-nocheck`; remaining UI test regressions now typecheck without local suppressions.
 - `training/tests/selfplay.generate-data.parallel-workers.test.ts`, `training/tests/selfplay.generate-data.test.ts`, `training/tests/selfplay.runner.test.ts`, `training/tests/selfplay.training-cycle.test.ts`, and `training/tests/selfplay.training-preset.test.ts` no longer use `@ts-nocheck`; selfplay/training regressions now typecheck without local suppressions.
+- `training/scripts/training-shared-teacher-args.ts` no longer uses `@ts-nocheck`; shared teacher CLI argument synchronization now typechecks without local suppressions.
 
 Recent boundary typing:
 
