@@ -1,9 +1,13 @@
 import type {
   MatchAuthorityBufferedSseEventRecord,
   MatchAuthorityBufferedSseReplayEvent,
+  MatchAuthorityPublicSnapshot,
   MatchAuthorityPublicApi,
   MatchAuthorityPublishMeta,
-  MatchAuthorityPublishResponsePayload
+  MatchAuthorityPublishResponsePayload,
+  MatchAuthorityRoomPayload,
+  MatchAuthorityRoomState,
+  MatchAuthoritySeatLeaveResult
 } from '../utils/match-authority-types';
 
 const MatchAuthority: MatchAuthorityPublicApi = require('../utils/match-authority');
@@ -59,5 +63,51 @@ describe('match-authority public contract types', () => {
         payload: { visible: 'both' }
       }
     ]);
+  });
+
+  test('room and snapshot helpers expose typed boundary payloads', () => {
+    const room: MatchAuthorityRoomState = {
+      roomId: 'abc',
+      stateVersion: 3,
+      updatedAt: 123,
+      seats: { black: true, white: false },
+      seatNames: { black: '先手', white: '' },
+      seatHandSkins: { black: 'classic', white: '' },
+      seatTokens: { black: 'token-black', white: 'token-white' },
+      snapshot: {
+        gameState: { currentPlayer: 'black' },
+        cardState: { hands: { black: [], white: [] } }
+      }
+    };
+
+    const roomPayload: MatchAuthorityRoomPayload =
+      MatchAuthority.buildRoomPayloadFromRoom(room, { ok: true });
+    const snapshotPayload: MatchAuthorityRoomPayload =
+      MatchAuthority.buildSnapshotPayloadFromRoom(room, {
+        snapshot: MatchAuthority.buildPublicSnapshot(room, 'black'),
+        operationId: 'op-2',
+        actionType: 'place'
+      });
+    const publishPayload: MatchAuthorityPublishResponsePayload =
+      MatchAuthority.buildPublishPayloadFromRoom(room, {
+        ok: true,
+        snapshot: snapshotPayload.snapshot,
+        publishMeta: { operationId: 'op-2', kind: 'action' }
+      });
+    const projected: MatchAuthorityPublicSnapshot =
+      MatchAuthority.projectSnapshotForViewer(room.snapshot, 'white', { stateVersion: 3 });
+    const joined = MatchAuthority.resolveSeatForJoin(room, 'white', '');
+    const leaveResult: MatchAuthoritySeatLeaveResult | null =
+      MatchAuthority.applySeatLeaveToRoom(room, 'black', {
+        now: 456,
+        makeSeatToken: () => 'next-token'
+      });
+
+    expect(roomPayload.roomId).toBe('ABC');
+    expect(snapshotPayload.operationId).toBe('op-2');
+    expect(publishPayload.publishMeta && publishPayload.publishMeta.operationId).toBe('op-2');
+    expect(projected.stateVersion).toBe(3);
+    expect(joined).toBe('white');
+    expect(leaveResult && leaveResult.seatToken).toBe('next-token');
   });
 });
