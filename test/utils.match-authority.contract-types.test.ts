@@ -9,7 +9,8 @@ import type {
   MatchAuthorityPublishResponsePayload,
   MatchAuthorityRoomPayload,
   MatchAuthorityRoomState,
-  MatchAuthoritySeatLeaveResult
+  MatchAuthoritySeatLeaveResult,
+  MatchAuthoritySeatTokenRejectionReason
 } from '../utils/match-authority-types';
 
 const MatchAuthority: MatchAuthorityPublicApi = require('../utils/match-authority');
@@ -142,5 +143,23 @@ describe('match-authority public contract types', () => {
     expect(remembered && remembered.operationId).toBe('op-2');
     expect(found && found.stateVersion).toBe(2);
     expect(resolved && resolved.updatedAt).toBe(300);
+  });
+
+  test('seat-token helpers expose typed authentication outcomes', () => {
+    const room: MatchAuthorityRoomState = {
+      seats: { black: true, white: true },
+      seatTokens: { black: 'token-black', white: 'token-white' }
+    };
+    const seatKey = MatchAuthority.resolveAuthenticatedSeatKey(room, 'black', 'token-black');
+    const inferredSeatKey = MatchAuthority.resolveAuthenticatedSeatKey(room, null, 'token-white');
+    const missingReason: MatchAuthoritySeatTokenRejectionReason =
+      MatchAuthority.classifySeatTokenRejectionReason('');
+    const mismatchReason: MatchAuthoritySeatTokenRejectionReason =
+      MatchAuthority.classifySeatTokenRejectionReason('wrong-token');
+
+    expect(seatKey).toBe('black');
+    expect(inferredSeatKey).toBe('white');
+    expect(missingReason).toBe('SEAT_TOKEN_REQUIRED');
+    expect(mismatchReason).toBe('SEAT_TOKEN_MISMATCH');
   });
 });

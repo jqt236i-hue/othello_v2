@@ -18,6 +18,8 @@ const REQUIRED_MATCH_AUTHORITY_PUBLIC_FUNCTIONS: Array<keyof MatchAuthorityPubli
     'buildPublicSnapshot',
     'resolveSeatForJoin',
     'applySeatLeaveToRoom',
+    'resolveAuthenticatedSeatKey',
+    'classifySeatTokenRejectionReason',
     'createBufferedSseEventRecord',
     'appendBufferedSseEvent',
     'getBufferedSseReplayEvents'

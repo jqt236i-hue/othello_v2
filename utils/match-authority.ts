@@ -30,6 +30,7 @@ import type {
     MatchAuthoritySeatKey,
     MatchAuthoritySeatLeaveOptions,
     MatchAuthoritySeatLeaveResult,
+    MatchAuthoritySeatTokenRejectionReason,
     MatchAuthoritySnapshotPayloadFromRoomOptions
 } from './match-authority-types';
 import { assertMatchAuthorityPublicApi } from './match-authority-contract';
@@ -1032,7 +1033,11 @@ function normalizeHandCopyIdArray(values, targetLength) {
     return next;
 }
 
-function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
+function resolveAuthenticatedSeatKey(
+    room: MatchAuthorityRoomState | null | undefined,
+    seatKeyValue: unknown,
+    seatTokenValue: unknown
+): MatchAuthoritySeatKey | null {
     if (!room || !room.seatTokens || !room.seats) return null;
     const seatToken = String(seatTokenValue || '').trim();
     if (!seatToken) return null;
@@ -1048,7 +1053,7 @@ function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
     return null;
 }
 
-function classifySeatTokenRejectionReason(seatTokenValue) {
+function classifySeatTokenRejectionReason(seatTokenValue: unknown): MatchAuthoritySeatTokenRejectionReason {
     return String(seatTokenValue || '').trim()
         ? 'SEAT_TOKEN_MISMATCH'
         : 'SEAT_TOKEN_REQUIRED';

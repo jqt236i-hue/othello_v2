@@ -212,6 +212,8 @@ export interface MatchAuthoritySeatLeaveResult {
     seatHandSkins: Partial<MatchAuthoritySeatHandSkins>;
 }
 
+export type MatchAuthoritySeatTokenRejectionReason = 'SEAT_TOKEN_MISMATCH' | 'SEAT_TOKEN_REQUIRED';
+
 export interface MatchAuthorityBufferedSsePayloadByViewer {
     black?: unknown;
     white?: unknown;
@@ -264,6 +266,8 @@ export interface MatchAuthorityPublicApi {
     buildPublicSnapshot(roomValue: MatchAuthorityRoomState | null | undefined, viewerSeatKey: unknown): MatchAuthorityPublicSnapshot;
     resolveSeatForJoin(roomValue: MatchAuthorityRoomState | null | undefined, requestedSeatKey: unknown, providedToken: unknown): MatchAuthoritySeatKey | null;
     applySeatLeaveToRoom(roomValue: MatchAuthorityRoomState | null | undefined, seatKeyValue: unknown, options?: MatchAuthoritySeatLeaveOptions | null): MatchAuthoritySeatLeaveResult | null;
+    resolveAuthenticatedSeatKey(roomValue: MatchAuthorityRoomState | null | undefined, seatKeyValue: unknown, seatTokenValue: unknown): MatchAuthoritySeatKey | null;
+    classifySeatTokenRejectionReason(seatTokenValue: unknown): MatchAuthoritySeatTokenRejectionReason;
     createBufferedSseEventRecord(options: MatchAuthorityBufferedSseEventRecordInput): MatchAuthorityBufferedSseEventRecord | null;
     appendBufferedSseEvent(
         bufferValue: unknown,
