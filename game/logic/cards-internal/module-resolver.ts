@@ -14,6 +14,9 @@ function readGlobalModule(globalName: string): unknown {
         if (typeof self !== 'undefined' && (self as any)[globalName]) {
             return (self as any)[globalName];
         }
+        if (typeof globalThis !== 'undefined' && (globalThis as any)[globalName]) {
+            return (globalThis as any)[globalName];
+        }
     } catch (_error) {
         void _error;
     }

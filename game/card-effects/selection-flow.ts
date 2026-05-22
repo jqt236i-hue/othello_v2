@@ -49,6 +49,21 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return (typeof bridge[name] === 'function') ? bridge[name] : null;
     }
 
+    function resolveGlobalValue(name: any) {
+        if (typeof name !== 'string' || !name) return undefined;
+        try {
+            if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis as any, name)) {
+                return (globalThis as any)[name];
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof window !== 'undefined' && window && Object.prototype.hasOwnProperty.call(window as any, name)) {
+                return (window as any)[name];
+            }
+        } catch (e) { /* ignore */ }
+        return undefined;
+    }
+
     function getPendingStateManager() {
         if (cachedPendingStateManager && typeof cachedPendingStateManager === 'object') {
             return cachedPendingStateManager;
@@ -362,6 +377,17 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
         const bridge = getSignalBridge();
         if (bridge && typeof bridge.MATCH_MODE !== 'undefined') return bridge.MATCH_MODE;
+        const getCurrentMatchMode = resolveGlobalValue('getCurrentMatchMode');
+        if (typeof getCurrentMatchMode === 'function') {
+            try {
+                const mode = getCurrentMatchMode();
+                if (typeof mode !== 'undefined' && mode !== null) return mode;
+            } catch (e) { /* ignore */ }
+        }
+        const globalMatchMode = resolveGlobalValue('MATCH_MODE');
+        if (typeof globalMatchMode !== 'undefined') return globalMatchMode;
+        const legacyGlobalMatchMode = resolveGlobalValue('__MATCH_MODE');
+        if (typeof legacyGlobalMatchMode !== 'undefined') return legacyGlobalMatchMode;
         return null;
     }
 
@@ -425,6 +451,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 if (state && typeof state === 'object') return state;
             } catch (e) { /* ignore */ }
         }
+        const globalState = resolveGlobalValue('gameState');
+        if (globalState && typeof globalState === 'object') return globalState;
         return null;
     }
 
@@ -440,6 +468,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 if (state && typeof state === 'object') return state;
             } catch (e) { /* ignore */ }
         }
+        const globalState = resolveGlobalValue('cardState');
+        if (globalState && typeof globalState === 'object') return globalState;
         return null;
     }
 
@@ -682,6 +712,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 if (adapter && typeof adapter === 'object') return adapter;
             } catch (e) { /* ignore */ }
         }
+        const globalAdapter = resolveGlobalValue('TurnPipelineUIAdapter');
+        if (globalAdapter && typeof globalAdapter === 'object') return globalAdapter;
         if (typeof require === 'function') {
             try { return require('../turn/pipeline_ui_adapter'); } catch (e) { /* ignore */ }
         }
@@ -700,6 +732,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 if (pipeline && typeof pipeline === 'object') return pipeline;
             } catch (e) { /* ignore */ }
         }
+        const globalPipeline = resolveGlobalValue('TurnPipeline');
+        if (globalPipeline && typeof globalPipeline === 'object') return globalPipeline;
         if (typeof require === 'function') {
             try { return require('../turn/turn_pipeline'); } catch (e) { /* ignore */ }
         }
@@ -710,6 +744,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (typeof name !== 'string') return null;
         const bridgeFn = readSignalBridgeMethod(name);
         if (bridgeFn) return bridgeFn;
+        const globalFn = resolveGlobalValue(name);
+        if (typeof globalFn === 'function') return globalFn;
         if (name === 'ensureCurrentPlayerCanActOrPass') {
             try {
                 const passHandler = _require('../pass-handler');

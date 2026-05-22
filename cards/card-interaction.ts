@@ -1058,9 +1058,10 @@ function _setPendingSelectionBusy(active: any) {
             if (rootRef) {
                 rootRef.isProcessing = !!active;
                 rootRef.isCardAnimating = !!active;
+            } else {
+                (globalThis as CardInteractionRuntimeRoot).isProcessing = !!active;
+                (globalThis as CardInteractionRuntimeRoot).isCardAnimating = !!active;
             }
-            (globalThis as CardInteractionRuntimeRoot).isProcessing = !!active;
-            (globalThis as CardInteractionRuntimeRoot).isCardAnimating = !!active;
         } catch (e) { /* ignore */ }
         return;
     }
@@ -1075,18 +1076,20 @@ function _setPendingSelectionBusy(active: any) {
             if (rootRef) {
                 rootRef.isProcessing = normalized;
                 rootRef.isCardAnimating = normalized;
+            } else {
+                (globalThis as CardInteractionRuntimeRoot).isProcessing = normalized;
+                (globalThis as CardInteractionRuntimeRoot).isCardAnimating = normalized;
             }
-            (globalThis as CardInteractionRuntimeRoot).isProcessing = normalized;
-            (globalThis as CardInteractionRuntimeRoot).isCardAnimating = normalized;
         } catch (e) { /* ignore */ }
         return;
     }
-    try { (globalThis as CardInteractionRuntimeRoot).isProcessing = normalized; } catch (e) { /* ignore */ }
-    try { (globalThis as CardInteractionRuntimeRoot).isCardAnimating = normalized; } catch (e) { /* ignore */ }
     try {
         if (rootRef) {
             rootRef.isProcessing = normalized;
             rootRef.isCardAnimating = normalized;
+        } else {
+            (globalThis as CardInteractionRuntimeRoot).isProcessing = normalized;
+            (globalThis as CardInteractionRuntimeRoot).isCardAnimating = normalized;
         }
     } catch (e) { /* ignore */ }
 }
@@ -1761,11 +1764,12 @@ function _clearCardUiBusyFlags(options: any) {
             if (clearProcessing) managerBusyState.processing = false;
             _playbackStateModule.setBusyState(managerBusyState);
         }
-        if (clearProcessing) (globalThis as CardInteractionRuntimeRoot).isProcessing = false;
-        (globalThis as CardInteractionRuntimeRoot).isCardAnimating = false;
         if (rootRef) {
             if (clearProcessing) rootRef.isProcessing = false;
             rootRef.isCardAnimating = false;
+        } else {
+            if (clearProcessing) (globalThis as CardInteractionRuntimeRoot).isProcessing = false;
+            (globalThis as CardInteractionRuntimeRoot).isCardAnimating = false;
         }
         if (clearPlayback) {
             if (_playbackStateModule && typeof _playbackStateModule.clearPlaybackLock === 'function') {

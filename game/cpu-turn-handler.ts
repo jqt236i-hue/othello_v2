@@ -207,6 +207,16 @@ function resolveRuntimeValue(name: string): any {
             return __uiImpl_cpu[name];
         }
     } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis as any, name)) {
+            return (globalThis as any)[name];
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof window !== 'undefined' && window && Object.prototype.hasOwnProperty.call(window as any, name)) {
+            return (window as any)[name];
+        }
+    } catch (e) { /* ignore */ }
     return undefined;
 }
 
@@ -220,6 +230,8 @@ function resolveCpuCardLogic() {
             return __uiImpl_cpu.CardLogic;
         }
     } catch (e) { /* ignore */ }
+    const runtimeCardLogic = resolveRuntimeValue('CardLogic');
+    if (runtimeCardLogic && typeof runtimeCardLogic === 'object') return runtimeCardLogic;
     if (cpuCardLogic && typeof cpuCardLogic === 'object') return cpuCardLogic;
     return null;
 }

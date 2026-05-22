@@ -2992,6 +2992,67 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         getNetworkTelemetry
     };
     try {
+        if (typeof _require === 'function') {
+            const selectionFlow = _require('../game/card-effects/selection-flow');
+            if (selectionFlow && typeof selectionFlow.setSignalBridge === 'function') {
+                selectionFlow.setSignalBridge({
+                    readMatchMode: () => {
+                        try {
+                            if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
+                                return (globalThis as any).getCurrentMatchMode();
+                            }
+                            if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
+                        } catch (e) { /* ignore */ }
+                        return null;
+                    },
+                    getGameState: () => {
+                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).gameState : null; } catch (e) { return null; }
+                    },
+                    getCardState: () => {
+                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).cardState : null; } catch (e) { return null; }
+                    },
+                    setGameState: (nextGameState: any) => {
+                        try {
+                            if (typeof globalThis === 'undefined') return false;
+                            (globalThis as any).gameState = nextGameState;
+                            return true;
+                        } catch (e) {
+                            return false;
+                        }
+                    },
+                    setCardState: (nextCardState: any) => {
+                        try {
+                            if (typeof globalThis === 'undefined') return false;
+                            (globalThis as any).cardState = nextCardState;
+                            return true;
+                        } catch (e) {
+                            return false;
+                        }
+                    },
+                    getActionManager: () => {
+                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).ActionManager : null; } catch (e) { return null; }
+                    },
+                    getTurnPipelineUIAdapter: () => {
+                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).TurnPipelineUIAdapter : null; } catch (e) { return null; }
+                    },
+                    getTurnPipeline: () => {
+                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).TurnPipeline : null; } catch (e) { return null; }
+                    },
+                    publishSnapshot: (meta: any) => {
+                        if (typeof api.publishSnapshot !== 'function') return undefined;
+                        if (typeof api.isActive === 'function' && api.isActive() !== true) return undefined;
+                        return api.publishSnapshot(meta);
+                    },
+                    isNetworkPublishActive: () => {
+                        if (typeof api.publishSnapshot !== 'function') return false;
+                        if (typeof api.isActive === 'function') return api.isActive() === true;
+                        return true;
+                    }
+                });
+            }
+        }
+    } catch (e) { /* ignore */ }
+    try {
         if (typeof globalThis !== 'undefined') {
             (globalThis as any).NetworkMatchClient = api;
         }
