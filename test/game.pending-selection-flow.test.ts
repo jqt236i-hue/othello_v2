@@ -204,7 +204,9 @@ describe('pending selection flow contracts', () => {
   });
 
   test('network deferred selection does not use root NetworkMatchClient without signal bridge publisher', async () => {
-    flow.clearSignalBridge();
+    flow.setSignalBridge({
+      readMatchMode: () => 'network'
+    });
     global.MATCH_MODE = 'network';
     global.cardState = {
       turnIndex: 11,
@@ -258,6 +260,7 @@ describe('pending selection flow contracts', () => {
 
   test('network deferred selection does not fall back to root NetworkMatchClient when signal bridge activity probe throws', async () => {
     flow.setSignalBridge({
+      readMatchMode: () => 'network',
       isNetworkPublishActive: () => {
         throw new Error('probe failed');
       }

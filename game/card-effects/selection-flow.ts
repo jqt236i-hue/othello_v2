@@ -372,14 +372,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
         const bridge = getSignalBridge();
         if (bridge && typeof bridge.MATCH_MODE !== 'undefined') return bridge.MATCH_MODE;
-        try {
-            if (root && typeof root.getCurrentMatchMode === 'function') {
-                return root.getCurrentMatchMode();
-            }
-        } catch (e) { /* ignore */ }
-        try {
-            return root ? root.MATCH_MODE : null;
-        } catch (e) { /* ignore */ }
         return null;
     }
 
