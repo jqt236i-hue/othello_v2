@@ -1196,6 +1196,13 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             } catch (e: any) {
                                 return null;
                             }
+                        },
+                        setProcessing: (next: boolean) => {
+                            try {
+                                if (typeof globalThis !== 'undefined') {
+                                    (globalThis as any).isProcessing = next === true;
+                                }
+                            } catch (e: any) { /* ignore */ }
                         }
                     });
                 }

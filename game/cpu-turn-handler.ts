@@ -376,8 +376,12 @@ function setCpuProcessing(active: any) {
     if (playbackState && typeof playbackState.setProcessing === 'function') {
         playbackState.setProcessing(next);
     }
+    try {
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.setProcessing === 'function') {
+            __uiImpl_cpu.setProcessing(next);
+        }
+    } catch (e) { /* ignore */ }
     try { isProcessing = next; } catch (e) { /* ignore */ }
-    try { if (typeof globalThis !== 'undefined') (globalThis as any).isProcessing = next; } catch (e) { /* ignore */ }
     return next;
 }
 
