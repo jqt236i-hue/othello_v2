@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { JSDOM } from 'jsdom';
 
 describe('deck builder controller', () => {
