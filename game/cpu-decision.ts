@@ -1808,15 +1808,6 @@ function captureNetworkPublishSnapshot(gameStateValue: any, cardStateValue: any)
     }
     if (!gameStateValue || !cardStateValue) return null;
     try {
-        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).structuredClone === 'function') {
-            return {
-                gameState: (globalThis as any).structuredClone(gameStateValue),
-                cardState: (globalThis as any).structuredClone(cardStateValue)
-            };
-        }
-    } catch (e) { /* ignore */ }
-
-    try {
         return {
             gameState: JSON.parse(JSON.stringify(gameStateValue)),
             cardState: JSON.parse(JSON.stringify(cardStateValue))
