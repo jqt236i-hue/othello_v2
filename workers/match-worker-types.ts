@@ -1,5 +1,6 @@
 import type {
     MatchAuthorityBufferedSseEventRecord,
+    MatchAuthorityPublishMeta,
     MatchAuthorityRoomState,
     MatchAuthoritySeatKey
 } from '../utils/match-authority-types';
@@ -150,6 +151,48 @@ export interface MatchWorkerTurnPipelineSafeResult extends MatchWorkerTurnPipeli
     stateHash?: unknown;
     rejectedReason?: string;
     errorMessage?: string;
+}
+
+export interface MatchWorkerPublicSnapshot extends Record<string, unknown> {
+    gameState?: unknown;
+    cardState?: Record<string, unknown>;
+}
+
+export interface MatchWorkerPlaybackAdapter extends MatchWorkerRuntimeModule {
+    mapToPlaybackEvents(presentationEvents: unknown[], cardState?: unknown, gameState?: unknown): unknown[] | null | undefined;
+}
+
+export interface MatchWorkerPlaybackDiagnostics {
+    warnings?: unknown[];
+    [key: string]: unknown;
+}
+
+export interface MatchWorkerPlaybackAssembly {
+    playbackEvents: unknown[];
+    diagnostics: MatchWorkerPlaybackDiagnostics | null;
+    presentationEvents?: unknown[];
+    playerKey?: MatchAuthoritySeatKey | null;
+    effectLogs?: string[];
+    [key: string]: unknown;
+}
+
+export interface MatchWorkerPublishPayloadOptions extends Record<string, unknown> {
+    ok?: boolean;
+    serverTime?: unknown;
+    snapshot?: unknown;
+    previousSnapshotForChargeDelta?: unknown;
+    playbackEvents?: unknown;
+    effectLogs?: unknown;
+    idempotentReplay?: unknown;
+    publishMeta?: Partial<MatchAuthorityPublishMeta> | null;
+    rejectedReason?: unknown;
+    errorMessage?: unknown;
+    playbackDiagnostics?: unknown;
+}
+
+export interface MatchWorkerTurnStartHandState {
+    playerKey: MatchAuthoritySeatKey;
+    hand: unknown[];
 }
 
 export interface MatchWorkerTurnPipelineModule {

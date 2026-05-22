@@ -10,8 +10,13 @@ import type {
     MatchWorkerLeaderboardEntry,
     MatchWorkerLeaderboardMode,
     MatchWorkerLeaderboardStore,
+    MatchWorkerPlaybackAdapter,
+    MatchWorkerPlaybackAssembly,
+    MatchWorkerPlaybackDiagnostics,
     MatchWorkerPreparedSnapshotBroadcast,
     MatchWorkerPrng,
+    MatchWorkerPublicSnapshot,
+    MatchWorkerPublishPayloadOptions,
     MatchWorkerRoomState,
     MatchWorkerRuntimeModule,
     MatchWorkerSeededPrngModule,
@@ -20,6 +25,7 @@ import type {
     MatchWorkerTurnPipelineModule,
     MatchWorkerTurnPipelineModules,
     MatchWorkerTurnPipelineSafeResult,
+    MatchWorkerTurnStartHandState,
     MatchWorkerTurnStartModules
 } from './match-worker-types';
 import type {
@@ -901,15 +907,30 @@ function createCommandActionPrng(room: MatchWorkerRoomState | null | undefined, 
     return SeededPRNG.createPRNG(createWorkerTurnStartSeed(room, snapshot, getCurrentPlayerKey(snapshotRecord.gameState)));
 }
 
-function mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, snapshot, playbackAdapter, playerKey) {
-    const events = Array.isArray(presentationEvents) ? presentationEvents : [];
-
-    const adapter = (playbackAdapter && typeof playbackAdapter.mapToPlaybackEvents === 'function')
-        ? playbackAdapter
+function asPlaybackAdapter(value: unknown): MatchWorkerPlaybackAdapter | null {
+    return value && typeof asRecord(value).mapToPlaybackEvents === 'function'
+        ? value as MatchWorkerPlaybackAdapter
         : null;
+}
+
+function asWorkerSnapshot(value: unknown): MatchWorkerPublicSnapshot {
+    return value && typeof value === 'object' ? value as MatchWorkerPublicSnapshot : {};
+}
+
+function mapServerPresentationToPlaybackEvents(
+    presentationEvents: unknown,
+    rawEvents: unknown,
+    snapshot: unknown,
+    playbackAdapter: unknown,
+    playerKey: unknown
+): MatchWorkerPlaybackAssembly {
+    const events = Array.isArray(presentationEvents) ? presentationEvents : [];
+    const snapshotRecord = asWorkerSnapshot(snapshot);
+    const cardStateRecord = asRecord(snapshotRecord.cardState);
+    const adapter = asPlaybackAdapter(playbackAdapter);
 
     if (PlaybackEventHelpers && typeof PlaybackEventHelpers.assemblePlaybackEvents === 'function') {
-        return PlaybackEventHelpers.assemblePlaybackEvents({
+        const assembled = PlaybackEventHelpers.assemblePlaybackEvents({
             rawEvents: Array.isArray(rawEvents) ? rawEvents : [],
             presentationEvents: events,
             snapshot,
@@ -917,12 +938,16 @@ function mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, sn
             adapter,
             normalizePlayerKey
         });
+        return {
+            playbackEvents: Array.isArray(asRecord(assembled).playbackEvents) ? asRecord(assembled).playbackEvents as unknown[] : [],
+            diagnostics: asRecord(assembled).diagnostics ? asRecord(assembled).diagnostics as MatchWorkerPlaybackDiagnostics : null
+        };
     }
 
     const rawPlacePlaybackEvents = (PlaybackEventHelpers && typeof PlaybackEventHelpers.mapRawPlaceEventsToPlayback === 'function')
         ? PlaybackEventHelpers.mapRawPlaceEventsToPlayback(Array.isArray(rawEvents) ? rawEvents : [], {
             fallbackPlayerKey: playerKey || null,
-            fallbackTurnIndex: (snapshot && snapshot.cardState && typeof snapshot.cardState.turnIndex === 'number') ? snapshot.cardState.turnIndex : 0,
+            fallbackTurnIndex: typeof cardStateRecord.turnIndex === 'number' ? cardStateRecord.turnIndex : 0,
             normalizePlayerKey: normalizePlayerKey
         })
         : [];
@@ -932,8 +957,8 @@ function mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, sn
         : rawPlacePlaybackEvents.concat(
             adapter.mapToPlaybackEvents(
                 events,
-                snapshot && snapshot.cardState,
-                snapshot && snapshot.gameState
+                snapshotRecord.cardState,
+                snapshotRecord.gameState
             ) || []
         );
 
@@ -943,11 +968,12 @@ function mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, sn
     };
 }
 
-function collectServerPlaybackEvents(snapshot, rawEvents, playbackAdapter) {
-    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object')
-        ? snapshot.cardState
+function collectServerPlaybackEvents(snapshot: unknown, rawEvents: unknown, playbackAdapter: unknown): MatchWorkerPlaybackAssembly {
+    const snapshotRecord = asWorkerSnapshot(snapshot);
+    const cardState = (snapshotRecord.cardState && typeof snapshotRecord.cardState === 'object')
+        ? snapshotRecord.cardState
         : null;
-    const playerKey = getCurrentPlayerKey(snapshot && snapshot.gameState);
+    const playerKey = getCurrentPlayerKey(snapshotRecord.gameState);
     if (!cardState) {
         return {
             playbackEvents: [],
@@ -957,7 +983,7 @@ function collectServerPlaybackEvents(snapshot, rawEvents, playbackAdapter) {
         };
     }
 
-    let presentationEvents = [];
+    let presentationEvents: unknown[] = [];
     if (Array.isArray(cardState.presentationEvents) && cardState.presentationEvents.length > 0) {
         presentationEvents = deepClone(cardState.presentationEvents);
         if (Array.isArray(cardState._presentationEventsPersist)) {
@@ -978,18 +1004,19 @@ function collectServerPlaybackEvents(snapshot, rawEvents, playbackAdapter) {
     });
 }
 
-function getPlaybackAssemblyWarnings(diagnostics) {
-    const list = (diagnostics && Array.isArray(diagnostics.warnings)) ? diagnostics.warnings : [];
-    return list.filter((warning) => String(warning || '').trim());
+function getPlaybackAssemblyWarnings(diagnostics: unknown): string[] {
+    const diagnosticsRecord = asRecord(diagnostics);
+    const list = Array.isArray(diagnosticsRecord.warnings) ? diagnosticsRecord.warnings : [];
+    return list.filter((warning: unknown) => String(warning || '').trim()).map((warning) => String(warning));
 }
 
-function toDebugPlaybackDiagnostics(diagnostics, networkDebugEnabled) {
+function toDebugPlaybackDiagnostics(diagnostics: unknown, networkDebugEnabled: unknown): MatchWorkerPlaybackDiagnostics | null {
     const warnings = getPlaybackAssemblyWarnings(diagnostics);
     if (!warnings.length || networkDebugEnabled !== true) return null;
-    return deepClone(diagnostics);
+    return deepClone(diagnostics) as MatchWorkerPlaybackDiagnostics;
 }
 
-function reportPlaybackAssemblyDiagnostics(context, diagnostics, options = {}) {
+function reportPlaybackAssemblyDiagnostics(context: string, diagnostics: unknown, options: Record<string, unknown> = {}): void {
     const warnings = getPlaybackAssemblyWarnings(diagnostics);
     if (!warnings.length) return;
 
@@ -1005,7 +1032,7 @@ function reportPlaybackAssemblyDiagnostics(context, diagnostics, options = {}) {
     console.error(message);
 }
 
-function buildPublishPayload(room, viewerSeatKey, options = {}) {
+function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, viewerSeatKey: unknown, options: MatchWorkerPublishPayloadOptions = {}) {
     const serverTime = Number.isFinite(Number(options.serverTime)) ? Number(options.serverTime) : Date.now();
     const networkDebugEnabled = toPublicNetworkDebugEnabled(room);
     const snapshot = Object.prototype.hasOwnProperty.call(options, 'snapshot')
@@ -1014,7 +1041,7 @@ function buildPublishPayload(room, viewerSeatKey, options = {}) {
     if (options.previousSnapshotForChargeDelta && MatchAuthority && typeof MatchAuthority.restoreMissingChargeDeltaEvents === 'function') {
         MatchAuthority.restoreMissingChargeDeltaEvents(options.previousSnapshotForChargeDelta, snapshot);
     }
-    const payloadOptions = {
+    const payloadOptions: MatchWorkerPublishPayloadOptions = {
         ok: options.ok === true,
         snapshot,
         roomDeck: toPublicRoomDeck(room),
@@ -1051,10 +1078,12 @@ function buildPublishPayload(room, viewerSeatKey, options = {}) {
     return payloadOptions;
 }
 
-function captureTurnStartHandState(snapshot) {
-    const playerKey = getCurrentPlayerKey(snapshot && snapshot.gameState);
-    const hands = (snapshot && snapshot.cardState && snapshot.cardState.hands && typeof snapshot.cardState.hands === 'object')
-        ? snapshot.cardState.hands
+function captureTurnStartHandState(snapshot: unknown): MatchWorkerTurnStartHandState {
+    const snapshotRecord = asWorkerSnapshot(snapshot);
+    const cardStateRecord = asRecord(snapshotRecord.cardState);
+    const playerKey = getCurrentPlayerKey(snapshotRecord.gameState);
+    const hands = (cardStateRecord.hands && typeof cardStateRecord.hands === 'object')
+        ? asRecord(cardStateRecord.hands)
         : {};
     return {
         playerKey,
@@ -1062,21 +1091,26 @@ function captureTurnStartHandState(snapshot) {
     };
 }
 
-function appendTurnStartDrawPlaybackEvents(playbackAssembly, snapshot, handState, playbackAdapter) {
+function appendTurnStartDrawPlaybackEvents(
+    playbackAssembly: MatchWorkerPlaybackAssembly | unknown[] | unknown,
+    snapshot: unknown,
+    handState: MatchWorkerTurnStartHandState,
+    playbackAdapter: unknown
+): MatchWorkerPlaybackAssembly {
     const assembly = (playbackAssembly && typeof playbackAssembly === 'object')
-        ? playbackAssembly
+        ? playbackAssembly as MatchWorkerPlaybackAssembly
         : { playbackEvents: Array.isArray(playbackAssembly) ? playbackAssembly : [], diagnostics: null };
     const baseEvents = Array.isArray(assembly.playbackEvents) ? assembly.playbackEvents.slice() : [];
     const playerKey = normalizePlayerKey(handState && handState.playerKey);
     if (!playerKey) return assembly;
 
-    const adapter = (playbackAdapter && typeof playbackAdapter.mapToPlaybackEvents === 'function')
-        ? playbackAdapter
-        : null;
+    const adapter = asPlaybackAdapter(playbackAdapter);
     if (!adapter) return assembly;
 
-    const hands = (snapshot && snapshot.cardState && snapshot.cardState.hands && typeof snapshot.cardState.hands === 'object')
-        ? snapshot.cardState.hands
+    const snapshotRecord = asWorkerSnapshot(snapshot);
+    const cardStateRecord = asRecord(snapshotRecord.cardState);
+    const hands = (cardStateRecord.hands && typeof cardStateRecord.hands === 'object')
+        ? asRecord(cardStateRecord.hands)
         : {};
     const beforeHand = Array.isArray(handState && handState.hand) ? handState.hand : [];
     const afterHand = Array.isArray(hands[playerKey]) ? hands[playerKey] : [];
@@ -1095,8 +1129,8 @@ function appendTurnStartDrawPlaybackEvents(playbackAssembly, snapshot, handState
 
     const drawPlaybackEvents = adapter.mapToPlaybackEvents(
         drawPresentationEvents,
-        snapshot && snapshot.cardState,
-        snapshot && snapshot.gameState
+        snapshotRecord.cardState,
+        snapshotRecord.gameState
     ) || [];
     if (!Array.isArray(drawPlaybackEvents) || drawPlaybackEvents.length === 0) return assembly;
     const playbackEvents = (PlaybackEventHelpers && typeof PlaybackEventHelpers.appendPlaybackEventsAfter === 'function')
@@ -1108,25 +1142,30 @@ function appendTurnStartDrawPlaybackEvents(playbackAssembly, snapshot, handState
     });
 }
 
-async function reconcileTurnStartAndCollectPlayback(room, snapshot, playbackAdapter) {
+async function reconcileTurnStartAndCollectPlayback(room: MatchWorkerRoomState | null | undefined, snapshot: unknown, playbackAdapter?: unknown): Promise<MatchWorkerPlaybackAssembly> {
     const handState = captureTurnStartHandState(snapshot);
     if (MatchAuthority && typeof MatchAuthority.stripTransientPresentationState === 'function') {
         MatchAuthority.stripTransientPresentationState(snapshot);
-    } else if (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object') {
-        snapshot.cardState.presentationEvents = [];
-        snapshot.cardState._presentationEventsPersist = [];
-        delete snapshot.cardState._currentActionMeta;
+    } else {
+        const snapshotRecord = asWorkerSnapshot(snapshot);
+        const cardStateRecord = asRecord(snapshotRecord.cardState);
+        if (snapshotRecord.cardState && typeof snapshotRecord.cardState === 'object') {
+            cardStateRecord.presentationEvents = [];
+            cardStateRecord._presentationEventsPersist = [];
+            delete cardStateRecord._currentActionMeta;
+        }
     }
     const rawEvents = await reconcileTurnStartIfNeeded(room, snapshot, { includeRawEvents: true });
-    const modules = (playbackAdapter && typeof playbackAdapter.mapToPlaybackEvents === 'function')
-        ? { TurnPipelineUIAdapter: playbackAdapter }
+    const modules = asPlaybackAdapter(playbackAdapter)
+        ? { TurnPipelineUIAdapter: playbackAdapter as MatchWorkerPlaybackAdapter }
         : await loadTurnPipelineModules();
-    const adapter = modules && modules.TurnPipelineUIAdapter ? modules.TurnPipelineUIAdapter : null;
+    const adapter = modules && modules.TurnPipelineUIAdapter ? asPlaybackAdapter(modules.TurnPipelineUIAdapter) : null;
     const playbackAssembly = collectServerPlaybackEvents(snapshot, rawEvents, adapter);
+    const snapshotRecord = asWorkerSnapshot(snapshot);
     const effectLogs = collectPipelineEffectLogMessages(
         rawEvents,
         playbackAssembly && Array.isArray(playbackAssembly.presentationEvents) ? playbackAssembly.presentationEvents : [],
-        playbackAssembly && playbackAssembly.playerKey ? playbackAssembly.playerKey : getCurrentPlayerKey(snapshot && snapshot.gameState),
+        playbackAssembly && playbackAssembly.playerKey ? playbackAssembly.playerKey : getCurrentPlayerKey(snapshotRecord.gameState),
         adapter
     );
     return appendTurnStartDrawPlaybackEvents(
@@ -1137,23 +1176,29 @@ async function reconcileTurnStartAndCollectPlayback(room, snapshot, playbackAdap
     );
 }
 
-async function applyCommandPublishToSnapshot(room, body, playerKey) {
+async function applyCommandPublishToSnapshot(
+    room: MatchWorkerRoomState | null | undefined,
+    body: Record<string, unknown>,
+    playerKey: MatchAuthoritySeatKey
+): Promise<Record<string, unknown>> {
     if (!NetworkActionSchema || typeof NetworkActionSchema.buildAction !== 'function') {
         return { ok: false, rejectedReason: 'COMMAND_SCHEMA_UNAVAILABLE' };
     }
 
-    const currentSnapshot = (room && room.snapshot && room.snapshot.gameState && room.snapshot.cardState)
-        ? deepClone(room.snapshot)
+    const roomSnapshot = asWorkerSnapshot(room && room.snapshot);
+    const currentSnapshot = (roomSnapshot.gameState && roomSnapshot.cardState)
+        ? deepClone(roomSnapshot) as MatchWorkerPublicSnapshot
         : null;
     if (!currentSnapshot) {
         return { ok: false, rejectedReason: 'INVALID_SNAPSHOT' };
     }
+    const currentCardState = asRecord(currentSnapshot.cardState);
     if (MatchAuthority && typeof MatchAuthority.stripTransientChargeDeltaState === 'function') {
         MatchAuthority.stripTransientChargeDeltaState(currentSnapshot);
     }
 
-    const currentTurnIndex = Number.isFinite(Number(currentSnapshot.cardState && currentSnapshot.cardState.turnIndex))
-        ? Number(currentSnapshot.cardState.turnIndex)
+    const currentTurnIndex = Number.isFinite(Number(currentCardState.turnIndex))
+        ? Number(currentCardState.turnIndex)
         : 0;
     if (isNetworkDebugFillHandPayload(body)) {
         if (!toPublicNetworkDebugEnabled(room)) {
@@ -1165,7 +1210,7 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
         }
 
         const applied = DebugActions.fillDebugHand(
-            currentSnapshot.cardState,
+            currentCardState,
             Object.assign({ playerKey }, resolveNetworkDebugFillHandOptions(body))
         );
         if (!applied) {
@@ -1218,14 +1263,14 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
 
     const prng = createCommandActionPrng(room, currentSnapshot, SeededPRNG);
     const result = TurnPipeline.applyTurnSafe(
-        currentSnapshot.cardState,
+        currentCardState,
         currentSnapshot.gameState,
         playerKey,
         resolvedAction,
         prng,
         {
             currentStateVersion: currentTurnIndex,
-            prngState: currentSnapshot.cardState && currentSnapshot.cardState.prngState
+            prngState: currentCardState.prngState
         }
     );
 
@@ -1242,9 +1287,10 @@ async function applyCommandPublishToSnapshot(room, body, playerKey) {
         gameState: result.gameState,
         cardState: result.cardState
     };
+    const resultCardState = asRecord(result.cardState);
     const actionPresentationEvents = Array.isArray(result.presentationEvents)
         ? result.presentationEvents
-        : ((result.cardState && Array.isArray(result.cardState.presentationEvents)) ? result.cardState.presentationEvents : []);
+        : (Array.isArray(resultCardState.presentationEvents) ? resultCardState.presentationEvents : []);
     const playbackPresentationEvents = actionPresentationEvents.length > 0 ? actionPresentationEvents : result.events;
     const playbackAssembly = mapServerPresentationToPlaybackEvents(
         playbackPresentationEvents,
