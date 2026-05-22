@@ -283,13 +283,6 @@ try { OwnerHelpersModule = _require('../../utils/owner-helpers'); } catch (e) { 
                 if (forced !== null) return forced;
             }
         } catch (e) { /* ignore */ }
-        try {
-            if (typeof globalThis !== 'undefined') {
-                const forced = toBool((globalThis as any).CPU_TALK_ENABLED); // @compat - test flag
-                if (forced !== null) return forced;
-            }
-        } catch (e) { /* ignore */ }
-
         const query = readQueryFlag('cpuTalk');
         if (query !== null) return query;
         const queryAlt = readQueryFlag('cpu_talk');

@@ -87,14 +87,13 @@ describe('cpu commentary runtime', () => {
     jest.resetModules();
     runtime = require('../game/ai/cpu-commentary-runtime');
     engine = require('../game/ai/fixed-commentary-engine');
-    delete global.CPU_TALK_ENABLED;
     delete global.location;
     runtime.resetState();
     runtime.setConfig({ recentKeep: 8 });
   });
 
-  test('can be disabled by global flag', async () => {
-    global.CPU_TALK_ENABLED = false;
+  test('can be disabled by injected flag reader', async () => {
+    runtime.setConfig({ readCpuTalkEnabled: () => false });
     const text = await runtime.requestCommentary({ eventType: 'turn_start' });
     expect(text).toBeNull();
   });
@@ -109,8 +108,7 @@ describe('cpu commentary runtime', () => {
     expect(typeof text).toBe('string');
   });
 
-  test('injected CPU talk flag takes precedence over legacy global flag', async () => {
-    global.CPU_TALK_ENABLED = true;
+  test('injected CPU talk flag disables commentary', async () => {
     runtime.setConfig({
       readCpuTalkEnabled: () => false
     });
@@ -121,7 +119,7 @@ describe('cpu commentary runtime', () => {
   });
 
   test('returns fixed phrase when enabled', async () => {
-    global.CPU_TALK_ENABLED = true;
+    runtime.setConfig({ readCpuTalkEnabled: () => true });
 
     const text = await runtime.requestCommentary({ eventType: 'turn_start' });
 
@@ -132,8 +130,7 @@ describe('cpu commentary runtime', () => {
   });
 
   test('custom maxChars can shorten commentary further', async () => {
-    global.CPU_TALK_ENABLED = true;
-    runtime.setConfig({ maxChars: 20 });
+    runtime.setConfig({ readCpuTalkEnabled: () => true, maxChars: 20 });
 
     const text = await runtime.requestCommentary({ eventType: 'turn_start' });
 
@@ -142,8 +139,7 @@ describe('cpu commentary runtime', () => {
   });
 
   test('card_used line includes card label', async () => {
-    global.CPU_TALK_ENABLED = true;
-    runtime.setConfig({ maxChars: 200 });
+    runtime.setConfig({ readCpuTalkEnabled: () => true, maxChars: 200 });
 
     const text = await runtime.requestCommentary({
       eventType: 'card_used',
@@ -157,8 +153,7 @@ describe('cpu commentary runtime', () => {
   });
 
   test('card_used_by_enemy line includes card label', async () => {
-    global.CPU_TALK_ENABLED = true;
-    runtime.setConfig({ maxChars: 200 });
+    runtime.setConfig({ readCpuTalkEnabled: () => true, maxChars: 200 });
 
     const text = await runtime.requestCommentary({
       eventType: 'card_used_by_enemy',
@@ -202,9 +197,8 @@ describe('cpu commentary runtime', () => {
   });
 
   test.each(CPU_LEVEL_SAMPLES)('runtime turn_start uses $label-style voice for level $level', async ({ level, marker }) => {
-    global.CPU_TALK_ENABLED = true;
     runtime.resetState();
-    runtime.setConfig({ maxChars: 200, recentKeep: 8 });
+    runtime.setConfig({ readCpuTalkEnabled: () => true, maxChars: 200, recentKeep: 8 });
 
     const text = await runtime.requestCommentary({
       eventType: 'turn_start',
