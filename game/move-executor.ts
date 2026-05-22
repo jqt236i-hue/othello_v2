@@ -609,8 +609,3 @@ export = {
     setUIImpl,
     setMoveExecutorTimerService
 };
-
-// Exposing `executeMove` to browser globals is a UI responsibility to avoid direct browser-global references in `game/**`.
-if (typeof globalThis !== 'undefined') {
-    try { globalThis.executeMove = executeMove; } catch (e) { /* ignore */ } // @compat
-}

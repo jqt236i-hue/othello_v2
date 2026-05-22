@@ -1657,6 +1657,12 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 }
             }
         }), timersImpl);
+        try {
+            const moveExecutor = require('../game/move-executor');
+            if (moveExecutor && typeof moveExecutor.executeMove === 'function' && typeof globalThis !== 'undefined') {
+                (globalThis as any).executeMove = moveExecutor.executeMove;
+            }
+        } catch (e: any) { /* ignore */ }
 
         // Visual effects map
         _connect('./visual-effects-map', '../game/visual-effects-map', (uiMod: any) => ({
