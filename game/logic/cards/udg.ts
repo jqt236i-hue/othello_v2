@@ -18,9 +18,6 @@ function _require(id: string): any {
 }
 
 function getRuntimeGlobalValue(key: string): any {
-    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
-        return (globalThis as any)[key];
-    }
     if (typeof self !== 'undefined' && (self as any)[key]) {
         return (self as any)[key];
     }
@@ -36,23 +33,20 @@ function safeRequire(id: string): any {
 }
 
 const SharedConstants = (() => {
-    const runtimeSharedConstants = getRuntimeGlobalValue('SharedConstants');
-    if (runtimeSharedConstants) return runtimeSharedConstants;
-
     if (typeof module === 'object' && module.exports) {
-        return safeRequire('../../../shared-constants') || runtimeSharedConstants;
+        return safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
     }
 
-    return runtimeSharedConstants;
+    return getRuntimeGlobalValue('SharedConstants');
 })();
 
-const BoardOpsModule = getRuntimeGlobalValue('BoardOps') || ((typeof module === 'object' && module.exports)
+const BoardOpsModule = ((typeof module === 'object' && module.exports)
     ? safeRequire('../board_ops')
-    : (typeof self !== 'undefined' ? (self as any).BoardOps : null));
+    : null) || getRuntimeGlobalValue('BoardOps');
 
-const RandomSourceModule = getRuntimeGlobalValue('CardRandomSource') || ((typeof module === 'object' && module.exports)
+const RandomSourceModule = ((typeof module === 'object' && module.exports)
     ? safeRequire('../cards-internal/random-source')
-    : (typeof self !== 'undefined' ? (self as any).CardRandomSource : null));
+    : null) || getRuntimeGlobalValue('CardRandomSource');
 
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 const P_BLACK = (BLACK === undefined || BLACK === null) ? 1 : BLACK;

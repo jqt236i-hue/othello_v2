@@ -18,9 +18,6 @@ function _require(id: string): any {
 }
 
 function getRuntimeGlobalValue(key: string): any {
-    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
-        return (globalThis as any)[key];
-    }
     if (typeof self !== 'undefined' && (self as any)[key]) {
         return (self as any)[key];
     }
@@ -36,23 +33,20 @@ function safeRequire(id: string): any {
 }
 
 const SharedConstants = (() => {
-    const runtimeSharedConstants = getRuntimeGlobalValue('SharedConstants');
-    if (runtimeSharedConstants) return runtimeSharedConstants;
-
     if (typeof module === 'object' && module.exports) {
-        return safeRequire('../../../shared-constants') || runtimeSharedConstants;
+        return safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
     }
 
-    return runtimeSharedConstants;
+    return getRuntimeGlobalValue('SharedConstants');
 })();
 
-const CardUtils = getRuntimeGlobalValue('CardUtils') || ((typeof module === 'object' && module.exports)
-    ? (() => { try { return safeRequire('./utils'); } catch (e) { return null; } })()
-    : (typeof self !== 'undefined' ? (self as any).CardUtils : null));
+const CardUtils = ((typeof module === 'object' && module.exports)
+    ? safeRequire('./utils')
+    : null) || getRuntimeGlobalValue('CardUtils');
 
-const SharedBoardUtils = getRuntimeGlobalValue('SharedBoardUtils') || ((typeof module === 'object' && module.exports)
-    ? (() => { try { return safeRequire('../../../shared/shared-board-utils'); } catch (e) { return null; } })()
-    : (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null));
+const SharedBoardUtils = ((typeof module === 'object' && module.exports)
+    ? safeRequire('../../../shared/shared-board-utils')
+    : null) || getRuntimeGlobalValue('SharedBoardUtils');
 
 const { EMPTY, ORTHOGONAL_DIRECTIONS } = SharedConstants || {};
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;

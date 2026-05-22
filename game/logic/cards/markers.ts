@@ -18,9 +18,6 @@ function _require(id: string): any {
 }
 
 function getRuntimeGlobalValue(key: string): any {
-    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
-        return (globalThis as any)[key];
-    }
     if (typeof self !== 'undefined' && (self as any)[key]) {
         return (self as any)[key];
     }
@@ -28,62 +25,51 @@ function getRuntimeGlobalValue(key: string): any {
 }
 
 const SharedConstants = (() => {
-    const runtimeSharedConstants = getRuntimeGlobalValue('SharedConstants');
-    if (runtimeSharedConstants) return runtimeSharedConstants;
-
     if (typeof module === 'object' && module.exports) {
         try {
-            return _require('../../../shared-constants');
+            return _require('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
         } catch (e) {
-            return runtimeSharedConstants;
+            return getRuntimeGlobalValue('SharedConstants');
         }
     }
 
-    return runtimeSharedConstants;
+    return getRuntimeGlobalValue('SharedConstants');
 })();
 
 const MarkersAdapterModule = (() => {
-    const runtimeMarkersAdapter = getRuntimeGlobalValue('MarkersAdapter');
-    if (runtimeMarkersAdapter) return runtimeMarkersAdapter;
     if (typeof module === 'object' && module.exports) {
         try {
-            return _require('../markers_adapter');
+            return _require('../markers_adapter') || getRuntimeGlobalValue('MarkersAdapter');
         } catch (e) { /* ignore */ }
     }
-    return (typeof self !== 'undefined' ? (self as any).MarkersAdapter : null);
+    return getRuntimeGlobalValue('MarkersAdapter');
 })();
 
 const CardUtilsModule = (() => {
-    const runtimeCardUtils = getRuntimeGlobalValue('CardUtils');
-    if (runtimeCardUtils) return runtimeCardUtils;
     if (typeof module === 'object' && module.exports) {
         try {
-            return _require('./utils');
+            return _require('./utils') || getRuntimeGlobalValue('CardUtils');
         } catch (e) { /* ignore */ }
     }
-    return (typeof self !== 'undefined' ? (self as any).CardUtils : null);
+    return getRuntimeGlobalValue('CardUtils');
 })();
 
 const CardExpansionModule = (() => {
-    const runtimeCardExpansion = getRuntimeGlobalValue('CardExpansion');
-    if (runtimeCardExpansion) return runtimeCardExpansion;
     if (typeof module === 'object' && module.exports) {
         try {
-            return _require('./expansion');
+            return _require('./expansion') || getRuntimeGlobalValue('CardExpansion');
         } catch (e) { /* ignore */ }
     }
-    return (typeof self !== 'undefined' ? (self as any).CardExpansion : null);
+    return getRuntimeGlobalValue('CardExpansion');
 })();
 
 const PresentationModule = (() => {
-    const runtimePresentation = getRuntimeGlobalValue('PresentationHelper');
-    if (runtimePresentation) return runtimePresentation;
     if (typeof module === 'object' && module.exports) {
         try {
-            return _require('../presentation');
+            return _require('../presentation') || getRuntimeGlobalValue('PresentationHelper');
         } catch (e) { /* ignore */ }
     }
-    return (typeof self !== 'undefined' ? (self as any).PresentationHelper : null);
+    return getRuntimeGlobalValue('PresentationHelper');
 })();
 
 const { BOARD_SIZE } = SharedConstants || {};
@@ -128,10 +114,7 @@ function getPresentationHelper(): any {
     if (PresentationModule && typeof PresentationModule.emitPresentationEvent === 'function') {
         return PresentationModule;
     }
-    const globalScope = (typeof globalThis !== 'undefined')
-        ? globalThis
-        : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {} as any));
-    const helper = (globalScope as any) && (globalScope as any).PresentationHelper;
+    const helper = getRuntimeGlobalValue('PresentationHelper');
     return (helper && typeof helper.emitPresentationEvent === 'function') ? helper : null;
 }
 

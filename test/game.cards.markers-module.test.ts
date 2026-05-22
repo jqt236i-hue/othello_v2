@@ -1,25 +1,25 @@
 import * as CardMarkers from '../game/logic/cards/markers.js';
 import * as CardExpansion from '../game/logic/cards/expansion.js';
 import * as Core from '../game/logic/core.js';
+import * as PresentationHelper from '../game/logic/presentation.js';
+
+const RuntimePresentationHelper = require('../dist/game/logic/presentation');
 
 describe('CardMarkers module', () => {
-  const originalBoardOps = globalThis.BoardOps;
+  let emitPresentationEvent: jest.Mock;
 
   beforeEach(() => {
-    globalThis.BoardOps = {
-      emitPresentationEvent: jest.fn((cardState, ev) => {
+    emitPresentationEvent = jest.fn((cardState, ev) => {
         if (!Array.isArray(cardState.presentationEvents)) cardState.presentationEvents = [];
         cardState.presentationEvents.push(ev);
-      })
-    };
+    });
+    PresentationHelper.setPresentationRuntime({ emitPresentationEvent });
+    RuntimePresentationHelper.setPresentationRuntime({ emitPresentationEvent });
   });
 
   afterEach(() => {
-    if (typeof originalBoardOps === 'undefined') {
-      delete globalThis.BoardOps;
-    } else {
-      globalThis.BoardOps = originalBoardOps;
-    }
+    PresentationHelper.setPresentationRuntime(null);
+    RuntimePresentationHelper.setPresentationRuntime(null);
   });
 
   test('addMarker emits status and backfills the latest spawn meta for matching action', () => {
@@ -52,7 +52,7 @@ describe('CardMarkers module', () => {
       owner: 'black',
       data: { type: 'GUARD', remainingOwnerTurns: 2, flipEvadeRemaining: 1 }
     });
-    expect(globalThis.BoardOps.emitPresentationEvent).toHaveBeenCalledWith(
+    expect(emitPresentationEvent).toHaveBeenCalledWith(
       cardState,
       expect.objectContaining({
         type: 'STATUS_APPLIED',
@@ -104,7 +104,7 @@ describe('CardMarkers module', () => {
       owner: 'black',
       data: { type: 'TRAP', hidden: true, armedForPlayer: 'white' }
     });
-    expect(globalThis.BoardOps.emitPresentationEvent).not.toHaveBeenCalledWith(
+    expect(emitPresentationEvent).not.toHaveBeenCalledWith(
       cardState,
       expect.objectContaining({
         type: 'STATUS_APPLIED',
