@@ -26,7 +26,7 @@ Recent boundary typing:
 - `utils/match-authority.ts` now uses those room/projection/payload types on the payload-from-room, snapshot projection, join, and leave helper implementations, reducing the untyped surface that must be fixed before removing its `@ts-nocheck`.
 - `utils/match-authority.ts` also now exposes typed accepted-operation history helpers and seat-token authentication helpers through `MatchAuthorityPublicApi`, with implementation annotations for those clusters.
 - `utils/match-authority.ts` now uses typed optional CommonJS adapters for shared board/catalog/hash helpers and typed room/token/seat metadata utility helpers; its no-`@ts-nocheck` diagnostics are now 0 and the file has been removed from the migration safety allowlist.
-- `workers/match-worker-types.ts` now includes Worker room, SSE stream, prepared snapshot, and leaderboard store boundary types. `workers/match-worker.ts` now declares Durable Object state/room/stream fields and types its initial MatchAuthority proxy helpers, reducing its no-`@ts-nocheck` diagnostics from 468 to 335.
+- `workers/match-worker-types.ts` now includes Worker room, SSE stream, prepared snapshot, leaderboard store, runtime module, deck preload, and turn pipeline adapter boundary types. `workers/match-worker.ts` now declares Durable Object state/room/stream fields, types its initial MatchAuthority proxy helpers, and narrows Worker module loaders, reducing its no-`@ts-nocheck` diagnostics from 468 to 299.
 - `game/ai/cpu-policy-core-types.ts` now includes board, move position, legal move metrics, board-bonus callback, and lookahead search metadata types; its public API signatures now match the runtime `computeLegalMoveMetrics` and `scoreMoveHeuristic` call shapes.
 
 ## Current protected boundaries
@@ -45,7 +45,7 @@ These files still keep `@ts-nocheck` because removing it currently exposes broad
 
 | File | Diagnostics without `@ts-nocheck` | Main categories | Why it remains |
 | --- | ---: | --- | --- |
-| `workers/match-worker.ts` | 335 | non-module UMD imports, implicit worker pipeline parameters, loose publish/snapshot/deck payload objects, dynamic storage/env shapes | Worker entrypoints now pass through checked contract assertions, and Durable Object state/room/SSE fields plus initial MatchAuthority proxy helpers are typed. Worker preload modules, turn pipeline adapters, publish payload assembly, room deck metadata, and leaderboard storage still need narrower shared schemas before full checking is safe. |
+| `workers/match-worker.ts` | 299 | non-module UMD imports, implicit worker publish/route parameters, loose publish/snapshot/deck payload objects, dynamic storage/env shapes | Worker entrypoints now pass through checked contract assertions, and Durable Object state/room/SSE fields, initial MatchAuthority proxy helpers, Worker preload modules, and turn pipeline adapters are typed. Publish payload assembly, room deck metadata, route bodies, and leaderboard storage still need narrower shared schemas before full checking is safe. |
 | `game/ai/cpu-policy-core.ts` | 407 | implicit parameters, legacy helper arity, nullable search context | Public CPU policy API now passes through a checked adapter; RNG, board, move, legal metric, and lookahead callback shapes are typed, but internal card-decision and search helper bodies still need annotations before full checking is safe. |
 
 Diagnostic counts were measured by running TypeScript with only the first-line `@ts-nocheck` removed in memory.

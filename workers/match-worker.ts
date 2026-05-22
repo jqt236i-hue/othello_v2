@@ -4,9 +4,15 @@ import type {
     DurableObjectStateLike,
     MatchRoomDurableObjectApi,
     MatchWorkerEntrypoint,
+    MatchWorkerDeckGlobals,
     MatchWorkerPreparedSnapshotBroadcast,
     MatchWorkerRoomState,
-    MatchWorkerSseStreamInfo
+    MatchWorkerRuntimeModule,
+    MatchWorkerSseStreamInfo,
+    MatchWorkerTurnPipelineModule,
+    MatchWorkerTurnPipelineModules,
+    MatchWorkerTurnPipelineSafeResult,
+    MatchWorkerTurnStartModules
 } from './match-worker-types';
 import type { MatchAuthoritySeatKey } from '../utils/match-authority-types';
 import type { GameState } from '../src/types';
@@ -80,11 +86,11 @@ const OPERATION_ID_MAX_LENGTH = Number.isFinite(Number(MatchAuthority.OPERATION_
     ? Number(MatchAuthority.OPERATION_ID_MAX_LENGTH)
     : 128;
 
-let coreLogicModulePromise: Promise<unknown> | null = null;
-let deckModulesPromise: Promise<unknown> | null = null;
-let turnStartModulesPromise: Promise<unknown> | null = null;
-let turnPipelineModulesPromise: Promise<unknown> | null = null;
-let debugActionsModulePromise: Promise<unknown> | null = null;
+let coreLogicModulePromise: Promise<MatchWorkerRuntimeModule> | null = null;
+let deckModulesPromise: Promise<MatchWorkerDeckGlobals> | null = null;
+let turnStartModulesPromise: Promise<MatchWorkerTurnStartModules> | null = null;
+let turnPipelineModulesPromise: Promise<MatchWorkerTurnPipelineModules> | null = null;
+let debugActionsModulePromise: Promise<MatchWorkerRuntimeModule> | null = null;
 let workerSharedConstantsPromise: Promise<unknown> | null = null;
 let workerSharedBoardUtilsPromise: Promise<unknown> | null = null;
 let workerDeckGlobalsPromise: Promise<unknown> | null = null;
@@ -127,6 +133,15 @@ const CORS_HEADERS = {
 
 function asRecord(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+}
+
+function asRuntimeModule(value: unknown): MatchWorkerRuntimeModule {
+    return value && typeof value === 'object' ? value as MatchWorkerRuntimeModule : {};
+}
+
+function resolveModuleDefault(mod: unknown): MatchWorkerRuntimeModule {
+    const source = asRecord(mod);
+    return asRuntimeModule(source.default || mod);
 }
 
 function withCORS(response: Response): Response {
@@ -330,23 +345,23 @@ function ensureWorkerSharedBoardUtils() {
     return workerSharedBoardUtilsPromise;
 }
 
-function ensureWorkerDeckGlobals() {
+function ensureWorkerDeckGlobals(): Promise<MatchWorkerDeckGlobals> {
     if (!workerDeckGlobalsPromise) {
         workerDeckGlobalsPromise = Promise.all([
             ensureWorkerSharedConstants(),
             importWorkerGlobal('../shared/deck-spec.js', 'DeckSpecHelpers'),
             importWorkerGlobal('../shared/deck-codec.js', 'DeckCodecModule')
         ]).then(([, deckSpecHelpers, deckCodecModule]) => ({
-            deckSpecHelpers,
-            deckCodecModule
+            deckSpecHelpers: asRuntimeModule(deckSpecHelpers),
+            deckCodecModule: asRuntimeModule(deckCodecModule)
         }));
     }
-    return workerDeckGlobalsPromise;
+    return workerDeckGlobalsPromise as Promise<MatchWorkerDeckGlobals>;
 }
 
-function ensureWorkerCardGlobals() {
+function ensureWorkerCardGlobals(): Promise<unknown> {
     if (!workerCardGlobalsPromise) {
-        const requiredGlobals = [
+        const requiredGlobals: Array<[string, string]> = [
             ['../shared/player-encoding.js', 'PlayerEncoding'],
             ['../shared/destroy-outcome-contract.js', 'DestroyOutcomeContract'],
             ['../shared/stone-status-snapshot.js', 'StoneStatusSnapshot'],
@@ -367,7 +382,7 @@ function ensureWorkerCardGlobals() {
             ['../game/cards/timing-processor.js', 'CardTimingProcessor'],
             ['../game/cards/target-resolver.js', 'CardTargetResolver']
         ];
-        const optionalGlobals = [
+        const optionalGlobals: Array<[string, string]> = [
             ['../game/logic/cards/utils.js', 'CardUtils'],
             ['../game/logic/cards/targets.js', 'CardTargets'],
             ['../game/logic/cards/selectors.js', 'CardSelectors'],
@@ -400,17 +415,17 @@ function ensureWorkerCardGlobals() {
             .then(() => ensureWorkerSharedBoardUtils())
             .then(() => requiredGlobals.reduce(
                 (promise, [importPath, globalKey]) => promise.then(() => importWorkerGlobal(importPath, globalKey)),
-                Promise.resolve()
+                Promise.resolve<unknown>(undefined)
             ))
             .then(() => optionalGlobals.reduce(
                 (promise, [importPath, globalKey]) => promise.then(() => importWorkerGlobal(importPath, globalKey).catch(() => null)),
-                Promise.resolve()
+                Promise.resolve<unknown>(undefined)
             ));
     }
     return workerCardGlobalsPromise;
 }
 
-function normalizeWorkerTurnPipelinePlayer(Core, player) {
+function normalizeWorkerTurnPipelinePlayer(Core: MatchWorkerRuntimeModule | null | undefined, player: unknown): MatchAuthoritySeatKey | null {
     const blackValue = Core && Number.isFinite(Number(Core.BLACK)) ? Number(Core.BLACK) : 1;
     const whiteValue = Core && Number.isFinite(Number(Core.WHITE)) ? Number(Core.WHITE) : -1;
     if (player === blackValue || player === 'black') return 'black';
@@ -418,68 +433,90 @@ function normalizeWorkerTurnPipelinePlayer(Core, player) {
     return null;
 }
 
-function createWorkerTurnPipelineModule(CardLogic, Core, TurnPipelinePhases, BoardOps) {
-    function applyTurn(cardState, gameState, playerKey, action, prng, options) {
-        const events = [];
-        const p = prng || undefined;
-        const opts = (options && typeof options === 'object') ? options : {};
+function createWorkerTurnPipelineModule(
+    CardLogic: MatchWorkerRuntimeModule,
+    Core: MatchWorkerRuntimeModule,
+    TurnPipelinePhases: MatchWorkerRuntimeModule,
+    BoardOps: MatchWorkerRuntimeModule
+): MatchWorkerTurnPipelineModule {
+    function applyTurn(cardState: unknown, gameState: unknown, playerKey: unknown, action: unknown, prng?: unknown, options?: Record<string, unknown> | null) {
+        const events: unknown[] = [];
+        const p = asRecord(prng);
+        const prngValue = typeof p.random === 'function' ? p : undefined;
+        const opts = asRecord(options);
         const normalizedPlayerKey = normalizeWorkerTurnPipelinePlayer(Core, playerKey) || playerKey;
-        const previousBoardOpsRandomSource = cardState && cardState._boardOpsRandomSource;
-        if (cardState && p && typeof p.random === 'function') {
-            cardState._boardOpsRandomSource = p;
+        const cardStateRecord = asRecord(cardState);
+        const actionRecord = asRecord(action);
+        const previousBoardOpsRandomSource = cardStateRecord._boardOpsRandomSource;
+        if (cardState && prngValue) {
+            cardStateRecord._boardOpsRandomSource = prngValue;
         }
         try {
+            const applyTurnStartPhase = TurnPipelinePhases.applyTurnStartPhase;
             if (opts.skipTurnStart !== true) {
-                TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, p);
+                if (typeof applyTurnStartPhase !== 'function') {
+                    throw new Error('TurnPipelinePhases.applyTurnStartPhase is required');
+                }
+                applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, prngValue);
             }
-            TurnPipelinePhases.applyCardUsagePhase(CardLogic, cardState, gameState, normalizedPlayerKey, action, events, p);
+            const applyCardUsagePhase = TurnPipelinePhases.applyCardUsagePhase;
+            if (typeof applyCardUsagePhase !== 'function') {
+                throw new Error('TurnPipelinePhases.applyCardUsagePhase is required');
+            }
+            applyCardUsagePhase(CardLogic, cardState, gameState, normalizedPlayerKey, action, events, prngValue);
             const actionMeta = {
-                actionId: action && action.actionId ? action.actionId : null,
-                turnIndex: cardState && cardState.turnIndex ? cardState.turnIndex : 0,
+                actionId: actionRecord.actionId || null,
+                turnIndex: cardStateRecord.turnIndex || 0,
                 plyIndex: 0,
-                randomSource: (p && typeof p.random === 'function') ? p : null
+                randomSource: prngValue || null
             };
             if (cardState && BoardOps && typeof BoardOps.setActionContext === 'function') {
                 BoardOps.setActionContext(cardState, actionMeta);
             } else if (cardState) {
-                cardState._currentActionMeta = actionMeta;
+                cardStateRecord._currentActionMeta = actionMeta;
             }
             try {
-                TurnPipelinePhases.applyActionPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, action, events, p, BoardOps);
+                const applyActionPhase = TurnPipelinePhases.applyActionPhase;
+                if (typeof applyActionPhase !== 'function') {
+                    throw new Error('TurnPipelinePhases.applyActionPhase is required');
+                }
+                applyActionPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, action, events, prngValue, BoardOps);
             } finally {
                 if (cardState && BoardOps && typeof BoardOps.clearActionContext === 'function') {
                     BoardOps.clearActionContext(cardState);
                 } else if (cardState) {
-                    delete cardState._currentActionMeta;
+                    delete cardStateRecord._currentActionMeta;
                 }
             }
             const presentationEvents = (typeof CardLogic.flushPresentationEvents === 'function')
                 ? CardLogic.flushPresentationEvents(cardState)
-                : ((cardState && Array.isArray(cardState.presentationEvents)) ? cardState.presentationEvents.slice() : []);
-            return { gameState, cardState, events, presentationEvents };
+                : ((cardState && Array.isArray(cardStateRecord.presentationEvents)) ? cardStateRecord.presentationEvents.slice() : []);
+            return { gameState, cardState, events, presentationEvents: Array.isArray(presentationEvents) ? presentationEvents : [] };
         } finally {
             if (cardState) {
-                if (previousBoardOpsRandomSource && typeof previousBoardOpsRandomSource.random === 'function') {
-                    cardState._boardOpsRandomSource = previousBoardOpsRandomSource;
+                if (previousBoardOpsRandomSource && typeof asRecord(previousBoardOpsRandomSource).random === 'function') {
+                    cardStateRecord._boardOpsRandomSource = previousBoardOpsRandomSource;
                 } else {
-                    delete cardState._boardOpsRandomSource;
+                    delete cardStateRecord._boardOpsRandomSource;
                 }
             }
         }
     }
 
-    function applyTurnSafe(cardState, gameState, playerKey, action, prng, options) {
-        const cs = deepClone(cardState);
-        const gs = deepClone(gameState);
+    function applyTurnSafe(cardState: unknown, gameState: unknown, playerKey: unknown, action: unknown, prng?: unknown, options?: Record<string, unknown> | null): MatchWorkerTurnPipelineSafeResult {
+        const cs = deepClone(cardState) as Record<string, unknown>;
+        const gs = deepClone(gameState) as Record<string, unknown>;
+        const actionRecord = asRecord(action);
+        const opts = asRecord(options);
         const actionPlayerKey = normalizeWorkerTurnPipelinePlayer(Core, playerKey);
-        const currentPlayerKey = normalizeWorkerTurnPipelinePlayer(Core, gs && gs.currentPlayer);
-        const currentVersion = (options && typeof options.currentStateVersion === 'number')
-            ? options.currentStateVersion
+        const currentPlayerKey = normalizeWorkerTurnPipelinePlayer(Core, gs.currentPlayer);
+        const currentVersion = (typeof opts.currentStateVersion === 'number')
+            ? opts.currentStateVersion
             : 0;
         let effectivePipelinePlayerKey = actionPlayerKey;
 
         if (actionPlayerKey && currentPlayerKey && actionPlayerKey !== currentPlayerKey) {
-            const fateWillController = (cs && cs.fateWillControllerByTurnOwner || {})[currentPlayerKey];
+            const fateWillController = asRecord(cs.fateWillControllerByTurnOwner)[currentPlayerKey];
             if (fateWillController === actionPlayerKey) {
                 effectivePipelinePlayerKey = currentPlayerKey;
             } else {
@@ -494,7 +531,7 @@ function createWorkerTurnPipelineModule(CardLogic, Core, TurnPipelinePhases, Boa
             }
         }
 
-        if (action && action.actionId && options && Array.isArray(options.previousActionIds) && options.previousActionIds.includes(action.actionId)) {
+        if (actionRecord.actionId && Array.isArray(opts.previousActionIds) && opts.previousActionIds.includes(actionRecord.actionId)) {
             return {
                 ok: false,
                 gameState: gs,
@@ -505,7 +542,7 @@ function createWorkerTurnPipelineModule(CardLogic, Core, TurnPipelinePhases, Boa
             };
         }
 
-        if (action && typeof action.turnIndex === 'number' && options && typeof options.currentStateVersion === 'number' && action.turnIndex !== options.currentStateVersion) {
+        if (typeof actionRecord.turnIndex === 'number' && typeof opts.currentStateVersion === 'number' && actionRecord.turnIndex !== opts.currentStateVersion) {
             return {
                 ok: false,
                 gameState: gs,
@@ -552,13 +589,13 @@ function createWorkerTurnPipelineModule(CardLogic, Core, TurnPipelinePhases, Boa
     };
 }
 
-function loadCoreLogicModule() {
+function loadCoreLogicModule(): Promise<MatchWorkerRuntimeModule> {
     if (!coreLogicModulePromise) {
         coreLogicModulePromise = Promise.all([
             ensureWorkerSharedConstants(),
             ensureWorkerSharedBoardUtils()
         ]).then(() => import('../game/logic/core.js').then((mod) => {
-            const resolved = mod.default || mod;
+            const resolved = resolveModuleDefault(mod);
             setRuntimeGlobalValue('Core', resolved);
             return resolved;
         }));
@@ -566,20 +603,20 @@ function loadCoreLogicModule() {
     return coreLogicModulePromise;
 }
 
-function loadDeckModules() {
+function loadDeckModules(): Promise<MatchWorkerDeckGlobals> {
     if (!deckModulesPromise) {
         deckModulesPromise = ensureWorkerDeckGlobals();
     }
     return deckModulesPromise;
 }
 
-function loadTurnStartModules() {
+function loadTurnStartModules(): Promise<MatchWorkerTurnStartModules> {
     if (!turnStartModulesPromise) {
         turnStartModulesPromise = Promise.all([
             loadCoreLogicModule(),
-            ensureWorkerCardGlobals().then(() => import('../game/logic/cards.js').then((mod) => mod.default || mod)),
-            import('../game/turn/turn_pipeline_phases.js').then((mod) => mod.default || mod),
-            import('../game/schema/prng.js').then((mod) => mod.default || mod)
+            ensureWorkerCardGlobals().then(() => import('../game/logic/cards.js').then(resolveModuleDefault)),
+            import('../game/turn/turn_pipeline_phases.js').then(resolveModuleDefault),
+            import('../game/schema/prng.js').then(resolveModuleDefault)
         ]).then(([Core, CardLogic, TurnPipelinePhases, SeededPRNG]) => ({
             Core,
             CardLogic,
@@ -590,16 +627,16 @@ function loadTurnStartModules() {
     return turnStartModulesPromise;
 }
 
-function loadTurnPipelineModules() {
+function loadTurnPipelineModules(): Promise<MatchWorkerTurnPipelineModules> {
     if (!turnPipelineModulesPromise) {
         turnPipelineModulesPromise = Promise.all([
             ensureWorkerCardGlobals(),
             loadCoreLogicModule(),
-            import('../game/logic/cards.js').then((mod) => mod.default || mod),
-            import('../game/turn/turn_pipeline_phases.js').then((mod) => mod.default || mod),
-            import('../game/turn/pipeline_ui_adapter.js').then((mod) => mod.default || mod),
-            import('../game/logic/board_ops.js').then((mod) => mod.default || mod),
-            import('../game/schema/prng.js').then((mod) => mod.default || mod)
+            import('../game/logic/cards.js').then(resolveModuleDefault),
+            import('../game/turn/turn_pipeline_phases.js').then(resolveModuleDefault),
+            import('../game/turn/pipeline_ui_adapter.js').then(resolveModuleDefault),
+            import('../game/logic/board_ops.js').then(resolveModuleDefault),
+            import('../game/schema/prng.js').then(resolveModuleDefault)
         ]).then(([, Core, CardLogic, TurnPipelinePhases, TurnPipelineUIAdapter, BoardOps, SeededPRNG]) => ({
             TurnPipeline: createWorkerTurnPipelineModule(CardLogic, Core, TurnPipelinePhases, BoardOps),
             SeededPRNG,
@@ -610,9 +647,9 @@ function loadTurnPipelineModules() {
     return turnPipelineModulesPromise;
 }
 
-function loadDebugActionsModule() {
+function loadDebugActionsModule(): Promise<MatchWorkerRuntimeModule> {
     if (!debugActionsModulePromise) {
-        debugActionsModulePromise = import('../game/debug/debug-actions.js').then((mod) => mod.default || mod);
+        debugActionsModulePromise = import('../game/debug/debug-actions.js').then(resolveModuleDefault);
     }
     return debugActionsModulePromise;
 }

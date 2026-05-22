@@ -51,6 +51,63 @@ export interface MatchWorkerLeaderboardStore {
     updatedAt: number;
 }
 
+export interface MatchWorkerRuntimeModule {
+    [key: string]: unknown;
+}
+
+export interface MatchWorkerDeckGlobals {
+    deckSpecHelpers: MatchWorkerRuntimeModule;
+    deckCodecModule: MatchWorkerRuntimeModule;
+}
+
+export interface MatchWorkerTurnStartModules {
+    Core: MatchWorkerRuntimeModule;
+    CardLogic: MatchWorkerRuntimeModule;
+    TurnPipelinePhases: MatchWorkerRuntimeModule;
+    SeededPRNG: MatchWorkerRuntimeModule;
+}
+
+export interface MatchWorkerTurnPipelineResult {
+    gameState: unknown;
+    cardState: unknown;
+    events: unknown[];
+    presentationEvents?: unknown[];
+}
+
+export interface MatchWorkerTurnPipelineSafeResult extends MatchWorkerTurnPipelineResult {
+    ok: boolean;
+    nextStateVersion: number;
+    stateHash?: unknown;
+    rejectedReason?: string;
+    errorMessage?: string;
+}
+
+export interface MatchWorkerTurnPipelineModule {
+    applyTurn(
+        cardState: unknown,
+        gameState: unknown,
+        playerKey: unknown,
+        action: unknown,
+        prng?: unknown,
+        options?: Record<string, unknown> | null
+    ): MatchWorkerTurnPipelineResult;
+    applyTurnSafe(
+        cardState: unknown,
+        gameState: unknown,
+        playerKey: unknown,
+        action: unknown,
+        prng?: unknown,
+        options?: Record<string, unknown> | null
+    ): MatchWorkerTurnPipelineSafeResult;
+}
+
+export interface MatchWorkerTurnPipelineModules {
+    TurnPipeline: MatchWorkerTurnPipelineModule;
+    SeededPRNG: MatchWorkerRuntimeModule;
+    TurnPipelineUIAdapter: MatchWorkerRuntimeModule;
+    CardLogic: MatchWorkerRuntimeModule;
+}
+
 export interface MatchWorkerEntrypoint {
     fetch(request: Request, env: MatchWorkerEnv): Promise<Response>;
 }
