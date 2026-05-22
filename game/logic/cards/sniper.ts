@@ -1,19 +1,166 @@
-// @ts-nocheck
+type SniperOwnerValue = number;
+type SniperSeatKey = 'black' | 'white';
+type SniperExpansionSide = 'left' | 'right' | 'top' | 'bottom';
+
+interface SniperSharedConstants {
+    BLACK: SniperOwnerValue;
+    WHITE: SniperOwnerValue;
+    EMPTY: SniperOwnerValue;
+}
+
+interface SniperBoardDims {
+    rows: number;
+    cols: number;
+}
+
+interface SniperExpansionCell {
+    side: SniperExpansionSide | null;
+    row: number;
+    col: number;
+    owner: SniperOwnerValue;
+}
+
+interface SniperExpansionState {
+    active?: boolean;
+    side?: SniperExpansionSide | null;
+    row?: number | null;
+    col?: number | null;
+    owner?: SniperOwnerValue;
+    usedByPlayer?: Record<string, boolean>;
+    cells?: SniperExpansionCell[];
+}
+
+interface SniperGameState {
+    board?: SniperOwnerValue[][];
+    boardExpansion?: SniperExpansionState | null;
+    [key: string]: unknown;
+}
+
+interface SniperMarkerData {
+    type?: string;
+    remainingOwnerTurns?: number;
+    [key: string]: unknown;
+}
+
+interface SniperMarker {
+    kind?: string;
+    row: number;
+    col: number;
+    owner?: unknown;
+    data?: SniperMarkerData | null;
+    [key: string]: unknown;
+}
+
+interface SniperCardState {
+    markers?: SniperMarker[];
+    [key: string]: unknown;
+}
+
+interface SniperDestroyMeta {
+    sourceRow: number;
+    sourceCol: number;
+    projectileOwner: SniperSeatKey;
+    projectileStone: string;
+}
+
+interface SniperBoardOpsModule {
+    getExpansionDescriptors?: (gameState: SniperGameState) => SniperExpansionCell[];
+    getCellValue?: (gameState: SniperGameState, row: number, col: number) => SniperOwnerValue | null;
+    setCellValue?: (gameState: SniperGameState, row: number, col: number, value: SniperOwnerValue) => boolean;
+    destroyAt?: (
+        cardState: SniperCardState,
+        gameState: SniperGameState,
+        row: number,
+        col: number,
+        cause: string,
+        reason: string,
+        meta: SniperDestroyMeta
+    ) => { destroyed?: boolean } | null | undefined;
+    revertSpecialStoneAt?: (
+        cardState: SniperCardState,
+        gameState: SniperGameState,
+        row: number,
+        col: number,
+        specialType: string,
+        playerKey: SniperSeatKey,
+        cause: string,
+        reason: string
+    ) => { reverted?: boolean } | null | undefined;
+    runEffectBlock?: <T>(cardState: SniperCardState, gameState: SniperGameState, meta: Record<string, unknown>, fn: () => T) => T;
+}
+
+interface SniperRandomSourceModule {
+    resolveRandomFunction?: (randomLike: SniperRandomLike | null | undefined, fallback: unknown, label: string) => () => number;
+}
+
+type SniperRandomLike = (() => number) | { random: () => number };
+type SniperDestroyAt = (cardState: SniperCardState, gameState: SniperGameState, row: number, col: number) => boolean;
+
+interface SniperProcessDeps {
+    random?: SniperRandomLike | null;
+    destroyAt?: SniperDestroyAt;
+    BoardOps?: SniperBoardOpsModule | null;
+    decrementRemainingOwnerTurns?: boolean;
+}
+
+interface SniperEffectTarget {
+    row: number;
+    col: number;
+    distSq: number;
+}
+
+interface SniperEffectPosition {
+    row: number;
+    col: number;
+}
+
+interface SniperDestroyedPosition extends SniperEffectPosition {
+    sourceRow: number;
+    sourceCol: number;
+}
+
+interface SniperExpiredPosition extends SniperEffectPosition {
+    owner: SniperSeatKey;
+    reason: string;
+}
+
+interface SniperTurnStartResult {
+    destroyed: SniperDestroyedPosition[];
+    expired: SniperExpiredPosition[];
+}
+
+interface SniperProcessResult extends SniperTurnStartResult {
+    anchors: Array<SniperEffectPosition & { remainingNow: number }>;
+}
+
+interface SniperModuleApi {
+    processSniperWillEffects(cardState: SniperCardState, gameState: SniperGameState, playerKey: SniperSeatKey, deps?: SniperProcessDeps): SniperProcessResult;
+    processSniperWillEffectsAtTurnStartAnchor(cardState: SniperCardState, gameState: SniperGameState, playerKey: SniperSeatKey, row: number, col: number, deps?: SniperProcessDeps): SniperTurnStartResult;
+}
+
+interface SniperRoot {
+    SharedConstants?: SniperSharedConstants;
+    BoardOps?: SniperBoardOpsModule | null;
+    CardRandomSource?: SniperRandomSourceModule | null;
+    CardSniper?: SniperModuleApi;
+}
+
 const CardSniper = /**
  * @file sniper.js
  * @description Sniper Will effect helpers
  */
 
-(function (root, factory) {
+(function (root: SniperRoot, factory: (constants: SniperSharedConstants, boardOps: SniperBoardOpsModule | null, randomSource: SniperRandomSourceModule | null) => SniperModuleApi) {
     if (root && root.SharedConstants) {
         return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null);
     }
     if (typeof module === 'object' && module.exports) {
         return module.exports = factory(require('../../../shared-constants'), require('../board_ops'), require('../cards-internal/random-source'));
     } else {
+        if (!root.SharedConstants) throw new Error('SharedConstants missing required values');
         return root.CardSniper = factory(root.SharedConstants, root.BoardOps || null, root.CardRandomSource || null);
     }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants, BoardOpsModule, RandomSourceModule) {
+}(typeof self !== 'undefined' ? self as unknown as SniperRoot : globalThis as unknown as SniperRoot, function (SharedConstants: SniperSharedConstants, BoardOpsModule: SniperBoardOpsModule | null, RandomSourceModule: SniperRandomSourceModule | null) {
     'use strict';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
@@ -22,23 +169,23 @@ const CardSniper = /**
         throw new Error('SharedConstants missing required values');
     }
 
-    function normalizeExpansionOwner(owner) {
+    function normalizeExpansionOwner(owner: unknown): SniperOwnerValue {
         return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
     }
 
-    function resolveBoardDims(gameState) {
+    function resolveBoardDims(gameState: SniperGameState): SniperBoardDims {
         const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
         const rows = board && board.length > 0 ? board.length : 8;
         const cols = board && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
         return { rows, cols };
     }
 
-    function isMainBoardCell(row, col, gameState) {
+    function isMainBoardCell(row: number, col: number, gameState: SniperGameState): boolean {
         const dims = resolveBoardDims(gameState);
         return Number.isInteger(row) && row >= 0 && row < dims.rows && Number.isInteger(col) && col >= 0 && col < dims.cols;
     }
 
-    function resolveExpansionSide(side, row, col, gameState) {
+    function resolveExpansionSide(side: unknown, row: number, col: number, gameState: SniperGameState): SniperExpansionSide | null {
         if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
         const dims = resolveBoardDims(gameState);
         if (col === -1) return 'left';
@@ -48,15 +195,17 @@ const CardSniper = /**
         return null;
     }
 
-    function isExpansionCoordinate(row, col, gameState) {
+    function isExpansionCoordinate(row: unknown, col: unknown, gameState: SniperGameState): boolean {
         if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+        const numericRow = Number(row);
+        const numericCol = Number(col);
         const dims = resolveBoardDims(gameState);
-        if (row < -1 || row > dims.rows || col < -1 || col > dims.cols) return false;
-        if (isMainBoardCell(row, col, gameState)) return false;
+        if (numericRow < -1 || numericRow > dims.rows || numericCol < -1 || numericCol > dims.cols) return false;
+        if (isMainBoardCell(numericRow, numericCol, gameState)) return false;
         return true;
     }
 
-    function syncLegacyExpansionFields(expansion, gameState) {
+    function syncLegacyExpansionFields(expansion: SniperExpansionState | null | undefined, gameState: SniperGameState): void {
         if (!expansion || typeof expansion !== 'object') return;
         if (!Array.isArray(expansion.cells)) expansion.cells = [];
         const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
@@ -66,7 +215,7 @@ const CardSniper = /**
         expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
     }
 
-    function getExpansionCells(gameState) {
+    function getExpansionCells(gameState: SniperGameState): SniperExpansionCell[] {
         if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
             return BoardOpsModule.getExpansionDescriptors(gameState);
         }
@@ -75,11 +224,15 @@ const CardSniper = /**
             : null;
         if (!expansion) return [];
 
-        const cells = [];
-        const pushCell = (source, legacyRow, legacyOwner) => {
-            let side = null;
-            let row = null;
-            let col = null;
+        const cells: SniperExpansionCell[] = [];
+        const pushCell = (
+            source: SniperExpansionCell | SniperExpansionState | SniperExpansionSide | null | undefined,
+            legacyRow?: number | null,
+            legacyOwner?: unknown
+        ): void => {
+            let side: unknown = null;
+            let row: number | null | undefined = null;
+            let col: number | null | undefined = null;
             let owner = legacyOwner;
 
             if (source && typeof source === 'object') {
@@ -97,11 +250,13 @@ const CardSniper = /**
             }
 
             if (!isExpansionCoordinate(row, col, gameState)) return;
-            if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
+            const normalizedRow = Number(row);
+            const normalizedCol = Number(col);
+            if (cells.some((cell) => cell && cell.row === normalizedRow && cell.col === normalizedCol)) return;
             cells.push({
-                side: resolveExpansionSide(side, row, col, gameState),
-                row,
-                col,
+                side: resolveExpansionSide(side, normalizedRow, normalizedCol, gameState),
+                row: normalizedRow,
+                col: normalizedCol,
                 owner: normalizeExpansionOwner(owner)
             });
         };
@@ -120,7 +275,7 @@ const CardSniper = /**
         return cells;
     }
 
-    function ensureExpansionStateMutable(gameState) {
+    function ensureExpansionStateMutable(gameState: SniperGameState): SniperExpansionState {
         if (!gameState.boardExpansion || typeof gameState.boardExpansion !== 'object') {
             gameState.boardExpansion = {
                 active: false,
@@ -144,11 +299,11 @@ const CardSniper = /**
         return expansion;
     }
 
-    function getCellValue(gameState, row, col) {
+    function getCellValue(gameState: SniperGameState, row: number, col: number): SniperOwnerValue | null {
         if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
             return BoardOpsModule.getCellValue(gameState, row, col);
         }
-        if (isMainBoardCell(row, col, gameState)) return gameState.board[row][col];
+        if (isMainBoardCell(row, col, gameState) && gameState.board) return gameState.board[row][col];
         const expansionCells = getExpansionCells(gameState);
         for (const expansion of expansionCells) {
             if (!expansion) continue;
@@ -157,11 +312,11 @@ const CardSniper = /**
         return null;
     }
 
-    function setCellValue(gameState, row, col, value) {
+    function setCellValue(gameState: SniperGameState, row: number, col: number, value: SniperOwnerValue): boolean {
         if (BoardOpsModule && typeof BoardOpsModule.setCellValue === 'function') {
             return BoardOpsModule.setCellValue(gameState, row, col, value);
         }
-        if (isMainBoardCell(row, col, gameState)) {
+        if (isMainBoardCell(row, col, gameState) && gameState.board) {
             gameState.board[row][col] = value;
             return true;
         }
@@ -189,9 +344,10 @@ const CardSniper = /**
         return false;
     }
 
-    function cleanupExpiredSnipers(cardState) {
-        if (!Array.isArray(cardState && cardState.markers)) return;
-        cardState.markers = cardState.markers.filter((m) => (
+    function cleanupExpiredSnipers(cardState: SniperCardState): void {
+        const markers = cardState.markers;
+        if (!Array.isArray(markers)) return;
+        cardState.markers = markers.filter((m) => (
             m.kind !== 'specialStone' ||
             !m.data ||
             m.data.type !== 'SNIPER' ||
@@ -199,22 +355,23 @@ const CardSniper = /**
         ));
     }
 
-    function resolveRandomFn(randomLike) {
+    function resolveRandomFn(randomLike: SniperRandomLike | null | undefined): () => number {
         if (RandomSourceModule && typeof RandomSourceModule.resolveRandomFunction === 'function') {
             return RandomSourceModule.resolveRandomFunction(randomLike, null, 'CardSniper');
         }
         if (typeof randomLike === 'function') return randomLike;
         if (randomLike && typeof randomLike.random === 'function') {
-            return function () { return randomLike.random(); };
+            return function (): number { return randomLike.random(); };
         }
         throw new Error('CardSniper requires an injected deterministic PRNG.');
     }
 
-    function pickNearestEnemyTarget(gameState, sourceRow, sourceCol, enemyValue, randomFn) {
-        const candidates = [];
+    function pickNearestEnemyTarget(gameState: SniperGameState, sourceRow: number, sourceCol: number, enemyValue: SniperOwnerValue, randomFn: () => number): SniperEffectTarget | null {
+        const candidates: SniperEffectTarget[] = [];
         const dims = resolveBoardDims(gameState);
         for (let r = 0; r < dims.rows; r++) {
             for (let c = 0; c < dims.cols; c++) {
+                if (!gameState.board) continue;
                 if (gameState.board[r][c] !== enemyValue) continue;
                 const dr = r - sourceRow;
                 const dc = c - sourceCol;
@@ -249,17 +406,17 @@ const CardSniper = /**
         return nearest[idx];
     }
 
-    function processSniperWillEffects(cardState, gameState, playerKey, deps) {
+    function processSniperWillEffects(cardState: SniperCardState, gameState: SniperGameState, playerKey: SniperSeatKey, deps?: SniperProcessDeps): SniperProcessResult {
         const options = deps || {};
         const randomFn = resolveRandomFn(options.random);
-        const destroyed = [];
-        const anchors = [];
-        const expired = [];
+        const destroyed: SniperDestroyedPosition[] = [];
+        const anchors: Array<SniperEffectPosition & { remainingNow: number }> = [];
+        const expired: SniperExpiredPosition[] = [];
 
         const playerValue = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const enemyValue = -playerValue;
 
-        const destroyAt = options.destroyAt || ((cs, gs, r, c) => {
+        const destroyAt: SniperDestroyAt = options.destroyAt || ((cs: SniperCardState, gs: SniperGameState, r: number, c: number): boolean => {
             const current = getCellValue(gs, r, c);
             if (current === null || current === EMPTY) return false;
             if (cs.markers) cs.markers = cs.markers.filter((m) => !(m.row === r && m.col === c));
@@ -285,7 +442,7 @@ const CardSniper = /**
             const target = pickNearestEnemyTarget(gameState, sniper.row, sniper.col, enemyValue, randomFn);
             if (target) {
                 let destroyedRes = false;
-                const destroyMeta = {
+                const destroyMeta: SniperDestroyMeta = {
                     sourceRow: sniper.row,
                     sourceCol: sniper.col,
                     projectileOwner: playerKey,
@@ -346,16 +503,16 @@ const CardSniper = /**
         return { destroyed, anchors, expired };
     }
 
-    function processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps) {
+    function processSniperWillEffectsAtTurnStartAnchor(cardState: SniperCardState, gameState: SniperGameState, playerKey: SniperSeatKey, row: number, col: number, deps?: SniperProcessDeps): SniperTurnStartResult {
         const options = deps || {};
         const randomFn = resolveRandomFn(options.random);
-        const destroyed = [];
-        const expired = [];
+        const destroyed: SniperDestroyedPosition[] = [];
+        const expired: SniperExpiredPosition[] = [];
 
         const playerValue = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const enemyValue = -playerValue;
 
-        const destroyAt = options.destroyAt || ((cs, gs, r, c) => {
+        const destroyAt: SniperDestroyAt = options.destroyAt || ((cs: SniperCardState, gs: SniperGameState, r: number, c: number): boolean => {
             const current = getCellValue(gs, r, c);
             if (current === null || current === EMPTY) return false;
             if (cs.markers) cs.markers = cs.markers.filter((m) => !(m.row === r && m.col === c));
@@ -379,11 +536,11 @@ const CardSniper = /**
             return { destroyed, expired };
         }
 
-        const resolveAnchor = () => {
+        const resolveAnchor = (): SniperTurnStartResult => {
         const target = pickNearestEnemyTarget(gameState, row, col, enemyValue, randomFn);
         if (target) {
             let destroyedRes = false;
-            const destroyMeta = {
+            const destroyMeta: SniperDestroyMeta = {
                 sourceRow: row,
                 sourceCol: col,
                 projectileOwner: playerKey,

@@ -34,7 +34,6 @@ const allowedNoCheckDebt = new Set([
   'game/logic/cards/breeding.ts',
   'game/logic/cards/destroy_dragon.ts',
   'game/logic/cards/lightning.ts',
-  'game/logic/cards/sniper.ts',
   'scripts/deploy-lane-model-to-root.ts',
   'scripts/local-cpu-commentary-server.ts',
   'scripts/local-match-runtime.ts',

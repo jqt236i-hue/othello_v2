@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 79 files.
+Current authorized `@ts-nocheck` debt: 78 files.
 
 Recent reduction:
 
@@ -23,6 +23,7 @@ Recent reduction:
 - `utils/match-runtime-core.ts` no longer uses `@ts-nocheck`; its command publish adapter boundary now has a small fail-closed dependency/result contract.
 - `utils/owner-helpers.ts` no longer uses `@ts-nocheck`; owner/seat/layout normalization, local-seat inference, and FATE_WILL controller helpers now have checked boundary types.
 - `workers/match-worker-runtime-preload.ts` no longer uses `@ts-nocheck`; Worker runtime preload globals now have an explicit optional module map type.
+- `game/logic/cards/sniper.ts` no longer uses `@ts-nocheck`; Sniper Will board expansion helpers, random target selection, and expiry results now have checked local contracts, with the wrapper preventing private implementation types from leaking through the exported effect surface.
 
 Recent boundary typing:
 
