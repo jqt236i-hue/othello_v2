@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -129,9 +128,8 @@ async function main(): Promise<void> {
             onRecord
         });
 
-        error('Collected records:', records);
-        
         const records = result.records && result.records.length > 0 ? result.records : allRecords;
+        error('Collected records:', records.length);
         const analysis = analyzeRecords(records);
         output(JSON.stringify(analysis, null, 2));
     } catch (err) {

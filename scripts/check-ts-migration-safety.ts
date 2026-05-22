@@ -37,8 +37,6 @@ const allowedNoCheckDebt = new Set([
   'training/scripts/analyze-crystal-stone-quiet.ts',
   'training/scripts/analyze-crystal-stone.ts',
   'training/scripts/analyze-destroy-cycle.ts',
-  'training/scripts/analyze-selfplay-moves.ts',
-  'training/scripts/analyze-trap-will.ts',
   'training/scripts/benchmark-policy-adoption.ts',
   'training/scripts/benchmark-policy-onnx-gate.ts',
   'training/scripts/benchmark-policy-quality-gate.ts',

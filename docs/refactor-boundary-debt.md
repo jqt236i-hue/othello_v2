@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 33 files.
+Current authorized `@ts-nocheck` debt: 31 files.
 
 Recent reduction:
 
@@ -55,6 +55,7 @@ Recent reduction:
 - `training/scripts/training-warehouse-manifest-utils.ts` no longer uses `@ts-nocheck`; training warehouse manifest and artifact cleanup helpers now typecheck without local suppressions.
 - `training/scripts/audit-card-context-parity.ts`, `training/scripts/audit-card-use-future-delta.ts`, and `training/scripts/audit-corner-use-drift.ts` no longer use `@ts-nocheck`; selfplay audit report helpers now typecheck without local suppressions.
 - `training/scripts/clean-selfplay-artifacts.ts` and `training/scripts/load-training-profile.ts` no longer use `@ts-nocheck`; selfplay cleanup and profile resolution helpers now typecheck without local suppressions.
+- `training/scripts/analyze-selfplay-moves.ts` and `training/scripts/analyze-trap-will.ts` no longer use `@ts-nocheck`; selfplay analysis CLIs now typecheck without local suppressions, and `analyze-selfplay-moves.ts` no longer logs `records` before initialization.
 
 Recent boundary typing:
 
