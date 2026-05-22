@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 'use strict';
 
 import * as fs from 'fs';
@@ -12,6 +11,21 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
+
+type CommandResult = {
+    status: number | null;
+    stdout: string;
+    stderr: string;
+    error: string | null;
+};
+
+type DeepcfrPreflightChecks = Record<string, any> & {
+    node?: { version: string };
+    python?: Record<string, any>;
+    deepcfr?: Record<string, any>;
+    artifacts?: Record<string, any>;
+    window?: CommandResult | { skipped: true };
+};
 
 function makeDefaultOutputPath(runsDir: string) {
     const stamp = new Date().toISOString().replace(/[^\d]/g, '').slice(0, 14);
@@ -77,7 +91,7 @@ function printHelp() {
     ].join('\n'));
 }
 
-function runCommand(cmd: any, args: any) {
+function runCommand(cmd: string, args: string[]): CommandResult {
     const result = spawnSync(cmd, args, {
         cwd: process.cwd(),
         env: process.env,
@@ -118,9 +132,9 @@ function main() {
     }
 
     const startedAt = Date.now();
-    const errors = [];
-    const warnings = [];
-    const checks = {};
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const checks: DeepcfrPreflightChecks = {};
 
     checks.node = { version: process.version };
 
@@ -227,7 +241,7 @@ function main() {
 if (require.main === module) {
     try {
         main();
-    } catch (err) {
+    } catch (err: any) {
         console.error('[deepcfr-preflight] failed:', err && err.message ? err.message : err);
         process.exit(1);
     }

@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 28 files.
+Current authorized `@ts-nocheck` debt: 25 files.
 
 Recent reduction:
 
@@ -57,6 +57,7 @@ Recent reduction:
 - `training/scripts/clean-selfplay-artifacts.ts` and `training/scripts/load-training-profile.ts` no longer use `@ts-nocheck`; selfplay cleanup and profile resolution helpers now typecheck without local suppressions.
 - `training/scripts/analyze-selfplay-moves.ts` and `training/scripts/analyze-trap-will.ts` no longer use `@ts-nocheck`; selfplay analysis CLIs now typecheck without local suppressions, and `analyze-selfplay-moves.ts` no longer logs `records` before initialization.
 - `training/scripts/analyze-crystal-stone.ts`, `training/scripts/analyze-crystal-stone-quiet.ts`, and `training/scripts/analyze-destroy-cycle.ts` no longer use `@ts-nocheck`; card-specific selfplay analysis CLIs now typecheck without local suppressions.
+- `training/scripts/preflight-selfplay-training.ts`, `training/scripts/preflight-deepcfr-training.ts`, and `training/scripts/monitor-selfplay-training-run.ts` no longer use `@ts-nocheck`; training preflight reports and run-monitor state now typecheck with local report/check contracts.
 
 Recent boundary typing:
 
