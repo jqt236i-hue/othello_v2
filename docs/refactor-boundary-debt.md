@@ -24,6 +24,7 @@ Recent boundary typing:
 - `utils/match-authority-types.ts` now includes `MatchAuthorityRoomState`, operation history, room payload-from-room options, snapshot projection, join, and leave result types. `utils/match-authority-contract.ts` now requires the room/snapshot/presence/heartbeat/publish payload helpers, projection helpers, join helper, and leave helper to exist on the exported authority object.
 - `utils/match-authority.ts` now uses those room/projection/payload types on the payload-from-room, snapshot projection, join, and leave helper implementations, reducing the untyped surface that must be fixed before removing its `@ts-nocheck`.
 - `utils/match-authority.ts` also now exposes typed accepted-operation history helpers and seat-token authentication helpers through `MatchAuthorityPublicApi`, with implementation annotations for those clusters.
+- `utils/match-authority.ts` now uses typed optional CommonJS adapters for shared board/catalog/hash helpers and typed room/token/seat metadata utility helpers, reducing its no-`@ts-nocheck` diagnostics from 164 to 131.
 - `game/ai/cpu-policy-core-types.ts` now includes board, move position, legal move metrics, board-bonus callback, and lookahead search metadata types; its public API signatures now match the runtime `computeLegalMoveMetrics` and `scoreMoveHeuristic` call shapes.
 
 ## Current protected boundaries
@@ -42,7 +43,7 @@ These files still keep `@ts-nocheck` because removing it currently exposes broad
 
 | File | Diagnostics without `@ts-nocheck` | Main categories | Why it remains |
 | --- | ---: | --- | --- |
-| `utils/match-authority.ts` | 164 | implicit parameters, non-module CommonJS imports, loose snapshot object properties, dynamic indexing | Publish/SSE/room/snapshot public payload helpers, accepted-operation history, and seat-token authentication now pass through checked public API assertions and implementation annotations, but initial utility helpers and snapshot projection internals still need parameter annotations and narrower local object guards before full checking is safe. |
+| `utils/match-authority.ts` | 131 | implicit parameters, loose publish/snapshot object properties, dynamic indexing | Publish/SSE/room/snapshot public payload helpers, accepted-operation history, seat-token authentication, optional shared helper imports, and initial room/token/seat metadata utilities now pass through checked public API assertions or typed local adapters, but publish response construction and snapshot projection internals still need parameter annotations and narrower local object guards before full checking is safe. |
 | `workers/match-worker.ts` | 468 | implicit parameters, loose room properties, dynamic storage/env shapes | Worker entrypoints now pass through checked contract assertions, but Durable Object room state, storage values, and request bodies need a shared schema before full checking is safe. |
 | `game/ai/cpu-policy-core.ts` | 407 | implicit parameters, legacy helper arity, nullable search context | Public CPU policy API now passes through a checked adapter; RNG, board, move, legal metric, and lookahead callback shapes are typed, but internal card-decision and search helper bodies still need annotations before full checking is safe. |
 

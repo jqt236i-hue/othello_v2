@@ -36,9 +36,39 @@ import type {
 import { assertMatchAuthorityPublicApi } from './match-authority-contract';
 
 import deepClone from './deepClone';
-import SharedBoardUtils from '../shared/shared-board-utils';
-import GachaHandCatalogShared from '../shared/gacha-hand-catalog-shared.js';
-import StateHash from '../shared/state-hash.js';
+
+interface MatchAuthorityCryptoLike {
+    getRandomValues(array: Uint8Array): Uint8Array;
+}
+
+interface MatchAuthoritySharedBoardUtils {
+    [key: string]: unknown;
+    resolveBoardConfig?: (value?: unknown, fallbackBoard?: unknown) => unknown;
+}
+
+interface MatchAuthorityGachaHandCatalogShared {
+    [key: string]: unknown;
+    normalizeCatalogItemId?: (value: unknown) => string;
+}
+
+interface MatchAuthorityStateHash {
+    [key: string]: unknown;
+    computeStableHash?: (value: unknown) => string;
+}
+
+function loadOptionalCommonJsModule<T extends object>(modulePath: string): T | null {
+    if (typeof require !== 'function') return null;
+    try {
+        const loaded = _require(modulePath) as unknown;
+        return loaded && typeof loaded === 'object' ? loaded as T : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+const SharedBoardUtils = loadOptionalCommonJsModule<MatchAuthoritySharedBoardUtils>('../shared/shared-board-utils');
+const GachaHandCatalogShared = loadOptionalCommonJsModule<MatchAuthorityGachaHandCatalogShared>('../shared/gacha-hand-catalog-shared.js');
+const StateHash = loadOptionalCommonJsModule<MatchAuthorityStateHash>('../shared/state-hash.js');
 
 
 const PLAYER_KEYS = Object.freeze(['black', 'white']);
@@ -64,14 +94,18 @@ const VERSION_REJECTION_REASONS = Object.freeze({
     MISMATCH: 'VERSION_MISMATCH'
 });
 
-function resolveSecureCrypto(explicitCrypto) {
+function asRecord(value: unknown): Record<string, unknown> {
+    return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+}
+
+function resolveSecureCrypto(explicitCrypto?: MatchAuthorityCryptoLike | null): MatchAuthorityCryptoLike {
     if (explicitCrypto && typeof explicitCrypto.getRandomValues === 'function') return explicitCrypto;
     if (typeof globalThis !== 'undefined' && globalThis.crypto && typeof globalThis.crypto.getRandomValues === 'function') {
-        return globalThis.crypto;
+        return globalThis.crypto as unknown as MatchAuthorityCryptoLike;
     }
     if (typeof require === 'function') {
         try {
-            const nodeCrypto = _require('crypto');
+            const nodeCrypto = _require('crypto') as { webcrypto?: MatchAuthorityCryptoLike };
             if (nodeCrypto && nodeCrypto.webcrypto && typeof nodeCrypto.webcrypto.getRandomValues === 'function') {
                 return nodeCrypto.webcrypto;
             }
@@ -80,33 +114,34 @@ function resolveSecureCrypto(explicitCrypto) {
     throw new Error('Secure crypto.getRandomValues() is required for match authority token generation.');
 }
 
-function randomFromChars(chars, length, explicitCrypto) {
+function randomFromChars(chars: unknown, length: unknown, explicitCrypto?: MatchAuthorityCryptoLike | null): string {
     const safeChars = String(chars || '');
-    if (!safeChars || !Number.isInteger(length) || length <= 0) return '';
+    if (!safeChars || typeof length !== 'number' || !Number.isInteger(length) || length <= 0) return '';
+    const safeLength = length;
     const cryptoLike = resolveSecureCrypto(explicitCrypto);
-    const bytes = new Uint8Array(length);
+    const bytes = new Uint8Array(safeLength);
     cryptoLike.getRandomValues(bytes);
     let out = '';
-    for (let index = 0; index < length; index += 1) {
+    for (let index = 0; index < safeLength; index += 1) {
         out += safeChars[bytes[index] % safeChars.length];
     }
     return out;
 }
 
-function makeRoomId(explicitCrypto) {
+function makeRoomId(explicitCrypto?: MatchAuthorityCryptoLike | null): string {
     return randomFromChars(ROOM_ID_CHARS, ROOM_ID_LENGTH, explicitCrypto);
 }
 
-function makeSeatToken(explicitCrypto) {
+function makeSeatToken(explicitCrypto?: MatchAuthorityCryptoLike | null): string {
     return randomFromChars(SEAT_TOKEN_CHARS, SEAT_TOKEN_LENGTH, explicitCrypto);
 }
 
-function makeSseStreamId(nowValue, explicitCrypto) {
+function makeSseStreamId(nowValue: unknown, explicitCrypto?: MatchAuthorityCryptoLike | null): string {
     const timestamp = Number.isFinite(Number(nowValue)) ? Number(nowValue) : Date.now();
     return `sse_${timestamp}_${randomFromChars(SSE_ID_SUFFIX_CHARS, SSE_ID_SUFFIX_LENGTH, explicitCrypto)}`;
 }
 
-function parseSeatKeyOptional(value) {
+function parseSeatKeyOptional(value: unknown): MatchAuthoritySeatKey | null {
     if (value === 1 || value === '1') return 'black';
     if (value === -1 || value === '-1') return 'white';
 
@@ -119,7 +154,7 @@ function parseSeatKeyOptional(value) {
     return null;
 }
 
-function normalizePlayerKey(value, fallback) {
+function normalizePlayerKey(value: unknown, fallback?: unknown): MatchAuthoritySeatKey {
     return parseSeatKeyOptional(value) || parseSeatKeyOptional(fallback) || 'black';
 }
 
@@ -132,22 +167,22 @@ function getOpponentKey(playerKey: PlayerKey | null | undefined): PlayerKey {
     return normalizePlayerKey(playerKey) === 'white' ? 'black' : 'white';
 }
 
-function normalizePendingType(value) {
+function normalizePendingType(value: unknown): string {
     return String(value || '').trim().toUpperCase();
 }
 
-function normalizePendingEffectId(value) {
+function normalizePendingEffectId(value: unknown): string | null {
     const normalized = String(value || '').trim();
     return normalized || null;
 }
 
-function normalizeOperationId(value) {
+function normalizeOperationId(value: unknown): string {
     const normalized = String(value || '').trim();
     if (!normalized) return '';
     return Array.from(normalized).slice(0, OPERATION_ID_MAX_LENGTH).join('');
 }
 
-function normalizeSeatHandSkinId(value) {
+function normalizeSeatHandSkinId(value: unknown): string {
     const normalized = String(value || '').trim();
     if (!normalized) return '';
     const canonical = (GachaHandCatalogShared && typeof GachaHandCatalogShared.normalizeCatalogItemId === 'function')
@@ -156,30 +191,34 @@ function normalizeSeatHandSkinId(value) {
     return Array.from(canonical).slice(0, HAND_SKIN_ID_MAX_LENGTH).join('');
 }
 
-function normalizeSeatHandSkins(value) {
-    const source = (value && typeof value === 'object') ? value : {};
+function normalizeSeatHandSkins(value: unknown): { black: string; white: string } {
+    const source = asRecord(value);
     return {
         black: normalizeSeatHandSkinId(source.black),
         white: normalizeSeatHandSkinId(source.white)
     };
 }
 
-function normalizeNetworkPlayerName(value) {
+function normalizeNetworkPlayerName(value: unknown): string {
     const normalized = String(value || '').replace(/\s+/g, ' ').trim();
     return Array.from(normalized).slice(0, NETWORK_PLAYER_NAME_MAX).join('');
 }
 
-function normalizePublicSeats(value) {
-    const source = (value && typeof value === 'object') ? value : {};
+function normalizePublicSeats(value: unknown): { black: boolean; white: boolean } {
+    const source = asRecord(value);
     return {
         black: !!source.black,
         white: !!source.white
     };
 }
 
-function buildPublicSeatMetadata(value) {
-    const source = (value && typeof value === 'object') ? value : {};
-    const seatNames = (source.seatNames && typeof source.seatNames === 'object') ? source.seatNames : {};
+function buildPublicSeatMetadata(value: unknown): {
+    seats: { black: boolean; white: boolean };
+    seatNames: { black: string; white: string };
+    seatHandSkins: { black: string; white: string };
+} {
+    const source = asRecord(value);
+    const seatNames = asRecord(source.seatNames);
     return {
         seats: normalizePublicSeats(source.seats),
         seatNames: {
