@@ -1,3 +1,9 @@
+import type {
+    MatchAuthorityBufferedSseEventRecord,
+    MatchAuthorityRoomState,
+    MatchAuthoritySeatKey
+} from '../utils/match-authority-types';
+
 export interface MatchWorkerEnv {
     MATCH_ROOM?: DurableObjectNamespaceLike;
     LEADERBOARD_ROOM?: DurableObjectNamespaceLike;
@@ -18,6 +24,31 @@ export interface DurableObjectStateLike {
         setAlarm?(value: number | Date): Promise<void> | void;
         deleteAlarm?(): Promise<void> | void;
     };
+}
+
+export interface MatchWorkerRoomState extends MatchAuthorityRoomState {
+    eventSeq?: number | null;
+    turnTimer?: Record<string, unknown> | null;
+    chatMessages?: unknown[] | null;
+    chatSeq?: number | null;
+}
+
+export interface MatchWorkerSseStreamInfo {
+    writer: WritableStreamDefaultWriter<Uint8Array>;
+    seatKey: MatchAuthoritySeatKey;
+}
+
+export interface MatchWorkerPreparedSnapshotBroadcast {
+    eventId: string;
+    record: unknown;
+    payloadByViewer: Partial<Record<MatchAuthoritySeatKey, unknown>>;
+    fallbackPayload: unknown;
+}
+
+export interface MatchWorkerLeaderboardStore {
+    version: number;
+    players: Record<string, unknown>;
+    updatedAt: number;
 }
 
 export interface MatchWorkerEntrypoint {

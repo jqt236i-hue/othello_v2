@@ -1,6 +1,15 @@
 // @ts-nocheck
 import './match-worker-runtime-preload.js';
-import type { MatchRoomDurableObjectApi, MatchWorkerEntrypoint } from './match-worker-types';
+import type {
+    DurableObjectStateLike,
+    MatchRoomDurableObjectApi,
+    MatchWorkerEntrypoint,
+    MatchWorkerPreparedSnapshotBroadcast,
+    MatchWorkerRoomState,
+    MatchWorkerSseStreamInfo
+} from './match-worker-types';
+import type { MatchAuthoritySeatKey } from '../utils/match-authority-types';
+import type { GameState } from '../src/types';
 import {
     assertMatchRoomDurableObjectConstructor,
     assertMatchWorkerEntrypoint
@@ -71,17 +80,17 @@ const OPERATION_ID_MAX_LENGTH = Number.isFinite(Number(MatchAuthority.OPERATION_
     ? Number(MatchAuthority.OPERATION_ID_MAX_LENGTH)
     : 128;
 
-let coreLogicModulePromise = null;
-let deckModulesPromise = null;
-let turnStartModulesPromise = null;
-let turnPipelineModulesPromise = null;
-let debugActionsModulePromise = null;
-let workerSharedConstantsPromise = null;
-let workerSharedBoardUtilsPromise = null;
-let workerDeckGlobalsPromise = null;
-let workerCardGlobalsPromise = null;
+let coreLogicModulePromise: Promise<unknown> | null = null;
+let deckModulesPromise: Promise<unknown> | null = null;
+let turnStartModulesPromise: Promise<unknown> | null = null;
+let turnPipelineModulesPromise: Promise<unknown> | null = null;
+let debugActionsModulePromise: Promise<unknown> | null = null;
+let workerSharedConstantsPromise: Promise<unknown> | null = null;
+let workerSharedBoardUtilsPromise: Promise<unknown> | null = null;
+let workerDeckGlobalsPromise: Promise<unknown> | null = null;
+let workerCardGlobalsPromise: Promise<unknown> | null = null;
 
-const WORKER_PRELOAD_MODULES = Object.freeze({
+const WORKER_PRELOAD_MODULES: Readonly<Record<string, unknown>> = Object.freeze({
     '../shared-constants.js': sharedConstantsModule,
     '../shared/shared-board-utils.js': sharedBoardUtilsModule,
     '../shared/deck-spec.js': deckSpecHelpersModule,
@@ -116,7 +125,11 @@ const CORS_HEADERS = {
     'Access-Control-Allow-Headers': 'Content-Type'
 };
 
-function withCORS(response) {
+function asRecord(value: unknown): Record<string, unknown> {
+    return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+}
+
+function withCORS(response: Response): Response {
     const headers = new Headers(response.headers);
     Object.entries(CORS_HEADERS).forEach(([key, value]) => {
         headers.set(key, value);
@@ -128,7 +141,7 @@ function withCORS(response) {
     });
 }
 
-function jsonResponse(statusCode, payload) {
+function jsonResponse(statusCode: number, payload: unknown): Response {
     return new Response(JSON.stringify(payload || {}), {
         status: statusCode,
         headers: {
@@ -138,7 +151,7 @@ function jsonResponse(statusCode, payload) {
     });
 }
 
-function normalizePlayerKey(value) {
+function normalizePlayerKey(value: unknown): MatchAuthoritySeatKey {
     if (MatchAuthority && typeof MatchAuthority.normalizePlayerKey === 'function') {
         return MatchAuthority.normalizePlayerKey(value, 'black');
     }
@@ -146,36 +159,36 @@ function normalizePlayerKey(value) {
     return parsed || 'black';
 }
 
-function parseSeatKeyOptional(value) {
+function parseSeatKeyOptional(value: unknown): MatchAuthoritySeatKey | null {
     if (MatchAuthority && typeof MatchAuthority.parseSeatKeyOptional === 'function') {
         return MatchAuthority.parseSeatKeyOptional(value);
     }
     return null;
 }
 
-function getCurrentPlayerKey(gameState) {
+function getCurrentPlayerKey(gameState: unknown): MatchAuthoritySeatKey {
     if (MatchAuthority && typeof MatchAuthority.getCurrentPlayerKey === 'function') {
-        return MatchAuthority.getCurrentPlayerKey(gameState);
+        return MatchAuthority.getCurrentPlayerKey(gameState as Partial<GameState> | null | undefined);
     }
     if (!gameState) return 'black';
-    return normalizePlayerKey(gameState.currentPlayer);
+    return normalizePlayerKey(asRecord(gameState).currentPlayer);
 }
 
-function normalizeSeatHandSkinId(value) {
+function normalizeSeatHandSkinId(value: unknown): string {
     if (MatchAuthority && typeof MatchAuthority.normalizeSeatHandSkinId === 'function') {
         return MatchAuthority.normalizeSeatHandSkinId(value);
     }
     return String(value || '').trim();
 }
 
-function getOpponentKey(playerKey) {
+function getOpponentKey(playerKey: unknown): MatchAuthoritySeatKey {
     if (MatchAuthority && typeof MatchAuthority.getOpponentKey === 'function') {
-        return MatchAuthority.getOpponentKey(playerKey);
+        return MatchAuthority.getOpponentKey(parseSeatKeyOptional(playerKey));
     }
     return normalizePlayerKey(playerKey) === 'white' ? 'black' : 'white';
 }
 
-function makeHiddenHandToken(ownerKey, handIndex) {
+function makeHiddenHandToken(ownerKey: unknown, handIndex: unknown): string {
     if (MatchAuthority && typeof MatchAuthority.makeHiddenHandToken === 'function') {
         return MatchAuthority.makeHiddenHandToken(ownerKey, handIndex);
     }
@@ -184,33 +197,33 @@ function makeHiddenHandToken(ownerKey, handIndex) {
     return `__hidden_hand__:${normalizedOwner}:${idx}`;
 }
 
-function parseHiddenHandToken(value) {
+function parseHiddenHandToken(value: unknown): unknown {
     if (MatchAuthority && typeof MatchAuthority.parseHiddenHandToken === 'function') {
         return MatchAuthority.parseHiddenHandToken(value);
     }
     return null;
 }
 
-function resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue) {
+function resolveAuthenticatedSeatKey(room: unknown, seatKeyValue: unknown, seatTokenValue: unknown): MatchAuthoritySeatKey | null {
     if (MatchAuthority && typeof MatchAuthority.resolveAuthenticatedSeatKey === 'function') {
-        return MatchAuthority.resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue);
+        return MatchAuthority.resolveAuthenticatedSeatKey(room as never, seatKeyValue, seatTokenValue);
     }
     return null;
 }
 
-function classifySeatTokenRejectionReason(seatTokenValue) {
+function classifySeatTokenRejectionReason(seatTokenValue: unknown): string {
     if (MatchAuthority && typeof MatchAuthority.classifySeatTokenRejectionReason === 'function') {
         return MatchAuthority.classifySeatTokenRejectionReason(seatTokenValue);
     }
     return String(seatTokenValue || '').trim() ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED';
 }
 
-function normalizeEffectLogMessages(values) {
+function normalizeEffectLogMessages(values: unknown): string[] {
     if (MatchAuthority && typeof MatchAuthority.normalizeEffectLogMessages === 'function') {
         return MatchAuthority.normalizeEffectLogMessages(values);
     }
     const source = Array.isArray(values) ? values : [];
-    const next = [];
+    const next: string[] = [];
     for (let index = 0; index < source.length; index += 1) {
         const text = String(source[index] || '').trim();
         if (!text) continue;
@@ -220,13 +233,14 @@ function normalizeEffectLogMessages(values) {
     return next;
 }
 
-function appendEffectLogMessages(...lists) {
+function appendEffectLogMessages(...lists: unknown[]): string[] {
     if (MatchAuthority && typeof MatchAuthority.appendEffectLogMessages === 'function') {
         return MatchAuthority.appendEffectLogMessages(...lists);
     }
-    const merged = [];
+    const merged: unknown[] = [];
     for (let index = 0; index < lists.length; index += 1) {
-        const list = Array.isArray(lists[index]) ? lists[index] : [];
+        const listCandidate = lists[index];
+        const list: unknown[] = Array.isArray(listCandidate) ? listCandidate : [];
         for (let innerIndex = 0; innerIndex < list.length; innerIndex += 1) {
             merged.push(list[innerIndex]);
         }
@@ -234,54 +248,56 @@ function appendEffectLogMessages(...lists) {
     return normalizeEffectLogMessages(merged);
 }
 
-function getSeatLabelJa(playerKey) {
+function getSeatLabelJa(playerKey: unknown): string {
     return MatchAuthority.getSeatLabelJa(playerKey);
 }
 
-function resolveActionCardId(action) {
+function resolveActionCardId(action: unknown): string {
     return MatchAuthority.resolveActionCardId(action);
 }
 
-function resolveActionCardDisplayName(action, cardLogic) {
-    return MatchAuthority.resolveActionCardDisplayName(action, cardLogic);
+function resolveActionCardDisplayName(action: unknown, cardLogic: unknown): string {
+    return MatchAuthority.resolveActionCardDisplayName(action, cardLogic as { getCardDef?: (cardId: string) => { name?: unknown } | null | undefined });
 }
 
-function buildNetworkCardUseEffectLogs(action, playerKey, cardLogic) {
-    return MatchAuthority.buildNetworkCardUseEffectLogs(action, playerKey, cardLogic);
+function buildNetworkCardUseEffectLogs(action: unknown, playerKey: unknown, cardLogic: unknown): string[] {
+    return MatchAuthority.buildNetworkCardUseEffectLogs(action, playerKey, cardLogic as { getCardDef?: (cardId: string) => { name?: unknown } | null | undefined });
 }
 
-function collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, playbackAdapter) {
-    return MatchAuthority.collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, playbackAdapter);
+function collectPipelineEffectLogMessages(rawEvents: unknown, presentationEvents: unknown, playerKey: unknown, playbackAdapter: unknown): string[] {
+    return MatchAuthority.collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, playbackAdapter as {
+        mapEffectLogsFromPipeline?: (rawEvents: unknown, presentationEvents: unknown, playerKey: unknown) => unknown;
+    });
 }
 
-function makeRoomId() {
+function makeRoomId(): string {
     if (typeof MatchAuthority.makeRoomId === 'function') {
-        return MatchAuthority.makeRoomId(crypto);
+        return MatchAuthority.makeRoomId(crypto as unknown as { getRandomValues(array: Uint8Array): Uint8Array });
     }
     throw new Error('MatchAuthority.makeRoomId is required');
 }
 
-function makeSeatToken() {
+function makeSeatToken(): string {
     if (typeof MatchAuthority.makeSeatToken === 'function') {
-        return MatchAuthority.makeSeatToken(crypto);
+        return MatchAuthority.makeSeatToken(crypto as unknown as { getRandomValues(array: Uint8Array): Uint8Array });
     }
     throw new Error('MatchAuthority.makeSeatToken is required');
 }
 
-function getRuntimeGlobalScope() {
+function getRuntimeGlobalScope(): Record<string, unknown> | null {
     if (typeof globalThis !== 'undefined') return globalThis;
     if (typeof self !== 'undefined') return self;
     return null;
 }
 
-function setRuntimeGlobalValue(key, value) {
+function setRuntimeGlobalValue(key: string, value: unknown): unknown {
     const scope = getRuntimeGlobalScope();
     if (!scope || !key) return value;
     scope[key] = value;
     return value;
 }
 
-function importWorkerGlobal(importPath, globalKey) {
+function importWorkerGlobal(importPath: string, globalKey: string): Promise<unknown> {
     const mod = Object.prototype.hasOwnProperty.call(WORKER_PRELOAD_MODULES, importPath)
         ? WORKER_PRELOAD_MODULES[importPath]
         : null;
@@ -289,9 +305,10 @@ function importWorkerGlobal(importPath, globalKey) {
         return Promise.reject(new Error(`Worker preload module missing: ${importPath}`));
     }
     const scope = getRuntimeGlobalScope();
+    const modRecord = asRecord(mod);
     const runtimeValue = scope && globalKey ? scope[globalKey] : null;
-    const moduleExports = mod && mod['module.exports'] ? mod['module.exports'] : null;
-    const resolved = runtimeValue || moduleExports || mod.default || mod;
+    const moduleExports = modRecord['module.exports'] || null;
+    const resolved = runtimeValue || moduleExports || modRecord.default || mod;
     if (globalKey && resolved) {
         setRuntimeGlobalValue(globalKey, resolved);
     }
@@ -2019,21 +2036,27 @@ async function handleLeaderboardApi(request, env) {
 }
 
 export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
-    constructor(state) {
+    state: DurableObjectStateLike;
+    room: MatchWorkerRoomState | null;
+    roomLoaded: boolean;
+    streams: Map<string, MatchWorkerSseStreamInfo>;
+    encoder: TextEncoder;
+    heartbeatTimerId: ReturnType<typeof setTimeout> | null;
+    sseEventBuffer: unknown[];
+
+    constructor(state: DurableObjectStateLike) {
         this.state = state;
         this.room = null;
         this.roomLoaded = false;
         this.streams = new Map();
         this.encoder = new TextEncoder();
         this.heartbeatTimerId = null;
-        this.sseEventBuffer = Array.isArray(this.room && this.room.sseEventBuffer)
-            ? this.room.sseEventBuffer.slice()
-            : [];
+        this.sseEventBuffer = [];
     }
 
     async loadRoom() {
         if (this.roomLoaded) return;
-        this.room = await this.state.storage.get(ROOM_STORAGE_KEY) || null;
+        this.room = await this.state.storage.get(ROOM_STORAGE_KEY) as MatchWorkerRoomState | null || null;
         if (this.room && !Array.isArray(this.room.sseEventBuffer)) {
             this.room.sseEventBuffer = [];
         }
@@ -2088,7 +2111,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return `${roomId}_${stateVersion}_${nextSeq}`;
     }
 
-    rememberBufferedSseEvent(record) {
+    rememberBufferedSseEvent(record: unknown) {
         if (!MatchAuthority || typeof MatchAuthority.appendBufferedSseEvent !== 'function') return;
         const nextBuffer = MatchAuthority.appendBufferedSseEvent(
             this.room && Array.isArray(this.room.sseEventBuffer) ? this.room.sseEventBuffer : this.sseEventBuffer,
@@ -2100,7 +2123,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
     }
 
-    buildBufferedSnapshotEvent(meta, eventId) {
+    buildBufferedSnapshotEvent(meta: unknown, eventId: string) {
         const payloadByViewer = {
             black: buildSnapshotPayload(this.room, meta, 'black'),
             white: buildSnapshotPayload(this.room, meta, 'white')
@@ -2115,7 +2138,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         };
     }
 
-    prepareSnapshotBroadcast(meta) {
+    prepareSnapshotBroadcast(meta: unknown): MatchWorkerPreparedSnapshotBroadcast {
         const eventId = this.nextSseEventId();
         const { record, payloadByViewer } = this.buildBufferedSnapshotEvent(meta, eventId);
         return {
@@ -2126,7 +2149,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         };
     }
 
-    async broadcastPreparedSnapshot(preparedSnapshot) {
+    async broadcastPreparedSnapshot(preparedSnapshot: MatchWorkerPreparedSnapshotBroadcast | null | undefined) {
         if (!this.room || !preparedSnapshot) return;
         this.rememberBufferedSseEvent(preparedSnapshot.record);
         await this.saveRoom();
@@ -2177,7 +2200,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         )));
     }
 
-    async closeStream(streamId) {
+    async closeStream(streamId: string) {
         const stream = this.streams.get(streamId);
         if (!stream) return;
         this.streams.delete(streamId);
@@ -2192,7 +2215,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
     }
 
-    async closeStreamsForSeat(seatKey) {
+    async closeStreamsForSeat(seatKey: unknown) {
         if (!seatKey || !this.streams || this.streams.size === 0) return;
         for (const [streamId, stream] of Array.from(this.streams.entries())) {
             if (!stream || stream.seatKey !== seatKey) continue;
@@ -2200,7 +2223,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
     }
 
-    async sendSse(streamId, eventName, payload, options) {
+    async sendSse(streamId: string, eventName: string, payload: unknown, options?: Record<string, unknown> | null) {
         const stream = this.streams.get(streamId);
         if (!stream) return;
         const opts = (options && typeof options === 'object') ? options : {};
