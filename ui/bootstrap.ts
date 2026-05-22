@@ -1450,6 +1450,24 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     return null;
                 }
             },
+            emitBoardUpdate: () => {
+                try {
+                    const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitBoardUpdate : null;
+                    if (typeof fn !== 'function') return false;
+                    return fn() === true;
+                } catch (e: any) {
+                    return false;
+                }
+            },
+            emitCardStateChange: () => {
+                try {
+                    const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitCardStateChange : null;
+                    if (typeof fn !== 'function') return false;
+                    return fn() === true;
+                } catch (e: any) {
+                    return false;
+                }
+            },
             now: () => Date.now(),
             // Let game/move-executor await the UI playback lifecycle (AnimationEngine / visual writer)
             waitForPlayback: uiMod.waitForPlaybackIdle,

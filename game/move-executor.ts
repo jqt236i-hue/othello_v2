@@ -15,8 +15,6 @@ declare const isCardAnimating: any;
 declare const processCpuTurn: any;
 declare const globalThis: any;
 declare const onTurnStart: any;
-declare const emitBoardUpdate: any;
-declare const emitCardStateChange: any;
 declare const emitLogAdded: any;
 declare const CPU_TURN_DELAY_MS: any;
 declare const isDebugLogAvailable: any;
@@ -42,13 +40,6 @@ if (typeof require === 'function') {
         }
     } catch (e) { /* ignore */ }
 }
-if (!emitBoardUpdate_local && typeof globalThis !== 'undefined' && typeof globalThis.emitBoardUpdate === 'function') {
-    emitBoardUpdate_local = globalThis.emitBoardUpdate;
-}
-if (!emitCardStateChange_local && typeof globalThis !== 'undefined' && typeof globalThis.emitCardStateChange === 'function') {
-    emitCardStateChange_local = globalThis.emitCardStateChange;
-}
-
 // TimerService DI
 let moveExecutorTimerService: any = null;
 function setMoveExecutorTimerService(service: any) { moveExecutorTimerService = service; }
@@ -295,6 +286,30 @@ function resolveMoveExecutorActionManager() {
     return null;
 }
 
+function emitMoveExecutorBoardUpdate() {
+    try {
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.emitBoardUpdate === 'function') {
+            return __uiImpl_move_executor.emitBoardUpdate() === true;
+        }
+        if (emitBoardUpdate_local && typeof emitBoardUpdate_local === 'function') {
+            return emitBoardUpdate_local() === true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function emitMoveExecutorCardStateChange() {
+    try {
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.emitCardStateChange === 'function') {
+            return __uiImpl_move_executor.emitCardStateChange() === true;
+        }
+        if (emitCardStateChange_local && typeof emitCardStateChange_local === 'function') {
+            return emitCardStateChange_local() === true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
 function isHumanVsHumanModeEnabled() {
     const debugHvH = readMoveExecutorHumanVsHumanFlag();
     const matchMode = String(readMoveExecutorMatchMode() || '').trim().toLowerCase();
@@ -394,7 +409,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
         // Do not record, do not increment turnIndex
         // Important: reset isProcessing to allow auto-loop to continue
         setMoveExecutorProcessing(false);
-        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+        emitMoveExecutorBoardUpdate();
         return;
     }
 
@@ -451,7 +466,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
         }
         if (!hasPlaybackEvents) {
             let cardStateNotified = false;
-            try { if (typeof emitCardStateChange === 'function') cardStateNotified = emitCardStateChange() === true; } catch (e) { /* ignore */ }
+            cardStateNotified = emitMoveExecutorCardStateChange();
             if (!hasHandRemovePlayback && !cardStateNotified) {
                 if (!Array.isArray(cardState.presentationEvents)) cardState.presentationEvents = [];
                 cardState.presentationEvents.push({ type: 'cardAnimation', animationType: 'handSync', payload: { reason: 'move-executor:no-playback-fallback' } });
@@ -472,7 +487,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
         emitPresentationEventViaBoardOps({ type: 'PLAYBACK_EVENTS', events: res.playbackEvents, meta: { move, phases, effects, immediate } });
         // Ensure UI has a chance to consume and start playback BEFORE we advance the turn.
         // Otherwise, onTurnStart may flush/transform the buffer and the move playback gets lost.
-        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+        emitMoveExecutorBoardUpdate();
     } else {
         // No playback events produced; nothing for the UI to play
     }
@@ -539,10 +554,10 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
                 if (nextPlayerKey === 'white' && humanMode) {
                     debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] human-vs-human mode: skip CPU scheduling');
                 }
-                try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+                emitMoveExecutorBoardUpdate();
             }
         });
-        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+        emitMoveExecutorBoardUpdate();
         return;
     }
 
@@ -566,7 +581,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
         debugMoveExecutorError('[DEBUG][executeMoveViaPipeline] error calling onTurnStart', e);
     }
     setMoveExecutorProcessing(false);
-    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+    emitMoveExecutorBoardUpdate();
 }
 
 let deepClone = (obj: any) => (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') ? globalThis.structuredClone(obj) : JSON.parse(JSON.stringify(obj));

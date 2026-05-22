@@ -305,6 +305,9 @@ describe('move-executor presentation emission', () => {
         global.emitCardStateChange = jest.fn(() => true);
 
         const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            emitCardStateChange: () => global.emitCardStateChange()
+        });
         const fakeRes = {
             ok: true,
             nextGameState: global.gameState,
