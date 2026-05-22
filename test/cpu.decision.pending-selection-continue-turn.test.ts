@@ -72,7 +72,8 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
     cpuDecision.setCpuDecisionRuntime({
       readMatchMode: () => 'cpu',
       readHumanVsHumanMode: () => false,
-      processCpuTurn: global.processCpuTurn
+      processCpuTurn: global.processCpuTurn,
+      readModule: (name) => global[name]
     });
     PendingCoordinator.clearPendingSelectionActionCache();
   });

@@ -81,7 +81,8 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
     cpuDecision.setCpuDecisionRuntime({
       readMatchMode: () => 'cpu',
       readHumanVsHumanMode: () => false,
-      processCpuTurn: global.processCpuTurn
+      processCpuTurn: global.processCpuTurn,
+      readModule: (name) => global[name]
     });
   });
 

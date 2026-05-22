@@ -33,6 +33,9 @@ describe('cpu decision refactor helpers', () => {
     delete global.OthelloBrowserCpuRuntime;
     if (typeof cpuDecision.setCpuDecisionRuntime === 'function') {
       cpuDecision.setCpuDecisionRuntime(null);
+      cpuDecision.setCpuDecisionRuntime({
+        readModule: (name) => global[name]
+      });
     }
   });
 

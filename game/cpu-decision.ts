@@ -120,17 +120,14 @@ if (typeof require === 'function') {
     try { CpuLv6RuntimeCapabilityModule = _require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
 }
 
-function readGlobalModule(globalKey: any): any {
+function readRuntimeModule(moduleKey: any): any {
     try {
-        if (typeof globalThis !== 'undefined' && globalThis && (globalThis as any)[globalKey]) {
-            return (globalThis as any)[globalKey];
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readModule === 'function') {
+            const moduleRef = cpuDecisionRuntime.readModule(moduleKey);
+            if (moduleRef) return moduleRef;
         }
     } catch (e) { /* ignore */ }
     return null;
-}
-
-function readGlobalValue(globalKey: string): any {
-    return readGlobalModule(globalKey);
 }
 
 function resolveCpuSmartnessLevel(playerKey: any): number {
@@ -143,7 +140,7 @@ function resolveCpuSmartnessLevel(playerKey: any): number {
             }
         }
     } catch (e) { /* ignore and fall back to legacy globals */ }
-    const smartness = readGlobalValue('cpuSmartness') || (typeof cpuSmartness !== 'undefined' ? cpuSmartness : null);
+    const smartness = (typeof cpuSmartness !== 'undefined' ? cpuSmartness : null);
     if (smartness && Number.isFinite(smartness[playerKey])) {
         return Number(smartness[playerKey]);
     }
@@ -151,7 +148,7 @@ function resolveCpuSmartnessLevel(playerKey: any): number {
 }
 
 function resolveCardLogicForCpuDecision(): any {
-    return readGlobalModule('CardLogic') || (typeof CardLogic !== 'undefined' ? CardLogic : null);
+    return readRuntimeModule('CardLogic') || (typeof CardLogic !== 'undefined' ? CardLogic : null);
 }
 
 function getActiveProtectionForPlayer(playerValue: any): any[] {
@@ -199,7 +196,7 @@ function resolveModuleReference(currentValue: any, options: any): any {
         if (isValid(resolvedModule)) return resolvedModule;
     }
     if (opts.globalKey) {
-        resolvedModule = readGlobalModule(opts.globalKey);
+        resolvedModule = readRuntimeModule(opts.globalKey);
         if (isValid(resolvedModule)) return resolvedModule;
     }
     return null;
@@ -549,7 +546,7 @@ const WHITE_LV6_CORNER_SWING_KEEP_TYPES = new Set([
 ]);
 
 function resolvePolicyTableRuntime(): any {
-    const globalModule = readGlobalModule('CpuPolicyTableRuntime');
+    const globalModule = readRuntimeModule('CpuPolicyTableRuntime');
     if (
         globalModule &&
         (
@@ -575,7 +572,7 @@ function resolvePolicyTableRuntime(): any {
 }
 
 function resolvePolicyOnnxRuntime(): any {
-    const globalModule = readGlobalModule('CpuPolicyOnnxRuntime');
+    const globalModule = readRuntimeModule('CpuPolicyOnnxRuntime');
     if (
         globalModule &&
         (
@@ -605,7 +602,7 @@ function resolvePolicyOnnxRuntime(): any {
 }
 
 function resolveOthelloBrowserCpuRuntime(): any {
-    const globalModule = readGlobalModule('OthelloBrowserCpuRuntime');
+    const globalModule = readRuntimeModule('OthelloBrowserCpuRuntime');
     if (globalModule && typeof globalModule.chooseMove === 'function') {
         OthelloBrowserCpuRuntime = globalModule;
         return globalModule;
@@ -1030,7 +1027,11 @@ function setCpuExecutionMode(mode: any): any { cpuExecutionMode = mode === 'head
 
 let cpuDecisionRuntime: any = null;
 function setCpuDecisionRuntime(runtime: any): any {
-    cpuDecisionRuntime = (runtime && typeof runtime === 'object') ? runtime : null;
+    if (!runtime || typeof runtime !== 'object') {
+        cpuDecisionRuntime = null;
+        return;
+    }
+    cpuDecisionRuntime = Object.assign({}, cpuDecisionRuntime || {}, runtime);
 }
 
 function readCpuDecisionQuerySearch(): string {
@@ -1998,7 +1999,7 @@ function finalizeCpuPendingSelectionFlow(playerKey: any, pendingType: any, playb
 }
 
 function resolveTurnPipelineAdapter(): any {
-    const globalAdapter = readGlobalModule('TurnPipelineUIAdapter');
+    const globalAdapter = readRuntimeModule('TurnPipelineUIAdapter');
     if (globalAdapter) return globalAdapter;
     return resolveModuleReference(null, {
         readLocal: () => (typeof TurnPipelineUIAdapter !== 'undefined' ? TurnPipelineUIAdapter : null),
@@ -2009,7 +2010,7 @@ function resolveTurnPipelineAdapter(): any {
 }
 
 function resolveTurnPipeline(): any {
-    const globalPipeline = readGlobalModule('TurnPipeline');
+    const globalPipeline = readRuntimeModule('TurnPipeline');
     if (globalPipeline) return globalPipeline;
     return resolveModuleReference(null, {
         readLocal: () => (typeof TurnPipeline !== 'undefined' ? TurnPipeline : null),
@@ -3009,12 +3010,10 @@ function isCardChoiceAllowedByHighConfidence(playerKey: any, level: any, legalMo
 
 function _isCpuTrapOnlyModeEnabled(playerKey: any): any {
     try {
-        const root = (typeof globalThis !== 'undefined') ? globalThis : null;
         const qs = readCpuDecisionQuerySearch();
         const debugEnabled =
             /[?&]debug=(1|true)\b/i.test(qs) ||
-            (cpuDecisionRuntime && typeof cpuDecisionRuntime.readDebugFlag === 'function' && cpuDecisionRuntime.readDebugFlag('DEBUG_UNLIMITED_USAGE') === true) ||
-            (root && (root as any).DEBUG_UNLIMITED_USAGE === true);
+            (cpuDecisionRuntime && typeof cpuDecisionRuntime.readDebugFlag === 'function' && cpuDecisionRuntime.readDebugFlag('DEBUG_UNLIMITED_USAGE') === true);
         if (!debugEnabled) return false;
         const enabled = /[?&]cpuTrapOnly=(1|true)\b/i.test(qs);
         if (!enabled) return false;
@@ -3126,7 +3125,9 @@ function selectCardFallback(cardState: any, gameState: any, playerKey: any, leve
 function selectCardToUse(playerKey: any): any {
     // Pure decision: returns a candidate { cardId, cardDef } or null but does NOT apply it.
     const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && typeof cpuSmartness[playerKey] !== 'undefined') ? cpuSmartness[playerKey] : 1;
-    const player = playerKey === 'black' ? (typeof BLACK !== 'undefined' ? BLACK : (typeof globalThis !== 'undefined' ? (globalThis as any).BLACK : 1)) : (typeof WHITE !== 'undefined' ? WHITE : (typeof globalThis !== 'undefined' ? (globalThis as any).WHITE : -1));
+    const player = playerKey === 'black'
+        ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+        : (typeof WHITE !== 'undefined' ? WHITE : -1);
     const protection = (typeof getActiveProtectionForPlayer === 'function') ? getActiveProtectionForPlayer(player) : null;
     const perma = (typeof getFlipBlockers === 'function') ? getFlipBlockers() : [];
     const safeGameState = (typeof gameState !== 'undefined') ? gameState : null;
@@ -6299,11 +6300,8 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
-// Expose to global for environments that rely on global symbols (e.g., browser concatenation)
-if (typeof global !== 'undefined') { (global as any).computeCpuAction = computeCpuAction; (global as any).selectCardToUse = selectCardToUse; (global as any).applyCardChoice = applyCardChoice; }
-// Register via UIBootstrap when available, fallback to globalThis for legacy global access
+// Register via UIBootstrap when available for legacy global access at the UI boundary.
 try {
     const uiBootstrap = _require('../shared/ui-bootstrap-shared');
-    if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function') uiBootstrap.registerUIGlobals({ computeCpuAction });
+    if (uiBootstrap && typeof uiBootstrap.registerUIGlobals === 'function') uiBootstrap.registerUIGlobals({ computeCpuAction, selectCardToUse, applyCardChoice });
 } catch (e) { /* ignore */ }
-try { if (typeof globalThis !== 'undefined') (globalThis as any).computeCpuAction = computeCpuAction; } catch (e) {}

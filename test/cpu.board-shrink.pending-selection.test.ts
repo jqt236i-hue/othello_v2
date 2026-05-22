@@ -55,6 +55,9 @@ describe('cpu board shrink pending selection', () => {
     global.CardLogic = {
       getSelectableTargets: jest.fn(() => [])
     };
+    cpuDecision.setCpuDecisionRuntime({
+      readModule: (name) => global[name]
+    });
 
     PendingCoordinator.clearPendingSelectionActionCache();
   });
@@ -77,6 +80,7 @@ describe('cpu board shrink pending selection', () => {
     delete global.TurnPipelineUIAdapter;
     delete global.CpuPolicyOnnxRuntime;
     delete global.CardLogic;
+    cpuDecision.setCpuDecisionRuntime(null);
   });
 
   test('BOARD_SHRINK_WILL publishes shrinkTarget with carried selectedTargets state', async () => {

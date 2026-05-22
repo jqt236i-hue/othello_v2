@@ -1845,6 +1845,15 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         installCardDI();
         installNetworkDI();
         installUIDI(timersImpl);
+        try {
+            const sharedBootstrap = resolveSharedUIBootstrapHelpers();
+            const sharedGlobals = sharedBootstrap && typeof sharedBootstrap.getRegisteredUIGlobals === 'function'
+                ? sharedBootstrap.getRegisteredUIGlobals()
+                : null;
+            if (sharedGlobals && typeof sharedGlobals === 'object') {
+                registerUIGlobals(sharedGlobals);
+            }
+        } catch (e: any) { /* ignore */ }
 
         function preloadAssets(manifest: any, opts: any = {}) {
             opts = Object.assign({ timeoutMs: 5000 }, opts || {});
