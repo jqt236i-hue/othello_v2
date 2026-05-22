@@ -79,7 +79,9 @@ describe('TRAP_WILL selection turn handoff', () => {
       scheduleCpuTurn: (delay, callback) => setTimeout(callback, delay),
       processCpuTurn: () => global.processCpuTurn(),
       publishSnapshot: (meta) => global.NetworkMatchClient.publishSnapshot(meta),
-      isNetworkPublishActive: () => global.NetworkMatchClient.isActive()
+      isNetworkPublishActive: () => global.NetworkMatchClient.isActive(),
+      getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
+      getTurnPipeline: () => global.TurnPipeline
     });
   });
 

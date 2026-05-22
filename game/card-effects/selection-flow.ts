@@ -614,17 +614,34 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function resolvePresentationHelper() {
+        const bridge = getSignalBridge();
+        if (bridge && bridge.presentationHelper && typeof bridge.presentationHelper === 'object') {
+            return bridge.presentationHelper;
+        }
+        const getPresentationHelperFromBridge = readSignalBridgeMethod('getPresentationHelper');
+        if (getPresentationHelperFromBridge) {
+            try {
+                const helper = getPresentationHelperFromBridge();
+                if (helper && typeof helper === 'object') return helper;
+            } catch (e) { /* ignore */ }
+        }
         if (typeof require === 'function') {
             try { return require('../logic/presentation'); } catch (e) { /* ignore */ }
         }
-        return (root && root.PresentationHelper && typeof root.PresentationHelper === 'object')
-            ? root.PresentationHelper
-            : null;
+        return null;
     }
 
     function resolveTurnPipelineUIAdapter() {
-        if (root && root.TurnPipelineUIAdapter && typeof root.TurnPipelineUIAdapter === 'object') {
-            return root.TurnPipelineUIAdapter;
+        const bridge = getSignalBridge();
+        if (bridge && bridge.turnPipelineUIAdapter && typeof bridge.turnPipelineUIAdapter === 'object') {
+            return bridge.turnPipelineUIAdapter;
+        }
+        const getAdapterFromBridge = readSignalBridgeMethod('getTurnPipelineUIAdapter');
+        if (getAdapterFromBridge) {
+            try {
+                const adapter = getAdapterFromBridge();
+                if (adapter && typeof adapter === 'object') return adapter;
+            } catch (e) { /* ignore */ }
         }
         if (typeof require === 'function') {
             try { return require('../turn/pipeline_ui_adapter'); } catch (e) { /* ignore */ }
@@ -633,8 +650,16 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function resolveTurnPipeline() {
-        if (root && root.TurnPipeline && typeof root.TurnPipeline === 'object') {
-            return root.TurnPipeline;
+        const bridge = getSignalBridge();
+        if (bridge && bridge.turnPipeline && typeof bridge.turnPipeline === 'object') {
+            return bridge.turnPipeline;
+        }
+        const getPipelineFromBridge = readSignalBridgeMethod('getTurnPipeline');
+        if (getPipelineFromBridge) {
+            try {
+                const pipeline = getPipelineFromBridge();
+                if (pipeline && typeof pipeline === 'object') return pipeline;
+            } catch (e) { /* ignore */ }
         }
         if (typeof require === 'function') {
             try { return require('../turn/turn_pipeline'); } catch (e) { /* ignore */ }

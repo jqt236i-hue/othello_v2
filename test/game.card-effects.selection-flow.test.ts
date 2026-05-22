@@ -84,7 +84,10 @@ describe('selection-flow', () => {
         };
         selectionFlow.setSignalBridge({
             getPlaybackStateManager: () => globalForSelectionFlow.PlaybackStateManager,
-            readMatchMode: () => globalForSelectionFlow.getCurrentMatchMode ? globalForSelectionFlow.getCurrentMatchMode() : 'local'
+            readMatchMode: () => globalForSelectionFlow.getCurrentMatchMode ? globalForSelectionFlow.getCurrentMatchMode() : 'local',
+            getTurnPipelineUIAdapter: () => globalForSelectionFlow.TurnPipelineUIAdapter,
+            getTurnPipeline: () => globalForSelectionFlow.TurnPipeline,
+            getPresentationHelper: () => null
         });
         globalForSelectionFlow.ActionManager = {
             ActionManager: {

@@ -72,7 +72,10 @@ function attachPlaybackStateManager() {
       if (typeof global.emitBoardUpdate !== 'function') return false;
       global.emitBoardUpdate();
       return true;
-    }
+    },
+    getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
+    getTurnPipeline: () => global.TurnPipeline,
+    getPresentationHelper: () => require('../game/logic/presentation.js')
   });
   return playbackStateManager;
 }
@@ -205,7 +208,9 @@ describe('pending selection flow contracts', () => {
 
   test('network deferred selection does not use root NetworkMatchClient without signal bridge publisher', async () => {
     flow.setSignalBridge({
-      readMatchMode: () => 'network'
+      readMatchMode: () => 'network',
+      getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
+      getTurnPipeline: () => global.TurnPipeline
     });
     global.MATCH_MODE = 'network';
     global.cardState = {
@@ -261,6 +266,8 @@ describe('pending selection flow contracts', () => {
   test('network deferred selection does not fall back to root NetworkMatchClient when signal bridge activity probe throws', async () => {
     flow.setSignalBridge({
       readMatchMode: () => 'network',
+      getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
+      getTurnPipeline: () => global.TurnPipeline,
       isNetworkPublishActive: () => {
         throw new Error('probe failed');
       }
