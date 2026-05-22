@@ -13,7 +13,6 @@ declare const TurnPipelineUIAdapter: any;
 declare let isProcessing: any;
 declare const isCardAnimating: any;
 declare const processCpuTurn: any;
-declare const globalThis: any;
 declare const onTurnStart: any;
 declare const emitLogAdded: any;
 declare const CPU_TURN_DELAY_MS: any;
@@ -589,7 +588,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
     emitMoveExecutorBoardUpdate();
 }
 
-let deepClone = (obj: any) => (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') ? globalThis.structuredClone(obj) : JSON.parse(JSON.stringify(obj));
+let deepClone = (obj: any) => JSON.parse(JSON.stringify(obj));
 if (typeof require === 'function') {
   try { deepClone = require('../utils/deepClone'); } catch (e) { /* ignore in browser-like env */ }
 }
