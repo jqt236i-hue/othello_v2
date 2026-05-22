@@ -12,7 +12,6 @@ declare const Core: any;
 declare const CoreLogic: any;
 declare const CardLogic: any;
 declare const TurnPipeline: any;
-declare const ActionManager: any;
 declare let isProcessing: any;
 declare const processCpuTurn: any;
 declare const getPlayerName: any;
@@ -94,6 +93,35 @@ function setPassHandlerProcessing(active: boolean) {
     }
     try { isProcessing = next; } catch (e) { /* ignore */ }
     return next;
+}
+
+function resolvePassHandlerActionManager() {
+    if (passHandlerRuntime && passHandlerRuntime.actionManager) {
+        return passHandlerRuntime.actionManager;
+    }
+    if (passHandlerRuntime && typeof passHandlerRuntime.getActionManager === 'function') {
+        try {
+            const actionManager = passHandlerRuntime.getActionManager();
+            if (actionManager && typeof actionManager === 'object') return actionManager;
+        } catch (e) { /* ignore */ }
+    }
+    return null;
+}
+
+function getPassHandlerActionApi() {
+    const actionManager = resolvePassHandlerActionManager();
+    return actionManager && actionManager.ActionManager ? actionManager.ActionManager : actionManager;
+}
+
+function recordPassHandlerAction(action: any) {
+    const actionApi = getPassHandlerActionApi();
+    if (!actionApi) return;
+    try {
+        if (typeof actionApi.recordAction === 'function') actionApi.recordAction(action);
+        if (typeof actionApi.incrementTurnIndex === 'function') actionApi.incrementTurnIndex();
+    } catch (e) {
+        console.warn('[PASS-HANDLER] Failed to record pass action:', e);
+    }
 }
 
 function normalizePlayerKeyOptional(value: any) {
@@ -456,9 +484,10 @@ function applyPassViaPipeline(playerKey: string) {
         throw new Error('TurnPipeline is not available - cannot process pass');
     }
 
-    // Create action via ActionManager for tracking
-        const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-            ? ActionManager.ActionManager.createAction('pass', playerKey, {})
+    // Create action via injected ActionManager for tracking
+        const actionApi = getPassHandlerActionApi();
+        const action = (actionApi && typeof actionApi.createAction === 'function')
+            ? actionApi.createAction('pass', playerKey, {})
             : { type: 'pass' };
 
         if (action && cardState && typeof cardState.turnIndex === 'number') {
@@ -477,10 +506,7 @@ function applyPassViaPipeline(playerKey: string) {
         cardState = result.cardState;
 
         // Record successful action
-        if (typeof ActionManager !== 'undefined' && ActionManager.ActionManager) {
-            ActionManager.ActionManager.recordAction(action);
-            ActionManager.ActionManager.incrementTurnIndex();
-        }
+        recordPassHandlerAction(action);
 
         return {
             ok: true,
@@ -495,10 +521,7 @@ function applyPassViaPipeline(playerKey: string) {
         cardState = res.cardState;
 
         // Record successful action
-        if (typeof ActionManager !== 'undefined' && ActionManager.ActionManager) {
-            ActionManager.ActionManager.recordAction(action);
-            ActionManager.ActionManager.incrementTurnIndex();
-        }
+        recordPassHandlerAction(action);
 
         return {
             ok: true,

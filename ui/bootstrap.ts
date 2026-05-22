@@ -1191,6 +1191,13 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                                     return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
                                 } catch (e: any) { /* ignore */ }
                                 return false;
+                            },
+                            getActionManager: () => {
+                                try {
+                                    return typeof globalThis !== 'undefined' ? (globalThis as any).ActionManager : null;
+                                } catch (e: any) {
+                                    return null;
+                                }
                             }
                         });
                     }
