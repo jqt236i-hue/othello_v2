@@ -14,6 +14,15 @@ function attachPlaybackStateManager() {
     readMatchMode: () => global.MATCH_MODE,
     readHumanVsHumanMode: () => global.DEBUG_HUMAN_VS_HUMAN === true,
     getGameState: () => global.gameState,
+    getCardState: () => global.cardState,
+    setGameState: (nextGameState) => {
+      global.gameState = nextGameState;
+      return true;
+    },
+    setCardState: (nextCardState) => {
+      global.cardState = nextCardState;
+      return true;
+    },
     getPlaybackStateManager: () => playbackStateManager,
     waitForPlaybackIdle: () => {
       if (typeof global.waitForPlaybackIdle === 'function') {
@@ -212,6 +221,15 @@ describe('pending selection flow contracts', () => {
     flow.setSignalBridge({
       readMatchMode: () => 'network',
       getGameState: () => global.gameState,
+      getCardState: () => global.cardState,
+      setGameState: (nextGameState) => {
+        global.gameState = nextGameState;
+        return true;
+      },
+      setCardState: (nextCardState) => {
+        global.cardState = nextCardState;
+        return true;
+      },
       getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
       getTurnPipeline: () => global.TurnPipeline,
       getActionManager: () => global.ActionManager
@@ -271,6 +289,15 @@ describe('pending selection flow contracts', () => {
     flow.setSignalBridge({
       readMatchMode: () => 'network',
       getGameState: () => global.gameState,
+      getCardState: () => global.cardState,
+      setGameState: (nextGameState) => {
+        global.gameState = nextGameState;
+        return true;
+      },
+      setCardState: (nextCardState) => {
+        global.cardState = nextCardState;
+        return true;
+      },
       getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
       getTurnPipeline: () => global.TurnPipeline,
       getActionManager: () => global.ActionManager,
@@ -747,6 +774,15 @@ describe('pending selection flow contracts', () => {
       readMatchMode: () => 'network',
       readHumanVsHumanMode: () => false,
       getGameState: () => global.gameState,
+      getCardState: () => global.cardState,
+      setGameState: (nextGameState) => {
+        global.gameState = nextGameState;
+        return true;
+      },
+      setCardState: (nextCardState) => {
+        global.cardState = nextCardState;
+        return true;
+      },
       getPlaybackStateManager: () => playbackStateManager,
       publishSnapshot,
       isNetworkPublishActive: () => true,

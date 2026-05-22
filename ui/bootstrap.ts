@@ -527,6 +527,31 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     return null;
                 }
             },
+            getCardState: () => {
+                try {
+                    return typeof globalThis !== 'undefined' ? (globalThis as any).cardState : null;
+                } catch (e: any) {
+                    return null;
+                }
+            },
+            setGameState: (nextGameState: any) => {
+                try {
+                    if (typeof globalThis === 'undefined') return false;
+                    (globalThis as any).gameState = nextGameState;
+                    return true;
+                } catch (e: any) {
+                    return false;
+                }
+            },
+            setCardState: (nextCardState: any) => {
+                try {
+                    if (typeof globalThis === 'undefined') return false;
+                    (globalThis as any).cardState = nextCardState;
+                    return true;
+                } catch (e: any) {
+                    return false;
+                }
+            },
             getActionManager: () => {
                 try {
                     return typeof globalThis !== 'undefined' ? (globalThis as any).ActionManager : null;

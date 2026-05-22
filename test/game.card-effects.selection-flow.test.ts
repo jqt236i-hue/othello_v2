@@ -86,6 +86,15 @@ describe('selection-flow', () => {
             getPlaybackStateManager: () => globalForSelectionFlow.PlaybackStateManager,
             readMatchMode: () => globalForSelectionFlow.getCurrentMatchMode ? globalForSelectionFlow.getCurrentMatchMode() : 'local',
             getGameState: () => globalForSelectionFlow.gameState,
+            getCardState: () => globalForSelectionFlow.cardState,
+            setGameState: (nextGameState: any) => {
+                globalForSelectionFlow.gameState = nextGameState;
+                return true;
+            },
+            setCardState: (nextCardState: any) => {
+                globalForSelectionFlow.cardState = nextCardState;
+                return true;
+            },
             getTurnPipelineUIAdapter: () => globalForSelectionFlow.TurnPipelineUIAdapter,
             getTurnPipeline: () => globalForSelectionFlow.TurnPipeline,
             getActionManager: () => globalForSelectionFlow.ActionManager,

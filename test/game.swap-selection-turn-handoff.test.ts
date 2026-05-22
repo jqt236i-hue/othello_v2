@@ -81,6 +81,15 @@ describe('SWAP_WITH_ENEMY selection turn handoff', () => {
     require('../game/card-effects/selection-flow.js').setSignalBridge({
       getPlaybackStateManager: () => playbackStateManager,
       getGameState: () => global.gameState,
+      getCardState: () => global.cardState,
+      setGameState: (nextGameState) => {
+        global.gameState = nextGameState;
+        return true;
+      },
+      setCardState: (nextCardState) => {
+        global.cardState = nextCardState;
+        return true;
+      },
       waitForPlaybackIdle: () => global.waitForPlaybackIdle(),
       scheduleCpuTurn: (delay, callback) => setTimeout(callback, delay),
       processCpuTurn: () => global.processCpuTurn(),

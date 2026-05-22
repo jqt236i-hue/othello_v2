@@ -438,6 +438,21 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return null;
     }
 
+    function resolveCurrentCardState() {
+        const bridge = getSignalBridge();
+        if (bridge && bridge.cardState && typeof bridge.cardState === 'object') {
+            return bridge.cardState;
+        }
+        const getCardStateFromBridge = readSignalBridgeMethod('getCardState');
+        if (getCardStateFromBridge) {
+            try {
+                const state = getCardStateFromBridge();
+                if (state && typeof state === 'object') return state;
+            } catch (e) { /* ignore */ }
+        }
+        return null;
+    }
+
     function scheduleWhiteCpuTurn(options: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const safeDelay = Number.isFinite(Number(opts.delayMs)) ? Math.max(0, Math.trunc(Number(opts.delayMs))) : 0;
@@ -520,7 +535,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const playerKey = opts.playerKey || 'black';
         const actionType = opts.actionType || 'place';
         const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents.slice() : [];
-        const cardStateValue = opts.cardStateValue || (root ? root.cardState : null);
+        const cardStateValue = opts.cardStateValue || resolveCurrentCardState();
         const pendingByPlayer = cardStateValue && cardStateValue.pendingEffectByPlayer;
         if (
             !(opts.action && typeof opts.action === 'object')
@@ -740,9 +755,25 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     function resolveSelectionStateRefs(options?: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         return {
-            cardState: opts.cardState || (root ? root.cardState : null),
-            gameState: opts.gameState || (root ? root.gameState : null)
+            cardState: opts.cardState || resolveCurrentCardState(),
+            gameState: opts.gameState || resolveCurrentGameState()
         };
+    }
+
+    function publishSelectionStateRef(name: any, value: any) {
+        const methodName = name === 'gameState' ? 'setGameState' : 'setCardState';
+        const publishStateRef = readSignalBridgeMethod(methodName);
+        if (publishStateRef) {
+            try { return publishStateRef(value) === true; } catch (e) { /* ignore */ }
+        }
+        const bridge = getSignalBridge();
+        if (bridge && typeof bridge === 'object' && name) {
+            try {
+                bridge[name] = value;
+                return true;
+            } catch (e) { /* ignore */ }
+        }
+        return false;
     }
 
     function applySelectionStateResult(result: any, options: any) {
@@ -752,15 +783,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
         if (result && result.nextCardState) {
             nextCardState = applyStateSnapshotInPlace(nextCardState, result.nextCardState);
-            if (root) {
-                root.cardState = nextCardState;
-            }
+            publishSelectionStateRef('cardState', nextCardState);
         }
         if (result && result.nextGameState) {
             nextGameState = applyStateSnapshotInPlace(nextGameState, result.nextGameState);
-            if (root) {
-                root.gameState = nextGameState;
-            }
+            publishSelectionStateRef('gameState', nextGameState);
         }
         return {
             cardState: nextCardState,
@@ -784,7 +811,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             return emitPlaybackEventsViaBridge(
                 playbackEvents,
                 (meta && typeof meta === 'object') ? meta : {},
-                cardStateValue || (root ? root.cardState : null)
+                cardStateValue || resolveCurrentCardState()
             ) === true;
         } catch (e) {
             return false;
@@ -885,8 +912,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             };
         }
 
-        const previewCardState = cloneData(opts.cardState || (root ? root.cardState : null));
-        const previewGameState = cloneData(opts.gameState || (root ? root.gameState : null));
+        const previewCardState = cloneData(opts.cardState || resolveCurrentCardState());
+        const previewGameState = cloneData(opts.gameState || resolveCurrentGameState());
         const previewAction = clonePendingSelectionAction(opts.action) || {};
         previewAction.__suppressUiLogs = true;
 
