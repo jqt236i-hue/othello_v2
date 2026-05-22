@@ -12,6 +12,14 @@ const makeTurnPipeline = () => ({
     }))
 });
 
+const injectPassHandlerRuntimeFromGlobals = (ph: any) => {
+    ph.setPassHandlerRuntime({
+        processCpuTurn: (global as any).processCpuTurn,
+        readMatchMode: () => (global as any).MATCH_MODE,
+        readHumanVsHumanMode: () => (global as any).DEBUG_HUMAN_VS_HUMAN === true
+    });
+};
+
 describe('pass-handler flows', () => {
     beforeEach(() => {
         jest.resetModules();
@@ -177,6 +185,7 @@ describe('pass-handler flows', () => {
         (global as any).TurnPipeline = makeTurnPipeline();
         (global as any).Core = { getLegalMoves: jest.fn(() => []) };
         const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
         const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
         expect(handled).toBe(false);
         expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
@@ -196,6 +205,7 @@ describe('pass-handler flows', () => {
         (global as any).TurnPipeline = makeTurnPipeline();
         (global as any).Core = { getLegalMoves: jest.fn(() => []) };
         const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
         const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
         expect(handled).toBe(false);
         expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
@@ -261,6 +271,7 @@ describe('pass-handler flows', () => {
         (global as any).TurnPipeline = makeTurnPipeline();
         (global as any).Core = { getLegalMoves: jest.fn(() => []) };
         const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
         const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
         expect(handled).toBe(false);
         expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
@@ -282,6 +293,7 @@ describe('pass-handler flows', () => {
         };
         (global as any).Core = { getLegalMoves: jest.fn(() => []) };
         const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
         const ok = await ph.processPassTurn('black', false);
         expect(ok).toBe(true);
         expect((global as any).showResult).not.toHaveBeenCalled();
@@ -400,6 +412,7 @@ describe('pass-handler flows', () => {
         (global as any).TurnPipeline = makeTurnPipeline();
         (global as any).Core = { getLegalMoves: jest.fn(() => []) };
         const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
         const handled = ph.ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
         expect(handled).toBe(false);
         expect((global as any).TurnPipeline.applyTurnSafe).not.toHaveBeenCalled();
@@ -439,6 +452,7 @@ describe('pass-handler flows', () => {
         });
 
         const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
         ph.setNetworkMatchClient({
             isActive: jest.fn(() => true),
             publishSnapshot: publishSnapshotMock

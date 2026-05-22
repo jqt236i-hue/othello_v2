@@ -240,13 +240,8 @@ function getCurrentMatchModeSafe() {
         return passHandlerRuntime.MATCH_MODE;
     }
     try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).MATCH_MODE) {
-            return (globalThis as any).MATCH_MODE;
-        }
-    } catch (e) { /* ignore */ }
-    try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.getCurrentMatchMode === 'function') {
-            return OwnerHelpersModule.getCurrentMatchMode();
+            return OwnerHelpersModule.getCurrentMatchMode(passHandlerRuntime || {});
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -262,8 +257,6 @@ function isHumanVsHumanModeEnabled() {
         try { debugHvH = passHandlerRuntime.readHumanVsHumanMode() === true; } catch (e) { /* ignore */ }
     } else if (passHandlerRuntime && typeof passHandlerRuntime.DEBUG_HUMAN_VS_HUMAN !== 'undefined') {
         debugHvH = passHandlerRuntime.DEBUG_HUMAN_VS_HUMAN === true;
-    } else {
-        debugHvH = typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
     }
     const matchMode = String(getCurrentMatchModeSafe() || '').trim().toLowerCase();
     return debugHvH || matchMode === 'network';
