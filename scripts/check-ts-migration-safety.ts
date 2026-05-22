@@ -34,9 +34,6 @@ const allowedNoCheckDebt = new Set([
   'scripts/run-ui-level-match.ts',
   'src/engine/selfplay-runner.ts',
   'training/engine/selfplay-runner.ts',
-  'training/scripts/generate-selfplay-data-parallel.ts',
-  'training/scripts/generate-selfplay-data.ts',
-  'training/scripts/run-selfplay-training-cycle.ts',
   'ui.ts'
 ]);
 
