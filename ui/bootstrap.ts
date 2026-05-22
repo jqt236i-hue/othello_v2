@@ -1557,6 +1557,13 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 } catch (e: any) { /* ignore */ }
                 return false;
             },
+            setProcessing: (next: boolean) => {
+                try {
+                    if (typeof globalThis !== 'undefined') {
+                        (globalThis as any).isProcessing = next === true;
+                    }
+                } catch (e: any) { /* ignore */ }
+            },
             getPlaybackStateManager: () => getPlaybackStateModuleForReset(),
             getTurnPipelineUIAdapter: () => {
                 try {

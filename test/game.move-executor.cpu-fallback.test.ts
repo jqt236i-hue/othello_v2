@@ -11,6 +11,13 @@ describe('move-executor CPU scheduling DI', () => {
         delete global.processCpuTurn;
         global.WHITE = -1;
     });
+    function installProcessingMirror(moveExecutor: any) {
+        moveExecutor.setUIImpl({
+            setProcessing: (next: boolean) => {
+                global.isProcessing = next === true;
+            }
+        });
+    }
 
     test('uses injected scheduler and CPU processor instead of global processCpuTurn', async () => {
         global.BoardOps = { emitPresentationEvent: jest.fn() };
@@ -19,6 +26,7 @@ describe('move-executor CPU scheduling DI', () => {
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
 
         const moveExecutor = require('../game/move-executor.js');
+        installProcessingMirror(moveExecutor);
         const move = { row: 2, col: 3, player: 1 };
         const playerKey = 'black';
 
@@ -56,6 +64,7 @@ describe('move-executor CPU scheduling DI', () => {
         global.isProcessing = false;
 
         const moveExecutor = require('../game/move-executor.js');
+        installProcessingMirror(moveExecutor);
         const move = { row: 2, col: 3, player: 1 };
         const playerKey = 'black';
 
@@ -95,6 +104,7 @@ describe('move-executor CPU scheduling DI', () => {
         global.isProcessing = false;
 
         const moveExecutor = require('../game/move-executor.js');
+        installProcessingMirror(moveExecutor);
         const move = { row: 2, col: 3, player: 1 };
         const playerKey = 'black';
 
@@ -128,6 +138,7 @@ describe('move-executor CPU scheduling DI', () => {
         global.isProcessing = false;
 
         const moveExecutor = require('../game/move-executor.js');
+        installProcessingMirror(moveExecutor);
         const move = { row: 2, col: 3, player: 1 };
         const playerKey = 'black';
         const fakeRes = {

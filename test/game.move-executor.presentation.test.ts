@@ -12,6 +12,13 @@ describe('move-executor presentation emission', () => {
         delete global.isGameOver;
         delete global.showResult;
     });
+    function installProcessingMirror(moveExecutor: any) {
+        moveExecutor.setUIImpl({
+            setProcessing: (next: boolean) => {
+                global.isProcessing = next === true;
+            }
+        });
+    }
 
     test('executeMoveViaPipeline emits PLAYBACK_EVENTS via injected PresentationHelper runtime when playbackEvents present', async () => {
         // arrange
@@ -336,6 +343,7 @@ describe('move-executor presentation emission', () => {
         };
 
         const moveExecutor = require('../game/move-executor.js');
+        installProcessingMirror(moveExecutor);
         moveExecutor.setUIImpl({
             getPlaybackStateManager: () => global.PlaybackStateManager
         });

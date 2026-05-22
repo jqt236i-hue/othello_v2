@@ -26,8 +26,6 @@ function setUIImpl(obj: any) {
     __uiImpl_move_executor = Object.assign({}, prev, obj || {});
 }
 
-// Module-level variable for isProcessing (replaces globalThis write)
-
 // Import event emitters from controller-events; fall back to global scope
 let emitBoardUpdate_local: any;
 let emitCardStateChange_local: any;
@@ -140,12 +138,10 @@ function setMoveExecutorProcessing(active: boolean) {
     } else if (playbackState && typeof playbackState.setProcessing === 'function') {
         playbackState.setProcessing(next);
     }
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.setProcessing === 'function') {
+        try { __uiImpl_move_executor.setProcessing(next); } catch (e) { /* ignore */ }
+    }
     try { isProcessing = next; } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined') {
-            globalThis.isProcessing = next; // @compat
-        }
-    } catch (e) { /* ignore */ }
     return next;
 }
 
