@@ -1,6 +1,10 @@
 import type {
     MatchAuthorityBufferedSseEventRecord,
+    MatchAuthorityBufferedSseEventRecordInput,
     MatchAuthorityPublishMeta,
+    MatchAuthorityPublicSeats,
+    MatchAuthoritySeatHandSkins,
+    MatchAuthoritySeatNames,
     MatchAuthorityRoomState,
     MatchAuthoritySeatKey
 } from '../utils/match-authority-types';
@@ -39,9 +43,15 @@ export interface MatchWorkerSseStreamInfo {
     seatKey: MatchAuthoritySeatKey;
 }
 
+export interface MatchWorkerPublicSeatState {
+    seats: MatchAuthorityPublicSeats;
+    seatNames: MatchAuthoritySeatNames;
+    seatHandSkins: MatchAuthoritySeatHandSkins;
+}
+
 export interface MatchWorkerPreparedSnapshotBroadcast {
     eventId: string;
-    record: unknown;
+    record: MatchAuthorityBufferedSseEventRecordInput;
     payloadByViewer: Partial<Record<MatchAuthoritySeatKey, unknown>>;
     fallbackPayload: unknown;
 }
@@ -241,6 +251,16 @@ export interface MatchWorkerPresencePayloadMeta extends Record<string, unknown> 
     type?: unknown;
     seatKey?: unknown;
     rejoined?: unknown;
+}
+
+export interface MatchWorkerRoomCreateOptions extends Record<string, unknown> {
+    seed?: unknown;
+    snapshot?: unknown;
+    initialDeckSpec?: unknown;
+    initialDeckSpecByPlayer?: unknown;
+    roomDeck?: unknown;
+    roomBoardConfig?: unknown;
+    networkDebugEnabled?: unknown;
 }
 
 export interface MatchWorkerParsedChatMessage {

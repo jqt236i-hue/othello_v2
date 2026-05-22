@@ -21,7 +21,9 @@ import type {
     MatchWorkerPublicSnapshot,
     MatchWorkerPublishPayloadOptions,
     MatchWorkerPresencePayloadMeta,
+    MatchWorkerPublicSeatState,
     MatchWorkerRoomState,
+    MatchWorkerRoomCreateOptions,
     MatchWorkerRuntimeModule,
     MatchWorkerSeededPrngModule,
     MatchWorkerSeatValueMap,
@@ -38,6 +40,8 @@ import type {
 } from './match-worker-types';
 import type {
     MatchAuthorityAcceptedOperationsBySeat,
+    MatchAuthorityBufferedSseEventRecord,
+    MatchAuthorityBufferedSseEventRecordInput,
     MatchAuthorityRoomState,
     MatchAuthoritySeatKey
 } from '../utils/match-authority-types';
@@ -78,6 +82,9 @@ import cardTargetResolverModule from '../game/cards/target-resolver.js';
 import cardStatusCellsEffectsModule from '../game/cards/effects/status-cells.js';
 
 const MatchAuthority = matchAuthority || {};
+type MatchWorkerCryptoLike = {
+    getRandomValues(array: Uint8Array): Uint8Array;
+};
 const ROOM_ID_CHARS = String(MatchAuthority.ROOM_ID_CHARS || 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789');
 const ROOM_ID_LENGTH = Number.isFinite(Number(MatchAuthority.ROOM_ID_LENGTH))
     ? Number(MatchAuthority.ROOM_ID_LENGTH)
@@ -1466,18 +1473,20 @@ function projectSnapshotForViewer(room: MatchWorkerRoomState | null | undefined,
     return shot;
 }
 
-function toPublicSnapshot(room, viewerSeatKey) {
+function toPublicSnapshot(room: MatchWorkerRoomState | null | undefined, viewerSeatKey: unknown): MatchWorkerPublicSnapshot {
+    const viewer = parseSeatKeyOptional(viewerSeatKey);
     if (MatchAuthority && typeof MatchAuthority.buildPublicSnapshot === 'function') {
-        return MatchAuthority.buildPublicSnapshot(room, viewerSeatKey || null);
+        return MatchAuthority.buildPublicSnapshot(room, viewer) as MatchWorkerPublicSnapshot;
     }
-    return projectSnapshotForViewer(room, viewerSeatKey || null);
+    return projectSnapshotForViewer(room, viewer);
 }
 
-function buildPublicSeatState(room) {
+function buildPublicSeatState(room: MatchWorkerRoomState | null | undefined): MatchWorkerPublicSeatState {
     if (MatchAuthority && typeof MatchAuthority.buildPublicSeatMetadata === 'function') {
-        return MatchAuthority.buildPublicSeatMetadata(room);
+        return MatchAuthority.buildPublicSeatMetadata(room) as MatchWorkerPublicSeatState;
     }
     const names = (room && room.seatNames && typeof room.seatNames === 'object') ? room.seatNames : {};
+    const handSkins = (room && room.seatHandSkins && typeof room.seatHandSkins === 'object') ? room.seatHandSkins : {};
     return {
         seats: MatchAuthority && typeof MatchAuthority.normalizePublicSeats === 'function'
             ? MatchAuthority.normalizePublicSeats(room && room.seats)
@@ -1492,17 +1501,17 @@ function buildPublicSeatState(room) {
         seatHandSkins: MatchAuthority && typeof MatchAuthority.normalizeSeatHandSkins === 'function'
             ? MatchAuthority.normalizeSeatHandSkins(room && room.seatHandSkins)
             : {
-                black: normalizeSeatHandSkinId(room && room.seatHandSkins && room.seatHandSkins.black),
-                white: normalizeSeatHandSkinId(room && room.seatHandSkins && room.seatHandSkins.white)
+                black: normalizeSeatHandSkinId(handSkins.black),
+                white: normalizeSeatHandSkinId(handSkins.white)
             }
     };
 }
 
-function withPublicSeatState(room, payload) {
+function withPublicSeatState(room: MatchWorkerRoomState | null | undefined, payload: Record<string, unknown>): Record<string, unknown> {
     return Object.assign(payload, buildPublicSeatState(room));
 }
 
-function toPublicSeatHandSkins(room) {
+function toPublicSeatHandSkins(room: MatchWorkerRoomState | null | undefined) {
     return buildPublicSeatState(room).seatHandSkins;
 }
 
@@ -1998,7 +2007,7 @@ async function forwardGetToLeaderboard(env: MatchWorkerEnv, pathname: string, so
     return withCORS(response);
 }
 
-async function resolveDeckSelection(rawDeckCodeValue) {
+async function resolveDeckSelection(rawDeckCodeValue: unknown): Promise<MatchWorkerDeckSelection> {
     const rawDeckCode = String(rawDeckCodeValue || '').trim();
     if (!rawDeckCode) {
         return {
@@ -2024,16 +2033,21 @@ async function resolveDeckSelection(rawDeckCodeValue) {
             deckSize: Number.isFinite(Number(summary && summary.deckSize)) ? Number(summary.deckSize) : null
         };
     } catch (error) {
+        const errorRecord = asRecord(error);
         return {
             ok: false,
-            reason: (error && error.code) ? String(error.code) : 'DECK_CODE_INVALID',
+            hasCustomDeck: false,
+            deckSpec: null,
+            deckCode: '',
+            deckSize: null,
+            reason: errorRecord.code ? String(errorRecord.code) : 'DECK_CODE_INVALID',
             error
         };
     }
 }
 
-async function handleCreate(env, options) {
-    const opts = (options && typeof options === 'object') ? options : {};
+async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Response> {
+    const opts = asRecord(options);
     const networkDebugEnabled = opts.networkDebugEnabled === true;
     const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(opts.roomBoardConfig);
     const deckSelection = await resolveDeckSelection(opts.deckCode);
@@ -2096,7 +2110,9 @@ async function handleCreate(env, options) {
     return jsonResponse(500, { ok: false, reason: 'CREATE_RETRY_EXHAUSTED' });
 }
 
-async function parsePostBody(request) {
+async function parsePostBody(request: Request): Promise<
+    { ok: true; body: Record<string, unknown> } | { ok: false; response: Response }
+> {
     const raw = await request.text();
     const body = parseJsonBody(raw);
     if (body === null) {
@@ -2105,7 +2121,7 @@ async function parsePostBody(request) {
     return { ok: true, body };
 }
 
-async function handleMatchApi(request, env) {
+async function handleMatchApi(request: Request, env: MatchWorkerEnv): Promise<Response> {
     const urlObj = new URL(request.url);
     const pathname = urlObj.pathname;
 
@@ -2144,7 +2160,7 @@ async function handleMatchApi(request, env) {
     return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
 }
 
-async function handleLeaderboardApi(request, env) {
+async function handleLeaderboardApi(request: Request, env: MatchWorkerEnv): Promise<Response> {
     const urlObj = new URL(request.url);
     const pathname = urlObj.pathname;
 
@@ -2172,7 +2188,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     streams: Map<string, MatchWorkerSseStreamInfo>;
     encoder: TextEncoder;
     heartbeatTimerId: ReturnType<typeof setTimeout> | null;
-    sseEventBuffer: unknown[];
+    sseEventBuffer: MatchAuthorityBufferedSseEventRecord[];
 
     constructor(state: DurableObjectStateLike) {
         this.state = state;
@@ -2184,7 +2200,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         this.sseEventBuffer = [];
     }
 
-    async loadRoom() {
+    async loadRoom(): Promise<void> {
         if (this.roomLoaded) return;
         this.room = await this.state.storage.get(ROOM_STORAGE_KEY) as MatchWorkerRoomState | null || null;
         if (this.room && !Array.isArray(this.room.sseEventBuffer)) {
@@ -2202,11 +2218,11 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         this.roomLoaded = true;
     }
 
-    async saveRoom() {
+    async saveRoom(): Promise<void> {
         await this.state.storage.put(ROOM_STORAGE_KEY, deepClone(this.room));
     }
 
-    async removeRoom() {
+    async removeRoom(): Promise<void> {
         this.room = null;
         this.sseEventBuffer = [];
         if (this.heartbeatTimerId !== null) {
@@ -2219,11 +2235,11 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
     }
 
-    nextSseEventId() {
+    nextSseEventId(): string {
         const room = this.room;
         if (!room || typeof room !== 'object') {
             return typeof MatchAuthority.makeSseStreamId === 'function'
-                ? MatchAuthority.makeSseStreamId(Date.now(), crypto)
+                ? MatchAuthority.makeSseStreamId(Date.now(), crypto as unknown as MatchWorkerCryptoLike)
                 : `sse_${Date.now()}`;
         }
 
@@ -2241,7 +2257,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return `${roomId}_${stateVersion}_${nextSeq}`;
     }
 
-    rememberBufferedSseEvent(record: unknown) {
+    rememberBufferedSseEvent(record: MatchAuthorityBufferedSseEventRecordInput): void {
         if (!MatchAuthority || typeof MatchAuthority.appendBufferedSseEvent !== 'function') return;
         const nextBuffer = MatchAuthority.appendBufferedSseEvent(
             this.room && Array.isArray(this.room.sseEventBuffer) ? this.room.sseEventBuffer : this.sseEventBuffer,
@@ -2253,7 +2269,16 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
     }
 
-    buildBufferedSnapshotEvent(meta: unknown, eventId: string) {
+    buildBufferedSnapshotEvent(meta: MatchWorkerSnapshotPayloadMeta | null | undefined, eventId: string): {
+        record: MatchAuthorityBufferedSseEventRecordInput;
+        payloadByViewer: Partial<Record<MatchAuthoritySeatKey, unknown>>;
+    } {
+        if (!this.room) {
+            return {
+                record: { eventId, eventName: 'snapshot', payloadByViewer: {} },
+                payloadByViewer: {}
+            };
+        }
         const payloadByViewer = {
             black: buildSnapshotPayload(this.room, meta, 'black'),
             white: buildSnapshotPayload(this.room, meta, 'white')
@@ -2268,18 +2293,18 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         };
     }
 
-    prepareSnapshotBroadcast(meta: unknown): MatchWorkerPreparedSnapshotBroadcast {
+    prepareSnapshotBroadcast(meta: MatchWorkerSnapshotPayloadMeta | null | undefined): MatchWorkerPreparedSnapshotBroadcast {
         const eventId = this.nextSseEventId();
         const { record, payloadByViewer } = this.buildBufferedSnapshotEvent(meta, eventId);
         return {
             eventId,
             record,
             payloadByViewer,
-            fallbackPayload: buildSnapshotPayload(this.room, meta, null)
+            fallbackPayload: this.room ? buildSnapshotPayload(this.room, meta, null) : {}
         };
     }
 
-    async broadcastPreparedSnapshot(preparedSnapshot: MatchWorkerPreparedSnapshotBroadcast | null | undefined) {
+    async broadcastPreparedSnapshot(preparedSnapshot: MatchWorkerPreparedSnapshotBroadcast | null | undefined): Promise<void> {
         if (!this.room || !preparedSnapshot) return;
         this.rememberBufferedSseEvent(preparedSnapshot.record);
         await this.saveRoom();
@@ -2294,7 +2319,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }));
     }
 
-    ensureHeartbeatTimer() {
+    ensureHeartbeatTimer(): void {
         if (this.heartbeatTimerId !== null) return;
         if (this.streams.size === 0) return;
 
@@ -2310,7 +2335,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }, SSE_HEARTBEAT_INTERVAL_MS);
     }
 
-    async broadcastHeartbeat() {
+    async broadcastHeartbeat(): Promise<void> {
         if (!this.room) return;
         const streamEntries = Array.from(this.streams.entries());
         if (streamEntries.length === 0) return;
@@ -2330,7 +2355,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         )));
     }
 
-    async closeStream(streamId: string) {
+    async closeStream(streamId: string): Promise<void> {
         const stream = this.streams.get(streamId);
         if (!stream) return;
         this.streams.delete(streamId);
@@ -2345,7 +2370,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
     }
 
-    async closeStreamsForSeat(seatKey: unknown) {
+    async closeStreamsForSeat(seatKey: unknown): Promise<void> {
         if (!seatKey || !this.streams || this.streams.size === 0) return;
         for (const [streamId, stream] of Array.from(this.streams.entries())) {
             if (!stream || stream.seatKey !== seatKey) continue;
@@ -2353,7 +2378,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
     }
 
-    async sendSse(streamId: string, eventName: string, payload: unknown, options?: Record<string, unknown> | null) {
+    async sendSse(streamId: string, eventName: string, payload: unknown, options?: Record<string, unknown> | null): Promise<void> {
         const stream = this.streams.get(streamId);
         if (!stream) return;
         const opts = (options && typeof options === 'object') ? options : {};
@@ -2380,15 +2405,16 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
     }
 
-    async broadcastSnapshot(meta) {
+    async broadcastSnapshot(meta: MatchWorkerSnapshotPayloadMeta | null | undefined): Promise<void> {
         if (!this.room) return;
-        const preparedSnapshot = meta && meta.__preparedSnapshot
-            ? meta.__preparedSnapshot
+        const preparedCandidate = asRecord(meta).__preparedSnapshot;
+        const preparedSnapshot = preparedCandidate && typeof preparedCandidate === 'object'
+            ? preparedCandidate as MatchWorkerPreparedSnapshotBroadcast
             : this.prepareSnapshotBroadcast(meta);
         await this.broadcastPreparedSnapshot(preparedSnapshot);
     }
 
-    async broadcastPresence(meta) {
+    async broadcastPresence(meta: MatchWorkerPresencePayloadMeta | null | undefined): Promise<void> {
         if (!this.room) return;
         const payload = buildPresencePayload(this.room, meta || {});
         const eventId = this.nextSseEventId();
@@ -2405,7 +2431,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         )));
     }
 
-    async broadcastChat(payload) {
+    async broadcastChat(payload: unknown): Promise<void> {
         if (!this.room) return;
         const eventId = this.nextSseEventId();
         this.rememberBufferedSseEvent({
@@ -2421,10 +2447,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         )));
     }
 
-    createRoomState(roomId, initOptions) {
-        const opts = initOptions || {};
+    createRoomState(roomId: string, initOptions?: MatchWorkerRoomCreateOptions | null): MatchWorkerRoomState {
+        const opts = asRecord(initOptions);
         const seed = Number.isFinite(Number(opts.seed)) ? Number(opts.seed) : Date.now();
-        const snapshot = (opts.snapshot && typeof opts.snapshot === 'object') ? deepClone(opts.snapshot) : null;
+        const snapshot = (opts.snapshot && typeof opts.snapshot === 'object') ? deepClone(opts.snapshot) as MatchWorkerPublicSnapshot : null;
         const initialDeckSpec = (opts.initialDeckSpec && typeof opts.initialDeckSpec === 'object') ? deepClone(opts.initialDeckSpec) : null;
         const initialDeckSpecByPlayer = (opts.initialDeckSpecByPlayer && typeof opts.initialDeckSpecByPlayer === 'object')
             ? cloneInitialDeckSpecByPlayer(opts.initialDeckSpecByPlayer)
@@ -2432,7 +2458,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const roomDeck = (opts.roomDeck && typeof opts.roomDeck === 'object') ? deepClone(opts.roomDeck) : null;
         const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(
             opts.roomBoardConfig,
-            snapshot && snapshot.gameState && snapshot.gameState.board
+            asRecord(snapshot && snapshot.gameState).board
         );
         const networkDebugEnabled = opts.networkDebugEnabled === true;
         const nowMs = Date.now();
