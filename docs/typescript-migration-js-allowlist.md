@@ -80,13 +80,13 @@ npm run worker:prepare # PASS ✅
 
 **内訳**:
 
-#### ブート・検証スクリプト（11件）
-`scripts/browser-boot-smoke.js`, `scripts/clean-dist-require.js`, `scripts/compare-test-baseline.js`, `scripts/debug-single.js`, `scripts/dedup-require.js`, `scripts/find-initdom.js`, `scripts/find-pc.js`, `scripts/find-reset.js`, `scripts/remove-fn-require.js`, `scripts/remove-local-require.js`, `scripts/validate-single.js`
+#### ブート・検証スクリプト（9件）
+`scripts/browser-boot-smoke.js`, `scripts/clean-dist-require.js`, `scripts/compare-test-baseline.js`, `scripts/debug-single.js`, `scripts/dedup-require.js`, `scripts/find-initdom.js`, `scripts/remove-fn-require.js`, `scripts/remove-local-require.js`, `scripts/validate-single.js`
 
 **残存理由**: 過去の移行作業で使用した一時的なデバッグ・検証スクリプト。現在は使用されていない可能性が高いが、削除は別途検討。
 
-#### ツール・ユーティリティスクリプト（9件）
-`scripts/add-module-tracking.js`, `scripts/check-registry-content.js`, `scripts/check-registry-content2.js`, `scripts/check-registry-dups2.js`, `scripts/cross-ref-scripts.js`, `scripts/find-missing.js`, `scripts/serve-with-fallback.js`, `scripts/test-json.js`, `scripts/validate-registry.js`
+#### ツール・ユーティリティスクリプト（7件）
+`scripts/add-module-tracking.js`, `scripts/check-registry-content.js`, `scripts/check-registry-content2.js`, `scripts/cross-ref-scripts.js`, `scripts/serve-with-fallback.js`, `scripts/test-json.js`, `scripts/validate-registry.js`
 
 **残存理由**: Node.js環境で実行される開発・検証ツール。ゲームの実行経路には含まれない。
 
@@ -165,9 +165,7 @@ npm run worker:prepare # PASS ✅
   - 理由: Playwrightを使ったモジュール追跡ツール
 - `scripts/check-registry-content.js` (41行) → **legacy-implementation**
 - `scripts/check-registry-content2.js` (33行) → **legacy-implementation**
-- `scripts/check-registry-dups2.js` (19行) → **legacy-implementation**
 - `scripts/cross-ref-scripts.js` (46行) → **legacy-implementation**
-- `scripts/find-missing.js` (21行) → **legacy-implementation**
 - `scripts/serve-with-fallback.js` (7行) → **legacy-implementation**
   - 理由: `dist/scripts/serve-with-fallback` を読むwrapperだが、Node.js専用
 - `scripts/test-json.js` (47行) → **legacy-implementation**

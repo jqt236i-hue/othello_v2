@@ -46,10 +46,6 @@
       "category": "legacy-implementation",
       "reason": "Migration-era registry helper retained for troubleshooting."
     },
-    "scripts/check-registry-dups2.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era registry helper retained for troubleshooting."
-    },
     "scripts/clean-dist-require.js": {
       "category": "legacy-implementation",
       "reason": "Migration-era dist cleanup helper retained for troubleshooting."
@@ -71,18 +67,6 @@
       "reason": "Migration-era require cleanup helper retained for troubleshooting."
     },
     "scripts/find-initdom.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era lookup helper retained for troubleshooting."
-    },
-    "scripts/find-missing.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era lookup helper retained for troubleshooting."
-    },
-    "scripts/find-pc.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era lookup helper retained for troubleshooting."
-    },
-    "scripts/find-reset.js": {
       "category": "legacy-implementation",
       "reason": "Migration-era lookup helper retained for troubleshooting."
     },
