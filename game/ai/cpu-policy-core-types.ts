@@ -1,9 +1,16 @@
 export type CpuPolicyCardId = string;
+export type CpuPolicyBoardCell = 1 | -1 | 0 | number | null | undefined;
+export type CpuPolicyBoard = CpuPolicyBoardCell[][];
 
-export interface CpuPolicyMove {
+export interface CpuPolicyPosition {
     row: number;
     col: number;
-    flips?: unknown[];
+}
+
+export interface CpuPolicyMove extends CpuPolicyPosition {
+    row: number;
+    col: number;
+    flips?: CpuPolicyPosition[];
     [key: string]: unknown;
 }
 
@@ -41,7 +48,50 @@ export interface CpuPolicyCardContext {
     [key: string]: unknown;
 }
 
+export interface CpuPolicyLegalMoveMetrics {
+    maxLegalFlips: number;
+    avgLegalFlips: number;
+    maxLegalGain: number;
+    maxLegalBoardBonus: number;
+}
+
+export type CpuPolicyBoardBonusResolver = (row: number, col: number, move: CpuPolicyMove) => number;
+
+export interface CpuPolicyLookaheadSearchMeta {
+    endgameMode: boolean;
+    empties: number;
+    depth: number;
+    branchLimit: number | null;
+    nodeBudget: number;
+    timeBudgetMs: number | null;
+    ownMoves: number;
+    oppMoves: number;
+    effectivePriorWeight: number;
+    effectiveSearchWeight: number;
+    parityOddRegionCount: number;
+    parityEvenRegionCount: number;
+    paritySignal: number;
+    forcedPassSignal: number;
+}
+
 export interface CpuPolicyMoveOptions {
+    board?: CpuPolicyBoard | null;
+    playerValue?: 1 | -1 | number;
+    level?: number;
+    depth?: number;
+    maxBranch?: number | null;
+    nodeBudget?: number;
+    endgameNodeBudget?: number;
+    timeBudgetMs?: number | null;
+    endgameSolveEmpties?: number;
+    disableEndgameSolve?: boolean;
+    virtualTimePerNodeMs?: number | null;
+    boardBonusByCell?: Record<string, number> | null;
+    boardBonusConsumedByCell?: Record<string, boolean> | null;
+    priorWeight?: number;
+    searchWeight?: number;
+    scoreMove?: (move: CpuPolicyMove) => number;
+    onSearchMeta?: (meta: CpuPolicyLookaheadSearchMeta) => void;
     [key: string]: unknown;
 }
 
@@ -79,7 +129,7 @@ export interface CpuPolicyCoreApi {
         selectMoveWithAi?: CpuPolicyAiMoveSelector,
         options?: CpuPolicyMoveOptions
     ): CpuPolicyMove | null;
-    computeLegalMoveMetrics(move: CpuPolicyMove, level?: number, boardOrRows?: unknown, colsMaybe?: unknown): Record<string, unknown>;
+    computeLegalMoveMetrics(legalMoves: CpuPolicyMove[], getBoardBonus?: CpuPolicyBoardBonusResolver): CpuPolicyLegalMoveMetrics;
     getMovePlanProfileForCardType(cardType: string): Record<string, unknown> | null;
     isChargeRampCardType(cardType: string): boolean;
     isCornerHoldCardType(cardType: string): boolean;
@@ -91,5 +141,5 @@ export interface CpuPolicyCoreApi {
     scoreCardRetentionPriority(cardId: CpuPolicyCardId, getCardCost: CpuPolicyCardCostResolver, getCardDef: CpuPolicyCardDefinitionResolver, context?: CpuPolicyCardContext): CpuPolicyCardScore;
     scoreCardUseDecision(cardId: CpuPolicyCardId, getCardCost: CpuPolicyCardCostResolver, getCardDef: CpuPolicyCardDefinitionResolver, context?: CpuPolicyCardContext): CpuPolicyCardScore;
     scoreMoveForCornerEdgePlan(move: CpuPolicyMove, context?: CpuPolicyMoveOptions): number;
-    scoreMoveHeuristic(move: CpuPolicyMove, context?: CpuPolicyMoveOptions): number;
+    scoreMoveHeuristic(move: CpuPolicyMove, level?: number, boardOrRows?: CpuPolicyBoard | number | null, colsMaybe?: number): number;
 }
