@@ -263,6 +263,17 @@ export interface MatchWorkerRoomCreateOptions extends Record<string, unknown> {
     networkDebugEnabled?: unknown;
 }
 
+export interface MatchWorkerTurnTimerOptions extends Record<string, unknown> {
+    nowMs?: unknown;
+    forceRestart?: unknown;
+}
+
+export interface MatchWorkerTurnTimeoutResult extends Record<string, unknown> {
+    applied: boolean;
+    stateVersion?: number;
+    playerKey?: MatchAuthoritySeatKey;
+}
+
 export interface MatchWorkerParsedChatMessage {
     ok: boolean;
     text?: string;

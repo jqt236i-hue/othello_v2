@@ -33,6 +33,8 @@ import type {
     MatchWorkerTurnPipelineModules,
     MatchWorkerTurnPipelineSafeResult,
     MatchWorkerSnapshotPayloadMeta,
+    MatchWorkerTurnTimeoutResult,
+    MatchWorkerTurnTimerOptions,
     MatchWorkerTurnStartOptions,
     MatchWorkerTurnStartHandState,
     MatchWorkerTurnStartModules,
@@ -598,7 +600,8 @@ function createWorkerTurnPipelineModule(
                 stateHash: null
             };
         } catch (error) {
-            const rawMsg = (error && error.message) ? String(error.message) : 'unknown_error';
+            const errorRecord = asRecord(error);
+            const rawMsg = errorRecord.message ? String(errorRecord.message) : 'unknown_error';
             let reason = 'UNKNOWN';
             if (rawMsg.includes('Illegal move')) reason = 'ILLEGAL_MOVE';
             else if (rawMsg.includes('applyCardUsage failed')) reason = 'CARD_USE_FAILED';
@@ -2499,7 +2502,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         };
     }
 
-    async syncTurnTimerAlarm() {
+    async syncTurnTimerAlarm(): Promise<boolean> {
         const room = this.room;
         if (!room || !this.state || !this.state.storage) return false;
         const storage = this.state.storage;
@@ -2518,7 +2521,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return false;
     }
 
-    async isSnapshotGameOver(snapshot) {
+    async isSnapshotGameOver(snapshot: MatchWorkerPublicSnapshot | null | undefined): Promise<boolean> {
         if (!snapshot || !snapshot.gameState) return false;
         try {
             const core = await loadCoreLogicModule();
@@ -2529,15 +2532,15 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
     }
 
-    async refreshTurnTimer(options) {
-        const opts = options || {};
+    async refreshTurnTimer(options?: MatchWorkerTurnTimerOptions | null): Promise<boolean> {
+        const opts = asRecord(options);
         const room = this.room;
         if (!room) return false;
 
         const nowMs = Number.isFinite(Number(opts.nowMs)) ? Math.max(0, Math.trunc(Number(opts.nowMs))) : Date.now();
         const turnSeatKey = resolveTurnSeatKey(room);
         const shouldRunBySeats = hasTwoActiveSeats(room);
-        const isGameOver = shouldRunBySeats ? await this.isSnapshotGameOver(room.snapshot) : false;
+        const isGameOver = shouldRunBySeats ? await this.isSnapshotGameOver(room.snapshot as MatchWorkerPublicSnapshot | null | undefined) : false;
         const shouldBeActive = shouldRunBySeats && !isGameOver;
 
         if (!shouldBeActive) {
@@ -2565,8 +2568,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return changed;
     }
 
-    async applyExpiredTurnTimeoutIfNeeded(options) {
-        const opts = options || {};
+    async applyExpiredTurnTimeoutIfNeeded(options?: MatchWorkerTurnTimerOptions | null): Promise<MatchWorkerTurnTimeoutResult> {
+        const opts = asRecord(options);
         if (!this.room) return { applied: false };
 
         const nowMs = Number.isFinite(Number(opts.nowMs)) ? Math.max(0, Math.trunc(Number(opts.nowMs))) : Date.now();
@@ -2583,7 +2586,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const deadline = Number(timer.turnDeadlineAt);
         if (!Number.isFinite(deadline) || deadline > nowMs) return { applied: false };
 
-        const snapshot = room && room.snapshot && typeof room.snapshot === 'object' ? room.snapshot : null;
+        const snapshot = room && room.snapshot && typeof room.snapshot === 'object'
+            ? room.snapshot as MatchWorkerPublicSnapshot
+            : null;
         if (!snapshot || !snapshot.gameState || !snapshot.cardState) return { applied: false };
 
         const timedOutSeatKey = parseSeatKeyOptional(timer.turnSeatKey) || resolveTurnSeatKey(room);
@@ -2598,7 +2603,8 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
 
         const core = await loadCoreLogicModule();
-        const nextSnapshot = deepClone(snapshot);
+        if (!core || typeof core.applyPass !== 'function') return { applied: false };
+        const nextSnapshot = deepClone(snapshot) as MatchWorkerPublicSnapshot;
         nextSnapshot.gameState = core.applyPass(nextSnapshot.gameState);
         if (nextSnapshot.cardState && typeof nextSnapshot.cardState === 'object') {
             nextSnapshot.cardState.presentationEvents = [];
@@ -2612,7 +2618,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             }
         }
         if (nextSnapshot.cardState && nextSnapshot.cardState.pendingEffectByPlayer && typeof nextSnapshot.cardState.pendingEffectByPlayer === 'object') {
-            nextSnapshot.cardState.pendingEffectByPlayer[timedOutSeatKey] = null;
+            asRecord(nextSnapshot.cardState.pendingEffectByPlayer)[timedOutSeatKey] = null;
         }
         const serverPlaybackAssembly = await reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
         reportPlaybackAssemblyDiagnostics('worker-timeout-pass', serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, {
@@ -2643,7 +2649,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 committedVersion: room.stateVersion,
                 stateHashAfter: room.authoritativeStateHash,
                 timeoutReason: 'turn_deadline_expired'
-            });
+            }, undefined);
         }
 
         await this.refreshTurnTimer({ nowMs, forceRestart: true });
@@ -2679,15 +2685,17 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
     }
 
-    async handleInternalCreate(urlObj, body) {
+    async handleInternalCreate(urlObj: URL, body: Record<string, unknown>): Promise<Response> {
         await this.loadRoom();
         if (this.room) {
             return jsonResponse(409, { ok: false, reason: 'ROOM_EXISTS' });
         }
-        const payload = (body && typeof body === 'object') ? body : {};
+        const payload = asRecord(body);
         const roomId = normalizeRoomId(payload.roomId || (urlObj && urlObj.searchParams ? urlObj.searchParams.get('roomId') : ''));
         const seed = Number.isFinite(Number(payload.seed)) ? Number(payload.seed) : Date.now();
-        const snapshot = (payload.snapshot && typeof payload.snapshot === 'object') ? payload.snapshot : null;
+        const snapshot = (payload.snapshot && typeof payload.snapshot === 'object')
+            ? payload.snapshot as MatchWorkerPublicSnapshot
+            : null;
         const playerName = normalizeNetworkPlayerName(payload.playerName);
         const selectedHandSkinId = normalizeSeatHandSkinId(payload.selectedHandSkinId);
         const initialDeckSpec = (payload.initialDeckSpec && typeof payload.initialDeckSpec === 'object')
@@ -2701,7 +2709,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             : null;
         const roomBoardConfig = MatchAuthority.normalizeRoomBoardConfig(
             payload.roomBoardConfig,
-            snapshot && snapshot.gameState && snapshot.gameState.board
+            asRecord(snapshot && snapshot.gameState).board
         );
         const networkDebugEnabled = payload.networkDebugEnabled === true;
 
@@ -2715,7 +2723,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             return jsonResponse(400, { ok: false, reason: 'PLAYER_NAME_REQUIRED' });
         }
 
-        this.room = this.createRoomState(roomId, {
+        const room = this.createRoomState(roomId, {
             seed,
             snapshot,
             initialDeckSpec,
@@ -2724,32 +2732,37 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomBoardConfig,
             networkDebugEnabled
         });
+        this.room = room;
         this.sseEventBuffer = [];
-        this.room.seats.black = true;
-        this.room.seatNames.black = playerName;
-        this.room.seatHandSkins.black = selectedHandSkinId;
-        this.room.updatedAt = Date.now();
-        await this.refreshTurnTimer({ nowMs: this.room.updatedAt, forceRestart: false });
+        const publicSeatState = buildPublicSeatState(room);
+        publicSeatState.seats.black = true;
+        publicSeatState.seatNames.black = playerName;
+        publicSeatState.seatHandSkins.black = selectedHandSkinId;
+        room.seats = publicSeatState.seats;
+        room.seatNames = publicSeatState.seatNames;
+        room.seatHandSkins = publicSeatState.seatHandSkins;
+        room.updatedAt = Date.now();
+        await this.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: false });
         await this.saveRoom();
 
         const serverTime = Date.now();
 
-        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(this.room, {
+        return jsonResponse(200, MatchAuthority.buildRoomPayloadFromRoom(room, {
             ok: true,
             seatKey: 'black',
             playerName,
-            seatToken: this.room.seatTokens.black,
-            roomDeck: toPublicRoomDeck(this.room),
-            roomBoardConfig: toPublicRoomBoardConfig(this.room),
-            networkDebugEnabled: toPublicNetworkDebugEnabled(this.room),
-            stateVersion: this.room.stateVersion,
-            snapshot: toPublicSnapshot(this.room, 'black'),
-            turnTimer: toPublicTurnTimer(this.room, serverTime),
+            seatToken: asRecord(room.seatTokens).black,
+            roomDeck: toPublicRoomDeck(room),
+            roomBoardConfig: toPublicRoomBoardConfig(room),
+            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
+            stateVersion: room.stateVersion,
+            snapshot: toPublicSnapshot(room, 'black'),
+            turnTimer: toPublicTurnTimer(room, serverTime),
             serverTime
         }));
     }
 
-    async handleJoin(body) {
+    async handleJoin(body: Record<string, unknown>): Promise<Response> {
         await this.loadRoom();
         const room = this.room;
         if (!room) {
@@ -2785,7 +2798,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const rejoined = providedToken && providedToken === seatToken;
 
         const hadTwoSeats = hasTwoActiveSeats(room);
-        room.seats[seatKey] = true;
+        asRecord(room.seats)[seatKey] = true;
         room.seatNames = room.seatNames && typeof room.seatNames === 'object'
             ? room.seatNames
             : { black: '', white: '' };
@@ -2852,7 +2865,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }));
     }
 
-    async handleLeave(body) {
+    async handleLeave(body: Record<string, unknown>): Promise<Response> {
         await this.loadRoom();
         const room = this.room;
         if (!room) {
@@ -2898,7 +2911,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }));
     }
 
-    async handleHandSkin(body) {
+    async handleHandSkin(body: Record<string, unknown>): Promise<Response> {
         await this.loadRoom();
         const room = this.room;
 
@@ -2912,7 +2925,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (!seatKey) {
             return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
         }
-        if (!room.seats[seatKey]) {
+        if (!asRecord(room.seats)[seatKey]) {
             return jsonResponse(409, { ok: false, reason: 'SEAT_NOT_JOINED' });
         }
 
@@ -2944,7 +2957,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }));
     }
 
-    async handlePublish(body) {
+    async handlePublish(body: Record<string, unknown>): Promise<Response> {
         await this.loadRoom();
         const room = this.room;
 
@@ -2970,7 +2983,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(room.snapshot);
         }
 
-        if (!room.seats[seatKey]) {
+        if (!asRecord(room.seats)[seatKey]) {
             return jsonResponse(403, buildPublishPayload(room, viewerSeatKey, MatchAuthority.buildPublishResponseOptions({
                 ok: false,
                 rejectedReason: 'SEAT_NOT_JOINED',
@@ -3038,7 +3051,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                     committedVersion: room.stateVersion,
                     stateHashBefore: room.authoritativeStateHash,
                     dedupeOutcome: 'replay'
-                });
+                }, undefined);
             }
             return jsonResponse(200, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                 ok: true,
@@ -3084,14 +3097,14 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                     committedVersion: room.stateVersion,
                     stateHashBefore: room.authoritativeStateHash,
                     rejectedReason
-                });
+                }, undefined);
             }
             return jsonResponse(409, buildPublishPayload(room, seatKey, versionRejectedOptions));
         }
 
-        const expectedPlayerKey = getCurrentPlayerKey(room.snapshot && room.snapshot.gameState);
+        const expectedPlayerKey = getCurrentPlayerKey(asRecord(room.snapshot).gameState);
         if (playerKey !== expectedPlayerKey) {
-            const allowOutOfTurnRematch = isRematchResetAction && await this.isSnapshotGameOver(room.snapshot);
+            const allowOutOfTurnRematch = isRematchResetAction && await this.isSnapshotGameOver(room.snapshot as MatchWorkerPublicSnapshot | null | undefined);
             const allowOutOfTurnNetworkDebug = isNetworkDebugAction && toPublicNetworkDebugEnabled(room);
             const allowFateWillController = MatchAuthority && typeof MatchAuthority.isFateWillControllerForCurrentTurn === 'function'
                 && MatchAuthority.isFateWillControllerForCurrentTurn(room.snapshot, playerKey);
