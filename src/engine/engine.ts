@@ -1,28 +1,51 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
   : require;
 
+type EngineRng = () => number;
+
+interface EngineAction {
+  type: string;
+  targets?: unknown[];
+  playerId?: unknown;
+  [key: string]: unknown;
+}
+
+interface EngineRunOptions {
+  rng?: (seed: number) => EngineRng;
+}
+
+interface EngineLogEntry {
+  actionType: string;
+  randomness: number;
+}
+
+interface EngineState {
+  seed: number;
+  turn: number;
+  log: EngineLogEntry[];
+}
+
 // Minimal deterministic engine for tests
 // Accepts injected RNG via opts.rng(seed) or uses JS Math.random as fallback
 
 const { makeEvent } = require('../protocol/events');
 
-function defaultRng(seed) {
+function defaultRng(seed: number): EngineRng {
   // simple LCGRNG for deterministic tests (not cryptographic)
   let s = seed >>> 0;
-  return () => {
+  return (): number => {
     s = (s * 1664525 + 1013904223) >>> 0;
     return s / 0x100000000;
   };
 }
 
-function run(seed, actions, opts = {}) {
+function run(seed: number, actions: EngineAction[], opts: EngineRunOptions = {}) {
   const rng = (opts.rng && typeof opts.rng === 'function') ? opts.rng(seed) : defaultRng(seed);
   // initial state minimal
-  let state = { seed: seed, turn: 0, log: [] };
+  const state: EngineState = { seed: seed, turn: 0, log: [] };
   const events = [];
   let seq = 0;
   for (const action of actions) {

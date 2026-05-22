@@ -40,7 +40,6 @@ const allowedNoCheckDebt = new Set([
   'scripts/prepare-worker-assets.ts',
   'scripts/run-ui-level-match.ts',
   'sound-engine.ts',
-  'src/engine/engine.ts',
   'src/engine/selfplay-runner.ts',
   'test/cards.equality-will-surfaces.test.ts',
   'test/cpu.turn-handler.commentary.test.ts',

@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 74 files.
+Current authorized `@ts-nocheck` debt: 73 files.
 
 Recent reduction:
 
@@ -28,6 +28,7 @@ Recent reduction:
 - `game/logic/cards/destroy_dragon.ts` no longer uses `@ts-nocheck`; Destroy Dragon Will adjacent targeting, expansion-cell fallback, anchor expiry, and wrapper export signatures now have checked local contracts.
 - `game/logic/cards/breeding.ts` no longer uses `@ts-nocheck`; Breeding Will frontier/sprout runtime state, expansion-cell fallback, spawn/flip batches, and wrapper export signatures now have checked local contracts.
 - `scripts/serve-with-fallback.ts` no longer uses `@ts-nocheck`; its argument parsing, static file listing, retry watcher, and fallback error paths now have checked local contracts.
+- `src/engine/engine.ts` no longer uses `@ts-nocheck`; the deterministic test engine now has typed action, state, RNG, and log contracts.
 
 Recent boundary typing:
 
