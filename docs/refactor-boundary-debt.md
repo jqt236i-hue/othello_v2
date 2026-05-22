@@ -10,7 +10,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 It also fails if an allowed file carries duplicate `@ts-nocheck` directives, so the allowlist cannot hide redundant suppressions.
 
-Current authorized `@ts-nocheck` debt: 5 files.
+Current authorized `@ts-nocheck` debt: 4 files.
 
 Recent reduction:
 
@@ -66,6 +66,7 @@ Recent reduction:
 - `training/scripts/generate-selfplay-data.ts`, `training/scripts/generate-selfplay-data-parallel.ts`, and `training/scripts/run-selfplay-training-cycle.ts` no longer use `@ts-nocheck`; selfplay data generation and training cycle orchestration now typecheck without local suppressions.
 - `scripts/run-ui-level-match.ts` and `scripts/local-match-runtime.ts` no longer use `@ts-nocheck`; UI level-match automation and local match runtime command handling now typecheck through explicit CLI, diagnostics, room, and publish boundary annotations.
 - `ui.ts` no longer uses `@ts-nocheck`; the remaining root UI module now typechecks after removing a stale type import and simplifying WORK-stone visual style probing.
+- `training/engine/selfplay-runner.ts` no longer uses `@ts-nocheck`; the training mirror selfplay runner now typechecks under the current TypeScript boundary model.
 
 Recent boundary typing:
 
@@ -95,6 +96,9 @@ Diagnostic counts were measured by running TypeScript with only the first-line `
 Latest focused measurements:
 
 - `cards/card-interaction.ts`: 346 TypeScript diagnostics when removing the remaining top-level `@ts-nocheck` on 2026-05-23. The failures are dominated by browser global adapters, DOM event target narrowing, card-detail state shapes, and implicit UI bridge parameters. This file should be split by extracting a card-detail/global bridge type model before removing the suppression.
+- `cards/card-renderer.ts`: 149 TypeScript diagnostics when removing `@ts-nocheck` on 2026-05-23. The failures are mostly implicit renderer parameter types plus browser global and indexed card catalog access.
+- `scripts/local-match-server.ts`: 245 TypeScript diagnostics when removing `@ts-nocheck` on 2026-05-23. The failures are mostly local HTTP/SSE room boundary parameters, publish result shapes, request body narrowing, and timer handle typing.
+- `src/engine/selfplay-runner.ts`: 754 TypeScript diagnostics when removing `@ts-nocheck` on 2026-05-23. The failures are dominated by implicit selfplay policy/helper parameters and production module adapter return shapes.
 
 ## Next removal conditions
 
