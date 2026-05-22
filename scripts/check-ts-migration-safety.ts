@@ -33,7 +33,6 @@ const allowedNoCheckDebt = new Set([
   'scripts/local-cpu-commentary-server.ts',
   'scripts/local-match-runtime.ts',
   'scripts/local-match-server.ts',
-  'scripts/match-network-smoke.ts',
   'scripts/run-ui-level-match.ts',
   'src/engine/selfplay-runner.ts',
   'test/cards.equality-will-surfaces.test.ts',

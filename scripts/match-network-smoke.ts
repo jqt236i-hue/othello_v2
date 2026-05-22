@@ -1,18 +1,42 @@
-// @ts-nocheck
-import { createLocalMatchServer, resetRoomsForTests } from './local-match-server';
-import * as Core from '../game/logic/core';
-import * as SharedBoardUtils from '../shared/shared-board-utils';
+import LocalMatchServer = require('./local-match-server');
+import Core = require('../game/logic/core');
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
+const SharedBoardUtils = require('../shared/shared-board-utils') as any;
+const { createLocalMatchServer, resetRoomsForTests } = LocalMatchServer;
 
 const DEFAULT_BASE = 'http://127.0.0.1:8787';
 const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):(\d+)$/;
 
-function readArgValue(name: string) {
+type SeatKey = 'black' | 'white';
+
+interface BoardConfig {
+    rows: number;
+    cols: number;
+}
+
+interface JsonResponse {
+    ok: boolean;
+    status: number;
+    data: any;
+}
+
+interface SseEvent {
+    eventName: string;
+    eventId: string;
+    data: any;
+}
+
+interface SseStream {
+    response: Response;
+    reader: ReadableStreamDefaultReader<Uint8Array>;
+    buffer: string;
+}
+
+function getErrorMessage(error: any): string {
+    return error && typeof error.message === 'string' ? error.message : String(error);
+}
+
+function readArgValue(name: string): string {
     const key = `--${name}`;
     const idx = process.argv.indexOf(key);
     if (idx >= 0 && idx + 1 < process.argv.length) {
@@ -21,18 +45,18 @@ function readArgValue(name: string) {
     return '';
 }
 
-function normalizeBaseUrl(value: any) {
+function normalizeBaseUrl(value: any): string {
     const raw = String(value || '').trim();
     if (!raw) return DEFAULT_BASE;
     if (/^https?:\/\//i.test(raw)) return raw.replace(/\/+$/, '');
     return `http://${raw}`.replace(/\/+$/, '');
 }
 
-function hasExplicitBaseOverride() {
+function hasExplicitBaseOverride(): boolean {
     return !!readArgValue('base') || !!String(process.env.MATCH_SERVER_URL || '').trim();
 }
 
-function readArgInteger(name: string) {
+function readArgInteger(name: string): number | null {
     const raw = readArgValue(name);
     if (!raw) return null;
     const value = Number(raw);
@@ -40,7 +64,7 @@ function readArgInteger(name: string) {
     return Math.trunc(value);
 }
 
-function resolveRequestedRoomBoardConfig() {
+function resolveRequestedRoomBoardConfig(): BoardConfig | null {
     const rawRows = readArgValue('rows');
     const rawCols = readArgValue('cols');
     if (!rawRows && !rawCols) return null;
@@ -53,9 +77,9 @@ function resolveRequestedRoomBoardConfig() {
     });
 }
 
-async function listenServer(server: any, host: any, port: any) {
-    await new Promise((resolve: any, reject: any) => {
-        const onError = (error: any) => {
+async function listenServer(server: any, host: string, port: number): Promise<any> {
+    await new Promise<void>((resolve, reject) => {
+        const onError = (error: Error) => {
             server.removeListener('error', onError);
             reject(error);
         };
@@ -68,7 +92,7 @@ async function listenServer(server: any, host: any, port: any) {
     return server.address();
 }
 
-function buildBaseUrlFromAddress(address: any, fallbackHost: any) {
+function buildBaseUrlFromAddress(address: any, fallbackHost: string): string {
     const host = address && typeof address === 'object' && address.address
         ? String(address.address)
         : String(fallbackHost || '127.0.0.1');
@@ -79,7 +103,7 @@ function buildBaseUrlFromAddress(address: any, fallbackHost: any) {
     return `http://${host}:${port}`;
 }
 
-async function startManagedLocalServerIfNeeded() {
+async function startManagedLocalServerIfNeeded(): Promise<{ baseUrl: string; server: any | null }> {
     if (hasExplicitBaseOverride()) {
         return {
             baseUrl: normalizeBaseUrl(readArgValue('base') || process.env.MATCH_SERVER_URL || DEFAULT_BASE),
@@ -96,32 +120,32 @@ async function startManagedLocalServerIfNeeded() {
     };
 }
 
-async function closeManagedLocalServer(server: any) {
+async function closeManagedLocalServer(server: any): Promise<void> {
     if (!server) return;
-    await new Promise((resolve: any) => {
+    await new Promise<void>((resolve) => {
         server.close(() => resolve());
     });
     resetRoomsForTests();
 }
 
-async function requestJson(baseUrl: any, method: any, path: any, body: any) {
-    const init = { method };
+async function requestJson(baseUrl: string, method: string, path: string, body?: any): Promise<JsonResponse> {
+    const init: any = { method };
     if (body !== undefined) {
         init.headers = { 'Content-Type': 'application/json' };
         init.body = JSON.stringify(body || {});
     }
     const response = await fetch(`${baseUrl}${path}`, init);
-    const data = await response.json().catch(() => ({}));
+    const data: any = await response.json().catch(() => ({}));
     return { ok: response.ok, status: response.status, data };
 }
 
-function assertTrue(value: any, message: any) {
+function assertTrue(value: any, message: string): asserts value {
     if (!value) {
         throw new Error(message);
     }
 }
 
-function getBoardShape(board: any) {
+function getBoardShape(board: any): BoardConfig | null {
     if (!Array.isArray(board)) return null;
     let cols = 0;
     for (const row of board) {
@@ -131,14 +155,14 @@ function getBoardShape(board: any) {
     return { rows: board.length, cols };
 }
 
-function assertBoardConfigMatches(actual: any, expected: any, label: any) {
+function assertBoardConfigMatches(actual: any, expected: BoardConfig | null, label: string): void {
     if (!expected) return;
     assertTrue(actual && typeof actual === 'object', `${label} がありません`);
     assertTrue(Number(actual.rows) === Number(expected.rows), `${label} rows が ${expected.rows} ではありません`);
     assertTrue(Number(actual.cols) === Number(expected.cols), `${label} cols が ${expected.cols} ではありません`);
 }
 
-function assertSnapshotBoardShape(snapshot: any, expected: any, label: any) {
+function assertSnapshotBoardShape(snapshot: any, expected: BoardConfig | null, label: string): void {
     if (!expected) return;
     assertTrue(snapshot && typeof snapshot === 'object', `${label} snapshot がありません`);
     const shape = getBoardShape(snapshot && snapshot.gameState && snapshot.gameState.board);
@@ -147,13 +171,13 @@ function assertSnapshotBoardShape(snapshot: any, expected: any, label: any) {
     assertTrue(shape.cols === Number(expected.cols), `${label} snapshot board cols が ${expected.cols} ではありません`);
 }
 
-function assertPayloadBoardState(payload: any, expected: any, label: any) {
+function assertPayloadBoardState(payload: any, expected: BoardConfig | null, label: string): void {
     if (!expected) return;
     assertBoardConfigMatches(payload && payload.roomBoardConfig, expected, `${label} roomBoardConfig`);
     assertSnapshotBoardShape(payload && payload.snapshot, expected, `${label}`);
 }
 
-function isHiddenHandToken(value: any, ownerKey: any, handIndex: any) {
+function isHiddenHandToken(value: any, ownerKey?: SeatKey, handIndex?: number): boolean {
     const raw = String(value || '');
     const match = raw.match(HIDDEN_HAND_TOKEN_RE);
     if (!match) return false;
@@ -162,34 +186,35 @@ function isHiddenHandToken(value: any, ownerKey: any, handIndex: any) {
     return true;
 }
 
-function decodeTextChunk(value: any) {
+function decodeTextChunk(value: any): string {
     if (!value) return '';
     if (typeof value === 'string') return value;
     if (typeof Buffer !== 'undefined') return Buffer.from(value).toString('utf8');
     return new TextDecoder().decode(value);
 }
 
-async function openSseStream(baseUrl: any, roomId: any, seatKey: any, seatToken: any) {
+async function openSseStream(baseUrl: string, roomId: string, seatKey: SeatKey, seatToken: string): Promise<SseStream> {
     const response = await fetch(
         `${baseUrl}/api/match/stream?roomId=${encodeURIComponent(roomId)}&seatKey=${encodeURIComponent(seatKey)}&seatToken=${encodeURIComponent(seatToken)}`
     );
     assertTrue(response && response.ok, `stream(${seatKey}) 接続に失敗しました`);
-    assertTrue(response.body && typeof response.body.getReader === 'function', `stream(${seatKey}) reader が取得できません`);
+    const body = response.body;
+    assertTrue(body && typeof body.getReader === 'function', `stream(${seatKey}) reader が取得できません`);
     return {
         response,
-        reader: response.body.getReader(),
+        reader: body.getReader(),
         buffer: ''
     };
 }
 
-function takeNextSseEvent(stream: any) {
+function takeNextSseEvent(stream: SseStream | null): SseEvent | null {
     if (!stream || typeof stream.buffer !== 'string') return null;
     const sepIndex = stream.buffer.indexOf('\n\n');
     if (sepIndex < 0) return null;
     const block = stream.buffer.slice(0, sepIndex);
     stream.buffer = stream.buffer.slice(sepIndex + 2);
     const lines = block.split('\n');
-    const dataLines = [];
+    const dataLines: string[] = [];
     let eventName = 'message';
     let eventId = '';
     for (const rawLine of lines) {
@@ -207,19 +232,19 @@ function takeNextSseEvent(stream: any) {
             dataLines.push(line.slice(5).trim());
         }
     }
-    let data = {};
+    let data: any = {};
     const rawData = dataLines.join('\n');
     if (rawData) {
         try {
             data = JSON.parse(rawData);
         } catch (error) {
-            throw new Error(`SSE data JSON parse failed: ${error && error.message ? error.message : String(error)}`);
+            throw new Error(`SSE data JSON parse failed: ${getErrorMessage(error)}`);
         }
     }
     return { eventName, eventId, data };
 }
 
-async function readSseEvent(stream: any, timeoutMs: any, predicate: any) {
+async function readSseEvent(stream: SseStream, timeoutMs: number, predicate?: (event: SseEvent) => boolean): Promise<SseEvent> {
     const startedAt = Date.now();
     while (Date.now() - startedAt < timeoutMs) {
         const queued = takeNextSseEvent(stream);
@@ -227,14 +252,14 @@ async function readSseEvent(stream: any, timeoutMs: any, predicate: any) {
             return queued;
         }
         const remaining = Math.max(1, timeoutMs - (Date.now() - startedAt));
-        let readResult = null;
+        let readResult: ReadableStreamReadResult<Uint8Array> | null = null;
         try {
             readResult = await Promise.race([
                 stream.reader.read(),
-                new Promise((_: any, reject: any) => setTimeout(() => reject(new Error('SSE_READ_TIMEOUT')), remaining))
-            ]);
+                new Promise<ReadableStreamReadResult<Uint8Array>>((_: any, reject: any) => setTimeout(() => reject(new Error('SSE_READ_TIMEOUT')), remaining))
+            ]) as ReadableStreamReadResult<Uint8Array>;
         } catch (error) {
-            if (error && error.message === 'SSE_READ_TIMEOUT') break;
+            if (getErrorMessage(error) === 'SSE_READ_TIMEOUT') break;
             throw error;
         }
         if (!readResult || readResult.done) break;
@@ -243,7 +268,7 @@ async function readSseEvent(stream: any, timeoutMs: any, predicate: any) {
     throw new Error('SSE event がタイムアウトしました');
 }
 
-async function closeSseStream(stream: any) {
+async function closeSseStream(stream: SseStream | null): Promise<void> {
     try {
         if (stream && stream.reader && typeof stream.reader.cancel === 'function') {
             await stream.reader.cancel();
@@ -253,7 +278,7 @@ async function closeSseStream(stream: any) {
     }
 }
 
-function assertSeatProjection(snapshot: any, seatKey: any) {
+function assertSeatProjection(snapshot: any, seatKey: SeatKey): void {
     assertTrue(snapshot && typeof snapshot === 'object', 'snapshot がありません');
     assertTrue(snapshot.cardState && snapshot.cardState.hands, 'snapshot.cardState.hands がありません');
 
@@ -268,7 +293,7 @@ function assertSeatProjection(snapshot: any, seatKey: any) {
     assertTrue(oppHand.every((id: any, idx: any) => isHiddenHandToken(id, oppKey, idx)), `相手手札(${oppKey})が秘匿されていません`);
 }
 
-function choosePublishAction(snapshot: any) {
+function choosePublishAction(snapshot: any): { playerKey: SeatKey; row: number; col: number; turnIndex: number } {
     assertTrue(snapshot && snapshot.gameState, 'publish 用 snapshot がありません');
     const gameState = snapshot.gameState;
     const currentPlayer = Number(gameState.currentPlayer);
@@ -296,7 +321,7 @@ async function main() {
     }
     console.log(`[match-check] base=${baseUrl}`);
     try {
-        const createBody = { playerName: 'くろ' };
+        const createBody: any = { playerName: 'くろ' };
         if (requestedRoomBoardConfig) createBody.roomBoardConfig = requestedRoomBoardConfig;
         const created = await requestJson(baseUrl, 'POST', '/api/match/create', createBody);
         assertTrue(created.ok && created.data && created.data.ok === true, '部屋作成に失敗しました');
