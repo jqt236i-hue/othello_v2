@@ -5,7 +5,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-// @ts-nocheck
 /**
  * @file selfplay-runner.js
  * @description Headless self-play runner backed by the production TurnPipeline.

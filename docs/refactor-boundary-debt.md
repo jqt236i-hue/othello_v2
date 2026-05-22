@@ -8,6 +8,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
+It also fails if an allowed file carries duplicate `@ts-nocheck` directives, so the allowlist cannot hide redundant suppressions.
 
 Current authorized `@ts-nocheck` debt: 5 files.
 
