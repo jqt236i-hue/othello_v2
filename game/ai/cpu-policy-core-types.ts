@@ -29,7 +29,7 @@ export interface CpuPolicyCardScore extends CpuPolicyCardSelection {
 
 export type CpuPolicyCardCostResolver = (cardId: CpuPolicyCardId) => number;
 export type CpuPolicyCardDefinitionResolver = (cardId: CpuPolicyCardId) => CpuPolicyCardDefinition | null | undefined;
-export type CpuPolicyRandomSource = (() => number) | { random?: () => number };
+export type CpuPolicyRandomSource = { random: () => number };
 export type CpuPolicyAiMoveSelector = (
     candidateMoves: CpuPolicyMove[],
     level?: number,

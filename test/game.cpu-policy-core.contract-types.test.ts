@@ -29,8 +29,20 @@ describe('cpu-policy-core public contract types', () => {
         { row: 4, col: 5, flips: [] }
       ],
       1,
-      () => 0
+      { random: () => 0 }
     );
     expect(selectedMove && typeof selectedMove.row).toBe('number');
+  });
+
+  test('rejects function RNG because runtime consumes rng.random', () => {
+    const selectedMove: CpuPolicyMove | null = core.chooseMove(
+      [
+        { row: 2, col: 3, flips: [] },
+        { row: 4, col: 5, flips: [] }
+      ],
+      1,
+      { random: () => 0.99 }
+    );
+    expect(selectedMove && selectedMove.row).toBe(4);
   });
 });

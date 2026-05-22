@@ -1,6 +1,7 @@
 // @ts-nocheck
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { CpuPolicyCoreApi } from './cpu-policy-core-types';
+import { createCpuPolicyCoreApi } from './cpu-policy-core-api';
 /**
  * @file cpu-policy-core.js
  * @description Pure CPU policy helpers (no UI/DOM/global side effects).
@@ -5073,7 +5074,7 @@ function chooseMoveByLookahead(candidateMoves, options) {
     return bestMove;
 }
 
-const cpuPolicyCoreApi: CpuPolicyCoreApi = {
+const cpuPolicyCoreApi: CpuPolicyCoreApi = createCpuPolicyCoreApi({
     chooseHandDestroyTargetForCycle,
     chooseCardWithRiskProfile,
     chooseHighestCostCard,
@@ -5094,6 +5095,6 @@ const cpuPolicyCoreApi: CpuPolicyCoreApi = {
     scoreCardUseDecision,
     scoreMoveForCornerEdgePlan,
     scoreMoveHeuristic
-};
+});
 
 module.exports = cpuPolicyCoreApi;

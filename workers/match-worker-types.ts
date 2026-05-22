@@ -37,3 +37,7 @@ export interface MatchRoomDurableObjectApi {
     handleLeaderboardSubmit(body: Record<string, unknown>): Promise<Response>;
     handleLeaderboardList(urlObj: URL): Promise<Response>;
 }
+
+export interface MatchRoomDurableObjectConstructor {
+    new (state: DurableObjectStateLike): MatchRoomDurableObjectApi;
+}

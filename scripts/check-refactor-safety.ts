@@ -42,7 +42,8 @@ const requiredCpuPolicyContractTypes = [
   'CpuPolicyMove',
   'CpuPolicyCardDefinition',
   'CpuPolicyCardCostResolver',
-  'CpuPolicyCardDefinitionResolver'
+  'CpuPolicyCardDefinitionResolver',
+  'CpuPolicyRandomSource'
 ];
 
 const requiredMatchWorkerContractTypes = [
@@ -50,7 +51,8 @@ const requiredMatchWorkerContractTypes = [
   'DurableObjectNamespaceLike',
   'DurableObjectStateLike',
   'MatchWorkerEntrypoint',
-  'MatchRoomDurableObjectApi'
+  'MatchRoomDurableObjectApi',
+  'MatchRoomDurableObjectConstructor'
 ];
 
 function readSource(relativePath: string): string {
@@ -119,10 +121,16 @@ if (!/from\s+['"]\.\/cpu-policy-core-types['"]/.test(cpuPolicySource)) {
     message: 'CPU policy core must import its public API contract types'
   });
 }
-if (!/const\s+cpuPolicyCoreApi\s*:\s*CpuPolicyCoreApi\s*=/.test(cpuPolicySource)) {
+if (!/from\s+['"]\.\/cpu-policy-core-api['"]/.test(cpuPolicySource)) {
   findings.push({
     file: 'game/ai/cpu-policy-core.ts',
-    message: 'CPU policy core module.exports must be routed through CpuPolicyCoreApi'
+    message: 'CPU policy core must route its public API through the checked adapter'
+  });
+}
+if (!/const\s+cpuPolicyCoreApi\s*:\s*CpuPolicyCoreApi\s*=\s*createCpuPolicyCoreApi\s*\(/.test(cpuPolicySource)) {
+  findings.push({
+    file: 'game/ai/cpu-policy-core.ts',
+    message: 'CPU policy core module.exports must be validated by createCpuPolicyCoreApi'
   });
 }
 if (!/module\.exports\s*=\s*cpuPolicyCoreApi\s*;/.test(cpuPolicySource)) {
@@ -150,16 +158,28 @@ if (!/from\s+['"]\.\/match-worker-types['"]/.test(matchWorkerSource)) {
     message: 'match Worker must import its public runtime contract types'
   });
 }
+if (!/from\s+['"]\.\/match-worker-contract['"]/.test(matchWorkerSource)) {
+  findings.push({
+    file: 'workers/match-worker.ts',
+    message: 'match Worker must import checked public runtime contract assertions'
+  });
+}
 if (!/export\s+class\s+MatchRoomDurableObject\s+implements\s+MatchRoomDurableObjectApi/.test(matchWorkerSource)) {
   findings.push({
     file: 'workers/match-worker.ts',
     message: 'MatchRoomDurableObject must declare the public Durable Object API contract'
   });
 }
-if (!/const\s+matchWorkerEntrypoint\s*:\s*MatchWorkerEntrypoint\s*=/.test(matchWorkerSource)) {
+if (!/assertMatchRoomDurableObjectConstructor\s*\(\s*MatchRoomDurableObject\s*\)/.test(matchWorkerSource)) {
   findings.push({
     file: 'workers/match-worker.ts',
-    message: 'default Worker export must be routed through MatchWorkerEntrypoint'
+    message: 'MatchRoomDurableObject constructor must be validated outside @ts-nocheck'
+  });
+}
+if (!/const\s+matchWorkerEntrypoint\s*:\s*MatchWorkerEntrypoint\s*=\s*assertMatchWorkerEntrypoint\s*\(/.test(matchWorkerSource)) {
+  findings.push({
+    file: 'workers/match-worker.ts',
+    message: 'default Worker export must be validated by assertMatchWorkerEntrypoint'
   });
 }
 if (!/export\s+default\s+matchWorkerEntrypoint\s*;/.test(matchWorkerSource)) {

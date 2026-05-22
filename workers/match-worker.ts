@@ -1,6 +1,10 @@
 // @ts-nocheck
 import './match-worker-runtime-preload.js';
 import type { MatchRoomDurableObjectApi, MatchWorkerEntrypoint } from './match-worker-types';
+import {
+    assertMatchRoomDurableObjectConstructor,
+    assertMatchWorkerEntrypoint
+} from './match-worker-contract';
 import deepClone from '../utils/deepClone.js';
 import matchAuthority from '../utils/match-authority.js';
 import networkActionSchemaModule from '../shared/network-action-schema.js';
@@ -3503,7 +3507,9 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 }
 
-const matchWorkerEntrypoint: MatchWorkerEntrypoint = {
+assertMatchRoomDurableObjectConstructor(MatchRoomDurableObject);
+
+const matchWorkerEntrypoint: MatchWorkerEntrypoint = assertMatchWorkerEntrypoint({
     async fetch(request, env) {
         const urlObj = new URL(request.url);
 
@@ -3521,6 +3527,6 @@ const matchWorkerEntrypoint: MatchWorkerEntrypoint = {
 
         return new Response('Not Found', { status: 404 });
     }
-};
+});
 
 export default matchWorkerEntrypoint;
