@@ -22,12 +22,6 @@ const Api = Engine || fallback;
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = Api;
 }
-
-try {
-    if (typeof globalThis !== 'undefined') {
-        (globalThis as any).CpuCommentaryRuntime = Api; // @compat - backward-compat export
-    }
-} catch (e: any) { /* ignore */ }
 })();
 
 export {};
