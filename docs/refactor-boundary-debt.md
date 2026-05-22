@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 67 files.
+Current authorized `@ts-nocheck` debt: 66 files.
 
 Recent reduction:
 
@@ -35,6 +35,7 @@ Recent reduction:
 - `cpu/cpu-turn.ts` no longer uses `@ts-nocheck`; the legacy CPU compatibility shim now has typed handler/action boundaries and explicit declarations for its fallback globals.
 - `game/debug/debug-actions.ts` no longer uses `@ts-nocheck`; debug-only hand fill and visual-board mutation helpers now have local state, marker adapter, and UMD root contracts.
 - `scripts/match-network-smoke.ts` no longer uses `@ts-nocheck`; its local match server adapter, request/response helper, SSE stream reader, board config checks, and publish action shape now have checked smoke-test contracts.
+- `scripts/deploy-lane-model-to-root.ts` no longer uses `@ts-nocheck`; root model deploy args, policy model shape, optional artifact copy results, dry-run summary, and deploy manifest are now typed.
 
 Recent boundary typing:
 

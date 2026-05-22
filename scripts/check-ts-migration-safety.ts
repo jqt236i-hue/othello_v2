@@ -29,7 +29,6 @@ const skipDirs = new Set([
 const allowedNoCheckDebt = new Set([
   'cards/card-interaction.ts',
   'cards/card-renderer.ts',
-  'scripts/deploy-lane-model-to-root.ts',
   'scripts/local-cpu-commentary-server.ts',
   'scripts/local-match-runtime.ts',
   'scripts/local-match-server.ts',

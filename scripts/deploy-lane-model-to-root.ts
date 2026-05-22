@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
-
 'use strict';
 
 /**
@@ -17,17 +15,68 @@ import * as path from 'path';
 import _promotion_helpers from './promotion-helpers';
 const { readJson, writeJson, validatePolicyModel, sanitizePromotionId, archiveExistingFile } = _promotion_helpers;
 
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
-  ? __non_webpack_require__
-  : require;
-
 const DEPLOY_MANIFEST_SCHEMA = 'root_deploy_manifest.v1';
 const DEFAULT_ROOT_MODELS_DIR = path.resolve(process.cwd(), 'data', 'models');
 
-function parseArgs(argv: string[]) {
-    const args = {
+interface DeployArgs {
+    laneDir: string | null;
+    rootModelsDir: string;
+    deployId: string | null;
+    minStates: number;
+    force: boolean;
+    dryRun: boolean;
+    help: boolean;
+}
+
+interface PolicyModelLike {
+    states?: Record<string, any>;
+    abstractStates?: Record<string, any>;
+}
+
+interface OptionalCopyResult {
+    copied: boolean;
+    reason?: string;
+    wouldCopy?: { from: string; to: string };
+    from?: string;
+    to?: string;
+}
+
+interface DryRunDeploySummary {
+    dryRun: true;
+    deployId: string;
+    laneDir: string;
+    rootDir: string;
+    laneStates: number;
+    laneAbstract: number;
+    rootStates: number;
+    rootAbstract: number;
+    wouldArchiveTo: string;
+    wouldCopyModel: { from: string; to: string };
+    onnxFiles: Array<{ name: string; laneExists: boolean; rootExists: boolean }>;
+}
+
+interface DeployManifest {
+    schemaVersion: string;
+    deployId: string;
+    deployedAt: string;
+    laneSource: string;
+    sourcePromotionId: string | null;
+    laneStates: number;
+    laneAbstract: number;
+    previousRootStates: number;
+    previousRootAbstract: number;
+    archiveDir: string;
+    archived: Record<string, any>;
+    onnxResults: Record<string, OptionalCopyResult>;
+    forced: boolean;
+}
+
+function getErrorMessage(error: any): string {
+    return error && typeof error.message === 'string' ? error.message : String(error);
+}
+
+function parseArgs(argv: string[]): DeployArgs {
+    const args: DeployArgs = {
         laneDir: null,
         rootModelsDir: DEFAULT_ROOT_MODELS_DIR,
         deployId: null,
@@ -72,7 +121,7 @@ function printHelp() {
     ].join('\n'));
 }
 
-function copyOptionalFile(srcPath: any, targetPath: any, dryRun: any) {
+function copyOptionalFile(srcPath: string, targetPath: string, dryRun: boolean): OptionalCopyResult {
     if (!srcPath || !fs.existsSync(srcPath)) {
         return { copied: false, reason: srcPath ? 'source_missing' : 'not_requested' };
     }
@@ -84,8 +133,11 @@ function copyOptionalFile(srcPath: any, targetPath: any, dryRun: any) {
     return { copied: true, from: srcPath, to: targetPath };
 }
 
-function deployLaneModelToRoot(options: any) {
+function deployLaneModelToRoot(options: DeployArgs): DryRunDeploySummary | DeployManifest {
     const laneDir = options.laneDir;
+    if (!laneDir) {
+        throw new Error('--lane-dir is required');
+    }
     const rootDir = options.rootModelsDir;
     const dryRun = !!options.dryRun;
     const deployId = sanitizePromotionId(options.deployId || new Date().toISOString());
@@ -95,10 +147,10 @@ function deployLaneModelToRoot(options: any) {
     if (!fs.existsSync(laneModelPath)) {
         throw new Error(`Lane model not found: ${laneModelPath}`);
     }
-    const laneModel = readJson(laneModelPath);
+    const laneModel = readJson(laneModelPath) as PolicyModelLike;
     validatePolicyModel(laneModel);
 
-    const laneStateCount = Object.keys(laneModel.states).length;
+    const laneStateCount = Object.keys(laneModel.states || {}).length;
     const laneAbstractCount = Object.keys(laneModel.abstractStates || {}).length;
 
     // 2. Check min-states
@@ -114,7 +166,7 @@ function deployLaneModelToRoot(options: any) {
     let rootAbstractCount = 0;
     if (fs.existsSync(rootModelPath)) {
         try {
-            const rootModel = readJson(rootModelPath);
+            const rootModel = readJson(rootModelPath) as PolicyModelLike;
             rootStateCount = Object.keys(rootModel.states || {}).length;
             rootAbstractCount = Object.keys(rootModel.abstractStates || {}).length;
         } catch (_e) { /* damaged root is acceptable — we're replacing it */ }
@@ -141,7 +193,7 @@ function deployLaneModelToRoot(options: any) {
     ];
 
     if (dryRun) {
-        const summary = {
+        const summary: DryRunDeploySummary = {
             dryRun: true,
             deployId,
             laneDir,
@@ -163,7 +215,7 @@ function deployLaneModelToRoot(options: any) {
 
     // 6. Archive existing root model
     const archiveDir = path.join(rootDir, 'archive', deployId);
-    const archived = {
+    const archived: Record<string, any> = {
         model: archiveExistingFile(rootModelPath, path.join(archiveDir, 'policy-table.json'))
     };
     for (const f of onnxFiles) {
@@ -177,7 +229,7 @@ function deployLaneModelToRoot(options: any) {
     fs.copyFileSync(laneModelPath, rootModelPath);
 
     // 8. Copy ONNX files if present in lane
-    const onnxResults = {};
+    const onnxResults: Record<string, OptionalCopyResult> = {};
     for (const f of onnxFiles) {
         onnxResults[f.name] = copyOptionalFile(
             path.join(laneDir, f.name),
@@ -187,17 +239,17 @@ function deployLaneModelToRoot(options: any) {
     }
 
     // 9. Read lane promotion manifest for provenance
-    let sourcePromotionId = null;
+    let sourcePromotionId: string | null = null;
     const laneManifestPath = path.join(laneDir, 'promoted', 'promotion-manifest.json');
     if (fs.existsSync(laneManifestPath)) {
         try {
-            const laneManifest = readJson(laneManifestPath);
+            const laneManifest = readJson(laneManifestPath) as { promotionId?: string };
             sourcePromotionId = laneManifest.promotionId || null;
         } catch (_e) { /* best effort */ }
     }
 
     // 10. Write deploy manifest
-    const deployManifest = {
+    const deployManifest: DeployManifest = {
         schemaVersion: DEPLOY_MANIFEST_SCHEMA,
         deployId,
         deployedAt: new Date().toISOString(),
@@ -227,14 +279,15 @@ function main() {
 
     const result = deployLaneModelToRoot(args);
 
-    if (result.dryRun) {
+    if ('dryRun' in result && result.dryRun) {
         console.log('[deploy-to-root] DRY RUN — no files written');
         console.log(JSON.stringify(result, null, 2));
     } else {
+        const deployResult = result as DeployManifest;
         console.log(`[deploy-to-root] Deployed lane model to root`);
-        console.log(`  lane: ${result.laneSource} (${result.laneStates} states)`);
-        console.log(`  root: ${result.previousRootStates} → ${result.laneStates} states`);
-        console.log(`  archive: ${result.archiveDir}`);
+        console.log(`  lane: ${deployResult.laneSource} (${deployResult.laneStates} states)`);
+        console.log(`  root: ${deployResult.previousRootStates} → ${deployResult.laneStates} states`);
+        console.log(`  archive: ${deployResult.archiveDir}`);
         console.log(`  deploy-manifest: ${path.join(args.rootModelsDir, 'deploy-manifest.json')}`);
         console.log('');
         console.log('[deploy-to-root] Run `npm run worker:prepare` to sync worker-public mirror.');
@@ -245,7 +298,7 @@ if (require.main === module) {
     try {
         main();
     } catch (err) {
-        console.error('[deploy-to-root] failed:', err && err.message ? err.message : err);
+        console.error('[deploy-to-root] failed:', getErrorMessage(err));
         process.exit(1);
     }
 }
