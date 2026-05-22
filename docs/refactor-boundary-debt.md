@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 39 files.
+Current authorized `@ts-nocheck` debt: 38 files.
 
 Recent reduction:
 
@@ -52,6 +52,7 @@ Recent reduction:
 - `training/scripts/training-profile-presets.ts` no longer uses `@ts-nocheck`; training profile preset merge and reference resolution helpers now typecheck without local suppressions.
 - `training/scripts/training-resolved-config-utils.ts` no longer uses `@ts-nocheck`; resolved training config argument backfill helpers now typecheck without local suppressions.
 - `training/scripts/training-cycle-command-builders.ts`, `training/scripts/training-cycle-reporting.ts`, and `training/scripts/training-cycle-steps.ts` no longer use `@ts-nocheck`; training cycle command, report, and step helpers now typecheck without local suppressions.
+- `training/scripts/training-warehouse-manifest-utils.ts` no longer uses `@ts-nocheck`; training warehouse manifest and artifact cleanup helpers now typecheck without local suppressions.
 
 Recent boundary typing:
 
