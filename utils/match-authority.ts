@@ -9,6 +9,7 @@ import type { CardState, GameState, PlayerKey } from '../src/types';
 import type {
     MatchAuthorityBufferedSseEventRecord,
     MatchAuthorityBufferedSseEventRecordInput,
+    MatchAuthorityBufferedSsePayloadByViewer,
     MatchAuthorityBufferedSseReplayEvent,
     MatchAuthorityHeartbeatPayloadFromRoomOptions,
     MatchAuthorityPresencePayloadFromRoomOptions,
@@ -1518,7 +1519,7 @@ function appendAuthorityLog(roomValue, entryValue, limitValue) {
     return log;
 }
 
-function normalizeSseEventId(value) {
+function normalizeSseEventId(value: unknown): string {
     const normalized = String(value || '').trim();
     return normalized || '';
 }
@@ -1528,7 +1529,7 @@ function createBufferedSseEventRecord(options: MatchAuthorityBufferedSseEventRec
     const eventId = normalizeSseEventId(opts.eventId);
     if (!eventId) return null;
 
-    const record = {
+    const record: MatchAuthorityBufferedSseEventRecord = {
         id: eventId,
         event: String(opts.eventName || '').trim() || 'message'
     };
@@ -1537,7 +1538,7 @@ function createBufferedSseEventRecord(options: MatchAuthorityBufferedSseEventRec
         : null;
 
     if (sourcePayloadByViewer) {
-        const payloadByViewer = {};
+        const payloadByViewer: MatchAuthorityBufferedSsePayloadByViewer = {};
         for (const [viewerKey, viewerPayload] of Object.entries(sourcePayloadByViewer)) {
             const normalizedViewer = parseSeatKeyOptional(viewerKey);
             if (!normalizedViewer) continue;
@@ -1560,7 +1561,7 @@ function appendBufferedSseEvent(
     recordValue: MatchAuthorityBufferedSseEventRecordInput,
     limitValue?: unknown
 ): MatchAuthorityBufferedSseEventRecord[] {
-    const buffer = Array.isArray(bufferValue) ? bufferValue.slice() : [];
+    const buffer: MatchAuthorityBufferedSseEventRecord[] = Array.isArray(bufferValue) ? bufferValue.slice() : [];
     const record = createBufferedSseEventRecord(recordValue);
     if (!record) return buffer;
 
@@ -1582,7 +1583,7 @@ function getBufferedSseReplayEvents(
     const lastEventId = normalizeSseEventId(lastEventIdValue);
     if (!lastEventId) return null;
 
-    const buffer = Array.isArray(bufferValue) ? bufferValue : [];
+    const buffer: MatchAuthorityBufferedSseEventRecord[] = Array.isArray(bufferValue) ? bufferValue : [];
     let startIndex = -1;
     for (let index = buffer.length - 1; index >= 0; index -= 1) {
         const entry = buffer[index];
@@ -1594,7 +1595,7 @@ function getBufferedSseReplayEvents(
     if (startIndex < 0) return null;
 
     const viewer = parseSeatKeyOptional(viewerSeatKey);
-    const replayEvents = [];
+    const replayEvents: MatchAuthorityBufferedSseReplayEvent[] = [];
     for (let index = startIndex + 1; index < buffer.length; index += 1) {
         const entry = buffer[index];
         if (!entry || typeof entry !== 'object') continue;
