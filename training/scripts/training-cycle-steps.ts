@@ -1,4 +1,3 @@
-// @ts-nocheck
 'use strict';
 
 const TRAINING_CYCLE_STEP_ORDER = Object.freeze([
