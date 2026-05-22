@@ -5,9 +5,7 @@
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
-const SharedConstants = (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants)
-    ? (globalThis as any).SharedConstants
-    : require('../../../shared-constants');
+const SharedConstants = require('../../../shared-constants');
 const { BLACK, WHITE } = SharedConstants || {};
 
 const DEFAULT_STRONG_WILL_PROMOTION_OWNER_TURNS = 10;

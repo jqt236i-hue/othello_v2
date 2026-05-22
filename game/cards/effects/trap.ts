@@ -5,9 +5,7 @@
 
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
-const SharedConstants = (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants)
-    ? (globalThis as any).SharedConstants
-    : require('../../../shared-constants');
+const SharedConstants = require('../../../shared-constants');
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 
 const DEFAULT_TRAP_WILL_STEAL_MAX = 20;
