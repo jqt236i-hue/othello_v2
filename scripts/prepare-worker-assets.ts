@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as fs from 'fs';
 import * as path from 'path';
 import * as zlib from 'zlib';
@@ -15,6 +14,40 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+interface PrepareWorkerAssetsOptions {
+    rootDir?: string;
+    outDir?: string;
+    rootFiles?: string[];
+    dirs?: string[];
+    verifyDirs?: string[];
+    verifyRootFiles?: string[];
+    optionalFiles?: string[];
+    generatedOptionalAssets?: GeneratedOptionalAssetTask[];
+}
+
+interface PrepareWorkerAssetsConfig {
+    rootDir: string;
+    outDir: string;
+    rootFiles: string[];
+    dirs: string[];
+    verifyDirs: string[];
+    verifyRootFiles: string[];
+    optionalFiles: string[];
+    generatedOptionalAssets: GeneratedOptionalAssetTask[];
+}
+
+interface GeneratedOptionalAssetTask {
+    sourceRelativePath: string;
+    compressedRelativePath: string;
+    manifestRelativePath: string;
+    compression: string;
+}
+
+interface GeneratedOptionalAsset {
+    relativePath: string;
+    content: Buffer;
+}
+
 function findRepoRoot(startDir: string): string {
     let dir = startDir;
     while (dir !== path.dirname(dir)) {
@@ -29,7 +62,7 @@ const ROOT = findRepoRoot(path.resolve(__dirname, '..'));
 const OUT_DIR = path.join(ROOT, 'worker-public');
 const WORKER_ASSET_MAX_BYTES = 25 * 1024 * 1024;
 
-const ROOT_FILES = Object.freeze([
+const ROOT_FILES: readonly string[] = Object.freeze([
     '.assetsignore',
     'index.html',
     'entry-browser.js',
@@ -46,7 +79,7 @@ const ROOT_FILES = Object.freeze([
     'public/module-registry.js'
 ]);
 
-const DIRS = Object.freeze([
+const DIRS: readonly string[] = Object.freeze([
     'assets',
     'cards',
     'constants',
@@ -56,7 +89,7 @@ const DIRS = Object.freeze([
     'utils'
 ]);
 
-const VERIFY_DIRS = Object.freeze([
+const VERIFY_DIRS: readonly string[] = Object.freeze([
     'assets',
     'cards',
     'constants',
@@ -66,9 +99,9 @@ const VERIFY_DIRS = Object.freeze([
     'utils'
 ]);
 
-const VERIFY_ROOT_FILES = Object.freeze(ROOT_FILES.slice());
+const VERIFY_ROOT_FILES: readonly string[] = Object.freeze(ROOT_FILES.slice());
 
-const OPTIONAL_FILES = Object.freeze([
+const OPTIONAL_FILES: readonly string[] = Object.freeze([
     'game/ai/commentary-data.js',
     'data/models/policy-net.onnx',
     'data/models/policy-net.onnx.meta.json',
@@ -89,7 +122,7 @@ const OPTIONAL_FILES = Object.freeze([
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm'
 ]);
 
-const GENERATED_OPTIONAL_ASSETS = Object.freeze([]);
+const GENERATED_OPTIONAL_ASSETS: readonly GeneratedOptionalAssetTask[] = Object.freeze([]);
 
 const EXCLUDED_MIRROR_RELATIVE_PATHS = new Set([
     'game/logic/card-usage-prechecks.js',
@@ -122,11 +155,11 @@ function shouldMirrorRelativePath(relativePath: string) {
     return true;
 }
 
-function cloneList(list: any[]) {
+function cloneList<T>(list: readonly T[] | undefined): T[] {
     return Array.isArray(list) ? list.slice() : [];
 }
 
-function createPrepareConfig(options: any) {
+function createPrepareConfig(options?: PrepareWorkerAssetsOptions): PrepareWorkerAssetsConfig {
     const opts = (options && typeof options === 'object') ? options : {};
     const rootDir = path.resolve(String(opts.rootDir || ROOT));
     const outDir = path.resolve(String(opts.outDir || path.join(rootDir, 'worker-public')));
@@ -276,10 +309,10 @@ function copyDirectoryRecursive(srcDir: any, dstDir: any, relativePrefix: string
     }
 }
 
-function listFilesRecursive(baseDir: any, relativePrefix: any) {
+function listFilesRecursive(baseDir: string, relativePrefix: string): string[] {
     if (!fs.existsSync(baseDir)) return [];
 
-    const out = [];
+    const out: string[] = [];
     const entries = fs.readdirSync(baseDir, { withFileTypes: true });
     for (const entry of entries) {
         const nextRelative = relativePrefix ? path.join(relativePrefix, entry.name) : entry.name;
@@ -296,7 +329,7 @@ function listFilesRecursive(baseDir: any, relativePrefix: any) {
     return out;
 }
 
-function verifyMirroredFile(relativePath: any, issues: any, config: any) {
+function verifyMirroredFile(relativePath: string, issues: string[], config: any) {
     const settings = createPrepareConfig(config);
     const src = path.join(settings.rootDir, relativePath);
     const dst = path.join(settings.outDir, relativePath);
@@ -326,8 +359,8 @@ function verifyMirroredFile(relativePath: any, issues: any, config: any) {
 
 function verifyMirrors(optionalFiles: any, generatedAssets: any, config: any) {
     const settings = createPrepareConfig(config);
-    const issues = [];
-    const verifyFiles = new Set();
+    const issues: string[] = [];
+    const verifyFiles = new Set<string>();
     const optionals = Array.isArray(optionalFiles) ? optionalFiles : [];
     const generated = Array.isArray(generatedAssets) ? generatedAssets : [];
 
@@ -367,7 +400,7 @@ function verifyMirrors(optionalFiles: any, generatedAssets: any, config: any) {
     console.log(`[worker-prepare] mirror-verified files=${sorted.length}`);
 }
 
-function prepareWorkerAssets(options: any) {
+function prepareWorkerAssets(options?: PrepareWorkerAssetsOptions) {
     const settings = createPrepareConfig(options);
     refreshGeneratedCatalogArtifacts(settings);
     rmDirSafe(settings.outDir);

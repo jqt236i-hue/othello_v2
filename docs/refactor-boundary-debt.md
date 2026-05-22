@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 72 files.
+Current authorized `@ts-nocheck` debt: 71 files.
 
 Recent reduction:
 
@@ -30,6 +30,7 @@ Recent reduction:
 - `scripts/serve-with-fallback.ts` no longer uses `@ts-nocheck`; its argument parsing, static file listing, retry watcher, and fallback error paths now have checked local contracts.
 - `src/engine/engine.ts` no longer uses `@ts-nocheck`; the deterministic test engine now has typed action, state, RNG, and log contracts.
 - `scripts/network-endgame-smoke.ts` no longer uses `@ts-nocheck`; its CommonJS module adapters now match the local server and core export style under TypeScript checking.
+- `scripts/prepare-worker-assets.ts` no longer uses `@ts-nocheck`; its prepare options, generated optional assets, mirror verification, recursive listing, and default config constants now have checked local contracts.
 
 Recent boundary typing:
 
