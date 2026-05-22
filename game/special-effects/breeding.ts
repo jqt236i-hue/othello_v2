@@ -167,9 +167,3 @@ export = {
     processBreedingImmediateAtPlacement,
     setUIImpl
 };
-// @compat - globalThis writes for legacy code that hasn't migrated to import/export
-if (typeof globalThis !== 'undefined') {
-    try { (globalThis as any).processBreedingEffectsAtTurnStart = processBreedingEffectsAtTurnStart; } catch (e) { /* ignore */ }
-    try { (globalThis as any).processBreedingImmediateAtPlacement = processBreedingImmediateAtPlacement; } catch (e) { /* ignore */ }
-    try { (globalThis as any).setBreedingUIImpl = setUIImpl; } catch (e) { /* ignore */ }
-}

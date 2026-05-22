@@ -13,7 +13,6 @@ declare const LOG_MESSAGES: any;
 declare const emitBoardUpdate: any;
 declare const emitCardStateChange: any;
 declare const emitGameStateChange: any;
-declare const globalThis: any;
 declare const BoardOps: any;
 declare const CardUtils: any;
 declare const SharedConstants: any;
@@ -29,9 +28,12 @@ let BLACK: any = null, WHITE: any = null, CHARGE_MAX = 99;
 try {
     ({ BLACK, WHITE, CHARGE_MAX } = (typeof require === 'function' ? require('../../shared-constants') : (typeof SharedConstants !== 'undefined' ? SharedConstants : {})));
 } catch (e) {
-    BLACK = typeof globalThis !== 'undefined' ? globalThis.BLACK : BLACK;
-    WHITE = typeof globalThis !== 'undefined' ? globalThis.WHITE : WHITE;
-    CHARGE_MAX = (typeof globalThis !== 'undefined' && Number.isFinite(Number(globalThis.CHARGE_MAX))) ? Number(globalThis.CHARGE_MAX) : CHARGE_MAX;
+    try {
+        const constants = (typeof SharedConstants !== 'undefined' && SharedConstants) ? SharedConstants : {};
+        BLACK = Number.isFinite(Number(constants.BLACK)) ? constants.BLACK : BLACK;
+        WHITE = Number.isFinite(Number(constants.WHITE)) ? constants.WHITE : WHITE;
+        CHARGE_MAX = Number.isFinite(Number(constants.CHARGE_MAX)) ? Number(constants.CHARGE_MAX) : CHARGE_MAX;
+    } catch (_e) { /* ignore */ }
 }
 
 let __uiImpl_hyperactive: any = {};

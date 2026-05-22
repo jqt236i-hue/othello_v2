@@ -18,9 +18,9 @@ declare const emitGameStateChange: any;
 declare const getPlayerName: any;
 declare const LOG_MESSAGES: any;
 declare const FLIP_ANIMATION_DURATION_MS: any;
-declare const globalThis: any;
 declare const BoardOps: any;
 declare const CardUtils: any;
+declare const SharedConstants: any;
 
 let mv: any = null;
 try { mv = (typeof require === 'function') ? require('../move-executor-visuals') : mv; } catch (e) { mv = mv || null; }
@@ -39,9 +39,10 @@ try {
         : (typeof SharedConstants !== 'undefined' ? SharedConstants : null);
     if (shared && Number.isFinite(Number(shared.CHARGE_MAX))) CHARGE_MAX = Number(shared.CHARGE_MAX);
 } catch (e) {
-    if (typeof globalThis !== 'undefined' && Number.isFinite(Number(globalThis.CHARGE_MAX))) {
-        CHARGE_MAX = Number(globalThis.CHARGE_MAX);
-    }
+    try {
+        const constants = (typeof SharedConstants !== 'undefined' && SharedConstants) ? SharedConstants : {};
+        if (Number.isFinite(Number(constants.CHARGE_MAX))) CHARGE_MAX = Number(constants.CHARGE_MAX);
+    } catch (_e) { /* ignore */ }
 }
 let __uiImpl_dragons: any = {};
 function setUIImpl(obj: any) { __uiImpl_dragons = obj || {}; }
