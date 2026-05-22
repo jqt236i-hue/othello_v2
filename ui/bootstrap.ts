@@ -1238,6 +1238,13 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                                     (globalThis as any).gameState = nextGameState;
                                 }
                             } catch (e: any) { /* ignore */ }
+                        },
+                        getCommentaryRuntimeRoot: () => {
+                            try {
+                                return typeof globalThis !== 'undefined' ? globalThis : null;
+                            } catch (e: any) {
+                                return null;
+                            }
                         }
                     });
                 }

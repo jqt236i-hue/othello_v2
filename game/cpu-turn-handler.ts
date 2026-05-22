@@ -558,9 +558,12 @@ function resolveLv6MinThinkMs(playerKey: any, level: any, autoMode: any) {
 function resolveCpuCommentaryRuntime() {
     const runtimeHelpers = resolveCommentaryRuntimeHelpers();
     if (runtimeHelpers && typeof runtimeHelpers.resolveCommentaryRuntimeFromGlobal === 'function') {
-        const globalRuntime = runtimeHelpers.resolveCommentaryRuntimeFromGlobal(
-            typeof globalThis !== 'undefined' ? globalThis : null
-        );
+        const runtimeRoot = (__uiImpl_cpu && typeof __uiImpl_cpu.getCommentaryRuntimeRoot === 'function')
+            ? __uiImpl_cpu.getCommentaryRuntimeRoot()
+            : null;
+        const globalRuntime = runtimeRoot
+            ? runtimeHelpers.resolveCommentaryRuntimeFromGlobal(runtimeRoot)
+            : null;
         if (globalRuntime) {
             cpuCommentaryRuntime = globalRuntime;
             return cpuCommentaryRuntime;
