@@ -1,11 +1,8 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
-
-import type { CardState, GameState, PlayerKey } from 'src/types';
 
 /**
  * @file ui.ts
@@ -477,9 +474,8 @@ export function ensureWorkVisualsApplied() {
             const sel = `.cell[data-row="${w.row}"][data-col="${w.col}"] .disc`;
             const disc = document.querySelector(sel);
             if (!disc) continue;
-            const imgVar = (disc as HTMLElement).style && (disc as HTMLElement).style.getPropertyValue
-                ? ((disc as HTMLElement).style.getPropertyValue('--disc-overlay-image') || (disc as HTMLElement).style.getPropertyValue('--special-stone-image'))
-                : null;
+            const discEl = disc as HTMLElement;
+            const imgVar = discEl.style.getPropertyValue('--disc-overlay-image') || discEl.style.getPropertyValue('--special-stone-image');
             const hasImage = imgVar && String(imgVar).trim().length > 0;
             const hasClass = disc.classList && disc.classList.contains('work-stone');
             if (!hasImage || !hasClass) {

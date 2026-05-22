@@ -31,8 +31,7 @@ const allowedNoCheckDebt = new Set([
   'cards/card-renderer.ts',
   'scripts/local-match-server.ts',
   'src/engine/selfplay-runner.ts',
-  'training/engine/selfplay-runner.ts',
-  'ui.ts'
+  'training/engine/selfplay-runner.ts'
 ]);
 
 function normalizePath(value: string): string {
