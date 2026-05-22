@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * @file destroy_dragon.ts
  * @description Destroy Dragon Will effect helpers
@@ -6,45 +5,189 @@
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
+type DestroyDragonOwnerValue = number;
+type DestroyDragonSeatKey = 'black' | 'white';
+type DestroyDragonExpansionSide = 'left' | 'right' | 'top' | 'bottom';
+
+interface DestroyDragonSharedConstants {
+  BLACK: DestroyDragonOwnerValue;
+  WHITE: DestroyDragonOwnerValue;
+  EMPTY: DestroyDragonOwnerValue;
+}
+
+interface DestroyDragonBoardDims {
+  rows: number;
+  cols: number;
+}
+
+interface DestroyDragonExpansionCell {
+  side: DestroyDragonExpansionSide | null;
+  row: number;
+  col: number;
+  owner: DestroyDragonOwnerValue;
+}
+
+interface DestroyDragonExpansionState {
+  active?: boolean;
+  side?: DestroyDragonExpansionSide | null;
+  row?: number | null;
+  col?: number | null;
+  owner?: DestroyDragonOwnerValue;
+  usedByPlayer?: Record<string, boolean>;
+  cells?: DestroyDragonExpansionCell[];
+}
+
+interface DestroyDragonGameState {
+  board?: DestroyDragonOwnerValue[][];
+  boardExpansion?: DestroyDragonExpansionState | null;
+  [key: string]: unknown;
+}
+
+interface DestroyDragonMarkerData {
+  type?: string;
+  remainingOwnerTurns?: number;
+  [key: string]: unknown;
+}
+
+interface DestroyDragonMarker {
+  kind?: string;
+  row: number;
+  col: number;
+  owner?: unknown;
+  data?: DestroyDragonMarkerData | null;
+  [key: string]: unknown;
+}
+
+interface DestroyDragonCardState {
+  markers?: DestroyDragonMarker[];
+  [key: string]: unknown;
+}
+
+interface DestroyDragonDestroyMeta {
+  sourceRow: number;
+  sourceCol: number;
+  projectileOwner: DestroyDragonSeatKey;
+  projectileStone: string;
+}
+
+interface DestroyDragonBoardOpsModule {
+  getExpansionDescriptors?: (gameState: DestroyDragonGameState) => DestroyDragonExpansionCell[];
+  getCellValue?: (gameState: DestroyDragonGameState, row: number, col: number) => DestroyDragonOwnerValue | null;
+  setCellValue?: (gameState: DestroyDragonGameState, row: number, col: number, value: DestroyDragonOwnerValue) => boolean;
+  destroyAt?: (
+    cardState: DestroyDragonCardState,
+    gameState: DestroyDragonGameState,
+    row: number,
+    col: number,
+    cause: string,
+    reason: string,
+    meta: DestroyDragonDestroyMeta
+  ) => { destroyed?: boolean } | null | undefined;
+  revertSpecialStoneAt?: (
+    cardState: DestroyDragonCardState,
+    gameState: DestroyDragonGameState,
+    row: number,
+    col: number,
+    specialType: string,
+    playerKey: DestroyDragonSeatKey,
+    cause: string,
+    reason: string
+  ) => { reverted?: boolean } | null | undefined;
+  runEffectBlock?: <T>(cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, meta: Record<string, unknown>, fn: () => T) => T;
+}
+
+interface DestroyDragonRandomSourceModule {
+  resolveRandomFunction?: (randomLike: DestroyDragonRandomLike | null | undefined, fallback: unknown, label: string) => () => number;
+  resolveRandomIndex?: (length: number, randomLike: DestroyDragonRandomLike | null | undefined, fallback: unknown, label: string) => number;
+}
+
+type DestroyDragonRandomLike = (() => number) | { random: () => number };
+type DestroyDragonDestroyAt = (cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, row: number, col: number) => boolean;
+
+interface DestroyDragonProcessDeps {
+  random?: DestroyDragonRandomLike | null;
+  destroyAt?: DestroyDragonDestroyAt;
+  BoardOps?: DestroyDragonBoardOpsModule | null;
+  decrementRemainingOwnerTurns?: boolean;
+}
+
+interface DestroyDragonEffectPosition {
+  row: number;
+  col: number;
+}
+
+interface DestroyDragonDestroyedPosition extends DestroyDragonEffectPosition {
+  sourceRow: number;
+  sourceCol: number;
+}
+
+interface DestroyDragonExpiredPosition extends DestroyDragonEffectPosition {
+  owner: DestroyDragonSeatKey;
+  reason: string;
+}
+
+interface DestroyDragonProcessResult {
+  destroyed: DestroyDragonDestroyedPosition[];
+  anchors: Array<DestroyDragonEffectPosition & { remainingNow: number }>;
+  expired: DestroyDragonExpiredPosition[];
+}
+
+interface DestroyDragonModuleApi {
+  processDestroyDragonEffects(cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, playerKey: DestroyDragonSeatKey, deps?: DestroyDragonProcessDeps): DestroyDragonProcessResult;
+  processDestroyDragonEffectsAtAnchor(cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, playerKey: DestroyDragonSeatKey, row: number, col: number, deps?: DestroyDragonProcessDeps): DestroyDragonProcessResult;
+  processDestroyDragonEffectsAtTurnStartAnchor(cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, playerKey: DestroyDragonSeatKey, row: number, col: number, deps?: DestroyDragonProcessDeps): DestroyDragonProcessResult;
+}
+
+interface DestroyDragonRoot {
+  SharedConstants?: DestroyDragonSharedConstants;
+  BoardOps?: DestroyDragonBoardOpsModule | null;
+  CardRandomSource?: DestroyDragonRandomSourceModule | null;
+}
+
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-function safeRequire(id: string): any {
+function safeRequire<T>(id: string): T | null {
   try {
-    return _require(id);
+    return _require(id) as T;
   } catch (e) {
     return null;
   }
 }
 
-const SharedConstants = safeRequire('../../../shared-constants') || (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
-const BoardOpsModule = safeRequire('../board_ops') || (typeof self !== 'undefined' ? (self as any).BoardOps : null);
-const RandomSourceModule = safeRequire('../cards-internal/random-source') || (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
+const root = typeof self !== 'undefined' ? self as unknown as DestroyDragonRoot : undefined;
+const SharedConstants = safeRequire<DestroyDragonSharedConstants>('../../../shared-constants') || root?.SharedConstants;
+const BoardOpsModule = safeRequire<DestroyDragonBoardOpsModule>('../board_ops') || root?.BoardOps || null;
+const RandomSourceModule = safeRequire<DestroyDragonRandomSourceModule>('../cards-internal/random-source') || root?.CardRandomSource || null;
 
-const { BLACK, WHITE, EMPTY } = SharedConstants || {};
+const { BLACK: RAW_BLACK, WHITE: RAW_WHITE, EMPTY: RAW_EMPTY } = SharedConstants || {};
 
-if (BLACK === undefined || WHITE === undefined || EMPTY === undefined) {
+if (RAW_BLACK === undefined || RAW_WHITE === undefined || RAW_EMPTY === undefined) {
   throw new Error('SharedConstants missing required values');
 }
 
-function normalizeExpansionOwner(owner) {
+const BLACK: DestroyDragonOwnerValue = RAW_BLACK;
+const WHITE: DestroyDragonOwnerValue = RAW_WHITE;
+const EMPTY: DestroyDragonOwnerValue = RAW_EMPTY;
+
+function normalizeExpansionOwner(owner: unknown): DestroyDragonOwnerValue {
   return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
 }
 
-function resolveBoardDims(gameState) {
+function resolveBoardDims(gameState: DestroyDragonGameState): DestroyDragonBoardDims {
   const board = gameState && Array.isArray(gameState.board) ? gameState.board : null;
   const rows = board && board.length > 0 ? board.length : 8;
   const cols = board && Array.isArray(board[0]) && board[0].length > 0 ? board[0].length : rows;
   return { rows, cols };
 }
 
-function isMainBoardCell(row, col, gameState) {
+function isMainBoardCell(row: number, col: number, gameState: DestroyDragonGameState): boolean {
   const dims = resolveBoardDims(gameState);
   return Number.isInteger(row) && row >= 0 && row < dims.rows && Number.isInteger(col) && col >= 0 && col < dims.cols;
 }
 
-function resolveExpansionSide(side, row, col, gameState) {
+function resolveExpansionSide(side: unknown, row: number, col: number, gameState: DestroyDragonGameState): DestroyDragonExpansionSide | null {
   if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
   const dims = resolveBoardDims(gameState);
   if (col === -1) return 'left';
@@ -54,15 +197,17 @@ function resolveExpansionSide(side, row, col, gameState) {
   return null;
 }
 
-function isExpansionCoordinate(row, col, gameState) {
+function isExpansionCoordinate(row: unknown, col: unknown, gameState: DestroyDragonGameState): boolean {
   if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
+  const numericRow = Number(row);
+  const numericCol = Number(col);
   const dims = resolveBoardDims(gameState);
-  if (row < -1 || row > dims.rows || col < -1 || col > dims.cols) return false;
-  if (isMainBoardCell(row, col, gameState)) return false;
+  if (numericRow < -1 || numericRow > dims.rows || numericCol < -1 || numericCol > dims.cols) return false;
+  if (isMainBoardCell(numericRow, numericCol, gameState)) return false;
   return true;
 }
 
-function syncLegacyExpansionFields(expansion, gameState) {
+function syncLegacyExpansionFields(expansion: DestroyDragonExpansionState | null | undefined, gameState: DestroyDragonGameState): void {
   if (!expansion || typeof expansion !== 'object') return;
   if (!Array.isArray(expansion.cells)) expansion.cells = [];
   const latest = expansion.cells.length > 0 ? expansion.cells[expansion.cells.length - 1] : null;
@@ -72,7 +217,7 @@ function syncLegacyExpansionFields(expansion, gameState) {
   expansion.owner = latest ? normalizeExpansionOwner(latest.owner) : EMPTY;
 }
 
-function getExpansionCells(gameState) {
+function getExpansionCells(gameState: DestroyDragonGameState): DestroyDragonExpansionCell[] {
   if (BoardOpsModule && typeof BoardOpsModule.getExpansionDescriptors === 'function') {
     return BoardOpsModule.getExpansionDescriptors(gameState);
   }
@@ -81,11 +226,15 @@ function getExpansionCells(gameState) {
     : null;
   if (!expansion) return [];
 
-  const cells = [];
-  const pushCell = (source, legacyRow, legacyOwner) => {
-    let side = null;
-    let row = null;
-    let col = null;
+  const cells: DestroyDragonExpansionCell[] = [];
+  const pushCell = (
+    source: DestroyDragonExpansionCell | DestroyDragonExpansionState | DestroyDragonExpansionSide | null | undefined,
+    legacyRow?: number | null,
+    legacyOwner?: unknown
+  ): void => {
+    let side: unknown = null;
+    let row: number | null | undefined = null;
+    let col: number | null | undefined = null;
     let owner = legacyOwner;
 
     if (source && typeof source === 'object') {
@@ -103,11 +252,13 @@ function getExpansionCells(gameState) {
     }
 
     if (!isExpansionCoordinate(row, col, gameState)) return;
-    if (cells.some((cell) => cell && cell.row === row && cell.col === col)) return;
+    const normalizedRow = Number(row);
+    const normalizedCol = Number(col);
+    if (cells.some((cell) => cell && cell.row === normalizedRow && cell.col === normalizedCol)) return;
     cells.push({
-      side: resolveExpansionSide(side, row, col, gameState),
-      row,
-      col,
+      side: resolveExpansionSide(side, normalizedRow, normalizedCol, gameState),
+      row: normalizedRow,
+      col: normalizedCol,
       owner: normalizeExpansionOwner(owner)
     });
   };
@@ -126,7 +277,7 @@ function getExpansionCells(gameState) {
   return cells;
 }
 
-function ensureExpansionStateMutable(gameState) {
+function ensureExpansionStateMutable(gameState: DestroyDragonGameState): DestroyDragonExpansionState {
   if (!gameState.boardExpansion || typeof gameState.boardExpansion !== 'object') {
     gameState.boardExpansion = {
       active: false,
@@ -150,11 +301,11 @@ function ensureExpansionStateMutable(gameState) {
   return expansion;
 }
 
-function getCellValue(gameState, row, col) {
+function getCellValue(gameState: DestroyDragonGameState, row: number, col: number): DestroyDragonOwnerValue | null {
   if (BoardOpsModule && typeof BoardOpsModule.getCellValue === 'function') {
     return BoardOpsModule.getCellValue(gameState, row, col);
   }
-  if (isMainBoardCell(row, col, gameState)) return gameState.board[row][col];
+  if (isMainBoardCell(row, col, gameState) && gameState.board) return gameState.board[row][col];
   const expansionCells = getExpansionCells(gameState);
   for (const expansion of expansionCells) {
     if (!expansion) continue;
@@ -163,11 +314,11 @@ function getCellValue(gameState, row, col) {
   return null;
 }
 
-function setCellValue(gameState, row, col, value) {
+function setCellValue(gameState: DestroyDragonGameState, row: number, col: number, value: DestroyDragonOwnerValue): boolean {
   if (BoardOpsModule && typeof BoardOpsModule.setCellValue === 'function') {
     return BoardOpsModule.setCellValue(gameState, row, col, value);
   }
-  if (isMainBoardCell(row, col, gameState)) {
+  if (isMainBoardCell(row, col, gameState) && gameState.board) {
     gameState.board[row][col] = value;
     return true;
   }
@@ -195,9 +346,10 @@ function setCellValue(gameState, row, col, value) {
   return false;
 }
 
-function cleanupExpiredDestroyDragons(cardState) {
-  if (!Array.isArray(cardState && cardState.markers)) return;
-  cardState.markers = cardState.markers.filter((marker) => (
+function cleanupExpiredDestroyDragons(cardState: DestroyDragonCardState): void {
+  const markers = cardState.markers;
+  if (!Array.isArray(markers)) return;
+  cardState.markers = markers.filter((marker) => (
     marker.kind !== 'specialStone' ||
     !marker.data ||
     marker.data.type !== 'DESTROY_DRAGON' ||
@@ -205,18 +357,18 @@ function cleanupExpiredDestroyDragons(cardState) {
   ));
 }
 
-function resolveRandomFn(randomLike) {
+function resolveRandomFn(randomLike: DestroyDragonRandomLike | null | undefined): () => number {
   if (RandomSourceModule && typeof RandomSourceModule.resolveRandomFunction === 'function') {
     return RandomSourceModule.resolveRandomFunction(randomLike, null, 'CardDestroyDragon');
   }
   if (typeof randomLike === 'function') return randomLike;
   if (randomLike && typeof randomLike.random === 'function') {
-    return function () { return randomLike.random(); };
+    return function (): number { return randomLike.random(); };
   }
   throw new Error('CardDestroyDragon requires an injected deterministic PRNG.');
 }
 
-function resolveRandomIndex(length, randomFn) {
+function resolveRandomIndex(length: number, randomFn: () => number): number {
   if (length <= 0) return -1;
   if (RandomSourceModule && typeof RandomSourceModule.resolveRandomIndex === 'function') {
     return RandomSourceModule.resolveRandomIndex(length, { random: randomFn }, null, 'CardDestroyDragon');
@@ -229,8 +381,8 @@ function resolveRandomIndex(length, randomFn) {
   return Math.max(0, Math.min(length - 1, Math.floor(normalized * length)));
 }
 
-function collectAdjacentEnemyTargets(gameState, sourceRow, sourceCol, enemyValue) {
-  const targets = [];
+function collectAdjacentEnemyTargets(gameState: DestroyDragonGameState, sourceRow: number, sourceCol: number, enemyValue: DestroyDragonOwnerValue): DestroyDragonEffectPosition[] {
+  const targets: DestroyDragonEffectPosition[] = [];
   for (let dr = -1; dr <= 1; dr++) {
     for (let dc = -1; dc <= 1; dc++) {
       if (dr === 0 && dc === 0) continue;
@@ -242,12 +394,13 @@ function collectAdjacentEnemyTargets(gameState, sourceRow, sourceCol, enemyValue
   return targets;
 }
 
-function removeMarkerAt(cardState, row, col) {
-  if (!Array.isArray(cardState && cardState.markers)) return;
-  cardState.markers = cardState.markers.filter((marker) => !(marker && marker.row === row && marker.col === col));
+function removeMarkerAt(cardState: DestroyDragonCardState, row: number, col: number): void {
+  const markers = cardState.markers;
+  if (!Array.isArray(markers)) return;
+  cardState.markers = markers.filter((marker) => !(marker && marker.row === row && marker.col === col));
 }
 
-function fallbackDestroyAt(cardState, gameState, row, col) {
+function fallbackDestroyAt(cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, row: number, col: number): boolean {
   const current = getCellValue(gameState, row, col);
   if (current === null || current === EMPTY) return false;
   removeMarkerAt(cardState, row, col);
@@ -255,13 +408,23 @@ function fallbackDestroyAt(cardState, gameState, row, col) {
   return true;
 }
 
-function expireAnchor(cardState, gameState, playerKey, row, col, marker, options, expired) {
+function expireAnchor(
+  cardState: DestroyDragonCardState,
+  gameState: DestroyDragonGameState,
+  playerKey: DestroyDragonSeatKey,
+  row: number,
+  col: number,
+  marker: DestroyDragonMarker,
+  options: DestroyDragonProcessDeps,
+  expired: DestroyDragonExpiredPosition[]
+): void {
   let reverted = false;
   if (options.BoardOps && typeof options.BoardOps.revertSpecialStoneAt === 'function') {
     const res = options.BoardOps.revertSpecialStoneAt(cardState, gameState, row, col, 'DESTROY_DRAGON', playerKey, 'DESTROY_DRAGON_WILL', 'anchor_expired');
     reverted = !!(res && res.reverted);
-  } else if (Array.isArray(cardState && cardState.markers)) {
-    cardState.markers = cardState.markers.filter((entry) => !(
+  } else if (Array.isArray(cardState.markers)) {
+    const markers = cardState.markers;
+    cardState.markers = markers.filter((entry) => !(
       entry &&
       entry.kind === 'specialStone' &&
       entry.row === row &&
@@ -276,15 +439,15 @@ function expireAnchor(cardState, gameState, playerKey, row, col, marker, options
   if (marker && marker.data) marker.data.remainingOwnerTurns = -1;
 }
 
-function processAnchor(cardState, gameState, playerKey, row, col, options) {
+function processAnchor(cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, playerKey: DestroyDragonSeatKey, row: number, col: number, options: DestroyDragonProcessDeps): DestroyDragonProcessResult {
   const randomFn = resolveRandomFn(options.random);
-  const destroyed = [];
-  const anchors = [];
-  const expired = [];
+  const destroyed: DestroyDragonDestroyedPosition[] = [];
+  const anchors: Array<DestroyDragonEffectPosition & { remainingNow: number }> = [];
+  const expired: DestroyDragonExpiredPosition[] = [];
   const playerValue = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
   const enemyValue = -playerValue;
   const shouldDecrement = options.decrementRemainingOwnerTurns !== false;
-  const destroyAt = options.destroyAt || fallbackDestroyAt;
+  const destroyAt: DestroyDragonDestroyAt = options.destroyAt || fallbackDestroyAt;
 
   const marker = (cardState.markers || []).find((entry) => (
     entry &&
@@ -303,7 +466,7 @@ function processAnchor(cardState, gameState, playerKey, row, col, options) {
     return { destroyed, anchors, expired };
   }
 
-  const resolveAnchor = () => {
+  const resolveAnchor = (): DestroyDragonProcessResult => {
   const targets = collectAdjacentEnemyTargets(gameState, row, col, enemyValue);
   if (targets.length > 0) {
     const target = targets[resolveRandomIndex(targets.length, randomFn)];
@@ -352,11 +515,11 @@ function processAnchor(cardState, gameState, playerKey, row, col, options) {
   return resolveAnchor();
 }
 
-function processDestroyDragonEffects(cardState, gameState, playerKey, deps) {
+function processDestroyDragonEffects(cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, playerKey: DestroyDragonSeatKey, deps?: DestroyDragonProcessDeps): DestroyDragonProcessResult {
   const options = deps || {};
-  const destroyed = [];
-  const anchors = [];
-  const expired = [];
+  const destroyed: DestroyDragonDestroyedPosition[] = [];
+  const anchors: Array<DestroyDragonEffectPosition & { remainingNow: number }> = [];
+  const expired: DestroyDragonExpiredPosition[] = [];
   const markers = (cardState.markers || []).filter((entry) => (
     entry &&
     entry.kind === 'specialStone' &&
@@ -373,15 +536,15 @@ function processDestroyDragonEffects(cardState, gameState, playerKey, deps) {
   return { destroyed, anchors, expired };
 }
 
-function processDestroyDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps) {
+function processDestroyDragonEffectsAtAnchor(cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, playerKey: DestroyDragonSeatKey, row: number, col: number, deps?: DestroyDragonProcessDeps): DestroyDragonProcessResult {
   return processAnchor(cardState, gameState, playerKey, row, col, deps || {});
 }
 
-function processDestroyDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps) {
+function processDestroyDragonEffectsAtTurnStartAnchor(cardState: DestroyDragonCardState, gameState: DestroyDragonGameState, playerKey: DestroyDragonSeatKey, row: number, col: number, deps?: DestroyDragonProcessDeps): DestroyDragonProcessResult {
   return processAnchor(cardState, gameState, playerKey, row, col, deps || {});
 }
 
-const DestroyDragonModule = {
+const DestroyDragonModule: DestroyDragonModuleApi = {
   processDestroyDragonEffects,
   processDestroyDragonEffectsAtAnchor,
   processDestroyDragonEffectsAtTurnStartAnchor

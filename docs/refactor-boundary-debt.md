@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 77 files.
+Current authorized `@ts-nocheck` debt: 76 files.
 
 Recent reduction:
 
@@ -25,6 +25,7 @@ Recent reduction:
 - `workers/match-worker-runtime-preload.ts` no longer uses `@ts-nocheck`; Worker runtime preload globals now have an explicit optional module map type.
 - `game/logic/cards/sniper.ts` no longer uses `@ts-nocheck`; Sniper Will board expansion helpers, random target selection, and expiry results now have checked local contracts, with the wrapper preventing private implementation types from leaking through the exported effect surface.
 - `game/logic/cards/lightning.ts` no longer uses `@ts-nocheck`; Lightning Will expansion targeting, random index selection, anchor expiry, and wrapper export signatures now have checked local contracts.
+- `game/logic/cards/destroy_dragon.ts` no longer uses `@ts-nocheck`; Destroy Dragon Will adjacent targeting, expansion-cell fallback, anchor expiry, and wrapper export signatures now have checked local contracts.
 
 Recent boundary typing:
 
