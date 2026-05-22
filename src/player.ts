@@ -1,26 +1,23 @@
-// @ts-nocheck
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
-  ? __non_webpack_require__
-  : require;
-
-"use strict";
 /**
- * Player-related type definitions
+ * Player-related type definitions.
  */
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.playerKeyToValue = playerKeyToValue;
-exports.playerValueToKey = playerValueToKey;
-exports.opponentOf = opponentOf;
-function playerKeyToValue(key) {
-    return key === 'black' ? 1 : -1;
-}
-function playerValueToKey(value) {
-    return value === 1 ? 'black' : 'white';
-}
-function opponentOf(key) {
-    return key === 'black' ? 'white' : 'black';
+
+export type PlayerKey = 'black' | 'white';
+export type PlayerValue = 1 | -1;
+
+export interface Player {
+  key: PlayerKey;
+  value: PlayerValue;
 }
 
-export {};
+export function playerKeyToValue(key: PlayerKey): PlayerValue {
+  return key === 'black' ? 1 : -1;
+}
+
+export function playerValueToKey(value: PlayerValue): PlayerKey {
+  return value === 1 ? 'black' : 'white';
+}
+
+export function opponentOf(key: PlayerKey): PlayerKey {
+  return key === 'black' ? 'white' : 'black';
+}
