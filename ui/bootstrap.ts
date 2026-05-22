@@ -1205,6 +1205,24 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                                 } catch (e: any) {
                                     return null;
                                 }
+                            },
+                            emitBoardUpdate: () => {
+                                try {
+                                    const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitBoardUpdate : null;
+                                    if (typeof fn !== 'function') return false;
+                                    return fn() === true;
+                                } catch (e: any) {
+                                    return false;
+                                }
+                            },
+                            emitGameStateChange: () => {
+                                try {
+                                    const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitGameStateChange : null;
+                                    if (typeof fn !== 'function') return false;
+                                    return fn() === true;
+                                } catch (e: any) {
+                                    return false;
+                                }
                             }
                         });
                     }

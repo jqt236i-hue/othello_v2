@@ -15,8 +15,6 @@ declare const TurnPipeline: any;
 declare let isProcessing: any;
 declare const processCpuTurn: any;
 declare const getPlayerName: any;
-declare const emitBoardUpdate: any;
-declare const emitGameStateChange: any;
 declare const emitLogAdded: any;
 declare const showResult: any;
 declare const onTurnStart: any;
@@ -135,6 +133,24 @@ function resolvePassHandlerNetworkTurnHandoff() {
         } catch (e) { /* ignore */ }
     }
     return passHandlerNetworkTurnHandoff;
+}
+
+function emitPassHandlerBoardUpdate() {
+    try {
+        if (passHandlerRuntime && typeof passHandlerRuntime.emitBoardUpdate === 'function') {
+            return passHandlerRuntime.emitBoardUpdate() === true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function emitPassHandlerGameStateChange() {
+    try {
+        if (passHandlerRuntime && typeof passHandlerRuntime.emitGameStateChange === 'function') {
+            return passHandlerRuntime.emitGameStateChange() === true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
 }
 
 function normalizePlayerKeyOptional(value: any) {
@@ -547,8 +563,8 @@ function applyPassViaPipeline(playerKey: string) {
 
 async function _postApplyPassCommon(lastPlayerKey: string) {
     // Shared continuation logic after applyPassViaPipeline
-    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-    try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
+    emitPassHandlerBoardUpdate();
+    emitPassHandlerGameStateChange();
 
     const publishAction = createPassNetworkAction(lastPlayerKey || 'black', cardState);
 
@@ -620,7 +636,7 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishActio
     } else {
         setPassHandlerProcessing(false);
         if (typeof onTurnStart === 'function') onTurnStart(resolvePlayerValue('black', nextPlayer));
-        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+        emitPassHandlerBoardUpdate();
     }
     publishPassSnapshot(safeLastPlayerKey, publishAction);
     return true;
@@ -661,7 +677,7 @@ async function finalizePassTurnHandoff(lastPlayerKey: string, publishAction: any
             scheduleWhiteCpuTurnGuarded(delayMs, { expectedTurnNumber, nextPlayerKey });
         },
         onHumanTurnReady: () => {
-            try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+            emitPassHandlerBoardUpdate();
         }
     });
 
