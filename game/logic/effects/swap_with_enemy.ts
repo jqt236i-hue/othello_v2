@@ -15,18 +15,21 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const RuntimeSharedConstants = (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants)
-    ? (globalThis as any).SharedConstants
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
-const SharedConstants = RuntimeSharedConstants || ((typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
-    : undefined);
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
 
-const SharedBoardUtils = (typeof globalThis !== 'undefined' && (globalThis as any).SharedBoardUtils)
-    ? (globalThis as any).SharedBoardUtils
-    : ((typeof module === 'object' && module.exports)
-        ? _require('../../../shared/shared-board-utils')
-        : (typeof self !== 'undefined' ? ((self as any).SharedBoardUtils || null) : null));
+const SharedConstants = ((typeof module === 'object' && module.exports)
+    ? safeRequire('../../../shared-constants')
+    : null) || (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+
+const SharedBoardUtils = ((typeof module === 'object' && module.exports)
+    ? safeRequire('../../../shared/shared-board-utils')
+    : null) || (typeof self !== 'undefined' ? ((self as any).SharedBoardUtils || null) : null);
 
 const CardUtils = (() => {
     if (typeof require === 'function') {
