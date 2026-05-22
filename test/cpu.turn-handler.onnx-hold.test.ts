@@ -41,6 +41,16 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         mod.setCpuUIImpl({
             readBenchFastMode: () => global.__BENCH_FAST_MODE === true,
             getCpuLv6SharedProfile: () => global.CPU_LV6_SHARED_PROFILE || null,
+            getCpuCardLogic: () => global.CardLogic || null,
+            resolveRuntimeValue: (name: string) => {
+                if (name === 'TurnPipelineUIAdapter') return global.TurnPipelineUIAdapter;
+                if (name === 'TurnPipeline') return global.TurnPipeline;
+                return undefined;
+            },
+            applyRuntimeStatePatch: (nextCardState: any, nextGameState: any) => {
+                if (nextCardState) global.cardState = nextCardState;
+                if (nextGameState) global.gameState = nextGameState;
+            },
             resolveExecuteMove: () => global.executeMove
         });
     });

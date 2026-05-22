@@ -211,12 +211,41 @@ function resolveRuntimeValue(name: string): any {
 
 function resolveCpuCardLogic() {
     try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).CardLogic && typeof (globalThis as any).CardLogic === 'object') {
-            return (globalThis as any).CardLogic;
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.getCpuCardLogic === 'function') {
+            const logic = __uiImpl_cpu.getCpuCardLogic();
+            if (logic && typeof logic === 'object') return logic;
+        }
+        if (__uiImpl_cpu && __uiImpl_cpu.CardLogic && typeof __uiImpl_cpu.CardLogic === 'object') {
+            return __uiImpl_cpu.CardLogic;
         }
     } catch (e) { /* ignore */ }
     if (cpuCardLogic && typeof cpuCardLogic === 'object') return cpuCardLogic;
     return null;
+}
+
+function applyCpuRuntimeStatePatch(nextCardState: any, nextGameState: any) {
+    try {
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.applyRuntimeStatePatch === 'function') {
+            __uiImpl_cpu.applyRuntimeStatePatch(nextCardState, nextGameState);
+            return;
+        }
+    } catch (e) { /* ignore */ }
+    if (nextCardState) {
+        try {
+            if (cardState && typeof cardState === 'object') {
+                for (const key of Object.keys(cardState)) delete cardState[key];
+                Object.assign(cardState, nextCardState);
+            }
+        } catch (e) { /* ignore */ }
+    }
+    if (nextGameState) {
+        try {
+            if (gameState && typeof gameState === 'object') {
+                for (const key of Object.keys(gameState)) delete gameState[key];
+                Object.assign(gameState, nextGameState);
+            }
+        } catch (e) { /* ignore */ }
+    }
 }
 
 function tryDestroyHighPriorityHandCardViaAdapter(playerKey: PlayerKey): boolean {
@@ -235,8 +264,7 @@ function tryDestroyHighPriorityHandCardViaAdapter(playerKey: PlayerKey): boolean
     const action = { type: 'destroy_hand_card', destroyCardId };
     const result = adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline || {});
     if (!result || result.ok !== true) return false;
-    if (result.nextCardState && typeof globalThis !== 'undefined') (globalThis as any).cardState = result.nextCardState;
-    if (result.nextGameState && typeof globalThis !== 'undefined') (globalThis as any).gameState = result.nextGameState;
+    applyCpuRuntimeStatePatch(result.nextCardState, result.nextGameState);
     return true;
 }
 

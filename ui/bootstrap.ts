@@ -1179,6 +1179,31 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                                 return undefined;
                             }
                         },
+                        getCpuCardLogic: () => {
+                            try {
+                                const cardLogic = require('../game/logic/cards');
+                                if (cardLogic) return cardLogic;
+                            } catch (e: any) { /* ignore */ }
+                            try {
+                                return typeof globalThis !== 'undefined' ? (globalThis as any).CardLogic : null;
+                            } catch (e: any) {
+                                return null;
+                            }
+                        },
+                        TurnPipelineUIAdapter: (() => {
+                            try {
+                                return require('../game/turn/pipeline_ui_adapter');
+                            } catch (e: any) {
+                                return undefined;
+                            }
+                        })(),
+                        TurnPipeline: (() => {
+                            try {
+                                return require('../game/turn/turn_pipeline');
+                            } catch (e: any) {
+                                return undefined;
+                            }
+                        })(),
                         resolveExecuteMove: () => {
                             try {
                                 return typeof globalThis !== 'undefined' && typeof (globalThis as any).executeMove === 'function'
@@ -1201,6 +1226,16 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             try {
                                 if (typeof globalThis !== 'undefined') {
                                     (globalThis as any).isProcessing = next === true;
+                                }
+                            } catch (e: any) { /* ignore */ }
+                        },
+                        applyRuntimeStatePatch: (nextCardState: any, nextGameState: any) => {
+                            try {
+                                if (nextCardState && typeof globalThis !== 'undefined') {
+                                    (globalThis as any).cardState = nextCardState;
+                                }
+                                if (nextGameState && typeof globalThis !== 'undefined') {
+                                    (globalThis as any).gameState = nextGameState;
                                 }
                             } catch (e: any) { /* ignore */ }
                         }

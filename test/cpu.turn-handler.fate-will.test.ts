@@ -38,6 +38,7 @@ describe('cpu turn handler FATE_WILL turn ownership', () => {
     global.processPassTurn = jest.fn();
     global.emitLogAdded = jest.fn();
     cpuHandler.setCpuUIImpl({
+      getCpuCardLogic: () => global.CardLogic,
       resolveProcessPassTurn: () => global.processPassTurn
     });
   });
