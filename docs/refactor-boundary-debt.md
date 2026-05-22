@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 15 files.
+Current authorized `@ts-nocheck` debt: 11 files.
 
 Recent reduction:
 
@@ -61,6 +61,7 @@ Recent reduction:
 - `training/scripts/export-teacher-solutions.ts`, `training/scripts/replay-selfplay-illegal-move-hardcase.ts`, and `training/scripts/seed-bank-manager.ts` no longer use `@ts-nocheck`; teacher-solution export, illegal-move replay, and seed-bank helpers now typecheck without local suppressions.
 - `training/scripts/promote-policy-model.ts`, `training/scripts/replay-adoption-gate.ts`, and `training/scripts/run-foundation-bootstrap.ts` no longer use `@ts-nocheck`; promotion, gate replay, and foundation wrapper CLIs now typecheck without local suppressions.
 - `training/scripts/run-hardcase-mining.ts`, `training/scripts/run-hardcase-retrain.ts`, `training/scripts/run-selfplay-training-preset.ts`, and `training/scripts/run-selfplay-training-profile.ts` no longer use `@ts-nocheck`; hardcase and selfplay launcher wrappers now typecheck without local suppressions.
+- `training/scripts/benchmark-selfplay-policy.ts`, `training/scripts/benchmark-policy-adoption.ts`, `training/scripts/benchmark-policy-quality-gate.ts`, and `training/scripts/benchmark-policy-onnx-gate.ts` no longer use `@ts-nocheck`; selfplay benchmark and policy gate CLIs now typecheck without local suppressions.
 
 Recent boundary typing:
 
