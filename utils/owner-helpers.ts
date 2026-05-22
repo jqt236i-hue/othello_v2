@@ -1,16 +1,93 @@
-// @ts-nocheck
-(function (root) {
+type OwnerSeatKey = 'black' | 'white';
+type OwnerMatchMode = 'cpu' | 'network' | 'reversi';
+
+interface OwnerElementLike {
+    dataset?: {
+        ownerKey?: unknown;
+        [key: string]: unknown;
+    } | null;
+    getAttribute?: (name: string) => string | null;
+}
+
+interface OwnerNetworkClientLike {
+    isActive?: () => boolean;
+    getSeatKey?: () => unknown;
+}
+
+interface OwnerHelpersRoot extends Record<string, unknown> {
+    cardState?: unknown;
+    NetworkMatchClient?: OwnerNetworkClientLike | null;
+    LOCAL_PLAYER_KEY?: unknown;
+    __LOCAL_PLAYER_KEY?: unknown;
+    BOARD_VIEWER_KEY?: unknown;
+    MATCH_MODE?: unknown;
+    getCurrentMatchMode?: () => unknown;
+}
+
+interface OwnerVisibleLayoutInput extends Record<string, unknown> {
+    bottomOwnerKey?: unknown;
+    topOwnerKey?: unknown;
+    bottomSlotOwnerKey?: unknown;
+    topSlotOwnerKey?: unknown;
+    defaultBottomOwnerKey?: unknown;
+    defaultTopOwnerKey?: unknown;
+}
+
+interface OwnerVisibleLayout {
+    bottomOwnerKey: OwnerSeatKey;
+    topOwnerKey: OwnerSeatKey;
+}
+
+interface OwnerCardStateRecord extends Record<string, unknown> {
+    hands?: Record<string, unknown>;
+    pendingEffectByPlayer?: Record<string, unknown>;
+    fateWillControllerByTurnOwner?: Record<string, unknown>;
+}
+
+interface OwnerHelpersApi {
+    getOwnerDisplayName(owner: unknown): OwnerSeatKey | null;
+    isValidOwner(owner: unknown): boolean;
+    parseSeatKeyOptional(value: unknown): OwnerSeatKey | null;
+    normalizePlayerKey(value: unknown, fallbackKey?: unknown): OwnerSeatKey;
+    normalizePlayerKeyOptional(value: unknown): OwnerSeatKey | null;
+    getOpposingPlayerKey(playerKey: unknown): OwnerSeatKey | null;
+    resolveVisibleOwnerLayout(layout?: OwnerVisibleLayoutInput | null): OwnerVisibleLayout;
+    getElementOwnerKey(element: OwnerElementLike | null | undefined): OwnerSeatKey | null;
+    filterOwnerMatchedElements<T extends OwnerElementLike>(elements: T[] | null | undefined, ownerKey: unknown): T[];
+    resolveOwnerMatchedElement<T extends OwnerElementLike>(elements: T[] | null | undefined, ownerKey: unknown, fallbackElement?: T | null): T | null;
+    resolveVisibleOwnerLayoutFromElements(bottomElement?: OwnerElementLike | null, topElement?: OwnerElementLike | null, layout?: OwnerVisibleLayoutInput | null): OwnerVisibleLayout;
+    isOwnerOnBottomSlot(ownerKey: unknown, bottomElement?: OwnerElementLike | null, topElement?: OwnerElementLike | null, layout?: OwnerVisibleLayoutInput | null): boolean;
+    isHiddenHandToken(value: unknown): boolean;
+    resolveLocalPlayerKey(rootRef?: unknown): OwnerSeatKey;
+    getFateWillControllerForTurnOwner(cardState: unknown, turnOwnerKey: unknown): OwnerSeatKey | null;
+    getFateWillControlledTurnOwnerForPlayer(cardState: unknown, gameState: unknown, playerKey: unknown): OwnerSeatKey | null;
+    getCurrentMatchMode(rootRef?: unknown): OwnerMatchMode;
+    normalizeMatchMode(value: unknown): OwnerMatchMode;
+    isNetworkMode(rootRef?: unknown): boolean;
+    isReversiMode(rootRef?: unknown): boolean;
+    isOthelloMode(rootRef?: unknown): boolean;
+}
+
+(function (root: OwnerHelpersRoot | undefined) {
     'use strict';
 
     const HIDDEN_HAND_TOKEN_RE = /^__hidden_hand__:(black|white):(\d+)$/;
 
-    function getOwnerDisplayName(owner) {
+    function asRecord(value: unknown): Record<string, unknown> {
+        return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+    }
+
+    function asRoot(value: unknown): OwnerHelpersRoot {
+        return value && typeof value === 'object' ? value as OwnerHelpersRoot : {};
+    }
+
+    function getOwnerDisplayName(owner: unknown): OwnerSeatKey | null {
         if (owner === 1 || owner === '1' || owner === 'black') return 'black';
         if (owner === -1 || owner === '-1' || owner === 'white') return 'white';
         return null;
     }
 
-    function parseSeatKeyOptional(value) {
+    function parseSeatKeyOptional(value: unknown): OwnerSeatKey | null {
         if (value === 1 || value === '1') return 'black';
         if (value === -1 || value === '-1') return 'white';
 
@@ -23,24 +100,24 @@
         return null;
     }
 
-    function normalizePlayerKey(value, fallbackKey) {
+    function normalizePlayerKey(value: unknown, fallbackKey?: unknown): OwnerSeatKey {
         const parsed = parseSeatKeyOptional(value);
         if (parsed) return parsed;
         const fallback = parseSeatKeyOptional(fallbackKey);
         return fallback || 'black';
     }
 
-    function normalizePlayerKeyOptional(value) {
+    function normalizePlayerKeyOptional(value: unknown): OwnerSeatKey | null {
         return parseSeatKeyOptional(value);
     }
 
-    function getOpposingPlayerKey(playerKey) {
+    function getOpposingPlayerKey(playerKey: unknown): OwnerSeatKey | null {
         const ownerKey = normalizePlayerKeyOptional(playerKey);
         if (!ownerKey) return null;
         return ownerKey === 'black' ? 'white' : 'black';
     }
 
-    function resolveVisibleOwnerLayout(layout) {
+    function resolveVisibleOwnerLayout(layout?: OwnerVisibleLayoutInput | null): OwnerVisibleLayout {
         const config = (layout && typeof layout === 'object') ? layout : {};
         const fallbackBottomOwnerKey = normalizePlayerKey(
             config.defaultBottomOwnerKey,
@@ -67,7 +144,7 @@
         };
     }
 
-    function getElementOwnerKey(element) {
+    function getElementOwnerKey(element: OwnerElementLike | null | undefined): OwnerSeatKey | null {
         if (!element || typeof element !== 'object') return null;
         const datasetOwnerKey = element.dataset && Object.prototype.hasOwnProperty.call(element.dataset, 'ownerKey')
             ? element.dataset.ownerKey
@@ -83,19 +160,23 @@
         return null;
     }
 
-    function filterOwnerMatchedElements(elements, ownerKey) {
+    function filterOwnerMatchedElements<T extends OwnerElementLike>(elements: T[] | null | undefined, ownerKey: unknown): T[] {
         const targetOwnerKey = normalizePlayerKey(ownerKey, 'black');
         const candidates = Array.isArray(elements) ? elements : [];
         return candidates.filter((element) => getElementOwnerKey(element) === targetOwnerKey);
     }
 
-    function resolveOwnerMatchedElement(elements, ownerKey, fallbackElement) {
+    function resolveOwnerMatchedElement<T extends OwnerElementLike>(elements: T[] | null | undefined, ownerKey: unknown, fallbackElement?: T | null): T | null {
         const matched = filterOwnerMatchedElements(elements, ownerKey);
         if (matched.length > 0) return matched[0];
         return fallbackElement || null;
     }
 
-    function resolveVisibleOwnerLayoutFromElements(bottomElement, topElement, layout) {
+    function resolveVisibleOwnerLayoutFromElements(
+        bottomElement?: OwnerElementLike | null,
+        topElement?: OwnerElementLike | null,
+        layout?: OwnerVisibleLayoutInput | null
+    ): OwnerVisibleLayout {
         const config = (layout && typeof layout === 'object') ? layout : {};
         return resolveVisibleOwnerLayout({
             bottomOwnerKey: getElementOwnerKey(bottomElement),
@@ -105,7 +186,12 @@
         });
     }
 
-    function isOwnerOnBottomSlot(ownerKey, bottomElement, topElement, layout) {
+    function isOwnerOnBottomSlot(
+        ownerKey: unknown,
+        bottomElement?: OwnerElementLike | null,
+        topElement?: OwnerElementLike | null,
+        layout?: OwnerVisibleLayoutInput | null
+    ): boolean {
         const normalizedOwnerKey = normalizePlayerKey(ownerKey, 'black');
         const visibleOwners = resolveVisibleOwnerLayoutFromElements(bottomElement, topElement, layout);
         if (visibleOwners.bottomOwnerKey === normalizedOwnerKey) return true;
@@ -113,25 +199,26 @@
         return normalizedOwnerKey === 'black';
     }
 
-    function isHiddenHandToken(value) {
+    function isHiddenHandToken(value: unknown): boolean {
         return typeof value === 'string' && HIDDEN_HAND_TOKEN_RE.test(value);
     }
 
-    function resolveProjectedCardState(ctx) {
-        if (ctx && ctx.cardState && typeof ctx.cardState === 'object') return ctx.cardState;
+    function resolveProjectedCardState(ctx: OwnerHelpersRoot | null | undefined): OwnerCardStateRecord | null {
+        if (ctx && ctx.cardState && typeof ctx.cardState === 'object') return ctx.cardState as OwnerCardStateRecord;
         try {
-            if (typeof globalThis !== 'undefined' && globalThis.cardState && typeof globalThis.cardState === 'object') {
-                return globalThis.cardState;
+            const globalRoot = typeof globalThis !== 'undefined' ? globalThis as OwnerHelpersRoot : null;
+            if (globalRoot && globalRoot.cardState && typeof globalRoot.cardState === 'object') {
+                return globalRoot.cardState as OwnerCardStateRecord;
             }
         } catch (e) { /* ignore */ }
         return null;
     }
 
-    function inferSeatFromProjectedHands(cardState) {
+    function inferSeatFromProjectedHands(cardState: OwnerCardStateRecord | null): OwnerSeatKey | null {
         const hands = (cardState && cardState.hands && typeof cardState.hands === 'object') ? cardState.hands : null;
         if (!hands) return null;
 
-        const summarizeHand = (ownerKey) => {
+        const summarizeHand = (ownerKey: OwnerSeatKey) => {
             const hand = Array.isArray(hands[ownerKey]) ? hands[ownerKey] : [];
             let hiddenCount = 0;
             for (const cardId of hand) {
@@ -151,14 +238,14 @@
         return null;
     }
 
-    function inferSeatFromPendingEffects(cardState) {
+    function inferSeatFromPendingEffects(cardState: OwnerCardStateRecord | null): OwnerSeatKey | null {
         const pendingByPlayer = (cardState && cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object')
             ? cardState.pendingEffectByPlayer
             : null;
         if (!pendingByPlayer) return null;
 
-        for (const ownerKey of ['black', 'white']) {
-            const pending = pendingByPlayer[ownerKey];
+        for (const ownerKey of ['black', 'white'] as const) {
+            const pending = asRecord(pendingByPlayer[ownerKey]);
             if (!pending || pending.type !== 'CONDEMN_WILL' || !Array.isArray(pending.offers)) continue;
             const hasVisibleOffer = pending.offers.some((offer) => {
                 const cardId = offer && typeof offer === 'object' ? offer.cardId : offer;
@@ -170,7 +257,7 @@
         return null;
     }
 
-    function inferSeatFromProjectedState(ctx) {
+    function inferSeatFromProjectedState(ctx: OwnerHelpersRoot | null | undefined): OwnerSeatKey | null {
         const cardState = resolveProjectedCardState(ctx);
         if (!cardState) return null;
 
@@ -180,7 +267,7 @@
         return inferSeatFromPendingEffects(cardState);
     }
 
-    function hasAuthoritativeNetworkSeat(ctx, explicitSeat) {
+    function hasAuthoritativeNetworkSeat(ctx: OwnerHelpersRoot | null | undefined, explicitSeat: OwnerSeatKey | null): boolean {
         if (!ctx || !explicitSeat) return false;
         try {
             if (ctx.NetworkMatchClient && typeof ctx.NetworkMatchClient.isActive === 'function' && ctx.NetworkMatchClient.isActive() === true) {
@@ -195,8 +282,8 @@
         return false;
     }
 
-    function resolveLocalPlayerKey(rootRef) {
-        const ctx = rootRef || root || (typeof globalThis !== 'undefined' ? globalThis : {});
+    function resolveLocalPlayerKey(rootRef?: unknown): OwnerSeatKey {
+        const ctx = asRoot(rootRef || root || (typeof globalThis !== 'undefined' ? globalThis : {}));
         let explicitSeat = null;
         try {
             if (ctx && ctx.NetworkMatchClient && typeof ctx.NetworkMatchClient.getSeatKey === 'function') {
@@ -219,7 +306,7 @@
         }
 
         if (hasAuthoritativeNetworkSeat(ctx, explicitSeat)) {
-            return explicitSeat;
+            return explicitSeat || 'black';
         }
 
         const inferredSeat = inferSeatFromProjectedState(ctx);
@@ -229,18 +316,19 @@
         return explicitSeat || inferredSeat || 'black';
     }
 
-    function getFateWillControllerForTurnOwner(cardState, turnOwnerKey) {
+    function getFateWillControllerForTurnOwner(cardState: unknown, turnOwnerKey: unknown): OwnerSeatKey | null {
         const ownerKey = normalizePlayerKeyOptional(turnOwnerKey);
         if (!ownerKey || !cardState || typeof cardState !== 'object') return null;
-        const controllerMap = (cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
-            ? cardState.fateWillControllerByTurnOwner
+        const record = cardState as OwnerCardStateRecord;
+        const controllerMap = (record.fateWillControllerByTurnOwner && typeof record.fateWillControllerByTurnOwner === 'object')
+            ? record.fateWillControllerByTurnOwner
             : null;
         if (!controllerMap) return null;
         return normalizePlayerKeyOptional(controllerMap[ownerKey]);
     }
 
-    function getFateWillControlledTurnOwnerForPlayer(cardState, gameState, playerKey) {
-        const ownerKey = normalizePlayerKeyOptional(gameState && gameState.currentPlayer);
+    function getFateWillControlledTurnOwnerForPlayer(cardState: unknown, gameState: unknown, playerKey: unknown): OwnerSeatKey | null {
+        const ownerKey = normalizePlayerKeyOptional(asRecord(gameState).currentPlayer);
         const candidatePlayerKey = normalizePlayerKeyOptional(playerKey);
         if (!ownerKey || !candidatePlayerKey) return null;
         return getFateWillControllerForTurnOwner(cardState, ownerKey) === candidatePlayerKey
@@ -248,15 +336,15 @@
             : null;
     }
 
-    function normalizeMatchMode(value) {
-        var mode = String(value || 'cpu').trim().toLowerCase();
+    function normalizeMatchMode(value: unknown): OwnerMatchMode {
+        const mode = String(value || 'cpu').trim().toLowerCase();
         if (mode === 'reversi' || mode === 'othello') return 'reversi';
         if (mode === 'network') return 'network';
         return 'cpu';
     }
 
-    function getCurrentMatchMode(rootRef) {
-        const ctx = rootRef || root || (typeof globalThis !== 'undefined' ? globalThis : {});
+    function getCurrentMatchMode(rootRef?: unknown): OwnerMatchMode {
+        const ctx = asRoot(rootRef || root || (typeof globalThis !== 'undefined' ? globalThis : {}));
         try {
             if (ctx && typeof ctx.getCurrentMatchMode === 'function') {
                 return normalizeMatchMode(ctx.getCurrentMatchMode());
@@ -268,23 +356,23 @@
         return 'cpu';
     }
 
-    function isNetworkMode(rootRef) {
+    function isNetworkMode(rootRef?: unknown): boolean {
         return getCurrentMatchMode(rootRef) === 'network';
     }
 
-    function isReversiMode(rootRef) {
+    function isReversiMode(rootRef?: unknown): boolean {
         return getCurrentMatchMode(rootRef) === 'reversi';
     }
 
-    function isOthelloMode(rootRef) {
+    function isOthelloMode(rootRef?: unknown): boolean {
         return isReversiMode(rootRef);
     }
 
-    function isValidOwner(owner) {
+    function isValidOwner(owner: unknown): boolean {
         return owner === 1 || owner === -1 || owner === '1' || owner === '-1' || owner === 'black' || owner === 'white';
     }
 
-    var OwnerHelpers = {
+    const OwnerHelpers: OwnerHelpersApi = {
         getOwnerDisplayName: getOwnerDisplayName,
         isValidOwner: isValidOwner,
         parseSeatKeyOptional: parseSeatKeyOptional,
@@ -311,5 +399,9 @@
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = OwnerHelpers;
     }
-    try { if (typeof window !== 'undefined') window.OwnerHelpers = OwnerHelpers; } catch (e) {}
-})(typeof self !== 'undefined' ? self : this);
+    try {
+        if (typeof window !== 'undefined') {
+            (window as unknown as OwnerHelpersRoot & { OwnerHelpers?: OwnerHelpersApi }).OwnerHelpers = OwnerHelpers;
+        }
+    } catch (e) {}
+})(typeof self !== 'undefined' ? self as unknown as OwnerHelpersRoot : globalThis as OwnerHelpersRoot);

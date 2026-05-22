@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 81 files.
+Current authorized `@ts-nocheck` debt: 80 files.
 
 Recent reduction:
 
@@ -21,6 +21,7 @@ Recent reduction:
 - `utils/match-authority.ts` no longer uses `@ts-nocheck`; its room/publish/SSE/projection/pending-selection helpers now pass TypeScript checking through local record guards and the checked public API contract.
 - `cards/catalog.ts` no longer uses generated `@ts-nocheck`; `scripts/generate-catalog.ts` now emits a checked CommonJS TypeScript catalog wrapper.
 - `utils/match-runtime-core.ts` no longer uses `@ts-nocheck`; its command publish adapter boundary now has a small fail-closed dependency/result contract.
+- `utils/owner-helpers.ts` no longer uses `@ts-nocheck`; owner/seat/layout normalization, local-seat inference, and FATE_WILL controller helpers now have checked boundary types.
 
 Recent boundary typing:
 
