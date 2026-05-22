@@ -207,9 +207,9 @@ export interface MatchAuthoritySeatLeaveResult {
     seatKey: MatchAuthoritySeatKey;
     updatedAt: number;
     seatToken: string;
-    seats: MatchAuthorityPublicSeats;
-    seatNames: MatchAuthoritySeatNames;
-    seatHandSkins: MatchAuthoritySeatHandSkins;
+    seats: Partial<MatchAuthorityPublicSeats>;
+    seatNames: Partial<MatchAuthoritySeatNames>;
+    seatHandSkins: Partial<MatchAuthoritySeatHandSkins>;
 }
 
 export interface MatchAuthorityBufferedSsePayloadByViewer {

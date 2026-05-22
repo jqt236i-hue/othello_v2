@@ -22,6 +22,7 @@ Recent reduction:
 Recent boundary typing:
 
 - `utils/match-authority-types.ts` now includes `MatchAuthorityRoomState`, operation history, room payload-from-room options, snapshot projection, join, and leave result types. `utils/match-authority-contract.ts` now requires the room/snapshot/presence/heartbeat/publish payload helpers, projection helpers, join helper, and leave helper to exist on the exported authority object.
+- `utils/match-authority.ts` now uses those room/projection/payload types on the payload-from-room, snapshot projection, join, and leave helper implementations, reducing the untyped surface that must be fixed before removing its `@ts-nocheck`.
 - `game/ai/cpu-policy-core-types.ts` now includes board, move position, legal move metrics, board-bonus callback, and lookahead search metadata types; its public API signatures now match the runtime `computeLegalMoveMetrics` and `scoreMoveHeuristic` call shapes.
 
 ## Current protected boundaries

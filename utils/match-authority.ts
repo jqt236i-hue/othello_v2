@@ -10,12 +10,23 @@ import type {
     MatchAuthorityBufferedSseEventRecord,
     MatchAuthorityBufferedSseEventRecordInput,
     MatchAuthorityBufferedSseReplayEvent,
+    MatchAuthorityHeartbeatPayloadFromRoomOptions,
+    MatchAuthorityPresencePayloadFromRoomOptions,
+    MatchAuthorityProjectionMetadata,
     MatchAuthorityPublicApi,
+    MatchAuthorityPublicSnapshot,
     MatchAuthorityPublishMeta,
+    MatchAuthorityPublishPayloadFromRoomOptions,
     MatchAuthorityPublishResponseOptions,
     MatchAuthorityPublishResponsePayload,
     MatchAuthorityRoomPayload,
-    MatchAuthorityRoomPayloadOptions
+    MatchAuthorityRoomPayloadFromRoomOptions,
+    MatchAuthorityRoomPayloadOptions,
+    MatchAuthorityRoomState,
+    MatchAuthoritySeatKey,
+    MatchAuthoritySeatLeaveOptions,
+    MatchAuthoritySeatLeaveResult,
+    MatchAuthoritySnapshotPayloadFromRoomOptions
 } from './match-authority-types';
 import { assertMatchAuthorityPublicApi } from './match-authority-contract';
 
@@ -671,7 +682,7 @@ function buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAutho
     const publicSeatMetadata = (hasSeats || hasSeatNames || hasSeatHandSkins)
         ? buildPublicSeatMetadata(opts)
         : null;
-    const payload = {
+    const payload: MatchAuthorityRoomPayload = {
         ok: opts.ok === true,
         roomId: opts.roomId ? String(opts.roomId).trim().toUpperCase() : null,
         serverTime: Number.isFinite(Number(opts.serverTime)) ? Number(opts.serverTime) : Date.now()
@@ -756,10 +767,13 @@ function buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAutho
     return payload;
 }
 
-function buildRoomPayloadFromRoom(roomValue, options) {
-    const room = (roomValue && typeof roomValue === 'object') ? roomValue : {};
-    const opts = (options && typeof options === 'object') ? options : {};
-    const source = Object.assign({}, opts);
+function buildRoomPayloadFromRoom(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    options?: MatchAuthorityRoomPayloadFromRoomOptions | null
+): MatchAuthorityRoomPayload {
+    const room: MatchAuthorityRoomState = (roomValue && typeof roomValue === 'object') ? roomValue : {};
+    const opts: MatchAuthorityRoomPayloadFromRoomOptions = (options && typeof options === 'object') ? options : {};
+    const source: MatchAuthorityRoomPayloadOptions = Object.assign({}, opts);
     const hasRoomSeats = room.seats && typeof room.seats === 'object';
     if (!Object.prototype.hasOwnProperty.call(source, 'roomId') && room.roomId) {
         source.roomId = room.roomId;
@@ -778,9 +792,12 @@ function buildRoomPayloadFromRoom(roomValue, options) {
     return buildRoomPayload(source);
 }
 
-function buildSnapshotPayloadFromRoom(roomValue, options) {
-    const room = (roomValue && typeof roomValue === 'object') ? roomValue : {};
-    const opts = (options && typeof options === 'object') ? options : {};
+function buildSnapshotPayloadFromRoom(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    options?: MatchAuthoritySnapshotPayloadFromRoomOptions | null
+): MatchAuthorityRoomPayload {
+    const room: MatchAuthorityRoomState = (roomValue && typeof roomValue === 'object') ? roomValue : {};
+    const opts: MatchAuthoritySnapshotPayloadFromRoomOptions = (options && typeof options === 'object') ? options : {};
     return buildRoomPayloadFromRoom(room, assignOptionalRoomBoardConfig({
         ok: true,
         stateVersion: room.stateVersion,
@@ -798,9 +815,12 @@ function buildSnapshotPayloadFromRoom(roomValue, options) {
     }, opts));
 }
 
-function buildPresencePayloadFromRoom(roomValue, options) {
-    const room = (roomValue && typeof roomValue === 'object') ? roomValue : {};
-    const opts = (options && typeof options === 'object') ? options : {};
+function buildPresencePayloadFromRoom(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    options?: MatchAuthorityPresencePayloadFromRoomOptions | null
+): MatchAuthorityRoomPayload {
+    const room: MatchAuthorityRoomState = (roomValue && typeof roomValue === 'object') ? roomValue : {};
+    const opts: MatchAuthorityPresencePayloadFromRoomOptions = (options && typeof options === 'object') ? options : {};
     return buildRoomPayloadFromRoom(room, assignOptionalRoomBoardConfig({
         ok: true,
         roomDeck: Object.prototype.hasOwnProperty.call(opts, 'roomDeck') ? opts.roomDeck : null,
@@ -814,9 +834,12 @@ function buildPresencePayloadFromRoom(roomValue, options) {
     }, opts));
 }
 
-function buildHeartbeatPayloadFromRoom(roomValue, options) {
-    const room = (roomValue && typeof roomValue === 'object') ? roomValue : {};
-    const opts = (options && typeof options === 'object') ? options : {};
+function buildHeartbeatPayloadFromRoom(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    options?: MatchAuthorityHeartbeatPayloadFromRoomOptions | null
+): MatchAuthorityRoomPayload {
+    const room: MatchAuthorityRoomState = (roomValue && typeof roomValue === 'object') ? roomValue : {};
+    const opts: MatchAuthorityHeartbeatPayloadFromRoomOptions = (options && typeof options === 'object') ? options : {};
     return buildRoomPayloadFromRoom(room, assignOptionalRoomBoardConfig({
         ok: true,
         stateVersion: room.stateVersion,
@@ -827,9 +850,12 @@ function buildHeartbeatPayloadFromRoom(roomValue, options) {
     }, opts));
 }
 
-function buildPublishPayloadFromRoom(roomValue, options) {
-    const room = (roomValue && typeof roomValue === 'object') ? roomValue : {};
-    const opts = (options && typeof options === 'object') ? options : {};
+function buildPublishPayloadFromRoom(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    options?: MatchAuthorityPublishPayloadFromRoomOptions | null
+): MatchAuthorityPublishResponsePayload {
+    const room: MatchAuthorityRoomState = (roomValue && typeof roomValue === 'object') ? roomValue : {};
+    const opts: MatchAuthorityPublishPayloadFromRoomOptions = (options && typeof options === 'object') ? options : {};
     return buildPublishResponsePayload(assignOptionalRoomBoardConfig({
         ok: opts.ok === true,
         roomId: room.roomId || null,
@@ -852,8 +878,12 @@ function buildPublishPayloadFromRoom(roomValue, options) {
     }, opts));
 }
 
-function resolveSeatForJoin(roomValue, requestedSeatKey, providedToken) {
-    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+function resolveSeatForJoin(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    requestedSeatKey: unknown,
+    providedToken: unknown
+): MatchAuthoritySeatKey | null {
+    const room: MatchAuthorityRoomState | null = (roomValue && typeof roomValue === 'object') ? roomValue : null;
     if (!room) return null;
 
     const token = String(providedToken || '').trim();
@@ -881,8 +911,12 @@ function resolveSeatForJoin(roomValue, requestedSeatKey, providedToken) {
     return null;
 }
 
-function applySeatLeaveToRoom(roomValue, seatKeyValue, options) {
-    const room = (roomValue && typeof roomValue === 'object') ? roomValue : null;
+function applySeatLeaveToRoom(
+    roomValue: MatchAuthorityRoomState | null | undefined,
+    seatKeyValue: unknown,
+    options?: MatchAuthoritySeatLeaveOptions | null
+): MatchAuthoritySeatLeaveResult | null {
+    const room: MatchAuthorityRoomState | null = (roomValue && typeof roomValue === 'object') ? roomValue : null;
     const seatKey = parseSeatKeyOptional(seatKeyValue);
     const opts = (options && typeof options === 'object') ? options : {};
     if (!room || !seatKey) return null;
@@ -1156,7 +1190,11 @@ function canViewerInspectOwnerHand(snapshot: { gameState?: Partial<GameState> | 
     return getFateWillControllerKey(snapshot, owner) === viewer;
 }
 
-function projectSnapshotForViewer(snapshotValue: any, viewerSeatKey: PlayerKey | null | undefined, metadata?: { stateVersion?: number | null; updatedAt?: number | null; projectedForSeat?: PlayerKey | null; turnStartReconciled?: boolean }): any {
+function projectSnapshotForViewer(
+    snapshotValue: unknown,
+    viewerSeatKey: PlayerKey | null | undefined,
+    metadata?: MatchAuthorityProjectionMetadata
+): MatchAuthorityPublicSnapshot {
     const shot = deepClone(snapshotValue || {});
     const meta = (metadata && typeof metadata === 'object') ? metadata : {};
     if (Number.isFinite(Number(meta.stateVersion))) {
@@ -1280,7 +1318,10 @@ function projectSnapshotForViewer(snapshotValue: any, viewerSeatKey: PlayerKey |
     return shot;
 }
 
-function buildPublicSnapshot(room, viewerSeatKey) {
+function buildPublicSnapshot(
+    room: MatchAuthorityRoomState | null | undefined,
+    viewerSeatKey: PlayerKey | null | undefined
+): MatchAuthorityPublicSnapshot {
     const shot = projectSnapshotForViewer(room && room.snapshot ? room.snapshot : {}, viewerSeatKey || null, {
         stateVersion: room ? room.stateVersion : 0,
         updatedAt: room ? room.updatedAt : Date.now(),
