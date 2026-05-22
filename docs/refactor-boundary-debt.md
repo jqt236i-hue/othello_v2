@@ -92,6 +92,10 @@ These files still keep `@ts-nocheck` because removing it currently exposes broad
 
 Diagnostic counts were measured by running TypeScript with only the first-line `@ts-nocheck` removed in memory.
 
+Latest focused measurements:
+
+- `cards/card-interaction.ts`: 346 TypeScript diagnostics when removing the remaining top-level `@ts-nocheck` on 2026-05-23. The failures are dominated by browser global adapters, DOM event target narrowing, card-detail state shapes, and implicit UI bridge parameters. This file should be split by extracting a card-detail/global bridge type model before removing the suppression.
+
 ## Next removal conditions
 
 Remove `@ts-nocheck` only after the relevant narrower models exist and the diagnostic count is small enough to review safely.
