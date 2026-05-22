@@ -1,4 +1,3 @@
-// @ts-nocheck
 const global: Record<string, any> = globalThis;
 
 function resolveGlobalRuntimeFunction(name: string) {

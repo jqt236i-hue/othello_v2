@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 64 files.
+Current authorized `@ts-nocheck` debt: 63 files.
 
 Recent reduction:
 
@@ -38,6 +38,7 @@ Recent reduction:
 - `scripts/deploy-lane-model-to-root.ts` no longer uses `@ts-nocheck`; root model deploy args, policy model shape, optional artifact copy results, dry-run summary, and deploy manifest are now typed.
 - `scripts/local-cpu-commentary-server.ts` no longer uses `@ts-nocheck`; its HTTP response writer, request body parser, and error reporting are now typed without changing fallback commentary behavior.
 - `test/cards.equality-will-surfaces.test.ts` no longer uses `@ts-nocheck`; the catalog/help surface regression now typechecks without local suppressions.
+- `test/cpu.turn-handler.commentary.test.ts` no longer uses `@ts-nocheck`; the CPU commentary integration regression now typechecks while preserving its global runtime fixture.
 
 Recent boundary typing:
 
