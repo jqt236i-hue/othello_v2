@@ -4,7 +4,7 @@
     } else {
         root.SpecialStoneRegistry = factory();
     }
-}(typeof self !== 'undefined' ? self : this as Record<string, unknown>, function () {
+}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function () {
     'use strict';
 
     interface SpecialStoneInfo {
@@ -285,3 +285,5 @@
         isOverlayOnlySpecialStoneType
     };
 }));
+
+export {};

@@ -11,7 +11,7 @@
     } else {
         root.DeckSpecHelpers = factory(root.SharedConstants, root.CardCatalog || null);
     }
-}(typeof self !== 'undefined' ? self : this as Record<string, unknown>, function (SharedConstants: unknown, CardCatalog: unknown) {
+}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (SharedConstants: unknown, CardCatalog: unknown) {
     'use strict';
 
     interface CardDef {
@@ -373,3 +373,5 @@
         summarizeDeckSpec
     };
 }));
+
+export {};

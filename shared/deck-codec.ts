@@ -145,3 +145,5 @@
         safeDecodeDeckCode
     };
 }));
+
+export {};

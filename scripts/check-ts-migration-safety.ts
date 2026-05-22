@@ -110,8 +110,7 @@ const allowedNoCheckDebt = new Set([
   'ui.ts',
   'utils/match-runtime-core.ts',
   'utils/owner-helpers.ts',
-  'workers/match-worker-runtime-preload.ts',
-  'workers/match-worker.ts'
+  'workers/match-worker-runtime-preload.ts'
 ]);
 
 function normalizePath(value: string): string {

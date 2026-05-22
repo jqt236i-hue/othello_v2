@@ -1,4 +1,3 @@
-// @ts-nocheck
 import './match-worker-runtime-preload.js';
 import type {
     DurableObjectStateLike,
@@ -55,16 +54,16 @@ import {
 } from './match-worker-contract';
 import deepClone from '../utils/deepClone.js';
 import matchAuthority from '../utils/match-authority.js';
-import networkActionSchemaModule from '../shared/network-action-schema.js';
-import playbackEventHelpersModule from '../shared/playback-event-helpers.js';
+import networkActionSchemaModule = require('../shared/network-action-schema.js');
+import playbackEventHelpersModule = require('../shared/playback-event-helpers.js');
 import sharedConstantsModule from '../shared-constants.js';
-import sharedBoardUtilsModule from '../shared/shared-board-utils.js';
-import deckSpecHelpersModule from '../shared/deck-spec.js';
-import deckCodecModule from '../shared/deck-codec.js';
-import playerEncodingModule from '../shared/player-encoding.js';
-import destroyOutcomeContractModule from '../shared/destroy-outcome-contract.js';
-import stoneStatusSnapshotModule from '../shared/stone-status-snapshot.js';
-import specialStoneRegistryModule from '../shared/special-stone-registry.js';
+import sharedBoardUtilsModule = require('../shared/shared-board-utils.js');
+import deckSpecHelpersModule = require('../shared/deck-spec.js');
+import deckCodecModule = require('../shared/deck-codec.js');
+import playerEncodingModule = require('../shared/player-encoding.js');
+import destroyOutcomeContractModule = require('../shared/destroy-outcome-contract.js');
+import stoneStatusSnapshotModule = require('../shared/stone-status-snapshot.js');
+import specialStoneRegistryModule = require('../shared/special-stone-registry.js');
 import cardRandomSourceModule from '../game/logic/cards-internal/random-source.js';
 import cardStateFactoryModule from '../game/logic/cards-internal/state-factory.js';
 import cardModuleResolverModule from '../game/logic/cards-internal/module-resolver.js';
@@ -82,7 +81,7 @@ import cardStateManagerModule from '../game/cards/state-manager.js';
 import cardEffectResolverModule from '../game/cards/effect-resolver.js';
 import cardTimingProcessorModule from '../game/cards/timing-processor.js';
 import cardTargetResolverModule from '../game/cards/target-resolver.js';
-import cardStatusCellsEffectsModule from '../game/cards/effects/status-cells.js';
+import cardStatusCellsEffectsModule = require('../game/cards/effects/status-cells.js');
 
 const MatchAuthority = matchAuthority || {};
 type MatchWorkerCryptoLike = {
@@ -97,8 +96,8 @@ const SEAT_TOKEN_LENGTH = Number.isFinite(Number(MatchAuthority.SEAT_TOKEN_LENGT
     ? Number(MatchAuthority.SEAT_TOKEN_LENGTH)
     : 24;
 const ROOM_STORAGE_KEY = 'match_room_state_v1';
-const NetworkActionSchema = networkActionSchemaModule || {};
-const PlaybackEventHelpers = playbackEventHelpersModule || {};
+const NetworkActionSchema = asRuntimeModule(networkActionSchemaModule);
+const PlaybackEventHelpers = asRuntimeModule(playbackEventHelpersModule);
 const PLAYER_KEYS = Array.isArray(MatchAuthority.PLAYER_KEYS) ? MatchAuthority.PLAYER_KEYS : Object.freeze(['black', 'white']);
 const CHAT_MAX_LENGTH = 20;
 const CHAT_HISTORY_LIMIT = 40;

@@ -8,7 +8,7 @@
     } else {
         root.PlaybackEventHelpers = factory(root.OwnerHelpers || null);
     }
-}(typeof self !== 'undefined' ? self : this as Record<string, unknown>, function (OwnerHelpers: unknown) {
+}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (OwnerHelpers: unknown) {
     'use strict';
 
     interface PlaceEvent {
@@ -387,3 +387,5 @@
         appendPlaybackEventsAfter
     };
 }));
+
+export {};

@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 85 files.
+Current authorized `@ts-nocheck` debt: 84 files.
 
 Recent reduction:
 
@@ -26,7 +26,7 @@ Recent boundary typing:
 - `utils/match-authority.ts` now uses those room/projection/payload types on the payload-from-room, snapshot projection, join, and leave helper implementations, reducing the untyped surface that must be fixed before removing its `@ts-nocheck`.
 - `utils/match-authority.ts` also now exposes typed accepted-operation history helpers and seat-token authentication helpers through `MatchAuthorityPublicApi`, with implementation annotations for those clusters.
 - `utils/match-authority.ts` now uses typed optional CommonJS adapters for shared board/catalog/hash helpers and typed room/token/seat metadata utility helpers; its no-`@ts-nocheck` diagnostics are now 0 and the file has been removed from the migration safety allowlist.
-- `workers/match-worker-types.ts` now includes Worker room, SSE stream, prepared snapshot, leaderboard store, runtime module, deck preload, turn pipeline adapter, PRNG, Core, CardLogic, playback assembly, publish payload option, snapshot/presence metadata, room deck metadata, room creation, turn timer/timeout, and leaderboard entry boundary types. `workers/match-worker.ts` now declares Durable Object state/room/stream fields, types its initial MatchAuthority proxy helpers, narrows Worker module loaders, and types leaderboard, turn-start, playback assembly, command publish, room deck, snapshot projection, route forwarding, SSE buffering, room creation, turn timer, timeout-pass, join, leave, hand-skin, publish, stream, state, fetch, and chat helper boundaries, reducing its no-`@ts-nocheck` diagnostics from 468 to 10.
+- `workers/match-worker-types.ts` now includes Worker room, SSE stream, prepared snapshot, leaderboard store, runtime module, deck preload, turn pipeline adapter, PRNG, Core, CardLogic, playback assembly, publish payload option, snapshot/presence metadata, room deck metadata, room creation, turn timer/timeout, and leaderboard entry boundary types. `workers/match-worker.ts` now declares Durable Object state/room/stream fields, types its initial MatchAuthority proxy helpers, narrows Worker module loaders, and types leaderboard, turn-start, playback assembly, command publish, room deck, snapshot projection, route forwarding, SSE buffering, room creation, turn timer, timeout-pass, join, leave, hand-skin, publish, stream, state, fetch, and chat helper boundaries. Its UMD-style helper imports now pass through typed CommonJS import adapters, its no-`@ts-nocheck` diagnostics are now 0, and the file has been removed from the migration safety allowlist.
 - `game/ai/cpu-policy-core-types.ts` now includes board, move position, legal move metrics, board-bonus callback, and lookahead search metadata types; its public API signatures now match the runtime `computeLegalMoveMetrics` and `scoreMoveHeuristic` call shapes.
 
 ## Current protected boundaries
@@ -45,7 +45,6 @@ These files still keep `@ts-nocheck` because removing it currently exposes broad
 
 | File | Diagnostics without `@ts-nocheck` | Main categories | Why it remains |
 | --- | ---: | --- | --- |
-| `workers/match-worker.ts` | 10 | non-module UMD imports for shared helper sources and default-import mismatches on UMD-style modules | Worker entrypoints now pass through checked contract assertions, and Durable Object state/room/SSE fields, initial MatchAuthority proxy helpers, Worker preload modules, turn pipeline adapters, leaderboard storage, turn-start helpers, playback assembly, command publish helpers, room deck metadata, snapshot projection, route forwarding, SSE buffering, room creation, timer/timeout, join, leave, hand-skin, publish, stream, state, fetch, and chat helpers are typed. Remaining work is concentrated in converting or adapting UMD-style shared imports so the Worker can be checked without `@ts-nocheck`. |
 | `game/ai/cpu-policy-core.ts` | 407 | implicit parameters, legacy helper arity, nullable search context | Public CPU policy API now passes through a checked adapter; RNG, board, move, legal metric, and lookahead callback shapes are typed, but internal card-decision and search helper bodies still need annotations before full checking is safe. |
 
 Diagnostic counts were measured by running TypeScript with only the first-line `@ts-nocheck` removed in memory.
@@ -54,7 +53,6 @@ Diagnostic counts were measured by running TypeScript with only the first-line `
 
 Remove `@ts-nocheck` only after the relevant narrower models exist and the diagnostic count is small enough to review safely.
 
-1. `workers/match-worker.ts`: reuse the match authority room/publish types for Durable Object storage, route bodies, and response helpers; then type `handlePublish` and stream handling before the whole class.
-2. `game/ai/cpu-policy-core.ts`: reuse the new board/move/metric/search metadata types and add internal `CpuPolicyDecisionContext` plus search result types; then type card selection helpers separately from lookahead search.
+1. `game/ai/cpu-policy-core.ts`: reuse the new board/move/metric/search metadata types and add internal `CpuPolicyDecisionContext` plus search result types; then type card selection helpers separately from lookahead search.
 
 Until those conditions are met, `scripts/check-refactor-safety.ts` should keep preventing new `@ts-nocheck` in high-risk targets and keep requiring each public boundary to route exports through checked contract adapters or assertions outside the legacy implementation body.

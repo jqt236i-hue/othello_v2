@@ -8,7 +8,7 @@
     } else {
         root.StoneStatusSnapshot = factory(root.SpecialStoneRegistry || null);
     }
-}(typeof self !== 'undefined' ? self : this as Record<string, unknown>, function (SpecialStoneRegistry: unknown) {
+}(typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>, function (SpecialStoneRegistry: unknown) {
     'use strict';
 
     interface SpecialStoneInfo {
@@ -307,3 +307,5 @@
         resolveStoneVisualStatusFromMarkers
     };
 }));
+
+export {};

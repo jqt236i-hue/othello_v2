@@ -15,7 +15,7 @@
     } else {
         root.SharedBoardUtils = factory(root.SharedConstants, null, null);
     }
-}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown) {
+}(typeof globalThis !== 'undefined' ? globalThis : (typeof self !== 'undefined' ? self : this as unknown as Record<string, unknown>), function (SharedConstants: unknown, BoardUtilsModule: unknown, OthelloCoreModule: unknown) {
     'use strict';
 
     interface BoardConfig {
@@ -1700,3 +1700,5 @@
         toBoardCellKey
     };
 }));
+
+export {};
