@@ -37,6 +37,14 @@ const requiredAuthorityTypedFunctions = [
   'getBufferedSseReplayEvents'
 ];
 
+const requiredCpuPolicyContractTypes = [
+  'CpuPolicyCoreApi',
+  'CpuPolicyMove',
+  'CpuPolicyCardDefinition',
+  'CpuPolicyCardCostResolver',
+  'CpuPolicyCardDefinitionResolver'
+];
+
 function readSource(relativePath: string): string {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
 }
@@ -83,6 +91,37 @@ for (const functionName of requiredAuthorityTypedFunctions) {
       message: `public boundary function ${functionName} must keep typed parameters and return type`
     });
   }
+}
+
+const cpuPolicyTypesPath = 'game/ai/cpu-policy-core-types.ts';
+const cpuPolicyTypes = readSource(cpuPolicyTypesPath);
+for (const typeName of requiredCpuPolicyContractTypes) {
+  if (!new RegExp(`export\\s+interface\\s+${typeName}\\b|export\\s+type\\s+${typeName}\\b`).test(cpuPolicyTypes)) {
+    findings.push({
+      file: cpuPolicyTypesPath,
+      message: `missing exported CPU policy contract type ${typeName}`
+    });
+  }
+}
+
+const cpuPolicySource = readSource('game/ai/cpu-policy-core.ts');
+if (!/from\s+['"]\.\/cpu-policy-core-types['"]/.test(cpuPolicySource)) {
+  findings.push({
+    file: 'game/ai/cpu-policy-core.ts',
+    message: 'CPU policy core must import its public API contract types'
+  });
+}
+if (!/const\s+cpuPolicyCoreApi\s*:\s*CpuPolicyCoreApi\s*=/.test(cpuPolicySource)) {
+  findings.push({
+    file: 'game/ai/cpu-policy-core.ts',
+    message: 'CPU policy core module.exports must be routed through CpuPolicyCoreApi'
+  });
+}
+if (!/module\.exports\s*=\s*cpuPolicyCoreApi\s*;/.test(cpuPolicySource)) {
+  findings.push({
+    file: 'game/ai/cpu-policy-core.ts',
+    message: 'CPU policy core must export the typed API object directly'
+  });
 }
 
 if (findings.length > 0) {
