@@ -7,26 +7,34 @@ import type {
     MatchRoomDurableObjectApi,
     MatchWorkerEntrypoint,
     MatchWorkerDeckGlobals,
+    MatchWorkerDeckSelection,
+    MatchWorkerEnv,
     MatchWorkerLeaderboardEntry,
     MatchWorkerLeaderboardMode,
     MatchWorkerLeaderboardStore,
     MatchWorkerPlaybackAdapter,
     MatchWorkerPlaybackAssembly,
     MatchWorkerPlaybackDiagnostics,
+    MatchWorkerParsedChatMessage,
     MatchWorkerPreparedSnapshotBroadcast,
     MatchWorkerPrng,
     MatchWorkerPublicSnapshot,
     MatchWorkerPublishPayloadOptions,
+    MatchWorkerPresencePayloadMeta,
     MatchWorkerRoomState,
     MatchWorkerRuntimeModule,
     MatchWorkerSeededPrngModule,
+    MatchWorkerSeatValueMap,
     MatchWorkerSseStreamInfo,
     MatchWorkerTurnPipelinePhasesModule,
     MatchWorkerTurnPipelineModule,
     MatchWorkerTurnPipelineModules,
     MatchWorkerTurnPipelineSafeResult,
+    MatchWorkerSnapshotPayloadMeta,
+    MatchWorkerTurnStartOptions,
     MatchWorkerTurnStartHandState,
-    MatchWorkerTurnStartModules
+    MatchWorkerTurnStartModules,
+    MatchWorkerRoomDeckMetadata
 } from './match-worker-types';
 import type {
     MatchAuthorityAcceptedOperationsBySeat,
@@ -370,8 +378,8 @@ function ensureWorkerDeckGlobals(): Promise<MatchWorkerDeckGlobals> {
             importWorkerGlobal('../shared/deck-spec.js', 'DeckSpecHelpers'),
             importWorkerGlobal('../shared/deck-codec.js', 'DeckCodecModule')
         ]).then(([, deckSpecHelpers, deckCodecModule]) => ({
-            deckSpecHelpers: asRuntimeModule(deckSpecHelpers),
-            deckCodecModule: asRuntimeModule(deckCodecModule)
+            deckSpecHelpers: asRuntimeModule(deckSpecHelpers) as MatchWorkerDeckGlobals['deckSpecHelpers'],
+            deckCodecModule: asRuntimeModule(deckCodecModule) as MatchWorkerDeckGlobals['deckCodecModule']
         }));
     }
     return workerDeckGlobalsPromise as Promise<MatchWorkerDeckGlobals>;
@@ -1340,29 +1348,31 @@ async function applyCommandPublishToSnapshot(
     };
 }
 
-async function reconcileTurnStartIfNeeded(room, snapshot, options) {
-    const opts = (options && typeof options === 'object') ? options : {};
-    if (!snapshot || !snapshot.gameState || !snapshot.cardState) return opts.includeRawEvents ? [] : snapshot;
+async function reconcileTurnStartIfNeeded(room: MatchWorkerRoomState | null | undefined, snapshot: unknown, options?: MatchWorkerTurnStartOptions | null): Promise<unknown[] | unknown> {
+    const opts = asRecord(options);
+    const snapshotRecord = asWorkerSnapshot(snapshot);
+    if (!snapshotRecord.gameState || !snapshotRecord.cardState) return opts.includeRawEvents ? [] : snapshot;
 
-    const currentPlayerKey = getCurrentPlayerKey(snapshot.gameState);
-    const lastTurnStartedFor = parseSeatKeyOptional(snapshot.cardState.lastTurnStartedFor);
+    const cardStateRecord = asRecord(snapshotRecord.cardState);
+    const currentPlayerKey = getCurrentPlayerKey(snapshotRecord.gameState);
+    const lastTurnStartedFor = parseSeatKeyOptional(cardStateRecord.lastTurnStartedFor);
     if (lastTurnStartedFor === currentPlayerKey) {
         return opts.includeRawEvents ? [] : snapshot;
     }
 
     const { Core, CardLogic, TurnPipelinePhases, SeededPRNG } = await loadTurnStartModules();
-    if (typeof Core.isGameOver === 'function' && Core.isGameOver(snapshot.gameState)) {
+    if (typeof Core.isGameOver === 'function' && Core.isGameOver(snapshotRecord.gameState)) {
         return opts.includeRawEvents ? [] : snapshot;
     }
 
     normalizeCardStateForWorkerTurnStart(room, snapshot, CardLogic, SeededPRNG);
     const prng = createWorkerTurnStartPrng(room, snapshot, currentPlayerKey, SeededPRNG);
-    const turnStartEvents = [];
+    const turnStartEvents: unknown[] = [];
     TurnPipelinePhases.applyTurnStartPhase(
         CardLogic,
         Core,
-        snapshot.cardState,
-        snapshot.gameState,
+        snapshotRecord.cardState,
+        snapshotRecord.gameState,
         currentPlayerKey,
         turnStartEvents,
         prng
@@ -1370,52 +1380,50 @@ async function reconcileTurnStartIfNeeded(room, snapshot, options) {
     return opts.includeRawEvents ? turnStartEvents : snapshot;
 }
 
-function cloneSnapshotWithVersion(room) {
-    const shot = deepClone(room && room.snapshot ? room.snapshot : {});
+function cloneSnapshotWithVersion(room: MatchWorkerRoomState | null | undefined): MatchWorkerPublicSnapshot {
+    const shot = deepClone(room && room.snapshot ? room.snapshot : {}) as MatchWorkerPublicSnapshot;
     shot.stateVersion = room ? room.stateVersion : 0;
     shot.updatedAt = room ? room.updatedAt : Date.now();
     return shot;
 }
 
-function canViewerInspectOwnerHandForProjection(snapshot, viewerSeatKey, ownerSeatKey) {
+function canViewerInspectOwnerHandForProjection(snapshot: unknown, viewerSeatKey: unknown, ownerSeatKey: unknown): boolean {
     const viewer = parseSeatKeyOptional(viewerSeatKey);
     const owner = parseSeatKeyOptional(ownerSeatKey);
     if (!viewer || !owner) return false;
     if (viewer === owner) return true;
-    const gameState = (snapshot && snapshot.gameState && typeof snapshot.gameState === 'object')
-        ? snapshot.gameState
-        : null;
+    const snapshotRecord = asWorkerSnapshot(snapshot);
+    const gameState = snapshotRecord.gameState || null;
     const currentPlayerKey = getCurrentPlayerKey(gameState);
     if (owner !== currentPlayerKey) return false;
-    const cardState = (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object')
-        ? snapshot.cardState
-        : null;
-    const controllerMap = (cardState && cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
-        ? cardState.fateWillControllerByTurnOwner
+    const cardState = asRecord(snapshotRecord.cardState);
+    const controllerMap = (cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
+        ? asRecord(cardState.fateWillControllerByTurnOwner)
         : {};
     return parseSeatKeyOptional(controllerMap[owner]) === viewer;
 }
 
-function projectSnapshotForViewer(room, viewerSeatKey) {
+function projectSnapshotForViewer(room: MatchWorkerRoomState | null | undefined, viewerSeatKey: unknown): MatchWorkerPublicSnapshot {
     const shot = cloneSnapshotWithVersion(room);
     if (!shot || typeof shot !== 'object') return shot;
 
-    const cardState = (shot.cardState && typeof shot.cardState === 'object') ? shot.cardState : null;
+    const cardState = (shot.cardState && typeof shot.cardState === 'object') ? asRecord(shot.cardState) : null;
     if (!cardState) return shot;
 
     const viewer = parseSeatKeyOptional(viewerSeatKey);
-    const hands = (cardState.hands && typeof cardState.hands === 'object') ? cardState.hands : {};
-    const sourceHands = {};
+    const hands = (cardState.hands && typeof cardState.hands === 'object') ? asRecord(cardState.hands) : {};
+    const sourceHands: Partial<Record<MatchAuthoritySeatKey, unknown[]>> = {};
     cardState.hands = cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {};
+    const projectedHands = asRecord(cardState.hands);
 
-    for (const ownerKey of PLAYER_KEYS) {
+    for (const ownerKey of PLAYER_KEYS as MatchAuthoritySeatKey[]) {
         const ownerHand = Array.isArray(hands[ownerKey]) ? hands[ownerKey].slice() : [];
         sourceHands[ownerKey] = ownerHand;
         if (canViewerInspectOwnerHandForProjection(shot, viewer, ownerKey)) {
-            cardState.hands[ownerKey] = ownerHand.slice();
+            projectedHands[ownerKey] = ownerHand.slice();
             continue;
         }
-        cardState.hands[ownerKey] = ownerHand.map((_, handIndex) => makeHiddenHandToken(ownerKey, handIndex));
+        projectedHands[ownerKey] = ownerHand.map((_, handIndex) => makeHiddenHandToken(ownerKey, handIndex));
     }
 
     const selectedOwnerKey = parseSeatKeyOptional(cardState.selectedCardOwnerKey);
@@ -1426,16 +1434,18 @@ function projectSnapshotForViewer(room, viewerSeatKey) {
     }
 
     if (cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object') {
-        for (const ownerKey of PLAYER_KEYS) {
-            const pending = cardState.pendingEffectByPlayer[ownerKey];
+        const pendingEffectByPlayer = asRecord(cardState.pendingEffectByPlayer);
+        for (const ownerKey of PLAYER_KEYS as MatchAuthoritySeatKey[]) {
+            const pending = asRecord(pendingEffectByPlayer[ownerKey]);
             if (!pending || pending.type !== 'CONDEMN_WILL' || !Array.isArray(pending.offers)) continue;
             const opponentKey = getOpponentKey(ownerKey);
             const opponentHand = Array.isArray(sourceHands[opponentKey]) ? sourceHands[opponentKey] : [];
             const revealToViewer = canViewerInspectOwnerHandForProjection(shot, viewer, ownerKey);
-            pending.offers = pending.offers.map((offer, idx) => {
-                const parsedToken = offer && offer.cardId ? parseHiddenHandToken(offer.cardId) : null;
-                const fallbackIndex = parsedToken && Number.isInteger(parsedToken.handIndex) ? parsedToken.handIndex : idx;
-                const handIndex = (offer && Number.isInteger(offer.handIndex)) ? offer.handIndex : fallbackIndex;
+            pending.offers = pending.offers.map((offer: unknown, idx: number) => {
+                const offerRecord = asRecord(offer);
+                const parsedToken = offerRecord.cardId ? asRecord(parseHiddenHandToken(offerRecord.cardId)) : {};
+                const fallbackIndex = Number.isInteger(parsedToken.handIndex) ? Number(parsedToken.handIndex) : idx;
+                const handIndex = Number.isInteger(offerRecord.handIndex) ? Number(offerRecord.handIndex) : fallbackIndex;
                 if (revealToViewer) {
                     const visibleCardId = (Number.isInteger(handIndex) && handIndex >= 0 && handIndex < opponentHand.length)
                         ? opponentHand[handIndex]
@@ -1496,33 +1506,33 @@ function toPublicSeatHandSkins(room) {
     return buildPublicSeatState(room).seatHandSkins;
 }
 
-function normalizeDeckSizeValue(value) {
+function normalizeDeckSizeValue(value: unknown): number | null {
     if (value === null || typeof value === 'undefined' || value === '') return null;
     return Number.isFinite(Number(value))
         ? Math.max(0, Math.trunc(Number(value)))
         : null;
 }
 
-function cloneInitialDeckSpecByPlayer(value) {
-    const source = (value && typeof value === 'object') ? value : {};
+function cloneInitialDeckSpecByPlayer(value: unknown): MatchWorkerSeatValueMap<unknown | null> {
+    const source = asRecord(value);
     return {
         black: (source.black && typeof source.black === 'object') ? deepClone(source.black) : null,
         white: (source.white && typeof source.white === 'object') ? deepClone(source.white) : null
     };
 }
 
-function normalizeRoomDeckMetadata(value) {
-    const source = (value && typeof value === 'object') ? value : null;
+function normalizeRoomDeckMetadata(value: unknown): MatchWorkerRoomDeckMetadata | null {
+    const source = (value && typeof value === 'object') ? asRecord(value) : null;
     if (!source) return null;
 
     const mode = String(source.mode || '').trim();
     const sharedDeckCode = String(source.deckCode || '').trim();
     const sharedDeckSize = normalizeDeckSizeValue(source.deckSize);
     const deckCodeByPlayerSource = (source.deckCodeByPlayer && typeof source.deckCodeByPlayer === 'object')
-        ? source.deckCodeByPlayer
+        ? asRecord(source.deckCodeByPlayer)
         : null;
     const deckSizeByPlayerSource = (source.deckSizeByPlayer && typeof source.deckSizeByPlayer === 'object')
-        ? source.deckSizeByPlayer
+        ? asRecord(source.deckSizeByPlayer)
         : null;
     const hasExplicitPerPlayerData = !!(deckCodeByPlayerSource || deckSizeByPlayerSource);
     const deckCodeByPlayer = {
@@ -1553,11 +1563,11 @@ function normalizeRoomDeckMetadata(value) {
     }
 
     return {
-        mode: (mode === 'shared' && (sharedDeckCode || sharedDeckSize !== null))
+        mode: ((mode === 'shared' && (sharedDeckCode || sharedDeckSize !== null))
             ? 'shared'
             : ((mode === 'perPlayer' || hasExplicitPerPlayerData)
                 ? 'perPlayer'
-                : ((sharedDeckCode || sharedDeckSize !== null) ? 'shared' : 'perPlayer')),
+                : ((sharedDeckCode || sharedDeckSize !== null) ? 'shared' : 'perPlayer'))) as MatchWorkerRoomDeckMetadata['mode'],
         source: String(source.source || 'room').trim() || 'room',
         deckCode: sharedDeckCode,
         deckSize: sharedDeckSize,
@@ -1566,7 +1576,7 @@ function normalizeRoomDeckMetadata(value) {
     };
 }
 
-function hasRoomDeckMetadataEntries(value) {
+function hasRoomDeckMetadataEntries(value: unknown): boolean {
     const metadata = normalizeRoomDeckMetadata(value);
     if (!metadata) return false;
 
@@ -1601,7 +1611,7 @@ function buildInitialDeckSnapshotOptions(value: unknown): Record<string, unknown
     return options;
 }
 
-function getRoomInitialDeckSpecByPlayer(room) {
+function getRoomInitialDeckSpecByPlayer(room: MatchWorkerRoomState | null | undefined): MatchWorkerSeatValueMap<unknown | null> {
     const initialDeckSpecByPlayer = cloneInitialDeckSpecByPlayer(room && room.initialDeckSpecByPlayer);
     if (initialDeckSpecByPlayer.black || initialDeckSpecByPlayer.white) {
         return initialDeckSpecByPlayer;
@@ -1620,16 +1630,17 @@ function getRoomInitialDeckSpecByPlayer(room) {
     };
 }
 
-function assignRoomDeckSelection(room, seatKey, deckSelection) {
+function assignRoomDeckSelection(room: MatchWorkerRoomState | null | undefined, seatKey: unknown, deckSelection: MatchWorkerDeckSelection | null | undefined): void {
     if (!room || !deckSelection || deckSelection.hasCustomDeck !== true) return;
 
     const normalizedSeatKey = normalizePlayerKey(seatKey);
+    if (!normalizedSeatKey) return;
     const initialDeckSpecByPlayer = getRoomInitialDeckSpecByPlayer(room);
     initialDeckSpecByPlayer[normalizedSeatKey] = deepClone(deckSelection.deckSpec);
     room.initialDeckSpecByPlayer = initialDeckSpecByPlayer;
     room.initialDeckSpec = null;
 
-    const roomDeck = normalizeRoomDeckMetadata(room.roomDeck) || {
+    const roomDeck: MatchWorkerRoomDeckMetadata = normalizeRoomDeckMetadata(room.roomDeck) || {
         mode: 'perPlayer',
         source: 'room',
         deckCode: '',
@@ -1650,27 +1661,22 @@ function assignRoomDeckSelection(room, seatKey, deckSelection) {
     room.roomDeck = hasRoomDeckMetadataEntries(roomDeck) ? roomDeck : null;
 }
 
-function toPublicRoomDeck(room) {
+function toPublicRoomDeck(room: MatchWorkerRoomState | null | undefined): Record<string, unknown> | null {
     const metadata = normalizeRoomDeckMetadata(room && room.roomDeck);
+    const snapshot = asWorkerSnapshot(room && room.snapshot);
+    const cardState = asRecord(snapshot.cardState);
+    const initialDeckSizeByPlayer = asRecord(cardState.initialDeckSizeByPlayer);
     const snapshotDeckSizes = {
         black: normalizeDeckSizeValue(
-            room
-            && room.snapshot
-            && room.snapshot.cardState
-            && room.snapshot.cardState.initialDeckSizeByPlayer
-            && room.snapshot.cardState.initialDeckSizeByPlayer.black
+            initialDeckSizeByPlayer.black
         ),
         white: normalizeDeckSizeValue(
-            room
-            && room.snapshot
-            && room.snapshot.cardState
-            && room.snapshot.cardState.initialDeckSizeByPlayer
-            && room.snapshot.cardState.initialDeckSizeByPlayer.white
+            initialDeckSizeByPlayer.white
         )
     };
     const snapshotDeckSize = snapshotDeckSizes.black !== null
         ? snapshotDeckSizes.black
-        : normalizeDeckSizeValue(room && room.snapshot && room.snapshot.cardState && room.snapshot.cardState.initialDeckSize);
+        : normalizeDeckSizeValue(cardState.initialDeckSize);
 
     if (metadata && metadata.mode === 'perPlayer') {
         const deckCodeByPlayer = {
@@ -1708,33 +1714,37 @@ function toPublicRoomDeck(room) {
     };
 }
 
-function toPublicRoomBoardConfig(room) {
+function toPublicRoomBoardConfig(room: MatchWorkerRoomState | null | undefined): unknown {
     return MatchAuthority.resolveRoomBoardConfig(room);
 }
 
-function toPublicNetworkDebugEnabled(room) {
+function toPublicNetworkDebugEnabled(room: MatchWorkerRoomState | null | undefined): boolean {
     return !!(room && room.networkDebugEnabled === true);
 }
 
-function toPublicChatMessages(room) {
-    const messages = Array.isArray(room && room.chatMessages) ? room.chatMessages : [];
-    return messages.map((entry) => ({
-        id: Number.isFinite(Number(entry && entry.id)) ? Number(entry.id) : 0,
-        seatKey: normalizePlayerKey(entry && entry.seatKey),
-        text: String(entry && entry.text ? entry.text : ''),
-        serverTime: Number.isFinite(Number(entry && entry.serverTime)) ? Number(entry.serverTime) : Date.now()
-    }));
+function toPublicChatMessages(room: MatchWorkerRoomState | null | undefined): Array<Record<string, unknown>> {
+    const messages: unknown[] = Array.isArray(room?.chatMessages) ? room.chatMessages : [];
+    return messages.map((entry) => {
+        const entryRecord = asRecord(entry);
+        return {
+            id: Number.isFinite(Number(entryRecord.id)) ? Number(entryRecord.id) : 0,
+            seatKey: normalizePlayerKey(entryRecord.seatKey),
+            text: String(entryRecord.text ? entryRecord.text : ''),
+            serverTime: Number.isFinite(Number(entryRecord.serverTime)) ? Number(entryRecord.serverTime) : Date.now()
+        };
+    });
 }
 
-function hasTwoActiveSeats(room) {
+function hasTwoActiveSeats(room: MatchWorkerRoomState | null | undefined): boolean {
     return !!(room && room.seats && room.seats.black && room.seats.white);
 }
 
-function resolveTurnSeatKey(room) {
-    return getCurrentPlayerKey(room && room.snapshot && room.snapshot.gameState);
+function resolveTurnSeatKey(room: MatchWorkerRoomState | null | undefined): MatchAuthoritySeatKey {
+    const snapshot = asWorkerSnapshot(room && room.snapshot);
+    return getCurrentPlayerKey(snapshot.gameState);
 }
 
-function createPausedTurnTimer(room) {
+function createPausedTurnTimer(room: MatchWorkerRoomState | null | undefined): Record<string, unknown> {
     return {
         limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
         active: false,
@@ -1744,7 +1754,7 @@ function createPausedTurnTimer(room) {
     };
 }
 
-function createActiveTurnTimer(room, nowMs) {
+function createActiveTurnTimer(room: MatchWorkerRoomState | null | undefined, nowMs: unknown): Record<string, unknown> {
     const now = Number.isFinite(Number(nowMs)) ? Math.max(0, Math.trunc(Number(nowMs))) : Date.now();
     return {
         limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
@@ -1755,9 +1765,9 @@ function createActiveTurnTimer(room, nowMs) {
     };
 }
 
-function areTurnTimersEqual(a, b) {
-    const left = (a && typeof a === 'object') ? a : {};
-    const right = (b && typeof b === 'object') ? b : {};
+function areTurnTimersEqual(a: unknown, b: unknown): boolean {
+    const left = asRecord(a);
+    const right = asRecord(b);
     const leftSeat = parseSeatKeyOptional(left.turnSeatKey) || 'black';
     const rightSeat = parseSeatKeyOptional(right.turnSeatKey) || 'black';
     const leftStarted = Number.isFinite(Number(left.turnStartedAt)) ? Number(left.turnStartedAt) : null;
@@ -1774,24 +1784,25 @@ function areTurnTimersEqual(a, b) {
     );
 }
 
-function toPublicTurnTimer(room, nowMs) {
+function toPublicTurnTimer(room: MatchWorkerRoomState | null | undefined, nowMs: unknown): Record<string, unknown> {
     const timer = (room && room.turnTimer && typeof room.turnTimer === 'object') ? room.turnTimer : null;
+    const timerRecord = asRecord(timer);
     const serverNow = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
-    const deadline = timer && Number.isFinite(Number(timer.turnDeadlineAt)) ? Number(timer.turnDeadlineAt) : null;
-    const startedAt = timer && Number.isFinite(Number(timer.turnStartedAt)) ? Number(timer.turnStartedAt) : null;
-    const active = !!(timer && timer.active === true && deadline !== null);
+    const deadline = timer && Number.isFinite(Number(timerRecord.turnDeadlineAt)) ? Number(timerRecord.turnDeadlineAt) : null;
+    const startedAt = timer && Number.isFinite(Number(timerRecord.turnStartedAt)) ? Number(timerRecord.turnStartedAt) : null;
+    const active = !!(timer && timerRecord.active === true && deadline !== null);
 
     return {
         limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
         active,
-        turnSeatKey: parseSeatKeyOptional(timer && timer.turnSeatKey) || resolveTurnSeatKey(room),
+        turnSeatKey: parseSeatKeyOptional(timerRecord.turnSeatKey) || resolveTurnSeatKey(room),
         turnStartedAt: active ? startedAt : null,
         turnDeadlineAt: active ? deadline : null,
         remainingMs: active && deadline !== null ? Math.max(0, Math.trunc(deadline - serverNow)) : null
     };
 }
 
-function parseChatMessageText(value) {
+function parseChatMessageText(value: unknown): MatchWorkerParsedChatMessage {
     const normalized = String(value || '').replace(/[\r\n]+/g, ' ').trim();
     if (!normalized) {
         return { ok: false, reason: 'MESSAGE_REQUIRED' };
@@ -1803,8 +1814,9 @@ function parseChatMessageText(value) {
     return { ok: true, text: chars.join('') };
 }
 
-function buildSnapshotPayload(room, meta, viewerSeatKey) {
+function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnapshotPayloadMeta | null | undefined, viewerSeatKey: unknown): Record<string, unknown> {
     const serverTime = Date.now();
+    const metaRecord = asRecord(meta);
     if (MatchAuthority && typeof MatchAuthority.buildSnapshotPayloadFromRoom === 'function') {
         return MatchAuthority.buildSnapshotPayloadFromRoom(room, {
             snapshot: toPublicSnapshot(room, viewerSeatKey),
@@ -1812,12 +1824,12 @@ function buildSnapshotPayload(room, meta, viewerSeatKey) {
             roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
             turnTimer: toPublicTurnTimer(room, serverTime),
-            playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
-            effectLogs: normalizeEffectLogMessages(meta && meta.effectLogs),
-            playbackDiagnostics: toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
-            operationId: meta && meta.operationId ? String(meta.operationId) : null,
-            playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
-            actionType: meta && meta.actionType ? String(meta.actionType) : null,
+            playbackEvents: Array.isArray(metaRecord.playbackEvents) ? metaRecord.playbackEvents : [],
+            effectLogs: normalizeEffectLogMessages(metaRecord.effectLogs),
+            playbackDiagnostics: toDebugPlaybackDiagnostics(metaRecord.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
+            operationId: metaRecord.operationId ? String(metaRecord.operationId) : null,
+            playerKey: metaRecord.playerKey ? normalizePlayerKey(metaRecord.playerKey) : null,
+            actionType: metaRecord.actionType ? String(metaRecord.actionType) : null,
             serverTime
         });
     }
@@ -1830,26 +1842,27 @@ function buildSnapshotPayload(room, meta, viewerSeatKey) {
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
-        playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
-        effectLogs: normalizeEffectLogMessages(meta && meta.effectLogs),
-        playbackDiagnostics: toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
-        operationId: meta && meta.operationId ? String(meta.operationId) : null,
-        playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
-        actionType: meta && meta.actionType ? String(meta.actionType) : null,
+        playbackEvents: Array.isArray(metaRecord.playbackEvents) ? metaRecord.playbackEvents : [],
+        effectLogs: normalizeEffectLogMessages(metaRecord.effectLogs),
+        playbackDiagnostics: toDebugPlaybackDiagnostics(metaRecord.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
+        operationId: metaRecord.operationId ? String(metaRecord.operationId) : null,
+        playerKey: metaRecord.playerKey ? normalizePlayerKey(metaRecord.playerKey) : null,
+        actionType: metaRecord.actionType ? String(metaRecord.actionType) : null,
         serverTime
     });
 }
 
-function buildPresencePayload(room, meta) {
+function buildPresencePayload(room: MatchWorkerRoomState, meta: MatchWorkerPresencePayloadMeta | null | undefined): Record<string, unknown> {
     const serverTime = Date.now();
-    const seatKey = meta && meta.seatKey ? normalizePlayerKey(meta.seatKey) : 'black';
+    const metaRecord = asRecord(meta);
+    const seatKey = metaRecord.seatKey ? normalizePlayerKey(metaRecord.seatKey) : 'black';
     const publicSeatState = buildPublicSeatState(room);
     if (MatchAuthority && typeof MatchAuthority.buildPresencePayloadFromRoom === 'function') {
         return MatchAuthority.buildPresencePayloadFromRoom(room, {
-            type: meta && meta.type ? String(meta.type) : 'join',
+            type: metaRecord.type ? String(metaRecord.type) : 'join',
             seatKey,
             playerName: normalizeNetworkPlayerName(publicSeatState.seatNames[seatKey]),
-            rejoined: !!(meta && meta.rejoined),
+            rejoined: !!metaRecord.rejoined,
             roomDeck: toPublicRoomDeck(room),
             roomBoardConfig: toPublicRoomBoardConfig(room),
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
@@ -1860,10 +1873,10 @@ function buildPresencePayload(room, meta) {
     return withPublicSeatState(room, {
         ok: true,
         roomId: room.roomId,
-        type: meta && meta.type ? String(meta.type) : 'join',
+        type: metaRecord.type ? String(metaRecord.type) : 'join',
         seatKey,
         playerName: normalizeNetworkPlayerName(publicSeatState.seatNames[seatKey]),
-        rejoined: !!(meta && meta.rejoined),
+        rejoined: !!metaRecord.rejoined,
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
@@ -1872,7 +1885,7 @@ function buildPresencePayload(room, meta) {
     });
 }
 
-function buildHeartbeatPayload(room, serverTime) {
+function buildHeartbeatPayload(room: MatchWorkerRoomState, serverTime: unknown): Record<string, unknown> {
     if (MatchAuthority && typeof MatchAuthority.buildHeartbeatPayloadFromRoom === 'function') {
         return MatchAuthority.buildHeartbeatPayloadFromRoom(room, {
             roomDeck: toPublicRoomDeck(room),
@@ -1894,30 +1907,32 @@ function buildHeartbeatPayload(room, serverTime) {
     });
 }
 
-function resolveSeatForJoin(room, requestedSeatKey, providedToken) {
+function resolveSeatForJoin(room: MatchWorkerRoomState, requestedSeatKey: unknown, providedToken: unknown): MatchAuthoritySeatKey | null {
     if (MatchAuthority && typeof MatchAuthority.resolveSeatForJoin === 'function') {
         return MatchAuthority.resolveSeatForJoin(room, requestedSeatKey, providedToken);
     }
     const token = String(providedToken || '').trim();
     const requested = parseSeatKeyOptional(requestedSeatKey);
+    const seats = room.seats || {};
+    const seatTokens = room.seatTokens || {};
 
     if (requested) {
-        if (token && room.seatTokens && room.seatTokens[requested] === token) return requested;
-        if (!room.seats[requested]) return requested;
+        if (token && seatTokens[requested] === token) return requested;
+        if (!seats[requested]) return requested;
         return null;
     }
 
-    if (token && room.seatTokens) {
-        if (room.seatTokens.black === token) return 'black';
-        if (room.seatTokens.white === token) return 'white';
+    if (token) {
+        if (seatTokens.black === token) return 'black';
+        if (seatTokens.white === token) return 'white';
     }
 
-    if (!room.seats.black) return 'black';
-    if (!room.seats.white) return 'white';
+    if (!seats.black) return 'black';
+    if (!seats.white) return 'white';
     return null;
 }
 
-function sseChunk(eventName, payload, eventId) {
+function sseChunk(eventName: unknown, payload: unknown, eventId?: unknown): string {
     const data = JSON.stringify(payload || {});
     const hasEventId = !(eventId === null || typeof eventId === 'undefined' || String(eventId) === '');
     const idLine = hasEventId ? `id: ${String(eventId)}\n` : '';
@@ -1925,16 +1940,17 @@ function sseChunk(eventName, payload, eventId) {
     return `${idLine}${eventLine}data: ${data}\n\n`;
 }
 
-function getRoomStub(env, roomId) {
+function getRoomStub(env: MatchWorkerEnv, roomId: string) {
+    if (!env.MATCH_ROOM) throw new Error('MATCH_ROOM binding is required');
     const doId = env.MATCH_ROOM.idFromName(roomId);
     return env.MATCH_ROOM.get(doId);
 }
 
-function getLeaderboardStub(env) {
+function getLeaderboardStub(env: MatchWorkerEnv) {
     return getRoomStub(env, LEADERBOARD_ROOM_ID);
 }
 
-async function forwardJsonToRoom(env, roomId, pathname, payload) {
+async function forwardJsonToRoom(env: MatchWorkerEnv, roomId: string, pathname: string, payload: unknown): Promise<Response> {
     const stub = getRoomStub(env, roomId);
     const req = new Request(`https://room${pathname}`, {
         method: 'POST',
@@ -1945,7 +1961,7 @@ async function forwardJsonToRoom(env, roomId, pathname, payload) {
     return withCORS(response);
 }
 
-async function forwardGetToRoom(env, roomId, pathname, sourceUrl) {
+async function forwardGetToRoom(env: MatchWorkerEnv, roomId: string, pathname: string, sourceUrl: string): Promise<Response> {
     const stub = getRoomStub(env, roomId);
     const urlObj = new URL(sourceUrl);
     const target = new URL(`https://room${pathname}`);
@@ -1959,7 +1975,7 @@ async function forwardGetToRoom(env, roomId, pathname, sourceUrl) {
     return withCORS(response);
 }
 
-async function forwardJsonToLeaderboard(env, pathname, payload) {
+async function forwardJsonToLeaderboard(env: MatchWorkerEnv, pathname: string, payload: unknown): Promise<Response> {
     const stub = getLeaderboardStub(env);
     const req = new Request(`https://room${pathname}`, {
         method: 'POST',
@@ -1970,7 +1986,7 @@ async function forwardJsonToLeaderboard(env, pathname, payload) {
     return withCORS(response);
 }
 
-async function forwardGetToLeaderboard(env, pathname, sourceUrl) {
+async function forwardGetToLeaderboard(env: MatchWorkerEnv, pathname: string, sourceUrl: string): Promise<Response> {
     const stub = getLeaderboardStub(env);
     const urlObj = new URL(sourceUrl);
     const target = new URL(`https://room${pathname}`);

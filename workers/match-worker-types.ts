@@ -127,8 +127,46 @@ export interface MatchWorkerSeededPrngModule extends MatchWorkerRuntimeModule {
 }
 
 export interface MatchWorkerDeckGlobals {
-    deckSpecHelpers: MatchWorkerRuntimeModule;
-    deckCodecModule: MatchWorkerRuntimeModule;
+    deckSpecHelpers: MatchWorkerDeckSpecHelpersModule;
+    deckCodecModule: MatchWorkerDeckCodecModule;
+}
+
+export interface MatchWorkerDeckSpecHelpersModule extends MatchWorkerRuntimeModule {
+    normalizeDeckSpec(deckSpec: unknown): unknown;
+    summarizeDeckSpec(deckSpec: unknown): { deckSize?: unknown; [key: string]: unknown };
+}
+
+export interface MatchWorkerDeckCodecModule extends MatchWorkerRuntimeModule {
+    decodeDeckCode(deckCode: string): unknown;
+    encodeDeckSpec(deckSpec: unknown): string;
+}
+
+export interface MatchWorkerSeatValueMap<T> {
+    black: T;
+    white: T;
+}
+
+export interface MatchWorkerRoomDeckMetadata {
+    mode: 'shared' | 'perPlayer';
+    source: string;
+    deckCode: string;
+    deckSize: number | null;
+    deckCodeByPlayer: MatchWorkerSeatValueMap<string>;
+    deckSizeByPlayer: MatchWorkerSeatValueMap<number | null>;
+}
+
+export interface MatchWorkerDeckSelection {
+    ok: boolean;
+    hasCustomDeck: boolean;
+    deckSpec: unknown | null;
+    deckCode: string;
+    deckSize: number | null;
+    reason?: string;
+    error?: unknown;
+}
+
+export interface MatchWorkerTurnStartOptions extends Record<string, unknown> {
+    includeRawEvents?: unknown;
 }
 
 export interface MatchWorkerTurnStartModules {
@@ -188,6 +226,27 @@ export interface MatchWorkerPublishPayloadOptions extends Record<string, unknown
     rejectedReason?: unknown;
     errorMessage?: unknown;
     playbackDiagnostics?: unknown;
+}
+
+export interface MatchWorkerSnapshotPayloadMeta extends Record<string, unknown> {
+    playbackEvents?: unknown;
+    effectLogs?: unknown;
+    playbackDiagnostics?: unknown;
+    operationId?: unknown;
+    playerKey?: unknown;
+    actionType?: unknown;
+}
+
+export interface MatchWorkerPresencePayloadMeta extends Record<string, unknown> {
+    type?: unknown;
+    seatKey?: unknown;
+    rejoined?: unknown;
+}
+
+export interface MatchWorkerParsedChatMessage {
+    ok: boolean;
+    text?: string;
+    reason?: string;
 }
 
 export interface MatchWorkerTurnStartHandState {
