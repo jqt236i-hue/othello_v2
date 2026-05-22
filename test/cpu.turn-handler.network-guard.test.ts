@@ -14,8 +14,8 @@ describe('cpu turn handler network guard', () => {
       waitMs: () => Promise.resolve()
     });
     cpuHandler.setCpuUIImpl({
-      readMatchMode: null,
-      readHumanVsHumanMode: null,
+      readMatchMode: () => global.MATCH_MODE,
+      readHumanVsHumanMode: () => false,
       DEBUG_HUMAN_VS_HUMAN: false,
       MATCH_MODE: undefined
     });

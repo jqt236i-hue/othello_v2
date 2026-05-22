@@ -38,10 +38,15 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         };
         global.selectCardFromOnnxPolicyAsync = jest.fn(async () => ({ hold: true }));
         global.cpuMaybeUseCardWithPolicy = jest.fn(() => false);
+        mod.setCpuUIImpl({
+            readBenchFastMode: () => global.__BENCH_FAST_MODE === true,
+            getCpuLv6SharedProfile: () => global.CPU_LV6_SHARED_PROFILE || null
+        });
     });
 
     afterEach(() => {
         mod.resetCpuTurnHandlerState();
+        mod.setCpuUIImpl({});
         mod.setTimers(null);
         delete global.__BENCH_FAST_MODE;
         delete global.ANIMATION_RETRY_DELAY_MS;

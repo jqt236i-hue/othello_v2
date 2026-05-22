@@ -1157,6 +1157,27 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             } catch (e: any) {
                                 return null;
                             }
+                        },
+                        readBenchFastMode: () => {
+                            try {
+                                return typeof globalThis !== 'undefined' && (globalThis as any).__BENCH_FAST_MODE === true;
+                            } catch (e: any) {
+                                return false;
+                            }
+                        },
+                        getCpuLv6SharedProfile: () => {
+                            try {
+                                return typeof globalThis !== 'undefined' ? (globalThis as any).CPU_LV6_SHARED_PROFILE : null;
+                            } catch (e: any) {
+                                return null;
+                            }
+                        },
+                        readCpuLv6MinThinkMs: () => {
+                            try {
+                                return typeof globalThis !== 'undefined' ? (globalThis as any).CPU_LV6_MIN_THINK_MS : undefined;
+                            } catch (e: any) {
+                                return undefined;
+                            }
                         }
                     });
                 }

@@ -301,12 +301,6 @@ function readCpuMatchMode(): any {
     if (__uiImpl_cpu && typeof __uiImpl_cpu.MATCH_MODE !== 'undefined') {
         return __uiImpl_cpu.MATCH_MODE;
     }
-    try {
-        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-            return (globalThis as any).getCurrentMatchMode();
-        }
-        if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE || (globalThis as any).__MATCH_MODE;
-    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -317,7 +311,7 @@ function readCpuHumanVsHumanFlag(): boolean {
     if (__uiImpl_cpu && typeof __uiImpl_cpu.DEBUG_HUMAN_VS_HUMAN !== 'undefined') {
         return __uiImpl_cpu.DEBUG_HUMAN_VS_HUMAN === true;
     }
-    return !!(typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN);
+    return false;
 }
 
 function isHumanVsHumanModeEnabled() {
@@ -391,17 +385,25 @@ function debugCpuTrace(message: any, meta?: any) {
 }
 
 function isCpuFastBenchModeEnabled() {
-    // @compat - globalThis read, set by test scripts / run-ui-level-match.ts via globalThis.__BENCH_FAST_MODE
     try {
-        return typeof globalThis !== 'undefined' && (globalThis as any).__BENCH_FAST_MODE === true;
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.readBenchFastMode === 'function') {
+            return __uiImpl_cpu.readBenchFastMode() === true;
+        }
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.__BENCH_FAST_MODE !== 'undefined') {
+            return __uiImpl_cpu.__BENCH_FAST_MODE === true;
+        }
     } catch (e) { /* ignore */ }
     return false;
 }
 
 function resolveCpuLv6SharedProfile() {
     try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).CPU_LV6_SHARED_PROFILE) {
-            return (globalThis as any).CPU_LV6_SHARED_PROFILE;
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.getCpuLv6SharedProfile === 'function') {
+            const profile = __uiImpl_cpu.getCpuLv6SharedProfile();
+            if (profile && typeof profile === 'object') return profile;
+        }
+        if (__uiImpl_cpu && __uiImpl_cpu.CPU_LV6_SHARED_PROFILE) {
+            return __uiImpl_cpu.CPU_LV6_SHARED_PROFILE;
         }
     } catch (e) { /* ignore */ }
     try {
@@ -415,14 +417,12 @@ function resolveCpuLv6SharedProfile() {
 
 function readExplicitCpuLv6SharedProfile() {
     try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).CPU_LV6_SHARED_PROFILE) {
-            return (globalThis as any).CPU_LV6_SHARED_PROFILE;
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.getCpuLv6SharedProfile === 'function') {
+            const profile = __uiImpl_cpu.getCpuLv6SharedProfile();
+            if (profile && typeof profile === 'object') return profile;
         }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof require === 'function') {
-            const shared = _require('../constants/cpu-lv6-shared-profile.js');
-            if (shared && typeof shared === 'object') return shared;
+        if (__uiImpl_cpu && __uiImpl_cpu.CPU_LV6_SHARED_PROFILE) {
+            return __uiImpl_cpu.CPU_LV6_SHARED_PROFILE;
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -458,7 +458,7 @@ function resolveCpuLv6BrowserRuntimeCapability() {
 
 function shouldUseOnnxCardDecision(level: any) {
     if (!Number.isFinite(level) || level < 6) return true;
-    const explicitShared = resolveRuntimeValue('CPU_LV6_SHARED_PROFILE');
+    const explicitShared = readExplicitCpuLv6SharedProfile();
     if (explicitShared && explicitShared.browser) {
         const explicitMode = String(explicitShared.browser.cardDecisionMode || '').trim().toLowerCase();
         if (explicitMode) return explicitMode !== 'policy-table-core';
@@ -468,7 +468,7 @@ function shouldUseOnnxCardDecision(level: any) {
 
 function shouldUseOnnxMoveDecision(level: any) {
     if (!Number.isFinite(level) || level < 6) return true;
-    const explicitShared = resolveRuntimeValue('CPU_LV6_SHARED_PROFILE');
+    const explicitShared = readExplicitCpuLv6SharedProfile();
     if (explicitShared && explicitShared.browser) {
         const explicitMode = String(explicitShared.browser.moveDecisionMode || '').trim().toLowerCase();
         if (explicitMode) return explicitMode !== 'policy-table-lookahead' && explicitMode !== 'browser-policy-lookahead' && explicitMode !== 'policy-table-core';
@@ -492,10 +492,12 @@ function resolveLv6MinThinkMs(playerKey: any, level: any, autoMode: any) {
             return Math.floor(configured);
         }
     } catch (e) { /* ignore */ }
-    // @compat - globalThis.CPU_LV6_MIN_THINK_MS is a browser-level window override; keep as fallback
     try {
-        if (typeof globalThis !== 'undefined' && Number.isFinite((globalThis as any).CPU_LV6_MIN_THINK_MS)) {
-            return Math.max(0, Math.floor(Number((globalThis as any).CPU_LV6_MIN_THINK_MS)));
+        const override = (__uiImpl_cpu && typeof __uiImpl_cpu.readCpuLv6MinThinkMs === 'function')
+            ? __uiImpl_cpu.readCpuLv6MinThinkMs()
+            : (__uiImpl_cpu ? __uiImpl_cpu.CPU_LV6_MIN_THINK_MS : undefined);
+        if (Number.isFinite(Number(override))) {
+            return Math.max(0, Math.floor(Number(override)));
         }
     } catch (e) { /* ignore */ }
     return 250;
