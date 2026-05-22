@@ -47,7 +47,6 @@ const allowedNoCheckDebt = new Set([
   'scripts/run-ui-level-match.ts',
   'scripts/serve-with-fallback.ts',
   'sound-engine.ts',
-  'src/board.ts',
   'src/engine/engine.ts',
   'src/engine/selfplay-runner.ts',
   'test/cards.equality-will-surfaces.test.ts',
