@@ -229,6 +229,25 @@ describe('NetworkMatchClient trap deferred publish', () => {
     expect(global.gameState.board).toHaveLength(7);
     expect(global.gameState.board[0]).toHaveLength(9);
 
+    const selectionFlow = require('../game/card-effects/selection-flow.js');
+    selectionFlow.setSignalBridge({
+      readMatchMode: () => global.MATCH_MODE,
+      isNetworkPublishActive: () => client.isActive(),
+      publishSnapshot: (meta) => client.publishSnapshot(meta),
+      waitForPlaybackIdle: () => global.waitForPlaybackIdle(),
+      getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
+      getGameState: () => global.gameState,
+      getCardState: () => global.cardState,
+      setGameState: (next) => {
+        global.gameState = next;
+        return true;
+      },
+      setCardState: (next) => {
+        global.cardState = next;
+        return true;
+      }
+    });
+
     const { handleTrapSelection } = require('../game/card-effects/trap.js');
     await handleTrapSelection(6, 8, 'black');
 

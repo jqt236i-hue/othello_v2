@@ -6,6 +6,16 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 import type { CardState, GameState, PlayerKey } from '../src/types';
+import type {
+    MatchAuthorityBufferedSseEventRecord,
+    MatchAuthorityBufferedSseEventRecordInput,
+    MatchAuthorityBufferedSseReplayEvent,
+    MatchAuthorityPublishMeta,
+    MatchAuthorityPublishResponseOptions,
+    MatchAuthorityPublishResponsePayload,
+    MatchAuthorityRoomPayload,
+    MatchAuthorityRoomPayloadOptions
+} from './match-authority-types';
 
 import deepClone from './deepClone';
 import SharedBoardUtils from '../shared/shared-board-utils';
@@ -322,7 +332,7 @@ function normalizePublishActionType(value) {
     return normalized || null;
 }
 
-function normalizePublishMeta(value) {
+function normalizePublishMeta(value: unknown): MatchAuthorityPublishMeta {
     const source = (value && typeof value === 'object') ? value : {};
     const normalizedKind = String(source.kind || '').trim().toLowerCase();
     const normalized = {
@@ -608,7 +618,7 @@ function assignOptionalRoomBoardConfig(target, source) {
     return target;
 }
 
-function buildPublishResponsePayload(options) {
+function buildPublishResponsePayload(options: MatchAuthorityPublishResponseOptions): MatchAuthorityPublishResponsePayload {
     const opts = (options && typeof options === 'object') ? options : {};
     const payload = buildRoomPayload(assignOptionalRoomBoardConfig({
         ok: opts.ok === true,
@@ -651,7 +661,7 @@ function buildPublishResponsePayload(options) {
     return payload;
 }
 
-function buildRoomPayload(options) {
+function buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAuthorityRoomPayload {
     const opts = (options && typeof options === 'object') ? options : {};
     const hasSeats = opts.seats && typeof opts.seats === 'object';
     const hasSeatNames = opts.seatNames && typeof opts.seatNames === 'object';
@@ -1470,7 +1480,7 @@ function normalizeSseEventId(value) {
     return normalized || '';
 }
 
-function createBufferedSseEventRecord(options) {
+function createBufferedSseEventRecord(options: MatchAuthorityBufferedSseEventRecordInput): MatchAuthorityBufferedSseEventRecord | null {
     const opts = (options && typeof options === 'object') ? options : {};
     const eventId = normalizeSseEventId(opts.eventId);
     if (!eventId) return null;
@@ -1502,7 +1512,11 @@ function createBufferedSseEventRecord(options) {
     return record;
 }
 
-function appendBufferedSseEvent(bufferValue, recordValue, limitValue) {
+function appendBufferedSseEvent(
+    bufferValue: unknown,
+    recordValue: MatchAuthorityBufferedSseEventRecordInput,
+    limitValue?: unknown
+): MatchAuthorityBufferedSseEventRecord[] {
     const buffer = Array.isArray(bufferValue) ? bufferValue.slice() : [];
     const record = createBufferedSseEventRecord(recordValue);
     if (!record) return buffer;
@@ -1517,7 +1531,11 @@ function appendBufferedSseEvent(bufferValue, recordValue, limitValue) {
     return buffer;
 }
 
-function getBufferedSseReplayEvents(bufferValue, lastEventIdValue, viewerSeatKey) {
+function getBufferedSseReplayEvents(
+    bufferValue: unknown,
+    lastEventIdValue: unknown,
+    viewerSeatKey: unknown
+): MatchAuthorityBufferedSseReplayEvent[] | null {
     const lastEventId = normalizeSseEventId(lastEventIdValue);
     if (!lastEventId) return null;
 

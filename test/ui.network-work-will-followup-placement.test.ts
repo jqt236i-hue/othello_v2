@@ -150,6 +150,7 @@ describe('network WORK_WILL follow-up placement', () => {
     delete global.__playbackActiveSince;
     delete global.__serverAuthoredCardUseClickBuffer;
     delete global.__captureServerAuthoredCardUseBoardClick;
+    delete global.handleCellClick;
     delete global.getActiveProtectionForPlayer;
     delete global.getFlipBlockers;
     delete global.findMoveForCell;
@@ -163,7 +164,28 @@ describe('network WORK_WILL follow-up placement', () => {
   test('replays early board click after server-authored WORK_WILL publish succeeds', async () => {
     require('../cards/card-interaction.js');
     const turnManager = require('../game/turn-manager.js');
+    const selectionFlow = require('../game/card-effects/selection-flow');
+    selectionFlow.setSignalBridge({
+      playbackStateManager: global.PlaybackStateManager
+    });
+    turnManager.setUIImpl({
+      readRuntimeValue: (key) => {
+        if (typeof global[key] !== 'undefined') return global[key];
+        return global.window ? global.window[key] : undefined;
+      },
+      writeRuntimeValue: (key, value) => {
+        global[key] = value;
+        if (global.window) global.window[key] = value;
+      },
+      runtimeRoot: global
+    });
+    global.handleCellClick = (row, col) => {
+      global.PlaybackStateManager.setBusyState({ processing: false, cardAnimating: false });
+      return turnManager.handleCellClick(row, col);
+    };
+    window.handleCellClick = global.handleCellClick;
     window.useSelectedCard();
+    global.PlaybackStateManager.setBusyState({ processing: true, cardAnimating: true });
 
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
     expect(global.executeMove).not.toHaveBeenCalled();
@@ -187,7 +209,28 @@ describe('network WORK_WILL follow-up placement', () => {
   test('drops early board click when server-authored WORK_WILL publish fails', async () => {
     require('../cards/card-interaction.js');
     const turnManager = require('../game/turn-manager.js');
+    const selectionFlow = require('../game/card-effects/selection-flow');
+    selectionFlow.setSignalBridge({
+      playbackStateManager: global.PlaybackStateManager
+    });
+    turnManager.setUIImpl({
+      readRuntimeValue: (key) => {
+        if (typeof global[key] !== 'undefined') return global[key];
+        return global.window ? global.window[key] : undefined;
+      },
+      writeRuntimeValue: (key, value) => {
+        global[key] = value;
+        if (global.window) global.window[key] = value;
+      },
+      runtimeRoot: global
+    });
+    global.handleCellClick = (row, col) => {
+      global.PlaybackStateManager.setBusyState({ processing: false, cardAnimating: false });
+      return turnManager.handleCellClick(row, col);
+    };
+    window.handleCellClick = global.handleCellClick;
     window.useSelectedCard();
+    global.PlaybackStateManager.setBusyState({ processing: true, cardAnimating: true });
     turnManager.handleCellClick(2, 3);
 
     global.__publishDeferred.resolve({ ok: false, reason: 'VERSION_MISMATCH' });
