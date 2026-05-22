@@ -7,8 +7,8 @@
       "reason": "CPU commentary data is TypeScript source-of-truth; JS wrapper is retained for CommonJS/browser compatibility."
     },
     "game/card-effects/selection-flow.js": {
-      "category": "legacy-implementation",
-      "reason": "Browser pending-selection compatibility facade retained while TypeScript selection-flow remains the source-of-truth for Jest and CommonJS resolution."
+      "category": "runtime-projection",
+      "reason": "Browser pending-selection compatibility projection retained while TypeScript selection-flow remains the source-of-truth for Jest and CommonJS resolution."
     },
     "game/debug/debug-actions.js": {
       "category": "dist-wrapper",
@@ -30,25 +30,13 @@
       "category": "runtime-projection",
       "reason": "Browser runtime projection retained until generated from the TS source-of-truth path."
     },
-    "scripts/add-module-tracking.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era tooling script retained for troubleshooting."
-    },
-    "scripts/browser-boot-smoke.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era browser smoke helper retained for troubleshooting."
-    },
-    "scripts/compare-test-baseline.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era test baseline helper retained for troubleshooting."
-    },
     "ui/handlers/match-mode.js": {
       "category": "dist-wrapper",
       "reason": "UI match-mode source is TypeScript; JS keeps the minimal browser global compatibility shell."
     },
     "ui/bootstrap.js": {
-      "category": "legacy-implementation",
-      "reason": "Classic browser bootstrap compatibility shim remains hand-authored while ui/bootstrap.ts is the CommonJS source-of-truth."
+      "category": "runtime-projection",
+      "reason": "Classic browser bootstrap compatibility projection retained while ui/bootstrap.ts is the source-of-truth."
     },
     "utils/owner-helpers.js": {
       "category": "dist-wrapper",

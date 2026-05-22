@@ -145,6 +145,10 @@ function classify(relPath: string, content: string): JsCategory {
     return 'runtime-projection';
   }
 
+  if (relPath === 'game/card-effects/selection-flow.js' || relPath === 'ui/bootstrap.js') {
+    return 'runtime-projection';
+  }
+
   if (hasModuleExports && hasRequire && nonEmptyLines.length <= 12) {
     return 'dist-wrapper';
   }

@@ -36,15 +36,17 @@ npm run worker:prepare # PASS ✅
 
 | カテゴリ | 件数 | 性質 | 対応要否 |
 |----------|------|------|----------|
-| **dist-wrapper** | 366件 | TS正本への互換forwarding層 | 不要。消すと互換性破壊 |
-| **generated** | 4件 | ビルド・生成ツールの出力 | 不要。generatorで管理 |
-| **legacy-implementation** | 30件 | Node.jsツール・デバッグ・検証スクリプト | 不要。実行環境が異なる |
-| **test-or-tooling** | 3件 | テストファイル | 不要。テスト基盤として正当化 |
-| **合計** | **400件** | - | - |
+| **dist-wrapper** | 320件 | TS正本への互換forwarding層 | 不要。消すと互換性破壊 |
+| **generated** | 5件 | ビルド・生成ツールの出力 | 不要。generatorで管理 |
+| **node-cli-adapter** | 64件 | Node CLIから`dist/scripts/*`へ委譲する薄いadapter | 不要。CLI互換性維持 |
+| **runtime-projection** | 25件 | classic browser/runtime互換投影 | 不要。実行面の互換性維持 |
+| **legacy-implementation** | 0件 | JSだけが正本の残存実装 | 追加禁止 |
+| **test-fixture** | 13件 | テスト・fixture・visual tooling | 不要。テスト基盤として正当化 |
+| **合計** | **427件** | - | - |
 
-※ `dist-wrapper`は348件→366件に増加（unknownからの再分類18件を含む）
+※ 件数は `npm run checkall` 内の `inventory-js-legacy` による現行分類。
 
-### 3.2 dist-wrapper（366件）
+### 3.2 dist-wrapper（320件）
 
 **定義**: 対応する`.ts`ファイルがあり、`module.exports = require("../dist/...")` または同等のforwardingを行う互換性層。
 
@@ -61,7 +63,7 @@ npm run worker:prepare # PASS ✅
 
 **今後の方針**: 維持。削除は互換性破壊を伴う。
 
-### 3.3 generated（4件）
+### 3.3 generated（5件）
 
 **定義**: ビルド・生成ツールによって自動生成される`.js`ファイル。
 
@@ -74,27 +76,27 @@ npm run worker:prepare # PASS ✅
 
 **今後の方針**: 維持。生成元の`.json`/`.ts`を正本とし、`.js`は生成物として管理。
 
-### 3.4 legacy-implementation（27件）
+### 3.4 legacy-implementation（0件）
 
 **定義**: Node.js環境で実行されるツール・デバッグ・検証スクリプト。ブラウザゲームの実行経路には含まれない。
 
 **内訳**:
 
-#### ブート・検証スクリプト（2件）
-`scripts/browser-boot-smoke.js`, `scripts/compare-test-baseline.js`
+#### ブート・検証スクリプト（0件）
+なし
 
-**残存理由**: 過去の移行作業で使用した一時的なデバッグ・検証スクリプト。現在は使用されていない可能性が高いが、削除は別途検討。
+**残存理由**: 対象なし。
 
-#### ツール・ユーティリティスクリプト（2件）
-`scripts/add-module-tracking.js`, `scripts/serve-with-fallback.js`
+#### ツール・ユーティリティスクリプト（0件）
+なし
 
-**残存理由**: Node.js環境で実行される開発・検証ツール。ゲームの実行経路には含まれない。
+**残存理由**: 対象なし。
 
 **今後の方針**: 現状維持。新規のlegacy-implementationを`scripts/`下に追加する場合は、許可制とする。
 
-### 3.5 test-or-tooling（3件）
+### 3.5 test-fixture（13件）
 
-**定義**: Jestテストファイル。
+**定義**: Jestテスト、テストhelper、visual-regression tooling。
 
 | ファイル | 行数 | 内容 |
 |----------|------|------|
@@ -104,7 +106,7 @@ npm run worker:prepare # PASS ✅
 
 **残存理由**: テスト基盤として必要。`.test.js`はJestによって実行される。
 
-**今後の方針**: 新規テストは`.test.ts`で作成することを推奨。既存の`.test.js`は現状維持。
+**今後の方針**: 新規テストは`.test.ts`で作成することを推奨。既存のfixture用途 `.js` は現状維持。
 
 ## 4. unknownファイルの再分類結果
 
@@ -115,7 +117,7 @@ npm run worker:prepare # PASS ✅
 | **generated** | 1 | `cards/catalog.js` |
 | **dist-wrapper** | 18 | `game/src/types/*.js`, `src/*.js`, `game/card-effects-applier.js`, `ui/event-handlers.js` |
 | **test-or-tooling** | 3 | `game/ai/__tests__/*.test.js`, `scripts/__tests__/test-sprt.test.js` |
-| **legacy-implementation** | 30 | `scripts/`下のツール・デバッグスクリプト |
+| **legacy-implementation** | 30 | `scripts/`下のツール・デバッグスクリプト（2026-05-08時点。現行は0件） |
 
 ### 4.1 再分類の詳細
 
@@ -160,11 +162,7 @@ npm run worker:prepare # PASS ✅
   - 理由: Jestテストファイル
 
 #### legacy-implementation（整理後の現存ファイル）
-`scripts/`下のツール・デバッグスクリプト：
-- `scripts/add-module-tracking.js` (56行) → **legacy-implementation**
-  - 理由: Playwrightを使ったモジュール追跡ツール
-- `scripts/serve-with-fallback.js` (7行) → **legacy-implementation**
-  - 理由: `dist/scripts/serve-with-fallback` を読むwrapperだが、Node.js専用
+なし
 
 ## 5. 今後の方針・ガバナンス
 
@@ -174,7 +172,7 @@ npm run worker:prepare # PASS ✅
 |----------|------|------|
 | **dist-wrapper** | ✅ 許可 | TS正本が存在し、`module.exports = require("../dist/...")` の形式 |
 | **generated** | ✅ 許可 | 生成ツール（`scripts/generate-*.js`）による自動生成のみ |
-| **legacy-implementation** | ⚠️ 制限 | `scripts/`下のみ。事前承認制 |
+| **legacy-implementation** | ❌ 禁止 | 新規追加不可。必要な場合はTS正本 + adapter分類にする |
 | **test-or-tooling** | ⚠️ 制限 | 新規テストは`.test.ts`を推奨 |
 | **unknown** | ❌ 禁止 | 許容リストに追加する前に分類必須 |
 
@@ -191,7 +189,7 @@ npm run worker:prepare # PASS ✅
 - **頻度**: 四半期ごと（または大きなリリースのたび）
 - **内容**: 
   - 許容リストの見直し
-  - 未使用のlegacy-implementationの削除検討
+  - legacy-implementationの再発防止
   - dist-wrapperの削減可能性の検討（互換性維持の前提）
 
 ## 6. 関連ドキュメント
