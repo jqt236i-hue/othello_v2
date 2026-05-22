@@ -241,6 +241,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 return publishSnapshotViaBridge(payload);
             } catch (e) { /* ignore */ }
         }
+        const networkTurnHandoff = getNetworkTurnHandoff();
+        if (networkTurnHandoff && typeof networkTurnHandoff.publishNetworkSnapshot === 'function') {
+            try {
+                return networkTurnHandoff.publishNetworkSnapshot(payload);
+            } catch (e) { /* ignore */ }
+        }
         return undefined;
     }
 

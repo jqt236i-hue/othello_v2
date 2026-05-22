@@ -20,8 +20,6 @@ declare const showResult: any;
 declare const onTurnStart: any;
 declare const isGameOver: any;
 declare const getLegalMoves: any;
-declare const getActiveProtectionForPlayer: any;
-declare const getFlipBlockers: any;
 declare const CPU_TURN_DELAY_MS: any;
 declare const BLACK_PASS_DELAY_MS: any;
 declare const DOUBLE_PLACE_PASS_DELAY_MS: any;
@@ -48,12 +46,16 @@ let OwnerHelpersModule: any = null;
 let passHandlerNetworkTurnHandoff: any = null;
 let passHandlerPendingCoordinator: any = null;
 let passHandlerTurnPipelineModule: any = null;
+let passHandlerCardEffectsHelpers: any = null;
+let passHandlerSpecialEffectsHelpers: any = null;
 if (typeof require === 'function') {
     try { timers = require('./timers'); } catch (e) { /* ignore */ }
     try { OwnerHelpersModule = require('../utils/owner-helpers.js'); } catch (e) { /* ignore */ }
     try { passHandlerNetworkTurnHandoff = require('./network-turn-handoff.js'); } catch (e) { /* ignore */ }
     try { passHandlerPendingCoordinator = require('./turn/pending-coordinator.js'); } catch (e) { /* ignore */ }
     try { passHandlerTurnPipelineModule = require('./turn/turn_pipeline.js'); } catch (e) { /* ignore */ }
+    try { passHandlerCardEffectsHelpers = require('./card-effects/helpers'); } catch (e) { /* ignore */ }
+    try { passHandlerSpecialEffectsHelpers = require('./special-effects/helpers'); } catch (e) { /* ignore */ }
 }
 // DI imports for UI-cross-boundary modules (graceful degradation via try/catch)
 let playbackStateManagerModule: any = null;
@@ -74,6 +76,30 @@ function setPlaybackStateManager(module: any) {
 
 function setNetworkMatchClient(module: any) {
     networkMatchClientModule = module;
+}
+
+function getActiveProtectionForPlayer(playerValue: any) {
+    try {
+        if (
+            passHandlerCardEffectsHelpers &&
+            typeof passHandlerCardEffectsHelpers.getActiveProtectionForPlayer === 'function'
+        ) {
+            return passHandlerCardEffectsHelpers.getActiveProtectionForPlayer(playerValue) || [];
+        }
+    } catch (e) { /* ignore */ }
+    return [];
+}
+
+function getFlipBlockers() {
+    try {
+        if (
+            passHandlerSpecialEffectsHelpers &&
+            typeof passHandlerSpecialEffectsHelpers.getFlipBlockers === 'function'
+        ) {
+            return passHandlerSpecialEffectsHelpers.getFlipBlockers() || [];
+        }
+    } catch (e) { /* ignore */ }
+    return [];
 }
 
 function getPlaybackStateForPassHandler() {

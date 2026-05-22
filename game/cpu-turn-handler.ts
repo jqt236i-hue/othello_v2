@@ -7,8 +7,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 import type { CardState, GameState, PlayerKey } from '../src/types';
 
 // Global declarations for functions not in ui/globals.d.ts
-declare const getActiveProtectionForPlayer: any;
-declare const getFlipBlockers: any;
 declare const countDiscs: any;
 declare const emitLogAdded: any;
 declare const debugLog: any;
@@ -82,6 +80,14 @@ let moveGenerator: any = null;
 if (typeof require === 'function') {
     try { moveGenerator = _require('./move-generator'); } catch (e) { /* ignore */ }
 }
+let cardEffectsHelpers: any = null;
+if (typeof require === 'function') {
+    try { cardEffectsHelpers = _require('./card-effects/helpers'); } catch (e) { /* ignore */ }
+}
+let specialEffectsHelpers: any = null;
+if (typeof require === 'function') {
+    try { specialEffectsHelpers = _require('./special-effects/helpers'); } catch (e) { /* ignore */ }
+}
 let cpuCommentaryRuntime: any = null;
 let commentaryContextHelpers: any = null;
 if (typeof require === 'function') {
@@ -125,8 +131,11 @@ function getAnimationRetryDelayMs() {
 
 function getActiveProtectionSafe(playerValue: any) {
     try {
-        if (typeof getActiveProtectionForPlayer === 'function') {
-            return getActiveProtectionForPlayer(playerValue) || [];
+        const fn = cardEffectsHelpers && typeof cardEffectsHelpers.getActiveProtectionForPlayer === 'function'
+            ? cardEffectsHelpers.getActiveProtectionForPlayer
+            : null;
+        if (fn) {
+            return fn(playerValue) || [];
         }
     } catch (e) { /* ignore */ }
     return [];
@@ -134,8 +143,11 @@ function getActiveProtectionSafe(playerValue: any) {
 
 function getFlipBlockersSafe() {
     try {
-        if (typeof getFlipBlockers === 'function') {
-            return getFlipBlockers() || [];
+        const fn = specialEffectsHelpers && typeof specialEffectsHelpers.getFlipBlockers === 'function'
+            ? specialEffectsHelpers.getFlipBlockers
+            : null;
+        if (fn) {
+            return fn() || [];
         }
     } catch (e) { /* ignore */ }
     return [];

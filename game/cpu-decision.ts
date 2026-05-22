@@ -19,8 +19,6 @@ declare const TurnPipeline: any;
 declare const initCardState: (...args: any[]) => void;
 declare const updateCpuCharacter: () => void;
 declare const showResult: () => void;
-declare const getActiveProtectionForPlayer: (playerValue: any) => any[];
-declare const getFlipBlockers: () => any[];
 declare const getLegalMoves: (...args: any[]) => any[];
 declare const isBlockedCell: (...args: any[]) => boolean;
 declare const handleDestroySelection: (...args: any[]) => any;
@@ -104,6 +102,14 @@ let CpuPolicyOnnxRuntime: any = null;
 if (typeof require === 'function') {
     try { CpuPolicyOnnxRuntime = _require('./ai/policy-onnx-runtime'); } catch (e) { /* ignore */ }
 }
+let CpuDecisionCardEffectsHelpers: any = null;
+if (typeof require === 'function') {
+    try { CpuDecisionCardEffectsHelpers = _require('./card-effects/helpers'); } catch (e) { /* ignore */ }
+}
+let CpuDecisionSpecialEffectsHelpers: any = null;
+if (typeof require === 'function') {
+    try { CpuDecisionSpecialEffectsHelpers = _require('./special-effects/helpers'); } catch (e) { /* ignore */ }
+}
 let OthelloBrowserCpuRuntime: any = null;
 if (typeof require === 'function') {
     try { OthelloBrowserCpuRuntime = _require('othello-ai/runtime/browser-cpu'); } catch (e) { /* ignore */ }
@@ -156,6 +162,30 @@ function resolveCpuSmartnessLevel(playerKey: any): number {
 
 function resolveCardLogicForCpuDecision(): any {
     return readGlobalModule('CardLogic') || (typeof CardLogic !== 'undefined' ? CardLogic : null);
+}
+
+function getActiveProtectionForPlayer(playerValue: any): any[] {
+    try {
+        if (
+            CpuDecisionCardEffectsHelpers &&
+            typeof CpuDecisionCardEffectsHelpers.getActiveProtectionForPlayer === 'function'
+        ) {
+            return CpuDecisionCardEffectsHelpers.getActiveProtectionForPlayer(playerValue) || [];
+        }
+    } catch (e) { /* ignore */ }
+    return [];
+}
+
+function getFlipBlockers(): any[] {
+    try {
+        if (
+            CpuDecisionSpecialEffectsHelpers &&
+            typeof CpuDecisionSpecialEffectsHelpers.getFlipBlockers === 'function'
+        ) {
+            return CpuDecisionSpecialEffectsHelpers.getFlipBlockers() || [];
+        }
+    } catch (e) { /* ignore */ }
+    return [];
 }
 
 function resolveModuleReference(currentValue: any, options: any): any {

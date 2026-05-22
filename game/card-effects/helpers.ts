@@ -81,13 +81,4 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
-// @compat - globalThis writes for legacy browser/script-tag compatibility
-if (typeof globalThis !== 'undefined') {
-    try { (globalThis as any).getPlayerKey = getPlayerKey; } catch (e) { /* ignore */ }
-    try { (globalThis as any).getPlayerDisplayName = getPlayerDisplayName; } catch (e) { /* ignore */ }
-    try { (globalThis as any).getOwner = getOwner; } catch (e) { /* ignore */ }
-    try { (globalThis as any).getActiveProtectionForPlayer = getActiveProtectionForPlayer; } catch (e) { /* ignore */ }
-    try { (globalThis as any).getEffectKeyForType = getEffectKeyForType; } catch (e) { /* ignore */ }
-}
-
 export {};
