@@ -10,7 +10,6 @@ declare const WHITE: any;
 declare const CardLogic: any;
 declare const TurnPipeline: any;
 declare const TurnPipelineUIAdapter: any;
-declare const ActionManager: any;
 declare let isProcessing: any;
 declare const isCardAnimating: any;
 declare const processCpuTurn: any;
@@ -283,6 +282,19 @@ function resolveMoveExecutorNetworkTurnHandoff() {
     return moveExecutorNetworkTurnHandoff;
 }
 
+function resolveMoveExecutorActionManager() {
+    if (__uiImpl_move_executor && __uiImpl_move_executor.actionManager) {
+        return __uiImpl_move_executor.actionManager;
+    }
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.getActionManager === 'function') {
+        try {
+            const actionManager = __uiImpl_move_executor.getActionManager();
+            if (actionManager && typeof actionManager === 'object') return actionManager;
+        } catch (e) { /* ignore */ }
+    }
+    return null;
+}
+
 function isHumanVsHumanModeEnabled() {
     const debugHvH = readMoveExecutorHumanVsHumanFlag();
     const matchMode = String(readMoveExecutorMatchMode() || '').trim().toLowerCase();
@@ -357,8 +369,10 @@ async function executeMove(move: any) {
 }
 
 async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKey: string, adapter: any, pipeline: any) {
-    const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-        ? ActionManager.ActionManager.createAction('place', playerKey, { row: move.row, col: move.col })
+    const actionManager = resolveMoveExecutorActionManager();
+    const actionApi = actionManager && actionManager.ActionManager ? actionManager.ActionManager : actionManager;
+    const action = (actionApi && typeof actionApi.createAction === 'function')
+        ? actionApi.createAction('place', playerKey, { row: move.row, col: move.col })
         : { type: 'place', row: move.row, col: move.col };
 
     if (action && cardState && typeof cardState.turnIndex === 'number') {
@@ -384,10 +398,10 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
         return;
     }
 
-    if (typeof ActionManager !== 'undefined' && ActionManager.ActionManager) {
+    if (actionApi) {
         try {
-            ActionManager.ActionManager.recordAction(action);
-            ActionManager.ActionManager.incrementTurnIndex();
+            if (typeof actionApi.recordAction === 'function') actionApi.recordAction(action);
+            if (typeof actionApi.incrementTurnIndex === 'function') actionApi.incrementTurnIndex();
         } catch (e) {
             console.warn('[MoveExecutor] Failed to record action:', e);
         }

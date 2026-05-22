@@ -1443,6 +1443,13 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     return null;
                 }
             },
+            getActionManager: () => {
+                try {
+                    return typeof globalThis !== 'undefined' ? (globalThis as any).ActionManager : null;
+                } catch (e: any) {
+                    return null;
+                }
+            },
             now: () => Date.now(),
             // Let game/move-executor await the UI playback lifecycle (AnimationEngine / visual writer)
             waitForPlayback: uiMod.waitForPlaybackIdle,
