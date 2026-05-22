@@ -113,11 +113,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (turnPipelinePhasesRuntime && typeof turnPipelinePhasesRuntime.MATCH_MODE !== 'undefined') {
             return turnPipelinePhasesRuntime.MATCH_MODE;
         }
-        try {
-            return (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
-                ? (globalThis as any).getCurrentMatchMode()
-                : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
-        } catch (e) { /* ignore */ }
         return null;
     }
 
@@ -126,14 +121,16 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (injectedMode === 'reversi' || injectedMode === 'othello') return true;
         if (turnPipelinePhasesRuntime && typeof turnPipelinePhasesRuntime.MATCH_MODE !== 'undefined') return false;
         if (turnPipelinePhasesRuntime && (typeof turnPipelinePhasesRuntime.readMatchMode === 'function' || typeof turnPipelinePhasesRuntime.getCurrentMatchMode === 'function') && injectedMode) return false;
-        try {
-            if (OwnerHelpersModule && typeof OwnerHelpersModule.isReversiMode === 'function') {
-                return OwnerHelpersModule.isReversiMode(turnPipelinePhasesRuntime || (typeof globalThis !== 'undefined' ? globalThis : null));
-            }
-            if (OwnerHelpersModule && typeof OwnerHelpersModule.isOthelloMode === 'function') {
-                return OwnerHelpersModule.isOthelloMode(turnPipelinePhasesRuntime || (typeof globalThis !== 'undefined' ? globalThis : null));
-            }
-        } catch (e) { /* ignore */ }
+        if (turnPipelinePhasesRuntime) {
+            try {
+                if (OwnerHelpersModule && typeof OwnerHelpersModule.isReversiMode === 'function') {
+                    return OwnerHelpersModule.isReversiMode(turnPipelinePhasesRuntime);
+                }
+                if (OwnerHelpersModule && typeof OwnerHelpersModule.isOthelloMode === 'function') {
+                    return OwnerHelpersModule.isOthelloMode(turnPipelinePhasesRuntime);
+                }
+            } catch (e) { /* ignore */ }
+        }
         try {
             const matchMode = readTurnPipelinePhasesMatchMode();
             return matchMode === 'reversi' || matchMode === 'othello';

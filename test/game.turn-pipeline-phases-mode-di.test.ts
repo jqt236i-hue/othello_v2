@@ -50,4 +50,34 @@ describe('turn pipeline phase mode DI', () => {
     expect(events).toContainEqual({ type: 'turn_start', player: 'black' });
     expect(onTurnStart).not.toHaveBeenCalled();
   });
+
+  test('turn start ignores legacy global reversi mode without injected runtime', () => {
+    global.MATCH_MODE = 'reversi';
+    const onTurnStart = jest.fn(() => null);
+    const cardState = {
+      lastTurnStartedFor: null,
+      markers: [],
+      presentationEvents: [],
+      hands: { black: [], white: [] },
+      pendingEffectByPlayer: { black: null, white: null }
+    };
+    const gameState = {
+      currentPlayer: 1,
+      roundNumber: 1,
+      turnNumber: 1
+    };
+    const events: any[] = [];
+
+    phases.applyTurnStartPhase(
+      { onTurnStart },
+      {},
+      cardState,
+      gameState,
+      'black',
+      events,
+      null
+    );
+
+    expect(onTurnStart).toHaveBeenCalledTimes(1);
+  });
 });
