@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 8 files.
+Current authorized `@ts-nocheck` debt: 6 files.
 
 Recent reduction:
 
@@ -63,6 +63,7 @@ Recent reduction:
 - `training/scripts/run-hardcase-mining.ts`, `training/scripts/run-hardcase-retrain.ts`, `training/scripts/run-selfplay-training-preset.ts`, and `training/scripts/run-selfplay-training-profile.ts` no longer use `@ts-nocheck`; hardcase and selfplay launcher wrappers now typecheck without local suppressions.
 - `training/scripts/benchmark-selfplay-policy.ts`, `training/scripts/benchmark-policy-adoption.ts`, `training/scripts/benchmark-policy-quality-gate.ts`, and `training/scripts/benchmark-policy-onnx-gate.ts` no longer use `@ts-nocheck`; selfplay benchmark and policy gate CLIs now typecheck without local suppressions.
 - `training/scripts/generate-selfplay-data.ts`, `training/scripts/generate-selfplay-data-parallel.ts`, and `training/scripts/run-selfplay-training-cycle.ts` no longer use `@ts-nocheck`; selfplay data generation and training cycle orchestration now typecheck without local suppressions.
+- `scripts/run-ui-level-match.ts` and `scripts/local-match-runtime.ts` no longer use `@ts-nocheck`; UI level-match automation and local match runtime command handling now typecheck through explicit CLI, diagnostics, room, and publish boundary annotations.
 
 Recent boundary typing:
 

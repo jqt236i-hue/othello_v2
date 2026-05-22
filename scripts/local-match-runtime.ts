@@ -1,5 +1,3 @@
-// @ts-nocheck
-
 const Core = require('../game/logic/core');
 const CardLogic = require('../game/logic/cards');
 const TurnPipeline = require('../game/turn/turn_pipeline');
@@ -10,7 +8,7 @@ const MatchAuthority = require('../utils/match-authority');
 const MatchRuntimeCore = require('../utils/match-runtime-core');
 const LocalMatchServer = require('./local-match-server');
 
-function makeInitialSnapshot(seed, options) {
+function makeInitialSnapshot(seed: number, options: any) {
     if (LocalMatchServer && typeof LocalMatchServer.makeInitialSnapshot === 'function') {
         return LocalMatchServer.makeInitialSnapshot(seed, options);
     }
@@ -21,7 +19,7 @@ function makeInitialSnapshot(seed, options) {
     return { gameState, cardState, stateVersion: 0, updatedAt: Date.now() };
 }
 
-function createRoom(options) {
+function createRoom(options: any) {
     const opts = (options && typeof options === 'object') ? options : {};
     const seed = Number.isFinite(Number(opts.seed)) ? Math.trunc(Number(opts.seed)) : Date.now();
     const initialOptions = LocalMatchServer && typeof LocalMatchServer.buildInitialDeckSnapshotOptions === 'function'
@@ -53,15 +51,15 @@ function createRoom(options) {
     };
 }
 
-function normalizePlayerKey(value) {
+function normalizePlayerKey(value: any) {
     return MatchAuthority.normalizePlayerKey(value, 'black');
 }
 
-function normalizeBaseVersion(value) {
+function normalizeBaseVersion(value: any) {
     return Number.isFinite(Number(value)) ? Math.trunc(Number(value)) : null;
 }
 
-function buildPayload(room, viewerSeatKey, options) {
+function buildPayload(room: any, viewerSeatKey: any, options: any) {
     const opts = (options && typeof options === 'object') ? options : {};
     return MatchAuthority.buildPublishPayloadFromRoom(room, Object.assign({
         snapshot: Object.prototype.hasOwnProperty.call(opts, 'snapshot')
@@ -77,10 +75,10 @@ function buildPayload(room, viewerSeatKey, options) {
     }, opts));
 }
 
-function createRuntime(options) {
+function createRuntime(options: any) {
     const room = createRoom(options);
 
-    function applyCommand(bodyValue) {
+    function applyCommand(bodyValue: any) {
         const body = (bodyValue && typeof bodyValue === 'object') ? bodyValue : {};
         const seatKey = normalizePlayerKey(body.seatKey || body.playerKey || body.actor);
         const playerKey = normalizePlayerKey(body.playerKey || body.actor || seatKey);

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// @ts-nocheck
 'use strict';
 
 import * as fs from 'fs';
 import * as http from 'http';
+import type { AddressInfo } from 'net';
 import * as path from 'path';
 import { chromium } from 'playwright';
 
@@ -13,8 +13,34 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+type LevelMatchArgs = {
+    black: number;
+    white: number;
+    seed: number | null;
+    out: string;
+    timeoutMs: number;
+    requireOnnxLoaded: boolean;
+    requireCardModelLoaded: boolean;
+    requireTargetModelLoaded: boolean;
+    requireValueModelLoaded: boolean;
+    onnxWaitMs: number;
+    headless: boolean;
+    help: boolean;
+};
+
+type DiagnosticMessage = { type: string; text: string };
+type NetworkDiagnostic = {
+    kind: string;
+    status?: number;
+    url: string;
+    method: string | null;
+    failure: string | null;
+};
+
+type BenchGlobal = typeof globalThis & Record<string, any>;
+
 function parseArgs(argv: string[]) {
-    const args = {
+    const args: LevelMatchArgs = {
         black: 1,
         white: 5,
         seed: null,
@@ -111,7 +137,7 @@ function printHelp() {
     ].join('\n'));
 }
 
-function startServer(rootDir, port = 0) {
+function startServer(rootDir: string, port = 0) {
     const server = http.createServer((req: any, res: any) => {
         let reqPath = req.url.split('?')[0];
         if (reqPath === '/') reqPath = '/index.html';
@@ -157,7 +183,7 @@ function applyBenchmarkModeAfterInit(root: any) {
                 ? target.setTimeout.bind(target)
                 : null;
             if (originalSetTimeout) {
-                target.setTimeout = function benchSetTimeout(fn, ms, ...rest) {
+                target.setTimeout = function benchSetTimeout(fn: (...args: any[]) => unknown, ms: unknown, ...rest: any[]) {
                     const n = Number(ms);
                     const capped = Number.isFinite(n)
                         ? (n >= criticalTimerThresholdMs
@@ -171,7 +197,7 @@ function applyBenchmarkModeAfterInit(root: any) {
                 ? target.setInterval.bind(target)
                 : null;
             if (originalSetInterval) {
-                target.setInterval = function benchSetInterval(fn, ms, ...rest) {
+                target.setInterval = function benchSetInterval(fn: (...args: any[]) => unknown, ms: unknown, ...rest: any[]) {
                     const n = Number(ms);
                     const capped = Number.isFinite(n)
                         ? (n >= criticalTimerThresholdMs
@@ -206,7 +232,7 @@ function applyBenchmarkModeAfterInit(root: any) {
     } catch (e) { /* ignore */ }
 }
 
-function trimDiagnosticText(value, maxLength = 240) {
+function trimDiagnosticText(value: unknown, maxLength = 240) {
     const text = String(value || '');
     if (text.length <= maxLength) return text;
     return `${text.slice(0, Math.max(0, maxLength - 3))}...`;
@@ -257,13 +283,17 @@ async function runMatch(args: any) {
     const startedAt = Date.now();
     const server = startServer(root, 0);
     await new Promise(resolve => setTimeout(resolve, 200));
-    const port = server.address().port;
+    const address = server.address() as AddressInfo | null;
+    if (!address || typeof address === 'string') {
+        throw new Error('local server did not expose a TCP port');
+    }
+    const port = address.port;
     const browser = await chromium.launch({ headless: args.headless });
     const page = await browser.newPage();
     await page.addInitScript(applyBenchmarkModeBeforeInit);
-    const consoleMessages = [];
-    const pageErrors = [];
-    const networkErrors = [];
+    const consoleMessages: DiagnosticMessage[] = [];
+    const pageErrors: string[] = [];
+    const networkErrors: NetworkDiagnostic[] = [];
     let stage = 'launch';
     page.on('console', (msg: any) => {
         pushBounded(consoleMessages, {
@@ -321,7 +351,7 @@ async function runMatch(args: any) {
         await page.waitForSelector('#smartBlack');
         await page.waitForSelector('#smartWhite');
         stage = 'wait-ui-init';
-        await page.waitForFunction(() => globalThis.__uiInitialized === true, {
+        await page.waitForFunction(() => (globalThis as BenchGlobal).__uiInitialized === true, {
             timeout: Math.min(args.timeoutMs, 30000)
         });
 
@@ -343,8 +373,8 @@ async function runMatch(args: any) {
 
         stage = 'verify-levels';
         const selectedLevels = await page.evaluate(() => {
-            const b = document.getElementById('smartBlack');
-            const w = document.getElementById('smartWhite');
+            const b = document.getElementById('smartBlack') as HTMLSelectElement | null;
+            const w = document.getElementById('smartWhite') as HTMLSelectElement | null;
             return {
                 black: b ? Number(b.value) : null,
                 white: w ? Number(w.value) : null
@@ -375,11 +405,11 @@ async function runMatch(args: any) {
                 if (requirements.requireValueModelLoaded === true && status.valueModelLoaded !== true) return false;
                 return true;
             }, {
-                timeout: args.onnxWaitMs
-            }, {
                 requireCardModelLoaded: args.requireCardModelLoaded === true,
                 requireTargetModelLoaded: args.requireTargetModelLoaded === true,
                 requireValueModelLoaded: args.requireValueModelLoaded === true
+            }, {
+                timeout: args.onnxWaitMs
             });
         } else {
             try {
@@ -420,7 +450,7 @@ async function runMatch(args: any) {
         await page.waitForFunction(() => {
             const btn = document.getElementById('autoToggleBtn');
             const txt = btn ? String(btn.textContent || '') : '';
-            return txt.includes('ON') || (globalThis.AUTO_MODE_ACTIVE === true);
+            return txt.includes('ON') || ((globalThis as BenchGlobal).AUTO_MODE_ACTIVE === true);
         }, { timeout: 5000 });
 
         stage = 'wait-game-finish';
@@ -498,13 +528,13 @@ async function runMatch(args: any) {
                     terminal = !!(state && typeof window.isGameOver === 'function' && window.isGameOver(state) === true);
                 } catch (e) { /* ignore */ }
                 return {
-                    stage: globalThis.__benchStage || null,
+                    stage: (globalThis as BenchGlobal).__benchStage || null,
                     turnNumber: state && Number.isFinite(state.turnNumber) ? state.turnNumber : null,
                     currentPlayer: state ? state.currentPlayer : null,
                     resultShown: !!(state && state.__resultShown === true),
                     terminal,
                     occupied,
-                    autoModeActive: globalThis.AUTO_MODE_ACTIVE === true,
+                    autoModeActive: (globalThis as BenchGlobal).AUTO_MODE_ACTIVE === true,
                     pendingEffectType: state && state.pendingEffect ? String(state.pendingEffect.type || '') : null,
                     pendingEffectStage: state && state.pendingEffect ? String(state.pendingEffect.stage || '') : null,
                     onnxStatus: (window.CpuPolicyOnnxRuntime && typeof window.CpuPolicyOnnxRuntime.getStatus === 'function')
@@ -520,10 +550,10 @@ async function runMatch(args: any) {
                 pageErrors,
                 networkErrors
             });
-        } catch (snapshotErr) {
+        } catch (snapshotErr: any) {
             snapshot = { snapshotError: snapshotErr && snapshotErr.message ? snapshotErr.message : String(snapshotErr) };
         }
-        const baseMessage = err && err.message ? err.message : String(err);
+        const baseMessage = err && typeof err === 'object' && 'message' in err ? String(err.message) : String(err);
         throw new Error(`[stage:${stage}] ${baseMessage} snapshot=${JSON.stringify(snapshot)}`);
     } finally {
         await page.close().catch(() => {});

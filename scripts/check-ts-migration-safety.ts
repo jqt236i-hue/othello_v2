@@ -29,9 +29,7 @@ const skipDirs = new Set([
 const allowedNoCheckDebt = new Set([
   'cards/card-interaction.ts',
   'cards/card-renderer.ts',
-  'scripts/local-match-runtime.ts',
   'scripts/local-match-server.ts',
-  'scripts/run-ui-level-match.ts',
   'src/engine/selfplay-runner.ts',
   'training/engine/selfplay-runner.ts',
   'ui.ts'
