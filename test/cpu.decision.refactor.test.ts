@@ -1190,10 +1190,10 @@ describe('cpu decision refactor helpers', () => {
       getCardCost: jest.fn(() => 3),
       getUsableCardIds: jest.fn((cs, _gs, playerKey) => cs.hands[playerKey].slice())
     };
-    global.CARD_DEFS = [{ id: 'trap_debug_01', type: 'TRAP_WILL', enabled: true }];
     cpuDecision.setCpuDecisionRuntime({
       readQuerySearch: () => '?debug=1&cpuTrapOnly=1&cpuTrapOnlyFor=white',
-      readDebugFlag: () => false
+      readDebugFlag: () => false,
+      getCardDefs: () => [{ id: 'trap_debug_01', type: 'TRAP_WILL', enabled: true }]
     });
 
     const choice = cpuDecision.selectCardToUse('white');

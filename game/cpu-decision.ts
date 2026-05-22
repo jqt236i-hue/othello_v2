@@ -3030,10 +3030,15 @@ function _isCpuTrapOnlyModeEnabled(playerKey: any): any {
 
 function _findTrapCardIdInCatalog(): any {
     try {
-        const root = (typeof globalThis !== 'undefined') ? globalThis : null;
+        const injectedDefs = (
+            cpuDecisionRuntime &&
+            typeof cpuDecisionRuntime.getCardDefs === 'function'
+        )
+            ? cpuDecisionRuntime.getCardDefs()
+            : null;
         const defs = (typeof CARD_DEFS !== 'undefined' && Array.isArray(CARD_DEFS))
             ? CARD_DEFS
-            : (root && Array.isArray((root as any).CARD_DEFS) ? (root as any).CARD_DEFS : []);
+            : (Array.isArray(injectedDefs) ? injectedDefs : []);
         const def = defs.find((c: any) => c && c.type === 'TRAP_WILL' && c.enabled !== false);
         return def ? def.id : null;
     } catch (e) {
