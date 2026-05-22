@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 45 files.
+Current authorized `@ts-nocheck` debt: 44 files.
 
 Recent reduction:
 
@@ -48,6 +48,7 @@ Recent reduction:
 - `training/scripts/training-shared-teacher-args.ts` no longer uses `@ts-nocheck`; shared teacher CLI argument synchronization now typechecks without local suppressions.
 - `training/scripts/selfplay-deck-options.ts` no longer uses `@ts-nocheck`; selfplay deck-code option helpers now typecheck without local suppressions.
 - `training/scripts/training-artifact-status.ts` no longer uses `@ts-nocheck`; training artifact lifecycle and checkpoint compatibility classification now typechecks without local suppressions.
+- `training/scripts/training-seed-bank-plan.ts` no longer uses `@ts-nocheck`; seed bank gate planning helpers now typecheck without local suppressions.
 
 Recent boundary typing:
 

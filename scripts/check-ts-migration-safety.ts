@@ -69,7 +69,6 @@ const allowedNoCheckDebt = new Set([
   'training/scripts/training-cycle-steps.ts',
   'training/scripts/training-profile-presets.ts',
   'training/scripts/training-resolved-config-utils.ts',
-  'training/scripts/training-seed-bank-plan.ts',
   'training/scripts/training-warehouse-manifest-utils.ts',
   'ui.ts'
 ]);
