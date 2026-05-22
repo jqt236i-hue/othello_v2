@@ -1,4 +1,3 @@
-// @ts-nocheck
 // Auto-generated from cards/catalog.json - do not edit directly.
 // Use: node scripts/generate-catalog.js to regenerate.
 const CardCatalog = {

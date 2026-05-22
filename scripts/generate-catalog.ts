@@ -52,8 +52,7 @@ function generateBrowserFile(outPath: string) {
 
 function generateTsFile(outPath: string) {
   const obj = toBrowserCatalog(generate());
-  const content = '// @ts-nocheck\n' +
-    '// Auto-generated from cards/catalog.json - do not edit directly.\n' +
+  const content = '// Auto-generated from cards/catalog.json - do not edit directly.\n' +
     '// Use: node scripts/generate-catalog.js to regenerate.\n' +
     'const CardCatalog = ' + JSON.stringify(obj, null, 2) + ';\n\n' +
     'export = CardCatalog;\n';

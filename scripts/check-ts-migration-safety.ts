@@ -29,7 +29,6 @@ const skipDirs = new Set([
 const allowedNoCheckDebt = new Set([
   'cards/card-interaction.ts',
   'cards/card-renderer.ts',
-  'cards/catalog.ts',
   'cpu/cpu-turn.ts',
   'game/debug/debug-actions.ts',
   'game/logic/cards/breeding.ts',
