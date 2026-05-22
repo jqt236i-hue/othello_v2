@@ -78,6 +78,11 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
     global.processCpuTurn = jest.fn();
     global.CPU_TURN_DELAY_MS = 0;
     global.requestAnimationFrame = jest.fn();
+    cpuDecision.setCpuDecisionRuntime({
+      readMatchMode: () => 'cpu',
+      readHumanVsHumanMode: () => false,
+      processCpuTurn: global.processCpuTurn
+    });
   });
 
   afterEach(() => {

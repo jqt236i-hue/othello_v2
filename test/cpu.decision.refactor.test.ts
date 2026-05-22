@@ -1108,7 +1108,6 @@ describe('cpu decision refactor helpers', () => {
 
   test('selectCpuMoveWithPolicy uses injected reversi mode before legacy match mode', () => {
     const candidates = [{ row: 2, col: 2, flips: [] }, { row: 3, col: 3, flips: [] }];
-    global.MATCH_MODE = 'cpu';
     global.gameState = {
       board: Array.from({ length: 8 }, () => Array(8).fill(0)),
       currentPlayer: -1

@@ -61,9 +61,6 @@ function isCpuDebugEnabled(): any {
         }
     } catch (e) { /* ignore */ }
     try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_CPU_LOG === true) return true;
-    } catch (e) { /* ignore */ }
-    try {
         const qs = readCpuDecisionQuerySearch();
         if (/[?&]debug=(?:1|true)\b/i.test(qs)) return true;
     } catch (e) { /* ignore */ }
@@ -639,27 +636,7 @@ function isOthelloModeForCpuDecision(): boolean {
             return mode === 'reversi' || mode === 'othello';
         }
     } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
-            const mode = String((globalThis as any).getCurrentMatchMode() || '').trim().toLowerCase();
-            return mode === 'reversi' || mode === 'othello';
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).isReversiModeActive === 'function') {
-            return (globalThis as any).isReversiModeActive() === true;
-        }
-        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).isOthelloModeActive === 'function') {
-            return (globalThis as any).isOthelloModeActive() === true;
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        return typeof globalThis !== 'undefined' &&
-            ((globalThis as any).MATCH_MODE === 'reversi' || (globalThis as any).__MATCH_MODE === 'reversi'
-                || (globalThis as any).MATCH_MODE === 'othello' || (globalThis as any).__MATCH_MODE === 'othello');
-    } catch (e) {
-        return false;
-    }
+    return false;
 }
 
 function resolveCpuLv6RuntimeCapabilityModule(): any {
@@ -1887,11 +1864,6 @@ function readCpuDecisionMatchMode(): any {
     if (cpuDecisionRuntime && typeof cpuDecisionRuntime.MATCH_MODE !== 'undefined') {
         return cpuDecisionRuntime.MATCH_MODE;
     }
-    try {
-        return (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function')
-            ? (globalThis as any).getCurrentMatchMode()
-            : (typeof globalThis !== 'undefined' ? (globalThis as any).MATCH_MODE : null);
-    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -1902,7 +1874,7 @@ function readCpuDecisionHumanVsHumanFlag(): boolean {
     if (cpuDecisionRuntime && typeof cpuDecisionRuntime.DEBUG_HUMAN_VS_HUMAN !== 'undefined') {
         return cpuDecisionRuntime.DEBUG_HUMAN_VS_HUMAN === true;
     }
-    return (typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true);
+    return false;
 }
 
 function resolveCpuDecisionProcessCpuTurn(): any {
