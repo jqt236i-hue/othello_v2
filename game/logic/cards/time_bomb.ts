@@ -18,9 +18,6 @@ function _require(id: string): any {
 }
 
 function getRuntimeGlobalValue(key: string): any {
-    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
-        return (globalThis as any)[key];
-    }
     if (typeof self !== 'undefined' && (self as any)[key]) {
         return (self as any)[key];
     }
@@ -36,29 +33,24 @@ function safeRequire(id: string): any {
 }
 
 const SharedConstants = (() => {
-    const runtimeSharedConstants = getRuntimeGlobalValue('SharedConstants');
-    if (runtimeSharedConstants) return runtimeSharedConstants;
-
     if (typeof module === 'object' && module.exports) {
-        return safeRequire('../../../shared-constants') || runtimeSharedConstants;
+        return safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
     }
 
-    return runtimeSharedConstants;
+    return getRuntimeGlobalValue('SharedConstants');
 })();
 
-const BoardOpsModule = getRuntimeGlobalValue('BoardOps') || ((typeof module === 'object' && module.exports)
+const BoardOpsModule = ((typeof module === 'object' && module.exports)
     ? safeRequire('../board_ops')
-    : (typeof self !== 'undefined' ? (self as any).BoardOps : null));
+    : null) || getRuntimeGlobalValue('BoardOps');
 
 const CardMarkersModule = (() => {
-    const runtimeCardMarkers = getRuntimeGlobalValue('CardMarkers');
-    if (runtimeCardMarkers) return runtimeCardMarkers;
     if (typeof module === 'object' && module.exports) {
         try {
-            return _require('./markers');
+            return _require('./markers') || getRuntimeGlobalValue('CardMarkers');
         } catch (e) { /* ignore */ }
     }
-    return (typeof self !== 'undefined' ? (self as any).CardMarkers : null);
+    return getRuntimeGlobalValue('CardMarkers');
 })();
 
 const { TIME_BOMB_TURNS } = SharedConstants || {};
@@ -67,16 +59,9 @@ const TIME_BOMB_DESTROY_CAUSE = 'TIME_BOMB';
 const TIME_BOMB_DESTROY_REASON = 'bomb_explosion';
 const TIME_BOMB_PROJECTILE_STONE = 'time_bomb';
 
-function getGlobalScope(): any {
-    return (typeof globalThis !== 'undefined')
-        ? globalThis
-        : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-}
-
 function getCardMarkersModule(): any {
     if (CardMarkersModule) return CardMarkersModule;
-    const globalScope = getGlobalScope();
-    return globalScope.CardMarkers || null;
+    return getRuntimeGlobalValue('CardMarkers') || null;
 }
 
 function getBombMarkers(cardState: CardState): any[] {

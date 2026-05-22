@@ -17,47 +17,50 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const RuntimeSharedConstants = (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants)
-    ? (globalThis as any).SharedConstants
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
-const SharedConstants = RuntimeSharedConstants || ((typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
-    : undefined);
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (_e) {
+        return null;
+    }
+}
+
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return undefined;
+}
+
+const SharedConstants = ((typeof module === 'object' && module.exports)
+    ? safeRequire('../../../shared-constants')
+    : null) || getRuntimeGlobalValue('SharedConstants');
 
 const CardMarkersModule = (() => {
-    if (typeof globalThis !== 'undefined' && (globalThis as any).CardMarkers) {
-        return (globalThis as any).CardMarkers;
-    }
     if (typeof module === 'object' && module.exports) {
         try {
-            return _require('./markers');
+            return _require('./markers') || getRuntimeGlobalValue('CardMarkers');
         } catch (e) { /* ignore */ }
     }
-    return (typeof self !== 'undefined' ? (self as any).CardMarkers : null);
+    return getRuntimeGlobalValue('CardMarkers');
 })();
 
 const CardWorkModule = (() => {
-    if (typeof globalThis !== 'undefined' && (globalThis as any).CardWork) {
-        return (globalThis as any).CardWork;
-    }
     if (typeof module === 'object' && module.exports) {
         try {
-            return _require('./work_will');
+            return _require('./work_will') || getRuntimeGlobalValue('CardWork');
         } catch (e) { /* ignore */ }
     }
-    return (typeof self !== 'undefined' ? (self as any).CardWork : null);
+    return getRuntimeGlobalValue('CardWork');
 })();
 
 const RandomSourceModule = (() => {
-    if (typeof globalThis !== 'undefined' && (globalThis as any).CardRandomSource) {
-        return (globalThis as any).CardRandomSource;
-    }
     if (typeof module === 'object' && module.exports) {
         try {
-            return _require('../cards-internal/random-source');
+            return _require('../cards-internal/random-source') || getRuntimeGlobalValue('CardRandomSource');
         } catch (e) { /* ignore */ }
     }
-    return (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
+    return getRuntimeGlobalValue('CardRandomSource');
 })();
 
 const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
@@ -82,33 +85,22 @@ const HYPERACTIVE_TYPES = new Set([
     'GLUTTONOUS'
 ]);
 
-function getGlobalScope(): any {
-    return (typeof globalThis !== 'undefined')
-        ? globalThis
-        : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-}
-
 function getCardMarkersModule(): any {
     if (CardMarkersModule) return CardMarkersModule;
-    const globalScope = getGlobalScope();
-    return globalScope.CardMarkers || null;
+    return getRuntimeGlobalValue('CardMarkers') || null;
 }
 
 function getCardWorkModule(): any {
     if (CardWorkModule) return CardWorkModule;
-    const globalScope = getGlobalScope();
-    return globalScope.CardWork || null;
+    return getRuntimeGlobalValue('CardWork') || null;
 }
 
 function getSpecialStoneRegistryModule(): any {
-    const globalScope = getGlobalScope();
-    if (globalScope.SpecialStoneRegistry) return globalScope.SpecialStoneRegistry;
-    if (typeof require === 'function') {
-        try {
-            return require('../../../shared/special-stone-registry');
-        } catch (e) { /* ignore */ }
+    if (typeof module === 'object' && module.exports) {
+        const registry = safeRequire('../../../shared/special-stone-registry');
+        if (registry) return registry;
     }
-    return globalScope.SpecialStoneRegistry || null;
+    return getRuntimeGlobalValue('SpecialStoneRegistry') || null;
 }
 
 function isOverlayOnlySpecialStoneType(type: string): boolean {

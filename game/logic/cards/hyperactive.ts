@@ -19,9 +19,6 @@ function _require(id: string): any {
 }
 
 function getRuntimeGlobalValue(key: string): any {
-    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
-        return (globalThis as any)[key];
-    }
     if (typeof self !== 'undefined' && (self as any)[key]) {
         return (self as any)[key];
     }
@@ -37,36 +34,29 @@ function safeRequire(id: string): any {
 }
 
 const SharedConstants = (() => {
-    const runtimeSharedConstants = getRuntimeGlobalValue('SharedConstants');
-    if (runtimeSharedConstants) return runtimeSharedConstants;
-
     if (typeof module === 'object' && module.exports) {
-        return safeRequire('../../../shared-constants') || runtimeSharedConstants;
+        return safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
     }
 
-    return runtimeSharedConstants;
+    return getRuntimeGlobalValue('SharedConstants');
 })();
 
 const BoardUtils = (() => {
-    const runtimeBoardUtils = getRuntimeGlobalValue('SharedBoardUtils');
-    if (runtimeBoardUtils) return runtimeBoardUtils;
     if (typeof module === 'object' && module.exports) {
         try {
-            return safeRequire('../../../shared/shared-board-utils');
+            return safeRequire('../../../shared/shared-board-utils') || getRuntimeGlobalValue('SharedBoardUtils');
         } catch (e) { /* ignore */ }
     }
-    return (typeof self !== 'undefined' ? (self as any).SharedBoardUtils : null);
+    return getRuntimeGlobalValue('SharedBoardUtils');
 })();
 
 const RandomSourceModule = (() => {
-    const runtimeRandomSource = getRuntimeGlobalValue('CardRandomSource');
-    if (runtimeRandomSource) return runtimeRandomSource;
     if (typeof module === 'object' && module.exports) {
         try {
-            return safeRequire('../cards-internal/random-source');
+            return safeRequire('../cards-internal/random-source') || getRuntimeGlobalValue('CardRandomSource');
         } catch (e) { /* ignore */ }
     }
-    return (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
+    return getRuntimeGlobalValue('CardRandomSource');
 })();
 
 const StoneStatusSnapshot = (() => {
@@ -75,12 +65,7 @@ const StoneStatusSnapshot = (() => {
             return safeRequire('../../../shared/stone-status-snapshot');
         } catch (e) { /* ignore */ }
     }
-    const globalScope = (typeof globalThis !== 'undefined')
-        ? globalThis
-        : ((typeof self !== 'undefined') ? self : (typeof global !== 'undefined' ? global : {} as any));
-    return globalScope && globalScope.StoneStatusSnapshot
-        ? globalScope.StoneStatusSnapshot
-        : null;
+    return getRuntimeGlobalValue('StoneStatusSnapshot') || null;
 })();
 
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};

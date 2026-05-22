@@ -8,17 +8,25 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
 declare const CHARGE_MAX: any;
 
-let OwnerHelpersModule: any = null;
-try {
-    OwnerHelpersModule = _require('../../../utils/owner-helpers');
-} catch (e) { /* ignore */ }
-if (!OwnerHelpersModule) {
+function safeRequire(id: string): any {
     try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).OwnerHelpers) {
-            OwnerHelpersModule = (globalThis as any).OwnerHelpers;
-        }
-    } catch (e) { /* ignore */ }
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
 }
+
+function getRuntimeGlobalValue(key: string): any {
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
+    }
+    return undefined;
+}
+
+const SharedConstants = safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
+
+let OwnerHelpersModule: any = null;
+OwnerHelpersModule = safeRequire('../../../utils/owner-helpers') || getRuntimeGlobalValue('OwnerHelpers');
 
 function normalizePlayerKey(playerKey: any): string | null {
     try {
@@ -59,14 +67,12 @@ function ensureChargeDeltaQueue(cardState: any): void {
 }
 
 function resolveChargeMax(): number {
+    if (SharedConstants && Number.isFinite(Number(SharedConstants.CHARGE_MAX))) {
+        return Number(SharedConstants.CHARGE_MAX);
+    }
     try {
         if (typeof CHARGE_MAX !== 'undefined' && Number.isFinite(Number(CHARGE_MAX))) {
             return Number(CHARGE_MAX);
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && Number.isFinite(Number((globalThis as any).CHARGE_MAX))) {
-            return Number((globalThis as any).CHARGE_MAX);
         }
     } catch (e) { /* ignore */ }
     return 99;

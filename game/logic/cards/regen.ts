@@ -26,16 +26,16 @@ const CardRegen = (function (root: any, factory: any) {
     const { BLACK, WHITE, DIRECTIONS, EMPTY } = SharedConstants || {};
     const REGEN_REVIVE_LIMIT = 3;
 
-    function getGlobalScope(): any {
-        return (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
+    function getRuntimeGlobalValue(key: string): any {
+        if (typeof self !== 'undefined' && (self as any)[key]) {
+            return (self as any)[key];
+        }
+        return null;
     }
 
     function getCardMarkersModule() {
         if (CardMarkersModule) return CardMarkersModule;
-        const globalScope = getGlobalScope();
-        return globalScope.CardMarkers || null;
+        return getRuntimeGlobalValue('CardMarkers');
     }
 
     if (BLACK === undefined || WHITE === undefined || DIRECTIONS === undefined) {
