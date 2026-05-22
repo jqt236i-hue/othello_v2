@@ -5,8 +5,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-const CARD_DEFS = (typeof globalThis !== 'undefined' && (globalThis as any).CARD_DEFS)
-    ? (globalThis as any).CARD_DEFS
+const SharedConstants = (() => {
+    try {
+        return _require('../shared-constants');
+    } catch (e) { /* ignore */ }
+    return null;
+})();
+const CARD_DEFS = (SharedConstants && Array.isArray(SharedConstants.CARD_DEFS))
+    ? SharedConstants.CARD_DEFS
     : [];
 const CARD_TYPE_BY_ID = CARD_DEFS.reduce((acc: any, c: any) => {
     acc[c.id] = c.type;
@@ -16,11 +22,6 @@ const CARD_TYPE_BY_ID = CARD_DEFS.reduce((acc: any, c: any) => {
 const GameControllerSharedBoardUtils = (() => {
     try {
         return _require('../shared/shared-board-utils');
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).SharedBoardUtils) {
-            return (globalThis as any).SharedBoardUtils;
-        }
     } catch (e) { /* ignore */ }
     return null;
 })();
@@ -33,38 +34,39 @@ function posToNotation(row: number, col: number): string {
     return cols[col] + (row + 1);
 }
 
-function initializeGame(): void {
-    if (typeof (globalThis as any).createGameState === 'undefined') {
+function initializeGame(runtime: any): void {
+    const root = runtime && typeof runtime === 'object' ? runtime : null;
+    if (!root || typeof root.createGameState !== 'function') {
         console.error('[Game Controller] game-core-logic.js not loaded');
         return;
     }
-    if (typeof (globalThis as any).processBombs === 'undefined') {
+    if (typeof root.processBombs !== 'function') {
         console.error('[Game Controller] special-effects-handler.js not loaded');
         return;
     }
-    if (typeof (globalThis as any).applyProtectionAfterMove === 'undefined') {
+    if (typeof root.applyProtectionAfterMove !== 'function') {
         console.error('[Game Controller] card-effects-applier.js not loaded');
         return;
     }
-    if (typeof (globalThis as any).cpuMaybeUseCardWithPolicy === 'undefined') {
+    if (typeof root.cpuMaybeUseCardWithPolicy !== 'function') {
         console.error('[Game Controller] cpu-decision.js not loaded');
         return;
     }
-    if (typeof (globalThis as any).executeMove === 'undefined') {
+    if (typeof root.executeMove !== 'function') {
         console.error('[Game Controller] turn-manager.js not loaded');
         return;
     }
     
     console.log('[Game Controller] All modules loaded successfully');
     
-    if (typeof (globalThis as any).gameState === 'undefined') {
-        (globalThis as any).gameState = (globalThis as any).createGameState();
+    if (typeof root.gameState === 'undefined') {
+        root.gameState = root.createGameState();
     }
 
-    if (typeof (globalThis as any).CpuPolicy !== 'undefined' && typeof (globalThis as any).CpuPolicy.loadPolicyForLevel === 'function') {
-        (globalThis as any).CpuPolicy.loadPolicyForLevel(1)
+    if (root.CpuPolicy && typeof root.CpuPolicy.loadPolicyForLevel === 'function') {
+        root.CpuPolicy.loadPolicyForLevel(1)
             .then((policy: any) => {
-                (globalThis as any).mccfrPolicy = policy;
+                root.mccfrPolicy = policy;
                 console.log('[Game Controller] MCCFR policy loaded');
             })
             .catch((err: any) => {
