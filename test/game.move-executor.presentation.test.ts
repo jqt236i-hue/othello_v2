@@ -333,6 +333,9 @@ describe('move-executor presentation emission', () => {
         };
 
         const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            getPlaybackStateManager: () => global.PlaybackStateManager
+        });
         const adapter = {
             runTurnWithAdapter: jest.fn(() => ({ skippedLocalExecution: true }))
         };

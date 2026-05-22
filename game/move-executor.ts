@@ -228,6 +228,38 @@ function readMoveExecutorHumanVsHumanFlag() {
     return false;
 }
 
+function resolveMoveExecutorTurnPipelineUIAdapter() {
+    if (__uiImpl_move_executor && __uiImpl_move_executor.turnPipelineUIAdapter) {
+        return __uiImpl_move_executor.turnPipelineUIAdapter;
+    }
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.getTurnPipelineUIAdapter === 'function') {
+        try {
+            const adapter = __uiImpl_move_executor.getTurnPipelineUIAdapter();
+            if (adapter && typeof adapter === 'object') return adapter;
+        } catch (e) { /* ignore */ }
+    }
+    if (typeof require === 'function') {
+        try { return require('./turn/pipeline_ui_adapter'); } catch (e) { /* ignore */ }
+    }
+    return null;
+}
+
+function resolveMoveExecutorTurnPipeline() {
+    if (__uiImpl_move_executor && __uiImpl_move_executor.turnPipeline) {
+        return __uiImpl_move_executor.turnPipeline;
+    }
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.getTurnPipeline === 'function') {
+        try {
+            const pipeline = __uiImpl_move_executor.getTurnPipeline();
+            if (pipeline && typeof pipeline === 'object') return pipeline;
+        } catch (e) { /* ignore */ }
+    }
+    if (typeof require === 'function') {
+        try { return require('./turn/turn_pipeline'); } catch (e) { /* ignore */ }
+    }
+    return null;
+}
+
 function isHumanVsHumanModeEnabled() {
     const debugHvH = readMoveExecutorHumanVsHumanFlag();
     const matchMode = String(readMoveExecutorMatchMode() || '').trim().toLowerCase();
@@ -273,20 +305,8 @@ async function executeMove(move: any) {
         const playerKey = resolveMoveExecutorAuthPlayerKey(turnOwnerKey);
         const debugUsePipeline = !!(__uiImpl_move_executor && __uiImpl_move_executor.DEBUG_USE_TURN_PIPELINE) && typeof TurnPipeline !== 'undefined' && typeof TurnPipeline.applyTurn === 'function';
         const pipelineSnapshot = debugUsePipeline ? runPipelineDebugSnapshot(move, playerKey) : null;
-        let adapter = (typeof TurnPipelineUIAdapter !== 'undefined') ? TurnPipelineUIAdapter : null;
-        if (!adapter && typeof require === 'function') {
-            try { adapter = require('./turn/pipeline_ui_adapter'); } catch (e) { /* ignore */ }
-        }
-        if (!adapter && typeof globalThis !== 'undefined' && globalThis.TurnPipelineUIAdapter) {
-            adapter = globalThis.TurnPipelineUIAdapter;
-        }
-        let pipeline = (typeof TurnPipeline !== 'undefined') ? TurnPipeline : null;
-        if (!pipeline && typeof require === 'function') {
-            try { pipeline = require('./turn/turn_pipeline'); } catch (e) { /* ignore */ }
-        }
-        if (!pipeline && typeof globalThis !== 'undefined' && globalThis.TurnPipeline) {
-            pipeline = globalThis.TurnPipeline;
-        }
+        let adapter = resolveMoveExecutorTurnPipelineUIAdapter();
+        let pipeline = resolveMoveExecutorTurnPipeline();
         const pipelineAvailable = (adapter && pipeline);
 
         const safeIsProcessing = (typeof isProcessing !== 'undefined') ? isProcessing : undefined;

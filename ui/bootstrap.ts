@@ -1411,6 +1411,20 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 return false;
             },
             getPlaybackStateManager: () => getPlaybackStateModuleForReset(),
+            getTurnPipelineUIAdapter: () => {
+                try {
+                    return typeof globalThis !== 'undefined' ? (globalThis as any).TurnPipelineUIAdapter : null;
+                } catch (e: any) {
+                    return null;
+                }
+            },
+            getTurnPipeline: () => {
+                try {
+                    return typeof globalThis !== 'undefined' ? (globalThis as any).TurnPipeline : null;
+                } catch (e: any) {
+                    return null;
+                }
+            },
             now: () => Date.now(),
             // Let game/move-executor await the UI playback lifecycle (AnimationEngine / visual writer)
             waitForPlayback: uiMod.waitForPlaybackIdle,
