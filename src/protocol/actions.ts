@@ -1,20 +1,17 @@
-// @ts-nocheck
-declare const __non_webpack_require__: NodeRequire | undefined;
+export interface ProtocolAction {
+  type: string;
+  playerId: unknown;
+  [key: string]: unknown;
+}
 
-const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
-  ? __non_webpack_require__
-  : require;
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
 
-// Minimal actions definition and helper utilities for tests
 // Actions should be plain objects describing an input from a player.
-
-function isValidAction(action) {
-  if (!action || typeof action !== 'object') return false;
+export function isValidAction(action: unknown): action is ProtocolAction {
+  if (!isObject(action)) return false;
   if (typeof action.type !== 'string') return false;
   if (typeof action.playerId === 'undefined') return false;
   return true;
 }
-
-module.exports = { isValidAction };
-
-export {};

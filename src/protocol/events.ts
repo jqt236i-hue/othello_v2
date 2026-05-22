@@ -1,32 +1,46 @@
-// @ts-nocheck
-declare const __non_webpack_require__: NodeRequire | undefined;
+export interface ProtocolEvent {
+  type: string;
+  phase: string;
+  targets: unknown[];
+  after: unknown | null;
+  createdSeq: number;
+  turnIndex: number;
+  eventIndex: number;
+  batchKey: unknown | null;
+  meta: unknown | null;
+  [key: string]: unknown;
+}
 
-const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
-  ? __non_webpack_require__
-  : require;
+export type EventValidationResult =
+  | { ok: true }
+  | { ok: false; reason: string };
 
-// Minimal event schema and validator for Protocol v0
-// Required fields: type, phase, targets, createdSeq, turnIndex, eventIndex
+export type EventTemplate = Partial<ProtocolEvent> & Record<string, unknown>;
 
-function validateEvent(evt) {
-  if (!evt || typeof evt !== 'object') return { ok: false, reason: 'not-object' };
-  const required = ['type', 'phase', 'createdSeq', 'turnIndex', 'eventIndex'];
-  for (const k of required) {
-    if (typeof evt[k] === 'undefined') return { ok: false, reason: `missing:${k}` };
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+// Minimal event schema and validator for Protocol v0.
+export function validateEvent(evt: unknown): EventValidationResult {
+  if (!isObject(evt)) return { ok: false, reason: 'not-object' };
+
+  const required = ['type', 'phase', 'createdSeq', 'turnIndex', 'eventIndex'] as const;
+  for (const key of required) {
+    if (typeof evt[key] === 'undefined') return { ok: false, reason: `missing:${key}` };
   }
-  // simple structural checks
+
   if (typeof evt.type !== 'string') return { ok: false, reason: 'type-not-string' };
   if (typeof evt.phase !== 'string') return { ok: false, reason: 'phase-not-string' };
   if (typeof evt.createdSeq !== 'number') return { ok: false, reason: 'createdSeq-not-number' };
   if (typeof evt.turnIndex !== 'number') return { ok: false, reason: 'turnIndex-not-number' };
   if (typeof evt.eventIndex !== 'number') return { ok: false, reason: 'eventIndex-not-number' };
-  // optional: targets should be array if present
   if (evt.targets && !Array.isArray(evt.targets)) return { ok: false, reason: 'targets-not-array' };
+
   return { ok: true };
 }
 
-function makeEvent(template) {
-  // Fill defaults for simple test usage
+export function makeEvent(template: EventTemplate): ProtocolEvent {
   return {
     type: template.type || 'unknown',
     phase: template.phase || 'action',
@@ -39,7 +53,3 @@ function makeEvent(template) {
     meta: template.meta || null
   };
 }
-
-module.exports = { validateEvent, makeEvent };
-
-export {};
