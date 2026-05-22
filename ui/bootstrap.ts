@@ -1198,6 +1198,13 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                                 } catch (e: any) {
                                     return null;
                                 }
+                            },
+                            getNetworkTurnHandoff: () => {
+                                try {
+                                    return typeof globalThis !== 'undefined' ? (globalThis as any).NetworkTurnHandoff : null;
+                                } catch (e: any) {
+                                    return null;
+                                }
                             }
                         });
                     }

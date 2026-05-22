@@ -124,6 +124,19 @@ function recordPassHandlerAction(action: any) {
     }
 }
 
+function resolvePassHandlerNetworkTurnHandoff() {
+    if (passHandlerRuntime && passHandlerRuntime.networkTurnHandoff) {
+        return passHandlerRuntime.networkTurnHandoff;
+    }
+    if (passHandlerRuntime && typeof passHandlerRuntime.getNetworkTurnHandoff === 'function') {
+        try {
+            const handoff = passHandlerRuntime.getNetworkTurnHandoff();
+            if (handoff && typeof handoff === 'object') return handoff;
+        } catch (e) { /* ignore */ }
+    }
+    return passHandlerNetworkTurnHandoff;
+}
+
 function normalizePlayerKeyOptional(value: any) {
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
@@ -618,8 +631,9 @@ async function finalizePassTurnHandoff(lastPlayerKey: string, publishAction: any
     if (isExplicitNetworkMatchMode()) {
         return legacyFinalizePassTurnHandoff(safeLastPlayerKey, publishAction);
     }
-    const finalizeTurn = (passHandlerNetworkTurnHandoff && typeof passHandlerNetworkTurnHandoff.finalizeNetworkTurnHandoff === 'function')
-        ? passHandlerNetworkTurnHandoff.finalizeNetworkTurnHandoff
+    const handoff = resolvePassHandlerNetworkTurnHandoff();
+    const finalizeTurn = (handoff && typeof handoff.finalizeNetworkTurnHandoff === 'function')
+        ? handoff.finalizeNetworkTurnHandoff
         : null;
 
     if (typeof finalizeTurn !== 'function') {
