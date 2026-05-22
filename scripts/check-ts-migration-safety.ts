@@ -39,7 +39,6 @@ const allowedNoCheckDebt = new Set([
   'scripts/network-endgame-smoke.ts',
   'scripts/prepare-worker-assets.ts',
   'scripts/run-ui-level-match.ts',
-  'scripts/serve-with-fallback.ts',
   'sound-engine.ts',
   'src/engine/engine.ts',
   'src/engine/selfplay-runner.ts',

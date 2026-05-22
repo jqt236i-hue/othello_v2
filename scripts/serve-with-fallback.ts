@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 
 'use strict';
 
@@ -14,11 +13,29 @@ const { generateObservationGachaCatalogs } = _generate_observation_gacha_catalog
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
+interface ServeArgs {
+    root: string;
+    host: string;
+    preferredPort: number;
+    cacheSeconds: number;
+    maxAttempts: number;
+    passThrough: string[];
+    help: boolean;
+}
+
+interface ArtifactRefreshState {
+    lastAssetSourceFingerprint: string;
+}
+
+interface ArtifactRefreshOptions {
+    intervalMs?: number;
+}
+
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-function parseInteger(value: any, label: any) {
+function parseInteger(value: unknown, label: string): number {
     const parsed = Number(value);
     if (!Number.isFinite(parsed) || parsed < 0 || !Number.isInteger(parsed)) {
         throw new Error(`${label} must be a non-negative integer`);
@@ -26,8 +43,8 @@ function parseInteger(value: any, label: any) {
     return parsed;
 }
 
-function parseArgs(argv: string[]) {
-    const args = {
+function parseArgs(argv: string[]): ServeArgs {
+    const args: ServeArgs = {
         root: '.',
         host: process.env.HOST ? String(process.env.HOST).trim() : '0.0.0.0',
         preferredPort: parseInteger(process.env.PORT || '8000', '--port'),
@@ -98,7 +115,7 @@ function printHelp() {
     ].join('\n'));
 }
 
-function resolveHttpServerEntrypoint() {
+function resolveHttpServerEntrypoint(): string {
     try {
         return require.resolve('http-server/bin/http-server');
     } catch (error) {
@@ -106,8 +123,8 @@ function resolveHttpServerEntrypoint() {
     }
 }
 
-function checkPortAvailable(port: any, host: any) {
-    return new Promise((resolve: any) => {
+function checkPortAvailable(port: number, host: string): Promise<number | null> {
+    return new Promise((resolve) => {
         const server = net.createServer();
         server.unref();
         server.on('error', () => resolve(null));
@@ -119,7 +136,7 @@ function checkPortAvailable(port: any, host: any) {
     });
 }
 
-async function chooseServePort(options: any) {
+async function chooseServePort(options: Pick<ServeArgs, 'host' | 'preferredPort' | 'maxAttempts'>): Promise<number> {
     const host = options && options.host ? options.host : '0.0.0.0';
     const preferredPort = options && Number.isFinite(options.preferredPort)
         ? Math.max(0, Math.floor(options.preferredPort))
@@ -131,18 +148,18 @@ async function chooseServePort(options: any) {
     for (let offset = 0; offset <= maxAttempts; offset++) {
         const candidate = preferredPort + offset;
         const available = await checkPortAvailable(candidate, host);
-        if (Number.isFinite(available)) {
+        if (available !== null && Number.isFinite(available)) {
             return available;
         }
     }
     const ephemeral = await checkPortAvailable(0, host);
-    if (Number.isFinite(ephemeral)) {
+    if (ephemeral !== null && Number.isFinite(ephemeral)) {
         return ephemeral;
     }
     throw new Error(`no available port found for host ${host}`);
 }
 
-function buildHttpServerArgs(entrypoint: any, options: any, selectedPort: any) {
+function buildHttpServerArgs(entrypoint: string, options: ServeArgs, selectedPort: number): string[] {
     const rootPath = path.resolve(process.cwd(), options.root || '.');
     if (!fs.existsSync(rootPath)) {
         throw new Error(`serve root not found: ${rootPath}`);
@@ -170,7 +187,7 @@ function refreshGeneratedCatalogArtifacts(rootPath: string) {
     }
 }
 
-function collectAssetSourceEntries(dirPath: any, basePath: any, entries: any) {
+function collectAssetSourceEntries(dirPath: string, basePath: string, entries: string[]): void {
     if (!fs.existsSync(dirPath)) return;
     const dirEntries = fs.readdirSync(dirPath, { withFileTypes: true });
     dirEntries.forEach((entry: any) => {
@@ -191,25 +208,24 @@ function computeAssetSourceFingerprint(rootPath: string) {
     const resolvedRoot = path.resolve(String(rootPath || '.'));
     const assetsDir = path.join(resolvedRoot, 'assets');
     if (!fs.existsSync(assetsDir)) return '';
-    const entries = [];
+    const entries: string[] = [];
     collectAssetSourceEntries(assetsDir, resolvedRoot, entries);
     entries.sort();
     return JSON.stringify(entries);
 }
 
-function refreshGeneratedCatalogArtifactsIfNeeded(rootPath: any, state: any) {
+function refreshGeneratedCatalogArtifactsIfNeeded(rootPath: string, state: ArtifactRefreshState) {
     const resolvedRoot = path.resolve(String(rootPath || '.'));
-    const targetState = (state && typeof state === 'object') ? state : {};
     const nextFingerprint = computeAssetSourceFingerprint(resolvedRoot);
-    if (targetState.lastAssetSourceFingerprint === nextFingerprint) {
+    if (state.lastAssetSourceFingerprint === nextFingerprint) {
         return { changed: false, fingerprint: nextFingerprint };
     }
     refreshGeneratedCatalogArtifacts(resolvedRoot);
-    targetState.lastAssetSourceFingerprint = nextFingerprint;
+    state.lastAssetSourceFingerprint = nextFingerprint;
     return { changed: true, fingerprint: nextFingerprint };
 }
 
-function startArtifactRefreshLoop(rootPath, options = {}) {
+function startArtifactRefreshLoop(rootPath: string, options: ArtifactRefreshOptions = {}) {
     const resolvedRoot = path.resolve(String(rootPath || '.'));
     const intervalMs = Number.isFinite(Number(options.intervalMs))
         ? Math.max(250, Math.floor(Number(options.intervalMs)))
@@ -221,7 +237,8 @@ function startArtifactRefreshLoop(rootPath, options = {}) {
         try {
             return refreshGeneratedCatalogArtifactsIfNeeded(resolvedRoot, state);
         } catch (error) {
-            console.warn('[serve] asset refresh failed:', error && error.message ? error.message : error);
+            const message = error instanceof Error ? error.message : error;
+            console.warn('[serve] asset refresh failed:', message);
             return { changed: false, fingerprint: state.lastAssetSourceFingerprint, error };
         }
     };
