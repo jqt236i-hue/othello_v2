@@ -2,11 +2,6 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 declare function emitEffectLog(message: any): void;
 declare function emitNormalLog(message: any): void;
 declare function emitLogAdded(message: any, kind?: string): void;
-declare function getGamePrng(): any;
-declare function emitEffectLog(message: any): void;
-declare function emitNormalLog(message: any): void;
-declare function emitLogAdded(message: any, kind?: string): void;
-declare function getGamePrng(): any;
 declare const ActionManager: any;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -77,6 +72,22 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const STONE_SALVATION_GOD_CAUSE = PresentationEffectProfiles.STONE_SALVATION_GOD_CAUSE;
     const STONE_SALVATION_GOD_REVIVE_REASON = PresentationEffectProfiles.STONE_SALVATION_GOD_REVIVE_REASON;
     const SPECIAL_DESTROY_TARGET_PROFILES = PresentationEffectProfiles.SPECIAL_DESTROY_TARGET_PROFILES;
+    let pipelineUIAdapterRuntime: any = null;
+
+    function setPipelineUIAdapterRuntime(runtime: any) {
+        pipelineUIAdapterRuntime = (runtime && typeof runtime === 'object') ? runtime : null;
+        return pipelineUIAdapterRuntime;
+    }
+
+    function resolvePipelineRuntimePrng() {
+        if (pipelineUIAdapterRuntime && typeof pipelineUIAdapterRuntime.getGamePrng === 'function') {
+            try {
+                return pipelineUIAdapterRuntime.getGamePrng();
+            } catch (e) { /* ignore */ }
+        }
+        return undefined;
+    }
+
     const CARD_EFFECT_FLIP_RAW_EVENT_TYPES = new Set([
         'dragon_converted_start',
         'dragon_converted_immediate',
@@ -3588,9 +3599,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             options.currentStateVersion = cardState.turnIndex;
         }
 
-        // Attempt to pass the current game PRNG (when available in browser env) to ensure deterministic rule logic
-        const _root: any = (typeof globalThis !== 'undefined') ? globalThis : undefined;
-        const runtimePrng = (typeof getGamePrng === 'function') ? getGamePrng() : (_root && typeof _root.getGamePrng === 'function') ? _root.getGamePrng() : undefined; // globalThis — UI/bootstrap dependency
+        // Attempt to pass the current game PRNG when injected by the UI runtime.
+        const runtimePrng = resolvePipelineRuntimePrng();
         const result = (typeof turnPipeline.applyTurnSafe === 'function')
             ? turnPipeline.applyTurnSafe(cardState, gameState, playerKey, action, runtimePrng, options)
             : turnPipeline.applyTurn(cardState, gameState, playerKey, action, runtimePrng, options);
@@ -3668,4 +3678,4 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         };
     }
 
-export = { mapToPlaybackEvents, normalizePlaybackEvents, appendSoundEffectPlaybackEvents, mapEffectLogsFromPipeline, mapNormalLogsFromPipeline, clearDeferredGeneratedThrowChainPlayback, runTurnWithAdapter };
+export = { mapToPlaybackEvents, normalizePlaybackEvents, appendSoundEffectPlaybackEvents, mapEffectLogsFromPipeline, mapNormalLogsFromPipeline, clearDeferredGeneratedThrowChainPlayback, runTurnWithAdapter, setPipelineUIAdapterRuntime };

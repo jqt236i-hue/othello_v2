@@ -939,6 +939,22 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
 
     function installCardDI() {
         configurePresentationRuntime();
+        try {
+            const pipelineUIAdapter = require('../game/turn/pipeline_ui_adapter');
+            if (pipelineUIAdapter && typeof pipelineUIAdapter.setPipelineUIAdapterRuntime === 'function') {
+                pipelineUIAdapter.setPipelineUIAdapterRuntime({
+                    getGamePrng: () => {
+                        try {
+                            return (typeof globalThis !== 'undefined' && typeof (globalThis as any).getGamePrng === 'function')
+                                ? (globalThis as any).getGamePrng()
+                                : undefined;
+                        } catch (e: any) {
+                            return undefined;
+                        }
+                    }
+                });
+            }
+        } catch (e: any) { /* ignore */ }
 
         // Trap placement flash stays in UI and is invoked from game via DI.
         _connect('./animation-utils', '../game/card-effects/trap', (uiMod: any) => ({

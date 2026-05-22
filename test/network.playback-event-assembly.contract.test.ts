@@ -985,8 +985,9 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
       const expected = buildExpectedAssembly(fixture.snapshot, fixture.action, fixture.name);
       expect(expected.diagnostics && expected.diagnostics.warnings).toEqual([]);
 
-      const previousGetGamePrng = globalThis.getGamePrng;
-      globalThis.getGamePrng = () => createFixturePrng(MatchAuthority.createTurnStartSeed({ seed: 7 }, fixture.snapshot, fixture.action.playerKey));
+      adapter.setPipelineUIAdapterRuntime({
+        getGamePrng: () => createFixturePrng(MatchAuthority.createTurnStartSeed({ seed: 7 }, fixture.snapshot, fixture.action.playerKey))
+      });
       let uiResult;
       try {
         uiResult = adapter.runTurnWithAdapter(
@@ -997,8 +998,7 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
           TurnPipeline
         );
       } finally {
-        if (previousGetGamePrng) globalThis.getGamePrng = previousGetGamePrng;
-        else delete globalThis.getGamePrng;
+        adapter.setPipelineUIAdapterRuntime(null);
       }
       expect(uiResult.ok).toBe(true);
       expectPlaybackParity(uiResult.playbackEvents, expected.playbackEvents);
