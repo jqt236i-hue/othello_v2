@@ -174,12 +174,6 @@ function resolveRuntimeFunction(name: string): Function | null {
             return __uiImpl_cpu[name];
         }
     } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined') {
-            const candidate = (globalThis as any)[name];
-            if (typeof candidate === 'function') return candidate;
-        }
-    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -199,11 +193,6 @@ function resolveRuntimeValue(name: string): any {
         }
         if (__uiImpl_cpu && Object.prototype.hasOwnProperty.call(__uiImpl_cpu, name)) {
             return __uiImpl_cpu[name];
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis, name)) {
-            return (globalThis as any)[name];
         }
     } catch (e) { /* ignore */ }
     return undefined;

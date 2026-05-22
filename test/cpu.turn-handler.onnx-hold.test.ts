@@ -3,6 +3,17 @@ const global: Record<string, any> = globalThis;
 const mod = require('../game/cpu-turn-handler.js');
 const cpuDecision: Record<string, any> = require('../game/cpu-decision.js');
 
+function resolveGlobalRuntimeFunction(name: string) {
+    const candidate = global[name];
+    return typeof candidate === 'function' ? candidate : null;
+}
+
+function resolveGlobalRuntimeValue(name: string) {
+    return Object.prototype.hasOwnProperty.call(global, name)
+        ? global[name]
+        : undefined;
+}
+
 function makeBoard() {
     const board = Array.from({ length: 8 }, () => Array(8).fill(0));
     board[3][3] = -1;
@@ -42,10 +53,11 @@ describe('cpu-turn-handler onnx hold behavior', () => {
             readBenchFastMode: () => global.__BENCH_FAST_MODE === true,
             getCpuLv6SharedProfile: () => global.CPU_LV6_SHARED_PROFILE || null,
             getCpuCardLogic: () => global.CardLogic || null,
+            resolveRuntimeFunction: resolveGlobalRuntimeFunction,
             resolveRuntimeValue: (name: string) => {
                 if (name === 'TurnPipelineUIAdapter') return global.TurnPipelineUIAdapter;
                 if (name === 'TurnPipeline') return global.TurnPipeline;
-                return undefined;
+                return resolveGlobalRuntimeValue(name);
             },
             applyRuntimeStatePatch: (nextCardState: any, nextGameState: any) => {
                 if (nextCardState) global.cardState = nextCardState;

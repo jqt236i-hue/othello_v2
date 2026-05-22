@@ -1,5 +1,17 @@
 // @ts-nocheck
 const global: Record<string, any> = globalThis;
+
+function resolveGlobalRuntimeFunction(name: string) {
+  const candidate = global[name];
+  return typeof candidate === 'function' ? candidate : null;
+}
+
+function resolveGlobalRuntimeValue(name: string) {
+  return Object.prototype.hasOwnProperty.call(global, name)
+    ? global[name]
+    : undefined;
+}
+
 describe('cpu turn handler commentary', () => {
   afterEach(() => {
     jest.resetModules();
@@ -56,7 +68,11 @@ describe('cpu turn handler commentary', () => {
     global.generateMovesForPlayer = jest.fn(() => [{ row: 2, col: 3, flips: [] }]);
 
     const handler = require('../game/cpu-turn-handler.js');
-    handler.setCpuUIImpl({ resolveExecuteMove: () => global.executeMove });
+    handler.setCpuUIImpl({
+      resolveRuntimeFunction: resolveGlobalRuntimeFunction,
+      resolveRuntimeValue: resolveGlobalRuntimeValue,
+      resolveExecuteMove: () => global.executeMove
+    });
 
     await handler.runCpuTurn('white');
     await Promise.resolve();
@@ -118,7 +134,11 @@ describe('cpu turn handler commentary', () => {
     global.generateMovesForPlayer = jest.fn(() => [{ row: 0, col: 0, flips: [] }]);
 
     const handler = require('../game/cpu-turn-handler.js');
-    handler.setCpuUIImpl({ resolveExecuteMove: () => global.executeMove });
+    handler.setCpuUIImpl({
+      resolveRuntimeFunction: resolveGlobalRuntimeFunction,
+      resolveRuntimeValue: resolveGlobalRuntimeValue,
+      resolveExecuteMove: () => global.executeMove
+    });
 
     await handler.runCpuTurn('white');
     await Promise.resolve();
@@ -181,7 +201,11 @@ describe('cpu turn handler commentary', () => {
     global.generateMovesForPlayer = jest.fn(() => [{ row: 2, col: 3, flips: [] }]);
 
     const handler = require('../game/cpu-turn-handler.js');
-    handler.setCpuUIImpl({ resolveExecuteMove: () => global.executeMove });
+    handler.setCpuUIImpl({
+      resolveRuntimeFunction: resolveGlobalRuntimeFunction,
+      resolveRuntimeValue: resolveGlobalRuntimeValue,
+      resolveExecuteMove: () => global.executeMove
+    });
 
     await handler.runCpuTurn('white');
     await Promise.resolve();

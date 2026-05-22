@@ -1145,6 +1145,25 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             } catch (e: any) { /* ignore */ }
                             return false;
                         },
+                        resolveRuntimeFunction: (name: string) => {
+                            try {
+                                if (typeof name !== 'string' || typeof globalThis === 'undefined') return null;
+                                const candidate = (globalThis as any)[name];
+                                return typeof candidate === 'function' ? candidate : null;
+                            } catch (e: any) {
+                                return null;
+                            }
+                        },
+                        resolveRuntimeValue: (name: string) => {
+                            try {
+                                if (typeof name !== 'string' || typeof globalThis === 'undefined') return undefined;
+                                return Object.prototype.hasOwnProperty.call(globalThis, name)
+                                    ? (globalThis as any)[name]
+                                    : undefined;
+                            } catch (e: any) {
+                                return undefined;
+                            }
+                        },
                         getPlaybackStateManager: () => {
                             try {
                                 const playbackStateManager = require('./playback-state-manager');

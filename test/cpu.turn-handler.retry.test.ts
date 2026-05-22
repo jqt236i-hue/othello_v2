@@ -1,11 +1,22 @@
 import * as mod from '../game/cpu-turn-handler.js';
 
+function resolveGlobalRuntimeFunction(name: string) {
+  const candidate = (global as any)[name];
+  return typeof candidate === 'function' ? candidate : null;
+}
+
+function resolveGlobalRuntimeValue(name: string) {
+  return Object.prototype.hasOwnProperty.call(global, name)
+    ? (global as any)[name]
+    : undefined;
+}
+
 describe('cpu-turn-handler helpers', () => {
   afterEach(() => {
     // restore timers
     mod.setTimers(null);
     if (typeof mod.setCpuUIImpl === 'function') {
-      mod.setCpuUIImpl({ getPlaybackStateManager: null, PlaybackStateManager: null });
+      mod.setCpuUIImpl({});
     }
     if (typeof mod.resetCpuTurnHandlerState === 'function') {
       mod.resetCpuTurnHandlerState();
@@ -55,7 +66,14 @@ describe('cpu-turn-handler helpers', () => {
   test('getPendingTypeHandlers returns handlers that invoke CPU selection helpers', async () => {
     let invoked = false;
     // stub the selector
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: { type: 'DESTROY_ONE_STONE', stage: 'selectTarget' } }
+    };
     global.cpuSelectDestroyWithPolicy = async (playerKey) => { invoked = true; };
+    mod.setCpuUIImpl({
+      resolveRuntimeFunction: resolveGlobalRuntimeFunction,
+      resolveRuntimeValue: resolveGlobalRuntimeValue
+    });
     const h = mod.getPendingTypeHandlers('white');
     expect(typeof h.DESTROY_ONE_STONE).toBe('function');
     await h.DESTROY_ONE_STONE();
@@ -84,6 +102,10 @@ describe('cpu-turn-handler helpers', () => {
       hands: { black: [], white: [] },
       charge: { black: 0, white: 0 }
     };
+    mod.setCpuUIImpl({
+      resolveRuntimeFunction: resolveGlobalRuntimeFunction,
+      resolveRuntimeValue: resolveGlobalRuntimeValue
+    });
 
     await mod.processCpuTurn();
     expect(waitMs).toHaveBeenCalledTimes(1);
@@ -130,6 +152,11 @@ describe('cpu-turn-handler helpers', () => {
       hands: { black: [], white: [] },
       charge: { black: 0, white: 0 }
     };
+    mod.setCpuUIImpl({
+      resolveRuntimeFunction: resolveGlobalRuntimeFunction,
+      resolveRuntimeValue: resolveGlobalRuntimeValue,
+      getPlaybackStateManager: () => global.PlaybackStateManager
+    });
 
     await mod.processCpuTurn();
 

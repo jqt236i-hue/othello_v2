@@ -6,6 +6,17 @@ function waitTick() {
   return new Promise((resolve) => setImmediate(resolve));
 }
 
+function resolveGlobalRuntimeFunction(name: string) {
+  const candidate = (global as any)[name];
+  return typeof candidate === 'function' ? candidate : null;
+}
+
+function resolveGlobalRuntimeValue(name: string) {
+  return Object.prototype.hasOwnProperty.call(global, name)
+    ? (global as any)[name]
+    : undefined;
+}
+
 describe('cpu turn handler network guard', () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -16,6 +27,8 @@ describe('cpu turn handler network guard', () => {
     cpuHandler.setCpuUIImpl({
       readMatchMode: () => global.MATCH_MODE,
       readHumanVsHumanMode: () => false,
+      resolveRuntimeFunction: resolveGlobalRuntimeFunction,
+      resolveRuntimeValue: resolveGlobalRuntimeValue,
       resolveExecuteMove: () => global.executeMove,
       DEBUG_HUMAN_VS_HUMAN: false,
       MATCH_MODE: undefined
@@ -45,12 +58,7 @@ describe('cpu turn handler network guard', () => {
 
   afterEach(() => {
     cpuHandler.setTimers(null);
-    cpuHandler.setCpuUIImpl({
-      readMatchMode: null,
-      readHumanVsHumanMode: null,
-      DEBUG_HUMAN_VS_HUMAN: false,
-      MATCH_MODE: undefined
-    });
+    cpuHandler.setCpuUIImpl({});
     delete global.MATCH_MODE;
     delete global.cardState;
     delete global.gameState;

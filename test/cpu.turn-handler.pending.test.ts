@@ -2,10 +2,22 @@ import * as path from 'path';
 const cpuHandler = require(path.resolve(__dirname, '..', 'game', 'cpu-turn-handler.js'));
 const PendingCoordinator = require(path.resolve(__dirname, '..', 'game', 'turn', 'pending-coordinator.js'));
 
-function waitTick() { return new Promise(resolve => setImmediate(resolve)); }
+function waitTick() { return Promise.resolve(); }
+
+function resolveGlobalRuntimeFunction(name: string) {
+  const candidate = (global as any)[name];
+  return typeof candidate === 'function' ? candidate : null;
+}
+
+function resolveGlobalRuntimeValue(name: string) {
+  return Object.prototype.hasOwnProperty.call(global, name)
+    ? (global as any)[name]
+    : undefined;
+}
 
 describe('cpu turn handler pending selection', () => {
   beforeEach(() => {
+    jest.useFakeTimers();
     global.cardState = { hasUsedCardThisTurnByPlayer: { white: false }, pendingEffectByPlayer: { white: null } };
     global.gameState = { currentPlayer: 'white' };
     global.isCardAnimating = false;
@@ -14,8 +26,11 @@ describe('cpu turn handler pending selection', () => {
     global.isDebugLogAvailable = () => false;
     global.playHandAnimation = (player, r, c, cb) => cb();
     global.executeMove = jest.fn();
+    global.processPassTurn = jest.fn();
     global.generateMovesForPlayer = jest.fn(() => [{ row: 1, col: 2, flips: [] }]);
     cpuHandler.setCpuUIImpl({
+      resolveRuntimeFunction: resolveGlobalRuntimeFunction,
+      resolveRuntimeValue: resolveGlobalRuntimeValue,
       resolveExecuteMove: () => global.executeMove,
       resolveProcessPassTurn: () => global.processPassTurn
     });
@@ -24,6 +39,11 @@ describe('cpu turn handler pending selection', () => {
 
   afterEach(() => {
     PendingCoordinator.clearPendingSelectionActionCache();
+    cpuHandler.resetCpuTurnHandlerState();
+    cpuHandler.setTimers(null);
+    cpuHandler.setCpuUIImpl({});
+    jest.clearAllTimers();
+    jest.useRealTimers();
   });
 
   test('DESTROY_ONE_STONE invokes cpuSelectDestroyWithPolicy', async () => {

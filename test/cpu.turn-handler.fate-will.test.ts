@@ -1,5 +1,16 @@
 import * as cpuHandler from '../game/cpu-turn-handler.js';
 
+function resolveGlobalRuntimeFunction(name: string) {
+  const candidate = (global as any)[name];
+  return typeof candidate === 'function' ? candidate : null;
+}
+
+function resolveGlobalRuntimeValue(name: string) {
+  return Object.prototype.hasOwnProperty.call(global, name)
+    ? (global as any)[name]
+    : undefined;
+}
+
 describe('cpu turn handler FATE_WILL turn ownership', () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -38,6 +49,8 @@ describe('cpu turn handler FATE_WILL turn ownership', () => {
     global.processPassTurn = jest.fn();
     global.emitLogAdded = jest.fn();
     cpuHandler.setCpuUIImpl({
+      resolveRuntimeFunction: resolveGlobalRuntimeFunction,
+      resolveRuntimeValue: resolveGlobalRuntimeValue,
       getCpuCardLogic: () => global.CardLogic,
       resolveProcessPassTurn: () => global.processPassTurn
     });

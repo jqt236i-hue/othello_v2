@@ -3,6 +3,17 @@ import * as path from 'path';
 
 const cpuHandler = require(path.resolve(__dirname, '..', 'game', 'cpu-turn-handler.js'));
 
+function resolveGlobalRuntimeFunction(name: string) {
+  const candidate = (global as any)[name];
+  return typeof candidate === 'function' ? candidate : null;
+}
+
+function resolveGlobalRuntimeValue(name: string) {
+  return Object.prototype.hasOwnProperty.call(global, name)
+    ? (global as any)[name]
+    : undefined;
+}
+
 describe('cpu-turn-handler timers injection and retry', () => {
   test('processCpuTurn waits when animations are running and retries, then executes move', async () => {
     // Mock timers that allow manual resolution
@@ -44,6 +55,8 @@ describe('cpu-turn-handler timers injection and retry', () => {
     // Spy on executeMove to detect final execution
     global.executeMove = jest.fn();
     cpuHandler.setCpuUIImpl({
+      resolveRuntimeFunction: resolveGlobalRuntimeFunction,
+      resolveRuntimeValue: resolveGlobalRuntimeValue,
       resolveExecuteMove: () => global.executeMove
     });
 
