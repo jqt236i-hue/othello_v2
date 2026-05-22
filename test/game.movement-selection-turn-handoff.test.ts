@@ -106,7 +106,8 @@ describe.each(CASES)('$label selection turn handoff', ({ handlerName, pendingTyp
       publishSnapshot: (meta) => global.NetworkMatchClient.publishSnapshot(meta),
       isNetworkPublishActive: () => global.NetworkMatchClient.isActive(),
       getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
-      getTurnPipeline: () => global.TurnPipeline
+      getTurnPipeline: () => global.TurnPipeline,
+      getActionManager: () => global.ActionManager
     });
   });
 

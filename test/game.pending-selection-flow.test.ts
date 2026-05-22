@@ -75,6 +75,7 @@ function attachPlaybackStateManager() {
     },
     getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
     getTurnPipeline: () => global.TurnPipeline,
+    getActionManager: () => global.ActionManager,
     getPresentationHelper: () => require('../game/logic/presentation.js')
   });
   return playbackStateManager;
@@ -210,7 +211,8 @@ describe('pending selection flow contracts', () => {
     flow.setSignalBridge({
       readMatchMode: () => 'network',
       getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
-      getTurnPipeline: () => global.TurnPipeline
+      getTurnPipeline: () => global.TurnPipeline,
+      getActionManager: () => global.ActionManager
     });
     global.MATCH_MODE = 'network';
     global.cardState = {
@@ -268,6 +270,7 @@ describe('pending selection flow contracts', () => {
       readMatchMode: () => 'network',
       getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
       getTurnPipeline: () => global.TurnPipeline,
+      getActionManager: () => global.ActionManager,
       isNetworkPublishActive: () => {
         throw new Error('probe failed');
       }

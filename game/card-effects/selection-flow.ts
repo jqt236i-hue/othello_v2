@@ -465,6 +465,21 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
     }
 
+    function resolveActionManager() {
+        const bridge = getSignalBridge();
+        if (bridge && bridge.actionManager && typeof bridge.actionManager === 'object') {
+            return bridge.actionManager;
+        }
+        const getActionManagerFromBridge = readSignalBridgeMethod('getActionManager');
+        if (getActionManagerFromBridge) {
+            try {
+                const manager = getActionManagerFromBridge();
+                if (manager && typeof manager === 'object') return manager;
+            } catch (e) { /* ignore */ }
+        }
+        return null;
+    }
+
     function createPendingSelectionAction(playerKey: any, pendingType: any, actionPayload: any, options: any) {
         const pendingCoordinator = getPendingCoordinator();
         if (pendingCoordinator && typeof pendingCoordinator.createPendingSelectionAction === 'function') {
@@ -473,8 +488,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const opts = (options && typeof options === 'object') ? options : {};
         const normalizedPayload = Object.assign({}, actionPayload || {});
         const actionType = typeof opts.actionType === 'string' && opts.actionType ? opts.actionType : 'place';
-        const action = (root && root.ActionManager && root.ActionManager.ActionManager && typeof root.ActionManager.ActionManager.createAction === 'function')
-            ? root.ActionManager.ActionManager.createAction(actionType, playerKey, normalizedPayload)
+        const actionManager = resolveActionManager();
+        const action = (actionManager && actionManager.ActionManager && typeof actionManager.ActionManager.createAction === 'function')
+            ? actionManager.ActionManager.createAction(actionType, playerKey, normalizedPayload)
             : Object.assign({ type: actionType }, normalizedPayload);
         if (action && opts.cardState && typeof opts.cardState.turnIndex === 'number') {
             action.turnIndex = opts.cardState.turnIndex;

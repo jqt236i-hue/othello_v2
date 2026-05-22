@@ -87,6 +87,7 @@ describe('selection-flow', () => {
             readMatchMode: () => globalForSelectionFlow.getCurrentMatchMode ? globalForSelectionFlow.getCurrentMatchMode() : 'local',
             getTurnPipelineUIAdapter: () => globalForSelectionFlow.TurnPipelineUIAdapter,
             getTurnPipeline: () => globalForSelectionFlow.TurnPipeline,
+            getActionManager: () => globalForSelectionFlow.ActionManager,
             getPresentationHelper: () => null
         });
         globalForSelectionFlow.ActionManager = {
