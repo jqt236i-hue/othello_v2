@@ -194,6 +194,41 @@ function _resolveCpuLv6BrowserRuntimeCapability(): any {
   });
 }
 
+function _resolveBrowserPolicyRuntime(globalName: string, moduleIds: string[]): any {
+  try {
+    if (typeof window !== 'undefined' && (window as any)[globalName]) {
+      const runtime = (window as any)[globalName];
+      if (runtime && typeof runtime.loadFromUrl === 'function') return runtime;
+    }
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof _require !== 'function') return null;
+    for (const oneId of moduleIds) {
+      try {
+        const moduleRef = _require(oneId);
+        if (moduleRef && typeof moduleRef.loadFromUrl === 'function') return moduleRef;
+        const defaultValue = moduleRef && typeof moduleRef === 'object' ? moduleRef.default : null;
+        if (defaultValue && typeof defaultValue.loadFromUrl === 'function') return defaultValue;
+      } catch (e) { /* try next candidate */ }
+    }
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function _resolvePolicyOnnxRuntime(): any {
+  return _resolveBrowserPolicyRuntime('CpuPolicyOnnxRuntime', [
+    '../../game/ai/policy-onnx-runtime',
+    '../../game/ai/policy-onnx-runtime.js'
+  ]);
+}
+
+function _resolvePolicyTableRuntime(): any {
+  return _resolveBrowserPolicyRuntime('CpuPolicyTableRuntime', [
+    '../../game/ai/policy-table-runtime',
+    '../../game/ai/policy-table-runtime.js'
+  ]);
+}
+
 function _usesOnnxMoveDecision(mode: string): boolean {
   const normalized = String(mode || '').trim().toLowerCase();
   if (!normalized) return true;
@@ -464,12 +499,7 @@ async function loadCpuPolicy(): Promise<void> {
 }
 
 async function initPolicyOnnxModel(): Promise<void> {
-  let runtime: any = null;
-  try {
-    if (typeof window !== 'undefined' && (window as any).CpuPolicyOnnxRuntime) {
-      runtime = (window as any).CpuPolicyOnnxRuntime;
-    }
-  } catch (e) { /* ignore */ }
+  const runtime = _resolvePolicyOnnxRuntime();
   if (!runtime || typeof runtime.loadFromUrl !== 'function') return;
   const capability = _resolveCpuLv6BrowserRuntimeCapability();
   const shouldLoadPrimaryOnnx = _shouldLoadBrowserOnnxRuntime();
@@ -678,12 +708,7 @@ async function initPolicyOnnxModel(): Promise<void> {
 }
 
 async function initPolicyTableModel(): Promise<void> {
-  let runtime: any = null;
-  try {
-    if (typeof window !== 'undefined' && (window as any).CpuPolicyTableRuntime) {
-      runtime = (window as any).CpuPolicyTableRuntime;
-    }
-  } catch (e) { /* ignore */ }
+  const runtime = _resolvePolicyTableRuntime();
   if (!runtime || typeof runtime.loadFromUrl !== 'function') return;
 
   const modelRel = 'data/models/policy-table.json';

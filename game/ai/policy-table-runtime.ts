@@ -462,12 +462,4 @@ const Api = {
     getActionScoreForKey
 };
 
-try {
-    if (typeof globalThis !== 'undefined') {
-        (globalThis as any).CpuPolicyTableRuntime = Api; // @compat
-    }
-} catch (e) {
-    // ignore
-}
-
 export = Api;
