@@ -1,5 +1,6 @@
 // @ts-nocheck
 import './match-worker-runtime-preload.js';
+import type { MatchRoomDurableObjectApi, MatchWorkerEntrypoint } from './match-worker-types';
 import deepClone from '../utils/deepClone.js';
 import matchAuthority from '../utils/match-authority.js';
 import networkActionSchemaModule from '../shared/network-action-schema.js';
@@ -2013,7 +2014,7 @@ async function handleLeaderboardApi(request, env) {
     return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
 }
 
-export class MatchRoomDurableObject {
+export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     constructor(state) {
         this.state = state;
         this.room = null;
@@ -3502,7 +3503,7 @@ export class MatchRoomDurableObject {
     }
 }
 
-export default {
+const matchWorkerEntrypoint: MatchWorkerEntrypoint = {
     async fetch(request, env) {
         const urlObj = new URL(request.url);
 
@@ -3521,3 +3522,5 @@ export default {
         return new Response('Not Found', { status: 404 });
     }
 };
+
+export default matchWorkerEntrypoint;

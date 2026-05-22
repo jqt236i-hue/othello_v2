@@ -45,6 +45,14 @@ const requiredCpuPolicyContractTypes = [
   'CpuPolicyCardDefinitionResolver'
 ];
 
+const requiredMatchWorkerContractTypes = [
+  'MatchWorkerEnv',
+  'DurableObjectNamespaceLike',
+  'DurableObjectStateLike',
+  'MatchWorkerEntrypoint',
+  'MatchRoomDurableObjectApi'
+];
+
 function readSource(relativePath: string): string {
   return fs.readFileSync(path.join(root, relativePath), 'utf8');
 }
@@ -121,6 +129,43 @@ if (!/module\.exports\s*=\s*cpuPolicyCoreApi\s*;/.test(cpuPolicySource)) {
   findings.push({
     file: 'game/ai/cpu-policy-core.ts',
     message: 'CPU policy core must export the typed API object directly'
+  });
+}
+
+const matchWorkerTypesPath = 'workers/match-worker-types.ts';
+const matchWorkerTypes = readSource(matchWorkerTypesPath);
+for (const typeName of requiredMatchWorkerContractTypes) {
+  if (!new RegExp(`export\\s+interface\\s+${typeName}\\b|export\\s+type\\s+${typeName}\\b`).test(matchWorkerTypes)) {
+    findings.push({
+      file: matchWorkerTypesPath,
+      message: `missing exported match Worker contract type ${typeName}`
+    });
+  }
+}
+
+const matchWorkerSource = readSource('workers/match-worker.ts');
+if (!/from\s+['"]\.\/match-worker-types['"]/.test(matchWorkerSource)) {
+  findings.push({
+    file: 'workers/match-worker.ts',
+    message: 'match Worker must import its public runtime contract types'
+  });
+}
+if (!/export\s+class\s+MatchRoomDurableObject\s+implements\s+MatchRoomDurableObjectApi/.test(matchWorkerSource)) {
+  findings.push({
+    file: 'workers/match-worker.ts',
+    message: 'MatchRoomDurableObject must declare the public Durable Object API contract'
+  });
+}
+if (!/const\s+matchWorkerEntrypoint\s*:\s*MatchWorkerEntrypoint\s*=/.test(matchWorkerSource)) {
+  findings.push({
+    file: 'workers/match-worker.ts',
+    message: 'default Worker export must be routed through MatchWorkerEntrypoint'
+  });
+}
+if (!/export\s+default\s+matchWorkerEntrypoint\s*;/.test(matchWorkerSource)) {
+  findings.push({
+    file: 'workers/match-worker.ts',
+    message: 'match Worker must export the typed entrypoint directly'
   });
 }
 
