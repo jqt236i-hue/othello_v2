@@ -78,6 +78,7 @@ othello_v2/
 - Keep headless layers headless: do not introduce DOM, `window`, audio, timer, or network dependencies into `game/`, `shared/`, CPU logic, or pure card logic.
 - For UI changes, preserve `events[]` playback order and the Single Visual Writer contract. Add presentation through the existing UI bridge instead of creating another board writer.
 - For network changes, treat Worker/local-server snapshots and authority helpers as canonical. Client runtime, preview, and reconciliation state must not become authority.
+- Pending selection network publish must stay behind the UI/network signal bridge. Do not make `game/card-effects/selection-flow.ts` discover or publish through a root `NetworkMatchClient` global.
 - Do not let Worker, local server, browser, and headless behavior drift through parallel implementations. Prefer shared contracts, codecs, and authority helpers, and keep runtime-specific differences at the boundary layer.
 - Use existing helpers for owner/player/color normalization, card target/cost checks, constants, Lv6 decision-mode parsing, and training profile handling. Do not add local duplicate parsing.
 - Make failures diagnosable. Avoid broad `catch`, silent return, or success-shaped fallback unless the caller has an explicit, tested recovery path.
