@@ -656,7 +656,6 @@ function resetPreviewBattleWithInitOptions(
   writePreviewTurnManagerImpl(previewRoot, turnManager, shared, next);
   try {
     resetGame.call(previewWindow, { skipNetworkPublish: true, source: 'story_board_preview' });
-    previewRoot.__storyBoardPreviewInitialSetupApplied = true;
   } finally {
     writePreviewTurnManagerImpl(previewRoot, turnManager, shared, previous);
   }
@@ -706,8 +705,14 @@ async function stabilizePreviewBattle(
   const deadline = Date.now() + 8000;
   while (Date.now() <= deadline) {
     const previewRoot = previewWindow as unknown as BoardEditorRoot;
-    if (previewRoot.__storyBoardPreviewInitialSetupApplied === true) return;
+    if (
+      previewRoot.__storyBoardPreviewInitialSetupApplied === true
+      && isPreviewBattleApplied(previewWindow, setup, previewMode)
+    ) {
+      return;
+    }
     if (isPreviewBattleApplied(previewWindow, setup, previewMode)) {
+      previewRoot.__storyBoardPreviewInitialSetupApplied = true;
       return;
     } else {
       applyPreviewMatchModeGlobals(previewWindow, previewMode);

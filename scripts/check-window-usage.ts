@@ -70,6 +70,21 @@ function collectPropertyAccessBase(node: ts.Node): ts.Expression | null {
     return null;
 }
 
+function unwrapExpressionBase(expression: ts.Expression): ts.Expression {
+    let current = expression;
+    while (true) {
+        if (ts.isParenthesizedExpression(current)) {
+            current = current.expression;
+            continue;
+        }
+        if (ts.isAsExpression(current) || ts.isTypeAssertionExpression(current) || ts.isNonNullExpression(current)) {
+            current = current.expression;
+            continue;
+        }
+        return current;
+    }
+}
+
 const files = walk(root)
     .map((absolutePath) => path.relative(root, absolutePath).replace(/\\/g, '/'))
     .filter((relativePath) => isSourceOfTruthFile(relativePath));
@@ -84,12 +99,13 @@ for (const f of files) {
 
     const visit = (node: ts.Node): void => {
         const propertyBase = collectPropertyAccessBase(node);
-        if (propertyBase && ts.isIdentifier(propertyBase)) {
-            if (propertyBase.text === 'window') {
+        const unwrappedBase = propertyBase ? unwrapExpressionBase(propertyBase) : null;
+        if (unwrappedBase && ts.isIdentifier(unwrappedBase)) {
+            if (unwrappedBase.text === 'window') {
                 violations.push({ file: f, line: toLine(sourceFile, node), label: 'window.' });
-            } else if (propertyBase.text === 'document') {
+            } else if (unwrappedBase.text === 'document') {
                 violations.push({ file: f, line: toLine(sourceFile, node), label: 'document.' });
-            } else if (propertyBase.text === 'globalThis' && shouldEnforceGlobalThis(f)) {
+            } else if (unwrappedBase.text === 'globalThis' && shouldEnforceGlobalThis(f)) {
                 globalThisRefs.push({ file: f, line: toLine(sourceFile, node), label: 'globalThis.' });
             }
         }
