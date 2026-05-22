@@ -31,7 +31,6 @@ const allowedNoCheckDebt = new Set([
   'cards/card-renderer.ts',
   'cards/catalog.ts',
   'cpu/cpu-turn.ts',
-  'game/ai/cpu-policy-core.ts',
   'game/debug/debug-actions.ts',
   'game/logic/cards/breeding.ts',
   'game/logic/cards/destroy_dragon.ts',

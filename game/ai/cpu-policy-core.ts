@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
     CpuPolicyBoard,
@@ -10,7 +9,13 @@ import type {
     CpuPolicyCardId,
     CpuPolicyCardScore,
     CpuPolicyCardSelection,
-    CpuPolicyMove
+    CpuPolicyCoreApi,
+    CpuPolicyLegalMoveMetrics,
+    CpuPolicyMove,
+    CpuPolicyMoveOptions,
+    CpuPolicyRandomSource,
+    CpuPolicyAiMoveSelector,
+    CpuPolicyPosition
 } from './cpu-policy-core-types';
 import { createCpuPolicyCoreApi } from './cpu-policy-core-api';
 /**
@@ -25,6 +30,39 @@ type CpuPolicyUsageStyle = Record<string, number>;
 type CpuPolicyMovePlanProfile = Record<string, string | number>;
 type CpuPolicyCardTypeMap<T> = Record<string, T>;
 type CpuPolicyForcedDestroyReason = 'bucket1_never_use' | 'bucket2_low_charge' | 'bucket3_currently_unusable';
+type CpuPolicyBoardShape = CpuPolicyBoard | number | null | undefined;
+
+interface CpuPolicyBoardGeometry {
+    maxR: number;
+    maxC: number;
+}
+
+interface CpuPolicyEdgeRunSummary extends Record<string, unknown> {
+    chainStrength?: number;
+    longestRun?: number;
+    completeLineCount?: number;
+    loneDiscCount?: number;
+}
+
+interface CpuPolicyParityFeature {
+    regionCount: number;
+    oddRegionCount: number;
+    evenRegionCount: number;
+    oddEmptyCount: number;
+    evenEmptyCount: number;
+    signal: number;
+    score: number;
+}
+
+type CpuPolicyBonusConsumedMap = Record<string, boolean | number>;
+
+interface CpuPolicySearchMoveParams extends Omit<CpuPolicyMoveOptions, 'boardBonusConsumedByCell'> {
+    board: CpuPolicyBoard;
+    playerValue: number;
+    branchLimit?: number | null;
+    rootPriorScoreFn?: ((move: CpuPolicyMove) => number) | null;
+    boardBonusConsumedByCell?: CpuPolicyBonusConsumedMap | null;
+}
 
 interface CpuPolicyDecisionContext {
     [key: string]: unknown;
@@ -1752,7 +1790,7 @@ function scoreCardUseDecision(
     const maxLegalGain = Number.isFinite(ctx.maxLegalGain) ? Math.max(0, Number(ctx.maxLegalGain)) : maxLegalFlips;
     const maxLegalBoardBonus = Number.isFinite(ctx.maxLegalBoardBonus) ? Math.max(0, Number(ctx.maxLegalBoardBonus)) : 0;
     const cloneSplitEligibleSourceCount = Number.isFinite(ctx.cloneSplitEligibleSourceCount)
-        ? Math.max(0, Math.floor(ctx.cloneSplitEligibleSourceCount))
+        ? Math.max(0, Math.floor(Number(ctx.cloneSplitEligibleSourceCount)))
         : null;
     const oppHandSize = Number.isFinite(ctx.oppHandSize) ? Math.max(0, Math.floor(ctx.oppHandSize)) : 0;
     const ownSpecialCount = Number.isFinite(ctx.ownSpecialCount) ? Math.max(0, Math.floor(ctx.ownSpecialCount)) : 0;
@@ -1763,10 +1801,10 @@ function scoreCardUseDecision(
     const oppCornerResetCount = Number.isFinite(ctx.oppCornerResetCount) ? Math.max(0, Math.floor(ctx.oppCornerResetCount)) : 0;
     const ownEdgeResetCount = Number.isFinite(ctx.ownEdgeResetCount) ? Math.max(0, Math.floor(ctx.ownEdgeResetCount)) : 0;
     const oppEdgeResetCount = Number.isFinite(ctx.oppEdgeResetCount) ? Math.max(0, Math.floor(ctx.oppEdgeResetCount)) : 0;
-    const handCardIds = Array.isArray(ctx.handCardIds) ? ctx.handCardIds : [];
-    const usableCardIds = Array.isArray(ctx.usableCardIds) ? ctx.usableCardIds : [];
+    const handCardIds: CpuPolicyCardId[] = Array.isArray(ctx.handCardIds) ? ctx.handCardIds.map((id) => String(id)) : [];
+    const usableCardIds: CpuPolicyCardId[] = Array.isArray(ctx.usableCardIds) ? ctx.usableCardIds.map((id) => String(id)) : [];
     const usableCardIdSet = new Set(usableCardIds);
-    const deckRemaining = Number.isFinite(ctx.deckRemaining) ? Math.max(0, Math.floor(ctx.deckRemaining)) : null;
+    const deckRemaining = Number.isFinite(ctx.deckRemaining) ? Math.max(0, Math.floor(Number(ctx.deckRemaining))) : null;
     let keepPriorityInHandCount = 0;
     let highVarianceInHandCount = 0;
     let fastRotateInHandCount = 0;
@@ -1826,7 +1864,7 @@ function scoreCardUseDecision(
     }
     let score = cardCost * 2;
     if (Object.prototype.hasOwnProperty.call(CARD_TYPE_BASE_SCORE_BONUS, cardType)) {
-        score += Number(CARD_TYPE_BASE_SCORE_BONUS[cardType] || 0);
+        score += Number((CARD_TYPE_BASE_SCORE_BONUS as Readonly<Record<string, number>>)[cardType] || 0);
     }
     if (ctx.forceUseCard) score += 1000;
     if (ctx.legalMovesCount <= 1) score += 35;
@@ -2200,7 +2238,7 @@ function scoreCardUseDecision(
         if (leadStable && ctx.handSize >= 4 && !ctx.forceUseCard) score -= 18;
         if (cardCyclePressure >= 2 && ctx.handSize <= 3) score += 18;
 
-        if (Number.isFinite(deckRemaining)) {
+        if (deckRemaining !== null) {
             if (deckRemaining <= 1) score -= 180;
             else if (deckRemaining <= 2) score -= 96;
             else if (deckRemaining <= 4) score -= 28;
@@ -2769,7 +2807,7 @@ function scoreCardUseDecision(
         if (ctx.discDiff >= 8 && !ctx.forceUseCard) score -= 45;
         if (ctx.discDiff <= -10 && ctx.handSize >= 4 && keepPriorityCount === 0) score += 24;
 
-        if (Number.isFinite(deckRemaining)) {
+        if (deckRemaining !== null) {
             if (deckRemaining <= 1) score -= 180;
             else if (deckRemaining <= 2) score -= 95;
             else if (deckRemaining <= 3) score -= 45;
@@ -2857,11 +2895,11 @@ function chooseCardWithRiskProfile(
             best = decision;
             continue;
         }
-        if (decision.score === best.score && decision.cardCost > best.cardCost) {
+        if (decision.score === best.score && Number(decision.cardCost || 0) > Number(best.cardCost || 0)) {
             best = decision;
             continue;
         }
-        if (decision.score === best.score && decision.cardCost === best.cardCost && String(decision.cardId) < String(best.cardId)) {
+        if (decision.score === best.score && Number(decision.cardCost || 0) === Number(best.cardCost || 0) && String(decision.cardId) < String(best.cardId)) {
             best = decision;
         }
     }
@@ -3095,9 +3133,10 @@ function scoreCardRetentionPriority(
         if (ctx.handSize >= 5) score -= 80;
         if (ctx.empties <= 14) score -= 130;
         if (ctx.empties >= 24 && ctx.handSize <= 2) score += 36;
-        if (Number.isFinite(ctx.deckRemaining)) {
-            if (ctx.deckRemaining <= 2) score -= 140;
-            else if (ctx.deckRemaining <= 4) score -= 50;
+        const heavenDeckRemaining = Number.isFinite(ctx.deckRemaining) ? Number(ctx.deckRemaining) : null;
+        if (heavenDeckRemaining !== null) {
+            if (heavenDeckRemaining <= 2) score -= 140;
+            else if (heavenDeckRemaining <= 4) score -= 50;
         }
     }
     if (isRevealHandWill) {
@@ -3265,11 +3304,11 @@ function chooseLowestRetentionCard(
             continue;
         }
         // Tie-break: rotate the higher-cost expendable card first.
-        if (scored.score === best.score && scored.cardCost > best.cardCost) {
+        if (scored.score === best.score && Number(scored.cardCost || 0) > Number(best.cardCost || 0)) {
             best = scored;
             continue;
         }
-        if (scored.score === best.score && scored.cardCost === best.cardCost && String(scored.cardId) < String(best.cardId)) {
+        if (scored.score === best.score && Number(scored.cardCost || 0) === Number(best.cardCost || 0) && String(scored.cardId) < String(best.cardId)) {
             best = scored;
         }
     }
@@ -3284,6 +3323,7 @@ function chooseHandDestroyTargetForCycle(
     context?: CpuPolicyCardContext
 ): CpuPolicyCardScore | null {
     if (!Array.isArray(handCardIds) || handCardIds.length === 0) return null;
+    const rawContext = asRecord(context);
     const hand = handCardIds
         .map((id) => String(id || '').trim())
         .filter((id) => id.length > 0);
@@ -3313,18 +3353,18 @@ function chooseHandDestroyTargetForCycle(
         if (isChargeRampCardType(type)) hasChargeRampCard = true;
     }
 
-    const ownCorners = Number.isFinite(context && context.ownCorners) ? Number(context.ownCorners) : 0;
-    const oppCorners = Number.isFinite(context && context.oppCorners) ? Number(context.oppCorners) : 0;
-    const cornerEmergency = !!(context && context.cornerEmergency) || (oppCorners > ownCorners);
-    const hasCornerMoveNow = context && context.hasCornerMoveNow === true;
-    const hasEdgeMoveNow = context && context.hasEdgeMoveNow === true;
-    const cornerHoldMode = context && context.cornerHoldMode === true;
+    const ownCorners = Number.isFinite(rawContext.ownCorners) ? Number(rawContext.ownCorners) : 0;
+    const oppCorners = Number.isFinite(rawContext.oppCorners) ? Number(rawContext.oppCorners) : 0;
+    const cornerEmergency = !!rawContext.cornerEmergency || (oppCorners > ownCorners);
+    const hasCornerMoveNow = rawContext.hasCornerMoveNow === true;
+    const hasEdgeMoveNow = rawContext.hasEdgeMoveNow === true;
+    const cornerHoldMode = rawContext.cornerHoldMode === true;
     const whiteLv6Mode = ctx.level >= 6 && Number(ctx.playerValue) < 0;
     const needRecoveryCard = (cornerEmergency || !hasCornerMoveNow) && !hasRecoveryCard;
     const needHoldCard = (hasCornerMoveNow || cornerHoldMode) && !hasHoldCard;
     const needChargeRampCard = (
-        Number.isFinite(context && context.recoveryCostGap) &&
-        Number(context.recoveryCostGap) > 0 &&
+        Number.isFinite(rawContext.recoveryCostGap) &&
+        Number(rawContext.recoveryCostGap) > 0 &&
         !hasChargeRampCard
     );
     const shouldCycleForNeededCards = needRecoveryCard || needHoldCard || needChargeRampCard;
@@ -3348,7 +3388,7 @@ function chooseHandDestroyTargetForCycle(
                 bestUse = decision;
             }
         }
-        if (bestUse && bestUse.shouldUse && bestUse.score >= (bestUse.minUseScore + 18)) {
+        if (bestUse && bestUse.shouldUse && bestUse.score >= (Number(bestUse.minUseScore) + 18)) {
             strongUseReady = true;
         }
     }
@@ -3416,7 +3456,7 @@ function chooseHandDestroyTargetForCycle(
                 cardType,
                 destroyScore
             };
-        } else if (best && destroyScore === best.destroyScore && retention.cardCost > best.cardCost) {
+        } else if (best && destroyScore === best.destroyScore && Number(retention.cardCost || 0) > Number(best.cardCost || 0)) {
             best = {
                 cardId,
                 cardDef: retention.cardDef,
@@ -3446,7 +3486,7 @@ function chooseHandDestroyTargetForCycle(
     };
 }
 
-function resolveBoardGeometry(boardOrRows, colsMaybe) {
+function resolveBoardGeometry(boardOrRows: CpuPolicyBoardShape, colsMaybe?: number | null): CpuPolicyBoardGeometry {
     if (Array.isArray(boardOrRows)) {
         if (boardOrRows.length <= 0) return { maxR: 7, maxC: 7 };
         let maxC = -1;
@@ -3458,12 +3498,12 @@ function resolveBoardGeometry(boardOrRows, colsMaybe) {
         if (maxC < 0) maxC = boardOrRows.length - 1;
         return { maxR: boardOrRows.length - 1, maxC };
     }
-    const rows = Number.isFinite(boardOrRows) ? Math.max(1, Math.floor(boardOrRows)) : 8;
-    const cols = Number.isFinite(colsMaybe) ? Math.max(1, Math.floor(colsMaybe)) : rows;
+    const rows = isFiniteNumber(boardOrRows) ? Math.max(1, Math.floor(Number(boardOrRows))) : 8;
+    const cols = isFiniteNumber(colsMaybe) ? Math.max(1, Math.floor(Number(colsMaybe))) : rows;
     return { maxR: rows - 1, maxC: cols - 1 };
 }
 
-function isCorner(row, col, boardOrRows, colsMaybe) {
+function isCorner(row: number, col: number, boardOrRows?: CpuPolicyBoardShape, colsMaybe?: number | null): boolean {
     if (SharedBoardUtils && typeof SharedBoardUtils.isCorner === 'function') {
         return SharedBoardUtils.isCorner(row, col, boardOrRows, colsMaybe);
     }
@@ -3472,7 +3512,7 @@ function isCorner(row, col, boardOrRows, colsMaybe) {
     return (row === 0 || row === geom.maxR) && (col === 0 || col === geom.maxC);
 }
 
-function isEdge(row, col, boardOrRows, colsMaybe) {
+function isEdge(row: number, col: number, boardOrRows?: CpuPolicyBoardShape, colsMaybe?: number | null): boolean {
     if (SharedBoardUtils && typeof SharedBoardUtils.isEdge === 'function') {
         return SharedBoardUtils.isEdge(row, col, boardOrRows, colsMaybe);
     }
@@ -3481,7 +3521,7 @@ function isEdge(row, col, boardOrRows, colsMaybe) {
     return row === 0 || row === geom.maxR || col === 0 || col === geom.maxC;
 }
 
-function isXSquare(row, col, boardOrRows, colsMaybe) {
+function isXSquare(row: number, col: number, boardOrRows?: CpuPolicyBoardShape, colsMaybe?: number | null): boolean {
     if (SharedBoardUtils && typeof SharedBoardUtils.isXSquare === 'function') {
         return SharedBoardUtils.isXSquare(row, col, boardOrRows, colsMaybe);
     }
@@ -3493,7 +3533,7 @@ function isXSquare(row, col, boardOrRows, colsMaybe) {
     return nearTopBottomRows && nearLeftRightCols;
 }
 
-function isCSquare(row, col, boardOrRows, colsMaybe) {
+function isCSquare(row: number, col: number, boardOrRows?: CpuPolicyBoardShape, colsMaybe?: number | null): boolean {
     if (SharedBoardUtils && typeof SharedBoardUtils.isCSquare === 'function') {
         return SharedBoardUtils.isCSquare(row, col, boardOrRows, colsMaybe);
     }
@@ -3505,10 +3545,10 @@ function isCSquare(row, col, boardOrRows, colsMaybe) {
     return nearTopBottom || nearLeftRight;
 }
 
-function scoreMoveHeuristic(move, level, boardOrRows, colsMaybe) {
-    const row = Number.isFinite(move && move.row) ? move.row : 0;
-    const col = Number.isFinite(move && move.col) ? move.col : 0;
-    const flips = Array.isArray(move && move.flips) ? move.flips.length : 0;
+function scoreMoveHeuristic(move: CpuPolicyMove, level = 1, boardOrRows?: CpuPolicyBoardShape, colsMaybe?: number | null): number {
+    const row = isFiniteNumber(move && move.row) ? Number(move.row) : 0;
+    const col = isFiniteNumber(move && move.col) ? Number(move.col) : 0;
+    const flips = Array.isArray(move.flips) ? move.flips.length : 0;
 
     let score = flips * 100;
     if (isCorner(row, col, boardOrRows, colsMaybe)) score += 10000;
@@ -3522,7 +3562,7 @@ function scoreMoveHeuristic(move, level, boardOrRows, colsMaybe) {
     return score;
 }
 
-function cloneBoard(board) {
+function cloneBoard(board: CpuPolicyBoard | null | undefined): CpuPolicyBoard {
     if (SharedBoardUtils && typeof SharedBoardUtils.cloneBoard === 'function') {
         return SharedBoardUtils.cloneBoard(board);
     }
@@ -3530,7 +3570,7 @@ function cloneBoard(board) {
     return board.map((row) => Array.isArray(row) ? row.slice() : []);
 }
 
-function inBoard(board, row, col) {
+function inBoard(board: CpuPolicyBoard | null | undefined, row: number, col: number): boolean {
     if (SharedBoardUtils && typeof SharedBoardUtils.hasPlayableCell === 'function') {
         return SharedBoardUtils.hasPlayableCell(board, row, col);
     }
@@ -3546,7 +3586,7 @@ function inBoard(board, row, col) {
     );
 }
 
-function getFlipsBasic(board, row, col, playerValue) {
+function getFlipsBasic(board: CpuPolicyBoard | null | undefined, row: number, col: number, playerValue: number): CpuPolicyMove['flips'] {
     if (OthelloCore && typeof OthelloCore.getFlipsBasic === 'function') {
         return OthelloCore.getFlipsBasic(board, row, col, playerValue);
     }
@@ -3556,7 +3596,7 @@ function getFlipsBasic(board, row, col, playerValue) {
     return [];
 }
 
-function getLegalMovesBasic(board, playerValue) {
+function getLegalMovesBasic(board: CpuPolicyBoard | null | undefined, playerValue: number): CpuPolicyMove[] {
     if (OthelloCore && typeof OthelloCore.getLegalMovesBasic === 'function') {
         return OthelloCore.getLegalMovesBasic(board, playerValue);
     }
@@ -3566,7 +3606,7 @@ function getLegalMovesBasic(board, playerValue) {
     return [];
 }
 
-function applyMoveToBoard(board, move, playerValue) {
+function applyMoveToBoard(board: CpuPolicyBoard | null | undefined, move: CpuPolicyMove | null | undefined, playerValue: number): CpuPolicyBoard {
     const out = cloneBoard(board);
     if (!move || !inBoard(out, move.row, move.col)) return out;
     if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
@@ -3574,9 +3614,9 @@ function applyMoveToBoard(board, move, playerValue) {
     } else {
         out[move.row][move.col] = playerValue;
     }
-    const flips = Array.isArray(move.flips) && move.flips.length > 0
+    const flips: CpuPolicyPosition[] = Array.isArray(move.flips) && move.flips.length > 0
         ? move.flips
-        : getFlipsBasic(out, move.row, move.col, playerValue);
+        : (getFlipsBasic(out, move.row, move.col, playerValue) || []);
     for (const one of flips) {
         if (!one || !inBoard(out, one.row, one.col)) continue;
         if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
@@ -3588,7 +3628,7 @@ function applyMoveToBoard(board, move, playerValue) {
     return out;
 }
 
-function countCornersFor(board, playerValue) {
+function countCornersFor(board: CpuPolicyBoard | null | undefined, playerValue: number): number {
     if (SharedBoardUtils && typeof SharedBoardUtils.countCornerControl === 'function') {
         return Number(SharedBoardUtils.countCornerControl(board, playerValue).ownCorners || 0);
     }
@@ -3608,7 +3648,7 @@ function countCornersFor(board, playerValue) {
     return count;
 }
 
-function adjacentCornerFor(row, col, boardOrRows, colsMaybe) {
+function adjacentCornerFor(row: number, col: number, boardOrRows?: CpuPolicyBoardShape, colsMaybe?: number | null): CpuPolicyPosition | null {
     if (SharedBoardUtils && typeof SharedBoardUtils.getCornerProximity === 'function') {
         const hint = SharedBoardUtils.getCornerProximity(row, col, boardOrRows, colsMaybe);
         if (hint && Array.isArray(hint.corner) && hint.corner.length === 2) {
@@ -3651,7 +3691,12 @@ function adjacentCornerFor(row, col, boardOrRows, colsMaybe) {
     return null;
 }
 
-function getBoardBonusAtCell(boardBonusByCell, boardBonusConsumedByCell, row, col) {
+function getBoardBonusAtCell(
+    boardBonusByCell: Record<string, number> | null | undefined,
+    boardBonusConsumedByCell: Record<string, boolean | number> | null | undefined,
+    row: number,
+    col: number
+): number {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return 0;
     const key = `${row},${col}`;
     if (boardBonusConsumedByCell && boardBonusConsumedByCell[key] === true) return 0;
@@ -3659,7 +3704,7 @@ function getBoardBonusAtCell(boardBonusByCell, boardBonusConsumedByCell, row, co
     return Number.isFinite(raw) && raw > 0 ? raw : 0;
 }
 
-function getBoardCellValueSafe(board, row, col) {
+function getBoardCellValueSafe(board: CpuPolicyBoard | null | undefined, row: number, col: number) {
     if (!inBoard(board, row, col)) return null;
     if (SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function') {
         return SharedBoardUtils.getCellValue(board, row, col);
@@ -3667,13 +3712,13 @@ function getBoardCellValueSafe(board, row, col) {
     return Array.isArray(board) && Array.isArray(board[row]) ? board[row][col] : null;
 }
 
-function hasOwnedAdjacentCorner(board, row, col, playerValue) {
+function hasOwnedAdjacentCorner(board: CpuPolicyBoard | null | undefined, row: number, col: number, playerValue: number): boolean {
     const adjacentCorner = adjacentCornerFor(row, col, board);
     if (!adjacentCorner || !inBoard(board, adjacentCorner.row, adjacentCorner.col)) return false;
     return getBoardCellValueSafe(board, adjacentCorner.row, adjacentCorner.col) === playerValue;
 }
 
-function isPseudoCornerXSquare(board, row, col, playerValue) {
+function isPseudoCornerXSquare(board: CpuPolicyBoard | null | undefined, row: number, col: number, playerValue: number): boolean {
     if (!Array.isArray(board) || !isXSquare(row, col, board)) return false;
     const adjacentCorner = adjacentCornerFor(row, col, board);
     if (!adjacentCorner || !inBoard(board, adjacentCorner.row, adjacentCorner.col)) return false;
@@ -3684,7 +3729,7 @@ function isPseudoCornerXSquare(board, row, col, playerValue) {
     );
 }
 
-function computeLegalMoveMetrics(legalMoves, getBoardBonus) {
+function computeLegalMoveMetrics(legalMoves: CpuPolicyMove[], getBoardBonus?: CpuPolicyBoardBonusResolver): CpuPolicyLegalMoveMetrics {
     const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
     let maxLegalFlips = 0;
     let totalLegalFlips = 0;
@@ -3711,7 +3756,7 @@ function computeLegalMoveMetrics(legalMoves, getBoardBonus) {
     };
 }
 
-function countAdjacentCellsByValue(board, row, col, value) {
+function countAdjacentCellsByValue(board: CpuPolicyBoard | null | undefined, row: number, col: number, value: number): number {
     if (!Array.isArray(board) || !Number.isInteger(row) || !Number.isInteger(col)) return 0;
     let count = 0;
     for (let dr = -1; dr <= 1; dr++) {
@@ -3725,7 +3770,7 @@ function countAdjacentCellsByValue(board, row, col, value) {
     return count;
 }
 
-function computePlacementStabilityProxy(board, row, col, playerValue) {
+function computePlacementStabilityProxy(board: CpuPolicyBoard | null | undefined, row: number, col: number, playerValue: number): number {
     if (!Array.isArray(board) || !inBoard(board, row, col)) return 0;
     let score = 0;
     if (isCorner(row, col, board)) score += 4.2;
@@ -3752,7 +3797,12 @@ function computePlacementStabilityProxy(board, row, col, playerValue) {
     return score;
 }
 
-function evaluateMoveStabilityProfile(board, move, playerValue, ownAnchoredEdgesBefore) {
+function evaluateMoveStabilityProfile(
+    board: CpuPolicyBoard | null | undefined,
+    move: CpuPolicyMove | null | undefined,
+    playerValue: number,
+    ownAnchoredEdgesBefore?: number | null
+): { stabilityProxy: number; anchoredEdgeDelta: number } {
     if (!Array.isArray(board) || !move) {
         return {
             stabilityProxy: Number.NEGATIVE_INFINITY,
@@ -3777,8 +3827,8 @@ function evaluateMoveStabilityProfile(board, move, playerValue, ownAnchoredEdges
     };
 }
 
-function resolveMovePlanProfile(context) {
-    const ctx = context || {};
+function resolveMovePlanProfile(context: CpuPolicyCardContext | CpuPolicyDecisionContext | null | undefined): CpuPolicyMovePlanProfile | null {
+    const ctx = asRecord(context);
     const cardType = typeof ctx.pendingType === 'string' && ctx.pendingType
         ? ctx.pendingType
         : (typeof ctx.activeCardType === 'string' ? ctx.activeCardType : '');
@@ -3787,7 +3837,7 @@ function resolveMovePlanProfile(context) {
     return CARD_TYPE_MOVE_PLAN_PROFILE[cardType];
 }
 
-function countAdjacentOpponentStrikeProfile(board, row, col, playerValue) {
+function countAdjacentOpponentStrikeProfile(board: CpuPolicyBoard | null | undefined, row: number, col: number, playerValue: number) {
     const out = {
         oppAdjCount: 0,
         oppCornerCount: 0,
@@ -3809,7 +3859,13 @@ function countAdjacentOpponentStrikeProfile(board, row, col, playerValue) {
     return out;
 }
 
-function collectUltimateHyperactiveLandingProfile(board, row, col, playerValue, maxDistance) {
+function collectUltimateHyperactiveLandingProfile(
+    board: CpuPolicyBoard | null | undefined,
+    row: number,
+    col: number,
+    playerValue: number,
+    maxDistance?: number | null
+) {
     const out = {
         count: 0,
         maxDistance: 0,
@@ -3820,7 +3876,8 @@ function collectUltimateHyperactiveLandingProfile(board, row, col, playerValue, 
     };
     if (!Array.isArray(board) || !inBoard(board, row, col)) return out;
     const opponentValue = -playerValue;
-    const maxRange = Number.isInteger(maxDistance) && maxDistance > 0 ? maxDistance : 5;
+    const normalizedMaxDistance = Number(maxDistance);
+    const maxRange = Number.isInteger(normalizedMaxDistance) && normalizedMaxDistance > 0 ? normalizedMaxDistance : 5;
     for (let dr = -1; dr <= 1; dr++) {
         for (let dc = -1; dc <= 1; dc++) {
             if (dr === 0 && dc === 0) continue;
@@ -3842,24 +3899,24 @@ function collectUltimateHyperactiveLandingProfile(board, row, col, playerValue, 
     return out;
 }
 
-function scoreMoveForCornerEdgePlan(move, context) {
-    const ctx = context || {};
-    const level = Number.isFinite(ctx.level) ? Math.max(1, Math.floor(ctx.level)) : 1;
+function scoreMoveForCornerEdgePlan(move: CpuPolicyMove, context?: CpuPolicyCardContext): number {
+    const ctx = asRecord(context);
+    const level = isFiniteNumber(ctx.level) ? Math.max(1, Math.floor(Number(ctx.level))) : 1;
     const whiteLv6Mode = level >= 6 && Number(ctx.playerValue) < 0;
-    const row = Number.isFinite(move && move.row) ? move.row : -1;
-    const col = Number.isFinite(move && move.col) ? move.col : -1;
+    const row = isFiniteNumber(move && move.row) ? Number(move.row) : -1;
+    const col = isFiniteNumber(move && move.col) ? Number(move.col) : -1;
     if (row < 0 || col < 0) return -999999;
-    const board = Array.isArray(ctx.board) ? ctx.board : null;
+    const board = Array.isArray(ctx.board) ? ctx.board as CpuPolicyBoard : null;
 
     let score = scoreMoveHeuristic(move, level, board);
     if (isCorner(row, col, board)) score += 32000;
     if (!isCorner(row, col, board) && isEdge(row, col, board)) score += 5200;
-    const playerValue = Number.isFinite(ctx.playerValue)
-        ? (ctx.playerValue >= 0 ? 1 : -1)
+    const playerValue = isFiniteNumber(ctx.playerValue)
+        ? (Number(ctx.playerValue) >= 0 ? 1 : -1)
         : 1;
     const ownMovesBefore = getLegalMovesBasic(board, playerValue);
-    const ownDiscsBefore = Number.isFinite(ctx.ownDiscs)
-        ? Math.max(0, Math.floor(ctx.ownDiscs))
+    const ownDiscsBefore = isFiniteNumber(ctx.ownDiscs)
+        ? Math.max(0, Math.floor(Number(ctx.ownDiscs)))
         : null;
     const lowMobilityBefore = ownMovesBefore.length <= 2;
     const lowDiscEmergency = ownDiscsBefore != null && ownDiscsBefore <= 8;
@@ -3880,8 +3937,8 @@ function scoreMoveForCornerEdgePlan(move, context) {
     }
 
     const bonusValue = getBoardBonusAtCell(
-        ctx.boardBonusByCell,
-        ctx.boardBonusConsumedByCell,
+        asRecord(ctx.boardBonusByCell) as Record<string, number>,
+        asRecord(ctx.boardBonusConsumedByCell) as Record<string, boolean>,
         row,
         col
     );
@@ -3891,7 +3948,10 @@ function scoreMoveForCornerEdgePlan(move, context) {
         if (whiteLv6Mode && !isCorner(row, col, board) && !isEdge(row, col, board)) {
             score += bonusValue * 36;
         }
-        if (Number.isFinite(ctx.reserveRecoveryCardCostGap) && ctx.reserveRecoveryCardCostGap > 0) {
+        const reserveRecoveryCardCostGap = isFiniteNumber(ctx.reserveRecoveryCardCostGap)
+            ? Number(ctx.reserveRecoveryCardCostGap)
+            : 0;
+        if (reserveRecoveryCardCostGap > 0) {
             score += bonusValue * 80;
         }
     }
@@ -4169,7 +4229,7 @@ function scoreMoveForCornerEdgePlan(move, context) {
     }
 
     if (movePlanProfile && Number(movePlanProfile.placementWeight) > 0) {
-        const flipCount = Array.isArray(move && move.flips) ? move.flips.length : 0;
+        const flipCount = Array.isArray(move.flips) ? move.flips.length : 0;
         const oppMovesBefore = getLegalMovesBasic(board, -playerValue);
         const ownAdjAfter = countAdjacentCellsByValue(after, row, col, playerValue);
         const oppAdjBefore = countAdjacentCellsByValue(board, row, col, -playerValue);
@@ -4226,7 +4286,7 @@ function scoreMoveForCornerEdgePlan(move, context) {
     return score;
 }
 
-function rankMoves(candidateMoves, level, options) {
+function rankMoves(candidateMoves: CpuPolicyMove[], level = 1, options?: CpuPolicyMoveOptions | null): CpuPolicyMove[] {
     const opts = options || {};
     const useHeuristic = !!opts.enableHeuristic;
     const scoreMove = typeof opts.scoreMove === 'function' ? opts.scoreMove : null;
@@ -4240,8 +4300,8 @@ function rankMoves(candidateMoves, level, options) {
         const learnedScore = scoreMove ? (scoreMove(move) || 0) : 0;
         const heuristicScore = useHeuristic ? scoreMoveHeuristic(move, level, board) : 0;
         // Stable deterministic tie-break (avoid random in policy layer)
-        const row = Number.isFinite(move && move.row) ? move.row : 0;
-        const col = Number.isFinite(move && move.col) ? move.col : 0;
+        const row = isFiniteNumber(move && move.row) ? Number(move.row) : 0;
+        const col = isFiniteNumber(move && move.col) ? Number(move.col) : 0;
         const tie = (tieMaxR - row) * 0.001 + (tieMaxC - col) * 0.0001 + (candidateMoves.length - idx) * 0.00001;
         return { move, score: learnedScore + heuristicScore + tie };
     });
@@ -4249,7 +4309,13 @@ function rankMoves(candidateMoves, level, options) {
     return scored.map((s) => s.move);
 }
 
-function chooseMove(candidateMoves, level, rng, selectMoveWithAi, options) {
+function chooseMove(
+    candidateMoves: CpuPolicyMove[],
+    level = 1,
+    rng?: CpuPolicyRandomSource | null,
+    selectMoveWithAi?: CpuPolicyAiMoveSelector | null,
+    options?: CpuPolicyMoveOptions | null
+): CpuPolicyMove | null {
     if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
     const safeRng = rng && typeof rng.random === 'function' ? rng : { random: () => 0.5 };
     const rankedMoves = rankMoves(candidateMoves, level, options);
@@ -4265,7 +4331,7 @@ function chooseMove(candidateMoves, level, rng, selectMoveWithAi, options) {
     return rankedMoves[Math.floor(safeRng.random() * rankedMoves.length)];
 }
 
-function countEdgesFor(board, playerValue) {
+function countEdgesFor(board: CpuPolicyBoard | null | undefined, playerValue: number): number {
     if (SharedBoardUtils && typeof SharedBoardUtils.countEdgeControl === 'function') {
         return Number(SharedBoardUtils.countEdgeControl(board, playerValue).ownEdges || 0);
     }
@@ -4285,7 +4351,7 @@ function countEdgesFor(board, playerValue) {
     return count;
 }
 
-function summarizeEdgeRunsFor(board, playerValue) {
+function summarizeEdgeRunsFor(board: CpuPolicyBoard | null | undefined, playerValue: number): CpuPolicyEdgeRunSummary {
     if (SharedBoardUtils && typeof SharedBoardUtils.summarizeEdgeRuns === 'function') {
         return SharedBoardUtils.summarizeEdgeRuns(board, playerValue);
     }
@@ -4303,20 +4369,20 @@ function summarizeEdgeRunsFor(board, playerValue) {
     };
 }
 
-function countAdjacentLoneEdgeDiscsFor(board, row, col, playerValue) {
+function countAdjacentLoneEdgeDiscsFor(board: CpuPolicyBoard | null | undefined, row: number, col: number, playerValue: number): number {
     if (SharedBoardUtils && typeof SharedBoardUtils.countAdjacentLoneEdgeDiscs === 'function') {
         return Number(SharedBoardUtils.countAdjacentLoneEdgeDiscs(board, row, col, playerValue) || 0);
     }
     return 0;
 }
 
-function normalizePriorScore(score) {
+function normalizePriorScore(score: unknown): number {
     const n = Number(score);
     if (!Number.isFinite(n) || n === 0) return 0;
     return Math.sign(n) * Math.log1p(Math.abs(n));
 }
 
-function countXsAndCsFor(board, playerValue) {
+function countXsAndCsFor(board: CpuPolicyBoard | null | undefined, playerValue: number): { x: number; c: number } {
     if (!Array.isArray(board) || board.length <= 0) {
         return { x: 0, c: 0 };
     }
@@ -4337,7 +4403,7 @@ function countXsAndCsFor(board, playerValue) {
     return { x, c };
 }
 
-function countCornerMovesFor(board, playerValue) {
+function countCornerMovesFor(board: CpuPolicyBoard | null | undefined, playerValue: number): number {
     const legal = getLegalMovesBasic(board, playerValue);
     if (!Array.isArray(legal) || legal.length <= 0) return 0;
     let count = 0;
@@ -4347,7 +4413,11 @@ function countCornerMovesFor(board, playerValue) {
     return count;
 }
 
-function evaluateImmediateCornerDonation(board, move, playerValue) {
+function evaluateImmediateCornerDonation(
+    board: CpuPolicyBoard | null | undefined,
+    move: CpuPolicyMove | null | undefined,
+    playerValue: number
+): { oppCornerMoves: number; donatesCornerNow: boolean } {
     if (!Array.isArray(board) || !move) {
         return {
             oppCornerMoves: 0,
@@ -4370,7 +4440,7 @@ function evaluateImmediateCornerDonation(board, move, playerValue) {
     };
 }
 
-function countFrontierDiscsFor(board, playerValue) {
+function countFrontierDiscsFor(board: CpuPolicyBoard | null | undefined, playerValue: number): number {
     if (!Array.isArray(board) || board.length <= 0) return 0;
     const dirs = [
         [-1, -1], [-1, 0], [-1, 1],
@@ -4428,9 +4498,9 @@ function countFrontierDiscsFor(board, playerValue) {
     return count;
 }
 
-function countAnchoredEdgeDiscsFromCorners(board, playerValue) {
+function countAnchoredEdgeDiscsFromCorners(board: CpuPolicyBoard | null | undefined, playerValue: number): number {
     if (!Array.isArray(board) || board.length <= 0) return 0;
-    const anchored = new Set();
+    const anchored = new Set<string>();
     const corners = (
         SharedBoardUtils &&
         typeof SharedBoardUtils.getCornerCells === 'function'
@@ -4448,13 +4518,13 @@ function countAnchoredEdgeDiscsFromCorners(board, playerValue) {
         [0, -1],
         [0, 1]
     ];
-    const pushIfOwn = (r, c) => {
+    const pushIfOwn = (r: number, c: number) => {
         const value = SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function'
             ? SharedBoardUtils.getCellValue(board, r, c)
             : (Array.isArray(board[r]) ? board[r][c] : null);
         if (inBoard(board, r, c) && value === playerValue) anchored.add(`${r},${c}`);
     };
-    const walkLine = (startR, startC, dr, dc) => {
+    const walkLine = (startR: number, startC: number, dr: number, dc: number) => {
         let r = startR;
         let c = startC;
         while (inBoard(board, r, c)) {
@@ -4485,9 +4555,9 @@ function countAnchoredEdgeDiscsFromCorners(board, playerValue) {
     return anchored.size;
 }
 
-function resolveLookaheadDepth(board, level, preferredDepth) {
-    if (Number.isFinite(preferredDepth)) {
-        return Math.max(1, Math.min(64, Math.floor(preferredDepth)));
+function resolveLookaheadDepth(board: CpuPolicyBoard | null | undefined, level: number, preferredDepth?: number | null): number {
+    if (isFiniteNumber(preferredDepth)) {
+        return Math.max(1, Math.min(64, Math.floor(Number(preferredDepth))));
     }
     const stat = countBoardDiscsForPlayer(board, 1);
     const empties = Number.isFinite(stat.empties) ? stat.empties : 24;
@@ -4500,18 +4570,18 @@ function resolveLookaheadDepth(board, level, preferredDepth) {
     return 2;
 }
 
-function resolveLookaheadEndgameDepth(options, empties) {
-    const opts = options || {};
-    if (Number.isFinite(opts.endgameDepth)) {
-        return Math.max(1, Math.min(64, Math.floor(opts.endgameDepth)));
+function resolveLookaheadEndgameDepth(options: CpuPolicyMoveOptions | null | undefined, empties: number): number {
+    const opts = asRecord(options);
+    if (isFiniteNumber(opts.endgameDepth)) {
+        return Math.max(1, Math.min(64, Math.floor(Number(opts.endgameDepth))));
     }
     const remaining = Number.isFinite(empties) ? Math.max(0, Math.floor(empties)) : 0;
     return Math.max(30, Math.min(64, remaining + 2));
 }
 
-function resolveLookaheadBranch(board, preferredBranch) {
-    if (Number.isFinite(preferredBranch)) {
-        return Math.max(2, Math.min(24, Math.floor(preferredBranch)));
+function resolveLookaheadBranch(board: CpuPolicyBoard | null | undefined, preferredBranch?: number | null): number {
+    if (isFiniteNumber(preferredBranch)) {
+        return Math.max(2, Math.min(24, Math.floor(Number(preferredBranch))));
     }
     const stat = countBoardDiscsForPlayer(board, 1);
     const empties = Number.isFinite(stat.empties) ? stat.empties : 24;
@@ -4521,9 +4591,9 @@ function resolveLookaheadBranch(board, preferredBranch) {
     return 16;
 }
 
-function resolveLookaheadNodeBudget(preferredBudget, depth, branchLimit, endgameMode) {
-    if (Number.isFinite(preferredBudget)) {
-        return Math.max(500, Math.floor(preferredBudget));
+function resolveLookaheadNodeBudget(preferredBudget: number | null | undefined, depth: number, branchLimit: number | null, endgameMode: boolean): number {
+    if (isFiniteNumber(preferredBudget)) {
+        return Math.max(500, Math.floor(Number(preferredBudget)));
     }
     const depthFactor = Math.max(1, Number(depth) || 1);
     if (endgameMode) {
@@ -4533,11 +4603,11 @@ function resolveLookaheadNodeBudget(preferredBudget, depth, branchLimit, endgame
     return Math.max(8_000, Math.min(80_000, (depthFactor * depthFactor * branchFactor * 650)));
 }
 
-function resolveLookaheadTimeBudgetMs(options, level, endgameMode) {
-    const opts = options || {};
+function resolveLookaheadTimeBudgetMs(options: CpuPolicyMoveOptions | null | undefined, level: number, endgameMode: boolean): number | null {
+    const opts = asRecord(options);
     const preferred = endgameMode ? opts.endgameMaxTimeMs : opts.maxTimeMs;
-    if (Number.isFinite(preferred)) {
-        const n = Math.floor(preferred);
+    if (isFiniteNumber(preferred)) {
+        const n = Math.floor(Number(preferred));
         if (n <= 0) return null;
         return Math.max(50, Math.min(120_000, n));
     }
@@ -4546,24 +4616,26 @@ function resolveLookaheadTimeBudgetMs(options, level, endgameMode) {
     return 1_200;
 }
 
-function resolveLookaheadVirtualTimePerNodeMs(options) {
-    const opts = options || {};
+function resolveLookaheadVirtualTimePerNodeMs(options: CpuPolicyMoveOptions | null | undefined): number | null {
+    const opts = asRecord(options);
     const preferred = Number(opts.virtualTimePerNodeMs);
     if (!Number.isFinite(preferred) || preferred <= 0) return null;
     return Math.max(0.001, Math.min(1_000, preferred));
 }
 
-function collectEmptyRegionParity(board) {
+function collectEmptyRegionParity(board: CpuPolicyBoard | null | undefined): CpuPolicyParityFeature {
     const out = {
         regionCount: 0,
         oddRegionCount: 0,
         evenRegionCount: 0,
         oddEmptyCount: 0,
-        evenEmptyCount: 0
+        evenEmptyCount: 0,
+        signal: 0,
+        score: 0
     };
     if (!Array.isArray(board) || board.length <= 0) return out;
 
-    const visited = new Set();
+    const visited = new Set<string>();
     const dirs = [
         [-1, 0],
         [1, 0],
@@ -4593,12 +4665,13 @@ function collectEmptyRegionParity(board) {
         if (visited.has(rootKey)) continue;
 
         let size = 0;
-        const stack = [[r, c]];
+        const stack: CpuPolicyPosition[] = [{ row: r, col: c }];
         visited.add(rootKey);
         while (stack.length > 0) {
             const current = stack.pop();
-            const cr = current[0];
-            const cc = current[1];
+            if (!current) break;
+            const cr = current.row;
+            const cc = current.col;
             size += 1;
             for (const d of dirs) {
                 const nr = cr + d[0];
@@ -4610,7 +4683,7 @@ function collectEmptyRegionParity(board) {
                 const nextKey = `${nr},${nc}`;
                 if (visited.has(nextKey)) continue;
                 visited.add(nextKey);
-                stack.push([nr, nc]);
+                stack.push({ row: nr, col: nc });
             }
         }
 
@@ -4627,7 +4700,7 @@ function collectEmptyRegionParity(board) {
     return out;
 }
 
-function resolveLookaheadParityFeature(board, empties) {
+function resolveLookaheadParityFeature(board: CpuPolicyBoard | null | undefined, empties: number): CpuPolicyParityFeature {
     const parity = collectEmptyRegionParity(board);
     if (!Number.isFinite(empties) || empties <= 0 || empties > 20 || parity.regionCount <= 0) {
         return Object.assign(parity, {
@@ -4645,7 +4718,7 @@ function resolveLookaheadParityFeature(board, empties) {
     });
 }
 
-function resolveForcedPassFeature(ownMoves, oppMoves, empties) {
+function resolveForcedPassFeature(ownMoves: number, oppMoves: number, empties: number): { signal: number; score: number } {
     const noOwnMoves = !Number.isFinite(ownMoves) || ownMoves <= 0;
     const noOppMoves = !Number.isFinite(oppMoves) || oppMoves <= 0;
     if (noOwnMoves === noOppMoves) {
@@ -4661,7 +4734,12 @@ function resolveForcedPassFeature(ownMoves, oppMoves, empties) {
     };
 }
 
-function resolveLookaheadMixWeights(level, empties, priorWeight, searchWeight) {
+function resolveLookaheadMixWeights(
+    level: number,
+    empties: number,
+    priorWeight: number | null | undefined,
+    searchWeight: number | null | undefined
+): { priorWeight: number; searchWeight: number } {
     const resolved = {
         priorWeight: Number.isFinite(priorWeight) ? Number(priorWeight) : 120,
         searchWeight: Number.isFinite(searchWeight) ? Number(searchWeight) : 1
@@ -4682,14 +4760,14 @@ function resolveLookaheadMixWeights(level, empties, priorWeight, searchWeight) {
     return resolved;
 }
 
-function hashBonusCellCoord(row, col) {
+function hashBonusCellCoord(row: number, col: number): number {
     const r = (Number(row) | 0) + 1;
     const c = (Number(col) | 0) + 1;
     const mixed = Math.imul(r, 0x9e3779b1) ^ Math.imul(c, 0x85ebca6b);
     return (mixed >>> 0);
 }
 
-function parseBonusCellKey(key) {
+function parseBonusCellKey(key: string): CpuPolicyPosition | null {
     const raw = String(key || '');
     const sep = raw.indexOf(',');
     if (sep <= 0 || sep >= raw.length - 1) return null;
@@ -4699,8 +4777,8 @@ function parseBonusCellKey(key) {
     return { row, col };
 }
 
-function createConsumedBonusMap(boardBonusConsumedByCell) {
-    const out = Object.create(null);
+function createConsumedBonusMap(boardBonusConsumedByCell: Record<string, boolean> | CpuPolicyBonusConsumedMap | null | undefined): CpuPolicyBonusConsumedMap {
+    const out: CpuPolicyBonusConsumedMap = Object.create(null);
     out.__bonusHash = 0;
     out.__bonusCount = 0;
     if (!boardBonusConsumedByCell || typeof boardBonusConsumedByCell !== 'object') return out;
@@ -4715,10 +4793,10 @@ function createConsumedBonusMap(boardBonusConsumedByCell) {
     return out;
 }
 
-function consumeBonusCell(consumedMap, row, col) {
+function consumeBonusCell(consumedMap: CpuPolicyBonusConsumedMap | null | undefined, row: number, col: number): CpuPolicyBonusConsumedMap {
     const key = `${row},${col}`;
     if (consumedMap && consumedMap[key] === true) return consumedMap || Object.create(null);
-    const next = Object.assign(Object.create(null), consumedMap || null);
+    const next: CpuPolicyBonusConsumedMap = Object.assign(Object.create(null), consumedMap || null);
     next[key] = true;
     const prevHash = Number(consumedMap && consumedMap.__bonusHash) >>> 0;
     const prevCount = Math.max(0, Number(consumedMap && consumedMap.__bonusCount) || 0);
@@ -4727,16 +4805,20 @@ function consumeBonusCell(consumedMap, row, col) {
     return next;
 }
 
-function getMoveChargeGain(move, boardBonusByCell, consumedMap) {
+function getMoveChargeGain(
+    move: CpuPolicyMove | null | undefined,
+    boardBonusByCell: Record<string, number> | null | undefined,
+    consumedMap: Record<string, boolean> | CpuPolicyBonusConsumedMap | null | undefined
+): number {
     if (!move) return 0;
     const flips = Array.isArray(move.flips) ? move.flips.length : 0;
-    const row = Number.isFinite(move.row) ? move.row : -1;
-    const col = Number.isFinite(move.col) ? move.col : -1;
-    const bonus = getBoardBonusAtCell(boardBonusByCell, consumedMap, row, col);
+    const row = isFiniteNumber(move.row) ? Number(move.row) : -1;
+    const col = isFiniteNumber(move.col) ? Number(move.col) : -1;
+    const bonus = getBoardBonusAtCell(boardBonusByCell, consumedMap as Record<string, boolean>, row, col);
     return flips + bonus;
 }
 
-function evaluateBoardForLookahead(board, playerValue) {
+function evaluateBoardForLookahead(board: CpuPolicyBoard | null | undefined, playerValue: number): number {
     const disc = countBoardDiscsForPlayer(board, playerValue);
     const discDiff = disc.own - disc.opp;
     const empties = Number.isFinite(disc.empties) ? disc.empties : 0;
@@ -4783,7 +4865,7 @@ function evaluateBoardForLookahead(board, playerValue) {
     );
 }
 
-function evaluateTerminalBoardForLookahead(board, playerValue) {
+function evaluateTerminalBoardForLookahead(board: CpuPolicyBoard | null | undefined, playerValue: number): number {
     const disc = countBoardDiscsForPlayer(board, playerValue);
     const diff = disc.own - disc.opp;
     if (diff === 0) return 0;
@@ -4791,7 +4873,13 @@ function evaluateTerminalBoardForLookahead(board, playerValue) {
     return diff > 0 ? score : -score;
 }
 
-function buildBoardSearchKey(board, currentPlayer, depthLeft, passed, consumedMap) {
+function buildBoardSearchKey(
+    board: CpuPolicyBoard,
+    currentPlayer: number,
+    depthLeft: number,
+    passed: boolean,
+    consumedMap: CpuPolicyBonusConsumedMap | null | undefined
+): string {
     let out = currentPlayer > 0 ? '1' : '2';
     out += `:${depthLeft}:${passed ? 1 : 0}:`;
     if (SharedBoardUtils && typeof SharedBoardUtils.encodeBoard === 'function') {
@@ -4813,20 +4901,20 @@ function buildBoardSearchKey(board, currentPlayer, depthLeft, passed, consumedMa
     return out;
 }
 
-function buildSearchMoveOrder(moves, params) {
+function buildSearchMoveOrder(moves: CpuPolicyMove[], params: CpuPolicySearchMoveParams): CpuPolicyMove[] {
     const p = params || {};
-    const level = Number.isFinite(p.level) ? p.level : 6;
+    const level = isFiniteNumber(p.level) ? Number(p.level) : 6;
     const board = Array.isArray(p.board) ? p.board : [];
-    const playerValue = Number.isFinite(p.playerValue) ? (p.playerValue >= 0 ? 1 : -1) : 1;
-    const boardBonusByCell = p.boardBonusByCell && typeof p.boardBonusByCell === 'object'
-        ? p.boardBonusByCell
+    const playerValue = isFiniteNumber(p.playerValue) ? (Number(p.playerValue) >= 0 ? 1 : -1) : 1;
+    const boardBonusByCell: Record<string, number> | null = p.boardBonusByCell && typeof p.boardBonusByCell === 'object'
+        ? p.boardBonusByCell as Record<string, number>
         : null;
     const consumedMap = p.boardBonusConsumedByCell && typeof p.boardBonusConsumedByCell === 'object'
         ? p.boardBonusConsumedByCell
         : Object.create(null);
     const priorFn = typeof p.rootPriorScoreFn === 'function' ? p.rootPriorScoreFn : null;
     const priorWeight = Number.isFinite(p.priorWeight) ? Number(p.priorWeight) : 120;
-    const branchLimit = Number.isFinite(p.branchLimit) ? Math.max(2, Math.floor(p.branchLimit)) : null;
+    const branchLimit = isFiniteNumber(p.branchLimit) ? Math.max(2, Math.floor(Number(p.branchLimit))) : null;
     const geom = resolveBoardGeometry(board);
     const tieMaxR = geom.maxR >= 0 ? geom.maxR : 7;
     const tieMaxC = geom.maxC >= 0 ? geom.maxC : 7;
@@ -4865,8 +4953,8 @@ function buildSearchMoveOrder(moves, params) {
                 tacticalPreviewScore += 0;
             }
         }
-        const row = Number.isFinite(move && move.row) ? move.row : 0;
-        const col = Number.isFinite(move && move.col) ? move.col : 0;
+        const row = isFiniteNumber(move && move.row) ? Number(move.row) : 0;
+        const col = isFiniteNumber(move && move.col) ? Number(move.col) : 0;
         const tie = (tieMaxR - row) * 0.001 + (tieMaxC - col) * 0.0001 + ((moves.length - idx) * 0.00001);
         return {
             move,
@@ -4879,17 +4967,17 @@ function buildSearchMoveOrder(moves, params) {
     return branchLimit ? ordered.slice(0, branchLimit) : ordered;
 }
 
-function chooseMoveByLookahead(candidateMoves, options) {
+function chooseMoveByLookahead(candidateMoves: CpuPolicyMove[], options?: CpuPolicyMoveOptions | null): CpuPolicyMove | null {
     if (!Array.isArray(candidateMoves) || candidateMoves.length === 0) return null;
     const opts = options || {};
     const board = Array.isArray(opts.board) ? opts.board : null;
     if (!board) return null;
-    const playerValue = Number.isFinite(opts.playerValue) ? (opts.playerValue >= 0 ? 1 : -1) : 1;
-    const level = Number.isFinite(opts.level) ? Math.max(1, Math.floor(opts.level)) : 6;
+    const playerValue = isFiniteNumber(opts.playerValue) ? (Number(opts.playerValue) >= 0 ? 1 : -1) : 1;
+    const level = isFiniteNumber(opts.level) ? Math.max(1, Math.floor(Number(opts.level))) : 6;
     const boardStat = countBoardDiscsForPlayer(board, playerValue);
     const empties = Number.isFinite(boardStat.empties) ? boardStat.empties : 0;
-    const endgameSolveEmpties = Number.isFinite(opts.endgameSolveEmpties)
-        ? Math.max(4, Math.min(48, Math.floor(opts.endgameSolveEmpties)))
+    const endgameSolveEmpties = isFiniteNumber(opts.endgameSolveEmpties)
+        ? Math.max(4, Math.min(48, Math.floor(Number(opts.endgameSolveEmpties))))
         : 30;
     const endgameMode = level >= 6 && opts.disableEndgameSolve !== true && empties <= endgameSolveEmpties;
     const depth = endgameMode
@@ -4910,8 +4998,8 @@ function chooseMoveByLookahead(candidateMoves, options) {
     const readNowMs = virtualTimePerNodeMs !== null
         ? () => visited * virtualTimePerNodeMs
         : () => Date.now();
-    const deadlineMs = Number.isFinite(timeBudgetMs) ? (readNowMs() + timeBudgetMs) : null;
-    const boardBonusByCell = opts.boardBonusByCell && typeof opts.boardBonusByCell === 'object'
+    const deadlineMs = timeBudgetMs !== null ? (readNowMs() + timeBudgetMs) : null;
+    const boardBonusByCell: Record<string, number> | null = opts.boardBonusByCell && typeof opts.boardBonusByCell === 'object'
         ? opts.boardBonusByCell
         : null;
     const baseConsumedMap = createConsumedBonusMap(opts.boardBonusConsumedByCell);
@@ -4928,7 +5016,7 @@ function chooseMoveByLookahead(candidateMoves, options) {
     const rootOppMoves = getLegalMovesBasic(board, -playerValue).length;
     const rootParity = resolveLookaheadParityFeature(board, empties);
     const rootPassPressure = resolveForcedPassFeature(rootOwnMoves, rootOppMoves, empties);
-    const transposition = new Map();
+    const transposition = new Map<string, number>();
     const transpositionLimit = (() => {
         const base = endgameMode ? 400_000 : 80_000;
         const scaled = Math.floor((Number(nodeBudget) || 0) * 0.6);
@@ -4959,14 +5047,22 @@ function chooseMoveByLookahead(candidateMoves, options) {
         }
     }
 
-    function storeTransposition(key, value) {
+    function storeTransposition(key: string, value: number): number {
         if (!key || !Number.isFinite(value)) return value;
         if (transposition.size >= transpositionLimit) transposition.clear();
         transposition.set(key, value);
         return value;
     }
 
-    function negamax(boardNode, currentPlayer, depthLeft, alpha, beta, passed, consumedMap) {
+    function negamax(
+        boardNode: CpuPolicyBoard,
+        currentPlayer: number,
+        depthLeft: number,
+        alpha: number,
+        beta: number,
+        passed: boolean,
+        consumedMap: CpuPolicyBonusConsumedMap
+    ): number {
         if (deadlineMs !== null && readNowMs() >= deadlineMs) {
             timeHit = true;
             return evaluateBoardForLookahead(boardNode, currentPlayer);
@@ -4983,7 +5079,8 @@ function chooseMoveByLookahead(candidateMoves, options) {
 
         const transpositionKey = buildBoardSearchKey(boardNode, currentPlayer, depthLeft, passed, consumedMap);
         if (transposition.has(transpositionKey)) {
-            return transposition.get(transpositionKey);
+            const cached = transposition.get(transpositionKey);
+            if (cached !== undefined) return cached;
         }
 
         const legal = getLegalMovesBasic(boardNode, currentPlayer);
@@ -4994,7 +5091,7 @@ function chooseMoveByLookahead(candidateMoves, options) {
                     : evaluateBoardForLookahead(boardNode, currentPlayer);
                 return storeTransposition(transpositionKey, terminalScore);
             }
-            const passedScore = -negamax(boardNode, -currentPlayer, depthLeft - 1, -beta, -alpha, true, consumedMap);
+            const passedScore: number = -negamax(boardNode, -currentPlayer, depthLeft - 1, -beta, -alpha, true, consumedMap);
             return storeTransposition(transpositionKey, passedScore);
         }
 
@@ -5035,11 +5132,11 @@ function chooseMoveByLookahead(candidateMoves, options) {
         branchLimit
     });
 
-    const sameMove = (a, b) => !!a && !!b && Number(a.row) === Number(b.row) && Number(a.col) === Number(b.col);
-    const reorderRootMoves = (moves, firstMove) => {
+    const sameMove = (a: CpuPolicyMove | null | undefined, b: CpuPolicyMove | null | undefined): boolean => !!a && !!b && Number(a.row) === Number(b.row) && Number(a.col) === Number(b.col);
+    const reorderRootMoves = (moves: CpuPolicyMove[], firstMove: CpuPolicyMove | null): CpuPolicyMove[] => {
         if (!firstMove || !Array.isArray(moves) || moves.length <= 1) return moves;
-        const top = [];
-        const rest = [];
+        const top: CpuPolicyMove[] = [];
+        const rest: CpuPolicyMove[] = [];
         for (const mv of moves) {
             if (top.length === 0 && sameMove(mv, firstMove)) top.push(mv);
             else rest.push(mv);
@@ -5047,8 +5144,8 @@ function chooseMoveByLookahead(candidateMoves, options) {
         return top.length > 0 ? top.concat(rest) : moves;
     };
 
-    const searchRootAtDepth = (depthToUse, rootMoves) => {
-        let localBestMove = null;
+    const searchRootAtDepth = (depthToUse: number, rootMoves: CpuPolicyMove[]): { move: CpuPolicyMove | null; score: number } => {
+        let localBestMove: CpuPolicyMove | null = null;
         let localBestScore = Number.NEGATIVE_INFINITY;
         for (const move of rootMoves) {
             const immediate = getMoveChargeGain(move, boardBonusByCell, baseConsumedMap) * 85;

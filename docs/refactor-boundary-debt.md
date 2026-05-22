@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 84 files.
+Current authorized `@ts-nocheck` debt: 83 files.
 
 Recent reduction:
 
@@ -27,7 +27,7 @@ Recent boundary typing:
 - `utils/match-authority.ts` also now exposes typed accepted-operation history helpers and seat-token authentication helpers through `MatchAuthorityPublicApi`, with implementation annotations for those clusters.
 - `utils/match-authority.ts` now uses typed optional CommonJS adapters for shared board/catalog/hash helpers and typed room/token/seat metadata utility helpers; its no-`@ts-nocheck` diagnostics are now 0 and the file has been removed from the migration safety allowlist.
 - `workers/match-worker-types.ts` now includes Worker room, SSE stream, prepared snapshot, leaderboard store, runtime module, deck preload, turn pipeline adapter, PRNG, Core, CardLogic, playback assembly, publish payload option, snapshot/presence metadata, room deck metadata, room creation, turn timer/timeout, and leaderboard entry boundary types. `workers/match-worker.ts` now declares Durable Object state/room/stream fields, types its initial MatchAuthority proxy helpers, narrows Worker module loaders, and types leaderboard, turn-start, playback assembly, command publish, room deck, snapshot projection, route forwarding, SSE buffering, room creation, turn timer, timeout-pass, join, leave, hand-skin, publish, stream, state, fetch, and chat helper boundaries. Its UMD-style helper imports now pass through typed CommonJS import adapters, its no-`@ts-nocheck` diagnostics are now 0, and the file has been removed from the migration safety allowlist.
-- `game/ai/cpu-policy-core-types.ts` now includes board, move position, legal move metrics, board-bonus callback, and lookahead search metadata types; its public API signatures now match the runtime `computeLegalMoveMetrics` and `scoreMoveHeuristic` call shapes. `game/ai/cpu-policy-core.ts` now reuses those card id/cost/definition/context/score types for its initial card-use and retention helper boundaries and has a typed normalized decision context return shape, reducing its no-`@ts-nocheck` diagnostics from 407 to 305.
+- `game/ai/cpu-policy-core-types.ts` now includes board, move position, legal move metrics, board-bonus callback, and lookahead search metadata types; its public API signatures now match the runtime `computeLegalMoveMetrics` and `scoreMoveHeuristic` call shapes. `game/ai/cpu-policy-core.ts` now reuses those card id/cost/definition/context/score/API/search types for card-use, retention, move scoring, and lookahead helper boundaries. Its no-`@ts-nocheck` diagnostics are now 0, and the file has been removed from the migration safety allowlist.
 
 ## Current protected boundaries
 
@@ -41,11 +41,7 @@ The following public boundary contracts are now represented by explicit TypeScri
 
 ## Remaining `@ts-nocheck`
 
-These files still keep `@ts-nocheck` because removing it currently exposes broad legacy typing debt rather than a small local fix.
-
-| File | Diagnostics without `@ts-nocheck` | Main categories | Why it remains |
-| --- | ---: | --- | --- |
-| `game/ai/cpu-policy-core.ts` | 305 | implicit parameters, legacy helper arity, nullable search context | Public CPU policy API now passes through a checked adapter; RNG, board, move, legal metric, and lookahead callback shapes are typed, initial card-use/retention helper boundaries now reuse the shared CPU policy types, and the normalized decision context now has a non-null typed return shape. Internal retention scoring, move scoring, and search helper bodies still need annotations before full checking is safe. |
+These files still keep `@ts-nocheck` because removing it currently exposes broad legacy typing debt rather than a small local fix. As of this audit, no high-risk runtime boundary file remains in this section; remaining authorized debt is in card modules, scripts, training utilities, UI tests, and other compatibility surfaces tracked by `scripts/check-ts-migration-safety.ts`.
 
 Diagnostic counts were measured by running TypeScript with only the first-line `@ts-nocheck` removed in memory.
 
@@ -53,6 +49,6 @@ Diagnostic counts were measured by running TypeScript with only the first-line `
 
 Remove `@ts-nocheck` only after the relevant narrower models exist and the diagnostic count is small enough to review safely.
 
-1. `game/ai/cpu-policy-core.ts`: reuse the new board/move/metric/search metadata types and add internal `CpuPolicyDecisionContext` plus search result types; then type card selection helpers separately from lookahead search.
+1. Continue reducing the remaining authorized allowlist in `scripts/check-ts-migration-safety.ts`, prioritizing production runtime files before tests and one-off training scripts.
 
 Until those conditions are met, `scripts/check-refactor-safety.ts` should keep preventing new `@ts-nocheck` in high-risk targets and keep requiring each public boundary to route exports through checked contract adapters or assertions outside the legacy implementation body.
