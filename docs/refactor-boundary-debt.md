@@ -9,13 +9,14 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 88 files.
+Current authorized `@ts-nocheck` debt: 87 files.
 
 Recent reduction:
 
 - `utils/deepClone.ts` no longer uses `@ts-nocheck`; it is now a typed CommonJS `export =` helper.
 - `src/player.ts` no longer uses `@ts-nocheck`; it now exposes typed player keys, values, and helpers directly.
 - `src/protocol/actions.ts` and `src/protocol/events.ts` no longer use `@ts-nocheck`; they now expose typed protocol validators and event factories.
+- `src/index.ts` no longer uses `@ts-nocheck`; it is now a typed re-export surface instead of compiled helper output.
 
 ## Current protected boundaries
 

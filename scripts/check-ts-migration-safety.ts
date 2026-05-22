@@ -50,7 +50,6 @@ const allowedNoCheckDebt = new Set([
   'src/board.ts',
   'src/engine/engine.ts',
   'src/engine/selfplay-runner.ts',
-  'src/index.ts',
   'test/cards.equality-will-surfaces.test.ts',
   'test/cpu.turn-handler.commentary.test.ts',
   'test/game.equality-will.test.ts',
