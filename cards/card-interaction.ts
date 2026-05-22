@@ -1,6 +1,28 @@
-// @ts-nocheck
 declare const CardLogic: any;
 declare const __non_webpack_require__: NodeRequire | undefined;
+declare const ActionManager: any;
+declare const BoardOps: any;
+declare const CHARGE_MAX: any;
+declare const Core: any;
+declare const CoreLogic: any;
+declare const HAND_LIMIT: any;
+declare const HandAnimationUtilsModule: any;
+declare const OwnerHelpers: any;
+declare const PendingSelectionFlow: any;
+declare const PlaybackStateManager: any;
+declare const TurnPipeline: any;
+declare const ensureCurrentPlayerCanActOrPass: any;
+declare const getCardCostTier: any;
+declare const handleCellClick: any;
+declare const isCardAnimating: any;
+declare const isProcessing: any;
+declare const playCardUseHandAnimation: any;
+declare const processPassTurn: any;
+declare const waitForPlaybackIdle: any;
+
+type CardInteractionRuntimeRoot = typeof globalThis & Record<string, any>;
+type CardInteractionPlayerKey = 'black' | 'white';
+type CardInteractionNullableRecord = Record<string, any> | null;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     ? __non_webpack_require__
@@ -28,7 +50,7 @@ function _getDebugActions() {
     return null;
 }
 
-function _rememberResolvedDebugActions(candidate) {
+function _rememberResolvedDebugActions(candidate: any) {
     if (!candidate || typeof candidate !== 'object') return null;
     const hasFill = typeof candidate.fillDebugHand === 'function';
     const hasVisual = typeof candidate.applyVisualTestBoard === 'function';
@@ -81,7 +103,7 @@ function _isDebugAllowed() {
     }
 }
 
-function ensureDebugActionsLoaded(cb) {
+function ensureDebugActionsLoaded(cb: any) {
     try {
         if (typeof window === 'undefined') return cb && cb(null);
         if (!_isDebugAllowed()) return cb && cb(null);
@@ -125,7 +147,7 @@ const _playbackStateModule = (() => {
         try { return require('../ui/playback-state-manager'); } catch (e) { /* ignore */ }
     }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) return globalThis.PlaybackStateManager;
+        if (typeof globalThis !== 'undefined' && (globalThis as CardInteractionRuntimeRoot).PlaybackStateManager) return (globalThis as CardInteractionRuntimeRoot).PlaybackStateManager;
     } catch (e) { /* ignore */ }
     return null;
 })();
@@ -138,7 +160,7 @@ const _ownerHelpersModule = (() => {
         try { return require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
     }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) return globalThis.OwnerHelpers;
+        if (typeof globalThis !== 'undefined' && (globalThis as CardInteractionRuntimeRoot).OwnerHelpers) return (globalThis as CardInteractionRuntimeRoot).OwnerHelpers;
     } catch (e) { /* ignore */ }
     return null;
 })();
@@ -151,25 +173,25 @@ const _handAnimationUtilsModule = (() => {
         try { return require('../ui/animation-utils'); } catch (e) { /* ignore */ }
     }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.HandAnimationUtilsModule) return globalThis.HandAnimationUtilsModule;
+        if (typeof globalThis !== 'undefined' && (globalThis as CardInteractionRuntimeRoot).HandAnimationUtilsModule) return (globalThis as CardInteractionRuntimeRoot).HandAnimationUtilsModule;
     } catch (e) { /* ignore */ }
     return null;
 })();
 
-const _heavenSelectionByPlayer = { black: null, white: null };
-let _heavenOverlayRefs = null;
+const _heavenSelectionByPlayer: Record<string, any> = { black: null, white: null };
+let _heavenOverlayRefs: CardInteractionNullableRecord = null;
 let _cardDetailExpanded = false;
-let _cardDetailExpandedForCardId = null;
-let _cardDetailTabRefs = null;
+let _cardDetailExpandedForCardId: any = null;
+let _cardDetailTabRefs: CardInteractionNullableRecord = null;
 let _cardDetailTabState = {
     open: false,
-    mode: null,
-    key: null,
-    cardId: null
+    mode: null as any,
+    key: null as any,
+    cardId: null as any
 };
 let _cardDetailLandscapeAnchorSyncInitialized = false;
 let _cardDetailLandscapeAnchorResizeObserver = null;
-let _cardDetailLandscapeAnchorRafId = null;
+let _cardDetailLandscapeAnchorRafId: any = null;
 let _cardDetailTagAutoDismissBound = false;
 const _hiddenHandTokenPattern = /^__hidden_hand__:(black|white):(\d+)$/;
 const LOCAL_PLAYBACK_SOUND_SKIP_UNTIL_BY_KEY = '__skipNextPlaybackSoundUntilByKey';
@@ -303,7 +325,7 @@ function _initCardDetailLandscapeAnchorSync() {
     _scheduleCardDetailLandscapeAnchorSync();
 }
 
-function _normalizeOwnerKey(ownerKey) {
+function _normalizeOwnerKey(ownerKey: any) {
     try {
         if (_ownerHelpersModule && typeof _ownerHelpersModule.normalizePlayerKey === 'function') {
             return _ownerHelpersModule.normalizePlayerKey(ownerKey, 'black');
@@ -312,23 +334,23 @@ function _normalizeOwnerKey(ownerKey) {
     return ownerKey === 'white' ? 'white' : 'black';
 }
 
-function _isHiddenHandToken(cardId) {
+function _isHiddenHandToken(cardId: any) {
     return _hiddenHandTokenPattern.test(String(cardId || ''));
 }
 
-function _getCardDisplayLabel(cardId, cardDef) {
+function _getCardDisplayLabel(cardId: any, cardDef: any) {
     if (cardDef && cardDef.name) return cardDef.name;
     if (_isHiddenHandToken(cardId)) return '不明カード';
     return cardId || '-';
 }
 
-function _getCardDisplayTypeLabel(cardDef) {
+function _getCardDisplayTypeLabel(cardDef: any) {
     return String(cardDef && (cardDef.display_type_ja || cardDef.displayTypeJa) || '').trim();
 }
 
-function _getCardDisplayTypeKey(cardDef) {
+function _getCardDisplayTypeKey(cardDef: any) {
     const typeLabel = _getCardDisplayTypeLabel(cardDef);
-    const typeKeyMap = {
+    const typeKeyMap: Record<string, string> = {
         '採掘': 'mining',
         '守護': 'guard',
         '戦闘': 'battle',
@@ -341,7 +363,7 @@ function _getCardDisplayTypeKey(cardDef) {
     return typeKeyMap[typeLabel] || '';
 }
 
-function _fitCardNameForDisplay(nameEl) {
+function _fitCardNameForDisplay(nameEl: any) {
     if (!nameEl) return;
     try {
         if (typeof window !== 'undefined' && typeof window.fitCardNameElement === 'function') {
@@ -350,7 +372,7 @@ function _fitCardNameForDisplay(nameEl) {
     } catch (e) { /* ignore */ }
 }
 
-function _appendCardDisplayBadges(cardEl, cardDef, cost, tier) {
+function _appendCardDisplayBadges(cardEl: any, cardDef: any, cost: any, tier: any) {
     if (!cardEl) return;
     const badgeRow = document.createElement('div');
     badgeRow.className = 'card-badge-row';
@@ -363,7 +385,7 @@ function _appendCardDisplayBadges(cardEl, cardDef, cost, tier) {
     if (typeLabel) {
         const typeBadge = document.createElement('div');
         typeBadge.className = 'card-type-badge';
-        const _iconMap = { '採掘':'\u26CF\uFE0E', '守護':'\u26E8\uFE0E', '戦闘':'\u2694\uFE0E', '執行':'\u2696\uFE0E', '禁忌':'\u26A0\uFE0E', '殲滅':'\u2620\uFE0E', '繁栄':'\u2728', '特殊':'\u2726' };
+        const _iconMap: Record<string, string> = { '採掘':'\u26CF\uFE0E', '守護':'\u26E8\uFE0E', '戦闘':'\u2694\uFE0E', '執行':'\u2696\uFE0E', '禁忌':'\u26A0\uFE0E', '殲滅':'\u2620\uFE0E', '繁栄':'\u2728', '特殊':'\u2726' };
         const _icon = _iconMap[typeLabel] || '';
         typeBadge.textContent = _icon ? (_icon + ' ' + typeLabel) : typeLabel;
         badgeRow.appendChild(typeBadge);
@@ -387,7 +409,7 @@ function _appendCardDisplayBadges(cardEl, cardDef, cost, tier) {
     cardEl.appendChild(badgeRow);
 }
 
-function _setSelectedCardSelection(cardId, ownerKey) {
+function _setSelectedCardSelection(cardId: any, ownerKey: any) {
     const stateRef = _getCardStateRef();
     if (!stateRef || typeof stateRef !== 'object') return;
     if (!cardId) {
@@ -406,7 +428,7 @@ function _clearSelectedCardSelection() {
     stateRef.selectedCardOwnerKey = null;
 }
 
-function _getSelectedCardOwnerKey(defaultOwnerKey) {
+function _getSelectedCardOwnerKey(defaultOwnerKey: any) {
     const stateRef = _getCardStateRef();
     if (stateRef && (stateRef.selectedCardOwnerKey === 'white' || stateRef.selectedCardOwnerKey === 'black')) {
         return stateRef.selectedCardOwnerKey;
@@ -428,7 +450,7 @@ const _pendingSelectionFlowModule = (() => {
         try { return require('../game/card-effects/selection-flow'); } catch (e) { /* ignore */ }
     }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.PendingSelectionFlow) return globalThis.PendingSelectionFlow;
+        if (typeof globalThis !== 'undefined' && (globalThis as CardInteractionRuntimeRoot).PendingSelectionFlow) return (globalThis as CardInteractionRuntimeRoot).PendingSelectionFlow;
     } catch (e) { /* ignore */ }
     return null;
 })();
@@ -438,14 +460,14 @@ function _getPendingStateManagerForCardUi() {
         try { return require('../game/logic/cards-internal/pending-state-manager'); } catch (e) { /* ignore */ }
     }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.CardPendingStateManager) {
-            return globalThis.CardPendingStateManager;
+        if (typeof globalThis !== 'undefined' && (globalThis as CardInteractionRuntimeRoot).CardPendingStateManager) {
+            return (globalThis as CardInteractionRuntimeRoot).CardPendingStateManager;
         }
     } catch (e) { /* ignore */ }
     return null;
 }
 
-function _isCancellablePendingSelectionForCardUi(pendingType) {
+function _isCancellablePendingSelectionForCardUi(pendingType: any) {
     const pendingStateManager = _getPendingStateManagerForCardUi();
     if (pendingStateManager && typeof pendingStateManager.isCancellablePendingType === 'function') {
         return pendingStateManager.isCancellablePendingType(pendingType);
@@ -463,7 +485,7 @@ function _isCancellablePendingSelectionForCardUi(pendingType) {
     );
 }
 
-function _isHandOverlayPendingTypeForCardUi(pendingType) {
+function _isHandOverlayPendingTypeForCardUi(pendingType: any) {
     const normalizedType = String(pendingType || '').trim().toUpperCase();
     if (!normalizedType) return false;
     const pendingStateManager = _getPendingStateManagerForCardUi();
@@ -479,27 +501,27 @@ function _isHandOverlayPendingTypeForCardUi(pendingType) {
     );
 }
 
-function _normalizeCardDescText(text) {
+function _normalizeCardDescText(text: any) {
     return String(text || '')
         .replace(/\s+/g, ' ')
         .replace(/。+/g, '。')
         .trim();
 }
 
-function _fallbackQuickCardEffect(cardDef) {
+function _fallbackQuickCardEffect(cardDef: any) {
     const normalized = _normalizeCardDescText(cardDef && cardDef.desc ? cardDef.desc : '');
     if (!normalized) return '効果説明は準備中';
     const firstSentence = normalized.split('。').map(s => s.trim()).filter(Boolean)[0] || normalized;
     return firstSentence.length > 32 ? `${firstSentence.slice(0, 32)}...` : firstSentence;
 }
 
-function _fallbackDetailCardEffect(cardDef) {
+function _fallbackDetailCardEffect(cardDef: any) {
     const normalized = _normalizeCardDescText(cardDef && cardDef.desc ? cardDef.desc : '');
     if (!normalized) return '詳細説明は準備中';
     return normalized.replace(/。/g, '。\n').trim();
 }
 
-function _getQuickCardEffect(cardDef) {
+function _getQuickCardEffect(cardDef: any) {
     if (_cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.getQuickCardEffect === 'function') {
         return _cardInteractionEffectsModule.getQuickCardEffect(cardDef);
     }
@@ -507,7 +529,7 @@ function _getQuickCardEffect(cardDef) {
     return _fallbackQuickCardEffect(cardDef);
 }
 
-function _getDetailCardEffect(cardDef) {
+function _getDetailCardEffect(cardDef: any) {
     if (_cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.getDetailCardEffect === 'function') {
         return _cardInteractionEffectsModule.getDetailCardEffect(cardDef, _resolveChargeMaxText);
     }
@@ -515,7 +537,7 @@ function _getDetailCardEffect(cardDef) {
     return _fallbackDetailCardEffect(cardDef);
 }
 
-function _resolveCardDescriptionTextsForCardUi(cardDef) {
+function _resolveCardDescriptionTextsForCardUi(cardDef: any) {
     if (_cardInteractionEffectsModule && typeof _cardInteractionEffectsModule.resolveCardDescriptionTexts === 'function') {
         return _cardInteractionEffectsModule.resolveCardDescriptionTexts(cardDef, {
             resolveChargeMaxText: _resolveChargeMaxText,
@@ -550,7 +572,7 @@ function _resolveCardDescriptionTextsForCardUi(cardDef) {
     };
 }
 
-function _buildCardDetailDisplayModel(cardDef, ownerKey) {
+function _buildCardDetailDisplayModel(cardDef: any, ownerKey: any) {
     if (!cardDef) {
         return {
             cardName: '-',
@@ -581,7 +603,7 @@ function _buildCardDetailDisplayModel(cardDef, ownerKey) {
     };
 }
 
-function _applyCardDetailDisplayModel(nameEl, descEl, detailStateEl, detailMoreEl, detailTagsEl, displayModel) {
+function _applyCardDetailDisplayModel(nameEl: any, descEl: any, detailStateEl: any, detailMoreEl: any, detailTagsEl: any, displayModel: any) {
     if (!nameEl || !descEl) return;
     const model = displayModel || _buildCardDetailDisplayModel(null, null);
     nameEl.textContent = model.cardName;
@@ -591,7 +613,7 @@ function _applyCardDetailDisplayModel(nameEl, descEl, detailStateEl, detailMoreE
     _renderCardDetailEffectTags(detailTagsEl, model.tags);
 }
 
-function _getOverlayCardDescriptionText(cardDef, cardId) {
+function _getOverlayCardDescriptionText(cardDef: any, cardId: any) {
     if (cardDef && cardDef.desc) return cardDef.desc;
     if (_isHiddenHandToken(cardId)) return 'この対戦モードでは詳細は非公開です';
     if (!cardDef) return '説明なし';
@@ -612,8 +634,8 @@ const _NORMAL_STONE_IMAGE_FILE_KEYS = Object.freeze([
 
 function _getGameVisualEffectsMapForCardDetail() {
     try {
-        const root = (typeof globalThis !== 'undefined')
-            ? globalThis
+        const root: CardInteractionRuntimeRoot | null = (typeof globalThis !== 'undefined')
+            ? (globalThis as CardInteractionRuntimeRoot)
             : (typeof window !== 'undefined' ? window : null);
         if (
             root &&
@@ -637,14 +659,14 @@ function _getGameVisualEffectsMapForCardDetail() {
     return null;
 }
 
-function _collectCardVisualImagePaths(cardType) {
+function _collectCardVisualImagePaths(cardType: any) {
     if (!cardType) return [];
     const map = _getGameVisualEffectsMapForCardDetail();
     if (!map || typeof map.getCardVisualImagePaths !== 'function') return [];
     return map.getCardVisualImagePaths(cardType);
 }
 
-function _usesNonNormalStoneImage(cardDef) {
+function _usesNonNormalStoneImage(cardDef: any) {
     const cardType = cardDef && cardDef.type ? String(cardDef.type) : '';
     if (!cardType) return false;
     const map = _getGameVisualEffectsMapForCardDetail();
@@ -653,10 +675,10 @@ function _usesNonNormalStoneImage(cardDef) {
     }
     const paths = _collectCardVisualImagePaths(cardType);
     if (!paths.length || !map || typeof map.isNormalStoneImagePath !== 'function') return false;
-    return paths.some((path) => !map.isNormalStoneImagePath(path));
+    return paths.some((path: any) => !map.isNormalStoneImagePath(path));
 }
 
-function _hasFlipEvasionTagSignal(sourceText) {
+function _hasFlipEvasionTagSignal(sourceText: any) {
     const normalized = String(sourceText || '').replace(/\s+/g, '');
     if (!normalized) return false;
     if (normalized.includes('反転回避')) return true;
@@ -669,7 +691,7 @@ function _hasFlipEvasionTagSignal(sourceText) {
     return patterns.some((pattern) => pattern.test(normalized));
 }
 
-function _hasDestroyEvasionTagSignal(sourceText) {
+function _hasDestroyEvasionTagSignal(sourceText: any) {
     const normalized = String(sourceText || '').replace(/\s+/g, '');
     if (!normalized) return false;
     if (normalized.includes('破壊回避')) return true;
@@ -682,7 +704,7 @@ function _hasDestroyEvasionTagSignal(sourceText) {
     return patterns.some((pattern) => pattern.test(normalized));
 }
 
-function _hasPositiveProtectionTagSignal(sourceText, term) {
+function _hasPositiveProtectionTagSignal(sourceText: any, term: any) {
     const normalized = String(sourceText || '').replace(/\s+/g, '');
     if (!normalized || !term || !normalized.includes(term)) return false;
     const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -708,7 +730,7 @@ const CARD_DETAIL_EFFECT_TAG_TERMS = Object.freeze([
     '禁忌反転'
 ]);
 
-function _collectCardDetailEffectTags(cardDef, quickText, detailText) {
+function _collectCardDetailEffectTags(cardDef: any, quickText: any, detailText: any) {
     const sourceText = [
         String(quickText || ''),
         String(detailText || ''),
@@ -742,7 +764,7 @@ function _collectCardDetailEffectTags(cardDef, quickText, detailText) {
     return tags;
 }
 
-function _stripCardDetailTagPhrases(text) {
+function _stripCardDetailTagPhrases(text: any) {
     let normalized = String(text || '');
     if (!normalized) return '';
     const patterns = [
@@ -808,7 +830,7 @@ function _ensureCardDetailLiveStateElement() {
     return stateEl;
 }
 
-function _getSalvationWillLiveStateText(ownerKey) {
+function _getSalvationWillLiveStateText(ownerKey: any) {
     if (!ownerKey || !CardLogic || typeof CardLogic.getSalvationWillTargetCount !== 'function') return '';
     const count = Math.max(0, Number(CardLogic.getSalvationWillTargetCount(cardState, ownerKey)) || 0);
     return count <= 0 ? '救済不可能' : `${count}個救済可能`;
@@ -822,13 +844,13 @@ function _getEqualityWillLiveStateText() {
     return `（黒${black}／白${white}）`;
 }
 
-function _getReinforcementWillLiveStateText(ownerKey) {
+function _getReinforcementWillLiveStateText(ownerKey: any) {
     if (!ownerKey || !CardLogic || typeof CardLogic.getReinforcementWillTargetCount !== 'function') return '';
     const count = Math.max(0, Number(CardLogic.getReinforcementWillTargetCount(cardState, gameState, ownerKey)) || 0);
     return count <= 0 ? '増援不可能' : `${count}マス候補`;
 }
 
-function _getCardDetailLiveStateText(cardDef, ownerKey) {
+function _getCardDetailLiveStateText(cardDef: any, ownerKey: any) {
     if (!cardDef || !ownerKey) return '';
     if (cardDef.type === 'SALVATION_WILL') {
         return _getSalvationWillLiveStateText(ownerKey);
@@ -848,14 +870,14 @@ function _getCardDetailLiveStateText(cardDef, ownerKey) {
     return '';
 }
 
-function _renderCardDetailLiveState(stateEl, text) {
+function _renderCardDetailLiveState(stateEl: any, text: any) {
     if (!stateEl) return;
     const normalized = String(text || '').trim();
     stateEl.textContent = normalized;
     stateEl.style.display = normalized ? 'block' : 'none';
 }
 
-function _normalizeResolvedCardEffectTags(tags) {
+function _normalizeResolvedCardEffectTags(tags: any) {
     if (!Array.isArray(tags)) return [];
     const normalizedTags = [];
     const seen = new Set();
@@ -872,13 +894,13 @@ function _normalizeResolvedCardEffectTags(tags) {
     return normalizedTags;
 }
 
-function _getCardEffectTagKindClass(kind) {
+function _getCardEffectTagKindClass(kind: any) {
     const normalizedKind = String(kind || '').trim().toLowerCase();
     if (!normalizedKind) return '';
     return `is-${normalizedKind.replace(/[^a-z0-9]+/g, '-')}`;
 }
 
-function _renderCardDetailEffectTags(tagsEl, tags) {
+function _renderCardDetailEffectTags(tagsEl: any, tags: any) {
     if (!tagsEl) return;
     tagsEl.textContent = '';
     const normalizedTags = _normalizeResolvedCardEffectTags(tags);
@@ -950,7 +972,7 @@ function _closeCardDetailTabPanel() {
     _cardDetailExpandedForCardId = null;
 }
 
-function _openCardDetailTabPanel(payload) {
+function _openCardDetailTabPanel(payload: any) {
     const refs = _ensureCardDetailTabPanel();
     if (!refs || !refs.root || !refs.title || !refs.body) return false;
 
@@ -973,7 +995,7 @@ function _openCardDetailTabPanel(payload) {
     return true;
 }
 
-function _toggleCardDetailTabPanel(payload) {
+function _toggleCardDetailTabPanel(payload: any) {
     const mode = payload && payload.mode ? String(payload.mode) : 'detail';
     const key = payload && payload.key ? String(payload.key) : null;
     const cardId = payload && payload.cardId ? String(payload.cardId) : null;
@@ -1012,7 +1034,7 @@ function _bindCardDetailTagAutoDismiss() {
     document.addEventListener(outsidePointerEvent, (event) => {
         if (!_isCardDetailTagTabOpen()) return;
 
-        const rawTarget = event ? event.target : null;
+        const rawTarget: any = event ? event.target : null;
         const targetEl = rawTarget && rawTarget.nodeType === 1
             ? rawTarget
             : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
@@ -1028,9 +1050,18 @@ function _bindCardDetailTagAutoDismiss() {
     _cardDetailTagAutoDismissBound = true;
 }
 
-function _setPendingSelectionBusy(active) {
+function _setPendingSelectionBusy(active: any) {
     if (_pendingSelectionFlowModule && typeof _pendingSelectionFlowModule.setSelectionBusy === 'function') {
         _pendingSelectionFlowModule.setSelectionBusy(active);
+        try {
+            const rootRef = _getUiRootRef();
+            if (rootRef) {
+                rootRef.isProcessing = !!active;
+                rootRef.isCardAnimating = !!active;
+            }
+            (globalThis as CardInteractionRuntimeRoot).isProcessing = !!active;
+            (globalThis as CardInteractionRuntimeRoot).isCardAnimating = !!active;
+        } catch (e) { /* ignore */ }
         return;
     }
     const normalized = !!active;
@@ -1040,10 +1071,18 @@ function _setPendingSelectionBusy(active) {
             processing: normalized,
             cardAnimating: normalized
         });
+        try {
+            if (rootRef) {
+                rootRef.isProcessing = normalized;
+                rootRef.isCardAnimating = normalized;
+            }
+            (globalThis as CardInteractionRuntimeRoot).isProcessing = normalized;
+            (globalThis as CardInteractionRuntimeRoot).isCardAnimating = normalized;
+        } catch (e) { /* ignore */ }
         return;
     }
-    try { if (typeof isProcessing !== 'undefined') isProcessing = normalized; } catch (e) { /* ignore */ }
-    try { if (typeof isCardAnimating !== 'undefined') isCardAnimating = normalized; } catch (e) { /* ignore */ }
+    try { (globalThis as CardInteractionRuntimeRoot).isProcessing = normalized; } catch (e) { /* ignore */ }
+    try { (globalThis as CardInteractionRuntimeRoot).isCardAnimating = normalized; } catch (e) { /* ignore */ }
     try {
         if (rootRef) {
             rootRef.isProcessing = normalized;
@@ -1065,7 +1104,7 @@ function _getServerAuthoredCardUseClickBuffer() {
         };
     }
     if (typeof rootRef.__captureServerAuthoredCardUseBoardClick !== 'function') {
-        rootRef.__captureServerAuthoredCardUseBoardClick = function captureServerAuthoredCardUseBoardClick(row, col, playerKey) {
+        rootRef.__captureServerAuthoredCardUseBoardClick = function captureServerAuthoredCardUseBoardClick(row: any, col: any, playerKey: any) {
             const buffer = rootRef.__serverAuthoredCardUseClickBuffer;
             if (!buffer || buffer.active !== true) return false;
             const normalizedPlayer = _normalizeOwnerKey(playerKey);
@@ -1081,14 +1120,14 @@ function _getServerAuthoredCardUseClickBuffer() {
     }
     try {
         if (typeof globalThis !== 'undefined' && globalThis && globalThis !== rootRef) {
-            globalThis.__serverAuthoredCardUseClickBuffer = rootRef.__serverAuthoredCardUseClickBuffer;
-            globalThis.__captureServerAuthoredCardUseBoardClick = rootRef.__captureServerAuthoredCardUseBoardClick;
+            (globalThis as CardInteractionRuntimeRoot).__serverAuthoredCardUseClickBuffer = rootRef.__serverAuthoredCardUseClickBuffer;
+            (globalThis as CardInteractionRuntimeRoot).__captureServerAuthoredCardUseBoardClick = rootRef.__captureServerAuthoredCardUseBoardClick;
         }
     } catch (e) { /* ignore */ }
     return rootRef.__serverAuthoredCardUseClickBuffer;
 }
 
-function _beginServerAuthoredCardUseClickBuffer(playerKey, ownerKey, cardId) {
+function _beginServerAuthoredCardUseClickBuffer(playerKey: any, ownerKey: any, cardId: any) {
     const buffer = _getServerAuthoredCardUseClickBuffer();
     if (!buffer) return;
     buffer.active = true;
@@ -1098,7 +1137,7 @@ function _beginServerAuthoredCardUseClickBuffer(playerKey, ownerKey, cardId) {
     buffer.click = null;
 }
 
-function _consumeServerAuthoredCardUseClickBuffer(playerKey, ownerKey, cardId) {
+function _consumeServerAuthoredCardUseClickBuffer(playerKey: any, ownerKey: any, cardId: any) {
     const buffer = _getServerAuthoredCardUseClickBuffer();
     if (!buffer || buffer.active !== true) return null;
     const matches = (!buffer.playerKey || buffer.playerKey === _normalizeOwnerKey(playerKey))
@@ -1123,7 +1162,7 @@ function _clearServerAuthoredCardUseClickBuffer() {
     buffer.click = null;
 }
 
-function _createPendingSelectionAction(playerKey, pendingType, actionPayload) {
+function _createPendingSelectionAction(playerKey: any, pendingType: any, actionPayload: any) {
     if (_pendingSelectionFlowModule && typeof _pendingSelectionFlowModule.createPendingSelectionAction === 'function') {
         return _pendingSelectionFlowModule.createPendingSelectionAction(playerKey, pendingType, actionPayload, { cardState });
     }
@@ -1136,7 +1175,7 @@ function _createPendingSelectionAction(playerKey, pendingType, actionPayload) {
     return action;
 }
 
-function _finalizePendingSelectionAfterRun(playerKey, pendingType, runResult) {
+function _finalizePendingSelectionAfterRun(playerKey: any, pendingType: any, runResult: any) {
     const playbackEvents = _getRunResultPlaybackEvents(runResult);
 
     if (!_pendingSelectionFlowModule || typeof _pendingSelectionFlowModule.finalizePendingSelectionFlow !== 'function') {
@@ -1164,12 +1203,12 @@ function _finalizePendingSelectionAfterRun(playerKey, pendingType, runResult) {
     });
 }
 
-function _clearHeavenSelection(playerKey) {
+function _clearHeavenSelection(playerKey: any) {
     if (!playerKey) return;
     _heavenSelectionByPlayer[playerKey] = null;
 }
 
-function _doesPlayerOwnCard(playerKey, cardId) {
+function _doesPlayerOwnCard(playerKey: any, cardId: any) {
     const stateRef = _getCardStateRef();
     if (!playerKey || !cardId || !stateRef || !stateRef.hands) return false;
     const hand = Array.isArray(stateRef.hands[playerKey]) ? stateRef.hands[playerKey] : [];
@@ -1190,7 +1229,7 @@ function _ensureHandDestroyFlags() {
     }
 }
 
-function _isSelectedCardUsableNow(playerKey, cardId, opts) {
+function _isSelectedCardUsableNow(playerKey: any, cardId: any, opts: any) {
     if (!playerKey || !cardId || !cardState || !gameState) return false;
     if (!_doesPlayerOwnCard(playerKey, cardId)) return false;
 
@@ -1210,7 +1249,7 @@ function _isSelectedCardUsableNow(playerKey, cardId, opts) {
     return true;
 }
 
-function _getOwnerHandContainers(ownerKey) {
+function _getOwnerHandContainers(ownerKey: any) {
     if (typeof document === 'undefined') return [];
     const normalizedOwner = _normalizeOwnerKey(ownerKey);
     const handBlackEl = document.getElementById('hand-black');
@@ -1230,16 +1269,16 @@ function _getOwnerHandContainers(ownerKey) {
     return legacyHandEl ? [legacyHandEl] : [];
 }
 
-function _queryOwnerHandElements(ownerKey, selector) {
+function _queryOwnerHandElements(ownerKey: any, selector: any) {
     if (!selector || typeof document === 'undefined') return [];
-    const matches = [];
-    _getOwnerHandContainers(ownerKey).forEach((handEl) => {
+    const matches: any[] = [];
+    _getOwnerHandContainers(ownerKey).forEach((handEl: any) => {
         matches.push(...Array.from(handEl.querySelectorAll(selector)));
     });
     return matches;
 }
 
-function _findCardElementInOwnerHand(cardId, ownerKey) {
+function _findCardElementInOwnerHand(cardId: any, ownerKey: any) {
     if (!cardId || typeof document === 'undefined') return null;
     const normalizedOwner = _normalizeOwnerKey(ownerKey);
     const ownerMatched = _queryOwnerHandElements(normalizedOwner, `.card-item[data-card-id="${cardId}"]`).filter((candidate) => {
@@ -1259,7 +1298,7 @@ function _findCardElementInOwnerHand(cardId, ownerKey) {
     return null;
 }
 
-function _settleLingeringHandFadeForOwner(ownerKey) {
+function _settleLingeringHandFadeForOwner(ownerKey: any) {
     const normalizedOwner = _normalizeOwnerKey(ownerKey);
     if (_handAnimationUtilsModule && typeof _handAnimationUtilsModule.settleOwnerHandFadeIn === 'function') {
         _handAnimationUtilsModule.settleOwnerHandFadeIn(normalizedOwner);
@@ -1362,7 +1401,7 @@ function _positionHeavenOverlayNearBoard() {
     panel.style.transform = 'translate(-50%, 0)';
 }
 
-function _getOverlayOfferKey(offer) {
+function _getOverlayOfferKey(offer: any) {
     if (offer && typeof offer === 'object') {
         const idx = Number.isInteger(offer.handIndex) ? offer.handIndex : -1;
         return `${idx}:${offer.cardId || ''}`;
@@ -1370,7 +1409,7 @@ function _getOverlayOfferKey(offer) {
     return String(offer || '');
 }
 
-function _resolveOverlayOfferByKey(offers, offerKey) {
+function _resolveOverlayOfferByKey(offers: any, offerKey: any) {
     if (!Array.isArray(offers) || !offers.length) return null;
     for (const offer of offers) {
         if (_getOverlayOfferKey(offer) === offerKey) return offer;
@@ -1378,7 +1417,7 @@ function _resolveOverlayOfferByKey(offers, offerKey) {
     return null;
 }
 
-function _renderHeavenOverlay(playerKey) {
+function _renderHeavenOverlay(playerKey: any) {
     const refs = _ensureHeavenOverlay();
     if (!refs || !refs.root) return;
 
@@ -1478,7 +1517,7 @@ function _renderHeavenOverlay(playerKey) {
     _positionHeavenOverlayNearBoard();
 }
 
-function _executeHeavenSelection(playerKey, selectedCardId) {
+function _executeHeavenSelection(playerKey: any, selectedCardId: any) {
     if (!selectedCardId) return { ok: false, reason: 'no_selection' };
     if (!_canInteractWithCardUi()) return { ok: false, reason: 'busy' };
     _setPendingSelectionBusy(true);
@@ -1526,7 +1565,7 @@ function _executeHeavenSelection(playerKey, selectedCardId) {
     }
 }
 
-function _executeCondemnSelection(playerKey, targetIndex, targetCardId) {
+function _executeCondemnSelection(playerKey: any, targetIndex: any, targetCardId: any) {
     if (!Number.isInteger(targetIndex)) return { ok: false, reason: 'no_selection' };
     if (!_canInteractWithCardUi()) return { ok: false, reason: 'busy' };
     _setPendingSelectionBusy(true);
@@ -1565,7 +1604,7 @@ function _executeCondemnSelection(playerKey, targetIndex, targetCardId) {
         _clearHeavenSelection(playerKey);
         _hideHeavenOverlay();
         const shouldDelayPostActionHandVisual = _hasHandRemovePlaybackEvent(result);
-        _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostActionHandVisual);
+        _renderCardUiWithOptionalPlaybackDelay(shouldDelayPostActionHandVisual, null);
         if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
         else if (typeof renderBoard === 'function') renderBoard();
         _finalizePendingSelectionAfterRun(playerKey, 'CONDEMN_WILL', result);
@@ -1576,7 +1615,7 @@ function _executeCondemnSelection(playerKey, targetIndex, targetCardId) {
     }
 }
 
-let _boardOps = null;
+let _boardOps: any = null;
 function _getBoardOps() {
     if (_boardOps) return _boardOps;
     if (typeof BoardOps !== 'undefined') return BoardOps;
@@ -1586,7 +1625,7 @@ function _getBoardOps() {
     return _boardOps;
 }
 
-function _emitPresentationEvent(ev) {
+function _emitPresentationEvent(ev: any) {
     const ops = _getBoardOps();
     if (ops && typeof ops.emitPresentationEvent === 'function') {
         ops.emitPresentationEvent(cardState, ev);
@@ -1595,10 +1634,10 @@ function _emitPresentationEvent(ev) {
     return false;
 }
 
-function _getUiRootRef() {
+function _getUiRootRef(): CardInteractionRuntimeRoot | null {
     if (typeof window !== 'undefined' && window) return window;
     try {
-        if (typeof globalThis !== 'undefined' && globalThis) return globalThis;
+        if (typeof globalThis !== 'undefined' && globalThis) return globalThis as CardInteractionRuntimeRoot;
     } catch (e) { /* ignore */ }
     return null;
 }
@@ -1710,7 +1749,7 @@ function _clearPlaybackLockedDomState() {
     if (document.body && document.body.classList) document.body.classList.remove('playback-locked');
 }
 
-function _clearCardUiBusyFlags(options) {
+function _clearCardUiBusyFlags(options: any) {
     const opts = options || {};
     const clearProcessing = opts.clearProcessing !== false;
     const clearPlayback = opts.clearPlayback === true;
@@ -1718,12 +1757,12 @@ function _clearCardUiBusyFlags(options) {
 
     try {
         if (_playbackStateModule && typeof _playbackStateModule.setBusyState === 'function') {
-            const managerBusyState = { cardAnimating: false };
+            const managerBusyState: Record<string, any> = { cardAnimating: false };
             if (clearProcessing) managerBusyState.processing = false;
             _playbackStateModule.setBusyState(managerBusyState);
         }
-        if (clearProcessing && typeof isProcessing !== 'undefined') isProcessing = false;
-        if (typeof isCardAnimating !== 'undefined') isCardAnimating = false;
+        if (clearProcessing) (globalThis as CardInteractionRuntimeRoot).isProcessing = false;
+        (globalThis as CardInteractionRuntimeRoot).isCardAnimating = false;
         if (rootRef) {
             if (clearProcessing) rootRef.isProcessing = false;
             rootRef.isCardAnimating = false;
@@ -1749,7 +1788,7 @@ function _releaseStaleVisualPlaybackLock() {
     return true;
 }
 
-function _armLocalPlaybackSoundSkip(soundKey) {
+function _armLocalPlaybackSoundSkip(soundKey: any) {
     const key = String(soundKey || '').trim();
     if (!key) return false;
     const rootRef = _getUiRootRef();
@@ -1762,7 +1801,7 @@ function _armLocalPlaybackSoundSkip(soundKey) {
     return true;
 }
 
-function _clearLocalPlaybackSoundSkip(soundKey) {
+function _clearLocalPlaybackSoundSkip(soundKey: any) {
     const key = String(soundKey || '').trim();
     if (!key) return false;
     const rootRef = _getUiRootRef();
@@ -1892,11 +1931,11 @@ function _getFateWillTurnOwnerKeyForLocalController() {
     } catch (e) { return null; }
 }
 
-function _getCardUiActionOwnerKey(inputPlayerKey) {
+function _getCardUiActionOwnerKey(inputPlayerKey: any) {
     return _getFateWillTurnOwnerKeyForLocalController() || inputPlayerKey || _resolveInputPlayerKey();
 }
 
-function _hasPlayerUsedCardThisActiveTurn(playerKey) {
+function _hasPlayerUsedCardThisActiveTurn(playerKey: any) {
     const normalizedKey = _normalizeOwnerKey(playerKey);
     if (!cardState || typeof cardState !== 'object') return false;
     if (cardState.lastTurnStartedFor !== normalizedKey) return false;
@@ -1926,11 +1965,11 @@ function _canInputPlayerActNow() {
     return _getFateWillTurnOwnerKeyForLocalController() !== null;
 }
 
-function _commitSharedStateSnapshot(stateKey, nextState) {
+function _commitSharedStateSnapshot(stateKey: any, nextState: any) {
     if (!nextState) return null;
 
-    const sharedRoots = [];
-    if (typeof globalThis !== 'undefined' && globalThis) sharedRoots.push(globalThis);
+    const sharedRoots: CardInteractionRuntimeRoot[] = [];
+    if (typeof globalThis !== 'undefined' && globalThis) sharedRoots.push(globalThis as CardInteractionRuntimeRoot);
     if (typeof window !== 'undefined' && window && !sharedRoots.includes(window)) sharedRoots.push(window);
 
     let localState = null;
@@ -1956,23 +1995,23 @@ function _commitSharedStateSnapshot(stateKey, nextState) {
             for (const key in targetState) delete targetState[key];
             Object.assign(targetState, nextState);
         }
-        if (stateKey === 'cardState') cardState = targetState;
-        else gameState = targetState;
+        if (stateKey === 'cardState') (globalThis as CardInteractionRuntimeRoot).cardState = targetState;
+        else (globalThis as CardInteractionRuntimeRoot).gameState = targetState;
         for (const root of sharedRoots) {
             root[stateKey] = targetState;
         }
         return targetState;
     }
 
-    if (stateKey === 'cardState') cardState = nextState;
-    else gameState = nextState;
+    if (stateKey === 'cardState') (globalThis as CardInteractionRuntimeRoot).cardState = nextState;
+    else (globalThis as CardInteractionRuntimeRoot).gameState = nextState;
     for (const root of sharedRoots) {
         root[stateKey] = nextState;
     }
     return nextState;
 }
 
-function _runPipelineAction(playerKey, action) {
+function _runPipelineAction(playerKey: any, action: any) {
     if (typeof TurnPipelineUIAdapter === 'undefined' || typeof TurnPipeline === 'undefined') {
         console.error('[CARD_UI] TurnPipeline/Adapter not available for action', action);
         return { ok: false, rejectedReason: 'PIPELINE_UNAVAILABLE' };
@@ -2012,22 +2051,22 @@ function _runPipelineAction(playerKey, action) {
     return { ok: true, result: res, gameOver: gameOverNow };
 }
 
-function _getRunResultPlaybackEvents(runResult) {
+function _getRunResultPlaybackEvents(runResult: any) {
     const playbackEvents = (runResult && runResult.result && Array.isArray(runResult.result.playbackEvents))
         ? runResult.result.playbackEvents
         : [];
     return playbackEvents;
 }
 
-function _hasPlaybackEventType(runResult, eventType) {
-    return _getRunResultPlaybackEvents(runResult).some((ev) => ev && ev.type === eventType);
+function _hasPlaybackEventType(runResult: any, eventType: any) {
+    return _getRunResultPlaybackEvents(runResult).some((ev: any) => ev && ev.type === eventType);
 }
 
-function _hasHandRemovePlaybackEvent(runResult) {
+function _hasHandRemovePlaybackEvent(runResult: any) {
     return _hasPlaybackEventType(runResult, 'hand_remove');
 }
 
-function _hasBoardMutatingPlaybackEvent(runResult) {
+function _hasBoardMutatingPlaybackEvent(runResult: any) {
     const boardMutatingTypes = new Set([
         'place',
         'spawn',
@@ -2038,13 +2077,13 @@ function _hasBoardMutatingPlaybackEvent(runResult) {
         'status_removed',
         'capture_to_hand_animation'
     ]);
-    return _getRunResultPlaybackEvents(runResult).some((ev) => (
+    return _getRunResultPlaybackEvents(runResult).some((ev: any) => (
         ev &&
         boardMutatingTypes.has(String(ev.type || '').toLowerCase())
     ));
 }
 
-function _getRunResultNextCardState(runResult) {
+function _getRunResultNextCardState(runResult: any) {
     const nextCardState = (runResult && runResult.result && runResult.result.nextCardState && typeof runResult.result.nextCardState === 'object')
         ? runResult.result.nextCardState
         : null;
@@ -2052,7 +2091,7 @@ function _getRunResultNextCardState(runResult) {
     return (cardState && typeof cardState === 'object') ? cardState : null;
 }
 
-function _doesRunResultEnterBoardTargetSelectionForOwner(runResult, ownerKey) {
+function _doesRunResultEnterBoardTargetSelectionForOwner(runResult: any, ownerKey: any) {
     const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
     if (!normalizedOwnerKey) return false;
     const nextCardState = _getRunResultNextCardState(runResult);
@@ -2062,7 +2101,7 @@ function _doesRunResultEnterBoardTargetSelectionForOwner(runResult, ownerKey) {
     return !_isHandOverlayPendingTypeForCardUi(pending.type);
 }
 
-function _getBoardTargetSelectionEntryContext(runResult, ownerKey) {
+function _getBoardTargetSelectionEntryContext(runResult: any, ownerKey: any) {
     const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
     if (!normalizedOwnerKey) return null;
     const nextCardState = _getRunResultNextCardState(runResult);
@@ -2077,7 +2116,7 @@ function _getBoardTargetSelectionEntryContext(runResult, ownerKey) {
     };
 }
 
-function _armBoardTargetSelectionEntryPlaybackContext(runResult, ownerKey) {
+function _armBoardTargetSelectionEntryPlaybackContext(runResult: any, ownerKey: any) {
     if (!_playbackStateModule || typeof _playbackStateModule.armSelectionEntryPlaybackContext !== 'function') {
         return false;
     }
@@ -2097,14 +2136,14 @@ function _armBoardTargetSelectionEntryPlaybackContext(runResult, ownerKey) {
     }
 }
 
-function _getDeferredGeneratedThrowChainHandAddMeta(runResult) {
+function _getDeferredGeneratedThrowChainHandAddMeta(runResult: any) {
     const meta = runResult && runResult.result
         ? runResult.result.deferredGeneratedThrowChainHandAdd
         : null;
     return (meta && typeof meta === 'object') ? meta : null;
 }
 
-function _getRunResultPublishPromise(runResult) {
+function _getRunResultPublishPromise(runResult: any) {
     const publishPromise = (runResult && runResult.result)
         ? runResult.result.publishPromise
         : null;
@@ -2113,7 +2152,7 @@ function _getRunResultPublishPromise(runResult) {
         : null;
 }
 
-function _handleServerAuthoredCardUse(playerKey, ownerKey, cardId, runResult) {
+function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any, runResult: any) {
     const publishPromise = _getRunResultPublishPromise(runResult);
     if (!publishPromise) return false;
 
@@ -2149,7 +2188,7 @@ function _handleServerAuthoredCardUse(playerKey, ownerKey, cardId, runResult) {
                 try { renderCardUI(); } catch (e) { /* ignore */ }
             }
             const rootRef = _getUiRootRef();
-            const globalRef = (typeof globalThis !== 'undefined' && globalThis) ? globalThis : null;
+            const globalRef: CardInteractionRuntimeRoot | null = (typeof globalThis !== 'undefined' && globalThis) ? (globalThis as CardInteractionRuntimeRoot) : null;
             const clickHandler = (typeof handleCellClick === 'function')
                 ? handleCellClick
                 : (rootRef && typeof rootRef.handleCellClick === 'function'
@@ -2183,7 +2222,7 @@ function _handleServerAuthoredCardUse(playerKey, ownerKey, cardId, runResult) {
     return true;
 }
 
-function _applyDeferredGeneratedThrowChainHandReveal(runResult) {
+function _applyDeferredGeneratedThrowChainHandReveal(runResult: any) {
     const meta = _getDeferredGeneratedThrowChainHandAddMeta(runResult);
     if (!meta || String(meta.reason || '').toLowerCase() !== 'generated_throw_chain') return false;
 
@@ -2209,7 +2248,7 @@ function _applyDeferredGeneratedThrowChainHandReveal(runResult) {
     return true;
 }
 
-function _snapshotElementRect(element) {
+function _snapshotElementRect(element: any) {
     if (!element || typeof element.getBoundingClientRect !== 'function') return null;
     try {
         const rect = element.getBoundingClientRect();
@@ -2226,7 +2265,7 @@ function _snapshotElementRect(element) {
     }
 }
 
-function _resolveSelectedHandCardActionContext(options) {
+function _resolveSelectedHandCardActionContext(options: any) {
     const opts = (options && typeof options === 'object') ? options : {};
     const isDebugUnlimited = opts.isDebugUnlimited === true;
     if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return null;
@@ -2254,7 +2293,7 @@ function _resolveSelectedHandCardActionContext(options) {
     };
 }
 
-function _runCardPipelineActionOrLogFailure(playerKey, action, failureMessage) {
+function _runCardPipelineActionOrLogFailure(playerKey: any, action: any, failureMessage: any) {
     const result = _runPipelineAction(playerKey, action);
     if (result.ok) return result;
     const reason = result.rejectedReason || (result.result && result.result.rejectedReason) || null;
@@ -2268,7 +2307,7 @@ function _ensureCurrentPlayerCanActOrPassSafely() {
     }
 }
 
-function _finalizeCardActionUi(options) {
+function _finalizeCardActionUi(options: any) {
     const opts = (options && typeof options === 'object') ? options : {};
     const renderOptions = opts.renderImmediately === true
         ? { renderImmediately: true }
@@ -2285,7 +2324,7 @@ function _finalizeCardActionUi(options) {
     _ensureCurrentPlayerCanActOrPassSafely();
 }
 
-function _attachCardUsePlaybackSourceElement(runResult, sourceCardEl, sourceCardRect) {
+function _attachCardUsePlaybackSourceElement(runResult: any, sourceCardEl: any, sourceCardRect: any) {
     if ((!sourceCardEl || typeof sourceCardEl.cloneNode !== 'function') && !sourceCardRect) return;
     const playbackEvents = _getRunResultPlaybackEvents(runResult);
     for (const ev of playbackEvents) {
@@ -2307,7 +2346,7 @@ function _attachCardUsePlaybackSourceElement(runResult, sourceCardEl, sourceCard
     }
 }
 
-function _setCaptureReservedHandSlotState(nextState) {
+function _setCaptureReservedHandSlotState(nextState: any) {
     try {
         if (typeof window !== 'undefined') {
             window.__captureReservedHandSlotState = nextState || null;
@@ -2315,9 +2354,9 @@ function _setCaptureReservedHandSlotState(nextState) {
     } catch (e) { /* ignore */ }
 }
 
-function _primeCaptureReservedHandSlotState(runResult) {
+function _primeCaptureReservedHandSlotState(runResult: any) {
     const playbackEvents = _getRunResultPlaybackEvents(runResult);
-    const captureEvent = playbackEvents.find((ev) => ev && ev.type === 'capture_to_hand_animation');
+    const captureEvent = playbackEvents.find((ev: any) => ev && ev.type === 'capture_to_hand_animation');
     const target = captureEvent && Array.isArray(captureEvent.targets) && captureEvent.targets[0]
         ? captureEvent.targets[0]
         : null;
@@ -2344,7 +2383,7 @@ function _getWaitForPlaybackIdleFn() {
 }
 
 function _waitForCardUseAnimationIdle() {
-    const scheduleNextTick = (callback) => {
+    const scheduleNextTick = (callback: any) => {
         try {
             const rootRef = _getUiRootRef();
             if (rootRef && typeof rootRef.requestAnimationFrame === 'function') {
@@ -2361,7 +2400,7 @@ function _waitForCardUseAnimationIdle() {
         setTimeout(callback, 16);
     };
 
-    const waitForCardAnimationIdle = () => new Promise((resolve) => {
+    const waitForCardAnimationIdle = () => new Promise<void>((resolve) => {
         const tick = () => {
             try {
                 if (!_isCardAnimatingNow()) {
@@ -2386,7 +2425,7 @@ function _waitForCardUseAnimationIdle() {
     return waitForCardAnimationIdle();
 }
 
-function _renderCardUiWithOptionalPlaybackDelay(shouldDelay, options) {
+function _renderCardUiWithOptionalPlaybackDelay(shouldDelay: any, options: any) {
     if (typeof renderCardUI !== 'function') return;
     const opts = (options && typeof options === 'object') ? options : {};
     if (!shouldDelay) {
@@ -2410,7 +2449,7 @@ function _renderCardUiWithOptionalPlaybackDelay(shouldDelay, options) {
     renderCardUI();
 }
 
-function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay) {
+function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay: any) {
     const renderBoardSync = () => {
         if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
         else if (typeof renderBoard === 'function') renderBoard();
@@ -2447,7 +2486,7 @@ function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay) {
 function _getActiveNetworkMatchClient() {
     const networkRoot = (typeof window !== 'undefined' && window && window.NetworkMatchClient)
         ? window
-        : ((typeof globalThis !== 'undefined' && globalThis && globalThis.NetworkMatchClient) ? globalThis : null);
+        : ((typeof globalThis !== 'undefined' && globalThis && (globalThis as CardInteractionRuntimeRoot).NetworkMatchClient) ? (globalThis as CardInteractionRuntimeRoot) : null);
     const networkClient = networkRoot ? networkRoot.NetworkMatchClient : null;
     if (!networkClient) return null;
     if (typeof networkClient.publishSnapshot !== 'function') return null;
@@ -2455,7 +2494,7 @@ function _getActiveNetworkMatchClient() {
     return networkClient;
 }
 
-function _startNetworkOnlyPendingSelectionPublish(options) {
+function _startNetworkOnlyPendingSelectionPublish(options: any) {
     const opts = (options && typeof options === 'object') ? options : {};
     const networkClient = _getActiveNetworkMatchClient();
     if (!networkClient) return false;
@@ -2506,7 +2545,7 @@ function fillDebugHand() {
     if (!window.DEBUG_HUMAN_VS_HUMAN && !window.DEBUG_UNLIMITED_USAGE) return;
     const networkRoot = (typeof window !== 'undefined' && window && window.NetworkMatchClient)
         ? window
-        : ((typeof globalThis !== 'undefined' && globalThis && globalThis.NetworkMatchClient) ? globalThis : null);
+        : ((typeof globalThis !== 'undefined' && globalThis && (globalThis as CardInteractionRuntimeRoot).NetworkMatchClient) ? (globalThis as CardInteractionRuntimeRoot) : null);
     const networkClient = networkRoot
         ? networkRoot.NetworkMatchClient
         : null;
@@ -2535,7 +2574,7 @@ function fillDebugHand() {
     const shouldFillWhite = window.DEBUG_HUMAN_VS_HUMAN === true;
     const dbg = _getDebugActions();
     if (!dbg || typeof dbg.fillDebugHand !== 'function') {
-        ensureDebugActionsLoaded((loaded) => {
+        ensureDebugActionsLoaded((loaded: any) => {
             if (!loaded || typeof loaded.fillDebugHand !== 'function') {
                 console.warn('[CARD_UI] DebugActions.fillDebugHand not available');
                 return;
@@ -2551,7 +2590,7 @@ function fillDebugHand() {
     if (typeof renderCardUI === 'function') renderCardUI();
 }
 
-function _resolveCardDetailSelectionContext(playerKey) {
+function _resolveCardDetailSelectionContext(playerKey: any) {
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
     const selectedId = cardState.selectedCardId;
     const selectedOwnerKey = _getSelectedCardOwnerKey(playerKey);
@@ -2567,7 +2606,7 @@ function _resolveCardDetailSelectionContext(playerKey) {
     };
 }
 
-function _syncCardDetailExpandedSelection(normalizedSelectedId) {
+function _syncCardDetailExpandedSelection(normalizedSelectedId: any) {
     if (normalizedSelectedId && _cardDetailExpandedForCardId === normalizedSelectedId) return;
     _cardDetailExpanded = false;
     _cardDetailExpandedForCardId = normalizedSelectedId || null;
@@ -2576,7 +2615,7 @@ function _syncCardDetailExpandedSelection(normalizedSelectedId) {
     }
 }
 
-function _resolveCardDetailActionState(selectionContext) {
+function _resolveCardDetailActionState(selectionContext: any) {
     const isAutoMode = typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true;
     const canActThisTurn = _canInputPlayerActNow();
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
@@ -2660,8 +2699,8 @@ function _resolveCardDetailActionState(selectionContext) {
     };
 }
 
-function _syncReversiPassButton(actionState) {
-    const passBtn = document.getElementById('reversi-pass-btn') || document.getElementById('othello-pass-btn');
+function _syncReversiPassButton(actionState: any) {
+    const passBtn = (document.getElementById('reversi-pass-btn') || document.getElementById('othello-pass-btn')) as HTMLButtonElement | null;
     if (!passBtn) return;
     const shouldShow = _isReversiMode() && actionState.canShowPass;
     passBtn.hidden = !shouldShow;
@@ -2669,9 +2708,9 @@ function _syncReversiPassButton(actionState) {
     passBtn.disabled = !shouldShow || !actionState.canPass;
 }
 
-function _getPendingSelectionPrompt(pending) {
+function _getPendingSelectionPrompt(pending: any) {
     if (!pending || pending.stage !== 'selectTarget') return '';
-    const simplePromptByType = {
+    const simplePromptByType: Record<string, string> = {
         STRONG_WIND_WILL: '移動させる石を選んでください',
         SUPER_BUOYANCY_WILL: '上方向へ移動させる石を選んでください',
         SUPER_GRAVITY_WILL: '下方向へ移動させる石を選んでください',
@@ -2763,7 +2802,7 @@ function updateCardDetailPanel() {
             _cardDetailTabState.mode === 'detail' &&
             _cardDetailTabState.cardId === (normalizedSelectedId || null)
         );
-        detailBtn.disabled = !canToggle;
+        (detailBtn as HTMLButtonElement).disabled = !canToggle;
         detailBtn.textContent = detailTabOpen ? '閉じる' : '詳細';
         detailBtn.setAttribute('aria-expanded', detailTabOpen ? 'true' : 'false');
     }
@@ -2776,10 +2815,10 @@ function updateCardDetailPanel() {
         _clearHeavenSelection(playerKey);
     }
 
-    useBtn.disabled = !actionState.canUse;
+    (useBtn as HTMLButtonElement).disabled = !actionState.canUse;
 
     if (destroyBtn) {
-        destroyBtn.disabled = !actionState.canDestroy;
+        (destroyBtn as HTMLButtonElement).disabled = !actionState.canDestroy;
         destroyBtn.textContent = '破壊';
     }
 
@@ -2829,7 +2868,7 @@ function updateCardDetailPanel() {
 
     if (passBtn) {
         passBtn.style.display = actionState.canShowPass ? 'inline-block' : 'none';
-        passBtn.disabled = !actionState.canPass;
+        (passBtn as HTMLButtonElement).disabled = !actionState.canPass;
     }
     _syncReversiPassButton(actionState);
 
@@ -2865,7 +2904,7 @@ function toggleCardDetailExpanded() {
     updateCardDetailPanel();
 }
 
-function playUiEffectSound(effectKey) {
+function playUiEffectSound(effectKey: any) {
     try {
         if (typeof SoundEngine === 'undefined' || !SoundEngine) return;
         if (typeof SoundEngine.playEffectByKey !== 'function') return;
@@ -2874,7 +2913,7 @@ function playUiEffectSound(effectKey) {
     } catch (e) { /* ignore */ }
 }
 
-function onCardClick(cardId, ownerKey) {
+function onCardClick(cardId: any, ownerKey: any) {
     const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
     const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
     if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return;
@@ -3074,7 +3113,7 @@ function passCurrentTurn() {
     }
 }
 
-function cancelPendingSelection(specificPlayerKey) {
+function cancelPendingSelection(specificPlayerKey: any) {
     if (!_canInputPlayerActNow()) return;
     const playerKey = specificPlayerKey || _resolveInputPlayerKey();
     // FATE_WILL: pending effect is on the victim's key, not the controller's key.
@@ -3109,7 +3148,7 @@ function cancelPendingSelection(specificPlayerKey) {
     else if (typeof renderBoard === 'function') renderBoard();
 }
 
-function cancelPendingDestroy(specificPlayerKey) {
+function cancelPendingDestroy(specificPlayerKey: any) {
     cancelPendingSelection(specificPlayerKey);
 }
 
