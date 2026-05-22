@@ -418,9 +418,24 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             try {
                 const explicit = readHumanVsHumanMode();
                 if (typeof explicit !== 'undefined' && explicit !== null) return explicit === true;
-            } catch (e) { /* ignore and fall back to legacy root */ }
+            } catch (e) { /* ignore */ }
         }
-        return !!(root && (root.DEBUG_HUMAN_VS_HUMAN === true || readMatchMode() === 'network'));
+        return readMatchMode() === 'network';
+    }
+
+    function resolveCurrentGameState() {
+        const bridge = getSignalBridge();
+        if (bridge && bridge.gameState && typeof bridge.gameState === 'object') {
+            return bridge.gameState;
+        }
+        const getGameStateFromBridge = readSignalBridgeMethod('getGameState');
+        if (getGameStateFromBridge) {
+            try {
+                const state = getGameStateFromBridge();
+                if (state && typeof state === 'object') return state;
+            } catch (e) { /* ignore */ }
+        }
+        return null;
     }
 
     function scheduleWhiteCpuTurn(options: any) {
@@ -435,7 +450,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (!scheduleCpuTurn || !processCpuTurn) return false;
         const tid = scheduleCpuTurn(safeDelay, () => {
             try {
-                const gameStateRef = root && root.gameState ? root.gameState : null;
+                const gameStateRef = resolveCurrentGameState();
                 const currentPlayer = gameStateRef ? gameStateRef.currentPlayer : null;
                 const currentTurnNumber = (gameStateRef && Number.isFinite(Number(gameStateRef.turnNumber))) ? Number(gameStateRef.turnNumber) : null;
                 const currentPlayerKey = resolveSelectionTurnPlayerKeyOptional(currentPlayer);

@@ -520,6 +520,35 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 }
             },
             getPlaybackStateManager: () => getPlaybackStateModuleForReset(),
+            getGameState: () => {
+                try {
+                    return typeof globalThis !== 'undefined' ? (globalThis as any).gameState : null;
+                } catch (e: any) {
+                    return null;
+                }
+            },
+            getActionManager: () => {
+                try {
+                    return typeof globalThis !== 'undefined' ? (globalThis as any).ActionManager : null;
+                } catch (e: any) {
+                    return null;
+                }
+            },
+            getTurnPipelineUIAdapter: () => {
+                try {
+                    return typeof globalThis !== 'undefined' ? (globalThis as any).TurnPipelineUIAdapter : null;
+                } catch (e: any) {
+                    return null;
+                }
+            },
+            getTurnPipeline: () => {
+                try {
+                    return typeof globalThis !== 'undefined' ? (globalThis as any).TurnPipeline : null;
+                } catch (e: any) {
+                    return null;
+                }
+            },
+            getPresentationHelper: () => resolvePresentationHelperModule(),
             waitForPlaybackIdle: () => {
                 try {
                     if (typeof globalThis !== 'undefined' && typeof (globalThis as any).waitForPlaybackIdle === 'function') {

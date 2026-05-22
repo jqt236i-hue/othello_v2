@@ -13,6 +13,7 @@ function attachPlaybackStateManager() {
   flow.setSignalBridge({
     readMatchMode: () => global.MATCH_MODE,
     readHumanVsHumanMode: () => global.DEBUG_HUMAN_VS_HUMAN === true,
+    getGameState: () => global.gameState,
     getPlaybackStateManager: () => playbackStateManager,
     waitForPlaybackIdle: () => {
       if (typeof global.waitForPlaybackIdle === 'function') {
@@ -210,6 +211,7 @@ describe('pending selection flow contracts', () => {
   test('network deferred selection does not use root NetworkMatchClient without signal bridge publisher', async () => {
     flow.setSignalBridge({
       readMatchMode: () => 'network',
+      getGameState: () => global.gameState,
       getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
       getTurnPipeline: () => global.TurnPipeline,
       getActionManager: () => global.ActionManager
@@ -268,6 +270,7 @@ describe('pending selection flow contracts', () => {
   test('network deferred selection does not fall back to root NetworkMatchClient when signal bridge activity probe throws', async () => {
     flow.setSignalBridge({
       readMatchMode: () => 'network',
+      getGameState: () => global.gameState,
       getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
       getTurnPipeline: () => global.TurnPipeline,
       getActionManager: () => global.ActionManager,
@@ -743,6 +746,7 @@ describe('pending selection flow contracts', () => {
     flow.setSignalBridge({
       readMatchMode: () => 'network',
       readHumanVsHumanMode: () => false,
+      getGameState: () => global.gameState,
       getPlaybackStateManager: () => playbackStateManager,
       publishSnapshot,
       isNetworkPublishActive: () => true,

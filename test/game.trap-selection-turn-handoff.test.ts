@@ -75,6 +75,7 @@ describe('TRAP_WILL selection turn handoff', () => {
     global.PlaybackStateManager = playbackStateManager;
     require('../game/card-effects/selection-flow.js').setSignalBridge({
       getPlaybackStateManager: () => playbackStateManager,
+      getGameState: () => global.gameState,
       waitForPlaybackIdle: () => global.waitForPlaybackIdle(),
       scheduleCpuTurn: (delay, callback) => setTimeout(callback, delay),
       processCpuTurn: () => global.processCpuTurn(),

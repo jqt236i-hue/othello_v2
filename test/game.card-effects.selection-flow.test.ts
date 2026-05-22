@@ -85,6 +85,7 @@ describe('selection-flow', () => {
         selectionFlow.setSignalBridge({
             getPlaybackStateManager: () => globalForSelectionFlow.PlaybackStateManager,
             readMatchMode: () => globalForSelectionFlow.getCurrentMatchMode ? globalForSelectionFlow.getCurrentMatchMode() : 'local',
+            getGameState: () => globalForSelectionFlow.gameState,
             getTurnPipelineUIAdapter: () => globalForSelectionFlow.TurnPipelineUIAdapter,
             getTurnPipeline: () => globalForSelectionFlow.TurnPipeline,
             getActionManager: () => globalForSelectionFlow.ActionManager,
