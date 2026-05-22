@@ -25,7 +25,8 @@ const requiredAuthorityContractTypes = [
   'MatchAuthorityRoomPayload',
   'MatchAuthorityPublishResponsePayload',
   'MatchAuthorityBufferedSseEventRecord',
-  'MatchAuthorityBufferedSseReplayEvent'
+  'MatchAuthorityBufferedSseReplayEvent',
+  'MatchAuthorityPublicApi'
 ];
 
 const requiredAuthorityTypedFunctions = [
@@ -91,6 +92,18 @@ if (!/from\s+['"]\.\/match-authority-types['"]/.test(authoritySource)) {
   findings.push({
     file: 'utils/match-authority.ts',
     message: 'match authority must import its public boundary contract types'
+  });
+}
+if (!/from\s+['"]\.\/match-authority-contract['"]/.test(authoritySource)) {
+  findings.push({
+    file: 'utils/match-authority.ts',
+    message: 'match authority must import checked public API contract assertions'
+  });
+}
+if (!/const\s+matchAuthority\s*=\s*assertMatchAuthorityPublicApi\s*\(/.test(authoritySource)) {
+  findings.push({
+    file: 'utils/match-authority.ts',
+    message: 'match authority export must be validated by assertMatchAuthorityPublicApi'
   });
 }
 for (const functionName of requiredAuthorityTypedFunctions) {

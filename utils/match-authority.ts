@@ -10,12 +10,14 @@ import type {
     MatchAuthorityBufferedSseEventRecord,
     MatchAuthorityBufferedSseEventRecordInput,
     MatchAuthorityBufferedSseReplayEvent,
+    MatchAuthorityPublicApi,
     MatchAuthorityPublishMeta,
     MatchAuthorityPublishResponseOptions,
     MatchAuthorityPublishResponsePayload,
     MatchAuthorityRoomPayload,
     MatchAuthorityRoomPayloadOptions
 } from './match-authority-types';
+import { assertMatchAuthorityPublicApi } from './match-authority-contract';
 
 import deepClone from './deepClone';
 import SharedBoardUtils from '../shared/shared-board-utils';
@@ -1575,7 +1577,7 @@ function getBufferedSseReplayEvents(
     return replayEvents;
 }
 
-const matchAuthority = {
+const matchAuthority = assertMatchAuthorityPublicApi({
     PLAYER_KEYS,
     OPERATION_ID_MAX_LENGTH,
     SSE_RESUME_BUFFER_LIMIT,
@@ -1657,6 +1659,6 @@ const matchAuthority = {
     createBufferedSseEventRecord,
     appendBufferedSseEvent,
     getBufferedSseReplayEvents
-};
+});
 
 export = matchAuthority;

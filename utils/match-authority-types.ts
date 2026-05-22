@@ -123,3 +123,20 @@ export interface MatchAuthorityBufferedSseReplayEvent {
     eventName: string;
     payload: unknown;
 }
+
+export interface MatchAuthorityPublicApi {
+    normalizePublishMeta(value: unknown): MatchAuthorityPublishMeta;
+    buildPublishResponsePayload(options: MatchAuthorityPublishResponseOptions): MatchAuthorityPublishResponsePayload;
+    buildRoomPayload(options: MatchAuthorityRoomPayloadOptions): MatchAuthorityRoomPayload;
+    createBufferedSseEventRecord(options: MatchAuthorityBufferedSseEventRecordInput): MatchAuthorityBufferedSseEventRecord | null;
+    appendBufferedSseEvent(
+        bufferValue: unknown,
+        recordValue: MatchAuthorityBufferedSseEventRecordInput,
+        limitValue?: unknown
+    ): MatchAuthorityBufferedSseEventRecord[];
+    getBufferedSseReplayEvents(
+        bufferValue: unknown,
+        lastEventIdValue: unknown,
+        viewerSeatKey: unknown
+    ): MatchAuthorityBufferedSseReplayEvent[] | null;
+}

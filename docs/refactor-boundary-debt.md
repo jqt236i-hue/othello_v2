@@ -10,7 +10,7 @@ The following public boundary contracts are now represented by explicit TypeScri
 
 | Boundary | Contract file | Checked adapter / assertion | Runtime source | Focused test |
 | --- | --- | --- | --- | --- |
-| Match authority publish/SSE payloads | `utils/match-authority-types.ts` | typed exported signatures in `utils/match-authority.ts` | `utils/match-authority.ts` | `test/utils.match-authority.contract-types.test.ts` |
+| Match authority publish/SSE payloads | `utils/match-authority-types.ts` | `utils/match-authority-contract.ts` | `utils/match-authority.ts` | `test/utils.match-authority.contract-types.test.ts` |
 | CPU policy public API | `game/ai/cpu-policy-core-types.ts` | `game/ai/cpu-policy-core-api.ts` | `game/ai/cpu-policy-core.ts` | `test/game.cpu-policy-core.contract-types.test.ts` |
 | Match Worker public runtime entrypoints | `workers/match-worker-types.ts` | `workers/match-worker-contract.ts` | `workers/match-worker.ts` | `test/workers.match-worker.contract-types.test.ts` |
 
@@ -20,7 +20,7 @@ These files still keep `@ts-nocheck` because removing it currently exposes broad
 
 | File | Diagnostics without `@ts-nocheck` | Main categories | Why it remains |
 | --- | ---: | --- | --- |
-| `utils/match-authority.ts` | 225 | implicit parameters, loose object properties, dynamic indexing | Publish/SSE public payloads are now typed, but the internal room/snapshot helper graph still needs shared room-state and projection types before full checking is safe. |
+| `utils/match-authority.ts` | 225 | implicit parameters, loose object properties, dynamic indexing | Publish/SSE public payloads now pass through a checked public API assertion, but the internal room/snapshot helper graph still needs shared room-state and projection types before full checking is safe. |
 | `workers/match-worker.ts` | 468 | implicit parameters, loose room properties, dynamic storage/env shapes | Worker entrypoints now pass through checked contract assertions, but Durable Object room state, storage values, and request bodies need a shared schema before full checking is safe. |
 | `game/ai/cpu-policy-core.ts` | 407 | implicit parameters, legacy helper arity, nullable search context | Public CPU policy API now passes through a checked adapter and RNG accepts only `{ random() }`, but the internal card-decision and lookahead helpers need typed board/move/context models before full checking is safe. |
 

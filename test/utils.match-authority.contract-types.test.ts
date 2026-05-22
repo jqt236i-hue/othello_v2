@@ -1,11 +1,12 @@
 import type {
   MatchAuthorityBufferedSseEventRecord,
   MatchAuthorityBufferedSseReplayEvent,
+  MatchAuthorityPublicApi,
   MatchAuthorityPublishMeta,
   MatchAuthorityPublishResponsePayload
 } from '../utils/match-authority-types';
 
-const MatchAuthority = require('../utils/match-authority');
+const MatchAuthority: MatchAuthorityPublicApi = require('../utils/match-authority');
 
 describe('match-authority public contract types', () => {
   test('publish response exposes typed authority metadata', () => {
