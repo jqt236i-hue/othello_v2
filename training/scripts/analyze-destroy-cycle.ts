@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
 'use strict';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
