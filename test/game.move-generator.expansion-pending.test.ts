@@ -27,10 +27,6 @@ describe('move-generator expansion pending regression', () => {
     global.EMPTY = Core.EMPTY;
     global.CoreLogic = Core;
     global.CardLogic = CardLogic;
-    global.getFlips = (state, row, col, player, protection, perma) => Core.getFlipsWithContext(state, row, col, player, {
-      protectedStones: protection || [],
-      permaProtectedStones: perma || []
-    });
   });
 
   afterEach(() => {
@@ -39,7 +35,6 @@ describe('move-generator expansion pending regression', () => {
     delete global.EMPTY;
     delete global.CoreLogic;
     delete global.CardLogic;
-    delete global.getFlips;
     delete global.gameState;
     delete global.cardState;
   });

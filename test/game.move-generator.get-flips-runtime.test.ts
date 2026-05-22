@@ -16,7 +16,6 @@ describe('move-generator getFlips runtime wiring', () => {
       consecutivePasses: 0
     };
     global.cardState = CardLogic.createCardState({ shuffle: (arr) => arr, random: () => 0.5 });
-    delete global.getFlips;
   });
 
   afterEach(() => {
@@ -27,7 +26,6 @@ describe('move-generator getFlips runtime wiring', () => {
     delete global.CardLogic;
     delete global.gameState;
     delete global.cardState;
-    delete global.getFlips;
   });
 
   test('free-placement move generation resolves getFlips without legacy global injection', () => {

@@ -17,9 +17,6 @@ const MoveGeneratorCoreLogic = (() => {
     try {
         if (typeof CoreLogic !== 'undefined' && CoreLogic) return CoreLogic;
     } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).CoreLogic) return (globalThis as any).CoreLogic;
-    } catch (e) { /* ignore */ }
     if (typeof require === 'function') {
         try { return require('./logic/core'); } catch (e) { /* ignore */ }
     }
@@ -80,11 +77,6 @@ function getFlipsForMoveGeneration(state: any, row: number, col: number, player:
     if (legacyGetFlips) {
         return legacyGetFlips(state, row, col, player, protection, perma);
     }
-    try {
-        if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getFlips === 'function') {
-            return (globalThis as any).getFlips(state, row, col, player, protection, perma);
-        }
-    } catch (e) { /* ignore */ }
     throw new Error('MoveGenerator.getFlips dependency unavailable');
 }
 
@@ -415,12 +407,6 @@ function generateSwapMoves(player: any, legal: any, protection: any, perma: any)
  * 特定セルの手を検索
  */
 function findMoveForCell(player: any, row: number, col: number, pending: any, protection: any, perma: any) {
-    try {
-        const legacyFindMoveForCell = (typeof globalThis !== 'undefined') ? (globalThis as any).findMoveForCell : null;
-        if (typeof legacyFindMoveForCell === 'function' && legacyFindMoveForCell !== findMoveForCell) {
-            return legacyFindMoveForCell(player, row, col, pending, protection, perma);
-        }
-    } catch (e) { /* ignore */ }
     const moves = generateMovesForPlayer(player, pending, protection, perma);
     return moves.find((m: any) => m.row === row && m.col === col) || null;
 }

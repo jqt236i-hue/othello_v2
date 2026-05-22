@@ -38,10 +38,6 @@ describe('UDR and Crystal regressions', () => {
                 white: null
             }
         };
-        global.getFlips = (state, row, col, player, protection, perma) => Core.getFlipsWithContext(state, row, col, player, {
-            protectedStones: protection || [],
-            permaProtectedStones: perma || []
-        });
         global.emitLogAdded = jest.fn();
         global.isDebugLogAvailable = jest.fn(() => false);
         global.debugLog = jest.fn();
@@ -58,7 +54,6 @@ describe('UDR and Crystal regressions', () => {
         delete global.EMPTY;
         delete global.CoreLogic;
         delete global.CardLogic;
-        delete global.getFlips;
         delete global.emitLogAdded;
         delete global.isDebugLogAvailable;
         delete global.debugLog;
