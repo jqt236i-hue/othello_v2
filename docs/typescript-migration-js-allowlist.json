@@ -38,14 +38,6 @@
       "category": "legacy-implementation",
       "reason": "Migration-era browser smoke helper retained for troubleshooting."
     },
-    "scripts/check-registry-content.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era registry helper retained for troubleshooting."
-    },
-    "scripts/check-registry-content2.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era registry helper retained for troubleshooting."
-    },
     "scripts/clean-dist-require.js": {
       "category": "legacy-implementation",
       "reason": "Migration-era dist cleanup helper retained for troubleshooting."
@@ -53,10 +45,6 @@
     "scripts/compare-test-baseline.js": {
       "category": "legacy-implementation",
       "reason": "Migration-era test baseline helper retained for troubleshooting."
-    },
-    "scripts/cross-ref-scripts.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era utility helper retained for troubleshooting."
     },
     "scripts/validate-registry.js": {
       "category": "legacy-implementation",

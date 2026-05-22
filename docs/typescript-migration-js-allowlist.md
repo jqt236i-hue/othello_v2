@@ -85,8 +85,8 @@ npm run worker:prepare # PASS ✅
 
 **残存理由**: 過去の移行作業で使用した一時的なデバッグ・検証スクリプト。現在は使用されていない可能性が高いが、削除は別途検討。
 
-#### ツール・ユーティリティスクリプト（6件）
-`scripts/add-module-tracking.js`, `scripts/check-registry-content.js`, `scripts/check-registry-content2.js`, `scripts/cross-ref-scripts.js`, `scripts/serve-with-fallback.js`, `scripts/validate-registry.js`
+#### ツール・ユーティリティスクリプト（3件）
+`scripts/add-module-tracking.js`, `scripts/serve-with-fallback.js`, `scripts/validate-registry.js`
 
 **残存理由**: Node.js環境で実行される開発・検証ツール。ゲームの実行経路には含まれない。
 
@@ -163,9 +163,6 @@ npm run worker:prepare # PASS ✅
 `scripts/`下のツール・デバッグスクリプト：
 - `scripts/add-module-tracking.js` (56行) → **legacy-implementation**
   - 理由: Playwrightを使ったモジュール追跡ツール
-- `scripts/check-registry-content.js` (41行) → **legacy-implementation**
-- `scripts/check-registry-content2.js` (33行) → **legacy-implementation**
-- `scripts/cross-ref-scripts.js` (46行) → **legacy-implementation**
 - `scripts/serve-with-fallback.js` (7行) → **legacy-implementation**
   - 理由: `dist/scripts/serve-with-fallback` を読むwrapperだが、Node.js専用
 - `scripts/validate-registry.js` (66行) → **legacy-implementation**
