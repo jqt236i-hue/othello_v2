@@ -1,6 +1,17 @@
 // @ts-nocheck
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { CpuPolicyCoreApi } from './cpu-policy-core-types';
+import type {
+    CpuPolicyBoard,
+    CpuPolicyBoardBonusResolver,
+    CpuPolicyCardContext,
+    CpuPolicyCardCostResolver,
+    CpuPolicyCardDefinition,
+    CpuPolicyCardDefinitionResolver,
+    CpuPolicyCardId,
+    CpuPolicyCardScore,
+    CpuPolicyCardSelection,
+    CpuPolicyMove
+} from './cpu-policy-core-types';
 import { createCpuPolicyCoreApi } from './cpu-policy-core-api';
 /**
  * @file cpu-policy-core.js
@@ -8,6 +19,20 @@ import { createCpuPolicyCoreApi } from './cpu-policy-core-api';
  */
 
 'use strict';
+
+type CpuPolicyNumericMap = Record<string, number>;
+type CpuPolicyUsageStyle = Record<string, number>;
+type CpuPolicyMovePlanProfile = Record<string, string | number>;
+type CpuPolicyCardTypeMap<T> = Record<string, T>;
+type CpuPolicyForcedDestroyReason = 'bucket1_never_use' | 'bucket2_low_charge' | 'bucket3_currently_unusable';
+
+function asRecord(value: unknown): Record<string, unknown> {
+    return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+}
+
+function isFiniteNumber(value: unknown): boolean {
+    return Number.isFinite(Number(value));
+}
 
 const SharedBoardUtils = (() => {
     try {
@@ -700,9 +725,9 @@ function buildCardTypeUsageStyle() {
         lowMobilityBias: 0,
         handPressureBias: 0
     });
-    const style = Object.create(null);
+    const style: CpuPolicyCardTypeMap<CpuPolicyUsageStyle> = Object.create(null);
     for (const type of ALL_CARD_TYPES_FOR_USAGE_STYLE) style[type] = emptyStyle();
-    const patch = (types, delta) => {
+    const patch = (types: readonly string[], delta: CpuPolicyNumericMap) => {
         for (const type of types) {
             if (!Object.prototype.hasOwnProperty.call(style, type)) continue;
             const next = Object.assign({}, style[type]);
@@ -861,10 +886,10 @@ function buildCardTypeUsageStyle() {
 
     for (const type of ALL_CARD_TYPES_FOR_USAGE_STYLE) {
         if (!Object.prototype.hasOwnProperty.call(CARD_TYPE_USAGE_STYLE_OVERRIDES, type)) continue;
-        patch([type], CARD_TYPE_USAGE_STYLE_OVERRIDES[type]);
+        patch([type], CARD_TYPE_USAGE_STYLE_OVERRIDES[type as keyof typeof CARD_TYPE_USAGE_STYLE_OVERRIDES]);
     }
 
-    const frozen = Object.create(null);
+    const frozen: CpuPolicyCardTypeMap<CpuPolicyUsageStyle> = Object.create(null);
     for (const type of ALL_CARD_TYPES_FOR_USAGE_STYLE) {
         frozen[type] = Object.freeze(Object.assign({}, style[type]));
     }
@@ -1092,22 +1117,25 @@ function buildCardTypeMovePlanProfile() {
         'frontierPenalty',
         'stabilityBias'
     ];
-    const profileByType = Object.create(null);
+    const profileByType: CpuPolicyCardTypeMap<CpuPolicyMovePlanProfile> = Object.create(null);
     for (const type of ALL_CARD_TYPES_FOR_USAGE_STYLE) {
         const override = Object.prototype.hasOwnProperty.call(CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES, type)
-            ? CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES[type]
+            ? CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES[type as keyof typeof CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES]
             : { archetype: 'economyCycle', placementWeight: 0 };
         const archetypeName = typeof override.archetype === 'string'
             ? override.archetype
             : 'economyCycle';
         const base = Object.prototype.hasOwnProperty.call(CARD_MOVE_PLAN_ARCHETYPE_BASE, archetypeName)
-            ? CARD_MOVE_PLAN_ARCHETYPE_BASE[archetypeName]
+            ? CARD_MOVE_PLAN_ARCHETYPE_BASE[archetypeName as keyof typeof CARD_MOVE_PLAN_ARCHETYPE_BASE]
             : CARD_MOVE_PLAN_ARCHETYPE_BASE.economyCycle;
         const next = Object.assign({ archetype: archetypeName }, base);
         for (const key of numericKeys) {
             if (!Object.prototype.hasOwnProperty.call(override, key)) continue;
-            const value = Number(override[key]);
-            next[key] = Number.isFinite(value) ? value : Number(base[key] || 0);
+            const overrideRecord = asRecord(override);
+            const baseRecord = asRecord(base);
+            const nextRecord = next as CpuPolicyMovePlanProfile;
+            const value = Number(overrideRecord[key]);
+            nextRecord[key] = Number.isFinite(value) ? value : Number(baseRecord[key] || 0);
         }
         profileByType[type] = Object.freeze(next);
     }
@@ -1116,7 +1144,11 @@ function buildCardTypeMovePlanProfile() {
 
 const CARD_TYPE_MOVE_PLAN_PROFILE = buildCardTypeMovePlanProfile();
 
-function chooseHighestCostCard(usableCardIds, getCardCost, getCardDef) {
+function chooseHighestCostCard(
+    usableCardIds: CpuPolicyCardId[],
+    getCardCost: CpuPolicyCardCostResolver,
+    getCardDef?: CpuPolicyCardDefinitionResolver
+): CpuPolicyCardSelection | null {
     if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
     const sorted = usableCardIds.slice().sort((a, b) => {
         const ca = typeof getCardCost === 'function' ? (getCardCost(a) || 0) : 0;
@@ -1128,7 +1160,7 @@ function chooseHighestCostCard(usableCardIds, getCardCost, getCardDef) {
     return { cardId, cardDef };
 }
 
-function isCornerRecoveryCardType(cardType) {
+function isCornerRecoveryCardType(cardType: unknown): boolean {
     const normalizedType = String(cardType || '');
     if (!normalizedType) return false;
     if (SharedCardHeuristics && typeof SharedCardHeuristics.isRecoveryCardType === 'function') {
@@ -1139,7 +1171,7 @@ function isCornerRecoveryCardType(cardType) {
     return CORNER_RECOVERY_CARD_TYPES.has(normalizedType);
 }
 
-function isCornerHoldCardType(cardType) {
+function isCornerHoldCardType(cardType: unknown): boolean {
     const normalizedType = String(cardType || '');
     if (!normalizedType) return false;
     if (SharedCardHeuristics && typeof SharedCardHeuristics.isHoldCardType === 'function') {
@@ -1150,7 +1182,7 @@ function isCornerHoldCardType(cardType) {
     return CORNER_HOLD_CARD_TYPES.has(normalizedType);
 }
 
-function isChargeRampCardType(cardType) {
+function isChargeRampCardType(cardType: unknown): boolean {
     const normalizedType = String(cardType || '');
     if (!normalizedType) return false;
     if (SharedCardHeuristics && typeof SharedCardHeuristics.isChargeRampCardType === 'function') {
@@ -1161,41 +1193,46 @@ function isChargeRampCardType(cardType) {
     return CHARGE_RAMP_CARD_TYPES.has(normalizedType);
 }
 
-function hasUsageStyleForCardType(cardType) {
+function hasUsageStyleForCardType(cardType: unknown): boolean {
     return Object.prototype.hasOwnProperty.call(
         CARD_TYPE_USAGE_STYLE,
         String(cardType || '')
     );
 }
 
-function hasBaseScoreBonusForCardType(cardType) {
+function hasBaseScoreBonusForCardType(cardType: unknown): boolean {
     return Object.prototype.hasOwnProperty.call(
         CARD_TYPE_BASE_SCORE_BONUS,
         String(cardType || '')
     );
 }
 
-function hasMovePlanProfileForCardType(cardType) {
+function hasMovePlanProfileForCardType(cardType: unknown): boolean {
     return Object.prototype.hasOwnProperty.call(
         CARD_TYPE_MOVE_PLAN_PROFILE,
         String(cardType || '')
     );
 }
 
-function getMovePlanProfileForCardType(cardType) {
+function getMovePlanProfileForCardType(cardType: unknown): CpuPolicyMovePlanProfile | null {
     const type = String(cardType || '');
     if (!Object.prototype.hasOwnProperty.call(CARD_TYPE_MOVE_PLAN_PROFILE, type)) return null;
     return CARD_TYPE_MOVE_PLAN_PROFILE[type] || null;
 }
 
-function getForcedHandDestroyReason(cardId, cardType, context, usableCardIdSet) {
+function getForcedHandDestroyReason(
+    cardId: unknown,
+    cardType: unknown,
+    context: CpuPolicyCardContext | null | undefined,
+    usableCardIdSet: Set<string> | null | undefined
+): CpuPolicyForcedDestroyReason | null {
     const type = String(cardType || '').trim();
     if (!type) return null;
     if (IMMEDIATE_DESTROY_CARD_TYPES.has(type)) return 'bucket1_never_use';
 
-    const ctx = context || {};
-    const ownCharge = Number.isFinite(ctx.ownCharge) ? Number(ctx.ownCharge) : 0;
-    const handSize = Number.isFinite(ctx.handSize) ? Math.max(0, Math.floor(ctx.handSize)) : 0;
+    const ctx = asRecord(context);
+    const ownCharge = isFiniteNumber(ctx.ownCharge) ? Number(ctx.ownCharge) : 0;
+    const handSize = isFiniteNumber(ctx.handSize) ? Math.max(0, Math.floor(Number(ctx.handSize))) : 0;
     if (type === 'SUPPLY_WILL' && handSize >= 2) {
         return null;
     }
@@ -1215,7 +1252,7 @@ function getForcedHandDestroyReason(cardId, cardType, context, usableCardIdSet) 
     return null;
 }
 
-function getForcedHandDestroyPriority(reason) {
+function getForcedHandDestroyPriority(reason: unknown): number {
     switch (String(reason || '')) {
     case 'bucket1_never_use':
         return 1;
@@ -1228,8 +1265,15 @@ function getForcedHandDestroyPriority(reason) {
     }
 }
 
-function buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, context, reason) {
-    const ctx = context || {};
+function buildBlockedCardUseDecision(
+    cardId: CpuPolicyCardId,
+    cardDef: CpuPolicyCardDefinition | null,
+    cardType: string,
+    cardCost: number,
+    context: CpuPolicyCardContext | null | undefined,
+    reason: unknown
+): CpuPolicyCardScore {
+    const ctx = asRecord(context);
     return {
         cardId,
         cardDef,
@@ -1242,9 +1286,15 @@ function buildBlockedCardUseDecision(cardId, cardDef, cardType, cardCost, contex
     };
 }
 
-function chooseForcedHandDestroyTarget(handCardIds, getCardCost, getCardDef, context, usableCardIdSet) {
+function chooseForcedHandDestroyTarget(
+    handCardIds: CpuPolicyCardId[],
+    getCardCost: CpuPolicyCardCostResolver,
+    getCardDef: CpuPolicyCardDefinitionResolver,
+    context: CpuPolicyCardContext | null | undefined,
+    usableCardIdSet: Set<string> | null | undefined
+): CpuPolicyCardScore | null {
     if (!Array.isArray(handCardIds) || handCardIds.length <= 0) return null;
-    let best = null;
+    let best: (CpuPolicyCardScore & { cardCost: number; priority: number; reason: CpuPolicyForcedDestroyReason }) | null = null;
 
     for (const rawCardId of handCardIds) {
         const cardId = String(rawCardId || '').trim();
@@ -1267,6 +1317,7 @@ function chooseForcedHandDestroyTarget(handCardIds, getCardCost, getCardDef, con
                 cardDef,
                 cardType,
                 cardCost,
+                score: Number.NEGATIVE_INFINITY,
                 priority,
                 reason
             };
@@ -1283,7 +1334,7 @@ function chooseForcedHandDestroyTarget(handCardIds, getCardCost, getCardDef, con
     };
 }
 
-function countBoardDiscsForPlayer(board, playerValue) {
+function countBoardDiscsForPlayer(board: CpuPolicyBoard | null | undefined, playerValue: number): { own: number; opp: number; empties: number } {
     if (!Array.isArray(board)) return { own: 0, opp: 0, empties: 0 };
     if (
         SharedBoardUtils &&
@@ -1316,7 +1367,7 @@ function countBoardDiscsForPlayer(board, playerValue) {
     return { own, opp, empties };
 }
 
-function countBoardEdgeDiscsForPlayer(board, playerValue) {
+function countBoardEdgeDiscsForPlayer(board: CpuPolicyBoard | null | undefined, playerValue: number): { ownEdges: number; oppEdges: number } {
     if (!Array.isArray(board) || board.length <= 0) return { ownEdges: 0, oppEdges: 0 };
     if (SharedBoardUtils && typeof SharedBoardUtils.countEdgeControl === 'function') {
         return SharedBoardUtils.countEdgeControl(board, playerValue);
@@ -1340,35 +1391,36 @@ function countBoardEdgeDiscsForPlayer(board, playerValue) {
     return { ownEdges, oppEdges };
 }
 
-function estimateOwnOppDiscs(discDiff, empties, totalCells) {
-    const safeTotalCells = Number.isFinite(totalCells)
-        ? Math.max(1, Math.floor(totalCells))
+function estimateOwnOppDiscs(discDiff: unknown, empties: unknown, totalCells: unknown): { own: number; opp: number; occupied: number; totalCells: number } {
+    const safeTotalCells = isFiniteNumber(totalCells)
+        ? Math.max(1, Math.floor(Number(totalCells)))
         : 64;
-    const safeEmpties = Number.isFinite(empties)
-        ? Math.max(0, Math.min(safeTotalCells, Math.floor(empties)))
+    const safeEmpties = isFiniteNumber(empties)
+        ? Math.max(0, Math.min(safeTotalCells, Math.floor(Number(empties))))
         : 0;
     const occupied = safeTotalCells - safeEmpties;
-    const rawOwn = Math.floor((occupied + discDiff) / 2);
+    const safeDiscDiff = isFiniteNumber(discDiff) ? Number(discDiff) : 0;
+    const rawOwn = Math.floor((occupied + safeDiscDiff) / 2);
     const own = Math.max(0, Math.min(occupied, rawOwn));
     const opp = Math.max(0, occupied - own);
     return { own, opp, occupied, totalCells: safeTotalCells };
 }
 
-function buildCardDecisionContext(context) {
-    const ctx = context || {};
-    const level = Number.isFinite(ctx.level) ? Math.max(1, Math.floor(ctx.level)) : 1;
-    const playerValue = Number.isFinite(ctx.playerValue)
-        ? (ctx.playerValue >= 0 ? 1 : -1)
+function buildCardDecisionContext(context: CpuPolicyCardContext | null | undefined) {
+    const ctx = asRecord(context);
+    const level = isFiniteNumber(ctx.level) ? Math.max(1, Math.floor(Number(ctx.level))) : 1;
+    const playerValue = isFiniteNumber(ctx.playerValue)
+        ? (Number(ctx.playerValue) >= 0 ? 1 : -1)
         : 1;
-    const legalMovesCount = Number.isFinite(ctx.legalMovesCount) ? Math.max(0, Math.floor(ctx.legalMovesCount)) : 0;
+    const legalMovesCount = isFiniteNumber(ctx.legalMovesCount) ? Math.max(0, Math.floor(Number(ctx.legalMovesCount))) : 0;
 
-    let discDiff = Number.isFinite(ctx.discDiff) ? Number(ctx.discDiff) : 0;
-    let empties = Number.isFinite(ctx.empties) ? Math.max(0, Math.floor(ctx.empties)) : null;
-    let ownDiscs = Number.isFinite(ctx.ownDiscs) ? Math.max(0, Math.floor(ctx.ownDiscs)) : null;
-    let oppDiscs = Number.isFinite(ctx.oppDiscs) ? Math.max(0, Math.floor(ctx.oppDiscs)) : null;
-    let ownEdges = Number.isFinite(ctx.ownEdges) ? Math.max(0, Math.floor(ctx.ownEdges)) : null;
-    let oppEdges = Number.isFinite(ctx.oppEdges) ? Math.max(0, Math.floor(ctx.oppEdges)) : null;
-    let totalCells = Number.isFinite(ctx.totalCells) ? Math.max(1, Math.floor(ctx.totalCells)) : 64;
+    let discDiff = isFiniteNumber(ctx.discDiff) ? Number(ctx.discDiff) : 0;
+    let empties: number | null = isFiniteNumber(ctx.empties) ? Math.max(0, Math.floor(Number(ctx.empties))) : null;
+    let ownDiscs: number | null = isFiniteNumber(ctx.ownDiscs) ? Math.max(0, Math.floor(Number(ctx.ownDiscs))) : null;
+    let oppDiscs: number | null = isFiniteNumber(ctx.oppDiscs) ? Math.max(0, Math.floor(Number(ctx.oppDiscs))) : null;
+    let ownEdges: number | null = isFiniteNumber(ctx.ownEdges) ? Math.max(0, Math.floor(Number(ctx.ownEdges))) : null;
+    let oppEdges: number | null = isFiniteNumber(ctx.oppEdges) ? Math.max(0, Math.floor(Number(ctx.oppEdges))) : null;
+    let totalCells = isFiniteNumber(ctx.totalCells) ? Math.max(1, Math.floor(Number(ctx.totalCells))) : 64;
     if (Array.isArray(ctx.board)) {
         let cells = 0;
         for (let r = 0; r < ctx.board.length; r++) {
@@ -1378,12 +1430,12 @@ function buildCardDecisionContext(context) {
         if (cells > 0) totalCells = cells;
         const boardStat = countBoardDiscsForPlayer(ctx.board, playerValue);
         const edgeStat = countBoardEdgeDiscsForPlayer(ctx.board, playerValue);
-        if (!Number.isFinite(ctx.discDiff)) discDiff = boardStat.own - boardStat.opp;
-        if (!Number.isFinite(ctx.empties)) empties = boardStat.empties;
-        if (!Number.isFinite(ctx.ownDiscs)) ownDiscs = boardStat.own;
-        if (!Number.isFinite(ctx.oppDiscs)) oppDiscs = boardStat.opp;
-        if (!Number.isFinite(ctx.ownEdges)) ownEdges = edgeStat.ownEdges;
-        if (!Number.isFinite(ctx.oppEdges)) oppEdges = edgeStat.oppEdges;
+        if (!isFiniteNumber(ctx.discDiff)) discDiff = boardStat.own - boardStat.opp;
+        if (!isFiniteNumber(ctx.empties)) empties = boardStat.empties;
+        if (!isFiniteNumber(ctx.ownDiscs)) ownDiscs = boardStat.own;
+        if (!isFiniteNumber(ctx.oppDiscs)) oppDiscs = boardStat.opp;
+        if (!isFiniteNumber(ctx.ownEdges)) ownEdges = edgeStat.ownEdges;
+        if (!isFiniteNumber(ctx.oppEdges)) oppEdges = edgeStat.oppEdges;
     }
     if (!Number.isFinite(empties)) empties = 0;
     if (!Number.isFinite(ownDiscs) || !Number.isFinite(oppDiscs)) {
@@ -1394,52 +1446,52 @@ function buildCardDecisionContext(context) {
     if (!Number.isFinite(ownEdges)) ownEdges = 0;
     if (!Number.isFinite(oppEdges)) oppEdges = 0;
 
-    const ownCharge = Number.isFinite(ctx.ownCharge) ? Number(ctx.ownCharge) : 0;
-    const oppCharge = Number.isFinite(ctx.oppCharge) ? Number(ctx.oppCharge) : 0;
-    const oppHandSize = Number.isFinite(ctx.oppHandSize) ? Math.max(0, Math.floor(ctx.oppHandSize)) : 0;
-    const handSize = Number.isFinite(ctx.handSize) ? Math.max(0, Math.floor(ctx.handSize)) : 0;
+    const ownCharge = isFiniteNumber(ctx.ownCharge) ? Number(ctx.ownCharge) : 0;
+    const oppCharge = isFiniteNumber(ctx.oppCharge) ? Number(ctx.oppCharge) : 0;
+    const oppHandSize = isFiniteNumber(ctx.oppHandSize) ? Math.max(0, Math.floor(Number(ctx.oppHandSize))) : 0;
+    const handSize = isFiniteNumber(ctx.handSize) ? Math.max(0, Math.floor(Number(ctx.handSize))) : 0;
     const handCardIds = Array.isArray(ctx.handCardIds)
         ? ctx.handCardIds.map((id) => String(id || '').trim()).filter((id) => id.length > 0)
         : [];
-    const deckRemaining = Number.isFinite(ctx.deckRemaining)
-        ? Math.max(0, Math.floor(ctx.deckRemaining))
+    const deckRemaining = isFiniteNumber(ctx.deckRemaining)
+        ? Math.max(0, Math.floor(Number(ctx.deckRemaining)))
         : null;
     const usableCardIds = Array.isArray(ctx.usableCardIds)
         ? ctx.usableCardIds.map((id) => String(id || '').trim()).filter((id) => id.length > 0)
         : [];
     const forceUseCard = !!ctx.forceUseCard || legalMovesCount <= 0;
-    const ownCorners = Number.isFinite(ctx.ownCorners) ? Number(ctx.ownCorners) : 0;
-    const oppCorners = Number.isFinite(ctx.oppCorners) ? Number(ctx.oppCorners) : 0;
+    const ownCorners = isFiniteNumber(ctx.ownCorners) ? Number(ctx.ownCorners) : 0;
+    const oppCorners = isFiniteNumber(ctx.oppCorners) ? Number(ctx.oppCorners) : 0;
     const hasCornerMoveNow = ctx.hasCornerMoveNow === true;
     const hasEdgeMoveNow = ctx.hasEdgeMoveNow === true;
     const cornerEmergency = ctx.cornerEmergency === true;
     const cornerHoldMode = ctx.cornerHoldMode === true;
-    const recoveryCostGap = Number.isFinite(ctx.recoveryCostGap) ? Math.max(0, Number(ctx.recoveryCostGap)) : 0;
+    const recoveryCostGap = isFiniteNumber(ctx.recoveryCostGap) ? Math.max(0, Number(ctx.recoveryCostGap)) : 0;
     const highBonusMoveAvailable = ctx.highBonusMoveAvailable === true;
-    const maxLegalFlips = Number.isFinite(ctx.maxLegalFlips) ? Math.max(0, Math.floor(ctx.maxLegalFlips)) : 0;
-    const avgLegalFlips = Number.isFinite(ctx.avgLegalFlips) ? Math.max(0, Number(ctx.avgLegalFlips)) : 0;
-    const maxLegalGain = Number.isFinite(ctx.maxLegalGain)
+    const maxLegalFlips = isFiniteNumber(ctx.maxLegalFlips) ? Math.max(0, Math.floor(Number(ctx.maxLegalFlips))) : 0;
+    const avgLegalFlips = isFiniteNumber(ctx.avgLegalFlips) ? Math.max(0, Number(ctx.avgLegalFlips)) : 0;
+    const maxLegalGain = isFiniteNumber(ctx.maxLegalGain)
         ? Math.max(0, Number(ctx.maxLegalGain))
         : maxLegalFlips;
-    const maxLegalBoardBonus = Number.isFinite(ctx.maxLegalBoardBonus)
+    const maxLegalBoardBonus = isFiniteNumber(ctx.maxLegalBoardBonus)
         ? Math.max(0, Number(ctx.maxLegalBoardBonus))
         : 0;
-    const cloneSplitEligibleSourceCount = Number.isFinite(ctx.cloneSplitEligibleSourceCount)
-        ? Math.max(0, Math.floor(ctx.cloneSplitEligibleSourceCount))
+    const cloneSplitEligibleSourceCount = isFiniteNumber(ctx.cloneSplitEligibleSourceCount)
+        ? Math.max(0, Math.floor(Number(ctx.cloneSplitEligibleSourceCount)))
         : null;
-    const ownSpecialCount = Number.isFinite(ctx.ownSpecialCount) ? Math.max(0, Math.floor(ctx.ownSpecialCount)) : 0;
-    const oppSpecialCount = Number.isFinite(ctx.oppSpecialCount) ? Math.max(0, Math.floor(ctx.oppSpecialCount)) : 0;
-    const ownGuardCount = Number.isFinite(ctx.ownGuardCount) ? Math.max(0, Math.floor(ctx.ownGuardCount)) : 0;
-    const oppGuardCount = Number.isFinite(ctx.oppGuardCount) ? Math.max(0, Math.floor(ctx.oppGuardCount)) : 0;
-    const ownCornerResetCount = Number.isFinite(ctx.ownCornerResetCount) ? Math.max(0, Math.floor(ctx.ownCornerResetCount)) : 0;
-    const oppCornerResetCount = Number.isFinite(ctx.oppCornerResetCount) ? Math.max(0, Math.floor(ctx.oppCornerResetCount)) : 0;
-    const ownEdgeResetCount = Number.isFinite(ctx.ownEdgeResetCount) ? Math.max(0, Math.floor(ctx.ownEdgeResetCount)) : 0;
-    const oppEdgeResetCount = Number.isFinite(ctx.oppEdgeResetCount) ? Math.max(0, Math.floor(ctx.oppEdgeResetCount)) : 0;
-    const meteorBestCornerSwing = Number.isFinite(ctx.meteorBestCornerSwing) ? Number(ctx.meteorBestCornerSwing) : 0;
-    const meteorBestDestroyValue = Number.isFinite(ctx.meteorBestDestroyValue) ? Number(ctx.meteorBestDestroyValue) : 0;
+    const ownSpecialCount = isFiniteNumber(ctx.ownSpecialCount) ? Math.max(0, Math.floor(Number(ctx.ownSpecialCount))) : 0;
+    const oppSpecialCount = isFiniteNumber(ctx.oppSpecialCount) ? Math.max(0, Math.floor(Number(ctx.oppSpecialCount))) : 0;
+    const ownGuardCount = isFiniteNumber(ctx.ownGuardCount) ? Math.max(0, Math.floor(Number(ctx.ownGuardCount))) : 0;
+    const oppGuardCount = isFiniteNumber(ctx.oppGuardCount) ? Math.max(0, Math.floor(Number(ctx.oppGuardCount))) : 0;
+    const ownCornerResetCount = isFiniteNumber(ctx.ownCornerResetCount) ? Math.max(0, Math.floor(Number(ctx.ownCornerResetCount))) : 0;
+    const oppCornerResetCount = isFiniteNumber(ctx.oppCornerResetCount) ? Math.max(0, Math.floor(Number(ctx.oppCornerResetCount))) : 0;
+    const ownEdgeResetCount = isFiniteNumber(ctx.ownEdgeResetCount) ? Math.max(0, Math.floor(Number(ctx.ownEdgeResetCount))) : 0;
+    const oppEdgeResetCount = isFiniteNumber(ctx.oppEdgeResetCount) ? Math.max(0, Math.floor(Number(ctx.oppEdgeResetCount))) : 0;
+    const meteorBestCornerSwing = isFiniteNumber(ctx.meteorBestCornerSwing) ? Number(ctx.meteorBestCornerSwing) : 0;
+    const meteorBestDestroyValue = isFiniteNumber(ctx.meteorBestDestroyValue) ? Number(ctx.meteorBestDestroyValue) : 0;
     const meteorHasCornerPromotion = ctx.meteorHasCornerPromotion === true;
     const meteorHasHighValueDestroy = ctx.meteorHasHighValueDestroy === true;
-    let reserveChargeFloor = Number.isFinite(ctx.reserveChargeFloor)
+    let reserveChargeFloor = isFiniteNumber(ctx.reserveChargeFloor)
         ? Math.max(0, Math.floor(Number(ctx.reserveChargeFloor)))
         : (empties <= 12 ? 4 : (empties <= 30 ? 6 : 8));
     if (cornerEmergency) reserveChargeFloor = Math.max(2, reserveChargeFloor - 2);
@@ -1533,7 +1585,12 @@ function buildCardDecisionContext(context) {
     };
 }
 
-function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
+function scoreCardUseDecision(
+    cardId: CpuPolicyCardId,
+    getCardCost: CpuPolicyCardCostResolver,
+    getCardDef: CpuPolicyCardDefinitionResolver,
+    context?: CpuPolicyCardContext
+): CpuPolicyCardScore {
     const ctx = buildCardDecisionContext(context);
     const cardCost = typeof getCardCost === 'function' ? Number(getCardCost(cardId) || 0) : 0;
     const cardDef = typeof getCardDef === 'function' ? (getCardDef(cardId) || null) : null;
@@ -2725,9 +2782,14 @@ function scoreCardUseDecision(cardId, getCardCost, getCardDef, context) {
     };
 }
 
-function chooseCardWithRiskProfile(usableCardIds, getCardCost, getCardDef, context) {
+function chooseCardWithRiskProfile(
+    usableCardIds: CpuPolicyCardId[],
+    getCardCost: CpuPolicyCardCostResolver,
+    getCardDef: CpuPolicyCardDefinitionResolver,
+    context?: CpuPolicyCardContext
+): CpuPolicyCardScore | null {
     if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
-    let best = null;
+    let best: CpuPolicyCardScore | null = null;
     for (const cardId of usableCardIds) {
         const decision = scoreCardUseDecision(cardId, getCardCost, getCardDef, context);
         if (!best) {
@@ -2754,7 +2816,12 @@ function chooseCardWithRiskProfile(usableCardIds, getCardCost, getCardDef, conte
     };
 }
 
-function scoreCardRetentionPriority(cardId, getCardCost, getCardDef, context) {
+function scoreCardRetentionPriority(
+    cardId: CpuPolicyCardId,
+    getCardCost: CpuPolicyCardCostResolver,
+    getCardDef: CpuPolicyCardDefinitionResolver,
+    context?: CpuPolicyCardContext
+): CpuPolicyCardScore {
     const ctx = buildCardDecisionContext(context);
     const cardCost = typeof getCardCost === 'function' ? Number(getCardCost(cardId) || 0) : 0;
     const cardDef = typeof getCardDef === 'function' ? (getCardDef(cardId) || null) : null;
@@ -3121,9 +3188,14 @@ function scoreCardRetentionPriority(cardId, getCardCost, getCardDef, context) {
     };
 }
 
-function chooseLowestRetentionCard(handCardIds, getCardCost, getCardDef, context) {
+function chooseLowestRetentionCard(
+    handCardIds: CpuPolicyCardId[],
+    getCardCost: CpuPolicyCardCostResolver,
+    getCardDef: CpuPolicyCardDefinitionResolver,
+    context?: CpuPolicyCardContext
+): CpuPolicyCardScore | null {
     if (!Array.isArray(handCardIds) || handCardIds.length === 0) return null;
-    let best = null;
+    let best: CpuPolicyCardScore | null = null;
     for (const cardId of handCardIds) {
         const scored = scoreCardRetentionPriority(cardId, getCardCost, getCardDef, context);
         if (!best) {
@@ -3147,7 +3219,13 @@ function chooseLowestRetentionCard(handCardIds, getCardCost, getCardDef, context
     return best;
 }
 
-function chooseHandDestroyTargetForCycle(handCardIds, usableCardIds, getCardCost, getCardDef, context) {
+function chooseHandDestroyTargetForCycle(
+    handCardIds: CpuPolicyCardId[],
+    usableCardIds: CpuPolicyCardId[],
+    getCardCost: CpuPolicyCardCostResolver,
+    getCardDef: CpuPolicyCardDefinitionResolver,
+    context?: CpuPolicyCardContext
+): CpuPolicyCardScore | null {
     if (!Array.isArray(handCardIds) || handCardIds.length === 0) return null;
     const hand = handCardIds
         .map((id) => String(id || '').trim())
