@@ -40,11 +40,7 @@ const allowedNoCheckDebt = new Set([
   'training/scripts/benchmark-selfplay-policy.ts',
   'training/scripts/generate-selfplay-data-parallel.ts',
   'training/scripts/generate-selfplay-data.ts',
-  'training/scripts/run-hardcase-mining.ts',
-  'training/scripts/run-hardcase-retrain.ts',
   'training/scripts/run-selfplay-training-cycle.ts',
-  'training/scripts/run-selfplay-training-preset.ts',
-  'training/scripts/run-selfplay-training-profile.ts',
   'ui.ts'
 ]);
 
