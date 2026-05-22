@@ -82,6 +82,10 @@ describe('selection-flow', () => {
             shouldAllowSelectionEntryDuringPlayback: jest.fn(() => false),
             clearSelectionEntryPlaybackContext: jest.fn()
         };
+        selectionFlow.setSignalBridge({
+            getPlaybackStateManager: () => globalForSelectionFlow.PlaybackStateManager,
+            readMatchMode: () => globalForSelectionFlow.getCurrentMatchMode ? globalForSelectionFlow.getCurrentMatchMode() : 'local'
+        });
         globalForSelectionFlow.ActionManager = {
             ActionManager: {
                 createAction: jest.fn((type, playerKey, payload) => ({
@@ -104,6 +108,7 @@ describe('selection-flow', () => {
         delete globalForSelectionFlow.TurnPipelineUIAdapter;
         delete globalForSelectionFlow.TurnPipeline;
         delete globalForSelectionFlow.getCurrentMatchMode;
+        selectionFlow.clearSignalBridge();
     });
 
     describe('setSignalBridge / clearSignalBridge', () => {
@@ -200,12 +205,20 @@ describe('selection-flow', () => {
 
     describe('publishPendingSelectionSnapshot', () => {
         test('正常系: スナップショットを公開できる', () => {
-            const networkTurnHandoff = require('../game/network-turn-handoff');
+            const publishSnapshot = jest.fn(() => ({ ok: true }));
+            selectionFlow.setSignalBridge({
+                getPlaybackStateManager: () => globalForSelectionFlow.PlaybackStateManager,
+                publishSnapshot
+            });
             const result = selectionFlow.publishPendingSelectionSnapshot({
                 playerKey: 'black',
                 action: { type: 'place' }
             });
-            expect(networkTurnHandoff.publishNetworkSnapshot).toHaveBeenCalled();
+            expect(result).toEqual({ ok: true });
+            expect(publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+                playerKey: 'black',
+                action: { type: 'place' }
+            }));
         });
     });
 

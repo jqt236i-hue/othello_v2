@@ -203,7 +203,7 @@ describe('pending selection flow contracts', () => {
     expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
   });
 
-  test('network deferred selection falls back to root NetworkMatchClient without signal bridge', async () => {
+  test('network deferred selection does not use root NetworkMatchClient without signal bridge publisher', async () => {
     flow.clearSignalBridge();
     global.MATCH_MODE = 'network';
     global.cardState = {
@@ -229,9 +229,12 @@ describe('pending selection flow contracts', () => {
     };
     global.TurnPipeline = {};
     global.TurnPipelineUIAdapter = {
-      runTurnWithAdapter: jest.fn(() => {
-        throw new Error('runTurnWithAdapter should not be called for network deferred publish-only selection');
-      })
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: global.cardState,
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
     };
 
     const result = await flow.executePendingSelection({
@@ -246,22 +249,14 @@ describe('pending selection flow contracts', () => {
 
     expect(result).toEqual(expect.objectContaining({
       ok: true,
-      pendingType: 'SUPER_GRAVITY_WILL',
-      publishedByNetwork: true
+      pendingType: 'SUPER_GRAVITY_WILL'
     }));
-    expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
-      playerKey: 'black',
-      actionType: 'place',
-      action: expect.objectContaining({
-        superGravityTarget: { row: 2, col: 4 },
-        deferNetworkPublish: true,
-        turnIndex: 11
-      })
-    }));
-    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
+    expect(result).not.toHaveProperty('publishedByNetwork');
+    expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
   });
 
-  test('network deferred selection falls back to root NetworkMatchClient when signal bridge activity probe throws', async () => {
+  test('network deferred selection does not fall back to root NetworkMatchClient when signal bridge activity probe throws', async () => {
     flow.setSignalBridge({
       isNetworkPublishActive: () => {
         throw new Error('probe failed');
@@ -291,9 +286,12 @@ describe('pending selection flow contracts', () => {
     };
     global.TurnPipeline = {};
     global.TurnPipelineUIAdapter = {
-      runTurnWithAdapter: jest.fn(() => {
-        throw new Error('runTurnWithAdapter should not be called for network deferred publish-only selection');
-      })
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: global.cardState,
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
     };
 
     const result = await flow.executePendingSelection({
@@ -308,19 +306,11 @@ describe('pending selection flow contracts', () => {
 
     expect(result).toEqual(expect.objectContaining({
       ok: true,
-      pendingType: 'SUPER_GRAVITY_WILL',
-      publishedByNetwork: true
+      pendingType: 'SUPER_GRAVITY_WILL'
     }));
-    expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
-      playerKey: 'black',
-      actionType: 'place',
-      action: expect.objectContaining({
-        superGravityTarget: { row: 2, col: 5 },
-        deferNetworkPublish: true,
-        turnIndex: 12
-      })
-    }));
-    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).not.toHaveBeenCalled();
+    expect(result).not.toHaveProperty('publishedByNetwork');
+    expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
   });
 
   test('createPendingSelectionAction injects defer flag for known selection actions', () => {
@@ -736,10 +726,11 @@ describe('pending selection flow contracts', () => {
   test('finalizePendingSelectionFlow prefers bridge match mode over legacy global mode', async () => {
     const ensureCurrentPlayerCanActOrPass = jest.fn();
     const publishSnapshot = jest.fn(() => Promise.resolve({ ok: false, reason: 'OUT_OF_TURN' }));
-    attachPlaybackStateManager();
+    const playbackStateManager = attachPlaybackStateManager();
     flow.setSignalBridge({
       readMatchMode: () => 'network',
       readHumanVsHumanMode: () => false,
+      getPlaybackStateManager: () => playbackStateManager,
       publishSnapshot,
       isNetworkPublishActive: () => true,
       scheduleCpuTurn: (delay, callback) => setTimeout(callback, delay),

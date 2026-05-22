@@ -10,7 +10,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     let cachedNetworkTurnHandoff: any = null;
     let cachedPendingCoordinator: any = null;
     let cachedPendingStateManager: any = null;
-    let cachedPlaybackStateManager: any = null;
     let selectionSignalBridge: any = null;
     const localSelectionBusyState = {
         processing: false,
@@ -94,13 +93,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 }
             } catch (e) { /* ignore */ }
         }
-        if (cachedPlaybackStateManager && typeof cachedPlaybackStateManager === 'object') {
-            return cachedPlaybackStateManager;
-        }
-        if (!cachedPlaybackStateManager && root && root.PlaybackStateManager) {
-            cachedPlaybackStateManager = root.PlaybackStateManager;
-        }
-        return cachedPlaybackStateManager;
+        return null;
     }
 
     function resolvePendingSelectionContract(pendingType: any) {
@@ -247,10 +240,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             try {
                 return publishSnapshotViaBridge(payload);
             } catch (e) { /* ignore */ }
-        }
-        const networkTurnHandoff = getNetworkTurnHandoff();
-        if (networkTurnHandoff && typeof networkTurnHandoff.publishNetworkSnapshot === 'function') {
-            return networkTurnHandoff.publishNetworkSnapshot(payload);
         }
         return undefined;
     }
@@ -400,23 +389,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             try {
                 return isNetworkPublishActiveViaBridge() === true;
             } catch (e) {
-                /* ignore and fall back to root client */
-            }
-        }
-        const networkClient = root && root.NetworkMatchClient && typeof root.NetworkMatchClient === 'object'
-            ? root.NetworkMatchClient
-            : null;
-        if (!networkClient || typeof networkClient.publishSnapshot !== 'function') {
-            return false;
-        }
-        if (typeof networkClient.isActive === 'function') {
-            try {
-                return networkClient.isActive() === true;
-            } catch (e) {
                 return false;
             }
         }
-        return true;
+        return false;
     }
 
     function shouldUseNetworkPublishOnlyPendingSelection(pendingType: any) {
