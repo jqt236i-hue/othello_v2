@@ -14,18 +14,21 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const RuntimeSharedConstants = (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants)
-    ? (globalThis as any).SharedConstants
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
-const SharedConstants = RuntimeSharedConstants || ((typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
-    : undefined);
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
 
-const RandomSourceModule = (typeof globalThis !== 'undefined' && (globalThis as any).CardRandomSource)
-    ? (globalThis as any).CardRandomSource
-    : ((typeof module === 'object' && module.exports)
-        ? _require('../cards-internal/random-source')
-        : (typeof self !== 'undefined' ? (self as any).CardRandomSource : null));
+const SharedConstants = ((typeof module === 'object' && module.exports)
+    ? safeRequire('../../../shared-constants')
+    : null) || (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+
+const RandomSourceModule = ((typeof module === 'object' && module.exports)
+    ? safeRequire('../cards-internal/random-source')
+    : null) || (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
 
 const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
     ? Number(SharedConstants.BLACK)
