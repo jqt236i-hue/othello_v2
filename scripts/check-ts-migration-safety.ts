@@ -31,7 +31,6 @@ const allowedNoCheckDebt = new Set([
   'cards/card-renderer.ts',
   'cpu/cpu-turn.ts',
   'game/debug/debug-actions.ts',
-  'game/logic/cards/breeding.ts',
   'scripts/deploy-lane-model-to-root.ts',
   'scripts/local-cpu-commentary-server.ts',
   'scripts/local-match-runtime.ts',
