@@ -1,11 +1,8 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
-
-import type { CardState, GameState, PlayerKey } from 'src/types';
 
 // ===== Sound Engine (Web Audio API) =====
 
@@ -192,7 +189,8 @@ const SoundEngine = {
         return this._clamp01(this._toNonNegativeNumber(this.bgmVolume, 0) * (this.isMuted ? 0 : 1));
     },
 
-    _updateBufferedBgmVolume(state = this._bgmBufferedState) {
+    _updateBufferedBgmVolume(state?: BgmBufferedState | null) {
+        if (typeof state === 'undefined') state = this._bgmBufferedState;
         if (!state) return;
         const volume = this._getBgmOutputVolume();
         if (state.controller) {
@@ -220,7 +218,8 @@ const SoundEngine = {
         return loopStart + ((numericOffset - loopStart) % loopLength);
     },
 
-    _getBufferedBgmOffsetNow(state = this._bgmBufferedState) {
+    _getBufferedBgmOffsetNow(state?: BgmBufferedState | null) {
+        if (typeof state === 'undefined') state = this._bgmBufferedState;
         if (!state) return 0;
         if (!state.source || !this.ctx || !Number.isFinite(Number(this.ctx.currentTime))) {
             return this._normalizeBufferedBgmOffset(state.pauseOffset || 0, state);
@@ -303,7 +302,8 @@ const SoundEngine = {
         }
     },
 
-    async _playBufferedBgmState(state = this._bgmBufferedState) {
+    async _playBufferedBgmState(state?: BgmBufferedState | null) {
+        if (typeof state === 'undefined') state = this._bgmBufferedState;
         if (!state || this._bgmBufferedState !== state) return false;
         this.allowBgmPlay = true;
         try {
@@ -367,7 +367,8 @@ const SoundEngine = {
         return true;
     },
 
-    _pauseBufferedBgmState(state = this._bgmBufferedState) {
+    _pauseBufferedBgmState(state?: BgmBufferedState | null) {
+        if (typeof state === 'undefined') state = this._bgmBufferedState;
         if (!state || this._bgmBufferedState !== state) return;
         state.pauseOffset = this._getBufferedBgmOffsetNow(state);
         if (state.controller) {
