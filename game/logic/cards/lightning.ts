@@ -10,15 +10,17 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-const SharedConstants = (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants)
-  ? (globalThis as any).SharedConstants
-  : _require('../../../shared-constants');
-const BoardOpsModule = (typeof globalThis !== 'undefined' && (globalThis as any).BoardOps)
-  ? (globalThis as any).BoardOps
-  : _require('../board_ops');
-const RandomSourceModule = (typeof globalThis !== 'undefined' && (globalThis as any).CardRandomSource)
-  ? (globalThis as any).CardRandomSource
-  : _require('../cards-internal/random-source');
+function safeRequire(id: string): any {
+  try {
+    return _require(id);
+  } catch (e) {
+    return null;
+  }
+}
+
+const SharedConstants = safeRequire('../../../shared-constants') || (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
+const BoardOpsModule = safeRequire('../board_ops') || (typeof self !== 'undefined' ? (self as any).BoardOps : null);
+const RandomSourceModule = safeRequire('../cards-internal/random-source') || (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
 
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 

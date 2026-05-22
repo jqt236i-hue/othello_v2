@@ -14,30 +14,29 @@ function _require(id: string): any {
     throw new Error('Unable to require ' + id);
 }
 
-const RuntimeSharedConstants = (typeof globalThis !== 'undefined' && (globalThis as any).SharedConstants)
-    ? (globalThis as any).SharedConstants
-    : (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
-const SharedConstants = RuntimeSharedConstants || ((typeof module === 'object' && module.exports)
-    ? _require('../../../shared-constants')
-    : undefined);
+function safeRequire(id: string): any {
+    try {
+        return _require(id);
+    } catch (_e) {
+        return null;
+    }
+}
 
-const CardUtilsModule = (typeof globalThis !== 'undefined' && (globalThis as any).CardUtils)
-    ? (globalThis as any).CardUtils
-    : ((typeof module === 'object' && module.exports)
-        ? (() => { try { return _require('./utils'); } catch (_e) { return null; } })()
-        : (typeof self !== 'undefined' ? (self as any).CardUtils : null));
+const SharedConstants = ((typeof module === 'object' && module.exports)
+    ? safeRequire('../../../shared-constants')
+    : null) || (typeof self !== 'undefined' ? (self as any).SharedConstants : undefined);
 
-const BoardOpsModule = (typeof globalThis !== 'undefined' && (globalThis as any).BoardOps)
-    ? (globalThis as any).BoardOps
-    : ((typeof module === 'object' && module.exports)
-        ? (() => { try { return _require('../board_ops'); } catch (_e) { return null; } })()
-        : (typeof self !== 'undefined' ? (self as any).BoardOps : null));
+const CardUtilsModule = ((typeof module === 'object' && module.exports)
+    ? safeRequire('./utils')
+    : null) || (typeof self !== 'undefined' ? (self as any).CardUtils : null);
 
-const RandomSourceModule = (typeof globalThis !== 'undefined' && (globalThis as any).CardRandomSource)
-    ? (globalThis as any).CardRandomSource
-    : ((typeof module === 'object' && module.exports)
-        ? (() => { try { return _require('../cards-internal/random-source'); } catch (_e) { return null; } })()
-        : (typeof self !== 'undefined' ? (self as any).CardRandomSource : null));
+const BoardOpsModule = ((typeof module === 'object' && module.exports)
+    ? safeRequire('../board_ops')
+    : null) || (typeof self !== 'undefined' ? (self as any).BoardOps : null);
+
+const RandomSourceModule = ((typeof module === 'object' && module.exports)
+    ? safeRequire('../cards-internal/random-source')
+    : null) || (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
 
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 
