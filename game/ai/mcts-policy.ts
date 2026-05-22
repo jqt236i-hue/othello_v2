@@ -363,8 +363,3 @@ async function searchWithMcts(state: any, cardState: any, playerKey: string, opt
 }
 
 export = { searchWithMcts, _gameInterface, _network };
-
-// Browser global
-if (typeof globalThis !== 'undefined') {
-    (globalThis as any).CpuMctsPolicy = { searchWithMcts, _gameInterface, _network }; // @compat - backward-compat export
-};
