@@ -6,27 +6,21 @@ const DebugActions = /**
 
 (function (root, factory) {
     if (typeof module === 'object' && module.exports) {
-        return module.exports = factory(require('../../shared-constants'));
-    } else {
-        return root.DebugActions = factory(root.SharedConstants || {});
-    }
-}(typeof self !== 'undefined' ? self : this, function (SharedConstants) {
-    'use strict';
-
-    const { CARD_DEFS, BLACK, WHITE, EMPTY } = SharedConstants || {};
-    const MarkersAdapter = (() => {
-        if (typeof require === 'function') {
+        const MarkersAdapter = (() => {
             try {
                 return require('../logic/markers_adapter');
             } catch (e) {
                 return null;
             }
-        }
-        const globalScope = (typeof globalThis !== 'undefined')
-            ? globalThis
-            : (typeof self !== 'undefined' ? self : (typeof global !== 'undefined' ? global : {}));
-        return globalScope.MarkersAdapter || null;
-    })();
+        })();
+        return module.exports = factory(require('../../shared-constants'), MarkersAdapter);
+    } else {
+        return root.DebugActions = factory(root.SharedConstants || {}, root.MarkersAdapter || null);
+    }
+}(typeof self !== 'undefined' ? self : this, function (SharedConstants, MarkersAdapter) {
+    'use strict';
+
+    const { CARD_DEFS, BLACK, WHITE, EMPTY } = SharedConstants || {};
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
 
     function addMarker(cardState, kind, row, col, owner, data) {
@@ -92,7 +86,7 @@ const DebugActions = /**
 
     function fillDebugHand(cardState, opts) {
         if (!cardState || !cardState.hands) return false;
-        const defs = CARD_DEFS || (typeof globalThis !== 'undefined' ? globalThis.CARD_DEFS : null);
+        const defs = CARD_DEFS || null;
         if (!defs || !defs.length) return false;
 
         const requestedPlayerKey = opts && typeof opts.playerKey === 'string'
