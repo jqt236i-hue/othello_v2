@@ -1,4 +1,3 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -82,15 +81,15 @@ const FALLBACK_CORNER_HOLD_CARD_TYPES = (SharedCardHeuristics && typeof SharedCa
         'BLOCKADE_WILL'
     ]);
 
-function toPlayerKey(playerValue) {
+function toPlayerKey(playerValue: any) {
     return playerValue === Core.BLACK ? 'black' : 'white';
 }
 
-function toPlayerValue(playerKey) {
+function toPlayerValue(playerKey: any) {
     return playerKey === 'black' ? Core.BLACK : Core.WHITE;
 }
 
-function getSafeCardContext(cardState) {
+function getSafeCardContext(cardState: any) {
     let context = null;
     try {
         const ctxHelper = require('../../game/logic/context');
@@ -110,7 +109,7 @@ function getSafeCardContext(cardState) {
     }
 }
 
-function getShapeAwareBoard(board, options) {
+function getShapeAwareBoard(board: any, options: any = null) {
     if (!Array.isArray(board)) return [];
     if (SharedBoardUtils && typeof SharedBoardUtils.attachBoardShape === 'function') {
         return SharedBoardUtils.attachBoardShape(board, options || null);
@@ -118,7 +117,7 @@ function getShapeAwareBoard(board, options) {
     return board;
 }
 
-function getSelfplayBoard(gameState, cardState) {
+function getSelfplayBoard(gameState: any, cardState: any = null) {
     if (!gameState || !Array.isArray(gameState.board)) return [];
     return getShapeAwareBoard(gameState.board, {
         boardExpansion: gameState.boardExpansion,
@@ -126,7 +125,7 @@ function getSelfplayBoard(gameState, cardState) {
     });
 }
 
-function readSelfplayPendingEffect(cardState, playerKey) {
+function readSelfplayPendingEffect(cardState: any, playerKey: any) {
     if (PendingCoordinator && typeof PendingCoordinator.readPendingEffect === 'function') {
         return PendingCoordinator.readPendingEffect(cardState, playerKey);
     }
@@ -135,14 +134,14 @@ function readSelfplayPendingEffect(cardState, playerKey) {
         : null;
 }
 
-function getBoardCellValue(board, row, col) {
+function getBoardCellValue(board: any, row: any, col: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.getCellValue === 'function') {
         return SharedBoardUtils.getCellValue(board, row, col);
     }
     return Array.isArray(board) && Array.isArray(board[row]) ? board[row][col] : null;
 }
 
-function setBoardCellValue(board, row, col, value) {
+function setBoardCellValue(board: any, row: any, col: any, value: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.setCellValue === 'function') {
         return SharedBoardUtils.setCellValue(board, row, col, value);
     }
@@ -151,29 +150,29 @@ function setBoardCellValue(board, row, col, value) {
     return true;
 }
 
-function encodeBoard(board) {
+function encodeBoard(board: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.encodeBoard === 'function') {
         return SharedBoardUtils.encodeBoard(board);
     }
     if (!Array.isArray(board)) return '';
     return board
-        .map((row) => row.map((v) => (v === Core.BLACK ? 'B' : (v === Core.WHITE ? 'W' : '.'))).join(''))
+        .map((row: any) => row.map((v: any) => (v === Core.BLACK ? 'B' : (v === Core.WHITE ? 'W' : '.'))).join(''))
         .join('/');
 }
 
-function encodeMainBoard(board) {
+function encodeMainBoard(board: any) {
     if (!Array.isArray(board)) return '';
     return board
-        .map((row) => (Array.isArray(row) ? row : []).map((v) => (v === Core.BLACK ? 'B' : (v === Core.WHITE ? 'W' : '.'))).join(''))
+        .map((row: any) => (Array.isArray(row) ? row : []).map((v: any) => (v === Core.BLACK ? 'B' : (v === Core.WHITE ? 'W' : '.'))).join(''))
         .join('/');
 }
 
-function decodeBoard(boardStr) {
+function decodeBoard(boardStr: any) {
     if (!boardStr) return [];
-    return boardStr.split('/').map((row) => row.split(''));
+    return boardStr.split('/').map((row: any) => row.split(''));
 }
 
-function transformCoord(row, col, size, t) {
+function transformCoord(row: any, col: any, size: any, t: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.transformCoord === 'function') {
         return SharedBoardUtils.transformCoord(row, col, size, t);
     }
@@ -188,7 +187,7 @@ function transformCoord(row, col, size, t) {
     return { row, col };
 }
 
-function transformBoard(board, t) {
+function transformBoard(board: any, t: any) {
     if (!Array.isArray(board) || !board.length) return [];
     const size = board.length;
     const out = Array.from({ length: size }, () => Array.from({ length: size }, () => '.'));
@@ -201,7 +200,7 @@ function transformBoard(board, t) {
     return out;
 }
 
-function canonicalizeBoard(board) {
+function canonicalizeBoard(board: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.canonicalizeBoard === 'function') {
         return SharedBoardUtils.canonicalizeBoard(board);
     }
@@ -220,7 +219,7 @@ function canonicalizeBoard(board) {
     return { boardKey: best || raw, transformId: bestT };
 }
 
-function isCorner(row, col, boardOrSize) {
+function isCorner(row: any, col: any, boardOrSize: any = 8) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isCorner === 'function') {
         if (Array.isArray(boardOrSize)) return SharedBoardUtils.isCorner(row, col, boardOrSize);
         const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
@@ -230,7 +229,7 @@ function isCorner(row, col, boardOrSize) {
     return (row === 0 || row === n - 1) && (col === 0 || col === n - 1);
 }
 
-function isEdge(row, col, boardOrSize) {
+function isEdge(row: any, col: any, boardOrSize: any = 8) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isEdge === 'function') {
         if (Array.isArray(boardOrSize)) return SharedBoardUtils.isEdge(row, col, boardOrSize);
         const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
@@ -240,9 +239,9 @@ function isEdge(row, col, boardOrSize) {
     return row === 0 || row === n - 1 || col === 0 || col === n - 1;
 }
 
-function resolveForcedPlacementCandidates(legalMoves, options, board) {
+function resolveForcedPlacementCandidates(legalMoves: any, options: any, board: any) {
     const safeLegalMoves = Array.isArray(legalMoves)
-        ? legalMoves.filter((move) => move && Number.isInteger(move.row) && Number.isInteger(move.col))
+        ? legalMoves.filter((move: any) => move && Number.isInteger(move.row) && Number.isInteger(move.col))
         : [];
     const defaultMoves = safeLegalMoves.length > 0
         ? safeLegalMoves
@@ -255,7 +254,7 @@ function resolveForcedPlacementCandidates(legalMoves, options, board) {
         };
     }
 
-    const cornerMoves = safeLegalMoves.filter((move) => isCorner(move.row, move.col, board));
+    const cornerMoves = safeLegalMoves.filter((move: any) => isCorner(move.row, move.col, board));
     if (cornerMoves.length > 0) {
         return {
             category: 'corner',
@@ -270,7 +269,7 @@ function resolveForcedPlacementCandidates(legalMoves, options, board) {
         };
     }
 
-    const edgeMoves = safeLegalMoves.filter((move) => !isCorner(move.row, move.col, board) && isEdge(move.row, move.col, board));
+    const edgeMoves = safeLegalMoves.filter((move: any) => !isCorner(move.row, move.col, board) && isEdge(move.row, move.col, board));
     if (edgeMoves.length > 0) {
         return {
             category: 'edge',
@@ -284,7 +283,7 @@ function resolveForcedPlacementCandidates(legalMoves, options, board) {
     };
 }
 
-function isXSquare(row, col, boardOrSize) {
+function isXSquare(row: any, col: any, boardOrSize: any = 8) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isXSquare === 'function') {
         if (Array.isArray(boardOrSize)) return SharedBoardUtils.isXSquare(row, col, boardOrSize);
         const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
@@ -294,7 +293,23 @@ function isXSquare(row, col, boardOrSize) {
     return (row === 1 || row === n - 2) && (col === 1 || col === n - 2);
 }
 
-function isCSquare(row, col, boardOrSize) {
+function getCornerProximity(row: any, col: any, boardOverride: any = null) {
+    const board = Array.isArray(boardOverride) ? boardOverride : null;
+    if (SharedBoardUtils && typeof SharedBoardUtils.getCornerProximity === 'function') {
+        return SharedBoardUtils.getCornerProximity(row, col, board || 8);
+    }
+    const n = Array.isArray(board) && board.length > 0 ? board.length : 8;
+    if ((row === 1 || row === n - 2) && (col === 1 || col === n - 2)) {
+        return { kind: 'X', corner: [row === 1 ? 0 : n - 1, col === 1 ? 0 : n - 1] };
+    }
+    if (row === 0 && (col === 1 || col === n - 2)) return { kind: 'C', corner: [0, col === 1 ? 0 : n - 1] };
+    if (row === n - 1 && (col === 1 || col === n - 2)) return { kind: 'C', corner: [n - 1, col === 1 ? 0 : n - 1] };
+    if (col === 0 && (row === 1 || row === n - 2)) return { kind: 'C', corner: [row === 1 ? 0 : n - 1, 0] };
+    if (col === n - 1 && (row === 1 || row === n - 2)) return { kind: 'C', corner: [row === 1 ? 0 : n - 1, n - 1] };
+    return null;
+}
+
+function isCSquare(row: any, col: any, boardOrSize: any = 8) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isCSquare === 'function') {
         if (Array.isArray(boardOrSize)) return SharedBoardUtils.isCSquare(row, col, boardOrSize);
         const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
@@ -306,7 +321,7 @@ function isCSquare(row, col, boardOrSize) {
     return nearTopBottom || nearLeftRight;
 }
 
-function getFlipsBasic(board, row, col, playerValue) {
+function getFlipsBasic(board: any, row: any, col: any, playerValue: any) {
     if (OthelloCore && typeof OthelloCore.getFlipsBasic === 'function') {
         return OthelloCore.getFlipsBasic(board, row, col, playerValue);
     }
@@ -316,7 +331,7 @@ function getFlipsBasic(board, row, col, playerValue) {
     return [];
 }
 
-function getLegalMovesBasic(board, playerValue) {
+function getLegalMovesBasic(board: any, playerValue: any) {
     if (OthelloCore && typeof OthelloCore.getLegalMovesBasic === 'function') {
         return OthelloCore.getLegalMovesBasic(board, playerValue);
     }
@@ -326,7 +341,7 @@ function getLegalMovesBasic(board, playerValue) {
     return [];
 }
 
-function scoreMove(move, rng, context) {
+function scoreMove(move: any, rng: any, context: any) {
     const row = Number.isFinite(move && move.row) ? move.row : 0;
     const col = Number.isFinite(move && move.col) ? move.col : 0;
     const flips = Array.isArray(move && move.flips) ? move.flips.length : 0;
@@ -383,13 +398,13 @@ function scoreMove(move, rng, context) {
     return score;
 }
 
-function evaluatePositionalDiff(board, playerValue) {
+function evaluatePositionalDiff(board: any, playerValue: any) {
     const boardRef = getShapeAwareBoard(board);
     let own = 0;
     let opp = 0;
     const cells = (SharedBoardUtils && typeof SharedBoardUtils.collectBoardCoordinates === 'function')
         ? SharedBoardUtils.collectBoardCoordinates(boardRef)
-        : boardRef.flatMap((row, rowIndex) => (Array.isArray(row) ? row.map((_, colIndex) => ({ row: rowIndex, col: colIndex })) : []));
+        : boardRef.flatMap((row: any, rowIndex: any) => (Array.isArray(row) ? row.map((_: any, colIndex: any) => ({ row: rowIndex, col: colIndex })) : []));
     for (const pos of cells) {
         if (!pos) continue;
         const row = pos.row;
@@ -403,7 +418,7 @@ function evaluatePositionalDiff(board, playerValue) {
     return own - opp;
 }
 
-function countCorners(board, playerValue) {
+function countCorners(board: any, playerValue: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.countCornerControl === 'function') {
         const control = SharedBoardUtils.countCornerControl(board, playerValue);
         return Number(control.ownCorners || 0) - Number(control.oppCorners || 0);
@@ -423,7 +438,7 @@ function countCorners(board, playerValue) {
     return own - opp;
 }
 
-function countCornerControl(board, playerValue) {
+function countCornerControl(board: any, playerValue: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.countCornerControl === 'function') {
         return SharedBoardUtils.countCornerControl(board, playerValue);
     }
@@ -442,7 +457,7 @@ function countCornerControl(board, playerValue) {
     return { ownCorners, oppCorners };
 }
 
-function countEdgeControl(board, playerValue) {
+function countEdgeControl(board: any, playerValue: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.countEdgeControl === 'function') {
         return SharedBoardUtils.countEdgeControl(board, playerValue);
     }
@@ -463,12 +478,12 @@ function countEdgeControl(board, playerValue) {
     return { ownEdges, oppEdges };
 }
 
-function toFiniteStatNumber(value) {
+function toFiniteStatNumber(value: any) {
     const num = Number(value);
     return Number.isFinite(num) ? num : 0;
 }
 
-function getDiscCountForPlayerFromRecord(rec, playerKey, phase) {
+function getDiscCountForPlayerFromRecord(rec: any, playerKey: any, phase: any) {
     if (!rec || !playerKey) return 0;
     const useAfter = phase === 'after';
     if (playerKey === 'black') {
@@ -481,7 +496,7 @@ function getDiscCountForPlayerFromRecord(rec, playerKey, phase) {
         : toFiniteStatNumber(rec.whiteCountBefore);
 }
 
-function getCornerCountForPlayerFromRecord(rec, playerKey, phase) {
+function getCornerCountForPlayerFromRecord(rec: any, playerKey: any, phase: any) {
     if (!rec || !playerKey) return 0;
     const useAfter = phase === 'after';
     const ownKey = useAfter ? 'ownCornersAfter' : 'ownCornersBefore';
@@ -491,7 +506,7 @@ function getCornerCountForPlayerFromRecord(rec, playerKey, phase) {
         : toFiniteStatNumber(rec[oppKey]);
 }
 
-function annotateHorizonDecisionMetrics(gameRecords, horizonPlies) {
+function annotateHorizonDecisionMetrics(gameRecords: any, horizonPlies: any) {
     if (!Array.isArray(gameRecords) || gameRecords.length <= 0) return;
     const horizon = Number.isFinite(horizonPlies)
         ? Math.max(1, Math.floor(horizonPlies))
@@ -523,19 +538,19 @@ function annotateHorizonDecisionMetrics(gameRecords, horizonPlies) {
     }
 }
 
-function classifySelectionSeat(row, col, board) {
+function classifySelectionSeat(row: any, col: any, board: any = null) {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return 'unknown';
     if (isCorner(row, col, board)) return 'corner';
     if (isEdge(row, col, board)) return 'edge';
     return 'inner';
 }
 
-function cloneTargetCell(target) {
+function cloneTargetCell(target: any) {
     if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
     return { row: target.row, col: target.col };
 }
 
-function buildPendingSelectionRecord(action, pendingType) {
+function buildPendingSelectionRecord(action: any, pendingType: any) {
     if (!action || typeof action !== 'object' || action.type !== 'place') return null;
 
     const boardTargetKeys = [
@@ -598,7 +613,7 @@ function buildPendingSelectionRecord(action, pendingType) {
     return null;
 }
 
-function buildPendingSelectionTrace(record) {
+function buildPendingSelectionTrace(record: any) {
     if (!record || typeof record !== 'object') return null;
     const selection = record.pendingSelection;
     if (!selection || typeof selection !== 'object') return null;
@@ -632,7 +647,7 @@ function buildPendingSelectionTrace(record) {
     return null;
 }
 
-function normalizeDecisionCandidate(candidate) {
+function normalizeDecisionCandidate(candidate: any) {
     if (!candidate || typeof candidate !== 'object') return null;
     return {
         actionType: typeof candidate.actionType === 'string' ? candidate.actionType : null,
@@ -651,7 +666,7 @@ function normalizeDecisionCandidate(candidate) {
     };
 }
 
-function resolveCardDecisionKind(record, normalizedCandidates) {
+function resolveCardDecisionKind(record: any, normalizedCandidates: any) {
     const selectedActionKey = typeof (record && record.selectedActionKey) === 'string'
         ? record.selectedActionKey.trim()
         : '';
@@ -661,11 +676,11 @@ function resolveCardDecisionKind(record, normalizedCandidates) {
     if (record && record.useCardId) return 'use';
     if (record && record.destroyCardId) return 'destroy';
     const selectedCandidate = Array.isArray(normalizedCandidates)
-        ? normalizedCandidates.find((candidate) => candidate && candidate.isSelected && candidate.decisionKind)
+        ? normalizedCandidates.find((candidate: any) => candidate && candidate.isSelected && candidate.decisionKind)
         : null;
     if (selectedCandidate && selectedCandidate.decisionKind) return selectedCandidate.decisionKind;
     const firstCandidate = Array.isArray(normalizedCandidates)
-        ? normalizedCandidates.find((candidate) => candidate && candidate.decisionKind)
+        ? normalizedCandidates.find((candidate: any) => candidate && candidate.decisionKind)
         : null;
     if (firstCandidate && firstCandidate.decisionKind) return firstCandidate.decisionKind;
     const actionType = String(record && record.actionType ? record.actionType : '');
@@ -675,20 +690,20 @@ function resolveCardDecisionKind(record, normalizedCandidates) {
     return null;
 }
 
-function buildCardSelectionTrace(record) {
+function buildCardSelectionTrace(record: any) {
     if (!record || typeof record !== 'object') return null;
     const candidates = Array.isArray(record.decisionCandidates)
-        ? record.decisionCandidates.map((candidate) => normalizeDecisionCandidate(candidate)).filter(Boolean)
+        ? record.decisionCandidates.map((candidate: any) => normalizeDecisionCandidate(candidate)).filter(Boolean)
         : [];
     const decision = resolveCardDecisionKind(record, candidates);
     if (!decision) return null;
-    const selectedCandidate = candidates.find((candidate) => candidate && candidate.isSelected) || null;
+    const selectedCandidate = candidates.find((candidate: any) => candidate && candidate.isSelected) || null;
     const selectedCardId = (typeof record.useCardId === 'string' && record.useCardId)
         || (typeof record.destroyCardId === 'string' && record.destroyCardId)
         || (selectedCandidate && selectedCandidate.cardId)
         || null;
     const reasonTags = Array.isArray(record.decisionReasonTags)
-        ? record.decisionReasonTags.map((tag) => String(tag || '').trim()).filter(Boolean)
+        ? record.decisionReasonTags.map((tag: any) => String(tag || '').trim()).filter(Boolean)
         : [];
     const scoreSummary = record.decisionScoreSummary && typeof record.decisionScoreSummary === 'object'
         ? { ...record.decisionScoreSummary }
@@ -709,14 +724,14 @@ function buildCardSelectionTrace(record) {
     };
 }
 
-function buildSelectionTrace(record) {
+function buildSelectionTrace(record: any) {
     if (!record || typeof record !== 'object') return null;
     const cardTrace = buildCardSelectionTrace(record);
     if (cardTrace) return cardTrace;
     const actionType = String(record.actionType || '');
     if (actionType === 'place') {
         const topCandidates = Array.isArray(record.topPlacementCandidates)
-            ? record.topPlacementCandidates.map((one) => ({
+            ? record.topPlacementCandidates.map((one: any) => ({
                 row: Number.isFinite(one && one.row) ? Number(one.row) : null,
                 col: Number.isFinite(one && one.col) ? Number(one.col) : null,
                 seat: String(one && one.seat ? one.seat : 'unknown'),
@@ -752,7 +767,7 @@ function buildSelectionTrace(record) {
     };
 }
 
-function getDeckStatsForPlayer(cardState, playerKey) {
+function getDeckStatsForPlayer(cardState: any, playerKey: any) {
     const decksByPlayer = cardState && cardState.decks && typeof cardState.decks === 'object'
         ? cardState.decks
         : null;
@@ -771,7 +786,7 @@ function getDeckStatsForPlayer(cardState, playerKey) {
     };
 }
 
-function buildActorViewSnapshot(record) {
+function buildActorViewSnapshot(record: any) {
     if (!record || typeof record !== 'object') return null;
     return {
         board: record.board || '',
@@ -806,10 +821,10 @@ function buildActorViewSnapshot(record) {
     };
 }
 
-function computeHardcaseTags(record) {
+function computeHardcaseTags(record: any) {
     if (!record || typeof record !== 'object') return [];
-    const tags = [];
-    const pushUnique = (tag) => {
+    const tags: any[] = [];
+    const pushUnique = (tag: any) => {
         const normalized = String(tag || '').trim();
         if (!normalized || tags.includes(normalized)) return;
         tags.push(normalized);
@@ -837,7 +852,7 @@ function computeHardcaseTags(record) {
     return tags;
 }
 
-function annotateSelfplayV2Metadata(gameRecords, options) {
+function annotateSelfplayV2Metadata(gameRecords: any, options: any) {
     if (!Array.isArray(gameRecords) || gameRecords.length <= 0) return;
     const seedFamily = options && typeof options.seedFamily === 'string' && options.seedFamily.trim()
         ? options.seedFamily.trim()
@@ -858,7 +873,7 @@ function annotateSelfplayV2Metadata(gameRecords, options) {
     }
 }
 
-function getBoardBonusAtCell(cardState, row, col) {
+function getBoardBonusAtCell(cardState: any, row: any, col: any) {
     if (!cardState || !Number.isInteger(row) || !Number.isInteger(col)) return 0;
     const key = `${row},${col}`;
     if (cardState.boardBonusConsumedByCell && cardState.boardBonusConsumedByCell[key] === true) return 0;
@@ -866,7 +881,7 @@ function getBoardBonusAtCell(cardState, row, col) {
     return Number.isFinite(raw) && raw > 0 ? raw : 0;
 }
 
-function resolveCardType(cardId) {
+function resolveCardType(cardId: any) {
     if (!cardId) return '';
     if (typeof CardLogic.getCardType === 'function') {
         try {
@@ -883,7 +898,7 @@ function resolveCardType(cardId) {
     return '';
 }
 
-function isRecoveryCardType(cardType) {
+function isRecoveryCardType(cardType: any) {
     const type = String(cardType || '');
     if (!type) return false;
     if (CpuPolicyCore && typeof CpuPolicyCore.isCornerRecoveryCardType === 'function') {
@@ -899,7 +914,7 @@ function isRecoveryCardType(cardType) {
     return FALLBACK_CORNER_RECOVERY_CARD_TYPES.has(type);
 }
 
-function isHoldCardType(cardType) {
+function isHoldCardType(cardType: any) {
     const type = String(cardType || '');
     if (!type) return false;
     if (CpuPolicyCore && typeof CpuPolicyCore.isCornerHoldCardType === 'function') {
@@ -915,7 +930,7 @@ function isHoldCardType(cardType) {
     return FALLBACK_CORNER_HOLD_CARD_TYPES.has(type);
 }
 
-function buildCornerPlanState(gameState, cardState, playerKey, legalMoves, usableCardIds) {
+function buildCornerPlanState(gameState: any, cardState: any, playerKey: any, legalMoves: any, usableCardIds: any = []) {
     if (!gameState || !Array.isArray(gameState.board)) {
         return {
             ownCorners: 0,
@@ -958,8 +973,8 @@ function buildCornerPlanState(gameState, cardState, playerKey, legalMoves, usabl
         ? SharedBoardUtils.summarizeEdgeRuns(board, -playerValue)
         : null;
     const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
-    const hasCornerMoveNow = safeLegalMoves.some((move) => move && isCorner(move.row, move.col, board));
-    const hasEdgeMoveNow = safeLegalMoves.some((move) => move && !isCorner(move.row, move.col, board) && isEdge(move.row, move.col, board));
+    const hasCornerMoveNow = safeLegalMoves.some((move: any) => move && isCorner(move.row, move.col, board));
+    const hasEdgeMoveNow = safeLegalMoves.some((move: any) => move && !isCorner(move.row, move.col, board) && isEdge(move.row, move.col, board));
     let maxBoardBonusOnLegalMoves = 0;
     for (const move of safeLegalMoves) {
         if (!move || !Number.isInteger(move.row) || !Number.isInteger(move.col)) continue;
@@ -970,7 +985,7 @@ function buildCornerPlanState(gameState, cardState, playerKey, legalMoves, usabl
     const ownKey = playerKey === 'black' ? 'black' : 'white';
     const ownCharge = cardState && cardState.charge && Number.isFinite(cardState.charge[ownKey]) ? Number(cardState.charge[ownKey]) : 0;
     const safeUsableCardIds = Array.isArray(usableCardIds) ? usableCardIds : [];
-    const usableSet = new Set(safeUsableCardIds.map((cardId) => String(cardId)));
+    const usableSet = new Set(safeUsableCardIds.map((cardId: any) => String(cardId)));
     const handCards = cardState && cardState.hands && Array.isArray(cardState.hands[ownKey]) ? cardState.hands[ownKey] : [];
 
     let recoveryReady = false;
@@ -1027,7 +1042,7 @@ function buildCornerPlanState(gameState, cardState, playerKey, legalMoves, usabl
     };
 }
 
-function buildMovePlanContext(gameState, cardState, playerKey, legalMoves, usableCardIds) {
+function buildMovePlanContext(gameState: any, cardState: any, playerKey: any, legalMoves: any, usableCardIds: any = []) {
     if (!gameState || !Array.isArray(gameState.board)) return null;
     const board = getSelfplayBoard(gameState, cardState);
     const ownKey = playerKey === 'black' ? 'black' : 'white';
@@ -1056,7 +1071,7 @@ function buildMovePlanContext(gameState, cardState, playerKey, legalMoves, usabl
     };
 }
 
-function countDiscsByValue(gameState, playerValue) {
+function countDiscsByValue(gameState: any, playerValue: any) {
     const board = getSelfplayBoard(gameState);
     if (isStandardBoard(board)) {
         const counts = Core.countDiscs(gameState);
@@ -1084,7 +1099,7 @@ function countDiscsByValue(gameState, playerValue) {
     return own - opp;
 }
 
-function countEmpties(board) {
+function countEmpties(board: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.countBoardEmpties === 'function') {
         return SharedBoardUtils.countBoardEmpties(board);
     }
@@ -1097,7 +1112,7 @@ function countEmpties(board) {
     return empties;
 }
 
-function isStandardBoard(board) {
+function isStandardBoard(board: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.isStandardBoard8x8 === 'function') {
         return SharedBoardUtils.isStandardBoard8x8(board);
     }
@@ -1108,7 +1123,7 @@ function isStandardBoard(board) {
     return true;
 }
 
-function evaluateBoardForPlayer(gameState, cardState, playerKey) {
+function evaluateBoardForPlayer(gameState: any, cardState: any, playerKey: any) {
     const playerValue = toPlayerValue(playerKey);
     const context = getSafeCardContext(cardState);
     const board = getSelfplayBoard(gameState, cardState);
@@ -1129,7 +1144,7 @@ function evaluateBoardForPlayer(gameState, cardState, playerKey) {
     );
 }
 
-function applyMoveForEvaluation(gameState, move, playerValue) {
+function applyMoveForEvaluation(gameState: any, move: any, playerValue: any) {
     const nextState = Core.copyGameState(gameState);
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return nextState;
     const flips = [];
@@ -1147,7 +1162,7 @@ function applyMoveForEvaluation(gameState, move, playerValue) {
     return Core.applyMove(nextState, { row: move.row, col: move.col, flips });
 }
 
-function countDiscDiffOnBoard(board, playerValue) {
+function countDiscDiffOnBoard(board: any, playerValue: any) {
     if (!Array.isArray(board)) return 0;
     let own = 0;
     let opp = 0;
@@ -1170,11 +1185,11 @@ function countDiscDiffOnBoard(board, playerValue) {
     return own - opp;
 }
 
-function applyMoveToBoard(board, move, playerValue) {
+function applyMoveToBoard(board: any, move: any, playerValue: any) {
     if (!Array.isArray(board)) return [];
     const next = (SharedBoardUtils && typeof SharedBoardUtils.cloneBoard === 'function')
         ? SharedBoardUtils.cloneBoard(board)
-        : board.map((row) => (Array.isArray(row) ? row.slice() : []));
+        : board.map((row: any) => (Array.isArray(row) ? row.slice() : []));
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return next;
     if (!setBoardCellValue(next, move.row, move.col, playerValue)) return next;
     const flips = Array.isArray(move.flips) ? move.flips : [];
@@ -1190,7 +1205,7 @@ function applyMoveToBoard(board, move, playerValue) {
     return next;
 }
 
-function evaluateBoardForSearch(board, playerValue) {
+function evaluateBoardForSearch(board: any, playerValue: any) {
     const empties = countEmpties(board);
     const cornerDiff = countCorners(board, playerValue);
     const positionalDiff = evaluatePositionalDiff(board, playerValue);
@@ -1205,16 +1220,16 @@ function evaluateBoardForSearch(board, playerValue) {
     );
 }
 
-function scoreMoveForSearchOrder(move, board) {
+function scoreMoveForSearchOrder(move: any, board: any) {
     const flips = Array.isArray(move && move.flips) ? move.flips.length : 0;
     const row = Number.isFinite(move && move.row) ? move.row : 0;
     const col = Number.isFinite(move && move.col) ? move.col : 0;
     return (flips * 120) + (evaluatePositionValue(row, col, board) * 14);
 }
 
-function sortMovesForSearch(moves, beamWidth, board) {
+function sortMovesForSearch(moves: any, beamWidth: any, board: any) {
     const out = Array.isArray(moves) ? moves.slice() : [];
-    out.sort((a, b) => {
+    out.sort((a: any, b: any) => {
         const sa = scoreMoveForSearchOrder(a, board);
         const sb = scoreMoveForSearchOrder(b, board);
         if (sb !== sa) return sb - sa;
@@ -1226,7 +1241,7 @@ function sortMovesForSearch(moves, beamWidth, board) {
     return out;
 }
 
-function resolveTacticalSearchDepth(options, empties, planState) {
+function resolveTacticalSearchDepth(options: any, empties: any, planState: any) {
     const openingDepth = Number.isFinite(options && options.tacticalDepthOpening)
         ? Math.max(0, Math.floor(options.tacticalDepthOpening))
         : 2;
@@ -1244,7 +1259,7 @@ function resolveTacticalSearchDepth(options, empties, planState) {
     return Math.max(0, Math.min(phaseCap, depth));
 }
 
-function resolveTacticalBeamWidth(options, empties) {
+function resolveTacticalBeamWidth(options: any, empties: any) {
     const configured = Number.isFinite(options && options.tacticalBeamWidth)
         ? Math.max(1, Math.floor(options.tacticalBeamWidth))
         : 0;
@@ -1254,7 +1269,7 @@ function resolveTacticalBeamWidth(options, empties) {
     return 8;
 }
 
-function resolveTacticalMetricsCandidateLimit(options, candidateCount) {
+function resolveTacticalMetricsCandidateLimit(options: any, candidateCount: any) {
     const total = Number.isFinite(candidateCount) ? Math.max(0, Math.floor(candidateCount)) : 0;
     if (total <= 0) return 0;
     const configured = Number.isFinite(options && options.tacticalMetricsCandidateLimit)
@@ -1265,7 +1280,7 @@ function resolveTacticalMetricsCandidateLimit(options, candidateCount) {
     return Math.min(total, 3);
 }
 
-function computePositiveOpportunityMissMetrics(bestScore, selectedScore) {
+function computePositiveOpportunityMissMetrics(bestScore: any, selectedScore: any) {
     const best = Number.isFinite(bestScore) ? Number(bestScore) : 0;
     const selected = Number.isFinite(selectedScore) ? Number(selectedScore) : 0;
     if (best <= 0) {
@@ -1281,7 +1296,7 @@ function computePositiveOpportunityMissMetrics(bestScore, selectedScore) {
     };
 }
 
-function minimaxBoardSearch(board, currentPlayer, rootPlayer, depth, alpha, beta, passCount, beamWidth) {
+function minimaxBoardSearch(board: any, currentPlayer: any, rootPlayer: any, depth: any, alpha: any, beta: any, passCount: any, beamWidth: any) {
     if (!Array.isArray(board) || depth <= 0 || passCount >= 2) {
         return evaluateBoardForSearch(board, rootPlayer);
     }
@@ -1316,7 +1331,7 @@ function minimaxBoardSearch(board, currentPlayer, rootPlayer, depth, alpha, beta
     return best;
 }
 
-function scoreTacticalMove(move, context, options) {
+function scoreTacticalMove(move: any, context: any, options: any) {
     if (!context || !context.gameState || !context.cardState) return 0;
     const playerKey = context.playerKey === 'black' ? 'black' : 'white';
     const playerValue = toPlayerValue(playerKey);
@@ -1368,18 +1383,18 @@ function scoreTacticalMove(move, context, options) {
     return baseScore + (searchValue * 0.35);
 }
 
-function makePolicyStateKey(playerKey, board, pendingType, legalMovesCount) {
+function makePolicyStateKey(playerKey: any, board: any, pendingType: any, legalMovesCount: any) {
     const pending = pendingType || '-';
     const legal = Number.isFinite(legalMovesCount) ? legalMovesCount : 0;
     return `${playerKey}|${encodeBoard(board)}|${pending}|${legal}`;
 }
 
-function makePolicyActionKey(move) {
+function makePolicyActionKey(move: any) {
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return '';
     return `place:${move.row}:${move.col}`;
 }
 
-function cellType(row, col, boardOrSize) {
+function cellType(row: any, col: any, boardOrSize: any) {
     if (SharedBoardUtils && typeof SharedBoardUtils.getCellType === 'function') {
         if (Array.isArray(boardOrSize)) return SharedBoardUtils.getCellType(row, col, boardOrSize);
         const n = Number.isFinite(boardOrSize) && boardOrSize > 0 ? boardOrSize : 8;
@@ -1395,19 +1410,19 @@ function cellType(row, col, boardOrSize) {
     return 'inner';
 }
 
-function makePolicyAbstractActionKey(move, boardShapeOrSize) {
+function makePolicyAbstractActionKey(move: any, boardShapeOrSize: any) {
     if (!move || !Number.isFinite(move.row) || !Number.isFinite(move.col)) return 'place_cat:unknown';
     return `place_cat:${cellType(move.row, move.col, boardShapeOrSize)}`;
 }
 
-function countEmptiesInBoardKey(boardKey) {
+function countEmptiesInBoardKey(boardKey: any) {
     if (typeof boardKey !== 'string' || !boardKey) return 0;
     let c = 0;
     for (let i = 0; i < boardKey.length; i++) if (boardKey[i] === '.') c++;
     return c;
 }
 
-function discDiffFromPlayer(boardKey, playerKey) {
+function discDiffFromPlayer(boardKey: any, playerKey: any) {
     if (typeof boardKey !== 'string') return 0;
     let b = 0;
     let w = 0;
@@ -1418,7 +1433,7 @@ function discDiffFromPlayer(boardKey, playerKey) {
     return playerKey === 'black' ? (b - w) : (w - b);
 }
 
-function cornerDiffFromPlayer(boardKey, playerKey) {
+function cornerDiffFromPlayer(boardKey: any, playerKey: any) {
     const rows = typeof boardKey === 'string' ? boardKey.split('/') : [];
     if (!rows.length) return 0;
     const size = rows.length;
@@ -1435,14 +1450,14 @@ function cornerDiffFromPlayer(boardKey, playerKey) {
     return ownCount - oppCount;
 }
 
-function toBucket(value, steps) {
+function toBucket(value: any, steps: any) {
     for (let i = 0; i < steps.length; i++) {
         if (value <= steps[i]) return String(steps[i]);
     }
     return `>${steps[steps.length - 1]}`;
 }
 
-function makePolicyAbstractStateKey(playerKey, board, pendingType, legalMovesCount) {
+function makePolicyAbstractStateKey(playerKey: any, board: any, pendingType: any, legalMovesCount: any) {
     const pending = pendingType || '-';
     const legal = Number.isFinite(legalMovesCount) ? legalMovesCount : 0;
     const boardKey = typeof board === 'string' ? board : '';
@@ -1454,7 +1469,7 @@ function makePolicyAbstractStateKey(playerKey, board, pendingType, legalMovesCou
     return `${playerKey}|${pending}|${phase}|mob:${mobility}|disc:${disc}|corner:${corner}`;
 }
 
-function getPolicyScore(options, context, move) {
+function getPolicyScore(options: any, context: any, move: any) {
     if (!options || !options.policyTableModel || !options.policyTableModel.states) return null;
     const model = options.policyTableModel;
     const runtimeBoard = getSelfplayBoard(context && context.gameState, context && context.cardState);
@@ -1519,7 +1534,7 @@ function getPolicyScore(options, context, move) {
     return bestBonus + visitBonus + outcomeBonus;
 }
 
-function getPolicyActionScoreByKey(options, context, actionKey) {
+function getPolicyActionScoreByKey(options: any, context: any, actionKey: any) {
     if (!options || !options.policyTableModel || !options.policyTableModel.states) return null;
     if (!actionKey || typeof actionKey !== 'string') return null;
     const model = options.policyTableModel;
@@ -1551,7 +1566,7 @@ function getPolicyActionScoreByKey(options, context, actionKey) {
     return bestBonus + visits * 1_000 + avgOutcome;
 }
 
-function createPolicyRuntimeContext(context, legalMovesCountOverride) {
+function createPolicyRuntimeContext(context: any, legalMovesCountOverride: any) {
     return {
         playerKey: context && context.playerKey === 'black' ? 'black' : 'white',
         level: 6,
@@ -1563,7 +1578,7 @@ function createPolicyRuntimeContext(context, legalMovesCountOverride) {
     };
 }
 
-function selectPlacementMoveFromPolicyModel(options, context, candidateMoves) {
+function selectPlacementMoveFromPolicyModel(options: any, context: any, candidateMoves: any) {
     if (!options || !options.policyTableModel || !Array.isArray(candidateMoves) || candidateMoves.length <= 0) return null;
     if (
         options.policyTableModel.schemaVersion !== SELFPLAY_SCHEMA_VERSION &&
@@ -1582,7 +1597,7 @@ function selectPlacementMoveFromPolicyModel(options, context, candidateMoves) {
     let bestMove = null;
     let bestScore = Number.NEGATIVE_INFINITY;
     for (const move of candidateMoves) {
-        const score = getPolicyScore(options, Object.assign({}, context || {}, {
+        const score: any = getPolicyScore(options, Object.assign({}, context || {}, {
             legalMovesCount: candidateMoves.length
         }), move);
         if (!Number.isFinite(score)) continue;
@@ -1604,7 +1619,7 @@ function selectPlacementMoveFromPolicyModel(options, context, candidateMoves) {
     return bestMove;
 }
 
-function chooseBestMoveByScore(candidateMoves, scoreFn) {
+function chooseBestMoveByScore(candidateMoves: any, scoreFn: any) {
     if (!Array.isArray(candidateMoves) || candidateMoves.length <= 0 || typeof scoreFn !== 'function') return null;
     let bestMove = null;
     let bestScore = Number.NEGATIVE_INFINITY;
@@ -1633,7 +1648,7 @@ function chooseBestMoveByScore(candidateMoves, scoreFn) {
     return bestMove;
 }
 
-function choosePlacementMoveByBrowserParity(candidateMoves, context, options, movePlanContext) {
+function choosePlacementMoveByBrowserParity(candidateMoves: any, context: any, options: any, movePlanContext: any) {
     if (!Array.isArray(candidateMoves) || candidateMoves.length <= 0) {
         return {
             move: null,
@@ -1645,7 +1660,7 @@ function choosePlacementMoveByBrowserParity(candidateMoves, context, options, mo
     }
 
     const learnedMove = selectPlacementMoveFromPolicyModel(options, context, candidateMoves);
-    const learnedScoreFn = (move) => getPolicyScore(options, Object.assign({}, context || {}, {
+    const learnedScoreFn = (move: any) => getPolicyScore(options, Object.assign({}, context || {}, {
         legalMovesCount: candidateMoves.length
     }), move);
     const movePlanScoreFn = (
@@ -1653,7 +1668,7 @@ function choosePlacementMoveByBrowserParity(candidateMoves, context, options, mo
         CpuPolicyCore &&
         typeof CpuPolicyCore.scoreMoveForCornerEdgePlan === 'function'
     )
-        ? (move) => {
+        ? (move: any) => {
             try {
                 return Number(CpuPolicyCore.scoreMoveForCornerEdgePlan(move, movePlanContext) || 0);
             } catch (e) {
@@ -1670,11 +1685,11 @@ function choosePlacementMoveByBrowserParity(candidateMoves, context, options, mo
     const tacticalWeight = Number.isFinite(options && options.tacticalWeight)
         ? Math.max(0, Number(options.tacticalWeight))
         : 1.0;
-    const combinedScoreFn = (move) => {
+    const combinedScoreFn = (move: any) => {
         let score = 0;
         if (movePlanScoreFn) score += movePlanScoreFn(move) * heuristicWeight;
         const learnedScore = learnedScoreFn ? Number(learnedScoreFn(move) || 0) : 0;
-        if (learnedScoreFn) {
+        if (typeof learnedScoreFn === 'function') {
             score += learnedScore * policyScoreWeight;
         }
         if (learnedMove && move && Number(move.row) === Number(learnedMove.row) && Number(move.col) === Number(learnedMove.col)) {
@@ -1775,20 +1790,20 @@ function choosePlacementMoveByBrowserParity(candidateMoves, context, options, mo
     };
 }
 
-function selectPlacementMove(legalMoves, rng, context, options) {
+function selectPlacementMove(legalMoves: any, rng: any, context: any, options: any) {
     const scored = scorePlacementCandidates(legalMoves, rng, context, options);
     if (scored && scored.move) return scored.move;
     if (Array.isArray(legalMoves) && legalMoves.length > 0) return legalMoves[0];
     return null;
 }
 
-function makeMoveKey(move) {
+function makeMoveKey(move: any) {
     if (!move) return '';
     return `${Number(move.row)}:${Number(move.col)}`;
 }
 
-function sortScoredMovesBy(scoredMoves, scoreKey) {
-    return scoredMoves.slice().sort((a, b) => {
+function sortScoredMovesBy(scoredMoves: any, scoreKey: any) {
+    return scoredMoves.slice().sort((a: any, b: any) => {
         const sa = Number.isFinite(a && a[scoreKey]) ? Number(a[scoreKey]) : Number.NEGATIVE_INFINITY;
         const sb = Number.isFinite(b && b[scoreKey]) ? Number(b[scoreKey]) : Number.NEGATIVE_INFINITY;
         if (sb !== sa) return sb - sa;
@@ -1801,12 +1816,12 @@ function sortScoredMovesBy(scoredMoves, scoreKey) {
     });
 }
 
-function buildBordaMaps(scoredMoves, scoreKeys) {
+function buildBordaMaps(scoredMoves: any, scoreKeys: any) {
     const keys = Array.isArray(scoreKeys) && scoreKeys.length > 0
         ? scoreKeys.slice()
         : ['strategistScore', 'tacticianScore', 'economistScore'];
     const points = new Map();
-    const ranksByKey = {};
+    const ranksByKey: Record<string, any> = {};
     for (const scoreKey of keys) {
         ranksByKey[scoreKey] = new Map();
     }
@@ -1826,7 +1841,7 @@ function buildBordaMaps(scoredMoves, scoreKeys) {
     return { points, ranksByKey };
 }
 
-function hasMeaningfulFiniteScore(scoredItems, scoreKey) {
+function hasMeaningfulFiniteScore(scoredItems: any, scoreKey: any) {
     if (!Array.isArray(scoredItems) || !scoreKey) return false;
     let finiteCount = 0;
     let firstValue = Number.NaN;
@@ -1844,12 +1859,12 @@ function hasMeaningfulFiniteScore(scoredItems, scoreKey) {
     return finiteCount > 0 && (varied || finiteCount === 1);
 }
 
-function resolveCommitteeScoreKeys(scoredItems, preferredKeys) {
+function resolveCommitteeScoreKeys(scoredItems: any, preferredKeys: any) {
     const candidates = Array.isArray(preferredKeys) ? preferredKeys : [];
-    return candidates.filter((scoreKey) => hasMeaningfulFiniteScore(scoredItems, scoreKey));
+    return candidates.filter((scoreKey: any) => hasMeaningfulFiniteScore(scoredItems, scoreKey));
 }
 
-function countCommitteeLeaderVotes(ranksByKey, candidateKey) {
+function countCommitteeLeaderVotes(ranksByKey: any, candidateKey: any) {
     if (!ranksByKey || !candidateKey) return 0;
     let votes = 0;
     for (const rankMap of Object.values(ranksByKey)) {
@@ -1860,14 +1875,14 @@ function countCommitteeLeaderVotes(ranksByKey, candidateKey) {
     return votes;
 }
 
-function resolveCommitteeConsensusScore(votes, consensusBonus) {
+function resolveCommitteeConsensusScore(votes: any, consensusBonus: any) {
     const normalizedVotes = Number.isFinite(votes) ? Math.max(0, Math.floor(Number(votes))) : 0;
     const normalizedBonus = Number.isFinite(consensusBonus) ? Math.max(0, Number(consensusBonus)) : 0;
     if (normalizedVotes < 2 || !(normalizedBonus > 0)) return 0;
     return normalizedBonus * (normalizedVotes - 1);
 }
 
-function applyTeacherCommitteeToMoveScores(scoredMoves, options) {
+function applyTeacherCommitteeToMoveScores(scoredMoves: any, options: any) {
     const committeeWeight = Number.isFinite(options && options.teacherCommitteeWeight)
         ? Math.max(0, Number(options.teacherCommitteeWeight))
         : 0;
@@ -1897,8 +1912,8 @@ function applyTeacherCommitteeToMoveScores(scoredMoves, options) {
     }
 }
 
-function sortScoredCardsBy(scoredCards, scoreKey) {
-    return scoredCards.slice().sort((a, b) => {
+function sortScoredCardsBy(scoredCards: any, scoreKey: any) {
+    return scoredCards.slice().sort((a: any, b: any) => {
         const sa = Number.isFinite(a && a[scoreKey]) ? Number(a[scoreKey]) : Number.NEGATIVE_INFINITY;
         const sb = Number.isFinite(b && b[scoreKey]) ? Number(b[scoreKey]) : Number.NEGATIVE_INFINITY;
         if (sb !== sa) return sb - sa;
@@ -1909,10 +1924,10 @@ function sortScoredCardsBy(scoredCards, scoreKey) {
     });
 }
 
-function buildCardBordaMaps(scoredCards, scoreKeys) {
+function buildCardBordaMaps(scoredCards: any, scoreKeys: any) {
     const keys = Array.isArray(scoreKeys) ? scoreKeys.filter(Boolean) : [];
     const points = new Map();
-    const ranksByKey = {};
+    const ranksByKey: Record<string, any> = {};
     const n = Array.isArray(scoredCards) ? scoredCards.length : 0;
     if (n <= 0 || keys.length <= 0) return { points, ranksByKey };
     for (const scoreKey of keys) {
@@ -1929,7 +1944,7 @@ function buildCardBordaMaps(scoredCards, scoreKeys) {
     return { points, ranksByKey };
 }
 
-function applyTeacherCommitteeToCardCandidates(candidates, options) {
+function applyTeacherCommitteeToCardCandidates(candidates: any, options: any) {
     const committeeWeight = Number.isFinite(options && options.teacherCommitteeWeight)
         ? Math.max(0, Number(options.teacherCommitteeWeight))
         : 0;
@@ -1959,14 +1974,14 @@ function applyTeacherCommitteeToCardCandidates(candidates, options) {
     }
 }
 
-function scorePlacementCandidates(legalMoves, rng, context, options) {
+function scorePlacementCandidates(legalMoves: any, rng: any, context: any, options: any) {
     const forcedPlacement = resolveForcedPlacementCandidates(
         legalMoves,
         options,
         getSelfplayBoard(context && context.gameState, context && context.cardState)
     );
     const defaultCandidateMoves = Array.isArray(legalMoves)
-        ? legalMoves.filter((move) => move && Number.isInteger(move.row) && Number.isInteger(move.col))
+        ? legalMoves.filter((move: any) => move && Number.isInteger(move.row) && Number.isInteger(move.col))
         : [];
     const candidateMoves = (Array.isArray(forcedPlacement.moves) && forcedPlacement.moves.length > 0)
         ? forcedPlacement.moves
@@ -1975,7 +1990,7 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
         return { move: null, metrics: null };
     }
     const enableTacticalLookahead = !(options && options.enableTacticalLookahead === false);
-    let usableCardIds = [];
+    let usableCardIds: any[] = [];
     try {
         usableCardIds = getDirectUsableCardIds(context && context.cardState, context && context.gameState, context && context.playerKey);
     } catch (e) {
@@ -2031,7 +2046,7 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
     }
 
     let preliminarySelected = parityMove
-        ? scoredMoves.find((one) => CpuLv6LookaheadProfile.isSameMoveByCoord(one.move, parityMove)) || null
+        ? scoredMoves.find((one: any) => CpuLv6LookaheadProfile.isSameMoveByCoord(one.move, parityMove)) || null
         : null;
     if (!preliminarySelected) {
         let bestScored = null;
@@ -2066,7 +2081,7 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
         if (tacticalLimit > 0) {
             const tacticalCandidates = scoredMoves
                 .slice()
-                .sort((a, b) => {
+                .sort((a: any, b: any) => {
                     const aScore = Number(a && a.finalScore) || 0;
                     const bScore = Number(b && b.finalScore) || 0;
                     if (bScore !== aScore) return bScore - aScore;
@@ -2079,7 +2094,7 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
                 })
                 .slice(0, tacticalLimit);
 
-            if (!tacticalCandidates.some((one) => one === preliminarySelected)) {
+            if (!tacticalCandidates.some((one: any) => one === preliminarySelected)) {
                 tacticalCandidates.push(preliminarySelected);
             }
 
@@ -2100,7 +2115,7 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
         Number.isFinite(options && options.teacherCommitteeConsensusBonus) &&
         Number(options.teacherCommitteeConsensusBonus) > 0
     );
-    let selected = preliminarySelected;
+    let selected: any = preliminarySelected;
     if (teacherCommitteeEnabled || !selected) {
         selected = null;
         let bestScore = Number.NEGATIVE_INFINITY;
@@ -2125,7 +2140,7 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
 
     const sortedByFinalScore = scoredMoves
         .slice()
-        .sort((a, b) => {
+        .sort((a: any, b: any) => {
             const aScore = Number(a && a.finalScore) || 0;
             const bScore = Number(b && b.finalScore) || 0;
             if (bScore !== aScore) return bScore - aScore;
@@ -2137,7 +2152,7 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
             return aCol - bCol;
         })
         .slice(0, 3)
-        .map((one) => ({
+        .map((one: any) => ({
             row: Number.isFinite(one && one.move && one.move.row) ? Number(one.move.row) : null,
             col: Number.isFinite(one && one.move && one.move.col) ? Number(one.move.col) : null,
             seat: classifySelectionSeat(
@@ -2183,7 +2198,7 @@ function scorePlacementCandidates(legalMoves, rng, context, options) {
     };
 }
 
-function evaluatePositionValue(row, col, boardOrSize) {
+function evaluatePositionValue(row: any, col: any, boardOrSize: any = 8) {
     let score = 0;
     if (isCorner(row, col, boardOrSize)) score += 10000;
     else if (isEdge(row, col, boardOrSize)) score += 250;
@@ -2192,14 +2207,14 @@ function evaluatePositionValue(row, col, boardOrSize) {
     return score;
 }
 
-function getCellOwnerValueForSelfplay(gameState, row, col) {
+function getCellOwnerValueForSelfplay(gameState: any, row: any, col: any) {
     if (!gameState) return 0;
     const board = getSelfplayBoard(gameState);
     const value = getBoardCellValue(board, row, col);
     return Number(value) || 0;
 }
 
-function getLegalMovesForAction(gameState, cardState, playerKey) {
+function getLegalMovesForAction(gameState: any, cardState: any, playerKey: any) {
     const player = toPlayerValue(playerKey);
     const context = getSafeCardContext(cardState);
     const pendingType = CardLogic.getPendingEffectType(cardState, playerKey);
@@ -2209,10 +2224,10 @@ function getLegalMovesForAction(gameState, cardState, playerKey) {
         ? Core.getFreePlacementMoves(gameState, player, context)
         : Core.getLegalMoves(gameState, player, context);
     if (!Array.isArray(moves) || moves.length <= 0) return [];
-    return moves.filter((move) => !!(move && Number.isInteger(move.row) && Number.isInteger(move.col)));
+    return moves.filter((move: any) => !!(move && Number.isInteger(move.row) && Number.isInteger(move.col)));
 }
 
-function getDirectUsableCardIds(cardState, gameState, playerKey) {
+function getDirectUsableCardIds(cardState: any, gameState: any, playerKey: any) {
     const ids = CardLogic.getUsableCardIds(cardState, gameState, playerKey);
     if (!Array.isArray(ids)) return [];
     const usableIds = [];
@@ -2226,7 +2241,7 @@ function getDirectUsableCardIds(cardState, gameState, playerKey) {
     return usableIds;
 }
 
-function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCount, legalMoves, usableCardIds) {
+function buildCardDecisionContext(gameState: any, cardState: any, playerKey: any, legalMovesCount: any, legalMoves: any, usableCardIds: any = []) {
     const ownKey = playerKey === 'black' ? 'black' : 'white';
     const oppKey = ownKey === 'black' ? 'white' : 'black';
     const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
@@ -2246,7 +2261,7 @@ function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCou
     }
     const planState = buildCornerPlanState(gameState, cardState, ownKey, safeLegalMoves, safeUsableCardIds);
     const legalMoveMetrics = (CpuPolicyCore && typeof CpuPolicyCore.computeLegalMoveMetrics === 'function')
-        ? CpuPolicyCore.computeLegalMoveMetrics(safeLegalMoves, (row, col) => getBoardBonusAtCell(cardState, row, col))
+        ? CpuPolicyCore.computeLegalMoveMetrics(safeLegalMoves, (row: any, col: any) => getBoardBonusAtCell(cardState, row, col))
         : {
             maxLegalFlips: 0,
             avgLegalFlips: 0,
@@ -2309,7 +2324,7 @@ function buildCardDecisionContext(gameState, cardState, playerKey, legalMovesCou
     };
 }
 
-function selectCardIdToUse(cardState, gameState, playerKey, options, context) {
+function selectCardIdToUse(cardState: any, gameState: any, playerKey: any, options: any, context: any) {
     const usable = getDirectUsableCardIds(cardState, gameState, playerKey);
     if (!usable.length) return null;
     const riskContext = buildCardDecisionContext(
@@ -2321,7 +2336,7 @@ function selectCardIdToUse(cardState, gameState, playerKey, options, context) {
         usable
     );
 
-    const candidates = usable.map((cardId) => {
+    const candidates = usable.map((cardId: any) => {
         const cardCost = Number(CardLogic.getCardCost(cardId) || 0);
         const cardDef = CardLogic.getCardDef(cardId) || null;
         const cardType = cardDef && typeof cardDef.type === 'string'
@@ -2373,15 +2388,15 @@ function selectCardIdToUse(cardState, gameState, playerKey, options, context) {
 
     applyTeacherCommitteeToCardCandidates(candidates, options);
 
-    const selectable = candidates.filter((one) => one && one.shouldUse !== false);
+    const selectable = candidates.filter((one: any) => one && one.shouldUse !== false);
     if (selectable.length <= 0) {
         return {
             cardId: null,
             selectedActionKey: 'keep',
             candidates,
             scoreSummary: {
-                bestScore: candidates.reduce((best, one) => Math.max(best, Number(one && one.score) || Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY),
-                bestFinalScore: candidates.reduce((best, one) => Math.max(best, Number(one && one.finalScore) || Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY),
+                bestScore: candidates.reduce((best: any, one: any) => Math.max(best, Number(one && one.score) || Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY),
+                bestFinalScore: candidates.reduce((best: any, one: any) => Math.max(best, Number(one && one.finalScore) || Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY),
                 lowerScoreIsBetter: false
             }
         };
@@ -2418,15 +2433,15 @@ function selectCardIdToUse(cardState, gameState, playerKey, options, context) {
             selectedFinalScore: Number.isFinite(selected.finalScore) ? Number(selected.finalScore) : null,
             selectedCommitteeScore: Number.isFinite(selected.committeeScore) ? Number(selected.committeeScore) : 0,
             selectedCommitteeVotes: Number.isFinite(selected.committeeVotes) ? Number(selected.committeeVotes) : 0,
-            bestScore: selectable.reduce((best, one) => Math.max(best, Number(one && one.score) || Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY),
-            bestFinalScore: selectable.reduce((best, one) => Math.max(best, Number(one && one.finalScore) || Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY),
+            bestScore: selectable.reduce((best: any, one: any) => Math.max(best, Number(one && one.score) || Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY),
+            bestFinalScore: selectable.reduce((best: any, one: any) => Math.max(best, Number(one && one.finalScore) || Number.NEGATIVE_INFINITY), Number.NEGATIVE_INFINITY),
             minUseScore: Number.isFinite(selected.minUseScore) ? Number(selected.minUseScore) : null,
             lowerScoreIsBetter: false
         }
     };
 }
 
-function selectDestroyHandCardId(cardState, gameState, playerKey, context) {
+function selectDestroyHandCardId(cardState: any, gameState: any, playerKey: any, context: any) {
     const ownKey = playerKey === 'black' ? 'black' : 'white';
     if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[ownKey])) return null;
     if (readSelfplayPendingEffect(cardState, ownKey)) return null;
@@ -2451,9 +2466,9 @@ function selectDestroyHandCardId(cardState, gameState, playerKey, context) {
     return selected && selected.cardId ? selected.cardId : null;
 }
 
-function choosePendingTargetByScore(targets, scoreTarget) {
+function choosePendingTargetByScore(targets: any, scoreTarget: any) {
     const safeTargets = Array.isArray(targets)
-        ? targets.filter((target) => target && Number.isInteger(target.row) && Number.isInteger(target.col))
+        ? targets.filter((target: any) => target && Number.isInteger(target.row) && Number.isInteger(target.col))
         : [];
     if (!safeTargets.length) return null;
 
@@ -2485,29 +2500,29 @@ function choosePendingTargetByScore(targets, scoreTarget) {
     return best || safeTargets[0];
 }
 
-function chooseSwapTarget(gameState, cardState, playerKey, rng) {
+function chooseSwapTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
     if (!targets.length) return null;
     return choosePendingTargetByScore(
         targets,
-        (target) => evaluatePositionValue(target.row, target.col) + rng.random() * 0.01
+        (target: any) => evaluatePositionValue(target.row, target.col) + rng.random() * 0.01
     );
 }
 
-function choosePositionSwapTarget(gameState, cardState, playerKey, rng) {
+function choosePositionSwapTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
     if (!targets.length) return null;
     return choosePendingTargetByScore(
         targets,
-        (target) => evaluatePositionValue(target.row, target.col) + rng.random() * 0.01
+        (target: any) => evaluatePositionValue(target.row, target.col) + rng.random() * 0.01
     );
 }
 
-function chooseDestroyTarget(gameState, cardState, playerKey, rng) {
+function chooseDestroyTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
     if (!targets.length) return null;
     const selfVal = toPlayerValue(playerKey);
-    return choosePendingTargetByScore(targets, (target) => {
+    return choosePendingTargetByScore(targets, (target: any) => {
         const occupant = getCellOwnerValueForSelfplay(gameState, target.row, target.col);
         const isEnemy = occupant === -selfVal;
         const base = evaluatePositionValue(target.row, target.col);
@@ -2515,7 +2530,7 @@ function chooseDestroyTarget(gameState, cardState, playerKey, rng) {
     });
 }
 
-function resolvePendingTargetList(cardState, gameState, playerKey, targetGetterNames) {
+function resolvePendingTargetList(cardState: any, gameState: any, playerKey: any, targetGetterNames: any) {
     const getterNames = Array.isArray(targetGetterNames)
         ? targetGetterNames
         : [targetGetterNames];
@@ -2529,11 +2544,11 @@ function resolvePendingTargetList(cardState, gameState, playerKey, targetGetterN
     return CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
 }
 
-function chooseTargetBySimulation(gameState, cardState, playerKey, rng, applyEffectFn, fallbackScoreFn, scoreAdjustFn, targetGetterNames) {
+function chooseTargetBySimulation(gameState: any, cardState: any, playerKey: any, rng: any, applyEffectFn: any, fallbackScoreFn: any, scoreAdjustFn: any = null, targetGetterNames: any = null) {
     const targets = resolvePendingTargetList(cardState, gameState, playerKey, targetGetterNames);
     if (!targets.length) return null;
 
-    return choosePendingTargetByScore(targets, (target) => {
+    return choosePendingTargetByScore(targets, (target: any) => {
         let score = null;
         try {
             const simGameState = Core.copyGameState(gameState);
@@ -2559,21 +2574,21 @@ function chooseTargetBySimulation(gameState, cardState, playerKey, rng, applyEff
     });
 }
 
-function chooseStrongWindTarget(gameState, cardState, playerKey, rng) {
+function chooseStrongWindTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any, simRng: any) =>
             CardLogic.applyStrongWindWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
-        (target, sourceGameState, _sourceCardState, onePlayerKey) => {
+        (target: any, sourceGameState: any, _sourceCardState: any, onePlayerKey: any) => {
             const selfVal = toPlayerValue(onePlayerKey);
                 const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const base = evaluatePositionValue(target.row, target.col);
             return occupant === selfVal ? (base * -0.4) : (base * -1.2);
         },
-        (target, result, _simGameState, _simCardState, sourceGameState, sourceCardState, onePlayerKey) => {
+        (target: any, result: any, _simGameState: any, _simCardState: any, sourceGameState: any, sourceCardState: any, onePlayerKey: any) => {
             const selfVal = toPlayerValue(onePlayerKey);
                 const fromVal = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const isOwnStone = fromVal === selfVal;
@@ -2592,22 +2607,22 @@ function chooseStrongWindTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
-function chooseSuperBuoyancyTarget(gameState, cardState, playerKey, rng) {
+function chooseSuperBuoyancyTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
             CardLogic.applySuperBuoyancyWill(simCardState, simGameState, onePlayerKey, row, col),
-        (target, sourceGameState, _sourceCardState, onePlayerKey) => {
+        (target: any, sourceGameState: any, _sourceCardState: any, onePlayerKey: any) => {
             const selfVal = toPlayerValue(onePlayerKey);
                 const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const isEnemy = occupant === -selfVal;
             const base = evaluatePositionValue(target.row, target.col);
             return isEnemy ? (base * 1.5) + 1200 : (base * -0.35);
         },
-        (_target, result, _simGameState, _simCardState, _sourceGameState, sourceCardState) => {
+        (_target: any, result: any, _simGameState: any, _simCardState: any, _sourceGameState: any, sourceCardState: any) => {
             let extra = 0;
             const destroyedCount = Number(result && result.destroyedCount);
             if (Number.isFinite(destroyedCount) && destroyedCount > 0) {
@@ -2623,22 +2638,22 @@ function chooseSuperBuoyancyTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
-function chooseSuperGravityTarget(gameState, cardState, playerKey, rng) {
+function chooseSuperGravityTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
             CardLogic.applySuperGravityWill(simCardState, simGameState, onePlayerKey, row, col),
-        (target, sourceGameState, _sourceCardState, onePlayerKey) => {
+        (target: any, sourceGameState: any, _sourceCardState: any, onePlayerKey: any) => {
             const selfVal = toPlayerValue(onePlayerKey);
                 const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const isEnemy = occupant === -selfVal;
             const base = evaluatePositionValue(target.row, target.col);
             return isEnemy ? (base * 1.5) + 1200 : (base * -0.35);
         },
-        (_target, result, _simGameState, _simCardState, _sourceGameState, sourceCardState) => {
+        (_target: any, result: any, _simGameState: any, _simCardState: any, _sourceGameState: any, sourceCardState: any) => {
             let extra = 0;
             const destroyedCount = Number(result && result.destroyedCount);
             if (Number.isFinite(destroyedCount) && destroyedCount > 0) {
@@ -2654,33 +2669,33 @@ function chooseSuperGravityTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
-function chooseGuardTarget(gameState, cardState, playerKey, rng) {
+function chooseGuardTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
             CardLogic.applyGuardWill(simCardState, simGameState, onePlayerKey, row, col),
-        (target) => (evaluatePositionValue(target.row, target.col) * 1.4)
+        (target: any) => (evaluatePositionValue(target.row, target.col) * 1.4)
     );
 }
 
-function chooseLivingWillTarget(gameState, cardState, playerKey, rng) {
+function chooseLivingWillTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
             CardLogic.applyLivingWill(simCardState, simGameState, onePlayerKey, row, col),
-        (target) => (evaluatePositionValue(target.row, target.col) * 1.2),
+        (target: any) => (evaluatePositionValue(target.row, target.col) * 1.2),
         null,
         'getLivingWillTargets'
     );
 }
 
-function chooseBoardExpansionTarget(gameState, cardState, playerKey, rng) {
+function chooseBoardExpansionTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     const pending = readSelfplayPendingEffect(cardState, playerKey);
     const pendingType = pending && typeof pending.type === 'string' ? pending.type : 'BOARD_EXPANSION_WILL';
     return chooseTargetBySimulation(
@@ -2688,7 +2703,7 @@ function chooseBoardExpansionTarget(gameState, cardState, playerKey, rng) {
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col) => {
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) => {
             const simPending = (simCardState && simCardState.pendingEffectByPlayer)
                 ? simCardState.pendingEffectByPlayer[onePlayerKey]
                 : null;
@@ -2698,7 +2713,7 @@ function chooseBoardExpansionTarget(gameState, cardState, playerKey, rng) {
             }
             return CardLogic.applyBoardExpansionWill(simCardState, simGameState, onePlayerKey, row, col);
         },
-        (target) => {
+        (target: any) => {
             if (target.row === 0 || target.row === 7) return 9000;
             if (target.row === 1 || target.row === 6) return 2200;
             return 600;
@@ -2706,7 +2721,7 @@ function chooseBoardExpansionTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
-function chooseBoardShrinkTarget(gameState, cardState, playerKey, rng) {
+function chooseBoardShrinkTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     const pending = readSelfplayPendingEffect(cardState, playerKey);
     const pendingType = pending && typeof pending.type === 'string' ? pending.type : 'BOARD_SHRINK_WILL';
     const targetGetterName = pendingType === 'BOARD_SHRINK_GOD'
@@ -2717,7 +2732,7 @@ function chooseBoardShrinkTarget(gameState, cardState, playerKey, rng) {
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col) => {
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) => {
             const simPending = (simCardState && simCardState.pendingEffectByPlayer)
                 ? simCardState.pendingEffectByPlayer[onePlayerKey]
                 : null;
@@ -2733,53 +2748,53 @@ function chooseBoardShrinkTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
-function chooseBlockadeTarget(gameState, cardState, playerKey, rng) {
+function chooseBlockadeTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
             CardLogic.applyBlockadeWill(simCardState, simGameState, onePlayerKey, row, col),
-        (target) => (evaluatePositionValue(target.row, target.col) * 1.3)
+        (target: any) => (evaluatePositionValue(target.row, target.col) * 1.3)
     );
 }
 
-function chooseMeteorTarget(gameState, cardState, playerKey, rng) {
+function chooseMeteorTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any, simRng: any) =>
             CardLogic.applyMeteorWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
-        (target) => (evaluatePositionValue(target.row, target.col) * 1.35)
+        (target: any) => (evaluatePositionValue(target.row, target.col) * 1.35)
     );
 }
 
-function chooseFreezeTarget(gameState, cardState, playerKey, rng) {
+function chooseFreezeTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
             CardLogic.applyFreezeWill(simCardState, simGameState, onePlayerKey, row, col),
-        (target) => (evaluatePositionValue(target.row, target.col) * 1.1),
+        (target: any) => (evaluatePositionValue(target.row, target.col) * 1.1),
         null,
         'getFreezeTargets'
     );
 }
 
-function chooseSeedTarget(gameState, cardState, playerKey, rng) {
+function chooseSeedTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
             CardLogic.applySeedWill(simCardState, simGameState, onePlayerKey, row, col),
-        (target, sourceGameState) => {
+        (target: any, sourceGameState: any) => {
             const base = evaluatePositionValue(target.row, target.col) * 1.15;
             const board = getSelfplayBoard(sourceGameState, cardState);
             const nearCorner = getCornerProximity(target.row, target.col, board);
@@ -2794,40 +2809,40 @@ function chooseSeedTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
-function chooseTrapTarget(gameState, cardState, playerKey, rng) {
+function chooseTrapTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
             CardLogic.applyTrapWill(simCardState, simGameState, onePlayerKey, row, col),
-        (target) => (evaluatePositionValue(target.row, target.col) * 1.1)
+        (target: any) => (evaluatePositionValue(target.row, target.col) * 1.1)
     );
 }
 
-function chooseCloneTarget(gameState, cardState, playerKey, rng) {
+function chooseCloneTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any, simRng: any) =>
             CardLogic.applyCloneWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
-        (target) => (evaluatePositionValue(target.row, target.col) * 1.25)
+        (target: any) => (evaluatePositionValue(target.row, target.col) * 1.25)
     );
 }
 
-function chooseHyperactiveInheritTarget(gameState, cardState, playerKey, rng) {
+function chooseHyperactiveInheritTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
             CardLogic.applyHyperactiveInheritWill(simCardState, simGameState, onePlayerKey, row, col),
-        (target) => (evaluatePositionValue(target.row, target.col) * 1.15),
-        (target, _result, sourceGameState, _sourceCardState, _origGameState, _origCardState, onePlayerKey) => {
+        (target: any) => (evaluatePositionValue(target.row, target.col) * 1.15),
+        (target: any, _result: any, sourceGameState: any, _sourceCardState: any, _origGameState: any, _origCardState: any, onePlayerKey: any) => {
             const selfVal = toPlayerValue(onePlayerKey);
                 const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             let extra = 0;
@@ -2839,15 +2854,15 @@ function chooseHyperactiveInheritTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
-function chooseTeleportTarget(gameState, cardState, playerKey, rng) {
+function chooseTeleportTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any, simRng: any) =>
             CardLogic.applyTeleportWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
-        (target, sourceGameState, _sourceCardState, onePlayerKey) => {
+        (target: any, sourceGameState: any, _sourceCardState: any, onePlayerKey: any) => {
             const selfVal = toPlayerValue(onePlayerKey);
                 const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const isEnemy = occupant === -selfVal;
@@ -2858,15 +2873,15 @@ function chooseTeleportTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
-function chooseCellTeleportTarget(gameState, cardState, playerKey, rng) {
+function chooseCellTeleportTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col, simRng) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any, simRng: any) =>
             CardLogic.applyCellTeleportWill(simCardState, simGameState, onePlayerKey, row, col, simRng),
-        (target, sourceGameState, _sourceCardState, onePlayerKey) => {
+        (target: any, sourceGameState: any, _sourceCardState: any, onePlayerKey: any) => {
             const selfVal = toPlayerValue(onePlayerKey);
             const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const isEnemy = occupant === -selfVal;
@@ -2874,7 +2889,7 @@ function chooseCellTeleportTarget(gameState, cardState, playerKey, rng) {
             if (isEnemy) return (base * 1.6) + 1500;
             return (base * -0.55) - 120;
         },
-        (_target, result, _simGameState, _simCardState, _sourceGameState, sourceCardState) => {
+        (_target: any, result: any, _simGameState: any, _simCardState: any, _sourceGameState: any, sourceCardState: any) => {
             let extra = 0;
             if (result && result.to) {
                 const toOuter = result.to.row < 0 || result.to.row > 7 || result.to.col < 0 || result.to.col > 7;
@@ -2888,7 +2903,7 @@ function chooseCellTeleportTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
-function getExtendLifeMarkerPriority(marker) {
+function getExtendLifeMarkerPriority(marker: any) {
     if (!marker || !marker.data || typeof marker.data.type !== 'string') return 0;
     const type = marker.data.type;
     if (type === 'WORK') return 3800;
@@ -2901,19 +2916,19 @@ function getExtendLifeMarkerPriority(marker) {
     return 800;
 }
 
-function chooseExtendLifeTarget(gameState, cardState, playerKey, rng) {
+function chooseExtendLifeTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTargetBySimulation(
         gameState,
         cardState,
         playerKey,
         rng,
-        (simCardState, simGameState, onePlayerKey, row, col) =>
+        (simCardState: any, simGameState: any, onePlayerKey: any, row: any, col: any) =>
             CardLogic.applyExtendLifeWill(simCardState, simGameState, onePlayerKey, row, col),
-        (target) => {
+        (target: any) => {
             const marker = getSpecialMarkerAt(cardState, target.row, target.col, playerKey);
             return (evaluatePositionValue(target.row, target.col) * 0.6) + getExtendLifeMarkerPriority(marker);
         },
-        (target, _result, _simGameState, _simCardState, sourceGameState, sourceCardState, onePlayerKey) => {
+        (target: any, _result: any, _simGameState: any, _simCardState: any, sourceGameState: any, sourceCardState: any, onePlayerKey: any) => {
             const marker = getSpecialMarkerAt(sourceCardState, target.row, target.col, onePlayerKey);
                 const occupant = getCellOwnerValueForSelfplay(sourceGameState, target.row, target.col);
             const selfVal = toPlayerValue(onePlayerKey);
@@ -2925,7 +2940,7 @@ function chooseExtendLifeTarget(gameState, cardState, playerKey, rng) {
     );
 }
 
-function getCorrosionMarkerTypeWeight(type) {
+function getCorrosionMarkerTypeWeight(type: any) {
     if (type === 'WORK') return 2800;
     if (type === 'GUARD') return 2400;
     if (type === 'BLOCKADE') return 2200;
@@ -2936,7 +2951,7 @@ function getCorrosionMarkerTypeWeight(type) {
     return 900;
 }
 
-function chooseCorrosionTarget(gameState, cardState, playerKey, rng) {
+function chooseCorrosionTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     const rawTargets = (typeof CardLogic.getCorrosionTargets === 'function')
         ? (CardLogic.getCorrosionTargets(cardState, gameState, playerKey) || [])
         : (CardLogic.getSelectableTargets(cardState, gameState, playerKey) || []);
@@ -2955,7 +2970,7 @@ function chooseCorrosionTarget(gameState, cardState, playerKey, rng) {
 
     const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
     const selfVal = toPlayerValue(playerKey);
-    return choosePendingTargetByScore(targets, (target) => {
+    return choosePendingTargetByScore(targets, (target: any) => {
         let score = evaluatePositionValue(target.row, target.col) * 0.15;
 
         for (const marker of markers) {
@@ -2984,9 +2999,9 @@ function chooseCorrosionTarget(gameState, cardState, playerKey, rng) {
     });
 }
 
-function getSpecialMarkerAt(cardState, row, col, ownerKey) {
+function getSpecialMarkerAt(cardState: any, row: any, col: any, ownerKey: any = null) {
     const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
-    return markers.find((m) => (
+    return markers.find((m: any) => (
         m &&
         m.kind === 'specialStone' &&
         m.row === row &&
@@ -2996,20 +3011,20 @@ function getSpecialMarkerAt(cardState, row, col, ownerKey) {
 }
 
 
-function chooseTemptTarget(gameState, cardState, playerKey, rng) {
+function chooseTemptTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     const targets = CardLogic.getSelectableTargets(cardState, gameState, playerKey) || [];
     if (!targets.length) return null;
     return choosePendingTargetByScore(
         targets,
-        (target) => evaluatePositionValue(target.row, target.col) + rng.random() * 0.01
+        (target: any) => evaluatePositionValue(target.row, target.col) + rng.random() * 0.01
     );
 }
 
-function chooseCaptureTarget(gameState, cardState, playerKey, rng) {
+function chooseCaptureTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     return chooseTemptTarget(gameState, cardState, playerKey, rng);
 }
 
-function scoreTimeBombTarget(gameState, playerKey, target, rng) {
+function scoreTimeBombTarget(gameState: any, playerKey: any, target: any, rng: any) {
     if (!gameState || !Array.isArray(gameState.board) || !target) return -Infinity;
     const board = gameState.board;
     const size = board.length;
@@ -3055,18 +3070,18 @@ function scoreTimeBombTarget(gameState, playerKey, target, rng) {
     return score;
 }
 
-function chooseTimeBombTarget(gameState, cardState, playerKey, rng) {
+function chooseTimeBombTarget(gameState: any, cardState: any, playerKey: any, rng: any) {
     const targets = (typeof CardLogic.getTimeBombTargets === 'function')
         ? (CardLogic.getTimeBombTargets(cardState, gameState, playerKey) || [])
         : (CardLogic.getSelectableTargets(cardState, gameState, playerKey) || []);
     if (!targets.length) return null;
     return choosePendingTargetByScore(
         targets,
-        (target) => scoreTimeBombTarget(gameState, playerKey, target, rng)
+        (target: any) => scoreTimeBombTarget(gameState, playerKey, target, rng)
     );
 }
 
-function chooseSellCardTarget(gameState, cardState, playerKey) {
+function chooseSellCardTarget(gameState: any, cardState: any, playerKey: any) {
     const hand = cardState && cardState.hands && Array.isArray(cardState.hands[playerKey])
         ? cardState.hands[playerKey]
         : [];
@@ -3101,7 +3116,7 @@ function chooseSellCardTarget(gameState, cardState, playerKey) {
     return bestId;
 }
 
-function buildPendingSelectionAction(gameState, cardState, playerKey, pendingType, rng, pending) {
+function buildPendingSelectionAction(gameState: any, cardState: any, playerKey: any, pendingType: any, rng: any, pending: any) {
     return PendingTargetSelector.buildPendingSelectionAction({
         gameState,
         cardState,
@@ -3143,7 +3158,7 @@ function buildPendingSelectionAction(gameState, cardState, playerKey, pendingTyp
     });
 }
 
-function clonePrng(rng) {
+function clonePrng(rng: any) {
     if (!rng || typeof rng.getState !== 'function') return rng;
     try {
         return SeededPRNG.fromState(rng.getState());
@@ -3152,10 +3167,10 @@ function clonePrng(rng) {
     }
 }
 
-function buildDecisionSnapshot(gameState, cardState, playerKey, rng) {
+function buildDecisionSnapshot(gameState: any, cardState: any, playerKey: any, rng: any) {
     const clonedGameState = deepClone(gameState);
     const clonedCardState = deepClone(cardState);
-    const previewEvents = [];
+    const previewEvents: any[] = [];
     const previewPrng = clonePrng(rng);
     if (previewPrng && typeof previewPrng.random === 'function') {
         clonedCardState._defaultRandomSource = previewPrng;
@@ -3186,7 +3201,7 @@ function buildDecisionSnapshot(gameState, cardState, playerKey, rng) {
     };
 }
 
-function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
+function decideAction(gameState: any, cardState: any, playerKey: any, rng: any, options: any, snapshot: any) {
     const decisionState = snapshot || { gameState, cardState };
     const activeGameState = decisionState.gameState || gameState;
     const activeCardState = decisionState.cardState || cardState;
@@ -3281,8 +3296,10 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
             if (handSize >= 4) decisionReasonTags.push('hand_pressure');
             if (forceUseByRiskScore || preferUseByRiskScore) decisionReasonTags.push('threshold_passed');
             if (cardDecision && Array.isArray(cardDecision.candidates)) {
-                const selectedCandidate = cardDecision.candidates.find((one) => one && one.cardId === cardId) || null;
-                if (selectedCandidate && Number.isFinite(selectedCandidate.score) && Number.isFinite(selectedCandidate.minUseScore) && selectedCandidate.score >= selectedCandidate.minUseScore) {
+                const selectedCandidate = cardDecision.candidates.find((one: any) => one && one.cardId === cardId) || null;
+                const selectedScore = Number(selectedCandidate && selectedCandidate.score);
+                const selectedMinUseScore = Number(selectedCandidate && selectedCandidate.minUseScore);
+                if (selectedCandidate && Number.isFinite(selectedScore) && Number.isFinite(selectedMinUseScore) && selectedScore >= selectedMinUseScore) {
                     if (!decisionReasonTags.includes('threshold_passed')) decisionReasonTags.push('threshold_passed');
                 }
             }
@@ -3348,16 +3365,16 @@ function decideAction(gameState, cardState, playerKey, rng, options, snapshot) {
     };
 }
 
-function resolveWinner(gameState) {
+function resolveWinner(gameState: any) {
     const counts = Core.countDiscs(gameState);
     if (counts.black > counts.white) return { winner: 'black', counts };
     if (counts.white > counts.black) return { winner: 'white', counts };
     return { winner: 'draw', counts };
 }
 
-function cloneInitialDeckCardIdsByPlayer(initialDeckCardIdsByPlayer) {
+function cloneInitialDeckCardIdsByPlayer(initialDeckCardIdsByPlayer: any) {
     if (!initialDeckCardIdsByPlayer || typeof initialDeckCardIdsByPlayer !== 'object') return null;
-    const cloned = {};
+    const cloned: Record<string, any> = {};
     let hasDeck = false;
     for (const playerKey of ['black', 'white']) {
         if (Array.isArray(initialDeckCardIdsByPlayer[playerKey])) {
@@ -3368,7 +3385,7 @@ function cloneInitialDeckCardIdsByPlayer(initialDeckCardIdsByPlayer) {
     return hasDeck ? cloned : null;
 }
 
-function createInitialState(seed, options) {
+function createInitialState(seed: any, options: any) {
     const prng = SeededPRNG.createPRNG(seed);
     const initialDeckCardIdsByPlayer = cloneInitialDeckCardIdsByPlayer(
         options && options.initialDeckCardIdsByPlayer
@@ -3385,7 +3402,7 @@ function createInitialState(seed, options) {
     };
 }
 
-function normalizeOptions(options) {
+function normalizeOptions(options: any) {
     const opts = options || {};
     const initialDeckCardIdsByPlayer = cloneInitialDeckCardIdsByPlayer(opts.initialDeckCardIdsByPlayer);
     const policyMixRate = Number.isFinite(opts.policyMixRate)
@@ -3487,7 +3504,7 @@ function normalizeOptions(options) {
     };
 }
 
-function getPolicyForPlayer(options, playerKey) {
+function getPolicyForPlayer(options: any, playerKey: any) {
     const base = {
         allowCardUsage: options.allowCardUsage,
         cardUsageRate: options.cardUsageRate,
@@ -3559,7 +3576,7 @@ function getPolicyForPlayer(options, playerKey) {
     };
 }
 
-function clamp01(value, fallback) {
+function clamp01(value: any, fallback: any) {
     if (!Number.isFinite(value)) {
         return Number.isFinite(fallback)
             ? Math.max(0, Math.min(1, Number(fallback)))
@@ -3568,17 +3585,17 @@ function clamp01(value, fallback) {
     return Math.max(0, Math.min(1, Number(value)));
 }
 
-function normalizeLookaheadTimeBudget(value, fallback) {
+function normalizeLookaheadTimeBudget(value: any, fallback: any) {
     if (!Number.isFinite(value)) return fallback;
     return Math.max(0, Math.floor(Number(value)));
 }
 
-function normalizeLookaheadVirtualTimePerNodeMs(value, fallback) {
+function normalizeLookaheadVirtualTimePerNodeMs(value: any, fallback: any) {
     if (!Number.isFinite(value)) return fallback;
     return Math.max(0, Number(value));
 }
 
-function buildPerGamePolicySet(options, seed, gameIndex) {
+function buildPerGamePolicySet(options: any, seed: any, gameIndex: any) {
     const baseBlack = getPolicyForPlayer(options, 'black');
     const baseWhite = getPolicyForPlayer(options, 'white');
     const mixRate = clamp01(options.policyMixRate, 1);
@@ -3615,7 +3632,7 @@ function buildPerGamePolicySet(options, seed, gameIndex) {
         : teacherCommitteeConsensusBonusMin;
     const rng = SeededPRNG.createPRNG((Number(seed) || 0) + ((Number(gameIndex) || 0) * 7919) + 97);
 
-    const buildOne = (base) => {
+    const buildOne = (base: any) => {
         const allowCardUsage = base.allowCardUsage !== false;
         const baseRate = clamp01(base.cardUsageRate, options.cardUsageRate);
         const jitterDelta = jitter > 0 ? ((rng.random() * 2) - 1) * jitter : 0;
@@ -3678,7 +3695,7 @@ function buildPerGamePolicySet(options, seed, gameIndex) {
     };
 }
 
-function createAction(decision, gameIndex, actionCounter, turnIndex) {
+function createAction(decision: any, gameIndex: any, actionCounter: any, turnIndex: any) {
     return {
         action: Object.assign({}, decision.action, {
             actionId: `sp-${gameIndex}-${actionCounter}`,
@@ -3688,7 +3705,7 @@ function createAction(decision, gameIndex, actionCounter, turnIndex) {
     };
 }
 
-function applyActionSafe(state, playerKey, action) {
+function applyActionSafe(state: any, playerKey: any, action: any) {
     const skipTurnStart = state.skipTurnStartForNextAction === true;
     state.skipTurnStartForNextAction = false;
     return TurnPipeline.applyTurnSafe(
@@ -3704,7 +3721,7 @@ function applyActionSafe(state, playerKey, action) {
     );
 }
 
-function applyDecisionSnapshotBaseline(state, snapshot, stateVersion) {
+function applyDecisionSnapshotBaseline(state: any, snapshot: any, stateVersion: any) {
     state.cardState = deepClone(snapshot.cardState);
     state.gameState = deepClone(snapshot.gameState);
     if (snapshot.prng) state.prng = clonePrng(snapshot.prng);
@@ -3715,7 +3732,7 @@ function applyDecisionSnapshotBaseline(state, snapshot, stateVersion) {
     state.skipTurnStartForNextAction = snapshot.turnStartApplied === true;
 }
 
-function applyRejectedTurnStartBaseline(state, rejectedResult) {
+function applyRejectedTurnStartBaseline(state: any, rejectedResult: any) {
     if (!rejectedResult || !rejectedResult.gameState || !rejectedResult.cardState) return false;
     state.gameState = rejectedResult.gameState;
     state.cardState = rejectedResult.cardState;
@@ -3726,13 +3743,13 @@ function applyRejectedTurnStartBaseline(state, rejectedResult) {
     return true;
 }
 
-function getPendingSelectionState(cardState, playerKey) {
+function getPendingSelectionState(cardState: any, playerKey: any) {
     const pending = readSelfplayPendingEffect(cardState, playerKey);
     if (!pending || pending.stage !== 'selectTarget') return null;
     return pending;
 }
 
-function buildRetryFallbackDecision(gameState, cardState, playerKey, rng, options) {
+function buildRetryFallbackDecision(gameState: any, cardState: any, playerKey: any, rng: any, options: any) {
     const pending = getPendingSelectionState(cardState, playerKey);
     if (pending) {
         const pendingAction = buildPendingSelectionAction(gameState, cardState, playerKey, pending.type, rng, pending);
@@ -3750,7 +3767,7 @@ function buildRetryFallbackDecision(gameState, cardState, playerKey, rng, option
 
     const fallbackLegalMoves = getLegalMovesForAction(gameState, cardState, playerKey);
     const sortedFallbackMoves = Array.isArray(fallbackLegalMoves)
-        ? fallbackLegalMoves.slice().sort((a, b) => (a.row - b.row) || (a.col - b.col))
+        ? fallbackLegalMoves.slice().sort((a: any, b: any) => (a.row - b.row) || (a.col - b.col))
         : [];
     const forcedFallback = resolveForcedPlacementCandidates(sortedFallbackMoves, options, getSelfplayBoard(gameState, cardState));
     const fallbackMoves = Array.isArray(forcedFallback.moves) && forcedFallback.moves.length > 0
@@ -3764,10 +3781,10 @@ function buildRetryFallbackDecision(gameState, cardState, playerKey, rng, option
     };
 }
 
-function listFallbackPlacementActions(fallbackDecision) {
-    const actions = [];
+function listFallbackPlacementActions(fallbackDecision: any) {
+    const actions: any[] = [];
     const seen = new Set();
-    const addMove = (move) => {
+    const addMove = (move: any) => {
         if (!move || !Number.isInteger(move.row) || !Number.isInteger(move.col)) return;
         const key = `${move.row},${move.col}`;
         if (seen.has(key)) return;
@@ -3785,7 +3802,7 @@ function listFallbackPlacementActions(fallbackDecision) {
     return actions;
 }
 
-function getPlacementFlipsBeforeApply(gameState, cardState, playerKey, action) {
+function getPlacementFlipsBeforeApply(gameState: any, cardState: any, playerKey: any, action: any) {
     if (!action || action.type !== 'place') return null;
     const pendingType = CardLogic.getPendingEffectType(cardState, playerKey) || null;
     if (CardLogic.isFreePlacementPendingType(pendingType)) return null;
@@ -3798,7 +3815,7 @@ function getPlacementFlipsBeforeApply(gameState, cardState, playerKey, action) {
     ).length;
 }
 
-function tryFallbackPlacementsFromSnapshot(state, fallbackSnapshot, fallbackStateVersion, fallbackDecision, gameIndex, actionCounterRef, playerKey) {
+function tryFallbackPlacementsFromSnapshot(state: any, fallbackSnapshot: any, fallbackStateVersion: any, fallbackDecision: any, gameIndex: any, actionCounterRef: any, playerKey: any) {
     const placementActions = listFallbackPlacementActions(fallbackDecision);
     let lastResult = null;
     let lastAction = null;
@@ -3851,7 +3868,7 @@ function tryFallbackPlacementsFromSnapshot(state, fallbackSnapshot, fallbackStat
     };
 }
 
-function buildIllegalMoveHardcase(payload) {
+function buildIllegalMoveHardcase(payload: any) {
     const source = payload && typeof payload === 'object' ? payload : {};
     const fallbackSnapshot = source.fallbackSnapshot || {};
     const forced = source.forced || {};
@@ -3903,14 +3920,14 @@ function buildIllegalMoveHardcase(payload) {
     };
 }
 
-function attachSelfplayHardcase(error, hardcase) {
+function attachSelfplayHardcase(error: any, hardcase: any) {
     if (error && hardcase) {
         error.selfplayHardcase = hardcase;
     }
     return error;
 }
 
-function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actionCounterRef) {
+function applyDecisionWithRetry(state: any, gameIndex: any, ply: any, playerKey: any, options: any, actionCounterRef: any) {
     const firstSnapshot = buildDecisionSnapshot(state.gameState, state.cardState, playerKey, state.prng);
     const firstDecision = decideAction(state.gameState, state.cardState, playerKey, state.prng, options, firstSnapshot);
     actionCounterRef.value += 1;
@@ -4013,7 +4030,7 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
                 options
             );
             const passRejectedMoves = Array.isArray(passRejectedFallback.legalMoves)
-                ? passRejectedFallback.legalMoves.filter((move) => (
+                ? passRejectedFallback.legalMoves.filter((move: any) => (
                     move &&
                     Number.isInteger(move.row) &&
                     Number.isInteger(move.col)
@@ -4077,7 +4094,7 @@ function applyDecisionWithRetry(state, gameIndex, ply, playerKey, options, actio
     return { decision: retryDecision, action: retry.action, result, decisionContext: retrySnapshot };
 }
 
-function runSingleGame(gameIndex, seed, options) {
+function runSingleGame(gameIndex: any, seed: any, options: any) {
     const normalizedOptions = normalizeOptions(options);
     const state = createInitialState(seed, normalizedOptions);
     const gameRecords = [];
@@ -4109,7 +4126,7 @@ function runSingleGame(gameIndex, seed, options) {
         const handCards = decisionCardState && decisionCardState.hands && Array.isArray(decisionCardState.hands[playerKey])
             ? decisionCardState.hands[playerKey].slice()
             : [];
-        let usableCardIds = [];
+        let usableCardIds: any[] = [];
         try {
             usableCardIds = getDirectUsableCardIds(decisionCardState, decisionGameState, playerKey);
         } catch (e) {
@@ -4143,7 +4160,7 @@ function runSingleGame(gameIndex, seed, options) {
             : null;
         const deckStats = getDeckStatsForPlayer(preDecisionCardState, playerKey);
 
-        const record = {
+        const record: any = {
             schemaVersion: normalizedOptions.schemaVersion,
             gameIndex,
             seed,
@@ -4225,7 +4242,7 @@ function runSingleGame(gameIndex, seed, options) {
                 ? decision.cardDecision.selectedActionKey
                 : null;
             record.decisionCandidates = Array.isArray(decision.cardDecision.candidates)
-                ? decision.cardDecision.candidates.map((one) => Object.assign({}, one))
+                ? decision.cardDecision.candidates.map((one: any) => Object.assign({}, one))
                 : [];
             record.decisionReasonTags = Array.isArray(decision.cardDecision.reasonTags)
                 ? decision.cardDecision.reasonTags.slice()
@@ -4238,7 +4255,7 @@ function runSingleGame(gameIndex, seed, options) {
                 : null;
         }
         record.topPlacementCandidates = placementMetrics && Array.isArray(placementMetrics.topCandidates)
-            ? placementMetrics.topCandidates.map((one) => Object.assign({}, one))
+            ? placementMetrics.topCandidates.map((one: any) => Object.assign({}, one))
             : [];
 
         state.cardState = result.cardState;
@@ -4318,14 +4335,14 @@ function runSingleGame(gameIndex, seed, options) {
     };
 }
 
-function buildSelfplayRetrySeed(seed, gameIndex, attempt) {
+function buildSelfplayRetrySeed(seed: any, gameIndex: any, attempt: any) {
     const base = Number.isFinite(seed) ? Math.floor(seed) : 1;
     const index = Number.isFinite(gameIndex) ? Math.floor(gameIndex) : 0;
     const retry = Math.max(1, Math.floor(Number(attempt) || 1));
     return base + (retry * 1000003) + (index * 17);
 }
 
-function runSingleGameWithRetries(gameIndex, seed, opts, perGameOptions) {
+function runSingleGameWithRetries(gameIndex: any, seed: any, opts: any, perGameOptions: any) {
     const retryCount = Number.isFinite(opts.gameRetryCount)
         ? Math.max(0, Math.floor(opts.gameRetryCount))
         : 0;
@@ -4338,12 +4355,12 @@ function runSingleGameWithRetries(gameIndex, seed, opts, perGameOptions) {
         try {
             const one = runSingleGame(gameIndex, effectiveSeed, perGameOptions);
             if (attempt > 0 && one && one.summary) {
-                one.summary.retryAttempt = attempt;
-                one.summary.originalSeed = seed;
+                (one.summary as any).retryAttempt = attempt;
+                (one.summary as any).originalSeed = seed;
                 one.summary.seed = effectiveSeed;
             }
             return one;
-        } catch (err) {
+        } catch (err: any) {
             lastError = err;
             if (attempt >= retryCount) break;
             if (opts.onGameRetryHardcase && err && err.selfplayHardcase) {
@@ -4369,11 +4386,11 @@ function runSingleGameWithRetries(gameIndex, seed, opts, perGameOptions) {
     throw new Error(`[SELFPLAY] game failed after retries game=${gameIndex} seed=${seed} retries=${retryCount}: ${msg}`);
 }
 
-function runSelfPlayGames(options) {
+function runSelfPlayGames(options: any) {
     const opts = normalizeOptions(options);
     const allRecords = [];
     const gameSummaries = [];
-    const totals = { black: 0, white: 0, draw: 0 };
+    const totals: Record<string, number> = { black: 0, white: 0, draw: 0 };
     let totalPlies = 0;
 
     for (let i = 0; i < opts.games; i++) {

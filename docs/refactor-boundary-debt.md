@@ -10,7 +10,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 It also fails if an allowed file carries duplicate `@ts-nocheck` directives, so the allowlist cannot hide redundant suppressions.
 
-Current authorized `@ts-nocheck` debt: 1 file.
+Current authorized `@ts-nocheck` debt: 0 files.
 
 Recent reduction:
 
@@ -70,6 +70,7 @@ Recent reduction:
 - `cards/card-renderer.ts` no longer uses `@ts-nocheck`; card face rendering, charge HUD/deck visuals, transient charge events, and hand rendering now have explicit local adapter types around browser globals and dynamic catalog data.
 - `cards/card-interaction.ts` no longer uses `@ts-nocheck`; card-detail state, heaven/condemn overlays, playback-busy globals, network publish helpers, and selected-card action flow now typecheck through explicit browser/global adapter boundaries.
 - `scripts/local-match-server.ts` no longer uses `@ts-nocheck`; local HTTP/SSE handlers, room/deck snapshot setup, turn timer handles, publish payload assembly, and request body parsing now typecheck through explicit adapter boundaries.
+- `src/engine/selfplay-runner.ts` no longer uses `@ts-nocheck`; selfplay board helpers, policy scoring, pending-target simulation, record/summary metadata, retry handling, and root engine exports now typecheck through explicit compatibility boundaries.
 
 Recent boundary typing:
 
@@ -92,18 +93,12 @@ The following public boundary contracts are now represented by explicit TypeScri
 
 ## Remaining `@ts-nocheck`
 
-These files still keep `@ts-nocheck` because removing it currently exposes broad legacy typing debt rather than a small local fix. As of this audit, no high-risk runtime boundary file remains in this section; remaining authorized debt is in the root selfplay engine compatibility surface tracked by `scripts/check-ts-migration-safety.ts`.
+No root TypeScript source/test/training file currently keeps an authorized top-level `@ts-nocheck`. `scripts/check-ts-migration-safety.ts` now keeps an empty allowlist so new suppressions fail `npm run checkall`.
 
-Diagnostic counts were measured by running TypeScript with only the first-line `@ts-nocheck` removed in memory.
-
-Latest focused measurements:
-
-- `src/engine/selfplay-runner.ts`: 754 TypeScript diagnostics when removing `@ts-nocheck` on 2026-05-23. The failures are dominated by implicit selfplay policy/helper parameters and production module adapter return shapes.
+Diagnostic counts were previously measured by running TypeScript with only the first-line `@ts-nocheck` removed in memory. There are no remaining authorized files to measure.
 
 ## Next removal conditions
 
-Remove `@ts-nocheck` only after the relevant narrower models exist and the diagnostic count is small enough to review safely.
-
-1. Continue reducing the remaining authorized allowlist in `scripts/check-ts-migration-safety.ts`, prioritizing production runtime files before tests and one-off training scripts.
+Keep the allowlist empty. Any future `@ts-nocheck` requires removing it before merge or documenting a new, explicitly reviewed migration exception.
 
 Until those conditions are met, `scripts/check-refactor-safety.ts` should keep preventing new `@ts-nocheck` in high-risk targets and keep requiring each public boundary to route exports through checked contract adapters or assertions outside the legacy implementation body.

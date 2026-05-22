@@ -26,9 +26,7 @@ const skipDirs = new Set([
   'worker-public'
 ]);
 
-const allowedNoCheckDebt = new Set([
-  'src/engine/selfplay-runner.ts'
-]);
+const allowedNoCheckDebt = new Set<string>();
 
 function normalizePath(value: string): string {
   return value.replace(/\\/g, '/');
