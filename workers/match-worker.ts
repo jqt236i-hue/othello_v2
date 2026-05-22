@@ -42,6 +42,7 @@ import type {
 } from './match-worker-types';
 import type {
     MatchAuthorityAcceptedOperationsBySeat,
+    MatchAuthorityAcceptedOperationEntry,
     MatchAuthorityBufferedSseEventRecord,
     MatchAuthorityBufferedSseEventRecordInput,
     MatchAuthorityRoomState,
@@ -3136,16 +3137,16 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             ? MatchAuthority.computeAuthoritativeStateHash(room.snapshot)
             : (room.authoritativeStateHash || null);
         const previousSnapshotForChargeDelta = deepClone(room.snapshot);
-        let nextSnapshot = null;
-        let serverPlaybackEvents = [];
-        let serverEffectLogs = [];
-        let serverPlaybackDiagnostics = null;
-        let commandAction = null;
-        let pendingEffectId = null;
+        let nextSnapshot: MatchWorkerPublicSnapshot | null = null;
+        let serverPlaybackEvents: unknown[] = [];
+        let serverEffectLogs: unknown[] = [];
+        let serverPlaybackDiagnostics: unknown = null;
+        let commandAction: unknown = null;
+        let pendingEffectId: unknown = null;
         if (isRematchResetAction) {
             const rematchSeed = Date.now();
             try {
-                nextSnapshot = await makeInitialSnapshot(rematchSeed, buildInitialDeckSnapshotOptions(room));
+                nextSnapshot = await makeInitialSnapshot(rematchSeed, buildInitialDeckSnapshotOptions(room)) as MatchWorkerPublicSnapshot;
                 room.seed = rematchSeed;
             } catch (e) {
                 return jsonResponse(500, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
@@ -3171,7 +3172,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                         stateHashBefore,
                         pendingEffectId: commandResult.pendingEffectId || null,
                         rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
-                    });
+                    }, undefined);
                 }
                 return jsonResponse(409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                     ok: false,
@@ -3184,7 +3185,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                     authoritativeStateVersion: room.stateVersion
                 })));
             }
-            nextSnapshot = commandResult.snapshot;
+            nextSnapshot = commandResult.snapshot as MatchWorkerPublicSnapshot;
             serverPlaybackEvents = Array.isArray(commandResult.playbackEvents) ? commandResult.playbackEvents : [];
             serverEffectLogs = Array.isArray(commandResult.effectLogs) ? commandResult.effectLogs : [];
             serverPlaybackDiagnostics = commandResult.playbackDiagnostics || null;
@@ -3204,18 +3205,19 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
         room.stateVersion += 1;
         nextSnapshot.stateVersion = room.stateVersion;
-        nextSnapshot.updatedAt = Date.now();
+        const snapshotUpdatedAt = Date.now();
+        nextSnapshot.updatedAt = snapshotUpdatedAt;
 
         room.snapshot = nextSnapshot;
-        room.updatedAt = nextSnapshot.updatedAt;
+        room.updatedAt = snapshotUpdatedAt;
         room.authoritativeStateHash = MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
             ? MatchAuthority.computeAuthoritativeStateHash(nextSnapshot)
             : null;
         if (operationId) {
-            const acceptedEntry = {
+            const acceptedEntry: MatchAuthorityAcceptedOperationEntry = {
                 operationId,
                 stateVersion: room.stateVersion,
-                updatedAt: room.updatedAt
+                updatedAt: Number.isFinite(Number(room.updatedAt)) ? Number(room.updatedAt) : null
             };
             if (MatchAuthority && typeof MatchAuthority.rememberAcceptedOperationBySeat === 'function') {
                 MatchAuthority.rememberAcceptedOperationBySeat(room, seatKey, acceptedEntry);
@@ -3254,14 +3256,14 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             MatchAuthority.appendAuthorityLog(room, {
                 kind: 'publish_accepted',
                 operationId,
-                actionType: actionType || (commandAction && commandAction.type) || null,
+                actionType: actionType || (commandAction && asRecord(commandAction).type ? String(asRecord(commandAction).type) : null),
                 baseVersion,
                 committedVersion: room.stateVersion,
                 stateHashBefore,
                 stateHashAfter: room.authoritativeStateHash,
                 pendingEffectId,
                 dedupeOutcome: 'accepted'
-            });
+            }, undefined);
         }
         if (MatchAuthority && typeof MatchAuthority.stripTransientChargeDeltaState === 'function') {
             MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
@@ -3274,7 +3276,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return jsonResponse(200, responsePayload);
     }
 
-    async handleState(urlObj) {
+    async handleState(urlObj: URL): Promise<Response> {
         await this.loadRoom();
         const room = this.room;
         if (!room) {
@@ -3304,7 +3306,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }));
     }
 
-    async handleStream(request) {
+    async handleStream(request: Request): Promise<Response> {
         await this.loadRoom();
         const room = this.room;
         if (!room) {
@@ -3326,7 +3328,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const writer = writable.getWriter();
 
         const streamId = (MatchAuthority && typeof MatchAuthority.makeSseStreamId === 'function')
-            ? MatchAuthority.makeSseStreamId(Date.now(), crypto)
+            ? MatchAuthority.makeSseStreamId(Date.now(), crypto as unknown as MatchWorkerCryptoLike)
             : `sse_${Date.now()}`;
         this.streams.set(streamId, { writer, seatKey: viewerSeatKey });
         this.ensureHeartbeatTimer();
@@ -3357,7 +3359,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                                 kind: replayEvents.length > 0 ? 'stream_resume_replay' : 'stream_resume_heartbeat',
                                 stateHashBefore: room.authoritativeStateHash,
                                 dedupeOutcome: replayEvents.length > 0 ? 'replay' : 'empty_replay'
-                            });
+                            }, undefined);
                         }
                         if (replayEvents.length > 0) {
                             for (const event of replayEvents) {
@@ -3373,7 +3375,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                             kind: 'stream_resume_full_sync',
                             stateHashBefore: room.authoritativeStateHash,
                             dedupeOutcome: 'full_sync'
-                        });
+                        }, undefined);
                     }
                     await this.sendSse(streamId, 'snapshot', initialPayload);
                     await this.sendSse(streamId, 'chat', withPublicSeatState(room, {
@@ -3548,7 +3550,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         });
     }
 
-    async fetch(request) {
+    async fetch(request: Request): Promise<Response> {
         const urlObj = new URL(request.url);
         const pathname = urlObj.pathname;
 
@@ -3613,7 +3615,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
     }
 
-    async handleChat(body) {
+    async handleChat(body: Record<string, unknown>): Promise<Response> {
         await this.loadRoom();
         const room = this.room;
 
@@ -3625,11 +3627,12 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
         const seatKey = normalizePlayerKey(body.seatKey);
         const seatToken = String(body.seatToken || '').trim();
-        if (!room.seats[seatKey]) {
+        const publicSeats = buildPublicSeatState(room).seats;
+        if (!publicSeats[seatKey]) {
             return jsonResponse(403, withPublicSeatState(room, {
                 ok: false,
                 reason: 'SEAT_NOT_JOINED',
-                turnTimer: toPublicTurnTimer(room),
+                turnTimer: toPublicTurnTimer(room, Date.now()),
                 serverTime: Date.now()
             }));
         }
@@ -3637,15 +3640,15 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             return jsonResponse(403, withPublicSeatState(room, {
                 ok: false,
                 reason: 'SEAT_TOKEN_MISMATCH',
-                turnTimer: toPublicTurnTimer(room),
+                turnTimer: toPublicTurnTimer(room, Date.now()),
                 serverTime: Date.now()
             }));
         }
-        if (!room.seats.black || !room.seats.white) {
+        if (!publicSeats.black || !publicSeats.white) {
             return jsonResponse(409, withPublicSeatState(room, {
                 ok: false,
                 reason: 'CHAT_DISABLED',
-                turnTimer: toPublicTurnTimer(room),
+                turnTimer: toPublicTurnTimer(room, Date.now()),
                 serverTime: Date.now()
             }));
         }
@@ -3656,7 +3659,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 ok: false,
                 reason: parsedText.reason,
                 maxLength: CHAT_MAX_LENGTH,
-                turnTimer: toPublicTurnTimer(room),
+                turnTimer: toPublicTurnTimer(room, Date.now()),
                 serverTime: Date.now()
             }));
         }
@@ -3694,7 +3697,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomId: room.roomId,
             message,
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            turnTimer: toPublicTurnTimer(room),
+            turnTimer: toPublicTurnTimer(room, Date.now()),
             serverTime: Date.now()
         }));
     }
