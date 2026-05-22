@@ -40,7 +40,8 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         global.cpuMaybeUseCardWithPolicy = jest.fn(() => false);
         mod.setCpuUIImpl({
             readBenchFastMode: () => global.__BENCH_FAST_MODE === true,
-            getCpuLv6SharedProfile: () => global.CPU_LV6_SHARED_PROFILE || null
+            getCpuLv6SharedProfile: () => global.CPU_LV6_SHARED_PROFILE || null,
+            resolveExecuteMove: () => global.executeMove
         });
     });
 

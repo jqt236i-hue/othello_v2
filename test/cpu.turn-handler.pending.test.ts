@@ -15,6 +15,10 @@ describe('cpu turn handler pending selection', () => {
     global.playHandAnimation = (player, r, c, cb) => cb();
     global.executeMove = jest.fn();
     global.generateMovesForPlayer = jest.fn(() => [{ row: 1, col: 2, flips: [] }]);
+    cpuHandler.setCpuUIImpl({
+      resolveExecuteMove: () => global.executeMove,
+      resolveProcessPassTurn: () => global.processPassTurn
+    });
     PendingCoordinator.clearPendingSelectionActionCache();
   });
 

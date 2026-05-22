@@ -1178,6 +1178,24 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             } catch (e: any) {
                                 return undefined;
                             }
+                        },
+                        resolveExecuteMove: () => {
+                            try {
+                                return typeof globalThis !== 'undefined' && typeof (globalThis as any).executeMove === 'function'
+                                    ? (globalThis as any).executeMove
+                                    : null;
+                            } catch (e: any) {
+                                return null;
+                            }
+                        },
+                        resolveProcessPassTurn: () => {
+                            try {
+                                return typeof globalThis !== 'undefined' && typeof (globalThis as any).processPassTurn === 'function'
+                                    ? (globalThis as any).processPassTurn
+                                    : null;
+                            } catch (e: any) {
+                                return null;
+                            }
                         }
                     });
                 }

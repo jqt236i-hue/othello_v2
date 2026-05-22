@@ -37,6 +37,9 @@ describe('cpu turn handler FATE_WILL turn ownership', () => {
     global.generateMovesForPlayer = jest.fn(() => []);
     global.processPassTurn = jest.fn();
     global.emitLogAdded = jest.fn();
+    cpuHandler.setCpuUIImpl({
+      resolveProcessPassTurn: () => global.processPassTurn
+    });
   });
 
   afterEach(() => {
@@ -55,6 +58,7 @@ describe('cpu turn handler FATE_WILL turn ownership', () => {
     delete global.generateMovesForPlayer;
     delete global.processPassTurn;
     delete global.emitLogAdded;
+    cpuHandler.setCpuUIImpl({});
   });
 
   test('does not run victim white auto-turn when black human controls that turn', async () => {

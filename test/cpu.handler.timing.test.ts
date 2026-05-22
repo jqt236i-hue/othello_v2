@@ -43,6 +43,9 @@ describe('cpu-turn-handler timers injection and retry', () => {
 
     // Spy on executeMove to detect final execution
     global.executeMove = jest.fn();
+    cpuHandler.setCpuUIImpl({
+      resolveExecuteMove: () => global.executeMove
+    });
 
     // playHandAnimation should call callback immediately for testing
     global.playHandAnimation = (color, row, col, cb) => { cb(); };
@@ -75,6 +78,7 @@ describe('cpu-turn-handler timers injection and retry', () => {
     expect(callArgs.col).toBe(2);
 
     // cleanup
+    cpuHandler.setCpuUIImpl({});
     cpuHandler.setTimers(null);
   });
 });

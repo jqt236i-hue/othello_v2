@@ -20,9 +20,7 @@ declare const isCardChoiceAllowedByRisk: any;
 declare const isCardChoiceAllowedByHighConfidence: any;
 declare const selectCpuMoveWithPolicy: any;
 declare const selectMoveFromOnnxPolicyAsync: any;
-declare const processPassTurn: any;
 declare const generateMovesForPlayer: any;
-declare const executeMove: any;
 declare const cpuMaybeDestroyHandCardWithPolicy: any;
 declare const cpuMaybeUseCardWithPolicy: any;
 declare const cpuSelectDestroyWithPolicy: any;
@@ -109,6 +107,10 @@ if (typeof require === 'function') {
 // ===== Module-level DI (replaces globalThis reads for bootstrap flags) =====
 let __uiImpl_cpu: Record<string, any> = {};
 function setCpuUIImpl(obj: any): void {
+    if (!obj || (typeof obj === 'object' && Object.keys(obj).length === 0)) {
+        __uiImpl_cpu = {};
+        return;
+    }
     __uiImpl_cpu = Object.assign({}, __uiImpl_cpu, obj || {});
 }
 const ANIMATION_RETRY_DELAY_MS = 80;
@@ -164,6 +166,15 @@ function getCurrentTurnNumberSafe() {
 
 function resolveRuntimeFunction(name: string): Function | null {
     try {
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.resolveRuntimeFunction === 'function') {
+            const candidate = __uiImpl_cpu.resolveRuntimeFunction(name);
+            if (typeof candidate === 'function') return candidate;
+        }
+        if (__uiImpl_cpu && typeof __uiImpl_cpu[name] === 'function') {
+            return __uiImpl_cpu[name];
+        }
+    } catch (e) { /* ignore */ }
+    try {
         if (typeof globalThis !== 'undefined') {
             const candidate = (globalThis as any)[name];
             if (typeof candidate === 'function') return candidate;
@@ -181,6 +192,15 @@ function resolveGenerateMovesForPlayer(): Function | null {
     return null;
 }
 function resolveRuntimeValue(name: string): any {
+    try {
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.resolveRuntimeValue === 'function') {
+            const value = __uiImpl_cpu.resolveRuntimeValue(name);
+            if (typeof value !== 'undefined') return value;
+        }
+        if (__uiImpl_cpu && Object.prototype.hasOwnProperty.call(__uiImpl_cpu, name)) {
+            return __uiImpl_cpu[name];
+        }
+    } catch (e) { /* ignore */ }
     try {
         if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis, name)) {
             return (globalThis as any)[name];
@@ -1335,8 +1355,29 @@ function scheduleRunCpuTurn(playerKey: any, options: any, delayMs: any) {
 }
 
 function resolveProcessPassTurn() {
-    if (typeof processPassTurn === 'function') return processPassTurn;
+    try {
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.resolveProcessPassTurn === 'function') {
+            const candidate = __uiImpl_cpu.resolveProcessPassTurn();
+            return typeof candidate === 'function' ? candidate : null;
+        }
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.processPassTurn === 'function') {
+            return __uiImpl_cpu.processPassTurn;
+        }
+    } catch (e) { /* ignore */ }
     if (passHandler && typeof passHandler.processPassTurn === 'function') return passHandler.processPassTurn;
+    return null;
+}
+
+function resolveExecuteMoveFn() {
+    try {
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.resolveExecuteMove === 'function') {
+            const candidate = __uiImpl_cpu.resolveExecuteMove();
+            if (typeof candidate === 'function') return candidate;
+        }
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.executeMove === 'function') {
+            return __uiImpl_cpu.executeMove;
+        }
+    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -1894,7 +1935,12 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
                     if (!Array.isArray(cardState.presentationEvents)) cardState.presentationEvents = [];
                     cardState.presentationEvents.push({ type: 'PLAY_HAND_ANIMATION', player: playerKey, row: move.row, col: move.col });
                 }
-                executeMove(move);
+                const executeMoveFn = resolveExecuteMoveFn();
+                if (typeof executeMoveFn !== 'function') {
+                    console.error('[AI] executeMove is not available');
+                    return;
+                }
+                executeMoveFn(move);
                 const cornersAfterMove = countOwnedBasicCornersSafe(gameState, playerKey);
                 if (cornersAfterMove > cornersBeforeMove) {
                     emitCpuCommentary('turn_start', playerKey, { level });
