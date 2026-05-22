@@ -1,7 +1,13 @@
-// @ts-nocheck
 import type { CardState, GameState, PlayerKey } from '../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
+declare const CHARGE_MAX: any;
+declare const isCardAnimating: any;
+declare const onCardClick: any;
+declare const updateCardDetailPanel: any;
+
+type CardRendererRuntimeRoot = typeof globalThis & Record<string, any>;
+type PlayerOwnerKey = 'black' | 'white';
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     ? __non_webpack_require__
@@ -15,8 +21,8 @@ try {
 catch (e) { /* ignore */ }
 if (!PlaybackStateModule) {
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager)
-            PlaybackStateModule = globalThis.PlaybackStateManager;
+        if (typeof globalThis !== 'undefined' && (globalThis as CardRendererRuntimeRoot).PlaybackStateManager)
+            PlaybackStateModule = (globalThis as CardRendererRuntimeRoot).PlaybackStateManager;
     }
     catch (e) { /* ignore */ }
 }
@@ -27,8 +33,8 @@ try {
 catch (e) { /* ignore */ }
 if (!OwnerHelpersModule) {
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.OwnerHelpers)
-            OwnerHelpersModule = globalThis.OwnerHelpers;
+        if (typeof globalThis !== 'undefined' && (globalThis as CardRendererRuntimeRoot).OwnerHelpers)
+            OwnerHelpersModule = (globalThis as CardRendererRuntimeRoot).OwnerHelpers;
     }
     catch (e) { /* ignore */ }
 }
@@ -39,8 +45,8 @@ try {
 catch (e) { /* ignore */ }
 if (!HandAnimationUtilsModule) {
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.HandAnimationUtilsModule)
-            HandAnimationUtilsModule = globalThis.HandAnimationUtilsModule;
+        if (typeof globalThis !== 'undefined' && (globalThis as CardRendererRuntimeRoot).HandAnimationUtilsModule)
+            HandAnimationUtilsModule = (globalThis as CardRendererRuntimeRoot).HandAnimationUtilsModule;
     }
     catch (e) { /* ignore */ }
 }
@@ -60,11 +66,11 @@ function getCardCostTier(cost: number): string {
         return 'red';
     return 'gray';
 }
-function _normalizeCardDisplayTypeLabel(label) {
+function _normalizeCardDisplayTypeLabel(label: any) {
     const normalized = String(label || '').trim();
     return normalized || '';
 }
-function _resolveCardDisplayTypeLabel(cardDef, fallbackCardId) {
+function _resolveCardDisplayTypeLabel(cardDef: any, fallbackCardId: any) {
     if (cardDef && typeof cardDef === 'object') {
         const directLabel = _normalizeCardDisplayTypeLabel(cardDef.display_type_ja || cardDef.displayTypeJa);
         if (directLabel)
@@ -75,7 +81,7 @@ function _resolveCardDisplayTypeLabel(cardDef, fallbackCardId) {
         return '';
     try {
         if (typeof window !== 'undefined' && window.CardCatalog && Array.isArray(window.CardCatalog.cards)) {
-            const catalogCard = window.CardCatalog.cards.find((entry) => entry && entry.id === cardId);
+            const catalogCard = window.CardCatalog.cards.find((entry: any) => entry && entry.id === cardId);
             if (catalogCard) {
                 const catalogLabel = _normalizeCardDisplayTypeLabel(catalogCard.display_type_ja || catalogCard.displayTypeJa);
                 if (catalogLabel)
@@ -86,7 +92,7 @@ function _resolveCardDisplayTypeLabel(cardDef, fallbackCardId) {
     catch (e) { /* ignore */ }
     return '';
 }
-var _DISPLAY_TYPE_ICON_MAP = {
+var _DISPLAY_TYPE_ICON_MAP: Record<string, string> = {
     '採掘': '\u26CF\uFE0E',
     '守護': '\u26E8\uFE0E',
     '戦闘': '\u2694\uFE0E',
@@ -96,7 +102,7 @@ var _DISPLAY_TYPE_ICON_MAP = {
     '繁栄': '\u2728',
     '特殊': '\u2726'
 };
-var _DISPLAY_TYPE_KEY_MAP = {
+var _DISPLAY_TYPE_KEY_MAP: Record<string, string> = {
     '採掘': 'mining',
     '守護': 'guard',
     '戦闘': 'battle',
@@ -106,7 +112,7 @@ var _DISPLAY_TYPE_KEY_MAP = {
     '繁栄': 'prosperity',
     '特殊': 'special'
 };
-var _CARD_FACE_SPECIAL_ART_OVERRIDES = {
+var _CARD_FACE_SPECIAL_ART_OVERRIDES: Record<string, { effectKey: string; imagePath: string }> = {
     seed_01: {
         effectKey: 'seedStone',
         imagePath: 'assets/images/other/seed.png'
@@ -116,14 +122,14 @@ var _CARD_FACE_SPECIAL_ART_OVERRIDES = {
         imagePath: 'assets/images/other/X.png'
     }
 };
-function _resolveCardDisplayTypeKey(cardDef, fallbackCardId) {
+function _resolveCardDisplayTypeKey(cardDef: any, fallbackCardId: any) {
     const typeLabel = _resolveCardDisplayTypeLabel(cardDef, fallbackCardId);
     return _DISPLAY_TYPE_KEY_MAP[typeLabel] || '';
 }
 function _getGameVisualEffectsMapForCardFaces() {
     try {
-        const root = (typeof globalThis !== 'undefined')
-            ? globalThis
+        const root: CardRendererRuntimeRoot | Window | null = (typeof globalThis !== 'undefined')
+            ? (globalThis as CardRendererRuntimeRoot)
             : (typeof window !== 'undefined' ? window : null);
         if (root &&
             root.GameVisualEffectsMap &&
@@ -144,14 +150,14 @@ function _getGameVisualEffectsMapForCardFaces() {
     }
     return null;
 }
-function _normalizeCardFaceVisualSide(value) {
+function _normalizeCardFaceVisualSide(value: any) {
     if (value === 'white' || value === -1 || value === '-1')
         return '-1';
     if (value === 'black' || value === 1 || value === '1')
         return '1';
     return null;
 }
-function _resolveCardDefForFaceVisual(cardDef, fallbackCardId) {
+function _resolveCardDefForFaceVisual(cardDef: any, fallbackCardId: any) {
     if (cardDef && typeof cardDef === 'object') {
         return cardDef;
     }
@@ -170,7 +176,7 @@ function _resolveCardDefForFaceVisual(cardDef, fallbackCardId) {
     catch (e) { /* ignore */ }
     try {
         if (typeof window !== 'undefined' && window.CardCatalog && Array.isArray(window.CardCatalog.cards)) {
-            const catalogDef = window.CardCatalog.cards.find((entry) => entry && entry.id === cardId);
+            const catalogDef = window.CardCatalog.cards.find((entry: any) => entry && entry.id === cardId);
             if (catalogDef) {
                 return catalogDef;
             }
@@ -179,7 +185,7 @@ function _resolveCardDefForFaceVisual(cardDef, fallbackCardId) {
     catch (e) { /* ignore */ }
     return null;
 }
-function _resolveCardSpecialArt(cardDef, fallbackCardId, options) {
+function _resolveCardSpecialArt(cardDef: any, fallbackCardId: any, options: any) {
     const resolvedCardDef = _resolveCardDefForFaceVisual(cardDef, fallbackCardId);
     const resolvedCardId = String(resolvedCardDef && resolvedCardDef.id ? resolvedCardDef.id : (fallbackCardId || '')).trim();
     if (resolvedCardId && _CARD_FACE_SPECIAL_ART_OVERRIDES[resolvedCardId]) {
@@ -217,7 +223,7 @@ function _resolveCardSpecialArt(cardDef, fallbackCardId, options) {
         imagePath
     };
 }
-function applyCardSpecialArtToFace(cardEl, cardDef, options) {
+function applyCardSpecialArtToFace(cardEl: any, cardDef: any, options: any) {
     if (!cardEl || typeof cardEl !== 'object') {
         return cardEl;
     }
@@ -246,7 +252,7 @@ function applyCardSpecialArtToFace(cardEl, cardDef, options) {
     cardEl.style.setProperty('--card-special-art-image', `url("${escapedPath}")`);
     return cardEl;
 }
-function _fitCardNameElement(nameEl, retriesRemaining) {
+function _fitCardNameElement(nameEl: any, retriesRemaining: any = 6) {
     if (!nameEl || typeof nameEl !== 'object')
         return;
     const retries = Number.isFinite(retriesRemaining) ? retriesRemaining : 6;
@@ -269,7 +275,7 @@ function _fitCardNameElement(nameEl, retriesRemaining) {
                 return;
             const minFontPx = Math.max(8, Math.ceil(baseFontPx * 0.68));
             let nextFontPx = baseFontPx;
-            const applyFontSize = (fontPx) => {
+            const applyFontSize = (fontPx: any) => {
                 const snappedFontPx = Math.max(minFontPx, Math.floor(fontPx));
                 nameEl.style.fontSize = `${snappedFontPx}px`;
                 nextFontPx = snappedFontPx;
@@ -304,7 +310,7 @@ try {
     }
 }
 catch (e) { /* ignore */ }
-function _createCardBadgeRow(cardDef, fallbackCardId) {
+function _createCardBadgeRow(cardDef: any, fallbackCardId: any) {
     const typeLabel = _resolveCardDisplayTypeLabel(cardDef, fallbackCardId);
     if (!typeLabel)
         return null;
@@ -317,7 +323,7 @@ function _createCardBadgeRow(cardDef, fallbackCardId) {
     badgeRow.appendChild(typeBadge);
     return badgeRow;
 }
-function _createCardCostBadge(cost, tierClass) {
+function _createCardCostBadge(cost: any, tierClass: any) {
     const costBadge = document.createElement('div');
     costBadge.className = 'card-cost-badge';
     if (tierClass) {
@@ -334,12 +340,12 @@ function _createCardCostBadge(cost, tierClass) {
     return costBadge;
 }
 var _lastChargeForDelta = { black: null, white: null, turnIndex: null };
-function _normalizeChargeValueForRender(value) {
+function _normalizeChargeValueForRender(value: any) {
     return Number.isFinite(Number(value))
         ? Number(value)
         : 0;
 }
-function _renderChargeDisplay(el, currentValue, maxValue) {
+function _renderChargeDisplay(el: any, currentValue: any, maxValue: any) {
     if (!el)
         return;
     const safeCurrent = _normalizeChargeValueForRender(currentValue);
@@ -388,14 +394,14 @@ function _resetChargeDeltaBaseline() {
     _lastChargeForDelta.white = null;
     _lastChargeForDelta.turnIndex = null;
 }
-function _shouldResetChargeDeltaBaseline(currentTurnIndex) {
+function _shouldResetChargeDeltaBaseline(currentTurnIndex: any) {
     if (currentTurnIndex === null || _lastChargeForDelta.turnIndex === null)
         return false;
     if (currentTurnIndex < _lastChargeForDelta.turnIndex)
         return true;
     return currentTurnIndex === 0 && _lastChargeForDelta.turnIndex !== 0;
 }
-function _readChargeDeltaSnapshot(cardState) {
+function _readChargeDeltaSnapshot(cardState: any) {
     const chargeState = (cardState && cardState.charge && typeof cardState.charge === 'object')
         ? cardState.charge
         : { black: 0, white: 0 };
@@ -408,7 +414,7 @@ function _readChargeDeltaSnapshot(cardState) {
         turnIndex: currentTurnIndex
     };
 }
-function _rememberChargeDeltaSnapshot(snapshot) {
+function _rememberChargeDeltaSnapshot(snapshot: any) {
     if (!snapshot || typeof snapshot !== 'object') {
         _resetChargeDeltaBaseline();
         return;
@@ -417,10 +423,10 @@ function _rememberChargeDeltaSnapshot(snapshot) {
     _lastChargeForDelta.white = snapshot.white;
     _lastChargeForDelta.turnIndex = snapshot.turnIndex;
 }
-function _allowsRawChargeDeltaFallback(matchMode) {
+function _allowsRawChargeDeltaFallback(matchMode: any) {
     return matchMode !== 'network';
 }
-function _consumeRawChargeDeltaFallback(chargeSnapshot, chargeDeltaHandler) {
+function _consumeRawChargeDeltaFallback(chargeSnapshot: any, chargeDeltaHandler: any) {
     if (!chargeSnapshot || !chargeDeltaHandler)
         return false;
     let consumed = false;
@@ -498,7 +504,7 @@ function _getLocalPlayerKeyForNetwork() {
     return 'black';
 }
 var TIME_STOP_ACTIVE_LABEL = '時間停止発動中';
-function _normalizePlayerKeyForRender(playerKey) {
+function _normalizePlayerKeyForRender(playerKey: any) {
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.normalizePlayerKeyOptional === 'function') {
             return OwnerHelpersModule.normalizePlayerKeyOptional(playerKey);
@@ -511,7 +517,7 @@ function _normalizePlayerKeyForRender(playerKey) {
         return 'white';
     return null;
 }
-function _getOpposingPlayerKeyForRender(playerKey) {
+function _getOpposingPlayerKeyForRender(playerKey: any) {
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.getOpposingPlayerKey === 'function') {
             return OwnerHelpersModule.getOpposingPlayerKey(playerKey);
@@ -523,7 +529,7 @@ function _getOpposingPlayerKeyForRender(playerKey) {
         return null;
     return normalizedPlayerKey === 'black' ? 'white' : 'black';
 }
-function _resolveTimeStopStatusForRender(cardState, viewerPlayerKey, gameState) {
+function _resolveTimeStopStatusForRender(cardState: any, viewerPlayerKey: any, gameState: any) {
     const remainingByPlayer = (cardState && cardState.timeStopConsecutiveTurnsRemainingByPlayer && typeof cardState.timeStopConsecutiveTurnsRemainingByPlayer === 'object')
         ? cardState.timeStopConsecutiveTurnsRemainingByPlayer
         : null;
@@ -561,7 +567,7 @@ function _resolveTimeStopStatusForRender(cardState, viewerPlayerKey, gameState) 
     }
     return { active: true, activeOwnerKey, victimKey, viewerRole };
 }
-function _syncTimeStopChargeBadgeForRender(chargeEl, active) {
+function _syncTimeStopChargeBadgeForRender(chargeEl: any, active: any) {
     if (!chargeEl)
         return;
     const existingBadgeEl = chargeEl.querySelector('.time-stop-status-badge');
@@ -580,7 +586,7 @@ function _syncTimeStopChargeBadgeForRender(chargeEl, active) {
         chargeEl.appendChild(badgeEl);
     }
 }
-function _syncTimeStopHandOverlayForRender(containerEl, active) {
+function _syncTimeStopHandOverlayForRender(containerEl: any, active: any) {
     if (!containerEl)
         return;
     const existingOverlayEl = containerEl.querySelector('.time-stop-hand-overlay');
@@ -614,8 +620,8 @@ function _resolveCardRendererGameState() {
     }
     catch (e) { /* ignore */ }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.gameState && typeof globalThis.gameState === 'object')
-            return globalThis.gameState;
+        if (typeof globalThis !== 'undefined' && (globalThis as CardRendererRuntimeRoot).gameState && typeof (globalThis as CardRendererRuntimeRoot).gameState === 'object')
+            return (globalThis as CardRendererRuntimeRoot).gameState;
     }
     catch (e) { /* ignore */ }
     return null;
@@ -632,8 +638,8 @@ function _resolveCardRendererCardState() {
     }
     catch (e) { /* ignore */ }
     try {
-        if (typeof globalThis !== 'undefined' && globalThis.cardState && typeof globalThis.cardState === 'object')
-            return globalThis.cardState;
+        if (typeof globalThis !== 'undefined' && (globalThis as CardRendererRuntimeRoot).cardState && typeof (globalThis as CardRendererRuntimeRoot).cardState === 'object')
+            return (globalThis as CardRendererRuntimeRoot).cardState;
     }
     catch (e) { /* ignore */ }
     return null;
@@ -700,7 +706,7 @@ function _isCardAnimatingForRender() {
         (typeof window !== 'undefined' && !!window.isCardAnimating) ||
         _isVisualPlaybackActiveForRender());
 }
-function _isHiddenHandTokenForRender(cardId) {
+function _isHiddenHandTokenForRender(cardId: any) {
     try {
         if (OwnerHelpersModule && typeof OwnerHelpersModule.isHiddenHandToken === 'function') {
             return OwnerHelpersModule.isHiddenHandToken(cardId);
@@ -709,7 +715,7 @@ function _isHiddenHandTokenForRender(cardId) {
     catch (e) { /* ignore */ }
     return typeof cardId === 'string' && /^__hidden_hand__:(black|white):(\d+)$/.test(cardId);
 }
-function _isHandCardRevealedToViewerForRender(cardState, viewerKey, ownerKey, handIndex) {
+function _isHandCardRevealedToViewerForRender(cardState: any, viewerKey: any, ownerKey: any, handIndex: any) {
     if (!cardState || typeof cardState !== 'object')
         return false;
     const viewer = viewerKey === 'white' ? 'white' : (viewerKey === 'black' ? 'black' : null);
@@ -744,7 +750,7 @@ function _isHandCardRevealedToViewerForRender(cardState, viewerKey, ownerKey, ha
     const copyId = handCopyIds[normalizedHandIndex];
     return Number.isInteger(copyId) && revealedCopyIds.includes(copyId);
 }
-function _hasOwnerUsedCardThisActiveTurnForRender(cardState, ownerKey) {
+function _hasOwnerUsedCardThisActiveTurnForRender(cardState: any, ownerKey: any) {
     const normalizedOwnerKey = ownerKey === 'white' ? 'white' : (ownerKey === 'black' ? 'black' : null);
     if (!cardState || typeof cardState !== 'object' || !normalizedOwnerKey)
         return false;
@@ -753,7 +759,7 @@ function _hasOwnerUsedCardThisActiveTurnForRender(cardState, ownerKey) {
     return !!(cardState.hasUsedCardThisTurnByPlayer
         && cardState.hasUsedCardThisTurnByPlayer[normalizedOwnerKey]);
 }
-function _createHiddenHandCardElement(cardId, ownerKey) {
+function _createHiddenHandCardElement(cardId: any, ownerKey: any) {
     const cardEl = document.createElement('div');
     cardEl.className = 'card-item hidden';
     cardEl.dataset.cardId = cardId;
@@ -769,7 +775,7 @@ function _createCaptureReservedSlotElement() {
     cardEl.setAttribute('aria-hidden', 'true');
     return cardEl;
 }
-function _detachHandCardClickHandler(cardEl) {
+function _detachHandCardClickHandler(cardEl: any) {
     if (!cardEl || typeof cardEl !== 'object' || !cardEl.__cardClickHandler)
         return;
     try {
@@ -778,7 +784,7 @@ function _detachHandCardClickHandler(cardEl) {
     catch (e) { /* ignore */ }
     cardEl.__cardClickHandler = null;
 }
-function _setHandCardClickHandler(cardEl, clickable, cardId, ownerKey) {
+function _setHandCardClickHandler(cardEl: any, clickable: any, cardId: any, ownerKey: any) {
     if (!cardEl || typeof cardEl !== 'object')
         return;
     _detachHandCardClickHandler(cardEl);
@@ -788,7 +794,7 @@ function _setHandCardClickHandler(cardEl, clickable, cardId, ownerKey) {
     cardEl.__cardClickHandler = handler;
     cardEl.addEventListener('click', handler);
 }
-function _ensureHandTrackElement(containerEl) {
+function _ensureHandTrackElement(containerEl: any) {
     if (!containerEl || typeof document === 'undefined')
         return null;
     let handTrackEl = containerEl.querySelector('.hand-track');
@@ -800,7 +806,7 @@ function _ensureHandTrackElement(containerEl) {
     }
     return handTrackEl;
 }
-function _canReuseHandCardElement(cardEl, desiredKind, cardId, ownerKey) {
+function _canReuseHandCardElement(cardEl: any, desiredKind: any, cardId: any, ownerKey: any) {
     if (!cardEl || !cardEl.classList)
         return false;
     if (desiredKind === 'placeholder') {
@@ -839,8 +845,8 @@ function _refreshDebugHandLayoutIfNeeded() {
     }
     catch (e) { /* ignore */ }
 }
-function createCardFaceElement(cardId, options) {
-    const cardDef = CARD_DEFS.find(c => c.id === cardId);
+function createCardFaceElement(cardId: any, options: any) {
+    const cardDef = CARD_DEFS.find((c: any) => c.id === cardId);
     const cardEl = document.createElement('div');
     cardEl.className = 'card-item visible';
     const cost = cardDef ? (cardDef.cost || 0) : 0;
@@ -865,7 +871,7 @@ function createCardFaceElement(cardId, options) {
     cardEl.dataset.cardId = cardId;
     return cardEl;
 }
-function _normalizeCardStateForRender(state) {
+function _normalizeCardStateForRender(state: any) {
     if (!state || typeof state !== 'object')
         return null;
     if (!state.charge || typeof state.charge !== 'object')
@@ -920,8 +926,8 @@ function _normalizeCardStateForRender(state) {
 }
 function _resolveTransientNetworkChargeDeltaEvents() {
     try {
-        if (typeof globalThis !== 'undefined' && Array.isArray(globalThis.__networkTransientChargeDeltaEvents)) {
-            return globalThis.__networkTransientChargeDeltaEvents;
+        if (typeof globalThis !== 'undefined' && Array.isArray((globalThis as CardRendererRuntimeRoot).__networkTransientChargeDeltaEvents)) {
+            return (globalThis as CardRendererRuntimeRoot).__networkTransientChargeDeltaEvents;
         }
     }
     catch (e) { /* ignore */ }
@@ -933,11 +939,11 @@ function _resolveTransientNetworkChargeDeltaEvents() {
     catch (e) { /* ignore */ }
     return null;
 }
-function _setTransientNetworkChargeDeltaEvents(events) {
+function _setTransientNetworkChargeDeltaEvents(events: any) {
     const nextEvents = Array.isArray(events) ? events : [];
     try {
         if (typeof globalThis !== 'undefined') {
-            globalThis.__networkTransientChargeDeltaEvents = nextEvents;
+            (globalThis as CardRendererRuntimeRoot).__networkTransientChargeDeltaEvents = nextEvents;
         }
     }
     catch (e) { /* ignore */ }
@@ -951,25 +957,25 @@ function _setTransientNetworkChargeDeltaEvents(events) {
 function _clearTransientNetworkChargeDeltaEvents() {
     _setTransientNetworkChargeDeltaEvents([]);
 }
-function _shouldRenderChargeDeltaOnHud(ev) {
+function _shouldRenderChargeDeltaOnHud(ev: any) {
     return !!ev;
 }
-function _normalizeChargeDeltaOwnerKey(playerKey) {
+function _normalizeChargeDeltaOwnerKey(playerKey: any) {
     return _normalizePlayerKeyForRender(playerKey) === 'white' ? 'white' : 'black';
 }
-function _mapChargeDeltaOwnerToVisibleSlot(ownerKey, bottomOwnerKey) {
+function _mapChargeDeltaOwnerToVisibleSlot(ownerKey: any, bottomOwnerKey: any) {
     return ownerKey === bottomOwnerKey ? 'black' : 'white';
 }
-function _createVisibleChargeDeltaHandler(baseChargeDeltaHandler, bottomOwnerKey) {
+function _createVisibleChargeDeltaHandler(baseChargeDeltaHandler: any, bottomOwnerKey: any) {
     if (!baseChargeDeltaHandler)
         return null;
-    return (playerKey, delta) => {
+    return (playerKey: any, delta: any) => {
         const ownerKey = _normalizeChargeDeltaOwnerKey(playerKey);
         const slotKey = _mapChargeDeltaOwnerToVisibleSlot(ownerKey, bottomOwnerKey);
         baseChargeDeltaHandler(slotKey, delta);
     };
 }
-function _collectHudChargeDeltaTotalsBySign(events) {
+function _collectHudChargeDeltaTotalsBySign(events: any) {
     const list = Array.isArray(events) ? events : [];
     const totals = { increase: 0, decrease: 0 };
     const signOrder = [];
@@ -984,7 +990,7 @@ function _collectHudChargeDeltaTotalsBySign(events) {
     }
     return { totals, signOrder };
 }
-function consumeChargeDeltaEventList(eventsSource, chargeDeltaHandler) {
+function consumeChargeDeltaEventList(eventsSource: any, chargeDeltaHandler: any) {
     if (!Array.isArray(eventsSource) || eventsSource.length === 0) {
         return false;
     }
@@ -1001,10 +1007,10 @@ function consumeChargeDeltaEventList(eventsSource, chargeDeltaHandler) {
     const hudEvents = events.filter((ev) => _shouldRenderChargeDeltaOnHud(ev));
     if (hudEvents.length === 0)
         return events.length > 0;
-    const eventsByPlayer = { black: [], white: [] };
-    const playerOrder = [];
+    const eventsByPlayer: Record<PlayerOwnerKey, any[]> = { black: [], white: [] };
+    const playerOrder: PlayerOwnerKey[] = [];
     for (const ev of hudEvents) {
-        const player = _normalizeChargeDeltaOwnerKey(ev.player);
+        const player = _normalizeChargeDeltaOwnerKey(ev.player) as PlayerOwnerKey;
         if (eventsByPlayer[player].length === 0)
             playerOrder.push(player);
         eventsByPlayer[player].push(ev);
@@ -1013,7 +1019,7 @@ function consumeChargeDeltaEventList(eventsSource, chargeDeltaHandler) {
         const playerEvents = eventsByPlayer[player];
         const { totals, signOrder } = _collectHudChargeDeltaTotalsBySign(playerEvents);
         for (const signKey of signOrder) {
-            const totalDelta = totals[signKey];
+            const totalDelta = totals[signKey as keyof typeof totals];
             if (totalDelta !== 0) {
                 chargeDeltaHandler(player, totalDelta);
             }
@@ -1021,16 +1027,16 @@ function consumeChargeDeltaEventList(eventsSource, chargeDeltaHandler) {
     }
     return true;
 }
-function consumeChargeDeltaEvents(cardState, chargeDeltaHandler) {
+function consumeChargeDeltaEvents(cardState: any, chargeDeltaHandler: any) {
     const events = (cardState && Array.isArray(cardState.chargeDeltaEvents))
         ? cardState.chargeDeltaEvents
         : null;
     return consumeChargeDeltaEventList(events, chargeDeltaHandler);
 }
-function consumeTransientNetworkChargeDeltaEvents(chargeDeltaHandler) {
+function consumeTransientNetworkChargeDeltaEvents(chargeDeltaHandler: any) {
     return consumeChargeDeltaEventList(_resolveTransientNetworkChargeDeltaEvents(), chargeDeltaHandler);
 }
-function consumeChargeDeltaSourcesForRender(cardState, matchMode, chargeDeltaHandler) {
+function consumeChargeDeltaSourcesForRender(cardState: any, matchMode: any, chargeDeltaHandler: any) {
     const consumedAuthoritativeQueue = consumeChargeDeltaEvents(cardState, chargeDeltaHandler);
     if (consumedAuthoritativeQueue) {
         _clearTransientNetworkChargeDeltaEvents();
@@ -1046,7 +1052,7 @@ function consumeChargeDeltaSourcesForRender(cardState, matchMode, chargeDeltaHan
         allowRawFallback: _allowsRawChargeDeltaFallback(matchMode)
     };
 }
-function _resolveVisibleChargeOwners(matchMode) {
+function _resolveVisibleChargeOwners(matchMode: any) {
     const isNetworkMode = matchMode === 'network';
     const localPlayerKey = isNetworkMode ? _getLocalPlayerKeyForNetwork() : null;
     try {
@@ -1067,7 +1073,7 @@ function _resolveVisibleChargeOwners(matchMode) {
         topOwnerKey: bottomOwnerKey === 'black' ? 'white' : 'black'
     };
 }
-function _drainChargeDeltaPopups(cardState, options) {
+function _drainChargeDeltaPopups(cardState: any, options: any) {
     const state = _normalizeCardStateForRender(cardState);
     if (!state) {
         return {
@@ -1102,7 +1108,7 @@ function _drainChargeDeltaPopups(cardState, options) {
         consumedRawFallback
     };
 }
-function drainVisibleChargeDeltaPopups(options) {
+function drainVisibleChargeDeltaPopups(options: any) {
     return _drainChargeDeltaPopups(_resolveCardRendererCardState(), options);
 }
 function renderCardUI() {
@@ -1160,18 +1166,18 @@ function renderCardUI() {
         black: { count: deckCountBlack, total: totalBlack, ratio: deckRatioBlack },
         white: { count: deckCountWhite, total: totalWhite, ratio: deckRatioWhite }
     };
-    const bottomDeckVisual = deckVisualByOwner[bottomOwnerKey] || deckVisualByOwner.black;
-    const topDeckVisual = deckVisualByOwner[topOwnerKey] || deckVisualByOwner.white;
+    const bottomDeckVisual = deckVisualByOwner[bottomOwnerKey as PlayerOwnerKey] || deckVisualByOwner.black;
+    const topDeckVisual = deckVisualByOwner[topOwnerKey as PlayerOwnerKey] || deckVisualByOwner.white;
     // Set visuals for Black deck
     if (deckBlackEl) {
-        deckBlackEl.style.setProperty('--deck-ratio', bottomDeckVisual.ratio);
+        deckBlackEl.style.setProperty('--deck-ratio', String(bottomDeckVisual.ratio));
         const countLabel = deckBlackEl.querySelector('.deck-count');
         if (countLabel)
             countLabel.textContent = `${bottomDeckVisual.count}/${bottomDeckVisual.total}`;
     }
     // Set visuals for White deck
     if (deckWhiteEl) {
-        deckWhiteEl.style.setProperty('--deck-ratio', topDeckVisual.ratio);
+        deckWhiteEl.style.setProperty('--deck-ratio', String(topDeckVisual.ratio));
         const countLabel = deckWhiteEl.querySelector('.deck-count');
         if (countLabel)
             countLabel.textContent = `${topDeckVisual.count}/${topDeckVisual.total}`;
@@ -1219,13 +1225,13 @@ function renderCardUI() {
     const reservedHandIndex = (captureReservedState && Number.isInteger(captureReservedState.handIndex))
         ? captureReservedState.handIndex
         : null;
-    function _getOwnerHandForRender(ownerKey) {
+    function _getOwnerHandForRender(ownerKey: any) {
         const ownerHandRaw = (cardState.hands && Array.isArray(cardState.hands[ownerKey])) ? cardState.hands[ownerKey] : [];
         return (revealPlayerKey === ownerKey && Number.isFinite(revealVisibleCount))
-            ? ownerHandRaw.slice(0, Math.min(ownerHandRaw.length, revealVisibleCount))
+            ? ownerHandRaw.slice(0, Math.min(ownerHandRaw.length, Number(revealVisibleCount)))
             : ownerHandRaw;
     }
-    function _resolveInsertedReservedHandIndex(ownerKey, ownerHandLength) {
+    function _resolveInsertedReservedHandIndex(ownerKey: any, ownerHandLength: any) {
         const ownerPending = cardState.pendingEffectByPlayer && cardState.pendingEffectByPlayer[ownerKey];
         if (ownerPending
             && ownerPending.type === 'CAPTURE_WILL'
@@ -1240,7 +1246,7 @@ function renderCardUI() {
         }
         return null;
     }
-    function _buildHandRenderEntries(ownerHand, insertedReservedHandIndex) {
+    function _buildHandRenderEntries(ownerHand: any, insertedReservedHandIndex: any) {
         const renderEntries = [];
         for (let idx = 0; idx < ownerHand.length; idx += 1) {
             if (Number.isInteger(insertedReservedHandIndex) && insertedReservedHandIndex === renderEntries.length) {
@@ -1261,7 +1267,7 @@ function renderCardUI() {
     const selectedOwnerKey = (cardState.selectedCardOwnerKey === 'white' || cardState.selectedCardOwnerKey === 'black')
         ? cardState.selectedCardOwnerKey
         : inputPlayerKey;
-    function _resolveHandEntryViewState(entry, ownerKey, revealByDefault) {
+    function _resolveHandEntryViewState(entry: any, ownerKey: any, revealByDefault: any) {
         const visualIndex = entry && Number.isInteger(entry.visualIndex)
             ? entry.visualIndex
             : 0;
@@ -1311,7 +1317,7 @@ function renderCardUI() {
             state.desiredKind = 'hidden';
             return state;
         }
-        const cardDef = CARD_DEFS.find(c => c.id === cardId);
+        const cardDef = CARD_DEFS.find((c: any) => c.id === cardId);
         const cost = cardDef ? (cardDef.cost || 0) : 0;
         const hasNotUsedThisTurn = isDebugUnlimited ? true : !_hasOwnerUsedCardThisActiveTurnForRender(cardState, ownerKey);
         const isOwnerTurn = ownerKey === 'black' ? isBlackTurn : !isBlackTurn;
@@ -1328,7 +1334,7 @@ function renderCardUI() {
         state.isSelected = cardState.selectedCardId === cardId && selectedOwnerKey === ownerKey;
         return state;
     }
-    function _ensureRenderedHandElement(handTrackEl, existingChildren, entryState, ownerKey) {
+    function _ensureRenderedHandElement(handTrackEl: any, existingChildren: any, entryState: any, ownerKey: any) {
         let cardEl = existingChildren[entryState.visualIndex] || null;
         if (_canReuseHandCardElement(cardEl, entryState.desiredKind, entryState.cardId, ownerKey)) {
             return cardEl;
@@ -1354,7 +1360,7 @@ function renderCardUI() {
         }
         return cardEl;
     }
-    function _applyRenderedHandElementState(cardEl, entryState, ownerKey, shouldFade, ownerHandLen) {
+    function _applyRenderedHandElementState(cardEl: any, entryState: any, ownerKey: any, shouldFade: any, ownerHandLen: any) {
         if (entryState.desiredKind === 'placeholder') {
             _detachHandCardClickHandler(cardEl);
             cardEl.className = 'card-item capture-reserved-slot';
@@ -1402,7 +1408,7 @@ function renderCardUI() {
             cardEl.classList.remove('card-fade-prep');
         }
     }
-    function renderHandSlot(containerEl, ownerKey, revealByDefault, visibleSlotKey) {
+    function renderHandSlot(containerEl: any, ownerKey: any, revealByDefault: any, visibleSlotKey: any) {
         if (!containerEl)
             return;
         containerEl.dataset.ownerKey = ownerKey;
@@ -1449,14 +1455,14 @@ function renderCardUI() {
         const content = activeBlackEl.querySelector('.effect-slot-content');
         if (content) {
             const effects = (cardState.activeEffectsByPlayer && cardState.activeEffectsByPlayer.black) || [];
-            content.textContent = effects.length > 0 ? effects.map(e => e.name).join(', ') : 'なし';
+            content.textContent = effects.length > 0 ? effects.map((e: any) => e.name).join(', ') : 'なし';
         }
     }
     if (activeWhiteEl) {
         const content = activeWhiteEl.querySelector('.effect-slot-content');
         if (content) {
             const effects = cardState.activeEffectsByPlayer.white;
-            content.textContent = effects.length > 0 ? effects.map(e => e.name).join(', ') : 'なし';
+            content.textContent = effects.length > 0 ? effects.map((e: any) => e.name).join(', ') : 'なし';
         }
     }
 }
