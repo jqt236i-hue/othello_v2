@@ -9,7 +9,7 @@ This note records the remaining high-risk type-safety debt after the runtime bou
 `npm run checkall` now includes `scripts/check-ts-migration-safety.ts`.
 It scans root TypeScript source/test/training targets for top-level `@ts-nocheck` and fails on any file that is not in the current migration debt allowlist.
 
-Current authorized `@ts-nocheck` debt: 63 files.
+Current authorized `@ts-nocheck` debt: 62 files.
 
 Recent reduction:
 
@@ -39,6 +39,7 @@ Recent reduction:
 - `scripts/local-cpu-commentary-server.ts` no longer uses `@ts-nocheck`; its HTTP response writer, request body parser, and error reporting are now typed without changing fallback commentary behavior.
 - `test/cards.equality-will-surfaces.test.ts` no longer uses `@ts-nocheck`; the catalog/help surface regression now typechecks without local suppressions.
 - `test/cpu.turn-handler.commentary.test.ts` no longer uses `@ts-nocheck`; the CPU commentary integration regression now typechecks while preserving its global runtime fixture.
+- `test/game.equality-will.test.ts` no longer uses `@ts-nocheck`; the EQUALITY_WILL rule regression now typechecks without local suppressions.
 
 Recent boundary typing:
 

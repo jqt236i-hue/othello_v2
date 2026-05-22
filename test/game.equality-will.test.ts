@@ -1,4 +1,3 @@
-// @ts-nocheck
 const Shared = require('../shared-constants');
 const CardLogic = require('../game/logic/cards');
 const TurnPipeline = require('../game/turn/turn_pipeline');
