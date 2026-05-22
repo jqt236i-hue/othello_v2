@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as fs from 'fs';
 import * as path from 'path';
 import { parseArgs as parseBenchmarkArgs, runBenchmark } from './benchmark-selfplay-policy';
