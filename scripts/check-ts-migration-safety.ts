@@ -33,7 +33,6 @@ const allowedNoCheckDebt = new Set([
   'scripts/local-match-server.ts',
   'scripts/run-ui-level-match.ts',
   'src/engine/selfplay-runner.ts',
-  'test/scripts.prepare-worker-assets.test.ts',
   'test/ui.card-renderer-hand-inspect.test.ts',
   'test/ui.card-ui-sync.test.ts',
   'test/ui.deck-builder-controller.test.ts',
