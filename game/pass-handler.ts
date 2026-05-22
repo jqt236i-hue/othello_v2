@@ -746,10 +746,3 @@ export = {
     setPlaybackStateManager,
     setNetworkMatchClient
 };
-// @compat - backward-compat exports for legacy callers
-try {
-    if (typeof globalThis !== 'undefined') {
-        try { (globalThis as any).processPassTurn = processPassTurn; } catch (e) { /* ignore */ }
-        try { (globalThis as any).ensureCurrentPlayerCanActOrPass = ensureCurrentPlayerCanActOrPass; } catch (e) { /* ignore */ }
-    }
-} catch (e) { /* ignore */ }

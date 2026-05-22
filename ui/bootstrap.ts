@@ -1259,6 +1259,9 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         try {
             const passHandler = require('../game/pass-handler');
             if (passHandler) {
+                const passGlobals: any = {};
+                if (typeof passHandler.processPassTurn === 'function') passGlobals.processPassTurn = passHandler.processPassTurn;
+                if (typeof passHandler.ensureCurrentPlayerCanActOrPass === 'function') passGlobals.ensureCurrentPlayerCanActOrPass = passHandler.ensureCurrentPlayerCanActOrPass;
                 try {
                     if (typeof passHandler.setPassHandlerRuntime === 'function') {
                         let cpu: any = null;
@@ -1315,6 +1318,15 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         });
                     }
                 } catch (e: any) { /* ignore */ }
+                if (Object.keys(passGlobals).length) {
+                    try { registerUIGlobals(passGlobals); } catch (e: any) { /* ignore */ }
+                    try {
+                        if (typeof globalThis !== 'undefined') {
+                            if (passGlobals.processPassTurn) (globalThis as any).processPassTurn = passGlobals.processPassTurn;
+                            if (passGlobals.ensureCurrentPlayerCanActOrPass) (globalThis as any).ensureCurrentPlayerCanActOrPass = passGlobals.ensureCurrentPlayerCanActOrPass;
+                        }
+                    } catch (e: any) { /* ignore */ }
+                }
                 try {
                     const playbackStateManager = require('./playback-state-manager');
                     if (playbackStateManager && typeof passHandler.setPlaybackStateManager === 'function') {
