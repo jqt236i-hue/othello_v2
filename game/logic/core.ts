@@ -41,12 +41,7 @@ const SharedConstants = (() => {
 
     if (typeof module === 'object' && module.exports) {
         const loaded = safeRequire('../../shared-constants');
-        if (loaded) {
-            if (typeof globalThis !== 'undefined' && !(globalThis as any).SharedConstants) {
-                (globalThis as any).SharedConstants = loaded;
-            }
-            return loaded;
-        }
+        if (loaded) return loaded;
     }
 
     return runtimeSharedConstants;
@@ -61,9 +56,6 @@ const SharedBoardUtils = (() => {
     }
     if (typeof module === 'object' && module.exports) {
         const loaded = safeRequire('../../shared/shared-board-utils');
-        if (loaded && typeof globalThis !== 'undefined' && !(globalThis as any).SharedBoardUtils) {
-            (globalThis as any).SharedBoardUtils = loaded;
-        }
         return loaded || null;
     }
     return null;
