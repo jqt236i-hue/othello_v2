@@ -1,9 +1,29 @@
-// @ts-nocheck
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
   : require;
+
+declare function computeCpuAction(playerKey: PlayerKey): CpuAction | null | undefined;
+declare let gameState: any;
+declare const cardState: any;
+declare const CardLogic: { applyCardUsage?: (cardState: any, gameState: any, playerKey: PlayerKey, cardId: any) => any } | undefined;
+declare function applyPass(gameState: any): any;
+declare function executeMove(move: any): any;
+declare function clearExpiredProtections(player: any): void;
+declare function processExpiredProtectionsAtTurnEnd(player: any): void;
+
+type PlayerKey = 'black' | 'white';
+
+type CpuAction =
+    | { type: 'pass' }
+    | { type: 'useCard'; cardId: any }
+    | { type: 'move'; move: any };
+
+interface CpuTurnHandler {
+    processCpuTurn?: () => any;
+    processAutoBlackTurn?: () => any;
+}
 
 // CPU行動制御モジュール
 // CPUの思考と行動実行を担当
@@ -12,9 +32,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  * CPU (白) のターン処理
  */
 // Delegate CPU turn orchestration to game/cpu-turn-handler to centralize timers and UI side effects.
-let cpuHandler = null;
-if (typeof require === 'function') {
-    try { cpuHandler = require('../game/cpu-turn-handler.js'); } catch (e) { /* handler not available */ }
+let cpuHandler: CpuTurnHandler | null = null;
+if (typeof _require === 'function') {
+    try { cpuHandler = _require('../game/cpu-turn-handler.js') as CpuTurnHandler; } catch (e) { /* handler not available */ }
 }
 
 function processCpuTurn() {
@@ -38,7 +58,7 @@ function processAutoBlackTurn() {
     return runFallbackCpuAction('black');
 }
 
-function runFallbackCpuAction(playerKey) {
+function runFallbackCpuAction(playerKey: PlayerKey) {
     const safePlayerKey = playerKey === 'black' ? 'black' : 'white';
     const action = (typeof computeCpuAction === 'function') ? computeCpuAction(safePlayerKey) : null;
     if (!action) return;
@@ -72,7 +92,7 @@ if (typeof module !== 'undefined' && module.exports) {
  * Safely clear expired protections if the helper exists.
  * Some build targets may not bundle the protection module; avoid ReferenceError.
  */
-function clearExpiredProtectionsSafe(player) {
+function clearExpiredProtectionsSafe(player: any) {
     try {
         if (typeof clearExpiredProtections === 'function') {
             clearExpiredProtections(player);
