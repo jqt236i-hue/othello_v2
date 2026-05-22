@@ -1410,6 +1410,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 } catch (e: any) { /* ignore */ }
                 return false;
             },
+            getPlaybackStateManager: () => getPlaybackStateModuleForReset(),
             now: () => Date.now(),
             // Let game/move-executor await the UI playback lifecycle (AnimationEngine / visual writer)
             waitForPlayback: uiMod.waitForPlaybackIdle,

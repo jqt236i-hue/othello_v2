@@ -124,10 +124,9 @@ function getPlaybackStateForMoveExecutor() {
         if (__uiImpl_move_executor && __uiImpl_move_executor.PlaybackStateManager) {
             return __uiImpl_move_executor.PlaybackStateManager;
         }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && globalThis.PlaybackStateManager) {
-            return globalThis.PlaybackStateManager;
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.getPlaybackStateManager === 'function') {
+            const playbackState = __uiImpl_move_executor.getPlaybackStateManager();
+            if (playbackState && typeof playbackState === 'object') return playbackState;
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -156,9 +155,6 @@ function isMoveExecutorDebugEnabled() {
     } catch (e) { /* ignore */ }
     try {
         if (typeof isDebugLogAvailable === 'function') return !!isDebugLogAvailable();
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && globalThis.DEBUG_MOVE_EXEC_LOG === true) return true;
     } catch (e) { /* ignore */ }
     return false;
 }
@@ -219,11 +215,6 @@ function readMoveExecutorMatchMode() {
     if (__uiImpl_move_executor && typeof __uiImpl_move_executor.MATCH_MODE !== 'undefined') {
         return __uiImpl_move_executor.MATCH_MODE;
     }
-    try {
-        return (typeof globalThis !== 'undefined' && typeof globalThis.getCurrentMatchMode === 'function')
-            ? globalThis.getCurrentMatchMode()
-            : (typeof globalThis !== 'undefined' ? globalThis.MATCH_MODE : null);
-    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -234,7 +225,7 @@ function readMoveExecutorHumanVsHumanFlag() {
     if (__uiImpl_move_executor && typeof __uiImpl_move_executor.DEBUG_HUMAN_VS_HUMAN !== 'undefined') {
         return __uiImpl_move_executor.DEBUG_HUMAN_VS_HUMAN === true;
     }
-    return (typeof globalThis !== 'undefined' && globalThis.DEBUG_HUMAN_VS_HUMAN === true);
+    return false;
 }
 
 function isHumanVsHumanModeEnabled() {
