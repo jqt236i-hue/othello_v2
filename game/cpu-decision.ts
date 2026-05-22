@@ -118,13 +118,6 @@ let SharedBoardUtilsModule: any = null;
 if (typeof require === 'function') {
     try { SharedBoardUtilsModule = _require('../shared/shared-board-utils'); } catch (e) { /* ignore */ }
 }
-if (!SharedBoardUtilsModule) {
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).SharedBoardUtils) {
-            SharedBoardUtilsModule = (globalThis as any).SharedBoardUtils;
-        }
-    } catch (e) { /* ignore */ }
-}
 let CpuLv6RuntimeCapabilityModule: any = null;
 if (typeof require === 'function') {
     try { CpuLv6RuntimeCapabilityModule = _require('../shared/cpu-lv6-runtime-capability'); } catch (e) { /* ignore */ }
@@ -218,7 +211,6 @@ function resolveModuleReference(currentValue: any, options: any): any {
 function resolveSharedBoardUtilsModule(): any {
     const resolvedModule = resolveModuleReference(SharedBoardUtilsModule, {
         requirePath: '../shared/shared-board-utils',
-        globalKey: 'SharedBoardUtils',
         isValid: (moduleRef: any) => !!(moduleRef && typeof moduleRef === 'object')
     });
     if (resolvedModule) SharedBoardUtilsModule = resolvedModule;
@@ -240,15 +232,6 @@ if (typeof require === 'function') {
 let CpuPendingCoordinator: any = null;
 if (typeof require === 'function') {
     try { CpuPendingCoordinator = _require('./turn/pending-coordinator'); } catch (e) { /* ignore */ }
-}
-if (!cpuDecisionNetworkTurnHandoff && typeof globalThis !== 'undefined' && (globalThis as any).NetworkTurnHandoff) {
-    cpuDecisionNetworkTurnHandoff = (globalThis as any).NetworkTurnHandoff;
-}
-if (!PendingSelectionFlow && typeof globalThis !== 'undefined' && (globalThis as any).PendingSelectionFlow) {
-    PendingSelectionFlow = (globalThis as any).PendingSelectionFlow;
-}
-if (!CpuPendingCoordinator && typeof globalThis !== 'undefined' && (globalThis as any).PendingCoordinator) {
-    CpuPendingCoordinator = (globalThis as any).PendingCoordinator;
 }
 
 function hasPendingSelectionFlowContract(moduleRef: any): any {
@@ -275,7 +258,6 @@ function resolvePendingSelectionFlow(requiredFunctionName: any): any {
     const requiredName = typeof requiredFunctionName === 'string' ? requiredFunctionName : '';
     const resolvedModule = resolveModuleReference(PendingSelectionFlow, {
         requirePath: './card-effects/selection-flow',
-        globalKey: 'PendingSelectionFlow',
         isValid: (moduleRef: any) => requiredName
             ? hasPendingSelectionFlowFunction(moduleRef, requiredName)
             : hasPendingSelectionFlowContract(moduleRef)
@@ -287,7 +269,6 @@ function resolvePendingSelectionFlow(requiredFunctionName: any): any {
 function resolveCpuPendingCoordinator(): any {
     const resolvedModule = resolveModuleReference(CpuPendingCoordinator, {
         requirePath: './turn/pending-coordinator',
-        globalKey: 'PendingCoordinator',
         isValid: (moduleRef: any) => !!(moduleRef && typeof moduleRef === 'object')
     });
     if (resolvedModule) CpuPendingCoordinator = resolvedModule;
@@ -323,11 +304,6 @@ const CpuDecisionBoardUtilsModule = (() => {
     if (typeof require === 'function') {
         try { return _require('./cpu-decision-board-utils'); } catch (e) { /* ignore */ }
     }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).CpuDecisionBoardUtils) {
-            return (globalThis as any).CpuDecisionBoardUtils;
-        }
-    } catch (e) { /* ignore */ }
     return null;
 })();
 
