@@ -36,8 +36,6 @@ const allowedNoCheckDebt = new Set([
   'test/ui.card-renderer-hand-inspect.test.ts',
   'test/ui.card-ui-sync.test.ts',
   'test/ui.deck-builder-controller.test.ts',
-  'test/ui.layout-stage.profile-selection.test.ts',
-  'test/ui.network-charge-seat-layout.test.ts',
   'training/engine/selfplay-runner.ts',
   'training/scripts/analyze-crystal-stone-quiet.ts',
   'training/scripts/analyze-crystal-stone.ts',
