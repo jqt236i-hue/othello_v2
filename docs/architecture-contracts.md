@@ -250,6 +250,16 @@ Stable browser-side ownership for that flow is:
 - `ui/network/snapshot.js` owns authoritative snapshot apply and presentation reconciliation
 - `ui/network/snapshot-runtime.js` owns browser/runtime lookup and fallback wiring used by snapshot application
 
+#### 7.2.1 Pending selection network bridge
+
+Pending selection resolution is gameplay-adjacent, but network publishing remains a UI/network boundary.
+
+- `game/card-effects/selection-flow.ts` may read injected state, pipeline, and mode adapters through its signal bridge.
+- It must not discover a root `NetworkMatchClient` global and publish directly from the `game/` layer.
+- `ui/bootstrap.ts` and `ui/network-client.ts` own bridge installation for browser/network runtime paths.
+- When no bridge publisher is installed, selection flow must fall back to local preview / pipeline execution rather than treating a root network client as authority.
+- Deferred selection publish tests must cover both active bridge publishing and the no-bridge fail-closed path.
+
 ### 7.3 Single Visual Writer
 
 During playback, board DOM writes must be coordinated so there is a single effective board writer.

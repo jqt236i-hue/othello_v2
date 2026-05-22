@@ -1,6 +1,6 @@
 # Runtime Boundary Refactor Debt
 
-Last audited: 2026-05-22
+Last audited: 2026-05-23
 
 This note records the remaining high-risk type-safety debt after the runtime boundary contract gates were added.
 
@@ -11,6 +11,16 @@ It scans root TypeScript source/test/training targets for top-level `@ts-nocheck
 It also fails if an allowed file carries duplicate `@ts-nocheck` directives, so the allowlist cannot hide redundant suppressions.
 
 Current authorized `@ts-nocheck` debt: 0 files.
+
+2026-05-23 verification:
+
+- `npm run build:ts`: pass
+- `npm run typecheck -- --pretty false`: pass
+- `npm run checkall`: pass; authorized `@ts-nocheck` debt remains 0, unknown JS remains 0, legacy-implementation JS remains 0
+- `npm run test:network:parity`: pass, 24 suites / 273 tests
+- `npm run test:jest`: pass, 397 suites / 2794 tests
+
+Runtime adapter regressions found during the final TypeScript migration audit were fixed in `bb4905044`. The fix preserved the headless `game/` contract by keeping network publish authority behind injected UI/network signal bridges instead of allowing `game/card-effects/selection-flow.ts` to publish through a root `NetworkMatchClient` global.
 
 Recent reduction:
 

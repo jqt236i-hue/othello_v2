@@ -1,7 +1,7 @@
 # TypeScript移行完了宣言・残存JSファイル許容リスト
 
-> **Status**: 完了（2026-05-15）
-> **基準コミット**: `efff49c`
+> **Status**: 完了（再監査済み: 2026-05-23）
+> **基準コミット**: `bb4905044`
 > **対象リポジトリ**: カードリバーシ（card-reversi）
 
 ## 1. 目的
@@ -29,6 +29,19 @@ npm run build:ts     # PASS ✅
 npm run checkall     # PASS ✅（JS inventory gate含む）
 npm run worker:prepare # PASS ✅
 ```
+
+2026-05-23 の再監査では、TypeScript移行後のruntime adapter回帰を修正したうえで、以下を確認した。
+
+```bash
+npm run build:ts                         # PASS ✅
+npm run typecheck -- --pretty false      # PASS ✅
+npm run checkall                         # PASS ✅
+npm run test:network:parity              # PASS ✅（24 suites / 273 tests）
+npm run test:jest                        # PASS ✅（397 suites / 2794 tests）
+git diff --check                         # PASS ✅
+```
+
+この時点で `checkall` は、未許可 `@ts-nocheck` 0、unknown / legacy-implementation JS 0、source-of-truth `game/` 内の禁止 `globalThis` / `window` runtime coupling 0 を確認している。
 
 ## 3. 残存JSファイルの分類
 
@@ -207,3 +220,4 @@ npm run worker:prepare # PASS ✅
 | 2026-05-08 | TS移行完了を宣言。R1-R4解消を確認 | Prometheus |
 | 2026-05-09 | 不要なlegacy-implementationスクリプト25件を削除し、allowlistを更新 | Prometheus |
 | 2026-05-15 | 削除済みJSのallowlist記載を整理 | Codex |
+| 2026-05-23 | runtime adapter回帰を修正し、full Jest / network parity / migration gateで再監査。基準コミットを `bb4905044` に更新 | Codex |
