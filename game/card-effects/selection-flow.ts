@@ -1,7 +1,7 @@
 import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
-const root: any = (typeof globalThis !== 'undefined') ? globalThis as any : (typeof global !== 'undefined' ? global as any : undefined);
+const root: any = (typeof self !== 'undefined') ? self as any : (typeof global !== 'undefined' ? global as any : undefined);
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
@@ -239,12 +239,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (publishSnapshotViaBridge) {
             try {
                 return publishSnapshotViaBridge(payload);
-            } catch (e) { /* ignore */ }
-        }
-        const networkTurnHandoff = getNetworkTurnHandoff();
-        if (networkTurnHandoff && typeof networkTurnHandoff.publishNetworkSnapshot === 'function') {
-            try {
-                return networkTurnHandoff.publishNetworkSnapshot(payload);
             } catch (e) { /* ignore */ }
         }
         return undefined;
@@ -608,6 +602,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         action: publishAction || pendingAction,
                         playbackEvents: publishPlaybackEvents
                     };
+                    if (typeof opts.publishSnapshot === 'function') {
+                        return opts.publishSnapshot(publishMeta);
+                    }
                     return publishPendingSelectionSnapshot(publishMeta);
                 },
                 scheduleCpuTurn: scheduleWhiteCpuTurn,

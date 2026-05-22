@@ -2017,6 +2017,13 @@ function finalizeCpuPendingSelectionFlow(playerKey: any, pendingType: any, playb
             onHumanTurnReady: () => {
                 try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
             },
+            publishSnapshot: (publishMeta: any) => {
+                return publishCpuSelectionNetworkSnapshot(
+                    publishMeta && publishMeta.playerKey,
+                    (publishMeta && publishMeta.action) || action,
+                    publishMeta && publishMeta.playbackEvents
+                );
+            },
             onSettled: () => {
                 try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
             }
