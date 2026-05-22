@@ -38,10 +38,6 @@
       "category": "legacy-implementation",
       "reason": "Migration-era browser smoke helper retained for troubleshooting."
     },
-    "scripts/check-bootstrap.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era validation helper retained for troubleshooting."
-    },
     "scripts/check-format.js": {
       "category": "legacy-implementation",
       "reason": "Migration-era validation helper retained for troubleshooting."
@@ -105,10 +101,6 @@
     "scripts/find-reset.js": {
       "category": "legacy-implementation",
       "reason": "Migration-era lookup helper retained for troubleshooting."
-    },
-    "scripts/list-registry.js": {
-      "category": "legacy-implementation",
-      "reason": "Migration-era registry helper retained for troubleshooting."
     },
     "scripts/remove-fn-require.js": {
       "category": "legacy-implementation",
