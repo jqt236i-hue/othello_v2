@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// @ts-nocheck
-
 'use strict';
 
 import * as fs from 'fs';
