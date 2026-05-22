@@ -27,7 +27,6 @@ const skipDirs = new Set([
 ]);
 
 const allowedNoCheckDebt = new Set([
-  'scripts/local-match-server.ts',
   'src/engine/selfplay-runner.ts'
 ]);
 
