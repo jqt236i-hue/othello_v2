@@ -24,8 +24,8 @@ describe('match worker card module preload', () => {
       'utf8'
     );
 
-    expect(source).toContain("mod['module.exports']");
-    expect(source).toContain('runtimeValue || moduleExports || mod.default || mod');
+    expect(source).toContain("modRecord['module.exports']");
+    expect(source).toContain('runtimeValue || moduleExports || modRecord.default || mod');
     expect(source).toContain("'../game/logic/board_ops.js': boardOpsModule");
     expect(source).toContain("'../game/logic/effects/destroy_one_stone.js': destroyOneStoneEffectsModule");
     expect(source).toContain("'../game/logic/effects/swap_with_enemy.js': swapWithEnemyEffectsModule");

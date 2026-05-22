@@ -1,13 +1,40 @@
-// @ts-nocheck
+interface MatchWorkerRuntimeGlobalScope {
+    SharedConstants?: unknown;
+    SharedBoardUtils?: unknown;
+    DeckSpecHelpers?: unknown;
+    DeckCodecModule?: unknown;
+    PlayerEncoding?: unknown;
+    DestroyOutcomeContract?: unknown;
+    StoneStatusSnapshot?: unknown;
+    SpecialStoneRegistry?: unknown;
+    CardRandomSource?: unknown;
+    CardStateFactory?: unknown;
+    CardModuleResolver?: unknown;
+    CardPresentationHelpers?: unknown;
+    CardHandManager?: unknown;
+    CardChargeLedger?: unknown;
+    CardPendingStateManager?: unknown;
+    CardUsagePrechecks?: unknown;
+    CardEffectTiming?: unknown;
+    CardMarkers?: unknown;
+    BoardOps?: unknown;
+    DestroyOneStoneEffects?: unknown;
+    SwapWithEnemyEffects?: unknown;
+    CardStatusCellsEffects?: unknown;
+    CardStateManager?: unknown;
+    CardEffectResolver?: unknown;
+    CardTimingProcessor?: unknown;
+    CardTargetResolver?: unknown;
+}
 
-function getRuntimeGlobalScope() {
-    if (typeof globalThis !== 'undefined') return globalThis;
-    if (typeof self !== 'undefined') return self;
+function getRuntimeGlobalScope(): MatchWorkerRuntimeGlobalScope {
+    if (typeof globalThis !== 'undefined') return globalThis as MatchWorkerRuntimeGlobalScope;
+    if (typeof self !== 'undefined') return self as MatchWorkerRuntimeGlobalScope;
     return {};
 }
 
-function unwrapModule(mod) {
-    return mod && mod.default ? mod.default : mod;
+function unwrapModule(mod: unknown): unknown {
+    return mod && typeof mod === 'object' && 'default' in mod ? mod.default : mod;
 }
 
 const scope = getRuntimeGlobalScope();

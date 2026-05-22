@@ -105,8 +105,7 @@ const allowedNoCheckDebt = new Set([
   'training/tests/selfplay.runner.test.ts',
   'training/tests/selfplay.training-cycle.test.ts',
   'training/tests/selfplay.training-preset.test.ts',
-  'ui.ts',
-  'workers/match-worker-runtime-preload.ts'
+  'ui.ts'
 ]);
 
 function normalizePath(value: string): string {
