@@ -26,6 +26,58 @@ type CpuPolicyMovePlanProfile = Record<string, string | number>;
 type CpuPolicyCardTypeMap<T> = Record<string, T>;
 type CpuPolicyForcedDestroyReason = 'bucket1_never_use' | 'bucket2_low_charge' | 'bucket3_currently_unusable';
 
+interface CpuPolicyDecisionContext {
+    [key: string]: unknown;
+    level: number;
+    playerValue: 1 | -1;
+    legalMovesCount: number;
+    discDiff: number;
+    empties: number;
+    ownDiscs: number;
+    oppDiscs: number;
+    ownEdges: number;
+    oppEdges: number;
+    totalCells: number;
+    ownCharge: number;
+    oppCharge: number;
+    oppHandSize: number;
+    handSize: number;
+    handCardIds: string[];
+    deckRemaining: number | null;
+    usableCardIds: string[];
+    forceUseCard: boolean;
+    minUseScore: number;
+    ownCorners: number;
+    oppCorners: number;
+    hasCornerMoveNow: boolean;
+    hasEdgeMoveNow: boolean;
+    cornerEmergency: boolean;
+    cornerHoldMode: boolean;
+    recoveryCostGap: number;
+    reserveChargeFloor: number;
+    highBonusMoveAvailable: boolean;
+    maxLegalFlips: number;
+    avgLegalFlips: number;
+    maxLegalGain: number;
+    maxLegalBoardBonus: number;
+    cloneSplitEligibleSourceCount: number | null;
+    ownSpecialCount: number;
+    oppSpecialCount: number;
+    ownGuardCount: number;
+    oppGuardCount: number;
+    ownCornerResetCount: number;
+    oppCornerResetCount: number;
+    ownEdgeResetCount: number;
+    oppEdgeResetCount: number;
+    meteorBestCornerSwing: number;
+    meteorBestDestroyValue: number;
+    meteorHasCornerPromotion: boolean;
+    meteorHasHighValueDestroy: boolean;
+    whiteLv6Mode: boolean;
+    lowDiscEmergency: boolean;
+    criticalLowDiscEmergency: boolean;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object' ? value as Record<string, unknown> : {};
 }
@@ -1406,7 +1458,7 @@ function estimateOwnOppDiscs(discDiff: unknown, empties: unknown, totalCells: un
     return { own, opp, occupied, totalCells: safeTotalCells };
 }
 
-function buildCardDecisionContext(context: CpuPolicyCardContext | null | undefined) {
+function buildCardDecisionContext(context: CpuPolicyCardContext | null | undefined): CpuPolicyDecisionContext {
     const ctx = asRecord(context);
     const level = isFiniteNumber(ctx.level) ? Math.max(1, Math.floor(Number(ctx.level))) : 1;
     const playerValue = isFiniteNumber(ctx.playerValue)
@@ -1445,6 +1497,11 @@ function buildCardDecisionContext(context: CpuPolicyCardContext | null | undefin
     }
     if (!Number.isFinite(ownEdges)) ownEdges = 0;
     if (!Number.isFinite(oppEdges)) oppEdges = 0;
+    const normalizedEmpties = empties ?? 0;
+    const normalizedOwnDiscs = ownDiscs ?? 0;
+    const normalizedOppDiscs = oppDiscs ?? 0;
+    const normalizedOwnEdges = ownEdges ?? 0;
+    const normalizedOppEdges = oppEdges ?? 0;
 
     const ownCharge = isFiniteNumber(ctx.ownCharge) ? Number(ctx.ownCharge) : 0;
     const oppCharge = isFiniteNumber(ctx.oppCharge) ? Number(ctx.oppCharge) : 0;
@@ -1493,15 +1550,15 @@ function buildCardDecisionContext(context: CpuPolicyCardContext | null | undefin
     const meteorHasHighValueDestroy = ctx.meteorHasHighValueDestroy === true;
     let reserveChargeFloor = isFiniteNumber(ctx.reserveChargeFloor)
         ? Math.max(0, Math.floor(Number(ctx.reserveChargeFloor)))
-        : (empties <= 12 ? 4 : (empties <= 30 ? 6 : 8));
+        : (normalizedEmpties <= 12 ? 4 : (normalizedEmpties <= 30 ? 6 : 8));
     if (cornerEmergency) reserveChargeFloor = Math.max(2, reserveChargeFloor - 2);
     if (forceUseCard) reserveChargeFloor = 0;
     let minUseScore = Number.isFinite(ctx.minUseScore)
         ? Number(ctx.minUseScore)
         : (forceUseCard ? Number.NEGATIVE_INFINITY : (level >= 6 ? 18 : (level >= 4 ? 6 : -8)));
     const whiteLv6Mode = level >= 6 && playerValue < 0;
-    const lowDiscEmergency = ownDiscs <= Math.max(6, Math.floor(totalCells * 0.15));
-    const criticalLowDiscEmergency = ownDiscs <= 4;
+    const lowDiscEmergency = normalizedOwnDiscs <= Math.max(6, Math.floor(totalCells * 0.15));
+    const criticalLowDiscEmergency = normalizedOwnDiscs <= 4;
     // Hand cap is 5. When hand gets saturated, lower the threshold to keep card cycle healthy.
     if (!forceUseCard) {
         if (handSize >= 5) minUseScore = Math.min(minUseScore, level >= 6 ? 4 : 0);
@@ -1538,11 +1595,11 @@ function buildCardDecisionContext(context: CpuPolicyCardContext | null | undefin
         playerValue,
         legalMovesCount,
         discDiff,
-        empties,
-        ownDiscs,
-        oppDiscs,
-        ownEdges,
-        oppEdges,
+        empties: normalizedEmpties,
+        ownDiscs: normalizedOwnDiscs,
+        oppDiscs: normalizedOppDiscs,
+        ownEdges: normalizedOwnEdges,
+        oppEdges: normalizedOppEdges,
         totalCells,
         ownCharge,
         oppCharge,
