@@ -23,31 +23,20 @@ function safeRequire(id: string): any {
   }
 }
 
-function getRuntimeGlobalValue(key: string): any {
-  if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
-    return (globalThis as any)[key];
-  }
-  if (typeof self !== 'undefined' && (self as any)[key]) {
-    return (self as any)[key];
-  }
-  return undefined;
-}
+const CardModuleResolver = safeRequire('../logic/cards-internal/module-resolver');
 
 function loadRuntimeModule(id: string, globalKey: string, fallbackValue: any = null): any {
-  const runtimeValue = getRuntimeGlobalValue(globalKey);
-  if (runtimeValue) return runtimeValue;
-
-  if (typeof module === 'object' && module.exports) {
-    const loaded = safeRequire(id);
-    if (loaded) {
-      if (typeof globalThis !== 'undefined' && !(globalThis as any)[globalKey]) {
-        (globalThis as any)[globalKey] = loaded;
-      }
-      return loaded;
-    }
+  if (CardModuleResolver && typeof CardModuleResolver.resolveModule === 'function') {
+    const resolved = CardModuleResolver.resolveModule({
+      globalName: globalKey,
+      requirePath: id,
+      requireFn: _require,
+      label: globalKey
+    });
+    return resolved || fallbackValue;
   }
 
-  return runtimeValue || fallbackValue;
+  return safeRequire(id) || fallbackValue;
 }
 
 const SharedConstants = loadRuntimeModule('../../shared-constants', 'SharedConstants', {});
