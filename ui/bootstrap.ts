@@ -1425,6 +1425,24 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     return null;
                 }
             },
+            getNetworkTurnHandoff: () => {
+                try {
+                    return typeof globalThis !== 'undefined' ? (globalThis as any).NetworkTurnHandoff : null;
+                } catch (e: any) {
+                    return null;
+                }
+            },
+            getLocalPlayerKey: () => {
+                try {
+                    if (typeof globalThis === 'undefined') return null;
+                    return (globalThis as any).LOCAL_PLAYER_KEY
+                        || (globalThis as any).__LOCAL_PLAYER_KEY
+                        || (globalThis as any).BOARD_VIEWER_KEY
+                        || null;
+                } catch (e: any) {
+                    return null;
+                }
+            },
             now: () => Date.now(),
             // Let game/move-executor await the UI playback lifecycle (AnimationEngine / visual writer)
             waitForPlayback: uiMod.waitForPlaybackIdle,

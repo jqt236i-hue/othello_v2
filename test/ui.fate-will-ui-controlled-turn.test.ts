@@ -551,7 +551,12 @@ describe('FATE_WILL UI: network placement auth', () => {
             }))
         };
 
-        require(path.resolve(__dirname, '..', 'game', 'move-executor.js'));
+        const moveExecutor = require(path.resolve(__dirname, '..', 'game', 'move-executor.js'));
+        moveExecutor.setUIImpl({
+            getTurnPipelineUIAdapter: () => global.TurnPipelineUIAdapter,
+            getTurnPipeline: () => global.TurnPipeline,
+            getLocalPlayerKey: () => global.LOCAL_PLAYER_KEY
+        });
         const turnManager = require(path.resolve(__dirname, '..', 'game', 'turn-manager.js'));
         if (options && options.debugHvH) {
             turnManager.setUIImpl({ DEBUG_HUMAN_VS_HUMAN: true });

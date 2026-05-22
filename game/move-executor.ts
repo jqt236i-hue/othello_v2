@@ -68,16 +68,10 @@ let moveExecutorNetworkTurnHandoff: any = null;
 if (typeof require === 'function') {
     try { moveExecutorNetworkTurnHandoff = require('./network-turn-handoff'); } catch (e) { /* ignore */ }
 }
-if (!moveExecutorNetworkTurnHandoff && typeof globalThis !== 'undefined' && globalThis.NetworkTurnHandoff) {
-    moveExecutorNetworkTurnHandoff = globalThis.NetworkTurnHandoff;
-}
 
 let MoveExecutorOwnerHelpersModule: any = null;
 if (typeof require === 'function') {
     try { MoveExecutorOwnerHelpersModule = require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
-}
-if (!MoveExecutorOwnerHelpersModule && typeof globalThis !== 'undefined' && globalThis.OwnerHelpers) {
-    MoveExecutorOwnerHelpersModule = globalThis.OwnerHelpers;
 }
 
 function normalizeMoveExecutorPlayerKey(value: any, fallbackValue: any) {
@@ -106,11 +100,27 @@ function resolveMoveExecutorTurnOwnerKey(move: any) {
     return normalizeMoveExecutorPlayerKey(movePlayerValue, currentPlayerValue);
 }
 
+function readMoveExecutorLocalPlayerKey(fallbackValue: any) {
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.getLocalPlayerKey === 'function') {
+        try {
+            return normalizeMoveExecutorPlayerKey(__uiImpl_move_executor.getLocalPlayerKey(), fallbackValue);
+        } catch (e) { /* ignore */ }
+    }
+    if (__uiImpl_move_executor) {
+        const directKey = __uiImpl_move_executor.LOCAL_PLAYER_KEY
+            || __uiImpl_move_executor.__LOCAL_PLAYER_KEY
+            || __uiImpl_move_executor.BOARD_VIEWER_KEY;
+        if (directKey) return normalizeMoveExecutorPlayerKey(directKey, fallbackValue);
+    }
+    return normalizeMoveExecutorPlayerKey(fallbackValue, fallbackValue);
+}
+
 function resolveMoveExecutorAuthPlayerKey(turnOwnerKey: string) {
-    const rootRef = (typeof globalThis !== 'undefined') ? globalThis : null;
+    const injectedLocalPlayerKey = readMoveExecutorLocalPlayerKey(turnOwnerKey);
+    const localPlayerRef = { LOCAL_PLAYER_KEY: injectedLocalPlayerKey };
     const localPlayerKey = (MoveExecutorOwnerHelpersModule && typeof MoveExecutorOwnerHelpersModule.resolveLocalPlayerKey === 'function')
-        ? MoveExecutorOwnerHelpersModule.resolveLocalPlayerKey(rootRef)
-        : normalizeMoveExecutorPlayerKey(rootRef && rootRef.LOCAL_PLAYER_KEY, turnOwnerKey);
+        ? MoveExecutorOwnerHelpersModule.resolveLocalPlayerKey(localPlayerRef)
+        : readMoveExecutorLocalPlayerKey(turnOwnerKey);
     const controlledTurnOwnerKey = (MoveExecutorOwnerHelpersModule && typeof MoveExecutorOwnerHelpersModule.getFateWillControlledTurnOwnerForPlayer === 'function')
         ? MoveExecutorOwnerHelpersModule.getFateWillControlledTurnOwnerForPlayer(cardState, gameState, localPlayerKey)
         : null;
@@ -260,6 +270,19 @@ function resolveMoveExecutorTurnPipeline() {
     return null;
 }
 
+function resolveMoveExecutorNetworkTurnHandoff() {
+    if (__uiImpl_move_executor && __uiImpl_move_executor.networkTurnHandoff) {
+        return __uiImpl_move_executor.networkTurnHandoff;
+    }
+    if (__uiImpl_move_executor && typeof __uiImpl_move_executor.getNetworkTurnHandoff === 'function') {
+        try {
+            const handoff = __uiImpl_move_executor.getNetworkTurnHandoff();
+            if (handoff && typeof handoff === 'object') return handoff;
+        } catch (e) { /* ignore */ }
+    }
+    return moveExecutorNetworkTurnHandoff;
+}
+
 function isHumanVsHumanModeEnabled() {
     const debugHvH = readMoveExecutorHumanVsHumanFlag();
     const matchMode = String(readMoveExecutorMatchMode() || '').trim().toLowerCase();
@@ -274,8 +297,9 @@ function publishNetworkSnapshot(meta: any) {
         }
         return __uiImpl_move_executor.publishSnapshot(meta || {});
     }
-    if (moveExecutorNetworkTurnHandoff && typeof moveExecutorNetworkTurnHandoff.publishNetworkSnapshot === 'function') {
-        return moveExecutorNetworkTurnHandoff.publishNetworkSnapshot(meta);
+    const handoff = resolveMoveExecutorNetworkTurnHandoff();
+    if (handoff && typeof handoff.publishNetworkSnapshot === 'function') {
+        return handoff.publishNetworkSnapshot(meta);
     }
     return undefined;
 }
@@ -441,8 +465,9 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
 
     const humanMode = isHumanVsHumanModeEnabled();
     const safeCpuDelay = (typeof CPU_TURN_DELAY_MS !== 'undefined') ? CPU_TURN_DELAY_MS : 600;
-    const finalizeTurn = (moveExecutorNetworkTurnHandoff && typeof moveExecutorNetworkTurnHandoff.finalizeNetworkTurnHandoff === 'function')
-        ? moveExecutorNetworkTurnHandoff.finalizeNetworkTurnHandoff
+    const handoff = resolveMoveExecutorNetworkTurnHandoff();
+    const finalizeTurn = (handoff && typeof handoff.finalizeNetworkTurnHandoff === 'function')
+        ? handoff.finalizeNetworkTurnHandoff
         : null;
 
     if (typeof finalizeTurn === 'function') {
