@@ -1,4 +1,3 @@
-// @ts-nocheck
 import * as fs from 'fs';
 const os = require('os');
 const path = require('path');

@@ -74,11 +74,6 @@ const allowedNoCheckDebt = new Set([
   'training/scripts/training-seed-bank-plan.ts',
   'training/scripts/training-shared-teacher-args.ts',
   'training/scripts/training-warehouse-manifest-utils.ts',
-  'training/tests/selfplay.generate-data.parallel-workers.test.ts',
-  'training/tests/selfplay.generate-data.test.ts',
-  'training/tests/selfplay.runner.test.ts',
-  'training/tests/selfplay.training-cycle.test.ts',
-  'training/tests/selfplay.training-preset.test.ts',
   'ui.ts'
 ]);
 
