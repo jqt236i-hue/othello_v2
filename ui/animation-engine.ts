@@ -439,7 +439,7 @@ const {
         }
 
         _isSuperCrushCause(cause: any) {
-            return cause === 'SUPER_BUOYANCY_WILL' || cause === 'SUPER_GRAVITY_WILL';
+            return cause === 'BUOYANCY_WILL' || cause === 'SUPER_BUOYANCY_WILL' || cause === 'GRAVITY_WILL' || cause === 'SUPER_GRAVITY_WILL';
         }
 
         _resolveSuperCrushCollisionDelayMs(target: any) {
@@ -665,7 +665,9 @@ const {
                     moveIntent === 'position_swap' ||
                     moveIntent === 'teleport_move' ||
                     cause === 'STRONG_WIND_WILL' ||
+                    cause === 'BUOYANCY_WILL' ||
                     cause === 'SUPER_BUOYANCY_WILL' ||
+                    cause === 'GRAVITY_WILL' ||
                     cause === 'SUPER_GRAVITY_WILL' ||
                     cause === 'POSITION_SWAP_WILL' ||
                     cause === 'CELL_TELEPORT_WILL' ||
@@ -675,7 +677,9 @@ const {
                     isDestroyEvadeMove ||
                     reason.indexOf('position_swap') === 0 ||
                     reason.indexOf('strong_wind_move') === 0 ||
+                    reason.indexOf('buoyancy_move') === 0 ||
                     reason.indexOf('super_buoyancy_move') === 0 ||
+                    reason.indexOf('gravity_move') === 0 ||
                     reason.indexOf('super_gravity_move') === 0 ||
                     reason.indexOf('teleport_move') === 0 ||
                     reason.indexOf('destroy_evade_move') === 0
@@ -2640,7 +2644,9 @@ const {
             }
 
             if (
+                normalizedCause === 'BUOYANCY_WILL' ||
                 normalizedCause === 'SUPER_BUOYANCY_WILL' ||
+                (normalizedIntent === 'crush_move' && normalizedReason.indexOf('buoyancy_move') === 0) ||
                 (normalizedIntent === 'crush_move' && normalizedReason.indexOf('super_buoyancy_move') === 0)
             ) {
                 const lift = Math.max(18, Math.round(dominantTravel * 0.2));
@@ -2655,7 +2661,9 @@ const {
             }
 
             if (
+                normalizedCause === 'GRAVITY_WILL' ||
                 normalizedCause === 'SUPER_GRAVITY_WILL' ||
+                (normalizedIntent === 'crush_move' && normalizedReason.indexOf('gravity_move') === 0) ||
                 (normalizedIntent === 'crush_move' && normalizedReason.indexOf('super_gravity_move') === 0)
             ) {
                 const drop = Math.max(20, Math.round(dominantTravel * 0.22));

@@ -2552,7 +2552,9 @@ const {
             getTemptWillTargets,
             getCaptureWillTargets,
             getStrongWindTargets,
+            getBuoyancyTargets,
             getSuperBuoyancyTargets,
+            getGravityTargets,
             getSuperGravityTargets,
             getTrapTargets,
             getGuardTargets,
@@ -3981,6 +3983,19 @@ const {
         return res;
     }
 
+    function getBuoyancyTargets(cardState: any, gameState: any) {
+        if (CardSelectorsModule && typeof CardSelectorsModule.getBuoyancyTargets === 'function') {
+            return CardSelectorsModule.getBuoyancyTargets(cardState, gameState);
+        }
+
+        const res = [];
+        for (const cell of getOccupiedBoardShapeCellsForCard(cardState, gameState)) {
+            const option = _collectVerticalSlideMoveOption(cardState, gameState, cell.row, cell.col, -1);
+            if (option) res.push({ row: cell.row, col: cell.col });
+        }
+        return res;
+    }
+
     function getSuperGravityTargets(cardState: any, gameState: any) {
         if (CardSelectorsModule && typeof CardSelectorsModule.getSuperGravityTargets === 'function') {
             return CardSelectorsModule.getSuperGravityTargets(cardState, gameState);
@@ -3994,10 +4009,21 @@ const {
         return res;
     }
 
+    function getGravityTargets(cardState: any, gameState: any) {
+        if (CardSelectorsModule && typeof CardSelectorsModule.getGravityTargets === 'function') {
+            return CardSelectorsModule.getGravityTargets(cardState, gameState);
+        }
+
+        const res = [];
+        for (const cell of getOccupiedBoardShapeCellsForCard(cardState, gameState)) {
+            const option = _collectVerticalSlideMoveOption(cardState, gameState, cell.row, cell.col, 1);
+            if (option) res.push({ row: cell.row, col: cell.col });
+        }
+        return res;
+    }
+
     function _getStrongWindMoveOptions(cardState: any, gameState: any, row: any, col: any) {
         const dirs = [
-            { dr: -1, dc: 0 },
-            { dr: 1, dc: 0 },
             { dr: 0, dc: -1 },
             { dr: 0, dc: 1 }
         ];
@@ -4026,6 +4052,28 @@ const {
         return options;
     }
 
+    function _getStrongWindMoveOptionForDirection(cardState: any, gameState: any, row: any, col: any, d: any) {
+        const nr = row + d.dr;
+        const nc = col + d.dc;
+        if (!hasBoardShapeCellForCard(cardState, gameState, nr, nc)) return null;
+        if (getCellValueForCard(gameState, nr, nc) !== EMPTY) return null;
+        if (isBlockedCell(cardState, nr, nc, gameState)) return null;
+
+        let tr = nr;
+        let tc = nc;
+        while (true) {
+            const rr = tr + d.dr;
+            const cc = tc + d.dc;
+            if (!hasBoardShapeCellForCard(cardState, gameState, rr, cc)) break;
+            if (getCellValueForCard(gameState, rr, cc) !== EMPTY) break;
+            if (isBlockedCell(cardState, rr, cc, gameState)) break;
+            tr = rr;
+            tc = cc;
+        }
+        const distance = Math.abs(tr - row) + Math.abs(tc - col);
+        return { direction: d, target: { row: tr, col: tc }, distance };
+    }
+
     function _moveMarkersForStrongWind(cardState: any, fromRow: any, fromCol: any, toRow: any, toCol: any) {
         const markers = getMarkers(cardState);
         for (const m of markers) {
@@ -4034,6 +4082,29 @@ const {
             m.row = toRow;
             m.col = toCol;
         }
+    }
+
+    function _collectVerticalSlideMoveOption(cardState: any, gameState: any, row: any, col: any, dr: any) {
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+        if (dr !== -1 && dr !== 1) return null;
+        const firstRow = row + dr;
+        if (!hasBoardShapeCellForCard(cardState, gameState, firstRow, col)) return null;
+        if (isBlockedCell(cardState, firstRow, col, gameState)) return null;
+        if (getCellValueForCard(gameState, firstRow, col) !== EMPTY) return null;
+
+        let targetRow = firstRow;
+        for (let currentRow = firstRow + dr; hasBoardShapeCellForCard(cardState, gameState, currentRow, col); currentRow += dr) {
+            if (isBlockedCell(cardState, currentRow, col, gameState)) break;
+            if (getCellValueForCard(gameState, currentRow, col) !== EMPTY) break;
+            targetRow = currentRow;
+        }
+        const distance = Math.abs(targetRow - row);
+        if (distance <= 0) return null;
+        return {
+            direction: { dr, dc: 0 },
+            target: { row: targetRow, col },
+            distance
+        };
     }
 
     function _getTeleportDestinations(cardState: any, gameState: any) {
@@ -4220,17 +4291,10 @@ const {
         if (cellValue === null) return { applied: false, reason: 'out_of_board' };
         if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
 
-        const options = _getStrongWindMoveOptions(cardState, gameState, row, col);
-        if (!options.length) return { applied: false, reason: 'no_move_options' };
-
-        const maxDistance = options.reduce((m: any, o: any) => Math.max(m, Number(o && o.distance) || 0), 0);
-        const bestOptions = options.filter(o => (Number(o && o.distance) || 0) === maxDistance);
-        const pick = bestOptions[resolveDeterministicRandomIndex(
-            bestOptions.length,
-            prng,
-            null,
-            'CardLogic.applyStrongWindWill'
-        )];
+        const randomValue = readDeterministicRandomUnit(prng, null, 'CardLogic.applyStrongWindWill');
+        const direction = randomValue < 0.5 ? { dr: 0, dc: -1 } : { dr: 0, dc: 1 };
+        const pick = _getStrongWindMoveOptionForDirection(cardState, gameState, row, col, direction);
+        if (!pick) return { applied: false, reason: 'no_move_options' };
         const to = pick.target;
         const movedDistance = Math.abs(to.row - row) + Math.abs(to.col - col);
 
@@ -4357,6 +4421,57 @@ const {
         };
     }
 
+    function _applyVerticalSlideWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, config: any) {
+        const cfg = config || {};
+        const pendingType = String(cfg.pendingType || '');
+        const direction = Number(cfg.direction);
+        const moveReason = String(cfg.moveReason || '').trim();
+        const targetGetter = typeof cfg.targetGetter === 'function' ? cfg.targetGetter : null;
+
+        const pending = readCardPendingEffect(cardState, playerKey);
+        if (!pending || pending.type !== pendingType || pending.stage !== 'selectTarget') {
+            return { applied: false, reason: 'not_pending' };
+        }
+        const cellValue = getCellValueForCard(gameState, row, col);
+        if (cellValue === null) return { applied: false, reason: 'out_of_board' };
+        if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
+
+        const targets = targetGetter ? targetGetter(cardState, gameState) : [];
+        const allowed = targets.some((t: any) => t && t.row === row && t.col === col);
+        if (!allowed) return { applied: false, reason: 'invalid_target' };
+
+        const option = _collectVerticalSlideMoveOption(cardState, gameState, row, col, direction);
+        if (!option) return { applied: false, reason: 'no_move_options' };
+        const to = option.target;
+        const movedDistance = Math.abs(to.row - row) + Math.abs(to.col - col);
+
+        _moveMarkersForStrongWind(cardState, row, col, to.row, to.col);
+
+        if (BoardOpsModule && typeof BoardOpsModule.moveAt === 'function') {
+            const res = BoardOpsModule.moveAt(cardState, gameState, row, col, to.row, to.col, pendingType, moveReason);
+            if (!res || !res.moved) {
+                return { applied: false, reason: 'move_failed' };
+            }
+        } else {
+            const cleared = setCellValueForCard(gameState, row, col, EMPTY);
+            const placed = setCellValueForCard(gameState, to.row, to.col, cellValue);
+            if (!cleared || !placed) {
+                return { applied: false, reason: 'move_failed' };
+            }
+        }
+
+        clearCardPendingEffect(cardState, playerKey);
+        return {
+            applied: true,
+            from: { row, col },
+            to,
+            destroyed: [],
+            destroyedCount: 0,
+            movedDistance,
+            direction: option.direction
+        };
+    }
+
     function applySuperBuoyancyWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         if (CardMovementModule && typeof CardMovementModule.applySuperBuoyancyWill === 'function') {
             return CardMovementModule.applySuperBuoyancyWill(cardState, gameState, playerKey, row, col, {
@@ -4386,6 +4501,28 @@ const {
             moveReason: 'super_buoyancy_move',
             destroyReason: 'super_buoyancy_collision',
             targetGetter: getSuperBuoyancyTargets
+        });
+    }
+
+    function applyBuoyancyWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
+        if (CardMovementModule && typeof CardMovementModule.applyBuoyancyWill === 'function') {
+            return CardMovementModule.applyBuoyancyWill(cardState, gameState, playerKey, row, col, {
+                getBuoyancyTargets,
+                getCellValueForCard,
+                hasBoardShapeCellForCard,
+                isBlockedCell,
+                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                    ? BoardOpsModule.moveAt
+                    : null,
+                setCellValueForCard,
+                getMarkers
+            });
+        }
+        return _applyVerticalSlideWill(cardState, gameState, playerKey, row, col, {
+            pendingType: 'BUOYANCY_WILL',
+            direction: -1,
+            moveReason: 'buoyancy_move',
+            targetGetter: getBuoyancyTargets
         });
     }
 
@@ -4421,6 +4558,28 @@ const {
         });
     }
 
+    function applyGravityWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
+        if (CardMovementModule && typeof CardMovementModule.applyGravityWill === 'function') {
+            return CardMovementModule.applyGravityWill(cardState, gameState, playerKey, row, col, {
+                getGravityTargets,
+                getCellValueForCard,
+                hasBoardShapeCellForCard,
+                isBlockedCell,
+                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                    ? BoardOpsModule.moveAt
+                    : null,
+                setCellValueForCard,
+                getMarkers
+            });
+        }
+        return _applyVerticalSlideWill(cardState, gameState, playerKey, row, col, {
+            pendingType: 'GRAVITY_WILL',
+            direction: 1,
+            moveReason: 'gravity_move',
+            targetGetter: getGravityTargets
+        });
+    }
+
     function getCardHandManagerContext() {
         if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
             throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
@@ -4435,7 +4594,9 @@ const {
             getTemptWillTargets,
             getCaptureWillTargets,
             getStrongWindTargets,
+            getBuoyancyTargets,
             getSuperBuoyancyTargets,
+            getGravityTargets,
             getSuperGravityTargets,
             getTrapTargets,
             getGuardTargets,
@@ -5913,7 +6074,9 @@ const cardsApi: any = {
         getFateWillControllerForTurnOwner,
         applyFateWill,
         applyStrongWindWill,
+        applyBuoyancyWill,
         applySuperBuoyancyWill,
+        applyGravityWill,
         applySuperGravityWill,
         armRiboWillEffect,
         resolveEqualityWillUsage,
@@ -5947,7 +6110,9 @@ const cardsApi: any = {
         getSelectableTargets,
         getLivingWillTargets,
         getStrongWindTargets,
+        getBuoyancyTargets,
         getSuperBuoyancyTargets,
+        getGravityTargets,
         getSuperGravityTargets,
         getTabooReverseCandidates,
         pickTabooReverseFlips,

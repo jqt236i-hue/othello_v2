@@ -2716,7 +2716,9 @@ function _getPendingSelectionPrompt(pending: any) {
     if (!pending || pending.stage !== 'selectTarget') return '';
     const simplePromptByType: Record<string, string> = {
         STRONG_WIND_WILL: '移動させる石を選んでください',
+        BUOYANCY_WILL: '上方向へ移動させる石を選んでください',
         SUPER_BUOYANCY_WILL: '上方向へ移動させる石を選んでください',
+        GRAVITY_WILL: '下方向へ移動させる石を選んでください',
         SUPER_GRAVITY_WILL: '下方向へ移動させる石を選んでください',
         TELEPORT_WILL: 'テレポートさせる石を選んでください',
         CELL_TELEPORT_WILL: 'マステレポートさせるマスを選んでください',

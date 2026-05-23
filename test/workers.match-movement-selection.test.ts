@@ -116,6 +116,22 @@ describe('worker movement pending selection publish', () => {
       source: { row: 1, col: 4 },
       destination: { row: 7, col: 4 },
       moveIntent: 'crush_move'
+    },
+    {
+      cardId: 'buoyancy_01',
+      pendingType: 'BUOYANCY_WILL',
+      actionKey: 'buoyancyTarget',
+      source: { row: 5, col: 2 },
+      destination: { row: 0, col: 2 },
+      moveIntent: 'crush_move'
+    },
+    {
+      cardId: 'gravity_01',
+      pendingType: 'GRAVITY_WILL',
+      actionKey: 'gravityTarget',
+      source: { row: 2, col: 5 },
+      destination: { row: 7, col: 5 },
+      moveIntent: 'crush_move'
     }
   ])('$pendingType mutates authoritative board and emits move playback', (config) => {
     const result = runScenario(config);

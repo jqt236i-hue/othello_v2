@@ -12,7 +12,7 @@ describe('STRONG_WIND_WILL', () => {
     return { cardState, gameState };
   }
 
-  test('moves selected stone to farthest reachable cell in selected direction and moves marker too', () => {
+  test('moves selected stone to farthest reachable cell in the randomly selected horizontal direction and moves marker too', () => {
     const { cardState, gameState } = makeState();
 
     // source stone
@@ -42,7 +42,7 @@ describe('STRONG_WIND_WILL', () => {
       'black',
       3,
       3,
-      { random: () => 0.0 } // only one direction candidate, deterministic
+      { random: () => 0.5 } // right is selected at 0.5 or greater
     );
 
     expect(res && res.applied).toBe(true);
@@ -69,7 +69,7 @@ describe('STRONG_WIND_WILL', () => {
     expect(moveEvents[0].reason).toBe('strong_wind_move');
   });
 
-  test('rejects selecting a stone with no orthogonal empty adjacent cell', () => {
+  test('rejects selecting a stone with no horizontal empty adjacent cell', () => {
     const { cardState, gameState } = makeState();
     gameState.board[3][3] = 1;
     gameState.board[2][3] = -1;
@@ -83,13 +83,11 @@ describe('STRONG_WIND_WILL', () => {
     expect(gameState.board[3][3]).toBe(1);
   });
 
-  test('prefers direction with longest movement distance', () => {
+  test('selects left when random is below 0.5 and ignores longer vertical lanes', () => {
     const { cardState, gameState } = makeState();
 
     gameState.board[4][4] = 1;
-    // Up can move 1 (to 3,4) because 2,4 is blocked.
-    gameState.board[2][4] = -1;
-    // Down can move 3 (to 7,4).
+    // Up/down are open longer lanes but are not valid strong-wind directions.
     // Left can move 2 (to 4,2) because 4,1 is blocked.
     gameState.board[4][1] = -1;
     // Right can move 1 (to 4,5) because 4,6 is blocked.
@@ -97,27 +95,40 @@ describe('STRONG_WIND_WILL', () => {
 
     const res = CardLogic.applyStrongWindWill(cardState, gameState, 'black', 4, 4, { random: () => 0.0 });
     expect(res && res.applied).toBe(true);
-    expect(res.to).toEqual({ row: 7, col: 4 });
-    expect(res.movedDistance).toBe(3);
+    expect(res.to).toEqual({ row: 4, col: 2 });
+    expect(res.movedDistance).toBe(2);
     expect(cardState.charge.black).toBe(0);
   });
 
-  test('chooses randomly among tied longest-distance directions', () => {
+  test('selects right when random is 0.5 or greater', () => {
     const { cardState, gameState } = makeState();
 
     gameState.board[3][3] = 1;
-    // Up and down both move 2 (tie). Left/right are blocked at adjacency.
-    gameState.board[0][3] = -1; // up path stops at 1,3 (2 steps)
-    gameState.board[6][3] = -1; // down path stops at 5,3 (2 steps)
-    gameState.board[3][2] = -1;
-    gameState.board[3][4] = -1;
+    gameState.board[3][0] = -1; // left path stops at 3,1 (2 steps)
+    gameState.board[3][6] = -1; // right path stops at 3,5 (2 steps)
 
-    const res = CardLogic.applyStrongWindWill(cardState, gameState, 'black', 3, 3, { random: () => 0.9 });
+    const res = CardLogic.applyStrongWindWill(cardState, gameState, 'black', 3, 3, { random: () => 0.5 });
     expect(res && res.applied).toBe(true);
-    // 0.9 picks second tied option in deterministic array order.
-    expect(res.to).toEqual({ row: 5, col: 3 });
+    expect(res.to).toEqual({ row: 3, col: 5 });
     expect(res.movedDistance).toBe(2);
     expect(cardState.charge.black).toBe(0);
+  });
+
+  test('does not fall back to the opposite side when the selected side is blocked', () => {
+    const { cardState, gameState } = makeState();
+
+    gameState.board[3][3] = 1;
+    gameState.board[3][2] = -1;
+    // Right side is open, but random 0.0 selects blocked left.
+
+    const targets = CardLogic.getStrongWindTargets(cardState, gameState);
+    expect(targets).toEqual(expect.arrayContaining([{ row: 3, col: 3 }]));
+
+    const res = CardLogic.applyStrongWindWill(cardState, gameState, 'black', 3, 3, { random: () => 0.0 });
+    expect(res && res.applied).toBe(false);
+    expect(res.reason).toBe('no_move_options');
+    expect(cardState.pendingEffectByPlayer.black).toBeTruthy();
+    expect(gameState.board[3][3]).toBe(1);
   });
 
   test('can push a main-board stone into an empty expansion cell', () => {

@@ -474,6 +474,28 @@ describe('cpu turn handler pending selection', () => {
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
   });
 
+  test('BUOYANCY_WILL invokes cpuSelectBuoyancyWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectBuoyancyWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'BUOYANCY_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('BUOYANCY_WILL clears pending when function absent without falling back to super handler', async () => {
+    delete global.cpuSelectBuoyancyWillWithPolicy;
+    const superMock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectSuperBuoyancyWillWithPolicy = superMock;
+    cardState.pendingEffectByPlayer.white = { type: 'BUOYANCY_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(superMock).not.toHaveBeenCalled();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
   test('SUPER_GRAVITY_WILL invokes cpuSelectSuperGravityWillWithPolicy when available', async () => {
     const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
     global.cpuSelectSuperGravityWillWithPolicy = mock;
@@ -490,6 +512,28 @@ describe('cpu turn handler pending selection', () => {
 
     cpuHandler.processCpuTurn();
     await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
+  test('GRAVITY_WILL invokes cpuSelectGravityWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectGravityWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'GRAVITY_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('GRAVITY_WILL clears pending when function absent without falling back to super handler', async () => {
+    delete global.cpuSelectGravityWillWithPolicy;
+    const superMock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectSuperGravityWillWithPolicy = superMock;
+    cardState.pendingEffectByPlayer.white = { type: 'GRAVITY_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(superMock).not.toHaveBeenCalled();
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
   });
 

@@ -3,6 +3,7 @@
  * @description Pending target selector orchestration shared between Browser and Headless.
  */
 
+import PendingSelectionRegistry = require('./pending-selection-registry');
 
 interface SelectorContext {
     cardState?: any;
@@ -29,8 +30,16 @@ const MODULE_SELECTOR_HANDLERS: Record<string, SelectorConfig> = Object.freeze({
         method: 'getStrongWindTargets',
         args: (context) => [context.cardState, context.gameState]
     },
+    BUOYANCY_WILL: {
+        method: 'getBuoyancyTargets',
+        args: (context) => [context.cardState, context.gameState]
+    },
     SUPER_BUOYANCY_WILL: {
         method: 'getSuperBuoyancyTargets',
+        args: (context) => [context.cardState, context.gameState]
+    },
+    GRAVITY_WILL: {
+        method: 'getGravityTargets',
         args: (context) => [context.cardState, context.gameState]
     },
     SUPER_GRAVITY_WILL: {
@@ -133,7 +142,9 @@ const MODULE_SELECTOR_HANDLERS: Record<string, SelectorConfig> = Object.freeze({
 
 const LOCAL_SELECTOR_HANDLERS: Record<string, (context: SelectorContext) => any[]> = Object.freeze({
     STRONG_WIND_WILL: (context) => invokeLocal(context, 'getStrongWindTargets', [context.cardState, context.gameState]),
+    BUOYANCY_WILL: (context) => invokeLocal(context, 'getBuoyancyTargets', [context.cardState, context.gameState]),
     SUPER_BUOYANCY_WILL: (context) => invokeLocal(context, 'getSuperBuoyancyTargets', [context.cardState, context.gameState]),
+    GRAVITY_WILL: (context) => invokeLocal(context, 'getGravityTargets', [context.cardState, context.gameState]),
     SUPER_GRAVITY_WILL: (context) => invokeLocal(context, 'getSuperGravityTargets', [context.cardState, context.gameState]),
     TEMPT_WILL: (context) => invokeLocal(context, 'getTemptWillTargets', [context.cardState, context.gameState, context.playerKey]),
     CAPTURE_WILL: (context) => invokeLocal(context, 'getCaptureWillTargets', [context.cardState, context.gameState, context.playerKey]),
@@ -194,7 +205,14 @@ function forEachMainBoardCell(context: SelectorContext, iteratee: (row: number, 
 }
 
 function invokeModuleSelector(context: SelectorContext, type: string): any {
-    const config = MODULE_SELECTOR_HANDLERS[type];
+    const registryEntry = PendingSelectionRegistry.getPendingSelectionEntry(type);
+    const registryTarget = registryEntry && registryEntry.target ? registryEntry.target : null;
+    const config = registryTarget
+        ? {
+            method: registryTarget.method,
+            args: (selectorContext: SelectorContext) => getSelectorArgs(selectorContext, registryTarget.argsKey)
+        }
+        : MODULE_SELECTOR_HANDLERS[type];
     const selectorsModule = context && context.selectorsModule;
     if (!config || !selectorsModule) return null;
     const selector = selectorsModule[config.method];
@@ -203,6 +221,19 @@ function invokeModuleSelector(context: SelectorContext, type: string): any {
         return selector(...config.args(context));
     } catch (e) {
         return null;
+    }
+}
+
+function getSelectorArgs(context: SelectorContext, argsKey: string): any[] {
+    switch (argsKey) {
+    case 'board':
+        return [context.cardState, context.gameState];
+    case 'player':
+        return [context.cardState, context.gameState, context.playerKey];
+    case 'player_pending':
+        return [context.cardState, context.gameState, context.playerKey, context.pending];
+    default:
+        return [context.cardState, context.gameState, context.playerKey];
     }
 }
 
@@ -325,6 +356,12 @@ function getSelectableTargetsForPending(context: SelectorContext): any[] {
     if (type === 'DESTROY_ONE_STONE') return getDestroyTargetsFallback(context);
     if (type === 'SWAP_WITH_ENEMY') return getSwapTargetsFallback(context);
     if (type === 'POSITION_SWAP_WILL') return getPositionSwapTargetsFallback(context);
+
+    const registryEntry = PendingSelectionRegistry.getPendingSelectionEntry(type);
+    if (registryEntry && registryEntry.target && registryEntry.target.method) {
+        const registryTargets = invokeLocal(context, registryEntry.target.method, getSelectorArgs(context, registryEntry.target.argsKey));
+        if (Array.isArray(registryTargets) && registryTargets.length > 0) return registryTargets;
+    }
 
     const localSelector = LOCAL_SELECTOR_HANDLERS[type];
     if (typeof localSelector === 'function') {

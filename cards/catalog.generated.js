@@ -89,7 +89,7 @@ window.CardCatalog = {
       "name_ja": "強風の意志",
       "type": "STRONG_WIND_WILL",
       "cost": 9,
-      "desc_ja": "盤面の石1つを選び、最も長く進める上下左右方向へ飛ばす（同距離はランダム）。",
+      "desc_ja": "盤面の石1つを選び、左右どちらかを50%ずつでランダム決定し、決定方向へ可能な限り遠くまで飛ばす。選ばれた方向へ動けない場合は不成立。",
       "display_type_ja": "執行"
     },
     {
@@ -101,12 +101,28 @@ window.CardCatalog = {
       "display_type_ja": "殲滅"
     },
     {
+      "id": "buoyancy_01",
+      "name_ja": "浮力",
+      "type": "BUOYANCY_WILL",
+      "cost": 9,
+      "desc_ja": "盤面の石1つを選び、上方向へ限界まで移動させる。進行方向上に石がある場合は破壊せず、その手前で止まる。",
+      "display_type_ja": "執行"
+    },
+    {
       "id": "super_gravity_01",
       "name_ja": "超重力",
       "type": "SUPER_GRAVITY_WILL",
       "cost": 16,
       "desc_ja": "盤面の石1つを選び、下方向へ限界まで移動させる。進行方向上の石は衝突時にすべて破壊して進む。",
       "display_type_ja": "殲滅"
+    },
+    {
+      "id": "gravity_01",
+      "name_ja": "重力",
+      "type": "GRAVITY_WILL",
+      "cost": 9,
+      "desc_ja": "盤面の石1つを選び、下方向へ限界まで移動させる。進行方向上に石がある場合は破壊せず、その手前で止まる。",
+      "display_type_ja": "執行"
     },
     {
       "id": "trap_01",

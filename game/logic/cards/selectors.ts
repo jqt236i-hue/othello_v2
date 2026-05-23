@@ -48,11 +48,8 @@ const SharedBoardUtils = ((typeof module === 'object' && module.exports)
     ? safeRequire('../../../shared/shared-board-utils')
     : null) || getRuntimeGlobalValue('SharedBoardUtils');
 
-const { EMPTY, ORTHOGONAL_DIRECTIONS } = SharedConstants || {};
+const { EMPTY } = SharedConstants || {};
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
-const CARD_ORTHOGONAL_DIRECTIONS = Array.isArray(ORTHOGONAL_DIRECTIONS)
-    ? ORTHOGONAL_DIRECTIONS
-    : [[-1, 0], [1, 0], [0, -1], [0, 1]];
 
 function isBlockingMarkerType(type: string): boolean {
     return type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE';
@@ -421,13 +418,13 @@ function _getStrongWindDirectionDestination(cardState: CardState, gameState: Gam
     return { row: tr, col: tc };
 }
 
-// Return strong-wind targets: any non-empty stone that has at least one movable orthogonal direction.
+// Return strong-wind targets: any non-empty stone that has at least one movable horizontal direction.
 function getStrongWindTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
         if (owner === P_EMPTY) return;
         let movable = false;
-        for (const d of CARD_ORTHOGONAL_DIRECTIONS) {
+        for (const d of [[0, -1], [0, 1]]) {
             if (_getStrongWindDirectionDestination(cardState, gameState, r, c, d[0], d[1])) {
                 movable = true;
                 break;
@@ -454,6 +451,24 @@ function _collectVerticalCrushDestination(cardState: CardState, gameState: GameS
     return destination;
 }
 
+function _collectVerticalSlideDestination(cardState: CardState, gameState: GameState, row: number, col: number, dr: number): DestinationCell | null {
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+    if (dr !== -1 && dr !== 1) return null;
+
+    const firstRow = row + dr;
+    if (!hasBoardShapeCell(gameState, firstRow, col)) return null;
+    if (isBlockedCell(cardState, firstRow, col)) return null;
+    if (getCellValue(gameState, firstRow, col) !== P_EMPTY) return null;
+
+    let destination: DestinationCell = { row: firstRow, col };
+    for (let r = firstRow + dr; hasBoardShapeCell(gameState, r, col); r += dr) {
+        if (isBlockedCell(cardState, r, col)) break;
+        if (getCellValue(gameState, r, col) !== P_EMPTY) break;
+        destination = { row: r, col };
+    }
+    return destination;
+}
+
 function _getVerticalCrushTargets(cardState: CardState, gameState: GameState, dr: number): TargetCell[] {
     const res: TargetCell[] = [];
     forEachBoardShapeCell(gameState, (r, c, owner) => {
@@ -466,12 +481,31 @@ function _getVerticalCrushTargets(cardState: CardState, gameState: GameState, dr
     return res;
 }
 
+function _getVerticalSlideTargets(cardState: CardState, gameState: GameState, dr: number): TargetCell[] {
+    const res: TargetCell[] = [];
+    forEachBoardShapeCell(gameState, (r, c, owner) => {
+        if (owner === P_EMPTY) return;
+        const destination = _collectVerticalSlideDestination(cardState, gameState, r, c, dr);
+        if (!destination) return;
+        res.push({ row: r, col: c });
+    });
+    return res;
+}
+
 function getSuperBuoyancyTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     return _getVerticalCrushTargets(cardState, gameState, -1);
 }
 
+function getBuoyancyTargets(cardState: CardState, gameState: GameState): TargetCell[] {
+    return _getVerticalSlideTargets(cardState, gameState, -1);
+}
+
 function getSuperGravityTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     return _getVerticalCrushTargets(cardState, gameState, 1);
+}
+
+function getGravityTargets(cardState: CardState, gameState: GameState): TargetCell[] {
+    return _getVerticalSlideTargets(cardState, gameState, 1);
 }
 
 // Return trap targets: own stones (including special stones), excluding bombs/own existing trap/absolute-protected.
@@ -1006,7 +1040,9 @@ export = {
     getSwapTargets,
     getPositionSwapTargets,
     getStrongWindTargets,
+    getBuoyancyTargets,
     getSuperBuoyancyTargets,
+    getGravityTargets,
     getSuperGravityTargets,
     getTrapTargets,
     getGuardTargets,

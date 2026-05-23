@@ -1,4 +1,5 @@
 import type { CardState, GameState, PlayerKey } from '../../src/types';
+import PendingSelectionRegistry = require('../logic/cards-internal/pending-selection-registry');
 
 type BoardCellTarget = { row: number; col: number };
 type PendingTargetSelectorContext = {
@@ -173,35 +174,12 @@ function buildPendingSelectionAction(context: PendingTargetSelectorContext): Rec
     const pendingType = String((context && context.pendingType) || (pending && pending.type) || '');
     if (!pendingType) return createCancelCardAction();
 
+    const actionConfig = PendingSelectionRegistry.getPendingSelectionActionConfig(pendingType);
+    if (actionConfig && actionConfig.policyMethod && actionConfig.field) {
+        return buildBoardCellAction(context, actionConfig.policyMethod, actionConfig.field);
+    }
+
     switch (pendingType) {
-    case 'SWAP_WITH_ENEMY': return buildBoardCellAction(context, 'chooseSwapTarget', 'swapTarget');
-    case 'POSITION_SWAP_WILL': return buildBoardCellAction(context, 'choosePositionSwapTarget', 'positionSwapTarget');
-    case 'DESTROY_ONE_STONE': return buildBoardCellAction(context, 'chooseDestroyTarget', 'destroyTarget');
-    case 'STRONG_WIND_WILL': return buildBoardCellAction(context, 'chooseStrongWindTarget', 'strongWindTarget');
-    case 'SUPER_BUOYANCY_WILL': return buildBoardCellAction(context, 'chooseSuperBuoyancyTarget', 'superBuoyancyTarget');
-    case 'SUPER_GRAVITY_WILL': return buildBoardCellAction(context, 'chooseSuperGravityTarget', 'superGravityTarget');
-    case 'TEMPT_WILL': return buildBoardCellAction(context, 'chooseTemptTarget', 'temptTarget');
-    case 'CAPTURE_WILL': return buildBoardCellAction(context, 'chooseCaptureTarget', 'captureTarget');
-    case 'TIME_BOMB': return buildBoardCellAction(context, 'chooseTimeBombTarget', 'bombTarget');
-    case 'GUARD_WILL':
-    case 'GUARDIAN_GOD': return buildBoardCellAction(context, 'chooseGuardTarget', 'guardTarget');
-    case 'LIVING_WILL': return buildBoardCellAction(context, 'chooseLivingWillTarget', 'livingWillTarget');
-    case 'BOARD_EXPANSION_WILL':
-    case 'BOARD_EXPANSION_GOD': return buildBoardCellAction(context, 'chooseBoardExpansionTarget', 'expansionTarget');
-    case 'BOARD_SHRINK_WILL':
-    case 'BOARD_SHRINK_GOD': return buildBoardCellAction(context, 'chooseBoardShrinkTarget', 'shrinkTarget');
-    case 'BLOCKADE_WILL': return buildBoardCellAction(context, 'chooseBlockadeTarget', 'blockadeTarget');
-    case 'METEOR_WILL': return buildBoardCellAction(context, 'chooseMeteorTarget', 'meteorTarget');
-    case 'FREEZE_WILL': return buildBoardCellAction(context, 'chooseFreezeTarget', 'freezeTarget');
-    case 'SEED_WILL': return buildBoardCellAction(context, 'chooseSeedTarget', 'seedTarget');
-    case 'TRAP_WILL': return buildBoardCellAction(context, 'chooseTrapTarget', 'trapTarget');
-    case 'CLONE_WILL': return buildBoardCellAction(context, 'chooseCloneTarget', 'cloneTarget');
-    case 'HYPERACTIVE_INHERIT_WILL': return buildBoardCellAction(context, 'chooseHyperactiveInheritTarget', 'hyperactiveInheritTarget');
-    case 'TELEPORT_WILL': return buildBoardCellAction(context, 'chooseTeleportTarget', 'teleportTarget');
-    case 'CELL_TELEPORT_WILL': return buildBoardCellAction(context, 'chooseCellTeleportTarget', 'teleportTarget');
-    case 'EXTEND_LIFE_WILL':
-    case 'EXTEND_LIFE_GOD': return buildBoardCellAction(context, 'chooseExtendLifeTarget', 'extendTarget');
-    case 'CORROSION_WILL': return buildBoardCellAction(context, 'chooseCorrosionTarget', 'corrosionTarget');
     case 'HEAVEN_BLESSING': return buildHeavenBlessingAction(context);
     case 'CONDEMN_WILL': return buildCondemnAction(context);
     default: return createCancelCardAction();

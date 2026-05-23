@@ -65,11 +65,13 @@ describe('cards catalog consistency', () => {
     expect(Number(byId.get('perma_01').cost)).toBe(15);
   });
 
-  test('free placement and super buoyancy/gravity costs reflect latest balance', () => {
+  test('free placement and buoyancy/gravity costs reflect latest balance', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
     expect(Number(byId.get('free_01').cost)).toBe(14);
+    expect(Number(byId.get('buoyancy_01').cost)).toBe(9);
     expect(Number(byId.get('super_buoyancy_01').cost)).toBe(16);
+    expect(Number(byId.get('gravity_01').cost)).toBe(9);
     expect(Number(byId.get('super_gravity_01').cost)).toBe(16);
   });
 

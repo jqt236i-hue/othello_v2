@@ -1,5 +1,7 @@
 'use strict';
 
+import PendingSelectionRegistry = require('./pending-selection-registry');
+
 interface CardUsageContext {
     gameState?: any;
     cardState?: any;
@@ -31,6 +33,30 @@ function validateSelectionTargets(context: CardUsageContext, resolverName: strin
     if (typeof resolver !== 'function')
         return false;
     return hasTargets(resolver(context.cardState, context.gameState, context.playerKey), minimumCount);
+}
+
+function buildSelectionTargetArgs(context: CardUsageContext, argsKey: string): any[] {
+    switch (argsKey) {
+        case 'board':
+            return [context.cardState, context.gameState];
+        case 'player_pending':
+            return [context.cardState, context.gameState, context.playerKey, context.pending || null];
+        case 'player':
+        default:
+            return [context.cardState, context.gameState, context.playerKey];
+    }
+}
+
+function validateRegistrySelectionTargets(context: CardUsageContext, entry: any): boolean {
+    if (!context || !context.gameState || !entry || !entry.target)
+        return false;
+    const resolver = context[entry.target.method];
+    if (typeof resolver !== 'function')
+        return false;
+    const minimumCount = Number.isFinite(Number(entry.target.minimumCount))
+        ? Math.max(1, Math.trunc(Number(entry.target.minimumCount)))
+        : 1;
+    return hasTargets(resolver(...buildSelectionTargetArgs(context, entry.target.argsKey)), minimumCount);
 }
 
 function buildFailureResult(): CardUsageResult {
@@ -140,6 +166,10 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             : [];
         return opponentHand.length > 0 ? result : buildFailureResult();
     }
+    const registryEntry = PendingSelectionRegistry.getPendingSelectionEntry(cardType);
+    if (registryEntry && registryEntry.target && registryEntry.target.method) {
+        return validateRegistrySelectionTargets(context, registryEntry) ? result : buildFailureResult();
+    }
     switch (cardType) {
         case 'TEMPT_WILL':
             return validateSelectionTargets(context, 'getTemptWillTargets', 1) ? result : buildFailureResult();
@@ -147,8 +177,12 @@ function validateCardUsagePreconditions(context: CardUsageContext): CardUsageRes
             return validateSelectionTargets(context, 'getCaptureWillTargets', 1) ? result : buildFailureResult();
         case 'STRONG_WIND_WILL':
             return validateSelectionTargets(context, 'getStrongWindTargets', 1) ? result : buildFailureResult();
+        case 'BUOYANCY_WILL':
+            return validateSelectionTargets(context, 'getBuoyancyTargets', 1) ? result : buildFailureResult();
         case 'SUPER_BUOYANCY_WILL':
             return validateSelectionTargets(context, 'getSuperBuoyancyTargets', 1) ? result : buildFailureResult();
+        case 'GRAVITY_WILL':
+            return validateSelectionTargets(context, 'getGravityTargets', 1) ? result : buildFailureResult();
         case 'SUPER_GRAVITY_WILL':
             return validateSelectionTargets(context, 'getSuperGravityTargets', 1) ? result : buildFailureResult();
         case 'TRAP_WILL':

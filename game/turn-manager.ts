@@ -10,7 +10,9 @@ declare const getGamePrng: any;
 // Card effect selection handlers (injected by UI bootstrap / card-effects modules)
 declare const handleDestroySelection: any;
 declare const handleStrongWindSelection: any;
+declare const handleBuoyancySelection: any;
 declare const handleSuperBuoyancySelection: any;
+declare const handleGravitySelection: any;
 declare const handleSuperGravitySelection: any;
 declare const handleTeleportSelection: any;
 declare const handleTemptSelection: any;
@@ -922,8 +924,12 @@ function resolveBoardPendingSelectionHandlerForTurnManager(dispatchKey: any) {
         return (typeof handleDestroySelection === 'function') ? handleDestroySelection : null;
     case 'strong_wind':
         return (typeof handleStrongWindSelection === 'function') ? handleStrongWindSelection : null;
+    case 'buoyancy':
+        return (typeof handleBuoyancySelection === 'function') ? handleBuoyancySelection : null;
     case 'super_buoyancy':
         return (typeof handleSuperBuoyancySelection === 'function') ? handleSuperBuoyancySelection : null;
+    case 'gravity':
+        return (typeof handleGravitySelection === 'function') ? handleGravitySelection : null;
     case 'super_gravity':
         return (typeof handleSuperGravitySelection === 'function') ? handleSuperGravitySelection : null;
     case 'teleport':

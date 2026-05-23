@@ -20,11 +20,25 @@ const CASES = [
     cardId: 'super_buoyancy_01'
   },
   {
+    label: 'BUOYANCY_WILL',
+    handlerName: 'handleBuoyancySelection',
+    pendingType: 'BUOYANCY_WILL',
+    actionField: 'buoyancyTarget',
+    cardId: 'buoyancy_01'
+  },
+  {
     label: 'SUPER_GRAVITY_WILL',
     handlerName: 'handleSuperGravitySelection',
     pendingType: 'SUPER_GRAVITY_WILL',
     actionField: 'superGravityTarget',
     cardId: 'super_gravity_01'
+  },
+  {
+    label: 'GRAVITY_WILL',
+    handlerName: 'handleGravitySelection',
+    pendingType: 'GRAVITY_WILL',
+    actionField: 'gravityTarget',
+    cardId: 'gravity_01'
   }
 ];
 

@@ -64,6 +64,17 @@ async function handleSuperBuoyancySelection(row: number, col: number, playerKey:
     });
 }
 
+async function handleBuoyancySelection(row: number, col: number, playerKey: string) {
+    return handleMovementSelection(row, col, playerKey, {
+        pendingType: 'BUOYANCY_WILL',
+        actionField: 'buoyancyTarget',
+        rawEventType: 'buoyancy_selected',
+        invalidMessage: '上へ移動させる石を選んでください',
+        activationName: '浮力',
+        cause: 'BUOYANCY_WILL'
+    });
+}
+
 async function handleSuperGravitySelection(row: number, col: number, playerKey: string) {
     return handleMovementSelection(row, col, playerKey, {
         pendingType: 'SUPER_GRAVITY_WILL',
@@ -75,10 +86,23 @@ async function handleSuperGravitySelection(row: number, col: number, playerKey: 
     });
 }
 
+async function handleGravitySelection(row: number, col: number, playerKey: string) {
+    return handleMovementSelection(row, col, playerKey, {
+        pendingType: 'GRAVITY_WILL',
+        actionField: 'gravityTarget',
+        rawEventType: 'gravity_selected',
+        invalidMessage: '下へ移動させる石を選んでください',
+        activationName: '重力',
+        cause: 'GRAVITY_WILL'
+    });
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         handleStrongWindSelection,
+        handleBuoyancySelection,
         handleSuperBuoyancySelection,
+        handleGravitySelection,
         handleSuperGravitySelection
     };
 }

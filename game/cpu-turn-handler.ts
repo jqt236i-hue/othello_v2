@@ -80,6 +80,9 @@ let moveGenerator: any = null;
 if (typeof require === 'function') {
     try { moveGenerator = _require('./move-generator'); } catch (e) { /* ignore */ }
 }
+const PendingSelectionRegistryForCpu = (function() {
+    try { return _require('./logic/cards-internal/pending-selection-registry'); } catch (e) { return null; }
+})();
 let cardEffectsHelpers: any = null;
 if (typeof require === 'function') {
     try { cardEffectsHelpers = _require('./card-effects/helpers'); } catch (e) { /* ignore */ }
@@ -1528,70 +1531,32 @@ function getPendingDispatchHandlers(playerKey: any) {
         }
         return null;
     };
-    return {
-        destroy: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectDestroyWithPolicy'), playerKey); },
-        strong_wind: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectStrongWindWillWithPolicy'), playerKey); },
-        super_buoyancy: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectSuperBuoyancyWillWithPolicy'), playerKey); },
-        super_gravity: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectSuperGravityWillWithPolicy'), playerKey); },
-        heaven_blessing: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectHeavenBlessingWithPolicy'), playerKey); },
-        condemn: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectCondemnWillWithPolicy'), playerKey); },
-        swap_with_enemy: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectSwapWithEnemyWithPolicy'), playerKey); },
-        position_swap: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectPositionSwapWillWithPolicy'), playerKey); },
-        trap: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectTrapWillWithPolicy'), playerKey); },
-        guard: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectGuardWillWithPolicy'), playerKey); },
-        living_will: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectLivingWillWithPolicy'), playerKey); },
-        hyperactive_inherit: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectHyperactiveInheritWillWithPolicy'), playerKey); },
-        extend_life: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectExtendLifeWillWithPolicy'), playerKey); },
-        corrosion: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectCorrosionWillWithPolicy'), playerKey); },
-        teleport: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectTeleportWillWithPolicy'), playerKey); },
-        cell_teleport: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectCellTeleportWillWithPolicy'), playerKey); },
-        tempt: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectTemptWillWithPolicy'), playerKey); },
-        capture: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectCaptureWillWithPolicy'), playerKey); },
-        time_bomb: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectTimeBombWithPolicy'), playerKey); },
-        board_expansion: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectBoardExpansionWillWithPolicy'), playerKey); },
-        board_shrink: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectBoardShrinkWithPolicy', 'cpuSelectBoardShrinkWillWithPolicy'), playerKey); },
-        blockade: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectBlockadeWillWithPolicy'), playerKey); },
-        meteor: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectMeteorWillWithPolicy'), playerKey); },
-        freeze: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectFreezeWillWithPolicy'), playerKey); },
-        seed: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectSeedWillWithPolicy'), playerKey); },
-        clone: async () => { await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler('cpuSelectCloneWillWithPolicy'), playerKey); }
-    };
+    const handlerNamesByDispatch = PendingSelectionRegistryForCpu && typeof PendingSelectionRegistryForCpu.getPendingSelectionCpuHandlerNamesByDispatchKey === 'function'
+        ? PendingSelectionRegistryForCpu.getPendingSelectionCpuHandlerNamesByDispatchKey()
+        : {};
+    const handlers: Record<string, any> = {};
+    Object.keys(handlerNamesByDispatch).forEach((dispatchKey) => {
+        const names = Array.isArray(handlerNamesByDispatch[dispatchKey]) ? handlerNamesByDispatch[dispatchKey] : [];
+        handlers[dispatchKey] = async () => {
+            await runOptionalCpuPendingSelectionHandler(resolveCpuPendingHandler(...names), playerKey);
+        };
+    });
+    return handlers;
 }
 
 function getPendingTypeHandlers(playerKey: PlayerKey) {
     const dispatchHandlers = getPendingDispatchHandlers(playerKey);
-    return {
-        DESTROY_ONE_STONE: dispatchHandlers.destroy,
-        STRONG_WIND_WILL: dispatchHandlers.strong_wind,
-        SUPER_BUOYANCY_WILL: dispatchHandlers.super_buoyancy,
-        SUPER_GRAVITY_WILL: dispatchHandlers.super_gravity,
-        HEAVEN_BLESSING: dispatchHandlers.heaven_blessing,
-        CONDEMN_WILL: dispatchHandlers.condemn,
-        SWAP_WITH_ENEMY: dispatchHandlers.swap_with_enemy,
-        POSITION_SWAP_WILL: dispatchHandlers.position_swap,
-        TRAP_WILL: dispatchHandlers.trap,
-        GUARD_WILL: dispatchHandlers.guard,
-        GUARDIAN_GOD: dispatchHandlers.guard,
-        LIVING_WILL: dispatchHandlers.living_will,
-        HYPERACTIVE_INHERIT_WILL: dispatchHandlers.hyperactive_inherit,
-        EXTEND_LIFE_WILL: dispatchHandlers.extend_life,
-        EXTEND_LIFE_GOD: dispatchHandlers.extend_life,
-        CORROSION_WILL: dispatchHandlers.corrosion,
-        TELEPORT_WILL: dispatchHandlers.teleport,
-        CELL_TELEPORT_WILL: dispatchHandlers.cell_teleport,
-        TEMPT_WILL: dispatchHandlers.tempt,
-        CAPTURE_WILL: dispatchHandlers.capture,
-        TIME_BOMB: dispatchHandlers.time_bomb,
-        BOARD_EXPANSION_WILL: dispatchHandlers.board_expansion,
-        BOARD_EXPANSION_GOD: dispatchHandlers.board_expansion,
-        BOARD_SHRINK_WILL: dispatchHandlers.board_shrink,
-        BOARD_SHRINK_GOD: dispatchHandlers.board_shrink,
-        BLOCKADE_WILL: dispatchHandlers.blockade,
-        METEOR_WILL: dispatchHandlers.meteor,
-        FREEZE_WILL: dispatchHandlers.freeze,
-        SEED_WILL: dispatchHandlers.seed,
-        CLONE_WILL: dispatchHandlers.clone
-    };
+    const registry = PendingSelectionRegistryForCpu && typeof PendingSelectionRegistryForCpu.getPendingSelectionRegistry === 'function'
+        ? PendingSelectionRegistryForCpu.getPendingSelectionRegistry()
+        : {};
+    const handlers: Record<string, any> = {};
+    Object.keys(registry).forEach((cardType) => {
+        const dispatchKey = registry[cardType] && registry[cardType].dispatchKey;
+        if (dispatchKey && dispatchHandlers[dispatchKey]) {
+            handlers[cardType] = dispatchHandlers[dispatchKey];
+        }
+    });
+    return handlers;
 }
 
 async function processCpuTurn(): Promise<void> {

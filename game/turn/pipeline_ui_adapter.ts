@@ -35,7 +35,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     });
     const BATCH_DESTROY_CAUSES = new Set(['TIME_BOMB', 'ULTIMATE_DESTROY_GOD', 'CROSS_BOMB', 'X_BOMB', 'ESCAPE_HYPERACTIVE']);
     const BOMB_DESTROY_CAUSES = new Set(['TIME_BOMB', 'CROSS_BOMB', 'X_BOMB', 'ESCAPE_HYPERACTIVE']);
-    const SUPER_CRUSH_CAUSES = new Set(['SUPER_BUOYANCY_WILL', 'SUPER_GRAVITY_WILL']);
+    const SUPER_CRUSH_CAUSES = new Set(['BUOYANCY_WILL', 'SUPER_BUOYANCY_WILL', 'GRAVITY_WILL', 'SUPER_GRAVITY_WILL']);
     const SPECIAL_DURATION_EXPIRE_CAUSES = new Set([
         'SNIPER_WILL',
         'LIGHTNING_WILL',
@@ -3317,8 +3317,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 case 'strong_wind_selected':
                     if (ev.applied) push(`強風で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動`);
                     break;
+                case 'buoyancy_selected':
+                    if (ev.applied) push(`浮力で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動`);
+                    break;
                 case 'super_buoyancy_selected':
                     if (ev.applied) push(`超浮力で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動（破壊${Array.isArray(ev.destroyed) ? ev.destroyed.length : 0}）`);
+                    break;
+                case 'gravity_selected':
+                    if (ev.applied) push(`重力で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動`);
                     break;
                 case 'super_gravity_selected':
                     if (ev.applied) push(`超重力で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動（破壊${Array.isArray(ev.destroyed) ? ev.destroyed.length : 0}）`);

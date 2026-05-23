@@ -3,12 +3,14 @@
  * @description Pending selection state management shared between Browser and Headless.
  */
 
+import PendingSelectionRegistry = require('./pending-selection-registry');
 
 interface PendingSelectionContract {
     kind: string;
     turnOutcome: string;
     deferNetworkPublish: boolean;
     waitForPlaybackIdle: boolean;
+    needsTargetSelection: boolean;
 }
 
 interface PendingSelectionDefinition {
@@ -54,38 +56,8 @@ interface CancelContext {
     };
 }
 
-const PENDING_SELECTION_CONTRACT_DEFINITIONS: Record<string, PendingSelectionDefinition> = Object.freeze({
-    DESTROY_ONE_STONE: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'destroy' },
-    STRONG_WIND_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'strong_wind' },
-    SUPER_BUOYANCY_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'super_buoyancy' },
-    SUPER_GRAVITY_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'super_gravity' },
-    TELEPORT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'teleport' },
-    CELL_TELEPORT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'cell_teleport' },
-    TEMPT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'tempt' },
-    CAPTURE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'capture' },
-    TRAP_WILL: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'trap' },
-    GUARD_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'guard' },
-    GUARDIAN_GOD: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'guard' },
-    LIVING_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'living_will' },
-    HYPERACTIVE_INHERIT_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'hyperactive_inherit' },
-    EXTEND_LIFE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'extend_life' },
-    EXTEND_LIFE_GOD: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'extend_life' },
-    CORROSION_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'corrosion' },
-    CLONE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'clone' },
-    BLOCKADE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'blockade' },
-    BOARD_EXPANSION_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'board_expansion' },
-    BOARD_EXPANSION_GOD: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'board_expansion' },
-    BOARD_SHRINK_WILL: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'board_shrink' },
-    BOARD_SHRINK_GOD: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'board_shrink' },
-    FREEZE_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'freeze' },
-    SEED_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'seed' },
-    POSITION_SWAP_WILL: { kind: 'multi_stage', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'position_swap' },
-    METEOR_WILL: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, cancellable: true, dispatchKey: 'meteor' },
-    TIME_BOMB: { kind: 'continue_turn', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'time_bomb' },
-    SWAP_WITH_ENEMY: { kind: 'end_turn', turnOutcome: 'end_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'swap_with_enemy' },
-    HEAVEN_BLESSING: { kind: 'hand_overlay', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'heaven_blessing' },
-    CONDEMN_WILL: { kind: 'hand_overlay', turnOutcome: 'continue_turn', deferNetworkPublish: true, waitForPlaybackIdle: true, needsTargetSelection: true, dispatchKey: 'condemn' }
-});
+const PENDING_SELECTION_CONTRACT_DEFINITIONS: Record<string, PendingSelectionDefinition> =
+    PendingSelectionRegistry.PENDING_SELECTION_REGISTRY as Record<string, PendingSelectionDefinition>;
 
 function buildPendingSelectionContracts(definitions: Record<string, PendingSelectionDefinition>): Record<string, PendingSelectionContract> {
     const contracts: Record<string, PendingSelectionContract> = {};
@@ -95,7 +67,8 @@ function buildPendingSelectionContracts(definitions: Record<string, PendingSelec
             kind: definition.kind,
             turnOutcome: definition.turnOutcome,
             deferNetworkPublish: definition.deferNetworkPublish === true,
-            waitForPlaybackIdle: definition.waitForPlaybackIdle === true
+            waitForPlaybackIdle: definition.waitForPlaybackIdle === true,
+            needsTargetSelection: definition.needsTargetSelection === true
         });
     });
     return Object.freeze(contracts);
@@ -325,6 +298,7 @@ function cancelPendingSelection(cardState: any, playerKey: string, opts?: Cancel
 }
 
 export = {
+    PENDING_SELECTION_CONTRACT_DEFINITIONS,
     PENDING_SELECTION_CONTRACTS,
     requiresTargetSelection,
     isCancellablePendingType,

@@ -17,6 +17,8 @@
         'SWAP_WITH_ENEMY',
         'POSITION_SWAP_WILL',
         'STRONG_WIND_WILL',
+        'BUOYANCY_WILL',
+        'GRAVITY_WILL',
         'TABOO_REVERSE_WILL',
         'TEMPT_WILL',
         'METEOR_WILL',

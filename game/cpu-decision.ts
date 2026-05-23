@@ -541,7 +541,9 @@ const WHITE_LV6_CORNER_SWING_KEEP_TYPES = new Set([
     'CELL_TELEPORT_WILL',
     'FREE_PLACEMENT',
     'LAST_RESORT',
+    'BUOYANCY_WILL',
     'SUPER_BUOYANCY_WILL',
+    'GRAVITY_WILL',
     'SUPER_GRAVITY_WILL'
 ]);
 
@@ -2319,7 +2321,9 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     SILVER_STONE: makePlanPressureProfile(1, 2, 0, 2),
     SNIPER_WILL: makePlanPressureProfile(1, 1, 1, 2),
     STRONG_WIND_WILL: makePlanPressureProfile(2, 3, 2, 2),
+    BUOYANCY_WILL: makePlanPressureProfile(2, 3, 2, 1),
     SUPER_BUOYANCY_WILL: makePlanPressureProfile(2, 4, 2, 0),
+    GRAVITY_WILL: makePlanPressureProfile(2, 3, 2, 1),
     SUPER_GRAVITY_WILL: makePlanPressureProfile(2, 4, 2, 0),
     SWAP_WITH_ENEMY: makePlanPressureProfile(2, 3, 2, 2),
     TABOO_REVERSE_WILL: makePlanPressureProfile(3, 4, 3, 2),
@@ -2811,7 +2815,9 @@ const HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE = new Set([
     'CAPTURE_WILL',
     'TELEPORT_WILL',
     'CELL_TELEPORT_WILL',
+    'BUOYANCY_WILL',
     'SUPER_BUOYANCY_WILL',
+    'GRAVITY_WILL',
     'SUPER_GRAVITY_WILL'
 ]);
 
@@ -4172,11 +4178,11 @@ function getForcedCornerLaneBonus(pendingType: any, row: any, col: any, board: a
     if (!bounds) return 0;
     if (col !== bounds.minCol && col !== bounds.maxCol) return 0;
 
-    if (String(pendingType || '') === 'SUPER_BUOYANCY_WILL') {
+    if (String(pendingType || '') === 'BUOYANCY_WILL' || String(pendingType || '') === 'SUPER_BUOYANCY_WILL') {
         if (row <= bounds.minRow) return 0;
         return getBoardCellValueSafe(board, bounds.minRow, col) === 0 ? 2600 : 0;
     }
-    if (String(pendingType || '') === 'SUPER_GRAVITY_WILL') {
+    if (String(pendingType || '') === 'GRAVITY_WILL' || String(pendingType || '') === 'SUPER_GRAVITY_WILL') {
         if (row >= bounds.maxRow) return 0;
         return getBoardCellValueSafe(board, bounds.maxRow, col) === 0 ? 2600 : 0;
     }
@@ -4195,7 +4201,7 @@ function getForcedCornerLaneAntiPatternPenalty(pendingType: any, row: any, col: 
         : null;
     if (!bounds) return 0;
 
-    if (type === 'SUPER_BUOYANCY_WILL') {
+    if (type === 'BUOYANCY_WILL' || type === 'SUPER_BUOYANCY_WILL') {
         if (row <= bounds.minRow) return 0;
         const landingCorner =
             (col === bounds.minCol) ? [bounds.minRow, bounds.minCol] :
@@ -4203,7 +4209,7 @@ function getForcedCornerLaneAntiPatternPenalty(pendingType: any, row: any, col: 
         if (!landingCorner) return 0;
         return getBoardCellValueSafe(board, landingCorner[0], landingCorner[1]) === 0 ? -5200 : 0;
     }
-    if (type === 'SUPER_GRAVITY_WILL') {
+    if (type === 'GRAVITY_WILL' || type === 'SUPER_GRAVITY_WILL') {
         if (row >= bounds.maxRow) return 0;
         const landingCorner =
             (col === bounds.minCol) ? [bounds.maxRow, bounds.minCol] :
@@ -4440,7 +4446,9 @@ function scorePendingTargetByType(playerKey: any, pendingType: any, target: any,
         }
         if (discDiff >= 6 && own) score -= 220;
         return score;
+    case 'BUOYANCY_WILL':
     case 'SUPER_BUOYANCY_WILL':
+    case 'GRAVITY_WILL':
     case 'SUPER_GRAVITY_WILL':
         score += opp ? 220 : -260;
         if (corner) score += opp ? 2800 : -3800;
@@ -5154,6 +5162,37 @@ async function cpuSelectSuperBuoyancyWillWithPolicy(playerKey: any): Promise<any
     }
 }
 
+async function cpuSelectBuoyancyWillWithPolicy(playerKey: any): Promise<any> {
+    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
+        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+        : [];
+
+    if (!targets.length) {
+        cpuDebugLog(`[CPU] ${playerKey}: 浮力対象なし`);
+        clearCpuPendingEffect(playerKey);
+        return;
+    }
+
+    const target = await choosePendingTargetWithPolicyAsync(playerKey, 'BUOYANCY_WILL', targets, null) || targets[0];
+    cpuDebugLog(`[CPU] ${playerKey}: 浮力ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { buoyancyTarget: { row: target.row, col: target.col }, deferNetworkPublish: true },
+        'BUOYANCY_WILL'
+    );
+    if (pipelineResult) return;
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyBuoyancyWill === 'function') {
+        const res = CardLogic.applyBuoyancyWill(cardState, gameState, playerKey, target.row, target.col);
+        if (!res || !res.applied) {
+            clearCpuPendingEffect(playerKey);
+        }
+        emitCpuSelectionStateChange();
+        return;
+    }
+}
+
 async function cpuSelectSuperGravityWillWithPolicy(playerKey: any): Promise<any> {
     const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
@@ -5177,6 +5216,37 @@ async function cpuSelectSuperGravityWillWithPolicy(playerKey: any): Promise<any>
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySuperGravityWill === 'function') {
         const res = CardLogic.applySuperGravityWill(cardState, gameState, playerKey, target.row, target.col);
+        if (!res || !res.applied) {
+            clearCpuPendingEffect(playerKey);
+        }
+        emitCpuSelectionStateChange();
+        return;
+    }
+}
+
+async function cpuSelectGravityWillWithPolicy(playerKey: any): Promise<any> {
+    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
+        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+        : [];
+
+    if (!targets.length) {
+        cpuDebugLog(`[CPU] ${playerKey}: 重力対象なし`);
+        clearCpuPendingEffect(playerKey);
+        return;
+    }
+
+    const target = await choosePendingTargetWithPolicyAsync(playerKey, 'GRAVITY_WILL', targets, null) || targets[0];
+    cpuDebugLog(`[CPU] ${playerKey}: 重力ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { gravityTarget: { row: target.row, col: target.col }, deferNetworkPublish: true },
+        'GRAVITY_WILL'
+    );
+    if (pipelineResult) return;
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyGravityWill === 'function') {
+        const res = CardLogic.applyGravityWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
             clearCpuPendingEffect(playerKey);
         }
@@ -6279,7 +6349,9 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectHyperactiveInheritWillWithPolicy,
         cpuSelectExtendLifeWillWithPolicy,
         cpuSelectCorrosionWillWithPolicy,
+        cpuSelectBuoyancyWillWithPolicy,
         cpuSelectSuperBuoyancyWillWithPolicy,
+        cpuSelectGravityWillWithPolicy,
         cpuSelectSuperGravityWillWithPolicy,
         cpuSelectTeleportWillWithPolicy,
         cpuSelectCellTeleportWillWithPolicy,

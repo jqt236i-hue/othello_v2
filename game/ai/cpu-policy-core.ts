@@ -212,7 +212,9 @@ const HIGH_VARIANCE_CARD_TYPES = new Set([
     'RIBO_WILL',
     'LOSS_WILL',
     'CORROSION_WILL',
+    'BUOYANCY_WILL',
     'SUPER_BUOYANCY_WILL',
+    'GRAVITY_WILL',
     'SUPER_GRAVITY_WILL',
     'CORNER_TRIBUTE',
     'WILL_HUNTER_KING',
@@ -228,7 +230,9 @@ const CORNER_RECOVERY_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeu
             'LAST_RESORT',
             'DESTROY_DRAGON_WILL',
             'LOSS_WILL',
+            'BUOYANCY_WILL',
             'SUPER_BUOYANCY_WILL',
+            'GRAVITY_WILL',
             'SUPER_GRAVITY_WILL',
             'CORNER_TRIBUTE'
         ]
@@ -251,7 +255,9 @@ const CORNER_RECOVERY_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeu
         'LAST_RESORT',
         'DESTROY_DRAGON_WILL',
         'LOSS_WILL',
+        'BUOYANCY_WILL',
         'SUPER_BUOYANCY_WILL',
+        'GRAVITY_WILL',
         'SUPER_GRAVITY_WILL',
         'CORNER_TRIBUTE'
     ]);
@@ -383,7 +389,9 @@ const SWING_CARD_TYPES = new Set([
     'LOSS_WILL',
     'CORROSION_WILL',
     'DESTROY_DRAGON_WILL',
+    'BUOYANCY_WILL',
     'SUPER_BUOYANCY_WILL',
+    'GRAVITY_WILL',
     'SUPER_GRAVITY_WILL',
     'CORNER_TRIBUTE'
 ]);
@@ -410,7 +418,9 @@ const EDGE_CONTEST_CARD_TYPES = new Set([
     'CELL_TELEPORT_WILL',
     'EXTREME_HYPERACTIVE_WILL',
     'DESTROY_DRAGON_WILL',
+    'BUOYANCY_WILL',
     'SUPER_BUOYANCY_WILL',
+    'GRAVITY_WILL',
     'SUPER_GRAVITY_WILL'
 ]);
 
@@ -445,7 +455,9 @@ const WHITE_LV6_CORNER_SWING_KEEP_TYPES = new Set([
     'CELL_TELEPORT_WILL',
     'FREE_PLACEMENT',
     'LAST_RESORT',
+    'BUOYANCY_WILL',
     'SUPER_BUOYANCY_WILL',
+    'GRAVITY_WILL',
     'SUPER_GRAVITY_WILL'
 ]);
 
@@ -594,7 +606,9 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     SILVER_STONE: 10,
     SNIPER_WILL: 4,
     STRONG_WIND_WILL: 6,
+    BUOYANCY_WILL: -1,
     SUPER_BUOYANCY_WILL: -3,
+    GRAVITY_WILL: -1,
     SUPER_GRAVITY_WILL: -3,
     SWAP_WITH_ENEMY: 7,
     TABOO_REVERSE_WILL: 1,
@@ -682,7 +696,9 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'SILVER_STONE',
     'SNIPER_WILL',
     'STRONG_WIND_WILL',
+    'BUOYANCY_WILL',
     'SUPER_BUOYANCY_WILL',
+    'GRAVITY_WILL',
     'SUPER_GRAVITY_WILL',
     'SWAP_WITH_ENEMY',
     'TABOO_REVERSE_WILL',
@@ -770,7 +786,9 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     SILVER_STONE: { openingBias: 4, handPressureBias: 2, cornerNowBias: 2 },
     SNIPER_WILL: { cornerNowBias: 6, edgeEmergencyBias: 2, endgameBias: -6 },
     STRONG_WIND_WILL: { trailingBias: 6, edgeEmergencyBias: 4, cornerNowBias: -4 },
+    BUOYANCY_WILL: { trailingBias: 3, cornerEmergencyBias: 3, cornerNowBias: -4 },
     SUPER_BUOYANCY_WILL: { trailingBias: 4, cornerEmergencyBias: 4, cornerNowBias: -4 },
+    GRAVITY_WILL: { trailingBias: 3, cornerEmergencyBias: 3, cornerNowBias: -4 },
     SUPER_GRAVITY_WILL: { trailingBias: 4, cornerEmergencyBias: 4, cornerNowBias: -4 },
     SWAP_WITH_ENEMY: { trailingBias: 4, edgeEmergencyBias: 4, cornerNowBias: -4 },
     TABOO_REVERSE_WILL: { trailingBias: 6, cornerEmergencyBias: 4, leadBias: -6 },
@@ -864,7 +882,9 @@ function buildCardTypeUsageStyle() {
         'FREE_PLACEMENT',
         'LAST_RESORT',
         'METEOR_WILL',
+        'BUOYANCY_WILL',
         'SUPER_BUOYANCY_WILL',
+        'GRAVITY_WILL',
         'SUPER_GRAVITY_WILL',
         'DESTROY_DRAGON_WILL'
     ], {
@@ -1171,7 +1191,9 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     SILVER_STONE: { archetype: 'economyCycle', placementWeight: 2, flipBias: 4 },
     SNIPER_WILL: { archetype: 'anchorEngine', placementWeight: 3, mobilityBias: 3, oppAdjBias: -1, stabilityBias: 4 },
     STRONG_WIND_WILL: { archetype: 'recoveryReposition', placementWeight: 0, mobilityBias: 3, emptyAdjBias: 3 },
+    BUOYANCY_WILL: { archetype: 'recoveryReposition', placementWeight: 0, edgeBias: 2, emptyAdjBias: 3 },
     SUPER_BUOYANCY_WILL: { archetype: 'recoveryReposition', placementWeight: 0, edgeBias: 3, oppAdjBias: 3 },
+    GRAVITY_WILL: { archetype: 'recoveryReposition', placementWeight: 0, edgeBias: 2, emptyAdjBias: 3 },
     SUPER_GRAVITY_WILL: { archetype: 'recoveryReposition', placementWeight: 0, edgeBias: 3, oppAdjBias: 3 },
     SWAP_WITH_ENEMY: { archetype: 'recoveryReposition', placementWeight: 0, ownAdjBias: -2, oppAdjBias: 3 },
     TABOO_REVERSE_WILL: { archetype: 'explosiveComeback', placementWeight: 3, cornerBias: 3, edgeBias: 2, mobilityBias: 3 },
@@ -1754,9 +1776,9 @@ function scoreCardUseDecision(
     const isRobotVacuumWill = cardType === 'ROBOT_VACUUM_WILL';
     const isExtremeHyperactiveWill = cardType === 'EXTREME_HYPERACTIVE_WILL';
     const isGluttonousWill = cardType === 'GLUTTONOUS_WILL';
-    const isSuperBuoyancyWill = cardType === 'SUPER_BUOYANCY_WILL';
-    const isSuperGravityWill = cardType === 'SUPER_GRAVITY_WILL';
-    const isSuperCrushWill = isSuperBuoyancyWill || isSuperGravityWill;
+    const isBuoyancyWill = cardType === 'BUOYANCY_WILL' || cardType === 'SUPER_BUOYANCY_WILL';
+    const isGravityWill = cardType === 'GRAVITY_WILL' || cardType === 'SUPER_GRAVITY_WILL';
+    const isSuperCrushWill = isBuoyancyWill || isGravityWill;
     const isAnchorPlacementCard = (
         isProtectedNextStone ||
         isAfterimageWill ||
@@ -2971,9 +2993,9 @@ function scoreCardRetentionPriority(
     const isGluttonousWill = cardType === 'GLUTTONOUS_WILL';
     const isTeleportWill = cardType === 'TELEPORT_WILL';
     const isCellTeleportWill = cardType === 'CELL_TELEPORT_WILL';
-    const isSuperBuoyancyWill = cardType === 'SUPER_BUOYANCY_WILL';
-    const isSuperGravityWill = cardType === 'SUPER_GRAVITY_WILL';
-    const isSuperCrushWill = isSuperBuoyancyWill || isSuperGravityWill;
+    const isBuoyancyWill = cardType === 'BUOYANCY_WILL' || cardType === 'SUPER_BUOYANCY_WILL';
+    const isGravityWill = cardType === 'GRAVITY_WILL' || cardType === 'SUPER_GRAVITY_WILL';
+    const isSuperCrushWill = isBuoyancyWill || isGravityWill;
     const ownCorners = Number.isFinite(ctx.ownCorners) ? Number(ctx.ownCorners) : 0;
     const oppCorners = Number.isFinite(ctx.oppCorners) ? Number(ctx.oppCorners) : 0;
     const hasCornerMoveNow = ctx.hasCornerMoveNow === true;
@@ -3411,7 +3433,7 @@ function chooseHandDestroyTargetForCycle(
         const isTimeBomb = cardType === 'TIME_BOMB';
         const isTimeStopGod = cardType === 'TIME_STOP_GOD';
         const isLastResort = cardType === 'LAST_RESORT';
-        const isSuperCrushWill = cardType === 'SUPER_BUOYANCY_WILL' || cardType === 'SUPER_GRAVITY_WILL';
+        const isSuperCrushWill = cardType === 'BUOYANCY_WILL' || cardType === 'SUPER_BUOYANCY_WILL' || cardType === 'GRAVITY_WILL' || cardType === 'SUPER_GRAVITY_WILL';
         const isGeneratedKeepPlace = cardType === 'TRIPLE_PLACE' || cardType === 'QUAD_PLACE' || cardType === 'INFINITE_PLACE';
         const isFastRotate = WHITE_LV6_FAST_ROTATE_TYPES.has(cardType);
         const isWhiteCornerKeep = WHITE_LV6_CORNER_SWING_KEEP_TYPES.has(cardType);

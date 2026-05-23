@@ -181,9 +181,9 @@ async function validateGamePage(page: Page): Promise<void> {
   console.log('[smoke] #autoToggleBtn OK');
 
   const requiredTexts = [
-    '\u30AB\u30FC\u30C9\u30AA\u30BB\u30ED',
+    '\u30AB\u30FC\u30C9\u30EA\u30D0\u30FC\u30B7',
     '\u76E4\u55B0\u3044\u306E\u5C0F\u9B3C',
-    '\u30AA\u30BB\u30ED\u306E\u52C7\u8005',
+    '\u30EA\u30D0\u30FC\u30B7\u306E\u52C7\u8005',
     '\u30AC\u30C1\u30E3',
     '\u30E9\u30F3\u30AD\u30F3\u30B0',
     '\u30C7\u30C3\u30AD',

@@ -46,7 +46,9 @@ const FALLBACK_CORNER_RECOVERY_CARD_TYPES = (SharedCardHeuristics && typeof Shar
     ? SharedCardHeuristics.createExtendedTypeSet(
         SharedCardHeuristics.DEFAULT_CORNER_RECOVERY_CARD_TYPES,
         [
+            'BUOYANCY_WILL',
             'SUPER_BUOYANCY_WILL',
+            'GRAVITY_WILL',
             'SUPER_GRAVITY_WILL',
             'BOARD_EXPANSION_WILL',
             'BOARD_EXPANSION_GOD'
@@ -57,7 +59,9 @@ const FALLBACK_CORNER_RECOVERY_CARD_TYPES = (SharedCardHeuristics && typeof Shar
         'SWAP_WITH_ENEMY',
         'POSITION_SWAP_WILL',
         'STRONG_WIND_WILL',
+        'BUOYANCY_WILL',
         'SUPER_BUOYANCY_WILL',
+        'GRAVITY_WILL',
         'SUPER_GRAVITY_WILL',
         'TEMPT_WILL',
         'ULTIMATE_DESTROY_GOD',
@@ -556,7 +560,9 @@ function buildPendingSelectionRecord(action: any, pendingType: any) {
     const boardTargetKeys = [
         'destroyTarget',
         'strongWindTarget',
+        'buoyancyTarget',
         'superBuoyancyTarget',
+        'gravityTarget',
         'superGravityTarget',
         'sacrificeTarget',
         'temptTarget',

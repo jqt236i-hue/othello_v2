@@ -45,6 +45,7 @@ const CardChargeLedgerModule = loadRuntimeModule('../logic/cards-internal/charge
 const CardStateManagerModule = loadRuntimeModule('./state-manager', 'CardStateManager');
 const CardPendingStateManagerModule = loadRuntimeModule('../logic/cards-internal/pending-state-manager', 'CardPendingStateManager');
 const CardUsagePrechecksModule = loadRuntimeModule('../logic/cards-internal/card-usage-prechecks', 'CardUsagePrechecks');
+const PendingSelectionRegistryModule = loadRuntimeModule('../logic/cards-internal/pending-selection-registry', 'PendingSelectionRegistry', {});
 
 const {
   CARD_DEFS,
@@ -98,7 +99,9 @@ function getCardHandManagerContext(deps: any) {
     getTemptWillTargets,
     getCaptureWillTargets,
     getStrongWindTargets,
+    getBuoyancyTargets,
     getSuperBuoyancyTargets,
+    getGravityTargets,
     getSuperGravityTargets,
     getTrapTargets,
     getGuardTargets,
@@ -123,6 +126,9 @@ function getCardHandManagerContext(deps: any) {
     CardCostsModule,
     CardSelectorsModule
   } = deps || {};
+  const pendingSelectionTargetContext = PendingSelectionRegistryModule && typeof PendingSelectionRegistryModule.buildPendingSelectionTargetContext === 'function'
+    ? PendingSelectionRegistryModule.buildPendingSelectionTargetContext(deps)
+    : {};
 
   return {
     constants: {
@@ -141,7 +147,9 @@ function getCardHandManagerContext(deps: any) {
       getTemptWillTargets,
       getCaptureWillTargets,
       getStrongWindTargets,
+      getBuoyancyTargets,
       getSuperBuoyancyTargets,
+      getGravityTargets,
       getSuperGravityTargets,
       getTrapTargets,
       getGuardTargets,
@@ -161,7 +169,8 @@ function getCardHandManagerContext(deps: any) {
       getBoardShrinkGodTargets,
       getBlockadeTargets,
       getMeteorTargets,
-      getFreezeTargets
+      getFreezeTargets,
+      ...pendingSelectionTargetContext
     },
     modules: {
       CardDefsModule,
@@ -414,7 +423,9 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     getTemptWillTargets,
     getCaptureWillTargets,
     getStrongWindTargets,
+    getBuoyancyTargets,
     getSuperBuoyancyTargets,
+    getGravityTargets,
     getSuperGravityTargets,
     getTrapTargets,
     getGuardTargets,
@@ -482,6 +493,9 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
   const heavenSeedHint = typeof buildHeavenBlessingSeedHint === 'function'
     ? buildHeavenBlessingSeedHint(cardState, chargeOwnerKey)
     : '';
+  const pendingSelectionTargetContext = PendingSelectionRegistryModule && typeof PendingSelectionRegistryModule.buildPendingSelectionTargetContext === 'function'
+    ? PendingSelectionRegistryModule.buildPendingSelectionTargetContext(deps)
+    : {};
 
   const precheckModule = CardUsagePrechecksModuleLocal || CardUsagePrechecksModule;
   const usagePrecheck = precheckModule && typeof precheckModule.validateCardUsagePreconditions === 'function'
@@ -507,7 +521,9 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
       getTemptWillTargets,
       getCaptureWillTargets,
       getStrongWindTargets,
+      getBuoyancyTargets,
       getSuperBuoyancyTargets,
+      getGravityTargets,
       getSuperGravityTargets,
       getTrapTargets,
       getGuardTargets,
@@ -528,6 +544,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
       getMeteorTargets,
       getFreezeTargets,
       getSeedTargets,
+      ...pendingSelectionTargetContext,
       getTimeStopGodDestroyableCount,
       timeStopGodSelfDestroyCount: timeStopSelfDestroyCount || TIME_STOP_GOD_SELF_DESTROY_COUNT,
       getLossWillRemovableCount,

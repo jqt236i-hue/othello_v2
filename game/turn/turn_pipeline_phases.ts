@@ -2778,6 +2778,28 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             } else if (pending && pending.type === 'STRONG_WIND_WILL' && action.strongWindTarget == null) {
                 throw new Error('STRONG_WIND_WILL requires strongWindTarget before placement');
             }
+            if (pending && pending.type === 'BUOYANCY_WILL' && action.buoyancyTarget) {
+                const res = CardLogic.applyBuoyancyWill(
+                    cardState,
+                    gameState,
+                    playerKey,
+                    action.buoyancyTarget.row,
+                    action.buoyancyTarget.col
+                );
+                events.push({
+                    type: 'buoyancy_selected',
+                    player: playerKey,
+                    target: action.buoyancyTarget,
+                    applied: !!(res && res.applied),
+                    from: res && res.from ? res.from : null,
+                    to: res && res.to ? res.to : null,
+                    destroyed: res && Array.isArray(res.destroyed) ? res.destroyed.slice() : []
+                });
+                applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
+                return;
+            } else if (pending && pending.type === 'BUOYANCY_WILL' && action.buoyancyTarget == null) {
+                throw new Error('BUOYANCY_WILL requires buoyancyTarget before placement');
+            }
             if (pending && pending.type === 'SUPER_BUOYANCY_WILL' && action.superBuoyancyTarget) {
                 const res = CardLogic.applySuperBuoyancyWill(
                     cardState,
@@ -2799,6 +2821,28 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 return;
             } else if (pending && pending.type === 'SUPER_BUOYANCY_WILL' && action.superBuoyancyTarget == null) {
                 throw new Error('SUPER_BUOYANCY_WILL requires superBuoyancyTarget before placement');
+            }
+            if (pending && pending.type === 'GRAVITY_WILL' && action.gravityTarget) {
+                const res = CardLogic.applyGravityWill(
+                    cardState,
+                    gameState,
+                    playerKey,
+                    action.gravityTarget.row,
+                    action.gravityTarget.col
+                );
+                events.push({
+                    type: 'gravity_selected',
+                    player: playerKey,
+                    target: action.gravityTarget,
+                    applied: !!(res && res.applied),
+                    from: res && res.from ? res.from : null,
+                    to: res && res.to ? res.to : null,
+                    destroyed: res && Array.isArray(res.destroyed) ? res.destroyed.slice() : []
+                });
+                applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
+                return;
+            } else if (pending && pending.type === 'GRAVITY_WILL' && action.gravityTarget == null) {
+                throw new Error('GRAVITY_WILL requires gravityTarget before placement');
             }
             if (pending && pending.type === 'SUPER_GRAVITY_WILL' && action.superGravityTarget) {
                 const res = CardLogic.applySuperGravityWill(

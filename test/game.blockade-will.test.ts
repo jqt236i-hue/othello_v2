@@ -103,7 +103,7 @@ describe('BLOCKADE_WILL（封鎖の意志）', () => {
       data: { type: 'BLOCKADE', remainingOwnerTurns: 3 }
     });
 
-    const res = CardLogic.applyStrongWindWill(cardState, gameState, 'black', 3, 3, { random: () => 0 });
+    const res = CardLogic.applyStrongWindWill(cardState, gameState, 'black', 3, 3, { random: () => 0.5 });
     expect(res && res.applied).toBe(true);
     expect(res.to).toEqual({ row: 3, col: 4 });
   });

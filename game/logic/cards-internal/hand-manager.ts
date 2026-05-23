@@ -627,7 +627,9 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (type === 'TIME_BOMB' && !requireLocalTargets(context, 'getTimeBombTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'TELEPORT_WILL' && !requireLocalTargets(context, 'getTeleportTargets', [cardState, gameState], 1)) continue;
             if (type === 'CELL_TELEPORT_WILL' && !requireLocalTargets(context, 'getCellTeleportTargets', [cardState, gameState], 1)) continue;
+            if (type === 'BUOYANCY_WILL' && !requireLocalTargets(context, 'getBuoyancyTargets', [cardState, gameState], 1)) continue;
             if (type === 'SUPER_BUOYANCY_WILL' && !requireLocalTargets(context, 'getSuperBuoyancyTargets', [cardState, gameState], 1)) continue;
+            if (type === 'GRAVITY_WILL' && !requireLocalTargets(context, 'getGravityTargets', [cardState, gameState], 1)) continue;
             if (type === 'SUPER_GRAVITY_WILL' && !requireLocalTargets(context, 'getSuperGravityTargets', [cardState, gameState], 1)) continue;
             if (type === 'CLONE_WILL' && !requireLocalTargets(context, 'getCloneTargets', [cardState, gameState, playerKey], 1)) continue;
 
@@ -650,7 +652,9 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
 
             if (type === 'DESTROY_ONE_STONE' && !requireModuleTargets(context, 'getDestroyTargets', [cardState, gameState], 1)) continue;
             if (type === 'STRONG_WIND_WILL' && !requireModuleTargets(context, 'getStrongWindTargets', [cardState, gameState], 1)) continue;
+            if (type === 'BUOYANCY_WILL' && !requireModuleTargets(context, 'getBuoyancyTargets', [cardState, gameState], 1)) continue;
             if (type === 'SUPER_BUOYANCY_WILL' && !requireModuleTargets(context, 'getSuperBuoyancyTargets', [cardState, gameState], 1)) continue;
+            if (type === 'GRAVITY_WILL' && !requireModuleTargets(context, 'getGravityTargets', [cardState, gameState], 1)) continue;
             if (type === 'SUPER_GRAVITY_WILL' && !requireModuleTargets(context, 'getSuperGravityTargets', [cardState, gameState], 1)) continue;
             if (type === 'SWAP_WITH_ENEMY' && !requireModuleTargets(context, 'getSwapTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'POSITION_SWAP_WILL' && !requireModuleTargets(context, 'getPositionSwapTargets', [cardState, gameState, playerKey, null], 2)) continue;
