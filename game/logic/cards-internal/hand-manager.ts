@@ -631,6 +631,7 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (type === 'SUPER_BUOYANCY_WILL' && !requireLocalTargets(context, 'getSuperBuoyancyTargets', [cardState, gameState], 1)) continue;
             if (type === 'GRAVITY_WILL' && !requireLocalTargets(context, 'getGravityTargets', [cardState, gameState], 1)) continue;
             if (type === 'SUPER_GRAVITY_WILL' && !requireLocalTargets(context, 'getSuperGravityTargets', [cardState, gameState], 1)) continue;
+            if (type === 'SUPER_ATTRACTION_WILL' && !requireLocalTargets(context, 'getSuperAttractionTargets', [cardState, gameState, playerKey, null], 1)) continue;
             if (type === 'CLONE_WILL' && !requireLocalTargets(context, 'getCloneTargets', [cardState, gameState, playerKey], 1)) continue;
 
             if (type === 'POSITION_SWAP_WILL') {
@@ -656,6 +657,7 @@ function getUsableCardIds(cardState: any, gameState: any, playerKey: string, con
             if (type === 'SUPER_BUOYANCY_WILL' && !requireModuleTargets(context, 'getSuperBuoyancyTargets', [cardState, gameState], 1)) continue;
             if (type === 'GRAVITY_WILL' && !requireModuleTargets(context, 'getGravityTargets', [cardState, gameState], 1)) continue;
             if (type === 'SUPER_GRAVITY_WILL' && !requireModuleTargets(context, 'getSuperGravityTargets', [cardState, gameState], 1)) continue;
+            if (type === 'SUPER_ATTRACTION_WILL' && !requireModuleTargets(context, 'getSuperAttractionTargets', [cardState, gameState, playerKey, null], 1)) continue;
             if (type === 'SWAP_WITH_ENEMY' && !requireModuleTargets(context, 'getSwapTargets', [cardState, gameState, playerKey], 1)) continue;
             if (type === 'POSITION_SWAP_WILL' && !requireModuleTargets(context, 'getPositionSwapTargets', [cardState, gameState, playerKey, null], 2)) continue;
             if (type === 'TRAP_WILL' && !requireModuleTargets(context, 'getTrapTargets', [cardState, gameState, playerKey], 1)) continue;

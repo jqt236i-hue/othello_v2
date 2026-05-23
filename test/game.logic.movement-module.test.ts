@@ -154,4 +154,59 @@ describe('CardMovement module', () => {
     expect(result).toMatchObject({ applied: false, reason: 'no_move_options' });
     expect(cardState.pendingEffectByPlayer.black).toBeTruthy();
   });
+
+  test('applySuperAttractionWill stores first target, then destroys line occupants and moves to destination', () => {
+    const destroyed = [];
+    const moved = [];
+    const cardState = {
+      pendingEffectByPlayer: { black: { type: 'SUPER_ATTRACTION_WILL', stage: 'selectTarget', cardId: 'super_attraction_01' } },
+      markers: []
+    };
+    const occupied = new Set(['2,2', '3,3', '4,4']);
+
+    const deps = {
+      getSuperAttractionTargets: (cs, gs, playerKey, pending) => {
+        if (pending && pending.firstTarget) return [{ row: 4, col: 4 }];
+        return [{ row: 2, col: 2 }];
+      },
+      getCellValueForCard: (state, row, col) => (occupied.has(`${row},${col}`) ? 1 : 0),
+      hasBoardShapeCellForCard: (cs, gs, row, col) => Number.isInteger(row) && row >= 0 && row < 8 && Number.isInteger(col) && col >= 0 && col < 8,
+      isBlockedCell: () => false,
+      findSpecialMarkerAt: () => null,
+      destroyAt: (cs, gs, row, col) => {
+        destroyed.push({ row, col });
+        occupied.delete(`${row},${col}`);
+        return { destroyed: true };
+      },
+      isDestroyResolved: (resultValue) => !!(resultValue && resultValue.destroyed),
+      moveAt: (cs, gs, fromRow, fromCol, toRow, toCol) => {
+        moved.push({ fromRow, fromCol, toRow, toCol });
+        occupied.delete(`${fromRow},${fromCol}`);
+        occupied.add(`${toRow},${toCol}`);
+        return { moved: true };
+      },
+      getMarkers: () => []
+    };
+
+    const first = CardMovement.applySuperAttractionWill(cardState, {}, 'black', 2, 2, deps);
+    expect(first).toMatchObject({
+      applied: true,
+      completed: false,
+      firstTarget: { row: 2, col: 2 }
+    });
+    expect(cardState.pendingEffectByPlayer.black.firstTarget).toEqual({ row: 2, col: 2 });
+
+    const second = CardMovement.applySuperAttractionWill(cardState, {}, 'black', 4, 4, deps);
+    expect(second).toMatchObject({
+      applied: true,
+      completed: true,
+      from: { row: 2, col: 2 },
+      to: { row: 4, col: 4 },
+      destroyedCount: 2,
+      movedDistance: 4
+    });
+    expect(destroyed).toEqual([{ row: 3, col: 3 }, { row: 4, col: 4 }]);
+    expect(moved).toEqual([{ fromRow: 2, fromCol: 2, toRow: 4, toCol: 4 }]);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
 });

@@ -101,7 +101,50 @@ describe('pipeline_ui_adapter destroy phase mapping', () => {
     expect(out[0].targets[0].cause).toBe('ESCAPE_HYPERACTIVE');
   });
 
-  test('SUPER_BUOYANCY_WILL collision destroys and move share one phase', () => {
+  test('BOARD_SHRINK_WILL destroys and frame holes stay in one shrink phase', () => {
+    const pres = [
+      { type: 'DESTROY', row: 0, col: 7, stoneId: 's1', ownerBefore: 'white', cause: 'BOARD_SHRINK_WILL', reason: 'board_shrink_cell_destroy' },
+      { type: 'STATUS_APPLIED', row: 0, col: 7, meta: { special: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME', owner: 'black' } },
+      { type: 'DESTROY', row: 7, col: 0, stoneId: 's2', ownerBefore: 'black', cause: 'BOARD_SHRINK_WILL', reason: 'board_shrink_cell_destroy' },
+      { type: 'STATUS_APPLIED', row: 7, col: 0, meta: { special: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME', owner: 'black' } },
+      { type: 'STATUS_APPLIED', row: 7, col: 7, meta: { special: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME', owner: 'black' } }
+    ];
+
+    const out = adapter.mapToPlaybackEvents(
+      pres,
+      { markers: [] },
+      { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+    );
+
+    const shrinkEvents = out.filter((e) => e.type === 'destroy' || e.type === 'status_applied');
+    expect(shrinkEvents).toHaveLength(5);
+    expect(new Set(shrinkEvents.map((e) => e.phase)).size).toBe(1);
+  });
+
+  test('BOARD_SHRINK_GOD line destroys and frame holes stay in one shrink phase', () => {
+    const pres = [
+      { type: 'DESTROY', row: 0, col: 0, stoneId: 's1', ownerBefore: 'white', cause: 'BOARD_SHRINK_GOD', reason: 'board_shrink_god_cell_destroy' },
+      { type: 'STATUS_APPLIED', row: 0, col: 0, meta: { special: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME', owner: 'black' } },
+      { type: 'DESTROY', row: 0, col: 1, stoneId: 's2', ownerBefore: 'black', cause: 'BOARD_SHRINK_GOD', reason: 'board_shrink_god_cell_destroy' },
+      { type: 'STATUS_APPLIED', row: 0, col: 1, meta: { special: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME', owner: 'black' } },
+      { type: 'DESTROY', row: 0, col: 2, stoneId: 's3', ownerBefore: 'white', cause: 'BOARD_SHRINK_GOD', reason: 'board_shrink_god_cell_destroy' }
+    ];
+
+    const out = adapter.mapToPlaybackEvents(
+      pres,
+      { markers: [] },
+      { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+    );
+
+    const shrinkEvents = out.filter((e) => e.type === 'destroy' || e.type === 'status_applied');
+    expect(shrinkEvents).toHaveLength(5);
+    expect(new Set(shrinkEvents.map((e) => e.phase)).size).toBe(1);
+  });
+
+  test.each([
+    ['SUPER_BUOYANCY_WILL', 'super_buoyancy_collision', 'super_buoyancy_move'],
+    ['SUPER_ATTRACTION_WILL', 'super_attraction_collision', 'super_attraction_move']
+  ])('%s collision destroys and move share one phase', (cause, destroyReason, moveReason) => {
     const pres = [
       {
         type: 'DESTROY',
@@ -109,8 +152,8 @@ describe('pipeline_ui_adapter destroy phase mapping', () => {
         col: 4,
         stoneId: 's1',
         ownerBefore: 'white',
-        cause: 'SUPER_BUOYANCY_WILL',
-        reason: 'super_buoyancy_collision',
+        cause,
+        reason: destroyReason,
         meta: { collisionProgress: 0.25 }
       },
       {
@@ -119,8 +162,8 @@ describe('pipeline_ui_adapter destroy phase mapping', () => {
         col: 4,
         stoneId: 's2',
         ownerBefore: 'black',
-        cause: 'SUPER_BUOYANCY_WILL',
-        reason: 'super_buoyancy_collision',
+        cause,
+        reason: destroyReason,
         meta: { collisionProgress: 0.5 }
       },
       {
@@ -132,8 +175,8 @@ describe('pipeline_ui_adapter destroy phase mapping', () => {
         stoneId: 'm1',
         ownerBefore: 'black',
         ownerAfter: 'black',
-        cause: 'SUPER_BUOYANCY_WILL',
-        reason: 'super_buoyancy_move'
+        cause,
+        reason: moveReason
       }
     ];
 

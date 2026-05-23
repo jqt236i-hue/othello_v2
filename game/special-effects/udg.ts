@@ -4,6 +4,7 @@ declare const emitLogAdded: any;
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
   : require;
+const LOG_MESSAGES = _require('../log-messages');
 
 /**
  * @file udg.js

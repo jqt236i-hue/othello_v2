@@ -1289,6 +1289,30 @@ function revertTimedSpecialAt(
     return (cardState as any).markers.length !== beforeLength;
 }
 
+function revertNoCandidateSpecialAt(
+    cardState: CardState,
+    gameState: GameState,
+    entry: MarkerEntry,
+    specialType: string,
+    deps: HyperactiveDeps,
+    cause: string
+): DestroyResult[] {
+    const reverted = revertTimedSpecialAt(
+        cardState,
+        gameState,
+        entry.row,
+        entry.col,
+        entry.owner as PlayerKey,
+        specialType,
+        deps,
+        cause,
+        'no_candidates_revert'
+    );
+    return reverted
+        ? [{ row: entry.row, col: entry.col, specialType, reason: 'no_candidates_revert', reverted: true }]
+        : [];
+}
+
 function destroyUltimateAnchor(
     cardState: CardState,
     gameState: GameState,
@@ -1314,6 +1338,16 @@ function destroyUltimateAnchor(
         return reverted
             ? [{ row: entry.row, col: entry.col, specialType: 'ULTIMATE_HYPERACTIVE', reason: 'duration_end', reverted: true }]
             : [];
+    }
+    if (destroyReason === 'no_candidates') {
+        return revertNoCandidateSpecialAt(
+            cardState,
+            gameState,
+            entry,
+            'ULTIMATE_HYPERACTIVE',
+            deps,
+            'ULTIMATE_HYPERACTIVE_GOD'
+        );
     }
 
     let anchorDestroyed = false;
@@ -1428,16 +1462,7 @@ function moveHyperactiveOnce(
 
             clearHyperactiveAtPositions(cardState, [{ row: entry.row, col: entry.col }]);
         } else {
-            let destroyedRes = false;
-            if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-                const res = deps.BoardOps.destroyAt(cardState, gameState, entry.row, entry.col, moveCause, noCandidateReason);
-                destroyedRes = !!(res && res.destroyed);
-            } else {
-                destroyedRes = !!destroyAt(cardState, gameState, entry.row, entry.col);
-            }
-            if (destroyedRes) {
-                destroyed.push({ row: entry.row, col: entry.col, specialType: markerType });
-            }
+            destroyed.push(...revertNoCandidateSpecialAt(cardState, gameState, entry, markerType, deps, moveCause));
         }
         return { moved, destroyed, flipped, ownerKey };
     }
@@ -1553,16 +1578,7 @@ function moveHyperactiveOnce(
         target = candidates[index] || null;
     }
     if (!target) {
-        let destroyedRes = false;
-        if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-            const res = deps.BoardOps.destroyAt(cardState, gameState, entry.row, entry.col, moveCause, noCandidateReason);
-            destroyedRes = !!(res && res.destroyed);
-        } else {
-            destroyedRes = !!destroyAt(cardState, gameState, entry.row, entry.col);
-        }
-        if (destroyedRes) {
-            destroyed.push({ row: entry.row, col: entry.col, specialType: markerType });
-        }
+        destroyed.push(...revertNoCandidateSpecialAt(cardState, gameState, entry, markerType, deps, moveCause));
         return { moved, destroyed, flipped, repelled, ownerKey };
     }
     if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[HYPERACTIVE] selected target', { target, candidatesLen: candidates.length, markerType });
@@ -1998,13 +2014,6 @@ function moveRobotVacuumOnce(
     deps: HyperactiveDeps = {}
 ): HyperactiveMoveResult {
     const p = resolveDeterministicPrng(prng, deps, 'CardHyperactive.moveRobotVacuumOnce');
-    const destroyAt = deps.destroyAt || ((cs: CardState, gs: GameState, r: number, c: number) => {
-        const cell = getBoardCell(gs, r, c);
-        if (cell === null || cell === undefined || cell === EMPTY) return false;
-        if ((cs as any).markers) (cs as any).markers = (cs as any).markers.filter((m: any) => !(m.row === r && m.col === c));
-        setBoardCell(gs, r, c, EMPTY);
-        return true;
-    });
     const clearHyperactiveAtPositions = deps.clearHyperactiveAtPositions || ((cs: CardState, positions: Position[]) => {
         if (!(cs as any).markers) return;
         (cs as any).markers = (cs as any).markers.filter((m: any) => !(
@@ -2032,19 +2041,7 @@ function moveRobotVacuumOnce(
 
     const candidates = getNeighborEmptyCandidates(cardState, gameState, entry.row, entry.col, { isBlockedCell });
     if (!candidates.length) {
-        let destroyedRes = false;
-        if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-            const res = deps.BoardOps.destroyAt(cardState, gameState, entry.row, entry.col, 'ROBOT_VACUUM', 'robot_vacuum_no_candidates', {
-                sourceRow: entry.row,
-                sourceCol: entry.col,
-                projectileOwner: ownerKey,
-                projectileStone: 'robot_vacuum'
-            });
-            destroyedRes = !!(res && res.destroyed);
-        } else {
-            destroyedRes = !!destroyAt(cardState, gameState, entry.row, entry.col);
-        }
-        if (destroyedRes) destroyed.push({ row: entry.row, col: entry.col });
+        destroyed.push(...revertNoCandidateSpecialAt(cardState, gameState, entry, 'ROBOT_VACUUM', deps, 'ROBOT_VACUUM'));
         return { moved, destroyed, flipped, ownerKey };
     }
 
@@ -2433,10 +2430,11 @@ function processRobotVacuumMoveAtAnchor(
 
     const moveRes = moveRobotVacuumOnce(cardState, gameState, entry, prng, deps);
     const moved = Array.isArray(moveRes.moved) ? moveRes.moved.slice() : [];
-    const destroyed = Array.isArray(moveRes.destroyed) ? moveRes.destroyed.slice() : [];
+    const moveDestroyed = Array.isArray(moveRes.destroyed) ? moveRes.destroyed.slice() : [];
+    const destroyed = moveDestroyed.filter((detail: any) => !(detail && detail.reverted === true));
     const flipped = Array.isArray(moveRes.flipped) ? moveRes.flipped.slice() : [];
     const sucked: any[] = [];
-    const expired: any[] = [];
+    const expired: any[] = moveDestroyed.filter((detail: any) => detail && detail.reverted === true);
 
     const markerStillExists = Array.isArray((cardState as any).markers) && (cardState as any).markers.includes(entry);
     const anchorStillOwned = markerStillExists && getBoardCell(gameState, entry.row, entry.col) === ownerVal;

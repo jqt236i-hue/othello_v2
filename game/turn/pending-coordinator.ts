@@ -350,7 +350,7 @@ const pendingCoordinatorModule = (function (root: any) {
             return transportState;
         }
 
-        if (normalizedPendingType === 'POSITION_SWAP_WILL' || normalizedPendingType === 'BOARD_SHRINK_GOD') {
+        if (normalizedPendingType === 'POSITION_SWAP_WILL' || normalizedPendingType === 'BOARD_SHRINK_GOD' || normalizedPendingType === 'SUPER_ATTRACTION_WILL') {
             var firstTarget = clonePendingSelectionTransportTarget(pending.firstTarget);
             if (firstTarget) {
                 transportState.firstTarget = firstTarget;

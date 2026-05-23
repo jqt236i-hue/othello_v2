@@ -532,6 +532,7 @@ function collectPendingSelectedTargetHighlightKeys(pending: any) {
     const pendingType = String(pending.type || '').toUpperCase();
     if (
         pendingType === 'POSITION_SWAP_WILL' ||
+        pendingType === 'SUPER_ATTRACTION_WILL' ||
         pendingType === 'BOARD_EXPANSION_GOD' ||
         pendingType === 'BOARD_SHRINK_GOD'
     ) {

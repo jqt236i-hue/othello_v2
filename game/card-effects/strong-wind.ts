@@ -97,13 +97,46 @@ async function handleGravitySelection(row: number, col: number, playerKey: strin
     });
 }
 
+function getSuperAttractionSelectedEvent(result: any) {
+    return result && Array.isArray(result.rawEvents)
+        ? result.rawEvents.find((event: any) => event && (
+            (event.type === 'super_attraction_first_selected' && event.applied) ||
+            (event.type === 'super_attraction_selected' && event.applied)
+        ))
+        : null;
+}
+
+async function handleSuperAttractionSelection(row: number, col: number, playerKey: string) {
+    if (!PendingSelectionFlow || typeof PendingSelectionFlow.executePendingSelection !== 'function') return;
+    return PendingSelectionFlow.executePendingSelection({
+        row,
+        col,
+        playerKey,
+        pendingType: 'SUPER_ATTRACTION_WILL',
+        actionPayload: { superAttractionTarget: { row, col } },
+        invalidMessage: '引き寄せる石または引き寄せ先のマスを選んでください',
+        validateResult: ({ result }: any) => !!getSuperAttractionSelectedEvent(result),
+        buildPlaybackMeta: () => ({ cause: 'SUPER_ATTRACTION_WILL', target: { row, col } }),
+        afterStateChange: ({ result }: any) => {
+            if (typeof emitLogAdded !== 'function') return;
+            const selected = getSuperAttractionSelectedEvent(result);
+            if (selected && selected.completed === false) {
+                emitLogAdded('超引力: 引き寄せ先のマスを選んでください');
+                return;
+            }
+            emitLogAdded(`${getPlayerLabel(playerKey)}が超引力を発動`);
+        }
+    });
+}
+
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         handleStrongWindSelection,
         handleBuoyancySelection,
         handleSuperBuoyancySelection,
         handleGravitySelection,
-        handleSuperGravitySelection
+        handleSuperGravitySelection,
+        handleSuperAttractionSelection
     };
 }
 

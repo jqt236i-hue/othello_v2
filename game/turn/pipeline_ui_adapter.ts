@@ -33,9 +33,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         PROLIFERATED: 'proliferated',
         EVADED_MOVE: 'evaded_move'
     });
-    const BATCH_DESTROY_CAUSES = new Set(['TIME_BOMB', 'ULTIMATE_DESTROY_GOD', 'CROSS_BOMB', 'X_BOMB', 'ESCAPE_HYPERACTIVE']);
+    const BATCH_DESTROY_CAUSES = new Set(['TIME_BOMB', 'ULTIMATE_DESTROY_GOD', 'CROSS_BOMB', 'X_BOMB', 'ESCAPE_HYPERACTIVE', 'BOARD_SHRINK_WILL', 'BOARD_SHRINK_GOD']);
     const BOMB_DESTROY_CAUSES = new Set(['TIME_BOMB', 'CROSS_BOMB', 'X_BOMB', 'ESCAPE_HYPERACTIVE']);
-    const SUPER_CRUSH_CAUSES = new Set(['BUOYANCY_WILL', 'SUPER_BUOYANCY_WILL', 'GRAVITY_WILL', 'SUPER_GRAVITY_WILL']);
+    const SUPER_CRUSH_CAUSES = new Set(['BUOYANCY_WILL', 'SUPER_BUOYANCY_WILL', 'GRAVITY_WILL', 'SUPER_GRAVITY_WILL', 'SUPER_ATTRACTION_WILL']);
     const SPECIAL_DURATION_EXPIRE_CAUSES = new Set([
         'SNIPER_WILL',
         'LIGHTNING_WILL',
@@ -807,12 +807,23 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const cause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
         const reason = String(ev && ev.reason ? ev.reason : '').toLowerCase();
         return SUPER_CRUSH_CAUSES.has(cause) &&
-            (reason.indexOf('super_buoyancy_collision') === 0 || reason.indexOf('super_gravity_collision') === 0);
+            (reason.indexOf('super_buoyancy_collision') === 0 || reason.indexOf('super_gravity_collision') === 0 || reason.indexOf('super_attraction_collision') === 0);
     }
 
     function _isWillHunterKingSlashDestroyPresentationEvent(ev: any) {
         return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'WILL_HUNTER_KING' &&
             String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('will_hunter_king_slash') === 0;
+    }
+
+    function _isBoardShrinkHoleStatusAppliedPresentationEvent(ev: any) {
+        const meta = ev && ev.meta && typeof ev.meta === 'object' ? ev.meta : null;
+        return !!(
+            ev &&
+            ev.type === 'STATUS_APPLIED' &&
+            meta &&
+            String(meta.special || '').toUpperCase() === 'METEOR_HOLE' &&
+            String(meta.visualVariant || '').toUpperCase() === 'BOARD_FRAME'
+        );
     }
 
     function _isGluttonousEatMovePresentationEvent(ev: any) {
@@ -830,7 +841,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const cause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
         const reason = String(ev && ev.reason ? ev.reason : '').toLowerCase();
         return SUPER_CRUSH_CAUSES.has(cause) &&
-            (reason.indexOf('super_buoyancy_move') === 0 || reason.indexOf('super_gravity_move') === 0);
+            (reason.indexOf('super_buoyancy_move') === 0 || reason.indexOf('super_gravity_move') === 0 || reason.indexOf('super_attraction_move') === 0);
     }
 
     function _isWillHunterKingSlashMovePresentationEvent(ev: any) {
@@ -1419,7 +1430,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     break;
                 }
                 case 'STATUS_APPLIED':
-                    _preparePassivePlaybackPhaseState(phaseState);
+                    if (!_isBoardShrinkHoleStatusAppliedPresentationEvent(ev)) {
+                        _preparePassivePlaybackPhaseState(phaseState);
+                    }
                     pEvent.type = 'status_applied';
                     pEvent.targets = [{ r: ev.row, col: ev.col }];
                     break;
@@ -2087,7 +2100,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return (
             SUPER_CRUSH_CAUSES.has(cause) ||
             reason.indexOf('super_buoyancy_move') === 0 ||
-            reason.indexOf('super_gravity_move') === 0
+            reason.indexOf('super_gravity_move') === 0 ||
+            reason.indexOf('super_attraction_move') === 0
         );
     }
 
@@ -2111,6 +2125,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const causeLower = String(cause || '').toLowerCase();
         return (
             reasonLower === 'duration_end' ||
+            reasonLower === 'no_candidates_revert' ||
             reasonLower.indexOf('duration') >= 0 ||
             reasonLower.indexOf('expire') >= 0 ||
             causeLower.indexOf('expire') >= 0
@@ -2643,6 +2658,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const hasSuperGravitySelected = _hasRawEvent(ctx.raw, 'super_gravity_selected', (ev: any) => !!(ev && ev.applied));
         if (hasGravitySelected || hasSuperGravitySelected) {
             _pushSoundCue(ctx, 'super_gravity_move', superGravityPhase, hasGravitySelected ? 'gravity_selected' : 'super_gravity_selected');
+        }
+
+        const superAttractionPhase = _findPhase(
+            ctx.base,
+            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
+                if (!_isSuperCrushMoveTarget(t)) return false;
+                const cause = String(t && t.cause ? t.cause : '').toUpperCase();
+                return cause === 'SUPER_ATTRACTION_WILL';
+            }),
+            ctx.fallbackPhase
+        );
+        if (_hasRawEvent(ctx.raw, 'super_attraction_selected', (ev: any) => !!(ev && ev.applied && ev.completed !== false))) {
+            _pushSoundCue(ctx, 'super_attraction_move', superAttractionPhase, 'super_attraction_selected');
         }
 
         const teleportPhase = _findPhase(

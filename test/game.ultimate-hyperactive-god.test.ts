@@ -123,7 +123,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     expect(gameState.board[3][3]).toBe(1);
   });
 
-  test('self-destructs immediately when no reachable empty cell exists in straight 1-5 range', () => {
+  test('reverts to a normal stone when no reachable empty cell exists in straight 1-5 range', () => {
     const { cardState, gameState } = makeState();
     for (let r = 0; r < 8; r++) {
       for (let c = 0; c < 8; c++) {
@@ -142,8 +142,8 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
 
     const res = CardLogic.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, 'black', 3, 3, { random: () => 0.1 });
     expect(res.moved).toEqual([]);
-    expect(res.destroyed).toEqual([expect.objectContaining({ row: 3, col: 3, reason: 'no_candidates', specialType: 'ULTIMATE_HYPERACTIVE' })]);
-    expect(gameState.board[3][3]).toBe(0);
+    expect(res.destroyed).toEqual([expect.objectContaining({ row: 3, col: 3, reason: 'no_candidates_revert', specialType: 'ULTIMATE_HYPERACTIVE', reverted: true })]);
+    expect(gameState.board[3][3]).toBe(1);
     const marker = cardState.markers.find(m => m.kind === 'specialStone' && m.data && m.data.type === 'ULTIMATE_HYPERACTIVE');
     expect(marker).toBeUndefined();
   });
@@ -174,7 +174,7 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
     expect(gameState.board[3][5]).toBe(1);
   });
 
-  test('when surrounded with no move destination, only itself disappears', () => {
+  test('when surrounded with no move destination, only itself reverts', () => {
     const { cardState, gameState } = makeState();
     for (let r = 0; r < 8; r++) {
       for (let c = 0; c < 8; c++) {
@@ -205,8 +205,11 @@ describe('ULTIMATE_HYPERACTIVE_GOD', () => {
       expect(gameState.board[r][c]).toBe(-1);
       expect(destroyedSet.has(`${r},${c}`)).toBe(false);
     }
-    expect(gameState.board[3][3]).toBe(0);
+    expect(gameState.board[3][3]).toBe(1);
     expect(destroyedSet.has('3,3')).toBe(true);
+    expect(res.destroyed).toEqual([
+      expect.objectContaining({ row: 3, col: 3, specialType: 'ULTIMATE_HYPERACTIVE', reason: 'no_candidates_revert', reverted: true })
+    ]);
   });
 
   test('active ultimate hyperactive is no longer treated as flip-protected context stone', () => {

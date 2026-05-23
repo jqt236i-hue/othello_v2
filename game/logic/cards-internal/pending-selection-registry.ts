@@ -102,6 +102,18 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         cpuHandlerNames: ['cpuSelectSuperGravityWillWithPolicy'],
         uiHandlerName: 'handleSuperGravitySelection'
     },
+    SUPER_ATTRACTION_WILL: {
+        kind: 'multi_stage',
+        turnOutcome: 'end_turn',
+        deferNetworkPublish: true,
+        waitForPlaybackIdle: true,
+        needsTargetSelection: true,
+        dispatchKey: 'super_attraction',
+        target: { method: 'getSuperAttractionTargets', argsKey: 'player_pending' },
+        action: { policyMethod: 'chooseSuperAttractionTarget', field: 'superAttractionTarget' },
+        cpuHandlerNames: ['cpuSelectSuperAttractionWillWithPolicy'],
+        uiHandlerName: 'handleSuperAttractionSelection'
+    },
     TELEPORT_WILL: {
         kind: 'continue_turn',
         turnOutcome: 'continue_turn',

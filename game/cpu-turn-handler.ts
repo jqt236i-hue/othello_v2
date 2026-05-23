@@ -25,6 +25,7 @@ declare const cpuSelectDestroyWithPolicy: any;
 declare const cpuSelectStrongWindWillWithPolicy: any;
 declare const cpuSelectSuperBuoyancyWillWithPolicy: any;
 declare const cpuSelectSuperGravityWillWithPolicy: any;
+declare const cpuSelectSuperAttractionWillWithPolicy: any;
 declare const cpuSelectHeavenBlessingWithPolicy: any;
 declare const cpuSelectCondemnWillWithPolicy: any;
 declare const cpuSelectSwapWithEnemyWithPolicy: any;

@@ -116,6 +116,70 @@ const CASES = [
     }
   },
   {
+    label: 'SUPER_ATTRACTION_WILL',
+    pendingType: 'SUPER_ATTRACTION_WILL',
+    modulePath: '../game/card-effects/strong-wind',
+    handlerName: 'handleSuperAttractionSelection',
+    actionField: 'superAttractionTarget',
+    firstTarget: { row: 2, col: 2 },
+    secondTarget: { row: 5, col: 5 },
+    initialPending: { type: 'SUPER_ATTRACTION_WILL', stage: 'selectTarget', cardId: 'super_attraction_01' },
+    intermediatePending: {
+      type: 'SUPER_ATTRACTION_WILL',
+      stage: 'selectTarget',
+      cardId: 'super_attraction_01',
+      firstTarget: { row: 2, col: 2 }
+    },
+    buildFirstResult: (currentSnapshot) => ({
+      ok: true,
+      rawEvents: [{
+        type: 'super_attraction_first_selected',
+        applied: true,
+        completed: false,
+        firstTarget: { row: 2, col: 2 }
+      }],
+      nextCardState: {
+        ...cloneJson(currentSnapshot.cardState),
+        pendingEffectByPlayer: {
+          black: {
+            type: 'SUPER_ATTRACTION_WILL',
+            stage: 'selectTarget',
+            cardId: 'super_attraction_01',
+            firstTarget: { row: 2, col: 2 }
+          },
+          white: null
+        }
+      },
+      nextGameState: cloneJson(currentSnapshot.gameState),
+      playbackEvents: [{ type: 'selection_marker', phase: 1 }]
+    }),
+    buildFinalResult: (currentSnapshot) => ({
+      ok: true,
+      rawEvents: [{
+        type: 'super_attraction_selected',
+        applied: true,
+        completed: true,
+        from: { row: 2, col: 2 },
+        to: { row: 5, col: 5 },
+        destroyed: [{ row: 4, col: 4 }]
+      }],
+      nextCardState: {
+        ...cloneJson(currentSnapshot.cardState),
+        pendingEffectByPlayer: { black: null, white: null }
+      },
+      nextGameState: {
+        ...cloneJson(currentSnapshot.gameState),
+        turnNumber: 13
+      },
+      playbackEvents: [{ type: 'move', phase: 1 }]
+    }),
+    expectedTransportState: {
+      type: 'SUPER_ATTRACTION_WILL',
+      stage: 'selectTarget',
+      firstTarget: { row: 2, col: 2 }
+    }
+  },
+  {
     label: 'BOARD_EXPANSION_GOD',
     pendingType: 'BOARD_EXPANSION_GOD',
     modulePath: '../game/card-effects/board-expansion',

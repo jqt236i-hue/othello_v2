@@ -76,6 +76,22 @@ interface MovePlan {
     movedDistance: number;
 }
 
+function normalizeLineDirection(fromRow: number, fromCol: number, toRow: number, toCol: number): number[] | null {
+    const rowDelta = toRow - fromRow;
+    const colDelta = toCol - fromCol;
+    if (rowDelta === 0 && colDelta === 0)
+        return null;
+    const absRow = Math.abs(rowDelta);
+    const absCol = Math.abs(colDelta);
+    if (rowDelta !== 0 && colDelta !== 0 && absRow !== absCol)
+        return null;
+    if (rowDelta !== 0 && colDelta !== 0)
+        return [rowDelta > 0 ? 1 : -1, colDelta > 0 ? 1 : -1];
+    if (rowDelta !== 0)
+        return [rowDelta > 0 ? 1 : -1, 0];
+    return [0, colDelta > 0 ? 1 : -1];
+}
+
 function collectVerticalCrushMovePlan(cardState: any, gameState: GameState, row: number, col: number, dr: number, deps: any): MovePlan | null {
     if (!Number.isInteger(row) || !Number.isInteger(col))
         return null;
@@ -118,6 +134,52 @@ function collectVerticalCrushMovePlan(cardState: any, gameState: GameState, row:
         direction: [dr, 0],
         movedDistance
     };
+}
+
+function collectLineCrushMovePlanToTarget(cardState: any, gameState: GameState, row: number, col: number, targetRow: number, targetCol: number, deps: any): MovePlan | null {
+    if (!Number.isInteger(row) || !Number.isInteger(col) || !Number.isInteger(targetRow) || !Number.isInteger(targetCol))
+        return null;
+    const direction = normalizeLineDirection(row, col, targetRow, targetCol);
+    if (!direction)
+        return null;
+    const hasBoardShapeCellForCard = deps.hasBoardShapeCellForCard || (() => false);
+    const isBlockedCell = deps.isBlockedCell || (() => false);
+    const getCellValueForCard = deps.getCellValueForCard || (() => null);
+    const findSpecialMarkerAt = deps.findSpecialMarkerAt || (() => null);
+    if (!hasBoardShapeCellForCard(cardState, gameState, targetRow, targetCol))
+        return null;
+    const destroyed: Array<{row: number; col: number}> = [];
+    const [dr, dc] = direction;
+    let currentRow = row + dr;
+    let currentCol = col + dc;
+    while (hasBoardShapeCellForCard(cardState, gameState, currentRow, currentCol)) {
+        if (isBlockedCell(cardState, currentRow, currentCol, gameState))
+            return null;
+        const cellValue = getCellValueForCard(gameState, currentRow, currentCol);
+        if (cellValue !== EMPTY) {
+            if (findSpecialMarkerAt(cardState, currentRow, currentCol, 'GUARD'))
+                return null;
+            const isDestination = currentRow === targetRow && currentCol === targetCol;
+            if (isDestination && findSpecialMarkerAt(cardState, currentRow, currentCol, 'GHOST'))
+                return null;
+            destroyed.push({ row: currentRow, col: currentCol });
+        }
+        if (currentRow === targetRow && currentCol === targetCol) {
+            const movedDistance = Math.abs(targetRow - row) + Math.abs(targetCol - col);
+            if (movedDistance <= 0)
+                return null;
+            return {
+                from: { row, col },
+                to: { row: targetRow, col: targetCol },
+                destroyed,
+                direction,
+                movedDistance
+            };
+        }
+        currentRow += dr;
+        currentCol += dc;
+    }
+    return null;
 }
 
 function collectVerticalSlideMoveOption(cardState: any, gameState: GameState, row: number, col: number, dr: number, deps: any): MoveOption | null {
@@ -205,7 +267,9 @@ function getStrongWindMoveOptionForDirection(cardState: any, gameState: GameStat
 
 interface MovementResult {
     applied: boolean;
+    completed?: boolean;
     reason?: string;
+    firstTarget?: { row: number; col: number };
     from?: { row: number; col: number };
     to?: { row: number; col: number };
     direction?: number[];
@@ -375,6 +439,129 @@ function applyVerticalCrushWill(cardState: any, gameState: GameState, playerKey:
     };
 }
 
+function applySuperAttractionWill(cardState: any, gameState: GameState, playerKey: string, row: number, col: number, deps: any = {}): MovementResult {
+    const pendingType = 'SUPER_ATTRACTION_WILL';
+    const cs = cardState as any;
+    const pending = cs && cs.pendingEffectByPlayer ? cs.pendingEffectByPlayer[playerKey] : null;
+    const getCellValueForCard = deps.getCellValueForCard || (() => null);
+    const targetGetter = typeof deps.getSuperAttractionTargets === 'function' ? deps.getSuperAttractionTargets : (() => []);
+    const destroyAt = deps.destroyAt || null;
+    const destroyAtLegacy = deps.destroyAtLegacy || (() => false);
+    const resolveDestroy = deps.isDestroyResolved || ((result: any) => !!(result && result.destroyed));
+    const moveAt = deps.moveAt || null;
+    const setCellValueForCard = deps.setCellValueForCard || (() => false);
+    const runDestroyBlock = typeof deps.runDestroyBlock === 'function' ? deps.runDestroyBlock : null;
+
+    if (!pending || pending.type !== pendingType || pending.stage !== 'selectTarget') {
+        return { applied: false, reason: 'not_pending' };
+    }
+    const targets = targetGetter(cardState, gameState, playerKey, pending);
+    const allowed = Array.isArray(targets) && targets.some((target: any) => target && target.row === row && target.col === col);
+    if (!allowed)
+        return { applied: false, reason: 'invalid_target' };
+    if (!pending.firstTarget) {
+        const selectedValue = getCellValueForCard(gameState, row, col);
+        if (selectedValue === null)
+            return { applied: false, reason: 'out_of_board' };
+        if (selectedValue === EMPTY)
+            return { applied: false, reason: 'empty' };
+        pending.firstTarget = { row, col };
+        return {
+            applied: true,
+            completed: false,
+            firstTarget: { row, col },
+            chargeGained: 0
+        };
+    }
+
+    const first = { row: pending.firstTarget.row, col: pending.firstTarget.col };
+    const cellValue = getCellValueForCard(gameState, first.row, first.col);
+    if (cellValue === null)
+        return { applied: false, reason: 'source_out_of_board' };
+    if (cellValue === EMPTY)
+        return { applied: false, reason: 'source_empty' };
+    const plan = collectLineCrushMovePlanToTarget(cardState, gameState, first.row, first.col, row, col, deps);
+    if (!plan)
+        return { applied: false, reason: 'no_move_options' };
+    const totalTravelDistance = Number(plan.movedDistance) || 1;
+    const destroyed: Array<{row: number; col: number}> = [];
+    let blockFailure: MovementResult | null = null;
+    const applyCrush = () => {
+        for (let index = 0; index < plan.destroyed.length; index += 1) {
+            const target = plan.destroyed[index];
+            if (!target)
+                continue;
+            const collisionDistance = Math.abs(target.row - first.row) + Math.abs(target.col - first.col);
+            const collisionProgress = Math.max(0, Math.min(1, collisionDistance / totalTravelDistance));
+            if (typeof destroyAt === 'function') {
+                const result = destroyAt(cardState, gameState, target.row, target.col, pendingType, 'super_attraction_collision', {
+                    sourceRow: first.row,
+                    sourceCol: first.col,
+                    collisionIndex: index + 1,
+                    collisionCount: plan.destroyed.length,
+                    collisionProgress,
+                    travelDistance: totalTravelDistance,
+                    travelToRow: plan.to.row,
+                    travelToCol: plan.to.col
+                });
+                if (!resolveDestroy(result)) {
+                    blockFailure = { applied: false, reason: 'destroy_failed', failedAt: { row: target.row, col: target.col } };
+                    return;
+                }
+            }
+            else {
+                const destroyedOk = destroyAtLegacy(cardState, gameState, target.row, target.col);
+                if (!destroyedOk) {
+                    blockFailure = { applied: false, reason: 'destroy_failed', failedAt: { row: target.row, col: target.col } };
+                    return;
+                }
+            }
+            destroyed.push({ row: target.row, col: target.col });
+        }
+        if (typeof moveAt === 'function') {
+            const result = moveAt(cardState, gameState, first.row, first.col, plan.to.row, plan.to.col, pendingType, 'super_attraction_move', {
+                collisionCount: destroyed.length,
+                travelDistance: totalTravelDistance
+            });
+            if (!result || !result.moved) {
+                blockFailure = { applied: false, reason: 'move_failed' };
+                return;
+            }
+            if (result.markerHandled !== true) {
+                moveMarkers(cardState, first.row, first.col, plan.to.row, plan.to.col, deps);
+            }
+        }
+        else {
+            const cleared = setCellValueForCard(gameState, first.row, first.col, EMPTY);
+            const placed = setCellValueForCard(gameState, plan.to.row, plan.to.col, cellValue);
+            if (!cleared || !placed) {
+                blockFailure = { applied: false, reason: 'move_failed' };
+                return;
+            }
+            moveMarkers(cardState, first.row, first.col, plan.to.row, plan.to.col, deps);
+        }
+    };
+    if (runDestroyBlock) {
+        runDestroyBlock(cardState, gameState, applyCrush, {});
+    }
+    else {
+        applyCrush();
+    }
+    if (blockFailure) return blockFailure;
+    cs.pendingEffectByPlayer[playerKey] = null;
+    return {
+        applied: true,
+        completed: true,
+        firstTarget: first,
+        from: first,
+        to: plan.to,
+        destroyed,
+        destroyedCount: destroyed.length,
+        movedDistance: plan.movedDistance,
+        direction: plan.direction
+    };
+}
+
 function applyVerticalSlideWill(cardState: any, gameState: GameState, playerKey: string, row: number, col: number, config: any, deps: any = {}): MovementResult {
     const cfg = config || {};
     const pendingType = String(cfg.pendingType || '');
@@ -474,6 +661,7 @@ export = {
     applyStrongWindWill,
     applyBuoyancyWill,
     applySuperBuoyancyWill,
+    applySuperAttractionWill,
     applyGravityWill,
     applySuperGravityWill
 };

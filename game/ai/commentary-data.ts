@@ -52,6 +52,7 @@ const CARD_SUMMARY_OVERRIDES: Record<string, string> = Object.freeze({
   SUPER_BUOYANCY_WILL: '石を上方向へ押し上げる',
   GRAVITY_WILL: '石を下方向へ押し込む',
   SUPER_GRAVITY_WILL: '石を下方向へ押し込む',
+  SUPER_ATTRACTION_WILL: '石を指定マスへ引き寄せる',
   TRAP_WILL: '自分の石に罠を仕込む',
   TEMPT_WILL: '相手の特殊石を奪う',
   CAPTURE_WILL: '敵の特殊石を手札に加える',

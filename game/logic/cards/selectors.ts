@@ -451,6 +451,90 @@ function _collectVerticalCrushDestination(cardState: CardState, gameState: GameS
     return destination;
 }
 
+function normalizeLineDirection(fromRow: number, fromCol: number, toRow: number, toCol: number): { dr: number; dc: number } | null {
+    const rowDelta = toRow - fromRow;
+    const colDelta = toCol - fromCol;
+    if (rowDelta === 0 && colDelta === 0) return null;
+    const absRow = Math.abs(rowDelta);
+    const absCol = Math.abs(colDelta);
+    if (rowDelta !== 0 && colDelta !== 0 && absRow !== absCol) return null;
+    if (rowDelta !== 0 && colDelta !== 0) return { dr: rowDelta > 0 ? 1 : -1, dc: colDelta > 0 ? 1 : -1 };
+    if (rowDelta !== 0) return { dr: rowDelta > 0 ? 1 : -1, dc: 0 };
+    return { dr: 0, dc: colDelta > 0 ? 1 : -1 };
+}
+
+function isGhostCell(cardState: CardState, row: number, col: number): boolean {
+    const cs = cardState as any;
+    const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
+    return markers.some((m: any) => (
+        m &&
+        m.kind === 'specialStone' &&
+        m.row === row &&
+        m.col === col &&
+        m.data &&
+        m.data.type === 'GHOST'
+    ));
+}
+
+function canSuperAttractionTravelTo(cardState: CardState, gameState: GameState, fromRow: number, fromCol: number, toRow: number, toCol: number): boolean {
+    const direction = normalizeLineDirection(fromRow, fromCol, toRow, toCol);
+    if (!direction) return false;
+    if (!hasBoardShapeCell(gameState, toRow, toCol)) return false;
+
+    let r = fromRow + direction.dr;
+    let c = fromCol + direction.dc;
+    while (hasBoardShapeCell(gameState, r, c)) {
+        if (isBlockedCell(cardState, r, c)) return false;
+        const owner = getCellValue(gameState, r, c);
+        if (owner !== P_EMPTY && isGuardProtectedCell(cardState, r, c)) return false;
+        if (r === toRow && c === toCol) {
+            if (owner !== P_EMPTY && isGhostCell(cardState, r, c)) return false;
+            return true;
+        }
+        r += direction.dr;
+        c += direction.dc;
+    }
+    return false;
+}
+
+function hasSuperAttractionDestination(cardState: CardState, gameState: GameState, row: number, col: number): boolean {
+    let found = false;
+    forEachBoardShapeCell(gameState, (targetRow, targetCol) => {
+        if (found) return;
+        if (targetRow === row && targetCol === col) return;
+        if (canSuperAttractionTravelTo(cardState, gameState, row, col, targetRow, targetCol)) {
+            found = true;
+        }
+    });
+    return found;
+}
+
+function getSuperAttractionTargets(cardState: CardState, gameState: GameState, playerKey?: PlayerKey, pending?: any): TargetCell[] {
+    const first = pending && pending.firstTarget
+        ? { row: pending.firstTarget.row, col: pending.firstTarget.col }
+        : null;
+    const res: TargetCell[] = [];
+    if (first && Number.isInteger(first.row) && Number.isInteger(first.col)) {
+        const firstOwner = getCellValue(gameState, first.row, first.col);
+        if (firstOwner === null || firstOwner === P_EMPTY) return res;
+        forEachBoardShapeCell(gameState, (r, c) => {
+            if (r === first.row && c === first.col) return;
+            if (canSuperAttractionTravelTo(cardState, gameState, first.row, first.col, r, c)) {
+                res.push({ row: r, col: c });
+            }
+        });
+        return res;
+    }
+
+    forEachBoardShapeCell(gameState, (r, c, owner) => {
+        if (owner === P_EMPTY) return;
+        if (hasSuperAttractionDestination(cardState, gameState, r, c)) {
+            res.push({ row: r, col: c });
+        }
+    });
+    return res;
+}
+
 function _collectVerticalSlideDestination(cardState: CardState, gameState: GameState, row: number, col: number, dr: number): DestinationCell | null {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
     if (dr !== -1 && dr !== 1) return null;
@@ -1042,6 +1126,7 @@ export = {
     getStrongWindTargets,
     getBuoyancyTargets,
     getSuperBuoyancyTargets,
+    getSuperAttractionTargets,
     getGravityTargets,
     getSuperGravityTargets,
     getTrapTargets,

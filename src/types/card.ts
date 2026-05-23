@@ -31,6 +31,7 @@ export type CardType =
   | 'SUPER_BUOYANCY_WILL'
   | 'GRAVITY_WILL'
   | 'SUPER_GRAVITY_WILL'
+  | 'SUPER_ATTRACTION_WILL'
   | 'TRAP_WILL'
   | 'TEMPT_WILL'
   | 'CAPTURE_WILL'

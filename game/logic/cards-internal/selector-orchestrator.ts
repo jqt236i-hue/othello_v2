@@ -46,6 +46,10 @@ const MODULE_SELECTOR_HANDLERS: Record<string, SelectorConfig> = Object.freeze({
         method: 'getSuperGravityTargets',
         args: (context) => [context.cardState, context.gameState]
     },
+    SUPER_ATTRACTION_WILL: {
+        method: 'getSuperAttractionTargets',
+        args: (context) => [context.cardState, context.gameState, context.playerKey, context.pending]
+    },
     SWAP_WITH_ENEMY: {
         method: 'getSwapTargets',
         args: (context) => [context.cardState, context.gameState, context.playerKey]
@@ -146,6 +150,7 @@ const LOCAL_SELECTOR_HANDLERS: Record<string, (context: SelectorContext) => any[
     SUPER_BUOYANCY_WILL: (context) => invokeLocal(context, 'getSuperBuoyancyTargets', [context.cardState, context.gameState]),
     GRAVITY_WILL: (context) => invokeLocal(context, 'getGravityTargets', [context.cardState, context.gameState]),
     SUPER_GRAVITY_WILL: (context) => invokeLocal(context, 'getSuperGravityTargets', [context.cardState, context.gameState]),
+    SUPER_ATTRACTION_WILL: (context) => invokeLocal(context, 'getSuperAttractionTargets', [context.cardState, context.gameState, context.playerKey, context.pending]),
     TEMPT_WILL: (context) => invokeLocal(context, 'getTemptWillTargets', [context.cardState, context.gameState, context.playerKey]),
     CAPTURE_WILL: (context) => invokeLocal(context, 'getCaptureWillTargets', [context.cardState, context.gameState, context.playerKey]),
     TRAP_WILL: (context) => invokeLocal(context, 'getTrapTargets', [context.cardState, context.gameState, context.playerKey]),

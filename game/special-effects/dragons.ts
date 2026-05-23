@@ -3,6 +3,7 @@
  * @description Ultimate Reverse Dragon effect handlers
  */
 
+declare const __non_webpack_require__: NodeRequire | undefined;
 declare const cardState: any;
 declare const gameState: any;
 declare const BLACK: number;
@@ -16,11 +17,15 @@ declare const emitCardStateChange: any;
 declare const emitLogAdded: any;
 declare const emitGameStateChange: any;
 declare const getPlayerName: any;
-declare const LOG_MESSAGES: any;
 declare const FLIP_ANIMATION_DURATION_MS: any;
 declare const BoardOps: any;
 declare const CardUtils: any;
 declare const SharedConstants: any;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+  ? __non_webpack_require__
+  : require;
+const LOG_MESSAGES = _require('../log-messages');
 
 let mv: any = null;
 try { mv = (typeof require === 'function') ? require('../move-executor-visuals') : mv; } catch (e) { mv = mv || null; }

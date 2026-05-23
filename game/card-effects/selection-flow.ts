@@ -406,6 +406,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     function shouldUseNetworkPublishOnlyPendingSelection(pendingType: any) {
         if (readMatchMode() !== 'network') return false;
         if (!shouldDeferNetworkPublishForPendingType(pendingType)) return false;
+        const contract = resolvePendingSelectionContract(pendingType);
+        if (contract && contract.kind === 'multi_stage') return false;
         if (!isSelectionOnlyEndTurnPendingType(pendingType)) return false;
         return hasActiveNetworkPublishClient();
     }
@@ -1200,7 +1202,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 }
 
                 skipFinalizeNetworkPublish = true;
-                shouldFinalize = true;
+                shouldFinalize = contract.turnOutcome === 'end_turn' ? false : true;
+                if (contract.turnOutcome === 'end_turn') {
+                    const ensureFn = resolveRootFunction('ensureCurrentPlayerCanActOrPass');
+                    if (typeof ensureFn === 'function') {
+                        ensureFn({ useBlackDelay: true });
+                    }
+                }
                 return {
                     ok: true,
                     pendingType: resolvedPendingType,

@@ -1,12 +1,13 @@
 import { JSDOM } from 'jsdom';
 
 const CASES = [
-  ['STRONG_WIND_WILL', 'strong_wind_move', 'scale(1.08)'],
-  ['SUPER_BUOYANCY_WILL', 'super_buoyancy_move', 'scale(1.06)'],
-  ['SUPER_GRAVITY_WILL', 'super_gravity_move', 'scale(1.05)']
+  ['STRONG_WIND_WILL', 'strong_wind_move', 'scale(1.08)', 400],
+  ['SUPER_BUOYANCY_WILL', 'super_buoyancy_move', 'scale(1.06)', 400],
+  ['SUPER_GRAVITY_WILL', 'super_gravity_move', 'scale(1.05)', 400],
+  ['SUPER_ATTRACTION_WILL', 'super_attraction_move', 'scale(1.05)', 200]
 ];
 
-describe.each(CASES)('animation-engine move variants %s', (cause, reason, midpointScale) => {
+describe.each(CASES)('animation-engine move variants %s', (cause, reason, midpointScale, expectedDurationMs) => {
   let dom;
 
   beforeEach(() => {
@@ -48,8 +49,8 @@ describe.each(CASES)('animation-engine move variants %s', (cause, reason, midpoi
     board.appendChild(fromCell);
     board.appendChild(toCell);
 
-    global.window.Element.prototype.animate = jest.fn((keyframes) => {
-      animateCalls.push(keyframes);
+    global.window.Element.prototype.animate = jest.fn((keyframes, options) => {
+      animateCalls.push({ keyframes, options });
       return {
         addEventListener(eventName, handler) {
           if (eventName === 'finish' && typeof handler === 'function') {
@@ -74,8 +75,9 @@ describe.each(CASES)('animation-engine move variants %s', (cause, reason, midpoi
     });
 
     expect(animateCalls).toHaveLength(1);
-    expect(animateCalls[0]).toHaveLength(3);
-    expect(String(animateCalls[0][1].transform)).toContain(midpointScale);
+    expect(animateCalls[0].keyframes).toHaveLength(3);
+    expect(String(animateCalls[0].keyframes[1].transform)).toContain(midpointScale);
+    expect(animateCalls[0].options.duration).toBe(expectedDurationMs);
   });
 
   test('animates network snapshot move when source cell is already empty', async () => {
@@ -100,8 +102,8 @@ describe.each(CASES)('animation-engine move variants %s', (cause, reason, midpoi
     board.appendChild(fromCell);
     board.appendChild(toCell);
 
-    global.window.Element.prototype.animate = jest.fn((keyframes) => {
-      animateCalls.push(keyframes);
+    global.window.Element.prototype.animate = jest.fn((keyframes, options) => {
+      animateCalls.push({ keyframes, options });
       return {
         addEventListener(eventName, handler) {
           if (eventName === 'finish' && typeof handler === 'function') {
@@ -130,8 +132,9 @@ describe.each(CASES)('animation-engine move variants %s', (cause, reason, midpoi
     });
 
     expect(animateCalls).toHaveLength(1);
-    expect(animateCalls[0]).toHaveLength(3);
-    expect(String(animateCalls[0][1].transform)).toContain(midpointScale);
+    expect(animateCalls[0].keyframes).toHaveLength(3);
+    expect(String(animateCalls[0].keyframes[1].transform)).toContain(midpointScale);
+    expect(animateCalls[0].options.duration).toBe(expectedDurationMs);
     expect(fromCell.querySelector('.disc')).toBeNull();
     expect(toCell.querySelector('.disc.black')).toBe(destinationDisc);
   });

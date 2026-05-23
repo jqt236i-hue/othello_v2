@@ -10,6 +10,7 @@ function _require(id: string): any {
   }
   throw new Error('Unable to require ' + id);
 }
+const LOG_MESSAGES = _require('../log-messages');
 
 /**
  * @file breeding.js

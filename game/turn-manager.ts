@@ -14,6 +14,7 @@ declare const handleBuoyancySelection: any;
 declare const handleSuperBuoyancySelection: any;
 declare const handleGravitySelection: any;
 declare const handleSuperGravitySelection: any;
+declare const handleSuperAttractionSelection: any;
 declare const handleTeleportSelection: any;
 declare const handleTemptSelection: any;
 declare const handleCaptureSelection: any;
@@ -932,6 +933,8 @@ function resolveBoardPendingSelectionHandlerForTurnManager(dispatchKey: any) {
         return (typeof handleGravitySelection === 'function') ? handleGravitySelection : null;
     case 'super_gravity':
         return (typeof handleSuperGravitySelection === 'function') ? handleSuperGravitySelection : null;
+    case 'super_attraction':
+        return (typeof handleSuperAttractionSelection === 'function') ? handleSuperAttractionSelection : null;
     case 'teleport':
     case 'cell_teleport':
         return (typeof handleTeleportSelection === 'function') ? handleTeleportSelection : null;

@@ -390,7 +390,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
     ]));
   });
 
-  test('全候補が占有かつ交換不可なら不正上書きせず消滅する', () => {
+  test('全候補が占有かつ交換不可なら不正上書きせず通常石に戻る', () => {
     const prng = makePrng();
     const cardState = CardLogic.createCardState(prng);
     const gameState = {
@@ -441,7 +441,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
       { random: () => 0 }
     );
 
-    expect(gameState.board[3][3]).toBe(0);
+    expect(gameState.board[3][3]).toBe(1);
     expect(gameState.board[2][2]).toBe(-1);
     expect(gameState.board[2][3]).toBe(-1);
     expect(gameState.board[2][4]).toBe(-1);
@@ -453,7 +453,7 @@ describe('EXTREME_HYPERACTIVE_WILL（極悪多動魔）', () => {
     expect(destroyedEvent).toBeTruthy();
     expect(Array.isArray(destroyedEvent.details)).toBe(true);
     expect(destroyedEvent.details).toEqual(expect.arrayContaining([
-      expect.objectContaining({ row: 3, col: 3, specialType: 'EXTREME_HYPERACTIVE' })
+      expect.objectContaining({ row: 3, col: 3, specialType: 'EXTREME_HYPERACTIVE', reason: 'no_candidates_revert', reverted: true })
     ]));
 
     const moveEvents = (cardState._presentationEventsPersist || []).filter((ev) => (

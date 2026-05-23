@@ -515,6 +515,25 @@ describe('cpu turn handler pending selection', () => {
     expect(cardState.pendingEffectByPlayer.white).toBeNull();
   });
 
+  test('SUPER_ATTRACTION_WILL invokes cpuSelectSuperAttractionWillWithPolicy when available', async () => {
+    const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
+    global.cpuSelectSuperAttractionWillWithPolicy = mock;
+    cardState.pendingEffectByPlayer.white = { type: 'SUPER_ATTRACTION_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(mock).toHaveBeenCalledWith('white');
+  });
+
+  test('SUPER_ATTRACTION_WILL clears pending when function absent', async () => {
+    delete global.cpuSelectSuperAttractionWillWithPolicy;
+    cardState.pendingEffectByPlayer.white = { type: 'SUPER_ATTRACTION_WILL', stage: 'selectTarget' };
+
+    cpuHandler.processCpuTurn();
+    await waitTick();
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+  });
+
   test('GRAVITY_WILL invokes cpuSelectGravityWillWithPolicy when available', async () => {
     const mock = jest.fn(async (playerKey) => { cardState.pendingEffectByPlayer[playerKey] = null; });
     global.cpuSelectGravityWillWithPolicy = mock;

@@ -333,6 +333,14 @@ describe('SoundEngine default BGM', () => {
     );
   });
 
+  test('super attraction sound key resolves to the shipped filename', () => {
+    const soundEngine = loadSoundEngine();
+
+    expect(soundEngine.getEffectFilePath('super_attraction_move')).toBe(
+      'assets/audio/sound-effect/超引力で石が引き寄せられたタイミング.mp3'
+    );
+  });
+
   test('card effect flip sound key resolves to the renamed filename', () => {
     const soundEngine = loadSoundEngine();
 

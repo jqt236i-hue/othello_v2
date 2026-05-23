@@ -251,4 +251,42 @@ describe('ROBOT_VACUUM_WILL（ロボット掃除機）', () => {
     const reverted = expiredEvent.details[0];
     expect(gameState.board[reverted.row][reverted.col]).toBe(Shared.BLACK);
   });
+
+  test('周囲空きが無い場合は消滅せず同色の通常石に戻る', () => {
+    const { cardState, gameState } = createState(0);
+    for (let row = 0; row < 8; row += 1) {
+      for (let col = 0; col < 8; col += 1) {
+        gameState.board[row][col] = Shared.WHITE;
+      }
+    }
+    gameState.board[3][3] = Shared.BLACK;
+    cardState.markers.push({
+      id: 3001,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'ROBOT_VACUUM', remainingOwnerTurns: 5 }
+    });
+
+    const events = [];
+    TurnPipelinePhases.applyTurnStartPhase(
+      CardLogic,
+      { BLACK: Shared.BLACK, WHITE: Shared.WHITE },
+      cardState,
+      gameState,
+      'black',
+      events,
+      createPrng(0)
+    );
+
+    expect(gameState.board[3][3]).toBe(Shared.BLACK);
+    const marker = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'ROBOT_VACUUM');
+    expect(marker).toBeUndefined();
+    expect(events.some((ev) => ev && ev.type === 'robot_vacuum_destroyed_start')).toBe(false);
+    const expiredEvent = events.find((ev) => ev && ev.type === 'robot_vacuum_expired_start');
+    expect(expiredEvent && expiredEvent.details).toEqual([
+      expect.objectContaining({ row: 3, col: 3, specialType: 'ROBOT_VACUUM', reason: 'no_candidates_revert', reverted: true })
+    ]);
+  });
 });

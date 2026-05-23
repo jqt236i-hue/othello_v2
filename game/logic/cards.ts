@@ -2556,6 +2556,7 @@ const {
             getSuperBuoyancyTargets,
             getGravityTargets,
             getSuperGravityTargets,
+            getSuperAttractionTargets,
             getTrapTargets,
             getGuardTargets,
             getLivingWillTargets,
@@ -4009,6 +4010,13 @@ const {
         return res;
     }
 
+    function getSuperAttractionTargets(cardState: any, gameState: any, playerKey?: any, pending?: any) {
+        if (CardSelectorsModule && typeof CardSelectorsModule.getSuperAttractionTargets === 'function') {
+            return CardSelectorsModule.getSuperAttractionTargets(cardState, gameState, playerKey, pending);
+        }
+        return [];
+    }
+
     function getGravityTargets(cardState: any, gameState: any) {
         if (CardSelectorsModule && typeof CardSelectorsModule.getGravityTargets === 'function') {
             return CardSelectorsModule.getGravityTargets(cardState, gameState);
@@ -4580,6 +4588,32 @@ const {
         });
     }
 
+    function applySuperAttractionWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
+        if (CardMovementModule && typeof CardMovementModule.applySuperAttractionWill === 'function') {
+            return CardMovementModule.applySuperAttractionWill(cardState, gameState, playerKey, row, col, {
+                getSuperAttractionTargets,
+                getCellValueForCard,
+                hasBoardShapeCellForCard,
+                isBlockedCell,
+                findSpecialMarkerAt,
+                destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
+                    ? BoardOpsModule.destroyAt
+                    : null,
+                runDestroyBlock: BoardOpsModule && typeof BoardOpsModule.runDestroyBlock === 'function'
+                    ? BoardOpsModule.runDestroyBlock
+                    : null,
+                isDestroyResolved,
+                destroyAtLegacy: destroyAt,
+                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                    ? BoardOpsModule.moveAt
+                    : null,
+                setCellValueForCard,
+                getMarkers
+            });
+        }
+        return { applied: false, reason: 'deps_missing' };
+    }
+
     function getCardHandManagerContext() {
         if (!CardEffectResolverModule || typeof CardEffectResolverModule.getCardHandManagerContext !== 'function') {
             throw new Error('[cards.js] CardEffectResolver.getCardHandManagerContext not available');
@@ -4598,6 +4632,7 @@ const {
             getSuperBuoyancyTargets,
             getGravityTargets,
             getSuperGravityTargets,
+            getSuperAttractionTargets,
             getTrapTargets,
             getGuardTargets,
             getLivingWillTargets,
@@ -6078,6 +6113,7 @@ const cardsApi: any = {
         applySuperBuoyancyWill,
         applyGravityWill,
         applySuperGravityWill,
+        applySuperAttractionWill,
         armRiboWillEffect,
         resolveEqualityWillUsage,
         resolveReinforcementWillUsage,
@@ -6114,6 +6150,7 @@ const cardsApi: any = {
         getSuperBuoyancyTargets,
         getGravityTargets,
         getSuperGravityTargets,
+        getSuperAttractionTargets,
         getTabooReverseCandidates,
         pickTabooReverseFlips,
         cancelPendingSelection,

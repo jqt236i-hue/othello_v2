@@ -2866,6 +2866,30 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             } else if (pending && pending.type === 'SUPER_GRAVITY_WILL' && action.superGravityTarget == null) {
                 throw new Error('SUPER_GRAVITY_WILL requires superGravityTarget before placement');
             }
+            if (pending && pending.type === 'SUPER_ATTRACTION_WILL' && action.superAttractionTarget) {
+                const res = CardLogic.applySuperAttractionWill(
+                    cardState,
+                    gameState,
+                    playerKey,
+                    action.superAttractionTarget.row,
+                    action.superAttractionTarget.col
+                );
+                events.push({
+                    type: res && res.completed === false ? 'super_attraction_first_selected' : 'super_attraction_selected',
+                    player: playerKey,
+                    target: action.superAttractionTarget,
+                    applied: !!(res && res.applied),
+                    completed: res && res.completed === false ? false : !!(res && res.applied),
+                    firstTarget: res && res.firstTarget ? res.firstTarget : null,
+                    from: res && res.from ? res.from : null,
+                    to: res && res.to ? res.to : null,
+                    destroyed: res && Array.isArray(res.destroyed) ? res.destroyed.slice() : []
+                });
+                applyTrapEffectsAfterSelection(CardLogic, cardState, gameState, playerKey, events);
+                return;
+            } else if (pending && pending.type === 'SUPER_ATTRACTION_WILL' && action.superAttractionTarget == null) {
+                throw new Error('SUPER_ATTRACTION_WILL requires superAttractionTarget before placement');
+            }
             if (pending && (pending.type === 'TELEPORT_WILL' || pending.type === 'CELL_TELEPORT_WILL') && action.teleportTarget) {
                 const res = pending.type === 'CELL_TELEPORT_WILL'
                     ? CardLogic.applyCellTeleportWill(

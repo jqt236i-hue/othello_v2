@@ -7,7 +7,8 @@ jest.mock('../game/card-effects/selection-flow', () => ({
 const {
     handleStrongWindSelection,
     handleSuperBuoyancySelection,
-    handleSuperGravitySelection
+    handleSuperGravitySelection,
+    handleSuperAttractionSelection
 } = require('../game/card-effects/strong-wind');
 
 describe('strong-wind', () => {
@@ -24,6 +25,7 @@ describe('strong-wind', () => {
         expect(typeof handleStrongWindSelection).toBe('function');
         expect(typeof handleSuperBuoyancySelection).toBe('function');
         expect(typeof handleSuperGravitySelection).toBe('function');
+        expect(typeof handleSuperAttractionSelection).toBe('function');
     });
 
     test('正常系: STRONG_WIND_WILLでexecutePendingSelectionが正しく呼ばれる', async () => {
@@ -63,5 +65,24 @@ describe('strong-wind', () => {
         });
 
         await handleStrongWindSelection(6, 6, 'black');
+    });
+
+    test('正常系: SUPER_ATTRACTION_WILLで2段階選択イベントを許可する', async () => {
+        mockExecutePendingSelection.mockImplementation((options) => {
+            expect(options.validateResult({ result: { rawEvents: [{ type: 'super_attraction_first_selected', applied: true, completed: false }] } })).toBe(true);
+            expect(options.validateResult({ result: { rawEvents: [{ type: 'super_attraction_selected', applied: true, completed: true }] } })).toBe(true);
+            expect(options.validateResult({ result: { rawEvents: [{ type: 'super_attraction_first_selected', applied: false, completed: false }] } })).toBe(false);
+            expect(options.validateResult({ result: { rawEvents: [{ type: 'super_attraction_selected', applied: false, completed: false }] } })).toBe(false);
+            options.afterStateChange({ result: { rawEvents: [{ type: 'super_attraction_first_selected', applied: true, completed: false }] } });
+            return Promise.resolve({ ok: true });
+        });
+
+        await handleSuperAttractionSelection(2, 2, 'black');
+
+        const callArg = mockExecutePendingSelection.mock.calls[0][0];
+        expect(callArg.pendingType).toBe('SUPER_ATTRACTION_WILL');
+        expect(callArg.actionPayload).toEqual({ superAttractionTarget: { row: 2, col: 2 } });
+        expect(callArg.buildPlaybackMeta()).toEqual({ cause: 'SUPER_ATTRACTION_WILL', target: { row: 2, col: 2 } });
+        expect(global.emitLogAdded).toHaveBeenCalledWith('超引力: 引き寄せ先のマスを選んでください');
     });
 });

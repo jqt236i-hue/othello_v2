@@ -326,6 +326,35 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
+  test('一括盤面縮小の destroy playback は同一 phase で board_shrink_selected を1回だけ再生する', () => {
+    const base = [
+      {
+        type: 'destroy',
+        phase: 12,
+        targets: [{ r: 0, col: 7, cause: 'BOARD_SHRINK_WILL', reason: 'board_shrink_cell_destroy', meta: { destroyed: true } }]
+      },
+      {
+        type: 'status_applied',
+        phase: 12,
+        targets: [{ r: 0, col: 7, after: { special: 'METEOR_HOLE' } }],
+        meta: { special: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' }
+      },
+      {
+        type: 'destroy',
+        phase: 12,
+        targets: [{ r: 7, col: 0, cause: 'BOARD_SHRINK_WILL', reason: 'board_shrink_cell_destroy', meta: { destroyed: true } }]
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const shrinkCues = out.filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'board_shrink_selected');
+    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(shrinkCues).toHaveLength(1);
+    expect(shrinkCues[0].phase).toBe(12);
+    expect(stoneCue).toBeUndefined();
+  });
+
   test('ROUND_BONUS_BANNER presentation event から round_bonus の sound_effect を追加する', () => {
     const base = [{
       type: 'round_bonus_banner',
@@ -706,6 +735,21 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
 
     expect(cue).toBeTruthy();
     expect(cue.phase).toBe(13);
+  });
+
+  test('super_attraction_selected 成功時は super move の phase で super_attraction_move を再生する', () => {
+    const base = [{
+      type: 'move',
+      phase: 14,
+      targets: [{ from: { r: 2, col: 2 }, to: { r: 2, col: 6 }, cause: 'SUPER_ATTRACTION_WILL', reason: 'super_attraction_move' }]
+    }];
+    const raw = [{ type: 'super_attraction_selected', applied: true, completed: true, from: { row: 2, col: 2 }, to: { row: 2, col: 6 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'super_attraction_move');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(14);
   });
 
   test('tempt_selected 成功時は tempt_applied の flip phase で誘惑音と card_effect_flip を再生する', () => {

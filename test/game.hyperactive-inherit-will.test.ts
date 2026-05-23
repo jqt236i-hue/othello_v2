@@ -168,6 +168,76 @@ describe('HYPERACTIVE_INHERIT_WILL (多動の継承)', () => {
     expect(gameState.board[reverted.row][reverted.col]).toBe(1);
   });
 
+  test('inherited hyperactive reverts on turn-start movement when no empty neighbor exists and keeps coexisting special marker', () => {
+    const { cardState, gameState } = createStates();
+    for (let row = 0; row < 8; row += 1) {
+      for (let col = 0; col < 8; col += 1) {
+        gameState.board[row][col] = -1;
+      }
+    }
+    gameState.board[3][3] = 1;
+    cardState.markers.push(
+      {
+        id: 1201,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'GUARD', remainingOwnerTurns: 3 }
+      },
+      {
+        id: 1202,
+        kind: 'specialStone',
+        row: 3,
+        col: 3,
+        owner: 'black',
+        data: { type: 'INHERITED_HYPERACTIVE', remainingOwnerTurns: 10, hyperactiveSeq: 1 },
+        createdSeq: 1
+      }
+    );
+
+    const events = runTurnStartPhase(cardState, gameState, 'black', 0);
+
+    expect(gameState.board[3][3]).toBe(1);
+    const inherited = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'INHERITED_HYPERACTIVE');
+    const guard = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'GUARD');
+    expect(inherited).toBeUndefined();
+    expect(guard).toBeTruthy();
+
+    const destroyedEvent = events.find((ev) => ev && ev.type === 'hyperactive_destroyed_start');
+    expect(destroyedEvent && destroyedEvent.details).toEqual([
+      expect.objectContaining({ row: 3, col: 3, specialType: 'INHERITED_HYPERACTIVE', reason: 'no_candidates_revert', reverted: true })
+    ]);
+  });
+
+  test('plain hyperactive reverts to a normal stone when no empty neighbor exists', () => {
+    const { cardState, gameState } = createStates();
+    for (let row = 0; row < 8; row += 1) {
+      for (let col = 0; col < 8; col += 1) {
+        gameState.board[row][col] = -1;
+      }
+    }
+    gameState.board[3][3] = 1;
+    cardState.markers.push({
+      id: 1203,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'HYPERACTIVE', remainingOwnerTurns: 5 }
+    });
+
+    const res = CardLogic.processHyperactiveMoveAtAnchor(cardState, gameState, 'black', 3, 3, { random: () => 0 });
+
+    expect(res.moved).toEqual([]);
+    expect(res.destroyed).toEqual([
+      expect.objectContaining({ row: 3, col: 3, specialType: 'HYPERACTIVE', reason: 'no_candidates_revert', reverted: true })
+    ]);
+    expect(gameState.board[3][3]).toBe(1);
+    const marker = (cardState.markers || []).find((m) => m && m.data && m.data.type === 'HYPERACTIVE');
+    expect(marker).toBeUndefined();
+  });
+
   test('inherited move keeps coexisting special marker on moved stone', () => {
     const { cardState, gameState } = createStates();
     gameState.board[4][4] = 1;

@@ -544,7 +544,8 @@ const WHITE_LV6_CORNER_SWING_KEEP_TYPES = new Set([
     'BUOYANCY_WILL',
     'SUPER_BUOYANCY_WILL',
     'GRAVITY_WILL',
-    'SUPER_GRAVITY_WILL'
+    'SUPER_GRAVITY_WILL',
+    'SUPER_ATTRACTION_WILL'
 ]);
 
 function resolvePolicyTableRuntime(): any {
@@ -2325,6 +2326,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     SUPER_BUOYANCY_WILL: makePlanPressureProfile(2, 4, 2, 0),
     GRAVITY_WILL: makePlanPressureProfile(2, 3, 2, 1),
     SUPER_GRAVITY_WILL: makePlanPressureProfile(2, 4, 2, 0),
+    SUPER_ATTRACTION_WILL: makePlanPressureProfile(3, 4, 3, 0),
     SWAP_WITH_ENEMY: makePlanPressureProfile(2, 3, 2, 2),
     TABOO_REVERSE_WILL: makePlanPressureProfile(3, 4, 3, 2),
     TELEPORT_WILL: makePlanPressureProfile(2, 3, 2, 2),
@@ -2818,7 +2820,8 @@ const HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE = new Set([
     'BUOYANCY_WILL',
     'SUPER_BUOYANCY_WILL',
     'GRAVITY_WILL',
-    'SUPER_GRAVITY_WILL'
+    'SUPER_GRAVITY_WILL',
+    'SUPER_ATTRACTION_WILL'
 ]);
 
 function cloneBoardForCpu(board: any): any {
@@ -4450,6 +4453,7 @@ function scorePendingTargetByType(playerKey: any, pendingType: any, target: any,
     case 'SUPER_BUOYANCY_WILL':
     case 'GRAVITY_WILL':
     case 'SUPER_GRAVITY_WILL':
+    case 'SUPER_ATTRACTION_WILL':
         score += opp ? 220 : -260;
         if (corner) score += opp ? 2800 : -3800;
         else if (edge) score += opp ? 840 : -1100;
@@ -5247,6 +5251,38 @@ async function cpuSelectGravityWillWithPolicy(playerKey: any): Promise<any> {
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applyGravityWill === 'function') {
         const res = CardLogic.applyGravityWill(cardState, gameState, playerKey, target.row, target.col);
+        if (!res || !res.applied) {
+            clearCpuPendingEffect(playerKey);
+        }
+        emitCpuSelectionStateChange();
+        return;
+    }
+}
+
+async function cpuSelectSuperAttractionWillWithPolicy(playerKey: any): Promise<any> {
+    const pending = readCpuPendingEffect(playerKey);
+    const targets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
+        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+        : [];
+
+    if (!targets.length) {
+        cpuDebugLog(`[CPU] ${playerKey}: 超引力対象なし`);
+        clearCpuPendingEffect(playerKey);
+        return;
+    }
+
+    const target = await choosePendingTargetWithPolicyAsync(playerKey, 'SUPER_ATTRACTION_WILL', targets, pending) || targets[0];
+    cpuDebugLog(`[CPU] ${playerKey}: 超引力ターゲット (${target.row}, ${target.col})`);
+
+    const pipelineResult = await runCpuPendingSelectionViaPipeline(
+        playerKey,
+        { superAttractionTarget: { row: target.row, col: target.col }, deferNetworkPublish: true },
+        'SUPER_ATTRACTION_WILL'
+    );
+    if (pipelineResult) return;
+
+    if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySuperAttractionWill === 'function') {
+        const res = CardLogic.applySuperAttractionWill(cardState, gameState, playerKey, target.row, target.col);
         if (!res || !res.applied) {
             clearCpuPendingEffect(playerKey);
         }
@@ -6353,6 +6389,7 @@ if (typeof module !== 'undefined' && module.exports) {
         cpuSelectSuperBuoyancyWillWithPolicy,
         cpuSelectGravityWillWithPolicy,
         cpuSelectSuperGravityWillWithPolicy,
+        cpuSelectSuperAttractionWillWithPolicy,
         cpuSelectTeleportWillWithPolicy,
         cpuSelectCellTeleportWillWithPolicy,
         cpuSelectTimeBombWithPolicy,

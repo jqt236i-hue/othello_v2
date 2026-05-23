@@ -82,6 +82,7 @@ const SoundEngine = {
         position_swap_move: '入替の意志で石が入れ替わるタイミング.mp3',
         super_buoyancy_move: '超浮力で石が浮上したタイミング.mp3',
         super_gravity_move: '超重力で石が落下したタイミング.mp3',
+        super_attraction_move: '超引力で石が引き寄せられたタイミング.mp3',
         round_bonus: 'ラウンドボーナスで布石を獲得したタイミング.mp3',
         teleport_select: 'テレポート対象の石を選択したタイミング.mp3',
         tempt_select: '相手特殊石を選択したタイミング.mp3',

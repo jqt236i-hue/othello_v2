@@ -439,7 +439,21 @@ const {
         }
 
         _isSuperCrushCause(cause: any) {
-            return cause === 'BUOYANCY_WILL' || cause === 'SUPER_BUOYANCY_WILL' || cause === 'GRAVITY_WILL' || cause === 'SUPER_GRAVITY_WILL';
+            return cause === 'BUOYANCY_WILL' || cause === 'SUPER_BUOYANCY_WILL' || cause === 'GRAVITY_WILL' || cause === 'SUPER_GRAVITY_WILL' || cause === 'SUPER_ATTRACTION_WILL';
+        }
+
+        _resolveMoveDurationScale(target: any) {
+            const cause = this._getTargetCause(target);
+            const reason = this._getTargetReason(target);
+            if (
+                cause === 'SUPER_ATTRACTION_WILL' ||
+                reason.indexOf('super_attraction_move') === 0 ||
+                reason.indexOf('super_attraction_collision') === 0
+            ) {
+                return 0.5;
+            }
+            if (target && target.isPositionSwapMove) return 0.8;
+            return 1;
         }
 
         _resolveSuperCrushCollisionDelayMs(target: any) {
@@ -450,7 +464,7 @@ const {
             const progressRaw = Number(meta && meta.collisionProgress);
             if (!Number.isFinite(progressRaw)) return 0;
 
-            const moveDurationMs = Math.max(1, Math.round(Number(MOVE_MS) || 400));
+            const moveDurationMs = Math.max(1, Math.round((Number(MOVE_MS) || 400) * this._resolveMoveDurationScale(target)));
             // Keep destroy slightly before move arrival so destination replacement never erases timing.
             const normalizedProgress = Math.max(0, Math.min(0.88, progressRaw));
             const delayMs = Math.round(moveDurationMs * normalizedProgress);
@@ -669,6 +683,7 @@ const {
                     cause === 'SUPER_BUOYANCY_WILL' ||
                     cause === 'GRAVITY_WILL' ||
                     cause === 'SUPER_GRAVITY_WILL' ||
+                    cause === 'SUPER_ATTRACTION_WILL' ||
                     cause === 'POSITION_SWAP_WILL' ||
                     cause === 'CELL_TELEPORT_WILL' ||
                     cause === 'TELEPORT_WILL' ||
@@ -1669,7 +1684,8 @@ const {
             const reason = this._getTargetReason(target);
             return this._isSuperCrushCause(cause) ||
                 reason.indexOf('super_buoyancy_move') === 0 ||
-                reason.indexOf('super_gravity_move') === 0;
+                reason.indexOf('super_gravity_move') === 0 ||
+                reason.indexOf('super_attraction_move') === 0;
         }
 
         _buildPhaseContext(events: any) {
@@ -1731,6 +1747,49 @@ const {
             try {
                 if (!cell.querySelector('.disc')) cell.classList.remove('has-disc');
             } catch (e: any) { /* ignore */ }
+        }
+
+        _isBoardShrinkHoleStatusChange(ev: any, target: any) {
+            const meta = ev && ev.meta && typeof ev.meta === 'object' ? ev.meta : null;
+            const targetMeta = target && target.meta && typeof target.meta === 'object' ? target.meta : null;
+            const visualVariant = String(
+                (targetMeta && targetMeta.visualVariant) ||
+                (meta && meta.visualVariant) ||
+                (target && target.after && target.after.visualVariant) ||
+                ''
+            ).toUpperCase();
+            return visualVariant === 'BOARD_FRAME';
+        }
+
+        _ensureBoardShrinkHoleMark(cell: any) {
+            if (!cell || typeof document === 'undefined') return null;
+            try {
+                cell.classList.add('blocked-cell', 'board-shrink-hole-cell');
+                cell.classList.remove('meteor-hole-cell');
+                let mark = cell.querySelector('.board-shrink-hole-mark');
+                if (!mark) {
+                    mark = document.createElement('div');
+                    mark.className = 'board-shrink-hole-mark';
+                    cell.appendChild(mark);
+                }
+                return mark;
+            } catch (e: any) {
+                return null;
+            }
+        }
+
+        async _playBoardShrinkHolePushIn(cell: any) {
+            const mark = this._ensureBoardShrinkHoleMark(cell);
+            if (!mark) return;
+            if (_isNoAnim()) return;
+            try {
+                cell.classList.add('board-shrink-hole-push-active');
+                mark.classList.add('board-shrink-hole-push-in');
+                await this._sleep(Math.max(180, Math.min(360, Math.round(FADE_OUT_MS * 0.55))));
+            } finally {
+                try { mark.classList.remove('board-shrink-hole-push-in'); } catch (e: any) { /* ignore */ }
+                try { cell.classList.remove('board-shrink-hole-push-active'); } catch (e: any) { /* ignore */ }
+            }
         }
 
         async executePhase(phaseEvents: any) {
@@ -2313,7 +2372,8 @@ const {
                 const destroyReason = this._getTargetReason(t);
                 const isSuperCrushCollision = this._isSuperCrushCause(destroyCause) && (
                     destroyReason.indexOf('super_buoyancy_collision') === 0 ||
-                    destroyReason.indexOf('super_gravity_collision') === 0
+                    destroyReason.indexOf('super_gravity_collision') === 0 ||
+                    destroyReason.indexOf('super_attraction_collision') === 0
                 );
                 const superCrushDestinationContext = isSuperCrushCollision
                     ? this._getSuperCrushDestinationContext(t.r, t.col)
@@ -2663,6 +2723,8 @@ const {
             if (
                 normalizedCause === 'GRAVITY_WILL' ||
                 normalizedCause === 'SUPER_GRAVITY_WILL' ||
+                normalizedCause === 'SUPER_ATTRACTION_WILL' ||
+                (normalizedIntent === 'crush_move' && normalizedReason.indexOf('super_attraction_move') === 0) ||
                 (normalizedIntent === 'crush_move' && normalizedReason.indexOf('gravity_move') === 0) ||
                 (normalizedIntent === 'crush_move' && normalizedReason.indexOf('super_gravity_move') === 0)
             ) {
@@ -3184,7 +3246,7 @@ const {
                     let discHidden = this._hideMoveSourceDiscForGhostPlayback(disc, useGhostOnly, moveSemantics);
 
                     try {
-                        const durationScale = moveSemantics.isPositionSwapMove ? 0.8 : 1;
+                        const durationScale = this._resolveMoveDurationScale(moveSemantics);
                         const durationMs = Math.max(1, Math.round(MOVE_MS * durationScale));
 
                         let anim: any = null;
@@ -3272,6 +3334,10 @@ const {
                         }
 
                         if (afterSpecialUpper === 'METEOR_HOLE') {
+                            if (this._isBoardShrinkHoleStatusChange(ev, t)) {
+                                await this._playBoardShrinkHolePushIn(cell);
+                                return;
+                            }
                             const staleDisc = cell.querySelector('.disc');
                             if (staleDisc) this._removeDiscFromCell(cell, staleDisc);
                             return;

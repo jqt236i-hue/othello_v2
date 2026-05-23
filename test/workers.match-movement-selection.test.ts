@@ -12,6 +12,8 @@ function runScenario(config: Record<string, unknown>) {
     "  const { MatchRoomDurableObject } = await import(modulePath);",
     "  const board = Array.from({ length: 8 }, () => Array(8).fill(0));",
     "  board[config.source.row][config.source.col] = 1;",
+    "  if (config.blocker) board[config.blocker.row][config.blocker.col] = -1;",
+    "  const actionTarget = config.actionTarget || config.source;",
     "  const params = {",
     "    player: 'black',",
     "    pendingSelectionState: {",
@@ -22,14 +24,15 @@ function runScenario(config: Record<string, unknown>) {
     "      pendingEffectId: 'pending_move_1'",
     "    }",
     "  };",
-    "  params[config.actionKey] = { row: config.source.row, col: config.source.col };",
+    "  if (config.pendingFirstTarget) params.pendingSelectionState.firstTarget = { row: config.pendingFirstTarget.row, col: config.pendingFirstTarget.col };",
+    "  params[config.actionKey] = { row: actionTarget.row, col: actionTarget.col };",
     "  const action = Object.assign({",
     "    type: 'place',",
     "    player: 'black',",
     "    deferNetworkPublish: true,",
     "    pendingSelectionState: params.pendingSelectionState,",
     "    turnIndex: 1",
-    "  }, { [config.actionKey]: { row: config.source.row, col: config.source.col } });",
+    "  }, { [config.actionKey]: { row: actionTarget.row, col: actionTarget.col } });",
     "  const room = {",
     "    roomId: 'MOVE1',",
     "    seed: 1,",
@@ -56,7 +59,7 @@ function runScenario(config: Record<string, unknown>) {
     "        deck: [], decks: { black: [], white: [] }, initialDeckSize: 0, initialDeckSizeByPlayer: { black: 0, white: 0 },",
     "        hands: { black: [], white: [] }, charge: { black: 80, white: 0 }, chargeGainedTotal: { black: 0, white: 0 }, chargeDeltaEvents: [],",
     "        turnCountByPlayer: { black: 1, white: 0 },",
-    "        pendingEffectByPlayer: { black: { type: config.pendingType, stage: 'selectTarget', cardId: config.cardId, sourceHandIndex: 0, pendingEffectId: 'pending_move_1' }, white: null },",
+    "        pendingEffectByPlayer: { black: Object.assign({ type: config.pendingType, stage: 'selectTarget', cardId: config.cardId, sourceHandIndex: 0, pendingEffectId: 'pending_move_1' }, config.pendingFirstTarget ? { firstTarget: { row: config.pendingFirstTarget.row, col: config.pendingFirstTarget.col } } : {}), white: null },",
     "        activeEffectsByPlayer: { black: [], white: [] }, hasUsedCardThisTurnByPlayer: { black: true, white: false }, hasDestroyedCardThisTurnByPlayer: { black: false, white: false },",
     "        extraPlaceRemainingByPlayer: { black: 0, white: 0 }, infinitePlaceActiveByPlayer: { black: false, white: false }, multiPlaceSourceTypeByPlayer: { black: null, white: null },",
     "        breedingSproutByOwner: { black: [], white: [] }, _breedingSproutClearedTokenByOwner: { black: null, white: null }, riboRepaymentsByPlayer: { black: [], white: [] }, prevOpponentTurnDestroyedStonesByPlayer: { black: [], white: [] },",
@@ -81,6 +84,7 @@ function runScenario(config: Record<string, unknown>) {
     "    status: response.status,",
     "    payload,",
     "    sourceValue: storedRoom.snapshot.gameState.board[config.source.row][config.source.col],",
+    "    blockerValue: config.blocker ? storedRoom.snapshot.gameState.board[config.blocker.row][config.blocker.col] : null,",
     "    destinationValue: storedRoom.snapshot.gameState.board[config.destination.row][config.destination.col],",
     "    storedPending: storedRoom.snapshot.cardState.pendingEffectByPlayer.black,",
     "    moveEvent",
@@ -132,6 +136,17 @@ describe('worker movement pending selection publish', () => {
       source: { row: 2, col: 5 },
       destination: { row: 7, col: 5 },
       moveIntent: 'crush_move'
+    },
+    {
+      cardId: 'super_attraction_01',
+      pendingType: 'SUPER_ATTRACTION_WILL',
+      actionKey: 'superAttractionTarget',
+      source: { row: 2, col: 2 },
+      pendingFirstTarget: { row: 2, col: 2 },
+      actionTarget: { row: 5, col: 5 },
+      blocker: { row: 4, col: 4 },
+      destination: { row: 5, col: 5 },
+      moveIntent: 'crush_move'
     }
   ])('$pendingType mutates authoritative board and emits move playback', (config) => {
     const result = runScenario(config);
@@ -142,6 +157,7 @@ describe('worker movement pending selection publish', () => {
       stateVersion: 1
     }));
     expect(result.sourceValue).toBe(0);
+    if (config.blocker) expect(result.blockerValue).toBe(0);
     expect(result.destinationValue).toBe(1);
     expect(result.storedPending).toBeNull();
     expect(result.moveEvent).toEqual(expect.objectContaining({

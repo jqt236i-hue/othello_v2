@@ -763,6 +763,9 @@ const Targets = CardTargets || {};
         if (type === 'TEMPT_WILL') return getTemptTargets(cardState, gameState, playerKey);
         if (type === 'CAPTURE_WILL') return getCaptureTargets(cardState, gameState, playerKey);
         if (type === 'POSITION_SWAP_WILL') return getPositionSwapTargets(cardState, gameState, playerKey, pending);
+        if (type === 'SUPER_ATTRACTION_WILL' && typeof Selectors.getSuperAttractionTargets === 'function') {
+            return Selectors.getSuperAttractionTargets(cardState, gameState, playerKey, pending);
+        }
         if (type === 'DESTROY_ONE_STONE') return getDestroyTargets(cardState, gameState);
         if (type === 'SWAP_WITH_ENEMY') return getSwapTargets(cardState, gameState, playerKey);
         if (type === 'LIVING_WILL') return getLivingWillTargets(cardState, gameState, playerKey);

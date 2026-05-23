@@ -443,6 +443,46 @@ describe('animation-engine guard timer rendering', () => {
     expect(crossfadeSpy).not.toHaveBeenCalled();
     expect(cell.querySelector('.disc')).toBeNull();
     expect(cell.classList.contains('has-disc')).toBe(false);
+    expect(cell.classList.contains('board-shrink-hole-cell')).toBe(false);
+    expect(cell.querySelector('.board-shrink-hole-mark')).toBeNull();
+  });
+
+  test('BOARD_FRAME の METEOR_HOLE STATUS_APPLIED は縮小フレーム押し込みマークを作る', async () => {
+    const crossfadeSpy = jest.fn(() => Promise.resolve());
+    jest.doMock('../ui/stone-visuals', () => ({
+      crossfadeStoneVisual: crossfadeSpy
+    }));
+
+    const engine = require('../ui/animation-engine');
+    engine._sleep = jest.fn(() => Promise.resolve());
+    const board = document.getElementById('board')!;
+    const cell = document.createElement('div');
+    cell.className = 'cell has-disc';
+    cell.dataset.row = '0';
+    cell.dataset.col = '7';
+
+    const disc = document.createElement('div');
+    disc.className = 'disc white special-stone';
+    cell.appendChild(disc);
+    board.appendChild(cell);
+
+    await engine.handleStatusChange({
+      type: 'status_applied',
+      rawType: 'STATUS_APPLIED',
+      targets: [{ r: 0, col: 7, after: { color: 0, special: 'METEOR_HOLE', timer: null, owner: 'black' } }],
+      meta: {
+        special: 'METEOR_HOLE',
+        visualVariant: 'BOARD_FRAME',
+        owner: 'black'
+      }
+    });
+
+    expect(crossfadeSpy).not.toHaveBeenCalled();
+    expect(cell.classList.contains('blocked-cell')).toBe(true);
+    expect(cell.classList.contains('board-shrink-hole-cell')).toBe(true);
+    expect(cell.classList.contains('meteor-hole-cell')).toBe(false);
+    expect(cell.querySelector('.board-shrink-hole-mark')).toBeTruthy();
+    expect(engine._sleep).toHaveBeenCalled();
   });
 
   test('trap_expired_reveal の STATUS_APPLIED は赤セルハイライトを一瞬出す', async () => {
@@ -1251,7 +1291,8 @@ describe('animation-engine guard timer rendering', () => {
 
   test.each([
     ['SUPER_BUOYANCY_WILL', 'super_buoyancy_move', 'super_buoyancy_collision'],
-    ['SUPER_GRAVITY_WILL', 'super_gravity_move', 'super_gravity_collision']
+    ['SUPER_GRAVITY_WILL', 'super_gravity_move', 'super_gravity_collision'],
+    ['SUPER_ATTRACTION_WILL', 'super_attraction_move', 'super_attraction_collision']
   ])('%s destination collision keeps final disc visible during after-state playback', async (cause, moveReason, destroyReason) => {
     const board = document.getElementById('board')!;
     const setRect = (el, row, col) => {

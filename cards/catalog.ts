@@ -145,6 +145,16 @@ const CardCatalog = {
       "desc": "盤面の石1つを選び、下方向へ限界まで移動させる。進行方向上の石は衝突時にすべて破壊して進む。"
     },
     {
+      "id": "super_attraction_01",
+      "name_ja": "超引力",
+      "type": "SUPER_ATTRACTION_WILL",
+      "cost": 40,
+      "desc_ja": "盤面の石1つを選び、同じ行・列・斜め45度上の指定マスまで引き寄せる。経路上と指定マス上の石はすべて破壊する。",
+      "display_type_ja": "殲滅",
+      "name": "超引力",
+      "desc": "盤面の石1つを選び、同じ行・列・斜め45度上の指定マスまで引き寄せる。経路上と指定マス上の石はすべて破壊する。"
+    },
+    {
       "id": "gravity_01",
       "name_ja": "重力",
       "type": "GRAVITY_WILL",

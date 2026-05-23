@@ -2720,6 +2720,7 @@ function _getPendingSelectionPrompt(pending: any) {
         SUPER_BUOYANCY_WILL: '上方向へ移動させる石を選んでください',
         GRAVITY_WILL: '下方向へ移動させる石を選んでください',
         SUPER_GRAVITY_WILL: '下方向へ移動させる石を選んでください',
+        SUPER_ATTRACTION_WILL: pending.firstTarget ? '引き寄せ先のマスを選んでください' : '引き寄せる石を選んでください',
         TELEPORT_WILL: 'テレポートさせる石を選んでください',
         CELL_TELEPORT_WILL: 'マステレポートさせるマスを選んでください',
         SWAP_WITH_ENEMY: '交換する敵石を選んでください',
