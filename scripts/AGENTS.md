@@ -1,6 +1,6 @@
 # scripts/ AGENTS.md
 
-Build, codegen, checks, local servers, worker sync, and selfplay/training orchestration. Read `.github/instructions/scripts.instructions.md` first.
+Build, codegen, checks, local servers, worker sync, and selfplay/training orchestration. Use this file with the root `AGENTS.md` as the local boundary guide.
 
 ## Script categories
 

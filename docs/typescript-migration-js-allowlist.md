@@ -36,8 +36,8 @@ npm run worker:prepare # PASS ✅
 npm run build:ts                         # PASS ✅
 npm run typecheck -- --pretty false      # PASS ✅
 npm run checkall                         # PASS ✅
-npm run test:network:parity              # PASS ✅（24 suites / 273 tests）
-npm run test:jest                        # PASS ✅（397 suites / 2794 tests）
+npm run test:network:parity              # PASS ✅（24 suites / 275 tests）
+npm run test:jest                        # PASS ✅（399 suites / 2818 tests）
 git diff --check                         # PASS ✅
 ```
 
@@ -49,17 +49,17 @@ git diff --check                         # PASS ✅
 
 | カテゴリ | 件数 | 性質 | 対応要否 |
 |----------|------|------|----------|
-| **dist-wrapper** | 320件 | TS正本への互換forwarding層 | 不要。消すと互換性破壊 |
+| **dist-wrapper** | 321件 | TS正本への互換forwarding層 | 不要。消すと互換性破壊 |
 | **generated** | 5件 | ビルド・生成ツールの出力 | 不要。generatorで管理 |
 | **node-cli-adapter** | 64件 | Node CLIから`dist/scripts/*`へ委譲する薄いadapter | 不要。CLI互換性維持 |
 | **runtime-projection** | 25件 | classic browser/runtime互換投影 | 不要。実行面の互換性維持 |
 | **legacy-implementation** | 0件 | JSだけが正本の残存実装 | 追加禁止 |
-| **test-fixture** | 13件 | テスト・fixture・visual tooling | 不要。テスト基盤として正当化 |
-| **合計** | **427件** | - | - |
+| **test-fixture** | 10件 | テスト・fixture・visual tooling | 不要。テスト基盤として正当化 |
+| **合計** | **425件** | - | - |
 
 ※ 件数は `npm run checkall` 内の `inventory-js-legacy` による現行分類。
 
-### 3.2 dist-wrapper（320件）
+### 3.2 dist-wrapper（321件）
 
 **定義**: 対応する`.ts`ファイルがあり、`module.exports = require("../dist/...")` または同等のforwardingを行う互換性層。
 
@@ -82,10 +82,11 @@ git diff --check                         # PASS ✅
 
 | ファイル | 行数 | 生成元 | 残存理由 |
 |----------|------|--------|----------|
-| `cards/catalog.js` | 835 | `cards/catalog.json` | ブラウザ向けカタログデータ。`scripts/generate-catalog.js`で生成 |
-| `cards/catalog.generated.js` | 671 | `cards/catalog.json` | 同上（別フォーマット） |
-| `shared/gacha-hand-catalog.generated.js` | 134 | `scripts/generate-gacha-hand-catalog.js` | ガチャハンドカタログデータ |
-| `shared/observation-gacha-catalog.generated.js` | 255 | `scripts/generate-observation-gacha-catalog.js` | 観測ガチャカタログデータ |
+| `cards/catalog.js` | 875 | `cards/catalog.json` | ブラウザ向けカタログデータ。`scripts/generate-catalog.js`で生成 |
+| `cards/catalog.generated.js` | 703 | `cards/catalog.json` | 同上（別フォーマット） |
+| `public/module-registry.js` | 1326 | `scripts/build-module-registry.ts` | browser bootstrapで使う自動生成モジュールレジストリ |
+| `shared/gacha-hand-catalog.generated.js` | 133 | `scripts/generate-gacha-hand-catalog.js` | ガチャハンドカタログデータ |
+| `shared/observation-gacha-catalog.generated.js` | 254 | `scripts/generate-observation-gacha-catalog.js` | 観測ガチャカタログデータ |
 
 **今後の方針**: 維持。生成元の`.json`/`.ts`を正本とし、`.js`は生成物として管理。
 
@@ -107,21 +108,21 @@ git diff --check                         # PASS ✅
 
 **今後の方針**: 現状維持。新規のlegacy-implementationを`scripts/`下に追加する場合は、許可制とする。
 
-### 3.5 test-fixture（13件）
+### 3.5 test-fixture（10件）
 
 **定義**: Jestテスト、テストhelper、visual-regression tooling。
 
-| ファイル | 行数 | 内容 |
-|----------|------|------|
-| `game/ai/__tests__/test-endgame-solver.test.js` | 85 | EndgameSolverのユニットテスト |
-| `game/ai/__tests__/test-gumbel-mcts.test.js` | 92 | GumbelMCTSのユニットテスト |
-| `scripts/__tests__/test-sprt.test.js` | 59 | SPRTのユニットテスト |
+| ファイル | 内容 |
+|----------|------|
+| `test/helpers/*.js` | 既存テストhelper。利用箇所が限定されるため段階的にTS化する |
+| `test/e2e/e2e-runtime-helpers.js` | E2E runtime helper |
+| `tests/jest.*.js`, `tests/visual-regression/*.js` | Jest setup / visual regression tooling |
 
-**残存理由**: テスト基盤として必要。`.test.js`はJestによって実行される。
+**残存理由**: テスト基盤として必要。`.test.js`はTypeScript化済みで、残存 `.js` はhelper / setup / visual toolingに限定する。
 
 **今後の方針**: 新規テストは`.test.ts`で作成することを推奨。既存のfixture用途 `.js` は現状維持。
 
-## 4. unknownファイルの再分類結果
+## 4. unknownファイルの再分類結果（2026-05-08時点の監査ログ）
 
 2026-05-08の調査により、unknown 52件を以下のように再分類した：
 
@@ -129,7 +130,7 @@ git diff --check                         # PASS ✅
 |--------|------|------------|
 | **generated** | 1 | `cards/catalog.js` |
 | **dist-wrapper** | 18 | `game/src/types/*.js`, `src/*.js`, `game/card-effects-applier.js`, `ui/event-handlers.js` |
-| **test-or-tooling** | 3 | `game/ai/__tests__/*.test.js`, `scripts/__tests__/test-sprt.test.js` |
+| **test-or-tooling** | 3 | `game/ai/__tests__/*.test.js`, `scripts/__tests__/test-sprt.test.js`（当時） |
 | **legacy-implementation** | 30 | `scripts/`下のツール・デバッグスクリプト（2026-05-08時点。現行は0件） |
 
 ### 4.1 再分類の詳細
@@ -166,13 +167,15 @@ git diff --check                         # PASS ✅
 - `ui/event-handlers.js` (9行) → **dist-wrapper**
   - 理由: `// Shim for split UI handlers` と明記されている
 
-#### test-or-tooling（3件）
+#### test-or-tooling（3件、2026-05-08時点）
 - `game/ai/__tests__/test-endgame-solver.test.js` (85行) → **test-or-tooling**
   - 理由: Jestテストファイル
 - `game/ai/__tests__/test-gumbel-mcts.test.js` (92行) → **test-or-tooling**
   - 理由: Jestテストファイル
 - `scripts/__tests__/test-sprt.test.js` (59行) → **test-or-tooling**
   - 理由: Jestテストファイル
+
+※ 上記3件は履歴上の再分類結果であり、現行は対応する `.test.ts` へ移行済み。
 
 #### legacy-implementation（整理後の現存ファイル）
 なし
@@ -186,7 +189,7 @@ git diff --check                         # PASS ✅
 | **dist-wrapper** | ✅ 許可 | TS正本が存在し、`module.exports = require("../dist/...")` の形式 |
 | **generated** | ✅ 許可 | 生成ツール（`scripts/generate-*.js`）による自動生成のみ |
 | **legacy-implementation** | ❌ 禁止 | 新規追加不可。必要な場合はTS正本 + adapter分類にする |
-| **test-or-tooling** | ⚠️ 制限 | 新規テストは`.test.ts`を推奨 |
+| **test-fixture** | ⚠️ 制限 | 新規テストは`.test.ts`を推奨 |
 | **unknown** | ❌ 禁止 | 許容リストに追加する前に分類必須 |
 
 ### 5.2 監視ゲート
@@ -196,6 +199,9 @@ git diff --check                         # PASS ✅
 - `game/` 下の新規unwrapped high-risk `.js` ファイルの検出
 - `unknown` カテゴリのファイル増加の検出
 - `legacy-implementation` の件数増加の検出
+- `*.runtime.js` の runtime projection について、対応する `.ts` 正本を持たないファイルの検出（`entry-browser.js` / `public/runtime.js` / `esbuild-banner.js` / `esbuild-footer.js` は root runtime 例外として除外）
+
+`npm run typecheck:ts-only` は、production TypeScript正本だけを `allowJs: false` で検査する補助ゲートである。現行 runtime互換 `.js` を削除するものではなく、TS正本側がJavaScript入力に依存せず検査できることを確認するために使う。
 
 ### 5.3 定期レビュー
 
@@ -221,3 +227,4 @@ git diff --check                         # PASS ✅
 | 2026-05-09 | 不要なlegacy-implementationスクリプト25件を削除し、allowlistを更新 | Prometheus |
 | 2026-05-15 | 削除済みJSのallowlist記載を整理 | Codex |
 | 2026-05-23 | runtime adapter回帰を修正し、full Jest / network parity / migration gateで再監査。基準コミットを `bb4905044` に更新 | Codex |
+| 2026-05-23 | 現行inventory件数へ追従し、runtime projection正本チェック、`allowJs: false` 補助ゲート、AI/SPRTテストのTS化を追加 | Codex |

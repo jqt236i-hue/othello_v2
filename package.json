@@ -5,6 +5,7 @@
   "main": "index.html",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "typecheck:ts-only": "tsc -p tsconfig.ts-only.json --pretty false",
     "typecheck:watch": "tsc --noEmit --watch",
     "build:ts": "tsc -p tsconfig.build.json",
     "build:browser": "npm run build:ts && node dist/scripts/build-module-registry.js",
@@ -93,8 +94,8 @@
     ],
     "testMatch": [
       "<rootDir>/test/**/*.test.ts",
-      "<rootDir>/game/ai/__tests__/**/*.test.js",
-      "<rootDir>/scripts/__tests__/**/*.test.js"
+      "<rootDir>/game/ai/__tests__/**/*.test.ts",
+      "<rootDir>/scripts/__tests__/**/*.test.ts"
     ],
     "testPathIgnorePatterns": [
       "<rootDir>/dist/",

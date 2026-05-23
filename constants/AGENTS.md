@@ -1,6 +1,6 @@
 # constants/ AGENTS.md
 
-Single-source constants boundary. Read `.github/instructions/constants.instructions.md` first.
+Single-source constants boundary. Use this file with the root `AGENTS.md` as the local boundary guide.
 
 ## Where to edit
 

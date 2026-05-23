@@ -174,6 +174,43 @@ function collectInitialBoardBonusCandidates(boardOrConfig: any): Array<{ row: nu
     return cells;
 }
 
+function isLargeOpeningBonusRestrictionBoard(boardOrConfig: any): boolean {
+    const config = resolveCardBoardConfig(boardOrConfig);
+    return config.rows >= 8 && config.cols >= 8;
+}
+
+function getOpeningHighBonusRestrictedCellKeys(boardOrConfig: any): Set<string> {
+    const config = resolveCardBoardConfig(boardOrConfig);
+    const out = new Set<string>();
+    if (!isLargeOpeningBonusRestrictionBoard(config)) return out;
+
+    const openingCells = getOpeningCellsForCard(config);
+    if (!Array.isArray(openingCells) || openingCells.length <= 0) return out;
+
+    let minRow = Infinity;
+    let maxRow = -Infinity;
+    let minCol = Infinity;
+    let maxCol = -Infinity;
+    for (const cell of openingCells) {
+        if (!cell || !Number.isInteger(cell.row) || !Number.isInteger(cell.col)) continue;
+        minRow = Math.min(minRow, cell.row);
+        maxRow = Math.max(maxRow, cell.row);
+        minCol = Math.min(minCol, cell.col);
+        maxCol = Math.max(maxCol, cell.col);
+    }
+    if (!Number.isFinite(minRow) || !Number.isFinite(maxRow) || !Number.isFinite(minCol) || !Number.isFinite(maxCol)) {
+        return out;
+    }
+
+    for (let row = minRow - 1; row <= maxRow + 1; row++) {
+        for (let col = minCol - 1; col <= maxCol + 1; col++) {
+            if (!isMainBoardCellForCard(row, col, config)) continue;
+            out.add(`${row},${col}`);
+        }
+    }
+    return out;
+}
+
 interface DistributionEntry {
     value: number;
     count: number;
@@ -559,8 +596,15 @@ function buildInitialBoardBonusMap(prng: any, boardOrConfig: any): Record<string
 
     const out: Record<string, number> = {};
     const assignCount = Math.min(cells.length, values.length);
+    const highBonusRestrictedCellKeys = getOpeningHighBonusRestrictedCellKeys(boardOrConfig);
+    const useHighBonusRestriction = highBonusRestrictedCellKeys.size > 0;
     for (let i = 0; i < assignCount; i++) {
-        const cell = cells[i];
+        let cellIndex = 0;
+        if (useHighBonusRestriction && values[i] >= 6) {
+            const unrestrictedIndex = cells.findIndex((cell) => cell && !highBonusRestrictedCellKeys.has(`${cell.row},${cell.col}`));
+            if (unrestrictedIndex >= 0) cellIndex = unrestrictedIndex;
+        }
+        const cell = cells.splice(cellIndex, 1)[0];
         out[`${cell.row},${cell.col}`] = values[i];
     }
     return out;

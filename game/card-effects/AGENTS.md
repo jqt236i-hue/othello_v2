@@ -1,6 +1,6 @@
 # game/card-effects/ AGENTS.md
 
-Pending-target / selection-flow bridge layer. Read `../AGENTS.md` and `.github/instructions/game.instructions.md` first.
+Pending-target / selection-flow bridge layer. Read `../AGENTS.md` and the root `AGENTS.md` first.
 
 ## WHERE TO LOOK
 

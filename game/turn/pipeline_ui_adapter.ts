@@ -2601,17 +2601,33 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             _pushSoundCue(ctx, 'strong_wind_move', strongWindPhase, 'strong_wind_selected');
         }
 
+        const positionSwapPhase = _findPhase(
+            ctx.base,
+            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
+                if (_getMoveIntent(t) === 'position_swap') return true;
+                const cause = String(t && t.cause ? t.cause : '').toUpperCase();
+                const reason = String(t && t.reason ? t.reason : '').toLowerCase();
+                return cause === 'POSITION_SWAP_WILL' || reason.indexOf('position_swap') === 0;
+            }),
+            ctx.fallbackPhase
+        );
+        if (_hasRawEvent(ctx.raw, 'position_swap_selected', (ev: any) => !!(ev && ev.applied && ev.completed))) {
+            _pushSoundCue(ctx, 'position_swap_move', positionSwapPhase, 'position_swap_selected');
+        }
+
         const superBuoyancyPhase = _findPhase(
             ctx.base,
             (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
                 if (!_isSuperCrushMoveTarget(t)) return false;
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                return cause === 'SUPER_BUOYANCY_WILL';
+                return cause === 'BUOYANCY_WILL' || cause === 'SUPER_BUOYANCY_WILL';
             }),
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'super_buoyancy_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'super_buoyancy_move', superBuoyancyPhase, 'super_buoyancy_selected');
+        const hasBuoyancySelected = _hasRawEvent(ctx.raw, 'buoyancy_selected', (ev: any) => !!(ev && ev.applied));
+        const hasSuperBuoyancySelected = _hasRawEvent(ctx.raw, 'super_buoyancy_selected', (ev: any) => !!(ev && ev.applied));
+        if (hasBuoyancySelected || hasSuperBuoyancySelected) {
+            _pushSoundCue(ctx, 'super_buoyancy_move', superBuoyancyPhase, hasBuoyancySelected ? 'buoyancy_selected' : 'super_buoyancy_selected');
         }
 
         const superGravityPhase = _findPhase(
@@ -2619,12 +2635,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
                 if (!_isSuperCrushMoveTarget(t)) return false;
                 const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                return cause === 'SUPER_GRAVITY_WILL';
+                return cause === 'GRAVITY_WILL' || cause === 'SUPER_GRAVITY_WILL';
             }),
             ctx.fallbackPhase
         );
-        if (_hasRawEvent(ctx.raw, 'super_gravity_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'super_gravity_move', superGravityPhase, 'super_gravity_selected');
+        const hasGravitySelected = _hasRawEvent(ctx.raw, 'gravity_selected', (ev: any) => !!(ev && ev.applied));
+        const hasSuperGravitySelected = _hasRawEvent(ctx.raw, 'super_gravity_selected', (ev: any) => !!(ev && ev.applied));
+        if (hasGravitySelected || hasSuperGravitySelected) {
+            _pushSoundCue(ctx, 'super_gravity_move', superGravityPhase, hasGravitySelected ? 'gravity_selected' : 'super_gravity_selected');
         }
 
         const teleportPhase = _findPhase(

@@ -1,6 +1,6 @@
 # src/engine/ AGENTS.md
 
-Selfplay engine and runner code. This tree is separate from `game/` / `ui/` and has no `.github/instructions` coverage.
+Selfplay engine and runner code. This tree is separate from `game/` / `ui/`; use this file with the root `AGENTS.md` as the local boundary guide.
 
 ## What lives here
 

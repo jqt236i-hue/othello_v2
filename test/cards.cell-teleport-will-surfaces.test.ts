@@ -92,7 +92,7 @@ describe('CELL_TELEPORT_WILL catalog/help surfaces', () => {
       cost: EXPECTED_BASE_CARD.cost,
       desc: EXPECTED_QUICK_TEXT
     }));
-    expect(rulebook).toContain('### 10.35.3 CELL_TELEPORT_WILL（マステレポート）');
+    expect(rulebook).toContain('### 10.35.5 CELL_TELEPORT_WILL（マステレポート）');
     expect(rulebook).toContain(EXPECTED_QUICK_TEXT);
   });
 });

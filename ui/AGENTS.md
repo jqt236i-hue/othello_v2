@@ -1,6 +1,6 @@
 # ui/ AGENTS.md
 
-Browser UI, input, playback, and bootstrap-time DI. Read `.github/instructions/ui.instructions.md` first; this file maps the internal seams agents usually miss.
+Browser UI, input, playback, and bootstrap-time DI. This file maps the internal seams agents usually miss; use it with the root `AGENTS.md`.
 
 ## Where to edit
 

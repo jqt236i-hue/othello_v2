@@ -1,6 +1,8 @@
 import * as Shared from '../shared-constants.js';
 import * as CardLogic from '../game/logic/cards.js';
+import * as CardExpansion from '../game/logic/cards/expansion.js';
 import * as TurnPipeline from '../game/turn/turn_pipeline.js';
+import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
 
 function createInitialGameState() {
   const gameState = {
@@ -19,6 +21,33 @@ function createInitialGameState() {
 function createDeterministicPrng() {
   return {
     shuffle: (arr) => arr,
+    random: () => 0.1
+  };
+}
+
+const centralOpeningZoneKeys = ['2,2', '2,3', '2,4', '2,5', '3,2', '3,3', '3,4', '3,5', '4,2', '4,3', '4,4', '4,5', '5,2', '5,3', '5,4', '5,5'];
+
+function createHighBonusPressurePrng() {
+  const centralOpeningZone = new Set(centralOpeningZoneKeys);
+  return {
+    shuffle: (arr) => {
+      if (!Array.isArray(arr)) return arr;
+      if (arr.every((value) => typeof value === 'number')) {
+        arr.sort((a, b) => b - a);
+        return arr;
+      }
+      if (arr.every((value) => value && typeof value === 'object' && Number.isInteger(value.row) && Number.isInteger(value.col))) {
+        arr.sort((a, b) => {
+          const aInZone = centralOpeningZone.has(`${a.row},${a.col}`) ? 0 : 1;
+          const bInZone = centralOpeningZone.has(`${b.row},${b.col}`) ? 0 : 1;
+          if (aInZone !== bInZone) return aInZone - bInZone;
+          if (a.row !== b.row) return a.row - b.row;
+          return a.col - b.col;
+        });
+        return arr;
+      }
+      return arr;
+    },
     random: () => 0.1
   };
 }
@@ -107,6 +136,61 @@ describe('数字マス（初期配置・配置報酬）', () => {
 
     for (const key of openingMoves) {
       expect(Number(bonus[key] || 0)).toBe(0);
+    }
+  });
+
+  test('8x8以上では初期石まわりの中央4x4に6以上の数字マスを配置しない', () => {
+    const cardState = CardLogic.createCardState(createHighBonusPressurePrng(), { boardConfig: { rows: 8, cols: 8 } });
+    const bonus = cardState.boardBonusByCell || {};
+
+    expect(Object.keys(bonus)).toHaveLength(40);
+    for (const key of centralOpeningZoneKeys) {
+      expect(Number(bonus[key] || 0)).toBeLessThanOrEqual(5);
+    }
+    expect(Object.entries(bonus).some(([key, value]) => !centralOpeningZoneKeys.includes(key) && Number(value) >= 6)).toBe(true);
+  });
+
+  test('片側が8未満の盤面では中央4x4の高数字制限を適用しない', () => {
+    const bonus = CardExpansion.buildInitialBoardBonusMap(createHighBonusPressurePrng(), { rows: 7, cols: 9 });
+    const centralHighBonus = centralOpeningZoneKeys
+      .map((key) => Number(bonus[key] || 0))
+      .filter((value) => value >= 6);
+
+    expect(centralHighBonus.length).toBeGreaterThan(0);
+  });
+
+  test('リバーシモードの初期状態では数字マスを生成しない', () => {
+    const cardState = CardLogic.createCardState(createDeterministicPrng(), { plainReversi: true });
+
+    expect(cardState.decks.black).toEqual([]);
+    expect(cardState.decks.white).toEqual([]);
+    expect(cardState.boardBonusByCell).toEqual({});
+    expect(cardState.boardBonusConsumedByCell).toEqual({});
+  });
+
+  test('リバーシモードでは残存した数字マス情報があっても加算しない', () => {
+    const prng = createDeterministicPrng();
+    const cardState = CardLogic.createCardState(prng, { plainReversi: true });
+    const gameState = createInitialGameState();
+    cardState.boardBonusByCell = { '2,3': 7 };
+
+    TurnPipelinePhases.setTurnPipelinePhasesRuntime({ MATCH_MODE: 'reversi' });
+    try {
+      const result = TurnPipeline.applyTurn(
+        cardState,
+        gameState,
+        'black',
+        { type: 'place', row: 2, col: 3 },
+        prng,
+        { skipTurnStart: true }
+      );
+
+      expect(result.events.find((ev) => ev && ev.type === 'board_bonus_gain')).toBeFalsy();
+      expect(cardState.boardBonusConsumedByCell['2,3']).toBeUndefined();
+      expect(cardState.charge.black).toBe(0);
+      expect(result.presentationEvents.filter((ev) => ev && ev.type === 'CHARGE_BUBBLE')).toHaveLength(0);
+    } finally {
+      TurnPipelinePhases.setTurnPipelinePhasesRuntime(null);
     }
   });
 

@@ -1,6 +1,6 @@
 # cards/ AGENTS.md
 
-Card UI and display catalog boundary. Read `.github/instructions/cards.instructions.md` first.
+Card UI and display catalog boundary. Use this file with the root `AGENTS.md` as the local boundary guide.
 
 ## Where to edit
 

@@ -1,6 +1,6 @@
 # docs/ AGENTS.md
 
-Documentation role boundary. Read `.github/instructions/docs.instructions.md` first.
+Documentation role boundary. Use this file with the root `AGENTS.md` as the local boundary guide.
 
 ## Where to write
 

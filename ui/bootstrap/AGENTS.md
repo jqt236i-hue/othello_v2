@@ -1,6 +1,6 @@
 # ui/bootstrap/ AGENTS.md
 
-Bootstrap-time DOM discovery, event registration, game setup, network setup, and DI wiring. Read `../AGENTS.md` and `.github/instructions/ui.instructions.md` first.
+Bootstrap-time DOM discovery, event registration, game setup, network setup, and DI wiring. Read `../AGENTS.md` and the root `AGENTS.md` first.
 
 ## WHERE TO LOOK
 

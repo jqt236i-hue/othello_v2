@@ -1,7 +1,29 @@
 /* eslint-env jest */
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 describe('cards catalog consistency', () => {
+  function normalizeCard(card) {
+    return {
+      id: card.id,
+      name: card.name || card.name_ja || '',
+      type: card.type,
+      cost: Number(card.cost),
+      desc: card.desc || card.desc_ja || '',
+      display_type_ja: card.display_type_ja,
+      enabled: card.enabled !== false
+    };
+  }
+
+  function normalizeCards(cards) {
+    return cards.map(normalizeCard);
+  }
+
+  function expectSameCardCore(actualCards, expectedCards) {
+    expect(normalizeCards(actualCards)).toEqual(normalizeCards(expectedCards));
+  }
+
   test('cards/catalog.js mirrors cards/catalog.json', () => {
     const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
     // load catalog.js which assigns to window.CardCatalog in browser env
@@ -31,6 +53,77 @@ describe('cards catalog consistency', () => {
       // description and cost
       expect(jsCard.desc).toBe(jsonCard.desc_ja || jsonCard.desc || '');
       expect(Number(jsCard.cost)).toBe(Number(jsonCard.cost));
+    }
+  });
+
+  test('catalog json / catalog.js / catalog.ts / shared constants expose the same card definitions and types', () => {
+    jest.resetModules();
+
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const tsCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.ts'));
+
+    global.window = {};
+    require(path.resolve(__dirname, '..', 'cards', 'catalog.js'));
+    const jsCatalog = window.CardCatalog;
+
+    jest.resetModules();
+    delete global.window;
+    const sharedConstants = require(path.resolve(__dirname, '..', 'shared-constants.ts'));
+
+    expectSameCardCore(jsCatalog.cards, jsonCatalog.cards);
+    expectSameCardCore(tsCatalog.cards, jsonCatalog.cards);
+    expectSameCardCore(sharedConstants.CARD_DEFS, jsonCatalog.cards);
+
+    const expectedTypeById = Object.fromEntries(jsonCatalog.cards.map((card) => [card.id, card.type]));
+    expect(sharedConstants.CARD_TYPE_BY_ID).toEqual(expectedTypeById);
+
+    const expectedTypes = Array.from(new Set(jsonCatalog.cards.map((card) => card.type)));
+    expect(sharedConstants.CARD_TYPES).toEqual(expectedTypes);
+  });
+
+  test('shared constants fallback derives from generated catalog when catalog.json is not available from cwd', () => {
+    jest.resetModules();
+
+    const jsonCatalog = require(path.resolve(__dirname, '..', 'cards', 'catalog.json'));
+    const originalCwd = process.cwd();
+    const tempCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'card-catalog-fallback-'));
+
+    try {
+      process.chdir(tempCwd);
+      delete global.window;
+
+      const sharedConstants = require(path.resolve(__dirname, '..', 'shared-constants.ts'));
+
+      expectSameCardCore(sharedConstants.CARD_DEFS, jsonCatalog.cards);
+      expect(sharedConstants.CARD_TYPE_BY_ID).toEqual(Object.fromEntries(jsonCatalog.cards.map((card) => [card.id, card.type])));
+      expect(sharedConstants.CARD_TYPES).toEqual(Array.from(new Set(jsonCatalog.cards.map((card) => card.type))));
+    } finally {
+      process.chdir(originalCwd);
+      fs.rmSync(tempCwd, { recursive: true, force: true });
+    }
+  });
+
+  test('shared constants fails fast when no card catalog source can be loaded', () => {
+    jest.resetModules();
+
+    const originalCwd = process.cwd();
+    const tempCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'card-catalog-missing-'));
+    const catalogModulePath = path.resolve(__dirname, '..', 'cards', 'catalog.ts');
+
+    try {
+      process.chdir(tempCwd);
+      delete global.window;
+      jest.doMock(catalogModulePath, () => {
+        throw new Error('generated catalog unavailable');
+      });
+
+      expect(() => require(path.resolve(__dirname, '..', 'shared-constants.ts'))).toThrow(
+        /Card catalog could not be loaded/
+      );
+    } finally {
+      jest.dontMock(catalogModulePath);
+      process.chdir(originalCwd);
+      fs.rmSync(tempCwd, { recursive: true, force: true });
     }
   });
 
@@ -70,9 +163,9 @@ describe('cards catalog consistency', () => {
     const byId = new Map(jsonCatalog.cards.map(c => [c.id, c]));
     expect(Number(byId.get('free_01').cost)).toBe(14);
     expect(Number(byId.get('buoyancy_01').cost)).toBe(9);
-    expect(Number(byId.get('super_buoyancy_01').cost)).toBe(16);
+    expect(Number(byId.get('super_buoyancy_01').cost)).toBe(31);
     expect(Number(byId.get('gravity_01').cost)).toBe(9);
-    expect(Number(byId.get('super_gravity_01').cost)).toBe(16);
+    expect(Number(byId.get('super_gravity_01').cost)).toBe(31);
   });
 
   test('perma_01 (強い意志) describes evolution into 最強の意志 after 10 turns', () => {

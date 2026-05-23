@@ -1470,10 +1470,11 @@ function buildCurrentCellState() {
         ? MarkersAdapter.MARKER_KINDS
         : { SPECIAL_STONE: 'specialStone', BOMB: 'bomb' };
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-    const boardBonusByCell = (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
+    const suppressBoardBonus = _isReversiModeForDiffRenderer();
+    const boardBonusByCell = (!suppressBoardBonus && cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
         ? cardState.boardBonusByCell
         : {};
-    const boardBonusConsumedByCell = (cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
+    const boardBonusConsumedByCell = (!suppressBoardBonus && cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
         ? cardState.boardBonusConsumedByCell
         : {};
     const specialMap = new Map();
@@ -2522,6 +2523,29 @@ function resetRenderStats() {
     boardDomSignature = null;
     boardDomElement = null;
     lastBoardExpansionRevealSoundKey = null;
+}
+
+function _isReversiModeForDiffRenderer() {
+    const root = (typeof window !== 'undefined')
+        ? window
+        : (typeof globalThis !== 'undefined' ? globalThis : null);
+    try {
+        if (root && typeof (root as any).getCurrentMatchMode === 'function') {
+            const mode = (root as any).getCurrentMatchMode();
+            if (mode === 'reversi' || mode === 'othello') return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (root && (((root as any).REVERSI_MODE_ACTIVE === true) || ((root as any).__REVERSI_MODE_ACTIVE === true))) {
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (root && (((root as any).OTHELLO_MODE_ACTIVE === true) || ((root as any).__OTHELLO_MODE_ACTIVE === true))) {
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
 }
 
 // Export helpers for Node/Jest test harness

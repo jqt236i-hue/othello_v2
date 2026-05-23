@@ -27,12 +27,13 @@ describe('CardLogic applyCardUsage presentation event', () => {
 
   test('cancelPendingSelection reverts card use counter for cancellable cards', () => {
     const defs = Array.isArray(SharedConstants.CARD_DEFS) ? SharedConstants.CARD_DEFS : [];
-    const def = defs.find(d => d && d.id && d.type === 'DESTROY_ONE_STONE');
+    const def = defs.find(d => d && d.id && d.type === 'BOARD_EXPANSION_GOD');
     expect(def).toBeTruthy();
 
     const prng = { shuffle: () => {}, random: () => 0.5 };
     const cardState = CardLogic.createCardState(prng);
     const gameState = { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: 1 };
+    gameState.board[3][3] = -1;
     cardState.hands.black = [def.id];
     cardState.charge.black = Number.isFinite(def.cost) ? def.cost : 0;
 
@@ -42,7 +43,7 @@ describe('CardLogic applyCardUsage presentation event', () => {
     PendingCoordinator.storePendingSelectionAction(
       'black',
       { type: 'pending_selection', cardId: def.id, turnIndex: cardState.turnIndex || 0 },
-      'DESTROY_ONE_STONE'
+      'BOARD_EXPANSION_GOD'
     );
 
     const canceled = CardLogic.cancelPendingSelection(cardState, 'black');

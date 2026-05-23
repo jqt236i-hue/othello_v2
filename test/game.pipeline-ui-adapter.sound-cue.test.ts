@@ -568,6 +568,35 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue).toBeUndefined();
   });
 
+  test('position_swap_selected 完了時は position swap move の phase で再生する', () => {
+    const base = [{
+      type: 'move',
+      phase: 8,
+      targets: [{ from: { r: 1, col: 1 }, to: { r: 4, col: 4 }, cause: 'POSITION_SWAP_WILL', reason: 'position_swap' }]
+    }];
+    const raw = [{ type: 'position_swap_selected', applied: true, completed: true, from: { row: 1, col: 1 }, to: { row: 4, col: 4 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'position_swap_move');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(8);
+  });
+
+  test('position_swap_selected が未完了なら position_swap_move を再生しない', () => {
+    const base = [{
+      type: 'move',
+      phase: 8,
+      targets: [{ from: { r: 1, col: 1 }, to: { r: 4, col: 4 }, cause: 'POSITION_SWAP_WILL', reason: 'position_swap' }]
+    }];
+    const raw = [{ type: 'position_swap_selected', applied: true, completed: false, from: { row: 1, col: 1 }, to: { row: 4, col: 4 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'position_swap_move');
+
+    expect(cue).toBeUndefined();
+  });
+
   test('teleport_selected 成功時は teleport move の phase で teleport_select を再生する', () => {
     const base = [{
       type: 'move',
@@ -634,6 +663,21 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(12);
   });
 
+  test('buoyancy_selected 成功時は super_buoyancy_move を流用する', () => {
+    const base = [{
+      type: 'move',
+      phase: 12,
+      targets: [{ from: { r: 5, col: 3 }, to: { r: 3, col: 3 }, cause: 'BUOYANCY_WILL', reason: 'buoyancy_move' }]
+    }];
+    const raw = [{ type: 'buoyancy_selected', applied: true, from: { row: 5, col: 3 }, to: { row: 3, col: 3 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'super_buoyancy_move');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(12);
+  });
+
   test('super_gravity_selected 成功時は super move の phase で super_gravity_move を再生する', () => {
     const base = [{
       type: 'move',
@@ -641,6 +685,21 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       targets: [{ from: { r: 2, col: 4 }, to: { r: 6, col: 4 }, cause: 'SUPER_GRAVITY_WILL', reason: 'super_gravity_move' }]
     }];
     const raw = [{ type: 'super_gravity_selected', applied: true, from: { row: 2, col: 4 }, to: { row: 6, col: 4 } }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'super_gravity_move');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(13);
+  });
+
+  test('gravity_selected 成功時は super_gravity_move を流用する', () => {
+    const base = [{
+      type: 'move',
+      phase: 13,
+      targets: [{ from: { r: 2, col: 4 }, to: { r: 5, col: 4 }, cause: 'GRAVITY_WILL', reason: 'gravity_move' }]
+    }];
+    const raw = [{ type: 'gravity_selected', applied: true, from: { row: 2, col: 4 }, to: { row: 5, col: 4 } }];
 
     const out = adapter.appendSoundEffectPlaybackEvents(base, raw);
     const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'super_gravity_move');

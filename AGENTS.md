@@ -30,7 +30,7 @@ othello_v2/
 | Task | Location | Notes |
 | --- | --- | --- |
 | Player-visible behavior | `01-rulebook.md` | Update before implementation when rules, cards, UI timing, or visible text change. |
-| Hard rules / completion | `.github/copilot-instructions.md` | Repo-wide must-follow constraints. |
+| Hard rules / completion | `AGENTS.md` | Repo-wide must-follow constraints. |
 | Architecture boundary | `docs/architecture-contracts.md` | Module contracts, authority, DI, runtime equivalence. |
 | Browser boot | `index.html`, `entry-browser.js`, `ui/bootstrap.ts`, `ui/bootstrap/init-*.ts` | Load order and DI are fragile. |
 | Game progression | `game/turn/*`, `game/turn-manager.ts`, `game/move-executor.ts` | Keep headless; UI bridge is explicit. |
@@ -62,7 +62,7 @@ othello_v2/
 
 ## CONVENTIONS
 
-- Priority order: `01-rulebook.md` → `.github/copilot-instructions.md` → `docs/architecture-contracts.md` → this file → `.github/instructions/*.instructions.md` → `SKILLS.md` / local `README.ai.md`.
+- Priority order: `01-rulebook.md` → `docs/architecture-contracts.md` → this file → nested `AGENTS.md` → `SKILLS.md` / local `README.ai.md`.
 - Root files are source of truth; `dist/` and `worker-public/` are generated or mirrored surfaces.
 - Prefer `.ts` when a `.ts`/`.js` pair exists. Adjacent `.js` is usually a dist wrapper; check `docs/typescript-migration-js-allowlist.md` before editing `.js`.
 - `game/` stays headless. `ui/` consumes public APIs, events, and DI hooks only.

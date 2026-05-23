@@ -1,6 +1,6 @@
 # game/turn/ AGENTS.md
 
-Turn pipeline and pending-flow boundary. Read `../AGENTS.md` and `.github/instructions/game.instructions.md` first.
+Turn pipeline and pending-flow boundary. Read `../AGENTS.md` and the root `AGENTS.md` first.
 
 ## WHERE TO LOOK
 

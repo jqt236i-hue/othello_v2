@@ -1,6 +1,6 @@
 # game/logic/ AGENTS.md
 
-Core headless rule / board-operation layer. Read `../AGENTS.md` and `.github/instructions/game.instructions.md` first.
+Core headless rule / board-operation layer. Read `../AGENTS.md` and the root `AGENTS.md` first.
 
 ## WHERE TO LOOK
 

@@ -79,6 +79,7 @@ const SoundEngine = {
         board_expansion_reveal: '盤面が拡張されたタイミング.mp3',
         board_shrink_selected: '盤面縮小するタイミング.mp3',
         strong_wind_move: '強風で石が移動したタイミング.mp3',
+        position_swap_move: '入替の意志で石が入れ替わるタイミング.mp3',
         super_buoyancy_move: '超浮力で石が浮上したタイミング.mp3',
         super_gravity_move: '超重力で石が落下したタイミング.mp3',
         round_bonus: 'ラウンドボーナスで布石を獲得したタイミング.mp3',

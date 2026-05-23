@@ -1,6 +1,6 @@
 # cpu/ AGENTS.md
 
-Legacy/browser CPU compatibility boundary. Read `.github/instructions/cpu.instructions.md` first.
+Legacy/browser CPU compatibility boundary. Use this file with the root `AGENTS.md` as the local boundary guide.
 
 ## Where to edit
 

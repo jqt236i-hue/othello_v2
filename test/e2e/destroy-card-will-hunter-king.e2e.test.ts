@@ -32,7 +32,12 @@ describe('DESTROY_ONE_STONE destroy evade E2E', () => {
 
     await page.goto(`http://127.0.0.1:${serverPort}/?debug=1`);
     await page.waitForFunction(
-      () => !!(window.gameState && window.cardState && window.executeDestroy && window.SharedConstants),
+      () => {
+        const destroyModule = typeof window.require === 'function'
+          ? window.require('game/card-effects/destroy.js')
+          : null;
+        return !!(window.gameState && window.cardState && destroyModule && destroyModule.executeDestroy);
+      },
       { timeout: 10000 }
     );
     await page.waitForFunction(() => {
@@ -41,7 +46,7 @@ describe('DESTROY_ONE_STONE destroy evade E2E', () => {
     }, { timeout: 10000 });
 
     await page.evaluate(() => {
-      const Shared = window.SharedConstants;
+      const Shared = window.require('shared-constants.js');
       const BLACK = Shared.BLACK;
       const WHITE = Shared.WHITE;
       const EMPTY = Shared.EMPTY;
@@ -91,7 +96,8 @@ describe('DESTROY_ONE_STONE destroy evade E2E', () => {
     });
 
     await page.evaluate(async () => {
-      await window.executeDestroy(4, 4, 'black');
+      const destroyModule = window.require('game/card-effects/destroy.js');
+      await destroyModule.executeDestroy(4, 4, 'black');
       if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
       else if (typeof renderBoard === 'function') renderBoard();
     });

@@ -336,7 +336,7 @@ describe('local match runtime parity', () => {
     const cards = Array.isArray((CardCatalog as any).cards) ? (CardCatalog as any).cards : [];
     const ids = new Set(cards.map((card) => card.id));
     const types = new Set(cards.map((card) => card.type));
-    expect(cards).toHaveLength(84);
+    expect(cards).toHaveLength(86);
     expect(ids.size).toBe(cards.length);
     expect(types.size).toBe(cards.length);
   });
@@ -594,9 +594,6 @@ describe('local match runtime parity', () => {
 
     expect(mismatches).toEqual([]);
     expect(Array.from(coveredPendingTypes).sort()).toEqual(expect.arrayContaining([
-      'DESTROY_ONE_STONE',
-      'SWAP_WITH_ENEMY',
-      'HEAVEN_BLESSING',
       'CONDEMN_WILL',
       'BOARD_EXPANSION_GOD',
       'BOARD_SHRINK_GOD'

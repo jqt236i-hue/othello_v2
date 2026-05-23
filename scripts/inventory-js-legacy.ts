@@ -243,10 +243,21 @@ function main() {
     return !fs.existsSync(resolved + '.js') && !fs.existsSync(resolved + '.cjs') && !fs.existsSync(resolved + '.mjs') && !fs.existsSync(resolved);
   });
 
+  const missingRuntimeProjectionSources = results.filter((r) => {
+    if (r.category !== 'runtime-projection') return false;
+    if (r.file === 'entry-browser.js' || r.file === 'public/runtime.js' || r.file === 'esbuild-banner.js' || r.file === 'esbuild-footer.js') return false;
+    if (r.hasTs) return false;
+    if (r.file.endsWith('.runtime.js')) {
+      const sourcePath = r.file.replace(/\.runtime\.js$/, '.ts').replace(/\//g, path.sep);
+      return !fs.existsSync(path.resolve(sourcePath));
+    }
+    return false;
+  });
+
   const legacyCount = results.filter(r => r.category === 'legacy-implementation').length;
   const unknownCount = unknown.length;
 
-  if (unknown.length > 0 || legacyNotAllowlisted.length > 0 || badAllowlistCategory.length > 0 || unwrappedWithTs.length > 0 || staleWrappers.length > 0) {
+  if (unknown.length > 0 || legacyNotAllowlisted.length > 0 || badAllowlistCategory.length > 0 || unwrappedWithTs.length > 0 || staleWrappers.length > 0 || missingRuntimeProjectionSources.length > 0) {
     console.error('\n[JS-INVENTORY-GATE] FAILED');
     if (unknown.length > 0) {
       console.error(`- unknown files: ${unknown.length}`);
@@ -268,10 +279,14 @@ function main() {
       console.error(`- stale dist wrappers: ${staleWrappers.length}`);
       staleWrappers.forEach(r => console.error(`  - ${r.file}`));
     }
+    if (missingRuntimeProjectionSources.length > 0) {
+      console.error(`- runtime projections without TS source contract: ${missingRuntimeProjectionSources.length}`);
+      missingRuntimeProjectionSources.forEach(r => console.error(`  - ${r.file}`));
+    }
     process.exit(2);
   }
 
-  console.log(`\n[JS-INVENTORY-GATE] PASSED: unknown=${unknownCount}, legacy-implementation=${legacyCount}, wrappers are valid.`);
+  console.log(`\n[JS-INVENTORY-GATE] PASSED: unknown=${unknownCount}, legacy-implementation=${legacyCount}, wrappers and runtime projections are valid.`);
 }
 
 main();

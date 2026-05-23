@@ -1,6 +1,6 @@
 # workers/ AGENTS.md
 
-Server-authoritative match worker boundary. Read `.github/instructions/workers.instructions.md` first.
+Server-authoritative match worker boundary. Use this file with the root `AGENTS.md` as the local boundary guide.
 
 ## Where to edit
 

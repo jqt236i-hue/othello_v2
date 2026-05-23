@@ -1,6 +1,6 @@
 # shared/ AGENTS.md
 
-Runtime-portable contracts and pure helpers. Read `.github/instructions/shared.instructions.md` first.
+Runtime-portable contracts and pure helpers. Use this file with the root `AGENTS.md` as the local boundary guide.
 
 ## What belongs here
 

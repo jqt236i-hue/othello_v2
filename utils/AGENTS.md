@@ -1,6 +1,6 @@
 # utils/ AGENTS.md
 
-Canonical normalization / authority helper subtree. No `.github/instructions` file covers this path; treat this file as the local boundary guide.
+Canonical normalization / authority helper subtree. Use this file with the root `AGENTS.md` as the local boundary guide.
 
 ## WHERE TO LOOK
 

@@ -43,7 +43,7 @@ describe('match worker publish effect logs', () => {
       "  board[4][3] = 1;",
       "  board[4][4] = -1;",
       "  const baseCardState = CardLogic.createCardState(SeededPRNG.createPRNG(1), {});",
-      "  baseCardState.hands = { black: ['swap_01'], white: [] };",
+      "  baseCardState.hands = { black: ['chest_01'], white: [] };",
       "  baseCardState.charge = { black: 20, white: 20 };",
       "  baseCardState.pendingEffectByPlayer = { black: null, white: null };",
       "  baseCardState.hasUsedCardThisTurnByPlayer = { black: false, white: false };",
@@ -81,7 +81,8 @@ describe('match worker publish effect logs', () => {
       "    action: {",
       "      type: 'use_card',",
       "      playerKey: 'black',",
-      "      useCardId: 'swap_01',",
+      "      useCardId: 'chest_01',",
+      "      useCardOwnerKey: 'black',",
       "      turnIndex: 1",
       "    }",
       "  });",
@@ -101,6 +102,6 @@ describe('match worker publish effect logs', () => {
       playbackEvents: expect.any(Array),
       effectLogs: expect.any(Array)
     }));
-    expect(result.payload.effectLogs).toContain('黒がカードを使用: 交換の意志');
+    expect(result.payload.effectLogs).toContain('黒がカードを使用: 宝箱');
   });
 });

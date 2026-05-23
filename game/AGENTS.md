@@ -1,6 +1,6 @@
 # game/ AGENTS.md
 
-Headless gameplay layer. Read `.github/instructions/game.instructions.md` first; this file is only the navigation map for easy-to-miss internal splits.
+Headless gameplay layer. This file is the navigation map for easy-to-miss internal splits; use it with the root `AGENTS.md`.
 
 ## Where to edit
 
