@@ -336,7 +336,7 @@ describe('local match runtime parity', () => {
     const cards = Array.isArray((CardCatalog as any).cards) ? (CardCatalog as any).cards : [];
     const ids = new Set(cards.map((card) => card.id));
     const types = new Set(cards.map((card) => card.type));
-    expect(cards).toHaveLength(86);
+    expect(cards).toHaveLength(87);
     expect(ids.size).toBe(cards.length);
     expect(types.size).toBe(cards.length);
   });
