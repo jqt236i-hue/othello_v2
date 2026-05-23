@@ -57,10 +57,35 @@ function collectFiles(rootDir: string, relDir: string): string[] {
 
 function writeManifestFile(outPath: string, payload: string) {
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    if (fs.existsSync(outPath)) {
+        const current = fs.readFileSync(outPath, 'utf8');
+        if (current === payload) return false;
+    }
     const tempPath = `${outPath}.tmp-${process.pid}-${Date.now()}`;
     fs.writeFileSync(tempPath, payload, 'utf8');
     try { fs.rmSync(outPath, { force: true }); } catch (e) { /* ignore */ }
     fs.renameSync(tempPath, outPath);
+    return true;
+}
+
+function readExistingManifest(outPath: string): Manifest | null {
+    if (!fs.existsSync(outPath)) return null;
+    try {
+        const parsed = JSON.parse(fs.readFileSync(outPath, 'utf8'));
+        if (!parsed || !Array.isArray(parsed.files)) return null;
+        return parsed as Manifest;
+    } catch (e) {
+        return null;
+    }
+}
+
+function sameManifestFiles(a: ManifestFile[], b: ManifestFile[]): boolean {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (!a[i] || !b[i]) return false;
+        if (a[i].path !== b[i].path || a[i].sha256 !== b[i].sha256) return false;
+    }
+    return true;
 }
 
 function generateManifest(options: GenerateManifestOptions = {}): GenerateManifestResult {
@@ -79,19 +104,22 @@ function generateManifest(options: GenerateManifestOptions = {}): GenerateManife
         .flatMap((relDir) => collectFiles(assetsRoot, relDir))
         .map(p => ({ path: `assets/${p}`, sha256: hashFile(path.join(assetsRoot, p)) }));
 
+    const outPath = path.join(projectRoot, 'assets', 'asset-manifest.json');
+    const existing = readExistingManifest(outPath);
+    const filesUnchanged = !!existing && sameManifestFiles(existing.files, files);
+    const now = new Date().toISOString();
     const manifest: Manifest = {
-        version: new Date().toISOString().slice(0, 10),
-        generatedAt: new Date().toISOString(),
+        version: filesUnchanged && existing && existing.version ? existing.version : now.slice(0, 10),
+        generatedAt: filesUnchanged && existing && existing.generatedAt ? existing.generatedAt : now,
         files
     };
-
-    const outPath = path.join(projectRoot, 'assets', 'asset-manifest.json');
     const payload = JSON.stringify(manifest, null, 2);
     const shouldWrite = options.write !== false && options.persist !== false;
+    let wroteFile = false;
     if (shouldWrite) {
-        writeManifestFile(outPath, payload);
+        wroteFile = writeManifestFile(outPath, payload);
     }
-    return { manifest, outPath, wroteFile: shouldWrite };
+    return { manifest, outPath, wroteFile };
 }
 
 if (require.main === module) {

@@ -94,7 +94,30 @@ function buildCatalogModulePayload(catalog: any, globalName: string): string {
 
 function writeCatalogFile(outPath: string, payload: string) {
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
+    if (fs.existsSync(outPath) && fs.readFileSync(outPath, 'utf8') === payload) {
+        return false;
+    }
     fs.writeFileSync(outPath, payload, 'utf8');
+    return true;
+}
+
+function readExistingCatalog(outPath: string): any | null {
+    if (!fs.existsSync(outPath)) return null;
+    const text = fs.readFileSync(outPath, 'utf8');
+    const match = text.match(/const catalog = ([\s\S]*?);\s*const frozenItems =/);
+    if (!match) return null;
+    try {
+        return JSON.parse(match[1]);
+    } catch (e) {
+        return null;
+    }
+}
+
+function sameCatalogItems(a: any, b: any): boolean {
+    if (!a || !b) return false;
+    return a.version === b.version
+        && a.sourceDir === b.sourceDir
+        && JSON.stringify(a.items || []) === JSON.stringify(b.items || []);
 }
 
 function generateObservationGachaCatalogs(options: CatalogOptions = {}): CatalogResult {
@@ -108,35 +131,53 @@ function generateObservationGachaCatalogs(options: CatalogOptions = {}): Catalog
     const handItems = GachaHandCatalogShared && typeof GachaHandCatalogShared.collectCatalogItemsFromPaths === 'function'
         ? GachaHandCatalogShared.collectCatalogItemsFromPaths(assetPaths)
         : [];
-    const observationCatalog = {
+    const existingObservationCatalog = readExistingCatalog(observationOutPath);
+    const existingHandCatalog = readExistingCatalog(handAdapterOutPath);
+    const now = new Date().toISOString();
+    const observationDraft = {
         version: 1,
-        generatedAt: new Date().toISOString(),
+        generatedAt: now,
         sourceDir: 'assets/images/Gacha',
         items: observationItems
     };
-    const handCatalog = {
-        version: observationCatalog.version,
-        generatedAt: observationCatalog.generatedAt,
-        sourceDir: observationCatalog.sourceDir,
+    const handDraft = {
+        version: observationDraft.version,
+        generatedAt: observationDraft.generatedAt,
+        sourceDir: observationDraft.sourceDir,
         items: handItems
+    };
+    const observationCatalog = {
+        ...observationDraft,
+        generatedAt: sameCatalogItems(existingObservationCatalog, observationDraft) && existingObservationCatalog.generatedAt
+            ? existingObservationCatalog.generatedAt
+            : observationDraft.generatedAt
+    };
+    const handCatalog = {
+        ...handDraft,
+        generatedAt: sameCatalogItems(existingHandCatalog, handDraft) && existingHandCatalog.generatedAt
+            ? existingHandCatalog.generatedAt
+            : observationCatalog.generatedAt
     };
     const observationPayload = buildCatalogModulePayload(observationCatalog, 'ObservationGachaCatalogModule');
     const handAdapterPayload = buildCatalogModulePayload(handCatalog, 'GachaHandCatalogModule');
     const shouldWrite = options.write !== false && options.persist !== false;
+    let wroteObservation = false;
+    let wroteHand = false;
     if (shouldWrite) {
-        writeCatalogFile(observationOutPath, observationPayload);
-        writeCatalogFile(handAdapterOutPath, handAdapterPayload);
+        wroteObservation = writeCatalogFile(observationOutPath, observationPayload);
+        wroteHand = writeCatalogFile(handAdapterOutPath, handAdapterPayload);
     }
+    const wroteFiles = wroteObservation || wroteHand;
     return {
         observationCatalog,
         handCatalog,
         observationOutPath,
         handAdapterOutPath,
-        wroteFiles: shouldWrite,
+        wroteFiles,
         catalog: handCatalog,
         outPath: handAdapterOutPath,
         genericOutPath: observationOutPath,
-        wroteFile: shouldWrite
+        wroteFile: wroteFiles
     };
 }
 

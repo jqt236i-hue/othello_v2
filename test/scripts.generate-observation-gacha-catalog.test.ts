@@ -1,6 +1,42 @@
 import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
+
+function extractCatalog(filePath: string): any {
+  const text = fs.readFileSync(filePath, 'utf8');
+  const match = text.match(/const catalog = ([\s\S]*?);\s*const frozenItems =/);
+  if (!match) throw new Error(`catalog payload not found: ${filePath}`);
+  return JSON.parse(match[1]);
+}
 
 describe('generate observation gacha catalog', () => {
+  test('preserves generatedAt and avoids rewriting when catalog items are unchanged', () => {
+    const { generateObservationGachaCatalogs } = require('../scripts/generate-observation-gacha-catalog.js');
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'gacha-catalog-stable-'));
+    const observationOutPath = path.join(tmpRoot, 'shared', 'observation-gacha-catalog.generated.js');
+    const handAdapterOutPath = path.join(tmpRoot, 'shared', 'gacha-hand-catalog.generated.js');
+    try {
+      fs.mkdirSync(path.join(tmpRoot, 'assets', 'images', 'Gacha', 'N'), { recursive: true });
+      fs.mkdirSync(path.join(tmpRoot, 'shared'), { recursive: true });
+      fs.writeFileSync(path.join(tmpRoot, 'assets', 'images', 'Gacha', 'N', 'sample.png'), 'sample');
+
+      const first = generateObservationGachaCatalogs({ root: tmpRoot, observationOutPath, handAdapterOutPath });
+      expect(first.wroteFiles).toBe(true);
+      const stableObservationGeneratedAt = extractCatalog(observationOutPath).generatedAt;
+      const stableHandGeneratedAt = extractCatalog(handAdapterOutPath).generatedAt;
+
+      const second = generateObservationGachaCatalogs({ root: tmpRoot, observationOutPath, handAdapterOutPath });
+
+      expect(second.wroteFiles).toBe(false);
+      expect(second.observationCatalog.generatedAt).toBe(stableObservationGeneratedAt);
+      expect(second.handCatalog.generatedAt).toBe(stableHandGeneratedAt);
+      expect(extractCatalog(observationOutPath).generatedAt).toBe(stableObservationGeneratedAt);
+      expect(extractCatalog(handAdapterOutPath).generatedAt).toBe(stableHandGeneratedAt);
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
   test('derives rarity and display name from assets/images/Gacha', () => {
     const { generateObservationGachaCatalogs } = require('../scripts/generate-observation-gacha-catalog.js');
     const result = generateObservationGachaCatalogs({

@@ -1860,63 +1860,79 @@ try {
 // window.CoreLogic, window.CardLogic, window.SeededPRNG are already set above
 if (typeof window.CardSystem !== "undefined") window.CardSystem = window.CardSystem;
 
+function requireBootNamespace(globalName, modulePath, options) {
+  var opts = options || {};
+  try {
+    window[globalName] = window[globalName] || require(modulePath);
+    return window[globalName];
+  } catch (e) {
+    var message = "[boot] required namespace failed " + globalName + " <- " + modulePath + ": " + (e && e.message ? e.message : e);
+    if (opts.optional) {
+      console.warn(message);
+      return null;
+    }
+    console.error(message);
+    throw e;
+  }
+}
+
 // ===== Namespace globals for module resolution =====
 // Cards & catalogs
-try { window.CardCatalog = window.CardCatalog || require("./dist/cards/catalog"); } catch (e) {}
-try { window.DeckBuilderControllerModule = window.DeckBuilderControllerModule || require("./dist/ui/deck-builder-controller"); } catch (e) {}
+requireBootNamespace("CardCatalog", "./dist/cards/catalog");
+requireBootNamespace("DeckBuilderControllerModule", "./dist/ui/deck-builder-controller");
 // Gacha system
-try { window.GachaHelpersModule = window.GachaHelpersModule || require("./dist/shared/gacha-helpers"); } catch (e) {}
-try { window.ObservationGachaCatalogSharedModule = window.ObservationGachaCatalogSharedModule || require("./dist/shared/observation-gacha-catalog-shared"); } catch (e) {}
-try { window.ObservationGachaCatalogModule = window.ObservationGachaCatalogModule || require("./dist/shared/observation-gacha-catalog.generated"); } catch (e) {}
-try { window.GachaProgressStorageModule = window.GachaProgressStorageModule || require("./dist/ui/storage/gacha-progress"); } catch (e) {}
-try { window.GachaEventsModule = window.GachaEventsModule || require("./dist/ui/gacha/gacha-events"); } catch (e) {}
-try { window.GachaTransactionModule = window.GachaTransactionModule || require("./dist/ui/gacha/gacha-transaction"); } catch (e) {}
-try { window.GachaOverlayViewModule = window.GachaOverlayViewModule || require("./dist/ui/gacha/gacha-overlay-view"); } catch (e) {}
-try { window.GachaOverlayControllerModule = window.GachaOverlayControllerModule || require("./dist/ui/gacha/gacha-overlay-controller"); } catch (e) {}
-try { window.GachaItemVisualsModule = window.GachaItemVisualsModule || require("./dist/ui/gacha/gacha-item-visuals"); } catch (e) {}
-try { window.GachaRevealStageModule = window.GachaRevealStageModule || require("./dist/ui/gacha/gacha-reveal-stage"); } catch (e) {}
-try { window.GachaRevealAudioModule = window.GachaRevealAudioModule || require("./dist/ui/gacha/gacha-reveal-audio"); } catch (e) {}
-try { window.GachaRevealPlayerModule = window.GachaRevealPlayerModule || require("./dist/ui/gacha/gacha-reveal-player"); } catch (e) {}
+requireBootNamespace("GachaHelpersModule", "./dist/shared/gacha-helpers");
+requireBootNamespace("ObservationGachaCatalogSharedModule", "./dist/shared/observation-gacha-catalog-shared");
+requireBootNamespace("ObservationGachaCatalogModule", "./dist/shared/observation-gacha-catalog.generated");
+requireBootNamespace("GachaProgressStorageModule", "./dist/ui/storage/gacha-progress");
+requireBootNamespace("GachaEventsModule", "./dist/ui/gacha/gacha-events");
+requireBootNamespace("GachaTransactionModule", "./dist/ui/gacha/gacha-transaction");
+requireBootNamespace("GachaOverlayViewModule", "./dist/ui/gacha/gacha-overlay-view");
+requireBootNamespace("GachaOverlayControllerModule", "./dist/ui/gacha/gacha-overlay-controller");
+requireBootNamespace("GachaItemVisualsModule", "./dist/ui/gacha/gacha-item-visuals");
+requireBootNamespace("GachaRevealStageModule", "./dist/ui/gacha/gacha-reveal-stage");
+requireBootNamespace("GachaRevealAudioModule", "./dist/ui/gacha/gacha-reveal-audio");
+requireBootNamespace("GachaRevealPlayerModule", "./dist/ui/gacha/gacha-reveal-player");
 // Hand skin
-try { window.HandSkinCatalogModule = window.HandSkinCatalogModule || require("./dist/ui/hand-skin/catalog"); } catch (e) {}
-try { window.HandSkinSelectionModule = window.HandSkinSelectionModule || require("./dist/ui/hand-skin/selection"); } catch (e) {}
-try { window.HandSkinRuntimeModule = window.HandSkinRuntimeModule || require("./dist/ui/hand-skin/runtime"); } catch (e) {}
-try { window.HandSkinControllerModule = window.HandSkinControllerModule || require("./dist/ui/hand-skin/controller"); } catch (e) {}
+requireBootNamespace("HandSkinCatalogModule", "./dist/ui/hand-skin/catalog");
+requireBootNamespace("HandSkinSelectionModule", "./dist/ui/hand-skin/selection");
+requireBootNamespace("HandSkinRuntimeModule", "./dist/ui/hand-skin/runtime");
+requireBootNamespace("HandSkinControllerModule", "./dist/ui/hand-skin/controller");
 // Background skin
-try { window.BackgroundSkinCatalogModule = window.BackgroundSkinCatalogModule || require("./dist/ui/background-skin/catalog"); } catch (e) {}
-try { window.BackgroundSkinSelectionModule = window.BackgroundSkinSelectionModule || require("./dist/ui/background-skin/selection"); } catch (e) {}
-try { window.BackgroundSkinRuntimeModule = window.BackgroundSkinRuntimeModule || require("./dist/ui/background-skin/runtime"); } catch (e) {}
-try { window.BackgroundSkinControllerModule = window.BackgroundSkinControllerModule || require("./dist/ui/background-skin/controller"); } catch (e) {}
+requireBootNamespace("BackgroundSkinCatalogModule", "./dist/ui/background-skin/catalog");
+requireBootNamespace("BackgroundSkinSelectionModule", "./dist/ui/background-skin/selection");
+requireBootNamespace("BackgroundSkinRuntimeModule", "./dist/ui/background-skin/runtime");
+requireBootNamespace("BackgroundSkinControllerModule", "./dist/ui/background-skin/controller");
 // Cosmetic
-try { window.CosmeticCatalogSharedModule = window.CosmeticCatalogSharedModule || require("./dist/ui/cosmetics/catalog-shared"); } catch (e) {}
-try { window.GachaHandCatalogSharedModule = window.GachaHandCatalogSharedModule || require("./dist/shared/gacha-hand-catalog-shared"); } catch (e) {}
-try { window.GachaHandCatalogModule = window.GachaHandCatalogModule || require("./dist/shared/gacha-hand-catalog.generated"); } catch (e) {}
+requireBootNamespace("CosmeticCatalogSharedModule", "./dist/ui/cosmetics/catalog-shared");
+requireBootNamespace("GachaHandCatalogSharedModule", "./dist/shared/gacha-hand-catalog-shared");
+requireBootNamespace("GachaHandCatalogModule", "./dist/shared/gacha-hand-catalog.generated");
 // Sound & presentation
-try { window.PlacementSoundSelectionModule = window.PlacementSoundSelectionModule || require("./dist/ui/placement-sound-selection"); } catch (e) {}
-try { window.SoundEngineAccessModule = window.SoundEngineAccessModule || require("./dist/ui/sound-engine-access"); } catch (e) {}
-try { window.AnimationUtils = window.AnimationUtils || require("./dist/ui/animation-utils"); } catch (e) {}
-try { window.ResultOverlayModule = window.ResultOverlayModule || require("./dist/ui/result-overlay"); } catch (e) {}
+requireBootNamespace("PlacementSoundSelectionModule", "./dist/ui/placement-sound-selection");
+requireBootNamespace("SoundEngineAccessModule", "./dist/ui/sound-engine-access");
+requireBootNamespace("AnimationUtils", "./dist/ui/animation-utils");
+requireBootNamespace("ResultOverlayModule", "./dist/ui/result-overlay");
 // Core game namespace objects
-try { window.BoardOps = window.BoardOps || require("./dist/game/logic/board_ops"); } catch (e) {}
-try { window.AnimationEngine = window.AnimationEngine || require("./dist/ui/animation-engine"); } catch (e) {}
+requireBootNamespace("BoardOps", "./dist/game/logic/board_ops");
+requireBootNamespace("AnimationEngine", "./dist/ui/animation-engine");
 // Network modules
-try { window.NetworkCommentaryModule = window.NetworkCommentaryModule || require("./dist/ui/network/commentary"); } catch (e) {}
-try { window.NetworkCommandPayloadModule = window.NetworkCommandPayloadModule || require("./dist/ui/network/command-payload"); } catch (e) {}
-try { window.NetworkActionBridgeModule = window.NetworkActionBridgeModule || require("./dist/ui/network/action-bridge"); } catch (e) {}
-try { window.NetworkApplyCoordinatorModule = window.NetworkApplyCoordinatorModule || require("./dist/ui/network/apply-coordinator"); } catch (e) {}
-try { window.NetworkPublishTrackerModule = window.NetworkPublishTrackerModule || require("./dist/ui/network/publish-tracker"); } catch (e) {}
-try { window.NetworkPublishRequestModule = window.NetworkPublishRequestModule || require("./dist/ui/network/publish-request"); } catch (e) {}
-try { window.NetworkSnapshotModule = window.NetworkSnapshotModule || require("./dist/ui/network/snapshot"); } catch (e) {}
-try { window.NetworkSnapshotRuntimeModule = window.NetworkSnapshotRuntimeModule || require("./dist/ui/network/snapshot-runtime"); } catch (e) {}
-try { window.NetworkSnapshotCanonicalModule = window.NetworkSnapshotCanonicalModule || require("./dist/ui/network/snapshot-canonical"); } catch (e) {}
-try { window.NetworkSnapshotPresentationModule = window.NetworkSnapshotPresentationModule || require("./dist/ui/network/snapshot-presentation"); } catch (e) {}
-try { window.NetworkSessionSeatModule = window.NetworkSessionSeatModule || require("./dist/ui/network/session-seat"); } catch (e) {}
-try { window.NetworkSessionLifecycleModule = window.NetworkSessionLifecycleModule || require("./dist/ui/network/session-lifecycle"); } catch (e) {}
-try { window.NetworkReconnectControllerModule = window.NetworkReconnectControllerModule || require("./dist/ui/network/reconnect-controller"); } catch (e) {}
+requireBootNamespace("NetworkCommentaryModule", "./dist/ui/network/commentary");
+requireBootNamespace("NetworkCommandPayloadModule", "./dist/ui/network/command-payload");
+requireBootNamespace("NetworkActionBridgeModule", "./dist/ui/network/action-bridge");
+requireBootNamespace("NetworkApplyCoordinatorModule", "./dist/ui/network/apply-coordinator");
+requireBootNamespace("NetworkPublishTrackerModule", "./dist/ui/network/publish-tracker");
+requireBootNamespace("NetworkPublishRequestModule", "./dist/ui/network/publish-request");
+requireBootNamespace("NetworkSnapshotModule", "./dist/ui/network/snapshot");
+requireBootNamespace("NetworkSnapshotRuntimeModule", "./dist/ui/network/snapshot-runtime");
+requireBootNamespace("NetworkSnapshotCanonicalModule", "./dist/ui/network/snapshot-canonical");
+requireBootNamespace("NetworkSnapshotPresentationModule", "./dist/ui/network/snapshot-presentation");
+requireBootNamespace("NetworkSessionSeatModule", "./dist/ui/network/session-seat");
+requireBootNamespace("NetworkSessionLifecycleModule", "./dist/ui/network/session-lifecycle");
+requireBootNamespace("NetworkReconnectControllerModule", "./dist/ui/network/reconnect-controller");
 // Catalog access for gacha
-try { window.ObservationGachaCatalogAccessModule = window.ObservationGachaCatalogAccessModule || require("./dist/ui/gacha/catalog-access"); } catch (e) {}
+requireBootNamespace("ObservationGachaCatalogAccessModule", "./dist/ui/gacha/catalog-access");
 // Card rendering & interaction
-try { window.HandAnimationUtilsModule = window.HandAnimationUtilsModule || require("./dist/cards/card-renderer"); } catch (e) {}
+requireBootNamespace("HandAnimationUtilsModule", "./dist/cards/card-renderer");
 
 // ===== Direct namespace assignments from module variables =====
 // These MUST be set because code uses globalThis.ModuleName to look up modules.

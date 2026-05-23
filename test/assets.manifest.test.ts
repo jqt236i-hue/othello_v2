@@ -18,6 +18,37 @@ function collectFiles(dir, rootDir) {
 }
 
 describe('assets manifest', () => {
+  test('preserves metadata and avoids rewriting when asset content is unchanged', () => {
+    const tmpRoot = fs.mkdtempSync(path.join(require('os').tmpdir(), 'asset-manifest-stable-'));
+    try {
+      const assetDir = path.join(tmpRoot, 'assets', 'images', 'stones');
+      fs.mkdirSync(assetDir, { recursive: true });
+      fs.writeFileSync(path.join(assetDir, 'sample.png'), 'sample');
+      const manifestDir = path.join(tmpRoot, 'assets');
+      fs.mkdirSync(manifestDir, { recursive: true });
+      const existing = {
+        version: 'stable-version',
+        generatedAt: '2000-01-01T00:00:00.000Z',
+        files: [
+          {
+            path: 'assets/images/stones/sample.png',
+            sha256: require('crypto').createHash('sha256').update('sample').digest('hex')
+          }
+        ]
+      };
+      fs.writeFileSync(path.join(manifestDir, 'asset-manifest.json'), JSON.stringify(existing, null, 2), 'utf8');
+
+      const result = generateManifest({ root: tmpRoot });
+
+      assert.strictEqual(result.wroteFile, false);
+      assert.strictEqual(result.manifest.version, existing.version);
+      assert.strictEqual(result.manifest.generatedAt, existing.generatedAt);
+      assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(manifestDir, 'asset-manifest.json'), 'utf8')), existing);
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
   test('generate manifest contains stone images and hashes match', () => {
     const res = generateManifest({ root: path.resolve(__dirname, '..'), write: false });
     const manifest = res.manifest;
