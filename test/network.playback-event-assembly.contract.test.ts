@@ -10,6 +10,7 @@ import * as TurnPipeline from '../game/turn/turn_pipeline.js';
 import * as PendingSelectionRegistry from '../game/logic/cards-internal/pending-selection-registry.js';
 import * as MatchAuthority from '../utils/match-authority.js';
 import * as SeededPRNG from '../game/schema/prng.js';
+import AnimationConstants = require('../ui/animation-constants.js');
 import { createLocalMatchServer, resetRoomsForTests, patchRoomSnapshotForTests } from '../scripts/local-match-server.js';
 
 const WORKER_RESULT_MARKER = '__WORKER_PLAYBACK_CONTRACT__';
@@ -2048,6 +2049,20 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
     )).sort();
 
     expect(coveredTypes).toEqual(expect.arrayContaining(requiredTypes));
+  });
+
+  test('card effect playback parity fixtures only emit animation-engine supported event types', () => {
+    const supportedTypes = new Set(Object.values(AnimationConstants.EVENT_TYPES || {}));
+    const unsupported = [];
+    for (const fixture of buildPlaybackParityFixtures()) {
+      const expected = buildExpectedAssembly(fixture.snapshot, fixture.action, fixture.name);
+      for (const event of expected.playbackEvents || []) {
+        if (!event || supportedTypes.has(event.type)) continue;
+        unsupported.push({ fixture: fixture.name, type: event.type, rawType: event.rawType || null });
+      }
+    }
+
+    expect(unsupported).toEqual([]);
   });
 
   test('local match stream replays missed snapshot events after Last-Event-ID reconnect', async () => {
