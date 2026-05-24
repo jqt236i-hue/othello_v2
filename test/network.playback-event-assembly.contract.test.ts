@@ -250,7 +250,7 @@ function runWorkerCommandPlace(snapshot, action, stateVersion, options = {}) {
     "    operationId,",
     "    actionType: 'place',",
     "    actor: playerKey,",
-    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}),",
+    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}),",
     "    turnIndex: action.turnIndex,",
     "    action",
     "  });",
@@ -546,6 +546,28 @@ function buildCloneWillFixture() {
   };
 }
 
+function buildGuardWillFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  setStone(snapshot, 3, 3, 'black');
+  snapshot.cardState.pendingEffectByPlayer.black = {
+    type: 'GUARD_WILL',
+    stage: 'selectTarget',
+    cardId: 'guard_01'
+  };
+  return {
+    name: 'GUARD_WILL',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_guard_will_place',
+      __skipTurnStart: false,
+      guardTarget: { row: 3, col: 3 }
+    })
+  };
+}
+
 function buildPlaybackParityFixtures() {
   return [
     buildTurnStartDestroyFixture('SNIPER'),
@@ -558,7 +580,8 @@ function buildPlaybackParityFixtures() {
     buildMeteorOpponentSalvationFixture(),
     buildBoardShrinkFixture(),
     buildSuperBuoyancyFixture(),
-    buildCloneWillFixture()
+    buildCloneWillFixture(),
+    buildGuardWillFixture()
   ];
 }
 
@@ -577,6 +600,12 @@ function normalizePlaybackEventForParity(event) {
     soundKey: event.soundKey || meta.soundKey || null,
     spawnIntent: event.spawnIntent || meta.spawnIntent || null,
     moveIntent: event.moveIntent || meta.moveIntent || null,
+    special: event.special || meta.special || null,
+    remainingOwnerTurns: Number.isFinite(Number(event.remainingOwnerTurns))
+      ? Number(event.remainingOwnerTurns)
+      : (Number.isFinite(Number(meta.remainingOwnerTurns)) ? Number(meta.remainingOwnerTurns) : null),
+    sourceType: event.sourceType || meta.sourceType || null,
+    sourceCardId: event.sourceCardId || meta.sourceCardId || null,
     targets: Array.isArray(event.targets)
       ? event.targets.map((target) => normalizePlaybackTargetForParity(target))
       : []
@@ -688,7 +717,8 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
         ...(fixture.action.meteorTarget ? { meteorTarget: fixture.action.meteorTarget } : {}),
         ...(fixture.action.shrinkTarget ? { shrinkTarget: fixture.action.shrinkTarget } : {}),
         ...(fixture.action.superBuoyancyTarget ? { superBuoyancyTarget: fixture.action.superBuoyancyTarget } : {}),
-        ...(fixture.action.cloneTarget ? { cloneTarget: fixture.action.cloneTarget } : {})
+        ...(fixture.action.cloneTarget ? { cloneTarget: fixture.action.cloneTarget } : {}),
+        ...(fixture.action.guardTarget ? { guardTarget: fixture.action.guardTarget } : {})
       },
       turnIndex: fixture.action.turnIndex,
       action: fixture.action
