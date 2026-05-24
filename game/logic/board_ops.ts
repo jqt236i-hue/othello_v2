@@ -778,6 +778,14 @@ function _findStoneSalvationGodMarker(cardState: any, ownerKey: string): any {
     )) || null;
 }
 
+function _resolveStoneSalvationGodRescuerOwner(cardState: any, destroyedOwnerKey: string): string | null {
+    if (destroyedOwnerKey !== 'black' && destroyedOwnerKey !== 'white') return null;
+    const opponentOwnerKey = destroyedOwnerKey === 'black' ? 'white' : 'black';
+    if (_findStoneSalvationGodMarker(cardState, destroyedOwnerKey)) return destroyedOwnerKey;
+    if (_findStoneSalvationGodMarker(cardState, opponentOwnerKey)) return opponentOwnerKey;
+    return null;
+}
+
 function _ensurePendingStoneSalvationGodRevives(cardState: any): any {
     _ensureCardState(cardState);
     if (
@@ -812,13 +820,16 @@ function _isStoneSalvationGodMarkerAt(cardState: any, row: number, col: number, 
     ));
 }
 
-function _queueDestroyedStoneForStoneSalvationGod(cardState: any, row: number, col: number, ownerKey: string, cause: string | null, reason: string | null, meta: any): any {
+function _queueDestroyedStoneForStoneSalvationGod(cardState: any, row: number, col: number, destroyedOwnerKey: string, cause: string | null, reason: string | null, meta: any): any {
+    const ownerKey = _resolveStoneSalvationGodRescuerOwner(cardState, destroyedOwnerKey);
+    if (!ownerKey) return null;
     const source = _findStoneSalvationGodMarker(cardState, ownerKey);
     if (!source) return null;
     const entry = {
         row,
         col,
         owner: ownerKey,
+        destroyedOwner: destroyedOwnerKey,
         cause: cause || null,
         reason: reason || null,
         meta: _clonePresentationMetaWithActionContext(cardState, meta),
@@ -849,6 +860,7 @@ function _reviveDestroyedStoneByStoneSalvationGod(cardState: any, gameState: any
         revivedFromRow: pendingEntry && Number.isInteger(pendingEntry.row) ? pendingEntry.row : null,
         revivedFromCol: pendingEntry && Number.isInteger(pendingEntry.col) ? pendingEntry.col : null,
         revivedOwner: ownerKey,
+        destroyedOwner: pendingEntry && pendingEntry.destroyedOwner ? pendingEntry.destroyedOwner : ownerKey,
         sourceRow: source.row,
         sourceCol: source.col,
         delayedRevive: false,

@@ -115,6 +115,70 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     expect(reviveEventsAfterGodDestroy).toHaveLength(1);
   });
 
+  test('destroyed opponent stone revives as the salvation god owner when only that god can rescue it', () => {
+    const { cardState, gameState, prng } = createState([0]);
+    gameState.board[0][0] = Shared.BLACK;
+    gameState.board[1][1] = Shared.WHITE;
+    cardState.markers.push({
+      id: 1,
+      kind: 'specialStone',
+      row: 0,
+      col: 0,
+      owner: 'black',
+      data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 }
+    });
+
+    const destroyedOpponent = BoardOps.destroyAt(cardState, gameState, 1, 1, 'TEST', 'destroy_opponent', { randomSource: prng });
+    const reviveEvents = cardState.presentationEvents.filter((event: any) => event && event.type === 'SPAWN' && event.reason === 'stone_salvation_god_revive');
+
+    expect(destroyedOpponent.destroyed).toBe(true);
+    expect(destroyedOpponent.stoneSalvationGodReviveQueued).toBe(true);
+    expect(gameState.board[1][1]).toBe(Shared.EMPTY);
+    expect(gameState.board[0][1]).toBe(Shared.BLACK);
+    expect(reviveEvents).toHaveLength(1);
+    expect(reviveEvents[0]).toMatchObject({ row: 0, col: 1, ownerAfter: 'black', cause: 'STONE_SALVATION_GOD', reason: 'stone_salvation_god_revive' });
+    expect(reviveEvents[0].meta).toMatchObject({ destroyedOwner: 'white', revivedOwner: 'black' });
+  });
+
+  test('destroyed stone owner salvation god takes priority when both players have one', () => {
+    const { cardState, gameState, prng } = createState([0]);
+    gameState.board[0][0] = Shared.BLACK;
+    gameState.board[7][7] = Shared.WHITE;
+    gameState.board[1][1] = Shared.WHITE;
+    cardState.markers.push(
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
+      { id: 2, kind: 'specialStone', row: 7, col: 7, owner: 'white', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } }
+    );
+
+    const destroyedWhite = BoardOps.destroyAt(cardState, gameState, 1, 1, 'TEST', 'destroy_white', { randomSource: prng });
+    const reviveEvents = cardState.presentationEvents.filter((event: any) => event && event.type === 'SPAWN' && event.reason === 'stone_salvation_god_revive');
+
+    expect(destroyedWhite.destroyed).toBe(true);
+    expect(destroyedWhite.stoneSalvationGodReviveQueued).toBe(true);
+    expect(reviveEvents).toHaveLength(1);
+    expect(reviveEvents[0]).toMatchObject({ row: 0, col: 1, ownerAfter: 'white', cause: 'STONE_SALVATION_GOD', reason: 'stone_salvation_god_revive' });
+    expect(reviveEvents[0].meta).toMatchObject({ destroyedOwner: 'white', revivedOwner: 'white', sourceRow: 7, sourceCol: 7 });
+    expect(gameState.board[0][1]).toBe(Shared.WHITE);
+  });
+
+  test('destroyed salvation god itself is not rescued by the opponent salvation god', () => {
+    const { cardState, gameState, prng } = createState([0]);
+    gameState.board[0][0] = Shared.BLACK;
+    gameState.board[7][7] = Shared.WHITE;
+    cardState.markers.push(
+      { id: 1, kind: 'specialStone', row: 0, col: 0, owner: 'black', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } },
+      { id: 2, kind: 'specialStone', row: 7, col: 7, owner: 'white', data: { type: 'STONE_SALVATION_GOD', remainingOwnerTurns: 10 } }
+    );
+
+    const destroyedGod = BoardOps.destroyAt(cardState, gameState, 0, 0, 'TEST', 'destroy_black_god', { randomSource: prng });
+    const reviveEvents = cardState.presentationEvents.filter((event: any) => event && event.type === 'SPAWN' && event.reason === 'stone_salvation_god_revive');
+
+    expect(destroyedGod.destroyed).toBe(true);
+    expect(destroyedGod.stoneSalvationGodRevived).toBeUndefined();
+    expect(destroyedGod.stoneSalvationGodReviveQueued).toBeUndefined();
+    expect(reviveEvents).toHaveLength(0);
+  });
+
   test('block queued revive expires if the salvation god is gone before the destroy block resolves', () => {
     const { cardState, gameState, prng } = createState([0]);
     gameState.board[0][0] = Shared.BLACK;

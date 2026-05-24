@@ -97,7 +97,7 @@ const CARD_SUMMARY_OVERRIDES: Record<string, string> = Object.freeze({
   CORROSION_WILL: '特殊石の持続を削る',
   GUARD_WILL: '自分の石を完全保護する',
   GUARDIAN_GOD: '長く完全保護する',
-  STONE_SALVATION_GOD: '破壊された自石を救済する',
+  STONE_SALVATION_GOD: '破壊された石を救済する',
   DESTROY_DRAGON_WILL: '破壊龍で周囲を壊す',
   LIGHTNING_WILL: '落雷で敵石を破壊する',
   ULTIMATE_DESTROY_GOD: '破壊神で周囲を壊す',
