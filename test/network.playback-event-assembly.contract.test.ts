@@ -7,6 +7,7 @@ import * as adapter from '../game/turn/pipeline_ui_adapter.js';
 import * as Core from '../game/logic/core.js';
 import * as CardLogic from '../game/logic/cards.js';
 import * as TurnPipeline from '../game/turn/turn_pipeline.js';
+import * as PendingSelectionRegistry from '../game/logic/cards-internal/pending-selection-registry.js';
 import * as MatchAuthority from '../utils/match-authority.js';
 import * as SeededPRNG from '../game/schema/prng.js';
 import { createLocalMatchServer, resetRoomsForTests, patchRoomSnapshotForTests } from '../scripts/local-match-server.js';
@@ -2034,6 +2035,20 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
       }
     }
   }, 90000);
+
+  test('deferred pending selection registry entries stay covered by playback parity fixtures', () => {
+    const registry = PendingSelectionRegistry.PENDING_SELECTION_REGISTRY || {};
+    const requiredTypes = Object.keys(registry)
+      .filter((type) => registry[type] && registry[type].deferNetworkPublish === true && registry[type].needsTargetSelection === true)
+      .sort();
+    const coveredTypes = Array.from(new Set(
+      buildPlaybackParityFixtures()
+        .map((fixture) => fixture && fixture.name)
+        .filter(Boolean)
+    )).sort();
+
+    expect(coveredTypes).toEqual(expect.arrayContaining(requiredTypes));
+  });
 
   test('local match stream replays missed snapshot events after Last-Event-ID reconnect', async () => {
     let room = null;
