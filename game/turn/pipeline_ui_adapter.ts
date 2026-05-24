@@ -1149,14 +1149,19 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 clone: true
             }];
         } else {
-            targets = [{
+            const spawnTarget: any = {
                 r: ev.row,
                 col: ev.col,
                 stoneId: ev.stoneId,
                 ownerAfter: ev.ownerAfter,
                 cause: ev.cause || null,
                 reason: ev.reason || null
-            }];
+            };
+            if (spawnMeta && String(ev && ev.cause ? ev.cause : '').toUpperCase() === STONE_SALVATION_GOD_CAUSE) {
+                if (typeof spawnMeta.destroyedOwner === 'string') spawnTarget.destroyedOwner = spawnMeta.destroyedOwner;
+                if (typeof spawnMeta.revivedOwner === 'string') spawnTarget.revivedOwner = spawnMeta.revivedOwner;
+            }
+            targets = [spawnTarget];
         }
 
         return {

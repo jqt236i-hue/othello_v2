@@ -197,7 +197,9 @@ describe('pipeline_ui_adapter spawn mapping', () => {
         meta: {
           sourceSpecial: 'STONE_SALVATION_GOD',
           revivedFromRow: 1,
-          revivedFromCol: 1
+          revivedFromCol: 1,
+          destroyedOwner: 'white',
+          revivedOwner: 'black'
         }
       }
     ]);
@@ -212,7 +214,10 @@ describe('pipeline_ui_adapter spawn mapping', () => {
       r: 4,
       col: 4,
       cause: 'STONE_SALVATION_GOD',
-      reason: 'stone_salvation_god_revive'
+      reason: 'stone_salvation_god_revive',
+      ownerAfter: 'black',
+      destroyedOwner: 'white',
+      revivedOwner: 'black'
     });
   });
 

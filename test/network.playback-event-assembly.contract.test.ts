@@ -457,6 +457,25 @@ function buildMeteorFixture() {
   };
 }
 
+function buildMeteorOpponentSalvationFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  addSalvationGod(snapshot, 7, 0, 'black');
+  setStone(snapshot, 1, 1, 'white');
+  snapshot.cardState.pendingEffectByPlayer.black = { type: 'METEOR_WILL', stage: 'selectTarget', cardId: 'meteor_01' };
+  return {
+    name: 'METEOR_WILL_OPPONENT_SALVATION',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_meteor_opponent_salvation_place',
+      __skipTurnStart: false,
+      meteorTarget: { row: 1, col: 1 }
+    })
+  };
+}
+
 function buildBoardShrinkFixture() {
   const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
   addSalvationGod(snapshot, 7, 0, 'black');
@@ -492,6 +511,7 @@ function buildPlaybackParityFixtures() {
     buildTurnStartDestroyFixture('WILL_HUNTER_KING'),
     buildTurnStartDestroyFixture('ULTIMATE_DESTROY_GOD'),
     buildMeteorFixture(),
+    buildMeteorOpponentSalvationFixture(),
     buildBoardShrinkFixture()
   ];
 }
@@ -642,6 +662,22 @@ function collectFlipEvents(events) {
         ownerBefore: target.ownerBefore,
         ownerAfter: target.ownerAfter
       }))
+    }));
+}
+
+function collectStoneSalvationGodReviveTargets(events) {
+  return (Array.isArray(events) ? events : [])
+    .flatMap((event) => Array.isArray(event && event.targets) ? event.targets : [])
+    .filter((target) => target && (
+      target.cause === 'STONE_SALVATION_GOD' ||
+      (target.meta && target.meta.cause === 'STONE_SALVATION_GOD') ||
+      target.reason === 'stone_salvation_god_revive' ||
+      (target.meta && target.meta.reason === 'stone_salvation_god_revive')
+    ))
+    .map((target) => ({
+      ownerAfter: target.ownerAfter || null,
+      destroyedOwner: target.destroyedOwner || (target.meta && target.meta.destroyedOwner) || null,
+      revivedOwner: target.revivedOwner || (target.meta && target.meta.revivedOwner) || null
     }));
 }
 
@@ -984,6 +1020,15 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
       const stateVersion = Number(fixture.action && fixture.action.turnIndex) || 2;
       const expected = buildExpectedAssembly(fixture.snapshot, fixture.action, fixture.name);
       expect(expected.diagnostics && expected.diagnostics.warnings).toEqual([]);
+      if (fixture.name === 'METEOR_WILL_OPPONENT_SALVATION') {
+        expect(collectStoneSalvationGodReviveTargets(expected.playbackEvents)).toEqual([
+          expect.objectContaining({
+            ownerAfter: 'black',
+            destroyedOwner: 'white',
+            revivedOwner: 'black'
+          })
+        ]);
+      }
 
       adapter.setPipelineUIAdapterRuntime({
         getGamePrng: () => createFixturePrng(MatchAuthority.createTurnStartSeed({ seed: 7 }, fixture.snapshot, fixture.action.playerKey))
@@ -1015,10 +1060,35 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
       expect({ name: fixture.name, status: workerResult.status, payload: workerResult.payload }).toEqual(expect.objectContaining({ status: 200 }));
       expect(workerResult.payload.ok).toBe(true);
       expectPlaybackParityPrefix(workerResult.broadcastMeta && workerResult.broadcastMeta.playbackEvents, expected.playbackEvents);
+      if (fixture.name === 'METEOR_WILL_OPPONENT_SALVATION') {
+        expect(collectStoneSalvationGodReviveTargets(workerResult.broadcastMeta && workerResult.broadcastMeta.playbackEvents)).toEqual([
+          expect.objectContaining({
+            ownerAfter: 'black',
+            destroyedOwner: 'white',
+            revivedOwner: 'black'
+          })
+        ]);
+      }
 
       const localResult = await publishFixtureThroughLocalServer(fixture, stateVersion);
       expectPlaybackParityPrefix(localResult.responsePlaybackEvents, expected.playbackEvents);
       expectPlaybackParityPrefix(localResult.streamPlaybackEvents, expected.playbackEvents);
+      if (fixture.name === 'METEOR_WILL_OPPONENT_SALVATION') {
+        expect(collectStoneSalvationGodReviveTargets(localResult.responsePlaybackEvents)).toEqual([
+          expect.objectContaining({
+            ownerAfter: 'black',
+            destroyedOwner: 'white',
+            revivedOwner: 'black'
+          })
+        ]);
+        expect(collectStoneSalvationGodReviveTargets(localResult.streamPlaybackEvents)).toEqual([
+          expect.objectContaining({
+            ownerAfter: 'black',
+            destroyedOwner: 'white',
+            revivedOwner: 'black'
+          })
+        ]);
+      }
     }
   }, 90000);
 
