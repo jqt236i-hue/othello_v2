@@ -382,6 +382,64 @@ function runTurnStartWorkIncomeScenario() {
   return runScenario(runner);
 }
 
+function runTurnStartObserverAnchorLostScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const path = require('path');",
+    "  const fromRoot = (relativePath) => require(path.resolve(process.cwd(), relativePath));",
+    "  const Core = fromRoot('game/logic/core.js');",
+    "  const CardLogic = fromRoot('game/logic/cards.js');",
+    "  const SeededPRNG = fromRoot('game/schema/prng.js');",
+    "  const storage = new Map();",
+    "  const durableObject = new MatchRoomDurableObject({ storage: { get: async (key) => storage.get(key), put: async (key, value) => storage.set(key, value), delete: async (key) => storage.delete(key), setAlarm: async () => {}, deleteAlarm: async () => {} } });",
+    "",
+    "  const gameState = Core.createGameState();",
+    "  const prng = SeededPRNG.createPRNG(23);",
+    "  const cardState = CardLogic.createCardState(prng);",
+    "  gameState.currentPlayer = Core.BLACK;",
+    "  gameState.turnNumber = 1;",
+    "  gameState.board[1][1] = Core.EMPTY;",
+    "  cardState.markers.push({ id: 'observer_lost_1', kind: 'specialStone', row: 1, col: 1, owner: 'black', data: { type: 'OBSERVER', remainingOwnerTurns: 3 } });",
+    "",
+    "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
+    "    roomId: 'OBS1',",
+    "    playerName: 'くろ',",
+    "    seed: 23,",
+    "    snapshot: { gameState, cardState }",
+    "  });",
+    "  const createPayload = await createResponse.json();",
+    "  const publishResponse = await durableObject.handlePublish({",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: createPayload.seatToken,",
+    "    baseVersion: createPayload.stateVersion,",
+    "    operationId: 'op_observer_anchor_lost_1',",
+    "    actionType: 'place',",
+    "    actor: 'black',",
+    "    params: { row: 2, col: 3 },",
+    "    turnIndex: cardState.turnIndex || 0",
+    "  });",
+    "  const payload = await publishResponse.json();",
+    "  await durableObject.loadRoom();",
+    "  const storedCardState = durableObject.room && durableObject.room.snapshot ? durableObject.room.snapshot.cardState : null;",
+    "  const observerMarkers = storedCardState && Array.isArray(storedCardState.markers) ? storedCardState.markers.filter((marker) => marker && marker.data && marker.data.type === 'OBSERVER') : [];",
+    "  process.stdout.write(JSON.stringify({",
+    "    status: publishResponse.status,",
+    "    payload,",
+    "    observerMarkers,",
+    "    finalBoard: durableObject.room && durableObject.room.snapshot ? durableObject.room.snapshot.gameState.board : null",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
 describe('match worker publish idempotency', () => {
   test('serialized command payloadの再送は重複適用せず成功応答する', () => {
     const result = runPublishIdempotencyScenario();
@@ -518,6 +576,28 @@ describe('match worker publish idempotency', () => {
           timer: 2,
           owner: 'black'
         })
+      })
+    ]));
+  });
+
+  test('turn-start observer anchor lost removes authoritative marker and emits bubble playback', () => {
+    const result = runTurnStartObserverAnchorLostScenario();
+
+    expect(result.status).toBe(200);
+    expect(result.payload && result.payload.ok).toBe(true);
+    expect(result.observerMarkers).toEqual([]);
+    expect(result.finalBoard[2][3]).toBe(1);
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'observer_bubble',
+        rawType: 'OBSERVER_BUBBLE',
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            r: 1,
+            col: 1,
+            owner: 'black'
+          })
+        ])
       })
     ]));
   });
