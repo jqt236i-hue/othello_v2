@@ -43,6 +43,15 @@ function collectPlaybackEventsByType(events, type) {
   return (Array.isArray(events) ? events : []).filter((event) => event && event.type === type);
 }
 
+const EXPECTED_PENDING_TYPE_BY_CARD_ID = Object.freeze({
+  destroy_01: 'DESTROY_ONE_STONE',
+  swap_01: 'SWAP_WITH_ENEMY',
+  position_swap_01: 'POSITION_SWAP_WILL',
+  capture_01: 'CAPTURE_WILL',
+  living_will_01: 'LIVING_WILL',
+  bomb_01: 'TIME_BOMB'
+});
+
 function createCardUseRuntime(cardId, seed = 71) {
   const runtime = LocalMatchRuntime.createRuntime({ seed });
   const snapshot = runtime.getRoom().snapshot;
@@ -137,6 +146,10 @@ describe('worker card pattern parity', () => {
   test.each([
     ['pending selection destroy', 'destroy_01'],
     ['pending selection swap', 'swap_01'],
+    ['pending selection position swap', 'position_swap_01'],
+    ['pending selection capture', 'capture_01'],
+    ['pending selection living will', 'living_will_01'],
+    ['pending selection time bomb', 'bomb_01'],
     ['cell removal meteor', 'meteor_01'],
     ['cell removal board shrink god', 'board_shrink_god_01'],
     ['turn-start/random gluttonous', 'gluttonous_will_01'],
@@ -164,6 +177,12 @@ describe('worker card pattern parity', () => {
     expect(workerResult.payload.stateVersion).toBe(localResult.stateVersion);
     expect(normalizePublicSnapshotForParity(workerResult.payload.snapshot))
       .toEqual(normalizePublicSnapshotForParity(localPublic));
+    if (EXPECTED_PENDING_TYPE_BY_CARD_ID[cardId]) {
+      expect(workerResult.payload.snapshot.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+        type: EXPECTED_PENDING_TYPE_BY_CARD_ID[cardId],
+        stage: 'selectTarget'
+      }));
+    }
     expect(normalizePlaybackSummary(workerResult.payload.playbackEvents))
       .toEqual(normalizePlaybackSummary(localResult.playbackEvents));
     expect(workerResult.payload.effectLogs || []).toEqual(localResult.effectLogs || []);
