@@ -1175,11 +1175,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         const opts = (options && typeof options === 'object') ? options : {};
         const snapshotVersion = getSnapshotStateVersion(snapshot);
         const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
+        const shadowPlaybackEvents = Array.isArray(opts.shadowPlaybackEvents) ? opts.shadowPlaybackEvents : [];
         if (snapshotVersion === null) {
             clearPendingForceSyncPlaybackRecovery();
             return false;
         }
-        if (opts.force !== true || playbackEvents.length > 0) {
+        if (opts.force !== true || playbackEvents.length > 0 || shadowPlaybackEvents.length > 0) {
             const pendingVersion = Number.isFinite(Number(state.pendingForceSyncPlaybackVersion))
                 ? Number(state.pendingForceSyncPlaybackVersion)
                 : null;
@@ -2711,7 +2712,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                         rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
                             source: 'publish_response',
                             force: true,
-                            playbackEvents: shouldShadowPlaybackResponse ? [] : serverPlaybackEvents
+                            playbackEvents: shouldShadowPlaybackResponse ? [] : serverPlaybackEvents,
+                            shadowPlaybackEvents: shouldShadowPlaybackResponse ? serverPlaybackEvents : []
                         });
                         emitPayloadEffectLogs(res.data);
                         recordNetworkTelemetry('publish_response_snapshot_applied', {

@@ -413,4 +413,57 @@ describe('NetworkMatchClient apply coordinator', () => {
     expect(client.getNetworkTelemetry().counts.publish_response_snapshot_applied).toBe(1);
     expect(global.showResult).toHaveBeenCalledTimes(1);
   });
+
+  test('shadow 済み publish response の同版 stream は playback recovery を二重発火しない', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+    expect(eventSources).toHaveLength(1);
+
+    const responseSnapshot = createSnapshot(11, { topLevelStateVersion: 11, metaVersion: 11 });
+    const playbackEvents = [{ type: 'hand_add', phase: 1, targets: [{ player: 'black', count: 1 }] }];
+    responsePayload = {
+      ok: true,
+      roomId: 'ABC',
+      stateVersion: 11,
+      snapshot: responseSnapshot,
+      playbackEvents
+    };
+
+    const publishPromise = client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents,
+      action: createPlaceAction('black', 1)
+    });
+
+    await Promise.resolve();
+    expect(publishPayloads).toHaveLength(1);
+    const operationId = publishPayloads[0].operationId;
+
+    resolvePublishResponse();
+    const result = await publishPromise;
+    expect(result.ok).toBe(true);
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+
+    eventSources[0].onmessage({
+      data: JSON.stringify({
+        ok: true,
+        roomId: 'ABC',
+        operationId,
+        playerKey: 'black',
+        actionType: 'place',
+        playbackEvents,
+        snapshot: responseSnapshot
+      })
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    expect(client.getNetworkTelemetry().counts.stream_playback_recovered_after_force_sync || 0).toBe(0);
+  });
 });
