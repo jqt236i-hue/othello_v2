@@ -1829,6 +1829,35 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         } catch (e: any) { /* ignore */ }
                         return false;
                     },
+                    readNetworkSeatKey: () => {
+                        try {
+                            if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return null;
+                            const client = (globalThis as any).NetworkMatchClient;
+                            if (typeof client.getSeatKey !== 'function') return null;
+                            return client.getSeatKey();
+                        } catch (e: any) { /* ignore */ }
+                        return null;
+                    },
+                    publishNetworkSnapshot: (meta: any) => {
+                        try {
+                            if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return undefined;
+                            const client = (globalThis as any).NetworkMatchClient;
+                            if (typeof client.publishSnapshot !== 'function') return undefined;
+                            if (typeof client.isActive === 'function' && !client.isActive()) return undefined;
+                            return client.publishSnapshot(meta);
+                        } catch (e: any) { /* ignore */ }
+                        return undefined;
+                    },
+                    isNetworkPublishActive: () => {
+                        try {
+                            if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return false;
+                            const client = (globalThis as any).NetworkMatchClient;
+                            if (typeof client.publishSnapshot !== 'function') return false;
+                            if (typeof client.isActive === 'function') return client.isActive() === true;
+                            return true;
+                        } catch (e: any) { /* ignore */ }
+                        return false;
+                    },
                     isDocumentHidden: () => (typeof document !== 'undefined' && document.hidden) || false,
                     pulseDeckUI: () => {},
                     scheduleCpuTurn: (ms: any, cb: any) => { timersImpl.waitMs(ms || 0).then(cb); },

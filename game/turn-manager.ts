@@ -720,9 +720,9 @@ function isOthelloModeForTurnManager() {
 
 function resolveNetworkLocalPlayerKey() {
     try {
-        const nmClient = getNetworkMatchClientForTurnManager();
-        if (nmClient && typeof nmClient.getSeatKey === 'function') {
-            const seatKey = nmClient.getSeatKey();
+        const impl = __uiImpl_turn_manager;
+        if (impl && typeof impl.readNetworkSeatKey === 'function') {
+            const seatKey = impl.readNetworkSeatKey();
             if (seatKey === 'white' || seatKey === 'black') return seatKey;
         }
         const runtimeKeys = [
@@ -734,9 +734,9 @@ function resolveNetworkLocalPlayerKey() {
             if (key === 'white' || key === 'black') return key;
         }
         // LOCAL_PLAYER_KEY / BOARD_VIEWER_KEY via DI (setUIImpl)
-        const impl = __uiImpl_turn_manager;
-        if (impl) {
-            const directKeys = [impl.LOCAL_PLAYER_KEY, impl.__LOCAL_PLAYER_KEY, impl.BOARD_VIEWER_KEY];
+        const directImpl = __uiImpl_turn_manager;
+        if (directImpl) {
+            const directKeys = [directImpl.LOCAL_PLAYER_KEY, directImpl.__LOCAL_PLAYER_KEY, directImpl.BOARD_VIEWER_KEY];
             for (const key of directKeys) {
                 if (key === 'white' || key === 'black') return key;
             }
@@ -780,10 +780,19 @@ function canLocalUserOperateCurrentTurn() {
     return currentPlayerKey === localPlayerKey;
 }
 
-function getNetworkMatchClientForTurnManager() {
+function getNetworkPublishAdapterForTurnManager() {
     try {
-        const client = readTurnManagerRuntimeValue('NetworkMatchClient');
-        if (client) return client;
+        const impl = __uiImpl_turn_manager;
+        if (!impl) return null;
+        if (impl.networkPublishAdapter && typeof impl.networkPublishAdapter === 'object') {
+            return impl.networkPublishAdapter;
+        }
+        if (typeof impl.publishNetworkSnapshot === 'function' || typeof impl.isNetworkPublishActive === 'function') {
+            return {
+                publishSnapshot: impl.publishNetworkSnapshot,
+                isActive: impl.isNetworkPublishActive
+            };
+        }
     } catch (e) { /* ignore */ }
     return null;
 }
@@ -800,7 +809,7 @@ function publishNetworkResetSnapshot() {
     try {
         if (!isNetworkModeForTurnManager()) return;
 
-        const client = getNetworkMatchClientForTurnManager();
+        const client = getNetworkPublishAdapterForTurnManager();
         if (!client || typeof client.publishSnapshot !== 'function') return;
         if (typeof client.isActive === 'function' && !client.isActive()) return;
 
@@ -820,7 +829,7 @@ function shouldPublishNetworkResetSnapshotAtResetStart(options?: any) {
             return false;
         }
         if (!isNetworkModeForTurnManager()) return false;
-        const client = getNetworkMatchClientForTurnManager();
+        const client = getNetworkPublishAdapterForTurnManager();
         if (!client || typeof client.publishSnapshot !== 'function') return false;
         if (typeof client.isActive === 'function') {
             return client.isActive() === true;

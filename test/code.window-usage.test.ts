@@ -61,4 +61,19 @@ describe('check-window-usage', () => {
     expect(res.stderr).toContain('game/card-effects/__network-client-check-fixture.ts');
     expect(res.stderr).toContain('root NetworkMatchClient');
   });
+
+  test('rejects root NetworkMatchClient name smuggling from game source', () => {
+    fs.writeFileSync(
+      networkClientFixturePath,
+      "export function fixture(resolveGlobalValue) { return resolveGlobalValue('NetworkMatchClient'); }\n",
+      'utf8'
+    );
+
+    const res = runCheckWindowUsage();
+
+    expect(res.status).toBe(2);
+    expect(res.stderr).toContain('Forbidden usage found in non-UI files');
+    expect(res.stderr).toContain('game/card-effects/__network-client-check-fixture.ts');
+    expect(res.stderr).toContain('root NetworkMatchClient');
+  });
 });

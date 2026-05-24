@@ -249,6 +249,7 @@ Stable browser-side ownership for that flow is:
 - `ui/network/session-seat.js` owns session activation, reset, and seat-bound session state
 - `ui/network/snapshot.js` owns authoritative snapshot apply and presentation reconciliation
 - `ui/network/snapshot-runtime.js` owns browser/runtime lookup and fallback wiring used by snapshot application
+- `game/turn-manager.ts` may request a network reset publish only through injected UI/network adapters; it must not discover a root `NetworkMatchClient` global.
 
 #### 7.2.1 Pending selection network bridge
 

@@ -744,6 +744,9 @@ describe('turn-manager scheduling', () => {
     const rm = require('../game/turn-manager.js');
     rm.setUIImpl({
       readCpuSmartness: () => ({ black: 2, white: 3 }),
+      readNetworkSeatKey: () => global.NetworkMatchClient.getSeatKey(),
+      publishNetworkSnapshot: (meta) => global.NetworkMatchClient.publishSnapshot(meta),
+      isNetworkPublishActive: () => global.NetworkMatchClient.isActive(),
       clearLogUI: jest.fn()
     });
 
@@ -800,6 +803,9 @@ describe('turn-manager scheduling', () => {
     const rm = require('../game/turn-manager.js');
     rm.setUIImpl({
       readCpuSmartness: () => ({ black: 2, white: 3 }),
+      readNetworkSeatKey: () => global.NetworkMatchClient.getSeatKey(),
+      publishNetworkSnapshot: (meta) => global.NetworkMatchClient.publishSnapshot(meta),
+      isNetworkPublishActive: () => global.NetworkMatchClient.isActive(),
       clearLogUI: jest.fn()
     });
 
@@ -852,6 +858,9 @@ describe('turn-manager scheduling', () => {
     const rm = require('../game/turn-manager.js');
     rm.setUIImpl({
       readCpuSmartness: () => ({ black: 2, white: 3 }),
+      readNetworkSeatKey: () => global.NetworkMatchClient.getSeatKey(),
+      publishNetworkSnapshot: (meta) => global.NetworkMatchClient.publishSnapshot(meta),
+      isNetworkPublishActive: () => global.NetworkMatchClient.isActive(),
       clearLogUI: jest.fn()
     });
 

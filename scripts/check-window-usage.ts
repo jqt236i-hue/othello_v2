@@ -142,6 +142,13 @@ for (const f of files) {
                 violations.push({ file: f, line: toLine(sourceFile, node), label: 'root NetworkMatchClient' });
             }
         }
+        if (
+            shouldEnforceGlobalThis(f)
+            && ts.isStringLiteralLike(node)
+            && node.text === 'NetworkMatchClient'
+        ) {
+            violations.push({ file: f, line: toLine(sourceFile, node), label: 'root NetworkMatchClient' });
+        }
         if (ts.isCallExpression(node)
             && ts.isIdentifier(node.expression)
             && node.expression.text === 'require'
