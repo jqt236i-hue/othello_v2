@@ -216,6 +216,7 @@ const HIGH_VARIANCE_CARD_TYPES = new Set([
     'SUPER_BUOYANCY_WILL',
     'GRAVITY_WILL',
     'SUPER_GRAVITY_WILL',
+    'SUPER_ATTRACTION_WILL',
     'CORNER_TRIBUTE',
     'WILL_HUNTER_KING',
     'SEED_WILL'
@@ -234,6 +235,7 @@ const CORNER_RECOVERY_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeu
             'SUPER_BUOYANCY_WILL',
             'GRAVITY_WILL',
             'SUPER_GRAVITY_WILL',
+            'SUPER_ATTRACTION_WILL',
             'CORNER_TRIBUTE'
         ]
     )
@@ -259,6 +261,7 @@ const CORNER_RECOVERY_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeu
         'SUPER_BUOYANCY_WILL',
         'GRAVITY_WILL',
         'SUPER_GRAVITY_WILL',
+        'SUPER_ATTRACTION_WILL',
         'CORNER_TRIBUTE'
     ]);
 
@@ -610,6 +613,7 @@ const CARD_TYPE_BASE_SCORE_BONUS = Object.freeze({
     SUPER_BUOYANCY_WILL: -3,
     GRAVITY_WILL: -1,
     SUPER_GRAVITY_WILL: -3,
+    SUPER_ATTRACTION_WILL: -2,
     SWAP_WITH_ENEMY: 7,
     TABOO_REVERSE_WILL: 1,
     TELEPORT_WILL: -1,
@@ -700,6 +704,7 @@ const ALL_CARD_TYPES_FOR_USAGE_STYLE = Object.freeze([
     'SUPER_BUOYANCY_WILL',
     'GRAVITY_WILL',
     'SUPER_GRAVITY_WILL',
+    'SUPER_ATTRACTION_WILL',
     'SWAP_WITH_ENEMY',
     'TABOO_REVERSE_WILL',
     'TELEPORT_WILL',
@@ -790,6 +795,7 @@ const CARD_TYPE_USAGE_STYLE_OVERRIDES = Object.freeze({
     SUPER_BUOYANCY_WILL: { trailingBias: 4, cornerEmergencyBias: 4, cornerNowBias: -4 },
     GRAVITY_WILL: { trailingBias: 3, cornerEmergencyBias: 3, cornerNowBias: -4 },
     SUPER_GRAVITY_WILL: { trailingBias: 4, cornerEmergencyBias: 4, cornerNowBias: -4 },
+    SUPER_ATTRACTION_WILL: { trailingBias: 5, cornerEmergencyBias: 5, edgeEmergencyBias: 3, cornerNowBias: -5 },
     SWAP_WITH_ENEMY: { trailingBias: 4, edgeEmergencyBias: 4, cornerNowBias: -4 },
     TABOO_REVERSE_WILL: { trailingBias: 6, cornerEmergencyBias: 4, leadBias: -6 },
     TELEPORT_WILL: { trailingBias: 4, edgeEmergencyBias: 4, cornerNowBias: -4 },
@@ -1195,6 +1201,7 @@ const CARD_TYPE_MOVE_PLAN_PROFILE_OVERRIDES = Object.freeze({
     SUPER_BUOYANCY_WILL: { archetype: 'recoveryReposition', placementWeight: 0, edgeBias: 3, oppAdjBias: 3 },
     GRAVITY_WILL: { archetype: 'recoveryReposition', placementWeight: 0, edgeBias: 2, emptyAdjBias: 3 },
     SUPER_GRAVITY_WILL: { archetype: 'recoveryReposition', placementWeight: 0, edgeBias: 3, oppAdjBias: 3 },
+    SUPER_ATTRACTION_WILL: { archetype: 'recoveryReposition', placementWeight: 0, cornerBias: 3, edgeBias: 3, oppAdjBias: 4, emptyAdjBias: 2 },
     SWAP_WITH_ENEMY: { archetype: 'recoveryReposition', placementWeight: 0, ownAdjBias: -2, oppAdjBias: 3 },
     TABOO_REVERSE_WILL: { archetype: 'explosiveComeback', placementWeight: 3, cornerBias: 3, edgeBias: 2, mobilityBias: 3 },
     TELEPORT_WILL: { archetype: 'recoveryReposition', placementWeight: 0, mobilityBias: 3, emptyAdjBias: 3, xPenalty: 1 },
