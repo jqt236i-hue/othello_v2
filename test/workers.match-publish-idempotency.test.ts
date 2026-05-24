@@ -879,6 +879,74 @@ function runTurnStartUltimateHyperactiveScenario() {
   return runScenario(runner);
 }
 
+function runTurnStartEscapeHyperactiveExplosionScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const path = require('path');",
+    "  const fromRoot = (relativePath) => require(path.resolve(process.cwd(), relativePath));",
+    "  const Core = fromRoot('game/logic/core.js');",
+    "  const CardLogic = fromRoot('game/logic/cards.js');",
+    "  const SeededPRNG = fromRoot('game/schema/prng.js');",
+    "  const storage = new Map();",
+    "  const durableObject = new MatchRoomDurableObject({ storage: { get: async (key) => storage.get(key), put: async (key, value) => storage.set(key, value), delete: async (key) => storage.delete(key), setAlarm: async () => {}, deleteAlarm: async () => {} } });",
+    "",
+    "  const gameState = Core.createGameState();",
+    "  const prng = SeededPRNG.createPRNG(59);",
+    "  const cardState = CardLogic.createCardState(prng);",
+    "  gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));",
+    "  gameState.currentPlayer = Core.BLACK;",
+    "  gameState.turnNumber = 1;",
+    "  gameState.board[4][3] = Core.BLACK;",
+    "  gameState.board[2][5] = Core.BLACK;",
+    "  gameState.board[3][3] = Core.WHITE;",
+    "  gameState.board[2][4] = Core.WHITE;",
+    "  for (let row = 5; row <= 7; row += 1) {",
+    "    for (let col = 5; col <= 7; col += 1) {",
+    "      gameState.board[row][col] = row === 6 && col === 6 ? Core.BLACK : Core.WHITE;",
+    "    }",
+    "  }",
+    "  cardState.markers.push({ id: 'escape_hyperactive_1', kind: 'specialStone', row: 6, col: 6, owner: 'black', data: { type: 'ESCAPE_HYPERACTIVE', remainingOwnerTurns: 5, flipEvadeRemaining: 1 } });",
+    "",
+    "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
+    "    roomId: 'EHE1',",
+    "    playerName: 'くろ',",
+    "    seed: 59,",
+    "    snapshot: { gameState, cardState }",
+    "  });",
+    "  const createPayload = await createResponse.json();",
+    "  const publishResponse = await durableObject.handlePublish({",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: createPayload.seatToken,",
+    "    baseVersion: createPayload.stateVersion,",
+    "    operationId: 'op_escape_hyperactive_explosion_1',",
+    "    actionType: 'place',",
+    "    actor: 'black',",
+    "    params: { row: 2, col: 3 },",
+    "    turnIndex: cardState.turnIndex || 0",
+    "  });",
+    "  const payload = await publishResponse.json();",
+    "  await durableObject.loadRoom();",
+    "  const storedSnapshot = durableObject.room && durableObject.room.snapshot ? durableObject.room.snapshot : null;",
+    "  const storedCardState = storedSnapshot ? storedSnapshot.cardState : null;",
+    "  const marker = storedCardState && Array.isArray(storedCardState.markers) ? storedCardState.markers.find((item) => item && item.id === 'escape_hyperactive_1') : null;",
+    "  process.stdout.write(JSON.stringify({",
+    "    status: publishResponse.status,",
+    "    payload,",
+    "    marker,",
+    "    finalBoard: storedSnapshot ? storedSnapshot.gameState.board : null",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
 describe('match worker publish idempotency', () => {
   test('serialized command payloadの再送は重複適用せず成功応答する', () => {
     const result = runPublishIdempotencyScenario();
@@ -1297,6 +1365,47 @@ describe('match worker publish idempotency', () => {
           })
         ])
       })
+    ]));
+  });
+
+  test('turn-start escape hyperactive explosion removes 3x3 area in one playback phase', () => {
+    const result = runTurnStartEscapeHyperactiveExplosionScenario();
+
+    expect(result.status).toBe(200);
+    expect(result.payload && result.payload.ok).toBe(true);
+    expect(result.finalBoard[2][3]).toBe(1);
+    expect(result.marker).toBeFalsy();
+
+    for (let row = 5; row <= 7; row += 1) {
+      for (let col = 5; col <= 7; col += 1) {
+        expect(result.finalBoard[row][col]).toBe(0);
+      }
+    }
+
+    const escapeDestroyEvents = (result.payload.playbackEvents || []).filter((event) => (
+      event &&
+      event.type === 'destroy' &&
+      Array.isArray(event.targets) &&
+      event.targets.some((target) => (
+        target &&
+        target.cause === 'ESCAPE_HYPERACTIVE' &&
+        target.reason === 'escape_no_candidates_explosion'
+      ))
+    ));
+    const escapeDestroyTargets = escapeDestroyEvents.flatMap((event) => (
+      (event.targets || []).filter((target) => (
+        target &&
+        target.cause === 'ESCAPE_HYPERACTIVE' &&
+        target.reason === 'escape_no_candidates_explosion'
+      ))
+    ));
+
+    expect(escapeDestroyTargets).toHaveLength(9);
+    expect(new Set(escapeDestroyEvents.map((event) => event.phase)).size).toBe(1);
+    expect(escapeDestroyTargets).toEqual(expect.arrayContaining([
+      expect.objectContaining({ r: 6, col: 6 }),
+      expect.objectContaining({ r: 5, col: 5 }),
+      expect.objectContaining({ r: 7, col: 7 })
     ]));
   });
 });
