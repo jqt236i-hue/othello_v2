@@ -234,7 +234,7 @@ function runAlarmTimeoutScenario() {
     "      turnDeadlineAt: Date.now() - 10",
     "    },",
     "    snapshot: {",
-    "      gameState: { board, currentPlayer: 1, consecutivePasses: 0, turnNumber: 9 },",
+    "      gameState: { board, currentPlayer: 1, consecutivePasses: 0, turnNumber: 9, __resultShown: true },",
     "      cardState: {",
     "        hands: { black: ['b0'], white: [] },",
     "        decks: { black: [], white: ['wdraw'] },",
@@ -333,6 +333,7 @@ describe('match worker turn timer', () => {
 
     expect(result.stateVersion).toBe(5);
     expect(result.snapshot.gameState.currentPlayer).toBe(-1);
+    expect(result.snapshot.gameState.__resultShown).toBeUndefined();
     expect(result.snapshot.cardState.pendingEffectByPlayer.black).toBeNull();
     expect(result.snapshot.cardState.selectedCardId).toBeNull();
   });
