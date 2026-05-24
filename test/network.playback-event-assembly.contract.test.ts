@@ -250,7 +250,7 @@ function runWorkerCommandPlace(snapshot, action, stateVersion, options = {}) {
     "    operationId,",
     "    actionType: 'place',",
     "    actor: playerKey,",
-    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}),",
+    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}),",
     "    turnIndex: action.turnIndex,",
     "    action",
     "  });",
@@ -526,6 +526,28 @@ function buildPositionSwapFixture() {
   };
 }
 
+function buildTeleportFixture(kind) {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  setStone(snapshot, 3, 4, 'black');
+  snapshot.cardState.pendingEffectByPlayer.black = {
+    type: kind,
+    stage: 'selectTarget',
+    cardId: kind === 'CELL_TELEPORT_WILL' ? 'cell_teleport_01' : 'teleport_01'
+  };
+  return {
+    name: kind,
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: `fixture_${String(kind).toLowerCase()}_place`,
+      __skipTurnStart: false,
+      teleportTarget: { row: 3, col: 4 }
+    })
+  };
+}
+
 function buildSuperBuoyancyFixture() {
   const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
   setStone(snapshot, 6, 4, 'black');
@@ -739,6 +761,8 @@ function buildPlaybackParityFixtures() {
     buildMeteorOpponentSalvationFixture(),
     buildBoardShrinkFixture(),
     buildPositionSwapFixture(),
+    buildTeleportFixture('TELEPORT_WILL'),
+    buildTeleportFixture('CELL_TELEPORT_WILL'),
     buildSuperBuoyancyFixture(),
     buildCloneWillFixture(),
     buildGuardWillFixture(),
@@ -884,6 +908,7 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
         ...(fixture.action.meteorTarget ? { meteorTarget: fixture.action.meteorTarget } : {}),
         ...(fixture.action.shrinkTarget ? { shrinkTarget: fixture.action.shrinkTarget } : {}),
         ...(fixture.action.positionSwapTarget ? { positionSwapTarget: fixture.action.positionSwapTarget } : {}),
+        ...(fixture.action.teleportTarget ? { teleportTarget: fixture.action.teleportTarget } : {}),
         ...(fixture.action.superBuoyancyTarget ? { superBuoyancyTarget: fixture.action.superBuoyancyTarget } : {}),
         ...(fixture.action.cloneTarget ? { cloneTarget: fixture.action.cloneTarget } : {}),
         ...(fixture.action.guardTarget ? { guardTarget: fixture.action.guardTarget } : {})
@@ -1401,6 +1426,32 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
                 cause: 'POSITION_SWAP_WILL'
               })
             ])
+          })
+        ]));
+      }
+      if (fixture.name === 'TELEPORT_WILL' || fixture.name === 'CELL_TELEPORT_WILL') {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'move',
+            targets: expect.arrayContaining([
+              expect.objectContaining({
+                from: { r: 3, col: 4 },
+                cause: fixture.name,
+                reason: 'teleport_move'
+              })
+            ])
+          })
+        ]));
+      }
+      if (fixture.name === 'CELL_TELEPORT_WILL') {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'status_applied',
+            rawType: 'STATUS_APPLIED',
+            targets: expect.arrayContaining([
+              expect.objectContaining({ r: 3, col: 4 })
+            ]),
+            meta: expect.objectContaining({ special: 'METEOR_HOLE' })
           })
         ]));
       }
