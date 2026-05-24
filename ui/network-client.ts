@@ -370,19 +370,17 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkReconnectController: any = null;
     let networkPublishTrackerController: any = null;
     let ownerHelpers: any = null;
-    if (typeof require === 'function') {
-        try { networkCommentaryModule = require('./network/commentary'); } catch (e: any) { /* ignore */ }
-        try { networkActionSchemaModule = require('../shared/network-action-schema'); } catch (e: any) { /* ignore */ }
-        try { networkPublishRequestModule = require('./network/publish-request'); } catch (e: any) { /* ignore */ }
-        try { networkSnapshotModule = require('./network/snapshot'); } catch (e: any) { /* ignore */ }
-        try { networkSessionSeatModule = require('./network/session-seat'); } catch (e: any) { /* ignore */ }
-        try { networkSessionLifecycleModule = require('./network/session-lifecycle'); } catch (e: any) { /* ignore */ }
-        try { networkCommandPayloadModule = require('./network/command-payload'); } catch (e: any) { /* ignore */ }
-        try { networkActionBridgeModule = require('./network/action-bridge'); } catch (e: any) { /* ignore */ }
-        try { networkApplyCoordinatorModule = require('./network/apply-coordinator'); } catch (e: any) { /* ignore */ }
-        try { networkReconnectControllerModule = require('./network/reconnect-controller'); } catch (e: any) { /* ignore */ }
-        try { networkPublishTrackerModule = require('./network/publish-tracker'); } catch (e: any) { /* ignore */ }
-    }
+    networkCommentaryModule = resolveNetworkClientModule('./network/commentary', null);
+    networkActionSchemaModule = resolveNetworkClientModule('../shared/network-action-schema', null);
+    networkPublishRequestModule = resolveNetworkClientModule('./network/publish-request', null);
+    networkSnapshotModule = resolveNetworkClientModule('./network/snapshot', null);
+    networkSessionSeatModule = resolveNetworkClientModule('./network/session-seat', null);
+    networkSessionLifecycleModule = resolveNetworkClientModule('./network/session-lifecycle', null);
+    networkCommandPayloadModule = resolveNetworkClientModule('./network/command-payload', null);
+    networkActionBridgeModule = resolveNetworkClientModule('./network/action-bridge', null);
+    networkApplyCoordinatorModule = resolveNetworkClientModule('./network/apply-coordinator', null);
+    networkReconnectControllerModule = resolveNetworkClientModule('./network/reconnect-controller', null);
+    networkPublishTrackerModule = resolveNetworkClientModule('./network/publish-tracker', null);
 
     function resolveNetworkCommentaryModule() {
         if (networkCommentaryModule) return networkCommentaryModule;
