@@ -31,7 +31,7 @@ function isGeneratedOrMirror(filePath: string): boolean {
         || filePath.indexOf('public/') === 0
         || filePath.endsWith('.d.ts')
         || filePath.indexOf('.generated.') >= 0
-        || filePath.endsWith('.runtime.js');
+        || (filePath.endsWith('.runtime.js') && !shouldInspectRuntimeProjection(filePath));
 }
 
 function isSourceOfTruthFile(filePath: string): boolean {
@@ -42,6 +42,10 @@ function isSourceOfTruthFile(filePath: string): boolean {
     const absolutePath = path.join(root, filePath);
     const tsVariant = absolutePath.replace(/\.js$/, '.ts');
     return !fs.existsSync(tsVariant);
+}
+
+function shouldInspectRuntimeProjection(filePath: string): boolean {
+    return filePath === 'game/network-turn-handoff.runtime.js';
 }
 
 function walk(dir: string): string[] {

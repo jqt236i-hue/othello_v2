@@ -250,6 +250,7 @@ Stable browser-side ownership for that flow is:
 - `ui/network/snapshot.js` owns authoritative snapshot apply and presentation reconciliation
 - `ui/network/snapshot-runtime.js` owns browser/runtime lookup and fallback wiring used by snapshot application
 - `game/turn-manager.ts` may request a network reset publish only through injected UI/network adapters; it must not discover a root `NetworkMatchClient` global.
+- `game/network-turn-handoff.runtime.js` may assemble handoff playback and command metadata, but actual network publish must be supplied by the caller as an injected function.
 
 #### 7.2.1 Pending selection network bridge
 

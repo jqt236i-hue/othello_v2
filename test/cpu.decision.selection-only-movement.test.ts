@@ -46,9 +46,10 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
     };
     global.waitForPlaybackIdle = jest.fn(async () => {});
     global.onTurnStart = jest.fn(async () => ({ playbackEvents: [{ type: 'turn_start_dummy' }] }));
+    const publishSnapshot = jest.fn();
     global.NetworkMatchClient = {
       isActive: jest.fn(() => true),
-      publishSnapshot: jest.fn()
+      publishSnapshot
     };
     global.TurnPipeline = {};
     runTurnMock = jest.fn(() => ({
@@ -81,6 +82,8 @@ describe.each(CASES)('$label CPU selection handoff', ({ handlerName, pendingType
     cpuDecision.setCpuDecisionRuntime({
       readMatchMode: () => 'cpu',
       readHumanVsHumanMode: () => false,
+      isNetworkPublishActive: () => global.NetworkMatchClient.isActive(),
+      publishSnapshot,
       processCpuTurn: global.processCpuTurn,
       readModule: (name) => global[name]
     });

@@ -81,6 +81,26 @@ describe('network-turn-handoff', () => {
     expect(publishSnapshot.mock.calls[0][0].snapshot).toBeUndefined();
   });
 
+  test('publishSnapshot 未注入時は root NetworkMatchClient に fallback しない', async () => {
+    const handoff = require('../game/network-turn-handoff.js');
+    const rootPublishSnapshot = jest.fn();
+    global.NetworkMatchClient = {
+      isActive: () => true,
+      publishSnapshot: rootPublishSnapshot
+    };
+
+    const result = await handoff.finalizeNetworkTurnHandoff({
+      playerKey: 'black',
+      actionType: 'place',
+      action: { type: 'place', row: 2, col: 3, turnIndex: 4 },
+      playbackEvents: [{ type: 'flip', phase: 1 }],
+      humanMode: true
+    });
+
+    expect(rootPublishSnapshot).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ ok: true, scheduledCpu: false });
+  });
+
   test('white 手番かつ humanMode=false なら CPU scheduling を行う', async () => {
     global.gameState = { currentPlayer: 'white', turnNumber: 12 };
     global.cardState = {

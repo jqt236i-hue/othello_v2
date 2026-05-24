@@ -6,6 +6,7 @@ describe('check-window-usage', () => {
   const repoRoot = path.resolve(__dirname, '..');
   const fixturePath = path.join(repoRoot, 'game', '__window-check-fixture.ts');
   const networkClientFixturePath = path.join(repoRoot, 'game', 'card-effects', '__network-client-check-fixture.ts');
+  const networkHandoffRuntimePath = path.join(repoRoot, 'game', 'network-turn-handoff.runtime.js');
 
   afterEach(() => {
     try {
@@ -75,5 +76,21 @@ describe('check-window-usage', () => {
     expect(res.stderr).toContain('Forbidden usage found in non-UI files');
     expect(res.stderr).toContain('game/card-effects/__network-client-check-fixture.ts');
     expect(res.stderr).toContain('root NetworkMatchClient');
+  });
+
+  test('rejects root NetworkMatchClient fallback in network handoff runtime projection', () => {
+    const original = fs.readFileSync(networkHandoffRuntimePath, 'utf8');
+    try {
+      fs.writeFileSync(networkHandoffRuntimePath, `${original}\n;void 'NetworkMatchClient';\n`, 'utf8');
+
+      const res = runCheckWindowUsage();
+
+      expect(res.status).toBe(2);
+      expect(res.stderr).toContain('Forbidden usage found in non-UI files');
+      expect(res.stderr).toContain('game/network-turn-handoff.runtime.js');
+      expect(res.stderr).toContain('root NetworkMatchClient');
+    } finally {
+      fs.writeFileSync(networkHandoffRuntimePath, original, 'utf8');
+    }
   });
 });
