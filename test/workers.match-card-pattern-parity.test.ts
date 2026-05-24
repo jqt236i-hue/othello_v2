@@ -39,6 +39,10 @@ function normalizePlaybackSummary(events) {
   }));
 }
 
+function collectPlaybackEventsByType(events, type) {
+  return (Array.isArray(events) ? events : []).filter((event) => event && event.type === type);
+}
+
 function createCardUseRuntime(cardId, seed = 71) {
   const runtime = LocalMatchRuntime.createRuntime({ seed });
   const snapshot = runtime.getRoom().snapshot;
@@ -163,6 +167,45 @@ describe('worker card pattern parity', () => {
     expect(normalizePlaybackSummary(workerResult.payload.playbackEvents))
       .toEqual(normalizePlaybackSummary(localResult.playbackEvents));
     expect(workerResult.payload.effectLogs || []).toEqual(localResult.effectLogs || []);
+  }, 90000);
+
+  test('gluttonous card-use hand clear matches headless authority result', () => {
+    const cardId = 'gluttonous_will_01';
+    const runtime = createCardUseRuntime(cardId, 73);
+    const runtimeSnapshot = runtime.getSnapshot();
+    runtimeSnapshot.cardState.hands.black = [cardId, 'guard_01', 'meteor_01'];
+    runtimeSnapshot.cardState._handCopyIdsByPlayer.black = [];
+    runtimeSnapshot.cardState.selectedCardId = cardId;
+    runtimeSnapshot.cardState.selectedCardOwnerKey = 'black';
+    runtime.getRoom().authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(runtimeSnapshot);
+
+    const initialSnapshot = clone(runtimeSnapshot);
+    const initialVersion = runtime.getRoom().stateVersion;
+    const body = buildUseCardBody(runtime, cardId, 'op_worker_pattern_gluttonous_hand_clear');
+    const localResult = runtime.applyCommand(body);
+    const workerResult = runWorkerPublish(initialSnapshot, initialVersion, body, 73);
+
+    expect(workerResult.status).toBe(200);
+    expect(workerResult.payload.ok).toBe(true);
+    expect(localResult.ok).toBe(true);
+
+    const localPublic = MatchAuthority.buildPublicSnapshot(runtime.getRoom(), 'black');
+    expect(normalizePublicSnapshotForParity(workerResult.payload.snapshot))
+      .toEqual(normalizePublicSnapshotForParity(localPublic));
+    expect(normalizePlaybackSummary(workerResult.payload.playbackEvents))
+      .toEqual(normalizePlaybackSummary(localResult.playbackEvents));
+
+    const workerHandRemove = collectPlaybackEventsByType(workerResult.payload.playbackEvents, 'hand_remove');
+    const localHandRemove = collectPlaybackEventsByType(localResult.playbackEvents, 'hand_remove');
+    expect(workerHandRemove).toEqual(localHandRemove);
+    expect(workerHandRemove).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'hand_remove',
+        targets: expect.arrayContaining([
+          expect.objectContaining({ player: 'black', count: 2 })
+        ])
+      })
+    ]));
   }, 90000);
 });
 
