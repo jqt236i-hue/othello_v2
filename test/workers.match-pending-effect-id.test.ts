@@ -797,6 +797,113 @@ describe('worker pendingEffectId contract', () => {
     ]));
   });
 
+  test('extend life target selection doubles authoritative marker duration and emits status playback', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'extend_life_01',
+      pendingType: 'EXTEND_LIFE_WILL',
+      actionKey: 'extendTarget',
+      target: { row: 2, col: 2 },
+      markers: [
+        {
+          id: 22,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'black',
+          data: { type: 'GUARD', remainingOwnerTurns: 3 }
+        }
+      ]
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalSnapshot.cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 22,
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 4 })
+      })
+    ]));
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'status_applied',
+        rawType: 'STATUS_TICK',
+        meta: expect.objectContaining({
+          special: 'GUARD',
+          timer: 4,
+          reason: 'extend_life_applied',
+          highlightTone: 'positive'
+        })
+      }),
+      expect.objectContaining({
+        type: 'sound_effect',
+        meta: expect.objectContaining({ sourceType: 'extend_life_selected' }),
+        targets: expect.arrayContaining([
+          expect.objectContaining({ soundKey: 'extend_life' })
+        ])
+      })
+    ]));
+  });
+
+  test('corrosion target selection halves all timed markers on selected cell and emits status playback', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'corrosion_01',
+      pendingType: 'CORROSION_WILL',
+      actionKey: 'corrosionTarget',
+      target: { row: 2, col: 2 },
+      markers: [
+        {
+          id: 32,
+          kind: 'specialStone',
+          row: 2,
+          col: 2,
+          owner: 'white',
+          data: { type: 'GUARD', remainingOwnerTurns: 2 }
+        }
+      ]
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalSnapshot.cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: 32,
+        row: 2,
+        col: 2,
+        data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 1 })
+      })
+    ]));
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'status_applied',
+        rawType: 'STATUS_TICK',
+        meta: expect.objectContaining({
+          special: 'GUARD',
+          timer: 1,
+          reason: 'corrosion_applied',
+          highlightTone: 'negative'
+        })
+      }),
+      expect.objectContaining({
+        type: 'sound_effect',
+        meta: expect.objectContaining({ sourceType: 'corrosion_will_resolved' }),
+        targets: expect.arrayContaining([
+          expect.objectContaining({ soundKey: 'corrosion_tick' })
+        ])
+      })
+    ]));
+  });
+
   test('capture will target selection moves source card to hand and clears pending state', () => {
     const result = runBoardPendingResolutionScenario({
       cardId: 'capture_01',

@@ -2662,6 +2662,55 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         emitTrapHandRemoveEvents(CardLogic, cardState, trapRes);
     }
 
+    function findPrimaryDurationMarkerAt(cardState: any, row: any, col: any) {
+        const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+        const matches = markers.filter((marker: any) => {
+            if (!marker || marker.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) return false;
+            if (marker.row !== row || marker.col !== col) return false;
+            const timer = marker.data ? resolveSpecialStatusTimer(marker.data) : undefined;
+            return timer !== undefined && Number.isFinite(Number(timer)) && Number(timer) > 0;
+        });
+        return matches.find((marker: any) => marker && marker.data && marker.data.type !== 'GUARD') || matches[0] || null;
+    }
+
+    function hasDurationSelectionStatusTick(cardState: any, row: any, col: any, reason: any, presentationStartIndex: any) {
+        const events = cardState && Array.isArray(cardState.presentationEvents)
+            ? cardState.presentationEvents.slice(Number(presentationStartIndex) || 0)
+            : [];
+        return events.some((event: any) => (
+            event &&
+            event.type === 'STATUS_TICK' &&
+            event.row === row &&
+            event.col === col &&
+            event.meta &&
+            event.meta.reason === reason
+        ));
+    }
+
+    function emitDurationSelectionStatusTick(CardLogic: any, cardState: any, target: any, reason: any, highlightTone: any, presentationStartIndex: any) {
+        if (!target || !CardLogic || typeof CardLogic.emitPresentationEvent !== 'function') return;
+        const row = target.row;
+        const col = target.col;
+        if (!Number.isInteger(row) || !Number.isInteger(col)) return;
+        if (hasDurationSelectionStatusTick(cardState, row, col, reason, presentationStartIndex)) return;
+        const marker = findPrimaryDurationMarkerAt(cardState, row, col);
+        if (!marker || !marker.data) return;
+        const timer = resolveSpecialStatusTimer(marker.data);
+        if (timer === undefined) return;
+        CardLogic.emitPresentationEvent(cardState, {
+            type: 'STATUS_TICK',
+            row,
+            col,
+            meta: {
+                special: marker.data.type || null,
+                timer,
+                owner: marker.owner || null,
+                reason,
+                highlightTone
+            }
+        });
+    }
+
     function applyActionPhase(CardLogic: any, Core: any, cardState: any, gameState: any, playerKey: any, action: any, events: any, prng: any, BoardOps: any) {
         const p = prng || undefined;
 
@@ -3118,6 +3167,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     multiplier: res && Number.isFinite(res.multiplier) ? Number(res.multiplier) : (pending.type === 'EXTEND_LIFE_GOD' ? 4 : 2),
                     details: res ? { previous: res.previousRemainingOwnerTurns, current: res.newRemainingOwnerTurns } : null
                 });
+                if (res && res.applied) {
+                    emitDurationSelectionStatusTick(CardLogic, cardState, action.extendTarget, 'extend_life_applied', 'positive', presentationStartIndex);
+                }
                 return;
             } else if (pending && (pending.type === 'EXTEND_LIFE_WILL' || pending.type === 'EXTEND_LIFE_GOD') && action.extendTarget == null) {
                 throw new Error(`${pending.type} requires extendTarget before placement`);
@@ -3138,6 +3190,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     affectedCount: Number(res && res.affectedCount) || 0,
                     details: Array.isArray(res && res.details) ? res.details : []
                 });
+                if (res && res.applied && Number(res.affectedCount) > 0) {
+                    emitDurationSelectionStatusTick(CardLogic, cardState, action.corrosionTarget, 'corrosion_applied', 'negative', presentationStartIndex);
+                }
                 return;
             } else if (pending && pending.type === 'CORROSION_WILL' && action.corrosionTarget == null) {
                 throw new Error('CORROSION_WILL requires corrosionTarget before placement');
