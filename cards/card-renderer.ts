@@ -14,42 +14,24 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     : require;
 
 // ===== Card Rendering =====
-let PlaybackStateModule: any = null;
-try {
-    PlaybackStateModule = _require('../ui/playback-state-manager');
-}
-catch (e) { /* ignore */ }
-if (!PlaybackStateModule) {
+function _resolveCardRendererModule(requirePath: string, globalKey: string): any {
     try {
-        if (typeof globalThis !== 'undefined' && (globalThis as CardRendererRuntimeRoot).PlaybackStateManager)
-            PlaybackStateModule = (globalThis as CardRendererRuntimeRoot).PlaybackStateManager;
+        const mod = _require(requirePath);
+        if (mod) return mod;
     }
     catch (e) { /* ignore */ }
-}
-let OwnerHelpersModule: any = null;
-try {
-    OwnerHelpersModule = _require('../utils/owner-helpers');
-}
-catch (e) { /* ignore */ }
-if (!OwnerHelpersModule) {
     try {
-        if (typeof globalThis !== 'undefined' && (globalThis as CardRendererRuntimeRoot).OwnerHelpers)
-            OwnerHelpersModule = (globalThis as CardRendererRuntimeRoot).OwnerHelpers;
+        if (typeof globalThis !== 'undefined') {
+            return (globalThis as CardRendererRuntimeRoot)[globalKey] || null;
+        }
     }
     catch (e) { /* ignore */ }
+    return null;
 }
-let HandAnimationUtilsModule: any = null;
-try {
-    HandAnimationUtilsModule = _require('../ui/animation-utils');
-}
-catch (e) { /* ignore */ }
-if (!HandAnimationUtilsModule) {
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as CardRendererRuntimeRoot).HandAnimationUtilsModule)
-            HandAnimationUtilsModule = (globalThis as CardRendererRuntimeRoot).HandAnimationUtilsModule;
-    }
-    catch (e) { /* ignore */ }
-}
+
+let PlaybackStateModule: any = _resolveCardRendererModule('../ui/playback-state-manager', 'PlaybackStateManager');
+let OwnerHelpersModule: any = _resolveCardRendererModule('../utils/owner-helpers', 'OwnerHelpers');
+let HandAnimationUtilsModule: any = _resolveCardRendererModule('../ui/animation-utils', 'HandAnimationUtilsModule');
 function getCardCostTier(cost: number): string {
     const safeCost = Number.isFinite(cost) ? cost : 0;
     if (safeCost === 0)
