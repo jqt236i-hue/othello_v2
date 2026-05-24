@@ -479,8 +479,9 @@ function createNetworkSnapshotController(config: any): any {
         }
     }
 
-    function renderCardUiAfterPlaybackIfNeeded(): void {
-        const pending = hasPendingPlaybackOrPresentation();
+    function renderCardUiAfterPlaybackIfNeeded(options?: any): void {
+        const opts = (options && typeof options === 'object') ? options : {};
+        const pending = opts.deferUntilPlaybackIdle === true || hasPendingPlaybackOrPresentation();
         const renderCardUI = resolveGlobalFunction('renderCardUI', cfg.renderCardUI);
         const requestCardUiSync = resolveGlobalFunction('requestCardUiSync', cfg.requestCardUiSync);
 
@@ -515,7 +516,8 @@ function createNetworkSnapshotController(config: any): any {
         try { if (renderCardUI) renderCardUI(); } catch (e) { /* ignore */ }
     }
 
-    function refreshUi(): any {
+    function refreshUi(options?: any): any {
+        const opts = (options && typeof options === 'object') ? options : {};
         let cardStateChangeRequested = false;
         let boardUpdateRequested = false;
         try {
@@ -563,7 +565,9 @@ function createNetworkSnapshotController(config: any): any {
             }
         } catch (e) { /* ignore */ }
         if (!cardStateChangeRequested) {
-            renderCardUiAfterPlaybackIfNeeded();
+            renderCardUiAfterPlaybackIfNeeded({
+                deferUntilPlaybackIdle: opts.deferCardUiUntilPlaybackIdle === true
+            });
         }
         return {
             cardStateChangeRequested,
@@ -634,7 +638,9 @@ function createNetworkSnapshotController(config: any): any {
                 shouldEmitShadowPlayback ? 'snapshot_shadow_playback_board_sync' : 'snapshot_playback_board_sync'
             );
         }
-        const refreshState = refreshUi();
+        const refreshState = refreshUi({
+            deferCardUiUntilPlaybackIdle: playbackEvents.length > 0 || shouldEmitShadowPlayback
+        });
 
         if (shouldEmitShadowPlayback) {
             clearTransientPresentationQueues(cardStateRef);
@@ -764,7 +770,9 @@ function createNetworkSnapshotController(config: any): any {
                     opts.shadowPlaybackSource || 'self_snapshot_sync',
                     'stale_shadow_playback_board_sync'
                 );
-                refreshUi();
+                refreshUi({
+                    deferCardUiUntilPlaybackIdle: true
+                });
                 setBusyState(false);
                 return true;
             }

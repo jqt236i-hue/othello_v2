@@ -214,6 +214,59 @@ describe('applySnapshot single-writer baseline', () => {
     }));
   });
 
+  test('カード効果 playbackEvents ありの snapshot は即時 hand UI 再描画をせず playback に渡す', () => {
+    const stateObj = { stateVersion: 10 };
+    const ctrl = createController(stateObj);
+    const snap = createSnapshot(11);
+    const events = [
+      {
+        type: 'status_applied',
+        rawType: 'STATUS_APPLIED',
+        phase: 1,
+        targets: [{ r: 2, col: 3, after: { color: 1, special: 'TIME_BOMB', timer: 3, owner: 'black' } }],
+        meta: { special: 'TIME_BOMB', owner: 'black', timer: 3 }
+      },
+      {
+        type: 'capture_to_hand_animation',
+        phase: 2,
+        targets: [{ player: 'black', cardId: 'freeze_01', reason: 'capture_will' }]
+      },
+      {
+        type: 'hand_remove',
+        phase: 3,
+        targets: [{ player: 'white', cardId: 'guard_01', reason: 'condemn_will' }]
+      },
+      {
+        type: 'observer_bubble',
+        rawType: 'SPECIAL_STONE_BUBBLE',
+        phase: 4,
+        targets: [{ r: 2, col: 3, owner: 'black', special: 'TIME_STOP' }]
+      }
+    ];
+
+    const applied = ctrl.applySnapshot(snap, { playbackEvents: events });
+
+    expect(applied).toBe(true);
+    expect(global.renderCardUI).not.toHaveBeenCalled();
+    expect(global.emitBoardUpdate).toHaveBeenCalled();
+    expect(emittedEvents).toContainEqual(expect.objectContaining({
+      type: 'PLAYBACK_EVENTS',
+      events,
+      meta: expect.objectContaining({
+        source: 'network_snapshot',
+        suppressPlayback: false
+      })
+    }));
+    expect(busyStateCalls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ processing: true, cardAnimating: true, playbackActive: true })
+    ]));
+    expect(armBoardUpdateContextCalls).toContainEqual(expect.objectContaining({
+      suppressFallbackFlip: true,
+      source: 'network_snapshot',
+      reason: 'snapshot_playback_suppress_fallback_flip'
+    }));
+  });
+
   test('snapshot の pendingEffectByPlayer が cardState に反映される', () => {
     const stateObj = { stateVersion: 10 };
     const ctrl = createController(stateObj);
