@@ -904,6 +904,93 @@ describe('worker pendingEffectId contract', () => {
     ]));
   });
 
+  test('board shrink final target selection applies authoritative frame holes and status playback', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'board_shrink_01',
+      pendingType: 'BOARD_SHRINK_WILL',
+      actionKey: 'shrinkTarget',
+      target: { row: 7, col: 7 },
+      pendingExtra: {
+        selectedCount: 2,
+        maxSelections: 3,
+        selectedTargets: [{ row: 0, col: 7 }, { row: 7, col: 0 }]
+      }
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalSnapshot.cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 0,
+        col: 7,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' })
+      }),
+      expect.objectContaining({
+        row: 7,
+        col: 0,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' })
+      }),
+      expect.objectContaining({
+        row: 7,
+        col: 7,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' })
+      })
+    ]));
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'status_applied',
+        rawType: 'STATUS_APPLIED',
+        meta: expect.objectContaining({ special: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' })
+      })
+    ]));
+  });
+
+  test('meteor target selection destroys authoritative stone and applies meteor hole playback', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'meteor_01',
+      pendingType: 'METEOR_WILL',
+      actionKey: 'meteorTarget',
+      target: { row: 2, col: 2 },
+      extraBoard: [{ row: 2, col: 2, value: -1 }]
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalSnapshot.gameState.board[2][2]).toBe(0);
+    expect(result.internalSnapshot.cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'METEOR_HOLE' })
+      })
+    ]));
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'destroy',
+        targets: expect.arrayContaining([
+          expect.objectContaining({ r: 2, col: 2, cause: 'METEOR_WILL' })
+        ])
+      }),
+      expect.objectContaining({
+        type: 'status_applied',
+        rawType: 'STATUS_APPLIED',
+        meta: expect.objectContaining({ special: 'METEOR_HOLE' })
+      })
+    ]));
+  });
+
   test('capture will target selection moves source card to hand and clears pending state', () => {
     const result = runBoardPendingResolutionScenario({
       cardId: 'capture_01',
