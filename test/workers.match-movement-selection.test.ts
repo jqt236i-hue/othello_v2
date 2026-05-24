@@ -122,6 +122,14 @@ describe('worker movement pending selection publish', () => {
       moveIntent: 'crush_move'
     },
     {
+      cardId: 'super_buoyancy_01',
+      pendingType: 'SUPER_BUOYANCY_WILL',
+      actionKey: 'superBuoyancyTarget',
+      source: { row: 6, col: 4 },
+      destination: { row: 0, col: 4 },
+      moveIntent: 'crush_move'
+    },
+    {
       cardId: 'buoyancy_01',
       pendingType: 'BUOYANCY_WILL',
       actionKey: 'buoyancyTarget',
