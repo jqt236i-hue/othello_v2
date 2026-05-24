@@ -416,6 +416,49 @@ describe('local match runtime parity', () => {
     }));
   });
 
+  test('accepted runtime commands clear transient charge deltas before the next command', () => {
+    const runtime = LocalMatchRuntime.createRuntime({ seed: 23 });
+    const firstSnapshot = runtime.getSnapshot();
+    const firstAction = pickFirstLegalAction(firstSnapshot);
+    const first = runtime.applyCommand(buildPublishBody({
+      snapshot: firstSnapshot,
+      stateVersion: runtime.getRoom().stateVersion,
+      action: firstAction,
+      operationId: 'op_local_runtime_charge_first'
+    }));
+    expect(first.ok).toBe(true);
+    expect(first.snapshot.cardState.chargeDeltaEvents.length).toBeGreaterThan(0);
+
+    const passSnapshot = runtime.getSnapshot();
+    passSnapshot.gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.BLACK));
+    passSnapshot.gameState.currentPlayer = Core.WHITE;
+    passSnapshot.gameState.consecutivePasses = 0;
+    passSnapshot.cardState.pendingEffectByPlayer.white = null;
+    passSnapshot.cardState.selectedCardId = null;
+    passSnapshot.cardState.selectedCardOwnerKey = null;
+    passSnapshot.cardState.debugNoDraw = true;
+
+    const pass = runtime.applyCommand({
+      seatKey: 'white',
+      playerKey: 'white',
+      baseVersion: runtime.getRoom().stateVersion,
+      operationId: 'op_local_runtime_charge_pass',
+      actionType: 'pass',
+      actor: 'white',
+      params: {},
+      turnIndex: Number(passSnapshot.cardState.turnIndex) || 0,
+      action: {
+        type: 'pass',
+        playerKey: 'white',
+        turnIndex: Number(passSnapshot.cardState.turnIndex) || 0
+      }
+    });
+
+    expect(pass.ok).toBe(true);
+    expect(pass.snapshot.cardState.chargeDeltaEvents).toEqual([]);
+    expect(runtime.getSnapshot().cardState.chargeDeltaEvents).toEqual([]);
+  });
+
   test('all catalog card-use commands match local match server acceptance and public projection', async () => {
     const cards = Array.isArray((CardCatalog as any).cards) ? (CardCatalog as any).cards : [];
     const mismatches: any[] = [];
