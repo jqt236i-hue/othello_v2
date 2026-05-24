@@ -250,7 +250,7 @@ function runWorkerCommandPlace(snapshot, action, stateVersion, options = {}) {
     "    operationId,",
     "    actionType: 'place',",
     "    actor: playerKey,",
-    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.strongWindTarget ? { strongWindTarget: action.strongWindTarget } : {}, action.buoyancyTarget ? { buoyancyTarget: action.buoyancyTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.gravityTarget ? { gravityTarget: action.gravityTarget } : {}, action.superGravityTarget ? { superGravityTarget: action.superGravityTarget } : {}, action.superAttractionTarget ? { superAttractionTarget: action.superAttractionTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}),",
+    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.strongWindTarget ? { strongWindTarget: action.strongWindTarget } : {}, action.buoyancyTarget ? { buoyancyTarget: action.buoyancyTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.gravityTarget ? { gravityTarget: action.gravityTarget } : {}, action.superGravityTarget ? { superGravityTarget: action.superGravityTarget } : {}, action.superAttractionTarget ? { superAttractionTarget: action.superAttractionTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}, action.freezeTarget ? { freezeTarget: action.freezeTarget } : {}, action.blockadeTarget ? { blockadeTarget: action.blockadeTarget } : {}, action.seedTarget ? { seedTarget: action.seedTarget } : {}),",
     "    turnIndex: action.turnIndex,",
     "    action",
     "  });",
@@ -626,6 +626,32 @@ function buildGuardWillFixture() {
   };
 }
 
+function buildStatusCellSelectionFixture(config) {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  snapshot.cardState.pendingEffectByPlayer.black = {
+    type: config.pendingType,
+    stage: 'selectTarget',
+    cardId: config.cardId
+  };
+  return {
+    name: config.pendingType,
+    expectedStatusApplied: {
+      row: 2,
+      col: 3,
+      special: config.special
+    },
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: `fixture_${String(config.pendingType).toLowerCase()}_place`,
+      __skipTurnStart: false,
+      [config.actionKey]: { row: 2, col: 3 }
+    })
+  };
+}
+
 function buildWorkIncomeFixture() {
   const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
   setStone(snapshot, 3, 4, 'black');
@@ -811,6 +837,24 @@ function buildPlaybackParityFixtures() {
     }),
     buildCloneWillFixture(),
     buildGuardWillFixture(),
+    buildStatusCellSelectionFixture({
+      cardId: 'freeze_01',
+      pendingType: 'FREEZE_WILL',
+      actionKey: 'freezeTarget',
+      special: 'FREEZE'
+    }),
+    buildStatusCellSelectionFixture({
+      cardId: 'blockade_01',
+      pendingType: 'BLOCKADE_WILL',
+      actionKey: 'blockadeTarget',
+      special: 'BLOCKADE'
+    }),
+    buildStatusCellSelectionFixture({
+      cardId: 'seed_01',
+      pendingType: 'SEED_WILL',
+      actionKey: 'seedTarget',
+      special: 'SEED'
+    }),
     buildWorkIncomeFixture(),
     buildObserverAnchorLostFixture(),
     buildTimeStopTriggeredFixture(),
@@ -961,7 +1005,10 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
         ...(fixture.action.superGravityTarget ? { superGravityTarget: fixture.action.superGravityTarget } : {}),
         ...(fixture.action.superAttractionTarget ? { superAttractionTarget: fixture.action.superAttractionTarget } : {}),
         ...(fixture.action.cloneTarget ? { cloneTarget: fixture.action.cloneTarget } : {}),
-        ...(fixture.action.guardTarget ? { guardTarget: fixture.action.guardTarget } : {})
+        ...(fixture.action.guardTarget ? { guardTarget: fixture.action.guardTarget } : {}),
+        ...(fixture.action.freezeTarget ? { freezeTarget: fixture.action.freezeTarget } : {}),
+        ...(fixture.action.blockadeTarget ? { blockadeTarget: fixture.action.blockadeTarget } : {}),
+        ...(fixture.action.seedTarget ? { seedTarget: fixture.action.seedTarget } : {})
       },
       turnIndex: fixture.action.turnIndex,
       action: fixture.action
@@ -1525,6 +1572,23 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
                 })
               })
             ])
+          })
+        ]));
+      }
+      if (fixture.expectedStatusApplied) {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'status_applied',
+            rawType: 'STATUS_APPLIED',
+            targets: expect.arrayContaining([
+              expect.objectContaining({
+                r: fixture.expectedStatusApplied.row,
+                col: fixture.expectedStatusApplied.col
+              })
+            ]),
+            meta: expect.objectContaining({
+              special: fixture.expectedStatusApplied.special
+            })
           })
         ]));
       }

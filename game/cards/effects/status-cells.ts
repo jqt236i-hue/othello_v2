@@ -14,6 +14,7 @@ function applyStatusCellWill(cardState: CardState, gameState: GameState, playerK
     const removeMarkersAt = deps && deps.removeMarkersAt;
     const addMarker = deps && deps.addMarker;
     const clearCardPendingEffect = deps && deps.clearCardPendingEffect;
+    const emitPresentationEvent = deps && deps.emitPresentationEvent;
     const MARKER_KINDS = deps && deps.MARKER_KINDS;
     const getTargets = config && config.getTargets;
 
@@ -43,6 +44,19 @@ function applyStatusCellWill(cardState: CardState, gameState: GameState, playerK
         type: config.markerType,
         remainingOwnerTurns: config.remainingOwnerTurns
     });
+    if (typeof emitPresentationEvent === 'function') {
+        emitPresentationEvent(cardState, {
+            type: 'STATUS_APPLIED',
+            row,
+            col,
+            meta: {
+                special: config.markerType,
+                owner: playerKey,
+                timer: config.remainingOwnerTurns,
+                reason: config.reason
+            }
+        });
+    }
 
     clearCardPendingEffect(cardState, playerKey);
     return { applied: true, row, col };
@@ -52,6 +66,7 @@ function applyBlockadeWill(cardState: CardState, gameState: GameState, playerKey
     return applyStatusCellWill(cardState, gameState, playerKey, row, col, {
         pendingType: 'BLOCKADE_WILL',
         markerType: 'BLOCKADE',
+        reason: 'blockade_selected',
         remainingOwnerTurns: deps && deps.BLOCKADE_TURNS,
         getTargets: deps && deps.getBlockadeTargets
     }, deps);
@@ -61,6 +76,7 @@ function applyFreezeWill(cardState: CardState, gameState: GameState, playerKey: 
     return applyStatusCellWill(cardState, gameState, playerKey, row, col, {
         pendingType: 'FREEZE_WILL',
         markerType: 'FREEZE',
+        reason: 'freeze_selected',
         remainingOwnerTurns: deps && deps.FREEZE_TURNS,
         getTargets: deps && deps.getFreezeTargets
     }, deps);
@@ -70,6 +86,7 @@ function applySeedWill(cardState: CardState, gameState: GameState, playerKey: Pl
     return applyStatusCellWill(cardState, gameState, playerKey, row, col, {
         pendingType: 'SEED_WILL',
         markerType: 'SEED',
+        reason: 'seed_selected',
         remainingOwnerTurns: deps && deps.SEED_WILL_TURNS,
         getTargets: deps && deps.getSeedTargets
     }, deps);

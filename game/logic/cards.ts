@@ -3571,6 +3571,7 @@ const {
                 getBlockadeTargets,
                 removeMarkersAt,
                 addMarker,
+                emitPresentationEvent,
                 clearCardPendingEffect,
                 MARKER_KINDS,
                 BLOCKADE_TURNS
@@ -3660,6 +3661,7 @@ const {
                 getFreezeTargets,
                 removeMarkersAt,
                 addMarker,
+                emitPresentationEvent,
                 clearCardPendingEffect,
                 MARKER_KINDS,
                 FREEZE_TURNS
@@ -3675,6 +3677,7 @@ const {
                 getSeedTargets,
                 removeMarkersAt,
                 addMarker,
+                emitPresentationEvent,
                 clearCardPendingEffect,
                 MARKER_KINDS,
                 SEED_WILL_TURNS
