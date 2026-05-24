@@ -250,7 +250,7 @@ function runWorkerCommandPlace(snapshot, action, stateVersion, options = {}) {
     "    operationId,",
     "    actionType: 'place',",
     "    actor: playerKey,",
-    "    params: Object.assign({ row: action.row, col: action.col }, action.destroyTarget ? { destroyTarget: action.destroyTarget } : {}, action.temptTarget ? { temptTarget: action.temptTarget } : {}, action.swapTarget ? { swapTarget: action.swapTarget } : {}, action.trapTarget ? { trapTarget: action.trapTarget } : {}, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.strongWindTarget ? { strongWindTarget: action.strongWindTarget } : {}, action.buoyancyTarget ? { buoyancyTarget: action.buoyancyTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.gravityTarget ? { gravityTarget: action.gravityTarget } : {}, action.superGravityTarget ? { superGravityTarget: action.superGravityTarget } : {}, action.superAttractionTarget ? { superAttractionTarget: action.superAttractionTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}, action.freezeTarget ? { freezeTarget: action.freezeTarget } : {}, action.blockadeTarget ? { blockadeTarget: action.blockadeTarget } : {}, action.seedTarget ? { seedTarget: action.seedTarget } : {}, action.bombTarget ? { bombTarget: action.bombTarget } : {}, action.livingWillTarget ? { livingWillTarget: action.livingWillTarget } : {}, action.hyperactiveInheritTarget ? { hyperactiveInheritTarget: action.hyperactiveInheritTarget } : {}, action.extendTarget ? { extendTarget: action.extendTarget } : {}, action.corrosionTarget ? { corrosionTarget: action.corrosionTarget } : {}, action.captureTarget ? { captureTarget: action.captureTarget } : {}),",
+    "    params: Object.assign({ row: action.row, col: action.col }, action.heavenBlessingCardId ? { heavenBlessingCardId: action.heavenBlessingCardId } : {}, action.condemnTargetIndex != null ? { condemnTargetIndex: action.condemnTargetIndex } : {}, action.destroyTarget ? { destroyTarget: action.destroyTarget } : {}, action.temptTarget ? { temptTarget: action.temptTarget } : {}, action.swapTarget ? { swapTarget: action.swapTarget } : {}, action.trapTarget ? { trapTarget: action.trapTarget } : {}, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.strongWindTarget ? { strongWindTarget: action.strongWindTarget } : {}, action.buoyancyTarget ? { buoyancyTarget: action.buoyancyTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.gravityTarget ? { gravityTarget: action.gravityTarget } : {}, action.superGravityTarget ? { superGravityTarget: action.superGravityTarget } : {}, action.superAttractionTarget ? { superAttractionTarget: action.superAttractionTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}, action.freezeTarget ? { freezeTarget: action.freezeTarget } : {}, action.blockadeTarget ? { blockadeTarget: action.blockadeTarget } : {}, action.seedTarget ? { seedTarget: action.seedTarget } : {}, action.bombTarget ? { bombTarget: action.bombTarget } : {}, action.livingWillTarget ? { livingWillTarget: action.livingWillTarget } : {}, action.hyperactiveInheritTarget ? { hyperactiveInheritTarget: action.hyperactiveInheritTarget } : {}, action.extendTarget ? { extendTarget: action.extendTarget } : {}, action.corrosionTarget ? { corrosionTarget: action.corrosionTarget } : {}, action.captureTarget ? { captureTarget: action.captureTarget } : {}),",
     "    turnIndex: action.turnIndex,",
     "    action",
     "  });",
@@ -682,6 +682,32 @@ function buildSimplePendingSelectionFixture(config) {
   };
 }
 
+function buildHandOverlaySelectionFixture(config) {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  snapshot.cardState.hands.black = Array.isArray(config.blackHand) ? config.blackHand.slice() : [];
+  snapshot.cardState.hands.white = Array.isArray(config.whiteHand) ? config.whiteHand.slice() : [];
+  snapshot.cardState.pendingEffectByPlayer.black = {
+    type: config.pendingType,
+    stage: 'selectTarget',
+    cardId: config.cardId,
+    ...(config.pendingExtra || {})
+  };
+  return {
+    name: config.pendingType,
+    expectedHandAdd: config.expectedHandAdd || null,
+    expectedHandRemove: config.expectedHandRemove || null,
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: `fixture_${String(config.pendingType).toLowerCase()}_place`,
+      __skipTurnStart: false,
+      ...config.actionPayload
+    })
+  };
+}
+
 function buildBoardPendingStatusFixture(config) {
   const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
   setStone(snapshot, 3, 4, 'black');
@@ -894,6 +920,21 @@ function buildPlaybackParityFixtures() {
       actionKey: 'trapTarget',
       target: { row: 3, col: 4 },
       stones: [{ row: 3, col: 4, owner: 'black' }]
+    }),
+    buildHandOverlaySelectionFixture({
+      cardId: 'heaven_01',
+      pendingType: 'HEAVEN_BLESSING',
+      pendingExtra: { offers: ['meteor_01', 'gold_stone'] },
+      blackHand: [],
+      actionPayload: { heavenBlessingCardId: 'gold_stone' }
+    }),
+    buildHandOverlaySelectionFixture({
+      cardId: 'condemn_01',
+      pendingType: 'CONDEMN_WILL',
+      pendingExtra: { offers: [{ handIndex: 0, cardId: 'meteor_01' }, { handIndex: 1, cardId: 'guard_01' }] },
+      whiteHand: ['meteor_01', 'guard_01'],
+      actionPayload: { condemnTargetIndex: 1 },
+      expectedHandRemove: { player: 'white', cardId: 'guard_01', reason: 'condemn_will' }
     }),
     buildMeteorFixture(),
     buildMeteorOpponentSalvationFixture(),
@@ -1205,6 +1246,8 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
       params: {
         row: fixture.action.row,
         col: fixture.action.col,
+        ...(fixture.action.heavenBlessingCardId ? { heavenBlessingCardId: fixture.action.heavenBlessingCardId } : {}),
+        ...(fixture.action.condemnTargetIndex != null ? { condemnTargetIndex: fixture.action.condemnTargetIndex } : {}),
         ...(fixture.action.meteorTarget ? { meteorTarget: fixture.action.meteorTarget } : {}),
         ...(fixture.action.shrinkTarget ? { shrinkTarget: fixture.action.shrinkTarget } : {}),
         ...(fixture.action.positionSwapTarget ? { positionSwapTarget: fixture.action.positionSwapTarget } : {}),
@@ -1856,6 +1899,21 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
                 player: fixture.expectedHandAdd.player,
                 cardId: fixture.expectedHandAdd.cardId,
                 reason: fixture.expectedHandAdd.reason
+              })
+            ])
+          })
+        ]));
+      }
+      if (fixture.expectedHandRemove) {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'hand_remove',
+            rawType: 'HAND_REMOVE',
+            targets: expect.arrayContaining([
+              expect.objectContaining({
+                player: fixture.expectedHandRemove.player,
+                cardId: fixture.expectedHandRemove.cardId,
+                reason: fixture.expectedHandRemove.reason
               })
             ])
           })
