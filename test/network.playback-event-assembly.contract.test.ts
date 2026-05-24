@@ -250,7 +250,7 @@ function runWorkerCommandPlace(snapshot, action, stateVersion, options = {}) {
     "    operationId,",
     "    actionType: 'place',",
     "    actor: playerKey,",
-    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}),",
+    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.strongWindTarget ? { strongWindTarget: action.strongWindTarget } : {}, action.buoyancyTarget ? { buoyancyTarget: action.buoyancyTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.gravityTarget ? { gravityTarget: action.gravityTarget } : {}, action.superGravityTarget ? { superGravityTarget: action.superGravityTarget } : {}, action.superAttractionTarget ? { superAttractionTarget: action.superAttractionTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}),",
     "    turnIndex: action.turnIndex,",
     "    action",
     "  });",
@@ -548,26 +548,38 @@ function buildTeleportFixture(kind) {
   };
 }
 
-function buildSuperBuoyancyFixture() {
+function buildMovementSelectionFixture(config) {
   const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
-  setStone(snapshot, 6, 4, 'black');
+  setStone(snapshot, config.source.row, config.source.col, 'black');
+  if (config.blocker) setStone(snapshot, config.blocker.row, config.blocker.col, 'white');
   snapshot.cardState.pendingEffectByPlayer.black = {
-    type: 'SUPER_BUOYANCY_WILL',
+    type: config.pendingType,
     stage: 'selectTarget',
-    cardId: 'super_buoyancy_01'
+    cardId: config.cardId,
+    ...(config.pendingExtra || {})
   };
   return {
-    name: 'SUPER_BUOYANCY_WILL',
+    name: config.pendingType,
+    expectedMoveFrom: { row: config.source.row, col: config.source.col },
     snapshot,
     action: buildCommandAction(2, {
       playerKey: 'black',
       row: 2,
       col: 3,
-      actionId: 'fixture_super_buoyancy_place',
+      actionId: `fixture_${String(config.pendingType).toLowerCase()}_place`,
       __skipTurnStart: false,
-      superBuoyancyTarget: { row: 6, col: 4 }
+      [config.actionKey]: config.actionTarget || config.source
     })
   };
+}
+
+function buildSuperBuoyancyFixture() {
+  return buildMovementSelectionFixture({
+    cardId: 'super_buoyancy_01',
+    pendingType: 'SUPER_BUOYANCY_WILL',
+    actionKey: 'superBuoyancyTarget',
+    source: { row: 6, col: 4 }
+  });
 }
 
 function buildCloneWillFixture() {
@@ -763,7 +775,40 @@ function buildPlaybackParityFixtures() {
     buildPositionSwapFixture(),
     buildTeleportFixture('TELEPORT_WILL'),
     buildTeleportFixture('CELL_TELEPORT_WILL'),
+    buildMovementSelectionFixture({
+      cardId: 'strong_wind_01',
+      pendingType: 'STRONG_WIND_WILL',
+      actionKey: 'strongWindTarget',
+      source: { row: 3, col: 3 }
+    }),
+    buildMovementSelectionFixture({
+      cardId: 'buoyancy_01',
+      pendingType: 'BUOYANCY_WILL',
+      actionKey: 'buoyancyTarget',
+      source: { row: 5, col: 2 }
+    }),
     buildSuperBuoyancyFixture(),
+    buildMovementSelectionFixture({
+      cardId: 'gravity_01',
+      pendingType: 'GRAVITY_WILL',
+      actionKey: 'gravityTarget',
+      source: { row: 2, col: 5 }
+    }),
+    buildMovementSelectionFixture({
+      cardId: 'super_gravity_01',
+      pendingType: 'SUPER_GRAVITY_WILL',
+      actionKey: 'superGravityTarget',
+      source: { row: 1, col: 4 }
+    }),
+    buildMovementSelectionFixture({
+      cardId: 'super_attraction_01',
+      pendingType: 'SUPER_ATTRACTION_WILL',
+      actionKey: 'superAttractionTarget',
+      source: { row: 2, col: 2 },
+      actionTarget: { row: 5, col: 5 },
+      blocker: { row: 4, col: 4 },
+      pendingExtra: { firstTarget: { row: 2, col: 2 } }
+    }),
     buildCloneWillFixture(),
     buildGuardWillFixture(),
     buildWorkIncomeFixture(),
@@ -909,7 +954,12 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
         ...(fixture.action.shrinkTarget ? { shrinkTarget: fixture.action.shrinkTarget } : {}),
         ...(fixture.action.positionSwapTarget ? { positionSwapTarget: fixture.action.positionSwapTarget } : {}),
         ...(fixture.action.teleportTarget ? { teleportTarget: fixture.action.teleportTarget } : {}),
+        ...(fixture.action.strongWindTarget ? { strongWindTarget: fixture.action.strongWindTarget } : {}),
+        ...(fixture.action.buoyancyTarget ? { buoyancyTarget: fixture.action.buoyancyTarget } : {}),
         ...(fixture.action.superBuoyancyTarget ? { superBuoyancyTarget: fixture.action.superBuoyancyTarget } : {}),
+        ...(fixture.action.gravityTarget ? { gravityTarget: fixture.action.gravityTarget } : {}),
+        ...(fixture.action.superGravityTarget ? { superGravityTarget: fixture.action.superGravityTarget } : {}),
+        ...(fixture.action.superAttractionTarget ? { superAttractionTarget: fixture.action.superAttractionTarget } : {}),
         ...(fixture.action.cloneTarget ? { cloneTarget: fixture.action.cloneTarget } : {}),
         ...(fixture.action.guardTarget ? { guardTarget: fixture.action.guardTarget } : {})
       },
@@ -1452,6 +1502,29 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
               expect.objectContaining({ r: 3, col: 4 })
             ]),
             meta: expect.objectContaining({ special: 'METEOR_HOLE' })
+          })
+        ]));
+      }
+      if ([
+        'STRONG_WIND_WILL',
+        'BUOYANCY_WILL',
+        'SUPER_BUOYANCY_WILL',
+        'GRAVITY_WILL',
+        'SUPER_GRAVITY_WILL',
+        'SUPER_ATTRACTION_WILL'
+      ].includes(fixture.name)) {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'move',
+            targets: expect.arrayContaining([
+              expect.objectContaining({
+                cause: fixture.name,
+                from: expect.objectContaining({
+                  r: fixture.expectedMoveFrom.row,
+                  col: fixture.expectedMoveFrom.col
+                })
+              })
+            ])
           })
         ]));
       }
