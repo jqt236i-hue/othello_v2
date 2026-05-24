@@ -167,6 +167,32 @@ describe('match authority publish response payload', () => {
     expect(snapshot.cardState.hands.white).toEqual(['w1']);
   });
 
+  test('buildPublicSnapshot strips transient presentation queues and result-only UI flags', () => {
+    const snapshot = MatchAuthority.buildPublicSnapshot({
+      stateVersion: 7,
+      updatedAt: 1234,
+      snapshot: {
+        gameState: {
+          __resultShown: true
+        },
+        cardState: {
+          hands: {
+            black: ['b1'],
+            white: ['w1']
+          },
+          presentationEvents: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip', phase: 1 }] }],
+          _presentationEventsPersist: [{ type: 'PLAYBACK_EVENTS', events: [{ type: 'flip', phase: 2 }] }],
+          _currentActionMeta: { actionId: 'local-only' }
+        }
+      }
+    }, 'black');
+
+    expect(snapshot.gameState.__resultShown).toBeUndefined();
+    expect(snapshot.cardState.presentationEvents).toEqual([]);
+    expect(snapshot.cardState._presentationEventsPersist).toEqual([]);
+    expect(snapshot.cardState._currentActionMeta).toBeUndefined();
+  });
+
   test('buildSnapshotPayloadFromRoom reuses shared room envelope fields', () => {
     const payload = MatchAuthority.buildSnapshotPayloadFromRoom({
       roomId: 'abc',

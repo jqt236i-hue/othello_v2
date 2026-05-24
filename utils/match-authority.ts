@@ -1448,6 +1448,7 @@ function buildPublicSnapshot(
         projectedForSeat: viewerSeatKey || null,
         turnStartReconciled: true
     });
+    stripTransientPresentationState(shot);
     const projectedSnapshotHash = computeProjectedSnapshotHash(shot);
     if (!shot._meta || typeof shot._meta !== 'object') {
         shot._meta = {};
