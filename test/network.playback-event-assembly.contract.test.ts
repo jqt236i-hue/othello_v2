@@ -250,7 +250,7 @@ function runWorkerCommandPlace(snapshot, action, stateVersion, options = {}) {
     "    operationId,",
     "    actionType: 'place',",
     "    actor: playerKey,",
-    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}),",
+    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}),",
     "    turnIndex: action.turnIndex,",
     "    action",
     "  });",
@@ -502,6 +502,30 @@ function buildBoardShrinkFixture() {
   };
 }
 
+function buildPositionSwapFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  setStone(snapshot, 3, 4, 'black');
+  setStone(snapshot, 3, 3, 'white');
+  snapshot.cardState.pendingEffectByPlayer.black = {
+    type: 'POSITION_SWAP_WILL',
+    stage: 'selectTarget',
+    cardId: 'position_swap_01',
+    firstTarget: { row: 3, col: 4 }
+  };
+  return {
+    name: 'POSITION_SWAP_WILL',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_position_swap_place',
+      __skipTurnStart: false,
+      positionSwapTarget: { row: 3, col: 3 }
+    })
+  };
+}
+
 function buildSuperBuoyancyFixture() {
   const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
   setStone(snapshot, 6, 4, 'black');
@@ -714,6 +738,7 @@ function buildPlaybackParityFixtures() {
     buildMeteorFixture(),
     buildMeteorOpponentSalvationFixture(),
     buildBoardShrinkFixture(),
+    buildPositionSwapFixture(),
     buildSuperBuoyancyFixture(),
     buildCloneWillFixture(),
     buildGuardWillFixture(),
@@ -858,6 +883,7 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
         col: fixture.action.col,
         ...(fixture.action.meteorTarget ? { meteorTarget: fixture.action.meteorTarget } : {}),
         ...(fixture.action.shrinkTarget ? { shrinkTarget: fixture.action.shrinkTarget } : {}),
+        ...(fixture.action.positionSwapTarget ? { positionSwapTarget: fixture.action.positionSwapTarget } : {}),
         ...(fixture.action.superBuoyancyTarget ? { superBuoyancyTarget: fixture.action.superBuoyancyTarget } : {}),
         ...(fixture.action.cloneTarget ? { cloneTarget: fixture.action.cloneTarget } : {}),
         ...(fixture.action.guardTarget ? { guardTarget: fixture.action.guardTarget } : {})
@@ -1361,6 +1387,20 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
             type: 'status_removed',
             rawType: 'STATUS_REMOVED',
             meta: expect.objectContaining({ special: 'STONE_SALVATION_GOD', reason: 'duration_end' })
+          })
+        ]));
+      }
+      if (fixture.name === 'POSITION_SWAP_WILL') {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'move',
+            targets: expect.arrayContaining([
+              expect.objectContaining({
+                from: { r: 3, col: 4 },
+                to: { r: 3, col: 3 },
+                cause: 'POSITION_SWAP_WILL'
+              })
+            ])
           })
         ]));
       }
