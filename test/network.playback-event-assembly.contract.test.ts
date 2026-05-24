@@ -611,6 +611,25 @@ function buildObserverAnchorLostFixture() {
   };
 }
 
+function buildTimeStopTriggeredFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  setStone(snapshot, 3, 4, 'black');
+  addSpecialMarker(snapshot, 3, 4, 'black', 'TIME_STOP', {
+    remainingOwnerTurns: 1
+  });
+  return {
+    name: 'TIME_STOP_TRIGGERED',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_time_stop_triggered_place',
+      __skipTurnStart: false
+    })
+  };
+}
+
 function buildPlaybackParityFixtures() {
   return [
     buildTurnStartDestroyFixture('SNIPER'),
@@ -626,7 +645,8 @@ function buildPlaybackParityFixtures() {
     buildCloneWillFixture(),
     buildGuardWillFixture(),
     buildWorkIncomeFixture(),
-    buildObserverAnchorLostFixture()
+    buildObserverAnchorLostFixture(),
+    buildTimeStopTriggeredFixture()
   ];
 }
 
@@ -1198,6 +1218,22 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
             rawType: 'OBSERVER_BUBBLE',
             targets: expect.arrayContaining([
               expect.objectContaining({ r: 1, col: 1, owner: 'black' })
+            ])
+          })
+        ]));
+      }
+      if (fixture.name === 'TIME_STOP_TRIGGERED') {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'status_removed',
+            rawType: 'STATUS_REMOVED',
+            meta: expect.objectContaining({ special: 'TIME_STOP', reason: 'duration_end' })
+          }),
+          expect.objectContaining({
+            type: 'observer_bubble',
+            rawType: 'SPECIAL_STONE_BUBBLE',
+            targets: expect.arrayContaining([
+              expect.objectContaining({ r: 3, col: 4, owner: 'black', special: 'TIME_STOP' })
             ])
           })
         ]));
