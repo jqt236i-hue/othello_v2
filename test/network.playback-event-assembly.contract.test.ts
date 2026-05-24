@@ -1333,6 +1333,13 @@ function expectPlaybackParityPrefix(actualEvents, expectedEvents) {
   expectPlaybackParity(actualPrefix, expectedEvents);
 }
 
+function expectNoTransientPresentationQueues(label, payload) {
+  const snapshot = payload && payload.snapshot ? payload.snapshot : payload;
+  const cardState = snapshot && snapshot.cardState ? snapshot.cardState : {};
+  expect({ label, queue: cardState.presentationEvents || [] }).toEqual({ label, queue: [] });
+  expect({ label, queue: cardState._presentationEventsPersist || [] }).toEqual({ label, queue: [] });
+}
+
 async function publishFixtureThroughLocalServer(fixture, stateVersion) {
   let room = null;
   let stream = null;
@@ -1409,7 +1416,9 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
     expect(publishedSnapshot).toMatchObject({ ok: true, roomId: room.roomId });
     return {
       responsePlaybackEvents: publishResponse.data.playbackEvents || [],
-      streamPlaybackEvents: publishedSnapshot.playbackEvents || []
+      streamPlaybackEvents: publishedSnapshot.playbackEvents || [],
+      responsePayload: publishResponse.data,
+      streamPayload: publishedSnapshot
     };
   } finally {
     if (stream) await stream.close();
@@ -2075,6 +2084,7 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
       expect({ name: fixture.name, status: workerResult.status, payload: workerResult.payload }).toEqual(expect.objectContaining({ status: 200 }));
       expect(workerResult.payload.ok).toBe(true);
       expectPlaybackParityPrefix(workerResult.broadcastMeta && workerResult.broadcastMeta.playbackEvents, expected.playbackEvents);
+      expectNoTransientPresentationQueues(`${fixture.name}:worker-response`, workerResult.payload);
       if (fixture.name === 'METEOR_WILL_OPPONENT_SALVATION') {
         expect(collectStoneSalvationGodReviveTargets(workerResult.broadcastMeta && workerResult.broadcastMeta.playbackEvents)).toEqual([
           expect.objectContaining({
@@ -2088,6 +2098,8 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
       const localResult = await publishFixtureThroughLocalServer(fixture, stateVersion);
       expectPlaybackParityPrefix(localResult.responsePlaybackEvents, expected.playbackEvents);
       expectPlaybackParityPrefix(localResult.streamPlaybackEvents, expected.playbackEvents);
+      expectNoTransientPresentationQueues(`${fixture.name}:local-response`, localResult.responsePayload);
+      expectNoTransientPresentationQueues(`${fixture.name}:local-stream`, localResult.streamPayload);
       if (fixture.name === 'METEOR_WILL_OPPONENT_SALVATION') {
         expect(collectStoneSalvationGodReviveTargets(localResult.responsePlaybackEvents)).toEqual([
           expect.objectContaining({
