@@ -2986,6 +2986,8 @@ function destroySelectedHandCard() {
     const result = _runCardPipelineActionOrLogFailure(playerKey, action, 'カード破壊に失敗しました');
     if (!result) return;
 
+    playUiEffectSound('stone_destroy');
+
     const playerName = actionPlayerKey === 'black' ? '黒' : '白';
     addLog(`${playerName}が手札を破壊: ${cardDef ? cardDef.name : cardId}`);
 

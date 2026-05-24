@@ -50,6 +50,10 @@ describe('手札破壊ボタン', () => {
     global.emitBoardUpdate = jest.fn();
     global.ensureCurrentPlayerCanActOrPass = jest.fn();
     global.addLog = jest.fn();
+    global.SoundEngine = {
+      init: jest.fn(),
+      playEffectByKey: jest.fn()
+    };
 
     global.ActionManager = {
       ActionManager: {
@@ -118,6 +122,17 @@ describe('手札破壊ボタン', () => {
     const useAction = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[1][3];
     expect(useAction.type).toBe('use_card');
     expect(useAction.useCardId).toBe('use_card_1');
+  });
+
+  test('手札破壊ボタン成功時は押下タイミングで stone_destroy を再生する', () => {
+    require('../cards/card-interaction.js');
+
+    window.onCardClick('trash_card', 'black');
+    global.SoundEngine.playEffectByKey.mockClear();
+    window.destroySelectedHandCard();
+
+    expect(global.SoundEngine.init).toHaveBeenCalled();
+    expect(global.SoundEngine.playEffectByKey).toHaveBeenCalledWith('stone_destroy');
   });
 
   test('同一ターンに手札破壊を連続実行できる', () => {
