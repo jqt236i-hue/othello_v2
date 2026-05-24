@@ -1374,6 +1374,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             const pEvent = _createPlaybackEvent(playbackBase, null, phaseState.currentPhase, []);
 
             switch (ev.type) {
+                case 'PLAYBACK_EVENTS':
+                    if (Array.isArray(ev.events)) {
+                        for (const playbackEvent of ev.events) {
+                            if (!playbackEvent || typeof playbackEvent !== 'object' || !playbackEvent.type) continue;
+                            playbackEvents.push(_clonePlaybackEventWithPhase(
+                                playbackEvent,
+                                _phaseNum(playbackEvent.phase)
+                            ));
+                        }
+                    }
+                    pEvent.type = null;
+                    break;
                 case 'PLAY_HAND_ANIMATION': {
                     const ownerKey = _normalizePlayerKey(ev.owner || ev.player);
                     pEvent.type = 'place_hand_animation';

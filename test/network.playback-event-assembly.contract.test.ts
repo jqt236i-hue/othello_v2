@@ -816,6 +816,31 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
     expect(result.diagnostics.warnings).toEqual([]);
   });
 
+  test('assemblePlaybackEvents preserves PLAYBACK_EVENTS wrappers from presentation queues', () => {
+    const result = helpers.assemblePlaybackEvents({
+      rawEvents: [],
+      presentationEvents: [{
+        type: 'PLAYBACK_EVENTS',
+        events: [
+          { type: 'flip', phase: 2, targets: [{ r: 3, col: 4, ownerBefore: 'white', ownerAfter: 'black' }] }
+        ],
+        meta: { source: 'turn_start' }
+      }],
+      snapshot: {
+        cardState: { turnIndex: 11 },
+        gameState: { board: createBoard(8, 8), currentPlayer: 1 }
+      },
+      fallbackPlayerKey: 'black',
+      adapter,
+      normalizePlayerKey
+    });
+
+    expect(result.playbackEvents).toEqual([
+      { type: 'flip', phase: 2, targets: [{ r: 3, col: 4, ownerBefore: 'white', ownerAfter: 'black' }] }
+    ]);
+    expect(result.diagnostics.warnings).toEqual([]);
+  });
+
   test('playback assembly does not mutate authoritative snapshot state', () => {
     const snapshot = {
       cardState: {
