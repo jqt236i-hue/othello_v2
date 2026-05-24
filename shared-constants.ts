@@ -13,6 +13,8 @@
  *   Node.js: const SharedConstants = require('./shared-constants');
  */
 
+import generatedCardCatalog = require('./cards/catalog');
+
 // ===== BOARD STATE CONSTANTS =====
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -95,8 +97,8 @@ function normalizeCatalogCards(cards: any): any[] | null {
 
 function readGeneratedCatalogCards(): any[] | null {
     try {
-        const mod = _require('./cards/catalog');
-        const catalog = mod && mod.default ? mod.default : mod;
+        const mod = generatedCardCatalog;
+        const catalog = mod && (mod as any).default ? (mod as any).default : mod;
         return catalog && Array.isArray(catalog.cards) ? normalizeCatalogCards(catalog.cards) : null;
     } catch (e) {
         return null;

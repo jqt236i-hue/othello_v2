@@ -61,6 +61,24 @@ function _shouldForceOnnxLoad(): boolean {
   return false;
 }
 
+function _shouldLoadOthelloOnnxByDefault(): boolean {
+  try {
+    const qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
+    if (/[?&]othelloOnnx=(?:0|false)\b/i.test(qs) || /[?&]othello_onnx=(?:0|false)\b/i.test(qs)) return false;
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof window !== 'undefined' && (window as any).CPU_DISABLE_OTHELLO_ONNX === true) return false;
+  } catch (e) { /* ignore */ }
+  try {
+    const qs = (typeof location !== 'undefined' && location.search) ? location.search : '';
+    if (/[?&]othelloOnnx=(?:1|true)\b/i.test(qs) || /[?&]othello_onnx=(?:1|true)\b/i.test(qs)) return true;
+  } catch (e) { /* ignore */ }
+  try {
+    if (typeof window !== 'undefined' && (window as any).CPU_FORCE_OTHELLO_ONNX === true) return true;
+  } catch (e) { /* ignore */ }
+  return true;
+}
+
 function _getCpuModelLoadTimeoutMs(): number {
   try {
     if (typeof window !== 'undefined' && Number.isFinite(Number((window as any).CPU_MODEL_LOAD_TIMEOUT_MS))) {
@@ -229,6 +247,13 @@ function _resolvePolicyTableRuntime(): any {
   ]);
 }
 
+function _resolveOthelloOnnxRuntime(): any {
+  return _resolveBrowserPolicyRuntime('OthelloOnnxRuntime', [
+    '../../game/ai/othello-onnx-runtime',
+    '../../game/ai/othello-onnx-runtime.js'
+  ]);
+}
+
 function _usesOnnxMoveDecision(mode: string): boolean {
   const normalized = String(mode || '').trim().toLowerCase();
   if (!normalized) return true;
@@ -280,6 +305,13 @@ function _getCpuModelLoadStatusStore(): any {
           valueLoaded: false,
           sourceUrl: '',
           valueSourceUrl: '',
+          triedRoots: [],
+          lastError: ''
+        },
+        othelloOnnx: {
+          loaded: false,
+          sourceUrl: '',
+          metaUrl: '',
           triedRoots: [],
           lastError: ''
         }
@@ -410,6 +442,79 @@ async function _resolveOptionalAssetPair(fetchImpl: any, primaryRelativePath: st
     }
   }
   return _resolveAssetPair(fetchImpl, primaryRelativePath, secondaryRelativePath);
+}
+
+function _resolveModelRedirectUrl(sourceUrl: string, redirectUrl: string): string {
+  const redirect = String(redirectUrl || '').trim();
+  if (!redirect) return '';
+  if (/^(?:https?:)?\/\//i.test(redirect) || redirect.startsWith('/') || redirect.startsWith('./') || redirect.startsWith('../')) {
+    return redirect;
+  }
+  const source = String(sourceUrl || '').trim();
+  if (source.startsWith('./')) return `./${redirect.replace(/^\/+/, '')}`;
+  return redirect;
+}
+
+async function _inflateGzipJsonAsset(fetchImpl: any, url: string): Promise<any> {
+  if (!fetchImpl || !url) throw new Error('gzip asset fetch is not available');
+  if (typeof DecompressionStream !== 'function') {
+    throw new Error('gzip model asset requires DecompressionStream support');
+  }
+  const response = await fetchImpl(url, { cache: 'no-store' });
+  if (!response || response.ok !== true || typeof response.arrayBuffer !== 'function') {
+    throw new Error(`failed to fetch compressed model asset: ${url}`);
+  }
+  const compressed = await response.arrayBuffer();
+  const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
+  const text = await new Response(stream).text();
+  return JSON.parse(text);
+}
+
+async function _loadJsonModelWithRedirect(fetchImpl: any, url: string): Promise<any> {
+  if (!fetchImpl || !url) throw new Error('model fetch is not available');
+  const response = await fetchImpl(url, { cache: 'no-store' });
+  if (!response || response.ok !== true || typeof response.json !== 'function') {
+    throw new Error(`failed to fetch model asset: ${url}`);
+  }
+  const payload = await response.json();
+  if (payload && payload.assetType === 'policy_table.redirect.v1') {
+    if (payload.compression !== 'gzip' || typeof payload.url !== 'string') {
+      throw new Error(`unsupported model redirect manifest: ${url}`);
+    }
+    const compressedUrl = _resolveModelRedirectUrl(url, payload.url);
+    return _inflateGzipJsonAsset(fetchImpl, compressedUrl);
+  }
+  if (payload && payload.assetType === 'policy_table.chunks.v1') {
+    if (!Array.isArray(payload.chunks) || payload.chunks.length <= 0) {
+      throw new Error(`empty model chunk manifest: ${url}`);
+    }
+    let text = '';
+    for (const chunk of payload.chunks) {
+      const chunkUrl = _resolveModelRedirectUrl(url, chunk && chunk.url);
+      if (!chunkUrl) throw new Error(`invalid model chunk manifest: ${url}`);
+      const chunkResponse = await fetchImpl(chunkUrl, { cache: 'no-store' });
+      if (!chunkResponse || chunkResponse.ok !== true || typeof chunkResponse.text !== 'function') {
+        throw new Error(`failed to fetch model chunk: ${chunkUrl}`);
+      }
+      text += await chunkResponse.text();
+    }
+    return JSON.parse(text);
+  }
+  return payload;
+}
+
+async function _loadOthelloJsonModel(runtime: any, fetchImpl: any, url: string, setterName: string, loaderName: string): Promise<boolean> {
+  if (fetchImpl && runtime && typeof runtime[setterName] === 'function') {
+    try {
+      const payload = await _loadJsonModelWithRedirect(fetchImpl, url);
+      const ok = !!runtime[setterName](payload);
+      return ok;
+    } catch (e) {
+      if (_isDebugEnabled()) console.warn(`[CPU] direct othello model load failed (${url})`, e);
+    }
+  }
+  return !!(runtime && typeof runtime[loaderName] === 'function'
+    && await runtime[loaderName](url));
 }
 
 async function _loadAuxiliaryPolicyOnnxModels(runtime: any, options: any): Promise<void> {
@@ -790,7 +895,89 @@ function _resolveOthelloBrowserCpuRuntime(): any {
   return null;
 }
 
+async function initOthelloOnnxModel(): Promise<void> {
+  if (!_shouldLoadOthelloOnnxByDefault()) return;
+  const runtime = _resolveOthelloOnnxRuntime();
+  if (!runtime || typeof runtime.loadFromUrl !== 'function') return;
+
+  const modelRel = 'data/models/othello/policy-value.onnx';
+  const metaRel = 'data/models/othello/policy-value.onnx.meta.json';
+  let modelUrl = modelRel;
+  let metaUrl = metaRel;
+  const loadTimeoutMs = Math.max(_getCpuModelLoadTimeoutMs(), 30000);
+  const fetchImpl = (typeof window !== 'undefined' && typeof window.fetch === 'function')
+    ? window.fetch.bind(window)
+    : null;
+
+  if (fetchImpl) {
+    const resolved = await _resolveAssetPair(fetchImpl, modelRel, metaRel);
+    if (!resolved) {
+      _setCpuModelLoadStatus('othelloOnnx', {
+        loaded: false,
+        sourceUrl: '',
+        metaUrl: '',
+        triedRoots: _candidateAssetRoots(),
+        lastError: 'missing othello ONNX assets'
+      });
+      _debugLog('[CPU] othello ONNX assets missing; table fallback remains active');
+      return;
+    }
+    modelUrl = resolved.primaryUrl;
+    metaUrl = resolved.secondaryUrl;
+    _setCpuModelLoadStatus('othelloOnnx', {
+      loaded: false,
+      sourceUrl: modelUrl,
+      metaUrl,
+      triedRoots: Array.isArray(resolved.triedRoots) ? resolved.triedRoots.slice() : [],
+      lastError: ''
+    });
+  }
+
+  try {
+    if (typeof runtime.configure === 'function') {
+      const ortApi = (typeof window !== 'undefined' && (window as any).ort)
+        ? (window as any).ort
+        : null;
+      runtime.configure({
+        enabled: true,
+        minLevel: 6,
+        sourceUrl: modelUrl,
+        metaUrl,
+        ortApi
+      });
+    }
+    const ok = await _withLoadTimeout(runtime.loadFromUrl(modelUrl, metaUrl), loadTimeoutMs, 'othello ONNX load');
+    const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;
+    _setCpuModelLoadStatus('othelloOnnx', {
+      loaded: !!ok,
+      sourceUrl: modelUrl,
+      metaUrl,
+      schemaVersion: status && status.schemaVersion ? status.schemaVersion : undefined,
+      inputDim: status && Number.isFinite(status.inputDim) ? status.inputDim : undefined,
+      outputDim: status && Number.isFinite(status.outputDim) ? status.outputDim : undefined,
+      lastError: ok ? '' : (status && status.lastError ? status.lastError : 'runtime returned not loaded')
+    });
+    if (ok) _debugLog(`[CPU] othello ONNX loaded (${modelUrl})`);
+  } catch (err: any) {
+    _setCpuModelLoadStatus('othelloOnnx', {
+      loaded: false,
+      sourceUrl: modelUrl,
+      metaUrl,
+      lastError: err && err.message ? err.message : 'load failed'
+    });
+    if (_isDebugEnabled()) console.warn('[CPU] othello ONNX loading failed', err);
+  }
+}
+
 async function initOthelloPolicyTableModel(): Promise<void> {
+  await initOthelloOnnxModel();
+  try {
+    const status = _getCpuModelLoadStatusStore();
+    if (status && status.othelloOnnx && status.othelloOnnx.loaded === true) {
+      _debugLog('[CPU] othello ONNX primary loaded; skip othello policy/value table load');
+      return;
+    }
+  } catch (e) { /* ignore */ }
   const runtime = _resolveOthelloBrowserCpuRuntime();
   if (!runtime || typeof runtime.loadFromUrl !== 'function') return;
 
@@ -798,7 +985,7 @@ async function initOthelloPolicyTableModel(): Promise<void> {
   const valueRel = 'data/models/othello/value-table.json';
   let policyUrl = policyRel;
   let valueUrl = valueRel;
-  const loadTimeoutMs = _getCpuModelLoadTimeoutMs();
+  const loadTimeoutMs = Math.max(_getCpuModelLoadTimeoutMs(), 30000);
   const fetchImpl = (typeof window !== 'undefined' && typeof window.fetch === 'function')
     ? window.fetch.bind(window)
     : null;
@@ -839,10 +1026,16 @@ async function initOthelloPolicyTableModel(): Promise<void> {
         valueSourceUrl: valueUrl
       });
     }
-    const policyOk = await _withLoadTimeout(runtime.loadFromUrl(policyUrl), loadTimeoutMs, 'othello policy-table load');
-    const valueOk = typeof runtime.loadValueModelFromUrl === 'function'
-      ? await _withLoadTimeout(runtime.loadValueModelFromUrl(valueUrl), loadTimeoutMs, 'othello value-table load')
-      : false;
+    const policyOk = await _withLoadTimeout(
+      _loadOthelloJsonModel(runtime, fetchImpl, policyUrl, 'setModel', 'loadFromUrl'),
+      loadTimeoutMs,
+      'othello policy-table load'
+    );
+    const valueOk = await _withLoadTimeout(
+      _loadOthelloJsonModel(runtime, fetchImpl, valueUrl, 'setValueModel', 'loadValueModelFromUrl'),
+      loadTimeoutMs,
+      'othello value-table load'
+    );
     if (policyOk && valueOk) {
       const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;
       _setCpuModelLoadStatus('othelloTable', {
@@ -879,6 +1072,7 @@ if (typeof window !== 'undefined') {
   (window as any).loadCpuPolicy = loadCpuPolicy;
   (window as any).initPolicyOnnxModel = initPolicyOnnxModel;
   (window as any).initPolicyTableModel = initPolicyTableModel;
+  (window as any).initOthelloOnnxModel = initOthelloOnnxModel;
   (window as any).initOthelloPolicyTableModel = initOthelloPolicyTableModel;
 }
 
@@ -887,6 +1081,7 @@ const CpuPolicyModule = {
   loadCpuPolicy,
   initPolicyOnnxModel,
   initPolicyTableModel,
+  initOthelloOnnxModel,
   initOthelloPolicyTableModel
 };
 

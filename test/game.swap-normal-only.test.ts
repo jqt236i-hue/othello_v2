@@ -63,6 +63,22 @@ describe('SWAP_WITH_ENEMY normal-stone only policy', () => {
     expect(gameState.board[4][5]).toBe(1);
   });
 
+  test('applyCardUsage arms SWAP_WITH_ENEMY when an enemy normal stone exists', () => {
+    const { cardState, gameState } = makeState();
+    cardState.hands.black = ['swap_01'];
+    cardState.charge.black = CardLogic.getCardCost('swap_01');
+    gameState.board[4][5] = -1;
+
+    const ok = CardLogic.applyCardUsage(cardState, gameState, 'black', 'swap_01');
+
+    expect(ok).toBe(true);
+    expect(cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: 'SWAP_WITH_ENEMY',
+      stage: 'selectTarget',
+      cardId: 'swap_01'
+    }));
+  });
+
   test('applySwapEffect flips bracketed stones created by the swap', () => {
     const { cardState, gameState } = makeState();
     // row 3: B W W B  (target: [3,3])

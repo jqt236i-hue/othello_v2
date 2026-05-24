@@ -99,6 +99,10 @@ let CpuPolicyOnnxRuntime: any = null;
 if (typeof require === 'function') {
     try { CpuPolicyOnnxRuntime = _require('./ai/policy-onnx-runtime'); } catch (e) { /* ignore */ }
 }
+let OthelloOnnxRuntime: any = null;
+if (typeof require === 'function') {
+    try { OthelloOnnxRuntime = _require('./ai/othello-onnx-runtime'); } catch (e) { /* ignore */ }
+}
 let CpuDecisionCardEffectsHelpers: any = null;
 if (typeof require === 'function') {
     try { CpuDecisionCardEffectsHelpers = _require('./card-effects/helpers'); } catch (e) { /* ignore */ }
@@ -639,6 +643,41 @@ function isOthelloModeForCpuDecision(): boolean {
     return false;
 }
 
+function resolveOthelloOnnxRuntime(): any {
+    const globalModule = readRuntimeModule('OthelloOnnxRuntime');
+    if (globalModule && typeof globalModule.chooseMove === 'function') {
+        OthelloOnnxRuntime = globalModule;
+        return globalModule;
+    }
+    const resolvedModule = resolveModuleReference(OthelloOnnxRuntime, {
+        requirePath: './ai/othello-onnx-runtime',
+        globalKey: 'OthelloOnnxRuntime',
+        isValid: (moduleRef: any) => !!(
+            moduleRef &&
+            typeof moduleRef.chooseMove === 'function'
+        )
+    });
+    if (resolvedModule) OthelloOnnxRuntime = resolvedModule;
+    return resolvedModule;
+}
+
+function shouldUseOthelloOnnxRuntime(): boolean {
+    try {
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readDebugFlag === 'function' && cpuDecisionRuntime.readDebugFlag('CPU_DISABLE_OTHELLO_ONNX') === true) return false;
+    } catch (e) { /* ignore */ }
+    try {
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readDebugFlag === 'function' && cpuDecisionRuntime.readDebugFlag('CPU_FORCE_OTHELLO_ONNX') === true) return true;
+    } catch (e) { /* ignore */ }
+    try {
+        const qs = readCpuDecisionQuerySearch();
+        if (/[?&]othelloOnnx=(?:0|false)\b/i.test(qs) || /[?&]othello_onnx=(?:0|false)\b/i.test(qs)) return false;
+        if (/[?&]othelloOnnx=(?:1|true)\b/i.test(qs) || /[?&]othello_onnx=(?:1|true)\b/i.test(qs)) return true;
+    } catch (e) {
+        return true;
+    }
+    return true;
+}
+
 function resolveCpuLv6RuntimeCapabilityModule(): any {
     const resolvedModule = resolveModuleReference(CpuLv6RuntimeCapabilityModule, {
         globalKey: 'CpuLv6RuntimeCapability',
@@ -759,6 +798,26 @@ function selectMoveFromLearnedPolicy(candidateMoves: any, playerKey: any, level:
 
 function selectMoveFromOthelloPolicy(candidateMoves: any, playerKey: any, level: any): any {
     if (!isOthelloModeForCpuDecision() || !Number.isFinite(level) || level < 6) return null;
+    if (shouldUseOthelloOnnxRuntime()) {
+        const onnxRuntime = resolveOthelloOnnxRuntime();
+        try {
+            const boardRef = getCurrentCpuBoard();
+            if (onnxRuntime && typeof onnxRuntime.chooseMove === 'function' && canUseStandardBoardCpuPolicy(boardRef, 'othello-onnx-move', playerKey, level)) {
+                const status = (typeof onnxRuntime.getStatus === 'function') ? onnxRuntime.getStatus() : null;
+                if (status && status.loaded === true) {
+                    const selected = onnxRuntime.chooseMove(candidateMoves, {
+                        playerKey,
+                        level,
+                        board: boardRef,
+                        legalMovesCount: candidateMoves.length
+                    });
+                    if (selected && typeof selected.then !== 'function') return selected;
+                }
+            }
+        } catch (e) {
+            console.warn('[CPU] othello ONNX runtime failed, fallback to table/default policy', e);
+        }
+    }
     const runtime = resolveOthelloBrowserCpuRuntime();
     if (!runtime || typeof runtime.chooseMove !== 'function') return null;
     try {
@@ -1245,10 +1304,11 @@ function selectMoveByLookahead(candidateMoves: any, playerKey: any, level: any, 
 }
 
 async function selectMoveFromOnnxPolicyAsync(candidateMoves: any, playerKey: any, level: any): Promise<any> {
-    const runtime = resolvePolicyOnnxRuntime();
+    const useOthelloOnnx = isOthelloModeForCpuDecision() && shouldUseOthelloOnnxRuntime();
+    const runtime = useOthelloOnnx ? resolveOthelloOnnxRuntime() : resolvePolicyOnnxRuntime();
     if (!runtime || typeof runtime.chooseMove !== 'function') return null;
     const board = getCurrentCpuBoard();
-    if (!canUseStandardBoardCpuPolicy(board, 'onnx-move', playerKey, level)) return null;
+    if (!canUseStandardBoardCpuPolicy(board, useOthelloOnnx ? 'othello-onnx-move' : 'onnx-move', playerKey, level)) return null;
     let prioritizedCandidateMoves = filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves);
     if (Number.isFinite(level) && level >= 6) {
         prioritizedCandidateMoves = filterLv6OpenCornerAdjacentMoves(prioritizedCandidateMoves, board);
@@ -1264,7 +1324,9 @@ async function selectMoveFromOnnxPolicyAsync(candidateMoves: any, playerKey: any
         const selected = await awaitCpuPromiseWithinBudget(
             () => runtime.chooseMove(
                 prioritizedCandidateMoves,
-                buildOnnxContext(playerKey, level, prioritizedCandidateMoves.length, handCardIds, null)
+                useOthelloOnnx
+                    ? { playerKey, level, board, legalMovesCount: prioritizedCandidateMoves.length }
+                    : buildOnnxContext(playerKey, level, prioritizedCandidateMoves.length, handCardIds, null)
             ),
             budgetMs,
             CPU_ONNX_BUDGET_TIMEOUT
@@ -1292,7 +1354,7 @@ async function selectMoveFromOnnxPolicyAsync(candidateMoves: any, playerKey: any
         }
         return resolved;
     } catch (e) {
-        console.warn('[CPU] policy-onnx runtime failed, fallback to default policy', e);
+        console.warn(useOthelloOnnx ? '[CPU] othello ONNX runtime failed, fallback to default policy' : '[CPU] policy-onnx runtime failed, fallback to default policy', e);
         return null;
     }
 }

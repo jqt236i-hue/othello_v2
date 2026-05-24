@@ -96,6 +96,25 @@ describe('BoardOps moveAt marker ownership', () => {
     expect((cardState.presentationEvents || []).filter((event) => event && event.type === 'MOVE')).toHaveLength(0);
   });
 
+  test('classifies WILL_HUNTER_KING slash movement as anchor movement', () => {
+    const { cardState, gameState } = createEmptyState();
+    gameState.board[2][2] = Core.BLACK;
+
+    const result = BoardOps.moveAt(cardState, gameState, 2, 2, 5, 5, 'WILL_HUNTER_KING', 'will_hunter_king_slash_move');
+
+    expect(result.moved).toBe(true);
+    const moveEvent = cardState.presentationEvents.find((event) => event && event.type === 'MOVE');
+    expect(moveEvent).toMatchObject({
+      prevRow: 2,
+      prevCol: 2,
+      row: 5,
+      col: 5,
+      cause: 'WILL_HUNTER_KING',
+      reason: 'will_hunter_king_slash_move',
+      meta: expect.objectContaining({ moveIntent: 'anchor_move' })
+    });
+  });
+
   test('swapOccupiedCells swaps stone-attached markers only and emits paired move events', () => {
     const { cardState, gameState } = createEmptyState();
     gameState.board[1][1] = Core.BLACK;

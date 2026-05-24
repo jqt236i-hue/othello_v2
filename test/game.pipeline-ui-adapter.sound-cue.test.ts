@@ -2052,7 +2052,8 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
         from: { r: 2, col: 2 },
         to: { r: 5, col: 5 },
         cause: 'WILL_HUNTER_KING',
-        reason: 'will_hunter_king_slash_move'
+        reason: 'will_hunter_king_slash_move',
+        meta: { moveIntent: 'hyperactive_move' }
       }]
     }];
     const out = adapter.appendSoundEffectPlaybackEvents(base, []);

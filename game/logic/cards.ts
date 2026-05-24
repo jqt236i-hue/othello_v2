@@ -2549,6 +2549,7 @@ const {
             canUseReinforcementWillForPlayer,
             canUseTimeStopGodForPlayer,
             countOpponentOccupiedCornersForPlayer,
+            getDestroyTargets,
             getTemptWillTargets,
             getCaptureWillTargets,
             getStrongWindTargets,
@@ -2567,6 +2568,7 @@ const {
             getTeleportTargets,
             getCellTeleportTargets,
             getCloneTargets,
+            getSwapTargets,
             getPositionSwapTargets: (nextCardState: any, nextGameState: any, nextPlayerKey: any) => getSelectableTargets({
                 ...nextCardState,
                 pendingEffectByPlayer: {
@@ -4625,6 +4627,7 @@ const {
             canUseReinforcementWillForPlayer,
             canUseTimeStopGodForPlayer,
             countOpponentOccupiedCornersForPlayer,
+            getDestroyTargets,
             getTemptWillTargets,
             getCaptureWillTargets,
             getStrongWindTargets,
@@ -4643,6 +4646,8 @@ const {
             getTeleportTargets,
             getCellTeleportTargets,
             getCloneTargets,
+            getSwapTargets,
+            getPositionSwapTargets,
             getReinforcementWillTargets,
             getOccupiedBoardShapeCellsForCard,
             getBoardExpansionTargets,
@@ -4652,6 +4657,7 @@ const {
             getBlockadeTargets,
             getMeteorTargets,
             getFreezeTargets,
+            getSeedTargets,
             CardDefsModule,
             CardCostsModule,
             CardSelectorsModule

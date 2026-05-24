@@ -23,6 +23,28 @@ function safeRequire(id: string): any {
   }
 }
 
+function readRuntimeGlobal(globalKey: string): any {
+  if (!globalKey) return null;
+  try {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[globalKey]) {
+      return (globalThis as any)[globalKey];
+    }
+    if (typeof self !== 'undefined' && (self as any)[globalKey]) {
+      return (self as any)[globalKey];
+    }
+  } catch (e) {
+    return null;
+  }
+  return null;
+}
+
+function unwrapModule(mod: any): any {
+  if (mod && typeof mod === 'object' && Object.prototype.hasOwnProperty.call(mod, 'default')) {
+    return mod.default || mod;
+  }
+  return mod;
+}
+
 const CardModuleResolver = safeRequire('../logic/cards-internal/module-resolver');
 
 function loadRuntimeModule(id: string, globalKey: string, fallbackValue: any = null): any {
@@ -33,10 +55,10 @@ function loadRuntimeModule(id: string, globalKey: string, fallbackValue: any = n
       requireFn: _require,
       label: globalKey
     });
-    return resolved || fallbackValue;
+    if (resolved) return unwrapModule(resolved);
   }
 
-  return safeRequire(id) || fallbackValue;
+  return unwrapModule(safeRequire(id)) || unwrapModule(readRuntimeGlobal(globalKey)) || fallbackValue;
 }
 
 const SharedConstants = loadRuntimeModule('../../shared-constants', 'SharedConstants', {});
@@ -96,6 +118,7 @@ function getCardHandManagerContext(deps: any) {
     canUseReinforcementWillForPlayer,
     canUseTimeStopGodForPlayer,
     countOpponentOccupiedCornersForPlayer,
+    getDestroyTargets,
     getTemptWillTargets,
     getCaptureWillTargets,
     getStrongWindTargets,
@@ -103,6 +126,7 @@ function getCardHandManagerContext(deps: any) {
     getSuperBuoyancyTargets,
     getGravityTargets,
     getSuperGravityTargets,
+    getSuperAttractionTargets,
     getTrapTargets,
     getGuardTargets,
     getLivingWillTargets,
@@ -113,6 +137,8 @@ function getCardHandManagerContext(deps: any) {
     getTeleportTargets,
     getCellTeleportTargets,
     getCloneTargets,
+    getSwapTargets,
+    getPositionSwapTargets,
     getReinforcementWillTargets,
     getOccupiedBoardShapeCellsForCard,
     getBoardExpansionTargets,
@@ -122,6 +148,7 @@ function getCardHandManagerContext(deps: any) {
     getBlockadeTargets,
     getMeteorTargets,
     getFreezeTargets,
+    getSeedTargets,
     CardDefsModule,
     CardCostsModule,
     CardSelectorsModule
@@ -144,6 +171,7 @@ function getCardHandManagerContext(deps: any) {
       canUseReinforcementWillForPlayer,
       canUseTimeStopGodForPlayer,
       countOpponentOccupiedCornersForPlayer,
+      getDestroyTargets,
       getTemptWillTargets,
       getCaptureWillTargets,
       getStrongWindTargets,
@@ -151,6 +179,7 @@ function getCardHandManagerContext(deps: any) {
       getSuperBuoyancyTargets,
       getGravityTargets,
       getSuperGravityTargets,
+      getSuperAttractionTargets,
       getTrapTargets,
       getGuardTargets,
       getLivingWillTargets,
@@ -161,6 +190,8 @@ function getCardHandManagerContext(deps: any) {
       getTeleportTargets,
       getCellTeleportTargets,
       getCloneTargets,
+      getSwapTargets,
+      getPositionSwapTargets,
       getReinforcementWillTargets,
       getOccupiedBoardShapeCellsForCard,
       getBoardExpansionTargets,
@@ -170,6 +201,7 @@ function getCardHandManagerContext(deps: any) {
       getBlockadeTargets,
       getMeteorTargets,
       getFreezeTargets,
+      getSeedTargets,
       ...pendingSelectionTargetContext
     },
     modules: {
@@ -420,6 +452,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     canUseReinforcementWillForPlayer,
     canUseTimeStopGodForPlayer,
     countOpponentOccupiedCornersForPlayer,
+    getDestroyTargets,
     getTemptWillTargets,
     getCaptureWillTargets,
     getStrongWindTargets,
@@ -427,6 +460,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     getSuperBuoyancyTargets,
     getGravityTargets,
     getSuperGravityTargets,
+    getSuperAttractionTargets,
     getTrapTargets,
     getGuardTargets,
     getLivingWillTargets,
@@ -437,6 +471,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
     getTeleportTargets,
     getCellTeleportTargets,
     getCloneTargets,
+    getSwapTargets,
     getPositionSwapTargets,
     getBoardExpansionTargets,
     getBoardExpansionGodTargets,
@@ -516,6 +551,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
       canUseReinforcementWillForPlayer,
       canUseTimeStopGodForPlayer,
       countOpponentOccupiedCornersForPlayer,
+      getDestroyTargets,
       buildHeavenBlessingOffers,
       buildCondemnOffers,
       getTemptWillTargets,
@@ -525,6 +561,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
       getSuperBuoyancyTargets,
       getGravityTargets,
       getSuperGravityTargets,
+      getSuperAttractionTargets,
       getTrapTargets,
       getGuardTargets,
       getLivingWillTargets,
@@ -535,6 +572,7 @@ function applyCardUsage(cardState: any, playerKey: string, cardId: string, deps:
       getTeleportTargets,
       getCellTeleportTargets,
       getCloneTargets,
+      getSwapTargets,
       getPositionSwapTargets,
       getBoardExpansionTargets,
       getBoardExpansionGodTargets,

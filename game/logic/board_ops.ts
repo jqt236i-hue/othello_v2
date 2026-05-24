@@ -1771,7 +1771,7 @@ function _inferMoveIntent(cause: string | null, reason: string | null): string |
     if (causeUpper === 'BUOYANCY_WILL' || causeUpper === 'SUPER_BUOYANCY_WILL' || causeUpper === 'GRAVITY_WILL' || causeUpper === 'SUPER_GRAVITY_WILL' || causeUpper === 'SUPER_ATTRACTION_WILL' || reasonLower.indexOf('buoyancy_move') === 0 || reasonLower.indexOf('super_buoyancy_move') === 0 || reasonLower.indexOf('gravity_move') === 0 || reasonLower.indexOf('super_gravity_move') === 0 || reasonLower.indexOf('super_attraction_move') === 0) return 'crush_move';
     if (causeUpper === 'POSITION_SWAP_WILL' || reasonLower.indexOf('position_swap') === 0 || reasonLower.indexOf('extreme_hyperactive_forced_swap') === 0) return 'position_swap';
     if (causeUpper === 'DESTROY_EVADE' || reasonLower.indexOf('destroy_evade_move') === 0 || reasonLower.indexOf('flip_evade_move') >= 0) return 'evade_move';
-    if (causeUpper === 'ULTIMATE_REVERSE_DRAGON' || causeUpper === 'ULTIMATE_DESTROY_GOD' || reasonLower.indexOf('ultimate_reverse_dragon_move') === 0 || reasonLower.indexOf('ultimate_destroy_god_move') === 0) return 'anchor_move';
+    if (causeUpper === 'ULTIMATE_REVERSE_DRAGON' || causeUpper === 'ULTIMATE_DESTROY_GOD' || causeUpper === 'WILL_HUNTER_KING' || reasonLower.indexOf('ultimate_reverse_dragon_move') === 0 || reasonLower.indexOf('ultimate_destroy_god_move') === 0 || reasonLower.indexOf('will_hunter_king_slash_move') === 0) return 'anchor_move';
     if (
         causeUpper === 'HYPERACTIVE' ||
         causeUpper === 'AFTERIMAGE_WILL' ||
@@ -1783,11 +1783,9 @@ function _inferMoveIntent(cause: string | null, reason: string | null): string |
         causeUpper === 'GLUTTONOUS_WILL' ||
         causeUpper === 'ULTIMATE_HYPERACTIVE' ||
         causeUpper === 'ULTIMATE_HYPERACTIVE_GOD' ||
-        causeUpper === 'WILL_HUNTER_KING' ||
         reasonLower.indexOf('hyperactive') >= 0 ||
         reasonLower.indexOf('gluttonous') >= 0 ||
-        reasonLower.indexOf('robot_vacuum_move') === 0 ||
-        reasonLower.indexOf('will_hunter_king_slash_move') === 0
+        reasonLower.indexOf('robot_vacuum_move') === 0
     ) return 'hyperactive_move';
     return null;
 }

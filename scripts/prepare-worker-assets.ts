@@ -41,6 +41,7 @@ interface GeneratedOptionalAssetTask {
     compressedRelativePath: string;
     manifestRelativePath: string;
     compression: string;
+    chunkSizeBytes?: number;
 }
 
 interface GeneratedOptionalAsset {
@@ -114,6 +115,8 @@ const OPTIONAL_FILES: readonly string[] = Object.freeze([
     'data/models/policy-table.json',
     'data/models/othello/policy-table.json',
     'data/models/othello/value-table.json',
+    'data/models/othello/policy-value.onnx',
+    'data/models/othello/policy-value.onnx.meta.json',
     'story/ui/story.css',
     'node_modules/onnxruntime-web/dist/ort.min.js',
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs',
@@ -122,7 +125,15 @@ const OPTIONAL_FILES: readonly string[] = Object.freeze([
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm'
 ]);
 
-const GENERATED_OPTIONAL_ASSETS: readonly GeneratedOptionalAssetTask[] = Object.freeze([]);
+const GENERATED_OPTIONAL_ASSETS: readonly GeneratedOptionalAssetTask[] = Object.freeze([
+    {
+        sourceRelativePath: 'data/models/othello/policy-table.json',
+        compressedRelativePath: 'data/models/othello/policy-table.json.chunk.',
+        manifestRelativePath: 'data/models/othello/policy-table.json',
+        compression: 'split',
+        chunkSizeBytes: 8 * 1024 * 1024
+    }
+]);
 
 const EXCLUDED_MIRROR_RELATIVE_PATHS = new Set([
     'game/logic/card-usage-prechecks.js',
@@ -243,6 +254,14 @@ function buildCompressedAssetManifest(task: any, compressedBytes: any, sourceByt
     }), 'utf8');
 }
 
+function buildSplitAssetManifest(chunks: any[], sourceBytes: number) {
+    return Buffer.from(JSON.stringify({
+        assetType: 'policy_table.chunks.v1',
+        chunks,
+        sourceBytes
+    }), 'utf8');
+}
+
 function resolveGeneratedOptionalAssets(config: any) {
     const settings = createPrepareConfig(config);
     const out = [];
@@ -254,6 +273,29 @@ function resolveGeneratedOptionalAssets(config: any) {
         let compressed = null;
         if (task.compression === 'gzip') {
             compressed = zlib.gzipSync(raw, { level: 9 });
+        } else if (task.compression === 'split') {
+            const chunkSize = Math.max(1, Math.min(WORKER_ASSET_MAX_BYTES, Math.floor(Number(task.chunkSizeBytes) || (8 * 1024 * 1024))));
+            const chunks = [];
+            for (let offset = 0, index = 0; offset < raw.length; offset += chunkSize, index += 1) {
+                const part = raw.subarray(offset, Math.min(raw.length, offset + chunkSize));
+                const relativePath = `${task.compressedRelativePath}${String(index).padStart(3, '0')}`;
+                chunks.push({
+                    url: relativePath.replace(/\\/g, '/'),
+                    bytes: part.length
+                });
+                out.push({
+                    relativePath,
+                    content: part
+                });
+            }
+            out.push({
+                relativePath: task.manifestRelativePath,
+                content: buildSplitAssetManifest(chunks, raw.length)
+            });
+            console.log(
+                `[worker-prepare] generated-split ${task.sourceRelativePath} -> ${chunks.length} chunks raw=${toMiBString(raw.length)}MiB chunk=${toMiBString(chunkSize)}MiB`
+            );
+            continue;
         } else {
             console.warn(`[worker-prepare] generated-skip-unknown-compression ${task.compression}`);
             continue;

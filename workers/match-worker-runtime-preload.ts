@@ -7,6 +7,7 @@ interface MatchWorkerRuntimeGlobalScope {
     DestroyOutcomeContract?: unknown;
     StoneStatusSnapshot?: unknown;
     SpecialStoneRegistry?: unknown;
+    PresentationEffectProfiles?: unknown;
     CardRandomSource?: unknown;
     CardStateFactory?: unknown;
     CardModuleResolver?: unknown;
@@ -47,6 +48,7 @@ if (!scope.PlayerEncoding) scope.PlayerEncoding = unwrapModule(require('../share
 if (!scope.DestroyOutcomeContract) scope.DestroyOutcomeContract = unwrapModule(require('../shared/destroy-outcome-contract.js'));
 if (!scope.StoneStatusSnapshot) scope.StoneStatusSnapshot = unwrapModule(require('../shared/stone-status-snapshot.js'));
 if (!scope.SpecialStoneRegistry) scope.SpecialStoneRegistry = unwrapModule(require('../shared/special-stone-registry.js'));
+if (!scope.PresentationEffectProfiles) scope.PresentationEffectProfiles = unwrapModule(require('../shared/presentation-effect-profiles.js'));
 if (!scope.CardRandomSource) scope.CardRandomSource = unwrapModule(require('../game/logic/cards-internal/random-source.js'));
 if (!scope.CardStateFactory) scope.CardStateFactory = unwrapModule(require('../game/logic/cards-internal/state-factory.js'));
 if (!scope.CardModuleResolver) scope.CardModuleResolver = unwrapModule(require('../game/logic/cards-internal/module-resolver.js'));

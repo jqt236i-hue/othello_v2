@@ -23,6 +23,13 @@ function readGlobalModule(globalName: string): unknown {
     return null;
 }
 
+function unwrapModule(value: unknown): unknown {
+    if (!value || typeof value !== 'object') return value;
+    if (!Object.prototype.hasOwnProperty.call(value, 'default')) return value;
+    const defaultValue = (value as Record<string, unknown>).default;
+    return defaultValue || value;
+}
+
 function resolveModule(options: ModuleResolverOptions): unknown {
     const opts = (options && typeof options === 'object') ? options : {};
     const isValid = (typeof opts.isValid === 'function')
@@ -33,7 +40,7 @@ function resolveModule(options: ModuleResolverOptions): unknown {
     let resolvedModule: unknown = null;
     if (typeof opts.readLocal === 'function') {
         try {
-            resolvedModule = opts.readLocal();
+            resolvedModule = unwrapModule(opts.readLocal());
         } catch (_error) {
             void _error;
         }
@@ -41,14 +48,14 @@ function resolveModule(options: ModuleResolverOptions): unknown {
     }
     if (opts.requirePath && typeof opts.requireFn === 'function') {
         try {
-            resolvedModule = opts.requireFn(opts.requirePath);
+            resolvedModule = unwrapModule(opts.requireFn(opts.requirePath));
         } catch (_error) {
             void _error;
         }
         if (isValid(resolvedModule)) return resolvedModule;
     }
     if (opts.globalName) {
-        resolvedModule = readGlobalModule(opts.globalName);
+        resolvedModule = unwrapModule(readGlobalModule(opts.globalName));
         if (isValid(resolvedModule)) return resolvedModule;
     }
     if (opts.required) {

@@ -8,6 +8,34 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+    function readRuntimeGlobal(globalKey: string): any {
+        if (!globalKey) return null;
+        try {
+            if (typeof globalThis !== 'undefined' && (globalThis as any)[globalKey]) {
+                return (globalThis as any)[globalKey];
+            }
+            if (typeof self !== 'undefined' && (self as any)[globalKey]) {
+                return (self as any)[globalKey];
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function unwrapModule(mod: any): any {
+        if (mod && typeof mod === 'object' && Object.prototype.hasOwnProperty.call(mod, 'default')) {
+            return mod.default || mod;
+        }
+        return mod;
+    }
+
+    function safeRequire(id: string): any {
+        try {
+            return unwrapModule(_require(id));
+        } catch (e) {
+            return null;
+        }
+    }
+
     const MarkersAdapter = (() => { try { return _require('../logic/markers_adapter'); } catch (e) { return null; } })();
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
     const OwnerHelpersModule = (() => { try { return _require('../../utils/owner-helpers'); } catch (e) { return null; } })();
@@ -17,7 +45,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const DestroyOutcomeContract = (() => { try { return _require('../../shared/destroy-outcome-contract'); } catch (e) { return null; } })();
     const SpecialStoneRegistry = (() => { try { return _require('../../shared/special-stone-registry'); } catch (e) { return null; } })();
     const StoneStatusSnapshot = (() => { try { return _require('../../shared/stone-status-snapshot'); } catch (e) { return null; } })();
-    const PresentationEffectProfiles = _require('../../shared/presentation-effect-profiles');
+    const PresentationEffectProfiles = safeRequire('../../shared/presentation-effect-profiles') || unwrapModule(readRuntimeGlobal('PresentationEffectProfiles'));
 
     const REGEN_CAUSE = 'REGEN';
     const REGEN_TRIGGER_REASON = 'regen_triggered';
@@ -2054,9 +2082,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
     function _isHyperactiveMoveTarget(target: any) {
         const moveIntent = _getMoveIntent(target);
-        if (moveIntent === 'hyperactive_move' || moveIntent === 'evade_move') return true;
         const cause = String(target && target.cause ? target.cause : '').toUpperCase();
         const reason = String(target && target.reason ? target.reason : '').toLowerCase();
+        if (
+            cause === 'WILL_HUNTER_KING' ||
+            reason.indexOf('will_hunter_king_slash_move') === 0
+        ) return false;
+        if (moveIntent === 'hyperactive_move' || moveIntent === 'evade_move') return true;
         const isFlipEvadeMove = reason.indexOf('flip_evade_move') >= 0;
         const isDestroyEvadeMove =
             cause === 'DESTROY_EVADE' ||

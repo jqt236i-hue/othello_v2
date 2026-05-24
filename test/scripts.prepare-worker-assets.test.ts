@@ -132,4 +132,42 @@ describe('prepare-worker-assets', () => {
 
         expect(() => verifyMirrors([], [], config)).toThrow(/(size|content) mismatch: assets[\\/]sample\.txt/);
     });
+
+    test('writes chunk manifest for optional assets over worker size limit', () => {
+        const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-prepare-chunks-'));
+        cleanupDirs.push(rootDir);
+        const outDir = path.join(rootDir, 'worker-public-out');
+        const sourceRelativePath = 'data/models/othello/policy-table.json';
+        const options = {
+            rootDir,
+            outDir,
+            rootFiles: [],
+            verifyRootFiles: [],
+            dirs: [],
+            verifyDirs: [],
+            optionalFiles: [],
+            generatedOptionalAssets: [{
+                sourceRelativePath,
+                compressedRelativePath: 'data/models/othello/policy-table.json.chunk.',
+                manifestRelativePath: sourceRelativePath,
+                compression: 'split',
+                chunkSizeBytes: 5
+            }]
+        };
+
+        writeFile(path.join(rootDir, sourceRelativePath), 'abcdefghijkl');
+        prepareWorkerAssets(options);
+
+        const manifestPath = path.join(outDir, sourceRelativePath);
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+        expect(manifest.assetType).toBe('policy_table.chunks.v1');
+        expect(manifest.sourceBytes).toBe(12);
+        expect(manifest.chunks).toEqual([
+            { url: 'data/models/othello/policy-table.json.chunk.000', bytes: 5 },
+            { url: 'data/models/othello/policy-table.json.chunk.001', bytes: 5 },
+            { url: 'data/models/othello/policy-table.json.chunk.002', bytes: 2 }
+        ]);
+        expect(fs.readFileSync(path.join(outDir, manifest.chunks[0].url), 'utf8')).toBe('abcde');
+        expect(fs.readFileSync(path.join(outDir, manifest.chunks[2].url), 'utf8')).toBe('kl');
+    });
 });

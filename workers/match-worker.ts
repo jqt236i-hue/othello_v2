@@ -64,6 +64,7 @@ import playerEncodingModule = require('../shared/player-encoding.js');
 import destroyOutcomeContractModule = require('../shared/destroy-outcome-contract.js');
 import stoneStatusSnapshotModule = require('../shared/stone-status-snapshot.js');
 import specialStoneRegistryModule = require('../shared/special-stone-registry.js');
+import presentationEffectProfilesModule = require('../shared/presentation-effect-profiles.js');
 import cardRandomSourceModule from '../game/logic/cards-internal/random-source.js';
 import cardStateFactoryModule from '../game/logic/cards-internal/state-factory.js';
 import cardModuleResolverModule from '../game/logic/cards-internal/module-resolver.js';
@@ -140,6 +141,7 @@ const WORKER_PRELOAD_MODULES: Readonly<Record<string, unknown>> = Object.freeze(
     '../shared/destroy-outcome-contract.js': destroyOutcomeContractModule,
     '../shared/stone-status-snapshot.js': stoneStatusSnapshotModule,
     '../shared/special-stone-registry.js': specialStoneRegistryModule,
+    '../shared/presentation-effect-profiles.js': presentationEffectProfilesModule,
     '../game/logic/cards-internal/random-source.js': cardRandomSourceModule,
     '../game/logic/cards-internal/state-factory.js': cardStateFactoryModule,
     '../game/logic/cards-internal/module-resolver.js': cardModuleResolverModule,

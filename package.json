@@ -53,6 +53,7 @@
     "selfplay:train-card": ".\\.venv\\Scripts\\python.exe .\\ai\\train\\train_card_onnx.py",
     "selfplay:train-deepcfr": ".\\.venv\\Scripts\\python.exe .\\ai\\train\\train_deepcfr_onnx.py",
     "selfplay:train-cycle": "node scripts/run-selfplay-training-cycle.js",
+    "othello:onnx-loop": "node scripts/run-othello-onnx-training-loop.js",
     "generate:catalog": "node scripts/generate-catalog.js",
     "generate:observation-gacha-catalog": "node scripts/generate-observation-gacha-catalog.js",
     "generate:gacha-hand-catalog": "node scripts/generate-observation-gacha-catalog.js",
