@@ -30,6 +30,34 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 // ===== Card UI State & Interaction (Refactored to use CardLogic) =====
 
+function _resolveCardInteractionModule(options: {
+    readDirect?: () => any;
+    requirePath?: string;
+    globalKey?: string;
+}): any {
+    const opts = options || {};
+    if (typeof opts.readDirect === 'function') {
+        try {
+            const direct = opts.readDirect();
+            if (direct) return direct;
+        } catch (e) { /* ignore */ }
+    }
+    if (opts.requirePath && typeof require === 'function') {
+        try {
+            const required = require(opts.requirePath);
+            if (required) return required;
+        } catch (e) { /* ignore */ }
+    }
+    if (opts.globalKey) {
+        try {
+            if (typeof globalThis !== 'undefined') {
+                return (globalThis as CardInteractionRuntimeRoot)[opts.globalKey] || null;
+            }
+        } catch (e) { /* ignore */ }
+    }
+    return null;
+}
+
 if (typeof CardLogic === 'undefined') {
     console.error('CardLogic is not loaded. Please include game/logic/cards.js');
 }
@@ -141,42 +169,23 @@ if (typeof window !== 'undefined') {
     window.ensureDebugActionsLoaded = ensureDebugActionsLoaded;
 }
 
-const _playbackStateModule = (() => {
-    if (typeof PlaybackStateManager !== 'undefined' && PlaybackStateManager) return PlaybackStateManager;
-    if (typeof require === 'function') {
-        try { return require('../ui/playback-state-manager'); } catch (e) { /* ignore */ }
-    }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as CardInteractionRuntimeRoot).PlaybackStateManager) return (globalThis as CardInteractionRuntimeRoot).PlaybackStateManager;
-    } catch (e) { /* ignore */ }
-    return null;
-})();
+const _playbackStateModule = _resolveCardInteractionModule({
+    readDirect: () => (typeof PlaybackStateManager !== 'undefined' ? PlaybackStateManager : null),
+    requirePath: '../ui/playback-state-manager',
+    globalKey: 'PlaybackStateManager'
+});
 
-const _ownerHelpersModule = (() => {
-    try {
-        if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers) return OwnerHelpers;
-    } catch (e) { /* ignore */ }
-    if (typeof require === 'function') {
-        try { return require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
-    }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as CardInteractionRuntimeRoot).OwnerHelpers) return (globalThis as CardInteractionRuntimeRoot).OwnerHelpers;
-    } catch (e) { /* ignore */ }
-    return null;
-})();
+const _ownerHelpersModule = _resolveCardInteractionModule({
+    readDirect: () => (typeof OwnerHelpers !== 'undefined' ? OwnerHelpers : null),
+    requirePath: '../utils/owner-helpers',
+    globalKey: 'OwnerHelpers'
+});
 
-const _handAnimationUtilsModule = (() => {
-    try {
-        if (typeof HandAnimationUtilsModule !== 'undefined' && HandAnimationUtilsModule) return HandAnimationUtilsModule;
-    } catch (e) { /* ignore */ }
-    if (typeof require === 'function') {
-        try { return require('../ui/animation-utils'); } catch (e) { /* ignore */ }
-    }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as CardInteractionRuntimeRoot).HandAnimationUtilsModule) return (globalThis as CardInteractionRuntimeRoot).HandAnimationUtilsModule;
-    } catch (e) { /* ignore */ }
-    return null;
-})();
+const _handAnimationUtilsModule = _resolveCardInteractionModule({
+    readDirect: () => (typeof HandAnimationUtilsModule !== 'undefined' ? HandAnimationUtilsModule : null),
+    requirePath: '../ui/animation-utils',
+    globalKey: 'HandAnimationUtilsModule'
+});
 
 const _heavenSelectionByPlayer: Record<string, any> = { black: null, white: null };
 let _heavenOverlayRefs: CardInteractionNullableRecord = null;
@@ -436,35 +445,22 @@ function _getSelectedCardOwnerKey(defaultOwnerKey: any) {
     return _normalizeOwnerKey(defaultOwnerKey);
 }
 
-const _cardInteractionEffectsModule = (() => {
-    if (typeof CardInteractionEffects !== 'undefined' && CardInteractionEffects) return CardInteractionEffects;
-    if (typeof require === 'function') {
-        try { return require('./card-interaction-effects'); } catch (e) { /* ignore */ }
-    }
-    return null;
-})();
+const _cardInteractionEffectsModule = _resolveCardInteractionModule({
+    readDirect: () => (typeof CardInteractionEffects !== 'undefined' ? CardInteractionEffects : null),
+    requirePath: './card-interaction-effects'
+});
 
-const _pendingSelectionFlowModule = (() => {
-    if (typeof PendingSelectionFlow !== 'undefined' && PendingSelectionFlow) return PendingSelectionFlow;
-    if (typeof require === 'function') {
-        try { return require('../game/card-effects/selection-flow'); } catch (e) { /* ignore */ }
-    }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as CardInteractionRuntimeRoot).PendingSelectionFlow) return (globalThis as CardInteractionRuntimeRoot).PendingSelectionFlow;
-    } catch (e) { /* ignore */ }
-    return null;
-})();
+const _pendingSelectionFlowModule = _resolveCardInteractionModule({
+    readDirect: () => (typeof PendingSelectionFlow !== 'undefined' ? PendingSelectionFlow : null),
+    requirePath: '../game/card-effects/selection-flow',
+    globalKey: 'PendingSelectionFlow'
+});
 
 function _getPendingStateManagerForCardUi() {
-    if (typeof require === 'function') {
-        try { return require('../game/logic/cards-internal/pending-state-manager'); } catch (e) { /* ignore */ }
-    }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as CardInteractionRuntimeRoot).CardPendingStateManager) {
-            return (globalThis as CardInteractionRuntimeRoot).CardPendingStateManager;
-        }
-    } catch (e) { /* ignore */ }
-    return null;
+    return _resolveCardInteractionModule({
+        requirePath: '../game/logic/cards-internal/pending-state-manager',
+        globalKey: 'CardPendingStateManager'
+    });
 }
 
 function _isCancellablePendingSelectionForCardUi(pendingType: any) {
