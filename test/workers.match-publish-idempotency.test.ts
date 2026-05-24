@@ -440,6 +440,66 @@ function runTurnStartObserverAnchorLostScenario() {
   return runScenario(runner);
 }
 
+function runTurnStartDestroyDragonScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const path = require('path');",
+    "  const fromRoot = (relativePath) => require(path.resolve(process.cwd(), relativePath));",
+    "  const Core = fromRoot('game/logic/core.js');",
+    "  const CardLogic = fromRoot('game/logic/cards.js');",
+    "  const SeededPRNG = fromRoot('game/schema/prng.js');",
+    "  const storage = new Map();",
+    "  const durableObject = new MatchRoomDurableObject({ storage: { get: async (key) => storage.get(key), put: async (key, value) => storage.set(key, value), delete: async (key) => storage.delete(key), setAlarm: async () => {}, deleteAlarm: async () => {} } });",
+    "",
+    "  const gameState = Core.createGameState();",
+    "  const prng = SeededPRNG.createPRNG(29);",
+    "  const cardState = CardLogic.createCardState(prng);",
+    "  gameState.currentPlayer = Core.BLACK;",
+    "  gameState.turnNumber = 1;",
+    "  gameState.board[5][5] = Core.BLACK;",
+    "  gameState.board[5][6] = Core.WHITE;",
+    "  cardState.markers.push({ id: 'destroy_dragon_1', kind: 'specialStone', row: 5, col: 5, owner: 'black', data: { type: 'DESTROY_DRAGON', remainingOwnerTurns: 3 } });",
+    "",
+    "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
+    "    roomId: 'DDG1',",
+    "    playerName: 'くろ',",
+    "    seed: 29,",
+    "    snapshot: { gameState, cardState }",
+    "  });",
+    "  const createPayload = await createResponse.json();",
+    "  const publishResponse = await durableObject.handlePublish({",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: createPayload.seatToken,",
+    "    baseVersion: createPayload.stateVersion,",
+    "    operationId: 'op_destroy_dragon_turn_start_1',",
+    "    actionType: 'place',",
+    "    actor: 'black',",
+    "    params: { row: 2, col: 3 },",
+    "    turnIndex: cardState.turnIndex || 0",
+    "  });",
+    "  const payload = await publishResponse.json();",
+    "  await durableObject.loadRoom();",
+    "  const storedSnapshot = durableObject.room && durableObject.room.snapshot ? durableObject.room.snapshot : null;",
+    "  const storedCardState = storedSnapshot ? storedSnapshot.cardState : null;",
+    "  const marker = storedCardState && Array.isArray(storedCardState.markers) ? storedCardState.markers.find((item) => item && item.id === 'destroy_dragon_1') : null;",
+    "  process.stdout.write(JSON.stringify({",
+    "    status: publishResponse.status,",
+    "    payload,",
+    "    marker,",
+    "    finalBoard: storedSnapshot ? storedSnapshot.gameState.board : null",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
 describe('match worker publish idempotency', () => {
   test('serialized command payloadの再送は重複適用せず成功応答する', () => {
     const result = runPublishIdempotencyScenario();
@@ -596,6 +656,36 @@ describe('match worker publish idempotency', () => {
             r: 1,
             col: 1,
             owner: 'black'
+          })
+        ])
+      })
+    ]));
+  });
+
+  test('turn-start destroy dragon destroys adjacent enemy and emits destroy playback', () => {
+    const result = runTurnStartDestroyDragonScenario();
+
+    expect(result.status).toBe(200);
+    expect(result.payload && result.payload.ok).toBe(true);
+    expect(result.finalBoard[5][6]).toBe(0);
+    expect(result.marker).toEqual(expect.objectContaining({
+      row: 5,
+      col: 5,
+      owner: 'black',
+      data: expect.objectContaining({
+        type: 'DESTROY_DRAGON',
+        remainingOwnerTurns: 2
+      })
+    }));
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'destroy',
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            r: 5,
+            col: 6,
+            cause: 'DESTROY_DRAGON_WILL',
+            reason: 'destroy_dragon_breath'
           })
         ])
       })
