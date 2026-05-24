@@ -568,6 +568,31 @@ function buildGuardWillFixture() {
   };
 }
 
+function buildWorkIncomeFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  setStone(snapshot, 3, 4, 'black');
+  addSpecialMarker(snapshot, 3, 4, 'black', 'WORK', {
+    ownerColor: 'black',
+    workStage: 2,
+    remainingOwnerTurns: 3
+  });
+  snapshot.cardState.workAnchorPosByPlayer = {
+    black: { row: 3, col: 4 },
+    white: null
+  };
+  return {
+    name: 'WORK_INCOME',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_work_income_place',
+      __skipTurnStart: false
+    })
+  };
+}
+
 function buildPlaybackParityFixtures() {
   return [
     buildTurnStartDestroyFixture('SNIPER'),
@@ -581,7 +606,8 @@ function buildPlaybackParityFixtures() {
     buildBoardShrinkFixture(),
     buildSuperBuoyancyFixture(),
     buildCloneWillFixture(),
-    buildGuardWillFixture()
+    buildGuardWillFixture(),
+    buildWorkIncomeFixture()
   ];
 }
 
