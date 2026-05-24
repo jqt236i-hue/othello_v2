@@ -1124,7 +1124,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(4);
   });
 
-  test('宝箱の CARD_USED も card_use_animation の phase で card_use_button を再生する', () => {
+  test('宝箱の CARD_USED は card_use_button を再生しない', () => {
     const base = [{
       type: 'card_use_animation',
       phase: 4,
@@ -1137,11 +1137,11 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
       meta: { owner: 'black', cost: 8, name: '宝箱', cardType: 'TREASURE_BOX' }
     }];
 
-    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+    const raw = [{ type: 'treasure_box_gain', player: 'black', gained: 2 }];
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw, pres);
     const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_use_button');
 
-    expect(cue).toBeTruthy();
-    expect(cue.phase).toBe(4);
+    expect(cue).toBeUndefined();
   });
 
   test('corrosion_will_resolved は card_use_animation の phase で corrosion_tick を再生する', () => {
@@ -1199,7 +1199,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(sellCue).toBeUndefined();
   });
 
-  test('宝箱使用時は card_use_button と treasure_gain を順に再生する', () => {
+  test('宝箱使用時は card_use_button を鳴らさず treasure_gain だけを再生する', () => {
     const base = [{
       type: 'card_use_animation',
       phase: 5,
@@ -1217,8 +1217,7 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     const cardUseCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_use_button');
     const treasureCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'treasure_gain');
 
-    expect(cardUseCue).toBeTruthy();
-    expect(cardUseCue.phase).toBe(5);
+    expect(cardUseCue).toBeUndefined();
     expect(treasureCue).toBeTruthy();
     expect(treasureCue.phase).toBe(6);
   });
