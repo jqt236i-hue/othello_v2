@@ -222,6 +222,21 @@ describe('pipeline_ui_adapter draw mapping', () => {
     expect(out.playbackEvents[0].targets[0]).toMatchObject({ r: 2, col: 3, player: 'white', owner: 'white' });
   });
 
+  test('maps PLAY_HAND_ANIMATION presentation event to place_hand_animation playback event', () => {
+    const pres = [{ type: 'PLAY_HAND_ANIMATION', player: 'black', row: 2, col: 3, actionId: 'place-2', turnIndex: 10 }];
+    const out = adapter.mapToPlaybackEvents(pres, { markers: [], turnIndex: 10 }, { board: Array(8).fill(null).map(() => Array(8).fill(0)) });
+
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      type: 'place_hand_animation',
+      phase: 0,
+      rawType: 'PLAY_HAND_ANIMATION',
+      actionId: 'place-2',
+      turnIndex: 10
+    });
+    expect(out[0].targets[0]).toMatchObject({ r: 2, col: 3, player: 'black', owner: 'black' });
+  });
+
   test('maps HAND_CLEAR to hand_remove and keeps it before subsequent draws by phase', () => {
     const pres = [
       { type: 'HAND_CLEAR', player: 'black', count: 2, reason: 'rebuild_will' },

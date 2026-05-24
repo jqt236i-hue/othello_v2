@@ -1374,6 +1374,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             const pEvent = _createPlaybackEvent(playbackBase, null, phaseState.currentPhase, []);
 
             switch (ev.type) {
+                case 'PLAY_HAND_ANIMATION': {
+                    const ownerKey = _normalizePlayerKey(ev.owner || ev.player);
+                    pEvent.type = 'place_hand_animation';
+                    pEvent.phase = 0;
+                    pEvent.targets = [{
+                        r: ev.row,
+                        col: ev.col,
+                        player: ownerKey,
+                        owner: ownerKey
+                    }];
+                    break;
+                }
                 case 'SPAWN': {
                     const spawnPlan = _planSpawnPlayback(
                         phaseState,
