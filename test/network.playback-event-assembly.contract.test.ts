@@ -593,6 +593,24 @@ function buildWorkIncomeFixture() {
   };
 }
 
+function buildObserverAnchorLostFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  addSpecialMarker(snapshot, 1, 1, 'black', 'OBSERVER', {
+    remainingOwnerTurns: 3
+  });
+  return {
+    name: 'OBSERVER_ANCHOR_LOST',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_observer_anchor_lost_place',
+      __skipTurnStart: false
+    })
+  };
+}
+
 function buildPlaybackParityFixtures() {
   return [
     buildTurnStartDestroyFixture('SNIPER'),
@@ -607,7 +625,8 @@ function buildPlaybackParityFixtures() {
     buildSuperBuoyancyFixture(),
     buildCloneWillFixture(),
     buildGuardWillFixture(),
-    buildWorkIncomeFixture()
+    buildWorkIncomeFixture(),
+    buildObserverAnchorLostFixture()
   ];
 }
 
@@ -1171,6 +1190,17 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
             revivedOwner: 'black'
           })
         ]);
+      }
+      if (fixture.name === 'OBSERVER_ANCHOR_LOST') {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'observer_bubble',
+            rawType: 'OBSERVER_BUBBLE',
+            targets: expect.arrayContaining([
+              expect.objectContaining({ r: 1, col: 1, owner: 'black' })
+            ])
+          })
+        ]));
       }
 
       adapter.setPipelineUIAdapterRuntime({
