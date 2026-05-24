@@ -42,9 +42,9 @@ function _resolveCardInteractionModule(options: {
             if (direct) return direct;
         } catch (e) { /* ignore */ }
     }
-    if (opts.requirePath && typeof require === 'function') {
+    if (opts.requirePath) {
         try {
-            const required = require(opts.requirePath);
+            const required = _require(opts.requirePath);
             if (required) return required;
         } catch (e) { /* ignore */ }
     }
