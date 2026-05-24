@@ -250,7 +250,7 @@ function runWorkerCommandPlace(snapshot, action, stateVersion, options = {}) {
     "    operationId,",
     "    actionType: 'place',",
     "    actor: playerKey,",
-    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.strongWindTarget ? { strongWindTarget: action.strongWindTarget } : {}, action.buoyancyTarget ? { buoyancyTarget: action.buoyancyTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.gravityTarget ? { gravityTarget: action.gravityTarget } : {}, action.superGravityTarget ? { superGravityTarget: action.superGravityTarget } : {}, action.superAttractionTarget ? { superAttractionTarget: action.superAttractionTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}, action.freezeTarget ? { freezeTarget: action.freezeTarget } : {}, action.blockadeTarget ? { blockadeTarget: action.blockadeTarget } : {}, action.seedTarget ? { seedTarget: action.seedTarget } : {}, action.bombTarget ? { bombTarget: action.bombTarget } : {}, action.livingWillTarget ? { livingWillTarget: action.livingWillTarget } : {}, action.hyperactiveInheritTarget ? { hyperactiveInheritTarget: action.hyperactiveInheritTarget } : {}, action.extendTarget ? { extendTarget: action.extendTarget } : {}, action.corrosionTarget ? { corrosionTarget: action.corrosionTarget } : {}, action.captureTarget ? { captureTarget: action.captureTarget } : {}),",
+    "    params: Object.assign({ row: action.row, col: action.col }, action.destroyTarget ? { destroyTarget: action.destroyTarget } : {}, action.temptTarget ? { temptTarget: action.temptTarget } : {}, action.swapTarget ? { swapTarget: action.swapTarget } : {}, action.trapTarget ? { trapTarget: action.trapTarget } : {}, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.strongWindTarget ? { strongWindTarget: action.strongWindTarget } : {}, action.buoyancyTarget ? { buoyancyTarget: action.buoyancyTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.gravityTarget ? { gravityTarget: action.gravityTarget } : {}, action.superGravityTarget ? { superGravityTarget: action.superGravityTarget } : {}, action.superAttractionTarget ? { superAttractionTarget: action.superAttractionTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}, action.freezeTarget ? { freezeTarget: action.freezeTarget } : {}, action.blockadeTarget ? { blockadeTarget: action.blockadeTarget } : {}, action.seedTarget ? { seedTarget: action.seedTarget } : {}, action.bombTarget ? { bombTarget: action.bombTarget } : {}, action.livingWillTarget ? { livingWillTarget: action.livingWillTarget } : {}, action.hyperactiveInheritTarget ? { hyperactiveInheritTarget: action.hyperactiveInheritTarget } : {}, action.extendTarget ? { extendTarget: action.extendTarget } : {}, action.corrosionTarget ? { corrosionTarget: action.corrosionTarget } : {}, action.captureTarget ? { captureTarget: action.captureTarget } : {}),",
     "    turnIndex: action.turnIndex,",
     "    action",
     "  });",
@@ -652,6 +652,36 @@ function buildStatusCellSelectionFixture(config) {
   };
 }
 
+function buildSimplePendingSelectionFixture(config) {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  if (Array.isArray(config.stones)) {
+    for (const stone of config.stones) setStone(snapshot, stone.row, stone.col, stone.owner);
+  }
+  if (Array.isArray(config.markers)) {
+    snapshot.cardState.markers = config.markers.map((marker) => clone(marker));
+  }
+  snapshot.cardState.pendingEffectByPlayer.black = {
+    type: config.pendingType,
+    stage: 'selectTarget',
+    cardId: config.cardId,
+    ...(config.pendingExtra || {})
+  };
+  return {
+    name: config.pendingType,
+    expectedStatusApplied: config.expectedStatusApplied || null,
+    expectedDestroy: config.expectedDestroy || null,
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: `fixture_${String(config.pendingType).toLowerCase()}_place`,
+      __skipTurnStart: false,
+      [config.actionKey]: config.target
+    })
+  };
+}
+
 function buildBoardPendingStatusFixture(config) {
   const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
   setStone(snapshot, 3, 4, 'black');
@@ -829,6 +859,42 @@ function buildPlaybackParityFixtures() {
     buildTurnStartDestroyFixture('GLUTTONOUS'),
     buildTurnStartDestroyFixture('WILL_HUNTER_KING'),
     buildTurnStartDestroyFixture('ULTIMATE_DESTROY_GOD'),
+    buildSimplePendingSelectionFixture({
+      cardId: 'destroy_01',
+      pendingType: 'DESTROY_ONE_STONE',
+      actionKey: 'destroyTarget',
+      target: { row: 3, col: 4 },
+      stones: [{ row: 3, col: 4, owner: 'black' }],
+      expectedDestroy: { row: 3, col: 4, cause: 'DESTROY_ONE_STONE' }
+    }),
+    buildSimplePendingSelectionFixture({
+      cardId: 'tempt_01',
+      pendingType: 'TEMPT_WILL',
+      actionKey: 'temptTarget',
+      target: { row: 2, col: 2 },
+      stones: [{ row: 2, col: 2, owner: 'white' }],
+      markers: [{
+        id: 52,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'white',
+        data: { type: 'FREEZE', sourceType: 'FREEZE_WILL', sourceCardId: 'freeze_01', remainingOwnerTurns: 2 }
+      }]
+    }),
+    buildSimplePendingSelectionFixture({
+      cardId: 'swap_01',
+      pendingType: 'SWAP_WITH_ENEMY',
+      actionKey: 'swapTarget',
+      target: { row: 3, col: 3 }
+    }),
+    buildSimplePendingSelectionFixture({
+      cardId: 'trap_01',
+      pendingType: 'TRAP_WILL',
+      actionKey: 'trapTarget',
+      target: { row: 3, col: 4 },
+      stones: [{ row: 3, col: 4, owner: 'black' }]
+    }),
     buildMeteorFixture(),
     buildMeteorOpponentSalvationFixture(),
     buildBoardShrinkFixture(),
@@ -871,6 +937,12 @@ function buildPlaybackParityFixtures() {
     }),
     buildCloneWillFixture(),
     buildGuardWillFixture(),
+    buildBoardPendingStatusFixture({
+      cardId: 'guardian_god_01',
+      pendingType: 'GUARDIAN_GOD',
+      actionKey: 'guardTarget',
+      target: { row: 3, col: 4 }
+    }),
     buildStatusCellSelectionFixture({
       cardId: 'freeze_01',
       pendingType: 'FREEZE_WILL',
@@ -950,6 +1022,27 @@ function buildPlaybackParityFixtures() {
         special: 'GUARD',
         reason: 'corrosion_applied',
         highlightTone: 'negative'
+      }
+    }),
+    buildBoardPendingStatusFixture({
+      cardId: 'extend_life_god_01',
+      pendingType: 'EXTEND_LIFE_GOD',
+      actionKey: 'extendTarget',
+      target: { row: 2, col: 2 },
+      markers: [{
+        id: 62,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'black',
+        data: { type: 'GUARD', remainingOwnerTurns: 2 }
+      }],
+      expectedStatusTick: {
+        row: 2,
+        col: 2,
+        special: 'GUARD',
+        reason: 'extend_life_applied',
+        highlightTone: 'positive'
       }
     }),
     buildBoardPendingStatusFixture({
@@ -1116,6 +1209,10 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
         ...(fixture.action.shrinkTarget ? { shrinkTarget: fixture.action.shrinkTarget } : {}),
         ...(fixture.action.positionSwapTarget ? { positionSwapTarget: fixture.action.positionSwapTarget } : {}),
         ...(fixture.action.teleportTarget ? { teleportTarget: fixture.action.teleportTarget } : {}),
+        ...(fixture.action.destroyTarget ? { destroyTarget: fixture.action.destroyTarget } : {}),
+        ...(fixture.action.temptTarget ? { temptTarget: fixture.action.temptTarget } : {}),
+        ...(fixture.action.swapTarget ? { swapTarget: fixture.action.swapTarget } : {}),
+        ...(fixture.action.trapTarget ? { trapTarget: fixture.action.trapTarget } : {}),
         ...(fixture.action.strongWindTarget ? { strongWindTarget: fixture.action.strongWindTarget } : {}),
         ...(fixture.action.buoyancyTarget ? { buoyancyTarget: fixture.action.buoyancyTarget } : {}),
         ...(fixture.action.superBuoyancyTarget ? { superBuoyancyTarget: fixture.action.superBuoyancyTarget } : {}),
@@ -1645,6 +1742,20 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
                 from: { r: 3, col: 4 },
                 to: { r: 3, col: 3 },
                 cause: 'POSITION_SWAP_WILL'
+              })
+            ])
+          })
+        ]));
+      }
+      if (fixture.expectedDestroy) {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'destroy',
+            targets: expect.arrayContaining([
+              expect.objectContaining({
+                r: fixture.expectedDestroy.row,
+                col: fixture.expectedDestroy.col,
+                cause: fixture.expectedDestroy.cause
               })
             ])
           })
