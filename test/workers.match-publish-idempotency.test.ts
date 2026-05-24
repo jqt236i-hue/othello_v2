@@ -815,6 +815,70 @@ function runTurnStartRobotVacuumScenario() {
   return runScenario(runner);
 }
 
+function runTurnStartUltimateHyperactiveScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const path = require('path');",
+    "  const fromRoot = (relativePath) => require(path.resolve(process.cwd(), relativePath));",
+    "  const Core = fromRoot('game/logic/core.js');",
+    "  const CardLogic = fromRoot('game/logic/cards.js');",
+    "  const SeededPRNG = fromRoot('game/schema/prng.js');",
+    "  const storage = new Map();",
+    "  const durableObject = new MatchRoomDurableObject({ storage: { get: async (key) => storage.get(key), put: async (key, value) => storage.set(key, value), delete: async (key) => storage.delete(key), setAlarm: async () => {}, deleteAlarm: async () => {} } });",
+    "",
+    "  const gameState = Core.createGameState();",
+    "  const prng = SeededPRNG.createPRNG(53);",
+    "  const cardState = CardLogic.createCardState(prng);",
+    "  gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.BLACK));",
+    "  gameState.currentPlayer = Core.BLACK;",
+    "  gameState.turnNumber = 1;",
+    "  gameState.board[2][3] = Core.EMPTY;",
+    "  gameState.board[3][3] = Core.WHITE;",
+    "  gameState.board[6][0] = Core.BLACK;",
+    "  gameState.board[6][2] = Core.WHITE;",
+    "  gameState.board[6][3] = Core.EMPTY;",
+    "  cardState.markers.push({ id: 'ultimate_hyperactive_1', kind: 'specialStone', row: 6, col: 0, owner: 'black', data: { type: 'ULTIMATE_HYPERACTIVE', remainingOwnerTurns: 10, flipEvadeRemaining: 3, destroyEvadeRemaining: 1 } });",
+    "",
+    "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
+    "    roomId: 'UHA1',",
+    "    playerName: 'くろ',",
+    "    seed: 53,",
+    "    snapshot: { gameState, cardState }",
+    "  });",
+    "  const createPayload = await createResponse.json();",
+    "  const publishResponse = await durableObject.handlePublish({",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: createPayload.seatToken,",
+    "    baseVersion: createPayload.stateVersion,",
+    "    operationId: 'op_ultimate_hyperactive_turn_start_1',",
+    "    actionType: 'place',",
+    "    actor: 'black',",
+    "    params: { row: 2, col: 3 },",
+    "    turnIndex: cardState.turnIndex || 0",
+    "  });",
+    "  const payload = await publishResponse.json();",
+    "  await durableObject.loadRoom();",
+    "  const storedSnapshot = durableObject.room && durableObject.room.snapshot ? durableObject.room.snapshot : null;",
+    "  const storedCardState = storedSnapshot ? storedSnapshot.cardState : null;",
+    "  const marker = storedCardState && Array.isArray(storedCardState.markers) ? storedCardState.markers.find((item) => item && item.id === 'ultimate_hyperactive_1') : null;",
+    "  process.stdout.write(JSON.stringify({",
+    "    status: publishResponse.status,",
+    "    payload,",
+    "    marker,",
+    "    finalBoard: storedSnapshot ? storedSnapshot.gameState.board : null",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
 describe('match worker publish idempotency', () => {
   test('serialized command payloadの再送は重複適用せず成功応答する', () => {
     const result = runPublishIdempotencyScenario();
@@ -1186,6 +1250,50 @@ describe('match worker publish idempotency', () => {
             col: 7,
             cause: 'ROBOT_VACUUM',
             reason: 'robot_vacuum_suck'
+          })
+        ])
+      })
+    ]));
+  });
+
+  test('turn-start ultimate hyperactive jumps, flips, and emits move/flip playback', () => {
+    const result = runTurnStartUltimateHyperactiveScenario();
+
+    expect(result.status).toBe(200);
+    expect(result.payload && result.payload.ok).toBe(true);
+    expect(result.finalBoard[2][3]).toBe(1);
+    expect(result.finalBoard[6][2]).toBe(1);
+    expect(result.marker).toEqual(expect.objectContaining({
+      owner: 'black',
+      data: expect.objectContaining({
+        type: 'ULTIMATE_HYPERACTIVE',
+        remainingOwnerTurns: 9,
+        flipEvadeRemaining: 3,
+        destroyEvadeRemaining: 1
+      })
+    }));
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'move',
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            from: expect.objectContaining({ r: 6, col: 0 }),
+            to: expect.objectContaining({ r: 6, col: 3 }),
+            cause: 'ULTIMATE_HYPERACTIVE_GOD',
+            reason: 'ultimate_hyperactive_step_move'
+          })
+        ])
+      }),
+      expect.objectContaining({
+        type: 'flip',
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            r: 6,
+            col: 2,
+            ownerBefore: 'white',
+            ownerAfter: 'black',
+            cause: 'ULTIMATE_HYPERACTIVE_GOD',
+            reason: 'ultimate_hyperactive_flip'
           })
         ])
       })
