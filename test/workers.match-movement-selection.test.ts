@@ -80,12 +80,30 @@ function runScenario(config: Record<string, unknown>) {
     "  const payload = await response.json();",
     "  const storedRoom = storage.get('match_room_state_v1');",
     "  const moveEvent = (payload.playbackEvents || []).find((event) => event && event.type === 'move');",
+    "  const moveTarget = moveEvent && Array.isArray(moveEvent.targets) ? moveEvent.targets[0] : null;",
+    "  const moveTo = moveTarget && moveTarget.to ? moveTarget.to : null;",
+    "  const readCellOwner = (pos) => {",
+    "    if (!pos) return null;",
+    "    const row = Number.isInteger(pos.row) ? pos.row : pos.r;",
+    "    const col = pos.col;",
+    "    if (!Number.isInteger(row) || !Number.isInteger(col)) return null;",
+    "    const boardRow = storedRoom.snapshot.gameState.board[row];",
+    "    if (Array.isArray(boardRow) && col >= 0 && col < boardRow.length) return boardRow[col];",
+    "    const expansion = storedRoom.snapshot.gameState.boardExpansion;",
+    "    const cells = Array.isArray(expansion && expansion.cells) ? expansion.cells : [];",
+    "    const cell = cells.find((item) => item && item.row === row && item.col === col);",
+    "    return cell ? cell.owner : null;",
+    "  };",
+    "  const moveDestinationValue = readCellOwner(moveTo);",
+    "  const sourceMarkers = (storedRoom.snapshot.cardState.markers || []).filter((marker) => marker && marker.row === config.source.row && marker.col === config.source.col);",
     "  process.stdout.write(JSON.stringify({",
     "    status: response.status,",
     "    payload,",
     "    sourceValue: storedRoom.snapshot.gameState.board[config.source.row][config.source.col],",
     "    blockerValue: config.blocker ? storedRoom.snapshot.gameState.board[config.blocker.row][config.blocker.col] : null,",
-    "    destinationValue: storedRoom.snapshot.gameState.board[config.destination.row][config.destination.col],",
+    "    destinationValue: config.destination ? readCellOwner(config.destination) : moveDestinationValue,",
+    "    moveDestinationValue,",
+    "    sourceMarkers,",
     "    storedPending: storedRoom.snapshot.cardState.pendingEffectByPlayer.black,",
     "    moveEvent",
     "  }));",
@@ -155,6 +173,23 @@ describe('worker movement pending selection publish', () => {
       blocker: { row: 4, col: 4 },
       destination: { row: 5, col: 5 },
       moveIntent: 'crush_move'
+    },
+    {
+      cardId: 'teleport_01',
+      pendingType: 'TELEPORT_WILL',
+      actionKey: 'teleportTarget',
+      source: { row: 4, col: 4 },
+      destination: null,
+      moveIntent: 'teleport_move'
+    },
+    {
+      cardId: 'cell_teleport_01',
+      pendingType: 'CELL_TELEPORT_WILL',
+      actionKey: 'teleportTarget',
+      source: { row: 4, col: 4 },
+      destination: null,
+      moveIntent: 'teleport_move',
+      createsMeteorHole: true
     }
   ])('$pendingType mutates authoritative board and emits move playback', (config) => {
     const result = runScenario(config);
@@ -177,10 +212,28 @@ describe('worker movement pending selection publish', () => {
     expect(result.moveEvent.targets[0]).toEqual(expect.objectContaining({
       cause: config.pendingType,
       from: { r: config.source.row, col: config.source.col },
-      to: { r: config.destination.row, col: config.destination.col },
       meta: expect.objectContaining({
         moveIntent: config.moveIntent
       })
     }));
+    if (config.destination) {
+      expect(result.moveEvent.targets[0].to).toEqual({ r: config.destination.row, col: config.destination.col });
+    }
+    if (config.createsMeteorHole) {
+      expect(result.sourceMarkers).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          row: config.source.row,
+          col: config.source.col,
+          data: expect.objectContaining({ type: 'METEOR_HOLE' })
+        })
+      ]));
+      expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          type: 'status_applied',
+          rawType: 'STATUS_APPLIED',
+          meta: expect.objectContaining({ special: 'METEOR_HOLE' })
+        })
+      ]));
+    }
   });
 });
