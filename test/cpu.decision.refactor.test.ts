@@ -2462,10 +2462,16 @@ describe('cpu decision refactor helpers', () => {
     };
     global.waitForPlaybackIdle = jest.fn(async () => {});
     global.onTurnStart = jest.fn(async () => ({ playbackEvents: [{ type: 'turn_start_dummy' }] }));
+    const publishSnapshot = jest.fn();
     global.NetworkMatchClient = {
       isActive: jest.fn(() => true),
-      publishSnapshot: jest.fn()
+      publishSnapshot
     };
+    cpuDecision.setCpuDecisionRuntime({
+      readModule: (name) => global[name],
+      isNetworkPublishActive: () => global.NetworkMatchClient.isActive(),
+      publishSnapshot
+    });
     global.TurnPipeline = {};
     global.TurnPipelineUIAdapter = {
       runTurnWithAdapter: jest.fn(() => ({
