@@ -1639,7 +1639,27 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
-  test('LIGHTNING_WILL の lightning_destroyed が同一フェーズで複数対象に当たっても stone_destroy は1回だけ再生する', () => {
+  test('SNIPER_WILL の sniper_shot が同一フェーズで複数対象に当たる場合は命中数ぶん stone_destroy を再生する', () => {
+    const base = [
+      {
+        type: 'destroy',
+        phase: 10,
+        targets: [
+          { r: 1, col: 1, cause: 'SNIPER_WILL', reason: 'sniper_shot' },
+          { r: 2, col: 2, cause: 'SNIPER_WILL', reason: 'sniper_shot' }
+        ]
+      }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const stoneCues = out
+      .filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy')
+      .map((ev) => ev.phase);
+
+    expect(stoneCues).toEqual([10, 10]);
+  });
+
+  test('LIGHTNING_WILL の lightning_destroyed が同一フェーズで複数対象に当たる場合は命中数ぶん stone_destroy を再生する', () => {
     const base = [
       {
         type: 'destroy',
@@ -1654,10 +1674,9 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     const out = adapter.appendSoundEffectPlaybackEvents(base, []);
     const stoneCues = out
       .filter((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy')
-      .map((ev) => ev.phase)
-      .sort((a, b) => a - b);
+      .map((ev) => ev.phase);
 
-    expect(stoneCues).toEqual([10]);
+    expect(stoneCues).toEqual([10, 10]);
   });
 
   test('ULTIMATE_DESTROY_GOD の udg_destroyed は同時複数破壊なら1回、複数フェーズなら各フェーズ1回 stone_destroy を再生する', () => {

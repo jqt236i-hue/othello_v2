@@ -2216,8 +2216,11 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function _isLightningDestroyTarget(target: any) {
-        return _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).lightningDestroyed) ||
-            _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).udgDestroyed);
+        return _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).lightningDestroyed);
+    }
+
+    function _isUltimateDestroyGodDestroyTarget(target: any) {
+        return _matchesCauseReasonProfile(target, (SPECIAL_DESTROY_TARGET_PROFILES as any).udgDestroyed);
     }
 
     function _isDestroyDragonBreathDestroyTarget(target: any) {
@@ -2995,6 +2998,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             if (_isBoardShrinkDestroyTarget(t)) return false;
             if (_isSniperShotDestroyTarget(t)) return false;
             if (_isLightningDestroyTarget(t)) return false;
+            if (_isUltimateDestroyGodDestroyTarget(t)) return false;
             if (_isDestroyDragonBreathDestroyTarget(t)) return false;
             if (_isRobotVacuumSuckDestroyTarget(t)) return false;
             if (_isGluttonousEatDestroyTarget(t)) return false;
@@ -3014,7 +3018,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             ev.targets.some((t: any) => _isSniperShotDestroyTarget(t))
         ));
         if (sniperDestroyEvents.length > 0) {
-            _pushCueForMatchingEventPhases(
+            _pushRepeatedCueForMatchingTargets(
                 ctx,
                 sniperDestroyEvents,
                 (target: any) => _isSniperShotDestroyTarget(target) && _isDestroyRemovalOutcome(target),
@@ -3030,12 +3034,28 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             ev.targets.some((t: any) => _isLightningDestroyTarget(t))
         ));
         if (lightningDestroyEvents.length > 0) {
-            _pushCueForMatchingEventPhases(
+            _pushRepeatedCueForMatchingTargets(
                 ctx,
                 lightningDestroyEvents,
                 (target: any) => _isLightningDestroyTarget(target) && _isDestroyRemovalOutcome(target),
                 'stone_destroy',
                 'lightning_destroyed'
+            );
+        }
+
+        const ultimateDestroyGodDestroyEvents = ctx.base.filter((ev: any) => (
+            ev &&
+            ev.type === 'destroy' &&
+            Array.isArray(ev.targets) &&
+            ev.targets.some((t: any) => _isUltimateDestroyGodDestroyTarget(t))
+        ));
+        if (ultimateDestroyGodDestroyEvents.length > 0) {
+            _pushCueForMatchingEventPhases(
+                ctx,
+                ultimateDestroyGodDestroyEvents,
+                (target: any) => _isUltimateDestroyGodDestroyTarget(target) && _isDestroyRemovalOutcome(target),
+                'stone_destroy',
+                'udg_destroyed'
             );
         }
 
