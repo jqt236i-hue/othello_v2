@@ -250,7 +250,7 @@ function runWorkerCommandPlace(snapshot, action, stateVersion, options = {}) {
     "    operationId,",
     "    actionType: 'place',",
     "    actor: playerKey,",
-    "    params: Object.assign({ row: action.row, col: action.col }, action.heavenBlessingCardId ? { heavenBlessingCardId: action.heavenBlessingCardId } : {}, action.condemnTargetIndex != null ? { condemnTargetIndex: action.condemnTargetIndex } : {}, action.destroyTarget ? { destroyTarget: action.destroyTarget } : {}, action.temptTarget ? { temptTarget: action.temptTarget } : {}, action.swapTarget ? { swapTarget: action.swapTarget } : {}, action.trapTarget ? { trapTarget: action.trapTarget } : {}, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.strongWindTarget ? { strongWindTarget: action.strongWindTarget } : {}, action.buoyancyTarget ? { buoyancyTarget: action.buoyancyTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.gravityTarget ? { gravityTarget: action.gravityTarget } : {}, action.superGravityTarget ? { superGravityTarget: action.superGravityTarget } : {}, action.superAttractionTarget ? { superAttractionTarget: action.superAttractionTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}, action.freezeTarget ? { freezeTarget: action.freezeTarget } : {}, action.blockadeTarget ? { blockadeTarget: action.blockadeTarget } : {}, action.seedTarget ? { seedTarget: action.seedTarget } : {}, action.bombTarget ? { bombTarget: action.bombTarget } : {}, action.livingWillTarget ? { livingWillTarget: action.livingWillTarget } : {}, action.hyperactiveInheritTarget ? { hyperactiveInheritTarget: action.hyperactiveInheritTarget } : {}, action.extendTarget ? { extendTarget: action.extendTarget } : {}, action.corrosionTarget ? { corrosionTarget: action.corrosionTarget } : {}, action.captureTarget ? { captureTarget: action.captureTarget } : {}),",
+    "    params: Object.assign({ row: action.row, col: action.col }, action.heavenBlessingCardId ? { heavenBlessingCardId: action.heavenBlessingCardId } : {}, action.condemnTargetIndex != null ? { condemnTargetIndex: action.condemnTargetIndex } : {}, action.destroyTarget ? { destroyTarget: action.destroyTarget } : {}, action.temptTarget ? { temptTarget: action.temptTarget } : {}, action.swapTarget ? { swapTarget: action.swapTarget } : {}, action.trapTarget ? { trapTarget: action.trapTarget } : {}, action.expansionTarget ? { expansionTarget: action.expansionTarget } : {}, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.positionSwapTarget ? { positionSwapTarget: action.positionSwapTarget } : {}, action.teleportTarget ? { teleportTarget: action.teleportTarget } : {}, action.strongWindTarget ? { strongWindTarget: action.strongWindTarget } : {}, action.buoyancyTarget ? { buoyancyTarget: action.buoyancyTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.gravityTarget ? { gravityTarget: action.gravityTarget } : {}, action.superGravityTarget ? { superGravityTarget: action.superGravityTarget } : {}, action.superAttractionTarget ? { superAttractionTarget: action.superAttractionTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}, action.guardTarget ? { guardTarget: action.guardTarget } : {}, action.freezeTarget ? { freezeTarget: action.freezeTarget } : {}, action.blockadeTarget ? { blockadeTarget: action.blockadeTarget } : {}, action.seedTarget ? { seedTarget: action.seedTarget } : {}, action.bombTarget ? { bombTarget: action.bombTarget } : {}, action.livingWillTarget ? { livingWillTarget: action.livingWillTarget } : {}, action.hyperactiveInheritTarget ? { hyperactiveInheritTarget: action.hyperactiveInheritTarget } : {}, action.extendTarget ? { extendTarget: action.extendTarget } : {}, action.corrosionTarget ? { corrosionTarget: action.corrosionTarget } : {}, action.captureTarget ? { captureTarget: action.captureTarget } : {}),",
     "    turnIndex: action.turnIndex,",
     "    action",
     "  });",
@@ -498,6 +498,55 @@ function buildBoardShrinkFixture() {
       actionId: 'fixture_board_shrink_place',
       __skipTurnStart: false,
       shrinkTarget: { row: 0, col: 0 }
+    })
+  };
+}
+
+function buildBoardShrinkGodFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  for (let col = 0; col < 8; col += 1) setStone(snapshot, 0, col, col % 2 === 0 ? 'black' : 'white');
+  snapshot.cardState.pendingEffectByPlayer.black = {
+    type: 'BOARD_SHRINK_GOD',
+    stage: 'selectTarget',
+    cardId: 'board_shrink_god_01',
+    firstTarget: { row: 0, col: 0 }
+  };
+  return {
+    name: 'BOARD_SHRINK_GOD',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_board_shrink_god_place',
+      __skipTurnStart: false,
+      shrinkTarget: { row: 0, col: 1 }
+    })
+  };
+}
+
+function buildBoardExpansionFixture(kind) {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  snapshot.cardState.pendingEffectByPlayer.black = {
+    type: kind,
+    stage: 'selectTarget',
+    cardId: kind === 'BOARD_EXPANSION_GOD' ? 'board_expand_god_01' : 'board_expand_01',
+    ...(kind === 'BOARD_EXPANSION_GOD' ? {
+      selectedCount: 1,
+      maxSelections: 2,
+      selectedTargets: [{ row: 0, col: 0 }]
+    } : {})
+  };
+  return {
+    name: kind,
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: `fixture_${String(kind).toLowerCase()}_place`,
+      __skipTurnStart: false,
+      expansionTarget: kind === 'BOARD_EXPANSION_GOD' ? { row: 7, col: 7 } : { row: 3, col: 7 }
     })
   };
 }
@@ -938,7 +987,10 @@ function buildPlaybackParityFixtures() {
     }),
     buildMeteorFixture(),
     buildMeteorOpponentSalvationFixture(),
+    buildBoardExpansionFixture('BOARD_EXPANSION_WILL'),
+    buildBoardExpansionFixture('BOARD_EXPANSION_GOD'),
     buildBoardShrinkFixture(),
+    buildBoardShrinkGodFixture(),
     buildPositionSwapFixture(),
     buildTeleportFixture('TELEPORT_WILL'),
     buildTeleportFixture('CELL_TELEPORT_WILL'),
@@ -1248,6 +1300,7 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
         col: fixture.action.col,
         ...(fixture.action.heavenBlessingCardId ? { heavenBlessingCardId: fixture.action.heavenBlessingCardId } : {}),
         ...(fixture.action.condemnTargetIndex != null ? { condemnTargetIndex: fixture.action.condemnTargetIndex } : {}),
+        ...(fixture.action.expansionTarget ? { expansionTarget: fixture.action.expansionTarget } : {}),
         ...(fixture.action.meteorTarget ? { meteorTarget: fixture.action.meteorTarget } : {}),
         ...(fixture.action.shrinkTarget ? { shrinkTarget: fixture.action.shrinkTarget } : {}),
         ...(fixture.action.positionSwapTarget ? { positionSwapTarget: fixture.action.positionSwapTarget } : {}),
