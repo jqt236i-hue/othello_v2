@@ -107,7 +107,8 @@ function runTimeoutPassScenario() {
     "        board,",
     "        currentPlayer: 1,",
     "        consecutivePasses: 0,",
-    "        turnNumber: 9",
+    "        turnNumber: 9,",
+    "        __resultShown: true",
     "      },",
     "      cardState: {",
     "        hands: { black: ['b0'], white: [] },",
@@ -305,6 +306,7 @@ describe('match worker turn timer', () => {
     expect(internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
     expect(internalSnapshot.cardState.selectedCardId).toBeNull();
     expect(internalSnapshot.cardState.selectedCardOwnerKey).toBeNull();
+    expect(internalSnapshot.gameState.__resultShown).toBeUndefined();
     expect(internalSnapshot.cardState.hasUsedCardThisTurnByPlayer.white).toBe(false);
     expect(internalSnapshot.cardState.hands.white).toEqual(['wdraw']);
     expect(internalSnapshot.cardState.decks.white).toEqual([]);

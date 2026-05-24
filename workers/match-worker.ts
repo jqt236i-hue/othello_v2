@@ -2608,10 +2608,10 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (!core || typeof core.applyPass !== 'function') return { applied: false };
         const nextSnapshot = deepClone(snapshot) as MatchWorkerPublicSnapshot;
         nextSnapshot.gameState = core.applyPass(nextSnapshot.gameState);
+        if (MatchAuthority && typeof MatchAuthority.stripTransientPresentationState === 'function') {
+            MatchAuthority.stripTransientPresentationState(nextSnapshot);
+        }
         if (nextSnapshot.cardState && typeof nextSnapshot.cardState === 'object') {
-            nextSnapshot.cardState.presentationEvents = [];
-            nextSnapshot.cardState._presentationEventsPersist = [];
-            delete nextSnapshot.cardState._currentActionMeta;
             if (
                 parseSeatKeyOptional(nextSnapshot.cardState.selectedCardOwnerKey) === timedOutSeatKey
             ) {
