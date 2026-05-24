@@ -266,6 +266,62 @@ function runHistoricalReplayScenario() {
   return runScenario(runner);
 }
 
+function runTurnStartDurationEndScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const path = require('path');",
+    "  const fromRoot = (relativePath) => require(path.resolve(process.cwd(), relativePath));",
+    "  const Core = fromRoot('game/logic/core.js');",
+    "  const CardLogic = fromRoot('game/logic/cards.js');",
+    "  const SeededPRNG = fromRoot('game/schema/prng.js');",
+    "  const storage = new Map();",
+    "  const durableObject = new MatchRoomDurableObject({ storage: { get: async (key) => storage.get(key), put: async (key, value) => storage.set(key, value), delete: async (key) => storage.delete(key), setAlarm: async () => {}, deleteAlarm: async () => {} } });",
+    "",
+    "  const gameState = Core.createGameState();",
+    "  const prng = SeededPRNG.createPRNG(17);",
+    "  const cardState = CardLogic.createCardState(prng);",
+    "  gameState.currentPlayer = Core.BLACK;",
+    "  gameState.turnNumber = 1;",
+    "  cardState.markers.push({ id: 'freeze_expire_1', kind: 'specialStone', row: 3, col: 4, owner: 'black', data: { type: 'FREEZE', remainingOwnerTurns: 1 } });",
+    "",
+    "  const createResponse = await durableObject.handleInternalCreate(new URL('https://room/internal/create'), {",
+    "    roomId: 'DUR1',",
+    "    playerName: 'くろ',",
+    "    seed: 17,",
+    "    snapshot: { gameState, cardState }",
+    "  });",
+    "  const createPayload = await createResponse.json();",
+    "  const publishResponse = await durableObject.handlePublish({",
+    "    seatKey: 'black',",
+    "    playerKey: 'black',",
+    "    seatToken: createPayload.seatToken,",
+    "    baseVersion: createPayload.stateVersion,",
+    "    operationId: 'op_freeze_duration_end_1',",
+    "    actionType: 'place',",
+    "    actor: 'black',",
+    "    params: { row: 2, col: 3 },",
+    "    turnIndex: cardState.turnIndex || 0",
+    "  });",
+    "  const payload = await publishResponse.json();",
+    "  await durableObject.loadRoom();",
+    "  const markers = durableObject.room && durableObject.room.snapshot && durableObject.room.snapshot.cardState ? durableObject.room.snapshot.cardState.markers || [] : [];",
+    "  process.stdout.write(JSON.stringify({",
+    "    status: publishResponse.status,",
+    "    payload,",
+    "    remainingFreezeMarkers: markers.filter((marker) => marker && marker.data && marker.data.type === 'FREEZE'),",
+    "    finalBoard: durableObject.room && durableObject.room.snapshot ? durableObject.room.snapshot.gameState.board : null",
+    "  }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
 describe('match worker publish idempotency', () => {
   test('serialized command payloadの再送は重複適用せず成功応答する', () => {
     const result = runPublishIdempotencyScenario();
@@ -339,5 +395,24 @@ describe('match worker publish idempotency', () => {
       operationId: 'op_history_black_2',
       stateVersion: 3
     }));
+  });
+
+  test('turn-start duration end removes authoritative marker and emits status_removed playback', () => {
+    const result = runTurnStartDurationEndScenario();
+
+    expect(result.status).toBe(200);
+    expect(result.payload && result.payload.ok).toBe(true);
+    expect(result.remainingFreezeMarkers).toEqual([]);
+    expect(result.finalBoard[2][3]).toBe(1);
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'status_removed',
+        rawType: 'STATUS_REMOVED',
+        meta: expect.objectContaining({
+          special: 'FREEZE',
+          reason: 'duration_end'
+        })
+      })
+    ]));
   });
 });
