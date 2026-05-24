@@ -2,6 +2,7 @@ import * as http from 'http';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
 import { spawnSync } from 'child_process';
+import { JSDOM } from 'jsdom';
 import * as helpers from '../shared/playback-event-helpers.js';
 import * as adapter from '../game/turn/pipeline_ui_adapter.js';
 import * as Core from '../game/logic/core.js';
@@ -25,6 +26,75 @@ function normalizePlayerKey(value) {
 
 function createBoard(rows = 8, cols = 8) {
   return Array.from({ length: rows }, () => Array(cols).fill(0));
+}
+
+function createPlaybackDomFromSnapshot(snapshot) {
+  const board = snapshot && snapshot.gameState && Array.isArray(snapshot.gameState.board)
+    ? snapshot.gameState.board
+    : createBoard();
+  const html = [
+    '<!doctype html><html><body><div id="board">',
+    ...board.flatMap((row, r) => row.map((value, col) => {
+      const ownerClass = value === Core.BLACK ? 'black' : (value === Core.WHITE ? 'white' : '');
+      const disc = ownerClass ? `<div class="disc ${ownerClass}"></div>` : '';
+      return `<div class="cell${disc ? ' has-disc' : ''}" data-row="${r}" data-col="${col}">${disc}</div>`;
+    })),
+    '</div></body></html>'
+  ].join('');
+  const dom = new JSDOM(html, { pretendToBeVisual: true });
+  const markers = snapshot && snapshot.cardState && Array.isArray(snapshot.cardState.markers)
+    ? snapshot.cardState.markers
+    : [];
+  for (const marker of markers) {
+    if (!marker || marker.kind !== 'specialStone') continue;
+    const type = String(marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+    if (type !== 'FREEZE') continue;
+    const cell = dom.window.document.querySelector(`.cell[data-row="${marker.row}"][data-col="${marker.col}"]`);
+    const disc = cell ? cell.querySelector('.disc') : null;
+    if (!cell || !disc) continue;
+    cell.classList.add('frozen-cell');
+    const freezeMark = dom.window.document.createElement('div');
+    freezeMark.className = 'freeze-mark';
+    disc.appendChild(freezeMark);
+  }
+  return dom;
+}
+
+function installPlaybackDomGlobals(dom) {
+  global.window = dom.window;
+  global.document = dom.window.document;
+  global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+  global.window.requestAnimationFrame = global.requestAnimationFrame;
+  global.window.DISABLE_ANIMATIONS = true;
+  global.window.MATCH_MODE = 'network';
+  global.window.getEffectKeyForSpecialType = jest.fn((special) => String(special || '').toLowerCase());
+  global.window.setDiscStoneImage = jest.fn();
+  global.window.clearStoneVisualEffectState = jest.fn();
+  global.window.applyStoneVisualEffect = jest.fn();
+  global.window.playHandAnimation = jest.fn((_player, _row, _col, done) => {
+    if (typeof done === 'function') done();
+  });
+  global.window.playCardUseHandAnimation = jest.fn(() => Promise.resolve());
+  global.window.playCaptureToHandAnimation = jest.fn(() => Promise.resolve());
+  global.window.playDrawCardHandAnimation = jest.fn(() => Promise.resolve());
+  global.window.playDirectHandAddAnimation = jest.fn(() => Promise.resolve());
+  global.window.playClearHandAnimation = jest.fn(() => Promise.resolve());
+  global.window.showRoundBonusDisplay = jest.fn();
+  global.window.addLog = jest.fn();
+  global.emitBoardUpdate = jest.fn();
+  global.SoundEngine = {
+    init: jest.fn(),
+    playEffectByKey: jest.fn()
+  };
+}
+
+function clearPlaybackDomGlobals(dom) {
+  delete global.SoundEngine;
+  delete global.emitBoardUpdate;
+  delete global.requestAnimationFrame;
+  delete global.window;
+  delete global.document;
+  if (dom) dom.window.close();
 }
 
 function requestJson(port, method, path, payload) {
@@ -2063,6 +2133,38 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
     }
 
     expect(unsupported).toEqual([]);
+  });
+
+  test('card effect playback parity fixtures are executable by the UI animation engine', async () => {
+    const previousNoAnim = process.env.NOANIM;
+    process.env.NOANIM = '1';
+    let engine = null;
+    const failures = [];
+
+    try {
+      for (const fixture of buildPlaybackParityFixtures()) {
+        const expected = buildExpectedAssembly(fixture.snapshot, fixture.action, fixture.name);
+        const dom = createPlaybackDomFromSnapshot(fixture.snapshot);
+        installPlaybackDomGlobals(dom);
+        try {
+          if (!engine) engine = require('../ui/animation-engine.js');
+          engine.boardEl = document.getElementById('board');
+          await engine.play(expected.playbackEvents || []);
+        } catch (error) {
+          failures.push({
+            fixture: fixture.name,
+            message: error && error.message ? error.message : String(error)
+          });
+        } finally {
+          clearPlaybackDomGlobals(dom);
+        }
+      }
+    } finally {
+      if (typeof previousNoAnim === 'undefined') delete process.env.NOANIM;
+      else process.env.NOANIM = previousNoAnim;
+    }
+
+    expect(failures).toEqual([]);
   });
 
   test('local match stream replays missed snapshot events after Last-Event-ID reconnect', async () => {

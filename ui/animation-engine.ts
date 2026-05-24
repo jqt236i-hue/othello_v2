@@ -2235,6 +2235,14 @@ const {
                 }
 
                 document.body.appendChild(bubble);
+                if (_isNoAnim()) {
+                    try {
+                        bubble.style.opacity = '1';
+                        bubble.style.transform = finalTransform;
+                        if (bubble.parentElement) bubble.parentElement.removeChild(bubble);
+                    } catch (e: any) { /* ignore */ }
+                    continue;
+                }
                 if (isChargeBubble) {
                     // Commit the initial entry position before the next frame so the downward motion is visible.
                     void bubble.offsetWidth;
