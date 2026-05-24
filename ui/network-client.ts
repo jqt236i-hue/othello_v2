@@ -11,6 +11,14 @@ declare const isGameOver: (...args: any[]) => any;
 
 const root: any = (typeof window !== 'undefined' ? window : globalThis);
 
+function resolveNetworkClientModule(requirePath: string, fallbackValue: any): any {
+    try {
+        const mod = _require(requirePath);
+        if (mod) return mod;
+    } catch (e: any) { /* ignore */ }
+    return fallbackValue || null;
+}
+
 const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const SERVER_URL_STORAGE_KEY = 'network_match_server_url';
     const ROOM_ID_LENGTH = 3;
@@ -33,26 +41,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const PUBLISH_TRACKER_MAX_OPERATIONS = 32;
     const PUBLISH_TRACKER_RETENTION_MS = 60000;
     const NETWORK_TELEMETRY_RECENT_LIMIT = 40;
-    const PlaybackStateModule = (typeof require === 'function')
-        ? (() => {
-            try { return require('./playback-state-manager'); } catch (e: any) { return root.PlaybackStateManager || null; }
-        })()
-        : (root.PlaybackStateManager || null);
-    const PendingCoordinatorModule = (typeof require === 'function')
-        ? (() => {
-            try { return require('../game/turn/pending-coordinator'); } catch (e: any) { return root.PendingCoordinator || null; }
-        })()
-        : (root.PendingCoordinator || null);
-    const PendingStateManagerModule = (typeof require === 'function')
-        ? (() => {
-            try { return require('../game/logic/cards-internal/pending-state-manager'); } catch (e: any) { return root.CardPendingStateManager || null; }
-        })()
-        : (root.CardPendingStateManager || null);
-    const ResultOverlayModule = (typeof require === 'function')
-        ? (() => {
-            try { return require('./result-overlay'); } catch (e: any) { return root || null; }
-        })()
-        : (root || null);
+    const PlaybackStateModule = resolveNetworkClientModule('./playback-state-manager', root.PlaybackStateManager || null);
+    const PendingCoordinatorModule = resolveNetworkClientModule('../game/turn/pending-coordinator', root.PendingCoordinator || null);
+    const PendingStateManagerModule = resolveNetworkClientModule('../game/logic/cards-internal/pending-state-manager', root.CardPendingStateManager || null);
+    const ResultOverlayModule = resolveNetworkClientModule('./result-overlay', root || null);
 
     function resolvePendingSelectionContract(cardType: any) {
         if (!cardType) return null;
