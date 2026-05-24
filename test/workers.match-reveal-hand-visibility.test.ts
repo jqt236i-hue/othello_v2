@@ -4,7 +4,7 @@ import { spawnSync } from 'child_process';
 
 const workerModulePath = pathToFileURL(path.resolve(__dirname, '../workers/match-worker.mjs')).href;
 
-function getProjectedOpponentHandForSeat(seatKey) {
+function getProjectedCardStateForSeat(seatKey) {
   const runner = [
     "(async () => {",
     "  const modulePath = process.argv[1];",
@@ -43,7 +43,7 @@ function getProjectedOpponentHandForSeat(seatKey) {
     "  const durableObject = new MatchRoomDurableObject(state);",
     "  const response = await durableObject.handleState(new URL(`https://room/api/match/state?seatKey=${seatKey}&seatToken=${seatToken}`));",
     "  const payload = await response.json();",
-    "  process.stdout.write(JSON.stringify(payload.snapshot.cardState.hands.white));",
+    "  process.stdout.write(JSON.stringify(payload.snapshot.cardState));",
     "})().catch((error) => {",
     "  console.error(error && error.stack ? error.stack : String(error));",
     "  process.exit(1);",
@@ -58,15 +58,29 @@ function getProjectedOpponentHandForSeat(seatKey) {
     throw new Error(result.stderr || result.stdout || 'worker reveal-hand projection check failed');
   }
 
-  return JSON.parse(String(result.stdout || '[]'));
+  return JSON.parse(String(result.stdout || '{}'));
 }
 
 describe('match worker reveal-hand visibility projection', () => {
   test('shows only revealed opponent copies to the effect owner seat', () => {
-    expect(getProjectedOpponentHandForSeat('black')).toEqual(['gold_stone', '__hidden_hand__:white:1']);
+    const cardState = getProjectedCardStateForSeat('black');
+
+    expect(cardState.hands.white).toEqual(['gold_stone', '__hidden_hand__:white:1']);
+    expect(cardState._nextCardCopySeq).toBeUndefined();
+    expect(cardState._handCopyIdsByPlayer).toBeUndefined();
+    expect(cardState._deckCopyIdsByPlayer).toBeUndefined();
+    expect(cardState._discardCopyIds).toBeUndefined();
+    expect(cardState._revealedHandCopyIdsByViewer).toBeUndefined();
   });
 
   test('keeps the owner seat hand fully visible for the owning player', () => {
-    expect(getProjectedOpponentHandForSeat('white')).toEqual(['gold_stone', 'silver_stone']);
+    const cardState = getProjectedCardStateForSeat('white');
+
+    expect(cardState.hands.white).toEqual(['gold_stone', 'silver_stone']);
+    expect(cardState._nextCardCopySeq).toBeUndefined();
+    expect(cardState._handCopyIdsByPlayer).toBeUndefined();
+    expect(cardState._deckCopyIdsByPlayer).toBeUndefined();
+    expect(cardState._discardCopyIds).toBeUndefined();
+    expect(cardState._revealedHandCopyIdsByViewer).toBeUndefined();
   });
 });
