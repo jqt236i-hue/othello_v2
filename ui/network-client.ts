@@ -19,6 +19,22 @@ function resolveNetworkClientModule(requirePath: string, fallbackValue: any): an
     return fallbackValue || null;
 }
 
+function resolveNetworkClientGlobal(globalKey: string): any {
+    try {
+        if (root && root[globalKey]) {
+            return root[globalKey];
+        }
+    } catch (e: any) { /* ignore */ }
+
+    try {
+        if (typeof globalThis !== 'undefined' && (globalThis as any)[globalKey]) {
+            return (globalThis as any)[globalKey];
+        }
+    } catch (e: any) { /* ignore */ }
+
+    return null;
+}
+
 const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const SERVER_URL_STORAGE_KEY = 'network_match_server_url';
     const ROOM_ID_LENGTH = 3;
@@ -385,201 +401,71 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     function resolveNetworkCommentaryModule() {
         if (networkCommentaryModule) return networkCommentaryModule;
 
-        try {
-            if (root && root.NetworkCommentaryModule) {
-                networkCommentaryModule = root.NetworkCommentaryModule;
-                return networkCommentaryModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkCommentaryModule) {
-                networkCommentaryModule = (globalThis as any).NetworkCommentaryModule;
-                return networkCommentaryModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        return null;
+        networkCommentaryModule = resolveNetworkClientGlobal('NetworkCommentaryModule');
+        return networkCommentaryModule;
     }
 
     function resolveNetworkActionSchemaModule() {
         if (networkActionSchemaModule) return networkActionSchemaModule;
 
-        try {
-            if (root && root.NetworkActionSchema) {
-                networkActionSchemaModule = root.NetworkActionSchema;
-                return networkActionSchemaModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkActionSchema) {
-                networkActionSchemaModule = (globalThis as any).NetworkActionSchema;
-                return networkActionSchemaModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        return null;
+        networkActionSchemaModule = resolveNetworkClientGlobal('NetworkActionSchema');
+        return networkActionSchemaModule;
     }
 
     function resolveNetworkSnapshotModule() {
         if (networkSnapshotModule) return networkSnapshotModule;
 
-        try {
-            if (root && root.NetworkSnapshotModule) {
-                networkSnapshotModule = root.NetworkSnapshotModule;
-                return networkSnapshotModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkSnapshotModule) {
-                networkSnapshotModule = (globalThis as any).NetworkSnapshotModule;
-                return networkSnapshotModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        return null;
+        networkSnapshotModule = resolveNetworkClientGlobal('NetworkSnapshotModule');
+        return networkSnapshotModule;
     }
 
     function resolveNetworkSessionSeatModule() {
         if (networkSessionSeatModule) return networkSessionSeatModule;
 
-        try {
-            if (root && root.NetworkSessionSeatModule) {
-                networkSessionSeatModule = root.NetworkSessionSeatModule;
-                return networkSessionSeatModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkSessionSeatModule) {
-                networkSessionSeatModule = (globalThis as any).NetworkSessionSeatModule;
-                return networkSessionSeatModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        return null;
+        networkSessionSeatModule = resolveNetworkClientGlobal('NetworkSessionSeatModule');
+        return networkSessionSeatModule;
     }
 
     function resolveNetworkSessionLifecycleModule() {
         if (networkSessionLifecycleModule) return networkSessionLifecycleModule;
 
-        try {
-            if (root && root.NetworkSessionLifecycleModule) {
-                networkSessionLifecycleModule = root.NetworkSessionLifecycleModule;
-                return networkSessionLifecycleModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkSessionLifecycleModule) {
-                networkSessionLifecycleModule = (globalThis as any).NetworkSessionLifecycleModule;
-                return networkSessionLifecycleModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        return null;
+        networkSessionLifecycleModule = resolveNetworkClientGlobal('NetworkSessionLifecycleModule');
+        return networkSessionLifecycleModule;
     }
 
     function resolveNetworkCommandPayloadModule() {
         if (networkCommandPayloadModule) return networkCommandPayloadModule;
 
-        try {
-            if (root && root.NetworkCommandPayloadModule) {
-                networkCommandPayloadModule = root.NetworkCommandPayloadModule;
-                return networkCommandPayloadModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkCommandPayloadModule) {
-                networkCommandPayloadModule = (globalThis as any).NetworkCommandPayloadModule;
-                return networkCommandPayloadModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        return null;
+        networkCommandPayloadModule = resolveNetworkClientGlobal('NetworkCommandPayloadModule');
+        return networkCommandPayloadModule;
     }
 
     function resolveNetworkActionBridgeModule() {
         if (networkActionBridgeModule) return networkActionBridgeModule;
 
-        try {
-            if (root && root.NetworkActionBridgeModule) {
-                networkActionBridgeModule = root.NetworkActionBridgeModule;
-                return networkActionBridgeModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkActionBridgeModule) {
-                networkActionBridgeModule = (globalThis as any).NetworkActionBridgeModule;
-                return networkActionBridgeModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        return null;
+        networkActionBridgeModule = resolveNetworkClientGlobal('NetworkActionBridgeModule');
+        return networkActionBridgeModule;
     }
 
     function resolveNetworkApplyCoordinatorModule() {
         if (networkApplyCoordinatorModule) return networkApplyCoordinatorModule;
 
-        try {
-            if (root && root.NetworkApplyCoordinatorModule) {
-                networkApplyCoordinatorModule = root.NetworkApplyCoordinatorModule;
-                return networkApplyCoordinatorModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkApplyCoordinatorModule) {
-                networkApplyCoordinatorModule = (globalThis as any).NetworkApplyCoordinatorModule;
-                return networkApplyCoordinatorModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        return null;
+        networkApplyCoordinatorModule = resolveNetworkClientGlobal('NetworkApplyCoordinatorModule');
+        return networkApplyCoordinatorModule;
     }
 
     function resolveNetworkReconnectControllerModule() {
         if (networkReconnectControllerModule) return networkReconnectControllerModule;
 
-        try {
-            if (root && root.NetworkReconnectControllerModule) {
-                networkReconnectControllerModule = root.NetworkReconnectControllerModule;
-                return networkReconnectControllerModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkReconnectControllerModule) {
-                networkReconnectControllerModule = (globalThis as any).NetworkReconnectControllerModule;
-                return networkReconnectControllerModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        return null;
+        networkReconnectControllerModule = resolveNetworkClientGlobal('NetworkReconnectControllerModule');
+        return networkReconnectControllerModule;
     }
 
     function resolveNetworkPublishTrackerModule() {
         if (networkPublishTrackerModule) return networkPublishTrackerModule;
 
-        try {
-            if (root && root.NetworkPublishTrackerModule) {
-                networkPublishTrackerModule = root.NetworkPublishTrackerModule;
-                return networkPublishTrackerModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkPublishTrackerModule) {
-                networkPublishTrackerModule = (globalThis as any).NetworkPublishTrackerModule;
-                return networkPublishTrackerModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        return null;
+        networkPublishTrackerModule = resolveNetworkClientGlobal('NetworkPublishTrackerModule');
+        return networkPublishTrackerModule;
     }
 
     function resolveCardLogicModule() {
@@ -612,21 +498,8 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     function resolveNetworkPublishRequestModule() {
         if (networkPublishRequestModule) return networkPublishRequestModule;
 
-        try {
-            if (root && root.NetworkPublishRequestModule) {
-                networkPublishRequestModule = root.NetworkPublishRequestModule;
-                return networkPublishRequestModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkPublishRequestModule) {
-                networkPublishRequestModule = (globalThis as any).NetworkPublishRequestModule;
-                return networkPublishRequestModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        return null;
+        networkPublishRequestModule = resolveNetworkClientGlobal('NetworkPublishRequestModule');
+        return networkPublishRequestModule;
     }
 
     function getNetworkCommentaryController() {
