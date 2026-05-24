@@ -5,10 +5,12 @@ const path = require('path');
 describe('check-window-usage', () => {
   const repoRoot = path.resolve(__dirname, '..');
   const fixturePath = path.join(repoRoot, 'game', '__window-check-fixture.ts');
+  const networkClientFixturePath = path.join(repoRoot, 'game', 'card-effects', '__network-client-check-fixture.ts');
 
   afterEach(() => {
     try {
       if (fs.existsSync(fixturePath)) fs.unlinkSync(fixturePath);
+      if (fs.existsSync(networkClientFixturePath)) fs.unlinkSync(networkClientFixturePath);
     } catch (e) {
       // Best-effort cleanup for negative static-check fixtures.
     }
@@ -43,5 +45,20 @@ describe('check-window-usage', () => {
     expect(res.status).toBe(2);
     expect(res.stderr).toContain('Forbidden globalThis property access found');
     expect(res.stderr).toContain('game/__window-check-fixture.ts');
+  });
+
+  test('rejects root NetworkMatchClient discovery from game source', () => {
+    fs.writeFileSync(
+      networkClientFixturePath,
+      "export function fixture() { return (globalThis as any)['NetworkMatchClient']; }\n",
+      'utf8'
+    );
+
+    const res = runCheckWindowUsage();
+
+    expect(res.status).toBe(2);
+    expect(res.stderr).toContain('Forbidden usage found in non-UI files');
+    expect(res.stderr).toContain('game/card-effects/__network-client-check-fixture.ts');
+    expect(res.stderr).toContain('root NetworkMatchClient');
   });
 });

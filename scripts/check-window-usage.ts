@@ -70,6 +70,13 @@ function collectPropertyAccessBase(node: ts.Node): ts.Expression | null {
     return null;
 }
 
+function collectElementAccessBase(node: ts.Node): ts.Expression | null {
+    if (ts.isElementAccessExpression(node) || ts.isElementAccessChain(node)) {
+        return node.expression;
+    }
+    return null;
+}
+
 function unwrapExpressionBase(expression: ts.Expression): ts.Expression {
     let current = expression;
     while (true) {
@@ -83,6 +90,14 @@ function unwrapExpressionBase(expression: ts.Expression): ts.Expression {
         }
         return current;
     }
+}
+
+function readStaticElementAccessKey(node: ts.Node): string | null {
+    if (!(ts.isElementAccessExpression(node) || ts.isElementAccessChain(node))) return null;
+    const arg = node.argumentExpression;
+    if (!arg) return null;
+    if (ts.isStringLiteralLike(arg)) return arg.text;
+    return null;
 }
 
 const files = walk(root)
@@ -107,6 +122,24 @@ for (const f of files) {
                 violations.push({ file: f, line: toLine(sourceFile, node), label: 'document.' });
             } else if (unwrappedBase.text === 'globalThis' && shouldEnforceGlobalThis(f)) {
                 globalThisRefs.push({ file: f, line: toLine(sourceFile, node), label: 'globalThis.' });
+            }
+            if (
+                (unwrappedBase.text === 'window' || unwrappedBase.text === 'globalThis')
+                && (ts.isPropertyAccessExpression(node) || ts.isPropertyAccessChain(node))
+                && node.name.text === 'NetworkMatchClient'
+            ) {
+                violations.push({ file: f, line: toLine(sourceFile, node), label: 'root NetworkMatchClient' });
+            }
+        }
+        const elementBase = collectElementAccessBase(node);
+        const unwrappedElementBase = elementBase ? unwrapExpressionBase(elementBase) : null;
+        if (unwrappedElementBase && ts.isIdentifier(unwrappedElementBase)) {
+            const key = readStaticElementAccessKey(node);
+            if (
+                key === 'NetworkMatchClient'
+                && (unwrappedElementBase.text === 'window' || unwrappedElementBase.text === 'globalThis')
+            ) {
+                violations.push({ file: f, line: toLine(sourceFile, node), label: 'root NetworkMatchClient' });
             }
         }
         if (ts.isCallExpression(node)
