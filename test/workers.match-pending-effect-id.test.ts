@@ -684,6 +684,69 @@ describe('worker pendingEffectId contract', () => {
     ]));
   });
 
+  test('board expansion target selection adds authoritative expansion cell and clears pending state', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'board_expand_01',
+      pendingType: 'BOARD_EXPANSION_WILL',
+      actionKey: 'expansionTarget',
+      target: { row: 3, col: 7 }
+    });
+
+    const expansion = result.internalSnapshot.gameState.boardExpansion;
+    const cells = Array.isArray(expansion && expansion.cells) ? expansion.cells : [];
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(expansion.usedByPlayer).toEqual(expect.objectContaining({ black: true }));
+    expect(cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 3, col: 8, side: 'right', owner: 0 })
+    ]));
+    expect(result.payload.effectLogs).toEqual(expect.arrayContaining([
+      expect.stringContaining('盤面拡張')
+    ]));
+  });
+
+  test('board expansion god final target selection adds six authoritative cells and clears pending state', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'board_expand_god_01',
+      pendingType: 'BOARD_EXPANSION_GOD',
+      actionKey: 'expansionTarget',
+      target: { row: 7, col: 7 },
+      pendingExtra: {
+        selectedCount: 1,
+        maxSelections: 2,
+        selectedTargets: [{ row: 0, col: 0 }]
+      }
+    });
+
+    const expansion = result.internalSnapshot.gameState.boardExpansion;
+    const cells = Array.isArray(expansion && expansion.cells) ? expansion.cells : [];
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(expansion.usedByPlayer).toEqual(expect.objectContaining({ black: true }));
+    expect(cells).toHaveLength(6);
+    expect(cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: -1, owner: 0 }),
+      expect.objectContaining({ row: -1, col: 0, owner: 0 }),
+      expect.objectContaining({ row: 0, col: -1, owner: 0 }),
+      expect.objectContaining({ row: 7, col: 8, owner: 0 }),
+      expect.objectContaining({ row: 8, col: 7, owner: 0 }),
+      expect.objectContaining({ row: 8, col: 8, owner: 0 })
+    ]));
+    expect(result.payload.effectLogs).toEqual(expect.arrayContaining([
+      expect.stringContaining('盤面拡張神')
+    ]));
+  });
+
   test('time bomb target selection places authoritative bomb marker and clears pending state', () => {
     const result = runBoardPendingResolutionScenario({
       cardId: 'bomb_01',
