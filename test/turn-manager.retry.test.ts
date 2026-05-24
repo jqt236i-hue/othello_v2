@@ -81,14 +81,16 @@ describe('turn-manager scheduling', () => {
     delete global.handleGuardSelection;
   });
 
-  test('handleCellClick executes move immediately after hand animation callback', async () => {
+  test('handleCellClick executes move immediately and leaves hand animation to pipeline playback', async () => {
     // Spy on internal timers module to ensure no settle-delay wait is used
     const timersModule = require('../game/timers.js');
     const spy = jest.spyOn(timersModule, 'waitMs').mockImplementation(() => Promise.resolve());
 
+    global.cardState.presentationEvents = [];
     const rm = require('../game/turn-manager.js');
     rm.handleCellClick(0, 0);
     expect(global.executeMove).toHaveBeenCalled();
+    expect(global.cardState.presentationEvents).toEqual([]);
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
   });

@@ -616,9 +616,7 @@ function handleCellClick(row: number, col: number) {
         return;
     }
 
-    // Hand animation is handled by the UI's PlaybackEngine through pipeline playback events
-    if (!Array.isArray(cardState.presentationEvents)) cardState.presentationEvents = [];
-    cardState.presentationEvents.push({ type: 'PLAY_HAND_ANIMATION', player: playerKey, row, col });
+    // Hand animation is handled by the UI's PlaybackEngine through pipeline playback events.
     const executeMoveFn = readTurnManagerRuntimeFunction('executeMove') || (MoveExecutorModule && MoveExecutorModule.executeMove) || (typeof executeMove === 'function' ? executeMove : null);
     if (executeMoveFn) executeMoveFn(move);
 }
