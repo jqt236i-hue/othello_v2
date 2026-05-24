@@ -250,7 +250,7 @@ function runWorkerCommandPlace(snapshot, action, stateVersion, options = {}) {
     "    operationId,",
     "    actionType: 'place',",
     "    actor: playerKey,",
-    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}),",
+    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}),",
     "    turnIndex: action.turnIndex,",
     "    action",
     "  });",
@@ -502,6 +502,28 @@ function buildBoardShrinkFixture() {
   };
 }
 
+function buildSuperBuoyancyFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  setStone(snapshot, 6, 4, 'black');
+  snapshot.cardState.pendingEffectByPlayer.black = {
+    type: 'SUPER_BUOYANCY_WILL',
+    stage: 'selectTarget',
+    cardId: 'super_buoyancy_01'
+  };
+  return {
+    name: 'SUPER_BUOYANCY_WILL',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_super_buoyancy_place',
+      __skipTurnStart: false,
+      superBuoyancyTarget: { row: 6, col: 4 }
+    })
+  };
+}
+
 function buildPlaybackParityFixtures() {
   return [
     buildTurnStartDestroyFixture('SNIPER'),
@@ -512,7 +534,8 @@ function buildPlaybackParityFixtures() {
     buildTurnStartDestroyFixture('ULTIMATE_DESTROY_GOD'),
     buildMeteorFixture(),
     buildMeteorOpponentSalvationFixture(),
-    buildBoardShrinkFixture()
+    buildBoardShrinkFixture(),
+    buildSuperBuoyancyFixture()
   ];
 }
 
@@ -530,6 +553,7 @@ function normalizePlaybackEventForParity(event) {
     effectKind: event.effectKind || meta.effectKind || null,
     soundKey: event.soundKey || meta.soundKey || null,
     spawnIntent: event.spawnIntent || meta.spawnIntent || null,
+    moveIntent: event.moveIntent || meta.moveIntent || null,
     targets: Array.isArray(event.targets)
       ? event.targets.map((target) => normalizePlaybackTargetForParity(target))
       : []
@@ -556,6 +580,19 @@ function normalizePlaybackTargetForParity(target) {
     spawnIntent: target.spawnIntent || meta.spawnIntent || null,
     sourceRow: Number.isInteger(target.sourceRow) ? target.sourceRow : (Number.isInteger(meta.sourceRow) ? meta.sourceRow : null),
     sourceCol: Number.isInteger(target.sourceCol) ? target.sourceCol : (Number.isInteger(meta.sourceCol) ? meta.sourceCol : null),
+    from: target.from && typeof target.from === 'object'
+      ? {
+        r: Number.isInteger(target.from.r) ? target.from.r : (Number.isInteger(target.from.row) ? target.from.row : null),
+        col: Number.isInteger(target.from.col) ? target.from.col : null
+      }
+      : null,
+    to: target.to && typeof target.to === 'object'
+      ? {
+        r: Number.isInteger(target.to.r) ? target.to.r : (Number.isInteger(target.to.row) ? target.to.row : null),
+        col: Number.isInteger(target.to.col) ? target.to.col : null
+      }
+      : null,
+    moveIntent: target.moveIntent || meta.moveIntent || null,
     special: target.special || meta.special || null
   };
 }
@@ -626,7 +663,8 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
         row: fixture.action.row,
         col: fixture.action.col,
         ...(fixture.action.meteorTarget ? { meteorTarget: fixture.action.meteorTarget } : {}),
-        ...(fixture.action.shrinkTarget ? { shrinkTarget: fixture.action.shrinkTarget } : {})
+        ...(fixture.action.shrinkTarget ? { shrinkTarget: fixture.action.shrinkTarget } : {}),
+        ...(fixture.action.superBuoyancyTarget ? { superBuoyancyTarget: fixture.action.superBuoyancyTarget } : {})
       },
       turnIndex: fixture.action.turnIndex,
       action: fixture.action
