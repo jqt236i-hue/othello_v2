@@ -749,6 +749,54 @@ describe('worker pendingEffectId contract', () => {
     ]));
   });
 
+  test('hyperactive inherit target selection applies inherited marker and status playback', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'hyperactive_inherit_01',
+      pendingType: 'HYPERACTIVE_INHERIT_WILL',
+      actionKey: 'hyperactiveInheritTarget',
+      target: { row: 3, col: 4 }
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalSnapshot.cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 3,
+        col: 4,
+        owner: 'black',
+        data: expect.objectContaining({
+          type: 'INHERITED_HYPERACTIVE',
+          remainingOwnerTurns: 10,
+          flipEvadeRemaining: 1,
+          destroyEvadeRemaining: 1
+        })
+      })
+    ]));
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'status_applied',
+        rawType: 'STATUS_APPLIED',
+        meta: expect.objectContaining({ special: 'INHERITED_HYPERACTIVE' })
+      }),
+      expect.objectContaining({
+        type: 'observer_bubble',
+        rawType: 'SPECIAL_STONE_BUBBLE',
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            r: 3,
+            col: 4,
+            owner: 'black',
+            special: 'INHERITED_HYPERACTIVE'
+          })
+        ])
+      })
+    ]));
+  });
+
   test('capture will target selection moves source card to hand and clears pending state', () => {
     const result = runBoardPendingResolutionScenario({
       cardId: 'capture_01',

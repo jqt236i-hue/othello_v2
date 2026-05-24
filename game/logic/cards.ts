@@ -3323,6 +3323,7 @@ const {
             getHyperactiveInheritTargets,
             removeMarkersAt,
             addMarker,
+            emitPresentationEvent,
             inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
             MARKER_KINDS
         });

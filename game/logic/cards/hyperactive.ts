@@ -195,6 +195,7 @@ interface HyperactiveDeps {
     getHyperactiveInheritTargets?: (cardState: CardState, gameState: GameState, playerKey: PlayerKey) => Position[];
     removeMarkersAt?: (cardState: CardState, row: number, col: number, filter: any) => void;
     addMarker?: (cardState: CardState, kind: string, row: number, col: number, playerKey: PlayerKey, data: any) => any;
+    emitPresentationEvent?: (cardState: CardState, event: any) => void;
     MARKER_KINDS?: any;
     expectedSpecialType?: string;
 }
@@ -2608,6 +2609,19 @@ function applyHyperactiveInheritWill(
         destroyEvadeRemaining: 1,
         hyperactiveSeq: (cardState as any).hyperactiveSeqCounter
     });
+    if (typeof deps.emitPresentationEvent === 'function') {
+        deps.emitPresentationEvent(cardState, {
+            type: 'STATUS_APPLIED',
+            row,
+            col,
+            meta: {
+                special: 'INHERITED_HYPERACTIVE',
+                owner: playerKey,
+                timer: inheritedTurns,
+                reason: 'hyperactive_inherit_selected'
+            }
+        });
+    }
 
     clearCardPendingEffect(cardState, playerKey);
     return { applied: true, row, col, remainingOwnerTurns: inheritedTurns };
