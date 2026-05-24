@@ -194,11 +194,38 @@ describe('Network snapshot move-source empty handling', () => {
       afterMarkers: []
     },
     {
+      name: 'buoyancy ordinary move',
+      cause: 'BUOYANCY_WILL',
+      reason: 'buoyancy_move',
+      source: { row: 6, col: 2 },
+      dest: { row: 1, col: 2 },
+      beforeMarkers: [],
+      afterMarkers: []
+    },
+    {
       name: 'super gravity ordinary move',
       cause: 'SUPER_GRAVITY_WILL',
       reason: 'super_gravity_move',
       source: { row: 2, col: 4 },
       dest: { row: 6, col: 4 },
+      beforeMarkers: [],
+      afterMarkers: []
+    },
+    {
+      name: 'gravity ordinary move',
+      cause: 'GRAVITY_WILL',
+      reason: 'gravity_move',
+      source: { row: 1, col: 5 },
+      dest: { row: 6, col: 5 },
+      beforeMarkers: [],
+      afterMarkers: []
+    },
+    {
+      name: 'super attraction ordinary move',
+      cause: 'SUPER_ATTRACTION_WILL',
+      reason: 'super_attraction_move',
+      source: { row: 6, col: 1 },
+      dest: { row: 2, col: 5 },
       beforeMarkers: [],
       afterMarkers: []
     },
