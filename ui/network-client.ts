@@ -1165,6 +1165,16 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return true;
     }
 
+    function buildShadowAwarePlaybackApplyOptions(playbackEvents: any, shouldShadowPlayback: any, shadowPlaybackSource: any) {
+        const events = Array.isArray(playbackEvents) ? playbackEvents : [];
+        const useShadowPlayback = shouldShadowPlayback === true;
+        return {
+            playbackEvents: useShadowPlayback ? [] : events,
+            shadowPlaybackEvents: useShadowPlayback ? events : [],
+            shadowPlaybackSource: useShadowPlayback ? shadowPlaybackSource : undefined
+        };
+    }
+
     function clearPendingForceSyncPlaybackRecovery() {
         state.pendingForceSyncPlaybackVersion = null;
         state.pendingForceSyncPlaybackSource = '';
@@ -2304,28 +2314,24 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
             const shouldShadowStreamPlayback = isSelfOperation
                 && shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish, playbackEvents);
-            const streamPlaybackEvents = shouldShadowStreamPlayback ? [] : playbackEvents;
-            const streamShadowPlaybackEvents = shouldShadowStreamPlayback ? playbackEvents : [];
-            const streamShadowPlaybackSource = shouldShadowStreamPlayback ? 'stream_self_shadow' : undefined;
+            const streamPlaybackApplyOptions = buildShadowAwarePlaybackApplyOptions(
+                playbackEvents,
+                shouldShadowStreamPlayback,
+                'stream_self_shadow'
+            );
             let applied = applySnapshotThroughCoordinator(snapshot, {
                 source: 'stream',
                 trackedPublish,
-                applyOptions: {
-                    playbackEvents: streamPlaybackEvents,
-                    shadowPlaybackEvents: streamShadowPlaybackEvents,
-                    shadowPlaybackSource: streamShadowPlaybackSource,
+                applyOptions: Object.assign({}, streamPlaybackApplyOptions, {
                     force: false,
                     skipResultOverlay: isSelfOperation && !isTerminalResultSnapshot
-                }
+                })
             });
             const recoveredForcedPlayback = !applied && shouldRecoverForceSyncedStreamPlayback(snapshot, playbackEvents)
-                ? applySnapshot(snapshot, {
+                ? applySnapshot(snapshot, Object.assign({}, streamPlaybackApplyOptions, {
                     force: true,
-                    playbackEvents: streamPlaybackEvents,
-                    shadowPlaybackEvents: streamShadowPlaybackEvents,
-                    shadowPlaybackSource: streamShadowPlaybackSource,
                     skipResultOverlay: isSelfOperation && !isTerminalResultSnapshot
-                })
+                }))
                 : false;
             if (!applied && recoveredForcedPlayback) {
                 applied = true;
@@ -2695,26 +2701,26 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                         res.data.snapshot,
                         serverPlaybackEvents
                     );
+                    const publishResponsePlaybackApplyOptions = buildShadowAwarePlaybackApplyOptions(
+                        serverPlaybackEvents,
+                        shouldShadowPlaybackResponse,
+                        'publish_response_shadow'
+                    );
                     const applied = shouldSkipPublishResponse
                         ? false
                         : applySnapshotThroughCoordinator(res.data.snapshot, {
                             source: 'publish_response',
                             trackedPublish,
-                            applyOptions: {
+                            applyOptions: Object.assign({}, publishResponsePlaybackApplyOptions, {
                                 force: true,
-                                playbackEvents: shouldShadowPlaybackResponse ? [] : serverPlaybackEvents,
-                                shadowPlaybackEvents: shouldShadowPlaybackResponse ? serverPlaybackEvents : [],
-                                shadowPlaybackSource: shouldShadowPlaybackResponse ? 'publish_response_shadow' : undefined,
                                 skipResultOverlay: hasTrackedPublishPresentedResult(trackedPublish)
-                            }
+                            })
                         });
                     if (applied) {
-                        rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, {
+                        rememberPendingForceSyncPlaybackRecovery(res.data.snapshot, Object.assign({}, publishResponsePlaybackApplyOptions, {
                             source: 'publish_response',
-                            force: true,
-                            playbackEvents: shouldShadowPlaybackResponse ? [] : serverPlaybackEvents,
-                            shadowPlaybackEvents: shouldShadowPlaybackResponse ? serverPlaybackEvents : []
-                        });
+                            force: true
+                        }));
                         emitPayloadEffectLogs(res.data);
                         recordNetworkTelemetry('publish_response_snapshot_applied', {
                             operationId,
