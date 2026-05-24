@@ -35,6 +35,14 @@ function resolveNetworkClientGlobal(globalKey: string): any {
     return null;
 }
 
+function resolveNetworkClientCandidate(readCandidate: () => any): any {
+    try {
+        const candidate = readCandidate();
+        if (candidate) return candidate;
+    } catch (e: any) { /* ignore */ }
+    return null;
+}
+
 const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     const SERVER_URL_STORAGE_KEY = 'network_match_server_url';
     const ROOM_ID_LENGTH = 3;
@@ -471,28 +479,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     function resolveCardLogicModule() {
         if (cardLogicModule) return cardLogicModule;
 
-        try {
-            if (typeof require === 'function') {
-                cardLogicModule = require('../game/logic/cards');
-                if (cardLogicModule) return cardLogicModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (root && root.CardLogic) {
-                cardLogicModule = root.CardLogic;
-                return cardLogicModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).CardLogic) {
-                cardLogicModule = (globalThis as any).CardLogic;
-                return cardLogicModule;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        return null;
+        cardLogicModule = resolveNetworkClientCandidate(() => _require('../game/logic/cards'))
+            || resolveNetworkClientCandidate(() => root && root.CardLogic)
+            || resolveNetworkClientCandidate(() => (typeof globalThis !== 'undefined' ? (globalThis as any).CardLogic : null));
+        return cardLogicModule;
     }
 
     function resolveNetworkPublishRequestModule() {
@@ -670,49 +660,18 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function resolveHandSkinUiModule() {
-        try {
-            if (root && root.HandSkinUiModule) {
-                return root.HandSkinUiModule;
-            }
-        } catch (e: any) { /* ignore */ }
-        try {
-            if (typeof require === 'function') {
-                return require('./handlers/hand-skin');
-            }
-        } catch (e: any) { /* ignore */ }
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).HandSkinUiModule) {
-                return (globalThis as any).HandSkinUiModule;
-            }
-        } catch (e: any) { /* ignore */ }
-        return null;
+        return resolveNetworkClientCandidate(() => root && root.HandSkinUiModule)
+            || resolveNetworkClientCandidate(() => _require('./handlers/hand-skin'))
+            || resolveNetworkClientCandidate(() => (typeof globalThis !== 'undefined' ? (globalThis as any).HandSkinUiModule : null));
     }
 
     function resolveOwnerHelpers() {
         if (ownerHelpers) return ownerHelpers;
 
-        try {
-            if (root && root.OwnerHelpers) {
-                ownerHelpers = root.OwnerHelpers;
-                return ownerHelpers;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof require === 'function') {
-                ownerHelpers = require('../utils/owner-helpers');
-                if (ownerHelpers) return ownerHelpers;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).OwnerHelpers) {
-                ownerHelpers = (globalThis as any).OwnerHelpers;
-                return ownerHelpers;
-            }
-        } catch (e: any) { /* ignore */ }
-
-        return null;
+        ownerHelpers = resolveNetworkClientCandidate(() => root && root.OwnerHelpers)
+            || resolveNetworkClientCandidate(() => _require('../utils/owner-helpers'))
+            || resolveNetworkClientCandidate(() => (typeof globalThis !== 'undefined' ? (globalThis as any).OwnerHelpers : null));
+        return ownerHelpers;
     }
 
     function normalizePlayerKey(value: any) {
