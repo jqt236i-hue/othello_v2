@@ -250,7 +250,7 @@ function runWorkerCommandPlace(snapshot, action, stateVersion, options = {}) {
     "    operationId,",
     "    actionType: 'place',",
     "    actor: playerKey,",
-    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}),",
+    "    params: Object.assign({ row: action.row, col: action.col }, action.meteorTarget ? { meteorTarget: action.meteorTarget } : {}, action.shrinkTarget ? { shrinkTarget: action.shrinkTarget } : {}, action.superBuoyancyTarget ? { superBuoyancyTarget: action.superBuoyancyTarget } : {}, action.cloneTarget ? { cloneTarget: action.cloneTarget } : {}),",
     "    turnIndex: action.turnIndex,",
     "    action",
     "  });",
@@ -524,6 +524,28 @@ function buildSuperBuoyancyFixture() {
   };
 }
 
+function buildCloneWillFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  setStone(snapshot, 3, 3, 'black');
+  snapshot.cardState.pendingEffectByPlayer.black = {
+    type: 'CLONE_WILL',
+    stage: 'selectTarget',
+    cardId: 'clone_01'
+  };
+  return {
+    name: 'CLONE_WILL',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_clone_will_place',
+      __skipTurnStart: false,
+      cloneTarget: { row: 3, col: 3 }
+    })
+  };
+}
+
 function buildPlaybackParityFixtures() {
   return [
     buildTurnStartDestroyFixture('SNIPER'),
@@ -535,7 +557,8 @@ function buildPlaybackParityFixtures() {
     buildMeteorFixture(),
     buildMeteorOpponentSalvationFixture(),
     buildBoardShrinkFixture(),
-    buildSuperBuoyancyFixture()
+    buildSuperBuoyancyFixture(),
+    buildCloneWillFixture()
   ];
 }
 
@@ -664,7 +687,8 @@ async function publishFixtureThroughLocalServer(fixture, stateVersion) {
         col: fixture.action.col,
         ...(fixture.action.meteorTarget ? { meteorTarget: fixture.action.meteorTarget } : {}),
         ...(fixture.action.shrinkTarget ? { shrinkTarget: fixture.action.shrinkTarget } : {}),
-        ...(fixture.action.superBuoyancyTarget ? { superBuoyancyTarget: fixture.action.superBuoyancyTarget } : {})
+        ...(fixture.action.superBuoyancyTarget ? { superBuoyancyTarget: fixture.action.superBuoyancyTarget } : {}),
+        ...(fixture.action.cloneTarget ? { cloneTarget: fixture.action.cloneTarget } : {})
       },
       turnIndex: fixture.action.turnIndex,
       action: fixture.action
