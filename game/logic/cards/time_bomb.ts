@@ -303,6 +303,7 @@ interface TimeBombDeps {
     destroyAt?: (cardState: CardState, gameState: GameState, row: number, col: number) => boolean;
     BoardOps?: any;
     specialStoneKind?: string;
+    emitPresentationEvent?: (cardState: CardState, event: any) => void;
 }
 
 function applyTimeBomb(cardState: CardState, playerKey: PlayerKey, row: number, col: number, deps: TimeBombDeps = {}): { placed: boolean; reason?: string } {
@@ -365,6 +366,20 @@ function applyTimeBombWill(cardState: CardState, gameState: GameState, playerKey
     });
     if (!placement || placement.placed !== true) {
         return { applied: false, reason: placement && placement.reason ? placement.reason : 'failed' };
+    }
+
+    if (typeof deps.emitPresentationEvent === 'function') {
+        deps.emitPresentationEvent(cardState, {
+            type: 'STATUS_APPLIED',
+            row,
+            col,
+            meta: {
+                special: 'TIME_BOMB',
+                owner: playerKey,
+                timer: TIME_BOMB_TURNS,
+                reason: 'time_bomb_selected'
+            }
+        });
     }
 
     (cardState as any).pendingEffectByPlayer[playerKey] = null;

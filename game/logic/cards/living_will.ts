@@ -250,6 +250,7 @@ interface LivingWillDeps {
     readCardPendingEffect?: (state: CardState, owner: PlayerKey) => any;
     clearCardPendingEffect?: (state: CardState, owner: PlayerKey) => void;
     getLivingWillTargets?: (cardState: CardState, gameState: GameState, playerKey: PlayerKey) => any[];
+    emitPresentationEvent?: (cardState: CardState, event: any) => void;
 }
 
 function getBoardOps(deps: LivingWillDeps): any {
@@ -834,6 +835,18 @@ function applyLivingWill(cardState: CardState, gameState: GameState, playerKey: 
         type: 'LIVING_WILL',
         baseline
     });
+    if (typeof deps.emitPresentationEvent === 'function') {
+        deps.emitPresentationEvent(cardState, {
+            type: 'STATUS_APPLIED',
+            row,
+            col,
+            meta: {
+                special: 'LIVING_WILL',
+                owner: playerKey,
+                reason: 'living_will_selected'
+            }
+        });
+    }
     clearCardPendingEffect(cardState, playerKey);
     return {
         applied: true,

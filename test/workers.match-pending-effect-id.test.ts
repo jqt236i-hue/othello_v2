@@ -396,6 +396,92 @@ function runStatusCellSelectionScenario(config) {
   return runScenario(runner);
 }
 
+function runBoardPendingResolutionScenario(config) {
+  const runner = [
+    "(async () => {",
+    `  const config = ${JSON.stringify(config)};`,
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const board = Array.from({ length: 8 }, () => Array(8).fill(0));",
+    "  board[3][3] = -1;",
+    "  board[3][4] = 1;",
+    "  board[4][3] = 1;",
+    "  board[4][4] = -1;",
+    "  if (config.extraBoard) {",
+    "    for (const cell of config.extraBoard) board[cell.row][cell.col] = cell.value;",
+    "  }",
+    "  const pending = Object.assign({",
+    "    type: config.pendingType,",
+    "    stage: 'selectTarget',",
+    "    cardId: config.cardId,",
+    "    sourceHandIndex: 0,",
+    "    pendingEffectId: 'pending_board_1'",
+    "  }, config.pendingExtra || {});",
+    "  const actionTarget = { row: config.target.row, col: config.target.col };",
+    "  const pendingSelectionState = Object.assign({}, pending);",
+    "  const params = { player: 'black', pendingSelectionState };",
+    "  params[config.actionKey] = actionTarget;",
+    "  const action = Object.assign({",
+    "    type: 'place',",
+    "    player: 'black',",
+    "    playerKey: 'black',",
+    "    deferNetworkPublish: true,",
+    "    pendingSelectionState,",
+    "    turnIndex: 1",
+    "  }, { [config.actionKey]: actionTarget });",
+    "  const markers = Array.isArray(config.markers) ? JSON.parse(JSON.stringify(config.markers)) : [];",
+    "  const room = {",
+    "    roomId: 'PENDB',",
+    "    seed: 1,",
+    "    stateVersion: 0,",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatNames: { black: 'くろ', white: 'しろ' },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    seatHandSkins: { black: '', white: '' },",
+    "    roomDeck: null,",
+    "    roomBoardConfig: null,",
+    "    networkDebugEnabled: false,",
+    "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black', turnStartedAt: null, turnDeadlineAt: null },",
+    "    lastAcceptedOperationBySeat: { black: null, white: null },",
+    "    eventSeq: 0,",
+    "    sseEventBuffer: [],",
+    "    authorityLog: [],",
+    "    chatMessages: [],",
+    "    chatSeq: 0,",
+    "    snapshot: {",
+    "      stateVersion: 0,",
+    "      gameState: { board, currentPlayer: 1, consecutivePasses: 0, turnNumber: 1, roundNumber: 1, roundCompletionByPlayer: { black: false, white: false }, pendingRoundBonus: null },",
+    "      cardState: {",
+    "        deck: [], decks: { black: [], white: [] }, initialDeckSize: 0, initialDeckSizeByPlayer: { black: 0, white: 0 },",
+    "        hands: { black: [], white: [] }, charge: { black: 80, white: 0 }, chargeGainedTotal: { black: 0, white: 0 }, chargeDeltaEvents: [],",
+    "        turnCountByPlayer: { black: 1, white: 0 },",
+    "        pendingEffectByPlayer: { black: pending, white: null },",
+    "        activeEffectsByPlayer: { black: [], white: [] }, hasUsedCardThisTurnByPlayer: { black: true, white: false }, hasDestroyedCardThisTurnByPlayer: { black: false, white: false },",
+    "        extraPlaceRemainingByPlayer: { black: 0, white: 0 }, infinitePlaceActiveByPlayer: { black: false, white: false }, multiPlaceSourceTypeByPlayer: { black: null, white: null },",
+    "        breedingSproutByOwner: { black: [], white: [] }, _breedingSproutClearedTokenByOwner: { black: null, white: null }, riboRepaymentsByPlayer: { black: [], white: [] }, prevOpponentTurnDestroyedStonesByPlayer: { black: [], white: [] },",
+    "        lastUsedCardByPlayer: { black: config.cardId, white: null }, markers, presentationEvents: [], _presentationEventsPersist: [],",
+    "        _handCopyIdsByPlayer: { black: [], white: [] }, _deckCopyIdsByPlayer: { black: [], white: [] }, _discardCopyIds: [], _revealedHandCopyIdsByViewer: { black: [], white: [] },",
+    "        discard: [config.cardId], turnIndex: 1",
+    "      }",
+    "    }",
+    "  };",
+    "  const storage = new Map();",
+    "  storage.set('match_room_state_v1', room);",
+    "  const durableObject = new MatchRoomDurableObject({ storage: { get: async (key) => storage.get(key), put: async (key, value) => storage.set(key, value), delete: async (key) => storage.delete(key), setAlarm: async () => {}, deleteAlarm: async () => {} } });",
+    "  const response = await durableObject.fetch(new Request('https://room/api/match/publish', {",
+    "    method: 'POST', headers: { 'Content-Type': 'application/json' },",
+    "    body: JSON.stringify({ roomId: 'PENDB', seatKey: 'black', playerKey: 'black', seatToken: 'token_black', baseVersion: 0, operationId: `op_${config.cardId}_board_select_1`, actionType: 'place', actor: 'black', params, action, turnIndex: 1 })",
+    "  }));",
+    "  const payload = await response.json();",
+    "  const storedRoom = storage.get('match_room_state_v1');",
+    "  process.stdout.write(JSON.stringify({ status: response.status, payload, internalSnapshot: storedRoom.snapshot }));",
+    "})().catch((error) => { console.error(error && error.stack ? error.stack : String(error)); process.exit(1); });"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
 function runHandFollowupScenario(config) {
   const runner = [
     "(async () => {",
@@ -565,6 +651,150 @@ describe('worker pendingEffectId contract', () => {
       owner: 'black',
       data: expect.objectContaining({ type: markerType })
     }));
+  });
+
+  test('position swap second target selection swaps authoritative board and clears pending state', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'position_swap_01',
+      pendingType: 'POSITION_SWAP_WILL',
+      actionKey: 'positionSwapTarget',
+      pendingExtra: { firstTarget: { row: 3, col: 4 } },
+      target: { row: 3, col: 3 }
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalSnapshot.gameState.board[3][4]).toBe(-1);
+    expect(result.internalSnapshot.gameState.board[3][3]).toBe(1);
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'move',
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            from: { r: 3, col: 4 },
+            to: { r: 3, col: 3 },
+            cause: 'POSITION_SWAP_WILL'
+          })
+        ])
+      })
+    ]));
+  });
+
+  test('time bomb target selection places authoritative bomb marker and clears pending state', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'bomb_01',
+      pendingType: 'TIME_BOMB',
+      actionKey: 'bombTarget',
+      target: { row: 3, col: 4 }
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalSnapshot.cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 3,
+        col: 4,
+        owner: 'black',
+        data: expect.objectContaining({ type: 'TIME_BOMB', category: 'bomb', remainingTurns: 3 })
+      })
+    ]));
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'status_applied',
+        rawType: 'STATUS_APPLIED',
+        meta: expect.objectContaining({ special: 'TIME_BOMB' })
+      })
+    ]));
+  });
+
+  test('living will target selection stores baseline marker and clears pending state', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'living_will_01',
+      pendingType: 'LIVING_WILL',
+      actionKey: 'livingWillTarget',
+      target: { row: 3, col: 4 }
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalSnapshot.cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        row: 3,
+        col: 4,
+        owner: 'black',
+        data: expect.objectContaining({
+          type: 'LIVING_WILL',
+          baseline: expect.objectContaining({ owner: 'black' })
+        })
+      })
+    ]));
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'status_applied',
+        rawType: 'STATUS_APPLIED',
+        meta: expect.objectContaining({ special: 'LIVING_WILL' })
+      })
+    ]));
+  });
+
+  test('capture will target selection moves source card to hand and clears pending state', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'capture_01',
+      pendingType: 'CAPTURE_WILL',
+      actionKey: 'captureTarget',
+      target: { row: 2, col: 2 },
+      extraBoard: [{ row: 2, col: 2, value: -1 }],
+      markers: [{
+        id: 9,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'white',
+        data: {
+          type: 'FREEZE',
+          sourceType: 'FREEZE_WILL',
+          sourceCardId: 'freeze_01',
+          remainingOwnerTurns: 1
+        }
+      }]
+    });
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalSnapshot.gameState.board[2][2]).toBe(0);
+    expect(result.internalSnapshot.cardState.hands.black).toEqual(['freeze_01']);
+    expect(result.internalSnapshot.cardState.markers).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 2, col: 2 })
+    ]));
+    expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'capture_to_hand_animation',
+        rawType: 'HAND_ADD',
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            player: 'black',
+            cardId: 'freeze_01',
+            reason: 'capture_will'
+          })
+        ])
+      })
+    ]));
   });
 
   test('heaven blessing follow-up resolves authoritative hand choice in worker runtime', () => {

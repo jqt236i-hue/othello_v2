@@ -1393,6 +1393,7 @@ const {
             readCardPendingEffect,
             clearCardPendingEffect,
             getLivingWillTargets: typeof getLivingWillTargets === 'function' ? getLivingWillTargets : (() => []),
+            emitPresentationEvent,
             BoardOps: BoardOpsModule,
             random: defaultPrng,
             defaults: {
@@ -3352,6 +3353,7 @@ const {
                 getTimeBombTargets,
                 removeMarkersAt,
                 addMarker,
+                emitPresentationEvent,
                 specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
             });
         }
