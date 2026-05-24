@@ -630,6 +630,79 @@ function buildTimeStopTriggeredFixture() {
   };
 }
 
+function buildFreezeDurationEndFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  setStone(snapshot, 3, 4, 'black');
+  addSpecialMarker(snapshot, 3, 4, 'black', 'FREEZE', {
+    remainingOwnerTurns: 1
+  });
+  return {
+    name: 'FREEZE_DURATION_END',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_freeze_duration_end_place',
+      __skipTurnStart: false
+    })
+  };
+}
+
+function buildBlockadeDurationEndFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  addSpecialMarker(snapshot, 1, 1, 'black', 'BLOCKADE', {
+    remainingOwnerTurns: 1
+  });
+  return {
+    name: 'BLOCKADE_DURATION_END',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_blockade_duration_end_place',
+      __skipTurnStart: false
+    })
+  };
+}
+
+function buildSeedDurationEndFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  addSpecialMarker(snapshot, 1, 1, 'black', 'SEED', {
+    remainingOwnerTurns: 1
+  });
+  return {
+    name: 'SEED_DURATION_END',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_seed_duration_end_place',
+      __skipTurnStart: false
+    })
+  };
+}
+
+function buildStoneSalvationGodDurationEndFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  addSalvationGod(snapshot, 7, 0, 'black');
+  const marker = snapshot.cardState.markers.find((item) => item && item.data && item.data.type === 'STONE_SALVATION_GOD');
+  marker.data.remainingOwnerTurns = 1;
+  return {
+    name: 'STONE_SALVATION_GOD_DURATION_END',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 2,
+      col: 3,
+      actionId: 'fixture_stone_salvation_god_duration_end_place',
+      __skipTurnStart: false
+    })
+  };
+}
+
 function buildPlaybackParityFixtures() {
   return [
     buildTurnStartDestroyFixture('SNIPER'),
@@ -646,7 +719,11 @@ function buildPlaybackParityFixtures() {
     buildGuardWillFixture(),
     buildWorkIncomeFixture(),
     buildObserverAnchorLostFixture(),
-    buildTimeStopTriggeredFixture()
+    buildTimeStopTriggeredFixture(),
+    buildFreezeDurationEndFixture(),
+    buildBlockadeDurationEndFixture(),
+    buildSeedDurationEndFixture(),
+    buildStoneSalvationGodDurationEndFixture()
   ];
 }
 
@@ -1235,6 +1312,55 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
             targets: expect.arrayContaining([
               expect.objectContaining({ r: 3, col: 4, owner: 'black', special: 'TIME_STOP' })
             ])
+          })
+        ]));
+      }
+      if (fixture.name === 'FREEZE_DURATION_END') {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'status_removed',
+            rawType: 'STATUS_REMOVED',
+            meta: expect.objectContaining({ special: 'FREEZE', reason: 'duration_end' })
+          })
+        ]));
+      }
+      if (fixture.name === 'BLOCKADE_DURATION_END') {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'status_removed',
+            rawType: 'STATUS_REMOVED',
+            meta: expect.objectContaining({ special: 'BLOCKADE', reason: 'duration_end' })
+          })
+        ]));
+      }
+      if (fixture.name === 'SEED_DURATION_END') {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'status_removed',
+            rawType: 'STATUS_REMOVED',
+            meta: expect.objectContaining({ special: 'SEED', reason: 'duration_end' })
+          }),
+          expect.objectContaining({
+            type: 'spawn',
+            rawType: 'SPAWN',
+            targets: expect.arrayContaining([
+              expect.objectContaining({
+                r: 1,
+                col: 1,
+                ownerAfter: 'black',
+                cause: 'SEED_WILL',
+                reason: 'seed_sprout'
+              })
+            ])
+          })
+        ]));
+      }
+      if (fixture.name === 'STONE_SALVATION_GOD_DURATION_END') {
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'status_removed',
+            rawType: 'STATUS_REMOVED',
+            meta: expect.objectContaining({ special: 'STONE_SALVATION_GOD', reason: 'duration_end' })
           })
         ]));
       }
