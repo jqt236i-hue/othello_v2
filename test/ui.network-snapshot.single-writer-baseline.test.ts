@@ -401,7 +401,7 @@ describe('applySnapshot single-writer baseline', () => {
     expect(busyStateCalls).toHaveLength(0);
   });
 
-  test('stale shadow playback early return は busy を解放して suppressPlayback event を emit する', () => {
+  test('stale shadow playback early return は snapshot 未適用のまま busy を解放して suppressPlayback event を emit する', () => {
     const stateObj = { stateVersion: 15 };
     const ctrl = createController(stateObj);
     const snap = createSnapshot(10);
@@ -412,7 +412,7 @@ describe('applySnapshot single-writer baseline', () => {
       shadowPlaybackEvents: shadowEvents
     });
 
-    expect(applied).toBe(true);
+    expect(applied).toBe(false);
     expect(busyStateCalls).toEqual(expect.arrayContaining([
       expect.objectContaining({ processing: true, cardAnimating: true }),
       expect.objectContaining({ processing: false, cardAnimating: false })

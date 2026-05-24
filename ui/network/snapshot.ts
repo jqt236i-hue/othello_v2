@@ -774,7 +774,7 @@ function createNetworkSnapshotController(config: any): any {
                     deferCardUiUntilPlaybackIdle: true
                 });
                 setBusyState(false);
-                return true;
+                return false;
             }
             emitTelemetry('snapshot_stale_rejected', {
                 nextVersion,

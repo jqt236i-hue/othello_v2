@@ -202,6 +202,52 @@ describe('NetworkMatchClient result sync', () => {
     expect(global.cardState._presentationEventsPersist).toEqual([]);
   });
 
+  test('stale shadow playback does not roll back applied stateVersion', () => {
+    global.cardState = { markers: [], presentationEvents: [] };
+    global.BoardOps = {
+      emitPresentationEvent: jest.fn((state, ev) => {
+        if (!state || !ev) return;
+        if (!Array.isArray(state.presentationEvents)) state.presentationEvents = [];
+        state.presentationEvents.push(ev);
+      })
+    };
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+
+    const currentSnapshot = withServerMeta({
+      stateVersion: 15,
+      gameState: { currentPlayer: 1, turnNumber: 15 },
+      cardState: { markers: [], presentationEvents: [] }
+    });
+    expect(client.applySnapshot(currentSnapshot, { force: true, skipResultOverlay: true })).toBe(true);
+    expect(client.getStateVersion()).toBe(15);
+
+    const staleSnapshot = withServerMeta({
+      stateVersion: 10,
+      gameState: { currentPlayer: 1, turnNumber: 99 },
+      cardState: { markers: [{ type: 'STALE' }], presentationEvents: [] }
+    });
+    const shadowEvents = [{ type: 'flip', phase: 1, targets: [{ r: 2, c: 3 }] }];
+
+    const applied = client.applySnapshot(staleSnapshot, {
+      allowStaleShadowPlayback: true,
+      shadowPlaybackEvents: shadowEvents,
+      skipResultOverlay: true
+    });
+
+    expect(applied).toBe(false);
+    expect(client.getStateVersion()).toBe(15);
+    expect(global.gameState.turnNumber).toBe(15);
+    expect(global.cardState.markers).toEqual([]);
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.cardState.presentationEvents[0]).toEqual(expect.objectContaining({
+      type: 'PLAYBACK_EVENTS',
+      events: shadowEvents,
+      meta: expect.objectContaining({ suppressPlayback: true })
+    }));
+  });
+
   test('force sync without incoming playback preserves local presentation queues', () => {
     global.isProcessing = true;
     global.isCardAnimating = true;
