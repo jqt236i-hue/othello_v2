@@ -1295,29 +1295,7 @@ function toPublicSnapshot(room: MatchWorkerRoomState | null | undefined, viewerS
 }
 
 function buildPublicSeatState(room: MatchWorkerRoomState | null | undefined): MatchWorkerPublicSeatState {
-    if (MatchAuthority && typeof MatchAuthority.buildPublicSeatMetadata === 'function') {
-        return MatchAuthority.buildPublicSeatMetadata(room) as MatchWorkerPublicSeatState;
-    }
-    const names = (room && room.seatNames && typeof room.seatNames === 'object') ? room.seatNames : {};
-    const handSkins = (room && room.seatHandSkins && typeof room.seatHandSkins === 'object') ? room.seatHandSkins : {};
-    return {
-        seats: MatchAuthority && typeof MatchAuthority.normalizePublicSeats === 'function'
-            ? MatchAuthority.normalizePublicSeats(room && room.seats)
-            : {
-                black: !!(room && room.seats && room.seats.black),
-                white: !!(room && room.seats && room.seats.white)
-            },
-        seatNames: {
-            black: normalizeNetworkPlayerName(names.black),
-            white: normalizeNetworkPlayerName(names.white)
-        },
-        seatHandSkins: MatchAuthority && typeof MatchAuthority.normalizeSeatHandSkins === 'function'
-            ? MatchAuthority.normalizeSeatHandSkins(room && room.seatHandSkins)
-            : {
-                black: normalizeSeatHandSkinId(handSkins.black),
-                white: normalizeSeatHandSkinId(handSkins.white)
-            }
-    };
+    return MatchAuthority.buildPublicSeatMetadata(room) as MatchWorkerPublicSeatState;
 }
 
 function withPublicSeatState(room: MatchWorkerRoomState | null | undefined, payload: Record<string, unknown>): Record<string, unknown> {
