@@ -1,6 +1,8 @@
-const SharedBoardUtils: any = (() => {
-    try { return require('../../shared/shared-board-utils'); } catch (e) { return null; }
-})();
+function requirePolicyTableRuntimeModuleOrNull(id: string): any {
+    try { return require(id); } catch (e) { return null; }
+}
+
+const SharedBoardUtils: any = requirePolicyTableRuntimeModuleOrNull('../../shared/shared-board-utils');
 
 const MODEL_SCHEMA_VERSION = 'policy_table.v2';
 const LEGACY_MODEL_SCHEMA_VERSION = 'policy_table.v1';
