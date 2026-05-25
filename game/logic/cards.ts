@@ -2476,21 +2476,6 @@ const {
         return requireCardMarkersMethod('getSpecialOwnerAt')(cardState, row, col);
     }
 
-    function callCardModuleMethod(moduleRef: any, methodName: any, args: any) {
-        if (!moduleRef || typeof moduleRef[methodName] !== 'function') {
-            return { called: false, value: undefined };
-        }
-        try {
-            return { called: true, value: moduleRef[methodName](...(Array.isArray(args) ? args : [])) };
-        } catch (e) {
-            return { called: false, value: undefined };
-        }
-    }
-
-    function callCardSelectorsMethod(methodName: any, args: any) {
-        return callCardModuleMethod(CardSelectorsModule, methodName, args);
-    }
-
     function getTemptWillTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetsModule.getTemptWillTargets(cardState, gameState, playerKey);
     }
@@ -2622,8 +2607,6 @@ const {
 
     // Return targets: only your own special stones that have a numeric remainingOwnerTurns > 0
     function getExtendLifeTargets(cardState: any, gameState: any, playerKey: any) {
-        const delegated = callCardSelectorsMethod('getExtendLifeTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
         const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
         const res: any[] = [];
         for (const m of markers) {
@@ -2698,28 +2681,7 @@ const {
     }
 
     function getBoardExpansionGodTargets(cardState: any, gameState: any, playerKey: any) {
-        const delegated = callCardSelectorsMethod('getBoardExpansionGodTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-
-        if (!gameState || !gameState.board) return [];
-
-        const occupied = new Set(
-            getExpansionDescriptorsForCard(gameState).map((cell: any) => `${cell.row},${cell.col}`)
-        );
-        const pending = readCardPendingEffect(cardState, playerKey);
-        const selectedKeys = new Set(
-            getBoardExpansionGodPendingSelectionsForCard(pending).map((target: any) => `${target.row},${target.col}`)
-        );
-
-        const res = [];
-        for (const corner of getBoardExpansionGodCornerDescriptorsForCard(gameState)) {
-            if (!corner || !Array.isArray(corner.cells)) continue;
-            if (selectedKeys.has(`${corner.row},${corner.col}`)) continue;
-            const hasOccupied = corner.cells.some((cell: any) => occupied.has(`${cell.row},${cell.col}`));
-            if (hasOccupied) continue;
-            res.push({ row: corner.row, col: corner.col });
-        }
-        return res;
+        return CardSelectorsModule.getBoardExpansionGodTargets(cardState, gameState, playerKey);
     }
 
     function getBoardExpansionGodRequiredSelectionCount(cardState: any, gameState: any, playerKey: any) {
@@ -2753,49 +2715,11 @@ const {
     }
 
     function getBoardShrinkGodTargets(cardState: any, gameState: any, playerKey: any) {
-        const delegated = callCardSelectorsMethod('getBoardShrinkGodTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-        return [];
+        return CardSelectorsModule.getBoardShrinkGodTargets(cardState, gameState, playerKey);
     }
 
     function getCellTeleportDestinations(cardState: any, gameState: any) {
-        const delegated = callCardSelectorsMethod('getCellTeleportDestinations', [cardState, gameState]);
-        if (delegated.called) return delegated.value;
-
-        if (!gameState || !gameState.board) return [];
-
-        const activeByKey = new Map();
-        for (const cell of getExpansionDescriptorsForCard(gameState)) {
-            if (!cell) continue;
-            activeByKey.set(`${cell.row},${cell.col}`, cell);
-        }
-
-        const res: any[] = [];
-        const seen = new Set();
-        const pushCandidate = (row: any, col: any, side: any) => {
-            const key = `${row},${col}`;
-            if (seen.has(key)) return;
-            seen.add(key);
-            const activeCell = activeByKey.get(key) || null;
-            const owner = activeCell ? normalizeExpansionOwnerForCard(activeCell.owner) : EMPTY;
-            if (owner !== EMPTY) return;
-            if (isBlockedCell(cardState, row, col, gameState)) return;
-            res.push({ row, col, side: resolveExpansionSideForCard(side, row, col, gameState), active: !!activeCell });
-        };
-
-        for (const cell of getBoardExpansionWillCellDescriptorsForCard(gameState)) {
-            if (!cell) continue;
-            pushCandidate(cell.row, cell.col, cell.side);
-        }
-        for (const corner of getBoardExpansionGodCornerDescriptorsForCard(gameState)) {
-            if (!corner || !Array.isArray(corner.cells)) continue;
-            for (const cell of corner.cells) {
-                if (!cell) continue;
-                pushCandidate(cell.row, cell.col, resolveExpansionSideForCard(null, cell.row, cell.col, gameState));
-            }
-        }
-
-        return res;
+        return CardSelectorsModule.getCellTeleportDestinations(cardState, gameState);
     }
 
     function getCellTeleportTargets(cardState: any, gameState: any) {
