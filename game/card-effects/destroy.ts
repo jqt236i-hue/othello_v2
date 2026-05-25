@@ -5,12 +5,16 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 // Imports replacing globalThis references
-const PendingSelectionFlow = (function() {
-    try { return _require('./selection-flow'); } catch (e) { return null; }
-})();
-const DestroyOutcomeContract = (function() {
-    try { return _require('../../shared/destroy-outcome-contract'); } catch (e) { return null; }
-})();
+function requireDestroyModuleOrNull(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+const PendingSelectionFlow = requireDestroyModuleOrNull('./selection-flow');
+const DestroyOutcomeContract = requireDestroyModuleOrNull('../../shared/destroy-outcome-contract');
 const ControllerEvents = _require('../controller-events');
 function getEmitLogAdded(): ((message: string) => void) | null {
     if (__uiImpl_destroy && typeof __uiImpl_destroy.emitLogAdded === 'function') return __uiImpl_destroy.emitLogAdded;
