@@ -650,7 +650,7 @@ const {
     const CardTargetsModule = resolveCardLogicGlobalOrModule('CardTargets', './cards/targets');
     const CardFlipsModule = resolveCardLogicGlobalOrModule('CardFlips', './cards/flips');
     const CardChainModule = resolveCardLogicGlobalOrModule('CardChain', './cards/chain');
-    const CardRegenModule = resolveCardLogicGlobalOrModule('CardRegen', './cards/regen');
+    const CardRegenModule = resolveRequiredCardModule('./cards/regen', 'CardRegen');
     const CardTimeBombModule = resolveCardLogicGlobalOrModule('CardTimeBomb', './cards/time_bomb');
     /** @type {any} */
     const CardBreedingModule = resolveCardLogicGlobalOrModule('CardBreeding', './cards/breeding');
@@ -4618,11 +4618,7 @@ const {
      * Apply REGEN_WILL (next placed stone becomes regen stone)
      */
     function applyRegenWill(cardState: any, playerKey: any, row: any, col: any) {
-        if (CardRegenModule && typeof CardRegenModule.applyRegenWill === 'function') {
-            return CardRegenModule.applyRegenWill(cardState, playerKey, row, col, { addMarker, BLACK, WHITE });
-        }
-        console.warn('[cards.js] CardRegen.applyRegenWill not available');
-        return { applied: false };
+        return CardRegenModule.applyRegenWill(cardState, playerKey, row, col, { addMarker, BLACK, WHITE });
     }
 
 
@@ -4631,16 +4627,12 @@ const {
      * Delegates to cards/regen.js module.
      */
     function applyRegenAfterFlips(cardState: any, gameState: any, flips: any, flipperKey: any, skipCapture: any) {
-        if (CardRegenModule && typeof CardRegenModule.applyRegenAfterFlips === 'function') {
-            return CardRegenModule.applyRegenAfterFlips(cardState, gameState, flips, flipperKey, skipCapture, {
-                getCardContext,
-                clearBombAt,
-                removeMarkersAt,
-                BoardOps: BoardOpsModule
-            });
-        }
-        console.warn('[cards.js] CardRegen module not available');
-        return { regened: [], captureFlips: [] };
+        return CardRegenModule.applyRegenAfterFlips(cardState, gameState, flips, flipperKey, skipCapture, {
+            getCardContext,
+            clearBombAt,
+            removeMarkersAt,
+            BoardOps: BoardOpsModule
+        });
     }
 
     function applyLivingWillAfterFlips(cardState: any, gameState: any, flips: any, flipperKey: any) {
