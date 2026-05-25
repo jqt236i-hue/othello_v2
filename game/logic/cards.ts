@@ -644,7 +644,7 @@ const {
     /** @type {any} */
     const CardMeteorModule = resolveCardLogicGlobalOrModule('CardMeteor', './cards/meteor');
     /** @type {any} */
-    const CardShrinkModule = resolveCardLogicGlobalOrModule('CardShrink', './cards/shrink');
+    const CardShrinkModule = resolveRequiredCardModule('./cards/shrink', 'CardShrink');
     /** @type {any} */
     const CardLivingWillModule = resolveCardLogicGlobalOrModule('CardLivingWill', './cards/living_will');
     const CardTargetsModule = resolveCardLogicGlobalOrModule('CardTargets', './cards/targets');
@@ -3504,57 +3504,51 @@ const {
     }
 
     function applyBoardShrinkWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardShrinkModule && typeof CardShrinkModule.applyBoardShrinkWill === 'function') {
-            return CardShrinkModule.applyBoardShrinkWill(cardState, gameState, playerKey, row, col, {
-                getBoardShrinkTargets,
-                getCellValueForCard,
-                destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
-                    ? BoardOpsModule.destroyAt
-                    : null,
-                applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
-                    ? BoardOpsModule.applyHoleAt
-                    : null,
-                runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
-                    ? BoardOpsModule.runCellRemovalBlock
-                    : null,
-                isDestroyResolved,
-                clearStoneIdAtForCard,
-                setCellValueForCard,
-                removeMarkersAt,
-                addMarker,
-                random: (cardState && cardState._defaultRandomSource) || defaultPrng,
-                isAbsoluteProtectedCell,
-                isFrozenCell
-            });
-        }
-        return { applied: false, reason: 'not_supported' };
+        return CardShrinkModule.applyBoardShrinkWill(cardState, gameState, playerKey, row, col, {
+            getBoardShrinkTargets,
+            getCellValueForCard,
+            destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
+                ? BoardOpsModule.destroyAt
+                : null,
+            applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
+                ? BoardOpsModule.applyHoleAt
+                : null,
+            runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
+                ? BoardOpsModule.runCellRemovalBlock
+                : null,
+            isDestroyResolved,
+            clearStoneIdAtForCard,
+            setCellValueForCard,
+            removeMarkersAt,
+            addMarker,
+            random: (cardState && cardState._defaultRandomSource) || defaultPrng,
+            isAbsoluteProtectedCell,
+            isFrozenCell
+        });
     }
 
     function applyBoardShrinkGod(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardShrinkModule && typeof CardShrinkModule.applyBoardShrinkGod === 'function') {
-            return CardShrinkModule.applyBoardShrinkGod(cardState, gameState, playerKey, row, col, {
-                getBoardShrinkGodTargets,
-                getCellValueForCard,
-                destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
-                    ? BoardOpsModule.destroyAt
-                    : null,
-                applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
-                    ? BoardOpsModule.applyHoleAt
-                    : null,
-                runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
-                    ? BoardOpsModule.runCellRemovalBlock
-                    : null,
-                isDestroyResolved,
-                clearStoneIdAtForCard,
-                setCellValueForCard,
-                removeMarkersAt,
-                addMarker,
-                random: (cardState && cardState._defaultRandomSource) || defaultPrng,
-                isAbsoluteProtectedCell,
-                isFrozenCell
-            });
-        }
-        return { applied: false, reason: 'not_supported' };
+        return CardShrinkModule.applyBoardShrinkGod(cardState, gameState, playerKey, row, col, {
+            getBoardShrinkGodTargets,
+            getCellValueForCard,
+            destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
+                ? BoardOpsModule.destroyAt
+                : null,
+            applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
+                ? BoardOpsModule.applyHoleAt
+                : null,
+            runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
+                ? BoardOpsModule.runCellRemovalBlock
+                : null,
+            isDestroyResolved,
+            clearStoneIdAtForCard,
+            setCellValueForCard,
+            removeMarkersAt,
+            addMarker,
+            random: (cardState && cardState._defaultRandomSource) || defaultPrng,
+            isAbsoluteProtectedCell,
+            isFrozenCell
+        });
     }
 
     function applyBlockadeWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
