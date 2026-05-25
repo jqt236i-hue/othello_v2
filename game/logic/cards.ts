@@ -671,7 +671,7 @@ const {
     const CardOwnershipEffectsModule = resolveRequiredCardModule('../cards/effects/ownership', 'CardOwnershipEffects');
     const CardBoardExpansionApplyModule = resolveRequiredCardModule('../cards/effects/board-expansion-apply', 'CardBoardExpansionApply');
     const CardStatusCellsModule = resolveRequiredCardModule('../cards/effects/status-cells', 'CardStatusCellsEffects');
-    const CardHandEffectsModule = resolveOptionalCardModule('../cards/effects/hand-effects', 'CardHandEffects');
+    const CardHandEffectsModule = resolveRequiredCardModule('../cards/effects/hand-effects', 'CardHandEffects');
     const CardPositionSwapModule = resolveOptionalCardModule('../cards/effects/position-swap', 'CardPositionSwapEffects');
 
     function addChargeValue(cardState: any, playerKey: any, amount: any, reason: any, meta?: any) {
@@ -4931,15 +4931,12 @@ const {
      * @returns {{applied:boolean, reason?:string, selectedCardId?:string, vanished?:string[]}}
      */
     function applyHeavenBlessingChoice(cardState: any, playerKey: any, selectedCardId: any) {
-        if (CardHandEffectsModule && typeof CardHandEffectsModule.applyHeavenBlessingChoice === 'function') {
-            return CardHandEffectsModule.applyHeavenBlessingChoice(cardState, playerKey, selectedCardId, {
-                readCardPendingEffect,
-                clearCardPendingEffect,
-                addCardToHand,
-                MAX_HAND_SIZE
-            });
-        }
-        return { applied: false, reason: 'deps_missing' };
+        return CardHandEffectsModule.applyHeavenBlessingChoice(cardState, playerKey, selectedCardId, {
+            readCardPendingEffect,
+            clearCardPendingEffect,
+            addCardToHand,
+            MAX_HAND_SIZE
+        });
     }
 
     /**
@@ -4950,14 +4947,11 @@ const {
      * @returns {{applied:boolean, reason?:string, opponentKey?:string, revealedCount?:number}}
      */
     function applyRevealHandWill(cardState: any, playerKey: any) {
-        if (CardHandEffectsModule && typeof CardHandEffectsModule.applyRevealHandWill === 'function') {
-            return CardHandEffectsModule.applyRevealHandWill(cardState, playerKey, {
-                readCardPendingEffect,
-                clearCardPendingEffect,
-                revealCurrentHandToViewer
-            });
-        }
-        return { applied: false, reason: 'deps_missing' };
+        return CardHandEffectsModule.applyRevealHandWill(cardState, playerKey, {
+            readCardPendingEffect,
+            clearCardPendingEffect,
+            revealCurrentHandToViewer
+        });
     }
 
     /**
@@ -4969,15 +4963,12 @@ const {
      * @returns {{applied:boolean, reason?:string, destroyedCardId?:string}}
      */
     function applyCondemnWill(cardState: any, playerKey: any, targetIndex: any) {
-        if (CardHandEffectsModule && typeof CardHandEffectsModule.applyCondemnWill === 'function') {
-            return CardHandEffectsModule.applyCondemnWill(cardState, playerKey, targetIndex, {
-                readCardPendingEffect,
-                clearCardPendingEffect,
-                removeHandCardAt,
-                addCardToDiscard
-            });
-        }
-        return { applied: false, reason: 'deps_missing' };
+        return CardHandEffectsModule.applyCondemnWill(cardState, playerKey, targetIndex, {
+            readCardPendingEffect,
+            clearCardPendingEffect,
+            removeHandCardAt,
+            addCardToDiscard
+        });
     }
 
     /**
@@ -4989,16 +4980,13 @@ const {
      * @returns {{applied:boolean, reason?:string, opponentKey?:string, requestedCount?:number, destroyedCount?:number, destroyedCardIds?:string[]}}
      */
     function applyExecutionWill(cardState: any, playerKey: any, prng: any) {
-        if (CardHandEffectsModule && typeof CardHandEffectsModule.applyExecutionWill === 'function') {
-            return CardHandEffectsModule.applyExecutionWill(cardState, playerKey, prng, {
-                readCardPendingEffect,
-                clearCardPendingEffect,
-                removeHandCardAt,
-                addCardToDiscard,
-                resolveDeterministicRandomIndex
-            });
-        }
-        return { applied: false, reason: 'deps_missing' };
+        return CardHandEffectsModule.applyExecutionWill(cardState, playerKey, prng, {
+            readCardPendingEffect,
+            clearCardPendingEffect,
+            removeHandCardAt,
+            addCardToDiscard,
+            resolveDeterministicRandomIndex
+        });
     }
 
     function getDirectionalChainFlips(gameState: any, row: any, col: any, ownerVal: any, dir: any, context: any) {
