@@ -31,17 +31,16 @@ function safeRequire(id: string): any {
     }
 }
 
-const SharedConstants = (() => {
+function resolveDragonModuleOrGlobal(id: string, globalKey: string): any {
     if (typeof module === 'object' && module.exports) {
-        return safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
+        return safeRequire(id) || getRuntimeGlobalValue(globalKey);
     }
 
-    return getRuntimeGlobalValue('SharedConstants');
-})();
+    return getRuntimeGlobalValue(globalKey);
+}
 
-const RandomSourceModule = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../cards-internal/random-source')
-    : null) || getRuntimeGlobalValue('CardRandomSource');
+const SharedConstants = resolveDragonModuleOrGlobal('../../../shared-constants', 'SharedConstants');
+const RandomSourceModule = resolveDragonModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
 
 const { BLACK, WHITE } = SharedConstants || {};
 const P_BLACK = BLACK || 1;
