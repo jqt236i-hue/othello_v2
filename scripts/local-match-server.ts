@@ -439,9 +439,7 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
     if (!currentSnapshot) {
         return { ok: false, rejectedReason: 'INVALID_SNAPSHOT' };
     }
-    if (MatchAuthority && typeof MatchAuthority.stripTransientChargeDeltaState === 'function') {
-        MatchAuthority.stripTransientChargeDeltaState(currentSnapshot);
-    }
+    MatchAuthority.stripTransientChargeDeltaState(currentSnapshot);
 
     const currentTurnIndex = Number.isFinite(Number(currentSnapshot.cardState && currentSnapshot.cardState.turnIndex))
         ? Number(currentSnapshot.cardState.turnIndex)
@@ -1808,9 +1806,7 @@ async function handlePublish(req: any, res: any) {
             dedupeOutcome: 'accepted'
         });
     }
-    if (typeof MatchAuthority.stripTransientChargeDeltaState === 'function') {
-        MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
-    }
+    MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
     broadcastPreparedSnapshot(room, preparedSnapshot);
     writeJson(res, 200, responsePayload);
 }

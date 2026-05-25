@@ -1039,9 +1039,7 @@ async function applyCommandPublishToSnapshot(
         return { ok: false, rejectedReason: 'INVALID_SNAPSHOT' };
     }
     const currentCardState = asRecord(currentSnapshot.cardState);
-    if (MatchAuthority && typeof MatchAuthority.stripTransientChargeDeltaState === 'function') {
-        MatchAuthority.stripTransientChargeDeltaState(currentSnapshot);
-    }
+    MatchAuthority.stripTransientChargeDeltaState(currentSnapshot);
 
     const currentTurnIndex = Number.isFinite(Number(currentCardState.turnIndex))
         ? Number(currentCardState.turnIndex)
@@ -3090,9 +3088,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 dedupeOutcome: 'accepted'
             }, undefined);
         }
-        if (MatchAuthority && typeof MatchAuthority.stripTransientChargeDeltaState === 'function') {
-            MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
-        }
+        MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
         await this.saveRoom();
         await this.broadcastSnapshot({
             ...meta,
