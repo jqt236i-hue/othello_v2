@@ -664,8 +664,8 @@ const {
     /** @type {any} */
     const CardDestroyDragonModule = resolveCardLogicGlobalOrModule('CardDestroyDragon', './cards/destroy_dragon');
     const DragonEffectsModule = resolveCardLogicGlobalOrModule('DragonEffects', './effects/dragon');
-    const DestroyOneStoneModule = resolveCardLogicGlobalOrModule('DestroyOneStoneEffects', './effects/destroy_one_stone');
-    const SwapWithEnemyModule = resolveCardLogicGlobalOrModule('SwapWithEnemyEffects', './effects/swap_with_enemy');
+    const DestroyOneStoneModule = resolveRequiredCardModule('./effects/destroy_one_stone', 'DestroyOneStoneEffects');
+    const SwapWithEnemyModule = resolveRequiredCardModule('./effects/swap_with_enemy', 'SwapWithEnemyEffects');
     const CardProtectModule = resolveCardLogicGlobalOrModule('CardProtectEffects', '../cards/effects/protect');
     const CardTrapModule = resolveCardLogicGlobalOrModule('CardTrapEffects', '../cards/effects/trap');
     const CardOwnershipEffectsModule = resolveRequiredCardModule('../cards/effects/ownership', 'CardOwnershipEffects');
@@ -5564,11 +5564,7 @@ const {
      * Delegates to effects/destroy_one_stone.js module.
     */
     function applyDestroyEffectDetailed(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (DestroyOneStoneModule && typeof DestroyOneStoneModule.applyDestroyOneStone === 'function') {
-            return DestroyOneStoneModule.applyDestroyOneStone(cardState, gameState, playerKey, row, col, { BoardOps: BoardOpsModule, destroyAt });
-        }
-        console.warn('[cards.js] DestroyOneStone module not available');
-        return createDestroyOutcome();
+        return DestroyOneStoneModule.applyDestroyOneStone(cardState, gameState, playerKey, row, col, { BoardOps: BoardOpsModule, destroyAt });
     }
 
     function applyDestroyEffect(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
@@ -5582,19 +5578,15 @@ const {
      */
     function applySwapEffect(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         const cardContext = getCardContext(cardState);
-        if (SwapWithEnemyModule && typeof SwapWithEnemyModule.applySwapWithEnemy === 'function') {
-            const r = SwapWithEnemyModule.applySwapWithEnemy(cardState, gameState, playerKey, row, col, {
-                BoardOps: BoardOpsModule,
-                clearHyperactiveAtPositions,
-                clearBombAt,
-                emitPresentationEvent,
-                cardContext,
-                Core: resolveCoreLogicForCards()
-            });
-            return !!r.swapped;
-        }
-        console.warn('[cards.js] SwapWithEnemy module not available');
-        return false;
+        const r = SwapWithEnemyModule.applySwapWithEnemy(cardState, gameState, playerKey, row, col, {
+            BoardOps: BoardOpsModule,
+            clearHyperactiveAtPositions,
+            clearBombAt,
+            emitPresentationEvent,
+            cardContext,
+            Core: resolveCoreLogicForCards()
+        });
+        return !!r.swapped;
     }
 
     function applyPositionSwapWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
