@@ -204,26 +204,15 @@ function jsonResponse(statusCode: number, payload: unknown): Response {
 }
 
 function normalizePlayerKey(value: unknown): MatchAuthoritySeatKey {
-    if (MatchAuthority && typeof MatchAuthority.normalizePlayerKey === 'function') {
-        return MatchAuthority.normalizePlayerKey(value, 'black');
-    }
-    const parsed = parseSeatKeyOptional(value);
-    return parsed || 'black';
+    return MatchAuthority.normalizePlayerKey(value, 'black');
 }
 
 function parseSeatKeyOptional(value: unknown): MatchAuthoritySeatKey | null {
-    if (MatchAuthority && typeof MatchAuthority.parseSeatKeyOptional === 'function') {
-        return MatchAuthority.parseSeatKeyOptional(value);
-    }
-    return null;
+    return MatchAuthority.parseSeatKeyOptional(value);
 }
 
 function getCurrentPlayerKey(gameState: unknown): MatchAuthoritySeatKey {
-    if (MatchAuthority && typeof MatchAuthority.getCurrentPlayerKey === 'function') {
-        return MatchAuthority.getCurrentPlayerKey(gameState as Partial<GameState> | null | undefined);
-    }
-    if (!gameState) return 'black';
-    return normalizePlayerKey(asRecord(gameState).currentPlayer);
+    return MatchAuthority.getCurrentPlayerKey(gameState as Partial<GameState> | null | undefined);
 }
 
 function normalizeSeatHandSkinId(value: unknown): string {
@@ -234,10 +223,7 @@ function normalizeSeatHandSkinId(value: unknown): string {
 }
 
 function getOpponentKey(playerKey: unknown): MatchAuthoritySeatKey {
-    if (MatchAuthority && typeof MatchAuthority.getOpponentKey === 'function') {
-        return MatchAuthority.getOpponentKey(parseSeatKeyOptional(playerKey));
-    }
-    return normalizePlayerKey(playerKey) === 'white' ? 'black' : 'white';
+    return MatchAuthority.getOpponentKey(parseSeatKeyOptional(playerKey));
 }
 
 function makeHiddenHandToken(ownerKey: unknown, handIndex: unknown): string {
