@@ -653,7 +653,7 @@ const {
     const CardRegenModule = resolveRequiredCardModule('./cards/regen', 'CardRegen');
     const CardTimeBombModule = resolveCardLogicGlobalOrModule('CardTimeBomb', './cards/time_bomb');
     /** @type {any} */
-    const CardBreedingModule = resolveCardLogicGlobalOrModule('CardBreeding', './cards/breeding');
+    const CardBreedingModule = resolveRequiredCardModule('./cards/breeding', 'CardBreeding');
     const CardHyperactiveModule = resolveCardLogicGlobalOrModule('CardHyperactive', './cards/hyperactive');
     const CardUdgModule = resolveRequiredCardModule('./cards/udg', 'CardUdg');
     /** @type {any} */
@@ -5422,19 +5422,15 @@ const {
 
 
     function processBreedingEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
-        if (CardBreedingModule && typeof CardBreedingModule.processBreedingEffects === 'function') {
-            return CardBreedingModule.processBreedingEffects(cardState, gameState, playerKey, prng, {
-                defaultPrng: defaultPrng,
-                getCardContext,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                clearBombAt,
-                clearHyperactiveAtPositions,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
-        }
-        console.warn('[cards.js] CardBreeding module not available');
-        return { spawned: [], destroyed: [], flipped: [], anchors: [] };
+        return CardBreedingModule.processBreedingEffects(cardState, gameState, playerKey, prng, {
+            defaultPrng: defaultPrng,
+            getCardContext,
+            getFlipsWithContext: getFlipsWithContextLocal,
+            clearBombAt,
+            clearHyperactiveAtPositions,
+            BoardOps: BoardOpsModule,
+            destroyAt
+        });
     }
 
 
@@ -5443,35 +5439,27 @@ const {
      * Delegates to cards/breeding.js module.
      */
     function processBreedingEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
-        if (CardBreedingModule && typeof CardBreedingModule.processBreedingEffectsAtAnchor === 'function') {
-            return CardBreedingModule.processBreedingEffectsAtAnchor(cardState, gameState, playerKey, row, col, prng, {
-                defaultPrng: defaultPrng,
-                getCardContext,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                clearBombAt,
-                clearHyperactiveAtPositions,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
-        }
-        console.warn('[cards.js] CardBreeding module not available');
-        return { spawned: [], destroyed: [], flipped: [] };
+        return CardBreedingModule.processBreedingEffectsAtAnchor(cardState, gameState, playerKey, row, col, prng, {
+            defaultPrng: defaultPrng,
+            getCardContext,
+            getFlipsWithContext: getFlipsWithContextLocal,
+            clearBombAt,
+            clearHyperactiveAtPositions,
+            BoardOps: BoardOpsModule,
+            destroyAt
+        });
     }
 
     function processBreedingEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
-        if (CardBreedingModule && typeof CardBreedingModule.processBreedingEffectsAtTurnStartAnchor === 'function') {
-            return CardBreedingModule.processBreedingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prng, {
-                defaultPrng: defaultPrng,
-                getCardContext,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                clearBombAt,
-                clearHyperactiveAtPositions,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
-        }
-        console.warn('[cards.js] CardBreeding turn-start anchor processor not available');
-        return { spawned: [], destroyed: [], flipped: [], anchors: [] };
+        return CardBreedingModule.processBreedingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, prng, {
+            defaultPrng: defaultPrng,
+            getCardContext,
+            getFlipsWithContext: getFlipsWithContextLocal,
+            clearBombAt,
+            clearHyperactiveAtPositions,
+            BoardOps: BoardOpsModule,
+            destroyAt
+        });
     }
 
 
