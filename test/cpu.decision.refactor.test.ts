@@ -1977,7 +1977,7 @@ describe('cpu decision refactor helpers', () => {
     expect(emitLogAdded).toHaveBeenCalled();
   });
 
-  test('applyCardChoice prefers injected card-use animation over global function', () => {
+  test('applyCardChoice leaves pipeline card-use animation to playback', () => {
     global.CardLogic = { applyCardUsage: jest.fn(() => true) };
     global.cardState.hands.white = ['c1'];
     global.playCardUseHandAnimation = jest.fn(() => Promise.resolve());
@@ -2007,14 +2007,21 @@ describe('cpu decision refactor helpers', () => {
     const ok = cpuDecision.applyCardChoice('white', { cardId: 'c1', cardDef: { name: 'C1', cost: 2 } });
 
     expect(ok).toBe(true);
-    expect(playCardUseHandAnimation).toHaveBeenCalledWith({
-      player: 'white',
-      owner: 'white',
-      cardId: 'c1',
-      cost: 2,
-      name: 'C1'
-    });
+    expect(playCardUseHandAnimation).not.toHaveBeenCalled();
     expect(global.playCardUseHandAnimation).not.toHaveBeenCalled();
+    const playback = (global.cardState._presentationEventsPersist || [])
+      .find((ev) => ev && ev.type === 'PLAYBACK_EVENTS');
+    expect(playback).toBeTruthy();
+    expect(playback.events[0]).toEqual(expect.objectContaining({
+      type: 'card_use_animation',
+      targets: [expect.objectContaining({
+        player: 'white',
+        owner: 'white',
+        cardId: 'c1',
+        cost: 2,
+        name: 'C1'
+      })]
+    }));
   });
 
 

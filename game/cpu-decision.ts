@@ -3462,18 +3462,6 @@ function applyCardChoice(playerKey: any, cardChoice: any): any {
     if (pipelineResult && pipelineResult.ok) {
         const appliedCardId = pipelineResult.appliedCardId || cardId;
         const appliedCardDef = pipelineResult.appliedCardDef || cardDef;
-        const appliedCardCost = Number.isFinite(pipelineResult.appliedCardCost)
-            ? pipelineResult.appliedCardCost
-            : ((appliedCardDef && Number.isFinite(appliedCardDef.cost)) ? appliedCardDef.cost : null);
-        const appliedCardName = pipelineResult.appliedCardName || (appliedCardDef && appliedCardDef.name) || null;
-
-        playCpuCardUseHandAnimation({
-            player: playerKey,
-            owner: playerKey,
-            cardId: appliedCardId,
-            cost: appliedCardCost,
-            name: appliedCardName
-        });
 
         emitCpuCardUseLog(playerKey, level, appliedCardDef, appliedCardId);
         return true;
