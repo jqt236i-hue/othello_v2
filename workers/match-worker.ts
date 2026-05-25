@@ -1774,7 +1774,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (this.room && !Array.isArray(this.room.authorityLog)) {
             this.room.authorityLog = [];
         }
-        if (this.room && typeof this.room.authoritativeStateHash === 'undefined' && MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function') {
+        if (this.room && typeof this.room.authoritativeStateHash === 'undefined') {
             this.room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(this.room.snapshot);
         }
         this.sseEventBuffer = this.room && Array.isArray(this.room.sseEventBuffer)
@@ -2028,9 +2028,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             roomId,
             seed,
             snapshot,
-            authoritativeStateHash: MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
-                ? MatchAuthority.computeAuthoritativeStateHash(snapshot)
-                : null,
+            authoritativeStateHash: MatchAuthority.computeAuthoritativeStateHash(snapshot),
             initialDeckSpec,
             initialDeckSpecByPlayer,
             roomDeck,
@@ -2196,9 +2194,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         nextSnapshot.updatedAt = nowMs;
         room.snapshot = nextSnapshot;
         room.updatedAt = nowMs;
-        room.authoritativeStateHash = MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
-            ? MatchAuthority.computeAuthoritativeStateHash(nextSnapshot)
-            : null;
+        room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
         if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
             MatchAuthority.appendAuthorityLog(room, {
                 kind: 'timeout_applied',
@@ -2536,7 +2532,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const acceptedOperationsBySeat = ensureAcceptedOperationsBySeat(room);
         if (!Array.isArray(room.authorityLog)) room.authorityLog = [];
         if (!Array.isArray(room.sseEventBuffer)) room.sseEventBuffer = [];
-        if (typeof room.authoritativeStateHash === 'undefined' && MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function') {
+        if (typeof room.authoritativeStateHash === 'undefined') {
             room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(room.snapshot);
         }
 
@@ -2689,9 +2685,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             )
         );
 
-        const stateHashBefore = MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
-            ? MatchAuthority.computeAuthoritativeStateHash(room.snapshot)
-            : (room.authoritativeStateHash || null);
+        const stateHashBefore = MatchAuthority.computeAuthoritativeStateHash(room.snapshot);
         const previousSnapshotForChargeDelta = deepClone(room.snapshot);
         let nextSnapshot: MatchWorkerPublicSnapshot | null = null;
         let serverPlaybackEvents: unknown[] = [];
@@ -2766,9 +2760,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
 
         room.snapshot = nextSnapshot;
         room.updatedAt = snapshotUpdatedAt;
-        room.authoritativeStateHash = MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
-            ? MatchAuthority.computeAuthoritativeStateHash(nextSnapshot)
-            : null;
+        room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
         if (operationId) {
             const acceptedEntry: MatchAuthorityAcceptedOperationEntry = {
                 operationId,

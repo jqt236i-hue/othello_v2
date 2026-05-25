@@ -1032,9 +1032,7 @@ function makeRoom(options: any) {
         roomId,
         seed,
         snapshot,
-        authoritativeStateHash: MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
-            ? MatchAuthority.computeAuthoritativeStateHash(snapshot)
-            : null,
+        authoritativeStateHash: MatchAuthority.computeAuthoritativeStateHash(snapshot),
         stateVersion: 0,
         seats: { black: false, white: false },
         seatNames: { black: '', white: '' },
@@ -1110,9 +1108,7 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
     nextSnapshot.updatedAt = nowMs;
     room.snapshot = nextSnapshot;
     room.updatedAt = nowMs;
-    if (MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function') {
-        room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
-    }
+    room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
     if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
         MatchAuthority.appendAuthorityLog(room, {
             kind: 'timeout_applied',
@@ -1390,7 +1386,7 @@ async function handlePublish(req: any, res: any) {
     const acceptedOperationsBySeat = ensureAcceptedOperationsBySeat(room);
     if (!Array.isArray(room.authorityLog)) room.authorityLog = [];
     if (!Array.isArray(room.sseEventBuffer)) room.sseEventBuffer = [];
-    if (typeof room.authoritativeStateHash === 'undefined' && MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function') {
+    if (typeof room.authoritativeStateHash === 'undefined') {
         room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(room.snapshot);
     }
 
@@ -1555,9 +1551,7 @@ async function handlePublish(req: any, res: any) {
         )
     );
 
-    const stateHashBefore = MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
-        ? MatchAuthority.computeAuthoritativeStateHash(room.snapshot)
-        : (room.authoritativeStateHash || null);
+    const stateHashBefore = MatchAuthority.computeAuthoritativeStateHash(room.snapshot);
     let nextSnapshot;
     let serverPlaybackEvents = [];
     let serverEffectLogs = [];
@@ -1621,9 +1615,7 @@ async function handlePublish(req: any, res: any) {
     nextSnapshot.updatedAt = Date.now();
     room.snapshot = nextSnapshot;
     room.updatedAt = nextSnapshot.updatedAt;
-    room.authoritativeStateHash = MatchAuthority && typeof MatchAuthority.computeAuthoritativeStateHash === 'function'
-        ? MatchAuthority.computeAuthoritativeStateHash(nextSnapshot)
-        : null;
+    room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
 
     if (operationId) {
         const acceptedEntry = {
