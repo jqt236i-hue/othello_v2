@@ -7,7 +7,7 @@ Core headless rule / board-operation layer. Read `../AGENTS.md` and the root `AG
 | Task | Start here | Notes |
 | --- | --- | --- |
 | Core board rules | `core.ts`, `board_ops.ts`, `context.ts` | Shared board mutation and rule helpers with broad blast radius. |
-| Card-rule hub | `cards.ts`, `cards/` | `cards.ts` is the registry/entry; per-card canonical logic lives under `cards/`. |
+| Card-rule hub | `cards.ts`, `cards/`, `card-resolution/` | `cards.ts` is the registry/entry; canonical headless logic lives under `cards/` and `card-resolution/`. |
 | Internal card helpers | `cards-internal/*` | Shared pending/hand/random/timing/state internals. |
 | Legacy effect helpers | `effects/*` | Compatibility/legacy helper layer; not the primary home for new card rules. |
 | Board heuristics | `position-weights.ts`, `presentation.ts`, `markers_adapter.ts` | Shared helpers used by CPU, presentation, and migration seams. |

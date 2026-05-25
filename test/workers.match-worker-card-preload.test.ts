@@ -27,14 +27,16 @@ describe('match worker card module preload', () => {
     );
 
     expect(source).toContain("modRecord['module.exports']");
-    expect(source).toContain('runtimeValue || moduleExports || modRecord.default || mod');
+    expect(source).toContain('if (runtimeValue) {');
+    expect(source).toContain('const resolved = moduleExports || modRecord.default || mod;');
     expect(source).toContain("'../game/logic/board_ops.js': boardOpsModule");
     expect(source).toContain("'../game/logic/effects/destroy_one_stone.js': destroyOneStoneEffectsModule");
     expect(source).toContain("'../game/logic/effects/swap_with_enemy.js': swapWithEnemyEffectsModule");
     expect(source).toContain("'../game/cards/effects/status-cells.js': cardStatusCellsEffectsModule");
-    expect(source).toContain("['../game/logic/effects/destroy_one_stone.js', 'DestroyOneStoneEffects']");
-    expect(source).toContain("['../game/logic/effects/swap_with_enemy.js', 'SwapWithEnemyEffects']");
-    expect(source).toContain("['../game/cards/effects/status-cells.js', 'CardStatusCellsEffects']");
+    expect(source).toContain("const requiredGlobals: Array<[string, string]> = [");
+    expect(source).toContain("['../game/logic/board_ops.js', 'BoardOps']");
+    expect(source).toContain("['../game/cards/effect-resolver.js', 'CardEffectResolver']");
+    expect(source).toContain('requiredGlobals.reduce(');
   });
 
 });

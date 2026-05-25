@@ -71,17 +71,49 @@ function requireRuntimeModule(id: string, globalKey: string): any {
     return mod;
 }
 
-const CardEffectTimingModule = requireRuntimeModule('../logic/cards-internal/effect-timing', 'CardEffectTiming');
+let CardEffectTimingModuleCache: any = null;
+let CardTimeBombModuleCache: any = null;
+let DragonEffectsModuleCache: any = null;
+let CardUdgModuleCache: any = null;
+let CardHyperactiveModuleCache: any = null;
 
-const CardTimeBombModule = requireRuntimeModule('../logic/cards/time_bomb', 'CardTimeBomb');
+function getCardEffectTimingModule(): any {
+    if (!CardEffectTimingModuleCache) {
+        CardEffectTimingModuleCache = requireRuntimeModule('../logic/cards-internal/effect-timing', 'CardEffectTiming');
+    }
+    return CardEffectTimingModuleCache;
+}
 
-const DragonEffectsModule = requireRuntimeModule('../logic/effects/dragon', 'DragonEffects');
+function getCardTimeBombModule(): any {
+    if (!CardTimeBombModuleCache) {
+        CardTimeBombModuleCache = requireRuntimeModule('../logic/cards/time_bomb', 'CardTimeBomb');
+    }
+    return CardTimeBombModuleCache;
+}
 
-const CardUdgModule = requireRuntimeModule('../logic/cards/udg', 'CardUdg');
+function getDragonEffectsModule(): any {
+    if (!DragonEffectsModuleCache) {
+        DragonEffectsModuleCache = requireRuntimeModule('../logic/effects/dragon', 'DragonEffects');
+    }
+    return DragonEffectsModuleCache;
+}
 
-const CardHyperactiveModule = requireRuntimeModule('../logic/cards/hyperactive', 'CardHyperactive');
+function getCardUdgModule(): any {
+    if (!CardUdgModuleCache) {
+        CardUdgModuleCache = requireRuntimeModule('../logic/cards/udg', 'CardUdg');
+    }
+    return CardUdgModuleCache;
+}
+
+function getCardHyperactiveModule(): any {
+    if (!CardHyperactiveModuleCache) {
+        CardHyperactiveModuleCache = requireRuntimeModule('../logic/cards/hyperactive', 'CardHyperactive');
+    }
+    return CardHyperactiveModuleCache;
+}
 
 function onTurnStart(cardState: CardState, playerKey: string, gameState: GameState, prng: any, effectTimingContext: any) {
+    const CardEffectTimingModule = getCardEffectTimingModule();
     if (!CardEffectTimingModule || typeof CardEffectTimingModule.onTurnStart !== 'function') {
         throw new Error('[timing-processor.ts] CardEffectTiming.onTurnStart not available');
     }
@@ -105,6 +137,7 @@ function onTurnEnd(cardState: CardState, gameState: GameState, playerKey: string
 }
 
 function applyPlacementEffects(cardState: CardState, gameState: GameState, playerKey: string, row: number, col: number, flipCount: number, effectTimingContext: any) {
+    const CardEffectTimingModule = getCardEffectTimingModule();
     if (!CardEffectTimingModule || typeof CardEffectTimingModule.applyPlacementEffects !== 'function') {
         throw new Error('[timing-processor.ts] CardEffectTiming.applyPlacementEffects not available');
     }
@@ -113,6 +146,7 @@ function applyPlacementEffects(cardState: CardState, gameState: GameState, playe
 
 function tickBombs(cardState: CardState, gameState: GameState, playerKey: string, deps: any) {
     const { BoardOpsModule, destroyAt } = deps || {};
+    const CardTimeBombModule = getCardTimeBombModule();
     return CardTimeBombModule.tickBombs(cardState, gameState, playerKey, { BoardOps: BoardOpsModule, destroyAt });
 }
 
@@ -120,6 +154,7 @@ function tickBombAt(cardState: CardState, gameState: GameState, bomb: any, activ
     const { BoardOpsModule, destroyAt, removeMarkersAt } = deps || {};
     if (!bomb)
         return { exploded: [], destroyed: [], removed: false };
+    const CardTimeBombModule = getCardTimeBombModule();
     return CardTimeBombModule.tickBombAt(cardState, gameState, bomb, activeKey, {
         BoardOps: BoardOpsModule,
         destroyAt,
@@ -129,6 +164,7 @@ function tickBombAt(cardState: CardState, gameState: GameState, bomb: any, activ
 
 function processDragonEffects(cardState: CardState, gameState: GameState, playerKey: string, deps: any) {
     const { BoardOpsModule, getCardContext, selectRandomEmptyBoardShapeDestination, moveCoexistingSpecialMarkers } = deps || {};
+    const DragonEffectsModule = getDragonEffectsModule();
     const dragonDeps = {
         BoardOps: BoardOpsModule,
         getCardContext,
@@ -140,6 +176,7 @@ function processDragonEffects(cardState: CardState, gameState: GameState, player
 
 function processUltimateDestroyGodEffects(cardState: CardState, gameState: GameState, playerKey: string, deps: any) {
     const { destroyAt, BoardOpsModule, selectRandomEmptyBoardShapeDestination, moveCoexistingSpecialMarkers } = deps || {};
+    const CardUdgModule = getCardUdgModule();
     const udgDeps = {
         destroyAt,
         BoardOps: BoardOpsModule,
@@ -151,6 +188,7 @@ function processUltimateDestroyGodEffects(cardState: CardState, gameState: GameS
 
 function processHyperactiveMoves(cardState: CardState, gameState: GameState, prng: any, deps: any) {
     const { defaultPrng, getFlipsWithContextLocal, clearBombAt, clearHyperactiveAtPositions, isBlockedCell, getCardContext, BoardOpsModule, destroyAt } = deps || {};
+    const CardHyperactiveModule = getCardHyperactiveModule();
     return CardHyperactiveModule.processHyperactiveMoves(cardState, gameState, prng, {
         defaultPrng,
         getFlipsWithContext: getFlipsWithContextLocal,

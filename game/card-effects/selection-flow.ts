@@ -9,6 +9,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     let cachedNetworkTurnHandoff: any = null;
     let cachedPendingCoordinator: any = null;
     let cachedPendingStateManager: any = null;
+    let cachedSelectionFlowStateModule: any = null;
+    let cachedSelectionFlowRuntimeModule: any = null;
+    let cachedSelectionFlowNetworkHandoffModule: any = null;
+    let cachedSelectionFlowPendingExecutionModule: any = null;
     let selectionSignalBridge: any = null;
     const localSelectionBusyState = {
         processing: false,
@@ -72,6 +76,83 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             /* ignore */
         }
         return null;
+    }
+
+    function requireSelectionFlowModuleWithFallback(ids: string[]): any {
+        if (!Array.isArray(ids) || ids.length === 0) return null;
+        for (let index = 0; index < ids.length; index += 1) {
+            const id = ids[index];
+            if (typeof id !== 'string' || !id) continue;
+            const loaded = requireSelectionFlowModuleOrNull(id);
+            if (loaded && typeof loaded === 'object') {
+                return loaded;
+            }
+        }
+        return null;
+    }
+
+    function getSelectionFlowStateModule() {
+        if (cachedSelectionFlowStateModule && typeof cachedSelectionFlowStateModule === 'object') {
+            return cachedSelectionFlowStateModule;
+        }
+        const globalStateModule = resolveGlobalValue('SelectionFlowState');
+        if (globalStateModule && typeof globalStateModule === 'object') {
+            cachedSelectionFlowStateModule = globalStateModule;
+            return cachedSelectionFlowStateModule;
+        }
+        cachedSelectionFlowStateModule = requireSelectionFlowModuleWithFallback([
+            './selection-flow-state',
+            './selection-flow-state.js'
+        ]);
+        return cachedSelectionFlowStateModule;
+    }
+
+    function getSelectionFlowRuntimeModule() {
+        if (cachedSelectionFlowRuntimeModule && typeof cachedSelectionFlowRuntimeModule === 'object') {
+            return cachedSelectionFlowRuntimeModule;
+        }
+        const globalRuntimeModule = resolveGlobalValue('SelectionFlowRuntime');
+        if (globalRuntimeModule && typeof globalRuntimeModule === 'object') {
+            cachedSelectionFlowRuntimeModule = globalRuntimeModule;
+            return cachedSelectionFlowRuntimeModule;
+        }
+        cachedSelectionFlowRuntimeModule = requireSelectionFlowModuleWithFallback([
+            './selection-flow-runtime',
+            './selection-flow-runtime.js'
+        ]);
+        return cachedSelectionFlowRuntimeModule;
+    }
+
+    function getSelectionFlowNetworkHandoffModule() {
+        if (cachedSelectionFlowNetworkHandoffModule && typeof cachedSelectionFlowNetworkHandoffModule === 'object') {
+            return cachedSelectionFlowNetworkHandoffModule;
+        }
+        const globalNetworkHandoffModule = resolveGlobalValue('SelectionFlowNetworkHandoff');
+        if (globalNetworkHandoffModule && typeof globalNetworkHandoffModule === 'object') {
+            cachedSelectionFlowNetworkHandoffModule = globalNetworkHandoffModule;
+            return cachedSelectionFlowNetworkHandoffModule;
+        }
+        cachedSelectionFlowNetworkHandoffModule = requireSelectionFlowModuleWithFallback([
+            './selection-flow-network-handoff',
+            './selection-flow-network-handoff.js'
+        ]);
+        return cachedSelectionFlowNetworkHandoffModule;
+    }
+
+    function getSelectionFlowPendingExecutionModule() {
+        if (cachedSelectionFlowPendingExecutionModule && typeof cachedSelectionFlowPendingExecutionModule === 'object') {
+            return cachedSelectionFlowPendingExecutionModule;
+        }
+        const globalPendingExecutionModule = resolveGlobalValue('SelectionFlowPendingExecution');
+        if (globalPendingExecutionModule && typeof globalPendingExecutionModule === 'object') {
+            cachedSelectionFlowPendingExecutionModule = globalPendingExecutionModule;
+            return cachedSelectionFlowPendingExecutionModule;
+        }
+        cachedSelectionFlowPendingExecutionModule = requireSelectionFlowModuleWithFallback([
+            './selection-flow-pending-execution',
+            './selection-flow-pending-execution.js'
+        ]);
+        return cachedSelectionFlowPendingExecutionModule;
     }
 
     function getPendingStateManager() {
@@ -371,6 +452,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function readMatchMode() {
+        const runtimeModule = getSelectionFlowRuntimeModule();
+        if (runtimeModule && typeof runtimeModule.readMatchMode === 'function') {
+            return runtimeModule.readMatchMode({
+                getSignalBridge,
+                readSignalBridgeMethod,
+                resolveGlobalValue
+            });
+        }
         const readMatchModeFromBridge = readSignalBridgeMethod('readMatchMode');
         if (readMatchModeFromBridge) {
             try {
@@ -402,6 +491,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function hasActiveNetworkPublishClient() {
+        const runtimeModule = getSelectionFlowRuntimeModule();
+        if (runtimeModule && typeof runtimeModule.hasActiveNetworkPublishClient === 'function') {
+            return runtimeModule.hasActiveNetworkPublishClient({
+                readSignalBridgeMethod
+            });
+        }
         const isNetworkPublishActiveViaBridge = readSignalBridgeMethod('isNetworkPublishActive');
         if (typeof isNetworkPublishActiveViaBridge === 'function') {
             try {
@@ -441,6 +536,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function isHumanVsHumanModeEnabled() {
+        const runtimeModule = getSelectionFlowRuntimeModule();
+        if (runtimeModule && typeof runtimeModule.isHumanVsHumanModeEnabled === 'function') {
+            return runtimeModule.isHumanVsHumanModeEnabled({
+                readSignalBridgeMethod,
+                getSignalBridge,
+                resolveGlobalValue
+            });
+        }
         const readHumanVsHumanMode = readSignalBridgeMethod('readHumanVsHumanMode');
         if (readHumanVsHumanMode) {
             try {
@@ -452,6 +555,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function resolveCurrentGameState() {
+        const runtimeModule = getSelectionFlowRuntimeModule();
+        if (runtimeModule && typeof runtimeModule.resolveCurrentGameState === 'function') {
+            return runtimeModule.resolveCurrentGameState({
+                getSignalBridge,
+                readSignalBridgeMethod,
+                resolveGlobalValue
+            });
+        }
         const bridge = getSignalBridge();
         if (bridge && bridge.gameState && typeof bridge.gameState === 'object') {
             return bridge.gameState;
@@ -469,6 +580,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function resolveCurrentCardState() {
+        const runtimeModule = getSelectionFlowRuntimeModule();
+        if (runtimeModule && typeof runtimeModule.resolveCurrentCardState === 'function') {
+            return runtimeModule.resolveCurrentCardState({
+                getSignalBridge,
+                readSignalBridgeMethod,
+                resolveGlobalValue
+            });
+        }
         const bridge = getSignalBridge();
         if (bridge && bridge.cardState && typeof bridge.cardState === 'object') {
             return bridge.cardState;
@@ -511,20 +630,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     async function waitForSelectionPlaybackIdle(playbackEvents: any) {
-        if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return;
-
-        const waitForPlaybackViaBridge = readSignalBridgeMethod('waitForPlaybackIdle');
-        if (waitForPlaybackViaBridge) {
-            try {
-                await waitForPlaybackViaBridge(playbackEvents);
-                return;
-            } catch (e) { /* ignore */ }
+        const networkHandoffModule = getSelectionFlowNetworkHandoffModule();
+        if (!networkHandoffModule || typeof networkHandoffModule.waitForSelectionPlaybackIdle !== 'function') {
+            return;
         }
-
-        const networkTurnHandoff = getNetworkTurnHandoff();
-        if (networkTurnHandoff && typeof networkTurnHandoff.waitForPlaybackIdleIfNeeded === 'function') {
-            return networkTurnHandoff.waitForPlaybackIdleIfNeeded(playbackEvents);
-        }
+        return networkHandoffModule.waitForSelectionPlaybackIdle(playbackEvents, {
+            getNetworkTurnHandoff,
+            waitForPlaybackViaBridge: async (events: any) => {
+                const waitForPlaybackViaBridge = readSignalBridgeMethod('waitForPlaybackIdle');
+                if (typeof waitForPlaybackViaBridge !== 'function') return;
+                await waitForPlaybackViaBridge(events);
+            }
+        });
     }
 
     function resolveActionManager() {
@@ -561,137 +678,33 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     async function finalizePendingSelectionFlow(options: any) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const pendingType = normalizePendingType(opts.pendingType);
-        const contract = resolvePendingSelectionContract(pendingType);
-        const playerKey = opts.playerKey || 'black';
-        const actionType = opts.actionType || 'place';
-        const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents.slice() : [];
-        const cardStateValue = opts.cardStateValue || resolveCurrentCardState();
-        const pendingByPlayer = cardStateValue && cardStateValue.pendingEffectByPlayer;
-        if (
-            !(opts.action && typeof opts.action === 'object')
-            && pendingByPlayer
-            && pendingByPlayer[playerKey]
-        ) {
-            syncPendingSelectionActionCache(cardStateValue);
+        const networkHandoffModule = getSelectionFlowNetworkHandoffModule();
+        if (!networkHandoffModule || typeof networkHandoffModule.finalizePendingSelectionFlow !== 'function') {
+            return false;
         }
-        const pendingAction = (opts.action && typeof opts.action === 'object')
-            ? storePendingSelectionAction(playerKey, opts.action, pendingType)
-            : readPendingSelectionAction(playerKey);
-        const ensureFn = typeof opts.ensureCurrentPlayerCanActOrPass === 'function'
-            ? opts.ensureCurrentPlayerCanActOrPass
-            : null;
-        let skipNetworkPublish = opts.skipNetworkPublish === true;
-        const clearCardAnimatingOnFinish = opts.clearCardAnimatingOnFinish !== false;
-        const currentPending = pendingByPlayer ? pendingByPlayer[playerKey] : null;
-        if (
-            !skipNetworkPublish
-            && contract
-            && contract.deferNetworkPublish === true
-            && contract.kind === 'multi_stage'
-            && pendingAction
-            && pendingAction.deferNetworkPublish === true
-            && normalizePendingType(currentPending && currentPending.type) === pendingType
-            && String(currentPending && currentPending.stage || '') === 'selectTarget'
-        ) {
-            skipNetworkPublish = true;
-        }
-
-        if (contract && contract.turnOutcome === 'end_turn') {
-            const networkTurnHandoff = getNetworkTurnHandoff();
-            let publishFailureHandled = false;
-            if (!networkTurnHandoff || typeof networkTurnHandoff.finalizeNetworkTurnHandoff !== 'function') {
-                setSelectionProcessing(false);
-                if (clearCardAnimatingOnFinish) setSelectionCardAnimating(false);
-                if (ensureFn) {
-                    try { ensureFn({ useBlackDelay: opts.useBlackDelay !== false }); } catch (e) { /* ignore */ }
-                }
-                return false;
+        return networkHandoffModule.finalizePendingSelectionFlow(options, {
+            normalizePendingType,
+            resolvePendingSelectionContract,
+            resolveCurrentCardState,
+            syncPendingSelectionActionCache,
+            storePendingSelectionAction,
+            readPendingSelectionAction,
+            shouldRetainPendingSelectionAction,
+            clearPendingSelectionAction,
+            readMatchMode,
+            hasActiveNetworkPublishClient,
+            isHumanVsHumanModeEnabled,
+            getNetworkTurnHandoff,
+            setSelectionProcessing,
+            setSelectionCardAnimating,
+            publishPendingSelectionSnapshot,
+            scheduleWhiteCpuTurn,
+            waitForPlaybackViaBridge: async (playbackEvents: any) => {
+                const waitForPlaybackViaBridge = readSignalBridgeMethod('waitForPlaybackIdle');
+                if (typeof waitForPlaybackViaBridge !== 'function') return;
+                await waitForPlaybackViaBridge(playbackEvents);
             }
-
-            const handoffResult = await networkTurnHandoff.finalizeNetworkTurnHandoff({
-                awaitPublishResult: readMatchMode() === 'network' && contract.deferNetworkPublish === true && hasActiveNetworkPublishClient(),
-                playerKey,
-                actionType,
-                action: pendingAction,
-                playbackEvents,
-                skipLocalPlaybackWait: readMatchMode() === 'network' && contract.deferNetworkPublish === true && hasActiveNetworkPublishClient(),
-                humanMode: isHumanVsHumanModeEnabled(),
-                setProcessing: setSelectionProcessing,
-                onPublishFailed: () => {
-                    publishFailureHandled = true;
-                    clearPendingSelectionAction(playerKey);
-                    if (clearCardAnimatingOnFinish) setSelectionCardAnimating(false);
-                    if (ensureFn) {
-                        try { ensureFn({ useBlackDelay: opts.useBlackDelay !== false }); } catch (e) { /* ignore */ }
-                    }
-                },
-                publishSnapshot: ({ playerKey: publishPlayerKey, action: publishAction, playbackEvents: publishPlaybackEvents }: { playerKey: any; action: any; playbackEvents: any }) => {
-                    const publishMeta = {
-                        playerKey: publishPlayerKey,
-                        actionType,
-                        action: publishAction || pendingAction,
-                        playbackEvents: publishPlaybackEvents
-                    };
-                    if (typeof opts.publishSnapshot === 'function') {
-                        return opts.publishSnapshot(publishMeta);
-                    }
-                    return publishPendingSelectionSnapshot(publishMeta);
-                },
-                scheduleCpuTurn: scheduleWhiteCpuTurn,
-                onHumanTurnReady: opts.onHumanTurnReady
-            });
-            if (readMatchMode() === 'network' && contract.deferNetworkPublish === true && hasActiveNetworkPublishClient()) {
-                if (!handoffResult || handoffResult.ok !== true) {
-                    if (!publishFailureHandled) {
-                        clearPendingSelectionAction(playerKey);
-                        setSelectionProcessing(false);
-                        if (clearCardAnimatingOnFinish) setSelectionCardAnimating(false);
-                        if (ensureFn) {
-                            try { ensureFn({ useBlackDelay: opts.useBlackDelay !== false }); } catch (e) { /* ignore */ }
-                        }
-                    }
-                    return false;
-                }
-            }
-            if (!shouldRetainPendingSelectionAction(cardStateValue, playerKey, pendingType)) {
-                clearPendingSelectionAction(playerKey);
-            }
-            if (clearCardAnimatingOnFinish) setSelectionCardAnimating(false);
-            return true;
-        }
-
-        if (contract && contract.waitForPlaybackIdle && !(readMatchMode() === 'network' && contract.deferNetworkPublish === true && hasActiveNetworkPublishClient())) {
-            await waitForSelectionPlaybackIdle(playbackEvents);
-        }
-
-        if (contract && contract.deferNetworkPublish && !skipNetworkPublish) {
-            const publishMeta = {
-                playerKey,
-                actionType,
-                action: pendingAction,
-                playbackEvents
-            };
-            publishPendingSelectionSnapshot(publishMeta);
-        }
-
-        if (!shouldRetainPendingSelectionAction(cardStateValue, playerKey, pendingType)) {
-            clearPendingSelectionAction(playerKey);
-        }
-
-        setSelectionProcessing(false);
-        if (clearCardAnimatingOnFinish) setSelectionCardAnimating(false);
-
-        if (typeof opts.onSettled === 'function') {
-            try { await opts.onSettled(); } catch (e) { /* ignore */ }
-        }
-
-        if (ensureFn) {
-            try { ensureFn({ useBlackDelay: opts.useBlackDelay !== false }); } catch (e) { /* ignore */ }
-        }
-
-        return true;
+        });
     }
 
     function resolvePresentationHelper() {
@@ -780,6 +793,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function applyStateSnapshotInPlace(currentValue: any, nextValue: any) {
+        const stateModule = getSelectionFlowStateModule();
+        if (stateModule && typeof stateModule.applyStateSnapshotInPlace === 'function') {
+            return stateModule.applyStateSnapshotInPlace(currentValue, nextValue);
+        }
         if (!nextValue || typeof nextValue !== 'object') return nextValue || null;
 
         if (currentValue && typeof currentValue === 'object' && currentValue !== nextValue) {
@@ -795,6 +812,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function resolveSelectionStateRefs(options?: any) {
+        const stateModule = getSelectionFlowStateModule();
+        if (stateModule && typeof stateModule.resolveSelectionStateRefs === 'function') {
+            return stateModule.resolveSelectionStateRefs(options, {
+                resolveCurrentCardState,
+                resolveCurrentGameState
+            });
+        }
         const opts = (options && typeof options === 'object') ? options : {};
         return {
             cardState: opts.cardState || resolveCurrentCardState(),
@@ -803,6 +827,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function publishSelectionStateRef(name: any, value: any) {
+        const stateModule = getSelectionFlowStateModule();
+        if (stateModule && typeof stateModule.publishSelectionStateRef === 'function') {
+            return stateModule.publishSelectionStateRef(name, value, {
+                readSignalBridgeMethod,
+                getSignalBridge
+            });
+        }
         const methodName = name === 'gameState' ? 'setGameState' : 'setCardState';
         const publishStateRef = readSignalBridgeMethod(methodName);
         if (publishStateRef) {
@@ -819,6 +850,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function applySelectionStateResult(result: any, options: any) {
+        const stateModule = getSelectionFlowStateModule();
+        if (stateModule && typeof stateModule.applySelectionStateResult === 'function') {
+            return stateModule.applySelectionStateResult(result, options, {
+                readSignalBridgeMethod,
+                getSignalBridge,
+                resolveCurrentCardState,
+                resolveCurrentGameState
+            });
+        }
         const stateRefs = resolveSelectionStateRefs(options);
         let nextCardState = stateRefs.cardState;
         let nextGameState = stateRefs.gameState;
@@ -838,6 +878,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function resolveAuthoritativeSelectionState() {
+        const stateModule = getSelectionFlowStateModule();
+        if (stateModule && typeof stateModule.resolveAuthoritativeSelectionState === 'function') {
+            return stateModule.resolveAuthoritativeSelectionState({
+                resolveCurrentCardState,
+                resolveCurrentGameState
+            });
+        }
         const stateRefs = resolveSelectionStateRefs();
         return {
             cardState: stateRefs.cardState,
@@ -898,100 +945,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
     }
 
-    function buildPendingTypeAllowList(options: any, fallbackPendingType: any) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const list = Array.isArray(opts.pendingTypes)
-            ? opts.pendingTypes.slice()
-            : (typeof opts.pendingType === 'string' && opts.pendingType ? [opts.pendingType] : []);
-        if (typeof fallbackPendingType === 'string' && fallbackPendingType) {
-            list.push(fallbackPendingType);
-        }
-        return Array.from(new Set(list.map(normalizePendingType).filter((value: any) => !!value)));
-    }
-
-    function getSelectionPending(playerKey: any, options: any) {
-        const normalizedPlayerKey = normalizeSelectionPlayerKey(playerKey);
-        const opts = (options && typeof options === 'object') ? options : {};
-        const stateRefs = resolveSelectionStateRefs(opts);
-        const pendingCoordinator = getPendingCoordinator();
-        const pending = (pendingCoordinator && typeof pendingCoordinator.readPendingEffect === 'function')
-            ? pendingCoordinator.readPendingEffect(stateRefs.cardState, normalizedPlayerKey)
-            : (stateRefs.cardState && stateRefs.cardState.pendingEffectByPlayer
-                ? stateRefs.cardState.pendingEffectByPlayer[normalizedPlayerKey]
-                : null);
-        if (!pending || typeof pending !== 'object') {
-            return { pending: null, pendingType: null };
-        }
-        const pendingType = normalizePendingType(pending.type);
-        const allowList = buildPendingTypeAllowList(opts, pendingType);
-        const requiredStage = typeof opts.stage === 'string' && opts.stage
-            ? opts.stage
-            : 'selectTarget';
-        if (requiredStage && pending.stage !== requiredStage) {
-            return { pending: null, pendingType };
-        }
-        if (allowList.length > 0 && allowList.indexOf(pendingType) === -1) {
-            return { pending: null, pendingType };
-        }
-        return { pending, pendingType };
-    }
-
     function defaultSelectionHandoffRender() {
         const emitBoardUpdateViaBridge = readSignalBridgeMethod('emitBoardUpdate');
         if (typeof emitBoardUpdateViaBridge !== 'function') return;
         try { emitBoardUpdateViaBridge(); } catch (e) { /* ignore */ }
     }
 
-    async function previewPendingSelectionExecution(options: any) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const adapter = resolveTurnPipelineUIAdapter();
-        const pipeline = resolveTurnPipeline();
-        if (!adapter || typeof adapter.runTurnWithAdapter !== 'function' || !pipeline) {
-            return {
-                ok: true,
-                result: null,
-                appliedSelection: true
-            };
-        }
-
-        const previewCardState = cloneData(opts.cardState || resolveCurrentCardState());
-        const previewGameState = cloneData(opts.gameState || resolveCurrentGameState());
-        const previewAction = clonePendingSelectionAction(opts.action) || {};
-        previewAction.__suppressUiLogs = true;
-
-        const previewResult = adapter.runTurnWithAdapter(
-            previewCardState,
-            previewGameState,
-            opts.playerKey,
-            previewAction,
-            pipeline
-        );
-        if (!previewResult || previewResult.ok === false) {
-            return {
-                ok: false,
-                result: previewResult || { ok: false, reason: 'selection_preview_failed' },
-                appliedSelection: false
-            };
-        }
-
-        const previewContext = Object.assign({}, opts.context || {}, {
-            action: previewAction,
-            result: previewResult,
-            cardState: previewResult.nextCardState || previewCardState,
-            gameState: previewResult.nextGameState || previewGameState,
-            playbackEvents: Array.isArray(previewResult.playbackEvents) ? previewResult.playbackEvents : []
-        });
-        const appliedSelection = (typeof opts.validateResult === 'function')
-            ? (await opts.validateResult(previewContext))
-            : true;
-        return {
-            ok: !!appliedSelection,
-            result: previewResult,
-            appliedSelection: !!appliedSelection
-        };
-    }
-
-    async function executePendingSelection(options: any) {
+    async function executePendingSelectionCompatibilityFallback(options: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const row = Number(opts.row);
         const col = Number(opts.col);
@@ -1000,10 +960,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             ? opts.actionType
             : 'place';
         const stateRefs = resolveSelectionStateRefs(opts);
-
-        const pendingInfo = getSelectionPending(playerKey, opts);
-        const pending = pendingInfo.pending;
-        const resolvedPendingType = pendingInfo.pendingType;
+        const pendingCoordinator = getPendingCoordinator();
+        const pending = (pendingCoordinator && typeof pendingCoordinator.readPendingEffect === 'function')
+            ? pendingCoordinator.readPendingEffect(stateRefs.cardState, playerKey)
+            : (stateRefs.cardState && stateRefs.cardState.pendingEffectByPlayer
+                ? stateRefs.cardState.pendingEffectByPlayer[playerKey]
+                : null);
+        const resolvedPendingType = normalizePendingType(pending && pending.type);
         const allowSelectionEntryDuringPlayback = shouldAllowSelectionEntryDuringPlayback(playerKey, resolvedPendingType);
         const busyState = readSelectionBusyState();
         if (
@@ -1012,7 +975,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         ) {
             return { ok: false, reason: 'busy' };
         }
-
         if (allowSelectionEntryDuringPlayback === true) {
             clearSelectionEntryDuringPlayback();
         }
@@ -1021,28 +983,22 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         if (ownsSelectionCardAnimating) {
             setSelectionCardAnimating(true);
         }
-
         let shouldFinalize = false;
         let pendingAction: any = null;
-        let playbackEvents = [];
-        let executionResult = null;
+        let playbackEvents: any[] = [];
+        let executionResult: any = null;
         let appliedSelection = null;
-        let skipFinalizeNetworkPublish = false;
         let shouldClearPendingActionOnExit = false;
-        let shouldClearPendingEffectOnExit = false;
-        let pendingFailureReason = null;
 
-        function markPendingActionFailure(reason: any) {
+        function markPendingActionFailure() {
             if (!pendingAction || typeof pendingAction !== 'object') return;
             shouldClearPendingActionOnExit = true;
-            pendingFailureReason = typeof reason === 'string' && reason ? reason : 'selection_failed';
         }
 
         try {
             if (!pending || !resolvedPendingType) {
                 return { ok: false, reason: 'pending_unavailable' };
             }
-
             const baseContext = {
                 row,
                 col,
@@ -1053,236 +1009,26 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 gameState: stateRefs.gameState,
                 stateRefs
             };
-
             if (typeof opts.beforeRun === 'function') {
                 const beforeRunResult = await opts.beforeRun(baseContext);
                 if (beforeRunResult === false) {
                     return { ok: false, reason: 'before_run_rejected' };
                 }
             }
-
             const actionPayload = (typeof opts.buildActionPayload === 'function')
                 ? (await opts.buildActionPayload(baseContext))
                 : Object.assign({}, opts.actionPayload || {});
-            const normalizedActionPayload = (actionPayload && typeof actionPayload === 'object')
-                ? actionPayload
-                : {};
-
-            pendingAction = createPendingSelectionAction(playerKey, resolvedPendingType, normalizedActionPayload, {
+            pendingAction = createPendingSelectionAction(playerKey, resolvedPendingType, actionPayload, {
                 cardState: stateRefs.cardState,
                 actionType
             });
-            const contract = resolvePendingSelectionContract(resolvedPendingType);
-
-            if (shouldUseNetworkPublishOnlyPendingSelection(resolvedPendingType)) {
-                const publishResult = await Promise.resolve(publishPendingSelectionSnapshot({
-                    playerKey,
-                    actionType,
-                    action: pendingAction,
-                    playbackEvents: []
-                }));
-                if (!publishResult || publishResult.ok !== true) {
-                    markPendingActionFailure('network_publish_failed');
-                    const ensureFn = resolveRootFunction('ensureCurrentPlayerCanActOrPass');
-                    if (typeof ensureFn === 'function') {
-                        ensureFn({ useBlackDelay: true });
-                    }
-                    return {
-                        ok: false,
-                        reason: 'network_publish_failed',
-                        result: publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' }
-                    };
-                }
-                return {
-                    ok: true,
-                    pendingType: resolvedPendingType,
-                    action: pendingAction,
-                    result: publishResult,
-                    appliedSelection: true,
-                    playbackEvents: [],
-                    publishedByNetwork: true
-                };
-            }
-
-            if (
-                readMatchMode() === 'network'
-                && contract
-                && contract.kind === 'multi_stage'
-                && contract.deferNetworkPublish
-                && hasActiveNetworkPublishClient()
-            ) {
-                const preview = await previewPendingSelectionExecution({
-                    playerKey,
-                    action: pendingAction,
-                    cardState: stateRefs.cardState,
-                    gameState: stateRefs.gameState,
-                    context: baseContext,
-                    validateResult: opts.validateResult
-                });
-                if (!preview.ok) {
-                    markPendingActionFailure('selection_not_applied');
-                    emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
-                        action: pendingAction,
-                        result: preview.result
-                    }));
-                    return {
-                        ok: false,
-                        reason: 'selection_not_applied',
-                        result: preview.result
-                    };
-                }
-
-                const previewPendingByPlayer = preview.result && preview.result.nextCardState && preview.result.nextCardState.pendingEffectByPlayer;
-                const previewPending = previewPendingByPlayer ? previewPendingByPlayer[playerKey] : null;
-                const previewPendingType = normalizePendingType(previewPending && previewPending.type);
-                const isIntermediateStage = !!previewPendingType && previewPendingType === resolvedPendingType;
-
-                if (!isIntermediateStage) {
-                    const publishResult = await Promise.resolve(publishPendingSelectionSnapshot({
-                        playerKey,
-                        actionType,
-                        action: pendingAction,
-                        playbackEvents: []
-                    }));
-                    if (!publishResult || publishResult.ok !== true) {
-                        markPendingActionFailure('network_publish_failed');
-                        const ensureFn = resolveRootFunction('ensureCurrentPlayerCanActOrPass');
-                        if (typeof ensureFn === 'function') {
-                            ensureFn({ useBlackDelay: true });
-                        }
-                        return {
-                            ok: false,
-                            reason: 'network_publish_failed',
-                            result: publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' }
-                        };
-                    }
-
-                    const authoritativeState = resolveAuthoritativeSelectionState();
-                    if (!shouldRetainPendingSelectionAction(authoritativeState.cardState || stateRefs.cardState, playerKey, resolvedPendingType)) {
-                        clearPendingSelectionAction(playerKey);
-                    }
-
-                    return {
-                        ok: true,
-                        pendingType: resolvedPendingType,
-                        action: pendingAction,
-                        result: preview.result,
-                        publishResult,
-                        appliedSelection: preview.appliedSelection,
-                        playbackEvents: [],
-                        publishedByNetwork: true
-                    };
-                }
-
-                executionResult = preview.result;
-                appliedSelection = preview.appliedSelection;
-                const appliedState = applySelectionStateResult(executionResult, stateRefs);
-                playbackEvents = Array.isArray(executionResult.playbackEvents)
-                    ? executionResult.playbackEvents
-                    : [];
-
-                const liveContext = Object.assign({}, baseContext, {
-                    action: pendingAction,
-                    result: executionResult,
-                    appliedSelection,
-                    cardState: appliedState.cardState,
-                    gameState: appliedState.gameState,
-                    playbackEvents
-                });
-                const playbackMeta = (typeof opts.buildPlaybackMeta === 'function')
-                    ? opts.buildPlaybackMeta(liveContext)
-                    : { cause: resolvedPendingType, target: { row, col } };
-                emitSelectionPlaybackEvents(playbackEvents, playbackMeta, appliedState.cardState);
-
-                if (opts.emitStateChanges !== false) {
-                    emitSelectionStateChangeSignals(playbackEvents);
-                }
-
-                if (typeof opts.afterStateChange === 'function') {
-                    await opts.afterStateChange(liveContext);
-                }
-
-                skipFinalizeNetworkPublish = true;
-                shouldFinalize = contract.turnOutcome === 'end_turn' ? false : true;
-                if (contract.turnOutcome === 'end_turn') {
-                    const ensureFn = resolveRootFunction('ensureCurrentPlayerCanActOrPass');
-                    if (typeof ensureFn === 'function') {
-                        ensureFn({ useBlackDelay: true });
-                    }
-                }
-                return {
-                    ok: true,
-                    pendingType: resolvedPendingType,
-                    action: pendingAction,
-                    result: executionResult,
-                    appliedSelection,
-                    playbackEvents,
-                    intermediatePreviewApplied: true
-                };
-            }
-
-            if (shouldUsePreviewThenPublishOnlyPendingSelection(resolvedPendingType)) {
-                const preview = await previewPendingSelectionExecution({
-                    playerKey,
-                    action: pendingAction,
-                    cardState: stateRefs.cardState,
-                    gameState: stateRefs.gameState,
-                    context: baseContext,
-                    validateResult: opts.validateResult
-                });
-                if (!preview.ok) {
-                    markPendingActionFailure('selection_not_applied');
-                    emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
-                        action: pendingAction,
-                        result: preview.result
-                    }));
-                    return {
-                        ok: false,
-                        reason: 'selection_not_applied',
-                        result: preview.result
-                    };
-                }
-
-                const publishResult = await Promise.resolve(publishPendingSelectionSnapshot({
-                    playerKey,
-                    actionType,
-                    action: pendingAction,
-                    playbackEvents: []
-                }));
-                if (!publishResult || publishResult.ok !== true) {
-                    markPendingActionFailure('network_publish_failed');
-                    return {
-                        ok: false,
-                        reason: 'network_publish_failed',
-                        result: publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' }
-                    };
-                }
-
-                const authoritativeState = resolveAuthoritativeSelectionState();
-                if (!shouldRetainPendingSelectionAction(authoritativeState.cardState || stateRefs.cardState, playerKey, resolvedPendingType)) {
-                    clearPendingSelectionAction(playerKey);
-                }
-
-                return {
-                    ok: true,
-                    pendingType: resolvedPendingType,
-                    action: pendingAction,
-                    result: preview.result,
-                    publishResult,
-                    appliedSelection: preview.appliedSelection,
-                    playbackEvents: [],
-                    publishedByNetwork: true
-                };
-            }
-
             const adapter = resolveTurnPipelineUIAdapter();
             const pipeline = resolveTurnPipeline();
             executionResult = (adapter && pipeline && typeof adapter.runTurnWithAdapter === 'function')
                 ? adapter.runTurnWithAdapter(stateRefs.cardState, stateRefs.gameState, playerKey, pendingAction, pipeline)
                 : null;
-
             if (!executionResult || executionResult.ok === false) {
-                markPendingActionFailure('selection_rejected');
+                markPendingActionFailure();
                 emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
                     action: pendingAction,
                     result: executionResult
@@ -1300,9 +1046,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     result: executionResult
                 })))
                 : true;
-
             if (!appliedSelection) {
-                markPendingActionFailure('selection_not_applied');
+                markPendingActionFailure();
                 emitSelectionMessage(opts.invalidMessage, Object.assign({}, baseContext, {
                     action: pendingAction,
                     result: executionResult
@@ -1318,35 +1063,30 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             playbackEvents = Array.isArray(executionResult.playbackEvents)
                 ? executionResult.playbackEvents
                 : [];
-            const suppressLocalPlayback = shouldSuppressLocalPlaybackForDeferredNetworkSelection(resolvedPendingType);
-            if (suppressLocalPlayback) {
-                playbackEvents = [];
-            }
-
-            const liveContext = Object.assign({}, baseContext, {
-                action: pendingAction,
-                result: executionResult,
-                appliedSelection,
-                cardState: appliedState.cardState,
-                gameState: appliedState.gameState,
-                playbackEvents
-            });
-
-            if (!suppressLocalPlayback) {
-                const playbackMeta = (typeof opts.buildPlaybackMeta === 'function')
-                    ? opts.buildPlaybackMeta(liveContext)
-                    : { cause: resolvedPendingType, target: { row, col } };
-                emitSelectionPlaybackEvents(playbackEvents, playbackMeta, appliedState.cardState);
-            }
-
+            const playbackMeta = (typeof opts.buildPlaybackMeta === 'function')
+                ? opts.buildPlaybackMeta(Object.assign({}, baseContext, {
+                    action: pendingAction,
+                    result: executionResult,
+                    appliedSelection,
+                    cardState: appliedState.cardState,
+                    gameState: appliedState.gameState,
+                    playbackEvents
+                }))
+                : { cause: resolvedPendingType, target: { row, col } };
+            emitSelectionPlaybackEvents(playbackEvents, playbackMeta, appliedState.cardState);
             if (opts.emitStateChanges !== false) {
                 emitSelectionStateChangeSignals(playbackEvents);
             }
-
             if (typeof opts.afterStateChange === 'function') {
-                await opts.afterStateChange(liveContext);
+                await opts.afterStateChange(Object.assign({}, baseContext, {
+                    action: pendingAction,
+                    result: executionResult,
+                    appliedSelection,
+                    cardState: appliedState.cardState,
+                    gameState: appliedState.gameState,
+                    playbackEvents
+                }));
             }
-
             shouldFinalize = true;
             return {
                 ok: true,
@@ -1354,7 +1094,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 action: pendingAction,
                 result: executionResult,
                 appliedSelection,
-                playbackEvents
+                playbackEvents,
+                fallbackExecution: true
             };
         } finally {
             if (shouldFinalize) {
@@ -1369,34 +1110,67 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         cardStateValue: stateRefs.cardState,
                         onHumanTurnReady: defaultSelectionHandoffRender,
                         ensureCurrentPlayerCanActOrPass: resolveRootFunction('ensureCurrentPlayerCanActOrPass'),
-                        skipNetworkPublish: skipFinalizeNetworkPublish,
                         clearCardAnimatingOnFinish: ownsSelectionCardAnimating
                     }, (opts.finalizeOptions && typeof opts.finalizeOptions === 'object') ? opts.finalizeOptions : {});
                     await finalizePendingSelectionFlow(finalizeOptions);
                 } catch (e) {
                     setSelectionProcessing(false);
-                    if (ownsSelectionCardAnimating) {
-                        setSelectionCardAnimating(false);
-                    }
-                    const ensureFn = resolveRootFunction('ensureCurrentPlayerCanActOrPass');
-                    if (typeof ensureFn === 'function') {
-                        try { ensureFn({ useBlackDelay: true }); } catch (ignore) { /* ignore */ }
-                    }
+                    if (ownsSelectionCardAnimating) setSelectionCardAnimating(false);
                 }
             } else {
                 if (shouldClearPendingActionOnExit) {
                     clearPendingSelectionFailureState(stateRefs.cardState, playerKey, {
-                        clearPendingEffect: shouldClearPendingEffectOnExit,
-                        failureReason: pendingFailureReason
+                        clearPendingEffect: false,
+                        failureReason: 'selection_failed'
                     });
-                    pendingAction = null;
                 }
                 setSelectionProcessing(false);
-                if (ownsSelectionCardAnimating) {
-                    setSelectionCardAnimating(false);
-                }
+                if (ownsSelectionCardAnimating) setSelectionCardAnimating(false);
             }
         }
+    }
+
+    async function executePendingSelection(options: any) {
+        const pendingExecutionModule = getSelectionFlowPendingExecutionModule();
+        if (!pendingExecutionModule || typeof pendingExecutionModule.executePendingSelection !== 'function') {
+            return executePendingSelectionCompatibilityFallback(options);
+        }
+        const opts = (options && typeof options === 'object')
+            ? Object.assign({ defaultSelectionHandoffRender }, options)
+            : { defaultSelectionHandoffRender };
+        return pendingExecutionModule.executePendingSelection(opts, {
+            normalizePendingType,
+            normalizeSelectionPlayerKey,
+            resolveSelectionStateRefs,
+            getPendingCoordinator,
+            shouldAllowSelectionEntryDuringPlayback,
+            readSelectionBusyState,
+            clearSelectionEntryDuringPlayback,
+            setSelectionProcessing,
+            setSelectionCardAnimating,
+            createPendingSelectionAction,
+            resolvePendingSelectionContract,
+            shouldUseNetworkPublishOnlyPendingSelection,
+            shouldUsePreviewThenPublishOnlyPendingSelection,
+            shouldSuppressLocalPlaybackForDeferredNetworkSelection,
+            publishPendingSelectionSnapshot,
+            readMatchMode,
+            hasActiveNetworkPublishClient,
+            resolveAuthoritativeSelectionState,
+            shouldRetainPendingSelectionAction,
+            clearPendingSelectionAction,
+            applySelectionStateResult,
+            emitSelectionPlaybackEvents,
+            emitSelectionStateChangeSignals,
+            resolveTurnPipelineUIAdapter,
+            resolveTurnPipeline,
+            cloneData,
+            clonePendingSelectionAction,
+            emitSelectionMessage,
+            resolveRootFunction,
+            finalizePendingSelectionFlow,
+            clearPendingSelectionFailureState
+        });
     }
 
 export = {

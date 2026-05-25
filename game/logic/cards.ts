@@ -296,6 +296,7 @@ const {
         ABSOLUTE_PROTECTED: 'PERMA_PROTECT_NEXT_STONE',
         TIME_BOMB: 'TIME_BOMB',
         TIME_STOP: 'TIME_STOP_GOD',
+        DRAGON: 'ULTIMATE_REVERSE_DRAGON',
         ULTIMATE_REVERSE_DRAGON: 'ULTIMATE_REVERSE_DRAGON',
         BREEDING: 'BREEDING_WILL',
         PROLIFERATION: 'PROLIFERATION_WILL',
@@ -666,13 +667,13 @@ const {
     const DragonEffectsModule = resolveRequiredCardModule('./effects/dragon', 'DragonEffects');
     const DestroyOneStoneModule = resolveRequiredCardModule('./effects/destroy_one_stone', 'DestroyOneStoneEffects');
     const SwapWithEnemyModule = resolveRequiredCardModule('./effects/swap_with_enemy', 'SwapWithEnemyEffects');
-    const CardProtectModule = resolveRequiredCardModule('../cards/effects/protect', 'CardProtectEffects');
-    const CardTrapModule = resolveRequiredCardModule('../cards/effects/trap', 'CardTrapEffects');
-    const CardOwnershipEffectsModule = resolveRequiredCardModule('../cards/effects/ownership', 'CardOwnershipEffects');
-    const CardBoardExpansionApplyModule = resolveRequiredCardModule('../cards/effects/board-expansion-apply', 'CardBoardExpansionApply');
-    const CardStatusCellsModule = resolveRequiredCardModule('../cards/effects/status-cells', 'CardStatusCellsEffects');
-    const CardHandEffectsModule = resolveRequiredCardModule('../cards/effects/hand-effects', 'CardHandEffects');
-    const CardPositionSwapModule = resolveRequiredCardModule('../cards/effects/position-swap', 'CardPositionSwapEffects');
+    const CardProtectModule = resolveRequiredCardModule('./card-resolution/protect', 'CardProtectEffects');
+    const CardTrapModule = resolveRequiredCardModule('./card-resolution/trap', 'CardTrapEffects');
+    const CardOwnershipEffectsModule = resolveRequiredCardModule('./card-resolution/ownership', 'CardOwnershipEffects');
+    const CardBoardExpansionApplyModule = resolveRequiredCardModule('./card-resolution/board-expansion-apply', 'CardBoardExpansionApply');
+    const CardStatusCellsModule = resolveRequiredCardModule('./card-resolution/status-cells', 'CardStatusCellsEffects');
+    const CardHandEffectsModule = resolveRequiredCardModule('./card-resolution/hand-effects', 'CardHandEffects');
+    const CardPositionSwapModule = resolveRequiredCardModule('./card-resolution/position-swap', 'CardPositionSwapEffects');
 
     function addChargeValue(cardState: any, playerKey: any, amount: any, reason: any, meta?: any) {
         if (!CardStateManager || typeof CardStateManager.addCharge !== 'function') {

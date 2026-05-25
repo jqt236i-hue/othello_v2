@@ -334,7 +334,7 @@ describe('move-executor presentation emission', () => {
         expect(global.renderCardUI).not.toHaveBeenCalled();
     });
 
-    test('skipped local execution clears processing through PlaybackStateManager when available', async () => {
+    test('skipped local execution without publishPromise clears processing through PlaybackStateManager', async () => {
         global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
         global.isProcessing = true;
@@ -354,6 +354,45 @@ describe('move-executor presentation emission', () => {
         await moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
 
         expect(global.PlaybackStateManager.setBusyState).toHaveBeenCalledWith({ processing: false });
+        expect(global.isProcessing).toBe(false);
+    });
+
+    test('skipped local execution keeps processing locked until publishPromise settles', async () => {
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
+        global.isProcessing = false;
+        global.PlaybackStateManager = {
+            setBusyState: jest.fn()
+        };
+        global.emitBoardUpdate = jest.fn();
+
+        let resolvePublish: any;
+        const publishPromise = new Promise((resolve) => {
+            resolvePublish = resolve;
+        });
+
+        const moveExecutor = require('../game/move-executor.js');
+        installProcessingMirror(moveExecutor);
+        moveExecutor.setUIImpl({
+            getPlaybackStateManager: () => global.PlaybackStateManager
+        });
+        const adapter = {
+            runTurnWithAdapter: jest.fn(() => ({
+                skippedLocalExecution: true,
+                publishPromise
+            }))
+        };
+
+        const executionPromise = moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
+        await Promise.resolve();
+
+        expect(global.PlaybackStateManager.setBusyState).toHaveBeenCalledWith({ processing: true });
+        expect(global.isProcessing).toBe(true);
+
+        resolvePublish({ ok: true });
+        await executionPromise;
+
+        expect(global.PlaybackStateManager.setBusyState).toHaveBeenLastCalledWith({ processing: false });
         expect(global.isProcessing).toBe(false);
     });
 });

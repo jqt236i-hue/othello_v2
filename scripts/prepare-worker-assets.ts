@@ -113,8 +113,6 @@ const OPTIONAL_FILES: readonly string[] = Object.freeze([
     'data/models/policy-value.onnx',
     'data/models/policy-value.onnx.meta.json',
     'data/models/policy-table.json',
-    'data/models/othello/policy-table.json',
-    'data/models/othello/value-table.json',
     'data/models/othello/policy-value.onnx',
     'data/models/othello/policy-value.onnx.meta.json',
     'story/ui/story.css',
@@ -125,15 +123,7 @@ const OPTIONAL_FILES: readonly string[] = Object.freeze([
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm'
 ]);
 
-const GENERATED_OPTIONAL_ASSETS: readonly GeneratedOptionalAssetTask[] = Object.freeze([
-    {
-        sourceRelativePath: 'data/models/othello/policy-table.json',
-        compressedRelativePath: 'data/models/othello/policy-table.json.chunk.',
-        manifestRelativePath: 'data/models/othello/policy-table.json',
-        compression: 'split',
-        chunkSizeBytes: 8 * 1024 * 1024
-    }
-]);
+const GENERATED_OPTIONAL_ASSETS: readonly GeneratedOptionalAssetTask[] = Object.freeze([]);
 
 const EXCLUDED_MIRROR_RELATIVE_PATHS = new Set([
     'game/logic/card-usage-prechecks.js',

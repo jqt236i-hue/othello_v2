@@ -763,12 +763,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         }
 
         if (state.networkDebugEnabled === true) {
-            let suffix = '';
-            try {
-                const encoded = safeDetails ? JSON.stringify(safeDetails) : '';
-                if (encoded) suffix = ` ${encoded}`;
-            } catch (e: any) { /* ignore */ }
-            emitEffectLog(`[network-debug] ${eventType}${suffix}`);
+            emitNetworkDebugConsole(eventType, safeDetails);
         }
     }
 
@@ -1225,6 +1220,20 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         try {
             if (typeof addLog === 'function') {
                 addLog(line);
+            }
+        } catch (e: any) { /* ignore */ }
+    }
+
+    function emitNetworkDebugConsole(eventType: any, details: any) {
+        const line = `[network-debug] ${String(eventType || '').trim()}`;
+        if (!line || line === '[network-debug]') return;
+        try {
+            if (typeof console !== 'undefined' && console && typeof console.log === 'function') {
+                if (details && typeof details === 'object') {
+                    console.log(line, details);
+                } else {
+                    console.log(line);
+                }
             }
         } catch (e: any) { /* ignore */ }
     }

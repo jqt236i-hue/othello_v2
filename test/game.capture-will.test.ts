@@ -175,6 +175,37 @@ describe('CAPTURE_WILL (捕獲の意志)', () => {
     expect(targets.some((target) => target.row === 4 && target.col === 4)).toBe(false);
   });
 
+  test('capture target list accepts legacy dragon markers without source metadata', () => {
+    const captureDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'CAPTURE_WILL');
+    const dragonDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'ULTIMATE_REVERSE_DRAGON');
+    const { cardState, gameState } = makeState();
+    gameState.board[3][4] = -1;
+    cardState.hands.black = [captureDef.id];
+    cardState.charge.black = captureDef.cost;
+    cardState.markers.push({
+      id: 405,
+      kind: 'specialStone',
+      row: 3,
+      col: 4,
+      owner: 'white',
+      data: { type: 'DRAGON', remainingOwnerTurns: 4 }
+    });
+
+    const targets = CardLogic.getCaptureWillTargets(cardState, gameState, 'black');
+    expect(targets).toEqual(expect.arrayContaining([{ row: 3, col: 4 }]));
+
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', captureDef.id)).toBe(true);
+    const res = CardLogic.applyCaptureWill(cardState, gameState, 'black', 3, 4);
+
+    expect(res).toMatchObject({
+      applied: true,
+      capturedCardId: dragonDef.id,
+      capturedCardType: 'ULTIMATE_REVERSE_DRAGON'
+    });
+    expect(cardState.hands.black).toEqual([dragonDef.id]);
+    expect(gameState.board[3][4]).toBe(0);
+  });
+
   test('newly created guard markers retain source card metadata for future capture restore', () => {
     const { cardState, gameState } = makeState();
     const guardianDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'GUARDIAN_GOD');
