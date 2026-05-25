@@ -1187,9 +1187,7 @@ function _finalizePendingSelectionAfterRun(playerKey: any, pendingType: any, run
 
     if (!_pendingSelectionFlowModule || typeof _pendingSelectionFlowModule.finalizePendingSelectionFlow !== 'function') {
         _setPendingSelectionBusy(false);
-        if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
-            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
-        }
+        _ensureCurrentPlayerCanActOrPassSafely();
         return;
     }
 
@@ -1204,9 +1202,7 @@ function _finalizePendingSelectionAfterRun(playerKey: any, pendingType: any, run
             : null
     })).catch(() => {
         _setPendingSelectionBusy(false);
-        if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
-            try { ensureCurrentPlayerCanActOrPass({ useBlackDelay: true }); } catch (e) { /* ignore */ }
-        }
+        _ensureCurrentPlayerCanActOrPassSafely();
     });
 }
 
