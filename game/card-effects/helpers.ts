@@ -12,16 +12,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
 // Imports replacing globalThis references
 const { BLACK, WHITE } = _require('../../shared-constants');
 const CardSystem = _require('../../card-system');
-const MarkersAdapter: any = (function() {
-    try { return _require('../logic/markers_adapter'); } catch (e) { return null; }
-})();
-const VisualEffectsMap: any = (function() {
-    try { return _require('../visual-effects-map'); } catch (e) { return null; }
-})();
 
-const CardEffectsOwnerHelpersModule: any = (function() {
-    try { return _require('../../utils/owner-helpers'); } catch (e) { return null; }
-})();
+function requireCardEffectsHelperModuleOrNull(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+const MarkersAdapter: any = requireCardEffectsHelperModuleOrNull('../logic/markers_adapter');
+const VisualEffectsMap: any = requireCardEffectsHelperModuleOrNull('../visual-effects-map');
+const CardEffectsOwnerHelpersModule: any = requireCardEffectsHelperModuleOrNull('../../utils/owner-helpers');
 
 // Map player const to string key
 function getPlayerKey(player: number): string {
