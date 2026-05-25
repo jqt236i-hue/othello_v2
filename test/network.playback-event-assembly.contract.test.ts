@@ -1538,7 +1538,7 @@ describe('network playback event assembly contract', () => {
     });
   });
 
-test('assemblePlaybackEvents reports mismatch warnings when final playback loses place hand events', () => {
+  test('assemblePlaybackEvents reports mismatch warnings when final playback loses place hand events', () => {
     const result = helpers.assemblePlaybackEvents({
       rawEvents: [
         { type: 'place', row: 2, col: 3, player: 'black', actionId: 'place-1', turnIndex: 1 }
@@ -1560,6 +1560,31 @@ test('assemblePlaybackEvents reports mismatch warnings when final playback loses
     expect(result.diagnostics.placeHandAnimationCount).toBe(0);
     expect(result.diagnostics.warnings).toEqual([
       expect.stringContaining('raw place count')
+    ]);
+  });
+
+  test('assemblePlaybackEvents reports mismatch warnings when final playback loses raw board visuals', () => {
+    const result = helpers.assemblePlaybackEvents({
+      rawEvents: [
+        { type: 'DESTROY', row: 3, col: 4, owner: 'white', turnIndex: 1 }
+      ],
+      presentationEvents: [],
+      snapshot: {
+        cardState: { turnIndex: 1 },
+        gameState: { board: Array.from({ length: 8 }, () => Array(8).fill(0)) }
+      },
+      fallbackPlayerKey: 'black',
+      adapter: {
+        mapToPlaybackEvents: jest.fn(() => []),
+        normalizePlaybackEvents: jest.fn((events) => events)
+      },
+      normalizePlayerKey
+    });
+
+    expect(result.diagnostics.rawBoardVisualCount).toBe(1);
+    expect(result.diagnostics.boardVisualPlaybackCount).toBe(0);
+    expect(result.diagnostics.warnings).toEqual([
+      expect.stringContaining('raw board visual count')
     ]);
   });
 

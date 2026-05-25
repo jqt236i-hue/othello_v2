@@ -60,6 +60,8 @@
     interface AssemblyDiagnostics {
         rawPlaceCount: number;
         placeHandAnimationCount: number;
+        rawBoardVisualCount: number;
+        boardVisualPlaybackCount: number;
         warnings: string[];
     }
 
@@ -192,6 +194,24 @@
         return count;
     }
 
+    function countRawBoardVisualEvents(rawEvents: unknown[]): number {
+        const events = Array.isArray(rawEvents) ? rawEvents : [];
+        let count = 0;
+        for (const event of events) {
+            if (isRawBoardVisualEvent(event)) count += 1;
+        }
+        return count;
+    }
+
+    function countBoardVisualPlaybackEvents(playbackEvents: unknown[]): number {
+        const events = Array.isArray(playbackEvents) ? playbackEvents : [];
+        let count = 0;
+        for (const event of events) {
+            if (isBoardVisualPlaybackEvent(event)) count += 1;
+        }
+        return count;
+    }
+
     function isRawBoardVisualEvent(event: unknown): boolean {
         const type = String(event && typeof event === 'object' ? (event as Record<string, unknown>).type || '' : '').trim().toUpperCase();
         return type === 'SPAWN' || type === 'CHANGE' || type === 'DESTROY' || type === 'MOVE';
@@ -213,13 +233,20 @@
     function createAssemblyDiagnostics(rawEvents: unknown[], playbackEvents: unknown[]): AssemblyDiagnostics {
         const rawPlaceCount = countRawPlaceEvents(rawEvents);
         const placeHandAnimationCount = countPlaceHandAnimationEvents(playbackEvents);
+        const rawBoardVisualCount = countRawBoardVisualEvents(rawEvents);
+        const boardVisualPlaybackCount = countBoardVisualPlaybackEvents(playbackEvents);
         const warnings: string[] = [];
         if (rawPlaceCount !== placeHandAnimationCount) {
             warnings.push(`raw place count ${rawPlaceCount} does not match place_hand_animation count ${placeHandAnimationCount}`);
         }
+        if (rawBoardVisualCount > boardVisualPlaybackCount) {
+            warnings.push(`raw board visual count ${rawBoardVisualCount} exceeds board playback count ${boardVisualPlaybackCount}`);
+        }
         return {
             rawPlaceCount,
             placeHandAnimationCount,
+            rawBoardVisualCount,
+            boardVisualPlaybackCount,
             warnings
         };
     }
@@ -381,6 +408,8 @@
         countRawPlaceEvents,
         countPlaceHandAnimationEvents,
         createAssemblyDiagnostics,
+        countRawBoardVisualEvents,
+        countBoardVisualPlaybackEvents,
         getCardCostTier,
         mapRawPlaceEventsToPlayback,
         normalizeCardVisualDescriptor,
