@@ -64,6 +64,16 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return undefined;
     }
 
+    function requireSelectionFlowModuleOrNull(id: string): any {
+        if (typeof require !== 'function') return null;
+        try {
+            return require(id);
+        } catch (e) {
+            /* ignore */
+        }
+        return null;
+    }
+
     function getPendingStateManager() {
         if (cachedPendingStateManager && typeof cachedPendingStateManager === 'object') {
             return cachedPendingStateManager;
@@ -696,10 +706,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 if (helper && typeof helper === 'object') return helper;
             } catch (e) { /* ignore */ }
         }
-        if (typeof require === 'function') {
-            try { return require('../logic/presentation'); } catch (e) { /* ignore */ }
-        }
-        return null;
+        return requireSelectionFlowModuleOrNull('../logic/presentation');
     }
 
     function resolveTurnPipelineUIAdapter() {
@@ -716,10 +723,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
         const globalAdapter = resolveGlobalValue('TurnPipelineUIAdapter');
         if (globalAdapter && typeof globalAdapter === 'object') return globalAdapter;
-        if (typeof require === 'function') {
-            try { return require('../turn/pipeline_ui_adapter'); } catch (e) { /* ignore */ }
-        }
-        return null;
+        return requireSelectionFlowModuleOrNull('../turn/pipeline_ui_adapter');
     }
 
     function resolveTurnPipeline() {
@@ -736,10 +740,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         }
         const globalPipeline = resolveGlobalValue('TurnPipeline');
         if (globalPipeline && typeof globalPipeline === 'object') return globalPipeline;
-        if (typeof require === 'function') {
-            try { return require('../turn/turn_pipeline'); } catch (e) { /* ignore */ }
-        }
-        return null;
+        return requireSelectionFlowModuleOrNull('../turn/turn_pipeline');
     }
 
     function resolveRootFunction(name: any) {
