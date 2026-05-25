@@ -9,13 +9,39 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 let AnimationShared: any = (typeof _require === 'function') ? _require('./animation-helpers') : (typeof window !== 'undefined' ? (window as any).AnimationHelpers : null);
-let PlaybackStateModule: any = (typeof _require === 'function') ? (function () {
-  try { return _require('./playback-state-manager'); } catch (e) { return (typeof window !== 'undefined' ? (window as any).PlaybackStateManager : null); }
-}()) : (typeof window !== 'undefined' ? (window as any).PlaybackStateManager : null);
-let AnimationUtilsModule: any = (typeof _require === 'function') ? (function () {
-  try { return _require('./animation-utils.js'); } catch (e) { /* try source path below */ }
-  try { return _require('./animation-utils'); } catch (e) { return (typeof window !== 'undefined' ? window : null); }
-}()) : (typeof window !== 'undefined' ? window : null);
+
+function readMoveVisualsWindowGlobal(globalKey: string): any {
+  return (typeof window !== 'undefined') ? (window as any)[globalKey] : null;
+}
+
+function requireMoveVisualsModule(id: string): any {
+  if (typeof _require !== 'function') return null;
+  try {
+    return _require(id);
+  } catch (e) {
+    return null;
+  }
+}
+
+function resolveMoveVisualsModuleOrGlobal(id: string, globalKey: string): any {
+  return requireMoveVisualsModule(id) || readMoveVisualsWindowGlobal(globalKey);
+}
+
+function resolveMoveVisualsModuleFallback(ids: string[], fallbackValue: any): any {
+  if (typeof _require === 'function') {
+    for (const id of ids) {
+      const resolved = requireMoveVisualsModule(id);
+      if (resolved) return resolved;
+    }
+  }
+  return fallbackValue;
+}
+
+let PlaybackStateModule: any = resolveMoveVisualsModuleOrGlobal('./playback-state-manager', 'PlaybackStateManager');
+let AnimationUtilsModule: any = resolveMoveVisualsModuleFallback(
+  ['./animation-utils.js', './animation-utils'],
+  (typeof window !== 'undefined' ? window : null)
+);
 
 function _isPlaybackActiveForLegacyVisuals(): boolean {
   if (PlaybackStateModule && typeof PlaybackStateModule.getPlaybackActive === 'function') {
@@ -68,10 +94,10 @@ function applyFlipAnimations(flipsToAnimate: any[]): void {
   });
 }
 
-const StoneVisuals = (typeof _require === 'function') ? (function () {
-  try { return _require('./stone-visuals.js'); } catch (e) { /* try source path below */ }
-  try { return _require('./stone-visuals'); } catch (e) { return (typeof window !== 'undefined' ? (window as any).StoneVisuals : null); }
-}()) : (typeof window !== 'undefined' ? (window as any).StoneVisuals : null);
+const StoneVisuals = resolveMoveVisualsModuleFallback(
+  ['./stone-visuals.js', './stone-visuals'],
+  readMoveVisualsWindowGlobal('StoneVisuals')
+);
 
 function setDiscColorAt(row: number, col: number, color: number): void {
   if (!_assertNotDuringPlayback()) return;
