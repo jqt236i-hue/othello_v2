@@ -32,13 +32,12 @@ function getRuntimeGlobalValue(key: string): any {
     return undefined;
 }
 
-const BoardOpsModule = (() => {
-    return safeRequire('../board_ops') || getRuntimeGlobalValue('BoardOps');
-})();
+function resolveDestroyOneStoneModuleOrGlobal(id: string, globalKey: string): any {
+    return safeRequire(id) || getRuntimeGlobalValue(globalKey);
+}
 
-const DestroyOutcomeContract = (() => {
-    return safeRequire('../../../shared/destroy-outcome-contract') || getRuntimeGlobalValue('DestroyOutcomeContract');
-})();
+const BoardOpsModule = resolveDestroyOneStoneModuleOrGlobal('../board_ops', 'BoardOps');
+const DestroyOutcomeContract = resolveDestroyOneStoneModuleOrGlobal('../../../shared/destroy-outcome-contract', 'DestroyOutcomeContract');
 
 const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS)
     || Object.freeze({
