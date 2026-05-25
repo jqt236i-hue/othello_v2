@@ -486,15 +486,11 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
     if (normalizePlayerKey(builtAction.actor) !== playerKey) {
         return { ok: false, rejectedReason: 'SEAT_MISMATCH' };
     }
-    const pendingValidation = MatchAuthority && typeof MatchAuthority.validatePendingSelectionPublish === 'function'
-        ? MatchAuthority.validatePendingSelectionPublish(currentSnapshot, playerKey, builtAction.action)
-        : { ok: true };
+    const pendingValidation = MatchAuthority.validatePendingSelectionPublish(currentSnapshot, playerKey, builtAction.action);
     if (!pendingValidation || pendingValidation.ok !== true) {
         return { ok: false, rejectedReason: pendingValidation && pendingValidation.rejectedReason ? pendingValidation.rejectedReason : 'STALE_PENDING_SELECTION' };
     }
-    const resolvedAction = MatchAuthority && typeof MatchAuthority.sanitizePendingSelectionActionForAuthority === 'function'
-        ? MatchAuthority.sanitizePendingSelectionActionForAuthority(currentSnapshot, playerKey, builtAction.action)
-        : builtAction.action;
+    const resolvedAction = MatchAuthority.sanitizePendingSelectionActionForAuthority(currentSnapshot, playerKey, builtAction.action);
 
     const prng = createCommandActionPrng(room, currentSnapshot);
     const result = TurnPipeline.applyTurnSafe(
