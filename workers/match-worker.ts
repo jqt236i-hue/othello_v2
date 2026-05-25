@@ -257,17 +257,11 @@ function parseHiddenHandToken(value: unknown): unknown {
 }
 
 function resolveAuthenticatedSeatKey(room: unknown, seatKeyValue: unknown, seatTokenValue: unknown): MatchAuthoritySeatKey | null {
-    if (MatchAuthority && typeof MatchAuthority.resolveAuthenticatedSeatKey === 'function') {
-        return MatchAuthority.resolveAuthenticatedSeatKey(room as never, seatKeyValue, seatTokenValue);
-    }
-    return null;
+    return MatchAuthority.resolveAuthenticatedSeatKey(room as never, seatKeyValue, seatTokenValue);
 }
 
 function classifySeatTokenRejectionReason(seatTokenValue: unknown): string {
-    if (MatchAuthority && typeof MatchAuthority.classifySeatTokenRejectionReason === 'function') {
-        return MatchAuthority.classifySeatTokenRejectionReason(seatTokenValue);
-    }
-    return String(seatTokenValue || '').trim() ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED';
+    return MatchAuthority.classifySeatTokenRejectionReason(seatTokenValue);
 }
 
 function buildNetworkActionEffectLogs(

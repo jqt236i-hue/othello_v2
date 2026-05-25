@@ -84,15 +84,11 @@ function ensureAcceptedOperationsBySeat(room: any) {
 }
 
 function resolveAuthenticatedSeatKey(room: any, seatKeyValue: any, seatTokenValue: any) {
-    return MatchAuthority && typeof MatchAuthority.resolveAuthenticatedSeatKey === 'function'
-        ? MatchAuthority.resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue)
-        : null;
+    return MatchAuthority.resolveAuthenticatedSeatKey(room, seatKeyValue, seatTokenValue);
 }
 
 function classifySeatTokenRejectionReason(seatTokenValue: any) {
-    return MatchAuthority && typeof MatchAuthority.classifySeatTokenRejectionReason === 'function'
-        ? MatchAuthority.classifySeatTokenRejectionReason(seatTokenValue)
-        : (String(seatTokenValue || '').trim() ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED');
+    return MatchAuthority.classifySeatTokenRejectionReason(seatTokenValue);
 }
 
 function toPublicSnapshot(room: any, viewerSeatKey: any) {
