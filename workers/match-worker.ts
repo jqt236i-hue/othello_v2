@@ -2159,7 +2159,6 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         }
 
         const core = await loadCoreLogicModule();
-        if (!core || typeof core.applyPass !== 'function') return { applied: false };
         const nextSnapshot = deepClone(snapshot) as MatchWorkerPublicSnapshot;
         nextSnapshot.gameState = core.applyPass(nextSnapshot.gameState);
         MatchAuthority.stripTransientPresentationState(nextSnapshot);
