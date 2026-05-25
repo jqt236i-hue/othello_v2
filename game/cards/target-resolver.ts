@@ -747,9 +747,7 @@ const Targets = CardTargets || {};
             getBoardShrinkGodTargets
         };
 
-        const SelectorOrchestrator = (function() {
-            try { return require('../logic/cards-internal/selector-orchestrator'); } catch (e) { return null; }
-        })();
+        const SelectorOrchestrator = safeRequire('../logic/cards-internal/selector-orchestrator');
 
         if (SelectorOrchestrator && typeof SelectorOrchestrator.getSelectableTargetsForPending === 'function') {
             return SelectorOrchestrator.getSelectableTargetsForPending({
