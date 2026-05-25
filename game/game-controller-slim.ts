@@ -5,12 +5,14 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-const SharedConstants = (() => {
+function requireGameControllerSlimModuleOrNull(id: string): any {
     try {
-        return _require('../shared-constants');
+        return _require(id);
     } catch (e) { /* ignore */ }
     return null;
-})();
+}
+
+const SharedConstants = requireGameControllerSlimModuleOrNull('../shared-constants');
 const CARD_DEFS = (SharedConstants && Array.isArray(SharedConstants.CARD_DEFS))
     ? SharedConstants.CARD_DEFS
     : [];
@@ -19,12 +21,7 @@ const CARD_TYPE_BY_ID = CARD_DEFS.reduce((acc: any, c: any) => {
     return acc;
 }, {});
 
-const GameControllerSharedBoardUtils = (() => {
-    try {
-        return _require('../shared/shared-board-utils');
-    } catch (e) { /* ignore */ }
-    return null;
-})();
+const GameControllerSharedBoardUtils = requireGameControllerSlimModuleOrNull('../shared/shared-board-utils');
 
 function posToNotation(row: number, col: number): string {
     if (GameControllerSharedBoardUtils && typeof GameControllerSharedBoardUtils.posToNotation === 'function') {
