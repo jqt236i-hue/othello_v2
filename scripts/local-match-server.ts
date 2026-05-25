@@ -388,13 +388,7 @@ function appendTurnStartDrawPlaybackEvents(playbackAssembly: any, snapshot: any,
 
 function reconcileTurnStartAndCollectPlayback(room: any, snapshot: any) {
     const handState = captureTurnStartHandState(snapshot);
-    if (MatchAuthority && typeof MatchAuthority.stripTransientPresentationState === 'function') {
-        MatchAuthority.stripTransientPresentationState(snapshot);
-    } else if (snapshot && snapshot.cardState && typeof snapshot.cardState === 'object') {
-        snapshot.cardState.presentationEvents = [];
-        snapshot.cardState._presentationEventsPersist = [];
-        delete snapshot.cardState._currentActionMeta;
-    }
+    MatchAuthority.stripTransientPresentationState(snapshot);
     const rawEvents = reconcileTurnStartIfNeeded(room, snapshot, { includeRawEvents: true });
     const playbackAssembly = collectServerPlaybackEvents(snapshot, rawEvents);
     const effectLogs = MatchAuthority.collectPipelineEffectLogMessages(

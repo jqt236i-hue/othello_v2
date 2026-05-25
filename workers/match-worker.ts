@@ -1000,17 +1000,7 @@ function appendTurnStartDrawPlaybackEvents(
 
 async function reconcileTurnStartAndCollectPlayback(room: MatchWorkerRoomState | null | undefined, snapshot: unknown, playbackAdapter?: unknown): Promise<MatchWorkerPlaybackAssembly> {
     const handState = captureTurnStartHandState(snapshot);
-    if (MatchAuthority && typeof MatchAuthority.stripTransientPresentationState === 'function') {
-        MatchAuthority.stripTransientPresentationState(snapshot);
-    } else {
-        const snapshotRecord = asWorkerSnapshot(snapshot);
-        const cardStateRecord = asRecord(snapshotRecord.cardState);
-        if (snapshotRecord.cardState && typeof snapshotRecord.cardState === 'object') {
-            cardStateRecord.presentationEvents = [];
-            cardStateRecord._presentationEventsPersist = [];
-            delete cardStateRecord._currentActionMeta;
-        }
-    }
+    MatchAuthority.stripTransientPresentationState(snapshot);
     const rawEvents = await reconcileTurnStartIfNeeded(room, snapshot, { includeRawEvents: true });
     const modules = asPlaybackAdapter(playbackAdapter)
         ? { TurnPipelineUIAdapter: playbackAdapter as MatchWorkerPlaybackAdapter }
@@ -1073,9 +1063,7 @@ async function applyCommandPublishToSnapshot(
             return { ok: false, rejectedReason: 'DEBUG_FILL_HAND_FAILED' };
         }
 
-        if (MatchAuthority && typeof MatchAuthority.stripTransientPresentationState === 'function') {
-            MatchAuthority.stripTransientPresentationState(currentSnapshot);
-        }
+        MatchAuthority.stripTransientPresentationState(currentSnapshot);
 
         return {
             ok: true,
@@ -1187,9 +1175,7 @@ async function applyCommandPublishToSnapshot(
         : playbackEvents.concat(deepClone(turnStartPlaybackEvents));
     const combinedEffectLogs = MatchAuthority.appendEffectLogMessages(actionEffectLogs, turnStartEffectLogs);
 
-    if (MatchAuthority && typeof MatchAuthority.stripTransientPresentationState === 'function') {
-        MatchAuthority.stripTransientPresentationState(nextSnapshot);
-    }
+    MatchAuthority.stripTransientPresentationState(nextSnapshot);
 
     return {
         ok: true,
@@ -2450,9 +2436,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (!core || typeof core.applyPass !== 'function') return { applied: false };
         const nextSnapshot = deepClone(snapshot) as MatchWorkerPublicSnapshot;
         nextSnapshot.gameState = core.applyPass(nextSnapshot.gameState);
-        if (MatchAuthority && typeof MatchAuthority.stripTransientPresentationState === 'function') {
-            MatchAuthority.stripTransientPresentationState(nextSnapshot);
-        }
+        MatchAuthority.stripTransientPresentationState(nextSnapshot);
         if (nextSnapshot.cardState && typeof nextSnapshot.cardState === 'object') {
             if (
                 parseSeatKeyOptional(nextSnapshot.cardState.selectedCardOwnerKey) === timedOutSeatKey
