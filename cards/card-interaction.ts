@@ -2453,16 +2453,18 @@ function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay: any) {
         if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
         else if (typeof renderBoard === 'function') renderBoard();
     };
+    const renderBoardSyncSafely = () => {
+        try { renderBoardSync(); } catch (e) { /* ignore */ }
+    };
     const renderBoardAfterCardAnimationIfNeeded = () => {
         if (!_isCardAnimatingNow()) {
             renderBoardSync();
             return;
         }
-        Promise.resolve(_waitForCardUseAnimationIdle()).then(() => {
-            try { renderBoardSync(); } catch (e) { /* ignore */ }
-        }).catch(() => {
-            try { renderBoardSync(); } catch (e) { /* ignore */ }
-        });
+        Promise.resolve(_waitForCardUseAnimationIdle()).then(renderBoardSyncSafely).catch(renderBoardSyncSafely);
+    };
+    const renderBoardAfterCardAnimationIfNeededSafely = () => {
+        try { renderBoardAfterCardAnimationIfNeeded(); } catch (e) { /* ignore */ }
     };
     if (!shouldDelay) {
         renderBoardSync();
@@ -2471,11 +2473,7 @@ function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay: any) {
 
     const waitForPlaybackFn = _getWaitForPlaybackIdleFn();
     if (typeof waitForPlaybackFn === 'function') {
-        Promise.resolve(waitForPlaybackFn()).then(() => {
-            try { renderBoardAfterCardAnimationIfNeeded(); } catch (e) { /* ignore */ }
-        }).catch(() => {
-            try { renderBoardAfterCardAnimationIfNeeded(); } catch (e) { /* ignore */ }
-        });
+        Promise.resolve(waitForPlaybackFn()).then(renderBoardAfterCardAnimationIfNeededSafely).catch(renderBoardAfterCardAnimationIfNeededSafely);
         return;
     }
 
