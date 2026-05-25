@@ -13,25 +13,21 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
 
 
 
-let BoardUtils: any = null;
-if (typeof require === 'function') {
-    try { BoardUtils = require('../cpu-decision-board-utils'); } catch (e: any) { /* ignore */ }
+function requireCpuLv6LookaheadProfileModuleOrNull(id: string): any {
+    if (typeof require !== 'function') return null;
+    try {
+        return require(id);
+    } catch (e: any) { /* ignore */ }
+    return null;
 }
 
-let sharedProfile: any = null;
-if (typeof require === 'function') {
-    try { sharedProfile = require('../../constants/cpu-lv6-shared-profile.js'); } catch (e: any) { /* ignore */ }
-}
+const BoardUtils: any = requireCpuLv6LookaheadProfileModuleOrNull('../cpu-decision-board-utils');
 
-let CpuPolicyCore: any = null;
-if (typeof require === 'function') {
-    try { CpuPolicyCore = require('./cpu-policy-core'); } catch (e: any) { /* ignore */ }
-}
+const sharedProfile: any = requireCpuLv6LookaheadProfileModuleOrNull('../../constants/cpu-lv6-shared-profile.js');
 
-let CpuLv6RuntimeCapabilityModule: any = null;
-if (typeof require === 'function') {
-    try { CpuLv6RuntimeCapabilityModule = require('../../shared/cpu-lv6-runtime-capability'); } catch (e: any) { /* ignore */ }
-}
+const CpuPolicyCore: any = requireCpuLv6LookaheadProfileModuleOrNull('./cpu-policy-core');
+
+const CpuLv6RuntimeCapabilityModule: any = requireCpuLv6LookaheadProfileModuleOrNull('../../shared/cpu-lv6-runtime-capability');
 
 const countBoardEmpties = (BoardUtils && typeof BoardUtils.countBoardEmpties === 'function')
     ? BoardUtils.countBoardEmpties
