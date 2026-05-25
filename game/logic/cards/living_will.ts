@@ -32,36 +32,18 @@ function getRuntimeGlobalValue(key: string): any {
     return undefined;
 }
 
-const SharedConstants = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../../../shared-constants')
-    : null) || getRuntimeGlobalValue('SharedConstants');
-
-const CardMarkersModule = (() => {
+function resolveLivingWillModuleOrGlobal(id: string, globalKey: string): any {
     if (typeof module === 'object' && module.exports) {
-        try {
-            return _require('./markers') || getRuntimeGlobalValue('CardMarkers');
-        } catch (e) { /* ignore */ }
+        return safeRequire(id) || getRuntimeGlobalValue(globalKey);
     }
-    return getRuntimeGlobalValue('CardMarkers');
-})();
 
-const CardWorkModule = (() => {
-    if (typeof module === 'object' && module.exports) {
-        try {
-            return _require('./work_will') || getRuntimeGlobalValue('CardWork');
-        } catch (e) { /* ignore */ }
-    }
-    return getRuntimeGlobalValue('CardWork');
-})();
+    return getRuntimeGlobalValue(globalKey);
+}
 
-const RandomSourceModule = (() => {
-    if (typeof module === 'object' && module.exports) {
-        try {
-            return _require('../cards-internal/random-source') || getRuntimeGlobalValue('CardRandomSource');
-        } catch (e) { /* ignore */ }
-    }
-    return getRuntimeGlobalValue('CardRandomSource');
-})();
+const SharedConstants = resolveLivingWillModuleOrGlobal('../../../shared-constants', 'SharedConstants');
+const CardMarkersModule = resolveLivingWillModuleOrGlobal('./markers', 'CardMarkers');
+const CardWorkModule = resolveLivingWillModuleOrGlobal('./work_will', 'CardWork');
+const RandomSourceModule = resolveLivingWillModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
 
 const BLACK = Number.isFinite(Number(SharedConstants && SharedConstants.BLACK))
     ? Number(SharedConstants.BLACK)
