@@ -1024,34 +1024,6 @@ function collectServerPlaybackEvents(snapshot: unknown, rawEvents: unknown, play
     });
 }
 
-function getPlaybackAssemblyWarnings(diagnostics: unknown): string[] {
-    const diagnosticsRecord = asRecord(diagnostics);
-    const list = Array.isArray(diagnosticsRecord.warnings) ? diagnosticsRecord.warnings : [];
-    return list.filter((warning: unknown) => String(warning || '').trim()).map((warning) => String(warning));
-}
-
-function toDebugPlaybackDiagnostics(diagnostics: unknown, networkDebugEnabled: unknown): MatchWorkerPlaybackDiagnostics | null {
-    const warnings = getPlaybackAssemblyWarnings(diagnostics);
-    if (!warnings.length || networkDebugEnabled !== true) return null;
-    return deepClone(diagnostics) as MatchWorkerPlaybackDiagnostics;
-}
-
-function reportPlaybackAssemblyDiagnostics(context: string, diagnostics: unknown, options: Record<string, unknown> = {}): void {
-    const warnings = getPlaybackAssemblyWarnings(diagnostics);
-    if (!warnings.length) return;
-
-    const message = `[playback-assembly:${context}] ${warnings.join('; ')}`;
-    const isTestEnv = typeof process !== 'undefined' && process && process.env && process.env.NODE_ENV === 'test';
-    if (isTestEnv) {
-        throw new Error(message);
-    }
-    if (options.networkDebugEnabled === true) {
-        console.warn(message, diagnostics);
-        return;
-    }
-    console.error(message);
-}
-
 function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, viewerSeatKey: unknown, options: MatchWorkerPublishPayloadOptions = {}) {
     const serverTime = Number.isFinite(Number(options.serverTime)) ? Number(options.serverTime) : Date.now();
     const networkDebugEnabled = toPublicNetworkDebugEnabled(room);
@@ -1081,7 +1053,7 @@ function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, view
         payloadOptions.errorMessage = options.errorMessage || null;
     }
     if (Object.prototype.hasOwnProperty.call(options, 'playbackDiagnostics')) {
-        payloadOptions.playbackDiagnostics = toDebugPlaybackDiagnostics(options.playbackDiagnostics, networkDebugEnabled);
+        payloadOptions.playbackDiagnostics = MatchAuthority.toDebugPlaybackDiagnostics(options.playbackDiagnostics, networkDebugEnabled) as MatchWorkerPlaybackDiagnostics | null;
     }
     if (MatchAuthority && typeof MatchAuthority.buildPublishPayloadFromRoom === 'function') {
         return MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions);
@@ -1319,7 +1291,7 @@ async function applyCommandPublishToSnapshot(
         TurnPipelineUIAdapter,
         playerKey
     );
-    reportPlaybackAssemblyDiagnostics('worker-action', playbackAssembly && playbackAssembly.diagnostics, {
+    MatchAuthority.reportPlaybackAssemblyDiagnostics('worker-action', playbackAssembly && playbackAssembly.diagnostics, {
         networkDebugEnabled: toPublicNetworkDebugEnabled(room)
     });
     const playbackEvents = (playbackAssembly && Array.isArray(playbackAssembly.playbackEvents))
@@ -1331,7 +1303,7 @@ async function applyCommandPublishToSnapshot(
     );
 
     const turnStartPlaybackAssembly = await reconcileTurnStartAndCollectPlayback(room, nextSnapshot, TurnPipelineUIAdapter);
-    reportPlaybackAssemblyDiagnostics('worker-turn-start', turnStartPlaybackAssembly && turnStartPlaybackAssembly.diagnostics, {
+    MatchAuthority.reportPlaybackAssemblyDiagnostics('worker-turn-start', turnStartPlaybackAssembly && turnStartPlaybackAssembly.diagnostics, {
         networkDebugEnabled: toPublicNetworkDebugEnabled(room)
     });
     const turnStartPlaybackEvents = (turnStartPlaybackAssembly && Array.isArray(turnStartPlaybackAssembly.playbackEvents))
@@ -1353,7 +1325,7 @@ async function applyCommandPublishToSnapshot(
         ok: true,
         snapshot: nextSnapshot,
         playbackEvents: combinedPlaybackEvents,
-        playbackDiagnostics: toDebugPlaybackDiagnostics(playbackAssembly && playbackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
+        playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(playbackAssembly && playbackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
         effectLogs: combinedEffectLogs,
         action: resolvedAction,
         pendingEffectId: pendingValidation && pendingValidation.pendingEffectId ? pendingValidation.pendingEffectId : null
@@ -1840,7 +1812,7 @@ function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnaps
             turnTimer: toPublicTurnTimer(room, serverTime),
             playbackEvents: Array.isArray(metaRecord.playbackEvents) ? metaRecord.playbackEvents : [],
             effectLogs: normalizeEffectLogMessages(metaRecord.effectLogs),
-            playbackDiagnostics: toDebugPlaybackDiagnostics(metaRecord.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
+            playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(metaRecord.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
             operationId: metaRecord.operationId ? String(metaRecord.operationId) : null,
             playerKey: metaRecord.playerKey ? normalizePlayerKey(metaRecord.playerKey) : null,
             actionType: metaRecord.actionType ? String(metaRecord.actionType) : null,
@@ -1858,7 +1830,7 @@ function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnaps
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(metaRecord.playbackEvents) ? metaRecord.playbackEvents : [],
         effectLogs: normalizeEffectLogMessages(metaRecord.effectLogs),
-        playbackDiagnostics: toDebugPlaybackDiagnostics(metaRecord.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
+        playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(metaRecord.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
         operationId: metaRecord.operationId ? String(metaRecord.operationId) : null,
         playerKey: metaRecord.playerKey ? normalizePlayerKey(metaRecord.playerKey) : null,
         actionType: metaRecord.actionType ? String(metaRecord.actionType) : null,
@@ -2623,7 +2595,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             asRecord(nextSnapshot.cardState.pendingEffectByPlayer)[timedOutSeatKey] = null;
         }
         const serverPlaybackAssembly = await reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
-        reportPlaybackAssemblyDiagnostics('worker-timeout-pass', serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, {
+        MatchAuthority.reportPlaybackAssemblyDiagnostics('worker-timeout-pass', serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, {
             networkDebugEnabled: toPublicNetworkDebugEnabled(room)
         });
         const serverPlaybackEvents = (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.playbackEvents))
@@ -2662,7 +2634,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             actionType: 'timeout_pass',
             playbackEvents: serverPlaybackEvents,
             effectLogs: serverEffectLogs,
-            playbackDiagnostics: toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
+            playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
             operationId: `timeout_${room.stateVersion}_${nowMs}`
         });
 

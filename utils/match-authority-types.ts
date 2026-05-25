@@ -262,6 +262,9 @@ export interface MatchAuthorityPublicApi {
     buildPresencePayloadFromRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: MatchAuthorityPresencePayloadFromRoomOptions | null): MatchAuthorityRoomPayload;
     buildHeartbeatPayloadFromRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: MatchAuthorityHeartbeatPayloadFromRoomOptions | null): MatchAuthorityRoomPayload;
     buildPublishPayloadFromRoom(roomValue: MatchAuthorityRoomState | null | undefined, options?: MatchAuthorityPublishPayloadFromRoomOptions | null): MatchAuthorityPublishResponsePayload;
+    getPlaybackAssemblyWarnings(diagnostics: unknown): string[];
+    toDebugPlaybackDiagnostics(diagnostics: unknown, networkDebugEnabled: unknown): unknown | null;
+    reportPlaybackAssemblyDiagnostics(context: unknown, diagnostics: unknown, options?: unknown): void;
     projectSnapshotForViewer(snapshotValue: unknown, viewerSeatKey: unknown, metadata?: MatchAuthorityProjectionMetadata): MatchAuthorityPublicSnapshot;
     buildPublicSnapshot(roomValue: MatchAuthorityRoomState | null | undefined, viewerSeatKey: unknown): MatchAuthorityPublicSnapshot;
     resolveSeatForJoin(roomValue: MatchAuthorityRoomState | null | undefined, requestedSeatKey: unknown, providedToken: unknown): MatchAuthoritySeatKey | null;

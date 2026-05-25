@@ -1,6 +1,20 @@
 import * as MatchAuthority from '../utils/match-authority.js';
 
 describe('match authority publish response payload', () => {
+  test('normalizes playback diagnostics warnings for network debug payloads', () => {
+    const diagnostics = {
+      rawBoardVisualCount: 1,
+      boardVisualPlaybackCount: 0,
+      warnings: ['', 'raw board visual count 1 exceeds board playback count 0']
+    };
+
+    expect(MatchAuthority.getPlaybackAssemblyWarnings(diagnostics)).toEqual([
+      'raw board visual count 1 exceeds board playback count 0'
+    ]);
+    expect(MatchAuthority.toDebugPlaybackDiagnostics(diagnostics, false)).toBeNull();
+    expect(MatchAuthority.toDebugPlaybackDiagnostics(diagnostics, true)).toEqual(diagnostics);
+  });
+
   test('buildPublicSeatMetadata normalizes seat booleans, player names, and hand skin ids together', () => {
     expect(MatchAuthority.buildPublicSeatMetadata({
       seats: { black: 1, white: 0 },

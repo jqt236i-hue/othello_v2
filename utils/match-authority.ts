@@ -519,6 +519,38 @@ function appendEffectLogMessages(...lists: unknown[]): string[] {
     return normalizeEffectLogMessages(merged);
 }
 
+function getPlaybackAssemblyWarnings(diagnostics: unknown): string[] {
+    const diagnosticsRecord = asRecord(diagnostics);
+    const list = Array.isArray(diagnosticsRecord.warnings) ? diagnosticsRecord.warnings : [];
+    return list
+        .filter((warning: unknown) => String(warning || '').trim())
+        .map((warning: unknown) => String(warning));
+}
+
+function toDebugPlaybackDiagnostics(diagnostics: unknown, networkDebugEnabled: unknown): unknown | null {
+    const warnings = getPlaybackAssemblyWarnings(diagnostics);
+    if (!warnings.length || networkDebugEnabled !== true) return null;
+    return deepClone(diagnostics);
+}
+
+function reportPlaybackAssemblyDiagnostics(context: unknown, diagnostics: unknown, options: unknown = {}): void {
+    const warnings = getPlaybackAssemblyWarnings(diagnostics);
+    if (!warnings.length) return;
+
+    const opts = asRecord(options);
+    const contextLabel = String(context || '').trim() || 'unknown';
+    const message = `[playback-assembly:${contextLabel}] ${warnings.join('; ')}`;
+    const isTestEnv = typeof process !== 'undefined' && process && process.env && process.env.NODE_ENV === 'test';
+    if (isTestEnv) {
+        throw new Error(message);
+    }
+    if (opts.networkDebugEnabled === true) {
+        console.warn(message, diagnostics);
+        return;
+    }
+    console.error(message);
+}
+
 function getSeatLabelJa(playerKey: unknown): string {
     return normalizePlayerKey(playerKey) === 'white' ? '白' : '黒';
 }
@@ -1797,6 +1829,9 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     resolveSeatForJoin,
     normalizeEffectLogMessages,
     appendEffectLogMessages,
+    getPlaybackAssemblyWarnings,
+    toDebugPlaybackDiagnostics,
+    reportPlaybackAssemblyDiagnostics,
     getSeatLabelJa,
     resolveActionCardId,
     resolveActionCardDisplayName,

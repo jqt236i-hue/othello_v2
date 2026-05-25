@@ -406,33 +406,6 @@ function collectServerPlaybackEvents(snapshot: any, rawEvents: any) {
     });
 }
 
-function getPlaybackAssemblyWarnings(diagnostics: any) {
-    const list = (diagnostics && Array.isArray(diagnostics.warnings)) ? diagnostics.warnings : [];
-    return list.filter((warning: any) => String(warning || '').trim());
-}
-
-function toDebugPlaybackDiagnostics(diagnostics: any, networkDebugEnabled: any) {
-    const warnings = getPlaybackAssemblyWarnings(diagnostics);
-    if (!warnings.length || networkDebugEnabled !== true) return null;
-    return deepClone(diagnostics);
-}
-
-function reportPlaybackAssemblyDiagnostics(context: any, diagnostics: any, options: any = {}) {
-    const warnings = getPlaybackAssemblyWarnings(diagnostics);
-    if (!warnings.length) return;
-
-    const message = `[playback-assembly:${context}] ${warnings.join('; ')}`;
-    const isTestEnv = typeof process !== 'undefined' && process && process.env && process.env.NODE_ENV === 'test';
-    if (isTestEnv) {
-        throw new Error(message);
-    }
-    if (options.networkDebugEnabled === true) {
-        console.warn(message, diagnostics);
-        return;
-    }
-    console.error(message);
-}
-
 function buildPublishPayload(room: any, viewerSeatKey: any, options: any = {}) {
     const serverTime = Number.isFinite(Number(options.serverTime)) ? Number(options.serverTime) : Date.now();
     const networkDebugEnabled = toPublicNetworkDebugEnabled(room);
@@ -468,7 +441,7 @@ function buildPublishPayload(room: any, viewerSeatKey: any, options: any = {}) {
         payloadOptions.errorMessage = options.errorMessage || null;
     }
     if (Object.prototype.hasOwnProperty.call(options, 'playbackDiagnostics')) {
-        payloadOptions.playbackDiagnostics = toDebugPlaybackDiagnostics(options.playbackDiagnostics, networkDebugEnabled);
+        payloadOptions.playbackDiagnostics = MatchAuthority.toDebugPlaybackDiagnostics(options.playbackDiagnostics, networkDebugEnabled);
     }
     if (MatchAuthority && typeof MatchAuthority.buildPublishPayloadFromRoom === 'function') {
         return MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions);
@@ -694,7 +667,7 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
         result.events,
         nextSnapshot
     );
-    reportPlaybackAssemblyDiagnostics('local-server-action', playbackAssembly && playbackAssembly.diagnostics, {
+    MatchAuthority.reportPlaybackAssemblyDiagnostics('local-server-action', playbackAssembly && playbackAssembly.diagnostics, {
         networkDebugEnabled: toPublicNetworkDebugEnabled(room)
     });
     const playbackEvents = (playbackAssembly && Array.isArray(playbackAssembly.playbackEvents))
@@ -714,7 +687,7 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
     ) {
         nextSnapshot.cardState.chargeDeltaEvents = deepClone(actionChargeDeltaEvents);
     }
-    reportPlaybackAssemblyDiagnostics('local-server-turn-start', turnStartPlaybackAssembly && turnStartPlaybackAssembly.diagnostics, {
+    MatchAuthority.reportPlaybackAssemblyDiagnostics('local-server-turn-start', turnStartPlaybackAssembly && turnStartPlaybackAssembly.diagnostics, {
         networkDebugEnabled: toPublicNetworkDebugEnabled(room)
     });
     const turnStartPlaybackEvents = (turnStartPlaybackAssembly && Array.isArray(turnStartPlaybackAssembly.playbackEvents))
@@ -733,7 +706,7 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
         ok: true,
         snapshot: nextSnapshot,
         playbackEvents: combinedPlaybackEvents,
-        playbackDiagnostics: toDebugPlaybackDiagnostics(playbackAssembly && playbackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
+        playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(playbackAssembly && playbackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
         effectLogs: combinedEffectLogs,
         action: resolvedAction,
         pendingEffectId: pendingValidation && pendingValidation.pendingEffectId ? pendingValidation.pendingEffectId : null
@@ -1179,7 +1152,7 @@ function buildSnapshotPayload(room: any, meta: any, viewerSeatKey: any) {
             turnTimer: toPublicTurnTimer(room, serverTime),
             playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
             effectLogs: normalizeEffectLogMessages(meta && meta.effectLogs),
-            playbackDiagnostics: toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
+            playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
             operationId: meta && meta.operationId ? String(meta.operationId) : null,
             playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
             actionType: meta && meta.actionType ? String(meta.actionType) : null,
@@ -1197,7 +1170,7 @@ function buildSnapshotPayload(room: any, meta: any, viewerSeatKey: any) {
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
         effectLogs: normalizeEffectLogMessages(meta && meta.effectLogs),
-        playbackDiagnostics: toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
+        playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
         operationId: meta && meta.operationId ? String(meta.operationId) : null,
         playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
         actionType: meta && meta.actionType ? String(meta.actionType) : null,
@@ -1379,7 +1352,7 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
         nextSnapshot.cardState.pendingEffectByPlayer[timedOutSeatKey] = null;
     }
     const serverPlaybackAssembly = reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
-    reportPlaybackAssemblyDiagnostics('local-server-timeout-pass', serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, {
+    MatchAuthority.reportPlaybackAssemblyDiagnostics('local-server-timeout-pass', serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, {
         networkDebugEnabled: toPublicNetworkDebugEnabled(room)
     });
     const serverPlaybackEvents = (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.playbackEvents))
@@ -1414,7 +1387,7 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
         actionType: 'timeout_pass',
         playbackEvents: serverPlaybackEvents,
         effectLogs: serverEffectLogs,
-        playbackDiagnostics: toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
+        playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
         operationId: `timeout_${room.stateVersion}_${nowMs}`
     });
     return { applied: true, stateVersion: room.stateVersion };
