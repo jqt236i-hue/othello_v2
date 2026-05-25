@@ -237,17 +237,11 @@ function buildNetworkActionEffectLogs(
 }
 
 function makeRoomId(): string {
-    if (typeof MatchAuthority.makeRoomId === 'function') {
-        return MatchAuthority.makeRoomId(crypto as unknown as { getRandomValues(array: Uint8Array): Uint8Array });
-    }
-    throw new Error('MatchAuthority.makeRoomId is required');
+    return MatchAuthority.makeRoomId(crypto as unknown as { getRandomValues(array: Uint8Array): Uint8Array });
 }
 
 function makeSeatToken(): string {
-    if (typeof MatchAuthority.makeSeatToken === 'function') {
-        return MatchAuthority.makeSeatToken(crypto as unknown as { getRandomValues(array: Uint8Array): Uint8Array });
-    }
-    throw new Error('MatchAuthority.makeSeatToken is required');
+    return MatchAuthority.makeSeatToken(crypto as unknown as { getRandomValues(array: Uint8Array): Uint8Array });
 }
 
 function getRuntimeGlobalScope(): Record<string, unknown> | null {

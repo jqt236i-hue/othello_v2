@@ -87,17 +87,11 @@ function buildNetworkActionEffectLogs(action: any, playerKey: any, rawEvents: an
 }
 
 function makeRoomId() {
-    if (MatchAuthority && typeof MatchAuthority.makeRoomId === 'function') {
-        return MatchAuthority.makeRoomId();
-    }
-    throw new Error('MatchAuthority.makeRoomId is required');
+    return MatchAuthority.makeRoomId();
 }
 
 function makeSeatToken() {
-    if (MatchAuthority && typeof MatchAuthority.makeSeatToken === 'function') {
-        return MatchAuthority.makeSeatToken();
-    }
-    throw new Error('MatchAuthority.makeSeatToken is required');
+    return MatchAuthority.makeSeatToken();
 }
 
 function normalizeNetworkPlayerName(value: any) {
