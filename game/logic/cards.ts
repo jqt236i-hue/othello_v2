@@ -638,7 +638,7 @@ const {
     /** @type {any} */
     const CardMovementModule = resolveRequiredCardModule('./cards/movement', 'CardMovement');
     /** @type {any} */
-    const CardTeleportModule = resolveCardLogicGlobalOrModule('CardTeleport', './cards/teleport');
+    const CardTeleportModule = resolveRequiredCardModule('./cards/teleport', 'CardTeleport');
     /** @type {any} */
     const CardCloneModule = resolveRequiredCardModule('./cards/clone', 'CardClone');
     /** @type {any} */
@@ -3790,162 +3790,39 @@ const {
             .filter((cell: any) => !isBlockedCell(cardState, cell.row, cell.col, gameState));
     }
 
-    function _moveMarkersForTeleport(cardState: any, fromRow: any, fromCol: any, toRow: any, toCol: any) {
-        const markers = getMarkers(cardState);
-        for (const m of markers) {
-            if (!m) continue;
-            if (m.row !== fromRow || m.col !== fromCol) continue;
-            m.row = toRow;
-            m.col = toCol;
-        }
-    }
-
-    function _leaveMeteorHoleAt(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        clearStoneIdAtForCard(cardState, gameState, row, col);
-        setCellValueForCard(gameState, row, col, EMPTY);
-        removeMarkersAt(cardState, row, col);
-        addMarker(cardState, 'specialStone', row, col, playerKey, {
-            type: 'METEOR_HOLE'
+    function applyTeleportWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
+        return CardTeleportModule.applyTeleportWill(cardState, gameState, playerKey, row, col, prng, {
+            getTeleportTargets,
+            getTeleportDestinations: _getTeleportDestinations,
+            getCellValueForCard,
+            setCellValueForCard,
+            moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                ? BoardOpsModule.moveAt
+                : null,
+            getMarkers
         });
     }
 
-    function applyTeleportWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
-        if (CardTeleportModule && typeof CardTeleportModule.applyTeleportWill === 'function') {
-            return CardTeleportModule.applyTeleportWill(cardState, gameState, playerKey, row, col, prng, {
-                getTeleportTargets,
-                getTeleportDestinations: _getTeleportDestinations,
-                getCellValueForCard,
-                setCellValueForCard,
-                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
-                    ? BoardOpsModule.moveAt
-                    : null,
-                getMarkers
-            });
-        }
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'TELEPORT_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-        const cellValue = getCellValueForCard(gameState, row, col);
-        if (cellValue === null) return { applied: false, reason: 'out_of_board' };
-        if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
-
-        const targets = getTeleportTargets(cardState, gameState);
-        const allowed = targets.some((t: any) => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        const destinations = _getTeleportDestinations(cardState, gameState);
-        if (!destinations.length) return { applied: false, reason: 'no_destination' };
-
-        const index = resolveDeterministicRandomIndex(
-            destinations.length,
-            prng,
-            null,
-            'CardLogic.applyTeleportWill'
-        );
-        const to = destinations[index] || destinations[0];
-
-        _moveMarkersForTeleport(cardState, row, col, to.row, to.col);
-
-        if (BoardOpsModule && typeof BoardOpsModule.moveAt === 'function') {
-            const res = BoardOpsModule.moveAt(cardState, gameState, row, col, to.row, to.col, 'TELEPORT_WILL', 'teleport_move');
-            if (!res || !res.moved) {
-                return { applied: false, reason: 'move_failed' };
-            }
-        } else {
-            const cleared = setCellValueForCard(gameState, row, col, EMPTY);
-            const placed = setCellValueForCard(gameState, to.row, to.col, cellValue);
-            if (!cleared || !placed) {
-                return { applied: false, reason: 'move_failed' };
-            }
-        }
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, from: { row, col }, to };
-    }
-
     function applyCellTeleportWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
-        if (CardTeleportModule && typeof CardTeleportModule.applyCellTeleportWill === 'function') {
-            return CardTeleportModule.applyCellTeleportWill(cardState, gameState, playerKey, row, col, prng, {
-                getCellTeleportTargets,
-                getCellTeleportDestinations,
-                getCellValueForCard,
-                ensureExpansionCellForCard,
-                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
-                    ? BoardOpsModule.moveAt
-                    : null,
-                setCellValueForCard,
-                getStoneIdAtForCard,
-                clearStoneIdAtForCard,
-                setStoneIdAtForCard,
-                removeMarkersAt,
-                addMarker,
-                applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
-                    ? BoardOpsModule.applyHoleAt
-                    : null,
-                getMarkers
-            });
-        }
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'CELL_TELEPORT_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-
-        const targets = getCellTeleportTargets(cardState, gameState);
-        const allowed = targets.some((target: any) => target && target.row === row && target.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        const cellValue = getCellValueForCard(gameState, row, col);
-        if (cellValue === null) return { applied: false, reason: 'out_of_board' };
-        if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
-
-        const destinations = getCellTeleportDestinations(cardState, gameState)
-            .filter((target: any) => !(target && target.row === row && target.col === col));
-        if (!destinations.length) return { applied: false, reason: 'no_destination' };
-
-        const index = resolveDeterministicRandomIndex(
-            destinations.length,
-            prng,
-            null,
-            'CardLogic.applyCellTeleportWill'
-        );
-        const to = destinations[index] || destinations[0];
-        const createdDestination = !to.active;
-
-        if (!ensureExpansionCellForCard(gameState, to.row, to.col, EMPTY)) {
-            return { applied: false, reason: 'invalid_destination' };
-        }
-
-        let moved = false;
-        if (BoardOpsModule && typeof BoardOpsModule.moveAt === 'function') {
-            const res = BoardOpsModule.moveAt(cardState, gameState, row, col, to.row, to.col, 'CELL_TELEPORT_WILL', 'teleport_move');
-            if (res && res.reason === 'out_of_board') {
-                return { applied: false, reason: 'move_failed' };
-            }
-            moved = !!(res && res.moved);
-        }
-
-        if (!moved) {
-            const sourceStoneId = getStoneIdAtForCard(cardState, gameState, row, col);
-            const cleared = setCellValueForCard(gameState, row, col, EMPTY);
-            const placed = setCellValueForCard(gameState, to.row, to.col, cellValue);
-            if (!cleared || !placed) {
-                return { applied: false, reason: 'move_failed' };
-            }
-            clearStoneIdAtForCard(cardState, gameState, row, col);
-            setStoneIdAtForCard(cardState, gameState, to.row, to.col, sourceStoneId);
-        }
-
-        _moveMarkersForTeleport(cardState, row, col, to.row, to.col);
-        _leaveMeteorHoleAt(cardState, gameState, playerKey, row, col);
-
-        clearCardPendingEffect(cardState, playerKey);
-        return {
-            applied: true,
-            from: { row, col },
-            to: { row: to.row, col: to.col },
-            createdDestination
-        };
+        return CardTeleportModule.applyCellTeleportWill(cardState, gameState, playerKey, row, col, prng, {
+            getCellTeleportTargets,
+            getCellTeleportDestinations,
+            getCellValueForCard,
+            ensureExpansionCellForCard,
+            moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                ? BoardOpsModule.moveAt
+                : null,
+            setCellValueForCard,
+            getStoneIdAtForCard,
+            clearStoneIdAtForCard,
+            setStoneIdAtForCard,
+            removeMarkersAt,
+            addMarker,
+            applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
+                ? BoardOpsModule.applyHoleAt
+                : null,
+            getMarkers
+        });
     }
 
     function applyStrongWindWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
