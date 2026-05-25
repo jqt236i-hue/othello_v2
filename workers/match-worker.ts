@@ -270,36 +270,6 @@ function classifySeatTokenRejectionReason(seatTokenValue: unknown): string {
     return String(seatTokenValue || '').trim() ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED';
 }
 
-function normalizeEffectLogMessages(values: unknown): string[] {
-    if (MatchAuthority && typeof MatchAuthority.normalizeEffectLogMessages === 'function') {
-        return MatchAuthority.normalizeEffectLogMessages(values);
-    }
-    const source = Array.isArray(values) ? values : [];
-    const next: string[] = [];
-    for (let index = 0; index < source.length; index += 1) {
-        const text = String(source[index] || '').trim();
-        if (!text) continue;
-        if (next.length > 0 && next[next.length - 1] === text) continue;
-        next.push(text);
-    }
-    return next;
-}
-
-function appendEffectLogMessages(...lists: unknown[]): string[] {
-    if (MatchAuthority && typeof MatchAuthority.appendEffectLogMessages === 'function') {
-        return MatchAuthority.appendEffectLogMessages(...lists);
-    }
-    const merged: unknown[] = [];
-    for (let index = 0; index < lists.length; index += 1) {
-        const listCandidate = lists[index];
-        const list: unknown[] = Array.isArray(listCandidate) ? listCandidate : [];
-        for (let innerIndex = 0; innerIndex < list.length; innerIndex += 1) {
-            merged.push(list[innerIndex]);
-        }
-    }
-    return normalizeEffectLogMessages(merged);
-}
-
 function collectPipelineEffectLogMessages(rawEvents: unknown, presentationEvents: unknown, playerKey: unknown, playbackAdapter: unknown): string[] {
     return MatchAuthority.collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, playbackAdapter as {
         mapEffectLogsFromPipeline?: (rawEvents: unknown, presentationEvents: unknown, playerKey: unknown) => unknown;
@@ -976,7 +946,7 @@ function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, view
         networkDebugEnabled,
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
-        effectLogs: normalizeEffectLogMessages(options.effectLogs),
+        effectLogs: MatchAuthority.normalizeEffectLogMessages(options.effectLogs),
         serverTime,
         idempotentReplay: options.idempotentReplay === true,
         publishMeta: options.publishMeta || null
@@ -1221,7 +1191,7 @@ async function applyCommandPublishToSnapshot(
     const combinedPlaybackEvents = (PlaybackEventHelpers && typeof PlaybackEventHelpers.appendPlaybackEventsAfter === 'function')
         ? PlaybackEventHelpers.appendPlaybackEventsAfter(playbackEvents, turnStartPlaybackEvents)
         : playbackEvents.concat(deepClone(turnStartPlaybackEvents));
-    const combinedEffectLogs = appendEffectLogMessages(actionEffectLogs, turnStartEffectLogs);
+    const combinedEffectLogs = MatchAuthority.appendEffectLogMessages(actionEffectLogs, turnStartEffectLogs);
 
     if (MatchAuthority && typeof MatchAuthority.stripTransientPresentationState === 'function') {
         MatchAuthority.stripTransientPresentationState(nextSnapshot);
@@ -1717,7 +1687,7 @@ function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnaps
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
             turnTimer: toPublicTurnTimer(room, serverTime),
             playbackEvents: Array.isArray(metaRecord.playbackEvents) ? metaRecord.playbackEvents : [],
-            effectLogs: normalizeEffectLogMessages(metaRecord.effectLogs),
+            effectLogs: MatchAuthority.normalizeEffectLogMessages(metaRecord.effectLogs),
             playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(metaRecord.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
             operationId: metaRecord.operationId ? String(metaRecord.operationId) : null,
             playerKey: metaRecord.playerKey ? normalizePlayerKey(metaRecord.playerKey) : null,
@@ -1735,7 +1705,7 @@ function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnaps
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(metaRecord.playbackEvents) ? metaRecord.playbackEvents : [],
-        effectLogs: normalizeEffectLogMessages(metaRecord.effectLogs),
+        effectLogs: MatchAuthority.normalizeEffectLogMessages(metaRecord.effectLogs),
         playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(metaRecord.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
         operationId: metaRecord.operationId ? String(metaRecord.operationId) : null,
         playerKey: metaRecord.playerKey ? normalizePlayerKey(metaRecord.playerKey) : null,

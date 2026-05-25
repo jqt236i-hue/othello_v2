@@ -99,35 +99,6 @@ function toPublicSnapshot(room: any, viewerSeatKey: any) {
     return MatchAuthority.buildPublicSnapshot(room, viewerSeatKey || null);
 }
 
-function normalizeEffectLogMessages(values: any) {
-    if (MatchAuthority && typeof MatchAuthority.normalizeEffectLogMessages === 'function') {
-        return MatchAuthority.normalizeEffectLogMessages(values);
-    }
-    const source = Array.isArray(values) ? values : [];
-    const next: any[] = [];
-    for (let index = 0; index < source.length; index += 1) {
-        const text = String(source[index] || '').trim();
-        if (!text) continue;
-        if (next.length > 0 && next[next.length - 1] === text) continue;
-        next.push(text);
-    }
-    return next;
-}
-
-function appendEffectLogMessages(...lists: any) {
-    if (MatchAuthority && typeof MatchAuthority.appendEffectLogMessages === 'function') {
-        return MatchAuthority.appendEffectLogMessages(...lists);
-    }
-    const merged = [];
-    for (let index = 0; index < lists.length; index += 1) {
-        const list = Array.isArray(lists[index]) ? lists[index] : [];
-        for (let innerIndex = 0; innerIndex < list.length; innerIndex += 1) {
-            merged.push(list[innerIndex]);
-        }
-    }
-    return normalizeEffectLogMessages(merged);
-}
-
 function collectPipelineEffectLogMessages(rawEvents: any, presentationEvents: any, playerKey: any) {
     return MatchAuthority.collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, TurnPipelineUIAdapter);
 }
@@ -369,7 +340,7 @@ function buildPublishPayload(room: any, viewerSeatKey: any, options: any = {}) {
         networkDebugEnabled,
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(options.playbackEvents) ? options.playbackEvents : [],
-        effectLogs: normalizeEffectLogMessages(options.effectLogs),
+        effectLogs: MatchAuthority.normalizeEffectLogMessages(options.effectLogs),
         serverTime,
         idempotentReplay: options.idempotentReplay === true,
         publishMeta: options.publishMeta || null
@@ -613,7 +584,7 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
     const combinedPlaybackEvents = (PlaybackEventHelpers && typeof PlaybackEventHelpers.appendPlaybackEventsAfter === 'function')
         ? PlaybackEventHelpers.appendPlaybackEventsAfter(playbackEvents, turnStartPlaybackEvents)
         : playbackEvents.concat(deepClone(turnStartPlaybackEvents));
-    const combinedEffectLogs = appendEffectLogMessages(actionEffectLogs, turnStartEffectLogs);
+    const combinedEffectLogs = MatchAuthority.appendEffectLogMessages(actionEffectLogs, turnStartEffectLogs);
     MatchAuthority.stripTransientPresentationState(nextSnapshot);
 
     return {
@@ -1065,7 +1036,7 @@ function buildSnapshotPayload(room: any, meta: any, viewerSeatKey: any) {
             networkDebugEnabled: toPublicNetworkDebugEnabled(room),
             turnTimer: toPublicTurnTimer(room, serverTime),
             playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
-            effectLogs: normalizeEffectLogMessages(meta && meta.effectLogs),
+            effectLogs: MatchAuthority.normalizeEffectLogMessages(meta && meta.effectLogs),
             playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
             operationId: meta && meta.operationId ? String(meta.operationId) : null,
             playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
@@ -1083,7 +1054,7 @@ function buildSnapshotPayload(room: any, meta: any, viewerSeatKey: any) {
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
         turnTimer: toPublicTurnTimer(room, serverTime),
         playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
-        effectLogs: normalizeEffectLogMessages(meta && meta.effectLogs),
+        effectLogs: MatchAuthority.normalizeEffectLogMessages(meta && meta.effectLogs),
         playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
         operationId: meta && meta.operationId ? String(meta.operationId) : null,
         playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
