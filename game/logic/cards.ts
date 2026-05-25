@@ -37,6 +37,10 @@ function resolveCardLogicModuleOrGlobal(id: string, globalKey: string): any {
     return requireOptionalCardLogicModule(id) || getRuntimeGlobalValue(globalKey);
 }
 
+function resolveCardLogicGlobalOrModule(globalKey: string, id: string): any {
+    return getRuntimeGlobalValue(globalKey) || requireOptionalCardLogicModule(id);
+}
+
 // Import dependencies
 const SharedConstants = resolveCardLogicModuleOrGlobal('../../shared-constants', 'SharedConstants');
 const DeckSpecHelpers = resolveCardLogicModuleOrGlobal('../../shared/deck-spec', 'DeckSpecHelpers');
@@ -604,9 +608,9 @@ const {
         };
     }
 
-    const CardCostsModule = (function() { try { return _require('./cards/costs'); } catch (e) { return null; } })();
-    const CardDefsModule = (function() { try { return _require('./cards/defs'); } catch (e) { return null; } })();
-    const CardUtilsModule = (function() { try { return _require('./cards/utils'); } catch (e) { return null; } })();
+    const CardCostsModule = requireOptionalCardLogicModule('./cards/costs');
+    const CardDefsModule = requireOptionalCardLogicModule('./cards/defs');
+    const CardUtilsModule = requireOptionalCardLogicModule('./cards/utils');
 
     function getChargeLedgerContext() {
         return {
@@ -629,45 +633,41 @@ const {
         return CardStateManager.normalizeCharge(cardState, playerKey, nextValue, reason, meta);
     }
 
-    const CardExpansionModule = getRuntimeGlobalValue('CardExpansion') || (function() { try { return _require('./cards/expansion'); } catch (e) { return null; } })();
-    const CardMarkersModule = (function() {
-        const runtimeCardMarkers = getRuntimeGlobalValue('CardMarkers');
-        if (runtimeCardMarkers) return runtimeCardMarkers;
-        try { return _require('./cards/markers'); } catch (e) { return null; }
-    })();
+    const CardExpansionModule = resolveCardLogicGlobalOrModule('CardExpansion', './cards/expansion');
+    const CardMarkersModule = resolveCardLogicGlobalOrModule('CardMarkers', './cards/markers');
     /** @type {any} */
-    const CardMovementModule = getRuntimeGlobalValue('CardMovement') || (function() { try { return _require('./cards/movement'); } catch (e) { return null; } })();
+    const CardMovementModule = resolveCardLogicGlobalOrModule('CardMovement', './cards/movement');
     /** @type {any} */
-    const CardTeleportModule = getRuntimeGlobalValue('CardTeleport') || (function() { try { return _require('./cards/teleport'); } catch (e) { return null; } })();
+    const CardTeleportModule = resolveCardLogicGlobalOrModule('CardTeleport', './cards/teleport');
     /** @type {any} */
-    const CardCloneModule = getRuntimeGlobalValue('CardClone') || (function() { try { return _require('./cards/clone'); } catch (e) { return null; } })();
+    const CardCloneModule = resolveCardLogicGlobalOrModule('CardClone', './cards/clone');
     /** @type {any} */
-    const CardMeteorModule = getRuntimeGlobalValue('CardMeteor') || (function() { try { return _require('./cards/meteor'); } catch (e) { return null; } })();
+    const CardMeteorModule = resolveCardLogicGlobalOrModule('CardMeteor', './cards/meteor');
     /** @type {any} */
-    const CardShrinkModule = getRuntimeGlobalValue('CardShrink') || (function() { try { return _require('./cards/shrink'); } catch (e) { return null; } })();
+    const CardShrinkModule = resolveCardLogicGlobalOrModule('CardShrink', './cards/shrink');
     /** @type {any} */
-    const CardLivingWillModule = getRuntimeGlobalValue('CardLivingWill') || (function() { try { return _require('./cards/living_will'); } catch (e) { return null; } })();
-    const CardTargetsModule = getRuntimeGlobalValue('CardTargets') || (function() { try { return _require('./cards/targets'); } catch (e) { return null; } })();
-    const CardFlipsModule = getRuntimeGlobalValue('CardFlips') || (function() { try { return _require('./cards/flips'); } catch (e) { return null; } })();
-    const CardChainModule = getRuntimeGlobalValue('CardChain') || (function() { try { return _require('./cards/chain'); } catch (e) { return null; } })();
-    const CardRegenModule = getRuntimeGlobalValue('CardRegen') || (function() { try { return _require('./cards/regen'); } catch (e) { return null; } })();
-    const CardTimeBombModule = getRuntimeGlobalValue('CardTimeBomb') || (function() { try { return _require('./cards/time_bomb'); } catch (e) { return null; } })();
+    const CardLivingWillModule = resolveCardLogicGlobalOrModule('CardLivingWill', './cards/living_will');
+    const CardTargetsModule = resolveCardLogicGlobalOrModule('CardTargets', './cards/targets');
+    const CardFlipsModule = resolveCardLogicGlobalOrModule('CardFlips', './cards/flips');
+    const CardChainModule = resolveCardLogicGlobalOrModule('CardChain', './cards/chain');
+    const CardRegenModule = resolveCardLogicGlobalOrModule('CardRegen', './cards/regen');
+    const CardTimeBombModule = resolveCardLogicGlobalOrModule('CardTimeBomb', './cards/time_bomb');
     /** @type {any} */
-    const CardBreedingModule = getRuntimeGlobalValue('CardBreeding') || (function() { try { return _require('./cards/breeding'); } catch (e) { return null; } })();
-    const CardHyperactiveModule = getRuntimeGlobalValue('CardHyperactive') || (function() { try { return _require('./cards/hyperactive'); } catch (e) { return null; } })();
-    const CardUdgModule = getRuntimeGlobalValue('CardUdg') || (function() { try { return _require('./cards/udg'); } catch (e) { return null; } })();
+    const CardBreedingModule = resolveCardLogicGlobalOrModule('CardBreeding', './cards/breeding');
+    const CardHyperactiveModule = resolveCardLogicGlobalOrModule('CardHyperactive', './cards/hyperactive');
+    const CardUdgModule = resolveCardLogicGlobalOrModule('CardUdg', './cards/udg');
     /** @type {any} */
-    const CardSniperModule = getRuntimeGlobalValue('CardSniper') || (function() { try { return _require('./cards/sniper'); } catch (e) { return null; } })();
-    const CardLightningModule = getRuntimeGlobalValue('CardLightning') || (function() { try { return _require('./cards/lightning'); } catch (e) { return null; } })();
+    const CardSniperModule = resolveCardLogicGlobalOrModule('CardSniper', './cards/sniper');
+    const CardLightningModule = resolveCardLogicGlobalOrModule('CardLightning', './cards/lightning');
     /** @type {any} */
-    const CardWillHunterKingModule = getRuntimeGlobalValue('CardWillHunterKing') || (function() { try { return _require('./cards/will_hunter_king'); } catch (e) { return null; } })();
+    const CardWillHunterKingModule = resolveCardLogicGlobalOrModule('CardWillHunterKing', './cards/will_hunter_king');
     /** @type {any} */
-    const CardDestroyDragonModule = getRuntimeGlobalValue('CardDestroyDragon') || (function() { try { return _require('./cards/destroy_dragon'); } catch (e) { return null; } })();
-    const DragonEffectsModule = getRuntimeGlobalValue('DragonEffects') || (function() { try { return _require('./effects/dragon'); } catch (e) { return null; } })();
-    const DestroyOneStoneModule = getRuntimeGlobalValue('DestroyOneStoneEffects') || (function() { try { return _require('./effects/destroy_one_stone'); } catch (e) { return null; } })();
-    const SwapWithEnemyModule = getRuntimeGlobalValue('SwapWithEnemyEffects') || (function() { try { return _require('./effects/swap_with_enemy'); } catch (e) { return null; } })();
-    const CardProtectModule = getRuntimeGlobalValue('CardProtectEffects') || (function() { try { return _require('../cards/effects/protect'); } catch (e) { return null; } })();
-    const CardTrapModule = getRuntimeGlobalValue('CardTrapEffects') || (function() { try { return _require('../cards/effects/trap'); } catch (e) { return null; } })();
+    const CardDestroyDragonModule = resolveCardLogicGlobalOrModule('CardDestroyDragon', './cards/destroy_dragon');
+    const DragonEffectsModule = resolveCardLogicGlobalOrModule('DragonEffects', './effects/dragon');
+    const DestroyOneStoneModule = resolveCardLogicGlobalOrModule('DestroyOneStoneEffects', './effects/destroy_one_stone');
+    const SwapWithEnemyModule = resolveCardLogicGlobalOrModule('SwapWithEnemyEffects', './effects/swap_with_enemy');
+    const CardProtectModule = resolveCardLogicGlobalOrModule('CardProtectEffects', '../cards/effects/protect');
+    const CardTrapModule = resolveCardLogicGlobalOrModule('CardTrapEffects', '../cards/effects/trap');
     const CardOwnershipEffectsModule = resolveOptionalCardModule('../cards/effects/ownership', 'CardOwnershipEffects');
     const CardBoardExpansionApplyModule = resolveOptionalCardModule('../cards/effects/board-expansion-apply', 'CardBoardExpansionApply');
     const CardStatusCellsModule = resolveOptionalCardModule('../cards/effects/status-cells', 'CardStatusCellsEffects');
