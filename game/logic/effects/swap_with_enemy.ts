@@ -31,33 +31,30 @@ const SharedBoardUtils = ((typeof module === 'object' && module.exports)
     ? safeRequire('../../../shared/shared-board-utils')
     : null) || (typeof self !== 'undefined' ? ((self as any).SharedBoardUtils || null) : null);
 
-const CardUtils = (() => {
+function resolveSwapWithEnemyModuleOrNull(id: string, resolveSelfFallback: () => any): any {
     if (typeof require === 'function') {
         try {
-            return _require('../cards/utils');
+            return _require(id);
         } catch (e) {
             return null;
         }
     }
+    return resolveSelfFallback();
+}
+
+const CardUtils = resolveSwapWithEnemyModuleOrNull('../cards/utils', () => {
     if (typeof self !== 'undefined' && (self as any).CardUtils) {
         return (self as any).CardUtils;
     }
     return null;
-})();
+});
 
-const CoreModule = (() => {
-    if (typeof require === 'function') {
-        try {
-            return _require('../core');
-        } catch (e) {
-            return null;
-        }
-    }
+const CoreModule = resolveSwapWithEnemyModuleOrNull('../core', () => {
     if (typeof self !== 'undefined') {
         return (self as any).CoreLogic || (self as any).Core || null;
     }
     return null;
-})();
+});
 
 const { BLACK, WHITE, EMPTY, CHARGE_MAX } = SharedConstants || {};
 const P_BLACK = BLACK || 1;
