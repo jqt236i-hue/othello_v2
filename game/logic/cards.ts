@@ -2487,36 +2487,12 @@ const {
         }
     }
 
-    function callCardTargetsMethod(methodName: any, args: any) {
-        return callCardModuleMethod(CardTargetsModule, methodName, args);
-    }
-
     function callCardSelectorsMethod(methodName: any, args: any) {
         return callCardModuleMethod(CardSelectorsModule, methodName, args);
     }
 
     function getTemptWillTargets(cardState: any, gameState: any, playerKey: any) {
-        const delegated = callCardTargetsMethod('getTemptWillTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-        const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        const res = [];
-        const hasGuardMarkerAt = (row: any, col: any) => getSpecialMarkers(cardState).some((m: any) => (
-            m &&
-            m.row === row &&
-            m.col === col &&
-            m.data &&
-            m.data.type === 'GUARD'
-        ));
-        for (const cell of getOccupiedBoardShapeCellsForCard(cardState, gameState)) {
-            const row = cell.row;
-            const col = cell.col;
-            if (hasGuardMarkerAt(row, col)) continue;
-            if (!isSpecialStoneAt(cardState, row, col)) continue;
-            if (getSpecialOwnerAt(cardState, row, col) !== opponentKey) continue;
-            if (getCellValueForCard(gameState, row, col) === EMPTY) continue;
-            res.push({ row, col });
-        }
-        return res;
+        return CardTargetsModule.getTemptWillTargets(cardState, gameState, playerKey);
     }
 
     function getCaptureWillTargets(cardState: any, gameState: any, playerKey: any) {
