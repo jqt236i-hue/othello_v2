@@ -16,24 +16,28 @@ function _isDebugAllowed(): boolean {
   } catch (e) { return false; }
 }
 
+function _requireInitNetworkModuleOrNull(id: string): any {
+  if (typeof _require !== 'function') return null;
+  try {
+    return _require(id);
+  } catch (e) {
+    /* ignore */
+  }
+  return null;
+}
+
 function _resolvePlaybackStateManager(): any {
   try {
     if (typeof window !== 'undefined' && (window as any).PlaybackStateManager) return (window as any).PlaybackStateManager;
   } catch (e) { /* ignore */ }
-  if (typeof _require === 'function') {
-    try { return _require('../playback-state-manager.js'); } catch (e) { /* ignore */ }
-  }
-  return null;
+  return _requireInitNetworkModuleOrNull('../playback-state-manager.js');
 }
 
 function _resolvePlaybackRuntime(): any {
   try {
     if (typeof window !== 'undefined' && (window as any).PlaybackRuntime) return (window as any).PlaybackRuntime;
   } catch (e) { /* ignore */ }
-  if (typeof _require === 'function') {
-    try { return _require('../playback-runtime.js'); } catch (e) { /* ignore */ }
-  }
-  return null;
+  return _requireInitNetworkModuleOrNull('../playback-runtime.js');
 }
 
 function _syncPlaybackWindowFlags(): any {
