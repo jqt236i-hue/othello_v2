@@ -954,19 +954,7 @@ function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, view
     if (Object.prototype.hasOwnProperty.call(options, 'playbackDiagnostics')) {
         payloadOptions.playbackDiagnostics = MatchAuthority.toDebugPlaybackDiagnostics(options.playbackDiagnostics, networkDebugEnabled) as MatchWorkerPlaybackDiagnostics | null;
     }
-    if (MatchAuthority && typeof MatchAuthority.buildPublishPayloadFromRoom === 'function') {
-        return MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions);
-    }
-    if (MatchAuthority && typeof MatchAuthority.buildPublishResponsePayload === 'function') {
-        return MatchAuthority.buildPublishResponsePayload(Object.assign({
-            roomId: room && room.roomId,
-            stateVersion: room ? room.stateVersion : null,
-            seats: room && room.seats,
-            seatNames: room && room.seatNames,
-            seatHandSkins: room && room.seatHandSkins
-        }, payloadOptions));
-    }
-    return payloadOptions;
+    return MatchAuthority.buildPublishPayloadFromRoom(room, payloadOptions);
 }
 
 function captureTurnStartHandState(snapshot: unknown): MatchWorkerTurnStartHandState {
