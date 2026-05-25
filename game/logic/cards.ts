@@ -642,7 +642,7 @@ const {
     /** @type {any} */
     const CardCloneModule = resolveRequiredCardModule('./cards/clone', 'CardClone');
     /** @type {any} */
-    const CardMeteorModule = resolveCardLogicGlobalOrModule('CardMeteor', './cards/meteor');
+    const CardMeteorModule = resolveRequiredCardModule('./cards/meteor', 'CardMeteor');
     /** @type {any} */
     const CardShrinkModule = resolveRequiredCardModule('./cards/shrink', 'CardShrink');
     /** @type {any} */
@@ -3337,77 +3337,25 @@ const {
     }
 
     function applyMeteorWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
-        if (CardMeteorModule && typeof CardMeteorModule.applyMeteorWill === 'function') {
-            return CardMeteorModule.applyMeteorWill(cardState, gameState, playerKey, row, col, {
-                getMeteorTargets,
-                getCellValueForCard,
-                destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
-                    ? BoardOpsModule.destroyAt
-                    : null,
-                applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
-                    ? BoardOpsModule.applyHoleAt
-                    : null,
-                runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
-                    ? BoardOpsModule.runCellRemovalBlock
-                    : null,
-                isDestroyResolved,
-                clearStoneIdAtForCard,
-                setCellValueForCard,
-                removeMarkersAt,
-                addMarker,
-                random: prng || defaultPrng
-            });
-        }
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'METEOR_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-        const targets = getMeteorTargets(cardState, gameState, playerKey);
-        const allowed = targets.some((t: any) => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
-
-        const cellValue = getCellValueForCard(gameState, row, col);
-        if (cellValue === null) return { applied: false, reason: 'out_of_board' };
-
-        let destroyed = false;
-        if (cellValue !== EMPTY) {
-            if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-                const res = BoardOpsModule.destroyAt(
-                    cardState,
-                    gameState,
-                    row,
-                    col,
-                    'METEOR_WILL',
-                    'meteor_cell_destroy',
-                    { ignoreGuard: true, random: prng || defaultPrng }
-                );
-                destroyed = isDestroyResolved(res);
-                if (res && res.reason === 'out_of_board') {
-                    return { applied: false, reason: 'out_of_board' };
-                }
-            }
-            if (!destroyed) {
-                clearStoneIdAtForCard(cardState, gameState, row, col);
-                setCellValueForCard(gameState, row, col, EMPTY);
-                removeMarkersAt(cardState, row, col);
-                destroyed = true;
-            }
-        } else {
-            clearStoneIdAtForCard(cardState, gameState, row, col);
-            setCellValueForCard(gameState, row, col, EMPTY);
-            removeMarkersAt(cardState, row, col);
-        }
-
-        // Full erase first, then leave a permanent hole marker.
-        removeMarkersAt(cardState, row, col);
-        addMarker(cardState, 'specialStone', row, col, playerKey, {
-            type: 'METEOR_HOLE'
+        return CardMeteorModule.applyMeteorWill(cardState, gameState, playerKey, row, col, {
+            getMeteorTargets,
+            getCellValueForCard,
+            destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
+                ? BoardOpsModule.destroyAt
+                : null,
+            applyHoleAt: BoardOpsModule && typeof BoardOpsModule.applyHoleAt === 'function'
+                ? BoardOpsModule.applyHoleAt
+                : null,
+            runCellRemovalBlock: BoardOpsModule && typeof BoardOpsModule.runCellRemovalBlock === 'function'
+                ? BoardOpsModule.runCellRemovalBlock
+                : null,
+            isDestroyResolved,
+            clearStoneIdAtForCard,
+            setCellValueForCard,
+            removeMarkersAt,
+            addMarker,
+            random: prng || defaultPrng
         });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, row, col, destroyed };
     }
 
     function applyFreezeWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
