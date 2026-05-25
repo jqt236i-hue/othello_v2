@@ -669,7 +669,7 @@ const {
     const CardProtectModule = resolveCardLogicGlobalOrModule('CardProtectEffects', '../cards/effects/protect');
     const CardTrapModule = resolveCardLogicGlobalOrModule('CardTrapEffects', '../cards/effects/trap');
     const CardOwnershipEffectsModule = resolveRequiredCardModule('../cards/effects/ownership', 'CardOwnershipEffects');
-    const CardBoardExpansionApplyModule = resolveOptionalCardModule('../cards/effects/board-expansion-apply', 'CardBoardExpansionApply');
+    const CardBoardExpansionApplyModule = resolveRequiredCardModule('../cards/effects/board-expansion-apply', 'CardBoardExpansionApply');
     const CardStatusCellsModule = resolveOptionalCardModule('../cards/effects/status-cells', 'CardStatusCellsEffects');
     const CardHandEffectsModule = resolveOptionalCardModule('../cards/effects/hand-effects', 'CardHandEffects');
     const CardPositionSwapModule = resolveOptionalCardModule('../cards/effects/position-swap', 'CardPositionSwapEffects');
@@ -3475,38 +3475,32 @@ const {
     }
 
     function applyBoardExpansionWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardBoardExpansionApplyModule && typeof CardBoardExpansionApplyModule.applyBoardExpansionWill === 'function') {
-            return CardBoardExpansionApplyModule.applyBoardExpansionWill(cardState, gameState, playerKey, row, col, {
-                readCardPendingEffect,
-                getBoardExpansionTargets,
-                ensureMutableBoardExpansionForCard,
-                getExpansionDescriptorsForCard,
-                resolveExpansionSideForCard,
-                normalizeExpansionOwnerForCard,
-                syncLegacyExpansionFieldsForCard,
-                clearCardPendingEffect
-            });
-        }
-        return { applied: false, reason: 'deps_missing' };
+        return CardBoardExpansionApplyModule.applyBoardExpansionWill(cardState, gameState, playerKey, row, col, {
+            readCardPendingEffect,
+            getBoardExpansionTargets,
+            ensureMutableBoardExpansionForCard,
+            getExpansionDescriptorsForCard,
+            resolveExpansionSideForCard,
+            normalizeExpansionOwnerForCard,
+            syncLegacyExpansionFieldsForCard,
+            clearCardPendingEffect
+        });
     }
 
     function applyBoardExpansionGod(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardBoardExpansionApplyModule && typeof CardBoardExpansionApplyModule.applyBoardExpansionGod === 'function') {
-            return CardBoardExpansionApplyModule.applyBoardExpansionGod(cardState, gameState, playerKey, row, col, {
-                readCardPendingEffect,
-                getBoardExpansionGodTargets,
-                getBoardExpansionGodRequiredSelectionCount,
-                getBoardExpansionGodPendingSelectionsForCard,
-                ensureMutableBoardExpansionForCard,
-                getExpansionDescriptorsForCard,
-                getBoardExpansionGodAdditionsForCard,
-                resolveExpansionSideForCard,
-                normalizeExpansionOwnerForCard,
-                syncLegacyExpansionFieldsForCard,
-                clearCardPendingEffect
-            });
-        }
-        return { applied: false, reason: 'deps_missing' };
+        return CardBoardExpansionApplyModule.applyBoardExpansionGod(cardState, gameState, playerKey, row, col, {
+            readCardPendingEffect,
+            getBoardExpansionGodTargets,
+            getBoardExpansionGodRequiredSelectionCount,
+            getBoardExpansionGodPendingSelectionsForCard,
+            ensureMutableBoardExpansionForCard,
+            getExpansionDescriptorsForCard,
+            getBoardExpansionGodAdditionsForCard,
+            resolveExpansionSideForCard,
+            normalizeExpansionOwnerForCard,
+            syncLegacyExpansionFieldsForCard,
+            clearCardPendingEffect
+        });
     }
 
     function applyBoardShrinkWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
