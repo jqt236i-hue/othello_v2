@@ -2314,7 +2314,7 @@ const {
     }
 
     function resolveCoreLogicForCards() {
-        return (function() { try { return _require('./core'); } catch (e) { return null; } })() || resolveOptionalCardModule(null, 'Core');
+        return requireOptionalCardLogicModule('./core') || resolveOptionalCardModule(null, 'Core');
     }
 
     function hasStandardLegalMoveForPlayer(cardState: any, gameState: any, playerKey: any) {
@@ -5891,14 +5891,13 @@ const {
     function applySwapEffect(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         const cardContext = getCardContext(cardState);
         if (SwapWithEnemyModule && typeof SwapWithEnemyModule.applySwapWithEnemy === 'function') {
-            const coreModule = (function() { try { return _require('./core'); } catch (e) { return null; } })() || resolveOptionalCardModule(null, 'Core');
             const r = SwapWithEnemyModule.applySwapWithEnemy(cardState, gameState, playerKey, row, col, {
                 BoardOps: BoardOpsModule,
                 clearHyperactiveAtPositions,
                 clearBombAt,
                 emitPresentationEvent,
                 cardContext,
-                Core: coreModule
+                Core: resolveCoreLogicForCards()
             });
             return !!r.swapped;
         }
