@@ -32,21 +32,17 @@ function safeRequire(id: string): any {
     }
 }
 
-const SharedConstants = (() => {
+function resolveUdgModuleOrGlobal(id: string, globalKey: string): any {
     if (typeof module === 'object' && module.exports) {
-        return safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
+        return safeRequire(id) || getRuntimeGlobalValue(globalKey);
     }
 
-    return getRuntimeGlobalValue('SharedConstants');
-})();
+    return getRuntimeGlobalValue(globalKey);
+}
 
-const BoardOpsModule = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../board_ops')
-    : null) || getRuntimeGlobalValue('BoardOps');
-
-const RandomSourceModule = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../cards-internal/random-source')
-    : null) || getRuntimeGlobalValue('CardRandomSource');
+const SharedConstants = resolveUdgModuleOrGlobal('../../../shared-constants', 'SharedConstants');
+const BoardOpsModule = resolveUdgModuleOrGlobal('../board_ops', 'BoardOps');
+const RandomSourceModule = resolveUdgModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
 
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 const P_BLACK = (BLACK === undefined || BLACK === null) ? 1 : BLACK;

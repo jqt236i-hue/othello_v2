@@ -32,17 +32,16 @@ function safeRequire(id: string): any {
     }
 }
 
-const SharedConstants = (() => {
+function resolveTargetsModuleOrGlobal(id: string, globalKey: string): any {
     if (typeof module === 'object' && module.exports) {
-        return safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
+        return safeRequire(id) || getRuntimeGlobalValue(globalKey);
     }
 
-    return getRuntimeGlobalValue('SharedConstants');
-})();
+    return getRuntimeGlobalValue(globalKey);
+}
 
-const BoardUtils = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../../../shared/shared-board-utils')
-    : null) || getRuntimeGlobalValue('SharedBoardUtils');
+const SharedConstants = resolveTargetsModuleOrGlobal('../../../shared-constants', 'SharedConstants');
+const BoardUtils = resolveTargetsModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
 
 const { EMPTY } = SharedConstants || {};
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
