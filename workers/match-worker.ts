@@ -929,7 +929,7 @@ function buildPublishPayload(room: MatchWorkerRoomState | null | undefined, view
     const snapshot = Object.prototype.hasOwnProperty.call(options, 'snapshot')
         ? options.snapshot
         : toPublicSnapshot(room, viewerSeatKey);
-    if (options.previousSnapshotForChargeDelta && MatchAuthority && typeof MatchAuthority.restoreMissingChargeDeltaEvents === 'function') {
+    if (options.previousSnapshotForChargeDelta) {
         MatchAuthority.restoreMissingChargeDeltaEvents(options.previousSnapshotForChargeDelta, snapshot);
     }
     const payloadOptions: MatchWorkerPublishPayloadOptions = {

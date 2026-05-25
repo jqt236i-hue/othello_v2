@@ -325,7 +325,7 @@ function buildPublishPayload(room: any, viewerSeatKey: any, options: any = {}) {
         ? String(options.publishMeta.kind || '').trim().toLowerCase()
         : '';
     const shouldRestoreChargeDelta = publishMetaKind !== 'accepted';
-    if (shouldRestoreChargeDelta && options.previousSnapshotForChargeDelta && MatchAuthority && typeof MatchAuthority.restoreMissingChargeDeltaEvents === 'function') {
+    if (shouldRestoreChargeDelta && options.previousSnapshotForChargeDelta) {
         MatchAuthority.restoreMissingChargeDeltaEvents(options.previousSnapshotForChargeDelta, snapshot);
     }
     const payloadOptions: any = {
@@ -517,9 +517,7 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
         gameState: result.gameState,
         cardState: result.cardState
     };
-    if (MatchAuthority && typeof MatchAuthority.restoreMissingChargeDeltaEvents === 'function') {
-        MatchAuthority.restoreMissingChargeDeltaEvents(currentSnapshot, nextSnapshot);
-    }
+    MatchAuthority.restoreMissingChargeDeltaEvents(currentSnapshot, nextSnapshot);
     const actionChargeDeltaEvents = Array.isArray(nextSnapshot && nextSnapshot.cardState && nextSnapshot.cardState.chargeDeltaEvents)
         ? deepClone(nextSnapshot.cardState.chargeDeltaEvents)
         : [];
