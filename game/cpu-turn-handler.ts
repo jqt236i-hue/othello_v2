@@ -1979,10 +1979,6 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             }
             try {
                 const cornersBeforeMove = countOwnedBasicCornersSafe(gameState, playerKey);
-                if (!othelloMode) {
-                    if (!Array.isArray(cardState.presentationEvents)) cardState.presentationEvents = [];
-                    cardState.presentationEvents.push({ type: 'PLAY_HAND_ANIMATION', player: playerKey, row: move.row, col: move.col });
-                }
                 const executeMoveFn = resolveExecuteMoveFn();
                 if (typeof executeMoveFn !== 'function') {
                     throw new Error('executeMove is not available');

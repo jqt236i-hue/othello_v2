@@ -622,6 +622,39 @@ describe('turn-manager scheduling', () => {
     expect(waitMs).toHaveBeenCalledTimes(2);
   });
 
+  test('CPU turn leaves place-hand animation to pipeline playback', async () => {
+    const cpuTurnHandler = require('../game/cpu-turn-handler.js');
+
+    global.isGameOver = jest.fn(() => false);
+    global.cpuSmartness = { black: 2, white: 3 };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      presentationEvents: [],
+      _presentationEventsPersist: [],
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      hands: { black: [], white: [] },
+      charge: { black: 0, white: 0 }
+    };
+    global.gameState = {
+      currentPlayer: global.WHITE,
+      turnNumber: 9,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.generateMovesForPlayer = jest.fn(() => [{ row: 2, col: 3, flips: [] }]);
+    global.executeMove = jest.fn();
+    cpuTurnHandler.setCpuUIImpl({
+      resolveRuntimeFunction: (name) => global[name],
+      resolveRuntimeValue: (name) => global[name],
+      resolveExecuteMove: () => global.executeMove
+    });
+
+    await cpuTurnHandler.runCpuTurn('white');
+
+    expect(global.executeMove).toHaveBeenCalledWith(expect.objectContaining({ row: 2, col: 3 }));
+    expect(global.cardState.presentationEvents).toEqual([]);
+  });
+
   test('resetGame は遅延 generated throw chain hand_add queue をクリアする', () => {
     const adapter = require('../game/turn/pipeline_ui_adapter.js');
     const queuedBoard = Array.from({ length: 8 }, () => Array(8).fill(0));
