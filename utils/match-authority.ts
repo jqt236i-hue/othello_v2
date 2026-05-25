@@ -603,6 +603,20 @@ function collectPipelineEffectLogMessages(
     }
 }
 
+function buildNetworkActionEffectLogs(
+    action: unknown,
+    playerKey: unknown,
+    cardLogic: MatchAuthorityCardLogicLike | null | undefined,
+    rawEvents: unknown,
+    presentationEvents: unknown,
+    playbackAdapter: MatchAuthorityPlaybackAdapterLike | null | undefined
+): string[] {
+    return appendEffectLogMessages(
+        buildNetworkCardUseEffectLogs(action, playerKey, cardLogic),
+        collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, playbackAdapter)
+    );
+}
+
 function isNetworkDebugFillHandAction(value: unknown): boolean {
     return String(value || '').trim().toLowerCase() === NETWORK_DEBUG_FILL_HAND_ACTION;
 }
@@ -1837,6 +1851,7 @@ const matchAuthority = assertMatchAuthorityPublicApi({
     resolveActionCardDisplayName,
     buildNetworkCardUseEffectLogs,
     collectPipelineEffectLogMessages,
+    buildNetworkActionEffectLogs,
     isNetworkDebugFillHandAction,
     isNetworkDebugFillHandPayload,
     resolveNetworkDebugFillHandOptions,

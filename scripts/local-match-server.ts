@@ -128,24 +128,12 @@ function appendEffectLogMessages(...lists: any) {
     return normalizeEffectLogMessages(merged);
 }
 
-function getSeatLabelJa(playerKey: any) {
-    return MatchAuthority.getSeatLabelJa(playerKey);
-}
-
-function resolveActionCardId(action: any) {
-    return MatchAuthority.resolveActionCardId(action);
-}
-
-function resolveActionCardDisplayName(action: any) {
-    return MatchAuthority.resolveActionCardDisplayName(action, CardLogic);
-}
-
-function buildNetworkCardUseEffectLogs(action: any, playerKey: any) {
-    return MatchAuthority.buildNetworkCardUseEffectLogs(action, playerKey, CardLogic);
-}
-
 function collectPipelineEffectLogMessages(rawEvents: any, presentationEvents: any, playerKey: any) {
     return MatchAuthority.collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, TurnPipelineUIAdapter);
+}
+
+function buildNetworkActionEffectLogs(action: any, playerKey: any, rawEvents: any, presentationEvents: any) {
+    return MatchAuthority.buildNetworkActionEffectLogs(action, playerKey, CardLogic, rawEvents, presentationEvents, TurnPipelineUIAdapter);
 }
 
 function makeRoomId() {
@@ -597,9 +585,11 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
     const playbackEvents = (playbackAssembly && Array.isArray(playbackAssembly.playbackEvents))
         ? playbackAssembly.playbackEvents
         : [];
-    const actionEffectLogs = appendEffectLogMessages(
-        buildNetworkCardUseEffectLogs(resolvedAction, playerKey),
-        collectPipelineEffectLogMessages(result.events, actionPresentationEvents, playerKey)
+    const actionEffectLogs = buildNetworkActionEffectLogs(
+        resolvedAction,
+        playerKey,
+        result.events,
+        actionPresentationEvents
     );
 
     const turnStartPlaybackAssembly = reconcileTurnStartAndCollectPlayback(room, nextSnapshot);

@@ -300,26 +300,28 @@ function appendEffectLogMessages(...lists: unknown[]): string[] {
     return normalizeEffectLogMessages(merged);
 }
 
-function getSeatLabelJa(playerKey: unknown): string {
-    return MatchAuthority.getSeatLabelJa(playerKey);
-}
-
-function resolveActionCardId(action: unknown): string {
-    return MatchAuthority.resolveActionCardId(action);
-}
-
-function resolveActionCardDisplayName(action: unknown, cardLogic: unknown): string {
-    return MatchAuthority.resolveActionCardDisplayName(action, cardLogic as { getCardDef?: (cardId: string) => { name?: unknown } | null | undefined });
-}
-
-function buildNetworkCardUseEffectLogs(action: unknown, playerKey: unknown, cardLogic: unknown): string[] {
-    return MatchAuthority.buildNetworkCardUseEffectLogs(action, playerKey, cardLogic as { getCardDef?: (cardId: string) => { name?: unknown } | null | undefined });
-}
-
 function collectPipelineEffectLogMessages(rawEvents: unknown, presentationEvents: unknown, playerKey: unknown, playbackAdapter: unknown): string[] {
     return MatchAuthority.collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, playbackAdapter as {
         mapEffectLogsFromPipeline?: (rawEvents: unknown, presentationEvents: unknown, playerKey: unknown) => unknown;
     });
+}
+
+function buildNetworkActionEffectLogs(
+    action: unknown,
+    playerKey: unknown,
+    cardLogic: unknown,
+    rawEvents: unknown,
+    presentationEvents: unknown,
+    playbackAdapter: unknown
+): string[] {
+    return MatchAuthority.buildNetworkActionEffectLogs(
+        action,
+        playerKey,
+        cardLogic as { getCardDef?: (cardId: string) => { name?: unknown } | null | undefined },
+        rawEvents,
+        presentationEvents,
+        playbackAdapter as { mapEffectLogsFromPipeline?: (rawEvents: unknown, presentationEvents: unknown, playerKey: unknown) => unknown }
+    );
 }
 
 function makeRoomId(): string {
@@ -1197,9 +1199,13 @@ async function applyCommandPublishToSnapshot(
     const playbackEvents = (playbackAssembly && Array.isArray(playbackAssembly.playbackEvents))
         ? playbackAssembly.playbackEvents
         : [];
-    const actionEffectLogs = appendEffectLogMessages(
-        buildNetworkCardUseEffectLogs(resolvedAction, playerKey, CardLogic),
-        collectPipelineEffectLogMessages(result.events, actionPresentationEvents, playerKey, TurnPipelineUIAdapter)
+    const actionEffectLogs = buildNetworkActionEffectLogs(
+        resolvedAction,
+        playerKey,
+        CardLogic,
+        result.events,
+        actionPresentationEvents,
+        TurnPipelineUIAdapter
     );
 
     const turnStartPlaybackAssembly = await reconcileTurnStartAndCollectPlayback(room, nextSnapshot, TurnPipelineUIAdapter);

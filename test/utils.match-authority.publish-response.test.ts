@@ -459,6 +459,27 @@ describe('match authority publish response payload', () => {
     })).toEqual([]);
   });
 
+  test('builds combined network action effect logs from card-use and pipeline sources', () => {
+    const cardLogic = {
+      getCardDef: jest.fn((cardId) => (cardId === 'treasure_01' ? { name: '宝箱' } : null))
+    };
+    const adapter = {
+      mapEffectLogsFromPipeline: jest.fn(() => ['黒: 追加効果', '黒: 追加効果'])
+    };
+
+    expect(MatchAuthority.buildNetworkActionEffectLogs(
+      { type: 'use_card', useCardId: 'treasure_01' },
+      'black',
+      cardLogic,
+      [{ type: 'raw' }],
+      [{ type: 'presentation' }],
+      adapter
+    )).toEqual([
+      '黒がカードを使用: 宝箱',
+      '黒: 追加効果'
+    ]);
+  });
+
   test('normalizes debug fill hand payload options from params before action fallback', () => {
     expect(MatchAuthority.isNetworkDebugFillHandPayload({
       actionType: 'DEBUG_FILL_HAND'
