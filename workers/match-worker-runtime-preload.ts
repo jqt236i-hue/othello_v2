@@ -26,6 +26,7 @@ interface MatchWorkerRuntimeGlobalScope {
     CardEffectResolver?: unknown;
     CardTimingProcessor?: unknown;
     CardTargetResolver?: unknown;
+    CardCatalog?: unknown;
 }
 
 function getRuntimeGlobalScope(): MatchWorkerRuntimeGlobalScope {
@@ -40,6 +41,7 @@ function unwrapModule(mod: unknown): unknown {
 
 const scope = getRuntimeGlobalScope();
 
+if (!scope.CardCatalog) scope.CardCatalog = unwrapModule(require('../cards/catalog.js'));
 if (!scope.SharedConstants) scope.SharedConstants = unwrapModule(require('../shared-constants.js'));
 if (!scope.SharedBoardUtils) scope.SharedBoardUtils = unwrapModule(require('../shared/shared-board-utils.js'));
 if (!scope.DeckSpecHelpers) scope.DeckSpecHelpers = unwrapModule(require('../shared/deck-spec.js'));

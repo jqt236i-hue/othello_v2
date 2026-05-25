@@ -8,6 +8,8 @@ describe('match worker card module preload', () => {
       'utf8'
     );
 
+    expect(source.indexOf('scope.CardCatalog')).toBeLessThan(source.indexOf('scope.SharedConstants'));
+    expect(source).toContain("scope.CardCatalog = unwrapModule(require('../cards/catalog.js'))");
     expect(source).toContain('scope.CardStateManager');
     expect(source).toContain('scope.CardEffectResolver');
     expect(source).toContain('scope.CardTimingProcessor');

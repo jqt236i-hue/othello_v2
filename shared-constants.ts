@@ -93,6 +93,14 @@ function normalizeCatalogCards(cards: any): any[] | null {
     return cards.map(normalizeCatalogCard);
 }
 
+function readRuntimeCatalogCards(): any[] | null {
+    const runtimeGlobal = (typeof globalThis !== 'undefined')
+        ? (globalThis as any)
+        : (typeof self !== 'undefined' ? (self as any) : null);
+    const catalog = runtimeGlobal && runtimeGlobal.CardCatalog;
+    return catalog && Array.isArray(catalog.cards) ? normalizeCatalogCards(catalog.cards) : null;
+}
+
 function readGeneratedCatalogCards(): any[] | null {
     try {
         const mod = _require('./cards/catalog');
@@ -109,6 +117,9 @@ try {
     // Browser path: loaded via <script src="cards/catalog.js">
     if (typeof window !== 'undefined' && (window as any).CardCatalog && Array.isArray((window as any).CardCatalog.cards)) {
         catalogCards = normalizeCatalogCards((window as any).CardCatalog.cards);
+    }
+    if (!catalogCards) {
+        catalogCards = readRuntimeCatalogCards();
     }
 } catch (e) {
     // ignore
