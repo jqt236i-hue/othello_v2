@@ -1343,7 +1343,7 @@ const {
 
     /** @type {any} */
     const CardSelectorsModule = resolveCardLogicGlobalOrModule('CardSelectors', './cards/selectors');
-    const CardUsagePrechecksModule = resolveCardLogicGlobalOrModule('CardUsagePrechecks', './cards-internal/card-usage-prechecks');
+    const CardUsagePrechecksModule = resolveRequiredCardModule('./cards-internal/card-usage-prechecks', 'CardUsagePrechecks');
     const CardSelectorOrchestratorModule = resolveCardLogicGlobalOrModule('CardSelectorOrchestrator', './cards-internal/selector-orchestrator');
     const CardHandManagerModule = resolveRequiredCardModule('./cards-internal/hand-manager', 'CardHandManager');
     const CardEffectTimingModule = resolveCardLogicGlobalOrModule('CardEffectTiming', './cards-internal/effect-timing');
