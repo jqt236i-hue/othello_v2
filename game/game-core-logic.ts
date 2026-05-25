@@ -16,14 +16,21 @@ declare function debugLog(message: string, level: string, meta: any): void;
 // Wrapper for CoreLogic (Shared between Browser and Headless)
 // This file maintains the legacy global function interface for browser compatibility.
 
+function requireGameCoreLogicModuleOrNull(id: string): any {
+    if (typeof _require !== 'function') return null;
+    try {
+        return _require(id);
+    } catch (e: any) {
+        /* ignore */
+    }
+    return null;
+}
+
 const GameCoreLogicCore = (() => {
     try {
         if (typeof CoreLogic !== 'undefined' && CoreLogic) return CoreLogic;
     } catch (e: any) { /* ignore */ }
-    if (typeof _require === 'function') {
-        try { return _require('./logic/core'); } catch (e: any) { /* ignore */ }
-    }
-    return null;
+    return requireGameCoreLogicModuleOrNull('./logic/core');
 })();
 
 // Check if CoreLogic is loaded

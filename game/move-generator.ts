@@ -13,14 +13,21 @@ declare const EMPTY: any;
 declare const CardLogic: any;
 declare const MarkersAdapter: any;
 
+function requireMoveGeneratorModuleOrNull(id: string): any {
+    if (typeof require !== 'function') return null;
+    try {
+        return require(id);
+    } catch (e) {
+        /* ignore */
+    }
+    return null;
+}
+
 const MoveGeneratorCoreLogic = (() => {
     try {
         if (typeof CoreLogic !== 'undefined' && CoreLogic) return CoreLogic;
     } catch (e) { /* ignore */ }
-    if (typeof require === 'function') {
-        try { return require('./logic/core'); } catch (e) { /* ignore */ }
-    }
-    return null;
+    return requireMoveGeneratorModuleOrNull('./logic/core');
 })();
 
 if (!MoveGeneratorCoreLogic) {
