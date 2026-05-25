@@ -654,7 +654,7 @@ const {
     const CardTimeBombModule = resolveCardLogicGlobalOrModule('CardTimeBomb', './cards/time_bomb');
     /** @type {any} */
     const CardBreedingModule = resolveRequiredCardModule('./cards/breeding', 'CardBreeding');
-    const CardHyperactiveModule = resolveCardLogicGlobalOrModule('CardHyperactive', './cards/hyperactive');
+    const CardHyperactiveModule = resolveRequiredCardModule('./cards/hyperactive', 'CardHyperactive');
     const CardUdgModule = resolveRequiredCardModule('./cards/udg', 'CardUdg');
     /** @type {any} */
     const CardSniperModule = resolveRequiredCardModule('./cards/sniper', 'CardSniper');
@@ -3312,10 +3312,6 @@ const {
     }
 
     function applyHyperactiveInheritWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (!CardHyperactiveModule || typeof CardHyperactiveModule.applyHyperactiveInheritWill !== 'function') {
-            console.warn('[cards.js] CardHyperactive applyHyperactiveInheritWill not available');
-            return { applied: false, reason: 'module_unavailable' };
-        }
         return CardHyperactiveModule.applyHyperactiveInheritWill(cardState, gameState, playerKey, row, col, {
             readCardPendingEffect,
             clearCardPendingEffect,
@@ -5259,20 +5255,16 @@ const {
     }
 
     function moveHyperactiveOnce(cardState: any, gameState: any, entry: any, prng: any) {
-        if (CardHyperactiveModule && typeof CardHyperactiveModule.moveHyperactiveOnce === 'function') {
-            return CardHyperactiveModule.moveHyperactiveOnce(cardState, gameState, entry, prng, {
-                defaultPrng: defaultPrng,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                clearHyperactiveAtPositions,
-                clearBombAt,
-                isBlockedCell,
-                getCardContext,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
-        }
-        console.warn('[cards.js] CardHyperactive module not available');
-        return { moved: [], destroyed: [], flipped: [], ownerKey: entry ? entry.owner : 'black' };
+        return CardHyperactiveModule.moveHyperactiveOnce(cardState, gameState, entry, prng, {
+            defaultPrng: defaultPrng,
+            getFlipsWithContext: getFlipsWithContextLocal,
+            clearHyperactiveAtPositions,
+            clearBombAt,
+            isBlockedCell,
+            getCardContext,
+            BoardOps: BoardOpsModule,
+            destroyAt
+        });
     }
 
 
@@ -5294,26 +5286,22 @@ const {
 
 
     function processHyperactiveMoveAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, options : any = {}) {
-        if (CardHyperactiveModule && typeof CardHyperactiveModule.processHyperactiveMoveAtAnchor === 'function') {
-            return CardHyperactiveModule.processHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
-                defaultPrng: defaultPrng,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                clearBombAt,
-                clearHyperactiveAtPositions,
-                isBlockedCell,
-                isAbsoluteProtectedCell,
-                isFrozenCell,
-                getCardContext,
-                BoardOps: BoardOpsModule,
-                swapOccupiedCellsWithPresentation,
-                destroyAt,
-                currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
-                inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
-                expectedSpecialType: options.expectedSpecialType || null
-            });
-        }
-        console.warn('[cards.js] CardHyperactive module not available');
-        return { moved: [], destroyed: [], flipped: [] };
+        return CardHyperactiveModule.processHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
+            defaultPrng: defaultPrng,
+            getFlipsWithContext: getFlipsWithContextLocal,
+            clearBombAt,
+            clearHyperactiveAtPositions,
+            isBlockedCell,
+            isAbsoluteProtectedCell,
+            isFrozenCell,
+            getCardContext,
+            BoardOps: BoardOpsModule,
+            swapOccupiedCellsWithPresentation,
+            destroyAt,
+            currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
+            inheritedHyperactiveTurns: INHERITED_HYPERACTIVE_TURNS,
+            expectedSpecialType: options.expectedSpecialType || null
+        });
     }
 
     function processRobotVacuumMoveAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, options : any = {}) {
@@ -5329,14 +5317,10 @@ const {
             currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
             robotVacuumTurns: ROBOT_VACUUM_TURNS
         };
-        if (CardHyperactiveModule && typeof CardHyperactiveModule.processRobotVacuumMoveAtAnchor === 'function') {
-            return runBoardOpsDestroyBlock(cardState, gameState, () =>
-                CardHyperactiveModule.processRobotVacuumMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps),
-                { randomSource: prng || defaultPrng }
-            );
-        }
-        console.warn('[cards.js] CardHyperactive robot-vacuum module not available');
-        return { moved: [], destroyed: [], flipped: [], ownerKey: playerKey, sucked: [], expired: [], suckedCount: 0 };
+        return runBoardOpsDestroyBlock(cardState, gameState, () =>
+            CardHyperactiveModule.processRobotVacuumMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps),
+            { randomSource: prng || defaultPrng }
+        );
     }
 
     function processGluttonousMoveAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, options : any = {}) {
@@ -5351,11 +5335,7 @@ const {
             destroyAt,
             currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey
         };
-        if (CardHyperactiveModule && typeof CardHyperactiveModule.processGluttonousMoveAtAnchor === 'function') {
-            return CardHyperactiveModule.processGluttonousMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps);
-        }
-        console.warn('[cards.js] CardHyperactive gluttonous module not available');
-        return { moved: [], destroyed: [], flipped: [], ownerKey: playerKey, ate: [] };
+        return CardHyperactiveModule.processGluttonousMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, deps);
     }
 
     function resolveHyperactiveFlipEvasion(cardState: any, gameState: any, flipCells: any, ownerAfterKey: any, prng: any) {
@@ -5369,55 +5349,42 @@ const {
             return null;
         }).filter((cell: any) => !!cell);
 
-        if (CardHyperactiveModule && typeof CardHyperactiveModule.resolveHyperactiveFlipEvasion === 'function') {
-            return CardHyperactiveModule.resolveHyperactiveFlipEvasion(cardState, gameState, fallbackFlips, ownerAfterKey, prng, {
-                defaultPrng: defaultPrng,
-                clearHyperactiveAtPositions,
-                isBlockedCell,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
-        }
-
-        console.warn('[cards.js] CardHyperactive flip-evasion module not available');
-        return { remainingFlips: fallbackFlips, moved: [], destroyed: [], evaded: [] };
+        return CardHyperactiveModule.resolveHyperactiveFlipEvasion(cardState, gameState, fallbackFlips, ownerAfterKey, prng, {
+            defaultPrng: defaultPrng,
+            clearHyperactiveAtPositions,
+            isBlockedCell,
+            BoardOps: BoardOpsModule,
+            destroyAt
+        });
     }
 
     function processInstantHyperactiveMoveAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
-        if (CardHyperactiveModule && typeof CardHyperactiveModule.processInstantHyperactiveMoveAtAnchor === 'function') {
-            return CardHyperactiveModule.processInstantHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
-                defaultPrng: defaultPrng,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                clearBombAt,
-                clearHyperactiveAtPositions,
-                isBlockedCell,
-                getCardContext,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
-        }
-        console.warn('[cards.js] CardHyperactive instant module not available');
-        return { moved: [], destroyed: [], flipped: [], ownerKey: playerKey };
+        return CardHyperactiveModule.processInstantHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
+            defaultPrng: defaultPrng,
+            getFlipsWithContext: getFlipsWithContextLocal,
+            clearBombAt,
+            clearHyperactiveAtPositions,
+            isBlockedCell,
+            getCardContext,
+            BoardOps: BoardOpsModule,
+            destroyAt
+        });
     }
 
     function processUltimateHyperactiveMoveAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, options : any = {}) {
-        if (CardHyperactiveModule && typeof CardHyperactiveModule.processUltimateHyperactiveMoveAtAnchor === 'function') {
-            return CardHyperactiveModule.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
-                defaultPrng: defaultPrng,
-                currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
-                ultimateHyperactiveTurns: ULTIMATE_HYPERACTIVE_TURNS,
-                clearUltimateAtPositions: clearHyperactiveAtPositions,
-                clearHyperactiveAtPositions,
-                clearBombAt,
-                isBlockedCell,
-                getFlipsWithContext: getFlipsWithContextLocal,
-                getCardContext,
-                BoardOps: BoardOpsModule,
-                destroyAt
-            });
-        }
-        console.warn('[cards.js] CardHyperactive ultimate module not available');
-        return { moved: [], destroyed: [], flipped: [], ownerKey: playerKey };
+        return CardHyperactiveModule.processUltimateHyperactiveMoveAtAnchor(cardState, gameState, playerKey, row, col, prng, {
+            defaultPrng: defaultPrng,
+            currentTurnPlayerKey: options.currentTurnPlayerKey || playerKey,
+            ultimateHyperactiveTurns: ULTIMATE_HYPERACTIVE_TURNS,
+            clearUltimateAtPositions: clearHyperactiveAtPositions,
+            clearHyperactiveAtPositions,
+            clearBombAt,
+            isBlockedCell,
+            getFlipsWithContext: getFlipsWithContextLocal,
+            getCardContext,
+            BoardOps: BoardOpsModule,
+            destroyAt
+        });
     }
 
 
