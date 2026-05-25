@@ -4620,6 +4620,13 @@ function resolveLookaheadNodeBudget(preferredBudget: number | null | undefined, 
     return Math.max(8_000, Math.min(80_000, (depthFactor * depthFactor * branchFactor * 650)));
 }
 
+function resolveLookaheadTranspositionLimit(nodeBudget: number, endgameMode: boolean): number {
+    const base = endgameMode ? 400_000 : 80_000;
+    const scaled = Math.floor((Number(nodeBudget) || 0) * 0.6);
+    const cap = endgameMode ? 2_200_000 : 1_200_000;
+    return Math.max(base, Math.min(cap, scaled));
+}
+
 function resolveLookaheadTimeBudgetMs(options: CpuPolicyMoveOptions | null | undefined, level: number, endgameMode: boolean): number | null {
     const opts = asRecord(options);
     const preferred = endgameMode ? opts.endgameMaxTimeMs : opts.maxTimeMs;
@@ -5034,12 +5041,7 @@ function chooseMoveByLookahead(candidateMoves: CpuPolicyMove[], options?: CpuPol
     const rootParity = resolveLookaheadParityFeature(board, empties);
     const rootPassPressure = resolveForcedPassFeature(rootOwnMoves, rootOppMoves, empties);
     const transposition = new Map<string, number>();
-    const transpositionLimit = (() => {
-        const base = endgameMode ? 400_000 : 80_000;
-        const scaled = Math.floor((Number(nodeBudget) || 0) * 0.6);
-        const cap = endgameMode ? 2_200_000 : 1_200_000;
-        return Math.max(base, Math.min(cap, scaled));
-    })();
+    const transpositionLimit = resolveLookaheadTranspositionLimit(nodeBudget, endgameMode);
 
     if (typeof opts.onSearchMeta === 'function') {
         try {
