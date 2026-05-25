@@ -88,14 +88,6 @@ const MatchAuthority = matchAuthority || {};
 type MatchWorkerCryptoLike = {
     getRandomValues(array: Uint8Array): Uint8Array;
 };
-const ROOM_ID_CHARS = String(MatchAuthority.ROOM_ID_CHARS || 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789');
-const ROOM_ID_LENGTH = Number.isFinite(Number(MatchAuthority.ROOM_ID_LENGTH))
-    ? Number(MatchAuthority.ROOM_ID_LENGTH)
-    : 3;
-const SEAT_TOKEN_CHARS = String(MatchAuthority.SEAT_TOKEN_CHARS || 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
-const SEAT_TOKEN_LENGTH = Number.isFinite(Number(MatchAuthority.SEAT_TOKEN_LENGTH))
-    ? Number(MatchAuthority.SEAT_TOKEN_LENGTH)
-    : 24;
 const ROOM_STORAGE_KEY = 'match_room_state_v1';
 const NetworkActionSchema = asRuntimeModule(networkActionSchemaModule);
 const PlaybackEventHelpers = asRuntimeModule(playbackEventHelpersModule);
@@ -118,10 +110,6 @@ const NETWORK_TURN_LIMIT_MS = NETWORK_TURN_LIMIT_SECONDS * 1000;
 const SSE_HEARTBEAT_INTERVAL_MS = 10000;
 const SSE_WRITE_TIMEOUT_MS = 10000;
 const NETWORK_DEBUG_FILL_HAND_ACTION = MatchAuthority.NETWORK_DEBUG_FILL_HAND_ACTION || 'debug_fill_hand';
-const OPERATION_ID_MAX_LENGTH = Number.isFinite(Number(MatchAuthority.OPERATION_ID_MAX_LENGTH))
-    ? Number(MatchAuthority.OPERATION_ID_MAX_LENGTH)
-    : 128;
-
 let coreLogicModulePromise: Promise<MatchWorkerCoreModule> | null = null;
 let deckModulesPromise: Promise<MatchWorkerDeckGlobals> | null = null;
 let turnStartModulesPromise: Promise<MatchWorkerTurnStartModules> | null = null;

@@ -36,19 +36,8 @@ const PORT = Number.isFinite(parsedArgPort)
     ? parsedArgPort
     : (Number.isFinite(parsedEnvPort) ? parsedEnvPort : 8787);
 
-const ROOM_ID_CHARS = String(MatchAuthority.ROOM_ID_CHARS || 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789');
-const ROOM_ID_LENGTH = Number.isFinite(Number(MatchAuthority.ROOM_ID_LENGTH))
-    ? Number(MatchAuthority.ROOM_ID_LENGTH)
-    : 3;
-const SEAT_TOKEN_CHARS = String(MatchAuthority.SEAT_TOKEN_CHARS || 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
-const SEAT_TOKEN_LENGTH = Number.isFinite(Number(MatchAuthority.SEAT_TOKEN_LENGTH))
-    ? Number(MatchAuthority.SEAT_TOKEN_LENGTH)
-    : 24;
 const CHAT_MAX_LENGTH = 20;
 const CHAT_HISTORY_LIMIT = 40;
-const NETWORK_PLAYER_NAME_MAX = Number.isFinite(Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX))
-    ? Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX)
-    : 7;
 const NETWORK_TURN_LIMIT_SECONDS = 120;
 const NETWORK_TURN_LIMIT_MS = NETWORK_TURN_LIMIT_SECONDS * 1000;
 const SSE_HEARTBEAT_INTERVAL_MS = 10000;
