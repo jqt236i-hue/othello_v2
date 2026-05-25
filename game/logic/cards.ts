@@ -655,7 +655,7 @@ const {
     /** @type {any} */
     const CardBreedingModule = resolveCardLogicGlobalOrModule('CardBreeding', './cards/breeding');
     const CardHyperactiveModule = resolveCardLogicGlobalOrModule('CardHyperactive', './cards/hyperactive');
-    const CardUdgModule = resolveCardLogicGlobalOrModule('CardUdg', './cards/udg');
+    const CardUdgModule = resolveRequiredCardModule('./cards/udg', 'CardUdg');
     /** @type {any} */
     const CardSniperModule = resolveCardLogicGlobalOrModule('CardSniper', './cards/sniper');
     const CardLightningModule = resolveCardLogicGlobalOrModule('CardLightning', './cards/lightning');
@@ -4962,14 +4962,10 @@ const {
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         }, opts);
-        if (CardUdgModule && typeof CardUdgModule.processUltimateDestroyGodEffectsAtAnchor === 'function') {
-            return runBoardOpsDestroyBlock(cardState, gameState, () =>
-                CardUdgModule.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps),
-                { randomSource: deps.random || opts.randomSource || opts.random }
-            );
-        }
-        console.warn('[cards.js] CardUdG module not available');
-        return { destroyed: [] };
+        return runBoardOpsDestroyBlock(cardState, gameState, () =>
+            CardUdgModule.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps),
+            { randomSource: deps.random || opts.randomSource || opts.random }
+        );
     }
 
     function processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, opts : any = {}) {
@@ -4979,14 +4975,10 @@ const {
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         }, opts);
-        if (CardUdgModule && typeof CardUdgModule.processUltimateDestroyGodEffectsAtTurnStartAnchor === 'function') {
-            return runBoardOpsDestroyBlock(cardState, gameState, () =>
-                CardUdgModule.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
-                { randomSource: deps.random || opts.randomSource || opts.random }
-            );
-        }
-        console.warn('[cards.js] CardUdG turn-start anchor processor not available');
-        return { moved: [], destroyed: [], anchors: [], expired: [] };
+        return runBoardOpsDestroyBlock(cardState, gameState, () =>
+            CardUdgModule.processUltimateDestroyGodEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
+            { randomSource: deps.random || opts.randomSource || opts.random }
+        );
     }
 
     function resolveSniperModule() {
