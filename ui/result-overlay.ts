@@ -35,61 +35,26 @@ const _observationStoneRewardByToken = new Map();
 // Updated each time showResult() is called so stale delayed callbacks can detect
 // that a newer invocation has superseded them.
 let _pendingResultToken: any = null;
-const ResultOverlayOwnerHelpersModule = (() => {
+
+function resolveResultOverlayModuleOrNull(id: string, globalName: string): any {
     if (typeof require === 'function') {
         try {
-            return require('../utils/owner-helpers');
+            return require(id);
         } catch (e: any) { /* ignore */ }
     }
     try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).OwnerHelpers) return (globalThis as any).OwnerHelpers;
+        if (typeof globalThis !== 'undefined' && (globalThis as any)[globalName]) {
+            return (globalThis as any)[globalName];
+        }
     } catch (e: any) { /* ignore */ }
     return null;
-})();
-const ResultOverlayGachaHelpersModule = (() => {
-    if (typeof require === 'function') {
-        try {
-            return require('../shared/gacha-helpers');
-        } catch (e: any) { /* ignore */ }
-    }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).GachaHelpersModule) return (globalThis as any).GachaHelpersModule;
-    } catch (e: any) { /* ignore */ }
-    return null;
-})();
-const ResultOverlayGachaProgressModule = (() => {
-    if (typeof require === 'function') {
-        try {
-            return require('./storage/gacha-progress');
-        } catch (e: any) { /* ignore */ }
-    }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).GachaProgressStorageModule) return (globalThis as any).GachaProgressStorageModule;
-    } catch (e: any) { /* ignore */ }
-    return null;
-})();
-const ResultOverlayBoardUtilsModule = (() => {
-    if (typeof require === 'function') {
-        try {
-            return require('../shared/shared-board-utils');
-        } catch (e: any) { /* ignore */ }
-    }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).SharedBoardUtils) return (globalThis as any).SharedBoardUtils;
-    } catch (e: any) { /* ignore */ }
-    return null;
-})();
-const ResultOverlayBoardUtilsNewModule = (() => {
-    if (typeof require === 'function') {
-        try {
-            return require('../shared/board-utils');
-        } catch (e: any) { /* ignore */ }
-    }
-    try {
-        if (typeof globalThis !== 'undefined' && (globalThis as any).BoardUtils) return (globalThis as any).BoardUtils;
-    } catch (e: any) { /* ignore */ }
-    return null;
-})();
+}
+
+const ResultOverlayOwnerHelpersModule = resolveResultOverlayModuleOrNull('../utils/owner-helpers', 'OwnerHelpers');
+const ResultOverlayGachaHelpersModule = resolveResultOverlayModuleOrNull('../shared/gacha-helpers', 'GachaHelpersModule');
+const ResultOverlayGachaProgressModule = resolveResultOverlayModuleOrNull('./storage/gacha-progress', 'GachaProgressStorageModule');
+const ResultOverlayBoardUtilsModule = resolveResultOverlayModuleOrNull('../shared/shared-board-utils', 'SharedBoardUtils');
+const ResultOverlayBoardUtilsNewModule = resolveResultOverlayModuleOrNull('../shared/board-utils', 'BoardUtils');
 
 function createEmptyResultPresentationState() {
     return {
