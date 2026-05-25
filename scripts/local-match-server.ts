@@ -74,9 +74,7 @@ function normalizeOperationId(value: any) {
 }
 
 function normalizeSeatHandSkinId(value: any) {
-    return MatchAuthority && typeof MatchAuthority.normalizeSeatHandSkinId === 'function'
-        ? MatchAuthority.normalizeSeatHandSkinId(value)
-        : String(value || '').trim();
+    return MatchAuthority.normalizeSeatHandSkinId(value);
 }
 
 function ensureAcceptedOperationsBySeat(room: any) {

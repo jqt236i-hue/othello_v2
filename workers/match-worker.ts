@@ -216,10 +216,7 @@ function getCurrentPlayerKey(gameState: unknown): MatchAuthoritySeatKey {
 }
 
 function normalizeSeatHandSkinId(value: unknown): string {
-    if (MatchAuthority && typeof MatchAuthority.normalizeSeatHandSkinId === 'function') {
-        return MatchAuthority.normalizeSeatHandSkinId(value);
-    }
-    return String(value || '').trim();
+    return MatchAuthority.normalizeSeatHandSkinId(value);
 }
 
 function getOpponentKey(playerKey: unknown): MatchAuthoritySeatKey {
@@ -227,19 +224,11 @@ function getOpponentKey(playerKey: unknown): MatchAuthoritySeatKey {
 }
 
 function makeHiddenHandToken(ownerKey: unknown, handIndex: unknown): string {
-    if (MatchAuthority && typeof MatchAuthority.makeHiddenHandToken === 'function') {
-        return MatchAuthority.makeHiddenHandToken(ownerKey, handIndex);
-    }
-    const normalizedOwner = normalizePlayerKey(ownerKey);
-    const idx = Number.isFinite(Number(handIndex)) ? Math.max(0, Math.trunc(Number(handIndex))) : 0;
-    return `__hidden_hand__:${normalizedOwner}:${idx}`;
+    return MatchAuthority.makeHiddenHandToken(ownerKey, handIndex);
 }
 
 function parseHiddenHandToken(value: unknown): unknown {
-    if (MatchAuthority && typeof MatchAuthority.parseHiddenHandToken === 'function') {
-        return MatchAuthority.parseHiddenHandToken(value);
-    }
-    return null;
+    return MatchAuthority.parseHiddenHandToken(value);
 }
 
 function resolveAuthenticatedSeatKey(room: unknown, seatKeyValue: unknown, seatTokenValue: unknown): MatchAuthoritySeatKey | null {
