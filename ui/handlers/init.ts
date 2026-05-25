@@ -40,10 +40,19 @@ declare const toggleCardDetailExpanded: (() => void) | undefined;
 declare const passCurrentTurn: (() => void) | undefined;
 declare const GameState: GameStateType | undefined;
 
-const InitBootstrapShared = ((): typeof SharedUIBootstrap | null => {
-  if (typeof _require === 'function') {
-    try { return _require('../../shared/ui-bootstrap-shared'); } catch (e) { /* ignore */ }
+function requireInitHandlerModuleOrNull(id: string): any {
+  if (typeof _require !== 'function') return null;
+  try {
+    return _require(id);
+  } catch (e) {
+    /* ignore */
   }
+  return null;
+}
+
+const InitBootstrapShared = ((): typeof SharedUIBootstrap | null => {
+  const sharedModule = requireInitHandlerModuleOrNull('../../shared/ui-bootstrap-shared');
+  if (sharedModule) return sharedModule;
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as unknown as typeof SharedUIBootstrap)) {
       return (globalThis as unknown as typeof SharedUIBootstrap);
