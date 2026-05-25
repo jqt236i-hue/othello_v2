@@ -8,8 +8,16 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
 
 let AnimationShared: any = (typeof _require === 'function') ? _require('./animation-helpers') : (typeof window !== 'undefined' ? (window as any).AnimationHelpers : null);
 let BoardRendererDiscHelpers: any = (typeof _require === 'function') ? _require('./board-renderer') : (typeof window !== 'undefined' ? window : null);
+function requireStoneVisualsModuleOrNull(id: string): any {
+  try {
+    return _require(id);
+  } catch (e) {
+    return null;
+  }
+}
+
 let VisualEffectsHelpers: any = (typeof _require === 'function')
-  ? (function () { try { return _require('./visual-effects-map'); } catch (e) { return null; } })()
+  ? requireStoneVisualsModuleOrNull('./visual-effects-map')
   : (typeof window !== 'undefined' ? window : null);
 let _isNoAnim = (AnimationShared && AnimationShared.isNoAnim) ? AnimationShared.isNoAnim : function () { return false; };
 let _Timer = (AnimationShared && AnimationShared.getTimer) ? AnimationShared.getTimer : function () {
