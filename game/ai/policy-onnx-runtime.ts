@@ -35,13 +35,16 @@ const PADDED_BOARD_SIZE = SharedBoardUtils && Number.isFinite(Number(SharedBoard
     ? Number(SharedBoardUtils.PADDED_BOARD_SIZE)
     : ((PADDED_BOARD_MAX - PADDED_BOARD_MIN) + 1);
 const PADDED_BOARD_FEATURE_DIM = PADDED_BOARD_SIZE * PADDED_BOARD_SIZE;
-const CHARGE_MAX_NORMALIZER = (() => {
+
+function resolveChargeMaxNormalizer(): number {
     try {
         const shared = _require('../../shared-constants');
         if (shared && Number.isFinite(Number(shared.CHARGE_MAX))) return Number(shared.CHARGE_MAX);
     } catch (e) { /* ignore */ }
     return 99;
-})();
+}
+
+const CHARGE_MAX_NORMALIZER = resolveChargeMaxNormalizer();
 const NO_CARD_ACTION_ID = '__no_card__';
 const LEGACY_DECK_COUNT_NORMALIZER = 60;
 const DECK_COUNT_FEATURE_MODE = 'own_deck_ratio_v1';
