@@ -2877,7 +2877,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             0
         );
         const postCardUsePhase = cardUseAnimationPhase > 0 ? (cardUseAnimationPhase + 1) : ctx.fallbackPhase;
-        const hasCardUse = ctx.pres.some((ev: any) => !!ev && ev.type === 'CARD_USED');
+        const hasCardUse = (
+            ctx.pres.some((ev: any) => !!ev && ev.type === 'CARD_USED') ||
+            _hasRawEvent(ctx.raw, 'card_used')
+        );
         const hasTreasureGain = _hasRawEvent(ctx.raw, 'treasure_box_gain', (ev: any) => Number(ev && ev.gained) > 0);
         if (hasCardUse && cardUseAnimationPhase > 0) {
             _pushSoundCue(ctx, 'card_use_button', cardUseAnimationPhase, 'card_used');

@@ -1145,6 +1145,24 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(4);
   });
 
+  test('宝箱の raw card_used だけが残る経路でも card_use_button を再生する', () => {
+    const base = [{
+      type: 'card_use_animation',
+      phase: 4,
+      targets: [{ cardId: 'TREASURE_BOX_001', owner: 'black', cardType: 'TREASURE_BOX' }]
+    }];
+    const raw = [
+      { type: 'card_used', player: 'black', cardId: 'TREASURE_BOX_001' },
+      { type: 'treasure_box_gain', player: 'black', gained: 2 }
+    ];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, raw, []);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'card_use_button');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(4);
+  });
+
   test('corrosion_will_resolved は card_use_animation の phase で corrosion_tick を再生する', () => {
     const base = [{
       type: 'card_use_animation',
