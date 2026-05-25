@@ -11,75 +11,37 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
 function createNetworkSnapshotController(config: any): any {
     const cfg = (config && typeof config === 'object') ? config : {};
     const rootRef = cfg.root || (typeof globalThis !== 'undefined' ? globalThis : null);
-    const snapshotRuntimeModule = (() => {
+    function resolveNetworkSnapshotModuleOrNull(modulePath: string, globalName: string): any {
         try {
-            if (rootRef && rootRef.NetworkSnapshotRuntimeModule) {
-                return rootRef.NetworkSnapshotRuntimeModule;
+            if (rootRef && rootRef[globalName]) {
+                return rootRef[globalName];
             }
         } catch (e) { /* ignore */ }
 
         try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkSnapshotRuntimeModule) {
-                return (globalThis as any).NetworkSnapshotRuntimeModule;
+            if (typeof globalThis !== 'undefined' && (globalThis as any)[globalName]) {
+                return (globalThis as any)[globalName];
             }
         } catch (e) { /* ignore */ }
 
         try {
             if (typeof _require === 'function') {
-                return _require('./snapshot-runtime');
+                return _require(modulePath);
             }
         } catch (e) { /* ignore */ }
 
         return null;
-    })();
+    }
+
+    const snapshotRuntimeModule = resolveNetworkSnapshotModuleOrNull('./snapshot-runtime', 'NetworkSnapshotRuntimeModule');
     const runtime = (
         snapshotRuntimeModule
         && typeof snapshotRuntimeModule.createNetworkSnapshotRuntime === 'function'
     )
         ? snapshotRuntimeModule.createNetworkSnapshotRuntime(cfg)
         : null;
-    const snapshotCanonicalModule = (() => {
-        try {
-            if (rootRef && rootRef.NetworkSnapshotCanonicalModule) {
-                return rootRef.NetworkSnapshotCanonicalModule;
-            }
-        } catch (e) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkSnapshotCanonicalModule) {
-                return (globalThis as any).NetworkSnapshotCanonicalModule;
-            }
-        } catch (e) { /* ignore */ }
-
-        try {
-            if (typeof _require === 'function') {
-                return _require('./snapshot-canonical');
-            }
-        } catch (e) { /* ignore */ }
-
-        return null;
-    })();
-    const snapshotPresentationModule = (() => {
-        try {
-            if (rootRef && rootRef.NetworkSnapshotPresentationModule) {
-                return rootRef.NetworkSnapshotPresentationModule;
-            }
-        } catch (e) { /* ignore */ }
-
-        try {
-            if (typeof globalThis !== 'undefined' && (globalThis as any).NetworkSnapshotPresentationModule) {
-                return (globalThis as any).NetworkSnapshotPresentationModule;
-            }
-        } catch (e) { /* ignore */ }
-
-        try {
-            if (typeof _require === 'function') {
-                return _require('./snapshot-presentation');
-            }
-        } catch (e) { /* ignore */ }
-
-        return null;
-    })();
+    const snapshotCanonicalModule = resolveNetworkSnapshotModuleOrNull('./snapshot-canonical', 'NetworkSnapshotCanonicalModule');
+    const snapshotPresentationModule = resolveNetworkSnapshotModuleOrNull('./snapshot-presentation', 'NetworkSnapshotPresentationModule');
 
     if (!snapshotCanonicalModule || typeof snapshotCanonicalModule.inspectAuthoritativeSnapshot !== 'function') {
         throw new Error('NetworkSnapshotCanonicalModule is required before ui/network/snapshot.js');
