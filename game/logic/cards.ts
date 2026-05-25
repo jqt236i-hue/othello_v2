@@ -672,7 +672,7 @@ const {
     const CardBoardExpansionApplyModule = resolveRequiredCardModule('../cards/effects/board-expansion-apply', 'CardBoardExpansionApply');
     const CardStatusCellsModule = resolveRequiredCardModule('../cards/effects/status-cells', 'CardStatusCellsEffects');
     const CardHandEffectsModule = resolveRequiredCardModule('../cards/effects/hand-effects', 'CardHandEffects');
-    const CardPositionSwapModule = resolveOptionalCardModule('../cards/effects/position-swap', 'CardPositionSwapEffects');
+    const CardPositionSwapModule = resolveRequiredCardModule('../cards/effects/position-swap', 'CardPositionSwapEffects');
 
     function addChargeValue(cardState: any, playerKey: any, amount: any, reason: any, meta?: any) {
         if (!CardStateManager || typeof CardStateManager.addCharge !== 'function') {
@@ -5870,16 +5870,13 @@ const {
     }
 
     function applyPositionSwapWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardPositionSwapModule && typeof CardPositionSwapModule.applyPositionSwapWill === 'function') {
-            return CardPositionSwapModule.applyPositionSwapWill(cardState, gameState, playerKey, row, col, {
-                readCardPendingEffect,
-                getCellValueForCard,
-                isPositionSwapProtectedCell,
-                swapOccupiedCellsWithPresentation,
-                clearCardPendingEffect
-            });
-        }
-        return { applied: false, reason: 'deps_missing' };
+        return CardPositionSwapModule.applyPositionSwapWill(cardState, gameState, playerKey, row, col, {
+            readCardPendingEffect,
+            getCellValueForCard,
+            isPositionSwapProtectedCell,
+            swapOccupiedCellsWithPresentation,
+            clearCardPendingEffect
+        });
     }
 
 
