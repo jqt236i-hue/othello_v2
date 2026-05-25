@@ -1638,22 +1638,7 @@ function buildPresencePayload(room: MatchWorkerRoomState, meta: MatchWorkerPrese
     const metaRecord = asRecord(meta);
     const seatKey = metaRecord.seatKey ? normalizePlayerKey(metaRecord.seatKey) : 'black';
     const publicSeatState = buildPublicSeatState(room);
-    if (MatchAuthority && typeof MatchAuthority.buildPresencePayloadFromRoom === 'function') {
-        return MatchAuthority.buildPresencePayloadFromRoom(room, {
-            type: metaRecord.type ? String(metaRecord.type) : 'join',
-            seatKey,
-            playerName: normalizeNetworkPlayerName(publicSeatState.seatNames[seatKey]),
-            rejoined: !!metaRecord.rejoined,
-            roomDeck: toPublicRoomDeck(room),
-            roomBoardConfig: toPublicRoomBoardConfig(room),
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            turnTimer: toPublicTurnTimer(room, serverTime),
-            serverTime
-        });
-    }
-    return withPublicSeatState(room, {
-        ok: true,
-        roomId: room.roomId,
+    return MatchAuthority.buildPresencePayloadFromRoom(room, {
         type: metaRecord.type ? String(metaRecord.type) : 'join',
         seatKey,
         playerName: normalizeNetworkPlayerName(publicSeatState.seatNames[seatKey]),
