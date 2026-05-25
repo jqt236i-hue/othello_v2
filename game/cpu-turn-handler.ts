@@ -81,9 +81,15 @@ let moveGenerator: any = null;
 if (typeof require === 'function') {
     try { moveGenerator = _require('./move-generator'); } catch (e) { /* ignore */ }
 }
-const PendingSelectionRegistryForCpu = (function() {
-    try { return _require('./logic/cards-internal/pending-selection-registry'); } catch (e) { return null; }
-})();
+function requireCpuTurnHandlerModuleOrNull(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+const PendingSelectionRegistryForCpu = requireCpuTurnHandlerModuleOrNull('./logic/cards-internal/pending-selection-registry');
 let cardEffectsHelpers: any = null;
 if (typeof require === 'function') {
     try { cardEffectsHelpers = _require('./card-effects/helpers'); } catch (e) { /* ignore */ }
