@@ -78,14 +78,16 @@ function _escapeRegExp(text: string): string {
   return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-const _effectTermsPattern = (() => {
+function _buildEffectTermsPattern(): RegExp | null {
   const sorted = (EFFECT_GLOSSARY_TERMS as any)
     .slice()
     .sort((a: string, b: string) => b.length - a.length)
     .map((term: string) => _escapeRegExp(term));
   if (!sorted.length) return null;
   return new RegExp(`(${sorted.join('|')})`, 'g');
-})();
+}
+
+const _effectTermsPattern = _buildEffectTermsPattern();
 
 function _highlightEffectTerms(escapedText: string): string {
   if (!_effectTermsPattern) return escapedText;
@@ -109,7 +111,7 @@ function _requireFirstRulesHelpModuleOrNull(paths: string[]): any {
   return null;
 }
 
-const _rulesHelpCardInteractionEffectsModule = (() => {
+function _resolveRulesHelpCardInteractionEffectsModule(): any {
   if (typeof (CardInteractionEffects as any) !== 'undefined' && (CardInteractionEffects as any)) return (CardInteractionEffects as any);
   if (typeof window !== 'undefined' && (window as any).CardInteractionEffects) return (window as any).CardInteractionEffects;
   if (typeof _require === 'function') {
@@ -119,7 +121,9 @@ const _rulesHelpCardInteractionEffectsModule = (() => {
     ]);
   }
   return null;
-})();
+}
+
+const _rulesHelpCardInteractionEffectsModule = _resolveRulesHelpCardInteractionEffectsModule();
 
 function _normalizeCardDescText(text: any): string {
   if (_rulesHelpCardInteractionEffectsModule && typeof _rulesHelpCardInteractionEffectsModule.normalizeCardDescText === 'function') {
