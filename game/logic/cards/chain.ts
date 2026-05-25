@@ -40,6 +40,9 @@ const RandomSourceModule = ((typeof module === 'object' && module.exports)
 const { DIRECTIONS } = SharedConstants || {};
 
 if (!DIRECTIONS) throw new Error('SharedConstants.DIRECTIONS required');
+if (!CardFlips || typeof CardFlips.getDirectionalChainFlips !== 'function') {
+    throw new Error('CardFlips.getDirectionalChainFlips required');
+}
 
 interface Point { row: number; col: number }
 interface ChainCandidate { from: Point; dir: any; score: number; flips: Point[] }
@@ -79,9 +82,7 @@ function findChainChoice(
     const candidates: ChainCandidate[] = [];
     for (const point of candidatePoints) {
         for (const dir of (DIRECTIONS || [])) {
-            const flips = (CardFlips && typeof CardFlips.getDirectionalChainFlips === 'function')
-                ? CardFlips.getDirectionalChainFlips(gameState, point.row, point.col, ownerVal, dir, context)
-                : [];
+            const flips = CardFlips.getDirectionalChainFlips(gameState, point.row, point.col, ownerVal, dir, context);
             if (flips && flips.length > 0) {
                 candidates.push({ from: { row: point.row, col: point.col }, dir, score: flips.length, flips });
             }

@@ -648,8 +648,8 @@ const {
     /** @type {any} */
     const CardLivingWillModule = resolveCardLogicGlobalOrModule('CardLivingWill', './cards/living_will');
     const CardTargetsModule = resolveCardLogicGlobalOrModule('CardTargets', './cards/targets');
-    const CardFlipsModule = resolveCardLogicGlobalOrModule('CardFlips', './cards/flips');
-    const CardChainModule = resolveCardLogicGlobalOrModule('CardChain', './cards/chain');
+    const CardFlipsModule = resolveRequiredCardModule('./cards/flips', 'CardFlips');
+    const CardChainModule = resolveRequiredCardModule('./cards/chain', 'CardChain');
     const CardRegenModule = resolveRequiredCardModule('./cards/regen', 'CardRegen');
     const CardTimeBombModule = resolveCardLogicGlobalOrModule('CardTimeBomb', './cards/time_bomb');
     /** @type {any} */
@@ -4718,11 +4718,7 @@ const {
     }
 
     function getDirectionalChainFlips(gameState: any, row: any, col: any, ownerVal: any, dir: any, context: any) {
-        if (CardFlipsModule && typeof CardFlipsModule.getDirectionalChainFlips === 'function') {
-            return CardFlipsModule.getDirectionalChainFlips(gameState, row, col, ownerVal, dir, context);
-        }
-        console.warn('[cards.js] CardFlips.getDirectionalChainFlips not available');
-        return [];
+        return CardFlipsModule.getDirectionalChainFlips(gameState, row, col, ownerVal, dir, context);
     }
 
     function getTabooReverseDirectionalFlips(gameState: any, row: any, col: any, ownerVal: any, direction: any, context : any = {}) {
@@ -4852,11 +4848,7 @@ const {
             return { applied: true, flips: appliedFlips, chosen: chosenSteps[chosenSteps.length - 1] || null, chosenSteps };
         }
 
-        if (CardChainModule && typeof CardChainModule.findChainChoice === 'function') {
-            return runChainLinks(CardChainModule.findChainChoice);
-        }
-        console.warn('[cards.js] CardChain module not available');
-        return { applied: false, flips: [], chosen: null };
+        return runChainLinks(CardChainModule.findChainChoice);
     }
 
 
@@ -5323,11 +5315,7 @@ const {
      * @returns {Object} { spawned: [...], destroyed: [...], flipped: [...] }
     */
     function getFlipsWithContextLocal(state: any, row: any, col: any, player: any, context : any = {}) {
-        if (CardFlipsModule && typeof CardFlipsModule.getFlipsWithContext === 'function') {
-            return CardFlipsModule.getFlipsWithContext(state, row, col, player, context);
-        }
-        console.warn('[cards.js] CardFlips module not available');
-        return [];
+        return CardFlipsModule.getFlipsWithContext(state, row, col, player, context);
     }
 
 
