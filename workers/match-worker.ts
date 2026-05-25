@@ -270,12 +270,6 @@ function classifySeatTokenRejectionReason(seatTokenValue: unknown): string {
     return String(seatTokenValue || '').trim() ? 'SEAT_TOKEN_MISMATCH' : 'SEAT_TOKEN_REQUIRED';
 }
 
-function collectPipelineEffectLogMessages(rawEvents: unknown, presentationEvents: unknown, playerKey: unknown, playbackAdapter: unknown): string[] {
-    return MatchAuthority.collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, playbackAdapter as {
-        mapEffectLogsFromPipeline?: (rawEvents: unknown, presentationEvents: unknown, playerKey: unknown) => unknown;
-    });
-}
-
 function buildNetworkActionEffectLogs(
     action: unknown,
     playerKey: unknown,
@@ -1024,11 +1018,11 @@ async function reconcileTurnStartAndCollectPlayback(room: MatchWorkerRoomState |
     const adapter = modules && modules.TurnPipelineUIAdapter ? asPlaybackAdapter(modules.TurnPipelineUIAdapter) : null;
     const playbackAssembly = collectServerPlaybackEvents(snapshot, rawEvents, adapter);
     const snapshotRecord = asWorkerSnapshot(snapshot);
-    const effectLogs = collectPipelineEffectLogMessages(
+    const effectLogs = MatchAuthority.collectPipelineEffectLogMessages(
         rawEvents,
         playbackAssembly && Array.isArray(playbackAssembly.presentationEvents) ? playbackAssembly.presentationEvents : [],
         playbackAssembly && playbackAssembly.playerKey ? playbackAssembly.playerKey : getCurrentPlayerKey(snapshotRecord.gameState),
-        adapter
+        adapter as { mapEffectLogsFromPipeline?: (rawEvents: unknown, presentationEvents: unknown, playerKey: unknown) => unknown } | null
     );
     return appendTurnStartDrawPlaybackEvents(
         Object.assign({}, playbackAssembly, { effectLogs }),

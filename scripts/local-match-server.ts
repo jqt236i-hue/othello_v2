@@ -99,10 +99,6 @@ function toPublicSnapshot(room: any, viewerSeatKey: any) {
     return MatchAuthority.buildPublicSnapshot(room, viewerSeatKey || null);
 }
 
-function collectPipelineEffectLogMessages(rawEvents: any, presentationEvents: any, playerKey: any) {
-    return MatchAuthority.collectPipelineEffectLogMessages(rawEvents, presentationEvents, playerKey, TurnPipelineUIAdapter);
-}
-
 function buildNetworkActionEffectLogs(action: any, playerKey: any, rawEvents: any, presentationEvents: any) {
     return MatchAuthority.buildNetworkActionEffectLogs(action, playerKey, CardLogic, rawEvents, presentationEvents, TurnPipelineUIAdapter);
 }
@@ -401,10 +397,11 @@ function reconcileTurnStartAndCollectPlayback(room: any, snapshot: any) {
     }
     const rawEvents = reconcileTurnStartIfNeeded(room, snapshot, { includeRawEvents: true });
     const playbackAssembly = collectServerPlaybackEvents(snapshot, rawEvents);
-    const effectLogs = collectPipelineEffectLogMessages(
+    const effectLogs = MatchAuthority.collectPipelineEffectLogMessages(
         rawEvents,
         playbackAssembly && Array.isArray(playbackAssembly.presentationEvents) ? playbackAssembly.presentationEvents : [],
-        playbackAssembly && playbackAssembly.playerKey ? playbackAssembly.playerKey : getCurrentPlayerKey(snapshot && snapshot.gameState)
+        playbackAssembly && playbackAssembly.playerKey ? playbackAssembly.playerKey : getCurrentPlayerKey(snapshot && snapshot.gameState),
+        TurnPipelineUIAdapter
     );
     return appendTurnStartDrawPlaybackEvents(
         Object.assign({}, playbackAssembly, { effectLogs }),
