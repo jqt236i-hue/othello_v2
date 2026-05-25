@@ -124,29 +124,17 @@ function isFiniteNumber(value: unknown): boolean {
     return Number.isFinite(Number(value));
 }
 
-const SharedBoardUtils = (() => {
+function requireOptionalModule(id: string): any {
     try {
-        return require('../../shared/shared-board-utils');
+        return require(id);
     } catch (e) {
         return null;
     }
-})();
+}
 
-const OthelloCore = (() => {
-    try {
-        return require('../../shared/othello-core');
-    } catch (e) {
-        return null;
-    }
-})();
-
-const SharedCardHeuristics = (() => {
-    try {
-        return require('../../shared/shared-card-heuristics');
-    } catch (e) {
-        return null;
-    }
-})();
+const SharedBoardUtils = requireOptionalModule('../../shared/shared-board-utils');
+const OthelloCore = requireOptionalModule('../../shared/othello-core');
+const SharedCardHeuristics = requireOptionalModule('../../shared/shared-card-heuristics');
 const THROW_CHAIN_CARD_TYPES = Object.freeze(['DOUBLE_PLACE', 'TRIPLE_PLACE', 'QUAD_PLACE', 'INFINITE_PLACE']);
 const CHAIN_WILL_CARD_TYPES = Object.freeze(['DOUBLE_CHAIN_WILL', 'TRIPLE_CHAIN_WILL', 'QUAD_CHAIN_WILL', 'INFINITE_CHAIN_WILL']);
 
