@@ -633,7 +633,7 @@ const {
         return CardStateManager.normalizeCharge(cardState, playerKey, nextValue, reason, meta);
     }
 
-    const CardExpansionModule = resolveCardLogicGlobalOrModule('CardExpansion', './cards/expansion');
+    const CardExpansionModule = resolveRequiredCardModule('./cards/expansion', 'CardExpansion');
     const CardMarkersModule = resolveRequiredCardModule('./cards/markers', 'CardMarkers');
     /** @type {any} */
     const CardMovementModule = resolveRequiredCardModule('./cards/movement', 'CardMovement');
@@ -1537,111 +1537,43 @@ const {
     }
 
     function isMainBoardCellForCard(row: any, col: any, boardOrConfig: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.isMainBoardCellForCard === 'function') {
-            return CardExpansionModule.isMainBoardCellForCard(row, col, boardOrConfig);
-        }
-        const config = resolveCardBoardConfig(boardOrConfig);
-        return Number.isInteger(row) && Number.isInteger(col) && row >= 0 && row < config.rows && col >= 0 && col < config.cols;
+        return CardExpansionModule.isMainBoardCellForCard(row, col, boardOrConfig);
     }
 
     function resolveExpansionSideForCard(side: any, row: any, col: any, boardOrConfig: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.resolveExpansionSideForCard === 'function') {
-            return CardExpansionModule.resolveExpansionSideForCard(side, row, col, boardOrConfig);
-        }
-        if (side === 'left' || side === 'right' || side === 'top' || side === 'bottom') return side;
-        const config = resolveCardBoardConfig(boardOrConfig);
-        if (col === config.outerBounds.minCol) return 'left';
-        if (col === config.outerBounds.maxCol) return 'right';
-        if (row === config.outerBounds.minRow) return 'top';
-        if (row === config.outerBounds.maxRow) return 'bottom';
-        return null;
+        return CardExpansionModule.resolveExpansionSideForCard(side, row, col, boardOrConfig);
     }
 
     function normalizeExpansionOwnerForCard(owner: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.normalizeExpansionOwnerForCard === 'function') {
-            return CardExpansionModule.normalizeExpansionOwnerForCard(owner);
-        }
-        if (BoardUtils && typeof BoardUtils.normalizeOwner === 'function') {
-            const normalizedOwner = BoardUtils.normalizeOwner(owner);
-            return (normalizedOwner === BLACK || normalizedOwner === WHITE) ? normalizedOwner : EMPTY;
-        }
-        return (owner === BLACK || owner === WHITE) ? owner : EMPTY;
+        return CardExpansionModule.normalizeExpansionOwnerForCard(owner);
     }
 
     function isExpansionCoordinateForCard(row: any, col: any, boardOrConfig: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.isExpansionCoordinateForCard === 'function') {
-            return CardExpansionModule.isExpansionCoordinateForCard(row, col, boardOrConfig);
-        }
-        if (!Number.isInteger(row) || !Number.isInteger(col)) return false;
-        const config = resolveCardBoardConfig(boardOrConfig);
-        if (row < config.outerBounds.minRow || row > config.outerBounds.maxRow) return false;
-        if (col < config.outerBounds.minCol || col > config.outerBounds.maxCol) return false;
-        if (isMainBoardCellForCard(row, col, config)) return false;
-        return true;
+        return CardExpansionModule.isExpansionCoordinateForCard(row, col, boardOrConfig);
     }
 
     function getExpansionDescriptorsForCard(gameState: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.getExpansionDescriptorsForCard === 'function') {
-            return CardExpansionModule.getExpansionDescriptorsForCard(gameState);
-        }
-        return [];
+        return CardExpansionModule.getExpansionDescriptorsForCard(gameState);
     }
 
     function syncLegacyExpansionFieldsForCard(expansion: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.syncLegacyExpansionFieldsForCard === 'function') {
-            return CardExpansionModule.syncLegacyExpansionFieldsForCard(expansion, null);
-        }
+        return CardExpansionModule.syncLegacyExpansionFieldsForCard(expansion, null);
     }
 
     function ensureMutableBoardExpansionForCard(gameState: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.ensureMutableBoardExpansionForCard === 'function') {
-            return CardExpansionModule.ensureMutableBoardExpansionForCard(gameState);
-        }
-        if (!gameState || typeof gameState !== 'object') return null;
-        if (!gameState.boardExpansion || typeof gameState.boardExpansion !== 'object') {
-            gameState.boardExpansion = {
-                active: false,
-                side: null,
-                row: null,
-                owner: EMPTY,
-                usedByPlayer: { black: false, white: false },
-                cells: []
-            };
-            return gameState.boardExpansion;
-        }
-
-        return gameState.boardExpansion;
+        return CardExpansionModule.ensureMutableBoardExpansionForCard(gameState);
     }
 
     function writeExpansionDescriptorsForCard(gameState: any, cells: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.writeExpansionDescriptorsForCard === 'function') {
-            return CardExpansionModule.writeExpansionDescriptorsForCard(gameState, cells);
-        }
-        const boardExpansion = ensureMutableBoardExpansionForCard(gameState);
-        if (!boardExpansion) return null;
-        boardExpansion.cells = Array.isArray(cells) ? cells.slice() : [];
-        return boardExpansion;
+        return CardExpansionModule.writeExpansionDescriptorsForCard(gameState, cells);
     }
 
     function getCellValueForCard(gameState: any, row: any, col: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.getCellValueForCard === 'function') {
-            return CardExpansionModule.getCellValueForCard(gameState, row, col);
-        }
-        return (isMainBoardCellForCard(row, col, gameState) && gameState && Array.isArray(gameState.board) && Array.isArray(gameState.board[row]))
-            ? gameState.board[row][col]
-            : null;
+        return CardExpansionModule.getCellValueForCard(gameState, row, col);
     }
 
     function setCellValueForCard(gameState: any, row: any, col: any, value: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.setCellValueForCard === 'function') {
-            return CardExpansionModule.setCellValueForCard(gameState, row, col, value);
-        }
-        if (isMainBoardCellForCard(row, col, gameState)) {
-            if (!gameState || !Array.isArray(gameState.board) || !Array.isArray(gameState.board[row])) return false;
-            gameState.board[row][col] = value;
-            return true;
-        }
-        return false;
+        return CardExpansionModule.setCellValueForCard(gameState, row, col, value);
     }
 
     function clearStoneIdAtForCard(cardState: any, gameState: any, row: any, col: any) {
@@ -1883,116 +1815,7 @@ const {
     }
 
     function buildInitialBoardBonusMap(prng: any, boardOrConfig: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.buildInitialBoardBonusMap === 'function') {
-            return CardExpansionModule.buildInitialBoardBonusMap(prng, boardOrConfig);
-        }
-        const config = resolveCardBoardConfig(boardOrConfig);
-        const openingCells = getOpeningCellsForState(config);
-        const orthogonalDirs = [
-            { dr: -1, dc: 0 },
-            { dr: 1, dc: 0 },
-            { dr: 0, dc: -1 },
-            { dr: 0, dc: 1 }
-        ];
-        const blocked = new Set();
-        for (const stone of openingCells) {
-            blocked.add(`${stone.row},${stone.col}`);
-            for (const dir of orthogonalDirs) {
-                const nextRow = stone.row + dir.dr;
-                const nextCol = stone.col + dir.dc;
-                if (!isMainBoardCellForCard(nextRow, nextCol, config)) continue;
-                blocked.add(`${nextRow},${nextCol}`);
-            }
-        }
-        const cells = [];
-        for (let row = 0; row < config.rows; row++) {
-            for (let col = 0; col < config.cols; col++) {
-                const key = `${row},${col}`;
-                if (blocked.has(key)) continue;
-                cells.push({ row, col });
-            }
-        }
-        const dist = Array.isArray(INITIAL_BOARD_BONUS_DISTRIBUTION) && INITIAL_BOARD_BONUS_DISTRIBUTION.length > 0
-            ? INITIAL_BOARD_BONUS_DISTRIBUTION
-            : [
-                { value: 1, count: 9 },
-                { value: 2, count: 8 },
-                { value: 3, count: 6 },
-                { value: 4, count: 5 },
-                { value: 5, count: 4 },
-                { value: 6, count: 3 },
-                { value: 7, count: 2 },
-                { value: 8, count: 1 },
-                { value: 9, count: 1 },
-                { value: 10, count: 1 }
-            ];
-        const baseConfig = resolveCardBoardConfig();
-        const baseOpeningCells = getOpeningCellsForState(baseConfig);
-        const baseBlocked = new Set();
-        for (const stone of baseOpeningCells) {
-            baseBlocked.add(`${stone.row},${stone.col}`);
-            for (const dir of orthogonalDirs) {
-                const nextRow = stone.row + dir.dr;
-                const nextCol = stone.col + dir.dc;
-                if (!isMainBoardCellForCard(nextRow, nextCol, baseConfig)) continue;
-                baseBlocked.add(`${nextRow},${nextCol}`);
-            }
-        }
-        const basePlayableCellCount = Math.max(
-            1,
-            (baseConfig.rows * baseConfig.cols) - baseBlocked.size
-        );
-        const baseBonusTotal = dist.reduce((sum: any, item: any) => {
-            const count = Number(item && item.count);
-            return sum + (Number.isInteger(count) && count > 0 ? count : 0);
-        }, 0);
-        const targetBonusTotal = Math.min(
-            cells.length,
-            Math.max(0, Math.round((cells.length * baseBonusTotal) / basePlayableCellCount))
-        );
-        const validDist = dist.reduce((out: any, item: any, index: any) => {
-            if (!item) return out;
-            const value = Number(item.value);
-            const count = Number(item.count);
-            if (!Number.isInteger(value) || value < 1 || value > 10) return out;
-            if (!Number.isInteger(count) || count <= 0) return out;
-            out.push({ value, count, index });
-            return out;
-        }, []);
-        const validDistTotal = validDist.reduce((sum: any, item: any) => sum + item.count, 0);
-        const scaledDist = validDist.map((item: any) => {
-            const exact = validDistTotal > 0 ? ((item.count * targetBonusTotal) / validDistTotal) : 0;
-            return {
-                value: item.value,
-                count: Math.floor(exact),
-                fraction: exact - Math.floor(exact),
-                index: item.index
-            };
-        });
-        let remaining = Math.max(0, targetBonusTotal - scaledDist.reduce((sum: any, item: any) => sum + item.count, 0));
-        const priority = scaledDist.slice().sort((a: any, b: any) => {
-            if (b.fraction !== a.fraction) return b.fraction - a.fraction;
-            return a.index - b.index;
-        });
-        for (let i = 0; i < priority.length && remaining > 0; i++) {
-            priority[i].count += 1;
-            remaining -= 1;
-        }
-        const bonusValues = [];
-        for (const item of scaledDist) {
-            for (let i = 0; i < item.count; i++) bonusValues.push(item.value);
-        }
-        prng.shuffle(cells);
-        const values = bonusValues.slice();
-        prng.shuffle(values);
-
-        const assignCount = Math.min(cells.length, values.length);
-        const out: Record<string, any> = {};
-        for (let i = 0; i < assignCount; i++) {
-            const pos = cells[i];
-            out[`${pos.row},${pos.col}`] = values[i];
-        }
-        return out;
+        return CardExpansionModule.buildInitialBoardBonusMap(prng, boardOrConfig);
     }
 
     /**
@@ -2905,38 +2728,23 @@ const {
     }
 
     function getBoardExpansionGodCornerDescriptorsForCard(gameState: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.getBoardExpansionGodCornerDescriptorsForCard === 'function') {
-            return CardExpansionModule.getBoardExpansionGodCornerDescriptorsForCard(gameState);
-        }
-        return [];
+        return CardExpansionModule.getBoardExpansionGodCornerDescriptorsForCard(gameState);
     }
 
     function getBoardExpansionGodPendingSelectionsForCard(pending: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.getBoardExpansionGodPendingSelectionsForCard === 'function') {
-            return CardExpansionModule.getBoardExpansionGodPendingSelectionsForCard(pending);
-        }
-        return [];
+        return CardExpansionModule.getBoardExpansionGodPendingSelectionsForCard(pending);
     }
 
     function getBoardExpansionGodAdditionsForCard(row: any, col: any, gameState: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.getBoardExpansionGodAdditionsForCard === 'function') {
-            return CardExpansionModule.getBoardExpansionGodAdditionsForCard(row, col, gameState);
-        }
-        return null;
+        return CardExpansionModule.getBoardExpansionGodAdditionsForCard(row, col, gameState);
     }
 
     function getBoardExpansionWillCellDescriptorsForCard(gameState: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.getBoardExpansionWillCellDescriptorsForCard === 'function') {
-            return CardExpansionModule.getBoardExpansionWillCellDescriptorsForCard(gameState);
-        }
-        return [];
+        return CardExpansionModule.getBoardExpansionWillCellDescriptorsForCard(gameState);
     }
 
     function ensureExpansionCellForCard(gameState: any, row: any, col: any, owner: any) {
-        if (CardExpansionModule && typeof CardExpansionModule.ensureExpansionCellForCard === 'function') {
-            return CardExpansionModule.ensureExpansionCellForCard(gameState, row, col, owner);
-        }
-        return false;
+        return CardExpansionModule.ensureExpansionCellForCard(gameState, row, col, owner);
     }
 
     function getBoardExpansionGodTargets(cardState: any, gameState: any, playerKey: any) {
