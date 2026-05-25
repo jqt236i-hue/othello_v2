@@ -1021,26 +1021,7 @@ function broadcastChat(room: any, payload: any) {
 }
 
 function resolveSeatForJoin(room: any, requestedSeatKey: any, providedToken: any) {
-    if (MatchAuthority && typeof MatchAuthority.resolveSeatForJoin === 'function') {
-        return MatchAuthority.resolveSeatForJoin(room, requestedSeatKey, providedToken);
-    }
-    const token = String(providedToken || '').trim();
-    const requested = parseSeatKeyOptional(requestedSeatKey);
-
-    if (requested) {
-        if (token && room.seatTokens && room.seatTokens[requested] === token) return requested;
-        if (!room.seats[requested]) return requested;
-        return null;
-    }
-
-    if (token && room.seatTokens) {
-        if (room.seatTokens.black === token) return 'black';
-        if (room.seatTokens.white === token) return 'white';
-    }
-
-    if (!room.seats.black) return 'black';
-    if (!room.seats.white) return 'white';
-    return null;
+    return MatchAuthority.resolveSeatForJoin(room, requestedSeatKey, providedToken);
 }
 
 function makeRoom(options: any) {

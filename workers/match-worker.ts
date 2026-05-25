@@ -91,7 +91,6 @@ type MatchWorkerCryptoLike = {
 const ROOM_STORAGE_KEY = 'match_room_state_v1';
 const NetworkActionSchema = asRuntimeModule(networkActionSchemaModule);
 const PlaybackEventHelpers = asRuntimeModule(playbackEventHelpersModule);
-const PLAYER_KEYS = Array.isArray(MatchAuthority.PLAYER_KEYS) ? MatchAuthority.PLAYER_KEYS : Object.freeze(['black', 'white']);
 const CHAT_MAX_LENGTH = 20;
 const CHAT_HISTORY_LIMIT = 40;
 const NETWORK_PLAYER_NAME_MAX = Number.isFinite(Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX))
@@ -209,14 +208,6 @@ function normalizeSeatHandSkinId(value: unknown): string {
 
 function getOpponentKey(playerKey: unknown): MatchAuthoritySeatKey {
     return MatchAuthority.getOpponentKey(parseSeatKeyOptional(playerKey));
-}
-
-function makeHiddenHandToken(ownerKey: unknown, handIndex: unknown): string {
-    return MatchAuthority.makeHiddenHandToken(ownerKey, handIndex);
-}
-
-function parseHiddenHandToken(value: unknown): unknown {
-    return MatchAuthority.parseHiddenHandToken(value);
 }
 
 function resolveAuthenticatedSeatKey(room: unknown, seatKeyValue: unknown, seatTokenValue: unknown): MatchAuthoritySeatKey | null {
@@ -1145,98 +1136,9 @@ async function reconcileTurnStartIfNeeded(room: MatchWorkerRoomState | null | un
     return opts.includeRawEvents ? turnStartEvents : snapshot;
 }
 
-function cloneSnapshotWithVersion(room: MatchWorkerRoomState | null | undefined): MatchWorkerPublicSnapshot {
-    const shot = deepClone(room && room.snapshot ? room.snapshot : {}) as MatchWorkerPublicSnapshot;
-    shot.stateVersion = room ? room.stateVersion : 0;
-    shot.updatedAt = room ? room.updatedAt : Date.now();
-    return shot;
-}
-
-function canViewerInspectOwnerHandForProjection(snapshot: unknown, viewerSeatKey: unknown, ownerSeatKey: unknown): boolean {
-    const viewer = parseSeatKeyOptional(viewerSeatKey);
-    const owner = parseSeatKeyOptional(ownerSeatKey);
-    if (!viewer || !owner) return false;
-    if (viewer === owner) return true;
-    const snapshotRecord = asWorkerSnapshot(snapshot);
-    const gameState = snapshotRecord.gameState || null;
-    const currentPlayerKey = getCurrentPlayerKey(gameState);
-    if (owner !== currentPlayerKey) return false;
-    const cardState = asRecord(snapshotRecord.cardState);
-    const controllerMap = (cardState.fateWillControllerByTurnOwner && typeof cardState.fateWillControllerByTurnOwner === 'object')
-        ? asRecord(cardState.fateWillControllerByTurnOwner)
-        : {};
-    return parseSeatKeyOptional(controllerMap[owner]) === viewer;
-}
-
-function projectSnapshotForViewer(room: MatchWorkerRoomState | null | undefined, viewerSeatKey: unknown): MatchWorkerPublicSnapshot {
-    const shot = cloneSnapshotWithVersion(room);
-    if (!shot || typeof shot !== 'object') return shot;
-
-    const cardState = (shot.cardState && typeof shot.cardState === 'object') ? asRecord(shot.cardState) : null;
-    if (!cardState) return shot;
-
-    const viewer = parseSeatKeyOptional(viewerSeatKey);
-    const hands = (cardState.hands && typeof cardState.hands === 'object') ? asRecord(cardState.hands) : {};
-    const sourceHands: Partial<Record<MatchAuthoritySeatKey, unknown[]>> = {};
-    cardState.hands = cardState.hands && typeof cardState.hands === 'object' ? cardState.hands : {};
-    const projectedHands = asRecord(cardState.hands);
-
-    for (const ownerKey of PLAYER_KEYS as MatchAuthoritySeatKey[]) {
-        const ownerHand = Array.isArray(hands[ownerKey]) ? hands[ownerKey].slice() : [];
-        sourceHands[ownerKey] = ownerHand;
-        if (canViewerInspectOwnerHandForProjection(shot, viewer, ownerKey)) {
-            projectedHands[ownerKey] = ownerHand.slice();
-            continue;
-        }
-        projectedHands[ownerKey] = ownerHand.map((_, handIndex) => makeHiddenHandToken(ownerKey, handIndex));
-    }
-
-    const selectedOwnerKey = parseSeatKeyOptional(cardState.selectedCardOwnerKey);
-    const canViewerInspectSelectedOwnerHand = canViewerInspectOwnerHandForProjection(shot, viewer, selectedOwnerKey);
-    if (!canViewerInspectSelectedOwnerHand) {
-        cardState.selectedCardId = null;
-        cardState.selectedCardOwnerKey = null;
-    }
-
-    if (cardState.pendingEffectByPlayer && typeof cardState.pendingEffectByPlayer === 'object') {
-        const pendingEffectByPlayer = asRecord(cardState.pendingEffectByPlayer);
-        for (const ownerKey of PLAYER_KEYS as MatchAuthoritySeatKey[]) {
-            const pending = asRecord(pendingEffectByPlayer[ownerKey]);
-            if (!pending || pending.type !== 'CONDEMN_WILL' || !Array.isArray(pending.offers)) continue;
-            const opponentKey = getOpponentKey(ownerKey);
-            const opponentHand = Array.isArray(sourceHands[opponentKey]) ? sourceHands[opponentKey] : [];
-            const revealToViewer = canViewerInspectOwnerHandForProjection(shot, viewer, ownerKey);
-            pending.offers = pending.offers.map((offer: unknown, idx: number) => {
-                const offerRecord = asRecord(offer);
-                const parsedToken = offerRecord.cardId ? asRecord(parseHiddenHandToken(offerRecord.cardId)) : {};
-                const fallbackIndex = Number.isInteger(parsedToken.handIndex) ? Number(parsedToken.handIndex) : idx;
-                const handIndex = Number.isInteger(offerRecord.handIndex) ? Number(offerRecord.handIndex) : fallbackIndex;
-                if (revealToViewer) {
-                    const visibleCardId = (Number.isInteger(handIndex) && handIndex >= 0 && handIndex < opponentHand.length)
-                        ? opponentHand[handIndex]
-                        : null;
-                    return {
-                        handIndex,
-                        cardId: visibleCardId || makeHiddenHandToken(opponentKey, handIndex)
-                    };
-                }
-                return {
-                    handIndex,
-                    cardId: makeHiddenHandToken(opponentKey, handIndex)
-                };
-            });
-        }
-    }
-
-    return shot;
-}
-
 function toPublicSnapshot(room: MatchWorkerRoomState | null | undefined, viewerSeatKey: unknown): MatchWorkerPublicSnapshot {
     const viewer = parseSeatKeyOptional(viewerSeatKey);
-    if (MatchAuthority && typeof MatchAuthority.buildPublicSnapshot === 'function') {
-        return MatchAuthority.buildPublicSnapshot(room, viewer) as MatchWorkerPublicSnapshot;
-    }
-    return projectSnapshotForViewer(room, viewer);
+    return MatchAuthority.buildPublicSnapshot(room, viewer) as MatchWorkerPublicSnapshot;
 }
 
 function buildPublicSeatState(room: MatchWorkerRoomState | null | undefined): MatchWorkerPublicSeatState {
@@ -1607,28 +1509,7 @@ function buildHeartbeatPayload(room: MatchWorkerRoomState, serverTime: unknown):
 }
 
 function resolveSeatForJoin(room: MatchWorkerRoomState, requestedSeatKey: unknown, providedToken: unknown): MatchAuthoritySeatKey | null {
-    if (MatchAuthority && typeof MatchAuthority.resolveSeatForJoin === 'function') {
-        return MatchAuthority.resolveSeatForJoin(room, requestedSeatKey, providedToken);
-    }
-    const token = String(providedToken || '').trim();
-    const requested = parseSeatKeyOptional(requestedSeatKey);
-    const seats = room.seats || {};
-    const seatTokens = room.seatTokens || {};
-
-    if (requested) {
-        if (token && seatTokens[requested] === token) return requested;
-        if (!seats[requested]) return requested;
-        return null;
-    }
-
-    if (token) {
-        if (seatTokens.black === token) return 'black';
-        if (seatTokens.white === token) return 'white';
-    }
-
-    if (!seats.black) return 'black';
-    if (!seats.white) return 'white';
-    return null;
+    return MatchAuthority.resolveSeatForJoin(room, requestedSeatKey, providedToken);
 }
 
 function sseChunk(eventName: unknown, payload: unknown, eventId?: unknown): string {
