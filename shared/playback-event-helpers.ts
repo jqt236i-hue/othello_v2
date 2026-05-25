@@ -76,6 +76,19 @@
         playerKey: unknown;
     }
 
+    interface TurnStartHandState {
+        playerKey?: unknown;
+        hand?: unknown[];
+    }
+
+    interface TurnStartDrawOptions {
+        playbackAssembly?: unknown;
+        snapshot?: { cardState?: { hands?: Record<string, unknown> }; gameState?: unknown };
+        handState?: TurnStartHandState | null;
+        adapter?: PlaybackAdapter | null;
+        normalizePlayerKey?: (v: unknown) => string | null;
+    }
+
     function parseSeatKeyOptional(value: unknown): string | null {
         try {
             if (
@@ -428,6 +441,52 @@
         };
     }
 
+    function appendTurnStartDrawPlaybackEvents(options: unknown): unknown {
+        const opts = (options && typeof options === 'object') ? options as TurnStartDrawOptions : {};
+        const playbackAssembly = opts.playbackAssembly;
+        const assembly = (playbackAssembly && typeof playbackAssembly === 'object')
+            ? playbackAssembly as Record<string, unknown>
+            : { playbackEvents: Array.isArray(playbackAssembly) ? playbackAssembly : [], diagnostics: null };
+        const baseEvents = Array.isArray(assembly.playbackEvents) ? assembly.playbackEvents.slice() : [];
+        const handState = (opts.handState && typeof opts.handState === 'object') ? opts.handState : {};
+        const normalizePlayerKey = typeof opts.normalizePlayerKey === 'function' ? opts.normalizePlayerKey : parseSeatKeyOptional;
+        const playerKey = normalizePlayerKey(handState.playerKey);
+        if (!playerKey) return assembly;
+
+        const adapter = resolvePlaybackAdapter(opts.adapter);
+        if (!adapter || typeof adapter.mapToPlaybackEvents !== 'function') return assembly;
+
+        const snapshot = (opts.snapshot && typeof opts.snapshot === 'object') ? opts.snapshot : {};
+        const cardState = (snapshot.cardState && typeof snapshot.cardState === 'object') ? snapshot.cardState : {};
+        const hands = (cardState.hands && typeof cardState.hands === 'object') ? cardState.hands : {};
+        const beforeHand = Array.isArray(handState.hand) ? handState.hand : [];
+        const afterHand = Array.isArray(hands[playerKey]) ? hands[playerKey] as unknown[] : [];
+        if (afterHand.length <= beforeHand.length) return assembly;
+
+        const drawPresentationEvents = afterHand
+            .slice(beforeHand.length)
+            .filter((cardId) => cardId !== null && typeof cardId !== 'undefined')
+            .map((cardId) => ({
+                type: 'DRAW_CARD',
+                player: playerKey,
+                cardId,
+                count: 1
+            }));
+        if (drawPresentationEvents.length === 0) return assembly;
+
+        const drawPlaybackEvents = adapter.mapToPlaybackEvents(
+            drawPresentationEvents,
+            snapshot.cardState,
+            snapshot.gameState
+        ) || [];
+        if (!Array.isArray(drawPlaybackEvents) || drawPlaybackEvents.length === 0) return assembly;
+
+        return Object.assign({}, assembly, {
+            playbackEvents: appendPlaybackEventsAfter(baseEvents, drawPlaybackEvents),
+            diagnostics: assembly.diagnostics
+        });
+    }
+
     function cloneJsonSafe<T>(value: T): T {
         try {
             return JSON.parse(JSON.stringify(value));
@@ -485,6 +544,7 @@
         getCardCostTier,
         collectServerPlaybackEvents,
         mapServerPresentationToPlaybackEvents,
+        appendTurnStartDrawPlaybackEvents,
         mapRawPlaceEventsToPlayback,
         normalizeCardVisualDescriptor,
         appendPlaybackEventsAfter

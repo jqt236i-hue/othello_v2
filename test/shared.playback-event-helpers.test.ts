@@ -72,4 +72,30 @@ describe('PlaybackEventHelpers', () => {
       { type: 'draw', phase: 4, targets: [{ player: 'white' }] }
     ]);
   });
+
+  test('appends turn-start draw playback from hand growth', () => {
+    const out = helpers.appendTurnStartDrawPlaybackEvents({
+      playbackAssembly: {
+        playbackEvents: [{ type: 'status_applied', phase: 2, targets: [{ r: 1, col: 1 }] }],
+        diagnostics: { warnings: [] }
+      },
+      snapshot: {
+        cardState: { hands: { black: ['old-card', 'new-card'] } },
+        gameState: { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+      },
+      handState: { playerKey: 'black', hand: ['old-card'] },
+      adapter: {
+        mapToPlaybackEvents: jest.fn(() => [
+          { type: 'hand_add', phase: 1, targets: [{ player: 'black', cardId: 'new-card' }] }
+        ])
+      },
+      normalizePlayerKey: (value) => String(value || '')
+    });
+
+    expect(out.playbackEvents).toEqual([
+      { type: 'status_applied', phase: 2, targets: [{ r: 1, col: 1 }] },
+      { type: 'hand_add', phase: 3, targets: [{ player: 'black', cardId: 'new-card' }] }
+    ]);
+    expect(out.diagnostics).toEqual({ warnings: [] });
+  });
 });

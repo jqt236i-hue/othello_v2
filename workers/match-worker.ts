@@ -1022,48 +1022,13 @@ function appendTurnStartDrawPlaybackEvents(
     handState: MatchWorkerTurnStartHandState,
     playbackAdapter: unknown
 ): MatchWorkerPlaybackAssembly {
-    const assembly = (playbackAssembly && typeof playbackAssembly === 'object')
-        ? playbackAssembly as MatchWorkerPlaybackAssembly
-        : { playbackEvents: Array.isArray(playbackAssembly) ? playbackAssembly : [], diagnostics: null };
-    const baseEvents = Array.isArray(assembly.playbackEvents) ? assembly.playbackEvents.slice() : [];
-    const playerKey = normalizePlayerKey(handState && handState.playerKey);
-    if (!playerKey) return assembly;
-
-    const adapter = asPlaybackAdapter(playbackAdapter);
-    if (!adapter) return assembly;
-
-    const snapshotRecord = asWorkerSnapshot(snapshot);
-    const cardStateRecord = asRecord(snapshotRecord.cardState);
-    const hands = (cardStateRecord.hands && typeof cardStateRecord.hands === 'object')
-        ? asRecord(cardStateRecord.hands)
-        : {};
-    const beforeHand = Array.isArray(handState && handState.hand) ? handState.hand : [];
-    const afterHand = Array.isArray(hands[playerKey]) ? hands[playerKey] : [];
-    if (afterHand.length <= beforeHand.length) return assembly;
-
-    const drawPresentationEvents = afterHand
-        .slice(beforeHand.length)
-        .filter((cardId) => cardId !== null && typeof cardId !== 'undefined')
-        .map((cardId) => ({
-            type: 'DRAW_CARD',
-            player: playerKey,
-            cardId,
-            count: 1
-        }));
-    if (drawPresentationEvents.length === 0) return assembly;
-
-    const drawPlaybackEvents = adapter.mapToPlaybackEvents(
-        drawPresentationEvents,
-        snapshotRecord.cardState,
-        snapshotRecord.gameState
-    ) || [];
-    if (!Array.isArray(drawPlaybackEvents) || drawPlaybackEvents.length === 0) return assembly;
-    const playbackEvents = (PlaybackEventHelpers && typeof PlaybackEventHelpers.appendPlaybackEventsAfter === 'function')
-        ? PlaybackEventHelpers.appendPlaybackEventsAfter(baseEvents, drawPlaybackEvents)
-        : baseEvents.concat(deepClone(drawPlaybackEvents));
-    return Object.assign({}, assembly, {
-        playbackEvents,
-        diagnostics: assembly.diagnostics
+    const appendDrawPlaybackEvents = PlaybackEventHelpers.appendTurnStartDrawPlaybackEvents as ((options: unknown) => MatchWorkerPlaybackAssembly);
+    return appendDrawPlaybackEvents({
+        playbackAssembly,
+        snapshot,
+        handState,
+        adapter: asPlaybackAdapter(playbackAdapter),
+        normalizePlayerKey
     });
 }
 

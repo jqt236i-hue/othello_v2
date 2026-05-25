@@ -422,43 +422,12 @@ function captureTurnStartHandState(snapshot: any) {
 }
 
 function appendTurnStartDrawPlaybackEvents(playbackAssembly: any, snapshot: any, handState: any) {
-    const assembly = (playbackAssembly && typeof playbackAssembly === 'object')
-        ? playbackAssembly
-        : { playbackEvents: Array.isArray(playbackAssembly) ? playbackAssembly : [], diagnostics: null };
-    const baseEvents = Array.isArray(assembly.playbackEvents) ? assembly.playbackEvents.slice() : [];
-    const playerKey = normalizePlayerKey(handState && handState.playerKey);
-    if (!playerKey) return assembly;
-
-    const hands = (snapshot && snapshot.cardState && snapshot.cardState.hands && typeof snapshot.cardState.hands === 'object')
-        ? snapshot.cardState.hands
-        : {};
-    const beforeHand = Array.isArray(handState && handState.hand) ? handState.hand : [];
-    const afterHand = Array.isArray(hands[playerKey]) ? hands[playerKey] : [];
-    if (afterHand.length <= beforeHand.length) return assembly;
-
-    const drawPresentationEvents = afterHand
-        .slice(beforeHand.length)
-        .filter((cardId: any) => cardId !== null && typeof cardId !== 'undefined')
-        .map((cardId: any) => ({
-            type: 'DRAW_CARD',
-            player: playerKey,
-            cardId,
-            count: 1
-        }));
-    if (drawPresentationEvents.length === 0) return assembly;
-
-    const drawPlaybackEvents = TurnPipelineUIAdapter.mapToPlaybackEvents(
-        drawPresentationEvents,
-        snapshot && snapshot.cardState,
-        snapshot && snapshot.gameState
-    ) || [];
-    if (!Array.isArray(drawPlaybackEvents) || drawPlaybackEvents.length === 0) return assembly;
-    const playbackEvents = (PlaybackEventHelpers && typeof PlaybackEventHelpers.appendPlaybackEventsAfter === 'function')
-        ? PlaybackEventHelpers.appendPlaybackEventsAfter(baseEvents, drawPlaybackEvents)
-        : baseEvents.concat(deepClone(drawPlaybackEvents));
-    return Object.assign({}, assembly, {
-        playbackEvents,
-        diagnostics: assembly.diagnostics
+    return PlaybackEventHelpers.appendTurnStartDrawPlaybackEvents({
+        playbackAssembly,
+        snapshot,
+        handState,
+        adapter: TurnPipelineUIAdapter,
+        normalizePlayerKey
     });
 }
 
