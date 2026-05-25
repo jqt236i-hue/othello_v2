@@ -1652,19 +1652,7 @@ function buildPresencePayload(room: MatchWorkerRoomState, meta: MatchWorkerPrese
 }
 
 function buildHeartbeatPayload(room: MatchWorkerRoomState, serverTime: unknown): Record<string, unknown> {
-    if (MatchAuthority && typeof MatchAuthority.buildHeartbeatPayloadFromRoom === 'function') {
-        return MatchAuthority.buildHeartbeatPayloadFromRoom(room, {
-            roomDeck: toPublicRoomDeck(room),
-            roomBoardConfig: toPublicRoomBoardConfig(room),
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            turnTimer: toPublicTurnTimer(room, serverTime),
-            serverTime
-        });
-    }
-    return withPublicSeatState(room, {
-        ok: true,
-        roomId: room.roomId,
-        stateVersion: Number.isFinite(Number(room.stateVersion)) ? Number(room.stateVersion) : 0,
+    return MatchAuthority.buildHeartbeatPayloadFromRoom(room, {
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
         networkDebugEnabled: toPublicNetworkDebugEnabled(room),
