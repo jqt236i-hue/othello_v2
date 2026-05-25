@@ -572,9 +572,7 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
     const turnStartEffectLogs = (turnStartPlaybackAssembly && Array.isArray(turnStartPlaybackAssembly.effectLogs))
         ? turnStartPlaybackAssembly.effectLogs
         : [];
-    const combinedPlaybackEvents = (PlaybackEventHelpers && typeof PlaybackEventHelpers.appendPlaybackEventsAfter === 'function')
-        ? PlaybackEventHelpers.appendPlaybackEventsAfter(playbackEvents, turnStartPlaybackEvents)
-        : playbackEvents.concat(deepClone(turnStartPlaybackEvents));
+    const combinedPlaybackEvents = PlaybackEventHelpers.appendPlaybackEventsAfter(playbackEvents, turnStartPlaybackEvents);
     const combinedEffectLogs = MatchAuthority.appendEffectLogMessages(actionEffectLogs, turnStartEffectLogs);
     MatchAuthority.stripTransientPresentationState(nextSnapshot);
 
