@@ -123,6 +123,21 @@ function _withLoadTimeout(promise: any, timeoutMs: any, label: string): Promise<
   });
 }
 
+function _resolveModuleWithRequireLoaders(moduleId: string, readModule: (moduleRef: any) => any): any {
+  const loaders = [
+    (typeof _require === 'function') ? _require : null,
+    (typeof require === 'function') ? require : null
+  ];
+  for (const loadModule of loaders) {
+    if (typeof loadModule !== 'function') continue;
+    try {
+      const resolved = readModule(loadModule(moduleId));
+      if (resolved) return resolved;
+    } catch (e) { /* try next loader */ }
+  }
+  return null;
+}
+
 function _resolveCpuLv6SharedProfile(): any {
   const readSharedProfile = (value: any): any => {
     if (!value || typeof value !== 'object') return null;
@@ -138,21 +153,7 @@ function _resolveCpuLv6SharedProfile(): any {
       return readSharedProfile((globalThis as any).CPU_LV6_SHARED_PROFILE);
     }
   } catch (e) { /* ignore */ }
-  try {
-    if (typeof _require === 'function') {
-      const shared = _require('../../constants/cpu-lv6-shared-profile');
-      const resolved = readSharedProfile(shared);
-      if (resolved) return resolved;
-    }
-  } catch (e) { /* ignore */ }
-  try {
-    if (typeof require === 'function') {
-      const shared = require('../../constants/cpu-lv6-shared-profile');
-      const resolved = readSharedProfile(shared);
-      if (resolved) return resolved;
-    }
-  } catch (e) { /* ignore */ }
-  return null;
+  return _resolveModuleWithRequireLoaders('../../constants/cpu-lv6-shared-profile', readSharedProfile);
 }
 
 let _cpuLv6RuntimeCapabilityModule: any = null;
@@ -180,26 +181,11 @@ function _resolveCpuLv6RuntimeCapabilityModule(): any {
       return _cpuLv6RuntimeCapabilityModule;
     }
   } catch (e) { /* ignore */ }
-  try {
-    if (typeof _require === 'function') {
-      const moduleRef = _require('../../shared/cpu-lv6-runtime-capability');
-      const resolved = readCapabilityModule(moduleRef);
-      if (resolved) {
-        _cpuLv6RuntimeCapabilityModule = resolved;
-        return _cpuLv6RuntimeCapabilityModule;
-      }
-    }
-  } catch (e) { /* ignore */ }
-  try {
-    if (typeof require === 'function') {
-      const moduleRef = require('../../shared/cpu-lv6-runtime-capability');
-      const resolved = readCapabilityModule(moduleRef);
-      if (resolved) {
-        _cpuLv6RuntimeCapabilityModule = resolved;
-        return _cpuLv6RuntimeCapabilityModule;
-      }
-    }
-  } catch (e) { /* ignore */ }
+  const resolved = _resolveModuleWithRequireLoaders('../../shared/cpu-lv6-runtime-capability', readCapabilityModule);
+  if (resolved) {
+    _cpuLv6RuntimeCapabilityModule = resolved;
+    return _cpuLv6RuntimeCapabilityModule;
+  }
   return null;
 }
 
@@ -880,19 +866,9 @@ function _resolveOthelloBrowserCpuRuntime(): any {
       return (window as any).OthelloBrowserCpuRuntime;
     }
   } catch (e) { /* ignore */ }
-  try {
-    if (typeof _require === 'function') {
-      const moduleRef = _require('othello-ai/runtime/browser-cpu');
-      if (moduleRef && typeof moduleRef.loadFromUrl === 'function') return moduleRef;
-    }
-  } catch (e) { /* ignore */ }
-  try {
-    if (typeof require === 'function') {
-      const moduleRef = require('othello-ai/runtime/browser-cpu');
-      if (moduleRef && typeof moduleRef.loadFromUrl === 'function') return moduleRef;
-    }
-  } catch (e) { /* ignore */ }
-  return null;
+  return _resolveModuleWithRequireLoaders('othello-ai/runtime/browser-cpu', (moduleRef) => (
+    moduleRef && typeof moduleRef.loadFromUrl === 'function' ? moduleRef : null
+  ));
 }
 
 async function initOthelloOnnxModel(): Promise<void> {
