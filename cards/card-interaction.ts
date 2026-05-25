@@ -69,12 +69,10 @@ if (typeof CardLogic === 'undefined') {
 function _getDebugActions() {
     const resolved = _resolveDebugActionsRuntimeModule();
     if (resolved) return resolved;
-    if (typeof require === 'function') {
-        try {
-            const required = require('../game/debug/debug-actions');
-            return _rememberResolvedDebugActions(required);
-        } catch (e) { /* ignore */ }
-    }
+    try {
+        const required = _require('../game/debug/debug-actions');
+        return _rememberResolvedDebugActions(required);
+    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -646,12 +644,10 @@ function _getGameVisualEffectsMapForCardDetail() {
         }
     } catch (e) { /* ignore */ }
 
-    if (typeof require === 'function') {
-        try {
-            const mod = require('../game/visual-effects-map');
-            if (mod && mod.STONE_VISUAL_EFFECTS) return mod;
-        } catch (e) { /* ignore */ }
-    }
+    try {
+        const mod = _require('../game/visual-effects-map');
+        if (mod && mod.STONE_VISUAL_EFFECTS) return mod;
+    } catch (e) { /* ignore */ }
     return null;
 }
 
@@ -1618,9 +1614,7 @@ let _boardOps: any = null;
 function _getBoardOps() {
     if (_boardOps) return _boardOps;
     if (typeof BoardOps !== 'undefined') return BoardOps;
-    if (typeof require === 'function') {
-        try { _boardOps = require('../game/logic/board_ops'); } catch (e) { _boardOps = null; }
-    }
+    try { _boardOps = _require('../game/logic/board_ops'); } catch (e) { _boardOps = null; }
     return _boardOps;
 }
 
