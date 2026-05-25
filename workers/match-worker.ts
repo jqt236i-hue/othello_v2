@@ -937,70 +937,18 @@ function asWorkerSnapshot(value: unknown): MatchWorkerPublicSnapshot {
     return value && typeof value === 'object' ? value as MatchWorkerPublicSnapshot : {};
 }
 
-function mapServerPresentationToPlaybackEvents(
-    presentationEvents: unknown,
-    rawEvents: unknown,
-    snapshot: unknown,
-    playbackAdapter: unknown,
-    playerKey: unknown
-): MatchWorkerPlaybackAssembly {
-    const events = Array.isArray(presentationEvents) ? presentationEvents : [];
-    const snapshotRecord = asWorkerSnapshot(snapshot);
-    const cardStateRecord = asRecord(snapshotRecord.cardState);
-    const adapter = asPlaybackAdapter(playbackAdapter);
-
-    if (PlaybackEventHelpers && typeof PlaybackEventHelpers.assemblePlaybackEvents === 'function') {
-        const assembled = PlaybackEventHelpers.assemblePlaybackEvents({
-            rawEvents: Array.isArray(rawEvents) ? rawEvents : [],
-            presentationEvents: events,
-            snapshot,
-            fallbackPlayerKey: playerKey || null,
-            adapter,
-            normalizePlayerKey
-        });
-        return {
-            playbackEvents: Array.isArray(asRecord(assembled).playbackEvents) ? asRecord(assembled).playbackEvents as unknown[] : [],
-            diagnostics: asRecord(assembled).diagnostics ? asRecord(assembled).diagnostics as MatchWorkerPlaybackDiagnostics : null
-        };
-    }
-
-    const rawPlacePlaybackEvents = (PlaybackEventHelpers && typeof PlaybackEventHelpers.mapRawPlaceEventsToPlayback === 'function')
-        ? PlaybackEventHelpers.mapRawPlaceEventsToPlayback(Array.isArray(rawEvents) ? rawEvents : [], {
-            fallbackPlayerKey: playerKey || null,
-            fallbackTurnIndex: typeof cardStateRecord.turnIndex === 'number' ? cardStateRecord.turnIndex : 0,
-            normalizePlayerKey: normalizePlayerKey
-        })
-        : [];
-
-    const playbackEvents = (!adapter)
-        ? rawPlacePlaybackEvents.concat(events)
-        : rawPlacePlaybackEvents.concat(
-            adapter.mapToPlaybackEvents(
-                events,
-                snapshotRecord.cardState,
-                snapshotRecord.gameState
-            ) || []
-        );
-
-    return {
-        playbackEvents: Array.isArray(playbackEvents) ? deepClone(playbackEvents) : [],
-        diagnostics: null
-    };
-}
-
 function collectServerPlaybackEvents(snapshot: unknown, rawEvents: unknown, playbackAdapter: unknown): MatchWorkerPlaybackAssembly {
     const snapshotRecord = asWorkerSnapshot(snapshot);
     const playerKey = getCurrentPlayerKey(snapshotRecord.gameState);
-    const assembly = (PlaybackEventHelpers && typeof PlaybackEventHelpers.collectServerPlaybackEvents === 'function')
-        ? PlaybackEventHelpers.collectServerPlaybackEvents({
-            rawEvents,
-            snapshot,
-            playerKey,
-            fallbackPlayerKey: playerKey,
-            adapter: asPlaybackAdapter(playbackAdapter),
-            normalizePlayerKey
-        })
-        : mapServerPresentationToPlaybackEvents([], rawEvents, snapshot, playbackAdapter, playerKey);
+    const collectPlaybackEvents = PlaybackEventHelpers.collectServerPlaybackEvents as ((options: unknown) => MatchWorkerPlaybackAssembly);
+    const assembly = collectPlaybackEvents({
+        rawEvents,
+        snapshot,
+        playerKey,
+        fallbackPlayerKey: playerKey,
+        adapter: asPlaybackAdapter(playbackAdapter),
+        normalizePlayerKey
+    });
     return Object.assign({}, assembly || {}, {
         playbackEvents: Array.isArray(assembly && assembly.playbackEvents) ? assembly.playbackEvents : [],
         diagnostics: assembly ? assembly.diagnostics || null : null,
@@ -1269,13 +1217,15 @@ async function applyCommandPublishToSnapshot(
         ? result.presentationEvents
         : (Array.isArray(resultCardState.presentationEvents) ? resultCardState.presentationEvents : []);
     const playbackPresentationEvents = actionPresentationEvents.length > 0 ? actionPresentationEvents : result.events;
-    const playbackAssembly = mapServerPresentationToPlaybackEvents(
-        playbackPresentationEvents,
-        result.events,
-        nextSnapshot,
-        TurnPipelineUIAdapter,
-        playerKey
-    );
+    const mapPlaybackEvents = PlaybackEventHelpers.mapServerPresentationToPlaybackEvents as ((options: unknown) => MatchWorkerPlaybackAssembly);
+    const playbackAssembly = mapPlaybackEvents({
+        rawEvents: result.events,
+        presentationEvents: playbackPresentationEvents,
+        snapshot: nextSnapshot,
+        fallbackPlayerKey: playerKey,
+        adapter: asPlaybackAdapter(TurnPipelineUIAdapter),
+        normalizePlayerKey
+    });
     MatchAuthority.reportPlaybackAssemblyDiagnostics('worker-action', playbackAssembly && playbackAssembly.diagnostics, {
         networkDebugEnabled: toPublicNetworkDebugEnabled(room)
     });

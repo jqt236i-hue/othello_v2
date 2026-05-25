@@ -367,6 +367,18 @@
         };
     }
 
+    function mapServerPresentationToPlaybackEvents(options: unknown): AssemblyResult {
+        const opts = (options && typeof options === 'object') ? options as AssemblyOptions : {};
+        return assemblePlaybackEvents({
+            rawEvents: opts.rawEvents,
+            presentationEvents: opts.presentationEvents,
+            snapshot: opts.snapshot,
+            fallbackPlayerKey: opts.fallbackPlayerKey || null,
+            adapter: opts.adapter,
+            normalizePlayerKey: opts.normalizePlayerKey
+        });
+    }
+
     function collectServerPlaybackEvents(options: unknown): ServerPlaybackCollectionResult {
         const opts = (options && typeof options === 'object') ? options as ServerPlaybackCollectionOptions : {};
         const snapshot = (opts.snapshot && typeof opts.snapshot === 'object')
@@ -399,7 +411,7 @@
         cardState._presentationEventsPersist = [];
         delete cardState._currentActionMeta;
 
-        const assembly = assemblePlaybackEvents({
+        const assembly = mapServerPresentationToPlaybackEvents({
             rawEvents: opts.rawEvents,
             presentationEvents,
             snapshot,
@@ -472,6 +484,7 @@
         countBoardVisualPlaybackEvents,
         getCardCostTier,
         collectServerPlaybackEvents,
+        mapServerPresentationToPlaybackEvents,
         mapRawPlaceEventsToPlayback,
         normalizeCardVisualDescriptor,
         appendPlaybackEventsAfter

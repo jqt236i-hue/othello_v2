@@ -1646,6 +1646,33 @@ describe('network playback event assembly contract', () => {
     expect(result.diagnostics.warnings).toEqual([]);
   });
 
+  test('mapServerPresentationToPlaybackEvents uses the same assembly contract', () => {
+    const result = helpers.mapServerPresentationToPlaybackEvents({
+      rawEvents: [
+        { type: 'place', row: 2, col: 3, player: 'black', actionId: 'place-map', turnIndex: 4 }
+      ],
+      presentationEvents: [{
+        type: 'PLAYBACK_EVENTS',
+        events: [
+          { type: 'flip', phase: 2, targets: [{ r: 2, col: 4, ownerAfter: 'black' }] }
+        ]
+      }],
+      snapshot: {
+        cardState: { turnIndex: 4 },
+        gameState: { board: createBoard(8, 8), currentPlayer: 1 }
+      },
+      fallbackPlayerKey: 'black',
+      adapter,
+      normalizePlayerKey
+    });
+
+    expect(result.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'place_hand_animation', actionId: 'place-map' }),
+      expect.objectContaining({ type: 'flip' })
+    ]));
+    expect(result.diagnostics.warnings).toEqual([]);
+  });
+
   test('collectServerPlaybackEvents consumes transient queues through the shared assembly path', () => {
     const snapshot = {
       cardState: {
