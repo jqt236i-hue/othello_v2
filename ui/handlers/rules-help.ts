@@ -98,12 +98,25 @@ function _formatHelpText(text: string): string {
   return highlighted.replace(/\n/g, '<br>');
 }
 
+function _requireFirstRulesHelpModuleOrNull(paths: string[]): any {
+  for (const path of paths) {
+    try {
+      return _require(path);
+    } catch (e) {
+      /* ignore */
+    }
+  }
+  return null;
+}
+
 const _rulesHelpCardInteractionEffectsModule = (() => {
   if (typeof (CardInteractionEffects as any) !== 'undefined' && (CardInteractionEffects as any)) return (CardInteractionEffects as any);
   if (typeof window !== 'undefined' && (window as any).CardInteractionEffects) return (window as any).CardInteractionEffects;
   if (typeof _require === 'function') {
-    try { return _require('../../cards/card-interaction-effects'); } catch (e) { /* ignore */ }
-    try { return _require('../cards/card-interaction-effects'); } catch (e) { /* ignore */ }
+    return _requireFirstRulesHelpModuleOrNull([
+      '../../cards/card-interaction-effects',
+      '../cards/card-interaction-effects'
+    ]);
   }
   return null;
 })();
