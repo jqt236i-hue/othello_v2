@@ -990,36 +990,21 @@ function mapServerPresentationToPlaybackEvents(
 
 function collectServerPlaybackEvents(snapshot: unknown, rawEvents: unknown, playbackAdapter: unknown): MatchWorkerPlaybackAssembly {
     const snapshotRecord = asWorkerSnapshot(snapshot);
-    const cardState = (snapshotRecord.cardState && typeof snapshotRecord.cardState === 'object')
-        ? snapshotRecord.cardState
-        : null;
     const playerKey = getCurrentPlayerKey(snapshotRecord.gameState);
-    if (!cardState) {
-        return {
-            playbackEvents: [],
-            diagnostics: null,
-            presentationEvents: [],
-            playerKey
-        };
-    }
-
-    let presentationEvents: unknown[] = [];
-    if (Array.isArray(cardState.presentationEvents) && cardState.presentationEvents.length > 0) {
-        presentationEvents = deepClone(cardState.presentationEvents);
-        if (Array.isArray(cardState._presentationEventsPersist)) {
-            cardState._presentationEventsPersist.length = 0;
-        }
-    } else if (Array.isArray(cardState._presentationEventsPersist) && cardState._presentationEventsPersist.length > 0) {
-        presentationEvents = deepClone(cardState._presentationEventsPersist);
-    }
-    cardState.presentationEvents = [];
-    cardState._presentationEventsPersist = [];
-    delete cardState._currentActionMeta;
-    const assembly = mapServerPresentationToPlaybackEvents(presentationEvents, rawEvents, snapshot, playbackAdapter, playerKey);
+    const assembly = (PlaybackEventHelpers && typeof PlaybackEventHelpers.collectServerPlaybackEvents === 'function')
+        ? PlaybackEventHelpers.collectServerPlaybackEvents({
+            rawEvents,
+            snapshot,
+            playerKey,
+            fallbackPlayerKey: playerKey,
+            adapter: asPlaybackAdapter(playbackAdapter),
+            normalizePlayerKey
+        })
+        : mapServerPresentationToPlaybackEvents([], rawEvents, snapshot, playbackAdapter, playerKey);
     return Object.assign({}, assembly || {}, {
         playbackEvents: Array.isArray(assembly && assembly.playbackEvents) ? assembly.playbackEvents : [],
         diagnostics: assembly ? assembly.diagnostics || null : null,
-        presentationEvents,
+        presentationEvents: Array.isArray(assembly && assembly.presentationEvents) ? assembly.presentationEvents : [],
         playerKey
     });
 }

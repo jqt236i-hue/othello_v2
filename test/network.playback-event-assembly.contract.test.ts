@@ -1646,6 +1646,47 @@ describe('network playback event assembly contract', () => {
     expect(result.diagnostics.warnings).toEqual([]);
   });
 
+  test('collectServerPlaybackEvents consumes transient queues through the shared assembly path', () => {
+    const snapshot = {
+      cardState: {
+        turnIndex: 12,
+        presentationEvents: [{
+          type: 'PLAYBACK_EVENTS',
+          events: [
+            { type: 'destroy', phase: 2, targets: [{ r: 3, col: 4, ownerBefore: 'white' }] }
+          ]
+        }],
+        _presentationEventsPersist: [{ type: 'STALE_EVENT' }],
+        _currentActionMeta: { actionId: 'action-1' }
+      },
+      gameState: {
+        board: createBoard(8, 8),
+        currentPlayer: 1
+      }
+    };
+
+    const result = helpers.collectServerPlaybackEvents({
+      rawEvents: [
+        { type: 'place', row: 2, col: 3, player: 'black', actionId: 'place-12', turnIndex: 12 }
+      ],
+      snapshot,
+      playerKey: 'black',
+      fallbackPlayerKey: 'black',
+      adapter,
+      normalizePlayerKey
+    });
+
+    expect(result.presentationEvents).toHaveLength(1);
+    expect(result.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'place_hand_animation', actionId: 'place-12' }),
+      expect.objectContaining({ type: 'destroy' })
+    ]));
+    expect(result.diagnostics.warnings).toEqual([]);
+    expect(snapshot.cardState.presentationEvents).toEqual([]);
+    expect(snapshot.cardState._presentationEventsPersist).toEqual([]);
+    expect(snapshot.cardState._currentActionMeta).toBeUndefined();
+  });
+
   test('playback assembly does not mutate authoritative snapshot state', () => {
     const snapshot = {
       cardState: {

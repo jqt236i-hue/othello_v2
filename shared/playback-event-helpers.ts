@@ -65,6 +65,17 @@
         warnings: string[];
     }
 
+    interface ServerPlaybackCollectionOptions extends AssemblyOptions {
+        playerKey?: unknown;
+    }
+
+    interface ServerPlaybackCollectionResult {
+        playbackEvents: unknown[];
+        diagnostics: AssemblyDiagnostics | null;
+        presentationEvents: unknown[];
+        playerKey: unknown;
+    }
+
     function parseSeatKeyOptional(value: unknown): string | null {
         try {
             if (
@@ -356,6 +367,55 @@
         };
     }
 
+    function collectServerPlaybackEvents(options: unknown): ServerPlaybackCollectionResult {
+        const opts = (options && typeof options === 'object') ? options as ServerPlaybackCollectionOptions : {};
+        const snapshot = (opts.snapshot && typeof opts.snapshot === 'object')
+            ? opts.snapshot as { cardState?: Record<string, unknown>; gameState?: unknown }
+            : {};
+        const cardState = (snapshot.cardState && typeof snapshot.cardState === 'object')
+            ? snapshot.cardState
+            : null;
+        const playerKey = opts.playerKey || opts.fallbackPlayerKey || null;
+        if (!cardState) {
+            return {
+                playbackEvents: [],
+                diagnostics: null,
+                presentationEvents: [],
+                playerKey
+            };
+        }
+
+        let presentationEvents: unknown[] = [];
+        if (Array.isArray(cardState.presentationEvents) && cardState.presentationEvents.length > 0) {
+            presentationEvents = cloneJsonSafe(cardState.presentationEvents);
+            if (Array.isArray(cardState._presentationEventsPersist)) {
+                cardState._presentationEventsPersist.length = 0;
+            }
+        } else if (Array.isArray(cardState._presentationEventsPersist) && cardState._presentationEventsPersist.length > 0) {
+            presentationEvents = cloneJsonSafe(cardState._presentationEventsPersist);
+        }
+
+        cardState.presentationEvents = [];
+        cardState._presentationEventsPersist = [];
+        delete cardState._currentActionMeta;
+
+        const assembly = assemblePlaybackEvents({
+            rawEvents: opts.rawEvents,
+            presentationEvents,
+            snapshot,
+            fallbackPlayerKey: playerKey as string | null,
+            adapter: opts.adapter,
+            normalizePlayerKey: opts.normalizePlayerKey
+        });
+
+        return {
+            playbackEvents: Array.isArray(assembly.playbackEvents) ? assembly.playbackEvents : [],
+            diagnostics: assembly.diagnostics || createAssemblyDiagnostics([], []),
+            presentationEvents,
+            playerKey
+        };
+    }
+
     function cloneJsonSafe<T>(value: T): T {
         try {
             return JSON.parse(JSON.stringify(value));
@@ -411,6 +471,7 @@
         countRawBoardVisualEvents,
         countBoardVisualPlaybackEvents,
         getCardCostTier,
+        collectServerPlaybackEvents,
         mapRawPlaceEventsToPlayback,
         normalizeCardVisualDescriptor,
         appendPlaybackEventsAfter
