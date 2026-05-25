@@ -2694,17 +2694,11 @@ const {
     }
 
     function getBoardShrinkSelectionCount() {
-        if (CardShrinkModule && Number.isFinite(Number(CardShrinkModule.BOARD_SHRINK_SELECTION_COUNT))) {
-            return Math.max(1, Math.trunc(Number(CardShrinkModule.BOARD_SHRINK_SELECTION_COUNT)));
-        }
-        return 3;
+        return Math.max(1, Math.trunc(Number(CardShrinkModule.BOARD_SHRINK_SELECTION_COUNT)));
     }
 
     function getBoardShrinkPendingSelectionsForCard(pending: any) {
-        if (CardShrinkModule && typeof CardShrinkModule.getBoardShrinkPendingSelectionsForCard === 'function') {
-            return CardShrinkModule.getBoardShrinkPendingSelectionsForCard(pending);
-        }
-        return [];
+        return CardShrinkModule.getBoardShrinkPendingSelectionsForCard(pending);
     }
 
     function getBoardShrinkTargets(cardState: any, gameState: any, playerKey: any) {
