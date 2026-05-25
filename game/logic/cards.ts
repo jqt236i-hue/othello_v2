@@ -662,7 +662,7 @@ const {
     /** @type {any} */
     const CardWillHunterKingModule = resolveRequiredCardModule('./cards/will_hunter_king', 'CardWillHunterKing');
     /** @type {any} */
-    const CardDestroyDragonModule = resolveCardLogicGlobalOrModule('CardDestroyDragon', './cards/destroy_dragon');
+    const CardDestroyDragonModule = resolveRequiredCardModule('./cards/destroy_dragon', 'CardDestroyDragon');
     const DragonEffectsModule = resolveRequiredCardModule('./effects/dragon', 'DragonEffects');
     const DestroyOneStoneModule = resolveRequiredCardModule('./effects/destroy_one_stone', 'DestroyOneStoneEffects');
     const SwapWithEnemyModule = resolveRequiredCardModule('./effects/swap_with_enemy', 'SwapWithEnemyEffects');
@@ -5203,15 +5203,11 @@ const {
     }
 
     function processDestroyDragonEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
-        if (CardDestroyDragonModule && typeof CardDestroyDragonModule.processDestroyDragonEffects === 'function') {
-            return CardDestroyDragonModule.processDestroyDragonEffects(cardState, gameState, playerKey, {
-                destroyAt,
-                BoardOps: BoardOpsModule,
-                random: prng || defaultPrng
-            });
-        }
-        console.warn('[cards.js] CardDestroyDragon module not available');
-        return { destroyed: [], anchors: [], expired: [] };
+        return CardDestroyDragonModule.processDestroyDragonEffects(cardState, gameState, playerKey, {
+            destroyAt,
+            BoardOps: BoardOpsModule,
+            random: prng || defaultPrng
+        });
     }
 
     function processDestroyDragonEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, opts : any = {}) {
@@ -5220,30 +5216,22 @@ const {
             BoardOps: BoardOpsModule,
             random: defaultPrng
         }, opts || {});
-        if (CardDestroyDragonModule && typeof CardDestroyDragonModule.processDestroyDragonEffectsAtAnchor === 'function') {
-            return runBoardOpsDestroyBlock(cardState, gameState, () =>
-                CardDestroyDragonModule.processDestroyDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps),
-                { randomSource: deps.random || opts.randomSource || opts.random }
-            );
-        }
-        console.warn('[cards.js] CardDestroyDragon anchor processor not available');
-        return { destroyed: [], expired: [] };
+        return runBoardOpsDestroyBlock(cardState, gameState, () =>
+            CardDestroyDragonModule.processDestroyDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps),
+            { randomSource: deps.random || opts.randomSource || opts.random }
+        );
     }
 
     function processDestroyDragonEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
-        if (CardDestroyDragonModule && typeof CardDestroyDragonModule.processDestroyDragonEffectsAtTurnStartAnchor === 'function') {
-            const deps = {
-                destroyAt,
-                BoardOps: BoardOpsModule,
-                random: prng || defaultPrng
-            };
-            return runBoardOpsDestroyBlock(cardState, gameState, () =>
-                CardDestroyDragonModule.processDestroyDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
-                { randomSource: deps.random }
-            );
-        }
-        console.warn('[cards.js] CardDestroyDragon turn-start anchor processor not available');
-        return { destroyed: [], expired: [] };
+        const deps = {
+            destroyAt,
+            BoardOps: BoardOpsModule,
+            random: prng || defaultPrng
+        };
+        return runBoardOpsDestroyBlock(cardState, gameState, () =>
+            CardDestroyDragonModule.processDestroyDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
+            { randomSource: deps.random }
+        );
     }
 
     /**
