@@ -670,7 +670,7 @@ const {
     const CardTrapModule = resolveCardLogicGlobalOrModule('CardTrapEffects', '../cards/effects/trap');
     const CardOwnershipEffectsModule = resolveRequiredCardModule('../cards/effects/ownership', 'CardOwnershipEffects');
     const CardBoardExpansionApplyModule = resolveRequiredCardModule('../cards/effects/board-expansion-apply', 'CardBoardExpansionApply');
-    const CardStatusCellsModule = resolveOptionalCardModule('../cards/effects/status-cells', 'CardStatusCellsEffects');
+    const CardStatusCellsModule = resolveRequiredCardModule('../cards/effects/status-cells', 'CardStatusCellsEffects');
     const CardHandEffectsModule = resolveOptionalCardModule('../cards/effects/hand-effects', 'CardHandEffects');
     const CardPositionSwapModule = resolveOptionalCardModule('../cards/effects/position-swap', 'CardPositionSwapEffects');
 
@@ -3558,19 +3558,16 @@ const {
     }
 
     function applyBlockadeWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardStatusCellsModule && typeof CardStatusCellsModule.applyBlockadeWill === 'function') {
-            return CardStatusCellsModule.applyBlockadeWill(cardState, gameState, playerKey, row, col, {
-                readCardPendingEffect,
-                getBlockadeTargets,
-                removeMarkersAt,
-                addMarker,
-                emitPresentationEvent,
-                clearCardPendingEffect,
-                MARKER_KINDS,
-                BLOCKADE_TURNS
-            });
-        }
-        return { applied: false, reason: 'deps_missing' };
+        return CardStatusCellsModule.applyBlockadeWill(cardState, gameState, playerKey, row, col, {
+            readCardPendingEffect,
+            getBlockadeTargets,
+            removeMarkersAt,
+            addMarker,
+            emitPresentationEvent,
+            clearCardPendingEffect,
+            MARKER_KINDS,
+            BLOCKADE_TURNS
+        });
     }
 
     function applyMeteorWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
@@ -3648,35 +3645,29 @@ const {
     }
 
     function applyFreezeWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardStatusCellsModule && typeof CardStatusCellsModule.applyFreezeWill === 'function') {
-            return CardStatusCellsModule.applyFreezeWill(cardState, gameState, playerKey, row, col, {
-                readCardPendingEffect,
-                getFreezeTargets,
-                removeMarkersAt,
-                addMarker,
-                emitPresentationEvent,
-                clearCardPendingEffect,
-                MARKER_KINDS,
-                FREEZE_TURNS
-            });
-        }
-        return { applied: false, reason: 'deps_missing' };
+        return CardStatusCellsModule.applyFreezeWill(cardState, gameState, playerKey, row, col, {
+            readCardPendingEffect,
+            getFreezeTargets,
+            removeMarkersAt,
+            addMarker,
+            emitPresentationEvent,
+            clearCardPendingEffect,
+            MARKER_KINDS,
+            FREEZE_TURNS
+        });
     }
 
     function applySeedWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardStatusCellsModule && typeof CardStatusCellsModule.applySeedWill === 'function') {
-            return CardStatusCellsModule.applySeedWill(cardState, gameState, playerKey, row, col, {
-                readCardPendingEffect,
-                getSeedTargets,
-                removeMarkersAt,
-                addMarker,
-                emitPresentationEvent,
-                clearCardPendingEffect,
-                MARKER_KINDS,
-                SEED_WILL_TURNS
-            });
-        }
-        return { applied: false, reason: 'deps_missing' };
+        return CardStatusCellsModule.applySeedWill(cardState, gameState, playerKey, row, col, {
+            readCardPendingEffect,
+            getSeedTargets,
+            removeMarkersAt,
+            addMarker,
+            emitPresentationEvent,
+            clearCardPendingEffect,
+            MARKER_KINDS,
+            SEED_WILL_TURNS
+        });
     }
 
     function getLossWillRemovableCount(cardState: any) {
