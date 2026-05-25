@@ -636,7 +636,7 @@ const {
     const CardExpansionModule = resolveCardLogicGlobalOrModule('CardExpansion', './cards/expansion');
     const CardMarkersModule = resolveCardLogicGlobalOrModule('CardMarkers', './cards/markers');
     /** @type {any} */
-    const CardMovementModule = resolveCardLogicGlobalOrModule('CardMovement', './cards/movement');
+    const CardMovementModule = resolveRequiredCardModule('./cards/movement', 'CardMovement');
     /** @type {any} */
     const CardTeleportModule = resolveCardLogicGlobalOrModule('CardTeleport', './cards/teleport');
     /** @type {any} */
@@ -4046,38 +4046,6 @@ const {
         return options;
     }
 
-    function _getStrongWindMoveOptionForDirection(cardState: any, gameState: any, row: any, col: any, d: any) {
-        const nr = row + d.dr;
-        const nc = col + d.dc;
-        if (!hasBoardShapeCellForCard(cardState, gameState, nr, nc)) return null;
-        if (getCellValueForCard(gameState, nr, nc) !== EMPTY) return null;
-        if (isBlockedCell(cardState, nr, nc, gameState)) return null;
-
-        let tr = nr;
-        let tc = nc;
-        while (true) {
-            const rr = tr + d.dr;
-            const cc = tc + d.dc;
-            if (!hasBoardShapeCellForCard(cardState, gameState, rr, cc)) break;
-            if (getCellValueForCard(gameState, rr, cc) !== EMPTY) break;
-            if (isBlockedCell(cardState, rr, cc, gameState)) break;
-            tr = rr;
-            tc = cc;
-        }
-        const distance = Math.abs(tr - row) + Math.abs(tc - col);
-        return { direction: d, target: { row: tr, col: tc }, distance };
-    }
-
-    function _moveMarkersForStrongWind(cardState: any, fromRow: any, fromCol: any, toRow: any, toCol: any) {
-        const markers = getMarkers(cardState);
-        for (const m of markers) {
-            if (!m) continue;
-            if (m.row !== fromRow || m.col !== fromCol) continue;
-            m.row = toRow;
-            m.col = toCol;
-        }
-    }
-
     function _collectVerticalSlideMoveOption(cardState: any, gameState: any, row: any, col: any, dr: any) {
         if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
         if (dr !== -1 && dr !== 1) return null;
@@ -4265,339 +4233,113 @@ const {
     }
 
     function applyStrongWindWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
-        if (CardMovementModule && typeof CardMovementModule.applyStrongWindWill === 'function') {
-            return CardMovementModule.applyStrongWindWill(cardState, gameState, playerKey, row, col, prng, {
-                getCellValueForCard,
-                hasBoardShapeCellForCard,
-                isBlockedCell,
-                setCellValueForCard,
-                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
-                    ? BoardOpsModule.moveAt
-                    : null,
-                getMarkers
-            });
-        }
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'STRONG_WIND_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-        const cellValue = getCellValueForCard(gameState, row, col);
-        if (cellValue === null) return { applied: false, reason: 'out_of_board' };
-        if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
-
-        const randomValue = readDeterministicRandomUnit(prng, null, 'CardLogic.applyStrongWindWill');
-        const direction = randomValue < 0.5 ? { dr: 0, dc: -1 } : { dr: 0, dc: 1 };
-        const pick = _getStrongWindMoveOptionForDirection(cardState, gameState, row, col, direction);
-        if (!pick) return { applied: false, reason: 'no_move_options' };
-        const to = pick.target;
-        const movedDistance = Math.abs(to.row - row) + Math.abs(to.col - col);
-
-        _moveMarkersForStrongWind(cardState, row, col, to.row, to.col);
-
-        if (BoardOpsModule && typeof BoardOpsModule.moveAt === 'function') {
-            const res = BoardOpsModule.moveAt(cardState, gameState, row, col, to.row, to.col, 'STRONG_WIND_WILL', 'strong_wind_move');
-            if (!res || !res.moved) {
-                return { applied: false, reason: 'move_failed' };
-            }
-        } else {
-            const cleared = setCellValueForCard(gameState, row, col, EMPTY);
-            const placed = setCellValueForCard(gameState, to.row, to.col, cellValue);
-            if (!cleared || !placed) {
-                return { applied: false, reason: 'move_failed' };
-            }
-        }
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, from: { row, col }, to, direction: pick.direction, movedDistance, chargeGained: 0 };
-    }
-
-    function _applyVerticalCrushWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, config: any) {
-        const cfg = config || {};
-        const pendingType = String(cfg.pendingType || '');
-        const direction = Number(cfg.direction);
-        const moveReason = String(cfg.moveReason || '').trim();
-        const destroyReason = String(cfg.destroyReason || '').trim();
-        const targetGetter = typeof cfg.targetGetter === 'function' ? cfg.targetGetter : null;
-
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== pendingType || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-        const cellValue = getCellValueForCard(gameState, row, col);
-        if (cellValue === null) return { applied: false, reason: 'out_of_board' };
-        if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
-
-        const targets = targetGetter ? targetGetter(cardState, gameState) : [];
-        const allowed = targets.some((t: any) => t && t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        const plan = _collectVerticalCrushMovePlan(cardState, gameState, row, col, direction);
-        if (!plan) return { applied: false, reason: 'no_move_options' };
-
-        const totalTravelDistance = Number(plan.movedDistance) || Math.abs(plan.to.row - row) || 1;
-        const destroyed = [];
-        for (let i = 0; i < plan.destroyed.length; i++) {
-            const target = plan.destroyed[i];
-            if (!target) continue;
-
-            const collisionDistance = Math.abs(target.row - row);
-            const collisionProgress = Math.max(0, Math.min(1, collisionDistance / totalTravelDistance));
-
-            if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-                const res = BoardOpsModule.destroyAt(
-                    cardState,
-                    gameState,
-                    target.row,
-                    target.col,
-                    pendingType,
-                    destroyReason,
-                    {
-                        sourceRow: row,
-                        sourceCol: col,
-                        collisionIndex: i + 1,
-                        collisionCount: plan.destroyed.length,
-                        collisionProgress,
-                        travelDistance: totalTravelDistance,
-                        travelToRow: plan.to.row,
-                        travelToCol: plan.to.col
-                    }
-                );
-                if (!isDestroyResolved(res)) {
-                    return { applied: false, reason: 'destroy_failed', failedAt: { row: target.row, col: target.col } };
-                }
-            } else {
-                const destroyedOk = destroyAt(cardState, gameState, target.row, target.col);
-                if (!destroyedOk) {
-                    return { applied: false, reason: 'destroy_failed', failedAt: { row: target.row, col: target.col } };
-                }
-            }
-
-            destroyed.push({ row: target.row, col: target.col });
-        }
-
-        _moveMarkersForStrongWind(cardState, row, col, plan.to.row, plan.to.col);
-
-        if (BoardOpsModule && typeof BoardOpsModule.moveAt === 'function') {
-            const res = BoardOpsModule.moveAt(
-                cardState,
-                gameState,
-                row,
-                col,
-                plan.to.row,
-                plan.to.col,
-                pendingType,
-                moveReason,
-                {
-                    collisionCount: destroyed.length,
-                    travelDistance: totalTravelDistance
-                }
-            );
-            if (!res || !res.moved) {
-                return { applied: false, reason: 'move_failed' };
-            }
-        } else {
-            const cleared = setCellValueForCard(gameState, row, col, EMPTY);
-            const placed = setCellValueForCard(gameState, plan.to.row, plan.to.col, cellValue);
-            if (!cleared || !placed) {
-                return { applied: false, reason: 'move_failed' };
-            }
-        }
-
-        clearCardPendingEffect(cardState, playerKey);
-        return {
-            applied: true,
-            from: { row, col },
-            to: plan.to,
-            destroyed,
-            destroyedCount: destroyed.length,
-            movedDistance: plan.movedDistance,
-            direction: plan.direction
-        };
-    }
-
-    function _applyVerticalSlideWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, config: any) {
-        const cfg = config || {};
-        const pendingType = String(cfg.pendingType || '');
-        const direction = Number(cfg.direction);
-        const moveReason = String(cfg.moveReason || '').trim();
-        const targetGetter = typeof cfg.targetGetter === 'function' ? cfg.targetGetter : null;
-
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== pendingType || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-        const cellValue = getCellValueForCard(gameState, row, col);
-        if (cellValue === null) return { applied: false, reason: 'out_of_board' };
-        if (cellValue === EMPTY) return { applied: false, reason: 'empty' };
-
-        const targets = targetGetter ? targetGetter(cardState, gameState) : [];
-        const allowed = targets.some((t: any) => t && t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        const option = _collectVerticalSlideMoveOption(cardState, gameState, row, col, direction);
-        if (!option) return { applied: false, reason: 'no_move_options' };
-        const to = option.target;
-        const movedDistance = Math.abs(to.row - row) + Math.abs(to.col - col);
-
-        _moveMarkersForStrongWind(cardState, row, col, to.row, to.col);
-
-        if (BoardOpsModule && typeof BoardOpsModule.moveAt === 'function') {
-            const res = BoardOpsModule.moveAt(cardState, gameState, row, col, to.row, to.col, pendingType, moveReason);
-            if (!res || !res.moved) {
-                return { applied: false, reason: 'move_failed' };
-            }
-        } else {
-            const cleared = setCellValueForCard(gameState, row, col, EMPTY);
-            const placed = setCellValueForCard(gameState, to.row, to.col, cellValue);
-            if (!cleared || !placed) {
-                return { applied: false, reason: 'move_failed' };
-            }
-        }
-
-        clearCardPendingEffect(cardState, playerKey);
-        return {
-            applied: true,
-            from: { row, col },
-            to,
-            destroyed: [],
-            destroyedCount: 0,
-            movedDistance,
-            direction: option.direction
-        };
+        return CardMovementModule.applyStrongWindWill(cardState, gameState, playerKey, row, col, prng, {
+            getCellValueForCard,
+            hasBoardShapeCellForCard,
+            isBlockedCell,
+            setCellValueForCard,
+            moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                ? BoardOpsModule.moveAt
+                : null,
+            getMarkers
+        });
     }
 
     function applySuperBuoyancyWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardMovementModule && typeof CardMovementModule.applySuperBuoyancyWill === 'function') {
-            return CardMovementModule.applySuperBuoyancyWill(cardState, gameState, playerKey, row, col, {
-                getSuperBuoyancyTargets,
-                getCellValueForCard,
-                hasBoardShapeCellForCard,
-                isBlockedCell,
-                findSpecialMarkerAt,
-                destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
-                    ? BoardOpsModule.destroyAt
-                    : null,
-                runDestroyBlock: BoardOpsModule && typeof BoardOpsModule.runDestroyBlock === 'function'
-                    ? BoardOpsModule.runDestroyBlock
-                    : null,
-                isDestroyResolved,
-                destroyAtLegacy: destroyAt,
-                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
-                    ? BoardOpsModule.moveAt
-                    : null,
-                setCellValueForCard,
-                getMarkers
-            });
-        }
-        return _applyVerticalCrushWill(cardState, gameState, playerKey, row, col, {
-            pendingType: 'SUPER_BUOYANCY_WILL',
-            direction: -1,
-            moveReason: 'super_buoyancy_move',
-            destroyReason: 'super_buoyancy_collision',
-            targetGetter: getSuperBuoyancyTargets
+        return CardMovementModule.applySuperBuoyancyWill(cardState, gameState, playerKey, row, col, {
+            getSuperBuoyancyTargets,
+            getCellValueForCard,
+            hasBoardShapeCellForCard,
+            isBlockedCell,
+            findSpecialMarkerAt,
+            destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
+                ? BoardOpsModule.destroyAt
+                : null,
+            runDestroyBlock: BoardOpsModule && typeof BoardOpsModule.runDestroyBlock === 'function'
+                ? BoardOpsModule.runDestroyBlock
+                : null,
+            isDestroyResolved,
+            destroyAtLegacy: destroyAt,
+            moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                ? BoardOpsModule.moveAt
+                : null,
+            setCellValueForCard,
+            getMarkers
         });
     }
 
     function applyBuoyancyWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardMovementModule && typeof CardMovementModule.applyBuoyancyWill === 'function') {
-            return CardMovementModule.applyBuoyancyWill(cardState, gameState, playerKey, row, col, {
-                getBuoyancyTargets,
-                getCellValueForCard,
-                hasBoardShapeCellForCard,
-                isBlockedCell,
-                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
-                    ? BoardOpsModule.moveAt
-                    : null,
-                setCellValueForCard,
-                getMarkers
-            });
-        }
-        return _applyVerticalSlideWill(cardState, gameState, playerKey, row, col, {
-            pendingType: 'BUOYANCY_WILL',
-            direction: -1,
-            moveReason: 'buoyancy_move',
-            targetGetter: getBuoyancyTargets
+        return CardMovementModule.applyBuoyancyWill(cardState, gameState, playerKey, row, col, {
+            getBuoyancyTargets,
+            getCellValueForCard,
+            hasBoardShapeCellForCard,
+            isBlockedCell,
+            moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                ? BoardOpsModule.moveAt
+                : null,
+            setCellValueForCard,
+            getMarkers
         });
     }
 
     function applySuperGravityWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardMovementModule && typeof CardMovementModule.applySuperGravityWill === 'function') {
-            return CardMovementModule.applySuperGravityWill(cardState, gameState, playerKey, row, col, {
-                getSuperGravityTargets,
-                getCellValueForCard,
-                hasBoardShapeCellForCard,
-                isBlockedCell,
-                findSpecialMarkerAt,
-                destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
-                    ? BoardOpsModule.destroyAt
-                    : null,
-                runDestroyBlock: BoardOpsModule && typeof BoardOpsModule.runDestroyBlock === 'function'
-                    ? BoardOpsModule.runDestroyBlock
-                    : null,
-                isDestroyResolved,
-                destroyAtLegacy: destroyAt,
-                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
-                    ? BoardOpsModule.moveAt
-                    : null,
-                setCellValueForCard,
-                getMarkers
-            });
-        }
-        return _applyVerticalCrushWill(cardState, gameState, playerKey, row, col, {
-            pendingType: 'SUPER_GRAVITY_WILL',
-            direction: 1,
-            moveReason: 'super_gravity_move',
-            destroyReason: 'super_gravity_collision',
-            targetGetter: getSuperGravityTargets
+        return CardMovementModule.applySuperGravityWill(cardState, gameState, playerKey, row, col, {
+            getSuperGravityTargets,
+            getCellValueForCard,
+            hasBoardShapeCellForCard,
+            isBlockedCell,
+            findSpecialMarkerAt,
+            destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
+                ? BoardOpsModule.destroyAt
+                : null,
+            runDestroyBlock: BoardOpsModule && typeof BoardOpsModule.runDestroyBlock === 'function'
+                ? BoardOpsModule.runDestroyBlock
+                : null,
+            isDestroyResolved,
+            destroyAtLegacy: destroyAt,
+            moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                ? BoardOpsModule.moveAt
+                : null,
+            setCellValueForCard,
+            getMarkers
         });
     }
 
     function applyGravityWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardMovementModule && typeof CardMovementModule.applyGravityWill === 'function') {
-            return CardMovementModule.applyGravityWill(cardState, gameState, playerKey, row, col, {
-                getGravityTargets,
-                getCellValueForCard,
-                hasBoardShapeCellForCard,
-                isBlockedCell,
-                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
-                    ? BoardOpsModule.moveAt
-                    : null,
-                setCellValueForCard,
-                getMarkers
-            });
-        }
-        return _applyVerticalSlideWill(cardState, gameState, playerKey, row, col, {
-            pendingType: 'GRAVITY_WILL',
-            direction: 1,
-            moveReason: 'gravity_move',
-            targetGetter: getGravityTargets
+        return CardMovementModule.applyGravityWill(cardState, gameState, playerKey, row, col, {
+            getGravityTargets,
+            getCellValueForCard,
+            hasBoardShapeCellForCard,
+            isBlockedCell,
+            moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                ? BoardOpsModule.moveAt
+                : null,
+            setCellValueForCard,
+            getMarkers
         });
     }
 
     function applySuperAttractionWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardMovementModule && typeof CardMovementModule.applySuperAttractionWill === 'function') {
-            return CardMovementModule.applySuperAttractionWill(cardState, gameState, playerKey, row, col, {
-                getSuperAttractionTargets,
-                getCellValueForCard,
-                hasBoardShapeCellForCard,
-                isBlockedCell,
-                findSpecialMarkerAt,
-                destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
-                    ? BoardOpsModule.destroyAt
-                    : null,
-                runDestroyBlock: BoardOpsModule && typeof BoardOpsModule.runDestroyBlock === 'function'
-                    ? BoardOpsModule.runDestroyBlock
-                    : null,
-                isDestroyResolved,
-                destroyAtLegacy: destroyAt,
-                moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
-                    ? BoardOpsModule.moveAt
-                    : null,
-                setCellValueForCard,
-                getMarkers
-            });
-        }
-        return { applied: false, reason: 'deps_missing' };
+        return CardMovementModule.applySuperAttractionWill(cardState, gameState, playerKey, row, col, {
+            getSuperAttractionTargets,
+            getCellValueForCard,
+            hasBoardShapeCellForCard,
+            isBlockedCell,
+            findSpecialMarkerAt,
+            destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
+                ? BoardOpsModule.destroyAt
+                : null,
+            runDestroyBlock: BoardOpsModule && typeof BoardOpsModule.runDestroyBlock === 'function'
+                ? BoardOpsModule.runDestroyBlock
+                : null,
+            isDestroyResolved,
+            destroyAtLegacy: destroyAt,
+            moveAt: BoardOpsModule && typeof BoardOpsModule.moveAt === 'function'
+                ? BoardOpsModule.moveAt
+                : null,
+            setCellValueForCard,
+            getMarkers
+        });
     }
 
     function getCardHandManagerContext() {
