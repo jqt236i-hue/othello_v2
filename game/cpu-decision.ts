@@ -298,12 +298,17 @@ function clearCpuPendingEffect(playerKey: any, stateRef?: any): any {
     return { ok: true, playerKey };
 }
 
-const CpuDecisionBoardUtilsModule = (() => {
-    if (typeof require === 'function') {
-        try { return _require('./cpu-decision-board-utils'); } catch (e) { /* ignore */ }
+function requireCpuDecisionModuleOrNull(id: string): any {
+    if (typeof require !== 'function') return null;
+    try {
+        return _require(id);
+    } catch (e) {
+        /* ignore */
     }
     return null;
-})();
+}
+
+const CpuDecisionBoardUtilsModule = requireCpuDecisionModuleOrNull('./cpu-decision-board-utils');
 
 const countBoardEmpties = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.countBoardEmpties === 'function')
     ? CpuDecisionBoardUtilsModule.countBoardEmpties
