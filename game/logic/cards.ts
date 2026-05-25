@@ -660,7 +660,7 @@ const {
     const CardSniperModule = resolveRequiredCardModule('./cards/sniper', 'CardSniper');
     const CardLightningModule = resolveRequiredCardModule('./cards/lightning', 'CardLightning');
     /** @type {any} */
-    const CardWillHunterKingModule = resolveCardLogicGlobalOrModule('CardWillHunterKing', './cards/will_hunter_king');
+    const CardWillHunterKingModule = resolveRequiredCardModule('./cards/will_hunter_king', 'CardWillHunterKing');
     /** @type {any} */
     const CardDestroyDragonModule = resolveCardLogicGlobalOrModule('CardDestroyDragon', './cards/destroy_dragon');
     const DragonEffectsModule = resolveRequiredCardModule('./effects/dragon', 'DragonEffects');
@@ -5058,10 +5058,6 @@ const {
         return processLightningWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, prngOrOpts);
     }
 
-    function resolveWillHunterKingModule() {
-        return CardWillHunterKingModule || null;
-    }
-
     function processWillHunterKingEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
         const hasOptionShape = !!(prngOrOpts && typeof prngOrOpts === 'object' && (
             Object.prototype.hasOwnProperty.call(prngOrOpts, 'random') ||
@@ -5084,18 +5080,13 @@ const {
             'CardLogic.processWillHunterKingEffectsAtTurnStartAnchor'
         );
 
-        const mod = resolveWillHunterKingModule();
-        if (mod && typeof mod.processWillHunterKingEffectsAtTurnStartAnchor === 'function') {
-            if (BoardOpsModule && typeof BoardOpsModule.runEffectBlock === 'function') {
-                return mod.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
-            }
-            return runBoardOpsDestroyBlock(cardState, gameState, () =>
-                mod.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
-                { randomSource: deps.random }
-            );
+        if (BoardOpsModule && typeof BoardOpsModule.runEffectBlock === 'function') {
+            return CardWillHunterKingModule.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps);
         }
-        console.warn('[cards.js] CardWillHunterKing turn-start anchor processor not available');
-        return { moved: [], destroyed: [], expired: [] };
+        return runBoardOpsDestroyBlock(cardState, gameState, () =>
+            CardWillHunterKingModule.processWillHunterKingEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
+            { randomSource: deps.random }
+        );
     }
 
     function processObserverWillEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
