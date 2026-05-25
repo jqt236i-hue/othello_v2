@@ -2158,15 +2158,18 @@ function _getRunResultPublishPromise(runResult: any) {
         : null;
 }
 
+function _renderCardUiSafely() {
+    if (typeof renderCardUI !== 'function') return;
+    try { renderCardUI(); } catch (e) { /* ignore */ }
+}
+
 function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any, runResult: any) {
     const publishPromise = _getRunResultPublishPromise(runResult);
     if (!publishPromise) return false;
 
     _beginServerAuthoredCardUseClickBuffer(playerKey, ownerKey, cardId);
     _setPendingSelectionBusy(true);
-    if (typeof renderCardUI === 'function') {
-        try { renderCardUI(); } catch (e) { /* ignore */ }
-    }
+    _renderCardUiSafely();
 
     Promise.resolve(publishPromise)
         .then((publishResult) => {
@@ -2177,9 +2180,7 @@ function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any
                     ? String(publishResult.reason)
                     : 'NETWORK_PUBLISH_FAILED';
                 addLog(`カード使用に失敗しました (${reason})`);
-                if (typeof renderCardUI === 'function') {
-                    try { renderCardUI(); } catch (e) { /* ignore */ }
-                }
+                _renderCardUiSafely();
                 if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
                     ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
                 }
@@ -2190,9 +2191,7 @@ function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any
             if (cardState && cardState.selectedCardId === cardId && _getSelectedCardOwnerKey(playerKey) === ownerKey) {
                 _clearSelectedCardSelection();
             }
-            if (typeof renderCardUI === 'function') {
-                try { renderCardUI(); } catch (e) { /* ignore */ }
-            }
+            _renderCardUiSafely();
             const rootRef = _getUiRootRef();
             const globalRef: CardInteractionRuntimeRoot | null = (typeof globalThis !== 'undefined' && globalThis) ? (globalThis as CardInteractionRuntimeRoot) : null;
             const clickHandler = (typeof handleCellClick === 'function')
@@ -2217,9 +2216,7 @@ function _handleServerAuthoredCardUse(playerKey: any, ownerKey: any, cardId: any
                 ? String(error.message)
                 : 'PUBLISH_ERROR';
             addLog(`カード使用に失敗しました (${reason})`);
-            if (typeof renderCardUI === 'function') {
-                try { renderCardUI(); } catch (e) { /* ignore */ }
-            }
+            _renderCardUiSafely();
             if (typeof ensureCurrentPlayerCanActOrPass === 'function') {
                 ensureCurrentPlayerCanActOrPass({ useBlackDelay: true });
             }
@@ -2444,11 +2441,7 @@ function _renderCardUiWithOptionalPlaybackDelay(shouldDelay: any, options: any) 
 
     const waitForPlaybackFn = _getWaitForPlaybackIdleFn();
     if (typeof waitForPlaybackFn === 'function') {
-        Promise.resolve(waitForPlaybackFn()).then(() => {
-            try { renderCardUI(); } catch (e) { /* ignore */ }
-        }).catch(() => {
-            try { renderCardUI(); } catch (e) { /* ignore */ }
-        });
+        Promise.resolve(waitForPlaybackFn()).then(_renderCardUiSafely).catch(_renderCardUiSafely);
         return;
     }
 
@@ -2519,9 +2512,7 @@ function _startNetworkOnlyPendingSelectionPublish(options: any) {
             }
         } catch (e) { /* ignore */ }
         _setPendingSelectionBusy(false);
-        if (typeof renderCardUI === 'function') {
-            try { renderCardUI(); } catch (e) { /* ignore */ }
-        }
+        _renderCardUiSafely();
     };
 
     Promise.resolve()
