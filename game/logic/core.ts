@@ -25,31 +25,24 @@ function safeRequire(id: string): any {
     }
 }
 
-function getRuntimeSharedConstants(): any {
-    if (typeof self !== 'undefined' && (self as any).SharedConstants) {
-        return (self as any).SharedConstants;
+function getRuntimeGlobalValueOrDefault(key: string, fallbackValue: any): any {
+    if (typeof self !== 'undefined' && (self as any)[key]) {
+        return (self as any)[key];
     }
-    return undefined;
+    return fallbackValue;
 }
 
-const SharedConstants = (() => {
+function resolveCoreModuleOrGlobal(id: string, globalKey: string, fallbackValue: any): any {
     if (typeof module === 'object' && module.exports) {
-        const loaded = safeRequire('../../shared-constants');
+        const loaded = safeRequire(id);
         if (loaded) return loaded;
     }
 
-    return getRuntimeSharedConstants();
-})();
+    return getRuntimeGlobalValueOrDefault(globalKey, fallbackValue);
+}
 
-const SharedBoardUtils = (() => {
-    if (typeof module === 'object' && module.exports) {
-        const loaded = safeRequire('../../shared/shared-board-utils');
-        if (loaded) return loaded;
-    }
-    return (typeof self !== 'undefined' && (self as any).SharedBoardUtils)
-        ? (self as any).SharedBoardUtils
-        : null;
-})();
+const SharedConstants = resolveCoreModuleOrGlobal('../../shared-constants', 'SharedConstants', undefined);
+const SharedBoardUtils = resolveCoreModuleOrGlobal('../../shared/shared-board-utils', 'SharedBoardUtils', null);
 
 const BoardUtilsModule = (typeof module === 'object' && module.exports)
     ? (safeRequire('../../shared/board-utils') || null)
