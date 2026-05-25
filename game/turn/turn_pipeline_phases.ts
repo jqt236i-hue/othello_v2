@@ -4,7 +4,15 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
-    const MarkersAdapter = (() => { try { return _require('../logic/markers_adapter'); } catch (e) { return null; } })();
+    function requireOptionalModule(id: string): any {
+        try {
+            return _require(id);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    const MarkersAdapter = requireOptionalModule('../logic/markers_adapter');
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
     function isBombCategoryMarker(marker: any) {
         if (MarkersAdapter && typeof MarkersAdapter.isBombCategoryMarker === 'function') {
@@ -17,10 +25,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             marker.data.category === 'bomb'
         );
     }
-    const CardUtilsModule = (() => { try { return _require('../logic/cards/utils'); } catch (e) { return null; } })();
-    const SharedConstantsModule = (() => { try { return _require('../../shared-constants'); } catch (e) { return null; } })();
-    const OwnerHelpersModule = (() => { try { return _require('../../utils/owner-helpers'); } catch (e) { return null; } })();
-    const DestroyOutcomeContract = (() => { try { return _require('../../shared/destroy-outcome-contract'); } catch (e) { return null; } })();
+    const CardUtilsModule = requireOptionalModule('../logic/cards/utils');
+    const SharedConstantsModule = requireOptionalModule('../../shared-constants');
+    const OwnerHelpersModule = requireOptionalModule('../../utils/owner-helpers');
+    const DestroyOutcomeContract = requireOptionalModule('../../shared/destroy-outcome-contract');
     const DESTROY_OUTCOME_KINDS = (DestroyOutcomeContract && DestroyOutcomeContract.DESTROY_OUTCOME_KINDS) || Object.freeze({
         DESTROYED: 'destroyed',
         REGENERATED: 'regenerated',
@@ -186,8 +194,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         ? resolvedChargeMax
         : 99;
 
-    const PhaseHelpersModule = (() => { try { return _require('./turn_pipeline_phase_helpers'); } catch (e) { return null; } })();
-    const PendingCoordinatorModule = (() => { try { return _require('./pending-coordinator'); } catch (e) { return null; } })();
+    const PhaseHelpersModule = requireOptionalModule('./turn_pipeline_phase_helpers');
+    const PendingCoordinatorModule = requireOptionalModule('./pending-coordinator');
 
     const FALLBACK_OBSERVER_BUBBLE_SPEECH = Object.freeze({
         placeLines: Object.freeze(['観測最高！']),
@@ -2594,7 +2602,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     function resolveSafeCardContext(CardLogic: any, cardState: any) {
         let ctx = null;
         try {
-            const ctxHelper = (() => { try { return _require('../logic/context'); } catch (e) { return null; } })();
+            const ctxHelper = requireOptionalModule('../logic/context');
             if (ctxHelper && typeof ctxHelper.getSafeCardContext === 'function') {
                 ctx = ctxHelper.getSafeCardContext(cardState);
             }
