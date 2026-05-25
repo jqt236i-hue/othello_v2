@@ -32,26 +32,17 @@ function safeRequire(id: string): any {
     }
 }
 
-const SharedConstants = (() => {
+function resolveTimeBombModuleOrGlobal(id: string, globalKey: string): any {
     if (typeof module === 'object' && module.exports) {
-        return safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
+        return safeRequire(id) || getRuntimeGlobalValue(globalKey);
     }
 
-    return getRuntimeGlobalValue('SharedConstants');
-})();
+    return getRuntimeGlobalValue(globalKey);
+}
 
-const BoardOpsModule = ((typeof module === 'object' && module.exports)
-    ? safeRequire('../board_ops')
-    : null) || getRuntimeGlobalValue('BoardOps');
-
-const CardMarkersModule = (() => {
-    if (typeof module === 'object' && module.exports) {
-        try {
-            return _require('./markers') || getRuntimeGlobalValue('CardMarkers');
-        } catch (e) { /* ignore */ }
-    }
-    return getRuntimeGlobalValue('CardMarkers');
-})();
+const SharedConstants = resolveTimeBombModuleOrGlobal('../../../shared-constants', 'SharedConstants');
+const BoardOpsModule = resolveTimeBombModuleOrGlobal('../board_ops', 'BoardOps');
+const CardMarkersModule = resolveTimeBombModuleOrGlobal('./markers', 'CardMarkers');
 
 const { TIME_BOMB_TURNS } = SharedConstants || {};
 const BOMB_CATEGORY = 'bomb';
