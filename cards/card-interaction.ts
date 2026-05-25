@@ -2478,14 +2478,21 @@ function _emitBoardUpdateWithOptionalPlaybackDelay(shouldDelay: any) {
 }
 
 function _getActiveNetworkMatchClient() {
-    const networkRoot = (typeof window !== 'undefined' && window && window.NetworkMatchClient)
-        ? window
-        : ((typeof globalThis !== 'undefined' && globalThis && (globalThis as CardInteractionRuntimeRoot).NetworkMatchClient) ? (globalThis as CardInteractionRuntimeRoot) : null);
+    const networkRoot = _getNetworkMatchClientRoot();
     const networkClient = networkRoot ? networkRoot.NetworkMatchClient : null;
     if (!networkClient) return null;
     if (typeof networkClient.publishSnapshot !== 'function') return null;
     if (typeof networkClient.isActive !== 'function' || networkClient.isActive() !== true) return null;
     return networkClient;
+}
+
+function _getNetworkMatchClientRoot(): CardInteractionRuntimeRoot | null {
+    if (typeof window !== 'undefined' && window && window.NetworkMatchClient) {
+        return window;
+    }
+    return (typeof globalThis !== 'undefined' && globalThis && (globalThis as CardInteractionRuntimeRoot).NetworkMatchClient)
+        ? (globalThis as CardInteractionRuntimeRoot)
+        : null;
 }
 
 function _startNetworkOnlyPendingSelectionPublish(options: any) {
@@ -2537,9 +2544,7 @@ function _startNetworkOnlyPendingSelectionPublish(options: any) {
 function fillDebugHand() {
     if (!_isDebugAllowed()) return;
     if (!window.DEBUG_HUMAN_VS_HUMAN && !window.DEBUG_UNLIMITED_USAGE) return;
-    const networkRoot = (typeof window !== 'undefined' && window && window.NetworkMatchClient)
-        ? window
-        : ((typeof globalThis !== 'undefined' && globalThis && (globalThis as CardInteractionRuntimeRoot).NetworkMatchClient) ? (globalThis as CardInteractionRuntimeRoot) : null);
+    const networkRoot = _getNetworkMatchClientRoot();
     const networkClient = networkRoot
         ? networkRoot.NetworkMatchClient
         : null;
