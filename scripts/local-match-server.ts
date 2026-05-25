@@ -1475,24 +1475,12 @@ async function handlePublish(req: any, res: any) {
     }
 
     if (baseVersion === null || baseVersion !== room.stateVersion) {
-        const versionRejectedOptions = MatchAuthority && typeof MatchAuthority.buildVersionRejectedPublishResponseOptions === 'function'
-            ? MatchAuthority.buildVersionRejectedPublishResponseOptions(room, {
-                operationId,
-                actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion
-            })
-            : MatchAuthority.buildPublishResponseOptions({
-                ok: false,
-                rejectedReason: MatchAuthority && typeof MatchAuthority.classifyVersionRejectionReason === 'function'
-                    ? MatchAuthority.classifyVersionRejectionReason(baseVersion, room.stateVersion)
-                    : 'VERSION_MISMATCH',
-                publishKind: 'rejected',
-                operationId,
-                actionType,
-                receivedBaseVersion: baseVersion,
-                authoritativeStateVersion: room.stateVersion
-            });
+        const versionRejectedOptions = MatchAuthority.buildVersionRejectedPublishResponseOptions(room, {
+            operationId,
+            actionType,
+            receivedBaseVersion: baseVersion,
+            authoritativeStateVersion: room.stateVersion
+        });
         const rejectedReason = versionRejectedOptions && versionRejectedOptions.rejectedReason
             ? versionRejectedOptions.rejectedReason
             : 'VERSION_MISMATCH';
