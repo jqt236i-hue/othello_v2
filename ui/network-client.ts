@@ -665,6 +665,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             || resolveNetworkClientCandidate(() => (typeof globalThis !== 'undefined' ? (globalThis as any).HandSkinUiModule : null));
     }
 
+    function resolveHandSkinStorageModules() {
+        return resolveNetworkClientCandidate(() => ({
+            shared: _require('../shared/observation-gacha-catalog-shared'),
+            progress: _require('./storage/gacha-progress')
+        }));
+    }
+
     function resolveOwnerHelpers() {
         if (ownerHelpers) return ownerHelpers;
 
@@ -1332,11 +1339,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
                 const raw = String(storage.getItem(storageKey) || '').trim();
                 if (!raw) return 'default';
                 try {
-                    const shared = require('../shared/observation-gacha-catalog-shared');
+                    const modules = resolveHandSkinStorageModules();
+                    const shared = modules && modules.shared;
                     const canonical = shared && typeof shared.normalizeCatalogItemId === 'function'
                         ? String(shared.normalizeCatalogItemId(raw) || '').trim()
                         : raw;
-                    const progress = require('./storage/gacha-progress');
+                    const progress = modules && modules.progress;
                     if (canonical && progress && typeof progress.isHandSkinOwned === 'function' && progress.isHandSkinOwned(root, canonical)) {
                         return canonical;
                     }
