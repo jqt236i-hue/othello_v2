@@ -640,7 +640,7 @@ const {
     /** @type {any} */
     const CardTeleportModule = resolveCardLogicGlobalOrModule('CardTeleport', './cards/teleport');
     /** @type {any} */
-    const CardCloneModule = resolveCardLogicGlobalOrModule('CardClone', './cards/clone');
+    const CardCloneModule = resolveRequiredCardModule('./cards/clone', 'CardClone');
     /** @type {any} */
     const CardMeteorModule = resolveCardLogicGlobalOrModule('CardMeteor', './cards/meteor');
     /** @type {any} */
@@ -3229,88 +3229,21 @@ const {
     }
 
     function applyCloneWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
-        if (CardCloneModule && typeof CardCloneModule.applyCloneWill === 'function') {
-            return CardCloneModule.applyCloneWill(cardState, gameState, playerKey, row, col, prng, {
-                getCloneTargets,
-                getCellValueForCard,
-                getSpecialMarkers,
-                getBombMarkers,
-                collectEmptyNeighborCellsForCard,
-                spawnAt: BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function'
-                    ? BoardOpsModule.spawnAt
-                    : null,
-                runSpawnBlock: BoardOpsModule && typeof BoardOpsModule.runSpawnBlock === 'function'
-                    ? BoardOpsModule.runSpawnBlock
-                    : null,
-                setCellValueForCard,
-                addMarker
-            });
-        }
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'CLONE_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-
-        const targets = getCloneTargets(cardState, gameState, playerKey);
-        const allowed = targets.some((t: any) => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        const sourceVal = getCellValueForCard(gameState, row, col);
-        const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        if (sourceVal !== playerVal) return { applied: false, reason: 'not_owner_stone' };
-
-        const sourceSpecials = getSpecialMarkers(cardState).filter((m: any) => m && m.row === row && m.col === col);
-        const sourceBombs = getBombMarkers(cardState).filter((m: any) => m && m.row === row && m.col === col);
-
-        const spawnTargets = collectEmptyNeighborCellsForCard(cardState, gameState, row, col);
-
-        if (!spawnTargets.length) return { applied: false, reason: 'no_space' };
-
-        const randomIndex = resolveDeterministicRandomIndex(
-            spawnTargets.length,
-            prng,
-            null,
-            'CardLogic.applyCloneWill'
-        );
-        const selectedTarget = spawnTargets[randomIndex] || spawnTargets[0];
-
-        const spawned = [];
-        const target = selectedTarget;
-        if (BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function') {
-            const spawnResult = BoardOpsModule.spawnAt(cardState, gameState, target.row, target.col, playerKey, 'CLONE_WILL', 'clone_spawn', {
-                fromRow: row,
-                fromCol: col,
-                cloneVisual: true
-            });
-            if (!spawnResult || spawnResult.spawned !== true) {
-                return {
-                    applied: false,
-                    reason: (spawnResult && typeof spawnResult.reason === 'string' && spawnResult.reason)
-                        ? spawnResult.reason
-                        : 'spawn_failed'
-                };
-            }
-        } else {
-            const wroteCell = setCellValueForCard(gameState, target.row, target.col, playerVal);
-            if (wroteCell !== true) return { applied: false, reason: 'spawn_failed' };
-        }
-
-        for (const sm of sourceSpecials) {
-            const owner = sm.owner === 'white' ? 'white' : 'black';
-            addMarker(cardState, 'specialStone', target.row, target.col, owner, cloneMarkerData(sm.data || {}));
-        }
-        for (const bm of sourceBombs) {
-            const owner = bm.owner === 'white' ? 'white' : 'black';
-            addMarker(cardState, 'specialStone', target.row, target.col, owner, Object.assign(
-                {},
-                cloneMarkerData(bm.data || {}),
-                { category: MARKER_CATEGORIES.BOMB, type: (bm.data && bm.data.type) || 'TIME_BOMB' }
-            ));
-        }
-        spawned.push({ row: target.row, col: target.col });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, source: { row, col }, spawned };
+        return CardCloneModule.applyCloneWill(cardState, gameState, playerKey, row, col, prng, {
+            getCloneTargets,
+            getCellValueForCard,
+            getSpecialMarkers,
+            getBombMarkers,
+            collectEmptyNeighborCellsForCard,
+            spawnAt: BoardOpsModule && typeof BoardOpsModule.spawnAt === 'function'
+                ? BoardOpsModule.spawnAt
+                : null,
+            runSpawnBlock: BoardOpsModule && typeof BoardOpsModule.runSpawnBlock === 'function'
+                ? BoardOpsModule.runSpawnBlock
+                : null,
+            setCellValueForCard,
+            addMarker
+        });
     }
 
     function applyBoardExpansionWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
