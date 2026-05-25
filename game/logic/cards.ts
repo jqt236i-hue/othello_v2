@@ -651,7 +651,7 @@ const {
     const CardFlipsModule = resolveRequiredCardModule('./cards/flips', 'CardFlips');
     const CardChainModule = resolveRequiredCardModule('./cards/chain', 'CardChain');
     const CardRegenModule = resolveRequiredCardModule('./cards/regen', 'CardRegen');
-    const CardTimeBombModule = resolveCardLogicGlobalOrModule('CardTimeBomb', './cards/time_bomb');
+    const CardTimeBombModule = resolveRequiredCardModule('./cards/time_bomb', 'CardTimeBomb');
     /** @type {any} */
     const CardBreedingModule = resolveRequiredCardModule('./cards/breeding', 'CardBreeding');
     const CardHyperactiveModule = resolveRequiredCardModule('./cards/hyperactive', 'CardHyperactive');
@@ -3341,36 +3341,13 @@ const {
     }
 
     function applyTimeBombWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardTimeBombModule && typeof CardTimeBombModule.applyTimeBombWill === 'function') {
-            return CardTimeBombModule.applyTimeBombWill(cardState, gameState, playerKey, row, col, {
-                getTimeBombTargets,
-                removeMarkersAt,
-                addMarker,
-                emitPresentationEvent,
-                specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
-            });
-        }
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'TIME_BOMB' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-        const targets = getTimeBombTargets(cardState, gameState, playerKey);
-        const allowed = targets.some((t: any) => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-        if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
-        removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone' });
-        const existingBomb = findBombMarkerAt(cardState, row, col);
-        if (existingBomb) return { applied: false, reason: 'exists' };
-
-        addMarker(cardState, 'specialStone', row, col, playerKey, {
-            type: 'TIME_BOMB',
-            category: MARKER_CATEGORIES.BOMB,
-            remainingTurns: TIME_BOMB_TURNS,
-            placedTurn: cardState.turnIndex
+        return CardTimeBombModule.applyTimeBombWill(cardState, gameState, playerKey, row, col, {
+            getTimeBombTargets,
+            removeMarkersAt,
+            addMarker,
+            emitPresentationEvent,
+            specialStoneKind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone'
         });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, row, col };
     }
 
     function cloneMarkerData(data: any) {
