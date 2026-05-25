@@ -1342,7 +1342,7 @@ const {
     }
 
     /** @type {any} */
-    const CardSelectorsModule = resolveCardLogicGlobalOrModule('CardSelectors', './cards/selectors');
+    const CardSelectorsModule = resolveRequiredCardModule('./cards/selectors', 'CardSelectors');
     const CardUsagePrechecksModule = resolveRequiredCardModule('./cards-internal/card-usage-prechecks', 'CardUsagePrechecks');
     const CardHandManagerModule = resolveRequiredCardModule('./cards-internal/hand-manager', 'CardHandManager');
     const CardWorkModule = resolveRequiredCardModule('./cards/work_will', 'CardWork');
