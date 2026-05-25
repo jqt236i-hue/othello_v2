@@ -10,6 +10,7 @@ let cardLogicModule: any = null;
 let networkActionSchemaModule: any = null;
 let pendingCoordinatorModule: any = null;
 let playbackEventHelpersModule: any = null;
+const PlayerKeyHelpers = _require('./player-key');
 
 function resolveCardLogicModule(override?: any): any {
   if (override && typeof override === 'object') return override;
@@ -58,31 +59,11 @@ function resolvePlaybackEventHelpersModule(override?: any): any {
   return playbackEventHelpersModule;
 }
 
-function defaultNormalizePlayerKey(value: any, fallback?: any): string {
-  const normalized = (value === null || typeof value === 'undefined')
-    ? ''
-    : String(value).trim().toLowerCase();
-  const fallbackNormalized = (fallback === null || typeof fallback === 'undefined')
-    ? ''
-    : String(fallback).trim().toLowerCase();
-
-  if (value === -1 || normalized === 'white' || normalized === '-1') return 'white';
-  if (value === 1 || normalized === 'black' || normalized === '1' || normalized === '+1') return 'black';
-  if (fallback === -1 || fallbackNormalized === 'white' || fallbackNormalized === '-1') return 'white';
-  return 'black';
-}
-
 function normalizePlayerKey(value: any, fallback?: any, override?: any): string {
-  if (typeof override === 'function') {
-    try {
-      return override(value, fallback);
-    } catch (e) { /* ignore */ }
-  }
-  const schema = resolveNetworkActionSchemaModule();
-  if (schema && typeof schema.normalizePlayerKey === 'function') {
-    return schema.normalizePlayerKey(value, fallback);
-  }
-  return defaultNormalizePlayerKey(value, fallback);
+  return PlayerKeyHelpers.normalizePlayerKey(value, fallback, {
+    override,
+    schema: resolveNetworkActionSchemaModule()
+  });
 }
 
 function resolveCardTypeForId(cardId: string, options?: any): string | null {
