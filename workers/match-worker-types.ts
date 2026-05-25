@@ -91,6 +91,7 @@ export interface MatchWorkerCoreModule extends MatchWorkerRuntimeModule {
     BLACK?: unknown;
     WHITE?: unknown;
     createGameState(boardConfig?: unknown): unknown;
+    isGameOver(gameState: unknown): boolean;
     applyPass?: (gameState: unknown, playerKey?: unknown, options?: unknown) => unknown;
 }
 

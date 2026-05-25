@@ -249,7 +249,7 @@ function reconcileTurnStartIfNeeded(room: any, snapshot: any, options: any) {
     if (lastTurnStartedFor === currentPlayerKey) {
         return opts.includeRawEvents ? [] : snapshot;
     }
-    if (typeof Core.isGameOver === 'function' && Core.isGameOver(snapshot.gameState)) {
+    if (Core.isGameOver(snapshot.gameState)) {
         return opts.includeRawEvents ? [] : snapshot;
     }
 
@@ -592,7 +592,7 @@ function refreshTurnTimer(room: any, options: any) {
     const opts = (options && typeof options === 'object') ? options : {};
     const nowMs = Number.isFinite(Number(opts.nowMs)) ? Math.max(0, Math.trunc(Number(opts.nowMs))) : Date.now();
     const shouldRunBySeats = hasTwoActiveSeats(room);
-    const isGameOver = shouldRunBySeats && typeof Core.isGameOver === 'function' && Core.isGameOver(room && room.snapshot && room.snapshot.gameState);
+    const isGameOver = shouldRunBySeats && Core.isGameOver(room && room.snapshot && room.snapshot.gameState);
     const shouldBeActive = shouldRunBySeats && !isGameOver;
 
     if (!shouldBeActive) {
@@ -1495,7 +1495,7 @@ async function handlePublish(req: any, res: any) {
 
     const expectedPlayerKey = getCurrentPlayerKey(room.snapshot && room.snapshot.gameState);
     if (playerKey !== expectedPlayerKey) {
-        const allowOutOfTurnRematch = isRematchResetAction && typeof Core.isGameOver === 'function' && Core.isGameOver(room.snapshot && room.snapshot.gameState);
+        const allowOutOfTurnRematch = isRematchResetAction && Core.isGameOver(room.snapshot && room.snapshot.gameState);
         const allowOutOfTurnNetworkDebug = isNetworkDebugAction && toPublicNetworkDebugEnabled(room);
         const allowFateWillController = MatchAuthority.isFateWillControllerForCurrentTurn(room.snapshot, playerKey);
         if (!allowOutOfTurnRematch && !allowOutOfTurnNetworkDebug && !allowFateWillController) {

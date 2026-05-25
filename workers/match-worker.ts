@@ -1111,7 +1111,7 @@ async function reconcileTurnStartIfNeeded(room: MatchWorkerRoomState | null | un
     }
 
     const { Core, CardLogic, TurnPipelinePhases, SeededPRNG } = await loadTurnStartModules();
-    if (typeof Core.isGameOver === 'function' && Core.isGameOver(snapshotRecord.gameState)) {
+    if (Core.isGameOver(snapshotRecord.gameState)) {
         return opts.includeRawEvents ? [] : snapshot;
     }
 
@@ -2082,7 +2082,6 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (!snapshot || !snapshot.gameState) return false;
         try {
             const core = await loadCoreLogicModule();
-            if (!core || typeof core.isGameOver !== 'function') return false;
             return !!core.isGameOver(snapshot.gameState);
         } catch (e) {
             return false;
