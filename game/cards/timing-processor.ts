@@ -63,32 +63,23 @@ function loadRuntimeModule(id: string, globalKey: string): any {
     return unwrapModule(safeRequire(id)) || unwrapModule(readRuntimeGlobal(globalKey));
 }
 
-const SharedConstants = loadRuntimeModule('../../shared-constants', 'SharedConstants');
-
-const CardEffectTimingModule = loadRuntimeModule('../logic/cards-internal/effect-timing', 'CardEffectTiming');
-
-const CardTimeBombModule = loadRuntimeModule('../logic/cards/time_bomb', 'CardTimeBomb');
-
-const DragonEffectsModule = loadRuntimeModule('../logic/effects/dragon', 'DragonEffects');
-
-const CardUdgModule = loadRuntimeModule('../logic/cards/udg', 'CardUdg');
-
-const CardHyperactiveModule = loadRuntimeModule('../logic/cards/hyperactive', 'CardHyperactive');
-
-const { EMPTY } = SharedConstants || {};
-const TIME_BOMB_DESTROY_CAUSE = 'TIME_BOMB';
-const TIME_BOMB_DESTROY_REASON = 'bomb_explosion';
-const TIME_BOMB_PROJECTILE_STONE = 'time_bomb';
-
-function buildTimeBombDestroyMeta(bomb: any, forbiddenEvadeCells: Array<{row: number; col: number}>): any {
-    return {
-        sourceRow: bomb && Number.isInteger(bomb.row) ? bomb.row : null,
-        sourceCol: bomb && Number.isInteger(bomb.col) ? bomb.col : null,
-        projectileOwner: bomb && bomb.owner ? bomb.owner : null,
-        projectileStone: TIME_BOMB_PROJECTILE_STONE,
-        forbiddenEvadeCells
-    };
+function requireRuntimeModule(id: string, globalKey: string): any {
+    const mod = loadRuntimeModule(id, globalKey);
+    if (!mod) {
+        throw new Error(`[timing-processor.ts] ${globalKey} module not available`);
+    }
+    return mod;
 }
+
+const CardEffectTimingModule = requireRuntimeModule('../logic/cards-internal/effect-timing', 'CardEffectTiming');
+
+const CardTimeBombModule = requireRuntimeModule('../logic/cards/time_bomb', 'CardTimeBomb');
+
+const DragonEffectsModule = requireRuntimeModule('../logic/effects/dragon', 'DragonEffects');
+
+const CardUdgModule = requireRuntimeModule('../logic/cards/udg', 'CardUdg');
+
+const CardHyperactiveModule = requireRuntimeModule('../logic/cards/hyperactive', 'CardHyperactive');
 
 function onTurnStart(cardState: CardState, playerKey: string, gameState: GameState, prng: any, effectTimingContext: any) {
     if (!CardEffectTimingModule || typeof CardEffectTimingModule.onTurnStart !== 'function') {
@@ -122,89 +113,18 @@ function applyPlacementEffects(cardState: CardState, gameState: GameState, playe
 
 function tickBombs(cardState: CardState, gameState: GameState, playerKey: string, deps: any) {
     const { BoardOpsModule, destroyAt } = deps || {};
-    if (CardTimeBombModule && typeof CardTimeBombModule.tickBombs === 'function') {
-        return CardTimeBombModule.tickBombs(cardState, gameState, playerKey, { BoardOps: BoardOpsModule, destroyAt });
-    }
-    console.warn('[timing-processor.ts] CardTimeBomb module not available');
-    return { exploded: [], destroyed: [] };
+    return CardTimeBombModule.tickBombs(cardState, gameState, playerKey, { BoardOps: BoardOpsModule, destroyAt });
 }
 
 function tickBombAt(cardState: CardState, gameState: GameState, bomb: any, activeKey: string, deps: any) {
-    const { BoardOpsModule, destroyAt, removeMarkerById, removeMarkersAt, getBombMarkers, MARKER_CATEGORIES } = deps || {};
+    const { BoardOpsModule, destroyAt, removeMarkersAt } = deps || {};
     if (!bomb)
         return { exploded: [], destroyed: [], removed: false };
-    if (CardTimeBombModule && typeof CardTimeBombModule.tickBombAt === 'function') {
-        return CardTimeBombModule.tickBombAt(cardState, gameState, bomb, activeKey, { BoardOps: BoardOpsModule, destroyAt });
-    }
-    const bombs = typeof getBombMarkers === 'function' ? getBombMarkers(cardState) : [];
-    const idx = bombs.findIndex((b: any) => (bomb.id && b.id === bomb.id) || (b.row === bomb.row && b.col === bomb.col && b.owner === bomb.owner && b.createdSeq === bomb.createdSeq));
-    if (idx === -1)
-        return { exploded: [], destroyed: [], removed: false };
-    const b = bombs[idx];
-    if (activeKey && b.owner !== activeKey)
-        return { exploded: [], destroyed: [], removed: false };
-    if (b.data && b.data.placedTurn === (cardState as any).turnIndex)
-        return { exploded: [], destroyed: [], removed: false };
-    if (!b.data)
-        b.data = {};
-    b.data.remainingTurns = (typeof b.data.remainingTurns === 'number') ? b.data.remainingTurns - 1 : -1;
-    if (b.data.remainingTurns <= 0) {
-        const exploded = [{ row: b.row, col: b.col }];
-        const destroyed: Array<{row: number; col: number}> = [];
-        const targets: Array<{row: number; col: number}> = [];
-        const forbiddenEvadeCells: Array<{row: number; col: number}> = [];
-        const board = gameState && Array.isArray(gameState.board) ? gameState.board : [];
-        const rows = board.length || 8;
-        const cols = board[0] && board[0].length || rows;
-        for (let dr = -1; dr <= 1; dr++) {
-            for (let dc = -1; dc <= 1; dc++) {
-                const r = b.row + dr;
-                const c = b.col + dc;
-                if (r < 0 || r >= rows || c < 0 || c >= cols)
-                    continue;
-                forbiddenEvadeCells.push({ row: r, col: c });
-                if (board[r][c] === EMPTY)
-                    continue;
-                targets.push({ row: r, col: c });
-            }
-        }
-        const destroyTargets = () => {
-            for (const target of targets) {
-                let destroyedRes = false;
-                if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-                    const res = BoardOpsModule.destroyAt(
-                        cardState,
-                        gameState,
-                        target.row,
-                        target.col,
-                        TIME_BOMB_DESTROY_CAUSE,
-                        TIME_BOMB_DESTROY_REASON,
-                        buildTimeBombDestroyMeta(b, forbiddenEvadeCells)
-                    );
-                    destroyedRes = !!(res && res.destroyed);
-                }
-                else if (typeof destroyAt === 'function') {
-                    destroyedRes = destroyAt(cardState, gameState, target.row, target.col);
-                }
-                if (destroyedRes)
-                    destroyed.push({ row: target.row, col: target.col });
-            }
-        };
-        if (BoardOpsModule && typeof BoardOpsModule.runDestroyBlock === 'function') {
-            BoardOpsModule.runDestroyBlock(cardState, gameState, destroyTargets, {});
-        }
-        else {
-            destroyTargets();
-        }
-        if (typeof removeMarkerById === 'function' && b.id !== undefined) {
-            removeMarkerById(cardState, b.id);
-        }
-        else if (typeof removeMarkersAt === 'function') {
-            removeMarkersAt(cardState, b.row, b.col, { category: (MARKER_CATEGORIES || {}).BOMB, owner: b.owner });
-        }
-        return { exploded, destroyed, removed: true };
-    }
-    return { exploded: [], destroyed: [], removed: false };
+    return CardTimeBombModule.tickBombAt(cardState, gameState, bomb, activeKey, {
+        BoardOps: BoardOpsModule,
+        destroyAt,
+        removeMarkersAt
+    });
 }
 
 function processDragonEffects(cardState: CardState, gameState: GameState, playerKey: string, deps: any) {
@@ -215,11 +135,7 @@ function processDragonEffects(cardState: CardState, gameState: GameState, player
         selectRandomEmptyBoardShapeDestination,
         moveCoexistingSpecialMarkers
     };
-    if (DragonEffectsModule && typeof DragonEffectsModule.processDragonEffects === 'function') {
-        return DragonEffectsModule.processDragonEffects(cardState, gameState, playerKey, dragonDeps);
-    }
-    console.warn('[timing-processor.ts] DragonEffects module not available');
-    return { converted: [], destroyed: [], anchors: [] };
+    return DragonEffectsModule.processDragonEffects(cardState, gameState, playerKey, dragonDeps);
 }
 
 function processUltimateDestroyGodEffects(cardState: CardState, gameState: GameState, playerKey: string, deps: any) {
@@ -230,29 +146,21 @@ function processUltimateDestroyGodEffects(cardState: CardState, gameState: GameS
         selectRandomEmptyBoardShapeDestination,
         moveCoexistingSpecialMarkers
     };
-    if (CardUdgModule && typeof CardUdgModule.processUltimateDestroyGodEffects === 'function') {
-        return CardUdgModule.processUltimateDestroyGodEffects(cardState, gameState, playerKey, udgDeps);
-    }
-    console.warn('[timing-processor.ts] CardUdG module not available');
-    return { destroyed: [], anchors: [], expired: [] };
+    return CardUdgModule.processUltimateDestroyGodEffects(cardState, gameState, playerKey, udgDeps);
 }
 
 function processHyperactiveMoves(cardState: CardState, gameState: GameState, prng: any, deps: any) {
     const { defaultPrng, getFlipsWithContextLocal, clearBombAt, clearHyperactiveAtPositions, isBlockedCell, getCardContext, BoardOpsModule, destroyAt } = deps || {};
-    if (CardHyperactiveModule && typeof CardHyperactiveModule.processHyperactiveMoves === 'function') {
-        return CardHyperactiveModule.processHyperactiveMoves(cardState, gameState, prng, {
-            defaultPrng,
-            getFlipsWithContext: getFlipsWithContextLocal,
-            clearBombAt,
-            clearHyperactiveAtPositions,
-            isBlockedCell,
-            getCardContext,
-            BoardOps: BoardOpsModule,
-            destroyAt
-        });
-    }
-    console.warn('[timing-processor.ts] CardHyperactive module not available');
-    return { moved: [], destroyed: [], flipped: [], flippedByOwner: { black: [], white: [] } };
+    return CardHyperactiveModule.processHyperactiveMoves(cardState, gameState, prng, {
+        defaultPrng,
+        getFlipsWithContext: getFlipsWithContextLocal,
+        clearBombAt,
+        clearHyperactiveAtPositions,
+        isBlockedCell,
+        getCardContext,
+        BoardOps: BoardOpsModule,
+        destroyAt
+    });
 }
 
 export = {
