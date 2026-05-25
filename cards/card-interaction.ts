@@ -129,6 +129,18 @@ function _isDebugAllowed() {
     }
 }
 
+function _isDebugHvHMode() {
+    return window.DEBUG_HUMAN_VS_HUMAN === true;
+}
+
+function _isDebugUnlimitedUsage() {
+    return window.DEBUG_UNLIMITED_USAGE === true;
+}
+
+function _isAutoModeActive() {
+    return typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true;
+}
+
 function ensureDebugActionsLoaded(cb: any) {
     try {
         if (typeof window === 'undefined') return cb && cb(null);
@@ -1899,7 +1911,7 @@ function _getNetworkLocalPlayerKey() {
 }
 
 function _resolveInputPlayerKey() {
-    const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
+    const isDebugHvH = _isDebugHvHMode();
     if (_isNetworkMode()) return _getNetworkLocalPlayerKey();
     if (isDebugHvH) {
         // Mirror the renderer's inputPlayerKey formula: when FATE_WILL is active in HvH,
@@ -1944,7 +1956,7 @@ function _canInputPlayerActNow() {
     const localKey = _resolveInputPlayerKey();
     // FATE_WILL: block the victim and allow only the controller.
     // Applies in network mode and in local non-HvH mode (in HvH both players share the device).
-    const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
+    const isDebugHvH = _isDebugHvHMode();
     if (_isNetworkMode() || !isDebugHvH) {
         const cs = (typeof cardState !== 'undefined' && cardState) ? cardState : null;
         const fwc = cs && cs.fateWillControllerByTurnOwner;
@@ -2262,7 +2274,7 @@ function _snapshotElementRect(element: any) {
 function _resolveSelectedHandCardActionContext(options: any) {
     const opts = (options && typeof options === 'object') ? options : {};
     const isDebugUnlimited = opts.isDebugUnlimited === true;
-    if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return null;
+    if (_isAutoModeActive()) return null;
     if (!isDebugUnlimited && opts.requireInteract !== false && !_canInteractWithCardUi()) return null;
     if (!isDebugUnlimited && opts.requireTurn !== false && !_canInputPlayerActNow()) return null;
     if (!cardState || cardState.selectedCardId === null) return null;
@@ -2543,7 +2555,7 @@ function _startNetworkOnlyPendingSelectionPublish(options: any) {
 // Fill hand with all card types for debug testing
 function fillDebugHand() {
     if (!_isDebugAllowed()) return;
-    if (!window.DEBUG_HUMAN_VS_HUMAN && !window.DEBUG_UNLIMITED_USAGE) return;
+    if (!_isDebugHvHMode() && !_isDebugUnlimitedUsage()) return;
     const networkRoot = _getNetworkMatchClientRoot();
     const networkClient = networkRoot
         ? networkRoot.NetworkMatchClient
@@ -2570,7 +2582,7 @@ function fillDebugHand() {
         return;
     }
 
-    const shouldFillWhite = window.DEBUG_HUMAN_VS_HUMAN === true;
+    const shouldFillWhite = _isDebugHvHMode();
     const dbg = _getDebugActions();
     if (!dbg || typeof dbg.fillDebugHand !== 'function') {
         ensureDebugActionsLoaded((loaded: any) => {
@@ -2590,7 +2602,7 @@ function fillDebugHand() {
 }
 
 function _resolveCardDetailSelectionContext(playerKey: any) {
-    const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
+    const isDebugHvH = _isDebugHvHMode();
     const selectedId = cardState.selectedCardId;
     const selectedOwnerKey = _getSelectedCardOwnerKey(playerKey);
     const hasInspectableSelection = !!selectedId
@@ -2615,9 +2627,9 @@ function _syncCardDetailExpandedSelection(normalizedSelectedId: any) {
 }
 
 function _resolveCardDetailActionState(selectionContext: any) {
-    const isAutoMode = typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true;
+    const isAutoMode = _isAutoModeActive();
     const canActThisTurn = _canInputPlayerActNow();
-    const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
+    const isDebugUnlimited = _isDebugUnlimitedUsage();
     _ensureHandDestroyFlags();
     const hasNotUsedThisTurn = isDebugUnlimited ? true : !_hasPlayerUsedCardThisActiveTurn(selectionContext.playerKey);
     const canInteract = isDebugUnlimited ? true : _canInteractWithCardUi();
@@ -2916,9 +2928,9 @@ function playUiEffectSound(effectKey: any) {
 }
 
 function onCardClick(cardId: any, ownerKey: any) {
-    const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
-    const isDebugHvH = window.DEBUG_HUMAN_VS_HUMAN === true;
-    if (typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true) return;
+    const isDebugUnlimited = _isDebugUnlimitedUsage();
+    const isDebugHvH = _isDebugHvHMode();
+    if (_isAutoModeActive()) return;
     const playerKey = _resolveInputPlayerKey();
     const actionOwnerKey = _getCardUiActionOwnerKey(playerKey);
     const clickedOwnerKey = (ownerKey === 'white' || ownerKey === 'black')
@@ -2966,7 +2978,7 @@ function onCardClick(cardId: any, ownerKey: any) {
 }
 
 function destroySelectedHandCard() {
-    const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
+    const isDebugUnlimited = _isDebugUnlimitedUsage();
     const actionContext = _resolveSelectedHandCardActionContext({ isDebugUnlimited });
     if (!actionContext) return;
     const { playerKey, actionPlayerKey, cardId } = actionContext;
@@ -2994,7 +3006,7 @@ function destroySelectedHandCard() {
 }
 
 function useSelectedCard() {
-    const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
+    const isDebugUnlimited = _isDebugUnlimitedUsage();
     const actionContext = _resolveSelectedHandCardActionContext({ isDebugUnlimited });
     if (!actionContext) return;
     const { playerKey, actionPlayerKey, cardId } = actionContext;
@@ -3092,7 +3104,7 @@ function useSelectedCard() {
 }
 
 function passCurrentTurn() {
-    const isAutoMode = typeof window !== 'undefined' && window.AUTO_MODE_ACTIVE === true;
+    const isAutoMode = _isAutoModeActive();
     if (isAutoMode) return;
     if (!_canInputPlayerActNow()) return;
 
@@ -3128,7 +3140,7 @@ function cancelPendingSelection(specificPlayerKey: any) {
     if (!pending || pending.stage !== 'selectTarget') return;
     if (!_isCancellablePendingSelectionForCardUi(pending.type)) return;
 
-    const isDebugUnlimited = window.DEBUG_UNLIMITED_USAGE === true;
+    const isDebugUnlimited = _isDebugUnlimitedUsage();
     const cancelOptions = isDebugUnlimited ? { refundCost: false, resetUsage: false, noConsume: true } : null;
     const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
         ? ActionManager.ActionManager.createAction('cancel_card', playerKey, { cancelOptions })
