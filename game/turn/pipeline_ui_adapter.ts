@@ -28,23 +28,27 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return mod;
     }
 
-    function safeRequire(id: string): any {
+    function requireOptionalModule(id: string): any {
         try {
-            return unwrapModule(_require(id));
+            return _require(id);
         } catch (e) {
             return null;
         }
     }
 
-    const MarkersAdapter = (() => { try { return _require('../logic/markers_adapter'); } catch (e) { return null; } })();
+    function safeRequire(id: string): any {
+        return unwrapModule(requireOptionalModule(id));
+    }
+
+    const MarkersAdapter = requireOptionalModule('../logic/markers_adapter');
     const MARKER_KINDS = MarkersAdapter && MarkersAdapter.MARKER_KINDS;
-    const OwnerHelpersModule = (() => { try { return _require('../../utils/owner-helpers'); } catch (e) { return null; } })();
-    const SharedBoardUtils = (() => { try { return _require('../../shared/shared-board-utils'); } catch (e) { return null; } })();
-    const PlaybackEventHelpers = (() => { try { return _require('../../shared/playback-event-helpers'); } catch (e) { return null; } })();
-    const TurnPipelinePhaseHelpers = (() => { try { return _require('./turn_pipeline_phase_helpers'); } catch (e) { return null; } })();
-    const DestroyOutcomeContract = (() => { try { return _require('../../shared/destroy-outcome-contract'); } catch (e) { return null; } })();
-    const SpecialStoneRegistry = (() => { try { return _require('../../shared/special-stone-registry'); } catch (e) { return null; } })();
-    const StoneStatusSnapshot = (() => { try { return _require('../../shared/stone-status-snapshot'); } catch (e) { return null; } })();
+    const OwnerHelpersModule = requireOptionalModule('../../utils/owner-helpers');
+    const SharedBoardUtils = requireOptionalModule('../../shared/shared-board-utils');
+    const PlaybackEventHelpers = requireOptionalModule('../../shared/playback-event-helpers');
+    const TurnPipelinePhaseHelpers = requireOptionalModule('./turn_pipeline_phase_helpers');
+    const DestroyOutcomeContract = requireOptionalModule('../../shared/destroy-outcome-contract');
+    const SpecialStoneRegistry = requireOptionalModule('../../shared/special-stone-registry');
+    const StoneStatusSnapshot = requireOptionalModule('../../shared/stone-status-snapshot');
     const PresentationEffectProfiles = safeRequire('../../shared/presentation-effect-profiles') || unwrapModule(readRuntimeGlobal('PresentationEffectProfiles'));
 
     const REGEN_CAUSE = 'REGEN';
