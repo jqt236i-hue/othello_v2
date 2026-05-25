@@ -1809,9 +1809,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     nextSseEventId(): string {
         const room = this.room;
         if (!room || typeof room !== 'object') {
-            return typeof MatchAuthority.makeSseStreamId === 'function'
-                ? MatchAuthority.makeSseStreamId(Date.now(), crypto as unknown as MatchWorkerCryptoLike)
-                : `sse_${Date.now()}`;
+            return MatchAuthority.makeSseStreamId(Date.now(), crypto as unknown as MatchWorkerCryptoLike);
         }
 
         const prevSeq = Number.isFinite(Number(room.eventSeq))
@@ -1829,7 +1827,6 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     rememberBufferedSseEvent(record: MatchAuthorityBufferedSseEventRecordInput): void {
-        if (!MatchAuthority || typeof MatchAuthority.appendBufferedSseEvent !== 'function') return;
         const nextBuffer = MatchAuthority.appendBufferedSseEvent(
             this.room && Array.isArray(this.room.sseEventBuffer) ? this.room.sseEventBuffer : this.sseEventBuffer,
             record
@@ -2890,16 +2887,12 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         const { readable, writable } = new TransformStream();
         const writer = writable.getWriter();
 
-        const streamId = (MatchAuthority && typeof MatchAuthority.makeSseStreamId === 'function')
-            ? MatchAuthority.makeSseStreamId(Date.now(), crypto as unknown as MatchWorkerCryptoLike)
-            : `sse_${Date.now()}`;
+        const streamId = MatchAuthority.makeSseStreamId(Date.now(), crypto as unknown as MatchWorkerCryptoLike);
         this.streams.set(streamId, { writer, seatKey: viewerSeatKey });
         this.ensureHeartbeatTimer();
         const lastEventId = String(request.headers.get('Last-Event-ID') || resumeEventId).trim();
         const replayBuffer = Array.isArray(room.sseEventBuffer) ? room.sseEventBuffer : this.sseEventBuffer;
-        const replayEvents = MatchAuthority && typeof MatchAuthority.getBufferedSseReplayEvents === 'function'
-            ? MatchAuthority.getBufferedSseReplayEvents(replayBuffer, lastEventId, viewerSeatKey)
-            : null;
+        const replayEvents = MatchAuthority.getBufferedSseReplayEvents(replayBuffer, lastEventId, viewerSeatKey);
 
         const onAbort = () => {
             this.closeStream(streamId).catch(() => {});

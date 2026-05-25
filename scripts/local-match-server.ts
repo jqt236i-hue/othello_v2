@@ -837,7 +837,7 @@ function buildHeartbeatPayload(room: any, serverTime: any) {
 }
 
 function rememberBufferedRoomEvent(room: any, record: any) {
-    if (!room || !MatchAuthority || typeof MatchAuthority.appendBufferedSseEvent !== 'function') return;
+    if (!room) return;
     room.sseEventBuffer = MatchAuthority.appendBufferedSseEvent(room.sseEventBuffer, record);
 }
 
@@ -1809,16 +1809,12 @@ function handleStream(req: any, res: any, urlObj: any) {
         'Access-Control-Allow-Origin': '*'
     });
 
-    const streamId = (MatchAuthority && typeof MatchAuthority.makeSseStreamId === 'function')
-        ? MatchAuthority.makeSseStreamId(Date.now())
-        : `sse_${Date.now()}`;
+    const streamId = MatchAuthority.makeSseStreamId(Date.now());
     room.streams.set(streamId, { res, seatKey: viewerSeatKey });
     ensureHeartbeatLoop();
 
     const lastEventId = String((req && req.headers && req.headers['last-event-id']) || resumeEventId).trim();
-    const replayEvents = MatchAuthority && typeof MatchAuthority.getBufferedSseReplayEvents === 'function'
-        ? MatchAuthority.getBufferedSseReplayEvents(room.sseEventBuffer, lastEventId, viewerSeatKey)
-        : null;
+    const replayEvents = MatchAuthority.getBufferedSseReplayEvents(room.sseEventBuffer, lastEventId, viewerSeatKey);
 
     if (Array.isArray(replayEvents)) {
         if (replayEvents.length > 0) {
