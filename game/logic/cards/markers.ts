@@ -24,53 +24,23 @@ function getRuntimeGlobalValue(key: string): any {
     return undefined;
 }
 
-const SharedConstants = (() => {
+function resolveCardMarkersModuleOrGlobal(id: string, globalKey: string): any {
     if (typeof module === 'object' && module.exports) {
         try {
-            return _require('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
+            return _require(id) || getRuntimeGlobalValue(globalKey);
         } catch (e) {
-            return getRuntimeGlobalValue('SharedConstants');
+            return getRuntimeGlobalValue(globalKey);
         }
     }
 
-    return getRuntimeGlobalValue('SharedConstants');
-})();
+    return getRuntimeGlobalValue(globalKey);
+}
 
-const MarkersAdapterModule = (() => {
-    if (typeof module === 'object' && module.exports) {
-        try {
-            return _require('../markers_adapter') || getRuntimeGlobalValue('MarkersAdapter');
-        } catch (e) { /* ignore */ }
-    }
-    return getRuntimeGlobalValue('MarkersAdapter');
-})();
-
-const CardUtilsModule = (() => {
-    if (typeof module === 'object' && module.exports) {
-        try {
-            return _require('./utils') || getRuntimeGlobalValue('CardUtils');
-        } catch (e) { /* ignore */ }
-    }
-    return getRuntimeGlobalValue('CardUtils');
-})();
-
-const CardExpansionModule = (() => {
-    if (typeof module === 'object' && module.exports) {
-        try {
-            return _require('./expansion') || getRuntimeGlobalValue('CardExpansion');
-        } catch (e) { /* ignore */ }
-    }
-    return getRuntimeGlobalValue('CardExpansion');
-})();
-
-const PresentationModule = (() => {
-    if (typeof module === 'object' && module.exports) {
-        try {
-            return _require('../presentation') || getRuntimeGlobalValue('PresentationHelper');
-        } catch (e) { /* ignore */ }
-    }
-    return getRuntimeGlobalValue('PresentationHelper');
-})();
+const SharedConstants = resolveCardMarkersModuleOrGlobal('../../../shared-constants', 'SharedConstants');
+const MarkersAdapterModule = resolveCardMarkersModuleOrGlobal('../markers_adapter', 'MarkersAdapter');
+const CardUtilsModule = resolveCardMarkersModuleOrGlobal('./utils', 'CardUtils');
+const CardExpansionModule = resolveCardMarkersModuleOrGlobal('./expansion', 'CardExpansion');
+const PresentationModule = resolveCardMarkersModuleOrGlobal('../presentation', 'PresentationHelper');
 
 const { BOARD_SIZE } = SharedConstants || {};
 const MarkersAdapter = MarkersAdapterModule || null;
