@@ -647,7 +647,7 @@ const {
     const CardShrinkModule = resolveRequiredCardModule('./cards/shrink', 'CardShrink');
     /** @type {any} */
     const CardLivingWillModule = resolveRequiredCardModule('./cards/living_will', 'CardLivingWill');
-    const CardTargetsModule = resolveCardLogicGlobalOrModule('CardTargets', './cards/targets');
+    const CardTargetsModule = resolveRequiredCardModule('./cards/targets', 'CardTargets');
     const CardFlipsModule = resolveRequiredCardModule('./cards/flips', 'CardFlips');
     const CardChainModule = resolveRequiredCardModule('./cards/chain', 'CardChain');
     const CardRegenModule = resolveRequiredCardModule('./cards/regen', 'CardRegen');
