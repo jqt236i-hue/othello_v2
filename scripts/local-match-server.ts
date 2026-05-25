@@ -1109,15 +1109,13 @@ function applyExpiredTurnTimeoutIfNeeded(room: any) {
     room.snapshot = nextSnapshot;
     room.updatedAt = nowMs;
     room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
-    if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
-        MatchAuthority.appendAuthorityLog(room, {
-            kind: 'timeout_applied',
-            actionType: 'timeout_pass',
-            committedVersion: room.stateVersion,
-            stateHashAfter: room.authoritativeStateHash,
-            timeoutReason: 'turn_deadline_expired'
-        });
-    }
+    MatchAuthority.appendAuthorityLog(room, {
+        kind: 'timeout_applied',
+        actionType: 'timeout_pass',
+        committedVersion: room.stateVersion,
+        stateHashAfter: room.authoritativeStateHash,
+        timeoutReason: 'turn_deadline_expired'
+    });
     refreshTurnTimer(room, { nowMs, forceRestart: true });
     broadcastSnapshot(room, {
         playerKey: timedOutSeatKey,
@@ -1449,17 +1447,15 @@ async function handlePublish(req: any, res: any) {
         && typeof lastAcceptedOperation === 'object'
     ) {
         const serverTime = Date.now();
-        if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
-            MatchAuthority.appendAuthorityLog(room, {
-                kind: 'publish_idempotent_replay',
-                operationId,
-                actionType,
-                baseVersion,
-                committedVersion: room.stateVersion,
-                stateHashBefore: room.authoritativeStateHash,
-                dedupeOutcome: 'replay'
-            });
-        }
+        MatchAuthority.appendAuthorityLog(room, {
+            kind: 'publish_idempotent_replay',
+            operationId,
+            actionType,
+            baseVersion,
+            committedVersion: room.stateVersion,
+            stateHashBefore: room.authoritativeStateHash,
+            dedupeOutcome: 'replay'
+        });
         writeJson(res, 200, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
             ok: true,
             serverTime,
@@ -1484,17 +1480,15 @@ async function handlePublish(req: any, res: any) {
         const rejectedReason = versionRejectedOptions && versionRejectedOptions.rejectedReason
             ? versionRejectedOptions.rejectedReason
             : 'VERSION_MISMATCH';
-        if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
-            MatchAuthority.appendAuthorityLog(room, {
-                kind: 'publish_rejected',
-                operationId,
-                actionType,
-                baseVersion,
-                committedVersion: room.stateVersion,
-                stateHashBefore: room.authoritativeStateHash,
-                rejectedReason
-            });
-        }
+        MatchAuthority.appendAuthorityLog(room, {
+            kind: 'publish_rejected',
+            operationId,
+            actionType,
+            baseVersion,
+            committedVersion: room.stateVersion,
+            stateHashBefore: room.authoritativeStateHash,
+            rejectedReason
+        });
         writeJson(res, 409, buildPublishPayload(room, seatKey, versionRejectedOptions));
         return;
     }
@@ -1543,18 +1537,16 @@ async function handlePublish(req: any, res: any) {
     } else if (hasCommandPayload) {
         const commandResult = applyCommandPublishToSnapshot(room, body, playerKey);
         if (!commandResult.ok) {
-            if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
-                MatchAuthority.appendAuthorityLog(room, {
-                    kind: 'publish_rejected',
-                    operationId,
-                    actionType,
-                    baseVersion,
-                    committedVersion: room.stateVersion,
-                    stateHashBefore,
-                    pendingEffectId: commandResult.pendingEffectId || null,
-                    rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
-                });
-            }
+            MatchAuthority.appendAuthorityLog(room, {
+                kind: 'publish_rejected',
+                operationId,
+                actionType,
+                baseVersion,
+                committedVersion: room.stateVersion,
+                stateHashBefore,
+                pendingEffectId: commandResult.pendingEffectId || null,
+                rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
+            });
             writeJson(res, 409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                 ok: false,
                 rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED',
@@ -1628,19 +1620,17 @@ async function handlePublish(req: any, res: any) {
         receivedBaseVersion: baseVersion,
         authoritativeStateVersion: room.stateVersion
     }));
-    if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
-        MatchAuthority.appendAuthorityLog(room, {
-            kind: 'publish_accepted',
-            operationId,
-            actionType: actionType || (commandAction && commandAction.type) || null,
-            baseVersion,
-            committedVersion: room.stateVersion,
-            stateHashBefore,
-            stateHashAfter: room.authoritativeStateHash,
-            pendingEffectId,
-            dedupeOutcome: 'accepted'
-        });
-    }
+    MatchAuthority.appendAuthorityLog(room, {
+        kind: 'publish_accepted',
+        operationId,
+        actionType: actionType || (commandAction && commandAction.type) || null,
+        baseVersion,
+        committedVersion: room.stateVersion,
+        stateHashBefore,
+        stateHashAfter: room.authoritativeStateHash,
+        pendingEffectId,
+        dedupeOutcome: 'accepted'
+    });
     MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
     broadcastPreparedSnapshot(room, preparedSnapshot);
     writeJson(res, 200, responsePayload);

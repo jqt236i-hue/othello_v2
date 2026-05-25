@@ -2195,15 +2195,13 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         room.snapshot = nextSnapshot;
         room.updatedAt = nowMs;
         room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
-        if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
-            MatchAuthority.appendAuthorityLog(room, {
-                kind: 'timeout_applied',
-                actionType: 'timeout_pass',
-                committedVersion: room.stateVersion,
-                stateHashAfter: room.authoritativeStateHash,
-                timeoutReason: 'turn_deadline_expired'
-            }, undefined);
-        }
+        MatchAuthority.appendAuthorityLog(room, {
+            kind: 'timeout_applied',
+            actionType: 'timeout_pass',
+            committedVersion: room.stateVersion,
+            stateHashAfter: room.authoritativeStateHash,
+            timeoutReason: 'turn_deadline_expired'
+        }, undefined);
 
         await this.refreshTurnTimer({ nowMs, forceRestart: true });
         await this.saveRoom();
@@ -2591,17 +2589,15 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             typeof lastAcceptedOperation === 'object'
         ) {
             const serverTime = Date.now();
-            if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
-                MatchAuthority.appendAuthorityLog(room, {
-                    kind: 'publish_idempotent_replay',
-                    operationId,
-                    actionType,
-                    baseVersion,
-                    committedVersion: room.stateVersion,
-                    stateHashBefore: room.authoritativeStateHash,
-                    dedupeOutcome: 'replay'
-                }, undefined);
-            }
+            MatchAuthority.appendAuthorityLog(room, {
+                kind: 'publish_idempotent_replay',
+                operationId,
+                actionType,
+                baseVersion,
+                committedVersion: room.stateVersion,
+                stateHashBefore: room.authoritativeStateHash,
+                dedupeOutcome: 'replay'
+            }, undefined);
             return jsonResponse(200, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                 ok: true,
                 idempotentReplay: true,
@@ -2625,17 +2621,15 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             const rejectedReason = versionRejectedOptions && versionRejectedOptions.rejectedReason
                 ? versionRejectedOptions.rejectedReason
                 : 'VERSION_MISMATCH';
-            if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
-                MatchAuthority.appendAuthorityLog(room, {
-                    kind: 'publish_rejected',
-                    operationId,
-                    actionType,
-                    baseVersion,
-                    committedVersion: room.stateVersion,
-                    stateHashBefore: room.authoritativeStateHash,
-                    rejectedReason
-                }, undefined);
-            }
+            MatchAuthority.appendAuthorityLog(room, {
+                kind: 'publish_rejected',
+                operationId,
+                actionType,
+                baseVersion,
+                committedVersion: room.stateVersion,
+                stateHashBefore: room.authoritativeStateHash,
+                rejectedReason
+            }, undefined);
             return jsonResponse(409, buildPublishPayload(room, seatKey, versionRejectedOptions));
         }
 
@@ -2643,8 +2637,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         if (playerKey !== expectedPlayerKey) {
             const allowOutOfTurnRematch = isRematchResetAction && await this.isSnapshotGameOver(room.snapshot as MatchWorkerPublicSnapshot | null | undefined);
             const allowOutOfTurnNetworkDebug = isNetworkDebugAction && toPublicNetworkDebugEnabled(room);
-            const allowFateWillController = MatchAuthority && typeof MatchAuthority.isFateWillControllerForCurrentTurn === 'function'
-                && MatchAuthority.isFateWillControllerForCurrentTurn(room.snapshot, playerKey);
+            const allowFateWillController = MatchAuthority.isFateWillControllerForCurrentTurn(room.snapshot, playerKey);
             if (!allowOutOfTurnRematch && !allowOutOfTurnNetworkDebug && !allowFateWillController) {
                 return jsonResponse(409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                     ok: false,
@@ -2696,18 +2689,16 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         } else if (hasCommandPayload) {
             const commandResult = await applyCommandPublishToSnapshot(room, body, playerKey);
             if (!commandResult.ok) {
-                if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
-                    MatchAuthority.appendAuthorityLog(room, {
-                        kind: 'publish_rejected',
-                        operationId,
-                        actionType,
-                        baseVersion,
-                        committedVersion: room.stateVersion,
-                        stateHashBefore,
-                        pendingEffectId: commandResult.pendingEffectId || null,
-                        rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
-                    }, undefined);
-                }
+                MatchAuthority.appendAuthorityLog(room, {
+                    kind: 'publish_rejected',
+                    operationId,
+                    actionType,
+                    baseVersion,
+                    committedVersion: room.stateVersion,
+                    stateHashBefore,
+                    pendingEffectId: commandResult.pendingEffectId || null,
+                    rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED'
+                }, undefined);
                 return jsonResponse(409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                     ok: false,
                     rejectedReason: commandResult.rejectedReason || 'COMMAND_REJECTED',
@@ -2780,19 +2771,17 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             }),
             { previousSnapshotForChargeDelta }
         ));
-        if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
-            MatchAuthority.appendAuthorityLog(room, {
-                kind: 'publish_accepted',
-                operationId,
-                actionType: actionType || (commandAction && asRecord(commandAction).type ? String(asRecord(commandAction).type) : null),
-                baseVersion,
-                committedVersion: room.stateVersion,
-                stateHashBefore,
-                stateHashAfter: room.authoritativeStateHash,
-                pendingEffectId,
-                dedupeOutcome: 'accepted'
-            }, undefined);
-        }
+        MatchAuthority.appendAuthorityLog(room, {
+            kind: 'publish_accepted',
+            operationId,
+            actionType: actionType || (commandAction && asRecord(commandAction).type ? String(asRecord(commandAction).type) : null),
+            baseVersion,
+            committedVersion: room.stateVersion,
+            stateHashBefore,
+            stateHashAfter: room.authoritativeStateHash,
+            pendingEffectId,
+            dedupeOutcome: 'accepted'
+        }, undefined);
         MatchAuthority.stripTransientChargeDeltaState(room.snapshot);
         await this.saveRoom();
         await this.broadcastSnapshot({
@@ -2876,13 +2865,11 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             (async () => {
                 try {
                     if (Array.isArray(replayEvents)) {
-                        if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
-                            MatchAuthority.appendAuthorityLog(room, {
-                                kind: replayEvents.length > 0 ? 'stream_resume_replay' : 'stream_resume_heartbeat',
-                                stateHashBefore: room.authoritativeStateHash,
-                                dedupeOutcome: replayEvents.length > 0 ? 'replay' : 'empty_replay'
-                            }, undefined);
-                        }
+                        MatchAuthority.appendAuthorityLog(room, {
+                            kind: replayEvents.length > 0 ? 'stream_resume_replay' : 'stream_resume_heartbeat',
+                            stateHashBefore: room.authoritativeStateHash,
+                            dedupeOutcome: replayEvents.length > 0 ? 'replay' : 'empty_replay'
+                        }, undefined);
                         if (replayEvents.length > 0) {
                             for (const event of replayEvents) {
                                 await this.sendSse(streamId, event.eventName, event.payload, { eventId: event.eventId });
@@ -2892,13 +2879,11 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                         }
                         return;
                     }
-                    if (MatchAuthority && typeof MatchAuthority.appendAuthorityLog === 'function') {
-                        MatchAuthority.appendAuthorityLog(room, {
-                            kind: 'stream_resume_full_sync',
-                            stateHashBefore: room.authoritativeStateHash,
-                            dedupeOutcome: 'full_sync'
-                        }, undefined);
-                    }
+                    MatchAuthority.appendAuthorityLog(room, {
+                        kind: 'stream_resume_full_sync',
+                        stateHashBefore: room.authoritativeStateHash,
+                        dedupeOutcome: 'full_sync'
+                    }, undefined);
                     await this.sendSse(streamId, 'snapshot', initialPayload);
                     await this.sendSse(streamId, 'chat', withPublicSeatState(room, {
                         ok: true,
