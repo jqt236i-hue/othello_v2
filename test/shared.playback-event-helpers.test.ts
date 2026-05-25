@@ -98,4 +98,71 @@ describe('PlaybackEventHelpers', () => {
     ]);
     expect(out.diagnostics).toEqual({ warnings: [] });
   });
+
+  test('collects action playback from pipeline presentation events when present', () => {
+    const out = helpers.collectActionPlaybackEvents({
+      result: {
+        events: [{ type: 'place', row: 2, col: 3, player: 'black', actionId: 'place-1', turnIndex: 4 }],
+        presentationEvents: [{ type: 'CARD_USED', cardId: 'treasure', player: 'black' }],
+        cardState: { presentationEvents: [{ type: 'STALE' }] }
+      },
+      snapshot: { cardState: { turnIndex: 4 }, gameState: { board: [] } },
+      playerKey: 'black',
+      fallbackPlayerKey: 'black',
+      adapter: {
+        mapToPlaybackEvents: jest.fn((events) => events.map((event, index) => ({
+          type: 'mapped',
+          phase: index + 1,
+          targets: [event]
+        })))
+      }
+    });
+
+    expect(out.presentationEvents).toEqual([
+      { type: 'CARD_USED', cardId: 'treasure', player: 'black' }
+    ]);
+    expect(out.playbackEvents).toEqual([
+      {
+        type: 'place_hand_animation',
+        phase: 0,
+        rawType: 'place',
+        actionId: 'place-1',
+        turnIndex: 4,
+        targets: [{ r: 2, col: 3, player: 'black', owner: 'black' }]
+      },
+      {
+        type: 'mapped',
+        phase: 1,
+        targets: [{ type: 'CARD_USED', cardId: 'treasure', player: 'black' }]
+      }
+    ]);
+  });
+
+  test('collects action playback from raw events when no presentation events exist', () => {
+    const out = helpers.collectActionPlaybackEvents({
+      result: {
+        events: [{ type: 'place', row: 4, col: 5, player: 'white', actionId: 'place-2', turnIndex: 8 }],
+        cardState: { presentationEvents: [] }
+      },
+      snapshot: { cardState: { turnIndex: 8 }, gameState: { board: [] } },
+      playerKey: 'white',
+      fallbackPlayerKey: 'white'
+    });
+
+    expect(out.presentationEvents).toEqual([]);
+    expect(out.playbackPresentationEvents).toEqual([
+      { type: 'place', row: 4, col: 5, player: 'white', actionId: 'place-2', turnIndex: 8 }
+    ]);
+    expect(out.playbackEvents).toEqual([
+      {
+        type: 'place_hand_animation',
+        phase: 0,
+        rawType: 'place',
+        actionId: 'place-2',
+        turnIndex: 8,
+        targets: [{ r: 4, col: 5, player: 'white', owner: 'white' }]
+      },
+      { type: 'place', row: 4, col: 5, player: 'white', actionId: 'place-2', turnIndex: 8 }
+    ]);
+  });
 });

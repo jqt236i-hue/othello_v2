@@ -529,14 +529,11 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
     const actionChargeDeltaEvents = Array.isArray(nextSnapshot && nextSnapshot.cardState && nextSnapshot.cardState.chargeDeltaEvents)
         ? deepClone(nextSnapshot.cardState.chargeDeltaEvents)
         : [];
-    const actionPresentationEvents = Array.isArray(result.presentationEvents)
-        ? result.presentationEvents
-        : ((result.cardState && Array.isArray(result.cardState.presentationEvents)) ? result.cardState.presentationEvents : []);
-    const playbackPresentationEvents = actionPresentationEvents.length > 0 ? actionPresentationEvents : result.events;
-    const playbackAssembly = PlaybackEventHelpers.mapServerPresentationToPlaybackEvents({
+    const playbackAssembly = PlaybackEventHelpers.collectActionPlaybackEvents({
+        result,
         rawEvents: result.events,
-        presentationEvents: playbackPresentationEvents,
         snapshot: nextSnapshot,
+        playerKey,
         fallbackPlayerKey: playerKey,
         adapter: TurnPipelineUIAdapter,
         normalizePlayerKey
@@ -546,6 +543,9 @@ function applyCommandPublishToSnapshot(room: any, body: any, playerKey: any) {
     });
     const playbackEvents = (playbackAssembly && Array.isArray(playbackAssembly.playbackEvents))
         ? playbackAssembly.playbackEvents
+        : [];
+    const actionPresentationEvents = (playbackAssembly && Array.isArray(playbackAssembly.presentationEvents))
+        ? playbackAssembly.presentationEvents
         : [];
     const actionEffectLogs = buildNetworkActionEffectLogs(
         resolvedAction,

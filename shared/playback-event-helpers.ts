@@ -76,6 +76,15 @@
         playerKey: unknown;
     }
 
+    interface ActionPlaybackCollectionOptions extends AssemblyOptions {
+        result?: unknown;
+        playerKey?: unknown;
+    }
+
+    interface ActionPlaybackCollectionResult extends ServerPlaybackCollectionResult {
+        playbackPresentationEvents: unknown[];
+    }
+
     interface TurnStartHandState {
         playerKey?: unknown;
         hand?: unknown[];
@@ -441,6 +450,38 @@
         };
     }
 
+    function collectActionPlaybackEvents(options: unknown): ActionPlaybackCollectionResult {
+        const opts = (options && typeof options === 'object') ? options as ActionPlaybackCollectionOptions : {};
+        const result = (opts.result && typeof opts.result === 'object') ? opts.result as Record<string, unknown> : {};
+        const resultCardState = (result.cardState && typeof result.cardState === 'object')
+            ? result.cardState as Record<string, unknown>
+            : {};
+        const rawEvents = Array.isArray(opts.rawEvents)
+            ? opts.rawEvents
+            : (Array.isArray(result.events) ? result.events : []);
+        const presentationEvents = Array.isArray(result.presentationEvents)
+            ? result.presentationEvents
+            : (Array.isArray(resultCardState.presentationEvents) ? resultCardState.presentationEvents : []);
+        const playbackPresentationEvents = presentationEvents.length > 0 ? presentationEvents : rawEvents;
+        const playerKey = opts.playerKey || opts.fallbackPlayerKey || null;
+        const assembly = mapServerPresentationToPlaybackEvents({
+            rawEvents,
+            presentationEvents: playbackPresentationEvents,
+            snapshot: opts.snapshot,
+            fallbackPlayerKey: playerKey as string | null,
+            adapter: opts.adapter,
+            normalizePlayerKey: opts.normalizePlayerKey
+        });
+
+        return {
+            playbackEvents: Array.isArray(assembly.playbackEvents) ? assembly.playbackEvents : [],
+            diagnostics: assembly.diagnostics || createAssemblyDiagnostics([], []),
+            presentationEvents,
+            playbackPresentationEvents,
+            playerKey
+        };
+    }
+
     function appendTurnStartDrawPlaybackEvents(options: unknown): unknown {
         const opts = (options && typeof options === 'object') ? options as TurnStartDrawOptions : {};
         const playbackAssembly = opts.playbackAssembly;
@@ -542,6 +583,7 @@
         countRawBoardVisualEvents,
         countBoardVisualPlaybackEvents,
         getCardCostTier,
+        collectActionPlaybackEvents,
         collectServerPlaybackEvents,
         mapServerPresentationToPlaybackEvents,
         appendTurnStartDrawPlaybackEvents,

@@ -1131,16 +1131,12 @@ async function applyCommandPublishToSnapshot(
         gameState: result.gameState,
         cardState: result.cardState
     };
-    const resultCardState = asRecord(result.cardState);
-    const actionPresentationEvents = Array.isArray(result.presentationEvents)
-        ? result.presentationEvents
-        : (Array.isArray(resultCardState.presentationEvents) ? resultCardState.presentationEvents : []);
-    const playbackPresentationEvents = actionPresentationEvents.length > 0 ? actionPresentationEvents : result.events;
-    const mapPlaybackEvents = PlaybackEventHelpers.mapServerPresentationToPlaybackEvents as ((options: unknown) => MatchWorkerPlaybackAssembly);
-    const playbackAssembly = mapPlaybackEvents({
+    const collectActionPlaybackEvents = PlaybackEventHelpers.collectActionPlaybackEvents as ((options: unknown) => MatchWorkerPlaybackAssembly);
+    const playbackAssembly = collectActionPlaybackEvents({
+        result,
         rawEvents: result.events,
-        presentationEvents: playbackPresentationEvents,
         snapshot: nextSnapshot,
+        playerKey,
         fallbackPlayerKey: playerKey,
         adapter: asPlaybackAdapter(TurnPipelineUIAdapter),
         normalizePlayerKey
@@ -1150,6 +1146,9 @@ async function applyCommandPublishToSnapshot(
     });
     const playbackEvents = (playbackAssembly && Array.isArray(playbackAssembly.playbackEvents))
         ? playbackAssembly.playbackEvents
+        : [];
+    const actionPresentationEvents = (playbackAssembly && Array.isArray(playbackAssembly.presentationEvents))
+        ? playbackAssembly.presentationEvents
         : [];
     const actionEffectLogs = buildNetworkActionEffectLogs(
         resolvedAction,
