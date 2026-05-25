@@ -655,27 +655,15 @@ function resolveNetworkDebugFillHandOptions(value: unknown): Record<string, unkn
 }
 
 function normalizeNetworkPlayerName(value: unknown): string {
-    if (MatchAuthority && typeof MatchAuthority.normalizeNetworkPlayerName === 'function') {
-        return MatchAuthority.normalizeNetworkPlayerName(value);
-    }
-    const normalized = String(value || '').replace(/\s+/g, ' ').trim();
-    return Array.from(normalized).slice(0, NETWORK_PLAYER_NAME_MAX).join('');
+    return MatchAuthority.normalizeNetworkPlayerName(value);
 }
 
 function normalizeOperationId(value: unknown): string {
-    if (MatchAuthority && typeof MatchAuthority.normalizeOperationId === 'function') {
-        return MatchAuthority.normalizeOperationId(value);
-    }
-    const normalized = String(value || '').trim();
-    if (!normalized) return '';
-    return Array.from(normalized).slice(0, OPERATION_ID_MAX_LENGTH).join('');
+    return MatchAuthority.normalizeOperationId(value);
 }
 
 function ensureAcceptedOperationsBySeat(room: MatchAuthorityRoomState | null | undefined): MatchAuthorityAcceptedOperationsBySeat {
-    if (MatchAuthority && typeof MatchAuthority.ensureAcceptedOperationsBySeat === 'function') {
-        return MatchAuthority.ensureAcceptedOperationsBySeat(room);
-    }
-    return { black: null, white: null };
+    return MatchAuthority.ensureAcceptedOperationsBySeat(room);
 }
 
 function normalizeLeaderboardPlayerId(value: unknown): string | null {

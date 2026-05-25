@@ -112,11 +112,7 @@ function makeSeatToken() {
 }
 
 function normalizeNetworkPlayerName(value: any) {
-    if (MatchAuthority && typeof MatchAuthority.normalizeNetworkPlayerName === 'function') {
-        return MatchAuthority.normalizeNetworkPlayerName(value);
-    }
-    const normalized = String(value || '').replace(/\s+/g, ' ').trim();
-    return Array.from(normalized).slice(0, NETWORK_PLAYER_NAME_MAX).join('');
+    return MatchAuthority.normalizeNetworkPlayerName(value);
 }
 
 function isNetworkDebugFillHandAction(value: any) {
