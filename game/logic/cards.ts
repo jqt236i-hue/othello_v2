@@ -646,7 +646,7 @@ const {
     /** @type {any} */
     const CardShrinkModule = resolveRequiredCardModule('./cards/shrink', 'CardShrink');
     /** @type {any} */
-    const CardLivingWillModule = resolveCardLogicGlobalOrModule('CardLivingWill', './cards/living_will');
+    const CardLivingWillModule = resolveRequiredCardModule('./cards/living_will', 'CardLivingWill');
     const CardTargetsModule = resolveCardLogicGlobalOrModule('CardTargets', './cards/targets');
     const CardFlipsModule = resolveRequiredCardModule('./cards/flips', 'CardFlips');
     const CardChainModule = resolveRequiredCardModule('./cards/chain', 'CardChain');
@@ -3298,9 +3298,6 @@ const {
     }
 
     function applyLivingWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (!CardLivingWillModule || typeof CardLivingWillModule.applyLivingWill !== 'function') {
-            return { applied: false, reason: 'module_unavailable' };
-        }
         return CardLivingWillModule.applyLivingWill(
             cardState,
             gameState,
@@ -3739,15 +3736,13 @@ const {
             type: (marker.data && marker.data.type) || 'TIME_BOMB'
         })));
         const livingWillRestores = new Map();
-        if (CardLivingWillModule && typeof CardLivingWillModule.findLivingWillMarkerAt === 'function') {
-            for (const entry of removed) {
-                if (!Number.isInteger(entry.row) || !Number.isInteger(entry.col)) continue;
-                const key = `${entry.row},${entry.col}`;
-                if (livingWillRestores.has(key)) continue;
-                if (getCellValueForCard(gameState, entry.row, entry.col) === EMPTY) continue;
-                const livingWillMarker = CardLivingWillModule.findLivingWillMarkerAt(cardState, entry.row, entry.col);
-                if (livingWillMarker) livingWillRestores.set(key, livingWillMarker);
-            }
+        for (const entry of removed) {
+            if (!Number.isInteger(entry.row) || !Number.isInteger(entry.col)) continue;
+            const key = `${entry.row},${entry.col}`;
+            if (livingWillRestores.has(key)) continue;
+            if (getCellValueForCard(gameState, entry.row, entry.col) === EMPTY) continue;
+            const livingWillMarker = CardLivingWillModule.findLivingWillMarkerAt(cardState, entry.row, entry.col);
+            if (livingWillMarker) livingWillRestores.set(key, livingWillMarker);
         }
 
         const specialKind = MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone';
@@ -3784,22 +3779,20 @@ const {
             });
         }
 
-        if (CardLivingWillModule && typeof CardLivingWillModule.restoreFromLivingWillSnapshot === 'function') {
-            for (const livingWillMarker of livingWillRestores.values()) {
-                CardLivingWillModule.restoreFromLivingWillSnapshot(
-                    cardState,
-                    gameState,
-                    livingWillMarker,
-                    {
-                        triggerKind: 'loss_will',
-                        sourceRow: livingWillMarker.row,
-                        sourceCol: livingWillMarker.col,
-                        cause: 'LOSS_WILL',
-                        reason: 'loss_will_reset'
-                    },
-                    getLivingWillModuleContext()
-                );
-            }
+        for (const livingWillMarker of livingWillRestores.values()) {
+            CardLivingWillModule.restoreFromLivingWillSnapshot(
+                cardState,
+                gameState,
+                livingWillMarker,
+                {
+                    triggerKind: 'loss_will',
+                    sourceRow: livingWillMarker.row,
+                    sourceCol: livingWillMarker.col,
+                    cause: 'LOSS_WILL',
+                    reason: 'loss_will_reset'
+                },
+                getLivingWillModuleContext()
+            );
         }
 
         clearCardPendingEffect(cardState, playerKey);
@@ -4632,9 +4625,6 @@ const {
     }
 
     function applyLivingWillAfterFlips(cardState: any, gameState: any, flips: any, flipperKey: any) {
-        if (!CardLivingWillModule || typeof CardLivingWillModule.applyLivingWillAfterFlips !== 'function') {
-            return { restored: [] };
-        }
         return CardLivingWillModule.applyLivingWillAfterFlips(
             cardState,
             gameState,
