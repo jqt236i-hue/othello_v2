@@ -1617,26 +1617,7 @@ function parseChatMessageText(value: unknown): MatchWorkerParsedChatMessage {
 function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnapshotPayloadMeta | null | undefined, viewerSeatKey: unknown): Record<string, unknown> {
     const serverTime = Date.now();
     const metaRecord = asRecord(meta);
-    if (MatchAuthority && typeof MatchAuthority.buildSnapshotPayloadFromRoom === 'function') {
-        return MatchAuthority.buildSnapshotPayloadFromRoom(room, {
-            snapshot: toPublicSnapshot(room, viewerSeatKey),
-            roomDeck: toPublicRoomDeck(room),
-            roomBoardConfig: toPublicRoomBoardConfig(room),
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            turnTimer: toPublicTurnTimer(room, serverTime),
-            playbackEvents: Array.isArray(metaRecord.playbackEvents) ? metaRecord.playbackEvents : [],
-            effectLogs: MatchAuthority.normalizeEffectLogMessages(metaRecord.effectLogs),
-            playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(metaRecord.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
-            operationId: metaRecord.operationId ? String(metaRecord.operationId) : null,
-            playerKey: metaRecord.playerKey ? normalizePlayerKey(metaRecord.playerKey) : null,
-            actionType: metaRecord.actionType ? String(metaRecord.actionType) : null,
-            serverTime
-        });
-    }
-    return withPublicSeatState(room, {
-        ok: true,
-        roomId: room.roomId,
-        stateVersion: room.stateVersion,
+    return MatchAuthority.buildSnapshotPayloadFromRoom(room, {
         snapshot: toPublicSnapshot(room, viewerSeatKey),
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),

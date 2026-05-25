@@ -976,26 +976,7 @@ function ensureHeartbeatLoop() {
 
 function buildSnapshotPayload(room: any, meta: any, viewerSeatKey: any) {
     const serverTime = Date.now();
-    if (MatchAuthority && typeof MatchAuthority.buildSnapshotPayloadFromRoom === 'function') {
-        return MatchAuthority.buildSnapshotPayloadFromRoom(room, {
-            snapshot: toPublicSnapshot(room, viewerSeatKey),
-            roomDeck: toPublicRoomDeck(room),
-            roomBoardConfig: toPublicRoomBoardConfig(room),
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            turnTimer: toPublicTurnTimer(room, serverTime),
-            playbackEvents: Array.isArray(meta && meta.playbackEvents) ? meta.playbackEvents : [],
-            effectLogs: MatchAuthority.normalizeEffectLogMessages(meta && meta.effectLogs),
-            playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(meta && meta.playbackDiagnostics, toPublicNetworkDebugEnabled(room)),
-            operationId: meta && meta.operationId ? String(meta.operationId) : null,
-            playerKey: meta && meta.playerKey ? normalizePlayerKey(meta.playerKey) : null,
-            actionType: meta && meta.actionType ? String(meta.actionType) : null,
-            serverTime
-        });
-    }
-    return withPublicSeatState(room, {
-        ok: true,
-        roomId: room.roomId,
-        stateVersion: room.stateVersion,
+    return MatchAuthority.buildSnapshotPayloadFromRoom(room, {
         snapshot: toPublicSnapshot(room, viewerSeatKey),
         roomDeck: toPublicRoomDeck(room),
         roomBoardConfig: toPublicRoomBoardConfig(room),
