@@ -1346,7 +1346,7 @@ const {
     const CardUsagePrechecksModule = resolveRequiredCardModule('./cards-internal/card-usage-prechecks', 'CardUsagePrechecks');
     const CardHandManagerModule = resolveRequiredCardModule('./cards-internal/hand-manager', 'CardHandManager');
     const CardEffectTimingModule = resolveCardLogicGlobalOrModule('CardEffectTiming', './cards-internal/effect-timing');
-    const CardWorkModule = resolveCardLogicGlobalOrModule('CardWork', './cards/work_will');
+    const CardWorkModule = resolveRequiredCardModule('./cards/work_will', 'CardWork');
     let CardEffectTimingModules: any = null;
 
     function createCardEffectTimingModules() {
