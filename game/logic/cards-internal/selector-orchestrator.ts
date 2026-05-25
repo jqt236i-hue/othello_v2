@@ -16,165 +16,6 @@ interface SelectorContext {
     localSelectors?: any;
 }
 
-interface SelectorConfig {
-    method: string;
-    args: (context: SelectorContext) => any[];
-}
-
-const MODULE_SELECTOR_HANDLERS: Record<string, SelectorConfig> = Object.freeze({
-    DESTROY_ONE_STONE: {
-        method: 'getDestroyTargets',
-        args: (context) => [context.cardState, context.gameState]
-    },
-    STRONG_WIND_WILL: {
-        method: 'getStrongWindTargets',
-        args: (context) => [context.cardState, context.gameState]
-    },
-    BUOYANCY_WILL: {
-        method: 'getBuoyancyTargets',
-        args: (context) => [context.cardState, context.gameState]
-    },
-    SUPER_BUOYANCY_WILL: {
-        method: 'getSuperBuoyancyTargets',
-        args: (context) => [context.cardState, context.gameState]
-    },
-    GRAVITY_WILL: {
-        method: 'getGravityTargets',
-        args: (context) => [context.cardState, context.gameState]
-    },
-    SUPER_GRAVITY_WILL: {
-        method: 'getSuperGravityTargets',
-        args: (context) => [context.cardState, context.gameState]
-    },
-    SUPER_ATTRACTION_WILL: {
-        method: 'getSuperAttractionTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey, context.pending]
-    },
-    SWAP_WITH_ENEMY: {
-        method: 'getSwapTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    POSITION_SWAP_WILL: {
-        method: 'getPositionSwapTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey, context.pending]
-    },
-    TRAP_WILL: {
-        method: 'getTrapTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    CAPTURE_WILL: {
-        method: 'getCaptureWillTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    GUARD_WILL: {
-        method: 'getGuardTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    GUARDIAN_GOD: {
-        method: 'getGuardTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    LIVING_WILL: {
-        method: 'getLivingWillTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    HYPERACTIVE_INHERIT_WILL: {
-        method: 'getHyperactiveInheritTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    TIME_BOMB: {
-        method: 'getTimeBombTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    TELEPORT_WILL: {
-        method: 'getTeleportTargets',
-        args: (context) => [context.cardState, context.gameState]
-    },
-    CELL_TELEPORT_WILL: {
-        method: 'getCellTeleportTargets',
-        args: (context) => [context.cardState, context.gameState]
-    },
-    CLONE_WILL: {
-        method: 'getCloneTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    BOARD_EXPANSION_WILL: {
-        method: 'getBoardExpansionTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    BOARD_EXPANSION_GOD: {
-        method: 'getBoardExpansionGodTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    BOARD_SHRINK_WILL: {
-        method: 'getBoardShrinkTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    BOARD_SHRINK_GOD: {
-        method: 'getBoardShrinkGodTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    EXTEND_LIFE_WILL: {
-        method: 'getExtendLifeTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    EXTEND_LIFE_GOD: {
-        method: 'getExtendLifeTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    CORROSION_WILL: {
-        method: 'getCorrosionTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    BLOCKADE_WILL: {
-        method: 'getBlockadeTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    METEOR_WILL: {
-        method: 'getMeteorTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    FREEZE_WILL: {
-        method: 'getFreezeTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    },
-    SEED_WILL: {
-        method: 'getSeedTargets',
-        args: (context) => [context.cardState, context.gameState, context.playerKey]
-    }
-});
-
-const LOCAL_SELECTOR_HANDLERS: Record<string, (context: SelectorContext) => any[]> = Object.freeze({
-    STRONG_WIND_WILL: (context) => invokeLocal(context, 'getStrongWindTargets', [context.cardState, context.gameState]),
-    BUOYANCY_WILL: (context) => invokeLocal(context, 'getBuoyancyTargets', [context.cardState, context.gameState]),
-    SUPER_BUOYANCY_WILL: (context) => invokeLocal(context, 'getSuperBuoyancyTargets', [context.cardState, context.gameState]),
-    GRAVITY_WILL: (context) => invokeLocal(context, 'getGravityTargets', [context.cardState, context.gameState]),
-    SUPER_GRAVITY_WILL: (context) => invokeLocal(context, 'getSuperGravityTargets', [context.cardState, context.gameState]),
-    SUPER_ATTRACTION_WILL: (context) => invokeLocal(context, 'getSuperAttractionTargets', [context.cardState, context.gameState, context.playerKey, context.pending]),
-    TEMPT_WILL: (context) => invokeLocal(context, 'getTemptWillTargets', [context.cardState, context.gameState, context.playerKey]),
-    CAPTURE_WILL: (context) => invokeLocal(context, 'getCaptureWillTargets', [context.cardState, context.gameState, context.playerKey]),
-    TRAP_WILL: (context) => invokeLocal(context, 'getTrapTargets', [context.cardState, context.gameState, context.playerKey]),
-    GUARD_WILL: (context) => invokeLocal(context, 'getGuardTargets', [context.cardState, context.gameState, context.playerKey]),
-    GUARDIAN_GOD: (context) => invokeLocal(context, 'getGuardTargets', [context.cardState, context.gameState, context.playerKey]),
-    LIVING_WILL: (context) => invokeLocal(context, 'getLivingWillTargets', [context.cardState, context.gameState, context.playerKey]),
-    HYPERACTIVE_INHERIT_WILL: (context) => invokeLocal(context, 'getHyperactiveInheritTargets', [context.cardState, context.gameState, context.playerKey]),
-    TIME_BOMB: (context) => invokeLocal(context, 'getTimeBombTargets', [context.cardState, context.gameState, context.playerKey]),
-    TELEPORT_WILL: (context) => invokeLocal(context, 'getTeleportTargets', [context.cardState, context.gameState]),
-    CELL_TELEPORT_WILL: (context) => invokeLocal(context, 'getCellTeleportTargets', [context.cardState, context.gameState]),
-    CLONE_WILL: (context) => invokeLocal(context, 'getCloneTargets', [context.cardState, context.gameState, context.playerKey]),
-    BOARD_EXPANSION_WILL: (context) => invokeLocal(context, 'getBoardExpansionTargets', [context.cardState, context.gameState, context.playerKey]),
-    BOARD_EXPANSION_GOD: (context) => invokeLocal(context, 'getBoardExpansionGodTargets', [context.cardState, context.gameState, context.playerKey]),
-    BOARD_SHRINK_WILL: (context) => invokeLocal(context, 'getBoardShrinkTargets', [context.cardState, context.gameState, context.playerKey]),
-    BOARD_SHRINK_GOD: (context) => invokeLocal(context, 'getBoardShrinkGodTargets', [context.cardState, context.gameState, context.playerKey]),
-    EXTEND_LIFE_WILL: (context) => invokeLocal(context, 'getExtendLifeTargets', [context.cardState, context.gameState, context.playerKey]),
-    EXTEND_LIFE_GOD: (context) => invokeLocal(context, 'getExtendLifeTargets', [context.cardState, context.gameState, context.playerKey]),
-    CORROSION_WILL: (context) => invokeLocal(context, 'getCorrosionTargets', [context.cardState, context.gameState, context.playerKey]),
-    BLOCKADE_WILL: (context) => invokeLocal(context, 'getBlockadeTargets', [context.cardState, context.gameState, context.playerKey]),
-    METEOR_WILL: (context) => invokeLocal(context, 'getMeteorTargets', [context.cardState, context.gameState, context.playerKey]),
-    FREEZE_WILL: (context) => invokeLocal(context, 'getFreezeTargets', [context.cardState, context.gameState, context.playerKey]),
-    SEED_WILL: (context) => invokeLocal(context, 'getSeedTargets', [context.cardState, context.gameState, context.playerKey])
-});
-
 function getPendingType(context: SelectorContext): string {
     const pending = context && context.pending;
     return pending && pending.type ? String(pending.type) : '';
@@ -212,18 +53,12 @@ function forEachMainBoardCell(context: SelectorContext, iteratee: (row: number, 
 function invokeModuleSelector(context: SelectorContext, type: string): any {
     const registryEntry = PendingSelectionRegistry.getPendingSelectionEntry(type);
     const registryTarget = registryEntry && registryEntry.target ? registryEntry.target : null;
-    const config = registryTarget
-        ? {
-            method: registryTarget.method,
-            args: (selectorContext: SelectorContext) => getSelectorArgs(selectorContext, registryTarget.argsKey)
-        }
-        : MODULE_SELECTOR_HANDLERS[type];
     const selectorsModule = context && context.selectorsModule;
-    if (!config || !selectorsModule) return null;
-    const selector = selectorsModule[config.method];
+    if (!registryTarget || !selectorsModule) return null;
+    const selector = selectorsModule[registryTarget.method];
     if (typeof selector !== 'function') return null;
     try {
-        return selector(...config.args(context));
+        return selector(...getSelectorArgs(context, registryTarget.argsKey));
     } catch (e) {
         return null;
     }
@@ -365,12 +200,7 @@ function getSelectableTargetsForPending(context: SelectorContext): any[] {
     const registryEntry = PendingSelectionRegistry.getPendingSelectionEntry(type);
     if (registryEntry && registryEntry.target && registryEntry.target.method) {
         const registryTargets = invokeLocal(context, registryEntry.target.method, getSelectorArgs(context, registryEntry.target.argsKey));
-        if (Array.isArray(registryTargets) && registryTargets.length > 0) return registryTargets;
-    }
-
-    const localSelector = LOCAL_SELECTOR_HANDLERS[type];
-    if (typeof localSelector === 'function') {
-        return localSelector(context);
+        if (Array.isArray(registryTargets)) return registryTargets;
     }
     return [];
 }

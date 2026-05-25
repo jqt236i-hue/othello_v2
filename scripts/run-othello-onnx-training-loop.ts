@@ -29,12 +29,12 @@ function parseArgs(argv: any) {
   const args = {
     sessionTag: "",
     iterations: 999,
-    trainGames: 2048,
-    evalGames: 256,
-    jobs: 10,
-    datasetMaxRecords: 300000,
+    trainGames: 1024,
+    evalGames: 128,
+    jobs: 8,
+    datasetMaxRecords: 200000,
     replayWindow: 4,
-    epochs: 24,
+    epochs: 18,
     batchSize: 1024,
     hiddenDim: 384,
     depth: 5,
@@ -42,10 +42,14 @@ function parseArgs(argv: any) {
     valueLossWeight: 0.5,
     whiteSampleWeight: 3.2,
     blackSampleWeight: 1,
-    gatePairs: 20,
+    gatePairs: 16,
     gateOpeningPlies: 8,
     gateMinWhitePointRate: 0.55,
     gateMinWhiteDiscDiff: 0,
+    championGatePairs: 16,
+    championGateMinPointRate: 0.525,
+    championGateMinWhitePointRate: 0.55,
+    championGateMinWhiteDiscDiff: 0,
     heuristicRerankWeight: 8,
     policyWeight: 0.12,
     topK: 8,
@@ -95,6 +99,10 @@ function parseArgs(argv: any) {
     else if (cur === "--gate-opening-plies") args.gateOpeningPlies = parseIntArg(argv[++i], args.gateOpeningPlies, 0);
     else if (cur === "--gate-min-white-point-rate") args.gateMinWhitePointRate = parseFloatArg(argv[++i], args.gateMinWhitePointRate, 0, 1);
     else if (cur === "--gate-min-white-disc-diff") args.gateMinWhiteDiscDiff = Number(argv[++i]);
+    else if (cur === "--champion-gate-pairs") args.championGatePairs = parseIntArg(argv[++i], args.championGatePairs, 1);
+    else if (cur === "--champion-gate-min-point-rate") args.championGateMinPointRate = parseFloatArg(argv[++i], args.championGateMinPointRate, 0, 1);
+    else if (cur === "--champion-gate-min-white-point-rate") args.championGateMinWhitePointRate = parseFloatArg(argv[++i], args.championGateMinWhitePointRate, 0, 1);
+    else if (cur === "--champion-gate-min-white-disc-diff") args.championGateMinWhiteDiscDiff = Number(argv[++i]);
     else if (cur === "--heuristic-rerank-weight") args.heuristicRerankWeight = parseFloatArg(argv[++i], args.heuristicRerankWeight, 0, 100);
     else if (cur === "--policy-weight") args.policyWeight = parseFloatArg(argv[++i], args.policyWeight, 0, 100);
     else if (cur === "--top-k") args.topK = parseIntArg(argv[++i], args.topK, 1);
@@ -108,6 +116,9 @@ function parseArgs(argv: any) {
     else if (cur === "--depth-mid") args.depthMid = parseIntArg(argv[++i], args.depthMid, 1);
     else if (cur === "--depth-end") args.depthEnd = parseIntArg(argv[++i], args.depthEnd, 1);
     else if (cur === "--exact-solve-empties") args.exactSolveEmpties = parseIntArg(argv[++i], args.exactSolveEmpties, 0);
+    else if (cur === "--exploration-opening") args.explorationOpening = parseFloatArg(argv[++i], args.explorationOpening, 0, 1);
+    else if (cur === "--exploration-mid") args.explorationMid = parseFloatArg(argv[++i], args.explorationMid, 0, 1);
+    else if (cur === "--exploration-end") args.explorationEnd = parseFloatArg(argv[++i], args.explorationEnd, 0, 1);
     else if (cur === "--runtime-model-out") args.runtimeModelOut = String(argv[++i] || args.runtimeModelOut);
     else if (cur === "--runtime-meta-out") args.runtimeMetaOut = String(argv[++i] || args.runtimeMetaOut);
     else if (cur === "--champion-model-out") args.championModelOut = String(argv[++i] || args.championModelOut);
@@ -126,6 +137,7 @@ function parseArgs(argv: any) {
     args.datasetMaxRecords = Math.min(args.datasetMaxRecords, 1000);
     args.epochs = Math.min(args.epochs, 1);
     args.gatePairs = Math.min(args.gatePairs, 1);
+    args.championGatePairs = Math.min(args.championGatePairs, 1);
   }
   return args;
 }
@@ -140,10 +152,17 @@ function printHelp() {
     "  -j, --jobs <n>",
     "  --preflight",
     "  --gate-pairs <n>",
+    "  --champion-gate-pairs <n>",
+    "  --champion-gate-min-point-rate <n>",
+    "  --champion-gate-min-white-point-rate <n>",
+    "  --champion-gate-min-white-disc-diff <n>",
     "  --heuristic-rerank-weight <n>",
     "  --policy-weight <n>",
     "  --top-k <n>",
     "  --white-safety-multiplier <n>",
+    "  --exploration-opening <n>",
+    "  --exploration-mid <n>",
+    "  --exploration-end <n>",
     "  --runtime-model-out <path>",
     "  --runtime-meta-out <path>"
   ].join("\n"));
@@ -196,17 +215,26 @@ function readJsonIfExists(filePath: any) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
-function summarizeGate(gatePath: any, args: any) {
+function summarizeGate(gatePath: any, thresholds: any) {
   const gate = readJsonIfExists(gatePath);
   const totals = gate && gate.totals ? gate.totals : {};
+  const pointRate = Number(totals.onnxPointRate || 0);
   const whitePointRate = Number(totals.onnxWhitePointRate || 0);
   const whiteDiff = Number(totals.averageWhiteDiscDiffFromOnnx || 0);
+  const minPointRate = Number.isFinite(Number(thresholds.minPointRate)) ? Number(thresholds.minPointRate) : 0;
+  const minWhitePointRate = Number.isFinite(Number(thresholds.minWhitePointRate)) ? Number(thresholds.minWhitePointRate) : 0;
+  const minWhiteDiscDiff = Number.isFinite(Number(thresholds.minWhiteDiscDiff)) ? Number(thresholds.minWhiteDiscDiff) : Number.NEGATIVE_INFINITY;
   return {
-    promoted: whitePointRate >= args.gateMinWhitePointRate && whiteDiff >= args.gateMinWhiteDiscDiff,
+    promoted: pointRate >= minPointRate && whitePointRate >= minWhitePointRate && whiteDiff >= minWhiteDiscDiff,
     whitePointRate,
     averageWhiteDiscDiffFromOnnx: whiteDiff,
-    onnxPointRate: Number(totals.onnxPointRate || 0),
+    onnxPointRate: pointRate,
     games: Number(totals.games || 0),
+    thresholds: {
+      minPointRate,
+      minWhitePointRate,
+      minWhiteDiscDiff
+    },
     gate
   };
 }
@@ -289,7 +317,10 @@ function main(argv: any = process.argv.slice(2)) {
         "--depth-opening", String(args.depthOpening),
         "--depth-mid", String(args.depthMid),
         "--depth-end", String(args.depthEnd),
-        "--exact-solve-empties", String(args.exactSolveEmpties)
+        "--exact-solve-empties", String(args.exactSolveEmpties),
+        "--exploration-opening", String(args.explorationOpening),
+        "--exploration-mid", String(args.explorationMid),
+        "--exploration-end", String(args.explorationEnd)
       ]);
 
       updateSummary(summary, summaryPath, { phase: "selfplay_eval" });
@@ -309,7 +340,10 @@ function main(argv: any = process.argv.slice(2)) {
         "--depth-opening", String(args.depthOpening),
         "--depth-mid", String(args.depthMid),
         "--depth-end", String(args.depthEnd),
-        "--exact-solve-empties", String(args.exactSolveEmpties)
+        "--exact-solve-empties", String(args.exactSolveEmpties),
+        "--exploration-opening", String(args.explorationOpening),
+        "--exploration-mid", String(args.explorationMid),
+        "--exploration-end", String(args.explorationEnd)
       ]);
 
       replaySelfplay.push(trainData, evalData);
@@ -379,10 +413,37 @@ function main(argv: any = process.argv.slice(2)) {
         "--out", gateEval
       ]);
 
-      const gateResult = summarizeGate(gateEval, args);
+      const gateResult = summarizeGate(gateEval, {
+        minPointRate: 0,
+        minWhitePointRate: args.gateMinWhitePointRate,
+        minWhiteDiscDiff: args.gateMinWhiteDiscDiff
+      });
+      updateSummary(summary, summaryPath, { phase: "champion_gate" });
+      const championGateEval = path.join(iterDir, `onnx-champion-gate.${tag}.eval.json`);
+      runCommand(summary, "champion_gate", node, [
+        "scripts/evaluate-othello-onnx.js",
+        "--onnx-model", model,
+        "--onnx-meta", `${model}.meta.json`,
+        "--baseline", "onnx",
+        "--baseline-onnx-model", args.championModelOut,
+        "--baseline-onnx-meta", args.championMetaOut,
+        "--pairs", String(args.championGatePairs),
+        "--opening-plies", String(args.gateOpeningPlies),
+        "--seed", String(args.seed + iteration * 1000 + 950000),
+        "--heuristic-rerank-weight", String(args.heuristicRerankWeight),
+        "--policy-weight", String(args.policyWeight),
+        "--top-k", String(args.topK),
+        "--white-safety-multiplier", String(args.whiteSafetyMultiplier),
+        "--out", championGateEval
+      ]);
+      const championGateResult = summarizeGate(championGateEval, {
+        minPointRate: args.championGateMinPointRate,
+        minWhitePointRate: args.championGateMinWhitePointRate,
+        minWhiteDiscDiff: args.championGateMinWhiteDiscDiff
+      });
       let runtimeModelOut = "";
       let runtimeMetaOut = "";
-      const shouldPromote = gateResult.promoted && args.preflight !== true;
+      const shouldPromote = gateResult.promoted && championGateResult.promoted && args.preflight !== true;
       if (shouldPromote) {
         copyFile(model, args.championModelOut);
         copyFile(`${model}.meta.json`, args.championMetaOut);
@@ -403,13 +464,23 @@ function main(argv: any = process.argv.slice(2)) {
         metrics,
         datasetEval,
         gateEval,
+        championGateEval,
         promoted: shouldPromote,
         gatePassed: gateResult.promoted,
+        championGatePassed: championGateResult.promoted,
         gate: {
           whitePointRate: gateResult.whitePointRate,
           averageWhiteDiscDiffFromOnnx: gateResult.averageWhiteDiscDiffFromOnnx,
           onnxPointRate: gateResult.onnxPointRate,
-          games: gateResult.games
+          games: gateResult.games,
+          thresholds: gateResult.thresholds
+        },
+        championGate: {
+          whitePointRate: championGateResult.whitePointRate,
+          averageWhiteDiscDiffFromOnnx: championGateResult.averageWhiteDiscDiffFromOnnx,
+          onnxPointRate: championGateResult.onnxPointRate,
+          games: championGateResult.games,
+          thresholds: championGateResult.thresholds
         },
         runtimeModelOut,
         runtimeMetaOut,
@@ -422,9 +493,10 @@ function main(argv: any = process.argv.slice(2)) {
         lastRunTag: tag,
         lastModelPath: model,
         lastGate: one.gate,
+        lastChampionGate: one.championGate,
         lastPromoted: shouldPromote
       });
-      appendLog(summary.launcherLog, `[${args.sessionTag}] iteration ${iteration}/${args.iterations} done promoted=${shouldPromote} gatePassed=${gateResult.promoted} whitePointRate=${gateResult.whitePointRate.toFixed(4)} whiteDiff=${gateResult.averageWhiteDiscDiffFromOnnx.toFixed(2)}`);
+      appendLog(summary.launcherLog, `[${args.sessionTag}] iteration ${iteration}/${args.iterations} done promoted=${shouldPromote} gatePassed=${gateResult.promoted} championGatePassed=${championGateResult.promoted} whitePointRate=${gateResult.whitePointRate.toFixed(4)} whiteDiff=${gateResult.averageWhiteDiscDiffFromOnnx.toFixed(2)} championPointRate=${championGateResult.onnxPointRate.toFixed(4)} championWhitePointRate=${championGateResult.whitePointRate.toFixed(4)} championWhiteDiff=${championGateResult.averageWhiteDiscDiffFromOnnx.toFixed(2)}`);
     }
 
     updateSummary(summary, summaryPath, { status: "completed", phase: "done" });

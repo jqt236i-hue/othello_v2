@@ -113,12 +113,7 @@
     }
 
     function publishNetworkSnapshot(meta) {
-        try {
-            if (!root || !root.NetworkMatchClient) return;
-            if (typeof root.NetworkMatchClient.publishSnapshot !== 'function') return;
-            if (typeof root.NetworkMatchClient.isActive === 'function' && !root.NetworkMatchClient.isActive()) return;
-            return root.NetworkMatchClient.publishSnapshot(buildPublishMeta(meta));
-        } catch (e) { /* ignore */ }
+        void meta;
         return undefined;
     }
 
@@ -427,7 +422,7 @@
     async function finalizeNetworkTurnHandoff(options) {
         const opts = (options && typeof options === 'object') ? options : {};
         const basePlaybackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents.slice() : [];
-        const publishSnapshotFn = (typeof opts.publishSnapshot === 'function') ? opts.publishSnapshot : publishNetworkSnapshot;
+        const publishSnapshotFn = (typeof opts.publishSnapshot === 'function') ? opts.publishSnapshot : null;
         const setProcessing = (typeof opts.setProcessing === 'function') ? opts.setProcessing : null;
         const actionType = opts.actionType || 'place';
         const action = (opts.action && typeof opts.action === 'object') ? opts.action : null;

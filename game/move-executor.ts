@@ -324,6 +324,16 @@ function publishNetworkSnapshot(meta: any) {
     }
     return undefined;
 }
+
+function getMoveExecutorPublishPromise(result: any) {
+    const publishPromise = result && typeof result === 'object'
+        ? (result as any).publishPromise
+        : null;
+    return publishPromise && typeof publishPromise.then === 'function'
+        ? publishPromise
+        : null;
+}
+
 function emitPresentationEventViaBoardOps(ev: any) {
     try {
         if (__uiImpl_move_executor && typeof __uiImpl_move_executor.emitPresentationEvent === 'function') {
@@ -423,8 +433,20 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
 
     // Single Writer: network mode ではローカル実行がスキップされている
     if (res.skippedLocalExecution === true) {
-        // サーバー応答の applySnapshot が state 更新と playback を担当する
-        setMoveExecutorProcessing(false);
+        const publishPromise = getMoveExecutorPublishPromise(res);
+        if (!publishPromise) {
+            setMoveExecutorProcessing(false);
+            return;
+        }
+        // サーバー応答の applySnapshot が state 更新と playback を担当する。
+        // 応答が来るまでは入力ロックを維持して、重複 placement publish を防ぐ。
+        setMoveExecutorProcessing(true);
+        try {
+            await Promise.resolve(publishPromise);
+        } finally {
+            setMoveExecutorProcessing(false);
+            emitMoveExecutorBoardUpdate();
+        }
         return;
     }
 

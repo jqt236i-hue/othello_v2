@@ -396,6 +396,19 @@ function isOthelloModeForCpuTurnHandler() {
     return mode === 'reversi' || mode === 'othello';
 }
 
+function shouldUseOthelloOnnxMoveDecisionForCpuTurnHandler() {
+    if (!isOthelloModeForCpuTurnHandler()) return false;
+    try {
+        if (typeof process !== 'undefined' && process && process.env && process.env.CPU_DISABLE_OTHELLO_ONNX === '1') return false;
+    } catch (e) { /* ignore */ }
+    try {
+        const root: any = typeof window !== 'undefined' ? window : null;
+        const qs = root && root.location && typeof root.location.search === 'string' ? root.location.search : '';
+        if (/[?&]othelloOnnx=(?:0|false)\b/i.test(qs) || /[?&]othello_onnx=(?:0|false)\b/i.test(qs)) return false;
+    } catch (e) { /* ignore */ }
+    return true;
+}
+
 function getPlaybackStateForCpuTurn() {
     try {
         if (__uiImpl_cpu && typeof __uiImpl_cpu.getPlaybackStateManager === 'function') {
@@ -543,6 +556,7 @@ function shouldUseOnnxCardDecision(level: any) {
 
 function shouldUseOnnxMoveDecision(level: any) {
     if (!Number.isFinite(level) || level < 6) return true;
+    if (shouldUseOthelloOnnxMoveDecisionForCpuTurnHandler()) return true;
     const explicitShared = readExplicitCpuLv6SharedProfile();
     if (explicitShared && explicitShared.browser) {
         const explicitMode = String(explicitShared.browser.moveDecisionMode || '').trim().toLowerCase();

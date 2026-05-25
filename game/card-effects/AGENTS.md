@@ -13,7 +13,7 @@ Pending-target / selection-flow bridge layer. Read `../AGENTS.md` and the root `
 
 ## BOUNDARY
 
-- This directory is not the pure rule authority. Canonical effect resolution lives in `../logic/cards/*`.
+- This directory is not the pure rule authority. Canonical effect resolution lives in `../logic/cards/*` and `../logic/card-resolution/*`.
 - This directory coordinates pending selection, playback wait, message emission, and network publish handoff.
 - `../cards/effects/*` is compatibility facade code, not a second rule implementation.
 - When visible prompts, pending stages, or end-turn behavior changes, update `01-rulebook.md` first.
@@ -27,7 +27,7 @@ Pending-target / selection-flow bridge layer. Read `../AGENTS.md` and the root `
 
 ## ANTI-PATTERNS
 
-- Re-implementing effect state mutation here instead of `../logic/cards/*`.
+- Re-implementing effect state mutation here instead of `../logic/cards/*` / `../logic/card-resolution/*`.
 - Bypassing `selection-flow.ts` for a one-off publish/playback path.
 - Pulling in `ui/` modules, DOM, or broad globals as a shortcut.
 - Diverging prompt/validation behavior between root runtime and mirrored `worker-public/` output by hand-editing JS.

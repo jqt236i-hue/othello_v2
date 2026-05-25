@@ -8,7 +8,7 @@ Headless gameplay layer. This file is the navigation map for easy-to-miss intern
 | --- | --- | --- |
 | Turn progression / pending flow | `turn/turn_pipeline.ts`, `turn/turn_pipeline_phases.ts`, `turn/pending-coordinator.ts` | Keep `turn_pipeline.ts` headless. `pipeline_ui_adapter.ts` is the UI bridge, not the rule authority. |
 | CPU move/card choice | `cpu-decision.ts`, `cpu-turn-handler.ts`, `ai/*` | `cpu-decision.ts` is the orchestrator; `ai/` holds algorithms/runtime helpers. |
-| Card effect implementation | `logic/cards/<effect>.ts` | This is the headless implementation layer. Pass dependencies via `deps`; do not add DOM/global fallbacks. |
+| Card effect implementation | `logic/cards/<effect>.ts`, `logic/card-resolution/<effect>.ts` | Headless implementation layer. Pass dependencies via `deps`; do not add DOM/global fallbacks. |
 | Pending target / card selection UI bridge | `card-effects/<effect>.ts`, `card-effects/selection-flow.ts` | This layer coordinates pending selection and network handoff; do not put pure effect rules here if `logic/cards/` owns them. |
 | Card state / timing orchestration | `cards/state-manager.ts`, `cards/timing-processor.ts`, `cards/target-resolver.ts` | `cards/effects/*` are often compatibility wrappers over `logic/cards/*`. |
 | Marker / special stone effects | `special-effects/*` | Known boundary-risk area: animation/playback references are legacy compatibility seams, not a pattern to copy. |
@@ -16,9 +16,10 @@ Headless gameplay layer. This file is the navigation map for easy-to-miss intern
 ## Card effect split
 
 ```
-card-effects/<name>.ts        # pending selection / UI-network bridge
-cards/effects/<name>.ts       # compatibility facade; often delegates
-logic/cards/<name>.ts         # canonical headless card logic
+card-effects/<name>.ts            # pending selection / UI-network bridge
+cards/effects/<name>.ts           # compatibility facade; delegates only
+logic/cards/<name>.ts             # canonical headless card logic (core domains)
+logic/card-resolution/<name>.ts   # canonical headless card-resolution modules
 ```
 
 - `game/card-effects/` and `game/cards/effects/` are different layers despite similar names.

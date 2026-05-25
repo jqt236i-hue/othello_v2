@@ -14,14 +14,14 @@ Card-state orchestration and compatibility wrapper layer. Read `../AGENTS.md` fi
 
 ## CONVENTIONS
 
-- This layer coordinates card state and compatibility APIs; canonical rule math still lives in `../logic/cards/*`.
+- This layer coordinates card state and compatibility APIs; canonical rule math lives in `../logic/cards/*` and `../logic/card-resolution/*`.
 - Keep resolver semantics aligned with pending contracts and CPU/UI callers.
 - Use shared selector/target helpers instead of effect-local target duplication.
 - Treat `effects/*` as wrappers/facades unless the file clearly owns orchestration-only behavior.
 
 ## ANTI-PATTERNS
 
-- Re-implementing canonical rule logic here when `../logic/cards/*` already owns it.
+- Re-implementing canonical rule logic here when `../logic/cards/*` / `../logic/card-resolution/*` already owns it.
 - Drifting target semantics between `target-resolver.ts`, CPU selection, and pending selection bridges.
 - Hiding state mutation in wrapper files that callers assume are pure lookups.
 - Leaving compatibility wrappers stale after changing canonical card logic.

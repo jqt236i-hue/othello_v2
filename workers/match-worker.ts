@@ -74,6 +74,10 @@ import cardChargeLedgerModule from '../game/logic/cards-internal/charge-ledger.j
 import cardPendingStateManagerModule from '../game/logic/cards-internal/pending-state-manager.js';
 import cardUsagePrechecksModule from '../game/logic/cards-internal/card-usage-prechecks.js';
 import cardEffectTimingModule from '../game/logic/cards-internal/effect-timing.js';
+import cardTimeBombModule from '../game/logic/cards/time_bomb.js';
+import dragonEffectsModule from '../game/logic/effects/dragon.js';
+import cardUdgModule from '../game/logic/cards/udg.js';
+import cardHyperactiveModule from '../game/logic/cards/hyperactive.js';
 import cardMarkersModule from '../game/logic/cards/markers.js';
 import boardOpsModule from '../game/logic/board_ops.js';
 import destroyOneStoneEffectsModule from '../game/logic/effects/destroy_one_stone.js';
@@ -138,6 +142,10 @@ const WORKER_PRELOAD_MODULES: Readonly<Record<string, unknown>> = Object.freeze(
     '../game/logic/cards-internal/pending-state-manager.js': cardPendingStateManagerModule,
     '../game/logic/cards-internal/card-usage-prechecks.js': cardUsagePrechecksModule,
     '../game/logic/cards-internal/effect-timing.js': cardEffectTimingModule,
+    '../game/logic/cards/time_bomb.js': cardTimeBombModule,
+    '../game/logic/effects/dragon.js': dragonEffectsModule,
+    '../game/logic/cards/udg.js': cardUdgModule,
+    '../game/logic/cards/hyperactive.js': cardHyperactiveModule,
     '../game/logic/cards/markers.js': cardMarkersModule,
     '../game/logic/board_ops.js': boardOpsModule,
     '../game/logic/effects/destroy_one_stone.js': destroyOneStoneEffectsModule,
@@ -258,17 +266,20 @@ function setRuntimeGlobalValue(key: string, value: unknown): unknown {
 }
 
 function importWorkerGlobal(importPath: string, globalKey: string): Promise<unknown> {
+    const scope = getRuntimeGlobalScope();
+    const runtimeValue = scope && globalKey ? scope[globalKey] : null;
+    if (runtimeValue) {
+        return Promise.resolve(runtimeValue);
+    }
     const mod = Object.prototype.hasOwnProperty.call(WORKER_PRELOAD_MODULES, importPath)
         ? WORKER_PRELOAD_MODULES[importPath]
         : null;
     if (!mod) {
         return Promise.reject(new Error(`Worker preload module missing: ${importPath}`));
     }
-    const scope = getRuntimeGlobalScope();
     const modRecord = asRecord(mod);
-    const runtimeValue = scope && globalKey ? scope[globalKey] : null;
     const moduleExports = modRecord['module.exports'] || null;
-    const resolved = runtimeValue || moduleExports || modRecord.default || mod;
+    const resolved = moduleExports || modRecord.default || mod;
     if (globalKey && resolved) {
         setRuntimeGlobalValue(globalKey, resolved);
     }
@@ -320,6 +331,28 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
             ['../game/logic/cards-internal/pending-state-manager.js', 'CardPendingStateManager'],
             ['../game/logic/cards-internal/card-usage-prechecks.js', 'CardUsagePrechecks'],
             ['../game/logic/cards-internal/effect-timing.js', 'CardEffectTiming'],
+            ['../game/logic/cards/expansion.js', 'CardExpansion'],
+            ['../game/logic/cards/movement.js', 'CardMovement'],
+            ['../game/logic/cards/teleport.js', 'CardTeleport'],
+            ['../game/logic/cards/clone.js', 'CardClone'],
+            ['../game/logic/cards/meteor.js', 'CardMeteor'],
+            ['../game/logic/cards/shrink.js', 'CardShrink'],
+            ['../game/logic/cards/living_will.js', 'CardLivingWill'],
+            ['../game/logic/cards/targets.js', 'CardTargets'],
+            ['../game/logic/cards/flips.js', 'CardFlips'],
+            ['../game/logic/cards/chain.js', 'CardChain'],
+            ['../game/logic/cards/regen.js', 'CardRegen'],
+            ['../game/logic/cards/time_bomb.js', 'CardTimeBomb'],
+            ['../game/logic/cards/breeding.js', 'CardBreeding'],
+            ['../game/logic/effects/dragon.js', 'DragonEffects'],
+            ['../game/logic/cards/udg.js', 'CardUdg'],
+            ['../game/logic/cards/hyperactive.js', 'CardHyperactive'],
+            ['../game/logic/cards/sniper.js', 'CardSniper'],
+            ['../game/logic/cards/lightning.js', 'CardLightning'],
+            ['../game/logic/cards/will_hunter_king.js', 'CardWillHunterKing'],
+            ['../game/logic/cards/destroy_dragon.js', 'CardDestroyDragon'],
+            ['../game/logic/cards/selectors.js', 'CardSelectors'],
+            ['../game/logic/cards/work_will.js', 'CardWork'],
             ['../game/logic/cards/markers.js', 'CardMarkers'],
             ['../game/logic/board_ops.js', 'BoardOps'],
             ['../game/cards/state-manager.js', 'CardStateManager'],
@@ -328,33 +361,7 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
             ['../game/cards/target-resolver.js', 'CardTargetResolver']
         ];
         const optionalGlobals: Array<[string, string]> = [
-            ['../game/logic/cards/utils.js', 'CardUtils'],
-            ['../game/logic/cards/targets.js', 'CardTargets'],
-            ['../game/logic/cards/selectors.js', 'CardSelectors'],
-            ['../game/logic/cards/movement.js', 'CardMovement'],
-            ['../game/logic/cards/teleport.js', 'CardTeleport'],
-            ['../game/logic/cards/clone.js', 'CardClone'],
-            ['../game/logic/cards/meteor.js', 'CardMeteor'],
-            ['../game/logic/cards/shrink.js', 'CardShrink'],
-            ['../game/logic/cards/breeding.js', 'CardBreeding'],
-            ['../game/logic/cards/flips.js', 'CardFlips'],
-            ['../game/logic/cards/regen.js', 'CardRegen'],
-            ['../game/logic/cards/living_will.js', 'CardLivingWill'],
-            ['../game/logic/cards/sniper.js', 'CardSniper'],
-            ['../game/logic/cards/lightning.js', 'CardLightning'],
-            ['../game/logic/cards/time_bomb.js', 'CardTimeBomb'],
-            ['../game/logic/cards/udg.js', 'CardUdg'],
-            ['../game/logic/cards/hyperactive.js', 'CardHyperactive'],
-            ['../game/logic/cards/will_hunter_king.js', 'CardWillHunterKing'],
-            ['../game/logic/effects/dragon.js', 'DragonEffects'],
-            ['../game/logic/effects/destroy_one_stone.js', 'DestroyOneStoneEffects'],
-            ['../game/logic/effects/swap_with_enemy.js', 'SwapWithEnemyEffects'],
-            ['../game/cards/effects/status-cells.js', 'CardStatusCellsEffects'],
-            ['../game/cards/effects/protect.js', 'CardProtectEffects'],
-            ['../game/cards/effects/trap.js', 'CardTrapEffects'],
-            ['../game/cards/effects/ownership.js', 'CardOwnershipEffects'],
-            ['../game/cards/effects/board-expansion-apply.js', 'CardBoardExpansionApply'],
-            ['../game/cards/effects/position-swap.js', 'CardPositionSwapEffects']
+            ['../game/logic/cards/utils.js', 'CardUtils']
         ];
         workerCardGlobalsPromise = ensureWorkerDeckGlobals()
             .then(() => ensureWorkerSharedBoardUtils())

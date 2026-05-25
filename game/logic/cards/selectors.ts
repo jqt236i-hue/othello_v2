@@ -43,15 +43,31 @@ function resolveSelectorsModuleOrGlobal(id: string, globalKey: string): any {
 const SharedConstants = resolveSelectorsModuleOrGlobal('../../../shared-constants', 'SharedConstants');
 const CardUtils = resolveSelectorsModuleOrGlobal('./utils', 'CardUtils');
 const SharedBoardUtils = resolveSelectorsModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
+const SelectorsCoreUtils = resolveSelectorsModuleOrGlobal('./selectors-core-utils', 'CardSelectorsCoreUtils');
+const SelectorsBoardShape = resolveSelectorsModuleOrGlobal('./selectors-board-shape', 'CardSelectorsBoardShape');
 
 const { EMPTY } = SharedConstants || {};
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
 
+function getSelectorsBoardShapeDeps() {
+    return {
+        SharedBoardUtils,
+        SharedConstants,
+        P_EMPTY
+    };
+}
+
 function isBlockingMarkerType(type: string): boolean {
+    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isBlockingMarkerType === 'function') {
+        return SelectorsCoreUtils.isBlockingMarkerType(type);
+    }
     return type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE';
 }
 
 function isBombCategoryMarker(marker: any): boolean {
+    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isBombCategoryMarker === 'function') {
+        return SelectorsCoreUtils.isBombCategoryMarker(marker);
+    }
     return !!(
         marker &&
         marker.kind === 'specialStone' &&
@@ -61,6 +77,9 @@ function isBombCategoryMarker(marker: any): boolean {
 }
 
 function isFrozenCell(cardState: CardState, row: number, col: number): boolean {
+    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isFrozenCell === 'function') {
+        return SelectorsCoreUtils.isFrozenCell(cardState, row, col, CardUtils);
+    }
     if (CardUtils && typeof CardUtils.isFrozenCell === 'function') {
         return !!CardUtils.isFrozenCell(cardState, row, col);
     }
@@ -77,6 +96,9 @@ function isFrozenCell(cardState: CardState, row: number, col: number): boolean {
 }
 
 function hasSeedMarkerAt(cardState: CardState, row: number, col: number): boolean {
+    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.hasSeedMarkerAt === 'function') {
+        return SelectorsCoreUtils.hasSeedMarkerAt(cardState, row, col);
+    }
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     return markers.some((m: any) => (
@@ -90,6 +112,9 @@ function hasSeedMarkerAt(cardState: CardState, row: number, col: number): boolea
 }
 
 function isBlockedCell(cardState: CardState, row: number, col: number): boolean {
+    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isBlockedCell === 'function') {
+        return SelectorsCoreUtils.isBlockedCell(cardState, row, col);
+    }
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     return markers.some((m: any) => (
@@ -103,6 +128,9 @@ function isBlockedCell(cardState: CardState, row: number, col: number): boolean 
 }
 
 function isMeteorHoleCell(cardState: CardState, row: number, col: number): boolean {
+    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isMeteorHoleCell === 'function') {
+        return SelectorsCoreUtils.isMeteorHoleCell(cardState, row, col);
+    }
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     return markers.some((m: any) => (
@@ -116,6 +144,9 @@ function isMeteorHoleCell(cardState: CardState, row: number, col: number): boole
 }
 
 function isGuardProtectedCell(cardState: CardState, row: number, col: number): boolean {
+    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isGuardProtectedCell === 'function') {
+        return SelectorsCoreUtils.isGuardProtectedCell(cardState, row, col);
+    }
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     return markers.some((m: any) => (
@@ -129,6 +160,9 @@ function isGuardProtectedCell(cardState: CardState, row: number, col: number): b
 }
 
 function isAbsoluteProtectedCell(cardState: CardState, row: number, col: number): boolean {
+    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isAbsoluteProtectedCell === 'function') {
+        return SelectorsCoreUtils.isAbsoluteProtectedCell(cardState, row, col);
+    }
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     return markers.some((m: any) => (
@@ -149,6 +183,9 @@ interface BoardConfig {
 }
 
 function resolveBoardConfig(gameState: GameState): BoardConfig {
+    if (SelectorsBoardShape && typeof SelectorsBoardShape.resolveBoardConfig === 'function') {
+        return SelectorsBoardShape.resolveBoardConfig(gameState, getSelectorsBoardShapeDeps());
+    }
     if (SharedBoardUtils && typeof SharedBoardUtils.resolveBoardConfig === 'function') {
         return SharedBoardUtils.resolveBoardConfig(gameState);
     }
@@ -165,6 +202,9 @@ function resolveBoardConfig(gameState: GameState): BoardConfig {
 }
 
 function isPositionSwapProtectedCell(cardState: CardState, row: number, col: number): boolean {
+    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.isPositionSwapProtectedCell === 'function') {
+        return SelectorsCoreUtils.isPositionSwapProtectedCell(cardState, row, col);
+    }
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
     const marker = markers.find((m: any) => (
@@ -179,6 +219,9 @@ function isPositionSwapProtectedCell(cardState: CardState, row: number, col: num
 }
 
 function getCellValue(gameState: GameState, row: number, col: number): any {
+    if (SelectorsBoardShape && typeof SelectorsBoardShape.getCellValue === 'function') {
+        return SelectorsBoardShape.getCellValue(gameState, row, col, getSelectorsBoardShapeDeps());
+    }
     if (isMainBoardCell(row, col, gameState)) {
         const gs = gameState as any;
         return (gs && Array.isArray(gs.board) && Array.isArray(gs.board[row]))
@@ -195,10 +238,16 @@ function getCellValue(gameState: GameState, row: number, col: number): any {
 }
 
 function hasBoardShapeCell(gameState: GameState, row: number, col: number): boolean {
+    if (SelectorsBoardShape && typeof SelectorsBoardShape.hasBoardShapeCell === 'function') {
+        return SelectorsBoardShape.hasBoardShapeCell(gameState, row, col, getSelectorsBoardShapeDeps());
+    }
     return getCellValue(gameState, row, col) !== null;
 }
 
 function forEachBoardShapeCell(gameState: GameState, visitor: (r: number, c: number, owner: number) => void): void {
+    if (SelectorsBoardShape && typeof SelectorsBoardShape.forEachBoardShapeCell === 'function') {
+        return SelectorsBoardShape.forEachBoardShapeCell(gameState, visitor, getSelectorsBoardShapeDeps());
+    }
     if (typeof visitor !== 'function') return;
     if (SharedBoardUtils && typeof SharedBoardUtils.forEachBoardShapeCell === 'function') {
         SharedBoardUtils.forEachBoardShapeCell(gameState, visitor);
@@ -732,6 +781,9 @@ function getCloneTargets(cardState: CardState, gameState: GameState, playerKey: 
 }
 
 function isMainBoardCell(row: number, col: number, gameState: GameState): boolean {
+    if (SelectorsBoardShape && typeof SelectorsBoardShape.isMainBoardCell === 'function') {
+        return SelectorsBoardShape.isMainBoardCell(row, col, gameState, getSelectorsBoardShapeDeps());
+    }
     if (SharedBoardUtils && typeof SharedBoardUtils.isMainBoardCell === 'function') {
         return SharedBoardUtils.isMainBoardCell(row, col, gameState);
     }
@@ -740,6 +792,9 @@ function isMainBoardCell(row: number, col: number, gameState: GameState): boolea
 }
 
 function resolveExpansionSide(side: string | null, row: number, col: number, gameState: GameState): string | null {
+    if (SelectorsBoardShape && typeof SelectorsBoardShape.resolveExpansionSide === 'function') {
+        return SelectorsBoardShape.resolveExpansionSide(side, row, col, gameState, getSelectorsBoardShapeDeps());
+    }
     if (SharedBoardUtils && typeof SharedBoardUtils.resolveExpansionSide === 'function') {
         return SharedBoardUtils.resolveExpansionSide(side, row, col, gameState);
     }
@@ -760,6 +815,9 @@ interface ExpansionCell {
 }
 
 function getExpansionCells(gameState: GameState): ExpansionCell[] {
+    if (SelectorsBoardShape && typeof SelectorsBoardShape.getExpansionCells === 'function') {
+        return SelectorsBoardShape.getExpansionCells(gameState, getSelectorsBoardShapeDeps());
+    }
     const gs = gameState as any;
     const expansion = (gs && gs.boardExpansion && typeof gs.boardExpansion === 'object')
         ? gs.boardExpansion

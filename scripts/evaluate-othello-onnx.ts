@@ -10,6 +10,12 @@ const Engine = require("../othello-ai/runtime/engine");
 const ValueTable = require("../othello-ai/eval/value-table");
 const OthelloOnnxRuntime = require("../game/ai/othello-onnx-runtime");
 
+function loadFreshOthelloOnnxRuntime() {
+  const runtimePath = require.resolve("../game/ai/othello-onnx-runtime");
+  delete require.cache[runtimePath];
+  return require(runtimePath);
+}
+
 function parseIntArg(value: any, fallback: any, min: any) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
@@ -32,6 +38,8 @@ function parseArgs(argv: any) {
     onnxMeta: "data/models/othello/policy-value.onnx.meta.json",
     tablePolicy: "othello-ai/data/models/policy-table.champion.json",
     tableValue: "othello-ai/data/models/value-table.champion.json",
+    baselineOnnxModel: "othello-ai/data/models/policy-value.onnx.champion.onnx",
+    baselineOnnxMeta: "othello-ai/data/models/policy-value.onnx.champion.onnx.meta.json",
     baseline: "table",
     dataset: "",
     sampleLimit: 0,
@@ -57,6 +65,8 @@ function parseArgs(argv: any) {
     else if (cur === "--onnx-meta") args.onnxMeta = argv[++i] || args.onnxMeta;
     else if (cur === "--table-policy") args.tablePolicy = argv[++i] || args.tablePolicy;
     else if (cur === "--table-value") args.tableValue = argv[++i] || args.tableValue;
+    else if (cur === "--baseline-onnx-model") args.baselineOnnxModel = argv[++i] || args.baselineOnnxModel;
+    else if (cur === "--baseline-onnx-meta") args.baselineOnnxMeta = argv[++i] || args.baselineOnnxMeta;
     else if (cur === "--baseline") args.baseline = String(argv[++i] || args.baseline).toLowerCase();
     else if (cur === "--dataset") args.dataset = argv[++i] || args.dataset;
     else if (cur === "--sample-limit") args.sampleLimit = parseIntArg(argv[++i], args.sampleLimit, 0);
@@ -83,7 +93,9 @@ function parseArgs(argv: any) {
         "  --onnx-meta <path>",
         "  --table-policy <path>",
         "  --table-value <path>",
-        "  --baseline <table|heuristic>",
+        "  --baseline-onnx-model <path>",
+        "  --baseline-onnx-meta <path>",
+        "  --baseline <table|heuristic|onnx>",
         "  --dataset <teacher.jsonl>      Run sample agreement/value evaluation instead of full games",
         "  --sample-limit <n>",
         "  --pairs <n>",
@@ -181,13 +193,14 @@ function recordStats(stats: any, startedAt: any) {
 }
 
 async function chooseOnnxMoveWithValueRerank(agent: any, state: any, legalMoves: any, playerKey: any) {
+  const runtime = agent.runtime || OthelloOnnxRuntime;
   let best = null;
   let bestScore = Number.NEGATIVE_INFINITY;
   for (const move of legalMoves) {
     const nextBoard = Board.applyMove(state.board, move, state.currentPlayer);
     const nextPlayer = Board.oppositePlayer(state.currentPlayer);
     const nextLegalMoves = Board.getLegalMoves(nextBoard, nextPlayer);
-    const valueForOpponent = await OthelloOnnxRuntime.evaluatePosition({
+    const valueForOpponent = await runtime.evaluatePosition({
       board: nextBoard,
       playerKey: Board.playerToKey(nextPlayer),
       level: 6,
@@ -196,7 +209,7 @@ async function chooseOnnxMoveWithValueRerank(agent: any, state: any, legalMoves:
     const currentValue = Number.isFinite(Number(valueForOpponent)) ? -Number(valueForOpponent) : 0;
     let score = currentValue;
     if (agent.policyBlendWeight > 0) {
-      const policyMove = await OthelloOnnxRuntime.chooseMove(legalMoves, {
+      const policyMove = await runtime.chooseMove(legalMoves, {
         board: state.board,
         playerKey,
         level: 6,
@@ -255,10 +268,11 @@ async function chooseMove(agent: any, state: any, legalMoves: any) {
   const startedAt = performance.now();
   let selected = null;
   if (agent.kind === "onnx") {
+    const runtime = agent.runtime || OthelloOnnxRuntime;
     if (agent.valueRerank) {
       selected = await chooseOnnxMoveWithValueRerank(agent, state, legalMoves, playerKey);
     } else {
-      selected = await OthelloOnnxRuntime.chooseMove(legalMoves, {
+      selected = await runtime.chooseMove(legalMoves, {
         board: state.board,
         playerKey,
         level: 6,
@@ -508,6 +522,8 @@ async function main(argv: any = process.argv.slice(2)) {
   const onnxMeta = path.resolve(process.cwd(), args.onnxMeta);
   const tablePolicy = path.resolve(process.cwd(), args.tablePolicy);
   const tableValue = path.resolve(process.cwd(), args.tableValue);
+  const baselineOnnxModel = path.resolve(process.cwd(), args.baselineOnnxModel);
+  const baselineOnnxMeta = path.resolve(process.cwd(), args.baselineOnnxMeta);
   assertReadable(onnxModel, "ONNX model");
   assertReadable(onnxMeta, "ONNX meta");
   if (args.dataset) {
@@ -516,24 +532,43 @@ async function main(argv: any = process.argv.slice(2)) {
   }
   let policyModel = null;
   let valueModel = null;
-  if (args.baseline !== "heuristic") {
+  let baselineRuntime = null;
+  if (args.baseline === "table") {
     assertReadable(tablePolicy, "table policy");
     assertReadable(tableValue, "table value");
     policyModel = loadJson(tablePolicy);
     valueModel = loadJson(tableValue);
     if (!Engine.validatePolicyModel(policyModel)) throw new Error(`invalid table policy: ${tablePolicy}`);
     if (!ValueTable.isValueTableModel(valueModel)) throw new Error(`invalid table value: ${tableValue}`);
+  } else if (args.baseline === "onnx") {
+    assertReadable(baselineOnnxModel, "baseline ONNX model");
+    assertReadable(baselineOnnxMeta, "baseline ONNX meta");
+  } else if (args.baseline !== "heuristic") {
+    throw new Error(`unknown baseline: ${args.baseline}`);
   }
 
-  const ok = await OthelloOnnxRuntime.loadFromUrl(onnxModel, onnxMeta);
-  if (!ok) throw new Error(`failed to load ONNX: ${JSON.stringify(OthelloOnnxRuntime.getStatus())}`);
-  OthelloOnnxRuntime.configure({
+  const candidateRuntime = loadFreshOthelloOnnxRuntime();
+  const ok = await candidateRuntime.loadFromUrl(onnxModel, onnxMeta);
+  if (!ok) throw new Error(`failed to load ONNX: ${JSON.stringify(candidateRuntime.getStatus())}`);
+  candidateRuntime.configure({
     useValueRerank: args.onnxValueRerank,
     heuristicRerankWeight: args.heuristicRerankWeight,
     policyWeight: args.policyWeight,
     topK: args.topK,
     whiteSafetyMultiplier: args.whiteSafetyMultiplier
   });
+  if (args.baseline === "onnx") {
+    baselineRuntime = loadFreshOthelloOnnxRuntime();
+    const baselineOk = await baselineRuntime.loadFromUrl(baselineOnnxModel, baselineOnnxMeta);
+    if (!baselineOk) throw new Error(`failed to load baseline ONNX: ${JSON.stringify(baselineRuntime.getStatus())}`);
+    baselineRuntime.configure({
+      useValueRerank: args.onnxValueRerank,
+      heuristicRerankWeight: args.heuristicRerankWeight,
+      policyWeight: args.policyWeight,
+      topK: args.topK,
+      whiteSafetyMultiplier: args.whiteSafetyMultiplier
+    });
+  }
 
   const config = Engine.normalizeEngineConfig({
     teacherOptions: {
@@ -549,15 +584,19 @@ async function main(argv: any = process.argv.slice(2)) {
     kind: "onnx",
     stats: createStats(),
     valueRerank: args.onnxValueRerank,
-    policyBlendWeight: args.onnxPolicyBlendWeight
+    policyBlendWeight: args.onnxPolicyBlendWeight,
+    runtime: candidateRuntime
   };
   const tableAgent = {
     id: "baseline",
-    label: args.baseline === "heuristic" ? "fixedHeuristic" : "tableChampion",
-    kind: args.baseline === "heuristic" ? "heuristic" : "table",
+    label: args.baseline === "heuristic" ? "fixedHeuristic" : args.baseline === "onnx" ? "onnxChampion" : "tableChampion",
+    kind: args.baseline === "heuristic" ? "heuristic" : args.baseline === "onnx" ? "onnx" : "table",
     stats: createStats(),
     models: { policyModel, valueModel },
-    config
+    config,
+    valueRerank: args.onnxValueRerank,
+    policyBlendWeight: args.onnxPolicyBlendWeight,
+    runtime: baselineRuntime
   };
   const games = [];
   for (let pairIndex = 0; pairIndex < args.pairs; pairIndex += 1) {
@@ -595,20 +634,26 @@ async function main(argv: any = process.argv.slice(2)) {
       onnxMeta,
       tablePolicy,
       tableValue,
+      baselineOnnxModel,
+      baselineOnnxMeta,
       sizes: {
         onnxModelBytes: fileSize(onnxModel),
         onnxMetaBytes: fileSize(onnxMeta),
         tablePolicyBytes: fileSize(tablePolicy),
         tableValueBytes: fileSize(tableValue),
+        baselineOnnxModelBytes: fileSize(baselineOnnxModel),
+        baselineOnnxMetaBytes: fileSize(baselineOnnxMeta),
         onnxTotalBytes: fileSize(onnxModel) + fileSize(onnxMeta),
-        tableTotalBytes: fileSize(tablePolicy) + fileSize(tableValue)
+        tableTotalBytes: fileSize(tablePolicy) + fileSize(tableValue),
+        baselineOnnxTotalBytes: fileSize(baselineOnnxModel) + fileSize(baselineOnnxMeta)
       }
     },
-    onnxStatus: OthelloOnnxRuntime.getStatus(),
+    onnxStatus: candidateRuntime.getStatus(),
+    baselineOnnxStatus: baselineRuntime ? baselineRuntime.getStatus() : null,
     totals: summarizeGames(games),
     inference: {
       onnx: formatStats(onnxAgent.stats),
-      table: formatStats(tableAgent.stats)
+      baseline: formatStats(tableAgent.stats)
     },
     games
   };
@@ -630,7 +675,7 @@ async function main(argv: any = process.argv.slice(2)) {
     `avgWhiteDiscDiffFromOnnx: ${summary.totals.averageWhiteDiscDiffFromOnnx.toFixed(2)}`,
     `avgDiscDiffFromOnnx: ${summary.totals.averageDiscDiffFromOnnx.toFixed(2)}`,
     `onnxAvgMs: ${summary.inference.onnx.averageMs.toFixed(3)}`,
-    `tableAvgMs: ${summary.inference.table.averageMs.toFixed(3)}`,
+    `baselineAvgMs: ${summary.inference.baseline.averageMs.toFixed(3)}`,
     `onnxSizeKiB: ${(summary.artifacts.sizes.onnxTotalBytes / 1024).toFixed(1)}`,
     `tableSizeMiB: ${(summary.artifacts.sizes.tableTotalBytes / (1024 * 1024)).toFixed(1)}`,
     `out: ${summary.outPath || ""}`

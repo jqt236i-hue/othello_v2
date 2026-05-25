@@ -209,4 +209,63 @@ describe('NetworkMatchClient snapshot effect logs', () => {
     expect(global.emitLogAdded).toHaveBeenCalledWith('黒がカードを使用: 交換', 'effect');
     expect(global.addLog).not.toHaveBeenCalled();
   });
+
+  test('network debug telemetry goes to console instead of the effect-log channel', async () => {
+    const syncSnapshot = createSnapshot(4);
+    global.fetch = jest.fn(async (url) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/join') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'black',
+          seatToken: 'token_black',
+          seats: { black: true, white: true },
+          stateVersion: 3,
+          networkDebugEnabled: true,
+          snapshot: initialSnapshot
+        });
+      }
+
+      if (path === '/api/match/state') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'black',
+          stateVersion: 4,
+          networkDebugEnabled: true,
+          snapshot: syncSnapshot
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      require('../ui/network-client.js');
+      const client = window.NetworkMatchClient;
+
+      const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+      expect(joined.ok).toBe(true);
+
+      consoleLogSpy.mockClear();
+      global.emitLogAdded.mockClear();
+      global.addLog.mockClear();
+
+      const result = await client.syncLatestState();
+
+      expect(result).toEqual({ ok: true, appliedSnapshot: true });
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        '[network-debug] state_sync_snapshot_applied',
+        expect.objectContaining({ snapshotVersion: 4, force: true })
+      );
+      expect(global.emitLogAdded).not.toHaveBeenCalled();
+      expect(global.addLog).not.toHaveBeenCalled();
+    } finally {
+      consoleLogSpy.mockRestore();
+    }
+  });
 });
