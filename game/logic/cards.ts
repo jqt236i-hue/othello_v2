@@ -2613,36 +2613,11 @@ const {
     }
 
     function getLivingWillTargets(cardState: any, gameState: any, playerKey: any) {
-        const delegated = callCardSelectorsMethod('getLivingWillTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-        const playerVal = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
-        const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-        const res = [];
-        for (const cell of getOccupiedBoardShapeCellsForCard(cardState, gameState)) {
-            const row = cell.row;
-            const col = cell.col;
-            if (getCellValueForCard(gameState, row, col) !== playerVal) continue;
-            const hasBomb = markers.some((m: any) => m && m.row === row && m.col === col && isBombCategoryMarker(m));
-            if (hasBomb) continue;
-            if (isAbsoluteProtectedCell(cardState, row, col)) continue;
-            const hasLivingWill = markers.some((m: any) => (
-                m &&
-                m.row === row &&
-                m.col === col &&
-                m.kind === (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone') &&
-                m.data &&
-                m.data.type === 'LIVING_WILL'
-            ));
-            if (hasLivingWill) continue;
-            res.push({ row, col });
-        }
-        return res;
+        return CardSelectorsModule.getLivingWillTargets(cardState, gameState, playerKey);
     }
 
     function getHyperactiveInheritTargets(cardState: any, gameState: any, playerKey: any) {
-        const delegated = callCardSelectorsMethod('getHyperactiveInheritTargets', [cardState, gameState, playerKey]);
-        if (delegated.called) return delegated.value;
-        return getGuardTargets(cardState, gameState, playerKey);
+        return CardSelectorsModule.getHyperactiveInheritTargets(cardState, gameState, playerKey);
     }
 
     // Return targets: only your own special stones that have a numeric remainingOwnerTurns > 0
