@@ -53,16 +53,23 @@ const BASE_BACKGROUND_SKINS: readonly BackgroundSkinItem[] = Object.freeze([
   })
 ]);
 
+function requireCosmeticCatalogSharedModuleOrNull(): CosmeticCatalogSharedModule | null {
+  if (typeof _require !== 'function') return null;
+  try {
+    return _require('../cosmetics/catalog-shared');
+  } catch (e) {
+    /* ignore */
+  }
+  return null;
+}
+
 function resolveCosmeticCatalogSharedModule(): CosmeticCatalogSharedModule | null {
   try {
     if (typeof globalThis !== 'undefined' && (globalThis as unknown as Window & { CosmeticCatalogSharedModule?: CosmeticCatalogSharedModule }).CosmeticCatalogSharedModule) {
       return (globalThis as unknown as Window & { CosmeticCatalogSharedModule?: CosmeticCatalogSharedModule }).CosmeticCatalogSharedModule ?? null;
     }
   } catch (e) { /* ignore */ }
-  if (typeof _require === 'function') {
-    try { return _require('../cosmetics/catalog-shared'); } catch (e) { /* ignore */ }
-  }
-  return null;
+  return requireCosmeticCatalogSharedModuleOrNull();
 }
 
 const sharedModule = resolveCosmeticCatalogSharedModule();

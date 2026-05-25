@@ -36,6 +36,16 @@ function resolveDocument(rootRef: Window | null | undefined): Document | null {
   return null;
 }
 
+function requireBackgroundSkinCatalogModuleOrNull(): BackgroundSkinCatalogModule | null {
+  if (typeof _require !== 'function') return null;
+  try {
+    return _require('./catalog') ?? null;
+  } catch (e) {
+    /* ignore */
+  }
+  return null;
+}
+
 function resolveCatalogModule(rootRef: Window | null | undefined): BackgroundSkinCatalogModule | null {
   const ctx = resolveRootRef(rootRef);
   if (ctx && (ctx as Window & { BackgroundSkinCatalogModule?: BackgroundSkinCatalogModule }).BackgroundSkinCatalogModule) {
@@ -46,10 +56,7 @@ function resolveCatalogModule(rootRef: Window | null | undefined): BackgroundSki
       return (globalThis as unknown as Window & { BackgroundSkinCatalogModule?: BackgroundSkinCatalogModule }).BackgroundSkinCatalogModule ?? null;
     }
   } catch (e) { /* ignore */ }
-  if (typeof _require === 'function') {
-    try { return _require('./catalog') ?? null; } catch (e) { /* ignore */ }
-  }
-  return null;
+  return requireBackgroundSkinCatalogModuleOrNull();
 }
 
 function applyBackgroundSkin(rootRef: Window | null | undefined, skinId: string): BackgroundSkinDefinition | null {

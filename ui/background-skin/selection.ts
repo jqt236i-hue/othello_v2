@@ -26,6 +26,16 @@ interface BackgroundSkinCatalogModule {
 const BACKGROUND_SKIN_STORAGE_KEY = 'reversi.backgroundSkin';
 const LEGACY_BACKGROUND_SKIN_STORAGE_KEY = 'othello.backgroundSkin';
 
+function requireBackgroundSkinCatalogModuleOrNull(): BackgroundSkinCatalogModule | null {
+  if (typeof _require !== 'function') return null;
+  try {
+    return _require('./catalog') ?? null;
+  } catch (e) {
+    /* ignore */
+  }
+  return null;
+}
+
 function resolveCatalogModule(rootRef: Window & { BackgroundSkinCatalogModule?: BackgroundSkinCatalogModule }): BackgroundSkinCatalogModule | null {
   const ctx = rootRef && typeof rootRef === 'object' ? rootRef : null;
   if (ctx && ctx.BackgroundSkinCatalogModule) return ctx.BackgroundSkinCatalogModule;
@@ -34,10 +44,7 @@ function resolveCatalogModule(rootRef: Window & { BackgroundSkinCatalogModule?: 
       return (globalThis as unknown as Window & { BackgroundSkinCatalogModule?: BackgroundSkinCatalogModule }).BackgroundSkinCatalogModule ?? null;
     }
   } catch (e) { /* ignore */ }
-  if (typeof _require === 'function') {
-    try { return _require('./catalog') ?? null; } catch (e) { /* ignore */ }
-  }
-  return null;
+  return requireBackgroundSkinCatalogModuleOrNull();
 }
 
 function canUseStorage(rootRef: Window): boolean {
