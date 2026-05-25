@@ -663,7 +663,7 @@ const {
     const CardWillHunterKingModule = resolveCardLogicGlobalOrModule('CardWillHunterKing', './cards/will_hunter_king');
     /** @type {any} */
     const CardDestroyDragonModule = resolveCardLogicGlobalOrModule('CardDestroyDragon', './cards/destroy_dragon');
-    const DragonEffectsModule = resolveCardLogicGlobalOrModule('DragonEffects', './effects/dragon');
+    const DragonEffectsModule = resolveRequiredCardModule('./effects/dragon', 'DragonEffects');
     const DestroyOneStoneModule = resolveRequiredCardModule('./effects/destroy_one_stone', 'DestroyOneStoneEffects');
     const SwapWithEnemyModule = resolveRequiredCardModule('./effects/swap_with_enemy', 'SwapWithEnemyEffects');
     const CardProtectModule = resolveCardLogicGlobalOrModule('CardProtectEffects', '../cards/effects/protect');
@@ -4918,12 +4918,7 @@ const {
             selectRandomEmptyBoardShapeDestination,
             moveCoexistingSpecialMarkers
         };
-        if (DragonEffectsModule && typeof DragonEffectsModule.processDragonEffectsAtAnchor === 'function') {
-            return DragonEffectsModule.processDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
-        }
-        // Fallback: no-op
-        console.warn('[cards.js] DragonEffects module not available');
-        return { converted: [], destroyed: [] };
+        return DragonEffectsModule.processDragonEffectsAtAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
     }
 
     function processDragonEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, opts : any = {}) {
@@ -4934,11 +4929,7 @@ const {
             moveCoexistingSpecialMarkers,
             randomSource: opts.randomSource ?? null
         }, opts);
-        if (DragonEffectsModule && typeof DragonEffectsModule.processDragonEffectsAtTurnStartAnchor === 'function') {
-            return DragonEffectsModule.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
-        }
-        console.warn('[cards.js] DragonEffects turn-start anchor processor not available');
-        return { moved: [], converted: [], destroyed: [], anchors: [] };
+        return DragonEffectsModule.processDragonEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, dragonDeps);
     }
 
 
