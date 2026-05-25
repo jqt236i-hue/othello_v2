@@ -25,18 +25,30 @@ function getRuntimeGlobalValue(key: string): any {
     return null;
 }
 
+function requireOptionalCardLogicModule(id: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
+function resolveCardLogicModuleOrGlobal(id: string, globalKey: string): any {
+    return requireOptionalCardLogicModule(id) || getRuntimeGlobalValue(globalKey);
+}
+
 // Import dependencies
-const SharedConstants = (function() { try { return _require('../../shared-constants'); } catch (e) { return null; } })() || getRuntimeGlobalValue('SharedConstants');
-const DeckSpecHelpers = (function() { try { return _require('../../shared/deck-spec'); } catch (e) { return null; } })() || getRuntimeGlobalValue('DeckSpecHelpers');
-const SharedBoardUtils = (function() { try { return _require('../../shared/shared-board-utils'); } catch (e) { return null; } })() || getRuntimeGlobalValue('SharedBoardUtils');
-const CardRandomSource = (function() { try { return _require('./cards-internal/random-source'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardRandomSource');
-const CardStateFactory = (function() { try { return _require('./cards-internal/state-factory'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardStateFactory');
-const CardModuleResolver = (function() { try { return _require('./cards-internal/module-resolver'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardModuleResolver');
-const CardPresentationHelpers = (function() { try { return _require('./cards-internal/presentation-helpers'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardPresentationHelpers');
-const CardStateManager = (function() { try { return _require('../cards/state-manager'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardStateManager');
-const CardEffectResolverModule = (function() { try { return _require('../cards/effect-resolver'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardEffectResolver');
-const CardTimingProcessorModule = (function() { try { return _require('../cards/timing-processor'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardTimingProcessor');
-const TargetResolver = (function() { try { return _require('../cards/target-resolver'); } catch (e) { return null; } })() || getRuntimeGlobalValue('CardTargetResolver');
+const SharedConstants = resolveCardLogicModuleOrGlobal('../../shared-constants', 'SharedConstants');
+const DeckSpecHelpers = resolveCardLogicModuleOrGlobal('../../shared/deck-spec', 'DeckSpecHelpers');
+const SharedBoardUtils = resolveCardLogicModuleOrGlobal('../../shared/shared-board-utils', 'SharedBoardUtils');
+const CardRandomSource = resolveCardLogicModuleOrGlobal('./cards-internal/random-source', 'CardRandomSource');
+const CardStateFactory = resolveCardLogicModuleOrGlobal('./cards-internal/state-factory', 'CardStateFactory');
+const CardModuleResolver = resolveCardLogicModuleOrGlobal('./cards-internal/module-resolver', 'CardModuleResolver');
+const CardPresentationHelpers = resolveCardLogicModuleOrGlobal('./cards-internal/presentation-helpers', 'CardPresentationHelpers');
+const CardStateManager = resolveCardLogicModuleOrGlobal('../cards/state-manager', 'CardStateManager');
+const CardEffectResolverModule = resolveCardLogicModuleOrGlobal('../cards/effect-resolver', 'CardEffectResolver');
+const CardTimingProcessorModule = resolveCardLogicModuleOrGlobal('../cards/timing-processor', 'CardTimingProcessor');
+const TargetResolver = resolveCardLogicModuleOrGlobal('../cards/target-resolver', 'CardTargetResolver');
 
 const {
         CARD_DEFS,
@@ -94,9 +106,9 @@ const {
         });
     }
 
-    const DestroyOutcomeContract = (function() { try { return _require('../../shared/destroy-outcome-contract'); } catch (e) { return null; } })() || getRuntimeGlobalValue('DestroyOutcomeContract');
-    const StoneStatusSnapshot = (function() { try { return _require('../../shared/stone-status-snapshot'); } catch (e) { return null; } })() || getRuntimeGlobalValue('StoneStatusSnapshot');
-    const SpecialStoneRegistry = (function() { try { return _require('../../shared/special-stone-registry'); } catch (e) { return null; } })() || getRuntimeGlobalValue('SpecialStoneRegistry');
+    const DestroyOutcomeContract = resolveCardLogicModuleOrGlobal('../../shared/destroy-outcome-contract', 'DestroyOutcomeContract');
+    const StoneStatusSnapshot = resolveCardLogicModuleOrGlobal('../../shared/stone-status-snapshot', 'StoneStatusSnapshot');
+    const SpecialStoneRegistry = resolveCardLogicModuleOrGlobal('../../shared/special-stone-registry', 'SpecialStoneRegistry');
 
     function isOverlayOnlySpecialStoneType(type: any) {
         if (SpecialStoneRegistry && typeof SpecialStoneRegistry.isOverlayOnlySpecialStoneType === 'function') {
