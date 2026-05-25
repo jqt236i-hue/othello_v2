@@ -97,9 +97,38 @@ const {
         );
     }
 
-    var AnimationResolver = (typeof require === 'function')
-        ? (function () { try { return require('./animation-resolver'); } catch (e: any) { return (typeof window !== 'undefined' ? window.AnimationResolver : null); } }())
-        : (typeof window !== 'undefined' ? window.AnimationResolver : null);
+    function tryRequireRuntimeModule(id: string): { ok: boolean; value: any } {
+        if (typeof require !== 'function') return { ok: false, value: null };
+        try {
+            return { ok: true, value: require(id) };
+        } catch (e: any) {
+            return { ok: false, value: null };
+        }
+    }
+
+    function requireRuntimeModuleOrNull(id: string): any {
+        const loaded = tryRequireRuntimeModule(id);
+        return loaded.ok ? loaded.value : null;
+    }
+
+    function readWindowGlobal(name: string): any {
+        return (typeof window !== 'undefined') ? (window as any)[name] : null;
+    }
+
+    function requireRuntimeModuleOrWindowGlobal(id: string, globalName: string): any {
+        const loaded = tryRequireRuntimeModule(id);
+        return loaded.ok ? loaded.value : readWindowGlobal(globalName);
+    }
+
+    function readOwnerHelpersGlobal(): any {
+        if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers) return OwnerHelpers;
+        try {
+            if (typeof globalThis !== 'undefined' && (globalThis as any).OwnerHelpers) return (globalThis as any).OwnerHelpers;
+        } catch (e: any) { /* ignore */ }
+        return null;
+    }
+
+    var AnimationResolver = requireRuntimeModuleOrWindowGlobal('./animation-resolver', 'AnimationResolver');
     var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimationShared === 'function')
         ? AnimationResolver.getAnimationShared()
         : ((typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null));
@@ -108,21 +137,13 @@ const {
         ? AnimationResolver.resolveModuleOrGlobal('../utils/owner-helpers', 'OwnerHelpers')
         : (function () {
             if (typeof require === 'function') {
-                try {
-                    return require('../utils/owner-helpers');
-                } catch (e: any) {
-                    return null;
-                }
+                return requireRuntimeModuleOrNull('../utils/owner-helpers');
             }
-            if (typeof OwnerHelpers !== 'undefined' && OwnerHelpers) return OwnerHelpers;
-            try {
-                if (typeof globalThis !== 'undefined' && (globalThis as any).OwnerHelpers) return (globalThis as any).OwnerHelpers;
-            } catch (e: any) { /* ignore */ }
-            return null;
+            return readOwnerHelpersGlobal();
         }());
     var BoardUpdateDispatch = (AnimationResolver && typeof AnimationResolver.resolveModuleOrGlobal === 'function')
         ? AnimationResolver.resolveModuleOrGlobal('./board-update-dispatch', 'BoardUpdateDispatch')
-        : ((typeof require === 'function') ? (function () { try { return require('./board-update-dispatch'); } catch (e: any) { return null; } }()) : (typeof window !== 'undefined' ? window.BoardUpdateDispatch : null));
+        : ((typeof require === 'function') ? requireRuntimeModuleOrNull('./board-update-dispatch') : readWindowGlobal('BoardUpdateDispatch'));
     var _Timer = (AnimationShared && AnimationShared.getTimer) ? AnimationShared.getTimer : function () {
         if (typeof TimerRegistry !== 'undefined') return TimerRegistry;
         return {
