@@ -1,5 +1,9 @@
 function requirePolicyTableRuntimeModuleOrNull(id: string): any {
-    try { return require(id); } catch (e) { return null; }
+    try {
+        return require(id);
+    } catch (e) {
+        return null;
+    }
 }
 
 const SharedBoardUtils: any = requirePolicyTableRuntimeModuleOrNull('../../shared/shared-board-utils');
