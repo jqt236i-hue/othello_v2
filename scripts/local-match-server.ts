@@ -1429,9 +1429,7 @@ async function handlePublish(req: any, res: any) {
         return;
     }
 
-    if (!(MatchAuthority && typeof MatchAuthority.hasRequiredOperationId === 'function'
-        ? MatchAuthority.hasRequiredOperationId(operationId)
-        : !!operationId)) {
+    if (!MatchAuthority.hasRequiredOperationId(operationId)) {
         writeJson(res, 409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
             ok: false,
             rejectedReason: 'OPERATION_ID_REQUIRED',
@@ -1444,15 +1442,7 @@ async function handlePublish(req: any, res: any) {
         return;
     }
 
-    const lastAcceptedOperation = MatchAuthority && typeof MatchAuthority.resolveAcceptedOperation === 'function'
-        ? MatchAuthority.resolveAcceptedOperation(room, seatKey, operationId, acceptedOperationsBySeat[seatKey])
-        : (
-            operationId
-            && acceptedOperationsBySeat[seatKey]
-            && acceptedOperationsBySeat[seatKey].operationId === operationId
-        )
-            ? acceptedOperationsBySeat[seatKey]
-            : null;
+    const lastAcceptedOperation = MatchAuthority.resolveAcceptedOperation(room, seatKey, operationId, acceptedOperationsBySeat[seatKey]);
     if (
         operationId
         && lastAcceptedOperation
@@ -1623,11 +1613,7 @@ async function handlePublish(req: any, res: any) {
             stateVersion: room.stateVersion,
             updatedAt: room.updatedAt
         };
-        if (typeof MatchAuthority.rememberAcceptedOperationBySeat === 'function') {
-            MatchAuthority.rememberAcceptedOperationBySeat(room, seatKey, acceptedEntry);
-        } else {
-            acceptedOperationsBySeat[seatKey] = acceptedEntry;
-        }
+        MatchAuthority.rememberAcceptedOperationBySeat(room, seatKey, acceptedEntry);
     }
 
     refreshTurnTimer(room, { nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });

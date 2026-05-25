@@ -2572,9 +2572,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             })));
         }
 
-        if (!(MatchAuthority && typeof MatchAuthority.hasRequiredOperationId === 'function'
-            ? MatchAuthority.hasRequiredOperationId(operationId)
-            : !!operationId)) {
+        if (!MatchAuthority.hasRequiredOperationId(operationId)) {
             return jsonResponse(409, buildPublishPayload(room, seatKey, MatchAuthority.buildPublishResponseOptions({
                 ok: false,
                 rejectedReason: 'OPERATION_ID_REQUIRED',
@@ -2586,9 +2584,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
             })));
         }
 
-        const lastAcceptedOperation = MatchAuthority && typeof MatchAuthority.resolveAcceptedOperation === 'function'
-            ? MatchAuthority.resolveAcceptedOperation(room, seatKey, operationId, acceptedOperationsBySeat[seatKey])
-            : acceptedOperationsBySeat[seatKey];
+        const lastAcceptedOperation = MatchAuthority.resolveAcceptedOperation(room, seatKey, operationId, acceptedOperationsBySeat[seatKey]);
         if (
             operationId &&
             lastAcceptedOperation &&
@@ -2767,11 +2763,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
                 stateVersion: room.stateVersion,
                 updatedAt: Number.isFinite(Number(room.updatedAt)) ? Number(room.updatedAt) : null
             };
-            if (MatchAuthority && typeof MatchAuthority.rememberAcceptedOperationBySeat === 'function') {
-                MatchAuthority.rememberAcceptedOperationBySeat(room, seatKey, acceptedEntry);
-            } else {
-                acceptedOperationsBySeat[seatKey] = acceptedEntry;
-            }
+            MatchAuthority.rememberAcceptedOperationBySeat(room, seatKey, acceptedEntry);
         }
         await this.refreshTurnTimer({ nowMs: room.updatedAt, forceRestart: !isNetworkDebugAction });
 
