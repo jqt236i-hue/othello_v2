@@ -34,48 +34,12 @@ if (!MoveGeneratorCoreLogic) {
     console.error('CoreLogic is not loaded.');
 }
 
-const MoveGeneratorLegacyCore = (() => {
-    if (typeof require === 'function') {
-        try {
-            return require('./game-core-logic');
-        } catch (e) {
-            return null;
-        }
-    }
-    return null;
-})();
+const MoveGeneratorLegacyCore = requireMoveGeneratorModuleOrNull('./game-core-logic');
 
-const MoveGeneratorBoardOps = (() => {
-    if (typeof require === 'function') {
-        try {
-            return require('./logic/board_ops');
-        } catch (e) {
-            return null;
-        }
-    }
-    return null;
-})();
-const MoveGeneratorSharedBoardUtils = (() => {
-    if (typeof require === 'function') {
-        try {
-            return require('../shared/shared-board-utils');
-        } catch (e) {
-            return null;
-        }
-    }
-    return null;
-})();
+const MoveGeneratorBoardOps = requireMoveGeneratorModuleOrNull('./logic/board_ops');
+const MoveGeneratorSharedBoardUtils = requireMoveGeneratorModuleOrNull('../shared/shared-board-utils');
 
-const MoveGeneratorMarkersAdapter = (() => {
-    if (typeof require === 'function') {
-        try {
-            return require('./logic/markers_adapter');
-        } catch (e) {
-            return null;
-        }
-    }
-    return null;
-})();
+const MoveGeneratorMarkersAdapter = requireMoveGeneratorModuleOrNull('./logic/markers_adapter');
 
 function getFlipsForMoveGeneration(state: any, row: number, col: number, player: any, protection: any, perma: any) {
     const legacyGetFlips = (MoveGeneratorLegacyCore && typeof MoveGeneratorLegacyCore.getFlips === 'function')
@@ -104,7 +68,7 @@ function getLegalMoves(state: any, protectedStones: any, permaProtectedStones: a
     // Use centralized safe context helper when available
     let context = null;
     try {
-        const ctxHelper = (typeof require === 'function') ? require('./logic/context') : null;
+        const ctxHelper = requireMoveGeneratorModuleOrNull('./logic/context');
         if (ctxHelper && typeof ctxHelper.getSafeCardContext === 'function') {
             context = ctxHelper.getSafeCardContext(typeof cardState !== 'undefined' ? cardState : undefined, protectedStones, permaProtectedStones);
         }
