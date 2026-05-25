@@ -666,7 +666,7 @@ const {
     const DragonEffectsModule = resolveRequiredCardModule('./effects/dragon', 'DragonEffects');
     const DestroyOneStoneModule = resolveRequiredCardModule('./effects/destroy_one_stone', 'DestroyOneStoneEffects');
     const SwapWithEnemyModule = resolveRequiredCardModule('./effects/swap_with_enemy', 'SwapWithEnemyEffects');
-    const CardProtectModule = resolveCardLogicGlobalOrModule('CardProtectEffects', '../cards/effects/protect');
+    const CardProtectModule = resolveRequiredCardModule('../cards/effects/protect', 'CardProtectEffects');
     const CardTrapModule = resolveRequiredCardModule('../cards/effects/trap', 'CardTrapEffects');
     const CardOwnershipEffectsModule = resolveRequiredCardModule('../cards/effects/ownership', 'CardOwnershipEffects');
     const CardBoardExpansionApplyModule = resolveRequiredCardModule('../cards/effects/board-expansion-apply', 'CardBoardExpansionApply');
@@ -3154,41 +3154,16 @@ const {
     }
 
     function applyGuardWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardProtectModule && typeof CardProtectModule.applyGuardWill === 'function') {
-            return CardProtectModule.applyGuardWill(cardState, gameState, playerKey, row, col, {
-                readCardPendingEffect,
-                getGuardTargets,
-                removeMarkersAt,
-                addMarker,
-                clearCardPendingEffect,
-                MARKER_KINDS,
-                GUARD_WILL_TURNS,
-                GUARDIAN_GOD_TURNS
-            });
-        }
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || (pending.type !== 'GUARD_WILL' && pending.type !== 'GUARDIAN_GOD') || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-        const targets = getGuardTargets(cardState, gameState, playerKey);
-        const allowed = targets.some((t: any) => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-
-        const remainingOwnerTurns = pending.type === 'GUARDIAN_GOD'
-            ? GUARDIAN_GOD_TURNS
-            : GUARD_WILL_TURNS;
-
-        removeMarkersAt(cardState, row, col, {
-            kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone',
-            type: 'GUARD',
-            owner: playerKey
+        return CardProtectModule.applyGuardWill(cardState, gameState, playerKey, row, col, {
+            readCardPendingEffect,
+            getGuardTargets,
+            removeMarkersAt,
+            addMarker,
+            clearCardPendingEffect,
+            MARKER_KINDS,
+            GUARD_WILL_TURNS,
+            GUARDIAN_GOD_TURNS
         });
-        addMarker(cardState, 'specialStone', row, col, playerKey, {
-            type: 'GUARD',
-            remainingOwnerTurns
-        });
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, row, col };
     }
 
     function applyLivingWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
@@ -4410,68 +4385,18 @@ const {
     }
 
     function applyStrongWill(cardState: any, playerKey: any, row: any, col: any) {
-        if (CardProtectModule && typeof CardProtectModule.applyStrongWill === 'function') {
-            return CardProtectModule.applyStrongWill(cardState, playerKey, row, col, {
-                getSpecialMarkers,
-                addMarker,
-                STRONG_WILL_PROMOTION_OWNER_TURNS
-            });
-        }
-        const existingMarker = getSpecialMarkers(cardState).find((marker: any) => (
-            marker &&
-            marker.row === row &&
-            marker.col === col &&
-            marker.data &&
-            (marker.data.type === 'PERMA_PROTECTED' || marker.data.type === 'ABSOLUTE_PROTECTED')
-        ));
-        if (existingMarker && existingMarker.data && existingMarker.data.type === 'ABSOLUTE_PROTECTED') {
-            return { applied: true, alreadyAbsolute: true };
-        }
-
-        const markerData = existingMarker && existingMarker.data ? { ...existingMarker.data } : {};
-        markerData.type = 'PERMA_PROTECTED';
-        markerData.strongWillPromotionOwnerTurnStarts = Number.isFinite(Number(markerData.strongWillPromotionOwnerTurnStarts))
-            ? Math.max(0, Math.trunc(Number(markerData.strongWillPromotionOwnerTurnStarts)))
-            : 0;
-        markerData.strongWillPromotionThreshold = STRONG_WILL_PROMOTION_OWNER_TURNS;
-
-        if (existingMarker) {
-            existingMarker.owner = playerKey;
-            existingMarker.data = markerData;
-            return { applied: true };
-        }
-
-        addMarker(cardState, 'specialStone', row, col, playerKey, markerData);
-        return { applied: true };
+        return CardProtectModule.applyStrongWill(cardState, playerKey, row, col, {
+            getSpecialMarkers,
+            addMarker,
+            STRONG_WILL_PROMOTION_OWNER_TURNS
+        });
     }
 
     function applyAbsoluteProtect(cardState: any, playerKey: any, row: any, col: any) {
-        if (CardProtectModule && typeof CardProtectModule.applyAbsoluteProtect === 'function') {
-            return CardProtectModule.applyAbsoluteProtect(cardState, playerKey, row, col, {
-                getSpecialMarkers,
-                addMarker
-            });
-        }
-        const existingMarker = getSpecialMarkers(cardState).find((marker: any) => (
-            marker &&
-            marker.row === row &&
-            marker.col === col &&
-            marker.data &&
-            (marker.data.type === 'ABSOLUTE_PROTECTED' || marker.data.type === 'PERMA_PROTECTED')
-        ));
-        if (existingMarker) {
-            const markerData = existingMarker.data ? { ...existingMarker.data } : {};
-            markerData.type = 'ABSOLUTE_PROTECTED';
-            delete markerData.strongWillPromotionOwnerTurnStarts;
-            delete markerData.strongWillPromotionThreshold;
-            existingMarker.owner = playerKey;
-            existingMarker.data = markerData;
-        } else {
-            addMarker(cardState, 'specialStone', row, col, playerKey, {
-                type: 'ABSOLUTE_PROTECTED'
-            });
-        }
-        return { applied: true };
+        return CardProtectModule.applyAbsoluteProtect(cardState, playerKey, row, col, {
+            getSpecialMarkers,
+            addMarker
+        });
     }
 
     /**
