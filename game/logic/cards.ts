@@ -667,7 +667,7 @@ const {
     const DestroyOneStoneModule = resolveRequiredCardModule('./effects/destroy_one_stone', 'DestroyOneStoneEffects');
     const SwapWithEnemyModule = resolveRequiredCardModule('./effects/swap_with_enemy', 'SwapWithEnemyEffects');
     const CardProtectModule = resolveCardLogicGlobalOrModule('CardProtectEffects', '../cards/effects/protect');
-    const CardTrapModule = resolveCardLogicGlobalOrModule('CardTrapEffects', '../cards/effects/trap');
+    const CardTrapModule = resolveRequiredCardModule('../cards/effects/trap', 'CardTrapEffects');
     const CardOwnershipEffectsModule = resolveRequiredCardModule('../cards/effects/ownership', 'CardOwnershipEffects');
     const CardBoardExpansionApplyModule = resolveRequiredCardModule('../cards/effects/board-expansion-apply', 'CardBoardExpansionApply');
     const CardStatusCellsModule = resolveRequiredCardModule('../cards/effects/status-cells', 'CardStatusCellsEffects');
@@ -3077,142 +3077,36 @@ const {
     }
 
     function applyTrapWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardTrapModule && typeof CardTrapModule.applyTrapWill === 'function') {
-            return CardTrapModule.applyTrapWill(cardState, gameState, playerKey, row, col, {
-                readCardPendingEffect,
-                getTrapTargets,
-                isAbsoluteProtectedCell,
-                removeMarkersAt,
-                addMarker,
-                clearCardPendingEffect,
-                MARKER_KINDS
-            });
-        }
-        const pending = readCardPendingEffect(cardState, playerKey);
-        if (!pending || pending.type !== 'TRAP_WILL' || pending.stage !== 'selectTarget') {
-            return { applied: false, reason: 'not_pending' };
-        }
-        const targets = getTrapTargets(cardState, gameState, playerKey);
-        const allowed = targets.some((t: any) => t.row === row && t.col === col);
-        if (!allowed) return { applied: false, reason: 'invalid_target' };
-        if (isAbsoluteProtectedCell(cardState, row, col)) return { applied: false, reason: 'absolute_protected' };
-
-        // Trap replaces any existing special marker at the target cell.
-        removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone' });
-
-        const opponentKey = playerKey === 'black' ? 'white' : 'black';
-        addMarker(cardState, 'specialStone', row, col, playerKey, {
-            type: 'TRAP',
-            armedForPlayer: opponentKey,
-            hidden: true
+        return CardTrapModule.applyTrapWill(cardState, gameState, playerKey, row, col, {
+            readCardPendingEffect,
+            getTrapTargets,
+            isAbsoluteProtectedCell,
+            removeMarkersAt,
+            addMarker,
+            clearCardPendingEffect,
+            MARKER_KINDS
         });
-
-        clearCardPendingEffect(cardState, playerKey);
-        return { applied: true, row, col };
     }
 
     function processTrapEffects(cardState: any, gameState: any, activePlayerKey: any, options: any) {
-        if (CardTrapModule && typeof CardTrapModule.processTrapEffects === 'function') {
-            return CardTrapModule.processTrapEffects(cardState, gameState, activePlayerKey, options, {
-                getSpecialMarkers,
-                getCellValueForCard,
-                setCellValueForCard,
-                removeMarkersAt,
-                setChargeValue,
-                addChargeWithTotal,
-                clearHandToDiscard,
-                destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
-                    ? (cs: any, gs: any, r: any, c: any, cause: any, reason: any, meta: any) => BoardOpsModule.destroyAt(cs, gs, r, c, cause, reason, meta)
-                    : null,
-                emitPresentationEvent,
-                MARKER_KINDS,
-                EMPTY,
-                TRAP_WILL_STEAL_MAX,
-                BLACK,
-                WHITE
-            });
-        }
-        const opts = options || {};
-        const expireOnOwnerTurnStart = !!opts.expireOnOwnerTurnStart;
-        const res: { triggered: any[]; expired: any[]; disarmed: any[] } = { triggered: [], expired: [], disarmed: [] };
-        if (!cardState || !gameState || !gameState.board) return res;
-
-        const P_BLACK = BLACK || 1;
-        const P_WHITE = WHITE || -1;
-        const specials = getSpecialMarkers(cardState).filter((m: any) => m && m.data && m.data.type === 'TRAP');
-        if (!specials.length) return res;
-
-        for (const trap of specials) {
-            const row = trap.row;
-            const col = trap.col;
-            const trapPlayerKey = trap.owner === 'white' ? 'white' : 'black';
-            const opponentKey = trapPlayerKey === 'black' ? 'white' : 'black';
-            const trapPlayerValue = trapPlayerKey === 'black' ? P_BLACK : P_WHITE;
-            const activeVal = activePlayerKey === 'black' ? P_BLACK : P_WHITE;
-            const cellVal = getCellValueForCard(gameState, row, col);
-
-            if (cellVal === EMPTY) {
-                removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: trapPlayerKey });
-                res.disarmed.push({ row, col, owner: trapPlayerKey, reason: 'empty' });
-                continue;
-            }
-
-            if (cellVal === trapPlayerValue) {
-                if (expireOnOwnerTurnStart && activePlayerKey === trapPlayerKey) {
-                    // Reveal just before destroy so both sides can read the trap icon at expiry.
-                    emitPresentationEvent(cardState, {
-                        type: 'STATUS_APPLIED',
-                        row,
-                        col,
-                        meta: { special: 'TRAP_REVEAL', owner: trapPlayerKey, reason: 'trap_expired_reveal' }
-                    });
-                    if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
-                        BoardOpsModule.destroyAt(cardState, gameState, row, col, 'TRAP_WILL', 'trap_expired', { special: 'TRAP_REVEAL', owner: trapPlayerKey });
-                    } else {
-                        setCellValueForCard(gameState, row, col, EMPTY);
-                        removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: trapPlayerKey });
-                    }
-                    res.expired.push({ row, col, owner: trapPlayerKey });
-                }
-                continue;
-            }
-
-            if (activePlayerKey === opponentKey && cellVal === activeVal) {
-                const victimKey = opponentKey;
-                const victimCharge = Math.max(0, Number(cardState.charge[victimKey] || 0));
-                const stolenCharge = Math.min(TRAP_WILL_STEAL_MAX, victimCharge);
-                const remainingCharge = Math.max(0, victimCharge - stolenCharge);
-                setChargeValue(cardState, victimKey, remainingCharge, 'trap_stolen_charge');
-                const gainedCharge = addChargeWithTotal(cardState, trapPlayerKey, stolenCharge);
-
-                const clearResult = clearHandToDiscard(cardState, victimKey);
-                const destroyedCards = Array.isArray(clearResult && clearResult.destroyedCards)
-                    ? clearResult.destroyedCards
-                    : [];
-                const destroyedCount = destroyedCards.length;
-
-                removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: trapPlayerKey });
-                res.triggered.push({
-                    row,
-                    col,
-                    owner: trapPlayerKey,
-                    victim: victimKey,
-                    stolenCharge,
-                    gainedCharge,
-                    stolenHandCount: destroyedCount,
-                    destroyedHandCount: destroyedCount,
-                    destroyedCardIds: destroyedCards.slice(),
-                    toHandCount: 0,
-                    toDeckCount: 0
-                });
-                continue;
-            }
-
-            removeMarkersAt(cardState, row, col, { kind: MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone', type: 'TRAP', owner: trapPlayerKey });
-            res.disarmed.push({ row, col, owner: trapPlayerKey, reason: 'changed_without_trigger' });
-        }
-
-        return res;
+        return CardTrapModule.processTrapEffects(cardState, gameState, activePlayerKey, options, {
+            getSpecialMarkers,
+            getCellValueForCard,
+            setCellValueForCard,
+            removeMarkersAt,
+            setChargeValue,
+            addChargeWithTotal,
+            clearHandToDiscard,
+            destroyAt: BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function'
+                ? (cs: any, gs: any, r: any, c: any, cause: any, reason: any, meta: any) => BoardOpsModule.destroyAt(cs, gs, r, c, cause, reason, meta)
+                : null,
+            emitPresentationEvent,
+            MARKER_KINDS,
+            EMPTY,
+            TRAP_WILL_STEAL_MAX,
+            BLACK,
+            WHITE
+        });
     }
 
     function applyTemptWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
