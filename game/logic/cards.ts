@@ -657,7 +657,7 @@ const {
     const CardHyperactiveModule = resolveCardLogicGlobalOrModule('CardHyperactive', './cards/hyperactive');
     const CardUdgModule = resolveRequiredCardModule('./cards/udg', 'CardUdg');
     /** @type {any} */
-    const CardSniperModule = resolveCardLogicGlobalOrModule('CardSniper', './cards/sniper');
+    const CardSniperModule = resolveRequiredCardModule('./cards/sniper', 'CardSniper');
     const CardLightningModule = resolveCardLogicGlobalOrModule('CardLightning', './cards/lightning');
     /** @type {any} */
     const CardWillHunterKingModule = resolveCardLogicGlobalOrModule('CardWillHunterKing', './cards/will_hunter_king');
@@ -4981,21 +4981,12 @@ const {
         );
     }
 
-    function resolveSniperModule() {
-        return CardSniperModule || null;
-    }
-
     function processSniperWillEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
-        const mod = resolveSniperModule();
-        if (mod && typeof mod.processSniperWillEffects === 'function') {
-            return mod.processSniperWillEffects(cardState, gameState, playerKey, {
-                destroyAt,
-                BoardOps: BoardOpsModule,
-                random: prng || defaultPrng
-            });
-        }
-        console.warn('[cards.js] CardSniper module not available');
-        return { destroyed: [], anchors: [], expired: [] };
+        return CardSniperModule.processSniperWillEffects(cardState, gameState, playerKey, {
+            destroyAt,
+            BoardOps: BoardOpsModule,
+            random: prng || defaultPrng
+        });
     }
 
     function processSniperWillEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
@@ -5021,15 +5012,10 @@ const {
             'CardLogic.processSniperWillEffectsAtTurnStartAnchor'
         );
 
-        const mod = resolveSniperModule();
-        if (mod && typeof mod.processSniperWillEffectsAtTurnStartAnchor === 'function') {
-            return runBoardOpsDestroyBlock(cardState, gameState, () =>
-                mod.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
-                { randomSource: deps.random }
-            );
-        }
-        console.warn('[cards.js] CardSniper turn-start anchor processor not available');
-        return { destroyed: [], expired: [] };
+        return runBoardOpsDestroyBlock(cardState, gameState, () =>
+            CardSniperModule.processSniperWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
+            { randomSource: deps.random }
+        );
     }
     function resolveLightningModule() {
         return CardLightningModule || null;
