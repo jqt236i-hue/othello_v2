@@ -658,7 +658,7 @@ const {
     const CardUdgModule = resolveRequiredCardModule('./cards/udg', 'CardUdg');
     /** @type {any} */
     const CardSniperModule = resolveRequiredCardModule('./cards/sniper', 'CardSniper');
-    const CardLightningModule = resolveCardLogicGlobalOrModule('CardLightning', './cards/lightning');
+    const CardLightningModule = resolveRequiredCardModule('./cards/lightning', 'CardLightning');
     /** @type {any} */
     const CardWillHunterKingModule = resolveCardLogicGlobalOrModule('CardWillHunterKing', './cards/will_hunter_king');
     /** @type {any} */
@@ -5017,21 +5017,12 @@ const {
             { randomSource: deps.random }
         );
     }
-    function resolveLightningModule() {
-        return CardLightningModule || null;
-    }
-
     function processLightningWillEffects(cardState: any, gameState: any, playerKey: any, prng: any) {
-        const mod = resolveLightningModule();
-        if (mod && typeof mod.processLightningWillEffects === 'function') {
-            return mod.processLightningWillEffects(cardState, gameState, playerKey, {
-                destroyAt,
-                BoardOps: BoardOpsModule,
-                random: prng || defaultPrng
-            });
-        }
-        console.warn('[cards.js] CardLightning module not available');
-        return { destroyed: [], anchors: [], expired: [] };
+        return CardLightningModule.processLightningWillEffects(cardState, gameState, playerKey, {
+            destroyAt,
+            BoardOps: BoardOpsModule,
+            random: prng || defaultPrng
+        });
     }
 
     function processLightningWillEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
@@ -5057,21 +5048,10 @@ const {
             'CardLogic.processLightningWillEffectsAtAnchor'
         );
 
-        const mod = resolveLightningModule();
-        if (mod && typeof mod.processLightningWillEffectsAtAnchor === 'function') {
-            return runBoardOpsDestroyBlock(cardState, gameState, () =>
-                mod.processLightningWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps),
-                { randomSource: deps.random }
-            );
-        }
-        if (mod && typeof mod.processLightningWillEffectsAtTurnStartAnchor === 'function') {
-            return runBoardOpsDestroyBlock(cardState, gameState, () =>
-                mod.processLightningWillEffectsAtTurnStartAnchor(cardState, gameState, playerKey, row, col, deps),
-                { randomSource: deps.random }
-            );
-        }
-        console.warn('[cards.js] CardLightning anchor processor not available');
-        return { destroyed: [], expired: [] };
+        return runBoardOpsDestroyBlock(cardState, gameState, () =>
+            CardLightningModule.processLightningWillEffectsAtAnchor(cardState, gameState, playerKey, row, col, deps),
+            { randomSource: deps.random }
+        );
     }
 
     function processLightningWillEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
