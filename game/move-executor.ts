@@ -31,17 +31,22 @@ function writeMoveExecutorRuntimeValue(key: string, value: any): void {
     } catch (e) { /* ignore */ }
 }
 
+function requireMoveExecutorModuleOrNull(id: string): any {
+    if (typeof require !== 'function') return null;
+    try {
+        return require(id);
+    } catch (e) {
+        return null;
+    }
+}
+
 // Import event emitters from controller-events; fall back to global scope
 let emitBoardUpdate_local: any;
 let emitCardStateChange_local: any;
-if (typeof require === 'function') {
-    try {
-        const _ce = require('./controller-events');
-        if (_ce) {
-            if (typeof _ce.emitBoardUpdate === 'function') emitBoardUpdate_local = _ce.emitBoardUpdate;
-            if (typeof _ce.emitCardStateChange === 'function') emitCardStateChange_local = _ce.emitCardStateChange;
-        }
-    } catch (e) { /* ignore */ }
+const moveExecutorControllerEvents = requireMoveExecutorModuleOrNull('./controller-events');
+if (moveExecutorControllerEvents) {
+    if (typeof moveExecutorControllerEvents.emitBoardUpdate === 'function') emitBoardUpdate_local = moveExecutorControllerEvents.emitBoardUpdate;
+    if (typeof moveExecutorControllerEvents.emitCardStateChange === 'function') emitCardStateChange_local = moveExecutorControllerEvents.emitCardStateChange;
 }
 // TimerService DI
 let moveExecutorTimerService: any = null;
@@ -49,23 +54,17 @@ function setMoveExecutorTimerService(service: any) { moveExecutorTimerService = 
 function getMoveExecutorTimerService() {
     if (moveExecutorTimerService) return moveExecutorTimerService;
     try {
-        const { createTimerService } = require('./timer-service');
-        moveExecutorTimerService = createTimerService('browser');
+        const timerServiceModule = requireMoveExecutorModuleOrNull('./timer-service');
+        moveExecutorTimerService = timerServiceModule.createTimerService('browser');
         return moveExecutorTimerService;
     } catch (e) {
         return null;
     }
 }
 
-let moveExecutorNetworkTurnHandoff: any = null;
-if (typeof require === 'function') {
-    try { moveExecutorNetworkTurnHandoff = require('./network-turn-handoff'); } catch (e) { /* ignore */ }
-}
+let moveExecutorNetworkTurnHandoff: any = requireMoveExecutorModuleOrNull('./network-turn-handoff');
 
-let MoveExecutorOwnerHelpersModule: any = null;
-if (typeof require === 'function') {
-    try { MoveExecutorOwnerHelpersModule = require('../utils/owner-helpers'); } catch (e) { /* ignore */ }
-}
+let MoveExecutorOwnerHelpersModule: any = requireMoveExecutorModuleOrNull('../utils/owner-helpers');
 
 function normalizeMoveExecutorPlayerKey(value: any, fallbackValue: any) {
     if (MoveExecutorOwnerHelpersModule && typeof MoveExecutorOwnerHelpersModule.normalizePlayerKey === 'function') {
@@ -239,10 +238,7 @@ function resolveMoveExecutorTurnPipelineUIAdapter() {
             if (adapter && typeof adapter === 'object') return adapter;
         } catch (e) { /* ignore */ }
     }
-    if (typeof require === 'function') {
-        try { return require('./turn/pipeline_ui_adapter'); } catch (e) { /* ignore */ }
-    }
-    return null;
+    return requireMoveExecutorModuleOrNull('./turn/pipeline_ui_adapter');
 }
 
 function resolveMoveExecutorTurnPipeline() {
@@ -255,10 +251,7 @@ function resolveMoveExecutorTurnPipeline() {
             if (pipeline && typeof pipeline === 'object') return pipeline;
         } catch (e) { /* ignore */ }
     }
-    if (typeof require === 'function') {
-        try { return require('./turn/turn_pipeline'); } catch (e) { /* ignore */ }
-    }
-    return null;
+    return requireMoveExecutorModuleOrNull('./turn/turn_pipeline');
 }
 
 function resolveMoveExecutorNetworkTurnHandoff() {
