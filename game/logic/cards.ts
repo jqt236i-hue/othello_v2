@@ -1342,16 +1342,12 @@ const {
     }
 
     /** @type {any} */
-    const CardSelectorsModule = getRuntimeGlobalValue('CardSelectors') || (function() { try { return _require('./cards/selectors'); } catch (e) { return null; } })();
-    const CardUsagePrechecksModule = getRuntimeGlobalValue('CardUsagePrechecks') || (function() { try { return _require('./cards-internal/card-usage-prechecks'); } catch (e) { return null; } })();
-    const CardSelectorOrchestratorModule = getRuntimeGlobalValue('CardSelectorOrchestrator') || (function() { try { return _require('./cards-internal/selector-orchestrator'); } catch (e) { return null; } })();
-    const CardHandManagerModule = (function() {
-        const runtimeCardHandManager = getRuntimeGlobalValue('CardHandManager');
-        if (runtimeCardHandManager) return runtimeCardHandManager;
-        try { return _require('./cards-internal/hand-manager'); } catch (e) { return null; }
-    })();
-    const CardEffectTimingModule = getRuntimeGlobalValue('CardEffectTiming') || (function() { try { return _require('./cards-internal/effect-timing'); } catch (e) { return null; } })();
-    const CardWorkModule = getRuntimeGlobalValue('CardWork') || (function() { try { return _require('./cards/work_will'); } catch (e) { return null; } })();
+    const CardSelectorsModule = resolveCardLogicGlobalOrModule('CardSelectors', './cards/selectors');
+    const CardUsagePrechecksModule = resolveCardLogicGlobalOrModule('CardUsagePrechecks', './cards-internal/card-usage-prechecks');
+    const CardSelectorOrchestratorModule = resolveCardLogicGlobalOrModule('CardSelectorOrchestrator', './cards-internal/selector-orchestrator');
+    const CardHandManagerModule = resolveCardLogicGlobalOrModule('CardHandManager', './cards-internal/hand-manager');
+    const CardEffectTimingModule = resolveCardLogicGlobalOrModule('CardEffectTiming', './cards-internal/effect-timing');
+    const CardWorkModule = resolveCardLogicGlobalOrModule('CardWork', './cards/work_will');
     let CardEffectTimingModules: any = null;
 
     function createCardEffectTimingModules() {
@@ -1437,9 +1433,9 @@ const {
         };
     }
 
-    const CardPendingStateManagerModule = (function() { try { return _require('./cards-internal/pending-state-manager'); } catch (e) { return null; } })();
-    const PendingCoordinatorModule = (function() { try { return _require('../turn/pending-coordinator'); } catch (e) { return null; } })();
-    const CardChargeLedgerModule = (function() { try { return _require('./cards-internal/charge-ledger'); } catch (e) { return null; } })();
+    const CardPendingStateManagerModule = requireOptionalCardLogicModule('./cards-internal/pending-state-manager');
+    const PendingCoordinatorModule = requireOptionalCardLogicModule('../turn/pending-coordinator');
+    const CardChargeLedgerModule = requireOptionalCardLogicModule('./cards-internal/charge-ledger');
 
     function readCardPendingEffect(cardState: any, playerKey: any) {
         if (PendingCoordinatorModule && typeof PendingCoordinatorModule.readPendingEffect === 'function') {
@@ -1471,8 +1467,8 @@ const {
         return true;
     }
 
-    const BoardOpsModule = (function() { try { return _require('./board_ops'); } catch (e) { return null; } })();
-    const MarkersAdapter = (function() { try { return _require('./markers_adapter'); } catch (e) { return null; } })();
+    const BoardOpsModule = requireOptionalCardLogicModule('./board_ops');
+    const MarkersAdapter = requireOptionalCardLogicModule('./markers_adapter');
     const MARKER_KINDS = (CardMarkersModule && CardMarkersModule.MARKER_KINDS)
         || (MarkersAdapter && MarkersAdapter.MARKER_KINDS);
     const MARKER_CATEGORIES = (CardMarkersModule && CardMarkersModule.MARKER_CATEGORIES)
