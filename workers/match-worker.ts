@@ -84,7 +84,7 @@ import cardTimingProcessorModule from '../game/cards/timing-processor.js';
 import cardTargetResolverModule from '../game/cards/target-resolver.js';
 import cardStatusCellsEffectsModule = require('../game/cards/effects/status-cells.js');
 
-const MatchAuthority = matchAuthority || {};
+const MatchAuthority = matchAuthority;
 type MatchWorkerCryptoLike = {
     getRandomValues(array: Uint8Array): Uint8Array;
 };
