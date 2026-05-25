@@ -668,7 +668,7 @@ const {
     const SwapWithEnemyModule = resolveCardLogicGlobalOrModule('SwapWithEnemyEffects', './effects/swap_with_enemy');
     const CardProtectModule = resolveCardLogicGlobalOrModule('CardProtectEffects', '../cards/effects/protect');
     const CardTrapModule = resolveCardLogicGlobalOrModule('CardTrapEffects', '../cards/effects/trap');
-    const CardOwnershipEffectsModule = resolveOptionalCardModule('../cards/effects/ownership', 'CardOwnershipEffects');
+    const CardOwnershipEffectsModule = resolveRequiredCardModule('../cards/effects/ownership', 'CardOwnershipEffects');
     const CardBoardExpansionApplyModule = resolveOptionalCardModule('../cards/effects/board-expansion-apply', 'CardBoardExpansionApply');
     const CardStatusCellsModule = resolveOptionalCardModule('../cards/effects/status-cells', 'CardStatusCellsEffects');
     const CardHandEffectsModule = resolveOptionalCardModule('../cards/effects/hand-effects', 'CardHandEffects');
@@ -3216,56 +3216,47 @@ const {
     }
 
     function applyTemptWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardOwnershipEffectsModule && typeof CardOwnershipEffectsModule.applyTemptWill === 'function') {
-            return CardOwnershipEffectsModule.applyTemptWill(cardState, gameState, playerKey, row, col, {
-                readCardPendingEffect,
-                isSpecialStoneAt,
-                getSpecialOwnerAt,
-                getCellValueForCard,
-                getSpecialMarkers,
-                isAbsoluteProtectedCell,
-                BoardOpsModule,
-                setCellValueForCard,
-                removeMarkersAt,
-                emitPresentationEvent,
-                clearCardPendingEffect,
-                getMarkers,
-                MARKER_KINDS
-            });
-        }
-        return { applied: false, reason: 'deps_missing' };
+        return CardOwnershipEffectsModule.applyTemptWill(cardState, gameState, playerKey, row, col, {
+            readCardPendingEffect,
+            isSpecialStoneAt,
+            getSpecialOwnerAt,
+            getCellValueForCard,
+            getSpecialMarkers,
+            isAbsoluteProtectedCell,
+            BoardOpsModule,
+            setCellValueForCard,
+            removeMarkersAt,
+            emitPresentationEvent,
+            clearCardPendingEffect,
+            getMarkers,
+            MARKER_KINDS
+        });
     }
 
     function transferCellMarkerOwnership(cardState: any, row: any, col: any, playerKey: any) {
-        if (CardOwnershipEffectsModule && typeof CardOwnershipEffectsModule.transferCellMarkerOwnership === 'function') {
-            return CardOwnershipEffectsModule.transferCellMarkerOwnership(cardState, row, col, playerKey, { getMarkers });
-        }
-        return { transferred: false, hadWork: false, reason: 'deps_missing' };
+        return CardOwnershipEffectsModule.transferCellMarkerOwnership(cardState, row, col, playerKey, { getMarkers });
     }
 
     function applyCaptureWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        if (CardOwnershipEffectsModule && typeof CardOwnershipEffectsModule.applyCaptureWill === 'function') {
-            return CardOwnershipEffectsModule.applyCaptureWill(cardState, gameState, playerKey, row, col, {
-                readCardPendingEffect,
-                isSpecialStoneAt,
-                getSpecialOwnerAt,
-                getCellValueForCard,
-                getSpecialMarkers,
-                isAbsoluteProtectedCell,
-                getSpecialMarkerAt,
-                resolveCaptureSourceInfo,
-                CardLivingWillModule,
-                addCardToHand,
-                getStoneIdAtForCard,
-                clearStoneIdAtForCard,
-                setCellValueForCard,
-                removeMarkersAt,
-                emitPresentationEvent,
-                clearCardPendingEffect,
-                getLivingWillModuleContext
-            });
-        }
-        return { applied: false, reason: 'deps_missing' };
+        return CardOwnershipEffectsModule.applyCaptureWill(cardState, gameState, playerKey, row, col, {
+            readCardPendingEffect,
+            isSpecialStoneAt,
+            getSpecialOwnerAt,
+            getCellValueForCard,
+            getSpecialMarkers,
+            isAbsoluteProtectedCell,
+            getSpecialMarkerAt,
+            resolveCaptureSourceInfo,
+            CardLivingWillModule,
+            addCardToHand,
+            getStoneIdAtForCard,
+            clearStoneIdAtForCard,
+            setCellValueForCard,
+            removeMarkersAt,
+            emitPresentationEvent,
+            clearCardPendingEffect,
+            getLivingWillModuleContext
+        });
     }
 
     function applyGuardWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
