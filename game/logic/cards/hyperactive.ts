@@ -33,40 +33,18 @@ function safeRequire(id: string): any {
     }
 }
 
-const SharedConstants = (() => {
+function resolveHyperactiveModuleOrGlobal(id: string, globalKey: string): any {
     if (typeof module === 'object' && module.exports) {
-        return safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
+        return safeRequire(id) || getRuntimeGlobalValue(globalKey);
     }
 
-    return getRuntimeGlobalValue('SharedConstants');
-})();
+    return getRuntimeGlobalValue(globalKey);
+}
 
-const BoardUtils = (() => {
-    if (typeof module === 'object' && module.exports) {
-        try {
-            return safeRequire('../../../shared/shared-board-utils') || getRuntimeGlobalValue('SharedBoardUtils');
-        } catch (e) { /* ignore */ }
-    }
-    return getRuntimeGlobalValue('SharedBoardUtils');
-})();
-
-const RandomSourceModule = (() => {
-    if (typeof module === 'object' && module.exports) {
-        try {
-            return safeRequire('../cards-internal/random-source') || getRuntimeGlobalValue('CardRandomSource');
-        } catch (e) { /* ignore */ }
-    }
-    return getRuntimeGlobalValue('CardRandomSource');
-})();
-
-const StoneStatusSnapshot = (() => {
-    if (typeof module === 'object' && module.exports) {
-        try {
-            return safeRequire('../../../shared/stone-status-snapshot');
-        } catch (e) { /* ignore */ }
-    }
-    return getRuntimeGlobalValue('StoneStatusSnapshot') || null;
-})();
+const SharedConstants = resolveHyperactiveModuleOrGlobal('../../../shared-constants', 'SharedConstants');
+const BoardUtils = resolveHyperactiveModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
+const RandomSourceModule = resolveHyperactiveModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
+const StoneStatusSnapshot = resolveHyperactiveModuleOrGlobal('../../../shared/stone-status-snapshot', 'StoneStatusSnapshot') || null;
 
 const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 
