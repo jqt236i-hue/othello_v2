@@ -634,7 +634,7 @@ const {
     }
 
     const CardExpansionModule = resolveCardLogicGlobalOrModule('CardExpansion', './cards/expansion');
-    const CardMarkersModule = resolveCardLogicGlobalOrModule('CardMarkers', './cards/markers');
+    const CardMarkersModule = resolveRequiredCardModule('./cards/markers', 'CardMarkers');
     /** @type {any} */
     const CardMovementModule = resolveRequiredCardModule('./cards/movement', 'CardMovement');
     /** @type {any} */
