@@ -282,4 +282,9 @@ export interface MatchAuthorityPublicApi {
         lastEventIdValue: unknown,
         viewerSeatKey: unknown
     ): MatchAuthorityBufferedSseReplayEvent[] | null;
+    getBufferedSnapshotPayloadForStateVersion(
+        bufferValue: unknown,
+        stateVersionValue: unknown,
+        viewerSeatKey: unknown
+    ): unknown | null;
 }

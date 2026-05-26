@@ -14,6 +14,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   : require;
 
 const root: any = (typeof window !== 'undefined' ? window : globalThis);
+const DeckCodecModule = (() => {
+    try {
+        return _require('../../shared/deck-codec');
+    } catch (e) {
+        return null;
+    }
+})();
 
 const MODE_CPU = 'cpu';
 const MODE_REVERSI = 'reversi';
@@ -82,7 +89,11 @@ const MODE_OTHELLO = 'othello';
         return MODE_CPU;
     }
 
-    function isHumanMode(mode: any) {
+    function shouldClearHumanVsHumanMode(mode: any) {
+        return mode === MODE_NETWORK || mode === MODE_REVERSI;
+    }
+
+    function shouldDisableAutoMode(mode: any) {
         return mode === MODE_NETWORK;
     }
 
@@ -133,16 +144,36 @@ const MODE_OTHELLO = 'othello';
         return null;
     }
 
-    function getActiveLocalDeckCode() {
+    function readActiveLocalDeckSelection() {
         const controller = getDeckBuilderController();
         if (!controller || typeof controller.getActiveLocalChoice !== 'function') {
-            return '';
+            return { choice: null, deckCode: '', invalidCustomDeck: false };
         }
         try {
             const choice = controller.getActiveLocalChoice();
-            return (choice && choice.mode === 'custom') ? String(choice.deckCode || '').trim() : '';
+            const deckCode = (choice && choice.mode === 'custom') ? String(choice.deckCode || '').trim() : '';
+            if (!deckCode) {
+                return { choice, deckCode: '', invalidCustomDeck: false };
+            }
+            if (!/^D\d+C\d+:/i.test(deckCode)) {
+                return { choice, deckCode: '', invalidCustomDeck: true };
+            }
+            if (!DeckCodecModule || typeof DeckCodecModule.safeDecodeDeckCode !== 'function') {
+                return { choice, deckCode, invalidCustomDeck: false };
+            }
+            const decoded = DeckCodecModule.safeDecodeDeckCode(deckCode);
+            if (!decoded || decoded.ok !== true || !decoded.deckSpec) {
+                return { choice, deckCode: '', invalidCustomDeck: true };
+            }
+            return { choice, deckCode, invalidCustomDeck: false };
         } catch (e) {
-            return '';
+            return { choice: null, deckCode: '', invalidCustomDeck: false };
+        }
+    }
+
+    function notifyInvalidCustomDeckFallback(selection: any) {
+        if (selection && selection.invalidCustomDeck) {
+            writeNetworkStatus('選択中のカスタムデッキを読み込めなかったため、標準デッキで続行します', false);
         }
     }
 
@@ -268,13 +299,13 @@ const MODE_OTHELLO = 'othello';
     }
 
     function formatPendingRoomDeckText() {
-        const controller = getDeckBuilderController();
-        if (!controller || typeof controller.getActiveLocalChoice !== 'function') {
+        const selection = readActiveLocalDeckSelection();
+        const choice = selection.choice;
+        if (!choice) {
             return '作成時に送るデッキ: デフォルトデッキ';
         }
         try {
-            const choice = controller.getActiveLocalChoice();
-            if (choice && choice.mode === 'custom') {
+            if (choice.mode === 'custom' && selection.invalidCustomDeck !== true) {
                 const deckSize = Number.isFinite(Number(choice.deckSize)) ? Number(choice.deckSize) : 30;
                 return `作成時に送るデッキ: カスタム ${deckSize}枚`;
             }
@@ -1246,8 +1277,10 @@ const MODE_OTHELLO = 'othello';
 
         applyReversiModeUiState();
 
-        syncHumanModeFlags(isHumanMode(currentMode));
-        if (isHumanMode(currentMode)) {
+        if (shouldClearHumanVsHumanMode(currentMode)) {
+            syncHumanModeFlags(false);
+        }
+        if (shouldDisableAutoMode(currentMode)) {
             disableAutoModeForHumanPlay();
         }
 
@@ -1507,13 +1540,15 @@ const MODE_OTHELLO = 'othello';
                 await setMode(MODE_NETWORK, { silentLog: true });
                 const serverUrl = uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '';
                 const playerName = resolveRequiredNetworkPlayerName();
-                const deckCode = getActiveLocalDeckCode();
+                const localDeckSelection = readActiveLocalDeckSelection();
+                const deckCode = localDeckSelection.deckCode;
                 const roomBoardConfig = getPendingRoomBoardConfig();
                 const requestedNetworkDebugEnabled = !!(
                     uiRefs.networkEnableDebugCheckbox
                     && uiRefs.networkEnableDebugCheckbox.checked
                 );
                 if (!playerName) return;
+                notifyInvalidCustomDeckFallback(localDeckSelection);
                 try {
                     if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
                         root.NetworkMatchClient.setServerUrl(serverUrl);
@@ -1548,8 +1583,10 @@ const MODE_OTHELLO = 'othello';
                 const roomId = uiRefs.networkRoomInput ? formatRoomIdInput(uiRefs.networkRoomInput.value) : '';
                 const serverUrl = uiRefs.networkServerInput ? uiRefs.networkServerInput.value.trim() : '';
                 const playerName = resolveRequiredNetworkPlayerName();
-                const deckCode = getActiveLocalDeckCode();
+                const localDeckSelection = readActiveLocalDeckSelection();
+                const deckCode = localDeckSelection.deckCode;
                 if (!playerName) return;
+                notifyInvalidCustomDeckFallback(localDeckSelection);
                 try {
                     if (root.NetworkMatchClient && typeof root.NetworkMatchClient.setServerUrl === 'function') {
                         root.NetworkMatchClient.setServerUrl(serverUrl);

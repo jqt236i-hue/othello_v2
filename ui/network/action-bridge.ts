@@ -257,7 +257,8 @@ function createNetworkActionBridge(config?: any): any {
         if (!deferredByAction && !shouldDeferNetworkPublishForPendingType(pendingType)) {
           queueCommandPublish(playerKey, action, {
             actionType: action && (action.type || action.actionType) ? String(action.type || action.actionType) : 'action',
-            playbackEvents: Array.isArray(result.playbackEvents) ? result.playbackEvents : []
+            playbackEvents: Array.isArray(result.playbackEvents) ? result.playbackEvents : [],
+            localPlaybackEmitted: Array.isArray(result.playbackEvents) && result.playbackEvents.length > 0
           });
         }
       }

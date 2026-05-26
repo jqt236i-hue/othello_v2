@@ -751,6 +751,19 @@ function resolveNetworkLocalPlayerKey() {
 function canLocalUserOperateCurrentTurn() {
     const currentPlayerKey = getPlayerKey(gameState.currentPlayer);
     try {
+        if (OwnerHelpersModule && typeof OwnerHelpersModule.resolveNetworkInputPermissions === 'function') {
+            return OwnerHelpersModule.resolveNetworkInputPermissions({
+                rootRef: getTurnManagerRuntimeRoot(),
+                cardState,
+                gameState,
+                currentPlayer: gameState.currentPlayer,
+                localPlayerKey: resolveNetworkLocalPlayerKey(),
+                matchMode: readTurnManagerMatchMode(),
+                debugHumanVsHuman: isTurnManagerHumanVsHumanFlagEnabled()
+            }).canOperateBoard === true;
+        }
+    } catch (e) { /* fallback to legacy local checks */ }
+    try {
         const controllerMap = cardState && cardState.fateWillControllerByTurnOwner;
         const controllerKey = controllerMap && controllerMap[currentPlayerKey];
         const explicitLocalKey = readTurnManagerRuntimeValue('LOCAL_PLAYER_KEY')

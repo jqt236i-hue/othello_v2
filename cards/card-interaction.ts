@@ -1906,7 +1906,26 @@ function _getNetworkLocalPlayerKey() {
     return 'black';
 }
 
+function _resolveInputPermissionsForCardUi() {
+    try {
+        if (_ownerHelpersModule && typeof _ownerHelpersModule.resolveNetworkInputPermissions === 'function') {
+            return _ownerHelpersModule.resolveNetworkInputPermissions({
+                rootRef: typeof window !== 'undefined' ? window : null,
+                cardState: typeof cardState !== 'undefined' ? cardState : null,
+                gameState: typeof gameState !== 'undefined' ? gameState : null,
+                currentPlayer: gameState && gameState.currentPlayer,
+                localPlayerKey: _isNetworkMode() ? _getNetworkLocalPlayerKey() : undefined,
+                matchMode: _getCurrentMatchMode(),
+                debugHumanVsHuman: _isDebugHvHMode()
+            });
+        }
+    } catch (e) { /* fallback to legacy local checks */ }
+    return null;
+}
+
 function _resolveInputPlayerKey() {
+    const permissions = _resolveInputPermissionsForCardUi();
+    if (permissions && permissions.inputPlayerKey) return permissions.inputPlayerKey;
     const isDebugHvH = _isDebugHvHMode();
     if (_isNetworkMode()) return _getNetworkLocalPlayerKey();
     if (isDebugHvH) {
@@ -1924,6 +1943,8 @@ function _resolveInputPlayerKey() {
 // Returns the turn owner (victim) key when the local player is the FATE_WILL controller,
 // null otherwise.
 function _getFateWillTurnOwnerKeyForLocalController() {
+    const permissions = _resolveInputPermissionsForCardUi();
+    if (permissions) return permissions.controlledTurnOwnerKey || null;
     try {
         if (!cardState || !cardState.fateWillControllerByTurnOwner || !gameState) return null;
         const currentPlayerKey = gameState.currentPlayer === BLACK ? 'black' : 'white';
@@ -1934,6 +1955,8 @@ function _getFateWillTurnOwnerKeyForLocalController() {
 }
 
 function _getCardUiActionOwnerKey(inputPlayerKey: any) {
+    const permissions = _resolveInputPermissionsForCardUi();
+    if (permissions) return permissions.actionOwnerKey;
     return _getFateWillTurnOwnerKeyForLocalController() || inputPlayerKey || _resolveInputPlayerKey();
 }
 
@@ -1948,6 +1971,8 @@ function _hasPlayerUsedCardThisActiveTurn(playerKey: any) {
 }
 
 function _canInputPlayerActNow() {
+    const permissions = _resolveInputPermissionsForCardUi();
+    if (permissions) return permissions.canUseOwnHand === true;
     const currentPlayerKey = gameState.currentPlayer === BLACK ? 'black' : 'white';
     const localKey = _resolveInputPlayerKey();
     // FATE_WILL: block the victim and allow only the controller.

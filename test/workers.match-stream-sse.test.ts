@@ -266,6 +266,65 @@ function runResumeAfterReloadScenario() {
   return runScenario(runner);
 }
 
+function runStatePlaybackRecoveryScenario() {
+  const runner = [
+    "(async () => {",
+    "  const modulePath = process.argv[1];",
+    "  const { MatchRoomDurableObject } = await import(modulePath);",
+    "  const state = {",
+    "    storage: {",
+    "      get: async () => null,",
+    "      put: async () => {},",
+    "      delete: async () => {}",
+    "    }",
+    "  };",
+    "  const durableObject = new MatchRoomDurableObject(state);",
+    "  durableObject.roomLoaded = true;",
+    "  const room = {",
+    "    roomId: 'SSE3',",
+    "    seed: 1,",
+    "    stateVersion: 2,",
+    "    snapshot: {",
+    "      stateVersion: 2,",
+    "      _meta: { version: 2, authority: 'server', projectedForSeat: 'black', turnStartReconciled: true },",
+    "      gameState: { board: Array.from({ length: 8 }, () => Array(8).fill(0)), currentPlayer: -1, turnNumber: 2, consecutivePasses: 0 },",
+    "      cardState: { hands: { black: ['b1'], white: ['w1'] }, charge: { black: 0, white: 0 }, pendingEffectByPlayer: { black: null, white: null }, hasUsedCardThisTurnByPlayer: { black: false, white: false }, lastUsedCardByPlayer: { black: null, white: null }, markers: [], discard: [], turnIndex: 2 }",
+    "    },",
+    "    updatedAt: Date.now(),",
+    "    seats: { black: true, white: true },",
+    "    seatTokens: { black: 'token_black', white: 'token_white' },",
+    "    seatNames: { black: 'black', white: 'white' },",
+    "    seatHandSkins: { black: '', white: '' },",
+    "    roomDeck: null,",
+    "    networkDebugEnabled: false,",
+    "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'white', turnStartedAt: null, turnDeadlineAt: null },",
+    "    lastAcceptedOperationBySeat: { black: null, white: null },",
+    "    eventSeq: 2,",
+    "    chatMessages: [],",
+    "    chatSeq: 0",
+    "  };",
+    "  room.sseEventBuffer = [{",
+    "    id: 'SSE3_2_2',",
+    "    event: 'snapshot',",
+    "    payloadByViewer: {",
+    "      black: { ok: true, roomId: 'SSE3', stateVersion: 2, operationId: 'op_state_recovery', playbackEvents: [{ type: 'move', phase: 1, targets: [{ from: { r: 3, col: 3 }, to: { r: 4, col: 3 }, reason: 'hyperactive_move' }] }], effectLogs: ['黒: 多動石が移動'], snapshot: room.snapshot },",
+    "      white: { ok: true, roomId: 'SSE3', stateVersion: 2, playbackEvents: [], effectLogs: ['黒: 多動石が移動'], snapshot: room.snapshot }",
+    "    }",
+    "  }];",
+    "  durableObject.room = room;",
+    "  durableObject.sseEventBuffer = room.sseEventBuffer.slice();",
+    "  const stateResponse = await durableObject.handleState(new URL('https://room/api/match/state?seatKey=black&seatToken=token_black'));",
+    "  const statePayload = await stateResponse.json();",
+    "  process.stdout.write(JSON.stringify({ status: stateResponse.status, statePayload }));",
+    "})().catch((error) => {",
+    "  console.error(error && error.stack ? error.stack : String(error));",
+    "  process.exit(1);",
+    "});"
+  ].join('\n');
+
+  return runScenario(runner);
+}
+
 function runCreateApiSeatHandSkinScenario() {
   const runner = [
     "(async () => {",
@@ -419,6 +478,18 @@ describe('match worker stream SSE', () => {
     expect(result.firstChunk).toContain('id: SSE2_2_2');
     expect(result.firstChunk).toContain('"effectLogs":["resume"]');
     expect(result.firstChunk).toContain('"__hidden_hand__:white:0"');
+  });
+
+  test('state response recovers buffered playback for current state version', () => {
+    const result = runStatePlaybackRecoveryScenario();
+
+    expect(result.status).toBe(200);
+    expect(result.statePayload.stateVersion).toBe(2);
+    expect(result.statePayload.operationId).toBe('op_state_recovery');
+    expect(result.statePayload.playbackEvents).toEqual([
+      expect.objectContaining({ type: 'move' })
+    ]);
+    expect(result.statePayload.effectLogs).toEqual(['黒: 多動石が移動']);
   });
 
   test('top-level create と state が seatHandSkins を維持する', () => {

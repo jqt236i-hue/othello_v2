@@ -346,6 +346,89 @@ describe.each([
   });
 });
 
+describe('animation-engine hyperactive source-empty move', () => {
+  let dom;
+
+  beforeEach(() => {
+    jest.resetModules();
+    dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.emitBoardUpdate = jest.fn();
+  });
+
+  afterEach(() => {
+    delete global.window;
+    delete global.document;
+    delete global.emitBoardUpdate;
+    if (dom && dom.window && typeof dom.window.close === 'function') {
+      dom.window.close();
+    }
+  });
+
+  test('uses a playback-only ghost and keeps exactly one cell disc at destination', async () => {
+    const board = document.getElementById('board');
+    const fromCell = document.createElement('div');
+    const toCell = document.createElement('div');
+    const destinationDisc = document.createElement('div');
+    let finishHandler = null;
+
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '3';
+    fromCell.dataset.col = '3';
+    fromCell.getBoundingClientRect = () => ({ left: 20, top: 20, width: 50, height: 50 });
+
+    toCell.className = 'cell has-disc';
+    toCell.dataset.row = '4';
+    toCell.dataset.col = '3';
+    toCell.getBoundingClientRect = () => ({ left: 20, top: 90, width: 50, height: 50 });
+
+    destinationDisc.className = 'disc black';
+    toCell.appendChild(destinationDisc);
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    global.window.Element.prototype.animate = jest.fn(() => ({
+      addEventListener(eventName, handler) {
+        if (eventName === 'finish') finishHandler = handler;
+      },
+      removeEventListener() {},
+      finished: new Promise(() => {})
+    }));
+
+    const engine = require('../ui/animation-engine.js');
+    const movePromise = engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 3, col: 3 },
+        to: { r: 4, col: 3 },
+        ownerAfter: 'black',
+        cause: 'HYPERACTIVE',
+        reason: 'hyperactive_move',
+        meta: { moveIntent: 'hyperactive_move' },
+        after: { color: 1, special: 'HYPERACTIVE', timer: 8, owner: 'black' }
+      }]
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fromCell.querySelectorAll('.disc')).toHaveLength(0);
+    expect(toCell.querySelectorAll('.disc')).toHaveLength(1);
+    expect(toCell.querySelector('.disc')).toBe(destinationDisc);
+    expect(destinationDisc.style.visibility).toBe('hidden');
+
+    expect(typeof finishHandler).toBe('function');
+    finishHandler();
+    await movePromise;
+
+    expect(fromCell.querySelectorAll('.disc')).toHaveLength(0);
+    expect(toCell.querySelectorAll('.disc')).toHaveLength(1);
+    expect(toCell.querySelector('.disc')).toBe(destinationDisc);
+    expect(destinationDisc.style.visibility).toBe('visible');
+  });
+});
+
 describe('animation-engine extreme forced swap playback', () => {
   let dom;
 

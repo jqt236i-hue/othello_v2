@@ -349,6 +349,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         reconnectRecoveryTimerId: null as any,
         reconnectRecoveryPending: false,
         appliedStateVersion: null as any,
+        consumedStateSyncPlaybackKey: '',
         pendingForceSyncPlaybackVersion: null as any,
         pendingForceSyncPlaybackSource: '',
         pendingForceSyncPlaybackSignature: '',
@@ -583,6 +584,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             shouldSkipForceSyncSnapshot,
             applySnapshotThroughCoordinator,
             rememberPendingForceSyncPlaybackRecovery,
+            resolveStateSyncRecoveredPlaybackEvents,
             recordNetworkTelemetry,
             getSnapshotStateVersion,
             clearPlaybackStateForLeave,
@@ -795,6 +797,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             playbackEvents: Array.isArray(requestMeta.playbackEvents)
                 ? cloneReadableNetworkStateValue(requestMeta.playbackEvents, [])
                 : [],
+            localPlaybackEmitted: requestMeta.localPlaybackEmitted === true,
             usedSnapshotFallback: requestMeta.usedSnapshotFallback === true,
             snapshotProjectedHash: (typeof requestMeta.snapshotProjectedHash === 'string' && requestMeta.snapshotProjectedHash)
                 ? requestMeta.snapshotProjectedHash
@@ -934,18 +937,59 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return computeForceSyncPlaybackRecoverySignature(currentSnapshot);
     }
 
-    // The actor already played `requestMeta.playbackEvents` locally before publishing
-    // (both the use_card immediate path with usedSnapshotFallback=true and the
-    // post-action publish path that runs `originalRunTurnWithAdapter` first). When
-    // the server's authoritative response echoes the same events back, replaying
-    // them visibly produces a 2x animation. The reliable signal is
-    // `requestedPlaybackEvents.length > 0` — actor pre-played, so suppress.
+    function computePlaybackEventsSignature(playbackEvents: any) {
+        const events = Array.isArray(playbackEvents) ? playbackEvents : [];
+        if (events.length <= 0) return '';
+        try {
+            return JSON.stringify(sanitizePlaybackEventsForPublish(events));
+        } catch (e: any) {
+            return '';
+        }
+    }
+
+    function computeStateSyncPlaybackRecoveryKey(payload: any) {
+        const source = (payload && typeof payload === 'object') ? payload : {};
+        const stateVersion = Number.isFinite(Number(source.stateVersion))
+            ? Number(source.stateVersion)
+            : getSnapshotStateVersion(source.snapshot);
+        const operationId = source.operationId ? String(source.operationId).trim() : '';
+        const playbackSignature = computePlaybackEventsSignature(source.playbackEvents);
+        if (stateVersion === null || !playbackSignature) return '';
+        return JSON.stringify({
+            stateVersion,
+            operationId,
+            playbackSignature
+        });
+    }
+
+    function resolveStateSyncRecoveredPlaybackEvents(payload: any) {
+        const playbackEvents = Array.isArray(payload && payload.playbackEvents) ? payload.playbackEvents : [];
+        if (playbackEvents.length <= 0) return [];
+        const recoveryKey = computeStateSyncPlaybackRecoveryKey(payload);
+        if (!recoveryKey) return playbackEvents;
+        if (state.consumedStateSyncPlaybackKey && state.consumedStateSyncPlaybackKey === recoveryKey) {
+            recordNetworkTelemetry('state_sync_recovered_playback_deduped', {
+                stateVersion: Number.isFinite(Number(payload && payload.stateVersion))
+                    ? Number(payload.stateVersion)
+                    : getSnapshotStateVersion(payload && payload.snapshot),
+                operationId: payload && payload.operationId ? String(payload.operationId) : null,
+                playbackEventCount: playbackEvents.length
+            });
+            return [];
+        }
+        state.consumedStateSyncPlaybackKey = recoveryKey;
+        return playbackEvents;
+    }
+
+    // Only shadow echoed server playback when the same operation already emitted
+    // local playback. Publish-only pending selections carry requested playback
+    // metadata for the server, but must still replay the authoritative events.
     // For publish-response we additionally require the response snapshot signature
-    // to match the actor's current state, which guarantees the response is the
-    // echo of the same action and not a divergent server correction.
+    // to match the actor's current state, which keeps divergent corrections visible.
     function shouldApplyPublishResponseAsShadowPlayback(trackedPublish: any, snapshot: any, playbackEvents: any) {
         if (!trackedPublish || typeof trackedPublish !== 'object') return false;
         if (!trackedPublish.requestMeta) return false;
+        if (hasTrackedPublishLocalPlaybackEmitted(trackedPublish) !== true) return false;
         const requestedPlaybackEvents = getTrackedPublishRequestedPlaybackEvents(trackedPublish);
         if (!Array.isArray(requestedPlaybackEvents) || requestedPlaybackEvents.length === 0) return false;
         if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
@@ -974,15 +1018,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return !!currentSignature && currentSignature === snapshotSignature;
     }
 
-    // SSE stream variant: when the actor already drained playback locally
-    // (any path that produced `requestMeta.playbackEvents`), the broadcast
-    // snapshot would replay the same animations. Route those through shadow
-    // playback so the actor does not see the same card-use / flip animation
-    // twice. trackedPublish presence (matched by operationId in the SSE payload)
-    // guarantees this is the echo of this actor's own action.
+    // SSE stream variant of the same rule: operationId ties the stream payload to
+    // the local publish, and localPlaybackEmitted decides whether it is a shadow
+    // echo or authoritative playback that still needs to be shown.
     function shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish: any, playbackEvents: any) {
         if (!trackedPublish || typeof trackedPublish !== 'object') return false;
         if (!trackedPublish.requestMeta) return false;
+        if (hasTrackedPublishLocalPlaybackEmitted(trackedPublish) !== true) return false;
         const requestedPlaybackEvents = getTrackedPublishRequestedPlaybackEvents(trackedPublish);
         if (!Array.isArray(requestedPlaybackEvents) || requestedPlaybackEvents.length === 0) return false;
         if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
@@ -1469,6 +1511,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         return controller.getTrackedPublishRequestedPlaybackEvents(entry);
     }
 
+    function hasTrackedPublishLocalPlaybackEmitted(entry: any) {
+        const controller = getNetworkPublishTrackerController();
+        if (!controller || typeof controller.hasTrackedPublishLocalPlaybackEmitted !== 'function') return false;
+        return controller.hasTrackedPublishLocalPlaybackEmitted(entry) === true;
+    }
+
     function findTrackedPublish(operationId: any) {
         const controller = getNetworkPublishTrackerController();
         if (!controller || typeof controller.findTrackedPublish !== 'function') return null;
@@ -1903,6 +1951,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             state.chatHistory = [];
             state.stateVersion = null;
             state.appliedStateVersion = null;
+            state.consumedStateSyncPlaybackKey = '';
             state.lastStreamEventId = '';
             state.authoritativeMatchState.gameState = null;
             state.authoritativeMatchState.cardState = null;
@@ -2006,6 +2055,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             playerKey: normalizedPlayerKey,
             actionType: resolvedActionType,
             playbackEvents: Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [],
+            localPlaybackEmitted: opts.localPlaybackEmitted === true,
             usedSnapshotFallback: opts.usedSnapshotFallback === true,
             action
         });
@@ -2382,6 +2432,7 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             actor: commandPayload ? (commandPayload.actor || playerKey) : playerKey,
             params: commandPayload ? (commandPayload.params || {}) : null,
             playbackEvents: queuedPlaybackEvents,
+            localPlaybackEmitted: info.localPlaybackEmitted === true,
             usedSnapshotFallback: info.usedSnapshotFallback === true,
             snapshotProjectedHash: (getSnapshotMeta(info && info.snapshot) || {} as any).projectedSnapshotHash
         });

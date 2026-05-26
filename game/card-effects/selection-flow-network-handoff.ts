@@ -41,6 +41,7 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
     const playerKey = opts.playerKey || 'black';
     const actionType = opts.actionType || 'place';
     const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents.slice() : [];
+    const localPlaybackEmitted = opts.localPlaybackEmitted === true;
     const cardStateValue = opts.cardStateValue || deps.resolveCurrentCardState();
     const pendingByPlayer = cardStateValue && cardStateValue.pendingEffectByPlayer;
     if (
@@ -107,7 +108,8 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
                     playerKey: publishPlayerKey,
                     actionType,
                     action: publishAction || pendingAction,
-                    playbackEvents: publishPlaybackEvents
+                    playbackEvents: publishPlaybackEvents,
+                    localPlaybackEmitted
                 };
                 if (typeof opts.publishSnapshot === 'function') {
                     return opts.publishSnapshot(publishMeta);
@@ -146,7 +148,8 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
             playerKey,
             actionType,
             action: pendingAction,
-            playbackEvents
+            playbackEvents,
+            localPlaybackEmitted
         };
         deps.publishPendingSelectionSnapshot(publishMeta);
     }

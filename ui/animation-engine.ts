@@ -2814,9 +2814,18 @@ const {
 
             if (!disc) {
                 const toDisc = toCell.querySelector('.disc');
+                if (toDisc && moveSemantics && moveSemantics.isHyperactiveLikeMove) {
+                    const fallbackState = this._resolveMoveFallbackState(target);
+                    if (fallbackState) {
+                        disc = this.createDisc(fallbackState);
+                        useGhostOnly = true;
+                    }
+                }
                 if (toDisc) {
-                    disc = toDisc;
-                    sourceCell = toCell;
+                    if (!disc) {
+                        disc = toDisc;
+                        sourceCell = toCell;
+                    }
                 }
             }
 

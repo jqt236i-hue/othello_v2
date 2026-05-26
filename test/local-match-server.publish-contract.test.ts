@@ -91,6 +91,62 @@ describe('local match server publish contract', () => {
     resetRoomsForTests();
   });
 
+  test('state response recovers buffered playback for current state version', async () => {
+    const server = createLocalMatchServer();
+    const port = await listen(server);
+
+    try {
+      const created = await requestJson(port, 'POST', '/api/match/create', { playerName: 'くろ' });
+      const roomId = created.data.roomId;
+      const seatToken = created.data.seatToken;
+
+      patchRoomSnapshotForTests(roomId, (room) => {
+        room.stateVersion = 2;
+        room.snapshot.stateVersion = 2;
+        room.snapshot._meta = Object.assign({}, room.snapshot._meta || {}, { version: 2 });
+        room.sseEventBuffer = [{
+          id: `${roomId}_2_2`,
+          event: 'snapshot',
+          payloadByViewer: {
+            black: {
+              ok: true,
+              roomId,
+              stateVersion: 2,
+              operationId: 'op_playback_recovery',
+              playbackEvents: [{ type: 'move', phase: 1, targets: [{ from: { r: 3, col: 3 }, to: { r: 4, col: 3 }, reason: 'hyperactive_move' }] }],
+              effectLogs: ['黒: 多動石が移動'],
+              snapshot: room.snapshot
+            },
+            white: {
+              ok: true,
+              roomId,
+              stateVersion: 2,
+              playbackEvents: [],
+              effectLogs: ['黒: 多動石が移動'],
+              snapshot: room.snapshot
+            }
+          }
+        }];
+      });
+
+      const state = await requestJson(
+        port,
+        'GET',
+        `/api/match/state?roomId=${encodeURIComponent(roomId)}&seatKey=black&seatToken=${encodeURIComponent(seatToken)}`
+      );
+
+      expect(state.status).toBe(200);
+      expect(state.data.stateVersion).toBe(2);
+      expect(state.data.operationId).toBe('op_playback_recovery');
+      expect(state.data.playbackEvents).toEqual([
+        expect.objectContaining({ type: 'move' })
+      ]);
+      expect(state.data.effectLogs).toEqual(['黒: 多動石が移動']);
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   test('VERSION_BEHIND response keeps room context and shared publishMeta shape', async () => {
     const server = createLocalMatchServer();
     const port = await listen(server);

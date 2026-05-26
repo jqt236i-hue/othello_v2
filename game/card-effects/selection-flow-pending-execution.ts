@@ -153,6 +153,7 @@ async function executePendingSelection(options: any, deps: SelectionPendingExecu
     let shouldFinalize = false;
     let pendingAction: any = null;
     let playbackEvents = [];
+    let localPlaybackEmitted = false;
     let executionResult = null;
     let appliedSelection = null;
     let skipFinalizeNetworkPublish = false;
@@ -320,7 +321,7 @@ async function executePendingSelection(options: any, deps: SelectionPendingExecu
             const playbackMeta = (typeof opts.buildPlaybackMeta === 'function')
                 ? opts.buildPlaybackMeta(liveContext)
                 : { cause: resolvedPendingType, target: { row, col } };
-            deps.emitSelectionPlaybackEvents(playbackEvents, playbackMeta, appliedState.cardState);
+            localPlaybackEmitted = deps.emitSelectionPlaybackEvents(playbackEvents, playbackMeta, appliedState.cardState) === true;
 
             if (opts.emitStateChanges !== false) {
                 deps.emitSelectionStateChangeSignals(playbackEvents);
@@ -464,7 +465,7 @@ async function executePendingSelection(options: any, deps: SelectionPendingExecu
             const playbackMeta = (typeof opts.buildPlaybackMeta === 'function')
                 ? opts.buildPlaybackMeta(liveContext)
                 : { cause: resolvedPendingType, target: { row, col } };
-            deps.emitSelectionPlaybackEvents(playbackEvents, playbackMeta, appliedState.cardState);
+            localPlaybackEmitted = deps.emitSelectionPlaybackEvents(playbackEvents, playbackMeta, appliedState.cardState) === true;
         }
 
         if (opts.emitStateChanges !== false) {
@@ -493,6 +494,7 @@ async function executePendingSelection(options: any, deps: SelectionPendingExecu
                     actionType,
                     action: pendingAction,
                     playbackEvents,
+                    localPlaybackEmitted,
                     gameStateValue: stateRefs.gameState,
                     cardStateValue: stateRefs.cardState,
                     onHumanTurnReady: opts.defaultSelectionHandoffRender,

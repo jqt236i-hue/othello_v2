@@ -322,6 +322,24 @@ describe('turn-manager scheduling', () => {
     expect(global.executeMove).toHaveBeenCalledTimes(1);
   });
 
+  test('network mode では stale な HvH flag が残っても相手手番を操作できない', () => {
+    global.MATCH_MODE = 'network';
+    global.DEBUG_HUMAN_VS_HUMAN = true;
+    global.NetworkMatchClient = { getSeatKey: () => 'black' };
+    global.LOCAL_PLAYER_KEY = 'black';
+    global.__LOCAL_PLAYER_KEY = 'black';
+    global.BOARD_VIEWER_KEY = 'black';
+    global.gameState = { currentPlayer: 'white' };
+    global.cardState = { pendingEffectByPlayer: { white: null } };
+    global.findMoveForCell = jest.fn((player, r, c) => ({ player, row: r, col: c, flips: [] }));
+
+    const rm = require('../game/turn-manager.js');
+    rm.handleCellClick(2, 3);
+
+    expect(global.findMoveForCell).not.toHaveBeenCalled();
+    expect(global.executeMove).not.toHaveBeenCalled();
+  });
+
   test('resetGame は presentation queue をクリアし transient UI reset hook を呼ぶ', () => {
     global.cpuSmartness = { black: 2, white: 3 };
     global.createGameState = jest.fn(() => ({

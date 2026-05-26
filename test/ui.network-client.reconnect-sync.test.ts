@@ -528,6 +528,73 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(client.getNetworkTelemetry().counts.stream_playback_recovered_after_force_sync).toBe(1);
   });
 
+  test('state sync applies recovered playback events from state payload', async () => {
+    const recoveredPlayback = [{ type: 'move', phase: 1, targets: [{ from: { r: 3, col: 3 }, to: { r: 4, col: 3 }, reason: 'hyperactive_move' }] }];
+    global.BoardOps = {
+      emitPresentationEvent: jest.fn((state, ev) => {
+        if (!state || !ev) return;
+        if (!Array.isArray(state.presentationEvents)) state.presentationEvents = [];
+        state.presentationEvents.push(ev);
+      })
+    };
+    global.fetch = jest.fn(async (url) => {
+      const parsedUrl = new URL(String(url));
+      if (parsedUrl.pathname === '/api/match/join') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'white',
+          seatToken: 'token_white',
+          seats: { black: true, white: true },
+          stateVersion: 1,
+          snapshot: createSnapshot(1)
+        });
+      }
+      if (parsedUrl.pathname === '/api/match/state') {
+        stateFetchCount += 1;
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seats: { black: true, white: true },
+          stateVersion: 2,
+          snapshot: createSnapshot(2),
+          playbackEvents: recoveredPlayback
+        });
+      }
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
+    expect(joined.ok).toBe(true);
+
+    const syncResult = await client.syncLatestState();
+    expect(syncResult).toEqual({ ok: true, appliedSnapshot: true });
+
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledWith(
+      global.cardState,
+      expect.objectContaining({
+        type: 'PLAYBACK_EVENTS',
+        events: recoveredPlayback,
+        meta: expect.objectContaining({ source: 'network_snapshot' })
+      })
+    );
+    const stateSyncTelemetry = client.getNetworkTelemetry().recentEvents
+      .find((event) => event && event.type === 'state_sync_snapshot_applied');
+    expect(stateSyncTelemetry && stateSyncTelemetry.details).toEqual(
+      expect.objectContaining({
+        playbackEventCount: 1,
+        usedRecoveredPlayback: true
+      })
+    );
+
+    const secondSyncResult = await client.syncLatestState();
+    expect(secondSyncResult).toEqual({ ok: true, appliedSnapshot: true });
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    expect(client.getNetworkTelemetry().counts.state_sync_recovered_playback_deduped).toBe(1);
+  });
+
   test('publish拒否でforce適用した同版snapshotでも後続stream playbackを回復する', async () => {
     global.BoardOps = {
       emitPresentationEvent: jest.fn((state, ev) => {

@@ -511,10 +511,15 @@ function _applyDebugButtonState(debugModeBtn: any, debugEnabled: boolean): void 
     }
 }
 
+function _isNetworkModeForDebug(): boolean {
+    return _getCurrentMatchModeForDebug() === 'network';
+}
+
 function _applyDebugSubButtonVisibility(humanVsHumanBtn: any, visualTestBtn: any, debugEnabled: boolean): void {
-    const display = debugEnabled ? 'block' : 'none';
-    if (visualTestBtn) visualTestBtn.style.display = display;
-    if (humanVsHumanBtn) humanVsHumanBtn.style.display = display;
+    const visualDisplay = debugEnabled ? 'block' : 'none';
+    const humanDisplay = (debugEnabled && !_isNetworkModeForDebug()) ? 'block' : 'none';
+    if (visualTestBtn) visualTestBtn.style.display = visualDisplay;
+    if (humanVsHumanBtn) humanVsHumanBtn.style.display = humanDisplay;
 }
 
 function _syncDebugFlags(debugEnabled: boolean, humanVsHuman: boolean): void {
@@ -599,6 +604,9 @@ function _applyNetworkDebugModeAccessState(): void {
 
     debugModeBtn.style.display = 'block';
     const seed = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {})) as any;
+    if (networkMode && seed.DEBUG_HUMAN_VS_HUMAN === true) {
+        _syncDebugFlags(seed.DEBUG_UNLIMITED_USAGE === true, false);
+    }
     const isDebug = seed.DEBUG_UNLIMITED_USAGE === true;
     _applyDebugButtonState(debugModeBtn, isDebug);
     _applyDebugSubButtonVisibility(humanVsHumanBtn, visualTestBtn, isDebug);
@@ -622,6 +630,7 @@ function setDebugModeEnabled(debugEnabled: boolean): boolean {
         : (typeof window !== 'undefined' ? window : {})) as any;
     const wasDebugEnabled = currentGlobals.DEBUG_UNLIMITED_USAGE === true;
     const hadMutatedDebugState = !nextDebugEnabled && wasDebugEnabled && _hasMutatedDebugSessionState();
+    const nextHumanVsHuman = nextDebugEnabled ? !_isNetworkModeForDebug() : false;
     let requestedLocalReset = false;
 
     if (nextDebugEnabled && _networkDebugModeAccessState.networkMode === true && _networkDebugModeAccessState.roomDebugEnabled !== true) {
@@ -637,7 +646,7 @@ function setDebugModeEnabled(debugEnabled: boolean): boolean {
         if (!wasDebugEnabled) {
             (addLog as any)('🐛 デバッグモード: ON （制限なしでカード使用可能）');
         }
-        _syncDebugFlags(true, true);
+        _syncDebugFlags(true, nextHumanVsHuman);
         try {
             const g = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug() || {}) : (typeof window !== 'undefined' ? window : {})) as any;
             if (typeof g.disableAutoMode === 'function') {
@@ -658,10 +667,10 @@ function setDebugModeEnabled(debugEnabled: boolean): boolean {
             }
         }
         if (humanVsHumanBtn) {
-            humanVsHumanBtn.textContent = '人間vs人間: ON';
-            humanVsHumanBtn.style.color = '#90ee90';
+            humanVsHumanBtn.textContent = nextHumanVsHuman ? '人間vs人間: ON' : '人間vs人間: OFF';
+            humanVsHumanBtn.style.color = nextHumanVsHuman ? '#90ee90' : '#ffb366';
         }
-        if (!wasDebugEnabled) {
+        if (!wasDebugEnabled && nextHumanVsHuman) {
             (addLog as any)('🎮 人間vs人間モード: ON （黒白両方操作可能、手札は黒のみ使用）');
         }
     } else {
@@ -726,6 +735,14 @@ function setupDebugControls(debugModeBtn: any, humanVsHumanBtn: any, visualTestB
         humanVsHumanBtn.textContent = seed2.DEBUG_HUMAN_VS_HUMAN ? '人間vs人間: ON' : '人間vs人間: OFF';
         humanVsHumanBtn.style.color = seed2.DEBUG_HUMAN_VS_HUMAN ? '#90ee90' : '#ffb366';
         humanVsHumanBtn.addEventListener('click', () => {
+            if (_isNetworkModeForDebug()) {
+                const currDebug = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug().DEBUG_UNLIMITED_USAGE === true) : (typeof window !== 'undefined' && (window as any).DEBUG_UNLIMITED_USAGE === true));
+                _syncDebugFlags(currDebug, false);
+                humanVsHumanBtn.textContent = '人間vs人間: OFF';
+                humanVsHumanBtn.style.color = '#ffb366';
+                (addLog as any)('ネット対戦では人間vs人間モードは使用できません');
+                return;
+            }
             const curr = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug().DEBUG_HUMAN_VS_HUMAN === true) : (typeof window !== 'undefined' && (window as any).DEBUG_HUMAN_VS_HUMAN === true));
             const updatedHuman = !curr;
             const currDebug = (_getUIBootstrapGlobals_debug ? (_getUIBootstrapGlobals_debug().DEBUG_UNLIMITED_USAGE === true) : (typeof window !== 'undefined' && (window as any).DEBUG_UNLIMITED_USAGE === true));

@@ -22,7 +22,8 @@ const REQUIRED_MATCH_AUTHORITY_PUBLIC_FUNCTIONS: Array<keyof MatchAuthorityPubli
     'classifySeatTokenRejectionReason',
     'createBufferedSseEventRecord',
     'appendBufferedSseEvent',
-    'getBufferedSseReplayEvents'
+    'getBufferedSseReplayEvents',
+    'getBufferedSnapshotPayloadForStateVersion'
 ];
 
 export function assertMatchAuthorityPublicApi<T extends MatchAuthorityPublicApi>(value: T): T {

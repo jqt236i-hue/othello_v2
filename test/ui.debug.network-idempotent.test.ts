@@ -14,6 +14,7 @@ describe('ui debug network enable idempotency', () => {
       DEBUG_MODE_ALLOWED: false,
       DEBUG_UNLIMITED_USAGE: false,
       DEBUG_HUMAN_VS_HUMAN: false,
+      MATCH_MODE: 'network',
       disableAutoMode: jest.fn(),
       ensureDebugActionsLoaded: (cb) => {
         if (typeof cb === 'function') cb();
@@ -52,5 +53,8 @@ describe('ui debug network enable idempotency', () => {
     });
 
     expect(global.fillDebugHand).toHaveBeenCalledTimes(1);
+    expect(globalsStore.DEBUG_UNLIMITED_USAGE).toBe(true);
+    expect(globalsStore.DEBUG_HUMAN_VS_HUMAN).toBe(false);
+    expect(global.addLog).not.toHaveBeenCalledWith('🎮 人間vs人間モード: ON （黒白両方操作可能、手札は黒のみ使用）');
   });
 });

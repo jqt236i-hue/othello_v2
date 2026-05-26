@@ -631,6 +631,7 @@ describe('pending selection flow contracts', () => {
       playerKey: 'white',
       actionType: 'place',
       playbackEvents: [{ type: 'destroy_animation', phase: 1 }],
+      localPlaybackEmitted: false,
       action: expect.objectContaining({
         type: 'place',
         destroyTarget: { row: 1, col: 1 },
@@ -642,6 +643,48 @@ describe('pending selection flow contracts', () => {
     expect(global.isCardAnimating).toBe(false);
     expect(ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
 
+  });
+
+  test('finalizePendingSelectionFlow marks publish as local playback only when caller confirms emission', async () => {
+    attachPlaybackStateManager();
+
+    global.cardState = { turnIndex: 5 };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    flow.createPendingSelectionAction('white', 'DESTROY_ONE_STONE', {
+      destroyTarget: { row: 2, col: 3 }
+    }, { cardState: global.cardState });
+
+    global.NetworkMatchClient = {
+      isActive: () => true,
+      publishSnapshot: jest.fn()
+    };
+    global.waitForPlaybackIdle = jest.fn(() => Promise.resolve());
+
+    await flow.finalizePendingSelectionFlow({
+      playerKey: 'white',
+      pendingType: 'DESTROY_ONE_STONE',
+      playbackEvents: [{ type: 'destroy_animation', phase: 1 }],
+      localPlaybackEmitted: true,
+      gameStateValue: {
+        currentPlayer: -1,
+        turnNumber: 8,
+        board: Array.from({ length: 8 }, () => Array(8).fill(0))
+      },
+      cardStateValue: {
+        turnIndex: 5,
+        hands: { white: [], black: [] },
+        pendingEffectByPlayer: { white: null, black: null }
+      }
+    });
+
+    expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledWith(expect.objectContaining({
+      playbackEvents: [{ type: 'destroy_animation', phase: 1 }],
+      localPlaybackEmitted: true
+    }));
   });
 
   test('finalizePendingSelectionFlow skips publish for deferred multi-stage intermediate selection while pending remains active', async () => {
