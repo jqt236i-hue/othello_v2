@@ -165,4 +165,43 @@ describe('PlaybackEventHelpers', () => {
       { type: 'place', row: 4, col: 5, player: 'white', actionId: 'place-2', turnIndex: 8 }
     ]);
   });
+
+  test('recovers teleport move playback from raw selection event when presentation move is missing', () => {
+    const out = helpers.collectActionPlaybackEvents({
+      result: {
+        events: [{
+          type: 'teleport_selected',
+          player: 'black',
+          cardType: 'TELEPORT_WILL',
+          applied: true,
+          from: { row: 3, col: 4 },
+          to: { row: 3, col: 5 }
+        }],
+        presentationEvents: [],
+        cardState: { presentationEvents: [] }
+      },
+      snapshot: { cardState: { turnIndex: 1 }, gameState: { board: [] } },
+      playerKey: 'black',
+      fallbackPlayerKey: 'black',
+      adapter: {
+        mapToPlaybackEvents: jest.fn(() => []),
+        appendSoundEffectPlaybackEvents: jest.fn((events) => events)
+      }
+    });
+
+    expect(out.playbackEvents).toEqual([
+      expect.objectContaining({
+        type: 'move',
+        rawType: 'teleport_selected',
+        targets: [expect.objectContaining({
+          from: { r: 3, col: 4 },
+          to: { r: 3, col: 5 },
+          cause: 'TELEPORT_WILL',
+          reason: 'teleport_move',
+          meta: { moveIntent: 'teleport_move' }
+        })],
+        meta: { moveIntent: 'teleport_move' }
+      })
+    ]);
+  });
 });

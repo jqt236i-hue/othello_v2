@@ -255,6 +255,84 @@
         return type === 'spawn' || type === 'flip' || type === 'destroy' || type === 'move';
     }
 
+    function normalizeRawPosition(value: unknown): { row: number; col: number } | null {
+        const pos = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+        const row = Number.isInteger(pos.row) ? Number(pos.row) : (Number.isInteger(pos.r) ? Number(pos.r) : null);
+        const col = Number.isInteger(pos.col) ? Number(pos.col) : null;
+        if (row === null || col === null) return null;
+        return { row, col };
+    }
+
+    function resolveRawSelectionMoveCause(type: string, event: Record<string, unknown>): string | null {
+        const explicit = String(event.cardType || event.cause || '').trim().toUpperCase();
+        if (explicit) return explicit;
+        switch (type) {
+            case 'strong_wind_selected': return 'STRONG_WIND_WILL';
+            case 'buoyancy_selected': return 'BUOYANCY_WILL';
+            case 'super_buoyancy_selected': return 'SUPER_BUOYANCY_WILL';
+            case 'gravity_selected': return 'GRAVITY_WILL';
+            case 'super_gravity_selected': return 'SUPER_GRAVITY_WILL';
+            case 'super_attraction_selected': return 'SUPER_ATTRACTION_WILL';
+            case 'teleport_selected': return 'TELEPORT_WILL';
+            default: return null;
+        }
+    }
+
+    function resolveRawSelectionMoveIntent(type: string, cause: string | null): string {
+        if (type === 'strong_wind_selected') return 'wind_move';
+        if (type === 'teleport_selected' || cause === 'TELEPORT_WILL' || cause === 'CELL_TELEPORT_WILL') return 'teleport_move';
+        return 'crush_move';
+    }
+
+    function mapRawSelectionMoveEventsToPlayback(rawEvents: unknown[]): unknown[] {
+        const events = Array.isArray(rawEvents) ? rawEvents : [];
+        const playbackEvents: unknown[] = [];
+        for (const raw of events) {
+            const ev = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+            const type = String(ev.type || '').trim().toLowerCase();
+            if (!type || ev.applied !== true) continue;
+            const from = normalizeRawPosition(ev.from);
+            const to = normalizeRawPosition(ev.to);
+            if (!from || !to) continue;
+            const cause = resolveRawSelectionMoveCause(type, ev);
+            if (!cause) continue;
+            const moveIntent = resolveRawSelectionMoveIntent(type, cause);
+            playbackEvents.push({
+                type: 'move',
+                phase: 1,
+                rawType: ev.type || type,
+                actionId: ev.actionId || null,
+                turnIndex: Number.isFinite(Number(ev.turnIndex)) ? Math.trunc(Number(ev.turnIndex)) : 0,
+                targets: [{
+                    from: { r: from.row, col: from.col },
+                    to: { r: to.row, col: to.col },
+                    ownerBefore: ev.ownerBefore || ev.player || null,
+                    ownerAfter: ev.ownerAfter || ev.player || null,
+                    cause,
+                    reason: moveIntent,
+                    meta: { moveIntent }
+                }],
+                meta: { moveIntent }
+            });
+        }
+        return playbackEvents;
+    }
+
+    function getMovePlaybackSignature(event: unknown): string {
+        const ev = event && typeof event === 'object' ? event as Record<string, unknown> : {};
+        if (String(ev.type || '').trim().toLowerCase() !== 'move') return '';
+        const targets = Array.isArray(ev.targets) ? ev.targets : [];
+        const target = targets.length > 0 && targets[0] && typeof targets[0] === 'object'
+            ? targets[0] as Record<string, unknown>
+            : {};
+        const from = normalizeRawPosition(target.from);
+        const to = normalizeRawPosition(target.to);
+        if (!from || !to) return '';
+        const cause = String(target.cause || '').trim().toUpperCase();
+        const reason = String(target.reason || (target.meta && typeof target.meta === 'object' ? (target.meta as Record<string, unknown>).moveIntent : '') || '').trim().toLowerCase();
+        return JSON.stringify({ from, to, cause, reason });
+    }
+
     function playbackEventKey(event: unknown): string {
         try {
             return JSON.stringify(event);
@@ -334,18 +412,6 @@
             playbackEvents = normalizedPlaybackEvents;
         }
 
-        if (adapter && typeof adapter.appendSoundEffectPlaybackEvents === 'function') {
-            const playbackWithSound = adapter.appendSoundEffectPlaybackEvents(
-                playbackEvents,
-                rawEvents,
-                presentationEvents
-            );
-            if (!Array.isArray(playbackWithSound)) {
-                throw new Error('PlaybackEventHelpers.assemblePlaybackEvents expected adapter.appendSoundEffectPlaybackEvents to return an array');
-            }
-            playbackEvents = playbackWithSound;
-        }
-
         if (adapter && typeof adapter.mapToPlaybackEvents === 'function') {
             const rawBoardEvents = rawEvents.filter(isRawBoardVisualEvent);
             if (rawBoardEvents.length > 0) {
@@ -367,6 +433,33 @@
                         .concat(playbackEvents.filter((event) => !rawPlacePlaybackEvents.some((placeEvent) => playbackEventKey(placeEvent) === playbackEventKey(event))));
                 }
             }
+        }
+
+        const rawSelectionMoveEvents = mapRawSelectionMoveEventsToPlayback(rawEvents);
+        if (rawSelectionMoveEvents.length > 0) {
+            const existingMoveKeys = new Set(playbackEvents.map(playbackEventKey));
+            const existingMoveSignatures = new Set(playbackEvents.map(getMovePlaybackSignature).filter(Boolean));
+            const missingSelectionMoves = rawSelectionMoveEvents.filter((event) => {
+                const exactKey = playbackEventKey(event);
+                if (existingMoveKeys.has(exactKey)) return false;
+                const moveSignature = getMovePlaybackSignature(event);
+                return !moveSignature || !existingMoveSignatures.has(moveSignature);
+            });
+            if (missingSelectionMoves.length > 0) {
+                playbackEvents = (missingSelectionMoves as unknown[]).concat(playbackEvents);
+            }
+        }
+
+        if (adapter && typeof adapter.appendSoundEffectPlaybackEvents === 'function') {
+            const playbackWithSound = adapter.appendSoundEffectPlaybackEvents(
+                playbackEvents,
+                rawEvents,
+                presentationEvents
+            );
+            if (!Array.isArray(playbackWithSound)) {
+                throw new Error('PlaybackEventHelpers.assemblePlaybackEvents expected adapter.appendSoundEffectPlaybackEvents to return an array');
+            }
+            playbackEvents = playbackWithSound;
         }
 
         if (rawPlacePlaybackEvents.length > 0 && playbackEvents.length > 0) {
