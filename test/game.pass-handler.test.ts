@@ -1,7 +1,6 @@
 import * as path from 'path';
 
 const modPath = path.resolve(__dirname, '..', 'game', 'pass-handler.js');
-const timersPath = path.resolve(__dirname, '..', 'game', 'timers.js');
 
 const makeTurnPipeline = () => ({
     applyTurnSafe: jest.fn((cs: any, gs: any) => ({
@@ -16,14 +15,38 @@ const injectPassHandlerRuntimeFromGlobals = (ph: any) => {
     ph.setPassHandlerRuntime({
         processCpuTurn: (global as any).processCpuTurn,
         readMatchMode: () => (global as any).MATCH_MODE,
-        readHumanVsHumanMode: () => (global as any).DEBUG_HUMAN_VS_HUMAN === true
+        readHumanVsHumanMode: () => (global as any).DEBUG_HUMAN_VS_HUMAN === true,
+        resolveRuntimeFunction: (name: string) => {
+            const candidate = (global as any)[name];
+            return typeof candidate === 'function' ? candidate : null;
+        },
+        showResult: () => (global as any).showResult(),
+        setProcessing: (next: boolean) => {
+            (global as any).isProcessing = next === true;
+            const playbackState = (global as any).PlaybackStateManager;
+            if (playbackState && typeof playbackState.setBusyState === 'function') {
+                playbackState.setBusyState({ processing: next === true });
+            }
+        },
+        publishSnapshot: (meta: any) => {
+            const client = (global as any).NetworkMatchClient;
+            if (!client || typeof client.publishSnapshot !== 'function') return undefined;
+            if (typeof client.isActive === 'function' && !client.isActive()) return undefined;
+            return client.publishSnapshot(meta);
+        }
+    });
+};
+
+const injectPassHandlerFakeTimerService = (ph: any) => {
+    ph.setPassHandlerTimerService({
+        setTimeout: (callback: () => void, delay: number) => setTimeout(callback, delay),
+        clearTimeout: (id: any) => clearTimeout(id)
     });
 };
 
 describe('pass-handler flows', () => {
     beforeEach(() => {
         jest.resetModules();
-        jest.doMock(timersPath, () => null, { virtual: false });
         // Clear cached modules and set minimal globals
         delete require.cache[modPath];
         (global as any).BLACK = 1;
@@ -64,6 +87,7 @@ describe('pass-handler flows', () => {
         };
         try {
             const ph = require('../game/pass-handler');
+            injectPassHandlerFakeTimerService(ph);
 
             // Call the function and ensure the delayed pass path resolves.
             await expect(ph.handleBlackPassWhenNoMoves()).resolves.toBeUndefined();
@@ -105,6 +129,7 @@ describe('pass-handler flows', () => {
         };
         try {
             const ph = require('../game/pass-handler');
+            injectPassHandlerFakeTimerService(ph);
             await expect(ph.handleBlackPassWhenNoMoves()).resolves.toBeUndefined();
             await jest.runOnlyPendingTimersAsync();
 
@@ -149,6 +174,7 @@ describe('pass-handler flows', () => {
         };
         (global as any).gameState = { currentPlayer: (global as any).BLACK };
         const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
         await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
         expect((global as any).showResult).toHaveBeenCalledTimes(1);
         expect((global as any).gameState.consecutivePasses).toBe(2);
@@ -166,6 +192,7 @@ describe('pass-handler flows', () => {
             getLegalMoves: jest.fn((state: any, player: any) => player === (global as any).BLACK ? [{ row: 0, col: 0, flips: [[0, 1]] }] : [])
         };
         const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
         await expect(ph.processPassTurn('black', false)).resolves.toBe(false);
         expect((global as any).showResult).not.toHaveBeenCalled();
     });
@@ -319,6 +346,7 @@ describe('pass-handler flows', () => {
         };
 
         const ph = require('../game/pass-handler');
+        injectPassHandlerFakeTimerService(ph);
         await ph.processPassTurn('black', false);
 
         // Before delayed callback executes, state changed away from white turn.
@@ -351,6 +379,7 @@ describe('pass-handler flows', () => {
 
         try {
             const ph = require('../game/pass-handler');
+            injectPassHandlerFakeTimerService(ph);
             await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
 
             // Check that gameState was updated to white's turn
@@ -386,6 +415,7 @@ describe('pass-handler flows', () => {
 
         try {
             const ph = require('../game/pass-handler');
+            injectPassHandlerFakeTimerService(ph);
             ph.setPassHandlerRuntime({
                 processCpuTurn: injectedCpuTurnMock,
                 readMatchMode: () => 'cpu',
@@ -451,12 +481,12 @@ describe('pass-handler flows', () => {
             (global as any).cardState.lastTurnStartedFor = 'white';
         });
 
-        const ph = require('../game/pass-handler');
-        injectPassHandlerRuntimeFromGlobals(ph);
-        ph.setNetworkMatchClient({
+        (global as any).NetworkMatchClient = {
             isActive: jest.fn(() => true),
             publishSnapshot: publishSnapshotMock
-        });
+        };
+        const ph = require('../game/pass-handler');
+        injectPassHandlerRuntimeFromGlobals(ph);
         const ok = await ph.processPassTurn('black', false);
 
         expect(ok).toBe(true);
@@ -467,10 +497,13 @@ describe('pass-handler flows', () => {
         expect((global as any).cardState.hands.white).toEqual(['white_draw']);
     });
 
-    test('pass reject clears processing through PlaybackStateManager when available', async () => {
+    test('pass reject clears processing through runtime bridge', async () => {
         delete require.cache[modPath];
         const setBusyStateMock = jest.fn();
         (global as any).isProcessing = true;
+        (global as any).PlaybackStateManager = {
+            setBusyState: setBusyStateMock
+        };
         (global as any).TurnPipeline = {
             applyTurnSafe: jest.fn(() => ({
                 ok: false,
@@ -482,9 +515,7 @@ describe('pass-handler flows', () => {
         };
 
         const ph = require('../game/pass-handler');
-        ph.setPlaybackStateManager({
-            setBusyState: setBusyStateMock
-        });
+        injectPassHandlerRuntimeFromGlobals(ph);
         await expect(ph.processPassTurn('black', false)).resolves.toBe(false);
 
         expect(setBusyStateMock).toHaveBeenCalledWith({ processing: false });

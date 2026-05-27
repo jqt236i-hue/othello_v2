@@ -3,34 +3,18 @@ declare const AISystem: any;
 declare const CardLogic: any;
 declare const BLACK: any;
 declare const WHITE: any;
-declare const isDebugLogAvailable: () => boolean;
-declare const debugLog: (...args: any[]) => void;
-declare const emitLogAdded: (...args: any[]) => void;
-declare const emitEffectLog: (...args: any[]) => void;
-declare const emitCardStateChange: () => void;
-declare const emitBoardUpdate: () => void;
-declare const emitGameStateChange: () => void;
 declare const cpuSmartness: Record<string, number>;
-declare const BoardOps: any;
-declare const PresentationHelper: any;
 declare const ActionManager: any;
 declare const TurnPipelineUIAdapter: any;
 declare const TurnPipeline: any;
 declare const initCardState: (...args: any[]) => void;
-declare const updateCpuCharacter: () => void;
-declare const showResult: () => void;
 declare const getLegalMoves: (...args: any[]) => any[];
 declare const isBlockedCell: (...args: any[]) => boolean;
-declare const handleDestroySelection: (...args: any[]) => any;
-declare const handleSwapSelection: (...args: any[]) => any;
-declare const handlePositionSwapSelection: (...args: any[]) => any;
-declare const handleTemptSelection: (...args: any[]) => any;
 declare const HAND_LIMIT: number;
 declare let cardState: any;
 declare let gameState: any;
 declare const CARD_DEFS: any;
 declare const processCpuTurn: any;
-declare const assignCardPlayedSoundForCpu: (...args: any[]) => void;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
@@ -52,7 +36,13 @@ function isAISystemAvailable(): any {
 
 function isCpuDebugEnabled(): any {
     try {
-        if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) return true;
+        if (
+            cpuDecisionRuntime &&
+            typeof cpuDecisionRuntime.isDebugLogAvailable === 'function' &&
+            cpuDecisionRuntime.isDebugLogAvailable() === true
+        ) {
+            return true;
+        }
     } catch (e) { /* ignore */ }
     try {
         if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readDebugFlag === 'function') {
@@ -309,6 +299,19 @@ function requireCpuDecisionModuleOrNull(id: string): any {
 }
 
 const CpuDecisionBoardUtilsModule = requireCpuDecisionModuleOrNull('./cpu-decision-board-utils');
+const CpuDecisionPlanPressureModule = requireCpuDecisionModuleOrNull('./cpu-decision-plan-pressure');
+const CpuDecisionMovePlanModule = requireCpuDecisionModuleOrNull('./cpu-decision-move-plan');
+const CpuDecisionCardContextModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-context');
+const CpuDecisionCardRiskModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-risk');
+const CpuDecisionCardOnnxModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-onnx');
+const CpuDecisionCardLearnedModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-learned');
+const CpuDecisionPendingScoreModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-score');
+const CpuDecisionPendingOnnxModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-onnx');
+const CpuDecisionCardActionsModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-actions');
+const CpuDecisionCardPipelineModule = requireCpuDecisionModuleOrNull('./cpu-decision-card-pipeline');
+const CpuDecisionPendingPipelineModule = requireCpuDecisionModuleOrNull('./cpu-decision-pending-pipeline');
+const CpuDecisionSelectionFlowModule = requireCpuDecisionModuleOrNull('./cpu-decision-selection-flow');
+const CpuDecisionControllerEvents = requireCpuDecisionModuleOrNull('./controller-events');
 
 const countBoardEmpties = (CpuDecisionBoardUtilsModule && typeof CpuDecisionBoardUtilsModule.countBoardEmpties === 'function')
     ? CpuDecisionBoardUtilsModule.countBoardEmpties
@@ -1111,6 +1114,87 @@ function readCpuDecisionQuerySearch(): string {
     return '';
 }
 
+function emitCpuDecisionBoardUpdate(): any {
+    try {
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.emitBoardUpdate === 'function') {
+            cpuDecisionRuntime.emitBoardUpdate();
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (CpuDecisionControllerEvents && typeof CpuDecisionControllerEvents.emitBoardUpdate === 'function') {
+            return CpuDecisionControllerEvents.emitBoardUpdate({ source: 'cpu-decision' });
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function emitCpuDecisionCardStateChange(): any {
+    try {
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.emitCardStateChange === 'function') {
+            cpuDecisionRuntime.emitCardStateChange();
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (CpuDecisionControllerEvents && typeof CpuDecisionControllerEvents.emitCardStateChange === 'function') {
+            return CpuDecisionControllerEvents.emitCardStateChange({ source: 'cpu-decision' });
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function emitCpuDecisionGameStateChange(): any {
+    try {
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.emitGameStateChange === 'function') {
+            cpuDecisionRuntime.emitGameStateChange();
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (CpuDecisionControllerEvents && typeof CpuDecisionControllerEvents.emitGameStateChange === 'function') {
+            return CpuDecisionControllerEvents.emitGameStateChange();
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function emitCpuDecisionLogAdded(message: any, kind?: string): any {
+    try {
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.emitLogAdded === 'function') {
+            if (typeof kind === 'undefined') {
+                cpuDecisionRuntime.emitLogAdded(message);
+            } else {
+                cpuDecisionRuntime.emitLogAdded(message, kind);
+            }
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (CpuDecisionControllerEvents && typeof CpuDecisionControllerEvents.emitLogAdded === 'function') {
+            CpuDecisionControllerEvents.emitLogAdded(message, kind);
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function emitCpuDecisionEffectLog(message: any): any {
+    try {
+        if (cpuDecisionRuntime && typeof cpuDecisionRuntime.emitEffectLog === 'function') {
+            cpuDecisionRuntime.emitEffectLog(message);
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (CpuDecisionControllerEvents && typeof CpuDecisionControllerEvents.emitEffectLog === 'function') {
+            CpuDecisionControllerEvents.emitEffectLog(message);
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    return emitCpuDecisionLogAdded(message, 'effect');
+}
+
 let cpuTimerService: any = null;
 function setCpuTimerService(service: any): any { cpuTimerService = service; }
 function getCpuTimerService(): any {
@@ -1123,6 +1207,106 @@ function getCpuTimerService(): any {
         return null;
     }
 }
+
+const CpuDecisionSelectionFlow = (CpuDecisionSelectionFlowModule && typeof CpuDecisionSelectionFlowModule.createCpuDecisionSelectionFlow === 'function')
+    ? CpuDecisionSelectionFlowModule.createCpuDecisionSelectionFlow({
+        getRuntime: () => cpuDecisionRuntime,
+        getNetworkTurnHandoff: () => cpuDecisionNetworkTurnHandoff,
+        getTimerService: () => getCpuTimerService(),
+        getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
+        getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
+        resolvePlayerKeyFromTurnValue: (value: any) => resolvePlayerKeyFromTurnValue(value),
+        isSelectionOnlyEndTurnPendingType: (pendingType: any) => isSelectionOnlyEndTurnPendingType(pendingType),
+        resolvePendingSelectionFlow: (requiredFunctionName: any) => resolvePendingSelectionFlow(requiredFunctionName),
+        readLegacyProcessCpuTurn: () => {
+            try {
+                return (typeof processCpuTurn === 'function') ? processCpuTurn : null;
+            } catch (e) { /* ignore */ }
+            return null;
+        },
+        emitBoardUpdate: () => emitCpuDecisionBoardUpdate()
+    })
+    : null;
+
+const CpuDecisionPendingPipeline = (CpuDecisionPendingPipelineModule && typeof CpuDecisionPendingPipelineModule.createCpuDecisionPendingPipeline === 'function')
+    ? CpuDecisionPendingPipelineModule.createCpuDecisionPendingPipeline({
+        readRuntimeModule,
+        resolveModuleReference,
+        readTurnPipelineAdapterLocal: () => (typeof TurnPipelineUIAdapter !== 'undefined' ? TurnPipelineUIAdapter : null),
+        readTurnPipelineLocal: () => (typeof TurnPipeline !== 'undefined' ? TurnPipeline : null),
+        resolvePendingSelectionFlow: (requiredFunctionName: any) => resolvePendingSelectionFlow(requiredFunctionName),
+        createPlaceAction: (playerKey: any, actionPayload: any) => ((typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
+            ? ActionManager.ActionManager.createAction('place', playerKey, actionPayload)
+            : Object.assign({ type: 'place' }, actionPayload)),
+        getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
+        getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
+        setCardState: (nextCardState: any) => { cardState = nextCardState; },
+        setGameState: (nextGameState: any) => { gameState = nextGameState; },
+        emitPresentationEventForCpu: (event: any) => emitPresentationEventForCpu(event),
+        emitCpuSelectionStateChange: () => emitCpuSelectionStateChange(),
+        finalizeCpuPendingSelectionFlow: (playerKey: any, pendingType: any, playbackEvents: any, action: any) => finalizeCpuPendingSelectionFlow(playerKey, pendingType, playbackEvents, action)
+    })
+    : null;
+
+const CpuDecisionCardPipeline = (CpuDecisionCardPipelineModule && typeof CpuDecisionCardPipelineModule.createCpuDecisionCardPipeline === 'function')
+    ? CpuDecisionCardPipelineModule.createCpuDecisionCardPipeline({
+        resolveTurnPipelineAdapter,
+        resolveTurnPipeline,
+        createAction: (actionType: any, playerKey: any, actionPayload: any) => ((typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
+            ? ActionManager.ActionManager.createAction(actionType, playerKey, actionPayload)
+            : Object.assign({ type: actionType }, actionPayload)),
+        getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
+        getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
+        setCardState: (nextCardState: any) => { cardState = nextCardState; },
+        setGameState: (nextGameState: any) => { gameState = nextGameState; },
+        getLastUsedCardId: (playerKey: any) => (cardState && cardState.lastUsedCardByPlayer ? cardState.lastUsedCardByPlayer[playerKey] : null),
+        resolveCardDef: (cardId: any, fallbackCardDef: any) => ((typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
+            ? (CardLogic.getCardDef(cardId) || fallbackCardDef || null)
+            : (fallbackCardDef || null)),
+        emitPresentationEventForCpu: (event: any) => emitPresentationEventForCpu(event),
+        emitCpuSelectionStateChange: () => emitCpuSelectionStateChange()
+    })
+    : null;
+
+const CpuDecisionCardActions = (CpuDecisionCardActionsModule && typeof CpuDecisionCardActionsModule.createCpuDecisionCardActions === 'function')
+    ? CpuDecisionCardActionsModule.createCpuDecisionCardActions({
+        getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
+        getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
+        resolveCardLogic: () => resolveCardLogicForCpuDecision(),
+        readPendingEffect: (playerKey: any) => readCpuPendingEffect(playerKey),
+        resolveCpuSmartnessLevel: (playerKey: any) => resolveCpuSmartnessLevel(playerKey),
+        readCardUseDisplayLevel: (playerKey: any) => ((typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
+            ? Number(cpuSmartness[playerKey])
+            : 1),
+        resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
+            ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+            : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+        getActiveProtectionForPlayer: (playerValue: any) => ((typeof getActiveProtectionForPlayer === 'function') ? getActiveProtectionForPlayer(playerValue) : []),
+        getFlipBlockers: () => ((typeof getFlipBlockers === 'function') ? getFlipBlockers() : []),
+        getLegalMoves: (gameStateValue: any, protection: any, perma: any) => ((typeof getLegalMoves === 'function') ? (getLegalMoves(gameStateValue, protection, perma) || []) : []),
+        getTargetAwareUsableCardIds: (playerKey: any) => getTargetAwareUsableCardIds(playerKey),
+        buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any) => buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds),
+        chooseHandDestroyTargetForCycle: (hand: any, usableCardIds: any, getCardCost: any, getCardDef: any, decisionContext: any) => (
+            CpuPolicyCore && typeof CpuPolicyCore.chooseHandDestroyTargetForCycle === 'function'
+                ? CpuPolicyCore.chooseHandDestroyTargetForCycle(hand, usableCardIds, getCardCost, getCardDef, decisionContext)
+                : null
+        ),
+        runCpuHandDestroyViaPipeline: (playerKey: any, destroyCardId: any) => runCpuHandDestroyViaPipeline(playerKey, destroyCardId),
+        runCpuCardUseViaPipeline: (playerKey: any, cardId: any, cardDef: any) => runCpuCardUseViaPipeline(playerKey, cardId, cardDef),
+        resolveTurnPipelineUIAdapter: () => resolveTurnPipelineAdapter(),
+        getRuntime: () => cpuDecisionRuntime,
+        emitCpuSelectionStateChange: () => emitCpuSelectionStateChange(),
+        emitCardStateChange: () => emitCpuDecisionCardStateChange(),
+        emitBoardUpdate: () => emitCpuDecisionBoardUpdate(),
+        emitLogAdded: (...args: any[]) => emitCpuDecisionLogAdded(args[0], args[1]),
+        emitPresentationEventForCpu: (event: any) => emitPresentationEventForCpu(event),
+        emitCpuCardUseLog: (playerKey: any, level: any, cardDefOrNull: any, cardIdOrNull: any) => emitCpuCardUseLog(playerKey, level, cardDefOrNull, cardIdOrNull),
+        cpuDebugLog: (...args: any[]) => cpuDebugLog(...args),
+        isOthelloModeForCpuDecision: () => isOthelloModeForCpuDecision(),
+        selectCardToUse: (playerKey: any) => selectCardToUse(playerKey),
+        warn: (...args: any[]) => console.warn(...args)
+    })
+    : null;
 
 function resolveLv6LookaheadTimeCaps(playerKey: any): any {
     const isWhite = String(playerKey || '') === 'white';
@@ -1314,8 +1498,10 @@ async function selectMoveFromOnnxPolicyAsync(candidateMoves: any, playerKey: any
     if (!runtime || typeof runtime.chooseMove !== 'function') return null;
     const board = getCurrentCpuBoard();
     if (!canUseStandardBoardCpuPolicy(board, useOthelloOnnx ? 'othello-onnx-move' : 'onnx-move', playerKey, level)) return null;
-    let prioritizedCandidateMoves = filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves);
-    if (Number.isFinite(level) && level >= 6) {
+    let prioritizedCandidateMoves = useOthelloOnnx
+        ? (Array.isArray(candidateMoves) ? candidateMoves : [])
+        : filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves);
+    if (!useOthelloOnnx && Number.isFinite(level) && level >= 6) {
         prioritizedCandidateMoves = filterLv6OpenCornerAdjacentMoves(prioritizedCandidateMoves, board);
     }
     const preGate = evaluateCpuOnnxLatencyGate(runtime, 'chooseMove', level);
@@ -1344,6 +1530,13 @@ async function selectMoveFromOnnxPolicyAsync(candidateMoves: any, playerKey: any
         if (postGate.shouldDegrade) {
             logCpuOnnxLatencyDegrade(level, playerKey, 'chooseMove', postGate.reason);
             return null;
+        }
+        if (useOthelloOnnx) {
+            const resolved = resolveCandidateMoveByCoord(prioritizedCandidateMoves, selected) || selected;
+            if (resolved) {
+                cpuDebugLog(`[CPU] Lv${level} ${playerKey}: リバーシONNX選択 (${resolved.row},${resolved.col})`);
+            }
+            return resolved;
         }
         const tactical = refineOnnxMoveByTacticalPlan(prioritizedCandidateMoves, selected, playerKey, level);
         if (!Number.isFinite(level) || level < 6) {
@@ -1446,214 +1639,36 @@ function refineOnnxMoveByTacticalPlan(candidateMoves: any, selectedMove: any, pl
 }
 
 function canRerankOnnxCardChoice(level: any, usableCardIds: any): any {
-    if (!Number.isFinite(level) || level < 6) return false;
-    if (!Array.isArray(usableCardIds) || usableCardIds.length <= 1) return false;
-    if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') return false;
-    const cardLogicRef = resolveCardLogicForCpuDecision();
-    if (!cardLogicRef) return false;
-    if (typeof cardLogicRef.getCardCost !== 'function' || typeof cardLogicRef.getCardDef !== 'function') return false;
-    return true;
+    return !!(CpuDecisionCardOnnx && typeof CpuDecisionCardOnnx.canRerankOnnxCardChoice === 'function'
+        ? CpuDecisionCardOnnx.canRerankOnnxCardChoice(level, usableCardIds)
+        : false);
 }
 
 function scoreCardForOnnxRerank(cardId: any, playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any): any {
-    if (!cardId) return Number.NEGATIVE_INFINITY;
-    if (!canRerankOnnxCardChoice(level, usableCardIds)) return Number.NEGATIVE_INFINITY;
-
-    const context = prebuiltContext || buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds);
-    const cardLogicRef = resolveCardLogicForCpuDecision();
-    if (!cardLogicRef) return Number.NEGATIVE_INFINITY;
-    const decision = CpuPolicyCore.scoreCardUseDecision(
-        cardId,
-        cardLogicRef.getCardCost,
-        cardLogicRef.getCardDef,
-        context
-    );
-    if (!decision || !Number.isFinite(decision.score)) return Number.NEGATIVE_INFINITY;
-
-    const cardDef = cardLogicRef.getCardDef(cardId);
-    const cardType = resolveCardType(cardId, cardDef);
-    const whiteLv6Mode = level >= 6 && playerKey === 'white';
-    let score = Number(decision.score);
-
-    if (context && context.cornerEmergency === true && isRecoveryCardType(cardType)) score += 16;
-    if (context && context.hasCornerMoveNow === true && isHoldCardType(cardType)) score += 14;
-    if (context && context.cornerHoldMode === true && isHoldCardType(cardType)) score += 8;
-    if (context && context.recoveryCostGap > 0 && isChargeRampCardType(cardType)) score += 9;
-    if (context && context.highBonusMoveAvailable === true && isChargeRampCardType(cardType)) score += 6;
-    if (context && context.hasCornerMoveNow === true && !isHoldCardType(cardType) && !isRecoveryCardType(cardType)) score -= 10;
-    if (
-        whiteLv6Mode &&
-        context &&
-        context.recoveryCostGap > 0 &&
-        !isChargeRampCardType(cardType) &&
-        !isRecoveryCardType(cardType) &&
-        !isHoldCardType(cardType)
-    ) {
-        score -= 18;
-    }
-    if (
-        whiteLv6Mode &&
-        context &&
-        context.cornerEmergency !== true &&
-        context.hasCornerMoveNow !== true &&
-        WHITE_LV6_CORNER_SWING_KEEP_TYPES.has(cardType)
-    ) {
-        score -= 28;
-    }
-    if (
-        whiteLv6Mode &&
-        context &&
-        context.cornerEmergency === true &&
-        WHITE_LV6_CORNER_SWING_KEEP_TYPES.has(cardType)
-    ) {
-        score += 20;
-    }
-
-    return score;
+    return CpuDecisionCardOnnx && typeof CpuDecisionCardOnnx.scoreCardForOnnxRerank === 'function'
+        ? CpuDecisionCardOnnx.scoreCardForOnnxRerank(cardId, playerKey, level, legalMovesCount, legalMoves, usableCardIds, prebuiltContext)
+        : Number.NEGATIVE_INFINITY;
 }
 
 function rerankOnnxCardChoice(selectedCardId: any, playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any): any {
-    if (!selectedCardId) return { cardId: selectedCardId, changed: false, gap: 0 };
-    if (!canRerankOnnxCardChoice(level, usableCardIds)) {
-        return { cardId: selectedCardId, changed: false, gap: 0 };
-    }
-
-    const context = buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds);
-    const usable = usableCardIds.filter((id: any) => typeof id === 'string' && id.length > 0);
-    if (usable.length <= 1) return { cardId: selectedCardId, changed: false, gap: 0 };
-
-    let bestCardId = selectedCardId;
-    let bestScore = scoreCardForOnnxRerank(selectedCardId, playerKey, level, legalMovesCount, legalMoves, usable, context);
-
-    for (const cardId of usable) {
-        const score = scoreCardForOnnxRerank(cardId, playerKey, level, legalMovesCount, legalMoves, usable, context);
-        if (!Number.isFinite(score)) continue;
-        if (!Number.isFinite(bestScore) || score > bestScore) {
-            bestScore = score;
-            bestCardId = cardId;
-            continue;
-        }
-        if (score === bestScore && String(cardId) < String(bestCardId)) {
-            bestCardId = cardId;
-        }
-    }
-
-    const selectedScore = scoreCardForOnnxRerank(selectedCardId, playerKey, level, legalMovesCount, legalMoves, usable, context);
-    const gap = Number.isFinite(bestScore) && Number.isFinite(selectedScore)
-        ? (bestScore - selectedScore)
-        : Number.POSITIVE_INFINITY;
-    const overrideThreshold = (context && (context.cornerEmergency === true || context.hasCornerMoveNow === true)) ? 6 : 12;
-    const shouldOverride = bestCardId !== selectedCardId && (gap >= overrideThreshold || !Number.isFinite(selectedScore));
-
-    return {
-        cardId: shouldOverride ? bestCardId : selectedCardId,
-        changed: shouldOverride,
-        gap
-    };
+    return CpuDecisionCardOnnx && typeof CpuDecisionCardOnnx.rerankOnnxCardChoice === 'function'
+        ? CpuDecisionCardOnnx.rerankOnnxCardChoice(selectedCardId, playerKey, level, legalMovesCount, legalMoves, usableCardIds)
+        : { cardId: selectedCardId, changed: false, gap: 0 };
 }
 
 async function selectCardFromOnnxPolicyAsync(playerKey: any, level: any, legalMovesCount: any, usableCardIds: any, legalMoves: any): Promise<any> {
-    const runtime = resolvePolicyOnnxRuntime();
-    if (!runtime || typeof runtime.chooseCard !== 'function') return null;
-    if (!canUseStandardBoardCpuPolicy(null, 'onnx-card', playerKey, level)) return null;
-    if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
-    const filteredUsableCardIds = usableCardIds.slice();
-    if (filteredUsableCardIds.length === 0) return null;
-    const preGate = evaluateCpuOnnxLatencyGate(runtime, 'chooseCard', level);
-    if (preGate.shouldDegrade) {
-        logCpuOnnxLatencyDegrade(level, playerKey, 'chooseCard', preGate.reason);
-        return null;
-    }
-    const budgetMs = resolveCpuLv6OnnxRuntimeBudgetMs(level, 'chooseCard');
-    try {
-        const handCardIds = getHandCardIdsForPlayer(playerKey);
-        const selectedCardId = await awaitCpuPromiseWithinBudget(
-            () => runtime.chooseCard(
-                filteredUsableCardIds,
-                buildOnnxContext(playerKey, level, legalMovesCount, handCardIds, filteredUsableCardIds, legalMoves)
-            ),
-            budgetMs,
-            CPU_ONNX_BUDGET_TIMEOUT
-        );
-        if (selectedCardId === CPU_ONNX_BUDGET_TIMEOUT) {
-            logCpuOnnxLatencyDegrade(level, playerKey, 'chooseCard', `timeout budget=${budgetMs}ms`);
-            return null;
-        }
-        const postGate = evaluateCpuOnnxLatencyGate(runtime, 'chooseCard', level);
-        if (postGate.shouldDegrade) {
-            logCpuOnnxLatencyDegrade(level, playerKey, 'chooseCard', postGate.reason);
-            return null;
-        }
-        if (!selectedCardId) {
-            // ONNX model can explicitly choose "hold card" via no-card head output.
-            if (typeof runtime.getStatus === 'function') {
-                const status = runtime.getStatus() || {};
-                if (status.loaded === true && status.hasCardHead === true && status.noCardSupported === true && !status.lastError) {
-                    return { hold: true };
-                }
-            }
-            return null;
-        }
-        const reranked = rerankOnnxCardChoice(
-            selectedCardId,
-            playerKey,
-            level,
-            legalMovesCount,
-            legalMoves,
-            filteredUsableCardIds
-        );
-        const resolvedCardId = reranked && reranked.cardId ? reranked.cardId : selectedCardId;
-        if (reranked && reranked.changed) {
-            cpuDebugLog(
-                `[CPU] Lv${level} ${playerKey}: ONNXカードを再評価 ${selectedCardId} -> ${resolvedCardId} gap=${Number.isFinite(reranked.gap) ? reranked.gap.toFixed(1) : 'NA'}`
-            );
-        }
-        const cardLogicRef = resolveCardLogicForCpuDecision();
-        const cardDef = (cardLogicRef && typeof cardLogicRef.getCardDef === 'function')
-            ? cardLogicRef.getCardDef(resolvedCardId)
-            : null;
-        return { cardId: resolvedCardId, cardDef };
-    } catch (e) {
-        console.warn('[CPU] policy-onnx card runtime failed, fallback to default policy', e);
-        return null;
-    }
+    return CpuDecisionCardOnnx && typeof CpuDecisionCardOnnx.selectCardFromOnnxPolicyAsync === 'function'
+        ? CpuDecisionCardOnnx.selectCardFromOnnxPolicyAsync(playerKey, level, legalMovesCount, usableCardIds, legalMoves)
+        : null;
 }
 
 function selectCardFromLearnedPolicy(playerKey: any, level: any, legalMovesCount: any, usableCardIds: any): any {
-    const runtime = resolvePolicyTableRuntime();
-    if (!runtime || typeof runtime.getActionScoreForKey !== 'function') return null;
-    if (!Array.isArray(usableCardIds) || usableCardIds.length === 0) return null;
-    const boardRef = getCurrentCpuBoard();
-    if (!canUseStandardBoardCpuPolicy(boardRef, 'policy-table-card', playerKey, level)) return null;
-
-    let bestCardId: any = null;
-    let bestScore = -Infinity;
-    for (const cardId of usableCardIds) {
-        const actionKey = `use_card:${cardId}`;
-        let score: any = null;
-        try {
-            score = runtime.getActionScoreForKey(actionKey, {
-                playerKey,
-                level,
-                board: boardRef,
-                pendingType: resolvePendingType(playerKey),
-                legalMovesCount
-            });
-        } catch (e) { score = null; }
-        if (!Number.isFinite(score)) continue;
-        if (score > bestScore) {
-            bestScore = score;
-            bestCardId = cardId;
-        }
-    }
-    if (!bestCardId) return null;
-    const cardDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
-        ? CardLogic.getCardDef(bestCardId)
+    return CpuDecisionCardLearned && typeof CpuDecisionCardLearned.selectCardFromLearnedPolicy === 'function'
+        ? CpuDecisionCardLearned.selectCardFromLearnedPolicy(playerKey, level, legalMovesCount, usableCardIds)
         : null;
-    return { cardId: bestCardId, cardDef };
 }
 
-function shouldUseSharedPolicyTableCoreCardDecision(level: any): any {
+function shouldUseSharedPolicyTableCoreCardDecisionLocal(level: any): any {
     if (!Number.isFinite(level) || level < 6) return false;
     const capability = resolveCpuLv6BrowserRuntimeCapability();
     if (capability) return capability.usesPolicyTableCoreCardDecision === true;
@@ -1661,142 +1676,34 @@ function shouldUseSharedPolicyTableCoreCardDecision(level: any): any {
     return !!(browserProfile && browserProfile.cardDecisionMode === 'policy-table-core');
 }
 
+function shouldUseSharedPolicyTableCoreCardDecision(level: any): any {
+    return CpuDecisionCardLearned && typeof CpuDecisionCardLearned.shouldUseSharedPolicyTableCoreCardDecision === 'function'
+        ? CpuDecisionCardLearned.shouldUseSharedPolicyTableCoreCardDecision(level)
+        : shouldUseSharedPolicyTableCoreCardDecisionLocal(level);
+}
+
 function createCardChoiceFromId(cardId: any): any {
-    if (!cardId) return null;
-    const cardDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
-        ? CardLogic.getCardDef(cardId)
+    return CpuDecisionCardLearned && typeof CpuDecisionCardLearned.createCardChoiceFromId === 'function'
+        ? CpuDecisionCardLearned.createCardChoiceFromId(cardId)
         : null;
-    return { cardId, cardDef };
 }
 
 function selectCardBySharedPolicyTableCore(playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any): any {
-    if (!Array.isArray(usableCardIds) || usableCardIds.length <= 0) return null;
-    const cardLogicRef = resolveCardLogicForCpuDecision();
-    if (!cardLogicRef) return null;
-
-    const context = prebuiltContext || buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds);
-    const learnedChoice = selectCardFromLearnedPolicy(playerKey, level, legalMovesCount, usableCardIds);
-    if (learnedChoice && learnedChoice.cardId) {
-        if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') return learnedChoice;
-        const score = CpuPolicyCore.scoreCardUseDecision(
-            learnedChoice.cardId,
-            cardLogicRef.getCardCost,
-            cardLogicRef.getCardDef,
-            context
-        );
-        if (!score || score.shouldUse === true) {
-            return learnedChoice;
-        }
-    }
-
-    if (CpuPolicyCore && typeof CpuPolicyCore.chooseCardWithRiskProfile === 'function') {
-        const selected = CpuPolicyCore.chooseCardWithRiskProfile(
-            usableCardIds,
-            cardLogicRef.getCardCost,
-            cardLogicRef.getCardDef,
-            context
-        );
-        if (selected && selected.cardId) return selected;
-    }
-
-    const usableSortedByCost = usableCardIds.slice().sort((a, b) => cardLogicRef.getCardCost(b) - cardLogicRef.getCardCost(a));
-    if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') {
-        return createCardChoiceFromId(usableSortedByCost[0] || null);
-    }
-    for (const cardId of usableSortedByCost) {
-        const score = CpuPolicyCore.scoreCardUseDecision(
-            cardId,
-            cardLogicRef.getCardCost,
-            cardLogicRef.getCardDef,
-            context
-        );
-        if (!score || score.shouldUse === true) {
-            return createCardChoiceFromId(cardId);
-        }
-    }
-    return null;
+    return CpuDecisionCardLearned && typeof CpuDecisionCardLearned.selectCardBySharedPolicyTableCore === 'function'
+        ? CpuDecisionCardLearned.selectCardBySharedPolicyTableCore(playerKey, level, legalMovesCount, legalMoves, usableCardIds, prebuiltContext)
+        : null;
 }
 
 function getLearnedCardActionScore(cardId: any, playerKey: any, level: any, legalMovesCount: any): any {
-    if (!cardId) return null;
-    const runtime = resolvePolicyTableRuntime();
-    if (!runtime || typeof runtime.getActionScoreForKey !== 'function') return null;
-    try {
-        const boardRef = getCurrentCpuBoard();
-        if (!canUseStandardBoardCpuPolicy(boardRef, 'policy-table-card-score', playerKey, level)) return null;
-        const score = runtime.getActionScoreForKey(`use_card:${cardId}`, {
-            playerKey,
-            level,
-            board: boardRef,
-            pendingType: resolvePendingType(playerKey),
-            legalMovesCount
-        });
-        return Number.isFinite(score) ? Number(score) : null;
-    } catch (e) {
-        return null;
-    }
+    return CpuDecisionCardLearned && typeof CpuDecisionCardLearned.getLearnedCardActionScore === 'function'
+        ? CpuDecisionCardLearned.getLearnedCardActionScore(cardId, playerKey, level, legalMovesCount)
+        : null;
 }
 
 function selectCardByLevel6Consensus(playerKey: any, level: any, legalMovesCount: any, legalMoves: any, usableCardIds: any, prebuiltContext: any): any {
-    if (!Number.isFinite(level) || level < 6) return null;
-    if (!Array.isArray(usableCardIds) || usableCardIds.length <= 0) return null;
-    if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function') return null;
-    const cardLogicRef = resolveCardLogicForCpuDecision();
-    if (!cardLogicRef) return null;
-    if (typeof CardLogic.getCardCost !== 'function' || typeof CardLogic.getCardDef !== 'function') return null;
-
-    const context = prebuiltContext || buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds);
-    const usable = usableCardIds.filter((id) => typeof id === 'string' && id.length > 0);
-    if (usable.length <= 0) return null;
-
-    let best: any = null;
-    let second: any = null;
-    for (const cardId of usable) {
-        const decision = CpuPolicyCore.scoreCardUseDecision(
-            cardId,
-            CardLogic.getCardCost,
-            CardLogic.getCardDef,
-            context
-        );
-        if (!decision || !Number.isFinite(decision.score)) continue;
-
-        const learnedRaw = getLearnedCardActionScore(cardId, playerKey, level, legalMovesCount);
-        const learnedBoost = Number.isFinite(learnedRaw)
-            ? (Math.sign(learnedRaw) * Math.log1p(Math.abs(learnedRaw)) * 20)
-            : 0;
-        const score = Number(decision.score) + learnedBoost;
-        const one = { cardId, score, decision };
-        if (!best || score > best.score || (score === best.score && String(cardId) < String(best.cardId))) {
-            second = best;
-            best = one;
-        } else if (!second || score > second.score || (score === second.score && String(cardId) < String(second.cardId))) {
-            second = one;
-        }
-    }
-
-    if (!best) return null;
-    if (best.decision.shouldUse !== true) return null;
-
-    const stableState = !!context && context.forceUseCard !== true &&
-        context.cornerEmergency !== true &&
-        Number(context.discDiff || 0) >= 10 &&
-        Number(context.handSize || 0) <= 2 &&
-        Number(context.ownCharge || 0) <= 18 &&
-        Number(context.legalMovesCount || legalMovesCount || 0) >= 5;
-    if (stableState) {
-        if (!isCardChoiceAllowedByHighConfidence(playerKey, level, legalMovesCount, best.cardId, context)) {
-            return null;
-        }
-        const gap = second && Number.isFinite(second.score)
-            ? (best.score - second.score)
-            : Number.POSITIVE_INFINITY;
-        if (Number.isFinite(gap) && gap < 8 && context.hasCornerMoveNow === true) {
-            return null;
-        }
-    }
-
-    const cardDef = CardLogic.getCardDef(best.cardId);
-    return { cardId: best.cardId, cardDef };
+    return CpuDecisionCardLearned && typeof CpuDecisionCardLearned.selectCardByLevel6Consensus === 'function'
+        ? CpuDecisionCardLearned.selectCardByLevel6Consensus(playerKey, level, legalMovesCount, legalMoves, usableCardIds, prebuiltContext)
+        : null;
 }
 
 function emitPresentationEventForCpu(ev: any): any {
@@ -1806,18 +1713,6 @@ function emitPresentationEventForCpu(ev: any): any {
             if (pres && typeof pres.emitPresentationEvent === 'function') {
                 return !!pres.emitPresentationEvent(cardState, ev);
             }
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof BoardOps !== 'undefined' && BoardOps && typeof BoardOps.emitPresentationEvent === 'function') {
-            BoardOps.emitPresentationEvent(cardState, ev);
-            return true;
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof PresentationHelper !== 'undefined' && PresentationHelper && typeof PresentationHelper.emitPresentationEvent === 'function') {
-            PresentationHelper.emitPresentationEvent(cardState, ev);
-            return true;
         }
     } catch (e) { /* ignore */ }
     try {
@@ -1834,9 +1729,9 @@ function emitPresentationEventForCpu(ev: any): any {
 }
 
 function emitCpuSelectionStateChange(): any {
-    if (typeof emitCardStateChange === 'function') emitCardStateChange();
-    if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-    if (typeof emitGameStateChange === 'function') emitGameStateChange();
+    emitCpuDecisionCardStateChange();
+    emitCpuDecisionBoardUpdate();
+    emitCpuDecisionGameStateChange();
 }
 
 function isSelectionOnlyEndTurnPendingType(pendingType: any): any {
@@ -1889,395 +1784,132 @@ function captureNetworkPublishSnapshot(gameStateValue: any, cardStateValue: any)
 }
 
 function publishCpuSelectionNetworkSnapshot(playerKey: any, action: any, playbackEvents: any, snapshotOverride?: any): any {
-    const meta = {
-        playerKey: playerKey || 'black',
-        actionType: 'place',
-        playbackEvents: Array.isArray(playbackEvents) ? playbackEvents : []
-    };
-    if (action && typeof action === 'object') (meta as any).action = action;
-    if (snapshotOverride) (meta as any).snapshot = snapshotOverride;
-
-    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.publishSnapshot === 'function') {
-        if (typeof cpuDecisionRuntime.isNetworkPublishActive === 'function'
-            && cpuDecisionRuntime.isNetworkPublishActive() !== true) {
-            return undefined;
-        }
-        return cpuDecisionRuntime.publishSnapshot(meta);
-    }
-    if (cpuDecisionNetworkTurnHandoff && typeof cpuDecisionNetworkTurnHandoff.publishNetworkSnapshot === 'function') {
-        return cpuDecisionNetworkTurnHandoff.publishNetworkSnapshot(meta);
+    if (CpuDecisionSelectionFlow && typeof CpuDecisionSelectionFlow.publishCpuSelectionNetworkSnapshot === 'function') {
+        return CpuDecisionSelectionFlow.publishCpuSelectionNetworkSnapshot(playerKey, action, playbackEvents, snapshotOverride);
     }
     return undefined;
 }
 
 function readCpuDecisionMatchMode(): any {
-    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readMatchMode === 'function') {
-        try {
-            const mode = cpuDecisionRuntime.readMatchMode();
-            if (mode) return mode;
-        } catch (e) { /* ignore */ }
-    }
-    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.getCurrentMatchMode === 'function') {
-        try {
-            const mode = cpuDecisionRuntime.getCurrentMatchMode();
-            if (mode) return mode;
-        } catch (e) { /* ignore */ }
-    }
-    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.MATCH_MODE !== 'undefined') {
-        return cpuDecisionRuntime.MATCH_MODE;
+    if (CpuDecisionSelectionFlow && typeof CpuDecisionSelectionFlow.readCpuDecisionMatchMode === 'function') {
+        return CpuDecisionSelectionFlow.readCpuDecisionMatchMode();
     }
     return null;
 }
 
 function readCpuDecisionHumanVsHumanFlag(): boolean {
-    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readHumanVsHumanMode === 'function') {
-        try { return cpuDecisionRuntime.readHumanVsHumanMode() === true; } catch (e) { /* ignore */ }
-    }
-    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.DEBUG_HUMAN_VS_HUMAN !== 'undefined') {
-        return cpuDecisionRuntime.DEBUG_HUMAN_VS_HUMAN === true;
-    }
-    return false;
+    return !!(CpuDecisionSelectionFlow && typeof CpuDecisionSelectionFlow.readCpuDecisionHumanVsHumanFlag === 'function'
+        ? CpuDecisionSelectionFlow.readCpuDecisionHumanVsHumanFlag()
+        : false);
 }
 
 function resolveCpuDecisionProcessCpuTurn(): any {
-    if (cpuDecisionRuntime && typeof cpuDecisionRuntime.processCpuTurn === 'function') {
-        return cpuDecisionRuntime.processCpuTurn;
-    }
-    try {
-        if (typeof processCpuTurn === 'function') return processCpuTurn;
-    } catch (e) { /* ignore */ }
-    return null;
+    return CpuDecisionSelectionFlow && typeof CpuDecisionSelectionFlow.resolveCpuDecisionProcessCpuTurn === 'function'
+        ? CpuDecisionSelectionFlow.resolveCpuDecisionProcessCpuTurn()
+        : null;
 }
 
 function isCpuSelectionHumanVsHumanModeEnabled(): any {
-    const debugHvH = readCpuDecisionHumanVsHumanFlag();
-    const matchMode = String(readCpuDecisionMatchMode() || '').trim().toLowerCase();
-    return debugHvH || matchMode === 'network';
+    return !!(CpuDecisionSelectionFlow && typeof CpuDecisionSelectionFlow.isCpuSelectionHumanVsHumanModeEnabled === 'function'
+        ? CpuDecisionSelectionFlow.isCpuSelectionHumanVsHumanModeEnabled()
+        : false);
 }
 
 async function waitForCpuSelectionPlaybackIdle(playbackEvents: any): Promise<any> {
-    if (cpuDecisionNetworkTurnHandoff && typeof cpuDecisionNetworkTurnHandoff.waitForPlaybackIdleIfNeeded === 'function') {
-        return cpuDecisionNetworkTurnHandoff.waitForPlaybackIdleIfNeeded(playbackEvents);
+    if (CpuDecisionSelectionFlow && typeof CpuDecisionSelectionFlow.waitForCpuSelectionPlaybackIdle === 'function') {
+        return CpuDecisionSelectionFlow.waitForCpuSelectionPlaybackIdle(playbackEvents);
     }
-    if (!Array.isArray(playbackEvents) || !playbackEvents.length) return;
-
-    const waitForPlaybackFn = (cpuDecisionRuntime && typeof cpuDecisionRuntime.waitForPlaybackIdle === 'function')
-        ? cpuDecisionRuntime.waitForPlaybackIdle
-        : null;
-
-    if (typeof waitForPlaybackFn !== 'function') return;
-
-    try {
-        await waitForPlaybackFn();
-    } catch (e) { /* ignore */ }
 }
 
 function scheduleCpuSelectionWhiteTurn(delayMs: any, expectedTurnNumber: any): any {
-    const safeDelay = Number.isFinite(delayMs) ? delayMs : 0;
-    const timerService = getCpuTimerService();
-    if (!timerService) return;
-    const tid = timerService.setTimeout(() => {
-        const activePlayerKey = resolvePlayerKeyFromTurnValue(gameState ? gameState.currentPlayer : null);
-        const currentTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
-        if (activePlayerKey !== 'white') return;
-        if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) return;
-        const cpuTurnFn = resolveCpuDecisionProcessCpuTurn();
-        if (cpuTurnFn) cpuTurnFn();
-    }, safeDelay);
-    if (tid && typeof tid.unref === 'function') tid.unref();
+    if (CpuDecisionSelectionFlow && typeof CpuDecisionSelectionFlow.scheduleCpuSelectionWhiteTurn === 'function') {
+        return CpuDecisionSelectionFlow.scheduleCpuSelectionWhiteTurn(delayMs, expectedTurnNumber);
+    }
 }
 
 async function continueCpuSelectionTurnHandoff(playerKey: any, playbackEvents: any, action: any): Promise<any> {
-    const finalizeTurn = (cpuDecisionNetworkTurnHandoff && typeof cpuDecisionNetworkTurnHandoff.finalizeNetworkTurnHandoff === 'function')
-        ? cpuDecisionNetworkTurnHandoff.finalizeNetworkTurnHandoff
-        : null;
-    if (!finalizeTurn) return;
-
-    await finalizeTurn({
-        playerKey,
-        actionType: 'place',
-        action,
-        playbackEvents,
-        humanMode: isCpuSelectionHumanVsHumanModeEnabled(),
-        publishSnapshot: ({ playerKey: publishPlayerKey, action: publishAction, playbackEvents: publishPlaybackEvents }: any) => {
-            publishCpuSelectionNetworkSnapshot(publishPlayerKey, publishAction || action, publishPlaybackEvents);
-        },
-        resolveCurrentPlayerKey: () => resolvePlayerKeyFromTurnValue(gameState ? gameState.currentPlayer : null),
-        scheduleCpuTurn: ({ delayMs, expectedTurnNumber }: any) => {
-            scheduleCpuSelectionWhiteTurn(delayMs, expectedTurnNumber);
-        },
-        onHumanTurnReady: () => {
-            try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-        }
-    });
+    if (CpuDecisionSelectionFlow && typeof CpuDecisionSelectionFlow.continueCpuSelectionTurnHandoff === 'function') {
+        return CpuDecisionSelectionFlow.continueCpuSelectionTurnHandoff(playerKey, playbackEvents, action);
+    }
 }
 
 function maybeContinueCpuSelectionTurnHandoff(playerKey: any, pendingType: any, playbackEvents: any, action?: any): any {
-    if (!isSelectionOnlyEndTurnPendingType(pendingType)) return;
-    const activePlayerKey = resolvePlayerKeyFromTurnValue(gameState ? gameState.currentPlayer : null);
-    if (!activePlayerKey || activePlayerKey === playerKey) return;
-    Promise.resolve(continueCpuSelectionTurnHandoff(playerKey, playbackEvents, action)).catch(() => {
-        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-    });
+    if (CpuDecisionSelectionFlow && typeof CpuDecisionSelectionFlow.maybeContinueCpuSelectionTurnHandoff === 'function') {
+        return CpuDecisionSelectionFlow.maybeContinueCpuSelectionTurnHandoff(playerKey, pendingType, playbackEvents, action);
+    }
 }
 
 function finalizeCpuPendingSelectionFlow(playerKey: any, pendingType: any, playbackEvents: any, action: any): any {
-    const normalizedPlaybackEvents = Array.isArray(playbackEvents) ? playbackEvents : [];
-    const pendingSelectionFlow = resolvePendingSelectionFlow('finalizePendingSelectionFlow');
-
-    if (pendingSelectionFlow && typeof pendingSelectionFlow.finalizePendingSelectionFlow === 'function') {
-        return Promise.resolve(pendingSelectionFlow.finalizePendingSelectionFlow({
-            playerKey,
-            pendingType,
-            action,
-            playbackEvents: normalizedPlaybackEvents,
-            gameStateValue: gameState,
-            cardStateValue: cardState,
-            onHumanTurnReady: () => {
-                try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-            },
-            publishSnapshot: (publishMeta: any) => {
-                return publishCpuSelectionNetworkSnapshot(
-                    publishMeta && publishMeta.playerKey,
-                    (publishMeta && publishMeta.action) || action,
-                    publishMeta && publishMeta.playbackEvents
-                );
-            },
-            onSettled: () => {
-                try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-            }
-        })).catch(() => {
-            if (isSelectionOnlyEndTurnPendingType(pendingType)) {
-                maybeContinueCpuSelectionTurnHandoff(playerKey, pendingType, normalizedPlaybackEvents, action);
-                return;
-            }
-
-            Promise.resolve(waitForCpuSelectionPlaybackIdle(normalizedPlaybackEvents)).then(() => {
-                publishCpuSelectionNetworkSnapshot(playerKey, action, normalizedPlaybackEvents);
-            }).catch(() => { /* ignore */ });
-        });
+    if (CpuDecisionSelectionFlow && typeof CpuDecisionSelectionFlow.finalizeCpuPendingSelectionFlow === 'function') {
+        return CpuDecisionSelectionFlow.finalizeCpuPendingSelectionFlow(playerKey, pendingType, playbackEvents, action);
     }
-
-    if (isSelectionOnlyEndTurnPendingType(pendingType)) {
-        maybeContinueCpuSelectionTurnHandoff(playerKey, pendingType, normalizedPlaybackEvents, action);
-        return Promise.resolve();
-    }
-
-    return Promise.resolve(waitForCpuSelectionPlaybackIdle(normalizedPlaybackEvents)).then(() => {
-        publishCpuSelectionNetworkSnapshot(playerKey, action, normalizedPlaybackEvents);
-    }).catch(() => { /* ignore */ });
+    return Promise.resolve();
 }
 
 function resolveTurnPipelineAdapter(): any {
-    const globalAdapter = readRuntimeModule('TurnPipelineUIAdapter');
-    if (globalAdapter) return globalAdapter;
-    return resolveModuleReference(null, {
-        readLocal: () => (typeof TurnPipelineUIAdapter !== 'undefined' ? TurnPipelineUIAdapter : null),
-        requirePath: './turn/pipeline_ui_adapter',
-        globalKey: 'TurnPipelineUIAdapter',
-        isValid: (moduleRef: any) => !!moduleRef
-    });
+    if (CpuDecisionPendingPipeline && typeof CpuDecisionPendingPipeline.resolveTurnPipelineAdapter === 'function') {
+        return CpuDecisionPendingPipeline.resolveTurnPipelineAdapter();
+    }
+    return null;
 }
 
 function resolveTurnPipeline(): any {
-    const globalPipeline = readRuntimeModule('TurnPipeline');
-    if (globalPipeline) return globalPipeline;
-    return resolveModuleReference(null, {
-        readLocal: () => (typeof TurnPipeline !== 'undefined' ? TurnPipeline : null),
-        requirePath: './turn/turn_pipeline',
-        globalKey: 'TurnPipeline',
-        isValid: (moduleRef: any) => !!moduleRef
-    });
+    if (CpuDecisionPendingPipeline && typeof CpuDecisionPendingPipeline.resolveTurnPipeline === 'function') {
+        return CpuDecisionPendingPipeline.resolveTurnPipeline();
+    }
+    return null;
 }
 
 async function runCpuPendingSelectionViaPipeline(playerKey: any, actionPayload: any, pendingType: any): Promise<any> {
-    const adapter = resolveTurnPipelineAdapter();
-    const pipeline = resolveTurnPipeline();
-    const pendingSelectionFlow = resolvePendingSelectionFlow('createPendingSelectionAction');
-    if (!adapter || !pipeline || typeof adapter.runTurnWithAdapter !== 'function') return null;
-
-    const normalizedActionPayload = Object.assign({}, actionPayload || {});
-    normalizedActionPayload.deferNetworkPublish = true;
-
-    const action = (pendingSelectionFlow && typeof pendingSelectionFlow.createPendingSelectionAction === 'function')
-        ? pendingSelectionFlow.createPendingSelectionAction(playerKey, pendingType, normalizedActionPayload, { cardState })
-        : ((typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-            ? ActionManager.ActionManager.createAction('place', playerKey, normalizedActionPayload)
-            : Object.assign({ type: 'place' }, normalizedActionPayload));
-    if (action) {
-        action.deferNetworkPublish = true;
+    if (CpuDecisionPendingPipeline && typeof CpuDecisionPendingPipeline.runCpuPendingSelectionViaPipeline === 'function') {
+        return CpuDecisionPendingPipeline.runCpuPendingSelectionViaPipeline(playerKey, actionPayload, pendingType);
     }
-    if ((!pendingSelectionFlow || typeof pendingSelectionFlow.createPendingSelectionAction !== 'function') && action && cardState && typeof cardState.turnIndex === 'number') {
-        action.turnIndex = cardState.turnIndex;
-    }
-
-    const res = adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline);
-    if (!res || res.ok === false) {
-        return { ok: false, res };
-    }
-
-    if (res.nextCardState) cardState = res.nextCardState;
-    if (res.nextGameState) gameState = res.nextGameState;
-    if (res.playbackEvents && res.playbackEvents.length) {
-        emitPresentationEventForCpu({
-            type: 'PLAYBACK_EVENTS',
-            events: res.playbackEvents,
-            meta: { source: 'cpu_pending_selection', pendingType: pendingType || null }
-        });
-    }
-    emitCpuSelectionStateChange();
-    await finalizeCpuPendingSelectionFlow(playerKey, pendingType, res.playbackEvents, action);
-    return { ok: true, res };
+    return null;
 }
 
 function resolveAppliedCardMeta(playerKey: any, fallbackCardId: any, fallbackCardDef: any): any {
-    const appliedCardId = (cardState && cardState.lastUsedCardByPlayer && cardState.lastUsedCardByPlayer[playerKey])
-        ? cardState.lastUsedCardByPlayer[playerKey]
-        : fallbackCardId;
-    const appliedCardDef = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardDef === 'function')
-        ? (CardLogic.getCardDef(appliedCardId) || fallbackCardDef || null)
-        : (fallbackCardDef || null);
-    const appliedCardCost = (appliedCardDef && Number.isFinite(appliedCardDef.cost)) ? appliedCardDef.cost : null;
-    const appliedCardName = (appliedCardDef && appliedCardDef.name) ? appliedCardDef.name : null;
-    return { appliedCardId, appliedCardDef, appliedCardCost, appliedCardName };
+    if (CpuDecisionCardPipeline && typeof CpuDecisionCardPipeline.resolveAppliedCardMeta === 'function') {
+        return CpuDecisionCardPipeline.resolveAppliedCardMeta(playerKey, fallbackCardId, fallbackCardDef);
+    }
+    const appliedCardDef = fallbackCardDef || null;
+    return {
+        appliedCardId: fallbackCardId,
+        appliedCardDef,
+        appliedCardCost: (appliedCardDef && Number.isFinite(appliedCardDef.cost)) ? appliedCardDef.cost : null,
+        appliedCardName: (appliedCardDef && appliedCardDef.name) ? appliedCardDef.name : null
+    };
 }
 
 function normalizeCardUsePlaybackEvents(playbackEvents: any, playerKey: any, cardMeta: any): any {
-    const events = Array.isArray(playbackEvents) ? playbackEvents : [];
-    const meta = cardMeta || {};
-    return events.map((ev: any) => {
-        if (!ev || ev.type !== 'card_use_animation') return ev;
-        const targets = Array.isArray(ev.targets) ? ev.targets : [];
-        const normalizedTargets = targets.length > 0
-            ? targets.map((t: any) => Object.assign({}, t, {
-                cardId: meta.appliedCardId,
-                cost: meta.appliedCardCost,
-                name: meta.appliedCardName
-            }))
-            : [{
-                player: playerKey,
-                owner: playerKey,
-                cardId: meta.appliedCardId,
-                cost: meta.appliedCardCost,
-                name: meta.appliedCardName
-            }];
-        return Object.assign({}, ev, { targets: normalizedTargets });
-    });
+    if (CpuDecisionCardPipeline && typeof CpuDecisionCardPipeline.normalizeCardUsePlaybackEvents === 'function') {
+        return CpuDecisionCardPipeline.normalizeCardUsePlaybackEvents(playbackEvents, playerKey, cardMeta);
+    }
+    return Array.isArray(playbackEvents) ? playbackEvents : [];
 }
 
 function emitCpuCardUseLog(playerKey: any, level: any, cardDefOrNull: any, cardIdOrNull: any): any {
     const shownName = cardDefOrNull ? cardDefOrNull.name : cardIdOrNull;
     cpuDebugLog(`[CPU] Lv${level} ${playerKey}: カード使用 - ${shownName}`);
-    if (typeof emitLogAdded === 'function') {
-        emitLogAdded(`${playerKey === 'black' ? '黒' : '白'}(Lv${level})がカードを使用: ${shownName}`);
-    }
+    emitCpuDecisionLogAdded(`${playerKey === 'black' ? '黒' : '白'}(Lv${level})がカードを使用: ${shownName}`);
 }
 
 function runCpuCardUseViaPipeline(playerKey: any, cardId: any, cardDef: any): any {
-    const adapter = resolveTurnPipelineAdapter();
-    const pipeline = resolveTurnPipeline();
-    if (!adapter || !pipeline || typeof adapter.runTurnWithAdapter !== 'function') return null;
-
-    const actionPayload = {
-        useCardId: cardId,
-        useCardOwnerKey: playerKey
-    };
-    const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-        ? ActionManager.ActionManager.createAction('use_card', playerKey, actionPayload)
-        : Object.assign({ type: 'use_card' }, actionPayload);
-
-    if (action && cardState && typeof cardState.turnIndex === 'number') {
-        action.turnIndex = cardState.turnIndex;
+    if (CpuDecisionCardPipeline && typeof CpuDecisionCardPipeline.runCpuCardUseViaPipeline === 'function') {
+        return CpuDecisionCardPipeline.runCpuCardUseViaPipeline(playerKey, cardId, cardDef);
     }
-
-    const res = adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline);
-    if (!res || res.ok === false) {
-        return { ok: false, res };
-    }
-
-    if (res.nextCardState) cardState = res.nextCardState;
-    if (res.nextGameState) gameState = res.nextGameState;
-
-    const cardMeta = resolveAppliedCardMeta(playerKey, cardId, cardDef);
-
-    let emittedCardUsePlayback = false;
-    if (res.playbackEvents && res.playbackEvents.length) {
-        const normalizedPlaybackEvents = normalizeCardUsePlaybackEvents(res.playbackEvents, playerKey, cardMeta);
-        emitPresentationEventForCpu({
-            type: 'PLAYBACK_EVENTS',
-            events: normalizedPlaybackEvents,
-            meta: { source: 'cpu_card_use_pipeline', cardId: cardMeta.appliedCardId || null }
-        });
-        emittedCardUsePlayback = true;
-    }
-
-    if (!emittedCardUsePlayback) {
-        emitPresentationEventForCpu({
-            type: 'PLAYBACK_EVENTS',
-            events: [{
-                type: 'card_use_animation',
-                phase: 1,
-                targets: [{
-                    player: playerKey,
-                    owner: playerKey,
-                    cardId: cardMeta.appliedCardId,
-                    cost: cardMeta.appliedCardCost,
-                    name: cardMeta.appliedCardName
-                }]
-            }],
-            meta: { source: 'cpu_card_use_pipeline_fallback' }
-        });
-    }
-
-    emitCpuSelectionStateChange();
-    return {
-        ok: true,
-        res,
-        emittedCardUsePlayback,
-        appliedCardId: cardMeta.appliedCardId,
-        appliedCardDef: cardMeta.appliedCardDef,
-        appliedCardCost: cardMeta.appliedCardCost,
-        appliedCardName: cardMeta.appliedCardName
-    };
+    return null;
 }
 
 function runCpuHandDestroyViaPipeline(playerKey: any, destroyCardId: any): any {
-    const adapter = resolveTurnPipelineAdapter();
-    const pipeline = resolveTurnPipeline();
-    if (!adapter || !pipeline || typeof adapter.runTurnWithAdapter !== 'function') return null;
-
-    const actionPayload = { destroyCardId };
-    const action = (typeof ActionManager !== 'undefined' && ActionManager.ActionManager && typeof ActionManager.ActionManager.createAction === 'function')
-        ? ActionManager.ActionManager.createAction('destroy_hand_card', playerKey, actionPayload)
-        : Object.assign({ type: 'destroy_hand_card' }, actionPayload);
-
-    if (action && cardState && typeof cardState.turnIndex === 'number') {
-        action.turnIndex = cardState.turnIndex;
+    if (CpuDecisionCardPipeline && typeof CpuDecisionCardPipeline.runCpuHandDestroyViaPipeline === 'function') {
+        return CpuDecisionCardPipeline.runCpuHandDestroyViaPipeline(playerKey, destroyCardId);
     }
-
-    const res = adapter.runTurnWithAdapter(cardState, gameState, playerKey, action, pipeline);
-    if (!res || res.ok === false) {
-        return { ok: false, res };
-    }
-
-    if (res.nextCardState) cardState = res.nextCardState;
-    if (res.nextGameState) gameState = res.nextGameState;
-    emitCpuSelectionStateChange();
-    return {
-        ok: true,
-        res
-    };
+    return null;
 }
 
 function emitCpuEffectLog(message: any): any {
     if (!message) return;
-    if (typeof emitEffectLog === 'function') {
-        emitEffectLog(message);
-        return;
-    }
-    if (typeof emitLogAdded === 'function') {
-        emitLogAdded(message, 'effect');
-    }
+    emitCpuDecisionEffectLog(message);
 }
 
 function getTargetAwareUsableCardIds(playerKey: any): any {
@@ -2305,442 +1937,260 @@ function getTargetAwareUsableCardIds(playerKey: any): any {
     return [];
 }
 
-function makePlanPressureProfile(basePressure: any, cornerWindowPressure: any, recoveryGapPressure: any, recoveryEmergencyPressure: any): any {
-    return Object.freeze({
-        basePressure: Math.max(0, Number(basePressure) || 0),
-        cornerWindowPressure: Math.max(0, Number(cornerWindowPressure) || 0),
-        recoveryGapPressure: Math.max(0, Number(recoveryGapPressure) || 0),
-        recoveryEmergencyPressure: Math.max(0, Number(recoveryEmergencyPressure) || 0)
-    });
-}
+const makePlanPressureProfile = (CpuDecisionPlanPressureModule && typeof CpuDecisionPlanPressureModule.makePlanPressureProfile === 'function')
+    ? CpuDecisionPlanPressureModule.makePlanPressureProfile
+    : function makePlanPressureProfileFallback(basePressure: any, cornerWindowPressure: any, recoveryGapPressure: any, recoveryEmergencyPressure: any): any {
+        return Object.freeze({
+            basePressure: Math.max(0, Number(basePressure) || 0),
+            cornerWindowPressure: Math.max(0, Number(cornerWindowPressure) || 0),
+            recoveryGapPressure: Math.max(0, Number(recoveryGapPressure) || 0),
+            recoveryEmergencyPressure: Math.max(0, Number(recoveryEmergencyPressure) || 0)
+        });
+    };
 
-const GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE = Object.freeze({
-    DOUBLE_PLACE: makePlanPressureProfile(2, 4, 2, 3),
-    TRIPLE_PLACE: makePlanPressureProfile(3, 5, 3, 4),
-    QUAD_PLACE: makePlanPressureProfile(4, 6, 4, 5),
-    INFINITE_PLACE: makePlanPressureProfile(5, 7, 5, 6)
-});
+const getGeneratedThrowChainPlanPressureProfile = (CpuDecisionPlanPressureModule && typeof CpuDecisionPlanPressureModule.getGeneratedThrowChainPlanPressureProfile === 'function')
+    ? CpuDecisionPlanPressureModule.getGeneratedThrowChainPlanPressureProfile
+    : function getGeneratedThrowChainPlanPressureProfileFallback() { return null; };
 
-const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
-    BLOCKADE_WILL: makePlanPressureProfile(1, 2, 1, 1),
-    BOARD_EXPANSION_GOD: makePlanPressureProfile(3, 4, 3, 4),
-    BOARD_EXPANSION_WILL: makePlanPressureProfile(2, 3, 2, 3),
-    BOARD_SHRINK_WILL: makePlanPressureProfile(3, 4, 3, 2),
-    BOARD_SHRINK_GOD: makePlanPressureProfile(4, 5, 4, 3),
-    BREEDING_WILL: makePlanPressureProfile(2, 2, 2, 3),
-    PROLIFERATION_WILL: makePlanPressureProfile(1, 2, 1, 2),
-    CHAIN_WILL: makePlanPressureProfile(2, 4, 2, 3),
-    DOUBLE_CHAIN_WILL: makePlanPressureProfile(2, 4, 2, 3),
-    TRIPLE_CHAIN_WILL: makePlanPressureProfile(3, 5, 3, 4),
-    QUAD_CHAIN_WILL: makePlanPressureProfile(4, 6, 4, 5),
-    INFINITE_CHAIN_WILL: makePlanPressureProfile(5, 7, 5, 6),
-    CLONE_WILL: makePlanPressureProfile(2, 2, 2, 3),
-    CONDEMN_WILL: makePlanPressureProfile(1, 2, 1, 1),
-    EXECUTION_WILL: makePlanPressureProfile(1, 2, 1, 2),
-    CORNER_TRIBUTE: makePlanPressureProfile(1, 3, 0, 2),
-    CORROSION_WILL: makePlanPressureProfile(1, 2, 1, 1),
-    CROSS_BOMB: makePlanPressureProfile(3, 4, 3, 3),
-    DESTROY_DRAGON_WILL: makePlanPressureProfile(1, 2, 1, 2),
-    DESTROY_ONE_STONE: makePlanPressureProfile(4, 5, 4, 0),
-    DOUBLE_PLACE: GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE.DOUBLE_PLACE,
-    TRIPLE_PLACE: GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE.TRIPLE_PLACE,
-    QUAD_PLACE: GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE.QUAD_PLACE,
-    INFINITE_PLACE: GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE.INFINITE_PLACE,
-    ESCAPE_WILL: makePlanPressureProfile(2, 3, 2, 2),
-    EXTEND_LIFE_WILL: makePlanPressureProfile(1, 1, 1, 2),
-    EXTEND_LIFE_GOD: makePlanPressureProfile(1, 1, 1, 3),
-    EXTREME_HYPERACTIVE_WILL: makePlanPressureProfile(3, 4, 3, 3),
-    EQUALITY_WILL: makePlanPressureProfile(2, 3, 2, 2),
-    REINFORCEMENT_WILL: makePlanPressureProfile(1, 2, 1, 2),
-    FATE_WILL: makePlanPressureProfile(2, 3, 2, 2),
-    FREE_PLACEMENT: makePlanPressureProfile(2, 4, 2, 0),
-    FREEZE_WILL: makePlanPressureProfile(1, 2, 1, 1),
-    SEED_WILL: makePlanPressureProfile(2, 3, 1, 3),
-    GLUTTONOUS_WILL: makePlanPressureProfile(3, 4, 3, 3),
-    GOLD_STONE: makePlanPressureProfile(1, 2, 0, 2),
-    CRYSTAL_STONE: makePlanPressureProfile(1, 2, 1, 2),
-    RAINBOW_STONE: makePlanPressureProfile(1, 3, 0, 3),
-    AFTERIMAGE_WILL: makePlanPressureProfile(0, 0, 0, 1),
-    GUARDIAN_GOD: makePlanPressureProfile(0, 0, 0, 0),
-    GUARD_WILL: makePlanPressureProfile(0, 0, 0, 0),
-    GHOST_WILL: makePlanPressureProfile(0, 0, 0, 1),
-    HEAVEN_BLESSING: makePlanPressureProfile(1, 2, 1, 2),
-    REVEAL_HAND_WILL: makePlanPressureProfile(1, 2, 0, 1),
-    HYPERACTIVE_INHERIT_WILL: makePlanPressureProfile(2, 2, 2, 3),
-    HYPERACTIVE_WILL: makePlanPressureProfile(3, 3, 3, 3),
-    INSTANT_HYPERACTIVE_WILL: makePlanPressureProfile(3, 4, 3, 4),
-    LAST_RESORT: makePlanPressureProfile(3, 4, 3, 0),
-    LIGHTNING_WILL: makePlanPressureProfile(1, 1, 1, 2),
-    LIVING_WILL: makePlanPressureProfile(1, 2, 1, 3),
-    LOSS_WILL: makePlanPressureProfile(1, 2, 1, 2),
-    METEOR_WILL: makePlanPressureProfile(3, 4, 3, 2),
-    OBSERVER_WILL: makePlanPressureProfile(1, 1, 1, 2),
-    PERMA_PROTECT_NEXT_STONE: makePlanPressureProfile(0, 0, 0, 1),
-    PLUNDER_WILL: makePlanPressureProfile(1, 2, 0, 2),
-    POSITION_SWAP_WILL: makePlanPressureProfile(2, 3, 2, 2),
-    PROTECTED_NEXT_STONE: makePlanPressureProfile(0, 0, 0, 1),
-    REBUILD_WILL: makePlanPressureProfile(1, 2, 1, 2),
-    REGEN_WILL: makePlanPressureProfile(0, 0, 0, 1),
-    RIBO_WILL: makePlanPressureProfile(1, 2, 0, 2),
-    ROBOT_VACUUM_WILL: makePlanPressureProfile(2, 2, 2, 3),
-    SALVATION_WILL: makePlanPressureProfile(1, 2, 1, 2),
-    STONE_SALVATION_GOD: makePlanPressureProfile(1, 2, 1, 2),
-    SUPPLY_WILL: makePlanPressureProfile(1, 2, 0, 2),
-    SILVER_STONE: makePlanPressureProfile(1, 2, 0, 2),
-    SNIPER_WILL: makePlanPressureProfile(1, 1, 1, 2),
-    STRONG_WIND_WILL: makePlanPressureProfile(2, 3, 2, 2),
-    BUOYANCY_WILL: makePlanPressureProfile(2, 3, 2, 1),
-    SUPER_BUOYANCY_WILL: makePlanPressureProfile(2, 4, 2, 0),
-    GRAVITY_WILL: makePlanPressureProfile(2, 3, 2, 1),
-    SUPER_GRAVITY_WILL: makePlanPressureProfile(2, 4, 2, 0),
-    SUPER_ATTRACTION_WILL: makePlanPressureProfile(3, 4, 3, 0),
-    SWAP_WITH_ENEMY: makePlanPressureProfile(2, 3, 2, 2),
-    TABOO_REVERSE_WILL: makePlanPressureProfile(3, 4, 3, 2),
-    TELEPORT_WILL: makePlanPressureProfile(2, 3, 2, 2),
-    CELL_TELEPORT_WILL: makePlanPressureProfile(3, 4, 3, 2),
-    TEMPT_WILL: makePlanPressureProfile(2, 3, 2, 2),
-    CAPTURE_WILL: makePlanPressureProfile(2, 3, 2, 2),
-    TIME_BOMB: makePlanPressureProfile(3, 4, 3, 2),
-    TIME_STOP_GOD: makePlanPressureProfile(3, 4, 3, 2),
-    TRAP_WILL: makePlanPressureProfile(1, 2, 1, 2),
-    TREASURE_BOX: makePlanPressureProfile(1, 2, 0, 2),
-    ULTIMATE_DESTROY_GOD: makePlanPressureProfile(3, 4, 3, 2),
-    ULTIMATE_HYPERACTIVE_GOD: makePlanPressureProfile(4, 5, 4, 3),
-    ULTIMATE_REVERSE_DRAGON: makePlanPressureProfile(3, 4, 3, 3),
-    WILL_HUNTER_KING: makePlanPressureProfile(3, 4, 3, 4),
-    WORK_WILL: makePlanPressureProfile(1, 0, 1, 2),
-    X_BOMB: makePlanPressureProfile(3, 4, 3, 3)
-});
+const hasPlanPressureProfileForCardType = (CpuDecisionPlanPressureModule && typeof CpuDecisionPlanPressureModule.hasPlanPressureProfileForCardType === 'function')
+    ? CpuDecisionPlanPressureModule.hasPlanPressureProfileForCardType
+    : function hasPlanPressureProfileForCardTypeFallback() { return false; };
 
-function getGeneratedThrowChainPlanPressureProfile(cardType: any): any {
-    const type = String(cardType || '');
-    return Object.prototype.hasOwnProperty.call(GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE, type)
-        ? (GENERATED_THROW_CHAIN_PLAN_PRESSURE_PROFILE as any)[type]
-        : null;
-}
+const getCardPlanPressureProfile = (CpuDecisionPlanPressureModule && typeof CpuDecisionPlanPressureModule.getCardPlanPressureProfile === 'function')
+    ? CpuDecisionPlanPressureModule.getCardPlanPressureProfile
+    : function getCardPlanPressureProfileFallback() { return null; };
 
-function hasPlanPressureProfileForCardType(cardType: any): any {
-    const type = String(cardType || '');
-    const hasDirectProfile = Object.prototype.hasOwnProperty.call(
-        CARD_TYPE_PLAN_PRESSURE_PROFILE,
-        type
-    );
-    return hasDirectProfile || !!getGeneratedThrowChainPlanPressureProfile(type);
-}
+const computeCardPlanPressure = (CpuDecisionPlanPressureModule && typeof CpuDecisionPlanPressureModule.computeCardPlanPressure === 'function')
+    ? CpuDecisionPlanPressureModule.computeCardPlanPressure
+    : function computeCardPlanPressureFallback() { return 0; };
 
-function getCardPlanPressureProfile(cardType: any): any {
-    const type = String(cardType || '');
-    return Object.prototype.hasOwnProperty.call(CARD_TYPE_PLAN_PRESSURE_PROFILE, type)
-        ? (CARD_TYPE_PLAN_PRESSURE_PROFILE as any)[type]
-        : getGeneratedThrowChainPlanPressureProfile(type);
-}
+const resolveCardPlanPressureThreshold = (CpuDecisionPlanPressureModule && typeof CpuDecisionPlanPressureModule.resolveCardPlanPressureThreshold === 'function')
+    ? CpuDecisionPlanPressureModule.resolveCardPlanPressureThreshold
+    : function resolveCardPlanPressureThresholdFallback(_legalMovesCount: any, _planState: any, profile: any): any {
+        const activeProfile = profile || makePlanPressureProfile(0, 0, 0, 0);
+        return activeProfile.basePressure;
+    };
 
-function computeCardPlanPressure(level: any, legalMovesCount: any, planState: any, decisionContext: any): any {
-    const plan = planState || {};
-    const ctx = decisionContext || {};
-    const discDiff = Number.isFinite(ctx.discDiff) ? Number(ctx.discDiff) : 0;
-    const handSize = Number.isFinite(ctx.handSize) ? Number(ctx.handSize) : 0;
-    const ownCharge = Number.isFinite(ctx.ownCharge) ? Number(ctx.ownCharge) : 0;
-    const ownEdges = Number.isFinite(ctx.ownEdges) ? Number(ctx.ownEdges) : 0;
-    const oppEdges = Number.isFinite(ctx.oppEdges) ? Number(ctx.oppEdges) : 0;
-    const ownSpecialCount = Number.isFinite(ctx.ownSpecialCount) ? Number(ctx.ownSpecialCount) : 0;
-    const oppSpecialCount = Number.isFinite(ctx.oppSpecialCount) ? Number(ctx.oppSpecialCount) : 0;
+const CpuDecisionMovePlan = (CpuDecisionMovePlanModule && typeof CpuDecisionMovePlanModule.createCpuDecisionMovePlan === 'function')
+    ? CpuDecisionMovePlanModule.createCpuDecisionMovePlan({
+        getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
+        getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
+        getCardLogic: () => ((typeof CardLogic !== 'undefined') ? CardLogic : null),
+        resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
+            ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+            : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+        getShapeAwareBoard,
+        isPlayableBoard,
+        countCornerControl,
+        isCornerCell,
+        isEdgeCell,
+        getBoardBonusValueAt,
+        getHandCardIdsForPlayer,
+        resolveCardType,
+        isRecoveryCardType,
+        isHoldCardType,
+        keepCardTypesForLowCharge: WHITE_LV6_CORNER_SWING_KEEP_TYPES,
+        getCardPlanPressureProfile,
+        computeCardPlanPressure,
+        resolveCardPlanPressureThreshold,
+        readPendingEffect: (playerKey: any, stateRef?: any) => readCpuPendingEffect(playerKey, stateRef),
+        resolvePendingType,
+        countBoardStatsForPlayer,
+        countPlayableCells,
+        getTargetAwareUsableCardIds,
+        getCpuPolicyCore: () => CpuPolicyCore,
+        getCurrentCpuBoard: () => getCurrentCpuBoard(),
+        onStrictPendingPlacementOverride: (playerKey: any, pendingType: any, bestAnchoredMove: any) => {
+            cpuDebugLog(
+                `[CPU] Lv${cpuSmartness[playerKey] || 1} ${playerKey}: ${pendingType}配置を安定寄せへ補正 (${bestAnchoredMove.row}, ${bestAnchoredMove.col})`
+            );
+        }
+    })
+    : null;
 
-    let pressure = 0;
-    if (plan.cornerEmergency === true) pressure += 2;
-    else if (Number(plan.oppCorners || 0) > Number(plan.ownCorners || 0)) pressure += 1;
+const CpuDecisionCardContext = (CpuDecisionCardContextModule && typeof CpuDecisionCardContextModule.createCpuDecisionCardContext === 'function')
+    ? CpuDecisionCardContextModule.createCpuDecisionCardContext({
+        getGameState: () => ((typeof gameState !== 'undefined') ? gameState : null),
+        getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
+        resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
+            ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+            : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+        getShapeAwareBoard,
+        countBoardStatsForPlayer,
+        countEdgeControl,
+        buildCornerPlanState,
+        getBoardBonusValueAt,
+        getBoardCellValueSafe,
+        getCpuPolicyCore: () => CpuPolicyCore
+    })
+    : null;
 
-    if (discDiff <= -12) pressure += 2;
-    else if (discDiff <= -6) pressure += 1;
+const CpuDecisionCardRisk = (CpuDecisionCardRiskModule && typeof CpuDecisionCardRiskModule.createCpuDecisionCardRisk === 'function')
+    ? CpuDecisionCardRiskModule.createCpuDecisionCardRisk({
+        getCpuPolicyCore: () => CpuPolicyCore,
+        getCardLogic: () => ((typeof CardLogic !== 'undefined') ? CardLogic : null),
+        getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
+        buildCardUseDecisionContext: (playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any) => buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds),
+        getCurrentCpuBoard: () => getCurrentCpuBoard(),
+        isPlayableBoard,
+        buildLv6LookaheadOptions,
+        resolveLv6LookaheadTimeCaps,
+        createLookaheadMetaLogger,
+        getBoardBonusValueAt,
+        isCornerCell,
+        isEdgeCell,
+        applyMoveByFlipsForCpu,
+        hasCornerMoveOnBoardForPlayer,
+        resolveCardType
+    })
+    : null;
 
-    if (legalMovesCount <= 1) pressure += 2;
-    else if (legalMovesCount <= 2) pressure += 1;
+const CpuDecisionCardOnnx = (CpuDecisionCardOnnxModule && typeof CpuDecisionCardOnnxModule.createCpuDecisionCardOnnx === 'function')
+    ? CpuDecisionCardOnnxModule.createCpuDecisionCardOnnx({
+        getCpuPolicyCore: () => CpuPolicyCore,
+        resolveCardLogic: () => resolveCardLogicForCpuDecision(),
+        resolvePolicyOnnxRuntime,
+        canUseStandardBoardCpuPolicy,
+        evaluateCpuOnnxLatencyGate,
+        logCpuOnnxLatencyDegrade,
+        resolveCpuLv6OnnxRuntimeBudgetMs,
+        getHandCardIdsForPlayer,
+        buildOnnxContext,
+        awaitCpuPromiseWithinBudget,
+        getCpuOnnxBudgetTimeout: () => CPU_ONNX_BUDGET_TIMEOUT,
+        buildCardUseDecisionContext,
+        resolveCardType,
+        isRecoveryCardType,
+        isHoldCardType,
+        isChargeRampCardType,
+        whiteLv6CornerSwingKeepTypes: WHITE_LV6_CORNER_SWING_KEEP_TYPES,
+        cpuDebugLog: (...args: any[]) => cpuDebugLog(...args),
+        warn: (...args: any[]) => console.warn(...args)
+    })
+    : null;
 
-    if (handSize >= 5) pressure += 2;
-    else if (handSize >= 4) pressure += 1;
+const CpuDecisionCardLearned = (CpuDecisionCardLearnedModule && typeof CpuDecisionCardLearnedModule.createCpuDecisionCardLearned === 'function')
+    ? CpuDecisionCardLearnedModule.createCpuDecisionCardLearned({
+        resolvePolicyTableRuntime,
+        getCurrentCpuBoard,
+        canUseStandardBoardCpuPolicy,
+        resolvePendingType,
+        resolveCardLogic: () => resolveCardLogicForCpuDecision(),
+        getCpuPolicyCore: () => CpuPolicyCore,
+        buildCardUseDecisionContext,
+        isCardChoiceAllowedByHighConfidence,
+        shouldUseSharedPolicyTableCoreCardDecision: (level: any) => shouldUseSharedPolicyTableCoreCardDecisionLocal(level)
+    })
+    : null;
 
-    if (ownCharge >= 36) pressure += 2;
-    else if (ownCharge >= 28) pressure += 1;
+const CpuDecisionPendingScore = (CpuDecisionPendingScoreModule && typeof CpuDecisionPendingScoreModule.createCpuDecisionPendingScore === 'function')
+    ? CpuDecisionPendingScoreModule.createCpuDecisionPendingScore({
+        getCurrentCpuBoard,
+        resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
+            ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+            : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+        getBoardCellValueSafe,
+        isCornerCell,
+        isEdgeCell,
+        countAdjacentCellsByValue,
+        getBoardBonusValueAt,
+        getMarkerProfileAt,
+        getTimedMarkerProfileAt,
+        scoreSeatStrategicValue,
+        countBoardStatsForPlayer,
+        getCornerProximity,
+        getCpuSmartnessLevel: (playerKey: any) => ((typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
+            ? Number(cpuSmartness[playerKey])
+            : 1),
+        getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
+        getCpuPolicyCore: () => CpuPolicyCore,
+        buildMovePlanContext,
+        simulatePendingPlacementBoard,
+        getStrongWindLandingProfile,
+        getForcedCornerLaneBonus,
+        getForcedCornerLaneAntiPatternPenalty,
+        isCloneSplitEligibleSource
+    })
+    : null;
 
-    if ((ownEdges - oppEdges) <= -4) pressure += 1;
-    if (oppSpecialCount >= (ownSpecialCount + 2)) pressure += 1;
-    if (ctx.highBonusMoveAvailable === true) pressure += 1;
-
-    if (plan.cornerEmergency !== true) {
-        if (discDiff >= 12) pressure -= 2;
-        else if (discDiff >= 6) pressure -= 1;
-        if (plan.hasCornerMoveNow === true && legalMovesCount > 1) pressure -= 1;
-    }
-
-    return Math.max(0, Math.min(7, pressure));
-}
-
-function resolveCardPlanPressureThreshold(legalMovesCount: any, planState: any, profile: any): any {
-    const plan = planState || {};
-    const activeProfile = profile || makePlanPressureProfile(0, 0, 0, 0);
-    if (plan.cornerEmergency === true) return activeProfile.recoveryEmergencyPressure;
-    if (plan.hasCornerMoveNow === true && legalMovesCount > 1) return activeProfile.cornerWindowPressure;
-    if (Number(plan.recoveryCostGap || 0) > 0) return activeProfile.recoveryGapPressure;
-    return activeProfile.basePressure;
-}
+const CpuDecisionPendingOnnx = (CpuDecisionPendingOnnxModule && typeof CpuDecisionPendingOnnxModule.createCpuDecisionPendingOnnx === 'function')
+    ? CpuDecisionPendingOnnxModule.createCpuDecisionPendingOnnx({
+        getHandCardIdsForPlayer,
+        buildOnnxContext,
+        resolveCurrentLegalMovesCountForPlayer,
+        getCurrentCpuBoard,
+        isPlayableBoard,
+        resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
+            ? (typeof BLACK !== 'undefined' ? BLACK : 1)
+            : (typeof WHITE !== 'undefined' ? WHITE : -1)),
+        simulatePendingPlacementBoard,
+        cloneBoardForCpu,
+        setBoardCellValue,
+        awaitCpuPromiseWithinBudget,
+        getPendingSelectionOnnxTimeout: () => PENDING_SELECTION_ONNX_TIMEOUT,
+        getPendingSelectionValueWeight: () => PENDING_SELECTION_VALUE_WEIGHT,
+        resolveCandidateMoveByCoord,
+        choosePendingTargetWithPolicy,
+        isSameMoveByCoord,
+        scorePendingTargetByType,
+        getCpuSmartnessLevel: (playerKey: any) => ((typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
+            ? Number(cpuSmartness[playerKey])
+            : 1),
+        resolvePolicyOnnxRuntime,
+        canUseStandardBoardCpuPolicy,
+        resolvePendingSelectionOnnxBudgetMs,
+        evaluateCpuOnnxLatencyGate,
+        logCpuOnnxLatencyDegrade,
+        getCpuOnnxBudgetTimeout: () => CPU_ONNX_BUDGET_TIMEOUT,
+        cpuDebugLog: (...args: any[]) => cpuDebugLog(...args),
+        warn: (...args: any[]) => console.warn(...args)
+    })
+    : null;
 
 function buildCornerPlanState(playerKey: any, legalMoves: any, usableCardIds: any): any {
-    const gs = (typeof gameState !== 'undefined') ? gameState : null;
-    const cs = (typeof cardState !== 'undefined') ? cardState : null;
-    const board = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
-    const playerValue = playerKey === 'black'
-        ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-        : (typeof WHITE !== 'undefined' ? WHITE : -1);
-    const ownCharge = cs && cs.charge && Number.isFinite(cs.charge[playerKey]) ? Number(cs.charge[playerKey]) : 0;
-    const corners = countCornerControl(board, playerValue);
-
-    const moves = Array.isArray(legalMoves) ? legalMoves : [];
-    const hasCornerMoveNow = moves.some((m) => m && isCornerCell(m.row, m.col, board));
-    const hasEdgeMoveNow = moves.some((m) => m && !isCornerCell(m.row, m.col, board) && isEdgeCell(m.row, m.col, board));
-    let maxBoardBonusOnLegalMoves = 0;
-    for (const m of moves) {
-        if (!m || !Number.isInteger(m.row) || !Number.isInteger(m.col)) continue;
-        const b = getBoardBonusValueAt(m.row, m.col);
-        if (b > maxBoardBonusOnLegalMoves) maxBoardBonusOnLegalMoves = b;
+    if (CpuDecisionMovePlan && typeof CpuDecisionMovePlan.buildCornerPlanState === 'function') {
+        return CpuDecisionMovePlan.buildCornerPlanState(playerKey, legalMoves, usableCardIds);
     }
-
-    const usableSet = new Set((Array.isArray(usableCardIds) ? usableCardIds : []).map((id) => String(id)));
-    const handIds = getHandCardIdsForPlayer(playerKey);
-    let recoveryReady = false;
-    let holdReady = false;
-    let recoveryCostGap = Number.POSITIVE_INFINITY;
-    for (const cardId of handIds) {
-        const cardType = resolveCardType(cardId, null);
-        if (!cardType) continue;
-        const cost = (typeof CardLogic !== 'undefined' && CardLogic && typeof CardLogic.getCardCost === 'function')
-            ? Number(CardLogic.getCardCost(cardId) || 0)
-            : 0;
-        if (isRecoveryCardType(cardType)) {
-            if (usableSet.has(String(cardId)) && ownCharge >= cost) {
-                recoveryReady = true;
-            } else {
-                recoveryCostGap = Math.min(recoveryCostGap, Math.max(0, cost - ownCharge));
-            }
-        }
-        if (isHoldCardType(cardType) && usableSet.has(String(cardId)) && ownCharge >= cost) {
-            holdReady = true;
-        }
-    }
-    if (!Number.isFinite(recoveryCostGap)) recoveryCostGap = 0;
-
-    const cornerEmergency = (
-        corners.oppCorners > corners.ownCorners ||
-        (!hasCornerMoveNow && corners.oppCorners > 0)
-    );
-    const cornerHoldMode = !cornerEmergency && corners.ownCorners > 0 && corners.ownCorners >= corners.oppCorners;
-
     return {
-        ownCorners: corners.ownCorners,
-        oppCorners: corners.oppCorners,
-        hasCornerMoveNow,
-        hasEdgeMoveNow,
-        cornerEmergency,
-        cornerHoldMode,
-        recoveryReady,
-        recoveryCostGap,
-        maxBoardBonusOnLegalMoves,
-        highBonusMoveAvailable: maxBoardBonusOnLegalMoves >= 3
+        ownCorners: 0,
+        oppCorners: 0,
+        hasCornerMoveNow: false,
+        hasEdgeMoveNow: false,
+        cornerEmergency: false,
+        cornerHoldMode: false,
+        recoveryReady: false,
+        recoveryCostGap: 0,
+        maxBoardBonusOnLegalMoves: 0,
+        highBonusMoveAvailable: false
     };
 }
 
 function isCardChoiceAllowedByPlan(playerKey: any, level: any, legalMovesCount: any, cardId: any, cardDef: any, planState: any, decisionContext: any): any {
-    if (!cardId) return false;
-    if (!Number.isFinite(level) || level < 6) return true;
-    if (!Number.isFinite(legalMovesCount) || legalMovesCount <= 0) return true;
-
-    const plan = planState || buildCornerPlanState(playerKey, [], []);
-    const cardType = resolveCardType(cardId, cardDef);
-    if (!cardType) return true;
-
-    const forceUseCard = !!(decisionContext && decisionContext.forceUseCard === true);
-    const ownCharge = Number.isFinite(decisionContext && decisionContext.ownCharge)
-        ? Number(decisionContext.ownCharge)
-        : 0;
-    const reserveChargeFloor = Number.isFinite(decisionContext && decisionContext.reserveChargeFloor)
-        ? Number(decisionContext.reserveChargeFloor)
-        : 0;
-    const lowDiscEmergency = !!(decisionContext && decisionContext.lowDiscEmergency === true);
-    const criticalLowDiscEmergency = !!(decisionContext && decisionContext.criticalLowDiscEmergency === true);
-    const hasCornerMoveNow = !!(plan && plan.hasCornerMoveNow === true);
-    const lowChargeTight = ownCharge <= Math.max(8, reserveChargeFloor + 2);
-    const maxLegalFlips = Number.isFinite(decisionContext && decisionContext.maxLegalFlips)
-        ? Math.max(0, Math.floor(Number(decisionContext.maxLegalFlips)))
-        : 0;
-    const maxLegalGain = Number.isFinite(decisionContext && decisionContext.maxLegalGain)
-        ? Math.max(0, Number(decisionContext.maxLegalGain))
-        : maxLegalFlips;
-    const maxLegalBoardBonus = Number.isFinite(decisionContext && decisionContext.maxLegalBoardBonus)
-        ? Math.max(0, Number(decisionContext.maxLegalBoardBonus))
-        : 0;
-    const oppHandSize = Number.isFinite(decisionContext && decisionContext.oppHandSize)
-        ? Math.max(0, Math.floor(Number(decisionContext.oppHandSize)))
-        : 0;
-    const handSize = Number.isFinite(decisionContext && decisionContext.handSize)
-        ? Math.max(0, Math.floor(Number(decisionContext.handSize)))
-        : 0;
-    const highYieldChargeRecovery = (
-        ((cardType === 'GOLD_STONE' || cardType === 'SILVER_STONE' || cardType === 'RAINBOW_STONE') &&
-            maxLegalFlips >= 3 &&
-            maxLegalGain >= 3) ||
-        (cardType === 'CRYSTAL_STONE' &&
-            maxLegalBoardBonus >= 3) ||
-        (cardType === 'PLUNDER_WILL' &&
-            maxLegalFlips >= 3 &&
-            maxLegalGain >= 3 &&
-            Number.isFinite(decisionContext && decisionContext.oppCharge) &&
-            Number(decisionContext.oppCharge) >= 3)
-    );
-
-    // When a legal corner exists, Lv6 should just take the corner instead of
-    // pre-spending charge on setup/protection cards.
-    if (hasCornerMoveNow && !forceUseCard) {
-        return false;
+    if (CpuDecisionMovePlan && typeof CpuDecisionMovePlan.isCardChoiceAllowedByPlan === 'function') {
+        return CpuDecisionMovePlan.isCardChoiceAllowedByPlan(playerKey, level, legalMovesCount, cardId, cardDef, planState, decisionContext);
     }
-
-    // When charge is tight, only allow direct recovery/swing cards or true
-    // survival cards. This keeps non-corner utility from stealing charge that
-    // should be reserved for corner take / corner recapture.
-    if (
-        lowChargeTight &&
-        !forceUseCard &&
-        !criticalLowDiscEmergency &&
-        !highYieldChargeRecovery &&
-        !isRecoveryCardType(cardType) &&
-        !WHITE_LV6_CORNER_SWING_KEEP_TYPES.has(cardType)
-    ) {
-        if (!(lowDiscEmergency && isHoldCardType(cardType))) {
-            return false;
-        }
-    }
-
-    const profile = getCardPlanPressureProfile(cardType);
-    if (!profile) return true;
-
-    const planPressure = computeCardPlanPressure(level, legalMovesCount, plan, decisionContext);
-    const requiredPressure = resolveCardPlanPressureThreshold(legalMovesCount, plan, profile);
-    return planPressure >= requiredPressure;
+    return !!cardId;
 }
 
 function buildMovePlanContext(playerKey: any, level: any, candidateMoves: any): any {
-    const gs = (typeof gameState !== 'undefined') ? gameState : null;
-    const cs = (typeof cardState !== 'undefined') ? cardState : null;
-    const board = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
-    if (!isPlayableBoard(board)) return null;
-    const pending = readCpuPendingEffect(playerKey, cs);
-    const pendingType = resolvePendingType(playerKey);
-    const playerValue = playerKey === 'black'
-        ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-        : (typeof WHITE !== 'undefined' ? WHITE : -1);
-    const ownCharge = cs && cs.charge && Number.isFinite(cs.charge[playerKey])
-        ? Number(cs.charge[playerKey])
-        : 0;
-    const boardStats = countBoardStatsForPlayer(playerValue);
-    const totalCells = Math.max(1, countPlayableCells(board));
-    const occupied = Math.max(0, totalCells - Math.max(0, Number(boardStats.empties) || 0));
-    const ownDiscs = Math.max(0, Math.min(
-        occupied,
-        Math.floor((occupied + (Number(boardStats.discDiff) || 0)) / 2)
-    ));
-    const usable = (typeof CardLogic !== 'undefined' && CardLogic)
-        ? getTargetAwareUsableCardIds(playerKey)
-        : [];
-    const plan = buildCornerPlanState(playerKey, candidateMoves, usable);
-    return {
-        level,
-        board,
-        playerValue,
-        ownCharge,
-        ownDiscs,
-        boardBonusByCell: (cs && cs.boardBonusByCell && typeof cs.boardBonusByCell === 'object') ? cs.boardBonusByCell : null,
-        boardBonusConsumedByCell: (cs && cs.boardBonusConsumedByCell && typeof cs.boardBonusConsumedByCell === 'object') ? cs.boardBonusConsumedByCell : null,
-        reserveRecoveryCardReady: plan.recoveryReady === true,
-        reserveRecoveryCardCostGap: Number(plan.recoveryCostGap || 0),
-        hasCornerHoldCardReady: plan.holdReady === true,
-        pendingType,
-        pendingPlacementsRemaining: pending && Number.isFinite(Number(pending.placementsRemaining))
-            ? Number(pending.placementsRemaining)
-            : 0,
-        preferEdgeRetention: plan.cornerHoldMode === true
-    };
+    if (CpuDecisionMovePlan && typeof CpuDecisionMovePlan.buildMovePlanContext === 'function') {
+        return CpuDecisionMovePlan.buildMovePlanContext(playerKey, level, candidateMoves);
+    }
+    return null;
 }
 
 function shouldRespectPendingPlacementPlanStrictly(pendingType: any): any {
-    if (!pendingType || !CpuPolicyCore || typeof CpuPolicyCore.getMovePlanProfileForCardType !== 'function') {
-        return false;
+    if (CpuDecisionMovePlan && typeof CpuDecisionMovePlan.shouldRespectPendingPlacementPlanStrictly === 'function') {
+        return CpuDecisionMovePlan.shouldRespectPendingPlacementPlanStrictly(pendingType);
     }
-
-    const profile = CpuPolicyCore.getMovePlanProfileForCardType(pendingType);
-    if (!profile) return false;
-
-    const stabilityBias = Number(profile.stabilityBias || 0);
-    const emptyAdjBias = Number(profile.emptyAdjBias || 0);
-    const cornerBias = Number(profile.cornerBias || 0);
-    const edgeBias = Number(profile.edgeBias || 0);
-    const innerBias = Number(profile.innerBias || 0);
-
-    return (
-        stabilityBias >= 3 &&
-        emptyAdjBias <= 0 &&
-        innerBias < 0 &&
-        (cornerBias >= 3 || edgeBias >= 2)
-    );
+    return false;
 }
 
 function maybeOverrideWithStrictPendingPlacement(selectedMove: any, candidateMoves: any, playerKey: any, movePlanScoreFn: any): any {
-    if (!selectedMove || !Array.isArray(candidateMoves) || candidateMoves.length <= 1) return selectedMove;
-    if (typeof movePlanScoreFn !== 'function') return selectedMove;
-
-    const pendingType = resolvePendingType(playerKey);
-    if (!shouldRespectPendingPlacementPlanStrictly(pendingType)) return selectedMove;
-
-    const selectedRow = Number(selectedMove.row);
-    const selectedCol = Number(selectedMove.col);
-    const board = getCurrentCpuBoard();
-    const selectedAnchored = isCornerCell(selectedRow, selectedCol, board) || isEdgeCell(selectedRow, selectedCol, board);
-    const selectedPlanScore = Number(movePlanScoreFn(selectedMove) || 0);
-
-    let bestAnchoredMove: any = null;
-    let bestAnchoredScore = Number.NEGATIVE_INFINITY;
-    for (const move of candidateMoves) {
-        if (!move) continue;
-        const row = Number(move.row);
-        const col = Number(move.col);
-        const anchored = isCornerCell(row, col, board) || isEdgeCell(row, col, board);
-        if (!anchored) continue;
-
-        const planScore = Number(movePlanScoreFn(move) || 0);
-        if (planScore > bestAnchoredScore) {
-            bestAnchoredMove = move;
-            bestAnchoredScore = planScore;
-        }
+    if (CpuDecisionMovePlan && typeof CpuDecisionMovePlan.maybeOverrideWithStrictPendingPlacement === 'function') {
+        return CpuDecisionMovePlan.maybeOverrideWithStrictPendingPlacement(selectedMove, candidateMoves, playerKey, movePlanScoreFn);
     }
-
-    if (!bestAnchoredMove) return selectedMove;
-    if (Number(bestAnchoredMove.row) === selectedRow && Number(bestAnchoredMove.col) === selectedCol) {
-        return selectedMove;
-    }
-
-    const planGap = bestAnchoredScore - selectedPlanScore;
-    const selectedBonus = getBoardBonusValueAt(selectedRow, selectedCol);
-    const anchoredBonus = getBoardBonusValueAt(Number(bestAnchoredMove.row), Number(bestAnchoredMove.col));
-    const threshold = selectedAnchored ? 2200 : 3000;
-    if (planGap < threshold) return selectedMove;
-
-    // 持続石の効果は先読み木に完全には乗らないため、
-    // 安定配置の計画差が大きい時だけ最終手を計画側へ戻す。
-    if ((selectedBonus - anchoredBonus) >= 5 && planGap < 5500) {
-        return selectedMove;
-    }
-
-    cpuDebugLog(
-        `[CPU] Lv${cpuSmartness[playerKey] || 1} ${playerKey}: ${pendingType}配置を安定寄せへ補正 (${bestAnchoredMove.row}, ${bestAnchoredMove.col})`
-    );
-    return bestAnchoredMove;
+    return selectedMove;
 }
 
 function countBoardStatsForPlayer(playerValue: any): any {
@@ -2765,131 +2215,47 @@ function countBoardStatsForPlayer(playerValue: any): any {
 }
 
 function buildCardUseDecisionContext(playerKey: any, level: any, legalMovesCount: any, legalMoves?: any, usableCardIds?: any): any {
-    const cs = (typeof cardState !== 'undefined') ? cardState : null;
-    const gs = (typeof gameState !== 'undefined') ? gameState : null;
-    const board = getShapeAwareBoard(gs && Array.isArray(gs.board) ? gs.board : null, gs, cs);
-    const playerValue = playerKey === 'black'
-        ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-        : (typeof WHITE !== 'undefined' ? WHITE : -1);
-    const stats = countBoardStatsForPlayer(playerValue);
-    const edgeControl = countEdgeControl(board, playerValue);
-    const ownCharge = cs && cs.charge && Number.isFinite(cs.charge[playerKey])
-        ? cs.charge[playerKey]
-        : 0;
-    const opponentKey = playerKey === 'black' ? 'white' : 'black';
-    const oppHandSize = cs && cs.hands && Array.isArray(cs.hands[opponentKey])
-        ? cs.hands[opponentKey].length
-        : 0;
-    const oppCharge = cs && cs.charge && Number.isFinite(cs.charge[opponentKey])
-        ? cs.charge[opponentKey]
-        : 0;
-    const handCardIds = cs && cs.hands && Array.isArray(cs.hands[playerKey])
-        ? cs.hands[playerKey].slice()
-        : [];
-    const handSize = handCardIds.length;
-    const deckRemaining = cs && cs.decks && Array.isArray(cs.decks[playerKey])
-        ? cs.decks[playerKey].length
-        : null;
-    const hasDestroyedCardThisTurn = !!(cs && cs.hasDestroyedCardThisTurnByPlayer && cs.hasDestroyedCardThisTurnByPlayer[playerKey]);
-    const planState = buildCornerPlanState(playerKey, legalMoves, usableCardIds);
-    const safeLegalMoves = Array.isArray(legalMoves) ? legalMoves : [];
-    const legalMoveMetrics = (CpuPolicyCore && typeof CpuPolicyCore.computeLegalMoveMetrics === 'function')
-        ? CpuPolicyCore.computeLegalMoveMetrics(safeLegalMoves, (row: any, col: any) => getBoardBonusValueAt(row, col))
-        : {
-            maxLegalFlips: 0,
-            avgLegalFlips: 0,
-            maxLegalGain: 0,
-            maxLegalBoardBonus: 0
-        };
-
-    const markers = cs && Array.isArray(cs.markers) ? cs.markers : [];
-    let ownSpecialCount = 0;
-    let oppSpecialCount = 0;
-    let ownGuardCount = 0;
-    let oppGuardCount = 0;
-    let cloneSplitEligibleSourceCount = 0;
-    const cloneSplitEligibleSourceKeys = new Set();
-    for (const marker of markers) {
-        if (!marker || (marker.kind !== 'specialStone' && marker.kind !== 'bomb')) continue;
-        const row = Number(marker.row);
-        const col = Number(marker.col);
-        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
-        if (getBoardCellValueSafe(board, row, col) === playerValue) {
-            const sourceKey = `${row},${col}`;
-            if (!cloneSplitEligibleSourceKeys.has(sourceKey)) {
-                cloneSplitEligibleSourceKeys.add(sourceKey);
-                cloneSplitEligibleSourceCount += 1;
-            }
-        }
-        if (marker.kind !== 'specialStone') continue;
-        const data = marker.data && typeof marker.data === 'object' ? marker.data : null;
-        const type = data && typeof data.type === 'string' ? data.type : '';
-        if (type === 'METEOR_HOLE') continue;
-        if (marker.owner === playerKey) {
-            ownSpecialCount += 1;
-            if (type === 'GUARD') ownGuardCount += 1;
-        } else if (marker.owner === opponentKey) {
-            oppSpecialCount += 1;
-            if (type === 'GUARD') oppGuardCount += 1;
-        }
+    if (CpuDecisionCardContext && typeof CpuDecisionCardContext.buildCardUseDecisionContext === 'function') {
+        return CpuDecisionCardContext.buildCardUseDecisionContext(playerKey, level, legalMovesCount, legalMoves, usableCardIds);
     }
-
     return {
         level,
         whiteLv6Mode: level >= 6 && playerKey === 'white',
-        playerValue,
+        playerValue: playerKey === 'black' ? 1 : -1,
         legalMovesCount: Number.isFinite(legalMovesCount) ? legalMovesCount : 0,
-        discDiff: stats.discDiff,
-        empties: stats.empties,
-        ownCharge,
-        oppCharge,
-        oppHandSize,
-        handSize,
-        handCardIds,
-        deckRemaining,
-        hasDestroyedCardThisTurn,
+        discDiff: 0,
+        empties: 0,
+        ownCharge: 0,
+        oppCharge: 0,
+        oppHandSize: 0,
+        handSize: 0,
+        handCardIds: [],
+        deckRemaining: null,
+        hasDestroyedCardThisTurn: false,
         forceUseCard: (Number.isFinite(legalMovesCount) ? legalMovesCount : 0) <= 0,
-        ownCorners: planState.ownCorners,
-        oppCorners: planState.oppCorners,
-        ownEdges: edgeControl.ownEdges,
-        oppEdges: edgeControl.oppEdges,
-        hasCornerMoveNow: planState.hasCornerMoveNow,
-        hasEdgeMoveNow: planState.hasEdgeMoveNow,
-        cornerEmergency: planState.cornerEmergency,
-        cornerHoldMode: planState.cornerHoldMode,
-        recoveryCostGap: planState.recoveryCostGap,
-        highBonusMoveAvailable: planState.highBonusMoveAvailable,
-        maxLegalFlips: legalMoveMetrics.maxLegalFlips,
-        avgLegalFlips: legalMoveMetrics.avgLegalFlips,
-        maxLegalGain: legalMoveMetrics.maxLegalGain,
-        maxLegalBoardBonus: legalMoveMetrics.maxLegalBoardBonus,
-        cloneSplitEligibleSourceCount,
-        ownSpecialCount,
-        oppSpecialCount,
-        ownGuardCount,
-        oppGuardCount,
+        ownCorners: 0,
+        oppCorners: 0,
+        ownEdges: 0,
+        oppEdges: 0,
+        hasCornerMoveNow: false,
+        hasEdgeMoveNow: false,
+        cornerEmergency: false,
+        cornerHoldMode: false,
+        recoveryCostGap: 0,
+        highBonusMoveAvailable: false,
+        maxLegalFlips: 0,
+        avgLegalFlips: 0,
+        maxLegalGain: 0,
+        maxLegalBoardBonus: 0,
+        cloneSplitEligibleSourceCount: 0,
+        ownSpecialCount: 0,
+        oppSpecialCount: 0,
+        ownGuardCount: 0,
+        oppGuardCount: 0,
         usableCardIds: Array.isArray(usableCardIds) ? usableCardIds.slice() : [],
-        cornerPlanState: planState
+        cornerPlanState: buildCornerPlanState(playerKey, legalMoves, usableCardIds)
     };
 }
-
-const HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE = new Set([
-    'TIME_BOMB',
-    'METEOR_WILL',
-    'BOARD_SHRINK_WILL',
-    'BOARD_SHRINK_GOD',
-    'SWAP_WITH_ENEMY',
-    'POSITION_SWAP_WILL',
-    'TEMPT_WILL',
-    'CAPTURE_WILL',
-    'TELEPORT_WILL',
-    'CELL_TELEPORT_WILL',
-    'BUOYANCY_WILL',
-    'SUPER_BUOYANCY_WILL',
-    'GRAVITY_WILL',
-    'SUPER_GRAVITY_WILL',
-    'SUPER_ATTRACTION_WILL'
-]);
 
 function cloneBoardForCpu(board: any): any {
     const boardUtils = resolveSharedBoardUtilsModule();
@@ -2943,145 +2309,27 @@ function hasCornerMoveOnBoardForPlayer(board: any, playerValue: any): any {
 }
 
 function buildCardQuiescenceSnapshot(playerKey: any, level: any, legalMoves: any, context: any): any {
-    if (!Number.isFinite(level) || level < 6) return null;
-    if (!Array.isArray(legalMoves) || legalMoves.length <= 0) return null;
-    if (!CpuPolicyCore || typeof CpuPolicyCore.chooseMoveByLookahead !== 'function') return null;
-    if (!isPlayableBoard(getCurrentCpuBoard())) return null;
-
-    const board = getCurrentCpuBoard();
-    const playerValue = Number.isFinite(context && context.playerValue)
-        ? (Number(context.playerValue) >= 0 ? 1 : -1)
-        : (playerKey === 'black' ? 1 : -1);
-    const lv6Lookahead = buildLv6LookaheadOptions(level, board, legalMoves.length, playerKey);
-    const timeCaps = resolveLv6LookaheadTimeCaps(playerKey);
-    const onSearchMeta = createLookaheadMetaLogger(playerKey, level, 'card-quiescence');
-    const bestMove = CpuPolicyCore.chooseMoveByLookahead(legalMoves, {
-        board,
-        playerValue,
-        level,
-        depth: Math.max(4, Math.min(7, Number(lv6Lookahead.depth) || 5)),
-        maxBranch: Math.max(4, Math.min(8, Number(lv6Lookahead.maxBranch) || 6)),
-        nodeBudget: Math.max(120_000, Math.min(800_000, Number(lv6Lookahead.nodeBudget) || 350_000)),
-        maxTimeMs: Math.max(300, Math.min(timeCaps.quiescenceMoveCapMs, Number(lv6Lookahead.maxTimeMs) || 900)),
-        endgameSolveEmpties: Math.max(12, Math.min(24, Number(lv6Lookahead.endgameSolveEmpties) || 18)),
-        endgameDepth: Math.max(10, Math.min(20, Number(lv6Lookahead.endgameDepth) || 14)),
-        endgameNodeBudget: Math.max(600_000, Math.min(3_000_000, Number(lv6Lookahead.endgameNodeBudget) || 1_500_000)),
-        endgameMaxTimeMs: Math.max(
-            timeCaps.quiescenceEndgameMinMs,
-            Math.min(timeCaps.quiescenceEndgameCapMs, Number(lv6Lookahead.endgameMaxTimeMs) || 1_600)
-        ),
-        onSearchMeta,
-        boardBonusByCell: (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
-            ? cardState.boardBonusByCell
-            : null,
-        boardBonusConsumedByCell: (cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
-            ? cardState.boardBonusConsumedByCell
-            : null
-    });
-    if (!bestMove) return null;
-
-    const bestMoveBonus = (Number.isInteger(bestMove.row) && Number.isInteger(bestMove.col))
-        ? getBoardBonusValueAt(bestMove.row, bestMove.col)
-        : 0;
-    const bestMoveFlips = Array.isArray(bestMove.flips) ? bestMove.flips.length : 0;
-    const bestMoveCorner = isCornerCell(Number(bestMove.row), Number(bestMove.col), board);
-    const bestMoveEdge = !bestMoveCorner && isEdgeCell(Number(bestMove.row), Number(bestMove.col), board);
-    const nextBoard = applyMoveByFlipsForCpu(board, bestMove, playerValue);
-    const oppCornerAfterBest = nextBoard
-        ? hasCornerMoveOnBoardForPlayer(nextBoard, -playerValue)
-        : false;
-
-    return {
-        bestMove,
-        bestMoveBonus,
-        bestMoveFlips,
-        bestMoveCorner,
-        bestMoveEdge,
-        oppCornerAfterBest
-    };
+    return CpuDecisionCardRisk && typeof CpuDecisionCardRisk.buildCardQuiescenceSnapshot === 'function'
+        ? CpuDecisionCardRisk.buildCardQuiescenceSnapshot(playerKey, level, legalMoves, context)
+        : null;
 }
 
 function shouldHoldCardByQuiescence(playerKey: any, level: any, cardId: any, cardDef: any, context: any, snapshot: any): any {
-    if (!Number.isFinite(level) || level < 6) return false;
-    if (!cardId || !context || !snapshot || !snapshot.bestMove) return false;
-    if (context.forceUseCard === true) return false;
-    if (context.cornerEmergency === true) return false;
-    if (Number(context.discDiff || 0) <= -8) return false;
-    if (Number(context.handSize || 0) >= 4) return false;
-    if (Number(context.ownCharge || 0) >= 24) return false;
-    if (Number(context.legalMovesCount || 0) <= 2) return false;
-
-    const cardType = resolveCardType(cardId, cardDef);
-    if (!HIGH_VARIANCE_CARD_TYPES_FOR_QUIESCENCE.has(cardType)) return false;
-    if (snapshot.oppCornerAfterBest === true) return false;
-
-    const discDiff = Number(context.discDiff || 0);
-    if (snapshot.bestMoveCorner === true && discDiff >= 0) return true;
-    if (snapshot.bestMoveBonus >= 2 && discDiff >= 0) return true;
-    if (snapshot.bestMoveFlips >= 6 && discDiff >= 4) return true;
-    if (snapshot.bestMoveEdge === true && discDiff >= 10) return true;
-    return false;
+    return !!(CpuDecisionCardRisk && typeof CpuDecisionCardRisk.shouldHoldCardByQuiescence === 'function'
+        ? CpuDecisionCardRisk.shouldHoldCardByQuiescence(playerKey, level, cardId, cardDef, context, snapshot)
+        : false);
 }
 
 function isCardChoiceAllowedByRisk(playerKey: any, level: any, legalMovesCount: any, cardId: any, prebuiltContext: any): any {
-    if (!cardId) return false;
-    if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function' || typeof CardLogic === 'undefined' || !CardLogic) {
-        return true;
-    }
-    try {
-        const context = prebuiltContext || buildCardUseDecisionContext(playerKey, level, legalMovesCount);
-        const decision = CpuPolicyCore.scoreCardUseDecision(
-            cardId,
-            CardLogic.getCardCost,
-            CardLogic.getCardDef,
-            context
-        );
-        if (!decision) return true;
-        return decision.shouldUse === true;
-    } catch (e) {
-        return true;
-    }
+    return CpuDecisionCardRisk && typeof CpuDecisionCardRisk.isCardChoiceAllowedByRisk === 'function'
+        ? CpuDecisionCardRisk.isCardChoiceAllowedByRisk(playerKey, level, legalMovesCount, cardId, prebuiltContext)
+        : !!cardId;
 }
 
 function isCardChoiceAllowedByHighConfidence(playerKey: any, level: any, legalMovesCount: any, cardId: any, prebuiltContext: any): any {
-    if (!cardId) return false;
-    if (!Number.isFinite(level) || level < 6) return true;
-    if (!CpuPolicyCore || typeof CpuPolicyCore.scoreCardUseDecision !== 'function' || typeof CardLogic === 'undefined' || !CardLogic) {
-        return true;
-    }
-    try {
-        const context = prebuiltContext || buildCardUseDecisionContext(playerKey, level, legalMovesCount);
-        if (context && context.forceUseCard === true) return true;
-
-        const decision = CpuPolicyCore.scoreCardUseDecision(
-            cardId,
-            CardLogic.getCardCost,
-            CardLogic.getCardDef,
-            context
-        );
-        if (!decision) return true;
-
-        let requiredMargin = 6;
-        if (context && context.hasCornerMoveNow === true) requiredMargin += 10;
-        if (context && context.highBonusMoveAvailable === true) requiredMargin += 3;
-        if (context && Number.isFinite(context.discDiff) && context.discDiff >= 8) requiredMargin += 2;
-        if (context && Number.isFinite(context.discDiff) && context.discDiff <= -10) requiredMargin -= 8;
-        if (context && Number.isFinite(context.handSize) && context.handSize >= 5) requiredMargin -= 14;
-        else if (context && Number.isFinite(context.handSize) && context.handSize >= 4) requiredMargin -= 10;
-        else if (context && Number.isFinite(context.handSize) && context.handSize >= 3) requiredMargin -= 6;
-        if (context && Number.isFinite(context.ownCharge) && context.ownCharge >= 24) requiredMargin -= 4;
-        if (context && Number.isFinite(context.ownCharge) && context.ownCharge >= 36) requiredMargin -= 4;
-        if (context && Number.isFinite(context.legalMovesCount) && context.legalMovesCount <= 3) requiredMargin -= 10;
-        if (context && context.lowDiscEmergency === true) requiredMargin -= 6;
-        if (context && context.criticalLowDiscEmergency === true) requiredMargin -= 10;
-        if (context && context.whiteLv6Mode === true) requiredMargin -= 3;
-        if (context && context.whiteLv6Mode === true && Number.isFinite(context.maxLegalFlips) && context.maxLegalFlips >= 4) requiredMargin -= 4;
-        if (requiredMargin < 0) requiredMargin = 0;
-
-        return Number(decision.score) >= (Number(decision.minUseScore) + requiredMargin);
-    } catch (e) {
-        return true;
-    }
+    return CpuDecisionCardRisk && typeof CpuDecisionCardRisk.isCardChoiceAllowedByHighConfidence === 'function'
+        ? CpuDecisionCardRisk.isCardChoiceAllowedByHighConfidence(playerKey, level, legalMovesCount, cardId, prebuiltContext)
+        : !!cardId;
 }
 
 function _isCpuTrapOnlyModeEnabled(playerKey: any): any {
@@ -3346,101 +2594,30 @@ function selectCardToUse(playerKey: any): any {
 }
 
 function selectHandCardToDestroy(playerKey: any): any {
-    if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return null;
-    if (readCpuPendingEffect(playerKey)) return null;
-    if (!CpuPolicyCore || typeof CpuPolicyCore.chooseHandDestroyTargetForCycle !== 'function') return null;
-    const cardLogicRef = resolveCardLogicForCpuDecision();
-    if (!cardLogicRef) return null;
-
-    const hand = cardState.hands[playerKey].slice();
-    if (hand.length <= 0) return null;
-
-    const level = resolveCpuSmartnessLevel(playerKey);
-    if (level < 4) return null;
-
-    const player = playerKey === 'black'
-        ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-        : (typeof WHITE !== 'undefined' ? WHITE : -1);
-    const protection = (typeof getActiveProtectionForPlayer === 'function') ? getActiveProtectionForPlayer(player) : null;
-    const perma = (typeof getFlipBlockers === 'function') ? getFlipBlockers() : [];
-    const legalMoves = (typeof getLegalMoves === 'function') ? (getLegalMoves(gameState, protection, perma) || []) : [];
-    const usableNow = getTargetAwareUsableCardIds(playerKey);
-    const decisionContext = buildCardUseDecisionContext(playerKey, level, legalMoves.length, legalMoves, usableNow);
-
-    const selected = CpuPolicyCore.chooseHandDestroyTargetForCycle(
-        hand,
-        usableNow,
-        typeof cardLogicRef.getCardCost === 'function' ? cardLogicRef.getCardCost : () => 0,
-        typeof cardLogicRef.getCardDef === 'function' ? cardLogicRef.getCardDef : () => null,
-        decisionContext
-    );
-    if (!selected || !selected.cardId) return null;
-    return selected;
+    if (CpuDecisionCardActions && typeof CpuDecisionCardActions.selectHandCardToDestroy === 'function') {
+        return CpuDecisionCardActions.selectHandCardToDestroy(playerKey);
+    }
+    return null;
 }
 
 function applyHandCardDestroy(playerKey: any, destroyChoice: any): any {
-    if (!destroyChoice || !destroyChoice.cardId) return false;
-    if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return false;
-    if (!cardState.hands[playerKey].includes(destroyChoice.cardId)) return false;
-
-    const destroyCardId = destroyChoice.cardId;
-    const cardLogicRef = resolveCardLogicForCpuDecision();
-    const destroyCardDef = destroyChoice.cardDef || (
-        (cardLogicRef && typeof cardLogicRef.getCardDef === 'function')
-            ? cardLogicRef.getCardDef(destroyCardId)
-            : null
-    );
-    const pipelineResult = runCpuHandDestroyViaPipeline(playerKey, destroyCardId);
-    if (pipelineResult && pipelineResult.ok) {
-        const level = resolveCpuSmartnessLevel(playerKey);
-        const cardName = (destroyCardDef && destroyCardDef.name) ? destroyCardDef.name : destroyCardId;
-        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 手札破壊 - ${cardName} (${destroyChoice.reason || 'cycle'})`);
-        if (typeof emitLogAdded === 'function') {
-            emitLogAdded(`${playerKey === 'black' ? '黒' : '白'}(Lv${level})が手札を破壊: ${cardName}`);
-        }
-        return true;
+    if (CpuDecisionCardActions && typeof CpuDecisionCardActions.applyHandCardDestroy === 'function') {
+        return CpuDecisionCardActions.applyHandCardDestroy(playerKey, destroyChoice);
     }
-    if (pipelineResult && pipelineResult.ok === false) {
-        return false;
-    }
-
-    if (!cardLogicRef || typeof cardLogicRef.destroyHandCard !== 'function') return false;
-    const direct = cardLogicRef.destroyHandCard(cardState, playerKey, destroyCardId);
-    if (!direct || !direct.applied) return false;
-    emitCpuSelectionStateChange();
-
-    const level = resolveCpuSmartnessLevel(playerKey);
-    const cardName = (destroyCardDef && destroyCardDef.name) ? destroyCardDef.name : destroyCardId;
-    cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 手札破壊(direct) - ${cardName} (${destroyChoice.reason || 'cycle'})`);
-    if (typeof emitLogAdded === 'function') {
-        emitLogAdded(`${playerKey === 'black' ? '黒' : '白'}(Lv${level})が手札を破壊: ${cardName}`);
-    }
-    return true;
+    return false;
 }
 
 function cpuMaybeDestroyHandCardWithPolicy(playerKey: any): any {
-    if (isOthelloModeForCpuDecision()) return false;
-    if (!cardState || !cardState.hands || !Array.isArray(cardState.hands[playerKey])) return false;
-    if (readCpuPendingEffect(playerKey)) return false;
-
-    const destroyChoice = selectHandCardToDestroy(playerKey);
-    if (!destroyChoice) return false;
-    return applyHandCardDestroy(playerKey, destroyChoice);
+    if (CpuDecisionCardActions && typeof CpuDecisionCardActions.cpuMaybeDestroyHandCardWithPolicy === 'function') {
+        return CpuDecisionCardActions.cpuMaybeDestroyHandCardWithPolicy(playerKey);
+    }
+    return false;
 }
 
 function playCpuCardUseHandAnimation(payload: any): void {
-    try {
-        const playFn = cpuDecisionRuntime && typeof cpuDecisionRuntime.playCardUseHandAnimation === 'function'
-            ? cpuDecisionRuntime.playCardUseHandAnimation
-            : null;
-        if (typeof playFn !== 'function') return;
-        const visualPlaybackActive = cpuDecisionRuntime && typeof cpuDecisionRuntime.isVisualPlaybackActive === 'function'
-            ? cpuDecisionRuntime.isVisualPlaybackActive() === true
-            : false;
-        if (visualPlaybackActive) return;
-        const result = playFn(payload);
-        if (result && typeof result.catch === 'function') result.catch(() => {});
-    } catch (e) { /* ignore */ }
+    if (CpuDecisionCardActions && typeof CpuDecisionCardActions.playCpuCardUseHandAnimation === 'function') {
+        CpuDecisionCardActions.playCpuCardUseHandAnimation(payload);
+    }
 }
 
 /**
@@ -3449,126 +2626,16 @@ function playCpuCardUseHandAnimation(payload: any): void {
  * Returns true on success, false if application failed or card not in hand.
  */
 function applyCardChoice(playerKey: any, cardChoice: any): any {
-    // Side-effectful application: applies the chosen card and updates UI/state
-    if (!cardChoice) return false;
-    const { cardId, cardDef } = cardChoice;
-    if (cardState.hands[playerKey].indexOf(cardId) === -1) return false;
-    const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-        ? Number(cpuSmartness[playerKey])
-        : 1;
-    const fallbackCardCost = (cardDef && Number.isFinite(cardDef.cost)) ? cardDef.cost : null;
-    const fallbackCardName = (cardDef && cardDef.name) ? cardDef.name : null;
-    const pipelineResult = runCpuCardUseViaPipeline(playerKey, cardId, cardDef);
-    if (pipelineResult && pipelineResult.ok) {
-        const appliedCardId = pipelineResult.appliedCardId || cardId;
-        const appliedCardDef = pipelineResult.appliedCardDef || cardDef;
-
-        emitCpuCardUseLog(playerKey, level, appliedCardDef, appliedCardId);
-        return true;
+    if (CpuDecisionCardActions && typeof CpuDecisionCardActions.applyCardChoice === 'function') {
+        return CpuDecisionCardActions.applyCardChoice(playerKey, cardChoice);
     }
-    if (pipelineResult && pipelineResult.ok === false) {
-        const rejectedReason = pipelineResult.res && pipelineResult.res.rejectedReason
-            ? pipelineResult.res.rejectedReason
-            : 'PIPELINE_REJECTED';
-        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: カード使用拒否(${rejectedReason}) - ${cardDef ? cardDef.name : cardId}`);
-        return false;
-    }
-
-    if (typeof CardLogic === 'undefined' || !CardLogic.applyCardUsage) {
-        console.warn('[CPU] CardLogic.applyCardUsage not available, skipping card use');
-        return false;
-    }
-    const ok = CardLogic.applyCardUsage(cardState, gameState, playerKey, cardId);
-    if (!ok) return false;
-
-    // Normalize CPU card-use visuals through PlaybackEvents so CPU/AUTO and manual use
-    // the same animation path.
-    let emittedCardUsePlayback = false;
-    try {
-        if (
-            typeof CardLogic.flushPresentationEvents === 'function' &&
-            typeof TurnPipelineUIAdapter !== 'undefined' &&
-            TurnPipelineUIAdapter &&
-            typeof TurnPipelineUIAdapter.mapToPlaybackEvents === 'function'
-        ) {
-            const pres = CardLogic.flushPresentationEvents(cardState) || [];
-            const playback = TurnPipelineUIAdapter.mapToPlaybackEvents(pres, cardState, gameState) || [];
-            if (playback.length > 0) {
-                emitPresentationEventForCpu({ type: 'PLAYBACK_EVENTS', events: playback, meta: { source: 'cpu_card_use' } });
-                emittedCardUsePlayback = true;
-            } else {
-                for (const ev of pres) emitPresentationEventForCpu(ev);
-            }
-        }
-    } catch (e) {
-        // Keep game flow even if animation conversion fails.
-    }
-    if (!emittedCardUsePlayback) {
-        emitPresentationEventForCpu({
-            type: 'PLAYBACK_EVENTS',
-            events: [{
-                type: 'card_use_animation',
-                phase: 1,
-                targets: [{
-                    player: playerKey,
-                    owner: playerKey,
-                    cardId: cardId,
-                    cost: fallbackCardCost,
-                    name: fallbackCardName
-                }]
-            }],
-            meta: { source: 'cpu_card_use_fallback' }
-        });
-    }
-
-    // Browser safety fallback: if playback wiring misses in this build/order, play once directly.
-    // Duplicate calls are suppressed by the UI animation implementation via timestamp guard.
-    playCpuCardUseHandAnimation({
-        player: playerKey,
-        owner: playerKey,
-        cardId: cardId,
-        cost: fallbackCardCost,
-        name: fallbackCardName
-    });
-
-    emitCpuCardUseLog(playerKey, level, cardDef || null, cardId || null);
-
-    if (typeof emitCardStateChange === 'function') emitCardStateChange();
-    if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
-
-    return true;
+    return false;
 }
 
 function cpuMaybeUseCardWithPolicy(playerKey: any): any {
-    if (isOthelloModeForCpuDecision()) return false;
-    // Backwards-compatible wrapper that selects then applies; preserves original behavior
-    if (typeof cardState === 'undefined' || !cardState || !cardState.hasUsedCardThisTurnByPlayer) {
-        // Defensive: in some browser load orders cardState may not be initialized yet
-        console.warn('[CPU] cardState not initialized; skipping card use');
-        return false;
+    if (CpuDecisionCardActions && typeof CpuDecisionCardActions.cpuMaybeUseCardWithPolicy === 'function') {
+        return CpuDecisionCardActions.cpuMaybeUseCardWithPolicy(playerKey);
     }
-    if (cardState.hasUsedCardThisTurnByPlayer[playerKey]) return false;
-
-    const level = cpuSmartness && cpuSmartness[playerKey] ? cpuSmartness[playerKey] : 1;
-    const cardChoice = selectCardToUse(playerKey);
-    if (!cardChoice) {
-        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: カードスキップ (no candidate)`);
-        return false;
-    }
-
-    if (applyCardChoice(playerKey, cardChoice)) return true;
-
-    // Try other usable cards as fallback (preserve original retry behavior)
-    if (typeof CardLogic !== 'undefined') {
-        const usable = getTargetAwareUsableCardIds(playerKey);
-        for (const id of usable) {
-            if (id === (cardChoice && cardChoice.cardId)) continue;
-            const def = CardLogic.getCardDef ? CardLogic.getCardDef(id) : null;
-            if (applyCardChoice(playerKey, { cardId: id, cardDef: def })) return true;
-        }
-    }
-
-    cpuDebugLog(`[CPU] Lv${level} ${playerKey}: カード使用に失敗`);
     return false;
 }
 
@@ -4292,542 +3359,10 @@ function simulatePendingPlacementBoard(board: any, playerValue: any, target: any
 }
 
 function scorePendingTargetByType(playerKey: any, pendingType: any, target: any, pending: any): any {
-    if (!target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return Number.NEGATIVE_INFINITY;
-    const board = getCurrentCpuBoard();
-    if (!board) return Number.NEGATIVE_INFINITY;
-
-    const playerValue = playerKey === 'black'
-        ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-        : (typeof WHITE !== 'undefined' ? WHITE : -1);
-    const opponentValue = -playerValue;
-    const row = target.row;
-    const col = target.col;
-    const cell = getBoardCellValueSafe(board, row, col);
-    const onBoard = cell !== null;
-    const own = onBoard && cell === playerValue;
-    const opp = onBoard && cell === opponentValue;
-    const empty = onBoard && cell === 0;
-    const corner = onBoard && isCornerCell(row, col, board);
-    const edge = onBoard && !corner && isEdgeCell(row, col, board);
-    const ownAdj = onBoard ? countAdjacentCellsByValue(board, row, col, playerValue) : 0;
-    const oppAdj = onBoard ? countAdjacentCellsByValue(board, row, col, opponentValue) : 0;
-    const emptyAdj = onBoard ? countAdjacentCellsByValue(board, row, col, 0) : 0;
-    const bonus = onBoard ? getBoardBonusValueAt(row, col) : 0;
-    const markerProfile = getMarkerProfileAt(playerKey, row, col);
-    const timedProfile = onBoard ? getTimedMarkerProfileAt(playerKey, row, col) : null;
-    const seatValue = onBoard ? scoreSeatStrategicValue(playerKey, row, col, markerProfile) : 0;
-    const stats = countBoardStatsForPlayer(playerValue);
-    const discDiff = Number.isFinite(stats.discDiff) ? Number(stats.discDiff) : 0;
-    const cornerHint = getCornerProximity(row, col, board);
-    const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-        ? Number(cpuSmartness[playerKey])
-        : 1;
-    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
-
-    function hasSpecialMarkerTypeAt(targetRow: any, targetCol: any, markerType: any): any {
-        return markers.some((marker: any) => (
-            marker &&
-            marker.kind === 'specialStone' &&
-            marker.row === targetRow &&
-            marker.col === targetCol &&
-            marker.data &&
-            marker.data.type === markerType
-        ));
+    if (CpuDecisionPendingScore && typeof CpuDecisionPendingScore.scorePendingTargetByType === 'function') {
+        return CpuDecisionPendingScore.scorePendingTargetByType(playerKey, pendingType, target, pending);
     }
-
-    function scoreBoardShrinkLine(lineCells: any): any {
-        if (!Array.isArray(lineCells) || lineCells.length <= 0) return Number.NEGATIVE_INFINITY;
-        let lineScore = 0;
-        let changeableCount = 0;
-        for (const lineCell of lineCells) {
-            if (!lineCell || !Number.isInteger(lineCell.row) || !Number.isInteger(lineCell.col)) continue;
-            const lineRow = lineCell.row;
-            const lineCol = lineCell.col;
-            const boardValue = getBoardCellValueSafe(board, lineRow, lineCol);
-            if (boardValue === null) continue;
-            const lineCorner = isCornerCell(lineRow, lineCol, board);
-            const lineEdge = !lineCorner && isEdgeCell(lineRow, lineCol, board);
-            const absProtected = hasSpecialMarkerTypeAt(lineRow, lineCol, 'ABSOLUTE_PROTECTED');
-            const frozen = hasSpecialMarkerTypeAt(lineRow, lineCol, 'FREEZE');
-            if (absProtected) {
-                lineScore -= 260;
-                continue;
-            }
-            if (frozen) {
-                lineScore -= 180;
-                continue;
-            }
-            changeableCount += 1;
-            if (boardValue === opponentValue) {
-                lineScore += lineCorner ? 1600 : (lineEdge ? 520 : 180);
-            } else if (boardValue === playerValue) {
-                lineScore += lineCorner ? -2600 : (lineEdge ? -320 : -120);
-            } else {
-                lineScore += lineCorner ? 260 : (lineEdge ? 120 : 40);
-            }
-            const lineOwnAdj = countAdjacentCellsByValue(board, lineRow, lineCol, playerValue);
-            const lineOppAdj = countAdjacentCellsByValue(board, lineRow, lineCol, opponentValue);
-            const lineMarkerProfile = getMarkerProfileAt(playerKey, lineRow, lineCol);
-            lineScore += (lineOppAdj - lineOwnAdj) * (lineEdge ? 60 : 34);
-            lineScore += (lineMarkerProfile.oppSpecialScore - lineMarkerProfile.ownSpecialScore) * 1.4;
-            lineScore += (lineMarkerProfile.oppBombCount - lineMarkerProfile.ownBombCount) * 180;
-            lineScore += getBoardBonusValueAt(lineRow, lineCol) * 120;
-        }
-        if (changeableCount <= 0) return -4000;
-        return lineScore + (changeableCount * 140);
-    }
-
-    let score = 0;
-    const destructiveMarkerScore =
-        markerProfile.oppSpecialScore - markerProfile.ownSpecialScore +
-        ((markerProfile.oppBombCount - markerProfile.ownBombCount) * 220);
-
-    switch (String(pendingType || '')) {
-    case 'FREE_PLACEMENT':
-    case 'LAST_RESORT': {
-        if (!empty) return -5000;
-        const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-            ? Number(cpuSmartness[playerKey])
-            : 1;
-        const isLastResort = String(pendingType || '') === 'LAST_RESORT';
-        const placementsRemaining = Math.max(1, Number(pending && pending.placementsRemaining) || (isLastResort ? 3 : 1));
-        const flips = Array.isArray(target.flips) ? target.flips.length : 0;
-
-        if (corner) score += 42000;
-        else if (edge) score += 8600;
-        else score -= 1400;
-
-        score += flips * 420;
-        score += bonus * 900;
-        score += (oppAdj * 180) - (ownAdj * 110);
-        score += (emptyAdj * 70);
-
-        if (cornerHint) {
-            const cornerCell = getBoardCellValueSafe(board, cornerHint.corner[0], cornerHint.corner[1]);
-            if (cornerCell === 0) {
-                score += cornerHint.kind === 'X' ? -18000 : -11000;
-            } else if (cornerCell === playerValue) {
-                score += cornerHint.kind === 'X' ? 1600 : 900;
-            }
-        }
-
-        const planContext = (CpuPolicyCore && typeof CpuPolicyCore.scoreMoveForCornerEdgePlan === 'function')
-            ? buildMovePlanContext(playerKey, Math.max(4, level), [])
-            : null;
-        if (planContext && CpuPolicyCore && typeof CpuPolicyCore.scoreMoveForCornerEdgePlan === 'function') {
-            const moveLike = {
-                row,
-                col,
-                flips: Array.isArray(target.flips) ? target.flips : []
-            };
-            let planScore = Number(CpuPolicyCore.scoreMoveForCornerEdgePlan(moveLike, planContext) || 0);
-            if (!Number.isFinite(planScore)) planScore = 0;
-            score += planScore * 0.18;
-        }
-
-        const after = simulatePendingPlacementBoard(board, playerValue, target);
-        if (after && CpuPolicyCore && typeof CpuPolicyCore.scoreMoveForCornerEdgePlan === 'function') {
-            const afterContext = {
-                level: Math.max(4, level),
-                board: after,
-                playerValue,
-                ownCharge: (cardState && cardState.charge && Number.isFinite(cardState.charge[playerKey]))
-                    ? Number(cardState.charge[playerKey])
-                    : 0,
-                boardBonusByCell: (cardState && cardState.boardBonusByCell && typeof cardState.boardBonusByCell === 'object')
-                    ? cardState.boardBonusByCell
-                    : null,
-                boardBonusConsumedByCell: (cardState && cardState.boardBonusConsumedByCell && typeof cardState.boardBonusConsumedByCell === 'object')
-                    ? cardState.boardBonusConsumedByCell
-                    : null,
-                reserveRecoveryCardReady: false,
-                reserveRecoveryCardCostGap: 0,
-                hasCornerHoldCardReady: false,
-                pendingType: String(pendingType || ''),
-                pendingPlacementsRemaining: placementsRemaining,
-                preferEdgeRetention: true
-            };
-            // Penalize spots that likely create immediate corner swing against us.
-            let postRisk = Number(CpuPolicyCore.scoreMoveForCornerEdgePlan(
-                { row, col, flips: [] },
-                afterContext
-            ) || 0);
-            if (!Number.isFinite(postRisk)) postRisk = 0;
-            score += postRisk * 0.04;
-        }
-
-        if (isLastResort) {
-            if (placementsRemaining >= 2) {
-                if (!corner && !edge && bonus <= 0) score -= 2000;
-                score += (discDiff <= -8 ? 320 : 0);
-            } else {
-                score += flips * 220;
-                if (discDiff <= -6) score += 280;
-                if (discDiff >= 8 && !corner && !edge) score -= 420;
-            }
-        }
-        return score;
-    }
-    case 'DESTROY_ONE_STONE':
-        score += opp ? 220 : -260;
-        if (corner) score += opp ? 3400 : -4600;
-        else if (edge) score += opp ? 900 : -1100;
-        score += destructiveMarkerScore * 1.2;
-        score += (oppAdj - ownAdj) * 70;
-        if (discDiff <= -8 && opp) score += 180;
-        if (discDiff >= 8 && own) score -= 180;
-        if (empty) score -= 2200;
-        return score;
-    case 'STRONG_WIND_WILL':
-        score += opp ? 180 : -220;
-        if (corner) score += opp ? 2200 : -3400;
-        else if (edge) score += opp ? 620 : -900;
-        score += destructiveMarkerScore * 0.9;
-        score += (oppAdj - ownAdj) * 55;
-        score += seatValue * (opp ? 0.14 : -0.08);
-        {
-            const landingProfile = getStrongWindLandingProfile(row, col);
-            if (landingProfile) {
-                score += landingProfile.maxDistance * (opp ? 70 : 40);
-                if (opp) {
-                    score -= landingProfile.longestCornerCount * 260;
-                    score -= landingProfile.longestEdgeCount * 80;
-                    score -= landingProfile.longestRiskCount * 55;
-                    score -= landingProfile.averageBonus * 90;
-                } else if (own) {
-                    score += landingProfile.longestCornerCount * 360;
-                    score += landingProfile.longestEdgeCount * 90;
-                    score += landingProfile.averageBonus * 110;
-                    score -= landingProfile.longestRiskCount * 40;
-                }
-            }
-        }
-        if (discDiff >= 6 && own) score -= 220;
-        return score;
-    case 'BUOYANCY_WILL':
-    case 'SUPER_BUOYANCY_WILL':
-    case 'GRAVITY_WILL':
-    case 'SUPER_GRAVITY_WILL':
-    case 'SUPER_ATTRACTION_WILL':
-        score += opp ? 220 : -260;
-        if (corner) score += opp ? 2800 : -3800;
-        else if (edge) score += opp ? 840 : -1100;
-        score += getForcedCornerLaneBonus(pendingType, row, col, board, playerValue);
-        score += getForcedCornerLaneAntiPatternPenalty(pendingType, row, col, board, playerValue);
-        if (own) {
-            if (edge) score += 560;
-            if (corner) score -= 1200;
-        }
-        if (opp) {
-            if (corner) score -= 3200;
-            else if (edge) score -= 920;
-        }
-        score += destructiveMarkerScore * 1.15;
-        score += (oppAdj - ownAdj) * 80;
-        if (discDiff >= 6 && own) score -= 260;
-        return score;
-    case 'SWAP_WITH_ENEMY':
-        score += opp ? 260 : -600;
-        if (corner) score += opp ? 3600 : -2600;
-        else if (edge) score += opp ? 1100 : -900;
-        score += destructiveMarkerScore * 1.3;
-        score += (oppAdj - ownAdj) * 120;
-        score += seatValue * 0.18;
-        if (discDiff <= -8) score += 200;
-        return score;
-    case 'POSITION_SWAP_WILL': {
-        const first = pending && pending.firstTarget ? pending.firstTarget : null;
-        if (first && Number.isInteger(first.row) && Number.isInteger(first.col)) {
-            const firstCell = getBoardCellValueSafe(board, first.row, first.col);
-            const firstOwn = firstCell === playerValue;
-            const firstOpp = firstCell === opponentValue;
-            const firstMarkerProfile = getMarkerProfileAt(playerKey, first.row, first.col);
-            const firstSeatValue = scoreSeatStrategicValue(playerKey, first.row, first.col, firstMarkerProfile);
-            if (firstOpp) {
-                score += own ? 460 : -500;
-                if (corner && own) score -= 3400;
-                else if (edge && own) score -= 900;
-                else if (own) score += 260;
-                if (own) score += (firstSeatValue - seatValue) * 0.35;
-            } else if (firstOwn) {
-                score += opp ? 520 : -520;
-                if (corner && opp) score += 3500;
-                else if (edge && opp) score += 1000;
-                else if (opp) score += 220;
-                if (corner && own) score -= 3200;
-                if (opp) score += (seatValue - firstSeatValue) * 0.35;
-            } else {
-                score += opp ? 180 : (own ? -120 : 0);
-            }
-            score += destructiveMarkerScore;
-            return score;
-        }
-        // First pick: prefer grabbing strong opponent stones first.
-        score += opp ? 220 : -160;
-        if (corner && opp) score += 2900;
-        else if (edge && opp) score += 900;
-        if (corner && own) score -= 2600;
-        score += destructiveMarkerScore * 1.1;
-        score += seatValue * 0.14;
-        return score;
-    }
-    case 'TRAP_WILL':
-        if (!own) return -2800;
-        if (corner) score -= 1800;
-        else if (edge) score += 220;
-        score += (oppAdj * 180) - (ownAdj * 60) + (emptyAdj * 30);
-        score += markerProfile.ownSpecialScore * 0.3;
-        return score;
-    case 'GUARD_WILL':
-    case 'GUARDIAN_GOD':
-        if (!own) return -2800;
-        if (corner) score -= 5200;
-        else if (edge) score += 360;
-        score += bonus * 110;
-        score += (ownAdj * 40) + (oppAdj * 20);
-        score += markerProfile.ownSpecialScore * 1.15;
-        if (timedProfile) {
-            score += timedProfile.ownTimedScore * 3.1;
-            score += timedProfile.ownRemainingSum * 70;
-            score += timedProfile.ownCriticalCount * 380;
-            if (timedProfile.ownTimedCount <= 0 && markerProfile.ownSpecialScore <= 0) score -= 2200;
-        } else if (markerProfile.ownSpecialScore <= 0) {
-            score -= 900;
-        }
-        // Guard effects are wasted on inherently stable corners. Prefer
-        // vulnerable high-value timed stones (work, robot, dragons, observer).
-        if (corner) {
-            score -= 1800;
-            if (timedProfile && timedProfile.ownTimedCount > 0) score -= 1200;
-        }
-        if (markerProfile.ownSpecialScore >= 260 && (!timedProfile || timedProfile.ownTimedCount <= 0)) {
-            score -= 1200;
-        }
-        if (markerProfile.ownSpecialScore >= 520 && (!timedProfile || timedProfile.ownCriticalCount <= 0)) {
-            score -= 800;
-        }
-        if (timedProfile) {
-            if (timedProfile.ownTimedCount > 0) score += 900;
-            if (timedProfile.ownCriticalCount > 0) score += 1400;
-        }
-        return score;
-    case 'LIVING_WILL': {
-        if (!own) return -2800;
-        const hasGuard = hasSpecialMarkerTypeAt(row, col, 'GUARD');
-        const hasRegen = hasSpecialMarkerTypeAt(row, col, 'REGEN');
-        if (corner) score += 260;
-        else if (edge) score += 180;
-        score += bonus * 90;
-        score += seatValue * 0.12;
-        score += markerProfile.ownSpecialScore * 1.85;
-        score += (oppAdj * 48) - (ownAdj * 10) + (emptyAdj * 24);
-        if (timedProfile) {
-            score += timedProfile.ownTimedScore * 2.7;
-            score += timedProfile.ownRemainingSum * 48;
-            score += timedProfile.ownCriticalCount * 560;
-            if (timedProfile.ownTimedCount > 0) score += 820;
-            if (timedProfile.ownCriticalCount > 0) score += 1250;
-        }
-        if (markerProfile.ownSpecialScore <= 0 && (!timedProfile || timedProfile.ownTimedCount <= 0)) {
-            score -= 1200;
-        }
-        if (hasGuard) score -= 700;
-        if (hasRegen) score += 460;
-        return score;
-    }
-    case 'HYPERACTIVE_INHERIT_WILL':
-        if (!own) return -2800;
-        if (corner) score -= 420;
-        else if (edge) score += 140;
-        score += (emptyAdj * 140) + (oppAdj * 90);
-        score += markerProfile.ownSpecialScore * 0.6;
-        return score;
-    case 'EXTEND_LIFE_WILL':
-    case 'EXTEND_LIFE_GOD': {
-        const isExtendLifeGod = String(pendingType || '') === 'EXTEND_LIFE_GOD';
-        if (!own) return -2800;
-        if (corner) score += isExtendLifeGod ? 680 : 520;
-        else if (edge) score += isExtendLifeGod ? 320 : 220;
-        score += markerProfile.ownSpecialScore * (isExtendLifeGod ? 2.8 : 2.0);
-        if (timedProfile) {
-            score += timedProfile.ownTimedScore * (isExtendLifeGod ? 3.1 : 2.2);
-            score += timedProfile.ownRemainingSum * (isExtendLifeGod ? 68 : 52);
-            score += timedProfile.ownCriticalCount * (isExtendLifeGod ? 360 : 260);
-            score -= timedProfile.oppTimedScore * 1.3;
-            if (timedProfile.ownTimedCount <= 0) score -= isExtendLifeGod ? 1800 : 1400;
-        }
-        score += seatValue * 0.08;
-        score += (oppAdj * (isExtendLifeGod ? 52 : 40));
-        return score;
-    }
-    case 'CORROSION_WILL':
-        if (!onBoard) return -2800;
-        score += markerProfile.oppSpecialScore * 2.2;
-        score -= markerProfile.ownSpecialScore * 1.6;
-        score += (markerProfile.oppBombCount * 220) - (markerProfile.ownBombCount * 140);
-        if (timedProfile) {
-            score += timedProfile.oppTimedScore * 2.3;
-            score += timedProfile.oppRemainingSum * 60;
-            score += timedProfile.oppCriticalCount * 180;
-            score -= timedProfile.ownTimedScore * 1.8;
-            score -= timedProfile.ownRemainingSum * 46;
-            if (timedProfile.oppTimedCount <= 0 && markerProfile.oppSpecialScore <= 0) score -= 1800;
-        }
-        if (opp) score += 260;
-        if (own) score -= 180;
-        if (corner) score += opp ? 900 : -900;
-        else if (edge) score += opp ? 240 : -240;
-        score += seatValue * (opp ? 0.06 : -0.04);
-        score += (oppAdj - ownAdj) * 30;
-        return score;
-    case 'TELEPORT_WILL':
-        score += opp ? 160 : -220;
-        if (corner) score += opp ? 4200 : -5200;
-        else if (edge) score += opp ? 900 : -900;
-        score += destructiveMarkerScore;
-        score += (oppAdj - ownAdj) * 45;
-        return score;
-    case 'CELL_TELEPORT_WILL':
-        score += opp ? 220 : (own ? -280 : 60);
-        if (corner) score += opp ? 3000 : -4200;
-        else if (edge) score += opp ? 900 : -1200;
-        if (!onBoard) score += opp ? 420 : (own ? -520 : 80);
-        score += destructiveMarkerScore * 1.15;
-        score += (oppAdj - ownAdj) * 70;
-        return score;
-    case 'TEMPT_WILL':
-    case 'CAPTURE_WILL':
-        score += opp ? 300 : -400;
-        if (corner) score += opp ? 2600 : -2200;
-        else if (edge) score += opp ? 900 : -700;
-        score += destructiveMarkerScore * 1.5;
-        return score;
-    case 'CLONE_WILL':
-        if (!own) return -2600;
-        if (level >= 6 && !isCloneSplitEligibleSource(playerKey, row, col, markerProfile)) return -8000;
-        if (corner) score -= 260;
-        else if (edge) score += 120;
-        score += (emptyAdj * 165) + (oppAdj * 95) - (ownAdj * 18);
-        score += markerProfile.ownSpecialScore * 0.85;
-        score += markerProfile.ownBombCount * 180;
-        score += seatValue * 0.06;
-        if (timedProfile) {
-            score += timedProfile.ownTimedScore * 1.05;
-            score += timedProfile.ownRemainingSum * 30;
-            score += timedProfile.ownTimedCount * 160;
-        }
-        if (emptyAdj <= 1) score -= 120;
-        return score;
-    case 'METEOR_WILL':
-        score += opp ? 240 : (own ? -260 : 40);
-        if (corner) score += opp ? 260 : (own ? -4200 : 260);
-        else if (edge) score += opp ? 1000 : (own ? -1100 : 120);
-        score += destructiveMarkerScore * 1.4;
-        score += (oppAdj - ownAdj) * 90;
-        return score;
-    case 'BOARD_SHRINK_WILL':
-        if (hasSpecialMarkerTypeAt(row, col, 'ABSOLUTE_PROTECTED')) return -5200;
-        score += opp ? 220 : (own ? -280 : 60);
-        if (corner) score += opp ? 1400 : (own ? -5200 : 320);
-        else if (edge) score += opp ? 820 : (own ? -960 : 180);
-        score += destructiveMarkerScore * 1.55;
-        score += (oppAdj - ownAdj) * 88;
-        score += bonus * 100;
-        return score;
-    case 'BOARD_SHRINK_GOD': {
-        if (Array.isArray(target.lineCells) && target.lineCells.length > 0) {
-            return scoreBoardShrinkLine(target.lineCells);
-        }
-        if (Array.isArray(target.lineTargets) && target.lineTargets.length > 0) {
-            let bestLineScore = Number.NEGATIVE_INFINITY;
-            for (const lineTarget of target.lineTargets) {
-                const oneLineScore = scoreBoardShrinkLine(lineTarget && lineTarget.lineCells);
-                if (oneLineScore > bestLineScore) bestLineScore = oneLineScore;
-            }
-            return bestLineScore + (target.lineTargets.length * 60);
-        }
-        if (hasSpecialMarkerTypeAt(row, col, 'ABSOLUTE_PROTECTED')) score -= 420;
-        score += corner ? 240 : 40;
-        score += destructiveMarkerScore * 0.6;
-        return score;
-    }
-    case 'BLOCKADE_WILL':
-        if (!empty && onBoard) score -= 1800;
-        if (edge) score += 220;
-        if (cornerHint) {
-            const cornerCell = getBoardCellValueSafe(board, cornerHint.corner[0], cornerHint.corner[1]);
-            if (cornerCell === 0) {
-                score += cornerHint.kind === 'X' ? 900 : 520;
-            }
-        }
-        score += (oppAdj * 130) - (ownAdj * 40);
-        if (!onBoard) score += 260;
-        return score;
-    case 'SEED_WILL':
-        if (!empty && onBoard) return -2400;
-        if (corner) score -= 1600;
-        else if (edge) score += 380;
-        else score += 180;
-        if (cornerHint) {
-            const cornerCell = getBoardCellValueSafe(board, cornerHint.corner[0], cornerHint.corner[1]);
-            if (cornerCell === 0) {
-                score += cornerHint.kind === 'X' ? -1400 : -520;
-            } else if (cornerCell === playerValue) {
-                score += cornerHint.kind === 'X' ? 220 : 140;
-            }
-        }
-        score += (ownAdj * 85) - (oppAdj * 30);
-        score += emptyAdj * 36;
-        score += bonus * 110;
-        score += seatValue * 0.08;
-        if (discDiff <= -8) score += 120;
-        if (discDiff >= 10) score -= 90;
-        return score;
-    case 'WORK_WILL':
-    case 'OBSERVER_WILL':
-        if (!own) return -2800;
-        if (corner) score += 2600;
-        else if (edge) score += 1680;
-        else score -= 1100;
-        if (cornerHint) {
-            const cornerCell = getBoardCellValueSafe(board, cornerHint.corner[0], cornerHint.corner[1]);
-            if (cornerCell === 0) {
-                score += cornerHint.kind === 'X' ? -2200 : -1300;
-            }
-        }
-        score += bonus * 160;
-        score += (ownAdj * 80) - (oppAdj * 120);
-        if (emptyAdj <= 2) score += 180;
-        else if (emptyAdj >= 4) score -= 520;
-        if (!corner && !edge && ownAdj <= 1) score -= 640;
-        if (!corner && !edge && oppAdj >= ownAdj) score -= 360;
-        if (discDiff <= -10) score += 120;
-        return score;
-    case 'BOARD_EXPANSION_WILL':
-    case 'BOARD_EXPANSION_GOD': {
-        const side = String(target.side || '');
-        if (onBoard) {
-            if (own) score += 260;
-            else if (empty) score += 120;
-            else if (opp) score += 40;
-            if (row === 0 || row === 7) score += 180;
-            score += seatValue * 0.12;
-        } else {
-            score += 120;
-        }
-        if (side === 'left' || side === 'right') {
-            const topCorner = getBoardCellValueSafe(board, 0, side === 'left' ? 0 : 7);
-            const bottomCorner = getBoardCellValueSafe(board, 7, side === 'left' ? 0 : 7);
-            if (topCorner === opponentValue || bottomCorner === opponentValue) score += 220;
-            if (topCorner === playerValue || bottomCorner === playerValue) score += 140;
-        }
-        return score;
-    }
-    default:
-        // Deterministic stable fallback.
-        score += (corner ? 12 : 0) + (edge ? 4 : 0) + bonus;
-        return score;
-    }
+    return Number.NEGATIVE_INFINITY;
 }
 
 function choosePendingTargetWithPolicy(playerKey: any, pendingType: any, targets: any, pending: any): any {
@@ -4916,177 +3451,45 @@ function resolveCurrentLegalMovesCountForPlayer(playerKey: any): any {
 }
 
 function buildPendingTargetOnnxContext(playerKey: any, level: any, pendingType: any, targets: any): any {
-    const handCardIds = getHandCardIdsForPlayer(playerKey);
-    const context = buildOnnxContext(
-        playerKey,
-        level,
-        resolveCurrentLegalMovesCountForPlayer(playerKey),
-        handCardIds,
-        null,
-        targets
-    );
-    context.pendingType = pendingType || context.pendingType;
-    return context;
+    return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.buildPendingTargetOnnxContext === 'function'
+        ? CpuDecisionPendingOnnx.buildPendingTargetOnnxContext(playerKey, level, pendingType, targets)
+        : {};
 }
 
 function simulateBoardForPendingTarget(playerKey: any, pendingType: any, target: any): any {
-    const board = getCurrentCpuBoard();
-    if (!isPlayableBoard(board) || !target || !Number.isInteger(target.row) || !Number.isInteger(target.col)) return null;
-    const type = String(pendingType || '');
-    const playerValue = playerKey === 'black'
-        ? (typeof BLACK !== 'undefined' ? BLACK : 1)
-        : (typeof WHITE !== 'undefined' ? WHITE : -1);
-
-    if (type === 'FREE_PLACEMENT' || type === 'LAST_RESORT') {
-        return simulatePendingPlacementBoard(board, playerValue, target);
-    }
-
-    if (type === 'DESTROY_ONE_STONE') {
-        const next = cloneBoardForCpu(board);
-        setBoardCellValue(next, target.row, target.col, 0);
-        return next;
-    }
-
-    return null;
+    return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.simulateBoardForPendingTarget === 'function'
+        ? CpuDecisionPendingOnnx.simulateBoardForPendingTarget(playerKey, pendingType, target)
+        : null;
 }
 
 function buildPendingTargetValueContext(baseContext: any, pendingType: any, target: any, boardOverride: any): any {
-    const normalizedTarget = (target && Number.isFinite(target.row) && Number.isFinite(target.col))
-        ? {
-            row: Number(target.row),
-            col: Number(target.col),
-            flips: Array.isArray(target.flips) ? target.flips.slice() : []
-        }
-        : null;
-    return Object.assign({}, baseContext || {}, {
-        pendingType: pendingType || (baseContext && baseContext.pendingType) || null,
-        board: boardOverride || (baseContext && baseContext.board) || null,
-        candidateMoves: normalizedTarget ? [normalizedTarget] : [],
-        legalMovesCount: normalizedTarget ? 1 : ((baseContext && baseContext.legalMovesCount) || 0)
-    });
+    return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.buildPendingTargetValueContext === 'function'
+        ? CpuDecisionPendingOnnx.buildPendingTargetValueContext(baseContext, pendingType, target, boardOverride)
+        : Object.assign({}, baseContext || {});
 }
 
 async function evaluatePendingTargetValue(runtime: any, baseContext: any, playerKey: any, level: any, pendingType: any, target: any, budgetMs: any): Promise<any> {
-    if (!runtime || typeof runtime.evaluatePosition !== 'function') return null;
-    const valueBudgetMs = Number.isFinite(budgetMs) && budgetMs > 0
-        ? Math.max(12, Math.floor(budgetMs / 2))
-        : 0;
-    const boardOverride = simulateBoardForPendingTarget(playerKey, pendingType, target);
-    const valueContext = buildPendingTargetValueContext(baseContext, pendingType, target, boardOverride);
-    const value = await awaitCpuPromiseWithinBudget(
-        () => runtime.evaluatePosition(valueContext),
-        valueBudgetMs,
-        PENDING_SELECTION_ONNX_TIMEOUT
-    );
-    if (value === PENDING_SELECTION_ONNX_TIMEOUT) return null;
-    return Number.isFinite(Number(value)) ? Number(value) : null;
+    return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.evaluatePendingTargetValue === 'function'
+        ? CpuDecisionPendingOnnx.evaluatePendingTargetValue(runtime, baseContext, playerKey, level, pendingType, target, budgetMs)
+        : null;
 }
 
 function resolvePendingTargetOverrideThreshold(pendingType: any): any {
-    const type = String(pendingType || '');
-    if (type === 'FREE_PLACEMENT' || type === 'LAST_RESORT') return 240;
-    return 24;
+    return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.resolvePendingTargetOverrideThreshold === 'function'
+        ? CpuDecisionPendingOnnx.resolvePendingTargetOverrideThreshold(pendingType)
+        : 24;
 }
 
 async function rerankOnnxPendingTargetChoice(runtime: any, selectedTarget: any, playerKey: any, level: any, pendingType: any, targets: any, pending: any, baseContext: any, budgetMs: any): Promise<any> {
-    const selected = resolveCandidateMoveByCoord(targets, selectedTarget) || selectedTarget;
-    const fallback = choosePendingTargetWithPolicy(playerKey, pendingType, targets, pending);
-    if (!selected || !fallback || isSameMoveByCoord(selected, fallback)) {
-        return { target: selected || fallback || targets[0], changed: false, gap: 0, selectedValue: null, fallbackValue: null };
-    }
-
-    const selectedHeuristic = scorePendingTargetByType(playerKey, pendingType, selected, pending);
-    const fallbackHeuristic = scorePendingTargetByType(playerKey, pendingType, fallback, pending);
-    let selectedComposite = Number.isFinite(selectedHeuristic) ? Number(selectedHeuristic) : Number.NEGATIVE_INFINITY;
-    let fallbackComposite = Number.isFinite(fallbackHeuristic) ? Number(fallbackHeuristic) : Number.NEGATIVE_INFINITY;
-
-    const selectedValue = await evaluatePendingTargetValue(runtime, baseContext, playerKey, level, pendingType, selected, budgetMs);
-    const fallbackValue = await evaluatePendingTargetValue(runtime, baseContext, playerKey, level, pendingType, fallback, budgetMs);
-    if (Number.isFinite(selectedValue)) selectedComposite += selectedValue * PENDING_SELECTION_VALUE_WEIGHT;
-    if (Number.isFinite(fallbackValue)) fallbackComposite += fallbackValue * PENDING_SELECTION_VALUE_WEIGHT;
-
-    const gap = fallbackComposite - selectedComposite;
-    const shouldOverride = (
-        (!Number.isFinite(selectedComposite) && Number.isFinite(fallbackComposite)) ||
-        gap >= resolvePendingTargetOverrideThreshold(pendingType)
-    );
-
-    return {
-        target: shouldOverride ? fallback : selected,
-        changed: shouldOverride,
-        gap,
-        selectedValue,
-        fallbackValue
-    };
+    return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.rerankOnnxPendingTargetChoice === 'function'
+        ? CpuDecisionPendingOnnx.rerankOnnxPendingTargetChoice(runtime, selectedTarget, playerKey, level, pendingType, targets, pending, baseContext, budgetMs)
+        : { target: selectedTarget, changed: false, gap: 0, selectedValue: null, fallbackValue: null };
 }
 
 async function choosePendingTargetWithPolicyAsync(playerKey: any, pendingType: any, targets: any, pending: any): Promise<any> {
-    const fallback = choosePendingTargetWithPolicy(playerKey, pendingType, targets, pending);
-    if (!Array.isArray(targets) || targets.length <= 0) return null;
-
-    const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-        ? Number(cpuSmartness[playerKey])
-        : 1;
-    const runtime = resolvePolicyOnnxRuntime();
-    if (
-        !runtime ||
-        typeof runtime.choosePendingTarget !== 'function' ||
-        !Number.isFinite(level) ||
-        level < 6
-    ) {
-        return fallback || targets[0];
-    }
-    if (!canUseStandardBoardCpuPolicy(null, 'onnx-pending-target', playerKey, level)) {
-        return fallback || targets[0];
-    }
-
-    const budgetMs = resolvePendingSelectionOnnxBudgetMs(level);
-    const baseContext = buildPendingTargetOnnxContext(playerKey, level, pendingType, targets);
-    const preGate = evaluateCpuOnnxLatencyGate(runtime, 'choosePendingTarget', level);
-    if (preGate.shouldDegrade) {
-        logCpuOnnxLatencyDegrade(level, playerKey, 'choosePendingTarget', preGate.reason);
-        return fallback || targets[0];
-    }
-
-    try {
-        const selected = await awaitCpuPromiseWithinBudget(
-            () => runtime.choosePendingTarget(targets, baseContext),
-            budgetMs,
-            CPU_ONNX_BUDGET_TIMEOUT
-        );
-        if (selected === CPU_ONNX_BUDGET_TIMEOUT) {
-            logCpuOnnxLatencyDegrade(level, playerKey, 'choosePendingTarget', `timeout ${String(pendingType || '')} budget=${budgetMs}ms`);
-            return fallback || targets[0];
-        }
-        const postGate = evaluateCpuOnnxLatencyGate(runtime, 'choosePendingTarget', level);
-        if (postGate.shouldDegrade) {
-            logCpuOnnxLatencyDegrade(level, playerKey, 'choosePendingTarget', postGate.reason);
-            return fallback || targets[0];
-        }
-        if (!selected) return fallback || targets[0];
-
-        const reranked = await rerankOnnxPendingTargetChoice(
-            runtime,
-            selected,
-            playerKey,
-            level,
-            pendingType,
-            targets,
-            pending,
-            baseContext,
-            budgetMs
-        );
-        if (reranked && reranked.changed) {
-            const chosen = reranked.target;
-            cpuDebugLog(
-                `[CPU] Lv${level} ${playerKey}: ONNX対象を再評価 ${String(pendingType || '')} gap=${Number.isFinite(reranked.gap) ? reranked.gap.toFixed(1) : 'NA'} -> (${chosen.row},${chosen.col})`
-            );
-        }
-        return (reranked && reranked.target) || resolveCandidateMoveByCoord(targets, selected) || selected || fallback || targets[0];
-    } catch (e) {
-        console.warn('[CPU] policy-onnx pending runtime failed, fallback to default policy', e);
-        return fallback || targets[0];
-    }
+    return CpuDecisionPendingOnnx && typeof CpuDecisionPendingOnnx.choosePendingTargetWithPolicyAsync === 'function'
+        ? CpuDecisionPendingOnnx.choosePendingTargetWithPolicyAsync(playerKey, pendingType, targets, pending)
+        : (Array.isArray(targets) && targets.length ? targets[0] : null);
 }
 
 /**
@@ -5149,10 +3552,8 @@ async function cpuSelectDestroyWithPolicy(playerKey: any): Promise<any> {
         emitCpuSelectionStateChange();
         return;
     }
-    // Fallback for legacy environments.
-    if (typeof handleDestroySelection === 'function') {
-        await handleDestroySelection(target.row, target.col, playerKey);
-    }
+    clearCpuPendingEffect(playerKey);
+    emitCpuSelectionStateChange();
 }
 
 /**
@@ -5580,9 +3981,8 @@ async function cpuSelectSwapWithEnemyWithPolicy(playerKey: any): Promise<any> {
         return;
     }
 
-    if (typeof handleSwapSelection === 'function') {
-        await handleSwapSelection(target.row, target.col, playerKey);
-    }
+    clearCpuPendingEffect(playerKey);
+    emitCpuSelectionStateChange();
 }
 
 /**
@@ -5620,9 +4020,8 @@ async function cpuSelectPositionSwapWillWithPolicy(playerKey: any): Promise<any>
         return;
     }
 
-    if (typeof handlePositionSwapSelection === 'function') {
-        await handlePositionSwapSelection(target.row, target.col, playerKey);
-    }
+    clearCpuPendingEffect(playerKey);
+    emitCpuSelectionStateChange();
 }
 
 /**
@@ -6336,9 +4735,8 @@ async function cpuSelectTemptWillWithPolicy(playerKey: any): Promise<any> {
         return;
     }
 
-    if (typeof handleTemptSelection === 'function') {
-        await handleTemptSelection(target.row, target.col, playerKey);
-    }
+    clearCpuPendingEffect(playerKey);
+    emitCpuSelectionStateChange();
 }
 
 /**

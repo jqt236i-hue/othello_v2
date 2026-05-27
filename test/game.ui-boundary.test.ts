@@ -37,11 +37,9 @@ describe('game ↔ UI boundary (headless)', () => {
     // No UI -> safe no-op
     expect(mv.applyFlipAnimations([])).toBeUndefined();
 
-    // With mock: note the module checks both module-local and global __uiImpl
+    // With mock: game delegates only through module-local DI.
     const mock = { applyFlipAnimations: jest.fn(() => 'flip-ok') };
     mv.setUIImpl(mock);
-    // Also populate legacy global hook to emulate bootstrap behavior
-    global.__uiImpl = mock;
 
     expect(mv.applyFlipAnimations([])).toBe('flip-ok');
     expect(mock.applyFlipAnimations).toHaveBeenCalled();

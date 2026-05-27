@@ -9,14 +9,6 @@ declare const gameState: any;
 declare const BLACK: number;
 declare const WHITE: number;
 declare const MarkersAdapter: any;
-declare const TurnPipelinePhases: any;
-declare const CardLogic: any;
-declare const Core: any;
-declare const emitBoardUpdate: any;
-declare const emitCardStateChange: any;
-declare const emitLogAdded: any;
-declare const emitGameStateChange: any;
-declare const getPlayerName: any;
 declare const FLIP_ANIMATION_DURATION_MS: any;
 declare const BoardOps: any;
 declare const CardUtils: any;
@@ -26,9 +18,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 const LOG_MESSAGES = _require('../log-messages');
+const ControllerEvents = _require('../controller-events');
+const { getPlayerDisplayName } = _require('../card-effects/helpers');
 
-let mv: any = null;
-try { mv = (typeof require === 'function') ? require('../move-executor-visuals') : mv; } catch (e) { mv = mv || null; }
 // Timers abstraction (injected by UI)
 let timers: any = null;
 try { timers = (typeof require === 'function') ? require('../timers') : timers; } catch (e) { timers = timers || null; }
@@ -52,6 +44,47 @@ try {
 let __uiImpl_dragons: any = {};
 function setUIImpl(obj: any) { __uiImpl_dragons = obj || {}; }
 
+function emitDragonLog(message: any): void {
+    if (__uiImpl_dragons && typeof __uiImpl_dragons.emitLogAdded === 'function') {
+        __uiImpl_dragons.emitLogAdded(message, 'effect');
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
+        ControllerEvents.emitLogAdded(message, 'effect');
+    }
+}
+
+function emitDragonBoardUpdate(): void {
+    if (__uiImpl_dragons && typeof __uiImpl_dragons.emitBoardUpdate === 'function') {
+        __uiImpl_dragons.emitBoardUpdate();
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitBoardUpdate === 'function') ControllerEvents.emitBoardUpdate();
+}
+
+function emitDragonGameStateChange(): void {
+    if (__uiImpl_dragons && typeof __uiImpl_dragons.emitGameStateChange === 'function') {
+        __uiImpl_dragons.emitGameStateChange();
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitGameStateChange === 'function') ControllerEvents.emitGameStateChange();
+}
+
+function emitDragonCardStateChange(): void {
+    if (__uiImpl_dragons && typeof __uiImpl_dragons.emitCardStateChange === 'function') {
+        __uiImpl_dragons.emitCardStateChange();
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitCardStateChange === 'function') ControllerEvents.emitCardStateChange();
+}
+
+function getDragonPlayerName(player: number): string {
+    if (__uiImpl_dragons && typeof __uiImpl_dragons.getPlayerName === 'function') {
+        return __uiImpl_dragons.getPlayerName(player);
+    }
+    return getPlayerDisplayName(player);
+}
+
 function hasPlaybackEngineForDragons(): boolean {
     return typeof __uiImpl_dragons.playPresentationEvents === 'function';
 }
@@ -67,7 +100,6 @@ function setDiscColorForDragons(row: number, col: number, color: number): any {
     if (__uiImpl_dragons && typeof __uiImpl_dragons.setDiscColorAt === 'function') {
         return __uiImpl_dragons.setDiscColorAt(row, col, color);
     }
-    if (mv && typeof mv.setDiscColorAt === 'function') return mv.setDiscColorAt(row, col, color);
     return undefined;
 }
 
@@ -75,7 +107,6 @@ function removeBombOverlayForDragons(row: number, col: number): any {
     if (__uiImpl_dragons && typeof __uiImpl_dragons.removeBombOverlayAt === 'function') {
         return __uiImpl_dragons.removeBombOverlayAt(row, col);
     }
-    if (mv && typeof mv.removeBombOverlayAt === 'function') return mv.removeBombOverlayAt(row, col);
     return undefined;
 }
 
@@ -90,7 +121,6 @@ async function animateDragonFadeOut(row: number, col: number, options: any): Pro
     if (__uiImpl_dragons && typeof __uiImpl_dragons.animateFadeOutAt === 'function') {
         return __uiImpl_dragons.animateFadeOutAt(row, col, options);
     }
-    if (mv && typeof mv.animateFadeOutAt === 'function') return mv.animateFadeOutAt(row, col, options);
     return undefined;
 }
 
@@ -119,14 +149,13 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
 
     const playerKey = player === BLACK ? 'black' : 'white';
 
-    // Prefer pipeline-produced computation. Use TurnPipelinePhases to perform turn-start processing which includes dragon effects.
+    // Consume pipeline-produced events only; this presentation layer must not re-run rule phases.
     let result: any = null;
     let regenRes = { regened: [] as any[], captureFlips: [] as any[] };
     const events = Array.isArray(precomputedEvents) ? precomputedEvents.slice() : [];
     if (!events.length) {
-        if (typeof TurnPipelinePhases !== 'undefined' && typeof TurnPipelinePhases.applyTurnStartPhase === 'function') {
-            TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, events);
-        }
+        console.error('[DRAGONS] No precomputed pipeline events provided; skipping dragon presentation');
+        return;
     }
     if (events.length) {
 
@@ -155,18 +184,17 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
 
         // Dragon timer visuals are UI-only. Emit a board update and let UI sync any timer elements from state.
         if (Array.isArray(result.anchors) && result.anchors.length > 0) {
-            try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+            try { emitDragonBoardUpdate(); } catch (e) { /* ignore */ }
         }
 
         // Charge updates MUST be applied by the rule pipeline; do not mutate rule state here.
         if (result.converted.length > 0) {
-            if (typeof emitCardStateChange === 'function') emitCardStateChange();
-            else console.warn('[DRAGONS] charge updates should come from pipeline; emitCardStateChange not available');
+            emitDragonCardStateChange();
         }
 
         // Log conversions
         if (result.converted.length > 0) {
-            if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.dragonConverted(getPlayerName(player), result.converted.length));
+            emitDragonLog(LOG_MESSAGES.dragonConverted(getDragonPlayerName(player), result.converted.length));
         }
     } else {
         console.error('[DRAGONS] No precomputed events provided and pipeline unavailable; skipping dragon processing');
@@ -192,7 +220,7 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
                 });
             }
         }
-        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+        try { emitDragonBoardUpdate(); } catch (e) { /* ignore */ }
         return;
     }
 
@@ -278,8 +306,8 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
     }
 
     // Final UI sync after all animations
-    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-    try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
+    try { emitDragonBoardUpdate(); } catch (e) { /* ignore */ }
+    try { emitDragonGameStateChange(); } catch (e) { /* ignore */ }
 }
 
 /**
@@ -301,18 +329,14 @@ async function processUltimateReverseDragonImmediateAtPlacement(player: number, 
     regenRes = result.regen || result.regenRes || regenRes;
 
     if (result.converted && result.converted.length > 0) {
-        if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
-            CardUtilsModule.addChargeWithDelta(cardState, playerKey, result.converted.length, 'dragon_immediate_convert');
-        } else {
-            cardState.charge[playerKey] = Math.min(CHARGE_MAX, cardState.charge[playerKey] + result.converted.length);
-        }
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.dragonConvertedImmediate(getPlayerName(player), result.converted.length));
+        emitDragonCardStateChange();
+        emitDragonLog(LOG_MESSAGES.dragonConvertedImmediate(getDragonPlayerName(player), result.converted.length));
     }
 
     const delay = getAnimationTimingForDragons('FLIP_ANIMATION_DURATION')
         || (typeof FLIP_ANIMATION_DURATION_MS !== 'undefined' ? FLIP_ANIMATION_DURATION_MS : 800);
     if (result.converted.length > 0) {
-        emitBoardUpdate();
+        emitDragonBoardUpdate();
 
         const regenedSet = new Set((regenRes.regened || []).map((p: any) => `${p.row},${p.col}`));
 
@@ -369,8 +393,8 @@ async function processUltimateReverseDragonImmediateAtPlacement(player: number, 
         }
     }
 
-    emitBoardUpdate();
-    emitGameStateChange();
+    emitDragonBoardUpdate();
+    emitDragonGameStateChange();
 }
 
 export = {

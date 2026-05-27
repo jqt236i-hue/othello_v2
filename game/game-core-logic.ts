@@ -9,12 +9,34 @@ declare const CoreLogic: any;
 declare const CardLogic: any;
 declare const MarkersAdapter: any;
 declare const cardState: any;
-declare function isDebugLogAvailable(): boolean;
-declare function debugLog(message: string, level: string, meta: any): void;
 
 // game-core-logic.js
 // Wrapper for CoreLogic (Shared between Browser and Headless)
 // This file maintains the legacy global function interface for browser compatibility.
+
+let __uiImpl_game_core_logic: any = {};
+
+function setUIImpl(obj: any): void {
+    __uiImpl_game_core_logic = (obj && typeof obj === 'object') ? obj : {};
+}
+
+function isGameCoreDebugLogAvailable(): boolean {
+    try {
+        return __uiImpl_game_core_logic
+            && typeof __uiImpl_game_core_logic.isDebugLogAvailable === 'function'
+            && __uiImpl_game_core_logic.isDebugLogAvailable() === true;
+    } catch (e: any) { /* ignore */ }
+    return false;
+}
+
+function emitGameCoreDebugLog(message: string, level: string, meta: any): void {
+    if (!isGameCoreDebugLogAvailable()) return;
+    try {
+        if (__uiImpl_game_core_logic && typeof __uiImpl_game_core_logic.debugLog === 'function') {
+            __uiImpl_game_core_logic.debugLog(message, level, meta);
+        }
+    } catch (e: any) { /* ignore */ }
+}
 
 function requireGameCoreLogicModuleOrNull(id: string): any {
     if (typeof _require !== 'function') return null;
@@ -98,13 +120,11 @@ function applyPass(state: any) {
     const newState = GameCoreLogicCore.applyPass(state);
 
     // Maintain logging side-effect
-    if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
-        debugLog(`[MOVE] Pass applied`, 'debug', {
-            passedPlayer: state.currentPlayer === 1 ? 'black' : 'white',
-            nextPlayer: newState.currentPlayer === 1 ? 'black' : 'white',
-            consecutivePasses: newState.consecutivePasses
-        });
-    }
+    emitGameCoreDebugLog(`[MOVE] Pass applied`, 'debug', {
+        passedPlayer: state.currentPlayer === 1 ? 'black' : 'white',
+        nextPlayer: newState.currentPlayer === 1 ? 'black' : 'white',
+        consecutivePasses: newState.consecutivePasses
+    });
 
     return newState;
 }
@@ -118,6 +138,7 @@ function countDiscs(state: any) {
 }
 
 export = {
+    setUIImpl,
     createGameState,
     copyGameState,
     getFlips,

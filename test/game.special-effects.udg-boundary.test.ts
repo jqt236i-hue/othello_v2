@@ -48,7 +48,13 @@ describe('special-effects UDG UI boundary', () => {
     };
 
     const udg = require('../game/special-effects/udg.js');
-    udg.setUIImpl({ animateFadeOutAt });
+    udg.setUIImpl({
+      animateFadeOutAt,
+      emitBoardUpdate: global.emitBoardUpdate,
+      emitGameStateChange: global.emitGameStateChange,
+      emitLogAdded: global.emitLogAdded,
+      getPlayerName: global.getPlayerName
+    });
 
     await udg.processUltimateDestroyGodsAtTurnStart(global.BLACK, {
       destroyed: [{ row: 2, col: 3 }],

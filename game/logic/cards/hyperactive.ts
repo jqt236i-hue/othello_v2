@@ -6,7 +6,13 @@
 import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
 declare const __non_webpack_require__: NodeRequire | undefined;
-declare const isDebugLogAvailable: () => boolean;
+
+let hyperactiveRuntime: any = null;
+
+function setHyperactiveRuntime(runtime: any): void {
+    hyperactiveRuntime = (runtime && typeof runtime === 'object') ? runtime : null;
+    refreshHyperactiveRuntimeModules();
+}
 
 function _require(id: string): any {
     if (typeof __non_webpack_require__ !== 'undefined') {
@@ -19,9 +25,11 @@ function _require(id: string): any {
 }
 
 function getRuntimeGlobalValue(key: string): any {
-    if (typeof self !== 'undefined' && (self as any)[key]) {
-        return (self as any)[key];
-    }
+    try {
+        if (hyperactiveRuntime && typeof hyperactiveRuntime.readRuntimeModule === 'function') {
+            return hyperactiveRuntime.readRuntimeModule(key);
+        }
+    } catch (e) { /* ignore */ }
     return undefined;
 }
 
@@ -41,18 +49,53 @@ function resolveHyperactiveModuleOrGlobal(id: string, globalKey: string): any {
     return getRuntimeGlobalValue(globalKey);
 }
 
-const SharedConstants = resolveHyperactiveModuleOrGlobal('../../../shared-constants', 'SharedConstants');
-const BoardUtils = resolveHyperactiveModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
-const RandomSourceModule = resolveHyperactiveModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
-const StoneStatusSnapshot = resolveHyperactiveModuleOrGlobal('../../../shared/stone-status-snapshot', 'StoneStatusSnapshot') || null;
-const HyperactiveCoreUtils = resolveHyperactiveModuleOrGlobal('./hyperactive-core-utils', 'CardHyperactiveCoreUtils');
-const HyperactiveBoardShape = resolveHyperactiveModuleOrGlobal('./hyperactive-board-shape', 'CardHyperactiveBoardShape');
+let SharedConstants: any = null;
+let BoardUtils: any = null;
+let RandomSourceModule: any = null;
+let StoneStatusSnapshot: any = null;
+let HyperactiveCoreUtils: any = null;
+let HyperactiveBoardShape: any = null;
+let BLACK: any;
+let WHITE: any;
+let EMPTY: any;
 
-const { BLACK, WHITE, EMPTY } = SharedConstants || {};
+function refreshHyperactiveRuntimeModules(): void {
+    SharedConstants = resolveHyperactiveModuleOrGlobal('../../../shared-constants', 'SharedConstants');
+    BoardUtils = resolveHyperactiveModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
+    RandomSourceModule = resolveHyperactiveModuleOrGlobal('../cards-internal/random-source', 'CardRandomSource');
+    StoneStatusSnapshot = resolveHyperactiveModuleOrGlobal('../../../shared/stone-status-snapshot', 'StoneStatusSnapshot') || null;
+    HyperactiveCoreUtils = resolveHyperactiveModuleOrGlobal('./hyperactive-core-utils', 'CardHyperactiveCoreUtils');
+    HyperactiveBoardShape = resolveHyperactiveModuleOrGlobal('./hyperactive-board-shape', 'CardHyperactiveBoardShape');
+    const constants = SharedConstants || {};
+    BLACK = constants.BLACK;
+    WHITE = constants.WHITE;
+    EMPTY = constants.EMPTY;
+}
+
+refreshHyperactiveRuntimeModules();
 
 const EXTREME_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
 const ULTIMATE_HYPERACTIVE_FLIP_EVADE_LIMIT = 3;
 const OVERLAY_ONLY_SPECIAL_TYPES = new Set(['GUARD', 'INHERITED_HYPERACTIVE', 'LIVING_WILL']);
+
+function logHyperactiveDebug(...args: any[]): void {
+    try {
+        if (
+            !hyperactiveRuntime ||
+            typeof hyperactiveRuntime.isDebugLogAvailable !== 'function' ||
+            hyperactiveRuntime.isDebugLogAvailable() !== true
+        ) {
+            return;
+        }
+        if (typeof hyperactiveRuntime.debugLog === 'function') {
+            hyperactiveRuntime.debugLog(args[0], 'debug', args.length > 1 ? args.slice(1) : undefined);
+            return;
+        }
+        if (typeof console !== 'undefined' && typeof console.log === 'function') {
+            console.log(...args);
+        }
+    } catch (e) { /* ignore */ }
+}
 
 function getBoardShapeDeps() {
     return {
@@ -1448,7 +1491,7 @@ function moveHyperactiveOnce(
     const candidates = isExtremeHyperactive
         ? getNeighborEmptyCandidates(cardState, gameState, entry.row, entry.col, { isBlockedCell }, { includeOccupied: true })
         : getNeighborEmptyCandidates(cardState, gameState, entry.row, entry.col, { isBlockedCell });
-    if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[HYPERACTIVE] moveHyperactiveOnce candidates', candidates.length, 'at', { row: entry.row, col: entry.col, owner: entry.owner });
+    logHyperactiveDebug('[HYPERACTIVE] moveHyperactiveOnce candidates', candidates.length, 'at', { row: entry.row, col: entry.col, owner: entry.owner });
 
     if (candidates.length === 0) {
         if (isEscapeHyperactive) {
@@ -1597,7 +1640,7 @@ function moveHyperactiveOnce(
         destroyed.push(...revertNoCandidateSpecialAt(cardState, gameState, entry, markerType, deps, moveCause));
         return { moved, destroyed, flipped, repelled, ownerKey };
     }
-    if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) console.log('[HYPERACTIVE] selected target', { target, candidatesLen: candidates.length, markerType });
+    logHyperactiveDebug('[HYPERACTIVE] selected target', { target, candidatesLen: candidates.length, markerType });
 
     let flipCells: any[] = [];
     if (!isExtremeHyperactive) {
@@ -2643,6 +2686,7 @@ function applyHyperactiveInheritWill(
 }
 
 const _exports: any = {
+    setHyperactiveRuntime,
     applyHyperactiveInheritWill,
     moveHyperactiveOnce,
     resolveHyperactiveFlipEvasion,

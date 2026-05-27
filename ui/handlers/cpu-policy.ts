@@ -914,13 +914,18 @@ async function initOthelloOnnxModel(): Promise<void> {
       const ortApi = (typeof window !== 'undefined' && (window as any).ort)
         ? (window as any).ort
         : null;
-      runtime.configure({
-        enabled: true,
-        minLevel: 6,
-        sourceUrl: modelUrl,
-        metaUrl,
-        ortApi
-      });
+            runtime.configure({
+                enabled: true,
+                minLevel: 6,
+                useValueRerank: true,
+                policyWeight: 0.75,
+                topK: 8,
+                heuristicRerankWeight: 3.0,
+                whiteSafetyMultiplier: 1.45,
+                sourceUrl: modelUrl,
+                metaUrl,
+                ortApi
+            });
     }
     const ok = await _withLoadTimeout(runtime.loadFromUrl(modelUrl, metaUrl), loadTimeoutMs, 'othello ONNX load');
     const status = (typeof runtime.getStatus === 'function') ? runtime.getStatus() : null;

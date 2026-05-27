@@ -86,6 +86,48 @@ function getAnimationEngine(options?: any): any {
 }
 
 let activePlaybackAbortHandle: any = null;
+let nextSelectionSettlementLockId = 1;
+const selectionSettlementLockIds = new Set<number>();
+
+function syncSelectionSettlementLockMirror(): number {
+  const count = selectionSettlementLockIds.size;
+  setMirroredValue('__selectionSettlementLockCount', count);
+  setMirroredValue('__selectionSettlementLockActive', count > 0);
+  return count;
+}
+
+function hasSelectionSettlementLock(): boolean {
+  return selectionSettlementLockIds.size > 0;
+}
+
+function acquireSelectionSettlementLock(meta?: any): any {
+  const token = {
+    id: nextSelectionSettlementLockId++,
+    meta: (meta && typeof meta === 'object') ? Object.assign({}, meta) : null
+  };
+  selectionSettlementLockIds.add(token.id);
+  syncSelectionSettlementLockMirror();
+  setBoardLockActive(true);
+  return token;
+}
+
+function releaseSelectionSettlementLock(token: any): boolean {
+  const tokenId = Number(token && token.id);
+  if (!Number.isFinite(tokenId) || !selectionSettlementLockIds.has(tokenId)) {
+    return false;
+  }
+  selectionSettlementLockIds.delete(tokenId);
+  syncSelectionSettlementLockMirror();
+  setBoardLockActive(getPlaybackActive());
+  return true;
+}
+
+function clearSelectionSettlementLocks(): boolean {
+  selectionSettlementLockIds.clear();
+  syncSelectionSettlementLockMirror();
+  setBoardLockActive(getPlaybackActive());
+  return true;
+}
 
 function registerPlaybackAbortHandle(handle: any): any {
   activePlaybackAbortHandle = (handle && typeof handle.abort === 'function') ? handle : null;
@@ -100,7 +142,7 @@ function clearPlaybackAbortHandle(handle: any): boolean {
 }
 
 function getPlaybackActive(): boolean {
-  return readMirroredValue('VisualPlaybackActive') === true;
+  return readMirroredValue('VisualPlaybackActive') === true || hasSelectionSettlementLock();
 }
 
 function setPlaybackActive(active: boolean): boolean {
@@ -136,7 +178,7 @@ function ensurePlaybackStartedAt(nowValue?: any): number | null {
 }
 
 function getCardAnimating(): boolean {
-  return readMirroredValue('isCardAnimating') === true || getPlaybackActive();
+  return readMirroredValue('isCardAnimating') === true || hasSelectionSettlementLock() || getPlaybackActive();
 }
 
 function setCardAnimating(active: boolean): boolean {
@@ -144,7 +186,7 @@ function setCardAnimating(active: boolean): boolean {
 }
 
 function getProcessing(): boolean {
-  return readMirroredValue('isProcessing') === true;
+  return readMirroredValue('isProcessing') === true || hasSelectionSettlementLock();
 }
 
 function setProcessing(active: boolean): boolean {
@@ -513,11 +555,15 @@ function finalizePlayback(options?: any): any {
 }
 
 function clearPlaybackLock(options?: any): boolean {
+  const opts = (options && typeof options === 'object') ? options : {};
   clearBoardUpdateContext();
   clearSelectionEntryPlaybackContext();
+  if (opts.preserveSelectionSettlementLock !== true) {
+    clearSelectionSettlementLocks();
+  }
   setBusyState({ processing: false, cardAnimating: false, playbackActive: false });
   setPlaybackStartedAt(null);
-  setBoardLockActive(false, options);
+  setBoardLockActive(getPlaybackActive(), opts);
   return true;
 }
 
@@ -565,6 +611,10 @@ function getRuntimePlaybackState(): any {
     setProcessing,
     setBusyState,
     setInteractionLock,
+    acquireSelectionSettlementLock,
+    releaseSelectionSettlementLock,
+    clearSelectionSettlementLocks,
+    hasSelectionSettlementLock,
     getPlaybackStartedAt,
     getPlaybackStaleMs,
     isPlaybackRunning,
@@ -636,6 +686,10 @@ const PlaybackStateManager = {
   setProcessing,
   setBusyState,
   setInteractionLock,
+  acquireSelectionSettlementLock,
+  releaseSelectionSettlementLock,
+  clearSelectionSettlementLocks,
+  hasSelectionSettlementLock,
   getPlaybackStartedAt,
   getPlaybackStaleMs,
   isPlaybackRunning,

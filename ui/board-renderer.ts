@@ -938,7 +938,7 @@ function renderBoardFull() {
                     cell.classList.add('legal');
                 }
                 if (tabooLegalSet.has(key)) {
-                    cell.classList.add('effect-target-highlight');
+                    cell.classList.add('effect-target-highlight-positive');
                 }
             }
             if (isSelectedTargetHighlighted) {

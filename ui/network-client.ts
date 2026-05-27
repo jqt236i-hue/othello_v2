@@ -385,6 +385,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkApplyCoordinatorModule: any = null;
     let networkReconnectControllerModule: any = null;
     let networkPublishTrackerModule: any = null;
+    let networkPublishRejectionModule: any = null;
+    let networkPlaybackRecoveryModule: any = null;
+    let networkRoomEventsModule: any = null;
+    let networkStreamSnapshotModule: any = null;
+    let networkStreamSessionModule: any = null;
+    let networkTransportModule: any = null;
+    let networkTurnTimerModule: any = null;
     let cardLogicModule: any = null;
     let networkCommentaryController: any = null;
     let networkSnapshotController: any = null;
@@ -393,6 +400,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     let networkActionBridgeController: any = null;
     let networkReconnectController: any = null;
     let networkPublishTrackerController: any = null;
+    let networkPublishRejectionController: any = null;
+    let networkPlaybackRecoveryController: any = null;
+    let networkRoomEventsController: any = null;
+    let networkStreamSnapshotController: any = null;
+    let networkStreamSessionController: any = null;
+    let networkTransportController: any = null;
+    let networkTurnTimerController: any = null;
     let ownerHelpers: any = null;
     networkCommentaryModule = resolveNetworkClientModule('./network/commentary', null);
     networkActionSchemaModule = resolveNetworkClientModule('../shared/network-action-schema', null);
@@ -405,6 +419,13 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     networkApplyCoordinatorModule = resolveNetworkClientModule('./network/apply-coordinator', null);
     networkReconnectControllerModule = resolveNetworkClientModule('./network/reconnect-controller', null);
     networkPublishTrackerModule = resolveNetworkClientModule('./network/publish-tracker', null);
+    networkPublishRejectionModule = resolveNetworkClientModule('./network/publish-rejection', null);
+    networkPlaybackRecoveryModule = resolveNetworkClientModule('./network/playback-recovery', null);
+    networkRoomEventsModule = resolveNetworkClientModule('./network/room-events', null);
+    networkStreamSnapshotModule = resolveNetworkClientModule('./network/stream-snapshot', null);
+    networkStreamSessionModule = resolveNetworkClientModule('./network/stream-session', null);
+    networkTransportModule = resolveNetworkClientModule('./network/transport', null);
+    networkTurnTimerModule = resolveNetworkClientModule('./network/turn-timer', null);
 
     function resolveNetworkCommentaryModule() {
         if (networkCommentaryModule) return networkCommentaryModule;
@@ -474,6 +495,55 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
 
         networkPublishTrackerModule = resolveNetworkClientGlobal('NetworkPublishTrackerModule');
         return networkPublishTrackerModule;
+    }
+
+    function resolveNetworkPublishRejectionModule() {
+        if (networkPublishRejectionModule) return networkPublishRejectionModule;
+
+        networkPublishRejectionModule = resolveNetworkClientGlobal('NetworkPublishRejectionModule');
+        return networkPublishRejectionModule;
+    }
+
+    function resolveNetworkPlaybackRecoveryModule() {
+        if (networkPlaybackRecoveryModule) return networkPlaybackRecoveryModule;
+
+        networkPlaybackRecoveryModule = resolveNetworkClientGlobal('NetworkPlaybackRecoveryModule');
+        return networkPlaybackRecoveryModule;
+    }
+
+    function resolveNetworkRoomEventsModule() {
+        if (networkRoomEventsModule) return networkRoomEventsModule;
+
+        networkRoomEventsModule = resolveNetworkClientGlobal('NetworkRoomEventsModule');
+        return networkRoomEventsModule;
+    }
+
+    function resolveNetworkStreamSnapshotModule() {
+        if (networkStreamSnapshotModule) return networkStreamSnapshotModule;
+
+        networkStreamSnapshotModule = resolveNetworkClientGlobal('NetworkStreamSnapshotModule');
+        return networkStreamSnapshotModule;
+    }
+
+    function resolveNetworkStreamSessionModule() {
+        if (networkStreamSessionModule) return networkStreamSessionModule;
+
+        networkStreamSessionModule = resolveNetworkClientGlobal('NetworkStreamSessionModule');
+        return networkStreamSessionModule;
+    }
+
+    function resolveNetworkTransportModule() {
+        if (networkTransportModule) return networkTransportModule;
+
+        networkTransportModule = resolveNetworkClientGlobal('NetworkTransportModule');
+        return networkTransportModule;
+    }
+
+    function resolveNetworkTurnTimerModule() {
+        if (networkTurnTimerModule) return networkTurnTimerModule;
+
+        networkTurnTimerModule = resolveNetworkClientGlobal('NetworkTurnTimerModule');
+        return networkTurnTimerModule;
     }
 
     function resolveCardLogicModule() {
@@ -646,6 +716,139 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
             retentionMs: PUBLISH_TRACKER_RETENTION_MS
         });
         return networkPublishTrackerController;
+    }
+
+    function getNetworkPublishRejectionController() {
+        if (networkPublishRejectionController) return networkPublishRejectionController;
+        const mod = resolveNetworkPublishRejectionModule();
+        if (!mod || typeof mod.createNetworkPublishRejectionController !== 'function') return null;
+        networkPublishRejectionController = mod.createNetworkPublishRejectionController({
+            getState: () => state,
+            hasNewerQueuedPublish,
+            getCurrentPublishTurnIndex,
+            getSnapshotStateVersion,
+            shouldSkipForceSyncSnapshot
+        });
+        return networkPublishRejectionController;
+    }
+
+    function getNetworkPlaybackRecoveryController() {
+        if (networkPlaybackRecoveryController) return networkPlaybackRecoveryController;
+        const mod = resolveNetworkPlaybackRecoveryModule();
+        if (!mod || typeof mod.createNetworkPlaybackRecoveryController !== 'function') return null;
+        networkPlaybackRecoveryController = mod.createNetworkPlaybackRecoveryController({
+            getState: () => state,
+            cloneData: cloneDataForCommandPayload,
+            getCurrentSnapshotForPublish,
+            getTrackedPublishRequestedPlaybackEvents,
+            getSnapshotStateVersion,
+            getAppliedStateVersion,
+            shouldSkipForceSyncSnapshot
+        });
+        return networkPlaybackRecoveryController;
+    }
+
+    function getNetworkRoomEventsController() {
+        if (networkRoomEventsController) return networkRoomEventsController;
+        const mod = resolveNetworkRoomEventsModule();
+        if (!mod || typeof mod.createNetworkRoomEventsController !== 'function') return null;
+        networkRoomEventsController = mod.createNetworkRoomEventsController({
+            getState: () => state,
+            normalizePlayerKey,
+            chatHistoryLimit: CHAT_HISTORY_LIMIT,
+            applyPayloadSessionState,
+            emitStatusAndEffectLog,
+            getSeatDisplayName
+        });
+        return networkRoomEventsController;
+    }
+
+    function getNetworkStreamSnapshotController() {
+        if (networkStreamSnapshotController) return networkStreamSnapshotController;
+        const mod = resolveNetworkStreamSnapshotModule();
+        if (!mod || typeof mod.createNetworkStreamSnapshotController !== 'function') return null;
+        networkStreamSnapshotController = mod.createNetworkStreamSnapshotController({
+            getState: () => state,
+            applyPayloadSessionState,
+            getSnapshotStateVersion,
+            findTrackedPublish,
+            isTerminalSnapshotForResult,
+            shouldApplyStreamSnapshotAsShadowPlayback,
+            buildShadowAwarePlaybackApplyOptions,
+            applySnapshotThroughCoordinator,
+            shouldRecoverForceSyncedStreamPlayback,
+            applySnapshot,
+            markTrackedPublishSnapshotApplied,
+            recordNetworkTelemetry,
+            consumePendingForceSyncPlaybackRecovery,
+            markTrackedPublishResultPresented,
+            emitPayloadEffectLogs,
+            emitSnapshotCommentary,
+            markTrackedPublishSelfSnapshot,
+            handleTimeoutPassPayload,
+            pruneTrackedPublishes
+        });
+        return networkStreamSnapshotController;
+    }
+
+    function getNetworkStreamSessionController() {
+        if (networkStreamSessionController) return networkStreamSessionController;
+        const mod = resolveNetworkStreamSessionModule();
+        if (!mod || typeof mod.createNetworkStreamSessionController !== 'function') return null;
+        networkStreamSessionController = mod.createNetworkStreamSessionController({
+            getState: () => state,
+            withTrailingSlashRemoved,
+            closeExistingStream: () => closeStream(),
+            emitStatus,
+            createStreamPayloadHandler,
+            markStreamActivity,
+            scheduleStreamWatchdog,
+            clearReconnectTimer,
+            scheduleReconnectRecoverySync,
+            scheduleStreamReconnect,
+            completeReconnectRecoveryFromStream,
+            handlePresencePayload,
+            handleChatPayload,
+            handleStreamSnapshotPayload,
+            applyPayloadSessionState,
+            maybeSyncFromHeartbeat,
+            isActive
+        });
+        return networkStreamSessionController;
+    }
+
+    function getNetworkTransportController() {
+        if (networkTransportController) return networkTransportController;
+        const mod = resolveNetworkTransportModule();
+        if (!mod || typeof mod.createNetworkTransportController !== 'function') return null;
+        networkTransportController = mod.createNetworkTransportController({
+            getState: () => state,
+            withTrailingSlashRemoved,
+            scheduleTimeout,
+            clearScheduledTimeout,
+            requestTimeoutMs: REQUEST_TIMEOUT_MS,
+            publishRetryMaxAttempts: PUBLISH_RETRY_MAX_ATTEMPTS,
+            publishRetryBaseDelayMs: PUBLISH_RETRY_BASE_DELAY_MS,
+            publishRetryMaxDelayMs: PUBLISH_RETRY_MAX_DELAY_MS,
+            computeRetryDelayMs
+        });
+        return networkTransportController;
+    }
+
+    function getNetworkTurnTimerController() {
+        if (networkTurnTimerController) return networkTurnTimerController;
+        const mod = resolveNetworkTurnTimerModule();
+        if (!mod || typeof mod.createNetworkTurnTimerController !== 'function') return null;
+        networkTurnTimerController = mod.createNetworkTurnTimerController({
+            getState: () => state,
+            normalizePlayerKey,
+            defaultLimitSeconds: TURN_TIMER_DEFAULT_LIMIT,
+            scheduleTimeout,
+            clearScheduledTimeout,
+            isActive,
+            syncLatestState
+        });
+        return networkTurnTimerController;
     }
 
     function invokeControllerMethod(resolveController: any, methodName: any, argsLike: any, fallback: any) {
@@ -912,233 +1115,101 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function computeForceSyncPlaybackRecoverySignature(snapshot: any) {
-        if (!snapshot || typeof snapshot !== 'object') return '';
-        if (!snapshot.gameState || typeof snapshot.gameState !== 'object') return '';
-        if (!snapshot.cardState || typeof snapshot.cardState !== 'object') return '';
-        try {
-            const signatureCardState = cloneDataForCommandPayload(snapshot.cardState);
-            delete signatureCardState.presentationEvents;
-            delete signatureCardState._presentationEventsPersist;
-            delete signatureCardState.chargeDeltaEvents;
-            return JSON.stringify({
-                gameState: cloneDataForCommandPayload(snapshot.gameState),
-                cardState: signatureCardState
-            });
-        } catch (e: any) {
-            return '';
-        }
+        const controller = getNetworkPlaybackRecoveryController();
+        if (!controller || typeof controller.computeForceSyncPlaybackRecoverySignature !== 'function') return '';
+        return controller.computeForceSyncPlaybackRecoverySignature(snapshot);
     }
 
     function computeCurrentPlaybackRecoverySignature() {
-        const currentSnapshot = getCurrentSnapshotForPublish();
-        return computeForceSyncPlaybackRecoverySignature(currentSnapshot);
+        const controller = getNetworkPlaybackRecoveryController();
+        if (!controller || typeof controller.computeCurrentPlaybackRecoverySignature !== 'function') return '';
+        return controller.computeCurrentPlaybackRecoverySignature();
     }
 
-    // The actor already played `requestMeta.playbackEvents` locally before publishing
-    // (both the use_card immediate path with usedSnapshotFallback=true and the
-    // post-action publish path that runs `originalRunTurnWithAdapter` first). When
-    // the server's authoritative response echoes the same events back, replaying
-    // them visibly produces a 2x animation. The reliable signal is
-    // `requestedPlaybackEvents.length > 0` — actor pre-played, so suppress.
-    // For publish-response we additionally require the response snapshot signature
-    // to match the actor's current state, which guarantees the response is the
-    // echo of the same action and not a divergent server correction.
     function shouldApplyPublishResponseAsShadowPlayback(trackedPublish: any, snapshot: any, playbackEvents: any) {
-        if (!trackedPublish || typeof trackedPublish !== 'object') return false;
-        if (!trackedPublish.requestMeta) return false;
-        const requestedPlaybackEvents = getTrackedPublishRequestedPlaybackEvents(trackedPublish);
-        if (!Array.isArray(requestedPlaybackEvents) || requestedPlaybackEvents.length === 0) return false;
-        if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
-        const snapshotSignature = computeForceSyncPlaybackRecoverySignature(snapshot);
-        if (!snapshotSignature) return false;
-        const currentSignature = computeCurrentPlaybackRecoverySignature();
-        return !!currentSignature && currentSignature === snapshotSignature;
+        const controller = getNetworkPlaybackRecoveryController();
+        if (!controller || typeof controller.shouldApplyPublishResponseAsShadowPlayback !== 'function') return false;
+        return controller.shouldApplyPublishResponseAsShadowPlayback(trackedPublish, snapshot, playbackEvents);
     }
 
     function shouldSkipPublishResponseSnapshot(trackedPublish: any, snapshot: any) {
-        if (!trackedPublish || typeof trackedPublish !== 'object') return false;
-        if (trackedPublish.selfSnapshotReceived !== true) return false;
-
-        const snapshotVersion = getSnapshotStateVersion(snapshot);
-        const selfSnapshotVersion = Number.isFinite(Number(trackedPublish.selfSnapshotVersion))
-            ? Number(trackedPublish.selfSnapshotVersion)
-            : null;
-        const appliedStateVersion = getAppliedStateVersion();
-        if (snapshotVersion === null || selfSnapshotVersion === null) return false;
-        if (snapshotVersion !== selfSnapshotVersion) return false;
-        if (appliedStateVersion !== null && appliedStateVersion < snapshotVersion) return false;
-
-        const snapshotSignature = computeForceSyncPlaybackRecoverySignature(snapshot);
-        if (!snapshotSignature) return false;
-        const currentSignature = computeCurrentPlaybackRecoverySignature();
-        return !!currentSignature && currentSignature === snapshotSignature;
+        const controller = getNetworkPlaybackRecoveryController();
+        if (!controller || typeof controller.shouldSkipPublishResponseSnapshot !== 'function') return false;
+        return controller.shouldSkipPublishResponseSnapshot(trackedPublish, snapshot);
     }
 
-    // SSE stream variant: when the actor already drained playback locally
-    // (any path that produced `requestMeta.playbackEvents`), the broadcast
-    // snapshot would replay the same animations. Route those through shadow
-    // playback so the actor does not see the same card-use / flip animation
-    // twice. trackedPublish presence (matched by operationId in the SSE payload)
-    // guarantees this is the echo of this actor's own action.
     function shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish: any, playbackEvents: any) {
-        if (!trackedPublish || typeof trackedPublish !== 'object') return false;
-        if (!trackedPublish.requestMeta) return false;
-        const requestedPlaybackEvents = getTrackedPublishRequestedPlaybackEvents(trackedPublish);
-        if (!Array.isArray(requestedPlaybackEvents) || requestedPlaybackEvents.length === 0) return false;
-        if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return false;
-        return true;
+        const controller = getNetworkPlaybackRecoveryController();
+        if (!controller || typeof controller.shouldApplyStreamSnapshotAsShadowPlayback !== 'function') return false;
+        return controller.shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish, playbackEvents);
     }
 
     function buildShadowAwarePlaybackApplyOptions(playbackEvents: any, shouldShadowPlayback: any, shadowPlaybackSource: any) {
-        const events = Array.isArray(playbackEvents) ? playbackEvents : [];
-        const useShadowPlayback = shouldShadowPlayback === true;
-        return {
-            playbackEvents: useShadowPlayback ? [] : events,
-            shadowPlaybackEvents: useShadowPlayback ? events : [],
-            shadowPlaybackSource: useShadowPlayback ? shadowPlaybackSource : undefined
-        };
+        const controller = getNetworkPlaybackRecoveryController();
+        if (!controller || typeof controller.buildShadowAwarePlaybackApplyOptions !== 'function') {
+            return {
+                playbackEvents: Array.isArray(playbackEvents) ? playbackEvents : [],
+                shadowPlaybackEvents: [],
+                shadowPlaybackSource: undefined
+            };
+        }
+        return controller.buildShadowAwarePlaybackApplyOptions(playbackEvents, shouldShadowPlayback, shadowPlaybackSource);
     }
 
     function clearPendingForceSyncPlaybackRecovery() {
-        state.pendingForceSyncPlaybackVersion = null;
-        state.pendingForceSyncPlaybackSource = '';
-        state.pendingForceSyncPlaybackSignature = '';
+        const controller = getNetworkPlaybackRecoveryController();
+        if (!controller || typeof controller.clearPendingForceSyncPlaybackRecovery !== 'function') return;
+        controller.clearPendingForceSyncPlaybackRecovery();
     }
 
     function rememberPendingForceSyncPlaybackRecovery(snapshot: any, options: any) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const snapshotVersion = getSnapshotStateVersion(snapshot);
-        const playbackEvents = Array.isArray(opts.playbackEvents) ? opts.playbackEvents : [];
-        const shadowPlaybackEvents = Array.isArray(opts.shadowPlaybackEvents) ? opts.shadowPlaybackEvents : [];
-        if (snapshotVersion === null) {
-            clearPendingForceSyncPlaybackRecovery();
-            return false;
-        }
-        if (opts.force !== true || playbackEvents.length > 0 || shadowPlaybackEvents.length > 0) {
-            const pendingVersion = Number.isFinite(Number(state.pendingForceSyncPlaybackVersion))
-                ? Number(state.pendingForceSyncPlaybackVersion)
-                : null;
-            if (pendingVersion !== null && snapshotVersion >= pendingVersion) {
-                clearPendingForceSyncPlaybackRecovery();
-            }
-            return false;
-        }
-        state.pendingForceSyncPlaybackVersion = snapshotVersion;
-        state.pendingForceSyncPlaybackSource = typeof opts.source === 'string' ? opts.source : '';
-        state.pendingForceSyncPlaybackSignature = computeForceSyncPlaybackRecoverySignature(snapshot);
-        return true;
+        const controller = getNetworkPlaybackRecoveryController();
+        if (!controller || typeof controller.rememberPendingForceSyncPlaybackRecovery !== 'function') return false;
+        return controller.rememberPendingForceSyncPlaybackRecovery(snapshot, options);
     }
 
     function consumePendingForceSyncPlaybackRecovery(snapshotOrVersion: any) {
-        const snapshotVersion = Number.isFinite(Number(snapshotOrVersion))
-            ? Number(snapshotOrVersion)
-            : getSnapshotStateVersion(snapshotOrVersion);
-        const pendingVersion = Number.isFinite(Number(state.pendingForceSyncPlaybackVersion))
-            ? Number(state.pendingForceSyncPlaybackVersion)
-            : null;
-        if (snapshotVersion === null || pendingVersion === null || snapshotVersion < pendingVersion) {
-            return false;
-        }
-        clearPendingForceSyncPlaybackRecovery();
-        return true;
+        const controller = getNetworkPlaybackRecoveryController();
+        if (!controller || typeof controller.consumePendingForceSyncPlaybackRecovery !== 'function') return false;
+        return controller.consumePendingForceSyncPlaybackRecovery(snapshotOrVersion);
     }
 
     function shouldRecoverForceSyncedStreamPlayback(snapshot: any, playbackEvents: any) {
-        const pendingVersion = Number.isFinite(Number(state.pendingForceSyncPlaybackVersion))
-            ? Number(state.pendingForceSyncPlaybackVersion)
-            : null;
-        const pendingSignature = typeof state.pendingForceSyncPlaybackSignature === 'string'
-            ? state.pendingForceSyncPlaybackSignature
-            : '';
-        const snapshotVersion = getSnapshotStateVersion(snapshot);
-        const localVersion = getAppliedStateVersion();
-        if (pendingVersion === null || snapshotVersion === null) return false;
-        if (snapshotVersion !== pendingVersion) return false;
-        if (!Array.isArray(playbackEvents) || playbackEvents.length <= 0) return false;
-        if (shouldSkipForceSyncSnapshot(snapshot)) return false;
-        if (pendingSignature && computeForceSyncPlaybackRecoverySignature(snapshot) !== pendingSignature) return false;
-        return localVersion === snapshotVersion;
+        const controller = getNetworkPlaybackRecoveryController();
+        if (!controller || typeof controller.shouldRecoverForceSyncedStreamPlayback !== 'function') return false;
+        return controller.shouldRecoverForceSyncedStreamPlayback(snapshot, playbackEvents);
     }
 
     function isVersionConflictReason(reasonValue: any) {
-        const reason = String(reasonValue || '').trim();
-        return reason === 'VERSION_MISMATCH'
-            || reason === 'VERSION_AHEAD'
-            || reason === 'VERSION_BEHIND'
-            || reason === 'VERSION_GAP';
+        const controller = getNetworkPublishRejectionController();
+        if (!controller || typeof controller.isVersionConflictReason !== 'function') return false;
+        return controller.isVersionConflictReason(reasonValue);
     }
 
     function getVersionConflictTelemetryKey(reasonValue: any) {
-        const reason = String(reasonValue || '').trim();
-        if (reason === 'VERSION_AHEAD') return 'publish_version_ahead';
-        if (reason === 'VERSION_BEHIND') return 'publish_version_behind';
-        if (reason === 'VERSION_GAP') return 'publish_version_gap';
-        if (reason === 'VERSION_MISMATCH') return 'publish_version_mismatch';
-        return '';
+        const controller = getNetworkPublishRejectionController();
+        if (!controller || typeof controller.getVersionConflictTelemetryKey !== 'function') return '';
+        return controller.getVersionConflictTelemetryKey(reasonValue);
     }
 
     function shouldRetryVersionConflictPublish(reasonValue: any, actionTypeValue: any, trackedPublish: any) {
-        if (!isVersionConflictReason(reasonValue)) return false;
-        const actionType = String(actionTypeValue || '').trim().toLowerCase();
-        if (actionType === 'reset_game' || actionType === 'rematch' || actionType === 'restart') return false;
-        if (trackedPublish && hasNewerQueuedPublish(trackedPublish.sequence)) return false;
-        return true;
+        const controller = getNetworkPublishRejectionController();
+        if (!controller || typeof controller.shouldRetryVersionConflictPublish !== 'function') return false;
+        return controller.shouldRetryVersionConflictPublish(reasonValue, actionTypeValue, trackedPublish);
     }
 
     function buildVersionConflictRetryPayload(payload: any) {
-        const retryTurnIndex = getCurrentPublishTurnIndex();
-        const retryPayload = Object.assign({}, payload, {
-            baseVersion: state.stateVersion,
-            turnIndex: retryTurnIndex
-        });
-        if (retryPayload.action && typeof retryPayload.action === 'object') {
-            retryPayload.action = Object.assign({}, retryPayload.action, {
-                turnIndex: retryTurnIndex
-            });
-        }
-        return retryPayload;
+        const controller = getNetworkPublishRejectionController();
+        if (!controller || typeof controller.buildVersionConflictRetryPayload !== 'function') return Object.assign({}, payload);
+        return controller.buildVersionConflictRetryPayload(payload);
     }
 
     function resolveRejectedPublishSnapshotHandling(entry: any, payload: any, rejectedReason: any, options: any) {
-        const opts = (options && typeof options === 'object') ? options : {};
-        const reason = String(rejectedReason || '').trim() || 'PUBLISH_REJECTED';
-        const snapshot = (payload && payload.snapshot && typeof payload.snapshot === 'object')
-            ? payload.snapshot
-            : null;
-        const localStateVersionBefore = Number.isFinite(Number(state.stateVersion))
-            ? Number(state.stateVersion)
-            : null;
-        const rejectionStateVersion = Number.isFinite(Number(payload && payload.stateVersion))
-            ? Number(payload.stateVersion)
-            : null;
-
-        if (rejectionStateVersion !== null && (localStateVersionBefore === null || rejectionStateVersion > localStateVersionBefore)) {
-            state.stateVersion = rejectionStateVersion;
+        const controller = getNetworkPublishRejectionController();
+        if (!controller || typeof controller.resolveRejectedPublishSnapshotHandling !== 'function') {
+            return { shouldApplySnapshot: false, skipReason: 'publish_rejection_controller_unavailable', snapshotVersion: null, rejectionStateVersion: null, localStateVersionBefore: null, reason: String(rejectedReason || '').trim() || 'PUBLISH_REJECTED' };
         }
-
-        const snapshotVersion = getSnapshotStateVersion(snapshot);
-        if (!snapshot) {
-            return { shouldApplySnapshot: false, skipReason: 'missing_snapshot', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
-        }
-        if (entry && hasNewerQueuedPublish(entry.sequence)) {
-            return { shouldApplySnapshot: false, skipReason: 'newer_local_publish', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
-        }
-        if (snapshotVersion === null) {
-            return { shouldApplySnapshot: false, skipReason: 'missing_snapshot_version', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
-        }
-        if (localStateVersionBefore !== null && snapshotVersion < localStateVersionBefore) {
-            return { shouldApplySnapshot: false, skipReason: 'stale_snapshot_version', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
-        }
-        if (isVersionConflictReason(reason) && localStateVersionBefore !== null && snapshotVersion === localStateVersionBefore) {
-            return { shouldApplySnapshot: false, skipReason: 'same_version_version_mismatch', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
-        }
-        if (shouldSkipForceSyncSnapshot(snapshot, {
-            ignoreSequence: entry && entry.sequence,
-            localProjectedSnapshotHash: opts.localProjectedSnapshotHash || null
-        })) {
-            return { shouldApplySnapshot: false, skipReason: 'skip_force_sync_guard', snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
-        }
-        return { shouldApplySnapshot: true, skipReason: null, snapshotVersion, rejectionStateVersion, localStateVersionBefore, reason };
+        return controller.resolveRejectedPublishSnapshotHandling(entry, payload, rejectedReason, options);
     }
 
     function buildPublishCommandPayload(info: any, playerKey: any) {
@@ -1387,43 +1458,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         }
     }
 
-    function normalizeTurnTimerPayload(value: any) {
-        const source = (value && typeof value === 'object') ? value : {};
-        const limitSeconds = Number.isFinite(Number(source.limitSeconds))
-            ? Math.max(1, Math.trunc(Number(source.limitSeconds)))
-            : TURN_TIMER_DEFAULT_LIMIT;
-        const turnSeatKey = normalizePlayerKey(source.turnSeatKey);
-        const turnStartedAt = Number.isFinite(Number(source.turnStartedAt))
-            ? Math.max(0, Math.trunc(Number(source.turnStartedAt)))
-            : null;
-        const turnDeadlineAt = Number.isFinite(Number(source.turnDeadlineAt))
-            ? Math.max(0, Math.trunc(Number(source.turnDeadlineAt)))
-            : null;
-        const active = !!source.active && turnDeadlineAt !== null;
-
-        return {
-            limitSeconds,
-            active,
-            turnSeatKey,
-            turnStartedAt: active ? turnStartedAt : null,
-            turnDeadlineAt: active ? turnDeadlineAt : null
-        };
-    }
-
-    function updateServerTimeOffset(serverTimeValue: any) {
-        const serverTime = Number(serverTimeValue);
-        if (!Number.isFinite(serverTime)) return;
-        state.serverTimeOffsetMs = serverTime - Date.now();
-    }
-
     function maybeSyncFromHeartbeat(payload: any) {
         const controller = getNetworkReconnectController();
         if (!controller || typeof controller.maybeSyncFromHeartbeat !== 'function') return;
         controller.maybeSyncFromHeartbeat(payload);
-    }
-
-    function getAdjustedNowMs() {
-        return Date.now() + (Number.isFinite(state.serverTimeOffsetMs) ? state.serverTimeOffsetMs : 0);
     }
 
     function waitForMs(ms: any) {
@@ -1672,99 +1710,31 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function getTurnTimerInfo() {
-        const timer = normalizeTurnTimerPayload(state.turnTimer);
-        const deadlineAt = Number.isFinite(Number(timer.turnDeadlineAt)) ? Number(timer.turnDeadlineAt) : null;
-        const active = !!timer.active && deadlineAt !== null;
-        const remainingMs = active ? Math.max(0, deadlineAt - getAdjustedNowMs()) : null;
-
+        const controller = getNetworkTurnTimerController();
+        if (controller && typeof controller.getTurnTimerInfo === 'function') {
+            return controller.getTurnTimerInfo();
+        }
         return {
-            limitSeconds: timer.limitSeconds,
-            active,
-            turnSeatKey: timer.turnSeatKey,
-            turnStartedAt: active ? timer.turnStartedAt : null,
-            turnDeadlineAt: active ? deadlineAt : null,
-            remainingMs,
-            isOwnTurn: active && timer.turnSeatKey === state.seatKey
+            limitSeconds: TURN_TIMER_DEFAULT_LIMIT,
+            active: false,
+            turnSeatKey: normalizePlayerKey(state.seatKey),
+            turnStartedAt: null,
+            turnDeadlineAt: null,
+            remainingMs: null,
+            isOwnTurn: false
         };
     }
 
-    function emitTurnTimerChanged() {
-        if (typeof state.turnTimerListener !== 'function') return;
-        try {
-            state.turnTimerListener(getTurnTimerInfo());
-        } catch (e: any) { /* ignore */ }
-    }
-
-    function clearTurnTimerTick() {
-        if (!state.turnTimerTickHandle) return;
-        clearScheduledTimeout(state.turnTimerTickHandle);
-        state.turnTimerTickHandle = 0;
-    }
-
-    function maybeSyncLatestStateAfterTimeout(timerInfo: any) {
-        if (!timerInfo || timerInfo.active !== true) return;
-        if (!Number.isFinite(Number(timerInfo.turnDeadlineAt))) return;
-        if (!isActive()) return;
-        if (!state.seatToken) return;
-
-        const deadlineAt = Number(timerInfo.turnDeadlineAt);
-        if (state.turnTimerSyncRequestedDeadline === deadlineAt) return;
-        state.turnTimerSyncRequestedDeadline = deadlineAt;
-
-        syncLatestState().catch(() => {
-            // keep countdown loop stable even when one sync request fails
-        });
-    }
-
-    function scheduleTurnTimerTick() {
-        clearTurnTimerTick();
-
-        const info = getTurnTimerInfo();
-        emitTurnTimerChanged();
-
-        if (!info.active) return;
-
-        const waitMs = (info.remainingMs !== null && info.remainingMs <= 10000) ? 250 : 1000;
-        state.turnTimerTickHandle = scheduleTimeout(() => {
-            state.turnTimerTickHandle = 0;
-            const nextInfo = getTurnTimerInfo();
-            emitTurnTimerChanged();
-            if (nextInfo.active && nextInfo.remainingMs !== null && nextInfo.remainingMs <= 0) {
-                maybeSyncLatestStateAfterTimeout(nextInfo);
-            }
-            scheduleTurnTimerTick();
-        }, waitMs);
-    }
-
     function resetTurnTimerState() {
-        state.turnTimer = normalizeTurnTimerPayload(null);
-        state.turnTimerSyncRequestedDeadline = null;
-        state.serverTimeOffsetMs = 0;
-        state.heartbeatResyncInFlight = false;
-        clearTurnTimerTick();
-        emitTurnTimerChanged();
+        const controller = getNetworkTurnTimerController();
+        if (!controller || typeof controller.resetTurnTimerState !== 'function') return;
+        controller.resetTurnTimerState();
     }
 
     function updateTurnTimerFromPayload(payload: any) {
-        if (!payload || typeof payload !== 'object') return;
-
-        updateServerTimeOffset(payload.serverTime);
-
-        if (!Object.prototype.hasOwnProperty.call(payload, 'turnTimer')) return;
-
-        const prevDeadline = Number.isFinite(Number(state.turnTimer && state.turnTimer.turnDeadlineAt))
-            ? Number(state.turnTimer.turnDeadlineAt)
-            : null;
-        const nextTimer = normalizeTurnTimerPayload(payload.turnTimer);
-
-        state.turnTimer = nextTimer;
-
-        const nextDeadline = Number.isFinite(Number(nextTimer.turnDeadlineAt)) ? Number(nextTimer.turnDeadlineAt) : null;
-        if (!nextTimer.active || nextDeadline !== prevDeadline) {
-            state.turnTimerSyncRequestedDeadline = null;
-        }
-
-        scheduleTurnTimerTick();
+        const controller = getNetworkTurnTimerController();
+        if (!controller || typeof controller.updateTurnTimerFromPayload !== 'function') return;
+        controller.updateTurnTimerFromPayload(payload);
     }
 
     function ensureOwnSeatJoined() {
@@ -1772,14 +1742,26 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function normalizeChatText(value: any) {
+        const controller = getNetworkRoomEventsController();
+        if (controller && typeof controller.normalizeChatText === 'function') {
+            return controller.normalizeChatText(value);
+        }
         return String(value || '').replace(/[\r\n]+/g, ' ').trim();
     }
 
     function countTextChars(value: any) {
+        const controller = getNetworkRoomEventsController();
+        if (controller && typeof controller.countTextChars === 'function') {
+            return controller.countTextChars(value);
+        }
         return Array.from(String(value || '')).length;
     }
 
     function normalizeChatMessage(entry: any) {
+        const controller = getNetworkRoomEventsController();
+        if (controller && typeof controller.normalizeChatMessage === 'function') {
+            return controller.normalizeChatMessage(entry);
+        }
         if (!entry || typeof entry !== 'object') return null;
         const text = normalizeChatText(entry.text);
         if (!text) return null;
@@ -1791,78 +1773,22 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         };
     }
 
-    function emitChatEvent(payload: any) {
-        if (typeof state.chatListener !== 'function') return;
-        try {
-            state.chatListener(payload);
-        } catch (e: any) { /* ignore */ }
-    }
-
     function handleChatPayload(payload: any) {
-        if (!payload || payload.ok !== true) return;
-
-        applyPayloadSessionState(payload);
-
-        const type = String(payload.type || 'message');
-        if (type === 'history') {
-            const list = Array.isArray(payload.messages) ? payload.messages : [];
-            const normalized = list
-                .map((entry: any) => normalizeChatMessage(entry))
-                .filter((entry: any) => !!entry);
-            state.chatHistory = normalized.slice(-CHAT_HISTORY_LIMIT);
-            emitChatEvent({
-                type: 'history',
-                messages: state.chatHistory.slice()
-            });
-            return;
-        }
-
-        const message = normalizeChatMessage(payload.message);
-        if (!message) return;
-
-        state.chatHistory.push(message);
-        if (state.chatHistory.length > CHAT_HISTORY_LIMIT) {
-            state.chatHistory.splice(0, state.chatHistory.length - CHAT_HISTORY_LIMIT);
-        }
-
-        emitChatEvent({
-            type: 'message',
-            message
-        });
+        const controller = getNetworkRoomEventsController();
+        if (!controller || typeof controller.handleChatPayload !== 'function') return;
+        controller.handleChatPayload(payload);
     }
 
     function handlePresencePayload(payload: any) {
-        if (!payload || payload.ok !== true) return;
-
-        applyPayloadSessionState(payload);
-
-        const type = String(payload.type || 'join');
-        if (type !== 'join' && type !== 'leave') return;
-
-        const joinedSeatKey = normalizePlayerKey(payload.seatKey);
-        if (joinedSeatKey === state.seatKey) return;
-
-        const seatName = getSeatDisplayName(joinedSeatKey);
-        const message = (type === 'leave')
-            ? `ネット対戦: ${seatName}が退出しました`
-            : (payload.rejoined
-                ? `ネット対戦: ${seatName}が再接続しました`
-                : `ネット対戦: ${seatName}が接続しました`);
-        emitStatusAndEffectLog(message, false);
+        const controller = getNetworkRoomEventsController();
+        if (!controller || typeof controller.handlePresencePayload !== 'function') return;
+        controller.handlePresencePayload(payload);
     }
 
     function handleTimeoutPassPayload(payload: any) {
-        if (!payload || payload.ok !== true) return;
-        if (String(payload.actionType || '') !== 'timeout_pass') return;
-
-        const timedOutSeatKey = normalizePlayerKey(payload.playerKey);
-        if (timedOutSeatKey === state.seatKey) {
-            emitStatusAndEffectLog('ネット対戦: あなたの手番が時間切れになりました', false);
-            return;
-        }
-
-        const seatName = getSeatDisplayName(timedOutSeatKey);
-        emitStatusAndEffectLog(`ネット対戦: ${seatName}の手番が時間切れになりました`, false);
+        const controller = getNetworkRoomEventsController();
+        if (!controller || typeof controller.handleTimeoutPassPayload !== 'function') return;
+        controller.handleTimeoutPassPayload(payload);
     }
 
     function applySnapshot(snapshot: any, options: any) {
@@ -1924,55 +1850,12 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         invokeControllerMethod(getNetworkSessionSeatController, 'setSeatGlobals', arguments, undefined);
     }
 
-    function parseStreamEventPayload(event: any) {
-        try {
-            return JSON.parse((event && event.data) || '{}');
-        } catch (e: any) {
-            return null;
+    function requestJson(method: any, path: any, payload: any) {
+        const controller = getNetworkTransportController();
+        if (!controller || typeof controller.requestJson !== 'function') {
+            throw new Error('NetworkTransportModule unavailable');
         }
-    }
-
-    function createStreamPayloadHandler(payloadHandler: any) {
-        return function handleParsedStreamEvent(event: any) {
-            const payload = parseStreamEventPayload(event);
-            if (!payload) return;
-            rememberStreamEventId(event);
-            markStreamActivity();
-            payloadHandler(payload);
-        };
-    }
-
-    async function requestJson(method: any, path: any, payload: any) {
-        const url = `${withTrailingSlashRemoved(state.serverUrl)}${path}`;
-        const init: any = {
-            method,
-            headers: { 'Content-Type': 'application/json' }
-        };
-        if (payload !== undefined) {
-            init.body = JSON.stringify(payload);
-        }
-
-        let timeoutId = 0;
-        let controller: any = null;
-        try {
-            if (typeof AbortController === 'function') {
-                controller = new AbortController();
-                init.signal = controller.signal;
-                timeoutId = scheduleTimeout(() => {
-                    try { controller.abort(); } catch (e: any) { /* ignore */ }
-                }, REQUEST_TIMEOUT_MS);
-            }
-        } catch (e: any) { /* ignore */ }
-
-        try {
-            const response = await fetch(url, init);
-            const data = await response.json().catch(() => ({}));
-            return { ok: response.ok, status: response.status, data };
-        } finally {
-            if (timeoutId) {
-                clearScheduledTimeout(timeoutId);
-            }
-        }
+        return controller.requestJson(method, path, payload);
     }
 
     function sanitizePlaybackValueForPublish(value: any): any {
@@ -2012,6 +1895,10 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function isMatchApiMissing(res: any) {
+        const controller = getNetworkTransportController();
+        if (controller && typeof controller.isMatchApiMissing === 'function') {
+            return controller.isMatchApiMissing(res);
+        }
         return !!(res && Number(res.status) === 404);
     }
 
@@ -2092,167 +1979,41 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
         controller.closeStream();
     }
 
-    function isRetryablePublishStatus(status: any) {
-        const code = Number(status);
-        return code === 408 || code === 429 || code === 500 || code === 502 || code === 503 || code === 504;
+    function publishRequestWithRetry(payload: any) {
+        const controller = getNetworkTransportController();
+        if (!controller || typeof controller.publishRequestWithRetry !== 'function') {
+            throw new Error('NetworkTransportModule unavailable');
+        }
+        return controller.publishRequestWithRetry(payload);
     }
 
-    async function publishRequestWithRetry(payload: any) {
-        let lastError: any = null;
-        for (let attempt = 0; attempt < PUBLISH_RETRY_MAX_ATTEMPTS; attempt += 1) {
-            try {
-                const res = await requestJson('POST', '/api/match/publish', payload);
-                if (!isRetryablePublishStatus(res && res.status) || attempt >= (PUBLISH_RETRY_MAX_ATTEMPTS - 1)) {
-                    return res;
-                }
-            } catch (e: any) {
-                lastError = e;
-                if (attempt >= (PUBLISH_RETRY_MAX_ATTEMPTS - 1)) {
-                    throw e;
-                }
-            }
-
-            const delayMs = computeRetryDelayMs(PUBLISH_RETRY_BASE_DELAY_MS, PUBLISH_RETRY_MAX_DELAY_MS, attempt);
-            await waitForMs(delayMs);
-        }
-
-        throw (lastError || new Error('PUBLISH_RETRY_EXHAUSTED'));
+    function handleStreamSnapshotPayload(payload: any) {
+        const controller = getNetworkStreamSnapshotController();
+        if (!controller || typeof controller.handleStreamSnapshotPayload !== 'function') return;
+        controller.handleStreamSnapshotPayload(payload);
     }
 
     function openStream(options: any) {
-        const opts = options || {};
-        closeStream();
-        if (!state.active || !state.roomId) return;
-        if (typeof EventSource !== 'function') {
-            emitStatus('ネット対戦: この環境ではリアルタイム接続に未対応です', true);
-            return;
+        const controller = getNetworkStreamSessionController();
+        if (!controller || typeof controller.openStream !== 'function') return;
+        controller.openStream(options);
+    }
+
+    function parseStreamEventPayload(event: any) {
+        const controller = getNetworkTransportController();
+        if (!controller || typeof controller.parseStreamEventPayload !== 'function') return null;
+        return controller.parseStreamEventPayload(event);
+    }
+
+    function createStreamPayloadHandler(payloadHandler: any) {
+        const controller = getNetworkTransportController();
+        if (!controller || typeof controller.createStreamPayloadHandler !== 'function') {
+            return function noopHandler() { };
         }
-
-        const resumeEventId = opts.reconnect === true
-            ? String(state.lastStreamEventId || '').trim()
-            : '';
-        const resumeQuery = resumeEventId
-            ? `&lastEventId=${encodeURIComponent(resumeEventId)}`
-            : '';
-        const streamUrl = `${withTrailingSlashRemoved(state.serverUrl)}/api/match/stream?roomId=${encodeURIComponent(state.roomId)}&seatKey=${encodeURIComponent(state.seatKey)}&seatToken=${encodeURIComponent(state.seatToken || '')}${resumeQuery}`;
-        const es = new EventSource(streamUrl);
-        state.eventSource = es;
-        markStreamActivity();
-        scheduleStreamWatchdog();
-
-        const onSnapshot = (payload: any) => {
-            if (!payload || payload.ok !== true) return;
-            applyPayloadSessionState(payload);
-            const snapshot = payload.snapshot;
-            const playbackEvents = Array.isArray(payload.playbackEvents) ? payload.playbackEvents : [];
-            const operationId = payload && payload.operationId ? String(payload.operationId) : '';
-            const snapshotVersion = getSnapshotStateVersion(snapshot);
-            const trackedPublish = findTrackedPublish(operationId);
-            const isSelfOperation = !!trackedPublish;
-            const isTerminalResultSnapshot = isTerminalSnapshotForResult(snapshot);
-
-            const shouldShadowStreamPlayback = isSelfOperation
-                && shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish, playbackEvents);
-            const streamPlaybackApplyOptions = buildShadowAwarePlaybackApplyOptions(
-                playbackEvents,
-                shouldShadowStreamPlayback,
-                'stream_self_shadow'
-            );
-            let applied = applySnapshotThroughCoordinator(snapshot, {
-                source: 'stream',
-                trackedPublish,
-                applyOptions: Object.assign({}, streamPlaybackApplyOptions, {
-                    force: false,
-                    skipResultOverlay: isSelfOperation && !isTerminalResultSnapshot
-                })
-            });
-            const recoveredForcedPlayback = !applied && shouldRecoverForceSyncedStreamPlayback(snapshot, playbackEvents)
-                ? applySnapshot(snapshot, Object.assign({}, streamPlaybackApplyOptions, {
-                    force: true,
-                    skipResultOverlay: isSelfOperation && !isTerminalResultSnapshot
-                }))
-                : false;
-            if (!applied && recoveredForcedPlayback) {
-                applied = true;
-                if (snapshotVersion !== null) {
-                    state.appliedStateVersion = snapshotVersion;
-                }
-                if (trackedPublish) {
-                    markTrackedPublishSnapshotApplied(trackedPublish, snapshot, 'stream_force_recovery');
-                }
-                recordNetworkTelemetry('stream_playback_recovered_after_force_sync', {
-                    operationId,
-                    snapshotVersion,
-                    playbackEventCount: playbackEvents.length,
-                    recoverySource: state.pendingForceSyncPlaybackSource || ''
-                });
-            }
-            if (applied) {
-                consumePendingForceSyncPlaybackRecovery(snapshotVersion);
-                if (isSelfOperation && isTerminalResultSnapshot) {
-                    markTrackedPublishResultPresented(trackedPublish, snapshot);
-                }
-                if (shouldShadowStreamPlayback) {
-                    recordNetworkTelemetry('stream_self_snapshot_shadow_playback', {
-                        operationId,
-                        snapshotVersion,
-                        playbackEventCount: playbackEvents.length
-                    });
-                }
-                const emittedEffectLogCount = emitPayloadEffectLogs(payload);
-                if (emittedEffectLogCount === 0) {
-                    emitSnapshotCommentary(payload, snapshot, isSelfOperation, playbackEvents);
-                }
-            }
-            if (isSelfOperation) {
-                markTrackedPublishSelfSnapshot(trackedPublish, snapshot);
-            }
-            handleTimeoutPassPayload(payload);
-            pruneTrackedPublishes();
-        };
-
-        const handleStreamEvent = createStreamPayloadHandler((payload: any) => {
-            completeReconnectRecoveryFromStream();
-            onSnapshot(payload);
+        return controller.createStreamPayloadHandler(payloadHandler, {
+            rememberStreamEventId,
+            markStreamActivity
         });
-        const handlePresenceEvent = createStreamPayloadHandler(handlePresencePayload);
-        const handleChatEvent = createStreamPayloadHandler(handleChatPayload);
-        const handleHeartbeatEvent = createStreamPayloadHandler((payload: any) => {
-            completeReconnectRecoveryFromStream();
-            applyPayloadSessionState(payload);
-            maybeSyncFromHeartbeat(payload);
-        });
-
-        es.addEventListener('snapshot', handleStreamEvent);
-        es.addEventListener('presence', handlePresenceEvent);
-        es.addEventListener('chat', handleChatEvent);
-        es.addEventListener('heartbeat', handleHeartbeatEvent);
-        es.onmessage = handleStreamEvent;
-
-        es.onopen = () => {
-            markStreamActivity();
-            scheduleStreamWatchdog();
-            clearReconnectTimer();
-            const hadReconnect = !!opts.reconnect || Number(state.reconnectAttempt || 0) > 0;
-            state.reconnectAttempt = 0;
-            if (hadReconnect) {
-                emitStatus('ネット対戦: 接続を回復しました', false);
-                scheduleReconnectRecoverySync();
-            }
-        };
-
-        es.onerror = () => {
-            emitStatus('ネット対戦: 接続が不安定です（再接続待機）', true);
-            if (!isActive()) return;
-
-            const openState = (typeof EventSource !== 'undefined' && Number.isFinite(Number(EventSource.OPEN)))
-                ? Number(EventSource.OPEN)
-                : 1;
-            const readyState = Number.isFinite(Number(es.readyState)) ? Number(es.readyState) : null;
-            if (readyState !== openState) {
-                scheduleStreamReconnect();
-            }
-        };
     }
 
     function isActive() {
@@ -2697,18 +2458,15 @@ const DEFAULT_SERVER_URL = 'http://127.0.0.1:8787';
     }
 
     function setTurnTimerListener(listener: any) {
-        state.turnTimerListener = (typeof listener === 'function') ? listener : null;
-        emitTurnTimerChanged();
+        const controller = getNetworkTurnTimerController();
+        if (!controller || typeof controller.setTurnTimerListener !== 'function') return;
+        controller.setTurnTimerListener(listener);
     }
 
     function setChatListener(listener: any) {
-        state.chatListener = (typeof listener === 'function') ? listener : null;
-        if (state.chatListener && state.chatHistory.length > 0) {
-            emitChatEvent({
-                type: 'history',
-                messages: state.chatHistory.slice()
-            });
-        }
+        const controller = getNetworkRoomEventsController();
+        if (!controller || typeof controller.setChatListener !== 'function') return;
+        controller.setChatListener(listener);
     }
 
     function getChatMaxLength() {

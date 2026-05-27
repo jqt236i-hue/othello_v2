@@ -1,5 +1,135 @@
 require('../game/turn-manager');
 
+function buildTurnManagerUIBridge() {
+  const readPlaybackState = () => global.PlaybackStateManager || null;
+  return {
+    getRuntimeRoot: () => global,
+    readRuntimeValue: (key) => global[key],
+    writeRuntimeValue: (key, value) => { global[key] = value; },
+    readProcessing: () => {
+      const playbackState = readPlaybackState();
+      if (playbackState && typeof playbackState.getProcessing === 'function') {
+        return playbackState.getProcessing() === true;
+      }
+      return global.isProcessing === true;
+    },
+    readCardAnimating: () => {
+      const playbackState = readPlaybackState();
+      if (playbackState && typeof playbackState.getCardAnimating === 'function') {
+        return playbackState.getCardAnimating() === true;
+      }
+      return global.isCardAnimating === true;
+    },
+    readPlaybackActive: () => {
+      const playbackState = readPlaybackState();
+      if (playbackState && typeof playbackState.getPlaybackActive === 'function') {
+        return playbackState.getPlaybackActive() === true;
+      }
+      return global.VisualPlaybackActive === true;
+    },
+    setBusyState: (config) => {
+      const playbackState = readPlaybackState();
+      const next = config || {};
+      if (playbackState && typeof playbackState.setBusyState === 'function') {
+        playbackState.setBusyState(next);
+      }
+      if (Object.prototype.hasOwnProperty.call(next, 'processing')) global.isProcessing = next.processing === true;
+      if (Object.prototype.hasOwnProperty.call(next, 'cardAnimating')) global.isCardAnimating = next.cardAnimating === true;
+      if (Object.prototype.hasOwnProperty.call(next, 'playbackActive')) {
+        global.VisualPlaybackActive = next.playbackActive === true;
+        global.__playbackActiveSince = next.playbackActive === true ? (global.__playbackActiveSince || Date.now()) : null;
+      }
+    },
+    clearPlaybackLock: () => {
+      const playbackState = readPlaybackState();
+      if (playbackState && typeof playbackState.abortPlayback === 'function') {
+        playbackState.abortPlayback();
+        return true;
+      }
+      if (playbackState && typeof playbackState.clearPlaybackLock === 'function') {
+        playbackState.clearPlaybackLock();
+        return true;
+      }
+      return false;
+    },
+    readPlaybackStartedAt: () => {
+      const playbackState = readPlaybackState();
+      if (playbackState && typeof playbackState.getPlaybackStartedAt === 'function') {
+        return playbackState.getPlaybackStartedAt();
+      }
+      return global.__playbackActiveSince;
+    },
+    readPlaybackRunning: () => {
+      if (global.AnimationEngine && typeof global.AnimationEngine.isPlaying === 'boolean') {
+        return global.AnimationEngine.isPlaying === true;
+      }
+      return null;
+    },
+    shouldAllowSelectionEntryDuringPlayback: (payload) => {
+      const playbackState = readPlaybackState();
+      return !!(playbackState && typeof playbackState.shouldAllowSelectionEntryDuringPlayback === 'function'
+        && playbackState.shouldAllowSelectionEntryDuringPlayback(payload || {}));
+    },
+    dispatchPendingSelection: (payload) => {
+      const handlerNames = {
+        destroy: 'handleDestroySelection',
+        strong_wind: 'handleStrongWindSelection',
+        buoyancy: 'handleBuoyancySelection',
+        super_buoyancy: 'handleSuperBuoyancySelection',
+        gravity: 'handleGravitySelection',
+        super_gravity: 'handleSuperGravitySelection',
+        super_attraction: 'handleSuperAttractionSelection',
+        teleport: 'handleTeleportSelection',
+        cell_teleport: 'handleTeleportSelection',
+        tempt: 'handleTemptSelection',
+        capture: 'handleCaptureSelection',
+        trap: 'handleTrapSelection',
+        guard: 'handleGuardSelection',
+        living_will: 'handleLivingWillSelection',
+        hyperactive_inherit: 'handleHyperactiveInheritSelection',
+        extend_life: 'handleExtendLifeSelection',
+        corrosion: 'handleCorrosionSelection',
+        clone: 'handleCloneSelection',
+        blockade: 'handleBlockadeSelection',
+        board_expansion: 'handleBoardExpansionSelection',
+        board_shrink: 'handleBoardShrinkSelection',
+        freeze: 'handleFreezeSelection',
+        seed: 'handleSeedSelection',
+        position_swap: 'handlePositionSwapSelection',
+        meteor: 'handleMeteorSelection',
+        time_bomb: 'handleTimeBombSelection',
+        swap_with_enemy: 'handleSwapSelection'
+      };
+      const handlerName = handlerNames[String(payload && payload.dispatchKey || '')];
+      const handler = handlerName ? global[handlerName] : null;
+      if (typeof handler !== 'function') return false;
+      handler(payload.row, payload.col, payload.playerKey);
+      return true;
+    }
+  };
+}
+
+function buildCpuTurnHandlerUIBridge() {
+  return {
+    readProcessing: () => global.isProcessing === true,
+    readAnimationBusy: () => global.isCardAnimating === true || global.VisualPlaybackActive === true,
+    resolveRuntimeFunction: (name) => {
+      const candidate = global[name];
+      return typeof candidate === 'function' ? candidate : null;
+    },
+    resolveRuntimeValue: (name) => (
+      Object.prototype.hasOwnProperty.call(global, name)
+        ? global[name]
+        : undefined
+    ),
+    readBenchFastMode: () => global.__BENCH_FAST_MODE === true,
+    readMatchMode: () => global.MATCH_MODE || null,
+    readHumanVsHumanMode: () => global.DEBUG_HUMAN_VS_HUMAN === true,
+    readQuerySearch: () => '',
+    getCpuCardLogic: () => global.CardLogic || null
+  };
+}
+
 describe('turn-manager scheduling', () => {
   beforeEach(() => {
     const adapter = require('../game/turn/pipeline_ui_adapter.js');
@@ -22,11 +152,11 @@ describe('turn-manager scheduling', () => {
     global.playHandAnimation = (player, row, col, cb) => { global.isCardAnimating = true; cb(); };
     const turnManager = require('../game/turn-manager.js');
     if (turnManager && typeof turnManager.setUIImpl === 'function') {
-      turnManager.setUIImpl({
-        getRuntimeRoot: () => global,
-        readRuntimeValue: (key) => global[key],
-        writeRuntimeValue: (key, value) => { global[key] = value; }
-      });
+      turnManager.setUIImpl(buildTurnManagerUIBridge());
+    }
+    const cpuTurnHandler = require('../game/cpu-turn-handler.js');
+    if (cpuTurnHandler && typeof cpuTurnHandler.setCpuUIImpl === 'function') {
+      cpuTurnHandler.setCpuUIImpl(buildCpuTurnHandlerUIBridge());
     }
   });
 
@@ -41,6 +171,9 @@ describe('turn-manager scheduling', () => {
     }
     if (cpuTurnHandler && typeof cpuTurnHandler.setTimers === 'function') {
       cpuTurnHandler.setTimers(null);
+    }
+    if (cpuTurnHandler && typeof cpuTurnHandler.setCpuUIImpl === 'function') {
+      cpuTurnHandler.setCpuUIImpl({});
     }
     const turnManager = require('../game/turn-manager.js');
     if (turnManager && typeof turnManager.replaceUIImpl === 'function') {
@@ -79,6 +212,9 @@ describe('turn-manager scheduling', () => {
     delete global.processHyperactiveMovesAtTurnStart;
     delete global.isGameOver;
     delete global.handleGuardSelection;
+    delete global.handleTeleportSelection;
+    delete global.handleSeedSelection;
+    delete global.showResult;
   });
 
   test('handleCellClick executes move immediately and leaves hand animation to pipeline playback', async () => {
@@ -127,6 +263,43 @@ describe('turn-manager scheduling', () => {
     rm.handleCellClick(2, 3);
 
     expect(global.handleGuardSelection).toHaveBeenCalledWith(2, 3, 'black');
+    expect(global.findMoveForCell).not.toHaveBeenCalled();
+    expect(global.executeMove).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ['CELL_TELEPORT_WILL', 'cell_teleport_01', 'handleTeleportSelection'],
+    ['SEED_WILL', 'seed_01', 'handleSeedSelection']
+  ])('handleCellClick reads latest runtime pending for %s after card-use state replacement', (_type, cardId, handlerName) => {
+    const staleCardState = {
+      pendingEffectByPlayer: {
+        black: null,
+        white: null
+      }
+    };
+    const latestCardState = {
+      pendingEffectByPlayer: {
+        black: { type: _type, stage: 'selectTarget', cardId },
+        white: null
+      }
+    };
+
+    global.cardState = staleCardState;
+    global[handlerName] = jest.fn();
+
+    const rm = require('../game/turn-manager.js');
+    rm.setUIImpl({
+      getRuntimeRoot: () => global,
+      readRuntimeValue: (key) => {
+        if (key === 'cardState') return latestCardState;
+        return global[key];
+      },
+      writeRuntimeValue: (key, value) => { global[key] = value; }
+    });
+
+    rm.handleCellClick(2, 3);
+
+    expect(global[handlerName]).toHaveBeenCalledWith(2, 3, 'black');
     expect(global.findMoveForCell).not.toHaveBeenCalled();
     expect(global.executeMove).not.toHaveBeenCalled();
   });
@@ -542,15 +715,14 @@ describe('turn-manager scheduling', () => {
       presentationEvents: [],
       _presentationEventsPersist: []
     };
-    global.__uiImpl = {
-      onTurnStart: jest.fn(() => Promise.resolve())
-    };
+    const onTurnStartSpy = jest.fn(() => Promise.resolve());
 
     const rm = require('../game/turn-manager.js');
     rm.setUIImpl({
       resetTransientUIState: jest.fn(),
       readCpuSmartness: () => ({ black: 2, white: 3 }),
-      clearLogUI: jest.fn()
+      clearLogUI: jest.fn(),
+      onTurnStart: onTurnStartSpy
     });
 
     rm.resetGame();
@@ -566,7 +738,7 @@ describe('turn-manager scheduling', () => {
     resolveSecondDeal();
     await new Promise((resolve) => setImmediate(resolve));
     await new Promise((resolve) => setImmediate(resolve));
-    expect(global.__uiImpl.onTurnStart).toHaveBeenCalledTimes(1);
+    expect(onTurnStartSpy).toHaveBeenCalledTimes(1);
     expect(global.isProcessing).toBe(false);
   });
 
@@ -653,6 +825,41 @@ describe('turn-manager scheduling', () => {
 
     expect(global.executeMove).toHaveBeenCalledWith(expect.objectContaining({ row: 2, col: 3 }));
     expect(global.cardState.presentationEvents).toEqual([]);
+  });
+
+  test('onTurnStart shows terminal result through injected UI bridge', async () => {
+    global.MATCH_MODE = 'reversi';
+    global.showResult = jest.fn();
+    global.gameState = {
+      currentPlayer: global.BLACK,
+      turnNumber: 9,
+      consecutivePasses: 2,
+      board: Array.from({ length: 8 }, () => Array(8).fill(global.BLACK))
+    };
+    global.cardState = {
+      pendingEffectByPlayer: { black: null, white: null },
+      presentationEvents: [],
+      _presentationEventsPersist: [],
+      hands: { black: [], white: [] },
+      turnCountByPlayer: { black: 0, white: 0 },
+      hasUsedCardThisTurnByPlayer: { black: false, white: false },
+      hasDestroyedCardThisTurnByPlayer: { black: false, white: false },
+      extraPlaceRemainingByPlayer: { black: 0, white: 0 },
+      infinitePlaceActiveByPlayer: { black: false, white: false },
+      multiPlaceSourceTypeByPlayer: { black: null, white: null }
+    };
+
+    const rm = require('../game/turn-manager.js');
+    rm.setUIImpl({
+      getRuntimeRoot: () => global,
+      readRuntimeValue: (key) => global[key],
+      writeRuntimeValue: (key, value) => { global[key] = value; },
+      showResult: () => global.showResult()
+    });
+
+    await rm.onTurnStart(global.BLACK);
+
+    expect(global.showResult).toHaveBeenCalledTimes(1);
   });
 
   test('resetGame は遅延 generated throw chain hand_add queue をクリアする', () => {

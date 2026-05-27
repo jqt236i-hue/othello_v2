@@ -29,6 +29,19 @@ function clampCpuLevel(value: unknown): number {
   return Math.max(1, Math.min(6, Math.floor(n)));
 }
 
+function syncRuntimeCpuLevel(playerKey: 'black' | 'white', level: number): void {
+  try {
+    if (typeof globalThis === 'undefined') return;
+    const root = globalThis as typeof globalThis & { cpuSmartness?: Record<string, number> };
+    if (!root.cpuSmartness || typeof root.cpuSmartness !== 'object') {
+      root.cpuSmartness = { black: 1, white: 1 };
+    }
+    root.cpuSmartness[playerKey] = clampCpuLevel(level);
+  } catch (e) {
+    // UI select remains the source of truth; legacy global sync is best-effort.
+  }
+}
+
 function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTMLSelectElement | null): void {
   const smartOptions: SmartOption[] = [
     { v: '1', t: 'Lv1: 盤喰いの小鬼' },
@@ -47,11 +60,13 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
       smartBlack.appendChild(el);
     });
     localCpuLevels.black = clampCpuLevel(localCpuLevels.black || 1);
+    syncRuntimeCpuLevel('black', localCpuLevels.black);
     smartBlack.value = String(localCpuLevels.black);
     smartBlack.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
       const newLevel = clampCpuLevel(target.value);
       localCpuLevels.black = newLevel;
+      syncRuntimeCpuLevel('black', newLevel);
       target.value = String(newLevel);
       console.log(`[CPU Level] Black changed to level ${localCpuLevels.black}`);
       // Reload policy if MCCFR is available
@@ -76,11 +91,13 @@ function setupSmartSelects(smartBlack: HTMLSelectElement | null, smartWhite: HTM
       smartWhite.appendChild(el);
     });
     localCpuLevels.white = clampCpuLevel(localCpuLevels.white || 1);
+    syncRuntimeCpuLevel('white', localCpuLevels.white);
     smartWhite.value = String(localCpuLevels.white);
     smartWhite.addEventListener('change', async (e) => {
       const target = e.target as HTMLSelectElement;
       const newLevel = clampCpuLevel(target.value);
       localCpuLevels.white = newLevel;
+      syncRuntimeCpuLevel('white', newLevel);
       target.value = String(newLevel);
       console.log(`[CPU Level] White changed to level ${localCpuLevels.white}`);
       if (typeof updateCpuCharacter === 'function') {

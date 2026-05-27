@@ -16,6 +16,7 @@ describe('cpu decision refactor helpers', () => {
     // spies
     global.emitCardStateChange = jest.fn();
     global.emitBoardUpdate = jest.fn();
+    global.emitGameStateChange = jest.fn();
     global.emitLogAdded = jest.fn();
     delete global.TurnPipeline;
     delete global.TurnPipelineUIAdapter;
@@ -34,7 +35,22 @@ describe('cpu decision refactor helpers', () => {
     if (typeof cpuDecision.setCpuDecisionRuntime === 'function') {
       cpuDecision.setCpuDecisionRuntime(null);
       cpuDecision.setCpuDecisionRuntime({
-        readModule: (name) => global[name]
+        readModule: (name) => global[name],
+        emitCardStateChange: () => global.emitCardStateChange(),
+        emitBoardUpdate: () => global.emitBoardUpdate(),
+        emitGameStateChange: () => global.emitGameStateChange(),
+        emitLogAdded: (...args) => global.emitLogAdded(...args),
+        emitEffectLog: (...args) => (
+          typeof global.emitEffectLog === 'function'
+            ? global.emitEffectLog(...args)
+            : global.emitLogAdded(args[0], 'effect')
+        )
+      });
+    }
+    if (typeof cpuDecision.setCpuTimerService === 'function') {
+      cpuDecision.setCpuTimerService({
+        setTimeout: (callback, delay) => setTimeout(callback, delay),
+        clearTimeout: (id) => clearTimeout(id)
       });
     }
   });
@@ -785,6 +801,48 @@ describe('cpu decision refactor helpers', () => {
 
     const move = await cpuDecision.selectMoveFromOnnxPolicyAsync(candidates, 'white', 6);
     expect(move).toBe(candidates[1]);
+  });
+
+  test('selectMoveFromOnnxPolicyAsync lets Reversi ONNX choose from all legal moves without Lv6 tactical override', async () => {
+    const nonCornerMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+    const cornerMove = { row: 0, col: 0, flips: [{ row: 1, col: 1 }] };
+    const candidates = [nonCornerMove, cornerMove];
+    global.gameState = {
+      board: [
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, -1, 1, 0, 0, 0],
+        [0, 0, 0, 1, -1, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0]
+      ],
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 0, black: 0 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.OthelloOnnxRuntime = {
+      chooseMove: jest.fn(async (moves) => {
+        expect(moves).toEqual(candidates);
+        return nonCornerMove;
+      })
+    };
+    cpuDecision.setCpuDecisionRuntime({
+      readModule: (name) => global[name],
+      readMatchMode: () => 'reversi'
+    });
+
+    const move = await cpuDecision.selectMoveFromOnnxPolicyAsync(candidates, 'white', 6);
+
+    expect(global.OthelloOnnxRuntime.chooseMove).toHaveBeenCalled();
+    expect(move).toBe(nonCornerMove);
   });
 
   test('selectMoveFromOnnxPolicyAsync はカスタム盤面で ONNX 学習着手を使わない', async () => {

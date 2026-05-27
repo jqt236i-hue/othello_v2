@@ -1,7 +1,4 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
-declare const LOG_MESSAGES: any;
-declare const emitLogAdded: (...args: any[]) => void;
-declare const posToNotation: (row: number, col: number) => string;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
@@ -13,6 +10,21 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const ControllerEvents = _require('../controller-events');
+const LOG_MESSAGES = _require('../log-messages');
+const GameControllerSlim = _require('../game-controller-slim');
+
+function emitCaptureLog(message: string): void {
+    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
+        ControllerEvents.emitLogAdded(message);
+    }
+}
+
+function posToNotation(row: number, col: number): string {
+    return GameControllerSlim && typeof GameControllerSlim.posToNotation === 'function'
+        ? GameControllerSlim.posToNotation(row, col)
+        : `${row},${col}`;
+}
 
 function wasSelectionApplied(result: any, rawEventType: string): boolean {
     const selected = result && Array.isArray(result.rawEvents)
@@ -33,12 +45,11 @@ async function handleCaptureSelection(row: number, col: number, playerKey: strin
         validateResult: ({ result }: any) => wasSelectionApplied(result, 'capture_selected'),
         buildPlaybackMeta: () => ({ cause: 'CAPTURE_WILL', target: { row, col } }),
         afterStateChange: ({ result }: any) => {
-            if (typeof emitLogAdded !== 'function') return;
             const rawEvent = result && Array.isArray(result.rawEvents)
                 ? result.rawEvents.find((event: any) => event && event.type === 'capture_selected')
                 : null;
             const cardName = rawEvent && rawEvent.capturedCardName ? rawEvent.capturedCardName : 'カード';
-            emitLogAdded(LOG_MESSAGES.captureApplied(playerKey === 'black' ? '黒' : '白', posToNotation(row, col), cardName));
+            emitCaptureLog(LOG_MESSAGES.captureApplied(playerKey === 'black' ? '黒' : '白', posToNotation(row, col), cardName));
         }
     });
 }

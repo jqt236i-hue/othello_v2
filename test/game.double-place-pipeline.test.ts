@@ -1,6 +1,7 @@
 import * as Shared from '../shared-constants.js';
 import * as CardLogic from '../game/logic/cards.js';
 import * as TurnPipeline from '../game/turn/turn_pipeline.js';
+import * as SubPlacementContinuation from '../game/turn/sub-placement-continuation.js';
 
 const PRNG = { shuffle: (arr) => arr, random: () => 0.5 };
 
@@ -39,6 +40,20 @@ function makeChainBoardState(rowCount) {
 }
 
 describe('throw-chain turn transition in TurnPipeline', () => {
+  test('sub-placement helper detects pending and active throw-chain turns', () => {
+    const { cardState } = makeInitialState();
+    expect(SubPlacementContinuation.isSubPlacementContinuationActive(cardState, 'black')).toBe(false);
+    expect(SubPlacementContinuation.isSubPlacementTurnActive(cardState, 'black')).toBe(false);
+
+    cardState.pendingEffectByPlayer.black = { type: 'DOUBLE_PLACE', stage: 'awaitPlace' };
+    expect(SubPlacementContinuation.isSubPlacementContinuationActive(cardState, 'black')).toBe(false);
+    expect(SubPlacementContinuation.isSubPlacementTurnActive(cardState, 'black')).toBe(true);
+
+    cardState.extraPlaceRemainingByPlayer.black = 1;
+    expect(SubPlacementContinuation.isSubPlacementContinuationActive(cardState, 'black')).toBe(true);
+    expect(SubPlacementContinuation.isSubPlacementTurnActive(cardState, 'black')).toBe(true);
+  });
+
   test('using DOUBLE_PLACE immediately adds TRIPLE_PLACE to hand and emits HAND_ADD', () => {
     const { cardState } = makeInitialState();
     cardState.charge.black = 30;
@@ -88,6 +103,59 @@ describe('throw-chain turn transition in TurnPipeline', () => {
     expect(res2.cardState.multiPlaceSourceTypeByPlayer.black).toBeNull();
     expect(res2.gameState.currentPlayer).toBe(Shared.WHITE);
     expect(res2.gameState.turnNumber).toBe(2);
+  });
+
+  test('DOUBLE_PLACE sub-placements do not rerun turn start or reset card use when caller omits skipTurnStart', () => {
+    const { cardState, gameState } = makeChainBoardState(2);
+    cardState.debugNoDraw = false;
+    cardState.turnIndex = 9;
+    cardState.turnCountByPlayer.black = 4;
+    cardState.pendingEffectByPlayer.black = { type: 'DOUBLE_PLACE', stage: 'awaitPlace' };
+    cardState.hasUsedCardThisTurnByPlayer.black = true;
+    cardState.hands.black = ['perma_01'];
+    cardState.decks.black = ['draw_should_not_happen'];
+    cardState.charge.black = 99;
+
+    const res1 = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 1, col: 6 },
+      PRNG
+    );
+
+    expect(res1.cardState.turnIndex).toBe(9);
+    expect(res1.cardState.turnCountByPlayer.black).toBe(4);
+    expect(res1.cardState.hands.black).toEqual(['perma_01']);
+    expect(res1.cardState.decks.black).toEqual(['draw_should_not_happen']);
+    expect(res1.cardState.hasUsedCardThisTurnByPlayer.black).toBe(true);
+    expect(res1.cardState.extraPlaceRemainingByPlayer.black).toBe(1);
+    expect(res1.gameState.currentPlayer).toBe(Shared.BLACK);
+
+    const rejectedCardUse = TurnPipeline.applyTurnSafe(
+      cardState,
+      gameState,
+      'black',
+      { type: 'use_card', useCardId: 'perma_01', useCardOwnerKey: 'black' },
+      PRNG
+    );
+    expect(rejectedCardUse.ok).toBe(false);
+    expect(rejectedCardUse.rejectedReason).toBe('CARD_USE_FAILED');
+
+    const res2 = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 2, col: 6 },
+      PRNG
+    );
+
+    expect(res2.cardState.turnIndex).toBe(9);
+    expect(res2.cardState.turnCountByPlayer.black).toBe(4);
+    expect(res2.cardState.hands.black).toEqual(['perma_01']);
+    expect(res2.cardState.decks.black).toEqual(['draw_should_not_happen']);
+    expect(res2.cardState.extraPlaceRemainingByPlayer.black).toBe(0);
+    expect(res2.gameState.currentPlayer).toBe(Shared.WHITE);
   });
 
   test('TRIPLE_PLACE keeps turn until the third placement then passes turn', () => {
@@ -149,15 +217,22 @@ describe('throw-chain turn transition in TurnPipeline', () => {
 
     cardState.pendingEffectByPlayer.black = { type: 'INFINITE_PLACE', stage: 'awaitPlace' };
 
+    cardState.debugNoDraw = false;
+    cardState.turnIndex = 5;
+    cardState.turnCountByPlayer.black = 2;
+    cardState.decks.black = ['draw_should_not_happen'];
+
     const res = TurnPipeline.applyTurn(
       cardState,
       gameState,
       'black',
       { type: 'place', row: 3, col: 4 },
-      PRNG,
-      { skipTurnStart: true }
+      PRNG
     );
 
+    expect(res.cardState.turnIndex).toBe(5);
+    expect(res.cardState.turnCountByPlayer.black).toBe(2);
+    expect(res.cardState.decks.black).toEqual(['draw_should_not_happen']);
     expect(res.cardState.infinitePlaceActiveByPlayer.black).toBe(false);
     expect(res.cardState.multiPlaceSourceTypeByPlayer.black).toBeNull();
     expect(res.gameState.currentPlayer).toBe(Shared.WHITE);

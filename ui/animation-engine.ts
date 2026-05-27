@@ -44,7 +44,6 @@ const {
     const LOCAL_CARD_USE_ANIMATION_SKIP_UNTIL_BY_KEY = '__skipNextCardUseAnimationUntilByKey';
     const LOCAL_CARD_USE_BUTTON_SOUND_SKIP_COUNT_KEY = '__skipNextCardUseButtonSoundCount';
     const LOCAL_CARD_USE_PLAYBACK_SKIP_MS = 30000;
-    const POSITIVE_SPAWN_LIKE_EFFECTS = PresentationEffectProfiles.POSITIVE_SPAWN_LIKE_EFFECTS;
     const POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS = PresentationEffectProfiles.POSITIVE_SPAWN_MIN_VISIBLE_EFFECTS;
     const matchesCauseAndReasonPrefix = PresentationEffectProfiles.matchesCauseAndReasonPrefix;
     const matchesSpawnProfileTarget = PresentationEffectProfiles.matchesSpawnProfileTarget;
@@ -128,8 +127,16 @@ const {
         return null;
     }
 
-    var AnimationResolver = requireRuntimeModuleOrWindowGlobal('./animation-resolver', 'AnimationResolver');
-    var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimationShared === 'function')
+var AnimationResolver = requireRuntimeModuleOrWindowGlobal('./animation-resolver', 'AnimationResolver');
+var AnimationFeedbackEvents = requireRuntimeModuleOrWindowGlobal('./animation-feedback-events', 'AnimationFeedbackEvents');
+var AnimationDestroyEvents = requireRuntimeModuleOrWindowGlobal('./animation-destroy-events', 'AnimationDestroyEvents');
+var AnimationHandEvents = requireRuntimeModuleOrWindowGlobal('./animation-hand-events', 'AnimationHandEvents');
+var AnimationFlipEvents = requireRuntimeModuleOrWindowGlobal('./animation-flip-events', 'AnimationFlipEvents');
+var AnimationMoveEvents = requireRuntimeModuleOrWindowGlobal('./animation-move-events', 'AnimationMoveEvents');
+var AnimationPlacementEvents = requireRuntimeModuleOrWindowGlobal('./animation-placement-events', 'AnimationPlacementEvents');
+var AnimationStatusEvents = requireRuntimeModuleOrWindowGlobal('./animation-status-events', 'AnimationStatusEvents');
+var AnimationDestroySourceEvents = requireRuntimeModuleOrWindowGlobal('./animation-destroy-source-events', 'AnimationDestroySourceEvents');
+var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimationShared === 'function')
         ? AnimationResolver.getAnimationShared()
         : ((typeof require === 'function') ? require('./animation-helpers') : (typeof window !== 'undefined' ? window.AnimationHelpers : null));
     var _isNoAnim = (AnimationShared && AnimationShared.isNoAnim) ? AnimationShared.isNoAnim : function () { return false; };
@@ -644,92 +651,32 @@ const {
             return !!cause && cause !== 'SYSTEM';
         }
 
-        _isPositiveSpawnLikeEffectTarget(eventType: any, target: any, cause: any, reason: any) {
-            const normalizedCause = String(cause || '').toUpperCase();
-            const normalizedReason = String(reason || '').toLowerCase();
-            const isCloneLikeMove = eventType === EVENT_TYPES.MOVE && !!(target && target.clone === true);
-            if (eventType !== EVENT_TYPES.SPAWN && eventType !== EVENT_TYPES.PLACE && !isCloneLikeMove) {
-                return false;
-            }
-            return POSITIVE_SPAWN_LIKE_EFFECTS.some((profile: any) => (
-                matchesSpawnProfileTarget(target, normalizedCause, normalizedReason, profile)
-            ));
-        }
-
         _resolveEffectTargetHighlightTone(eventType: any, target: any) {
             if (_isNoAnim()) return null;
-            if (target && target.meta && (
-                target.meta.blockedByGhost ||
-                target.meta.proliferated === true
-            )) return HIGHLIGHT_TONE_NEGATIVE;
             const cause = this._getTargetCause(target);
-            const reason = this._getTargetReason(target);
 
-            const isGluttonousEatDestroy =
-                eventType === EVENT_TYPES.DESTROY &&
-                cause === 'GLUTTONOUS_WILL' &&
-                reason.indexOf('gluttonous_eat') === 0;
-            if (isGluttonousEatDestroy) return null;
-
-            const isFreePlacementPlace =
-                (eventType === EVENT_TYPES.PLACE || eventType === EVENT_TYPES.SPAWN) && (
-                    cause === 'FREE_PLACEMENT' ||
-                    reason.indexOf('free_placement_place') === 0
-                );
-            if (isFreePlacementPlace) return HIGHLIGHT_TONE_NEGATIVE;
-
-            if (!this._isCardEffectCause(cause)) return null;
-            if (eventType === EVENT_TYPES.MOVE) {
-                if (this._isPositiveSpawnLikeEffectTarget(eventType, target, cause, reason)) {
-                    return HIGHLIGHT_TONE_POSITIVE;
-                }
-                const moveIntent = String(target && target.meta && target.meta.moveIntent ? target.meta.moveIntent : '').toLowerCase();
-                const isGluttonousEatMove =
-                    moveIntent === 'hyperactive_move' ||
-                    cause === 'GLUTTONOUS_WILL' &&
-                    reason.indexOf('gluttonous_eat_move') === 0;
-                const isFlipEvadeMove =
-                    moveIntent === 'evade_move' ||
-                    reason.indexOf('flip_evade_move') >= 0;
-                const isDestroyEvadeMove =
-                    moveIntent === 'evade_move' ||
-                    cause === 'DESTROY_EVADE' ||
-                    reason.indexOf('destroy_evade_move') === 0;
-                return moveIntent === 'wind_move' ||
-                    moveIntent === 'crush_move' ||
-                    moveIntent === 'position_swap' ||
-                    moveIntent === 'teleport_move' ||
-                    cause === 'STRONG_WIND_WILL' ||
-                    cause === 'BUOYANCY_WILL' ||
-                    cause === 'SUPER_BUOYANCY_WILL' ||
-                    cause === 'GRAVITY_WILL' ||
-                    cause === 'SUPER_GRAVITY_WILL' ||
-                    cause === 'SUPER_ATTRACTION_WILL' ||
-                    cause === 'POSITION_SWAP_WILL' ||
-                    cause === 'CELL_TELEPORT_WILL' ||
-                    cause === 'TELEPORT_WILL' ||
-                    isGluttonousEatMove ||
-                    isFlipEvadeMove ||
-                    isDestroyEvadeMove ||
-                    reason.indexOf('position_swap') === 0 ||
-                    reason.indexOf('strong_wind_move') === 0 ||
-                    reason.indexOf('buoyancy_move') === 0 ||
-                    reason.indexOf('super_buoyancy_move') === 0 ||
-                    reason.indexOf('gravity_move') === 0 ||
-                    reason.indexOf('super_gravity_move') === 0 ||
-                    reason.indexOf('teleport_move') === 0 ||
-                    reason.indexOf('destroy_evade_move') === 0
+            if (target && target.meta && (
+                target.meta.blockedByGhost === true ||
+                target.meta.proliferated === true ||
+                target.meta.regenerated === true
+            )) {
+                return eventType === EVENT_TYPES.DESTROY
                     ? HIGHLIGHT_TONE_NEGATIVE
-                    : null;
+                    : HIGHLIGHT_TONE_POSITIVE;
             }
-            if (this._isPositiveSpawnLikeEffectTarget(eventType, target, cause, reason)) {
-                return HIGHLIGHT_TONE_POSITIVE;
+            if (!this._isCardEffectCause(cause)) return null;
+            if (eventType === EVENT_TYPES.DESTROY) return HIGHLIGHT_TONE_NEGATIVE;
+            if (eventType === EVENT_TYPES.MOVE) {
+                const reason = this._getTargetReason(target);
+                if (cause === 'DESTROY_EVADE' || reason.indexOf('destroy_evade_move') === 0) {
+                    return HIGHLIGHT_TONE_NEGATIVE;
+                }
             }
             return eventType === EVENT_TYPES.FLIP ||
-                eventType === EVENT_TYPES.DESTROY ||
                 eventType === EVENT_TYPES.SPAWN ||
-                eventType === EVENT_TYPES.PLACE
-                ? HIGHLIGHT_TONE_NEGATIVE
+                eventType === EVENT_TYPES.PLACE ||
+                eventType === EVENT_TYPES.MOVE
+                ? HIGHLIGHT_TONE_POSITIVE
                 : null;
         }
 
@@ -792,13 +739,7 @@ const {
             if (!ev || (ev.type !== EVENT_TYPES.STATUS_APPLIED && ev.type !== EVENT_TYPES.STATUS_REMOVED)) return null;
             const meta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
             const explicitTone = String(meta.highlightTone || '').toLowerCase();
-            if (explicitTone === HIGHLIGHT_TONE_POSITIVE || explicitTone === HIGHLIGHT_TONE_NEGATIVE) {
-                return explicitTone;
-            }
             if (explicitTone === 'none') return null;
-
-            const rawType = String(ev && ev.rawType ? ev.rawType : '').toUpperCase();
-            if (rawType === 'STATUS_TICK') return null;
 
             const reason = String(
                 meta.reason ||
@@ -811,20 +752,15 @@ const {
                 (target && target.after && target.after.special) ||
                 ''
             ).toUpperCase();
-            const after = (target && target.after && typeof target.after === 'object') ? target.after : null;
-            const afterColor = after && Number.isFinite(Number(after.color)) ? Number(after.color) : null;
-
             if (specialUpper === 'BLOCKADE' || specialUpper === 'FREEZE') return null;
-            if (specialUpper === 'TIME_BOMB') return HIGHLIGHT_TONE_NEGATIVE;
-            if (reason === 'strong_will_promoted') return HIGHLIGHT_TONE_POSITIVE;
             if (specialUpper === 'TRAP_REVEAL' || reason === 'trap_expired_reveal') return HIGHLIGHT_TONE_NEGATIVE;
-            if (!specialUpper) return null;
-
-            if (ev.type === EVENT_TYPES.STATUS_APPLIED) {
+            if (explicitTone === HIGHLIGHT_TONE_POSITIVE || explicitTone === HIGHLIGHT_TONE_NEGATIVE) {
                 return HIGHLIGHT_TONE_POSITIVE;
             }
-            if (afterColor === 0) return null;
-            return HIGHLIGHT_TONE_NEGATIVE;
+            const rawType = String(ev && ev.rawType ? ev.rawType : '').toUpperCase();
+            if (rawType === 'STATUS_TICK') return null;
+            if (!specialUpper) return null;
+            return HIGHLIGHT_TONE_POSITIVE;
         }
 
         async _runWithTransientCellHighlight(cell: any, highlightTone: any, runner: any, minimumVisibleMs: any, extraClasses: any) {
@@ -957,555 +893,44 @@ const {
             });
         }
 
+        _getDestroySourceAnimationDeps() {
+            if (!(AnimationDestroySourceEvents && typeof AnimationDestroySourceEvents.animateSniperProjectile === 'function')) {
+                throw new Error('AnimationEngine destroy source events module unavailable');
+            }
+            return {
+                isNoAnim: _isNoAnim,
+                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
+                resolveSniperSource: (target: any) => this._resolveSniperSource(target),
+                resolveRobotVacuumSource: (target: any) => this._resolveRobotVacuumSource(target),
+                resolveDestroyDragonSource: (target: any) => this._resolveDestroyDragonSource(target),
+                waitForAnimationFinish: (anim: any, durationMs: any, timeoutPaddingMs: any) => this._waitForAnimationFinish(anim, durationMs, timeoutPaddingMs),
+                sleep: (ms: any) => this._sleep(ms),
+                timer: _Timer,
+                playbackScope: this.playbackScope
+            };
+        }
+
         _resolveSniperProjectileOwner(target: any) {
-            const t = (target && typeof target === 'object') ? target : {};
-            const meta = (t.meta && typeof t.meta === 'object') ? t.meta : {};
-            const directOwner = (typeof t.projectileOwner === 'string') ? t.projectileOwner : null;
-            const metaOwner = (typeof meta.projectileOwner === 'string') ? meta.projectileOwner : null;
-            const owner = (directOwner || metaOwner || '').toLowerCase();
-            if (owner === 'black' || owner === 'white') return owner;
-            if (t.ownerBefore === 'black') return 'white';
-            if (t.ownerBefore === 'white') return 'black';
-            return 'black';
+            if (!(AnimationDestroySourceEvents && typeof AnimationDestroySourceEvents.resolveSniperProjectileOwner === 'function')) {
+                throw new Error('AnimationEngine destroy source events module unavailable');
+            }
+            return AnimationDestroySourceEvents.resolveSniperProjectileOwner(target);
         }
 
         async animateSniperProjectile(target: any) {
-            if (!target) return;
-            if (_isNoAnim()) return;
-
-            const source = this._resolveSniperSource(target);
-            if (!source) return;
-
-            const fromCell = this.getCellEl(source.row, source.col);
-            const toCell = this.getCellEl(target.r, target.col);
-            if (!fromCell || !toCell) return;
-
-            const fromRect = fromCell.getBoundingClientRect();
-            const toRect = toCell.getBoundingClientRect();
-            const owner = this._resolveSniperProjectileOwner(target);
-            const imgPath = owner === 'white'
-                ? 'assets/images/stones/normal_stone-white.png'
-                : 'assets/images/stones/normal_stone-black.png';
-
-            const sourceDiscScale = 0.82;
-            const projectileScale = 0.25;
-            const projectileSize = Math.max(8, Math.round(Math.min(fromRect.width, fromRect.height) * sourceDiscScale * projectileScale));
-
-            const startX = fromRect.left + (fromRect.width / 2) - (projectileSize / 2);
-            const startY = fromRect.top + (fromRect.height / 2) - (projectileSize / 2);
-            const deltaX = (toRect.left + (toRect.width / 2)) - (fromRect.left + (fromRect.width / 2));
-            const deltaY = (toRect.top + (toRect.height / 2)) - (fromRect.top + (fromRect.height / 2));
-
-            const projectile = document.createElement('div');
-            projectile.style.position = 'fixed';
-            projectile.style.left = `${startX}px`;
-            projectile.style.top = `${startY}px`;
-            projectile.style.width = `${projectileSize}px`;
-            projectile.style.height = `${projectileSize}px`;
-            projectile.style.borderRadius = '50%';
-            projectile.style.backgroundImage = `url('${imgPath}')`;
-            projectile.style.backgroundSize = '100% 100%';
-            projectile.style.backgroundRepeat = 'no-repeat';
-            projectile.style.backgroundPosition = 'center';
-            projectile.style.pointerEvents = 'none';
-            projectile.style.zIndex = '1200';
-            projectile.style.margin = '0';
-
-            document.body.appendChild(projectile);
-
-            const travelPx = Math.hypot(deltaX, deltaY);
-            const durationMs = Math.max(120, Math.min(420, Math.round(90 + (travelPx * 0.35))));
-            const anim = projectile.animate([
-                { transform: 'translate(0, 0)', opacity: 1 },
-                { transform: `translate(${deltaX}px, ${deltaY}px)`, opacity: 1 }
-            ], {
-                duration: durationMs,
-                easing: 'linear'
-            });
-
-            await this._waitForAnimationFinish(anim, durationMs, 120);
-
-            if (projectile.parentElement) projectile.parentElement.removeChild(projectile);
+            return AnimationDestroySourceEvents.animateSniperProjectile(target, this._getDestroySourceAnimationDeps());
         }
 
         async animateRobotVacuumSuction(target: any) {
-            if (!target) return;
-            if (_isNoAnim()) return;
-
-            const source = this._resolveRobotVacuumSource(target);
-            if (!source) return;
-
-            const fromCell = this.getCellEl(target.r, target.col);
-            const toCell = this.getCellEl(source.row, source.col);
-            if (!fromCell || !toCell) return;
-
-            const fromRect = fromCell.getBoundingClientRect();
-            const toRect = toCell.getBoundingClientRect();
-
-            const ownerBefore = String(target.ownerBefore || '').toLowerCase();
-            const imgPath = ownerBefore === 'white'
-                ? 'assets/images/stones/normal_stone-white.png'
-                : 'assets/images/stones/normal_stone-black.png';
-
-            const sourceDiscScale = 0.82;
-            const projectileScale = 1;
-            const projectileSize = Math.max(18, Math.round(Math.min(fromRect.width, fromRect.height) * sourceDiscScale * projectileScale));
-
-            const startX = fromRect.left + (fromRect.width / 2) - (projectileSize / 2);
-            const startY = fromRect.top + (fromRect.height / 2) - (projectileSize / 2);
-            const deltaX = (toRect.left + (toRect.width / 2)) - (fromRect.left + (fromRect.width / 2));
-            const deltaY = (toRect.top + (toRect.height / 2)) - (fromRect.top + (fromRect.height / 2));
-
-            const projectile = document.createElement('div');
-            projectile.style.position = 'fixed';
-            projectile.style.left = `${startX}px`;
-            projectile.style.top = `${startY}px`;
-            projectile.style.width = `${projectileSize}px`;
-            projectile.style.height = `${projectileSize}px`;
-            projectile.style.borderRadius = '50%';
-            projectile.style.backgroundImage = `url('${imgPath}')`;
-            projectile.style.backgroundSize = '100% 100%';
-            projectile.style.backgroundRepeat = 'no-repeat';
-            projectile.style.backgroundPosition = 'center';
-            projectile.style.pointerEvents = 'none';
-            projectile.style.zIndex = '1200';
-            projectile.style.margin = '0';
-
-            document.body.appendChild(projectile);
-
-            const travelPx = Math.hypot(deltaX, deltaY);
-            const durationMs = Math.max(140, Math.min(360, Math.round(140 + (travelPx * 0.28))));
-            const anim = projectile.animate([
-                { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-                { transform: `translate(${deltaX}px, ${deltaY}px) scale(0.68)`, opacity: 0.78 }
-            ], {
-                duration: durationMs,
-                easing: 'cubic-bezier(0.2, 0.9, 0.25, 1)'
-            });
-
-            await this._waitForAnimationFinish(anim, durationMs, 120);
-
-            if (projectile.parentElement) projectile.parentElement.removeChild(projectile);
+            return AnimationDestroySourceEvents.animateRobotVacuumSuction(target, this._getDestroySourceAnimationDeps());
         }
 
         async animateDestroyDragonBreath(target: any) {
-            if (!target) return;
-            if (_isNoAnim()) return;
-
-            const source = this._resolveDestroyDragonSource(target);
-            if (!source) return;
-
-            const fromCell = this.getCellEl(source.row, source.col);
-            const toCell = this.getCellEl(target.r, target.col);
-            if (!fromCell || !toCell) return;
-
-            const fromRect = fromCell.getBoundingClientRect();
-            const toRect = toCell.getBoundingClientRect();
-
-            const fromX = fromRect.left + (fromRect.width / 2);
-            const fromY = fromRect.top + (fromRect.height / 2);
-            const toX = toRect.left + (toRect.width / 2);
-            const toY = toRect.top + (toRect.height / 2);
-
-            const deltaX = toX - fromX;
-            const deltaY = toY - fromY;
-            const distance = Math.max(1, Math.hypot(deltaX, deltaY));
-            const angleDeg = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
-            const durationMs = Math.max(280, Math.min(520, Math.round(240 + (distance * 0.28))));
-
-            const layer = document.createElement('div');
-            layer.style.position = 'fixed';
-            layer.style.left = '0';
-            layer.style.top = '0';
-            layer.style.width = '100vw';
-            layer.style.height = '100vh';
-            layer.style.pointerEvents = 'none';
-            layer.style.zIndex = '1250';
-
-            const beam = document.createElement('div');
-            beam.style.position = 'fixed';
-            beam.style.left = `${fromX}px`;
-            beam.style.top = `${fromY - 4}px`;
-            beam.style.width = `${distance}px`;
-            beam.style.height = '8px';
-            beam.style.transformOrigin = '0 50%';
-            beam.style.transform = `rotate(${angleDeg}deg) scaleX(0.2)`;
-            beam.style.borderRadius = '999px';
-            beam.style.background = 'linear-gradient(90deg, rgba(255,235,150,0.95) 0%, rgba(255,150,40,0.95) 48%, rgba(255,70,20,0.85) 100%)';
-            beam.style.boxShadow = '0 0 14px rgba(255,120,30,0.85), 0 0 24px rgba(255,70,20,0.6)';
-            beam.style.opacity = '0';
-
-            const muzzle = document.createElement('div');
-            muzzle.style.position = 'fixed';
-            muzzle.style.left = `${fromX - 8}px`;
-            muzzle.style.top = `${fromY - 8}px`;
-            muzzle.style.width = '16px';
-            muzzle.style.height = '16px';
-            muzzle.style.borderRadius = '50%';
-            muzzle.style.background = 'radial-gradient(circle, rgba(255,245,190,0.95) 0%, rgba(255,154,40,0.9) 45%, rgba(255,80,20,0.15) 100%)';
-            muzzle.style.boxShadow = '0 0 16px rgba(255,150,40,0.9)';
-            muzzle.style.opacity = '0';
-
-            const impact = document.createElement('div');
-            impact.style.position = 'fixed';
-            impact.style.left = `${toX - 16}px`;
-            impact.style.top = `${toY - 16}px`;
-            impact.style.width = '32px';
-            impact.style.height = '32px';
-            impact.style.borderRadius = '50%';
-            impact.style.background = 'radial-gradient(circle, rgba(255,255,220,0.95) 0%, rgba(255,145,30,0.88) 40%, rgba(255,70,20,0.05) 100%)';
-            impact.style.boxShadow = '0 0 22px rgba(255,130,25,0.85)';
-            impact.style.opacity = '0';
-            impact.style.transform = 'scale(0.35)';
-
-            layer.appendChild(beam);
-            layer.appendChild(muzzle);
-            layer.appendChild(impact);
-            document.body.appendChild(layer);
-
-            await new Promise<void>((resolve) => {
-                let timeoutId: any = null;
-                let done = false;
-                const finish = () => {
-                    if (done) return;
-                    done = true;
-                    if (timeoutId !== null) {
-                        try { _Timer().clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
-                        timeoutId = null;
-                    }
-                    resolve();
-                };
-
-                try {
-                    if (beam.animate) {
-                        beam.animate([
-                            { offset: 0, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.2)` },
-                            { offset: 0.18, opacity: 1, transform: `rotate(${angleDeg}deg) scaleX(1)` },
-                            { offset: 0.72, opacity: 0.94, transform: `rotate(${angleDeg}deg) scaleX(1)` },
-                            { offset: 1, opacity: 0, transform: `rotate(${angleDeg}deg) scaleX(0.92)` }
-                        ], {
-                            duration: durationMs,
-                            easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)'
-                        });
-                    }
-                    if (muzzle.animate) {
-                        muzzle.animate([
-                            { offset: 0, opacity: 0, transform: 'scale(0.35)' },
-                            { offset: 0.24, opacity: 1, transform: 'scale(1.08)' },
-                            { offset: 0.68, opacity: 0.86, transform: 'scale(0.98)' },
-                            { offset: 1, opacity: 0, transform: 'scale(0.7)' }
-                        ], {
-                            duration: Math.max(220, durationMs - 30),
-                            easing: 'ease-out'
-                        });
-                    }
-                    if (impact.animate) {
-                        impact.animate([
-                            { offset: 0, opacity: 0, transform: 'scale(0.35)' },
-                            { offset: 0.22, opacity: 1, transform: 'scale(1.15)' },
-                            { offset: 0.7, opacity: 0.88, transform: 'scale(1.35)' },
-                            { offset: 1, opacity: 0, transform: 'scale(1.75)' }
-                        ], {
-                            duration: Math.max(260, durationMs + 40),
-                            easing: 'ease-out'
-                        });
-                    }
-                } catch (e: any) { /* ignore */ }
-
-                try {
-                    timeoutId = _Timer().setTimeout(finish, durationMs + 120, this.playbackScope);
-                } catch (e: any) {
-                    timeoutId = setTimeout(finish, durationMs + 120);
-                }
-            });
-
-            if (layer.parentElement) layer.parentElement.removeChild(layer);
+            return AnimationDestroySourceEvents.animateDestroyDragonBreath(target, this._getDestroySourceAnimationDeps());
         }
 
         async animateUdgLightningStrike(target: any) {
-            if (!target) return;
-            if (_isNoAnim()) return;
-
-            const source = this._resolveSniperSource(target);
-            if (!source) return;
-
-            const fromCell = this.getCellEl(source.row, source.col);
-            const toCell = this.getCellEl(target.r, target.col);
-            if (!fromCell || !toCell) return;
-            if (!document || !document.body) return;
-
-            const fromRect = fromCell.getBoundingClientRect();
-            const toRect = toCell.getBoundingClientRect();
-            const startX = fromRect.left + (fromRect.width / 2);
-            const startY = fromRect.top + (fromRect.height / 2);
-            const endX = toRect.left + (toRect.width / 2);
-            const endY = toRect.top + (toRect.height / 2);
-
-            const viewportW = Math.max(
-                1,
-                Number(window && window.innerWidth) || 0,
-                Number(document.documentElement && document.documentElement.clientWidth) || 0
-            );
-            const viewportH = Math.max(
-                1,
-                Number(window && window.innerHeight) || 0,
-                Number(document.documentElement && document.documentElement.clientHeight) || 0
-            );
-
-            const overlay = document.createElement('div');
-            overlay.style.position = 'fixed';
-            overlay.style.left = '0';
-            overlay.style.top = '0';
-            overlay.style.width = `${viewportW}px`;
-            overlay.style.height = `${viewportH}px`;
-            overlay.style.pointerEvents = 'none';
-            overlay.style.zIndex = '1250';
-            overlay.style.overflow = 'hidden';
-
-            const svgNs = 'http://www.w3.org/2000/svg';
-            const svg = document.createElementNS(svgNs, 'svg');
-            svg.setAttribute('width', String(viewportW));
-            svg.setAttribute('height', String(viewportH));
-            svg.setAttribute('viewBox', `0 0 ${viewportW} ${viewportH}`);
-            svg.style.position = 'absolute';
-            svg.style.left = '0';
-            svg.style.top = '0';
-            svg.style.overflow = 'visible';
-            overlay.appendChild(svg);
-
-            const distance = Math.max(1, Math.hypot(endX - startX, endY - startY));
-            const segmentCount = Math.max(5, Math.min(11, Math.round(distance / 42)));
-            const jitterPx = Math.max(8, Math.min(24, Math.round(distance / 13)));
-
-            const buildPath = (sx: any, sy: any, ex: any, ey: any, segments: any, jitter: any) => {
-                const safeSegments = Math.max(2, Number(segments) || 2);
-                const points = [];
-                const dx = ex - sx;
-                const dy = ey - sy;
-                const len = Math.max(1, Math.hypot(dx, dy));
-                const nx = -dy / len;
-                const ny = dx / len;
-
-                for (let i = 0; i <= safeSegments; i++) {
-                    const t = i / safeSegments;
-                    let x = sx + (dx * t);
-                    let y = sy + (dy * t);
-                    if (i > 0 && i < safeSegments) {
-                        const centerWeight = 1 - Math.abs((t * 2) - 1);
-                        const offset = (Math.random() - 0.5) * jitter * (0.45 + centerWeight);
-                        x += nx * offset;
-                        y += ny * offset;
-                    }
-                    points.push({ x, y });
-                }
-
-                const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-                return { d, points };
-            };
-
-            const createPath = (d: any, stroke: any, strokeWidth: any) => {
-                const path = document.createElementNS(svgNs, 'path');
-                path.setAttribute('d', d);
-                path.setAttribute('fill', 'none');
-                path.setAttribute('stroke', stroke);
-                path.setAttribute('stroke-width', String(strokeWidth));
-                path.setAttribute('stroke-linecap', 'round');
-                path.setAttribute('stroke-linejoin', 'round');
-                return path;
-            };
-
-            const main = buildPath(startX, startY, endX, endY, segmentCount, jitterPx);
-            const glow = createPath(main.d, 'rgba(134, 227, 255, 0.95)', 4.6);
-            glow.style.filter = 'drop-shadow(0 0 10px rgba(128, 220, 255, 0.95))';
-            const core = createPath(main.d, 'rgba(255, 255, 255, 0.98)', 2.1);
-            core.style.filter = 'drop-shadow(0 0 5px rgba(255, 255, 255, 0.9))';
-            svg.appendChild(glow);
-            svg.appendChild(core);
-
-            const branchBaseIndexes = [
-                Math.max(1, Math.floor(main.points.length * 0.34)),
-                Math.max(1, Math.floor(main.points.length * 0.62))
-            ];
-            const branchEls = [];
-            for (const idx of branchBaseIndexes) {
-                const anchor = main.points[idx];
-                if (!anchor) continue;
-                const branchEndX = anchor.x + ((Math.random() - 0.5) * 54) + ((endX - startX) * 0.12);
-                const branchEndY = anchor.y + ((Math.random() - 0.5) * 54) - ((endY - startY) * 0.08);
-                const branch = buildPath(
-                    anchor.x,
-                    anchor.y,
-                    branchEndX,
-                    branchEndY,
-                    Math.max(3, segmentCount - 3),
-                    Math.max(5, jitterPx * 0.68)
-                );
-                const branchGlow = createPath(branch.d, 'rgba(151, 234, 255, 0.76)', 2.4);
-                branchGlow.style.filter = 'drop-shadow(0 0 7px rgba(140, 225, 255, 0.8))';
-                const branchCore = createPath(branch.d, 'rgba(255, 255, 255, 0.92)', 1.2);
-                svg.appendChild(branchGlow);
-                svg.appendChild(branchCore);
-                branchEls.push(branchGlow, branchCore);
-            }
-
-            const flash = document.createElement('div');
-            flash.style.position = 'fixed';
-            flash.style.left = `${endX}px`;
-            flash.style.top = `${endY}px`;
-            flash.style.width = '14px';
-            flash.style.height = '14px';
-            flash.style.borderRadius = '50%';
-            flash.style.transform = 'translate(-50%, -50%) scale(0.15)';
-            flash.style.background = 'radial-gradient(circle, rgba(255,255,255,0.98) 0%, rgba(191,240,255,0.84) 42%, rgba(124,220,255,0) 100%)';
-            flash.style.filter = 'drop-shadow(0 0 16px rgba(160, 236, 255, 0.95))';
-            flash.style.pointerEvents = 'none';
-            flash.style.zIndex = '1251';
-            overlay.appendChild(flash);
-
-            const ring = document.createElement('div');
-            ring.style.position = 'fixed';
-            ring.style.left = `${endX}px`;
-            ring.style.top = `${endY}px`;
-            ring.style.width = '10px';
-            ring.style.height = '10px';
-            ring.style.borderRadius = '50%';
-            ring.style.transform = 'translate(-50%, -50%) scale(0.2)';
-            ring.style.border = '2px solid rgba(173, 238, 255, 0.9)';
-            ring.style.pointerEvents = 'none';
-            ring.style.zIndex = '1251';
-            overlay.appendChild(ring);
-
-            document.body.appendChild(overlay);
-
-            const durationMs = Math.max(170, Math.min(300, Math.round(170 + (distance * 0.12))));
-            const animations: any[] = [];
-            const queueAnimation = (el: any, keyframes: any, options: any) => {
-                try {
-                    if (!el || typeof el.animate !== 'function') return;
-                    const anim = el.animate(keyframes, options);
-                    animations.push(anim);
-                } catch (e: any) {
-                    /* ignore */
-                }
-            };
-
-            queueAnimation(glow, [
-                { opacity: 0 },
-                { opacity: 1, offset: 0.12 },
-                { opacity: 0.46, offset: 0.27 },
-                { opacity: 1, offset: 0.44 },
-                { opacity: 0.34, offset: 0.63 },
-                { opacity: 0.94, offset: 0.78 },
-                { opacity: 0, offset: 1 }
-            ], {
-                duration: durationMs,
-                easing: 'linear',
-                fill: 'forwards'
-            });
-
-            queueAnimation(core, [
-                { opacity: 0 },
-                { opacity: 1, offset: 0.1 },
-                { opacity: 0.66, offset: 0.22 },
-                { opacity: 1, offset: 0.39 },
-                { opacity: 0.54, offset: 0.58 },
-                { opacity: 0.92, offset: 0.76 },
-                { opacity: 0, offset: 1 }
-            ], {
-                duration: durationMs - 10,
-                easing: 'linear',
-                fill: 'forwards'
-            });
-
-            for (const branchEl of branchEls) {
-                queueAnimation(branchEl, [
-                    { opacity: 0 },
-                    { opacity: 0.9, offset: 0.16 },
-                    { opacity: 0.26, offset: 0.41 },
-                    { opacity: 0.75, offset: 0.66 },
-                    { opacity: 0, offset: 1 }
-                ], {
-                    duration: Math.max(130, durationMs - 32),
-                    easing: 'linear',
-                    fill: 'forwards'
-                });
-            }
-
-            queueAnimation(flash, [
-                { opacity: 0.2, transform: 'translate(-50%, -50%) scale(0.1)' },
-                { opacity: 1, transform: 'translate(-50%, -50%) scale(1.3)', offset: 0.24 },
-                { opacity: 0, transform: 'translate(-50%, -50%) scale(2.6)', offset: 1 }
-            ], {
-                duration: Math.max(150, durationMs + 30),
-                easing: 'cubic-bezier(0.16, 0.84, 0.32, 1)',
-                fill: 'forwards'
-            });
-
-            queueAnimation(ring, [
-                { opacity: 0.85, transform: 'translate(-50%, -50%) scale(0.2)' },
-                { opacity: 0.5, transform: 'translate(-50%, -50%) scale(1.4)', offset: 0.48 },
-                { opacity: 0, transform: 'translate(-50%, -50%) scale(2.1)', offset: 1 }
-            ], {
-                duration: Math.max(140, durationMs + 10),
-                easing: 'ease-out',
-                fill: 'forwards'
-            });
-
-            try {
-                if (!animations.length) {
-                    await new Promise((resolve) => {
-                        try {
-                            _Timer().setTimeout(resolve, durationMs + 40, this.playbackScope);
-                        } catch (e: any) {
-                            setTimeout(resolve, durationMs + 40);
-                        }
-                    });
-                    return;
-                }
-
-                await new Promise<void>((resolve) => {
-                    let timeoutId: any = null;
-                    let done = false;
-                    const finish = () => {
-                        if (done) return;
-                        done = true;
-                        if (timeoutId !== null) {
-                            try { _Timer().clearTimeout(timeoutId); } catch (e: any) { /* ignore */ }
-                            timeoutId = null;
-                        }
-                        resolve();
-                    };
-
-                    let settled = 0;
-                    const expected = animations.length;
-                    for (const anim of animations) {
-                        try {
-                            if (anim && anim.finished && typeof anim.finished.then === 'function') {
-                                anim.finished.then(() => {
-                                    settled += 1;
-                                    if (settled >= expected) finish();
-                                }).catch(() => {
-                                    settled += 1;
-                                    if (settled >= expected) finish();
-                                });
-                            } else {
-                                settled += 1;
-                            }
-                        } catch (e: any) {
-                            settled += 1;
-                        }
-                    }
-
-                    if (settled >= expected) finish();
-                    try {
-                        timeoutId = _Timer().setTimeout(finish, durationMs + 140, this.playbackScope);
-                    } catch (e: any) {
-                        timeoutId = setTimeout(finish, durationMs + 140);
-                    }
-                });
-            } finally {
-                if (overlay && overlay.parentElement) overlay.parentElement.removeChild(overlay);
-            }
+            return AnimationDestroySourceEvents.animateUdgLightningStrike(target, this._getDestroySourceAnimationDeps());
         }
 
         /**
@@ -1902,6 +1327,10 @@ const {
         }
 
         async executeEvent(ev: any) {
+            const handPlaybackResult = this._handleHandPlaybackEvent(ev);
+            if (handPlaybackResult !== null) {
+                return handPlaybackResult;
+            }
             switch (ev.type) {
                 case EVENT_TYPES.PLACE:
                     return this.handlePlace(ev);
@@ -1916,137 +1345,12 @@ const {
                 case EVENT_TYPES.STATUS_APPLIED:
                 case EVENT_TYPES.STATUS_REMOVED:
                     return this.handleStatusChange(ev);
-                case EVENT_TYPES.HAND_ADD:
-                    if (typeof window !== 'undefined') {
-                        const t = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
-                        if (t.reason === 'generated_throw_chain' && typeof window.playDirectHandAddAnimation === 'function') {
-                            return window.playDirectHandAddAnimation({
-                                player: t.player,
-                                cardId: t.cardId,
-                                count: t.count,
-                                reason: t.reason,
-                                sourceType: t.sourceType,
-                                generatedName: t.generatedName
-                            });
-                        }
-                        if (typeof window.playDrawCardHandAnimation === 'function') {
-                            return window.playDrawCardHandAnimation({
-                                player: t.player,
-                                cardId: t.cardId,
-                                count: t.count,
-                                reason: t.reason,
-                                sourceType: t.sourceType,
-                                generatedName: t.generatedName,
-                                cpu: t.cpu === true,
-                                cpuLevel: t.cpuLevel
-                            });
-                        }
-                    }
-                    return Promise.resolve();
-                case EVENT_TYPES.CAPTURE_TO_HAND_ANIMATION:
-                    if (typeof window !== 'undefined' && typeof window.playCaptureToHandAnimation === 'function') {
-                        const tCapture = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
-                        return window.playCaptureToHandAnimation({
-                            player: tCapture.player,
-                            cardId: tCapture.cardId,
-                            count: tCapture.count,
-                            reason: tCapture.reason,
-                            sourceType: tCapture.sourceType,
-                            sourceCardId: tCapture.sourceCardId,
-                            sourceName: tCapture.sourceName,
-                            sourceSpecialType: tCapture.sourceSpecialType,
-                            sourceRow: tCapture.sourceRow,
-                            sourceCol: tCapture.sourceCol,
-                            sourceOwner: tCapture.sourceOwner,
-                            stoneId: tCapture.stoneId,
-                            insertIndex: tCapture.insertIndex,
-                            visualDescriptor: tCapture.visualDescriptor || null
-                        });
-                    }
-                    return Promise.resolve();
-                case EVENT_TYPES.PLACE_HAND_ANIMATION:
-                    {
-                        const tPlace = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
-                        const descriptor = this._resolvePlaceHandDescriptor(tPlace);
-                        if (!descriptor || !this._shouldPlayPlaceHandAnimation(tPlace)) {
-                            return Promise.resolve();
-                        }
-                        const handAnimationFn = (typeof window !== 'undefined' && typeof window.playHandAnimation === 'function')
-                            ? window.playHandAnimation
-                            : ((typeof playHandAnimation === 'function') ? playHandAnimation : null);
-                        if (typeof handAnimationFn !== 'function') return Promise.resolve();
-                        return new Promise<void>((resolve) => {
-                            let finished = false;
-                            const finish = () => {
-                                if (finished) return;
-                                finished = true;
-                                resolve();
-                            };
-                            const timeoutId = _Timer().setTimeout(finish, 1800, this.playbackScope);
-                            const done = () => {
-                                if (timeoutId) {
-                                    _Timer().clearTimeout(timeoutId);
-                                }
-                                finish();
-                            };
-                            try {
-                                handAnimationFn(this._resolvePlayerValue(descriptor.playerKey), descriptor.r, descriptor.col, done);
-                            } catch (e: any) {
-                                done();
-                            }
-                        });
-                    }
-                case EVENT_TYPES.CARD_USE_ANIMATION:
-                    {
-                        const t2 = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
-                        const meta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
-                        const isLocalPendingPreview = meta.localPendingPreview === true;
-                        if (!isLocalPendingPreview && _consumeLocalCardUseAnimationSkip(t2)) {
-                            _armSkipNextCardUseButtonSound();
-                            return Promise.resolve();
-                        }
-                        if (isLocalPendingPreview) {
-                            _armLocalCardUseAnimationSkip(t2);
-                        }
-                        const disappearPlaybackEvents = Array.isArray(t2.disappearPlaybackEvents)
-                            ? t2.disappearPlaybackEvents.filter((one: any) => !!one)
-                            : [];
-                        if (typeof window !== 'undefined' && typeof window.playCardUseHandAnimation === 'function') {
-                            return window.playCardUseHandAnimation({
-                                player: t2.player,
-                                owner: t2.owner,
-                                cardId: t2.cardId,
-                                visualDescriptor: t2.visualDescriptor || null,
-                                cost: t2.cost,
-                                name: t2.name,
-                                disappearSoundKey: t2.disappearSoundKey || null,
-                                onDisappear: disappearPlaybackEvents.length > 0
-                                    ? () => Promise.all(disappearPlaybackEvents.map((one: any) => this.executeEvent(one)))
-                                    : null,
-                                sourceCardEl: t2.sourceCardEl || null,
-                                sourceCardRect: t2.sourceCardRect || ev.sourceCardRect || null
-                            });
-                        }
-                    }
-                    return Promise.resolve();
                 case EVENT_TYPES.OBSERVER_BUBBLE:
                     return this.handleObserverBubble(ev);
                 case EVENT_TYPES.ROUND_BONUS_BANNER:
                     return this.handleRoundBonusBanner(ev);
                 case EVENT_TYPES.SOUND_EFFECT:
                     return this.handleSoundEffect(ev);
-                case EVENT_TYPES.HAND_REMOVE:
-                    if (typeof window !== 'undefined' && typeof window.playClearHandAnimation === 'function') {
-                        const t3 = (ev.targets && ev.targets[0]) ? ev.targets[0] : ev;
-                        return window.playClearHandAnimation({
-                            player: t3.player,
-                            count: t3.count,
-                            reason: t3.reason,
-                            cardId: t3.cardId,
-                            cardIds: Array.isArray(t3.cardIds) ? t3.cardIds.slice() : undefined
-                        });
-                    }
-                    return Promise.resolve();
                 case EVENT_TYPES.LOG:
                     this.log(ev.message);
                     return Promise.resolve();
@@ -2058,321 +1362,165 @@ const {
             }
         }
 
+        _handleHandPlaybackEvent(ev: any) {
+            if (!(AnimationHandEvents && typeof AnimationHandEvents.handleHandPlaybackEvent === 'function')) {
+                throw new Error('AnimationEngine hand events module unavailable');
+            }
+            return AnimationHandEvents.handleHandPlaybackEvent(ev, {
+                timer: _Timer,
+                playbackScope: this.playbackScope,
+                resolvePlaceHandDescriptor: (target: any) => this._resolvePlaceHandDescriptor(target),
+                shouldPlayPlaceHandAnimation: (target: any) => this._shouldPlayPlaceHandAnimation(target),
+                resolvePlayerValue: (playerKey: any) => this._resolvePlayerValue(playerKey),
+                consumeLocalCardUseAnimationSkip: _consumeLocalCardUseAnimationSkip,
+                armSkipNextCardUseButtonSound: _armSkipNextCardUseButtonSound,
+                armLocalCardUseAnimationSkip: _armLocalCardUseAnimationSkip,
+                executeEvent: (event: any) => this.executeEvent(event),
+                fallbackPlayHandAnimation: (typeof playHandAnimation === 'function') ? playHandAnimation : null
+            });
+        }
+
+        _handleStatusPlaybackEvent(ev: any) {
+            if (!(AnimationStatusEvents && typeof AnimationStatusEvents.handleStatusChangeEvent === 'function')) {
+                throw new Error('AnimationEngine status events module unavailable');
+            }
+            return AnimationStatusEvents.handleStatusChangeEvent(ev, {
+                eventTypes: EVENT_TYPES,
+                visuals: Visuals,
+                overlayCrossfadeMs: OVERLAY_CROSSFADE_MS,
+                regenConsumeFadeMs: REGEN_CONSUME_FADE_MS,
+                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
+                resolveStatusChangeHighlightTone: (event: any, target: any) => this._resolveStatusChangeHighlightTone(event, target),
+                runWithTransientCellHighlight: (cell: any, highlightTone: any, runner: any, minimumVisibleMs: any, extraClasses: any[]) => this._runWithTransientCellHighlight(cell, highlightTone, runner, minimumVisibleMs, extraClasses),
+                resolveStatusChangeHighlightMinimumMs: (highlightTone: any) => this._resolveStatusChangeHighlightMinimumMs(highlightTone),
+                waitForDisc: (row: any, col: any, retries: any) => this.waitForDisc(row, col, retries),
+                syncDiscTimerOnly: (disc: any, after: any) => this.syncDiscTimerOnly(disc, after),
+                fadeOutFreezeOverlay: (cell: any, durationMs: any) => this.fadeOutFreezeOverlay(cell, durationMs),
+                crossfadeDiscToState: (disc: any, after: any, durationMs: any) => this.crossfadeDiscToState(disc, after, durationMs),
+                isBoardShrinkHoleStatusChange: (event: any, target: any) => this._isBoardShrinkHoleStatusChange(event, target),
+                playBoardShrinkHolePushIn: (cell: any) => this._playBoardShrinkHolePushIn(cell),
+                removeDiscFromCell: (cell: any, disc: any) => this._removeDiscFromCell(cell, disc),
+                resolveVisualColorFromState: (visualAfter: any, disc: any, visualOwner: any) => this._resolveVisualColorFromState(visualAfter, disc, visualOwner),
+                syncDiscVisual: (disc: any, visualAfter: any) => this.syncDiscVisual(disc, visualAfter)
+            });
+        }
+
+        _handleFlipPlaybackEvent(ev: any) {
+            if (!(AnimationFlipEvents && typeof AnimationFlipEvents.handleFlipEvent === 'function')) {
+                throw new Error('AnimationEngine flip events module unavailable');
+            }
+            return AnimationFlipEvents.handleFlipEvent(ev, {
+                eventTypes: EVENT_TYPES,
+                flipMs: FLIP_MS,
+                fadeOutMs: FADE_OUT_MS,
+                isNoAnim: _isNoAnim,
+                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
+                resolveOwnerColorFromBefore: (ownerBefore: any) => this._resolveOwnerColorFromBefore(ownerBefore),
+                resolveOwnerClassFromColor: (ownerColor: any) => this._resolveOwnerClassFromColor(ownerColor),
+                syncDiscVisual: (disc: any, after: any) => this.syncDiscVisual(disc, after),
+                runWithEffectTargetHighlight: (cell: any, eventType: any, target: any, runner: any, minimumVisibleMs: any) => this._runWithEffectTargetHighlight(cell, eventType, target, runner, minimumVisibleMs),
+                sleep: (ms: any) => this._sleep(ms),
+                animationShared: AnimationShared
+            });
+        }
+
+        _handlePlacePlaybackEvent(ev: any) {
+            if (!(AnimationPlacementEvents && typeof AnimationPlacementEvents.handlePlaceEvent === 'function')) {
+                throw new Error('AnimationEngine placement events module unavailable');
+            }
+            return AnimationPlacementEvents.handlePlaceEvent(ev, {
+                eventTypes: EVENT_TYPES,
+                breedingSpawnFadeMs: BREEDING_SPAWN_FADE_MS,
+                isNoAnim: _isNoAnim,
+                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
+                createDisc: (state: any) => this.createDisc(state),
+                runWithEffectTargetHighlight: (cell: any, eventType: any, target: any, runner: any, minimumVisibleMs: any) => this._runWithEffectTargetHighlight(cell, eventType, target, runner, minimumVisibleMs),
+                resolveSpawnTargetHighlightMinimumMs: (target: any) => this._resolveSpawnTargetHighlightMinimumMs(target),
+                waitForOpacityTransition: (disc: any, durationMs: any, bufferMs: any, starter: any, cleanup: any) => this._waitForOpacityTransition(disc, durationMs, bufferMs, starter, cleanup)
+            });
+        }
+
+        _handleSpawnPlaybackEvent(ev: any) {
+            if (!(AnimationPlacementEvents && typeof AnimationPlacementEvents.handleSpawnEvent === 'function')) {
+                throw new Error('AnimationEngine placement events module unavailable');
+            }
+            return AnimationPlacementEvents.handleSpawnEvent(ev, {
+                eventTypes: EVENT_TYPES,
+                breedingSpawnFadeMs: BREEDING_SPAWN_FADE_MS,
+                isNoAnim: _isNoAnim,
+                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
+                createDisc: (state: any) => this.createDisc(state),
+                runWithEffectTargetHighlight: (cell: any, eventType: any, target: any, runner: any, minimumVisibleMs: any) => this._runWithEffectTargetHighlight(cell, eventType, target, runner, minimumVisibleMs),
+                resolveSpawnTargetHighlightMinimumMs: (target: any) => this._resolveSpawnTargetHighlightMinimumMs(target),
+                waitForOpacityTransition: (disc: any, durationMs: any, bufferMs: any, starter: any, cleanup: any) => this._waitForOpacityTransition(disc, durationMs, bufferMs, starter, cleanup)
+            });
+        }
+
+        _handleDestroyPlaybackEvent(ev: any) {
+            if (!(AnimationDestroyEvents && typeof AnimationDestroyEvents.handleDestroyEvent === 'function')) {
+                throw new Error('AnimationEngine destroy events module unavailable');
+            }
+            return AnimationDestroyEvents.handleDestroyEvent(ev, {
+                eventTypes: EVENT_TYPES,
+                fadeOutMs: FADE_OUT_MS,
+                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
+                sleep: (ms: any) => this._sleep(ms),
+                getTargetCause: (target: any) => this._getTargetCause(target),
+                getTargetReason: (target: any) => this._getTargetReason(target),
+                isSuperCrushCause: (cause: any) => this._isSuperCrushCause(cause),
+                getSuperCrushDestinationContext: (row: any, col: any) => this._getSuperCrushDestinationContext(row, col),
+                resolveSuperCrushTargetDelayMs: (target: any) => this._resolveSuperCrushCollisionDelayMs(target),
+                resolveOwnerColorFromBefore: (ownerBefore: any) => this._resolveOwnerColorFromBefore(ownerBefore),
+                shouldPreserveDiscOnDestroy: (target: any) => this._shouldPreserveDiscOnDestroy(target),
+                resolveDestroyTargetHighlightMinimumMs: (target: any) => this._resolveDestroyTargetHighlightMinimumMs(target),
+                resolveEffectTargetHighlightTone: (eventType: any, target: any) => this._resolveEffectTargetHighlightTone(eventType, target),
+                runWithEffectTargetHighlight: (cell: any, eventType: any, target: any, runner: any, minimumVisibleMs: any) => this._runWithEffectTargetHighlight(cell, eventType, target, runner, minimumVisibleMs),
+                resolveDestroySourceAnimationProfile: (target: any) => this._resolveDestroySourceAnimationProfile(target),
+                playDestroySourceAnimation: (target: any, profile: any) => this._playDestroySourceAnimation(target, profile),
+                animateDestroyGhostAtCell: (cell: any, ownerColor: any) => this._animateDestroyGhostAtCell(cell, ownerColor),
+                removeDiscFromCell: (cell: any, disc: any) => this._removeDiscFromCell(cell, disc),
+                resolveOwnerClassFromColor: (ownerColor: any) => this._resolveOwnerClassFromColor(ownerColor)
+            });
+        }
+
         // --- Visual Primitive Handlers ---
 
         async handleRoundBonusBanner(ev: any) {
-            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
-            const target = targets[0] || ev || null;
-            const amount = Number.isFinite(Number(target && target.amount))
-                ? Math.max(0, Math.trunc(Number(target.amount)))
-                : 0;
-            if (!(amount > 0)) return Promise.resolve();
-            const roundNumber = Number.isFinite(Number(target && target.roundNumber))
-                ? Math.max(1, Math.trunc(Number(target.roundNumber)))
-                : 1;
-            const durationMs = Number.isFinite(Number(target && target.durationMs))
-                ? Math.max(0, Math.trunc(Number(target.durationMs)))
-                : 2200;
-            const text = (typeof (target && target.text) === 'string' && target.text.trim())
-                ? target.text.trim()
-                : `BONUS ROUND +${amount}`;
-            try {
-                if (typeof window !== 'undefined' && typeof window.showRoundBonusDisplay === 'function') {
-                    window.showRoundBonusDisplay({
-                        amount,
-                        roundNumber,
-                        durationMs,
-                        text
-                    });
-                }
-            } catch (e: any) { /* ignore */ }
-            return Promise.resolve();
+            if (!(AnimationFeedbackEvents && typeof AnimationFeedbackEvents.handleRoundBonusBannerEvent === 'function')) {
+                throw new Error('AnimationEngine feedback events module unavailable');
+            }
+            return AnimationFeedbackEvents.handleRoundBonusBannerEvent(ev);
         }
 
         async handleSoundEffect(ev: any) {
-            const meta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
-            const isLocalPendingPreview = meta.localPendingPreview === true;
-            const keys = [];
-            if (ev && ev.soundKey) keys.push(String(ev.soundKey));
-            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
-            for (const t of targets) {
-                if (t && t.soundKey) keys.push(String(t.soundKey));
+            if (!(AnimationFeedbackEvents && typeof AnimationFeedbackEvents.handleSoundEffectEvent === 'function')) {
+                throw new Error('AnimationEngine feedback events module unavailable');
             }
-            if (!keys.length) return Promise.resolve();
-
-            const seen = new Set();
-            for (const key of keys) {
-                const trimmed = String(key || '').trim();
-                if (!trimmed || seen.has(trimmed)) continue;
-                seen.add(trimmed);
-                if (trimmed === 'card_use_button' && !isLocalPendingPreview && _consumeSkipNextCardUseButtonSound()) continue;
-                if (!isLocalPendingPreview && _consumeLocalPlaybackSoundSkip(trimmed)) continue;
-                try {
-                    if (typeof SoundEngine !== 'undefined' && SoundEngine && typeof SoundEngine.playEffectByKey === 'function') {
-                        SoundEngine.init();
-                        SoundEngine.playEffectByKey(trimmed);
-                    }
-                } catch (e: any) { /* ignore */ }
-            }
-            return Promise.resolve();
+            return AnimationFeedbackEvents.handleSoundEffectEvent(ev, {
+                consumeSkipNextCardUseButtonSound: _consumeSkipNextCardUseButtonSound,
+                consumeLocalPlaybackSoundSkip: _consumeLocalPlaybackSoundSkip,
+                soundEngine: (typeof SoundEngine !== 'undefined') ? SoundEngine : null
+            });
         }
 
         async handleObserverBubble(ev: any) {
-            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
-            if (!targets.length) return Promise.resolve();
-
-            for (const t of targets) {
-                const row = Number.isInteger(t && t.r) ? t.r : null;
-                const col = Number.isInteger(t && t.col) ? t.col : null;
-                if (row === null || col === null) continue;
-
-                const cell = this.getCellEl(row, col);
-                if (!cell) continue;
-
-                const bubbleKind = String((t && t.bubbleKind) || '').trim().toLowerCase() === 'charge'
-                    ? 'charge'
-                    : 'observer';
-                const isChargeBubble = bubbleKind === 'charge';
-                const totalMsRaw = isChargeBubble ? 2000 : Number(OBSERVER_BUBBLE_MS);
-                const fadeMsRaw = isChargeBubble ? 250 : Number(OBSERVER_BUBBLE_FADE_MS);
-                const totalMs = Number.isFinite(totalMsRaw) && totalMsRaw > 0 ? totalMsRaw : (isChargeBubble ? 2000 : 5000);
-                const fadeMs = Number.isFinite(fadeMsRaw) && fadeMsRaw > 0 ? fadeMsRaw : (isChargeBubble ? 250 : 700);
-                const holdMs = Math.max(0, totalMs - fadeMs);
-                const gained = Math.max(0, Number(t && t.gained) || 0);
-                const phaseValue = Number.isFinite(Number(ev && ev.phase)) ? Math.trunc(Number(ev.phase)) : null;
-                const owner = String((t && t.owner) || '').toLowerCase();
-                const explicitText = (typeof (t && t.text) === 'string') ? String(t.text).trim() : '';
-                const bubbleClassName = isChargeBubble ? 'board-charge-bubble' : 'observer-speech-bubble';
-                const finalTransform = isChargeBubble ? 'translate(-50%, 0)' : 'translate(-50%, -100%)';
-                const initialTransform = isChargeBubble ? 'translate(-50%, -18px)' : finalTransform;
-
-                const existing = Array.from(document.querySelectorAll(`.${bubbleClassName}[data-row="${row}"][data-col="${col}"]`));
-                if (isChargeBubble && !explicitText) {
-                    const samePhaseBubble = existing.find((node) => {
-                        if (!node) return false;
-                        if (!Object.prototype.hasOwnProperty.call(node.dataset || {}, 'phase')) return false;
-                        return String(node.dataset.phase) === String(phaseValue);
-                    });
-                    if (samePhaseBubble) {
-                        const mergedGain = (Number(samePhaseBubble.dataset.gained) || 0) + gained;
-                        samePhaseBubble.dataset.gained = String(mergedGain);
-                        const labelEl = samePhaseBubble.querySelector('[data-charge-label="true"]');
-                        if (labelEl) {
-                            labelEl.textContent = `+${mergedGain}`;
-                        }
-                        continue;
-                    }
-                }
-                for (const oldNode of existing) {
-                    try { if (oldNode && oldNode.parentElement) oldNode.parentElement.removeChild(oldNode); } catch (e: any) { /* ignore */ }
-                }
-
-                const rect = cell.getBoundingClientRect();
-                const viewportW = (typeof window !== 'undefined' && Number.isFinite(window.innerWidth)) ? window.innerWidth : document.documentElement.clientWidth;
-                const anchorX = rect.left + (rect.width / 2);
-                const anchorY = isChargeBubble
-                    ? (rect.bottom - 2)
-                    : (rect.top - 8);
-                const clampedX = Math.max(24, Math.min(Math.max(24, viewportW - 24), anchorX));
-
-                const bubble = document.createElement('div');
-                bubble.className = bubbleClassName;
-                bubble.dataset.row = String(row);
-                bubble.dataset.col = String(col);
-                bubble.dataset.owner = owner;
-                bubble.dataset.bubbleKind = bubbleKind;
-                if (isChargeBubble) {
-                    bubble.dataset.gained = String(gained);
-                    if (phaseValue !== null) bubble.dataset.phase = String(phaseValue);
-                }
-                bubble.setAttribute('aria-hidden', 'true');
-                bubble.style.position = 'fixed';
-                bubble.style.left = `${clampedX}px`;
-                bubble.style.top = `${anchorY}px`;
-                bubble.style.transform = initialTransform;
-                bubble.style.display = 'block';
-                bubble.style.maxWidth = isChargeBubble ? 'min(30vw, 140px)' : 'min(46vw, 320px)';
-                bubble.style.width = 'max-content';
-                bubble.style.padding = isChargeBubble ? '2px 8px' : '8px 12px';
-                bubble.style.borderRadius = isChargeBubble ? '999px' : '10px';
-                bubble.style.border = isChargeBubble
-                    ? '1px solid rgba(255, 215, 120, 0.72)'
-                    : '1px solid var(--border-status)';
-                bubble.style.background = 'transparent';
-                bubble.style.color = 'var(--color-text-bright)';
-                bubble.style.fontSize = isChargeBubble ? '12px' : '13px';
-                bubble.style.fontWeight = isChargeBubble ? '800' : '400';
-                bubble.style.lineHeight = isChargeBubble ? '1.05' : '1.35';
-                bubble.style.textAlign = 'center';
-                bubble.style.boxShadow = 'var(--board-shadow-outer)';
-                bubble.style.opacity = '0';
-                bubble.style.visibility = 'visible';
-                bubble.style.pointerEvents = 'none';
-                bubble.style.zIndex = '13100';
-                bubble.style.transition = isChargeBubble
-                    ? `opacity ${fadeMs}ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1)`
-                    : `opacity ${fadeMs}ms ease`;
-                bubble.style.wordBreak = 'break-word';
-                bubble.style.isolation = 'isolate';
-
-                const bgLayer = document.createElement('div');
-                bgLayer.style.position = 'absolute';
-                bgLayer.style.left = '0';
-                bgLayer.style.top = '0';
-                bgLayer.style.right = '0';
-                bgLayer.style.bottom = '0';
-                bgLayer.style.borderRadius = 'inherit';
-                bgLayer.style.background = isChargeBubble ? 'rgba(17, 22, 31, 0.92)' : 'var(--bg-glass)';
-                bgLayer.style.opacity = isChargeBubble ? '1' : '0.82';
-                bgLayer.style.pointerEvents = 'none';
-                bgLayer.style.zIndex = '0';
-                bubble.appendChild(bgLayer);
-
-                const label = document.createElement('span');
-                label.style.position = 'relative';
-                label.style.zIndex = '1';
-                if (isChargeBubble) {
-                    label.style.display = 'block';
-                    label.style.lineHeight = '1.05';
-                    label.dataset.chargeLabel = 'true';
-                }
-                label.textContent = explicitText || (isChargeBubble ? `+${gained}` : `布石+${gained} 観測が捗る`);
-                bubble.appendChild(label);
-
-                if (!isChargeBubble) {
-                    const tail = document.createElement('div');
-                    tail.style.position = 'absolute';
-                    tail.style.left = '50%';
-                    tail.style.top = 'calc(100% - 1px)';
-                    tail.style.transform = 'translateX(-50%)';
-                    tail.style.width = '0';
-                    tail.style.height = '0';
-                    tail.style.borderStyle = 'solid';
-                    tail.style.borderWidth = '8px 7px 0 7px';
-                    tail.style.borderColor = 'var(--bg-glass) transparent transparent transparent';
-                    tail.style.opacity = '0.82';
-                    tail.style.zIndex = '0';
-                    bubble.appendChild(tail);
-                }
-
-                document.body.appendChild(bubble);
-                if (_isNoAnim()) {
-                    try {
-                        bubble.style.opacity = '1';
-                        bubble.style.transform = finalTransform;
-                        if (bubble.parentElement) bubble.parentElement.removeChild(bubble);
-                    } catch (e: any) { /* ignore */ }
-                    continue;
-                }
-                if (isChargeBubble) {
-                    // Commit the initial entry position before the next frame so the downward motion is visible.
-                    void bubble.offsetWidth;
-                }
-                try {
-                    requestAnimationFrame(() => {
-                        bubble.style.opacity = '1';
-                        bubble.style.transform = finalTransform;
-                    });
-                } catch (e: any) {
-                    bubble.style.opacity = '1';
-                    bubble.style.transform = finalTransform;
-                }
-
-                setTimeout(() => {
-                    try { bubble.style.opacity = '0'; } catch (e: any) { /* ignore */ }
-                }, holdMs);
-                setTimeout(() => {
-                    try { if (bubble.parentElement) bubble.parentElement.removeChild(bubble); } catch (e: any) { /* ignore */ }
-                }, totalMs + 120);
+            if (!(AnimationFeedbackEvents && typeof AnimationFeedbackEvents.handleObserverBubbleEvent === 'function')) {
+                throw new Error('AnimationEngine feedback events module unavailable');
             }
-
-            return Promise.resolve();
+            return AnimationFeedbackEvents.handleObserverBubbleEvent(ev, {
+                isNoAnim: _isNoAnim,
+                observerBubbleMs: OBSERVER_BUBBLE_MS,
+                observerBubbleFadeMs: OBSERVER_BUBBLE_FADE_MS,
+                getCellEl: (row: any, col: any) => this.getCellEl(row, col)
+            });
         }
 
         async handlePlace(ev: any) {
-            const eventType = (ev && ev.type) ? ev.type : EVENT_TYPES.PLACE;
-            for (const t of ev.targets) {
-                const cell = this.getCellEl(t.r, t.col);
-                if (!cell) continue;
-                const highlightMinimumMs = eventType === EVENT_TYPES.SPAWN
-                    ? this._resolveSpawnTargetHighlightMinimumMs(t)
-                    : 0;
-
-                await this._runWithEffectTargetHighlight(cell, eventType, t, async () => {
-                    const after = t.after || {};
-                    const disc = this.createDisc(after);
-
-                    // Section 5.1: normal placement appears in its final state immediately.
-                    // Fade-in is reserved for explicit spawn/crossfade paths only.
-                    cell.innerHTML = '';
-                    cell.appendChild(disc);
-                }, highlightMinimumMs);
-            }
-            // Do not block subsequent phases (e.g., immediate flips) after placement.
-            return Promise.resolve();
+            return this._handlePlacePlaybackEvent(ev);
         }
 
         async handleFlip(ev: any) {
-            const promises = ev.targets.map(async (t: any) => {
-                const cell = this.getCellEl(t.r, t.col);
-                if (!cell) return;
-                const blockedByGhost = !!(t && t.meta && t.meta.blockedByGhost);
-                if (blockedByGhost) {
-                    await this._runWithEffectTargetHighlight(cell, EVENT_TYPES.FLIP, t, async () => {
-                        await this._sleep(Math.max(120, Math.floor(FLIP_MS / 2)));
-                    }, 0);
-                    return;
-                }
-                const disc = cell.querySelector('.disc');
-                if (!disc) {
-                    // If the disc is already removed, create a ghost and animate fade directly.
-                    try {
-                        const ghost = document.createElement('div');
-                        const ownerColor = this._resolveOwnerColorFromBefore(t && t.ownerBefore);
-                        ghost.className = 'disc ' + this._resolveOwnerClassFromColor(ownerColor);
-                        ghost.style.pointerEvents = 'none';
-                        ghost.classList.add('destroy-fade');
-                        cell.appendChild(ghost);
-                        await this._sleep(FADE_OUT_MS);
-                        if (ghost.parentElement) ghost.parentElement.removeChild(ghost);
-                    } catch (e: any) { /* ignore */ }
-                    return;
-                }
-
-                const after = t.after || {};
-                await this._runWithEffectTargetHighlight(cell, EVENT_TYPES.FLIP, t, async () => {
-                    const noAnim = _isNoAnim();
-
-                    // More natural flip: animate immediately and swap the visual state at mid-flip.
-                    // This makes the color change feel simultaneous with the flip motion.
-                    if (noAnim) {
-                        this.syncDiscVisual(disc, after);
-                        try { disc.classList.remove('flip'); } catch (e: any) { /* Intentionally empty: DOM class cleanup guard */ }
-                        return;
-                    }
-
-                    // Best-effort: set a "before" visual if the payload provides it.
-                    // If not provided, keep the current DOM visual as-is.
-                    try {
-                        if (t.ownerBefore === 'black' || t.ownerBefore === 'white') {
-                            const before = { color: (t.ownerBefore === 'black') ? 1 : -1, special: t.specialBefore || null, timer: t.timerBefore || null };
-                            this.syncDiscVisual(disc, before);
-                        }
-                    } catch (e: any) { /* ignore */ }
-
-                    // Trigger flip animation immediately
-                    try { if (AnimationShared && AnimationShared.triggerFlip) AnimationShared.triggerFlip(disc); } catch (e: any) { /* defensive */ }
-
-                    // Swap visuals exactly mid-way so color change aligns with motion start
-                    await this._sleep(FLIP_MS / 2);
-                    this.syncDiscVisual(disc, after);
-
-                    // Finish motion and clean up
-                    await this._sleep(FLIP_MS / 2);
-                    try { if (AnimationShared && AnimationShared.removeFlip) AnimationShared.removeFlip(disc); } catch (e: any) { /* Intentionally empty: AnimationShared may not be available */ }
-                }, 0);
-            });
-            await Promise.all(promises);
+            return this._handleFlipPlaybackEvent(ev);
         }
 
         // Batch handler so that multiple flips in the same phase animate simultaneously
@@ -2389,1072 +1537,63 @@ const {
         }
 
         async handleDestroy(ev: any) {
-            const promises = ev.targets.map(async (t: any) => {
-                const superCrushDelay = this._resolveSuperCrushCollisionDelayMs(t);
-                if (superCrushDelay > 0) {
-                    await this._sleep(superCrushDelay);
-                }
-
-                const cell = this.getCellEl(t.r, t.col);
-                if (!cell) return;
-                const destroyCause = this._getTargetCause(t);
-                const destroyReason = this._getTargetReason(t);
-                const isSuperCrushCollision = this._isSuperCrushCause(destroyCause) && (
-                    destroyReason.indexOf('super_buoyancy_collision') === 0 ||
-                    destroyReason.indexOf('super_gravity_collision') === 0 ||
-                    destroyReason.indexOf('super_attraction_collision') === 0
-                );
-                const superCrushDestinationContext = isSuperCrushCollision
-                    ? this._getSuperCrushDestinationContext(t.r, t.col)
-                    : null;
-                const ownerColor = this._resolveOwnerColorFromBefore(t && t.ownerBefore);
-                const disc = cell.querySelector('.disc');
-                const preserveDiscOnDestroy = this._shouldPreserveDiscOnDestroy(t);
-                const destroyHighlightMinimumMs = this._resolveDestroyTargetHighlightMinimumMs(t);
-                const shouldPreserveDestroyPlaybackWithoutDisc =
-                    isSuperCrushCollision ||
-                    !!this._resolveEffectTargetHighlightTone(EVENT_TYPES.DESTROY, t);
-                if (!disc && !shouldPreserveDestroyPlaybackWithoutDisc) return;
-
-                await this._runWithEffectTargetHighlight(cell, EVENT_TYPES.DESTROY, t, async () => {
-                    const sourceAnimationProfile = this._resolveDestroySourceAnimationProfile(t);
-                    const useGhostOnlyDestroy = !disc || (
-                        isSuperCrushCollision &&
-                        (superCrushDestinationContext && superCrushDestinationContext.sourceHadDisc === false)
-                    );
-                    if (useGhostOnlyDestroy) {
-                        await this._playDestroySourceAnimation(t, sourceAnimationProfile);
-                        if (preserveDiscOnDestroy) {
-                            await this._sleep(Math.max(120, Math.floor(FADE_OUT_MS / 2)));
-                            return;
-                        }
-                        if (ownerColor === null && !isSuperCrushCollision) {
-                            await this._sleep(FADE_OUT_MS);
-                        } else {
-                            await this._animateDestroyGhostAtCell(cell, ownerColor);
-                        }
-                        return;
-                    }
-
-                    await this._playDestroySourceAnimation(t, sourceAnimationProfile);
-                    if (sourceAnimationProfile && sourceAnimationProfile.afterDestroy === 'clearCell') {
-                        if (preserveDiscOnDestroy) {
-                            await this._sleep(Math.max(120, Math.floor(FADE_OUT_MS / 2)));
-                            return;
-                        }
-                        cell.innerHTML = '';
-                        return;
-                    }
-                    if (preserveDiscOnDestroy) {
-                        await this._sleep(Math.max(120, Math.floor(FADE_OUT_MS / 2)));
-                        return;
-                    }
-
-                    const isGluttonousEatDestroy =
-                        destroyCause === 'GLUTTONOUS_WILL' &&
-                        destroyReason.indexOf('gluttonous_eat') === 0;
-                    if (isGluttonousEatDestroy) {
-                        return;
-                    }
-
-                    // Section 5.3: Fade out using animateFadeOutAt (waits for animationend + safety timeout)
-                    if (typeof animateFadeOutAt === 'function') {
-                        await animateFadeOutAt(t.r, t.col, { createGhost: true, color: ownerColor });
-
-                        // If no destroy-fade is visible (e.g., disc removed too early), force a ghost fade.
-                        try {
-                            const hasFade = cell.querySelector('.disc.destroy-fade');
-                            if (!hasFade) {
-                                const ghost = document.createElement('div');
-                                const ownerClass = this._resolveOwnerClassFromColor(ownerColor);
-                                ghost.className = 'disc ' + ownerClass;
-                                ghost.style.pointerEvents = 'none';
-                                ghost.classList.add('destroy-fade');
-                                cell.appendChild(ghost);
-                                await this._sleep(FADE_OUT_MS);
-                                if (ghost.parentElement) ghost.parentElement.removeChild(ghost);
-                            }
-                        } catch (e: any) { /* ignore */ }
-                    } else {
-                        // Fallback: apply class and sleep
-                        if (disc) {
-                            disc.classList.add('destroy-fade');
-                            await this._sleep(FADE_OUT_MS);
-                        } else if (ownerColor !== null) {
-                            await this._animateDestroyGhostAtCell(cell, ownerColor);
-                        } else {
-                            await this._sleep(FADE_OUT_MS);
-                        }
-                    }
-                    this._removeDiscFromCell(cell, disc);
-                }, destroyHighlightMinimumMs);
-            });
-            await Promise.all(promises);
+            return this._handleDestroyPlaybackEvent(ev);
         }
 
         async animateWillHunterKingSlash(target: any) {
-            if (!target || _isNoAnim()) return;
-
-            const cell = this.getCellEl(target.r, target.col);
-            if (!cell) return;
-
-            const cellRect = cell.getBoundingClientRect();
-            const source = this._resolveSniperSource(target);
-            const slash = document.createElement('div');
-            slash.className = 'will-hunter-king-slash';
-
-            let angleDeg = -32;
-            if (source) {
-                const sourceCell = this.getCellEl(source.row, source.col);
-                if (sourceCell) {
-                    const sourceRect = sourceCell.getBoundingClientRect();
-                    angleDeg = Math.atan2(
-                        (cellRect.top + (cellRect.height / 2)) - (sourceRect.top + (sourceRect.height / 2)),
-                        (cellRect.left + (cellRect.width / 2)) - (sourceRect.left + (sourceRect.width / 2))
-                    ) * (180 / Math.PI);
-                }
-            }
-
-            slash.style.position = 'fixed';
-            slash.style.left = `${cellRect.left}px`;
-            slash.style.top = `${cellRect.top}px`;
-            slash.style.width = `${cellRect.width}px`;
-            slash.style.height = `${cellRect.height}px`;
-            slash.style.setProperty('--slash-angle-deg', `${angleDeg}deg`);
-            slash.style.pointerEvents = 'none';
-            slash.style.zIndex = '1300';
-            document.body.appendChild(slash);
-
-            const durationMs = 280;
-            try {
-                if (typeof slash.animate === 'function') {
-                    const anim = slash.animate([
-                        { opacity: 0, transform: 'scale(0.6)' },
-                        { opacity: 1, transform: 'scale(1)' },
-                        { opacity: 0, transform: 'scale(1.08)' }
-                    ], {
-                        duration: durationMs,
-                        easing: 'cubic-bezier(0.2, 0.8, 0.2, 1)'
-                    });
-                    await this._waitForAnimationFinish(anim, durationMs, 80);
-                } else {
-                    await this._sleep(durationMs);
-                }
-            } finally {
-                try { if (slash.parentElement) slash.parentElement.removeChild(slash); } catch (e: any) { /* ignore */ }
-            }
+            return AnimationDestroySourceEvents.animateWillHunterKingSlash(target, this._getDestroySourceAnimationDeps());
         }
 
         async handleSpawn(ev: any) {
-            // Spawn is similar to place, but BREEDING spawn has its own fade-in.
-            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
-            if (!targets.length) return Promise.resolve();
-
-            const normalTargets = [];
-            const breedingTargets = [];
-            for (const t of targets) {
-                if (this.isBreedingSpawnTarget(t)) breedingTargets.push(t);
-                else normalTargets.push(t);
-            }
-
-            if (normalTargets.length) {
-                await this.handlePlace(Object.assign({}, ev, { targets: normalTargets }));
-            }
-
-            if (!breedingTargets.length) return Promise.resolve();
-
-            const fadePromises = breedingTargets.map(async (t) => {
-                const cell = this.getCellEl(t.r, t.col);
-                if (!cell) return;
-                const highlightMinimumMs = this._resolveSpawnTargetHighlightMinimumMs(t);
-                await this._runWithEffectTargetHighlight(cell, EVENT_TYPES.SPAWN, t, async () => {
-                    const after = t.after || {};
-                    const disc = this.createDisc(after);
-                    cell.innerHTML = '';
-                    cell.appendChild(disc);
-
-                    const fadeMs = this.getSpawnFadeInMs(t);
-                    if (_isNoAnim() || !Number.isFinite(fadeMs) || fadeMs <= 0) return;
-
-                    // Targeted fade-in only for breeding spawn; no global opacity side-effects.
-                    const prevTransition = disc.style.transition || '';
-                    disc.style.opacity = '0';
-                    disc.classList.add('stone-instant');
-                    disc.offsetHeight; // force reflow
-                    disc.classList.remove('stone-instant');
-                    disc.style.transition = prevTransition ? `${prevTransition}, opacity ${fadeMs}ms ease` : `opacity ${fadeMs}ms ease`;
-
-                    await this._waitForOpacityTransition(
-                        disc,
-                        fadeMs,
-                        120,
-                        () => {
-                            try { requestAnimationFrame(() => { disc.style.opacity = '1'; }); } catch (e: any) { disc.style.opacity = '1'; }
-                        },
-                        () => {
-                            disc.style.opacity = '';
-                            disc.style.transition = prevTransition;
-                        }
-                    );
-                }, highlightMinimumMs);
-            });
-
-            await Promise.all(fadePromises);
+            return this._handleSpawnPlaybackEvent(ev);
         }
 
         isBreedingSpawnTarget(t: any) {
-            if (!t) return false;
-            const cause = String(t.cause || '').toUpperCase();
-            const reason = String(t.reason || '').toLowerCase();
-            return cause === 'BREEDING' && reason.indexOf('breeding_spawn') === 0;
+            if (!(AnimationPlacementEvents && typeof AnimationPlacementEvents.isBreedingSpawnTarget === 'function')) {
+                throw new Error('AnimationEngine placement events module unavailable');
+            }
+            return AnimationPlacementEvents.isBreedingSpawnTarget(t);
         }
 
         getSpawnFadeInMs(t: any) {
-            if (this.isBreedingSpawnTarget(t)) return BREEDING_SPAWN_FADE_MS;
-            return 0;
-        }
-
-        _getMoveSemantics(target: any) {
-            const cause = this._getTargetCause(target);
-            const reason = this._getTargetReason(target);
-            const moveIntent = String(target && target.meta && target.meta.moveIntent ? target.meta.moveIntent : '').toLowerCase();
-            const extremeForcedSwapRole = String(target && target.extremeForcedSwapRole ? target.extremeForcedSwapRole : '').toLowerCase();
-            const isPositionSwapMove =
-                moveIntent === 'position_swap' ||
-                cause === 'POSITION_SWAP_WILL' ||
-                reason === 'position_swap';
-            const isFlipEvadeMove =
-                moveIntent === 'evade_move' ||
-                reason.indexOf('flip_evade_move') >= 0;
-            const isDestroyEvadeMove =
-                moveIntent === 'evade_move' ||
-                cause === 'DESTROY_EVADE' ||
-                reason.indexOf('destroy_evade_move') === 0;
-            const isTeleportMove =
-                moveIntent === 'teleport_move' ||
-                cause === 'CELL_TELEPORT_WILL' ||
-                cause === 'TELEPORT_WILL' ||
-                reason === 'teleport_move';
-            const isCloneMove = !!(target && target.clone === true);
-            const isOverlapReturnMove =
-                (cause === 'GLUTTONOUS_WILL' && reason.indexOf('gluttonous_eat_overlap_return') === 0) ||
-                (cause === 'WILL_HUNTER_KING' && reason.indexOf('will_hunter_king_slash_overlap_return') === 0);
-            const isExtremeForcedSwapMove =
-                extremeForcedSwapRole === 'lead' &&
-                cause === 'EXTREME_HYPERACTIVE_WILL' &&
-                reason.indexOf('extreme_hyperactive_forced_swap') === 0;
-            const isHyperactiveLikeMove = (
-                moveIntent === 'hyperactive_move' ||
-                moveIntent === 'anchor_move' ||
-                cause === 'HYPERACTIVE' ||
-                cause === 'AFTERIMAGE_WILL' ||
-                cause === 'ESCAPE_HYPERACTIVE' ||
-                cause === 'EXTREME_HYPERACTIVE_WILL' ||
-                cause === 'HYPERACTIVE_INHERIT_WILL' ||
-                cause === 'ULTIMATE_REVERSE_DRAGON' ||
-                cause === 'ULTIMATE_DESTROY_GOD' ||
-                cause === 'ROBOT_VACUUM' ||
-                cause === 'GLUTTONOUS_WILL' ||
-                cause === 'ULTIMATE_HYPERACTIVE' ||
-                cause === 'ULTIMATE_HYPERACTIVE_GOD' ||
-                reason.indexOf('ultimate_reverse_dragon_move') === 0 ||
-                reason.indexOf('ultimate_destroy_god_move') === 0 ||
-                reason.indexOf('afterimage_will_flip_evade_move') === 0 ||
-                reason.indexOf('hyperactive') >= 0 ||
-                reason.indexOf('gluttonous') >= 0 ||
-                reason.indexOf('robot_vacuum_move') === 0
-            );
-            return {
-                cause,
-                reason,
-                moveIntent,
-                isPositionSwapMove,
-                isFlipEvadeMove,
-                isDestroyEvadeMove,
-                isTeleportMove,
-                isCloneMove,
-                isOverlapReturnMove,
-                isExtremeForcedSwapMove,
-                isHyperactiveLikeMove,
-                shouldHighlightBothCells: isPositionSwapMove,
-                shouldHideDestinationDiscDuringGhostPlayback:
-                    !isOverlapReturnMove && !isExtremeForcedSwapMove && (isCloneMove || isHyperactiveLikeMove),
-                useGhostOnlyByDefault: isCloneMove || isOverlapReturnMove
-            };
-        }
-
-        _getMoveHighlightCells(fromCell: any, toCell: any, moveSemantics: any) {
-            if (!moveSemantics) return [toCell];
-            if (moveSemantics.shouldHighlightBothCells) return [fromCell, toCell];
-            return (moveSemantics.isDestroyEvadeMove || moveSemantics.isFlipEvadeMove) ? [fromCell] : [toCell];
-        }
-
-        _ensureMoveDiscVisible(discEl: any) {
-            if (!discEl) return;
-            try {
-                discEl.classList.remove('stone-hidden', 'stone-hidden-all', 'stone-instant', 'destroy-fade', 'shatter');
-            } catch (e: any) { /* ignore */ }
-            try { discEl.style.visibility = 'visible'; } catch (e: any) { /* ignore */ }
-            try { discEl.style.opacity = ''; } catch (e: any) { /* ignore */ }
-        }
-
-        _buildMoveGhostAnimationSpec(moveSemantics: any, deltaX: any, deltaY: any) {
-            const normalizedCause = String(moveSemantics && moveSemantics.cause ? moveSemantics.cause : '').toUpperCase();
-            const normalizedReason = String(moveSemantics && moveSemantics.reason ? moveSemantics.reason : '').toLowerCase();
-            const normalizedIntent = String(moveSemantics && moveSemantics.moveIntent ? moveSemantics.moveIntent : '').toLowerCase();
-            const defaultSpec = {
-                keyframes: [
-                    { transform: 'translate(0, 0)' },
-                    { transform: `translate(${deltaX}px, ${deltaY}px)` }
-                ],
-                easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)'
-            };
-            const absX = Math.abs(deltaX);
-            const absY = Math.abs(deltaY);
-            const dominantTravel = Math.max(absX, absY);
-            if (dominantTravel <= 0) return defaultSpec;
-
-            if (normalizedIntent === 'wind_move' || normalizedCause === 'STRONG_WIND_WILL' || normalizedReason.indexOf('strong_wind_move') === 0) {
-                const gustOffset = Math.max(10, Math.round(dominantTravel * 0.14));
-                const gustX = absX >= absY
-                    ? Math.round(deltaX * 0.58)
-                    : Math.round(deltaX * 0.54) + (deltaX >= 0 ? gustOffset : -gustOffset);
-                const gustY = absX >= absY
-                    ? Math.round(deltaY * 0.54) - gustOffset
-                    : Math.round(deltaY * 0.58);
-                return {
-                    keyframes: [
-                        { transform: 'translate(0, 0) scale(1)' },
-                        { transform: `translate(${gustX}px, ${gustY}px) scale(1.08)` },
-                        { transform: `translate(${deltaX}px, ${deltaY}px) scale(1)` }
-                    ],
-                    easing: 'cubic-bezier(0.14, 0.92, 0.24, 1)'
-                };
+            if (!(AnimationPlacementEvents && typeof AnimationPlacementEvents.getSpawnFadeInMs === 'function')) {
+                throw new Error('AnimationEngine placement events module unavailable');
             }
-
-            if (
-                normalizedCause === 'BUOYANCY_WILL' ||
-                normalizedCause === 'SUPER_BUOYANCY_WILL' ||
-                (normalizedIntent === 'crush_move' && normalizedReason.indexOf('buoyancy_move') === 0) ||
-                (normalizedIntent === 'crush_move' && normalizedReason.indexOf('super_buoyancy_move') === 0)
-            ) {
-                const lift = Math.max(18, Math.round(dominantTravel * 0.2));
-                return {
-                    keyframes: [
-                        { transform: 'translate(0, 0) scale(1)' },
-                        { transform: `translate(${Math.round(deltaX * 0.45)}px, ${Math.round(deltaY * 0.45) - lift}px) scale(1.06)` },
-                        { transform: `translate(${deltaX}px, ${deltaY}px) scale(1)` }
-                    ],
-                    easing: 'cubic-bezier(0.12, 0.88, 0.28, 1)'
-                };
-            }
-
-            if (
-                normalizedCause === 'GRAVITY_WILL' ||
-                normalizedCause === 'SUPER_GRAVITY_WILL' ||
-                normalizedCause === 'SUPER_ATTRACTION_WILL' ||
-                (normalizedIntent === 'crush_move' && normalizedReason.indexOf('super_attraction_move') === 0) ||
-                (normalizedIntent === 'crush_move' && normalizedReason.indexOf('gravity_move') === 0) ||
-                (normalizedIntent === 'crush_move' && normalizedReason.indexOf('super_gravity_move') === 0)
-            ) {
-                const drop = Math.max(20, Math.round(dominantTravel * 0.22));
-                return {
-                    keyframes: [
-                        { transform: 'translate(0, 0) scale(1)' },
-                        { transform: `translate(${Math.round(deltaX * 0.7)}px, ${Math.round(deltaY * 0.7) + drop}px) scale(1.05)` },
-                        { transform: `translate(${deltaX}px, ${deltaY}px) scale(1)` }
-                    ],
-                    easing: 'cubic-bezier(0.36, 0.08, 0.74, 0.98)'
-                };
-            }
-
-            if (moveSemantics && moveSemantics.isOverlapReturnMove) {
-                const overlapScale = normalizedCause === 'WILL_HUNTER_KING' ? 1.06 : 1.03;
-                return {
-                    keyframes: [
-                        { transform: 'translate(0, 0) scale(1)' },
-                        { transform: `translate(${deltaX}px, ${deltaY}px) scale(${overlapScale})` },
-                        { transform: 'translate(0, 0) scale(1)' }
-                    ],
-                    easing: 'cubic-bezier(0.22, 0.78, 0.32, 1)'
-                };
-            }
-
-            if (moveSemantics && moveSemantics.isExtremeForcedSwapMove) {
-                return {
-                    keyframes: [
-                        { transform: 'translate(0, 0) scale(1)' },
-                        { transform: `translate(${Math.round(deltaX * 0.65)}px, ${Math.round(deltaY * 0.65)}px) scale(1.03)` },
-                        { transform: `translate(${deltaX}px, ${deltaY}px) scale(1.06)` }
-                    ],
-                    easing: 'cubic-bezier(0.18, 0.82, 0.28, 1)'
-                };
-            }
-
-            return defaultSpec;
-        }
-
-        _resolveMoveFallbackState(target: any) {
-            const fallbackState = (target && target.after && (target.after.color === 1 || target.after.color === -1))
-                ? target.after
-                : {
-                    color: (target && target.ownerAfter === 'black') ? 1 : ((target && target.ownerAfter === 'white') ? -1 : 0),
-                    special: target && target.after ? target.after.special : null,
-                    timer: target && target.after ? target.after.timer : null,
-                    owner: (target && target.after && target.after.owner) || (target && target.ownerAfter) || null
-                };
-            if (fallbackState.color !== 1 && fallbackState.color !== -1) return null;
-            return fallbackState;
-        }
-
-        _resolveMoveDiscContext(fromCell: any, toCell: any, target: any, moveSemantics: any) {
-            let disc = fromCell.querySelector('.disc');
-            let sourceCell = fromCell;
-            let useGhostOnly = !!(moveSemantics && moveSemantics.useGhostOnlyByDefault);
-
-            if (!disc) {
-                const toDisc = toCell.querySelector('.disc');
-                if (toDisc) {
-                    disc = toDisc;
-                    sourceCell = toCell;
-                }
-            }
-
-            if (!disc) {
-                const fallbackState = this._resolveMoveFallbackState(target);
-                if (!fallbackState) return null;
-                disc = this.createDisc(fallbackState);
-                useGhostOnly = true;
-            }
-
-            return { disc, sourceCell, useGhostOnly };
-        }
-
-        _moveLiveDiscToDestination(fromCell: any, toCell: any, sourceCell: any, disc: any) {
-            if (!disc || !toCell) return null;
-            toCell.innerHTML = '';
-            this._ensureMoveDiscVisible(disc);
-            toCell.appendChild(disc);
-            toCell.classList.add('has-disc');
-            if (sourceCell === fromCell) {
-                fromCell.innerHTML = '';
-                fromCell.classList.remove('has-disc');
-            }
-            return disc;
-        }
-
-        _applyImmediateGhostOnlyMoveTarget(target: any, toCell: any, disc: any) {
-            if (!toCell) return null;
-            toCell.innerHTML = '';
-            const targetDisc = (target && target.after && (target.after.color === 1 || target.after.color === -1))
-                ? this.createDisc(target.after)
-                : disc;
-            if (!targetDisc) return null;
-            this._ensureMoveDiscVisible(targetDisc);
-            toCell.appendChild(targetDisc);
-            toCell.classList.add('has-disc');
-            return targetDisc;
-        }
-
-        _setCellDiscFromState(cell: any, state: any) {
-            if (!cell) return null;
-            cell.innerHTML = '';
-            cell.classList.remove('has-disc');
-            if (!state || (state.color !== 1 && state.color !== -1)) return null;
-            const disc = this.createDisc(state);
-            this._ensureMoveDiscVisible(disc);
-            cell.appendChild(disc);
-            cell.classList.add('has-disc');
-            return disc;
-        }
-
-        _ensureAnimatedCloneMoveTarget(target: any, toCell: any) {
-            if (!toCell) return null;
-            const existingTargetDisc = toCell.querySelector('.disc');
-            if (existingTargetDisc) return existingTargetDisc;
-            if (!(target && target.after && (target.after.color === 1 || target.after.color === -1))) return null;
-            const targetDisc = this.createDisc(target.after);
-            this._ensureMoveDiscVisible(targetDisc);
-            toCell.appendChild(targetDisc);
-            toCell.classList.add('has-disc');
-            return targetDisc;
-        }
-
-        _hideMoveDestinationDiscForGhostPlayback(toCell: any, disc: any, moveSemantics: any) {
-            if (!toCell || !moveSemantics || !moveSemantics.shouldHideDestinationDiscDuringGhostPlayback) return null;
-            const liveTargetDisc = toCell.querySelector('.disc');
-            if (liveTargetDisc && liveTargetDisc !== disc) {
-                liveTargetDisc.style.visibility = 'hidden';
-                return liveTargetDisc;
-            }
-            return null;
-        }
-
-        _hideMoveSourceDiscForGhostPlayback(disc: any, useGhostOnly: any, moveSemantics: any) {
-            const shouldHideSourceDisc = !!disc && (!useGhostOnly || (moveSemantics && moveSemantics.isOverlapReturnMove));
-            if (!shouldHideSourceDisc) return false;
-            disc.style.visibility = 'hidden';
-            return true;
-        }
-
-        _createMoveGhost(disc: any, fromRect: any) {
-            const ghost = disc.cloneNode(true);
-            ghost.classList.remove('destroy-fade', 'shatter');
-            ghost.classList.add('stone-instant');
-            document.body.appendChild(ghost);
-
-            const discScale = 0.82;
-            const discInsetRatio = (1 - discScale) / 2;
-            ghost.style.position = 'fixed';
-            ghost.style.top = `${fromRect.top + fromRect.height * discInsetRatio}px`;
-            ghost.style.left = `${fromRect.left + fromRect.width * discInsetRatio}px`;
-            ghost.style.width = `${fromRect.width * discScale}px`;
-            ghost.style.height = `${fromRect.height * discScale}px`;
-            ghost.style.margin = '0';
-            ghost.style.zIndex = '1000';
-            return ghost;
-        }
-
-        _createMoveGhostFromState(state: any, fromRect: any) {
-            if (!state || (state.color !== 1 && state.color !== -1)) return null;
-            if (typeof document === 'undefined' || !document || !document.body) return null;
-            const ghost = this.createDisc(state);
-            ghost.classList.remove('destroy-fade', 'shatter');
-            ghost.classList.add('stone-instant');
-            document.body.appendChild(ghost);
-
-            const discScale = 0.82;
-            const discInsetRatio = (1 - discScale) / 2;
-            ghost.style.position = 'fixed';
-            ghost.style.top = `${fromRect.top + fromRect.height * discInsetRatio}px`;
-            ghost.style.left = `${fromRect.left + fromRect.width * discInsetRatio}px`;
-            ghost.style.width = `${fromRect.width * discScale}px`;
-            ghost.style.height = `${fromRect.height * discScale}px`;
-            ghost.style.margin = '0';
-            ghost.style.zIndex = '1000';
-            return ghost;
-        }
-
-        _settleMoveGhostIntoCell(ghost: any, cell: any, after: any) {
-            if (!ghost || !cell) return null;
-            try {
-                if (ghost.parentElement && ghost.parentElement !== cell) {
-                    ghost.parentElement.removeChild(ghost);
-                }
-            } catch (e: any) { /* ignore */ }
-            try {
-                ghost.classList.remove('stone-instant');
-                ghost.style.position = '';
-                ghost.style.top = '';
-                ghost.style.left = '';
-                ghost.style.width = '';
-                ghost.style.height = '';
-                ghost.style.margin = '';
-                ghost.style.zIndex = '';
-                ghost.style.pointerEvents = '';
-                ghost.style.transform = '';
-                ghost.style.visibility = 'visible';
-                ghost.style.opacity = '';
-                ghost.style.transition = '';
-            } catch (e: any) { /* ignore */ }
-            cell.innerHTML = '';
-            cell.appendChild(ghost);
-            cell.classList.add('has-disc');
-            if (after && (after.color === 1 || after.color === -1)) {
-                try { this.syncDiscVisual(ghost, after); } catch (e: any) { /* ignore */ }
-            }
-            return ghost;
-        }
-
-        _cleanupMoveGhostPlayback(ghost: any, hiddenTargetDisc: any, discHidden: any, disc: any) {
-            if (ghost && ghost.parentElement) {
-                ghost.parentElement.removeChild(ghost);
-            }
-            if (hiddenTargetDisc) {
-                try { this._ensureMoveDiscVisible(hiddenTargetDisc); } catch (e: any) { /* ignore */ }
-            }
-            if (discHidden) {
-                try { this._ensureMoveDiscVisible(disc); } catch (e: any) { /* ignore */ }
-            }
-        }
-
-        _isValidMoveCellPosition(position: any) {
-            return !!(
-                position &&
-                Number.isInteger(position.r) &&
-                Number.isInteger(position.col)
-            );
-        }
-
-        _hasRenderableDiscState(state: any) {
-            return !!(state && (state.color === 1 || state.color === -1));
-        }
-
-        _canApplyExtremeForcedSwapFinalState(lead: any, follow: any) {
-            return this._hasRenderableDiscState(lead && lead.after) &&
-                this._hasRenderableDiscState(follow && follow.after);
-        }
-
-        _applyExtremeForcedSwapFinalState(returnCell: any, overlapCell: any, leadAfter: any, followAfter: any) {
-            if (returnCell) {
-                this._setCellDiscFromState(returnCell, followAfter || null);
-            }
-            if (overlapCell) {
-                this._setCellDiscFromState(overlapCell, leadAfter || null);
-            }
-        }
-
-        _isExtremeForcedSwapMoveEvent(ev: any) {
-            const sequence = String(ev && ev.meta && ev.meta.sequence ? ev.meta.sequence : '').toLowerCase();
-            if (sequence === 'extreme_hyperactive_forced_swap') return true;
-            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
-            if (targets.length !== 2) return false;
-            return targets.every((target: any) => {
-                const cause = String(this._getTargetCause(target) || '').toUpperCase();
-                const reason = String(this._getTargetReason(target) || '').toLowerCase();
-                return cause === 'EXTREME_HYPERACTIVE_WILL' && reason === 'extreme_hyperactive_forced_swap';
+            return AnimationPlacementEvents.getSpawnFadeInMs(t, {
+                breedingSpawnFadeMs: BREEDING_SPAWN_FADE_MS
             });
         }
 
-        _resolveExtremeForcedSwapMoveTargets(ev: any) {
-            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
-            if (targets.length !== 2) return null;
-            let lead = targets.find((target: any) => String(target && target.extremeForcedSwapRole ? target.extremeForcedSwapRole : '').toLowerCase() === 'lead') || null;
-            let follow = targets.find((target: any) => String(target && target.extremeForcedSwapRole ? target.extremeForcedSwapRole : '').toLowerCase() === 'follow') || null;
-            if (!lead || !follow) {
-                [lead, follow] = targets;
+        _handleMovePlaybackEvent(ev: any) {
+            if (!(AnimationMoveEvents && typeof AnimationMoveEvents.handleMoveEvent === 'function')) {
+                throw new Error('AnimationEngine move events module unavailable');
             }
-            if (
-                !lead ||
-                !follow ||
-                !this._isValidMoveCellPosition(lead.from) ||
-                !this._isValidMoveCellPosition(lead.to) ||
-                !this._isValidMoveCellPosition(follow.from) ||
-                !this._isValidMoveCellPosition(follow.to)
-            ) {
-                return null;
-            }
-            if (
-                lead.to.r !== follow.from.r ||
-                lead.to.col !== follow.from.col ||
-                lead.from.r !== follow.to.r ||
-                lead.from.col !== follow.to.col
-            ) {
-                return null;
-            }
-            return { lead, follow };
-        }
-
-        async _handleExtremeForcedSwapMove(ev: any) {
-            const pairedTargets = this._resolveExtremeForcedSwapMoveTargets(ev);
-            if (!pairedTargets) return false;
-
-            const lead = pairedTargets.lead;
-            const follow = pairedTargets.follow;
-            const fromCell = this.getCellEl(lead.from.r, lead.from.col);
-            const overlapCell = this.getCellEl(lead.to.r, lead.to.col);
-            const returnCell = this.getCellEl(follow.to.r, follow.to.col);
-            const canApplyFinalState = this._canApplyExtremeForcedSwapFinalState(lead, follow);
-            const leadGhostState = this._resolveMoveFallbackState(lead);
-            const followGhostState = this._resolveMoveFallbackState(follow);
-            if (!fromCell || !overlapCell || !returnCell) {
-                if (canApplyFinalState) {
-                    this._applyExtremeForcedSwapFinalState(returnCell || fromCell, overlapCell, lead.after, follow.after);
-                    return true;
-                }
-                return false;
-            }
-            if (!leadGhostState || !followGhostState) {
-                if (canApplyFinalState) {
-                    this._applyExtremeForcedSwapFinalState(returnCell, overlapCell, lead.after, follow.after);
-                    return true;
-                }
-                return false;
-            }
-
-            const leadSemantics = this._getMoveSemantics(lead);
-            const returnSemantics = this._getMoveSemantics(follow);
-            let highlightedCells: any[] = [];
-            let overlapGhost: any = null;
-            let returnGhost: any = null;
-            const docBody = (typeof document !== 'undefined' && document && document.body) ? document.body : null;
-            const sourceDisc = fromCell.querySelector('.disc');
-            const occupiedDisc = overlapCell.querySelector('.disc');
-
-            try {
-                if (this._resolveEffectTargetHighlightTone(EVENT_TYPES.MOVE, lead)) {
-                    const cellsToHighlight = this._getMoveHighlightCells(fromCell, overlapCell, leadSemantics);
-                    for (const oneCell of cellsToHighlight) {
-                        if (!oneCell || highlightedCells.indexOf(oneCell) >= 0) continue;
-                        try {
-                            oneCell.classList.add(EFFECT_TARGET_HIGHLIGHT_CLASS);
-                            highlightedCells.push(oneCell);
-                        } catch (e: any) { /* ignore */ }
-                    }
-                }
-
-                const noAnim = _isNoAnim();
-                if (noAnim || leadSemantics.isTeleportMove) {
-                    if (!canApplyFinalState) return false;
-                    this._applyExtremeForcedSwapFinalState(returnCell, overlapCell, lead.after, follow.after);
-                    return true;
-                }
-
-                this._ensureMoveDiscVisible(sourceDisc);
-                this._ensureMoveDiscVisible(occupiedDisc);
-                if (sourceDisc) sourceDisc.style.visibility = 'hidden';
-                if (occupiedDisc) occupiedDisc.style.visibility = 'hidden';
-
-                const overlapFromRect = fromCell.getBoundingClientRect();
-                const overlapToRect = overlapCell.getBoundingClientRect();
-                overlapGhost = this._createMoveGhostFromState(lead.after || leadGhostState, overlapFromRect);
-                if (!overlapGhost) {
-                    if (!canApplyFinalState) return false;
-                    this._applyExtremeForcedSwapFinalState(returnCell, overlapCell, lead.after, follow.after);
-                    return true;
-                }
-
-                try {
-                    const overlapDurationMs = Math.max(1, Math.round(MOVE_MS));
-                    let overlapAnim: any = null;
-                    if (typeof overlapGhost.animate === 'function') {
-                        try {
-                            const overlapSpec = this._buildMoveGhostAnimationSpec(
-                                leadSemantics,
-                                overlapToRect.left - overlapFromRect.left,
-                                overlapToRect.top - overlapFromRect.top
-                            );
-                            overlapAnim = overlapGhost.animate(overlapSpec.keyframes, {
-                                duration: overlapDurationMs,
-                                easing: overlapSpec.easing
-                            });
-                        } catch (e: any) {
-                            overlapAnim = null;
-                        }
-                    }
-                    if (overlapAnim) {
-                        await this._waitForAnimationFinish(overlapAnim, overlapDurationMs, 220);
-                    }
-                    this._removeDiscFromCell(fromCell, sourceDisc);
-                    this._removeDiscFromCell(overlapCell, occupiedDisc);
-                    overlapGhost = this._settleMoveGhostIntoCell(overlapGhost, overlapCell, lead.after || null);
-                } finally {
-                    if (docBody && overlapGhost && overlapGhost.parentElement && overlapGhost.parentElement === docBody) {
-                        overlapGhost.parentElement.removeChild(overlapGhost);
-                    }
-                }
-
-                const returnFromRect = overlapCell.getBoundingClientRect();
-                const returnToRect = returnCell.getBoundingClientRect();
-                returnGhost = this._createMoveGhostFromState(follow.after || followGhostState, returnFromRect);
-                if (!returnGhost) {
-                    if (!canApplyFinalState) return false;
-                    this._applyExtremeForcedSwapFinalState(returnCell, overlapCell, lead.after, follow.after);
-                    return true;
-                }
-
-                try {
-                    const returnDurationMs = Math.max(1, Math.round(MOVE_MS));
-                    let returnAnim: any = null;
-                    if (typeof returnGhost.animate === 'function') {
-                        try {
-                            const returnSpec = this._buildMoveGhostAnimationSpec(
-                                returnSemantics,
-                                returnToRect.left - returnFromRect.left,
-                                returnToRect.top - returnFromRect.top
-                            );
-                            returnAnim = returnGhost.animate(returnSpec.keyframes, {
-                                duration: returnDurationMs,
-                                easing: returnSpec.easing
-                            });
-                        } catch (e: any) {
-                            returnAnim = null;
-                        }
-                    }
-                    if (returnAnim) {
-                        await this._waitForAnimationFinish(returnAnim, returnDurationMs, 220);
-                    }
-                    returnGhost = this._settleMoveGhostIntoCell(returnGhost, returnCell, follow.after || null);
-                } finally {
-                    if (docBody && returnGhost && returnGhost.parentElement === docBody) {
-                        returnGhost.parentElement.removeChild(returnGhost);
-                    }
-                }
-                return true;
-            } finally {
-                if (sourceDisc && sourceDisc.parentElement) {
-                    try { this._ensureMoveDiscVisible(sourceDisc); } catch (e: any) { /* ignore */ }
-                }
-                if (occupiedDisc && occupiedDisc.parentElement) {
-                    try { this._ensureMoveDiscVisible(occupiedDisc); } catch (e: any) { /* ignore */ }
-                }
-                for (const highlightedCell of highlightedCells) {
-                    try { highlightedCell.classList.remove(EFFECT_TARGET_HIGHLIGHT_CLASS); } catch (e: any) { /* ignore */ }
-                }
-            }
+            return AnimationMoveEvents.handleMoveEvent(ev, {
+                eventTypes: EVENT_TYPES,
+                moveMs: MOVE_MS,
+                effectTargetHighlightClass: EFFECT_TARGET_HIGHLIGHT_CLASS,
+                effectTargetPositiveHighlightClass: EFFECT_TARGET_POSITIVE_HIGHLIGHT_CLASS,
+                highlightToneNegative: HIGHLIGHT_TONE_NEGATIVE,
+                highlightTonePositive: HIGHLIGHT_TONE_POSITIVE,
+                isNoAnim: _isNoAnim,
+                getCellEl: (row: any, col: any) => this.getCellEl(row, col),
+                createDisc: (state: any) => this.createDisc(state),
+                getTargetCause: (target: any) => this._getTargetCause(target),
+                getTargetReason: (target: any) => this._getTargetReason(target),
+                resolveEffectTargetHighlightTone: (eventType: any, target: any) => this._resolveEffectTargetHighlightTone(eventType, target),
+                resolveMoveDurationScale: (target: any) => this._resolveMoveDurationScale(target),
+                waitForAnimationFinish: (animation: any, durationMs: any, timeoutBufferMs: any) => this._waitForAnimationFinish(animation, durationMs, timeoutBufferMs),
+                syncDiscVisual: (disc: any, after: any) => this.syncDiscVisual(disc, after),
+                removeDiscFromCell: (cell: any, disc: any) => this._removeDiscFromCell(cell, disc)
+            });
         }
 
         async handleMove(ev: any) {
-            if (this._isExtremeForcedSwapMoveEvent(ev)) {
-                const handled = await this._handleExtremeForcedSwapMove(ev);
-                if (handled) return;
-            }
-            const moveTargets = Array.isArray(ev && ev.targets) ? ev.targets : [];
-            const promises = moveTargets.map(async (t: any) => {
-                if (!t || !this._isValidMoveCellPosition(t.from) || !this._isValidMoveCellPosition(t.to)) return;
-                const fromCell = this.getCellEl(t.from.r, t.from.col);
-                const toCell = this.getCellEl(t.to.r, t.to.col);
-                if (!fromCell || !toCell) return;
-
-                const moveSemantics = this._getMoveSemantics(t);
-
-                let highlightedCells: any[] = [];
-                try {
-                    const highlightTone = this._resolveEffectTargetHighlightTone(EVENT_TYPES.MOVE, t);
-                    const highlightClass = highlightTone === HIGHLIGHT_TONE_POSITIVE
-                        ? EFFECT_TARGET_POSITIVE_HIGHLIGHT_CLASS
-                        : (highlightTone === HIGHLIGHT_TONE_NEGATIVE ? EFFECT_TARGET_HIGHLIGHT_CLASS : null);
-                    if (highlightClass) {
-                        const cellsToHighlight = this._getMoveHighlightCells(fromCell, toCell, moveSemantics);
-                        for (const oneCell of cellsToHighlight) {
-                            if (!oneCell || highlightedCells.some((entry) => entry.cell === oneCell && entry.className === highlightClass)) continue;
-                            try {
-                                oneCell.classList.add(highlightClass);
-                                highlightedCells.push({ cell: oneCell, className: highlightClass });
-                            } catch (e: any) { /* ignore */ }
-                        }
-                    }
-
-                    const moveContext = this._resolveMoveDiscContext(fromCell, toCell, t, moveSemantics);
-                    if (!moveContext) return;
-                    const disc = moveContext.disc;
-                    const sourceCell = moveContext.sourceCell;
-                    const useGhostOnly = moveContext.useGhostOnly;
-                    // Move visuals must stay as "move only" and never look like destroy.
-                    this._ensureMoveDiscVisible(disc);
-
-                    // Section 5.5: Straight-line interpolation via ghost
-                    const fromRect = fromCell.getBoundingClientRect();
-                    const toRect = toCell.getBoundingClientRect();
-                    const deltaX = toRect.left - fromRect.left;
-                    const deltaY = toRect.top - fromRect.top;
-                    const noAnim = _isNoAnim();
-
-                    // If no-animations mode, skip animation and perform immediate DOM move
-                    if (noAnim || moveSemantics.isTeleportMove) {
-                        try {
-                            if (moveSemantics.isOverlapReturnMove) {
-                                return;
-                            }
-                            let targetDisc: any = null;
-                            if (!useGhostOnly) {
-                                targetDisc = this._moveLiveDiscToDestination(fromCell, toCell, sourceCell, disc);
-                            } else {
-                                targetDisc = this._applyImmediateGhostOnlyMoveTarget(t, toCell, disc);
-                            }
-
-                            if (moveSemantics.isTeleportMove && !noAnim && targetDisc && typeof targetDisc.animate === 'function') {
-                                const durationMs = 140;
-                                const anim = targetDisc.animate([
-                                    { opacity: 0.25, transform: 'scale(0.5)' },
-                                    { opacity: 1, transform: 'scale(1)' }
-                                ], {
-                                    duration: durationMs,
-                                    easing: 'cubic-bezier(0.18, 0.9, 0.3, 1)'
-                                });
-                                await this._waitForAnimationFinish(anim, durationMs, 120);
-                            }
-                        } catch (e: any) {
-                            // best-effort
-                        }
-                        return;
-                    }
-
-                    const hiddenTargetDisc = this._hideMoveDestinationDiscForGhostPlayback(toCell, disc, moveSemantics);
-                    const ghost = this._createMoveGhost(disc, fromRect);
-                    let discHidden = this._hideMoveSourceDiscForGhostPlayback(disc, useGhostOnly, moveSemantics);
-
-                    try {
-                        const durationScale = this._resolveMoveDurationScale(moveSemantics);
-                        const durationMs = Math.max(1, Math.round(MOVE_MS * durationScale));
-
-                        let anim: any = null;
-                        if (typeof ghost.animate === 'function') {
-                            try {
-                                const animationSpec = this._buildMoveGhostAnimationSpec(moveSemantics, deltaX, deltaY);
-                                anim = ghost.animate(animationSpec.keyframes, {
-                                    duration: durationMs,
-                                    easing: animationSpec.easing
-                                });
-                            } catch (e: any) {
-                                anim = null;
-                            }
-                        }
-
-                        if (!anim) {
-                            if (!useGhostOnly) {
-                                this._moveLiveDiscToDestination(fromCell, toCell, sourceCell, disc);
-                                discHidden = false;
-                            } else if (moveSemantics.isCloneMove) {
-                                this._ensureAnimatedCloneMoveTarget(t, toCell);
-                            }
-                            return;
-                        }
-
-                        // Some environments resolve `finished` too early or don't support it reliably.
-                        // Wait for finish event with a timeout fallback so move never becomes an instant teleport.
-                        await this._waitForAnimationFinish(anim, durationMs, 220);
-
-                        if (!useGhostOnly) {
-                            this._moveLiveDiscToDestination(fromCell, toCell, sourceCell, disc);
-                            discHidden = false;
-                        } else if (moveSemantics.isCloneMove) {
-                            this._ensureAnimatedCloneMoveTarget(t, toCell);
-                        }
-                    } finally {
-                        this._cleanupMoveGhostPlayback(ghost, hiddenTargetDisc, discHidden, disc);
-                    }
-                } finally {
-                    for (const highlightedCell of highlightedCells) {
-                        try { highlightedCell.cell.classList.remove(highlightedCell.className); } catch (e: any) { /* ignore */ }
-                    }
-                }
-            });
-            await Promise.all(promises);
+            return this._handleMovePlaybackEvent(ev);
         }
 
         async handleStatusChange(ev: any) {
-            const promises = ev.targets.map(async (t: any) => {
-                const cell = this.getCellEl(t.r, t.col);
-                if (!cell) return;
-
-                const highlightTone = this._resolveStatusChangeHighlightTone(ev, t);
-                await this._runWithTransientCellHighlight(
-                    cell,
-                    highlightTone,
-                    async () => {
-                        const after = t.after || {};
-                        const rawType = String(ev && ev.rawType ? ev.rawType : '').toUpperCase();
-                        const afterSpecialUpper = String(after && after.special ? after.special : '').toUpperCase();
-                        const isStatusTick = rawType === 'STATUS_TICK';
-                        const statusRemoveReason = String(
-                            (ev && ev.meta && ev.meta.reason) ||
-                            (ev && ev.reason) ||
-                            ''
-                        ).toLowerCase();
-                        const removedSpecialUpper = String(ev && ev.meta && ev.meta.special ? ev.meta.special : '').toUpperCase();
-                        const isFreezeDurationEnd =
-                            ev &&
-                            ev.type === EVENT_TYPES.STATUS_REMOVED &&
-                            removedSpecialUpper === 'FREEZE' &&
-                            statusRemoveReason === 'duration_end' &&
-                            !after.special;
-
-                        if (isStatusTick) {
-                            const disc = await this.waitForDisc(t.r, t.col, 4);
-                            if (!disc) return;
-                            this.syncDiscTimerOnly(disc, after);
-                            return;
-                        }
-
-                        if (isFreezeDurationEnd) {
-                            await this.fadeOutFreezeOverlay(cell, OVERLAY_CROSSFADE_MS);
-                            return;
-                        }
-
-                        if (afterSpecialUpper === 'METEOR_HOLE') {
-                            if (this._isBoardShrinkHoleStatusChange(ev, t)) {
-                                await this._playBoardShrinkHolePushIn(cell);
-                                return;
-                            }
-                            const staleDisc = cell.querySelector('.disc');
-                            if (staleDisc) this._removeDiscFromCell(cell, staleDisc);
-                            return;
-                        }
-
-                        const disc = await this.waitForDisc(t.r, t.col, 4);
-                        if (!disc) return;
-
-                        const isRegenConsumed =
-                            ev &&
-                            ev.type === EVENT_TYPES.STATUS_REMOVED &&
-                            ev.meta &&
-                            ev.meta.special === 'REGEN' &&
-                            ev.meta.reason === 'regen_consumed' &&
-                            !after.special;
-
-                        const isLossWillReset =
-                            ev &&
-                            ev.type === EVENT_TYPES.STATUS_REMOVED &&
-                            ev.meta &&
-                            ev.meta.reason === 'loss_will_reset' &&
-                            !after.special;
-
-                        if (isRegenConsumed) {
-                            await this.crossfadeDiscToState(disc, after, REGEN_CONSUME_FADE_MS);
-                            return;
-                        }
-
-                        if (isLossWillReset) {
-                            await this.crossfadeDiscToState(disc, after, OVERLAY_CROSSFADE_MS);
-                            return;
-                        }
-
-                        const specialTypeUpper = afterSpecialUpper;
-                        const visualSpecialType = (specialTypeUpper === 'INHERITED_HYPERACTIVE') ? null : after.special;
-                        const effectKey = window.getEffectKeyForSpecialType(visualSpecialType);
-                        const metaOwner = (ev && ev.meta && Object.prototype.hasOwnProperty.call(ev.meta, 'owner'))
-                            ? ev.meta.owner
-                            : null;
-                        const visualOwner = (Object.prototype.hasOwnProperty.call(after, 'owner')
-                            && after.owner !== null
-                            && typeof after.owner !== 'undefined'
-                            && after.owner !== '')
-                            ? after.owner
-                            : metaOwner;
-                        const visualAfter = Object.assign({}, after);
-                        const resolvedVisualColor = this._resolveVisualColorFromState(
-                            visualAfter,
-                            disc,
-                            visualOwner
-                        );
-                        if ((visualAfter.owner === null || typeof visualAfter.owner === 'undefined' || visualAfter.owner === '')
-                            && visualOwner !== null
-                            && typeof visualOwner !== 'undefined'
-                            && visualOwner !== '') {
-                            visualAfter.owner = visualOwner;
-                        }
-                        if (visualSpecialType && (resolvedVisualColor === 1 || resolvedVisualColor === -1)) {
-                            visualAfter.color = resolvedVisualColor;
-                        }
-
-                        // Section 1.5: True Cross-Fade via overlay
-                        if (Visuals.crossfadeStoneVisual) {
-                            const crossfadeOptions: any = {
-                                effectKey: effectKey,
-                                owner: (visualOwner !== null && typeof visualOwner !== 'undefined' && visualOwner !== '')
-                                    ? visualOwner
-                                    : (resolvedVisualColor === 1 || resolvedVisualColor === -1
-                                        ? resolvedVisualColor
-                                        : after.color),
-                                durationMs: OVERLAY_CROSSFADE_MS,
-                                fadeIn: !!visualSpecialType
-                            };
-                            if (resolvedVisualColor === 1 || resolvedVisualColor === -1) {
-                                crossfadeOptions.newColor = resolvedVisualColor;
-                            }
-                            await Visuals.crossfadeStoneVisual(disc, crossfadeOptions);
-                            // Ensure timer UI is updated immediately after status changes.
-                            this.syncDiscVisual(disc, visualAfter);
-                        } else {
-                            this.syncDiscVisual(disc, visualAfter);
-                        }
-                    },
-                    this._resolveStatusChangeHighlightMinimumMs(highlightTone),
-                    []
-                );
-            });
-            await Promise.all(promises);
+            return this._handleStatusPlaybackEvent(ev);
         }
 
         async fadeOutFreezeOverlay(cell: any, durationMs: any) {

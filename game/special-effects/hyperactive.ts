@@ -6,10 +6,6 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
 declare const cardState: any;
 declare const gameState: any;
-declare const emitLogAdded: any;
-declare const emitBoardUpdate: any;
-declare const emitCardStateChange: any;
-declare const emitGameStateChange: any;
 declare const BoardOps: any;
 declare const CardUtils: any;
 declare const SharedConstants: any;
@@ -18,9 +14,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 const LOG_MESSAGES = _require('../log-messages');
+const ControllerEvents = _require('../controller-events');
 
-let mv: any = null;
-try { mv = (typeof require === 'function') ? require('../move-executor-visuals') : mv; } catch (e) { mv = mv || null; }
 let BoardOpsModule: any = null;
 try { BoardOpsModule = (typeof require === 'function') ? require('../logic/board_ops') : (typeof BoardOps !== 'undefined' ? BoardOps : null); } catch (e) { BoardOpsModule = BoardOpsModule || null; }
 let CardUtilsModule: any = null;
@@ -47,48 +42,72 @@ try {
 let __uiImpl_hyperactive: any = {};
 function setUIImpl(obj: any) { __uiImpl_hyperactive = obj || {}; }
 
+function emitHyperactiveLog(message: any): void {
+    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.emitLogAdded === 'function') {
+        __uiImpl_hyperactive.emitLogAdded(message, 'effect');
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
+        ControllerEvents.emitLogAdded(message, 'effect');
+    }
+}
+
+function emitHyperactiveBoardUpdate(): void {
+    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.emitBoardUpdate === 'function') {
+        __uiImpl_hyperactive.emitBoardUpdate();
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitBoardUpdate === 'function') ControllerEvents.emitBoardUpdate();
+}
+
+function emitHyperactiveGameStateChange(): void {
+    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.emitGameStateChange === 'function') {
+        __uiImpl_hyperactive.emitGameStateChange();
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitGameStateChange === 'function') ControllerEvents.emitGameStateChange();
+}
+
+function emitHyperactiveCardStateChange(): void {
+    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.emitCardStateChange === 'function') {
+        __uiImpl_hyperactive.emitCardStateChange();
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitCardStateChange === 'function') ControllerEvents.emitCardStateChange();
+}
+
 function hasPlaybackEngineForHyperactive(): boolean {
     if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.hasPlaybackEngine === 'function') {
         return __uiImpl_hyperactive.hasPlaybackEngine() === true;
     }
-    return !!(mv && typeof mv.hasPlaybackEngine === 'function' && mv.hasPlaybackEngine());
+    return false;
 }
 
 async function animateHyperactiveFadeOut(row: number, col: number, options?: any): Promise<any> {
     if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.animateFadeOutAt === 'function') {
         return __uiImpl_hyperactive.animateFadeOutAt(row, col, options);
     }
-    return mv && typeof mv.animateFadeOutAt === 'function'
-        ? mv.animateFadeOutAt(row, col, options)
-        : undefined;
+    return undefined;
 }
 
 async function animateHyperactiveMove(from: any, to: any): Promise<any> {
     if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.animateHyperactiveMove === 'function') {
         return __uiImpl_hyperactive.animateHyperactiveMove(from, to);
     }
-    return mv && typeof mv.animateHyperactiveMove === 'function'
-        ? mv.animateHyperactiveMove(from, to)
-        : undefined;
+    return undefined;
 }
 
 async function animateHyperactiveMoveChain(moves: any[]): Promise<any> {
     if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.animateHyperactiveMoveChain === 'function') {
         return __uiImpl_hyperactive.animateHyperactiveMoveChain(moves);
     }
-    return mv && typeof mv.animateHyperactiveMoveChain === 'function'
-        ? mv.animateHyperactiveMoveChain(moves)
-        : undefined;
+    return undefined;
 }
 
 function setHyperactiveDiscColorAt(row: number, col: number, color: number): any {
     if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.setDiscColorAt === 'function') {
         return __uiImpl_hyperactive.setDiscColorAt(row, col, color);
     }
-    try {
-        const vis = require('../move-executor-visuals');
-        if (vis && typeof vis.setDiscColorAt === 'function') return vis.setDiscColorAt(row, col, color);
-    } catch (e) { /* ignore */ }
     return undefined;
 }
 
@@ -161,18 +180,13 @@ function resolveHyperactiveTurnStartDeps() {
 async function processHyperactiveMovesAtTurnStart(player: number, precomputedResult: any = null, precomputedEvents: any[] | null = null) {
     const playerKey = player === BLACK ? 'black' : 'white';
 
-    // Prefer pipeline-produced precomputedResult; if not provided, use TurnPipelinePhases to compute turn-start effects.
+    // Prefer pipeline-produced precomputedResult; otherwise consume pipeline events.
     let result = precomputedResult;
     let events = Array.isArray(precomputedEvents) ? precomputedEvents.slice() : [];
     if (!result) {
         if (events.length === 0) {
-            const deps = resolveHyperactiveTurnStartDeps();
-            if (deps) {
-                deps.phases.applyTurnStartPhase(deps.logic, deps.core, cardState, gameState, playerKey, events);
-            } else {
-                console.error('[HYPERACTIVE] TurnPipelinePhases not available; cannot compute hyperactive moves safely from UI');
-                return;
-            }
+            console.error('[HYPERACTIVE] No precomputed pipeline events provided; skipping hyperactive presentation');
+            return;
         }
 
         // Collect hyperactive-related details from events
@@ -232,46 +246,46 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
     const normalHyperactiveDestroyedCount = Math.max(0, (result.destroyed || []).length - escapeDestroyedCount - extremeDestroyedCount - gluttonousDestroyedCount);
 
     if (normalHyperactiveMovedCount > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.hyperactiveMoved(normalHyperactiveMovedCount));
+        emitHyperactiveLog(LOG_MESSAGES.hyperactiveMoved(normalHyperactiveMovedCount));
     }
     if (extremeMovedCount > 0 && typeof LOG_MESSAGES.extremeHyperactiveMoved === 'function') {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.extremeHyperactiveMoved(extremeMovedCount));
+        emitHyperactiveLog(LOG_MESSAGES.extremeHyperactiveMoved(extremeMovedCount));
     }
     if (escapeMovedCount > 0 && typeof LOG_MESSAGES.escapeHyperactiveMoved === 'function') {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.escapeHyperactiveMoved(escapeMovedCount));
+        emitHyperactiveLog(LOG_MESSAGES.escapeHyperactiveMoved(escapeMovedCount));
     }
     if (gluttonousMovedCount > 0 && typeof LOG_MESSAGES.gluttonousMoved === 'function') {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.gluttonousMoved(gluttonousMovedCount));
+        emitHyperactiveLog(LOG_MESSAGES.gluttonousMoved(gluttonousMovedCount));
     }
     if (normalHyperactiveDestroyedCount > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.hyperactiveDestroyed(normalHyperactiveDestroyedCount));
+        emitHyperactiveLog(LOG_MESSAGES.hyperactiveDestroyed(normalHyperactiveDestroyedCount));
     }
     if (extremeDestroyedCount > 0 && typeof LOG_MESSAGES.extremeHyperactiveDestroyed === 'function') {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.extremeHyperactiveDestroyed(extremeDestroyedCount));
+        emitHyperactiveLog(LOG_MESSAGES.extremeHyperactiveDestroyed(extremeDestroyedCount));
     }
     if (escapeDestroyedCount > 0 && typeof LOG_MESSAGES.escapeHyperactiveDestroyed === 'function') {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.escapeHyperactiveDestroyed(escapeDestroyedCount));
+        emitHyperactiveLog(LOG_MESSAGES.escapeHyperactiveDestroyed(escapeDestroyedCount));
     }
     if (gluttonousDestroyedCount > 0 && typeof LOG_MESSAGES.gluttonousDestroyed === 'function') {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.gluttonousDestroyed(gluttonousDestroyedCount));
+        emitHyperactiveLog(LOG_MESSAGES.gluttonousDestroyed(gluttonousDestroyedCount));
     }
     if (result.extremeRepelled && result.extremeRepelled.length > 0 && typeof LOG_MESSAGES.extremeHyperactiveRepelled === 'function') {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.extremeHyperactiveRepelled(result.extremeRepelled.length));
+        emitHyperactiveLog(LOG_MESSAGES.extremeHyperactiveRepelled(result.extremeRepelled.length));
     }
     if (result.ultimateMoved && result.ultimateMoved.length > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.ultimateHyperactiveMoved(result.ultimateMoved.length));
+        emitHyperactiveLog(LOG_MESSAGES.ultimateHyperactiveMoved(result.ultimateMoved.length));
     }
     if (result.ultimateDestroyed && result.ultimateDestroyed.length > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.ultimateHyperactiveDestroyed(result.ultimateDestroyed.length));
+        emitHyperactiveLog(LOG_MESSAGES.ultimateHyperactiveDestroyed(result.ultimateDestroyed.length));
     }
     if (result.ultimateFlipped && result.ultimateFlipped.length > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.ultimateHyperactiveFlipped(result.ultimateFlipped.length));
+        emitHyperactiveLog(LOG_MESSAGES.ultimateHyperactiveFlipped(result.ultimateFlipped.length));
     }
     if (regenTriggered.length > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.regenTriggered(regenTriggered.length));
+        emitHyperactiveLog(LOG_MESSAGES.regenTriggered(regenTriggered.length));
     }
     if (regenCaptureFlips.length > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.regenCapture(regenCaptureFlips.length));
+        emitHyperactiveLog(LOG_MESSAGES.regenCapture(regenCaptureFlips.length));
     }
 
     // Single Visual Writer: if PlaybackEngine is available in the browser, skip manual DOM animations here.
@@ -289,10 +303,7 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
     const allMoved = (result.moved || [])
         .concat(result.ultimateMoved || []);
     if (allMoved.length > 0) {
-        if (
-            (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.animateHyperactiveMoveChain === 'function') ||
-            (mv && typeof mv.animateHyperactiveMoveChain === 'function')
-        ) {
+        if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.animateHyperactiveMoveChain === 'function') {
             await animateHyperactiveMoveChain(allMoved);
         } else {
             for (const m of allMoved) {
@@ -300,7 +311,7 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
             }
         }
     }
-    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+    try { emitHyperactiveBoardUpdate(); } catch (e) { /* ignore */ }
 
     const delay = getAnimationTimingForHyperactive('FLIP_ANIMATION_DURATION') || 800;
 
@@ -372,16 +383,12 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
         // Charge updates MUST be performed by the rule pipeline (TurnPipelinePhases).
         // UI must not mutate rule state directly. If pipeline has already applied charges,
         // emit a sync to update UI; otherwise log a diagnostic for triage.
-        if (typeof emitCardStateChange === 'function') {
-            // Refresh UI-only views; do not mutate cardState here.
-            emitCardStateChange();
-        } else {
-            console.warn('[HYPERACTIVE] charge updates should be performed by pipeline; emitCardStateChange not available');
-        }
+        // Refresh UI-only views; do not mutate cardState here.
+        emitHyperactiveCardStateChange();
     }
 
-    emitBoardUpdate();
-    emitGameStateChange();
+    emitHyperactiveBoardUpdate();
+    emitHyperactiveGameStateChange();
 }
 
 /**
@@ -406,10 +413,10 @@ async function processHyperactiveImmediateAtPlacement(player: number, row: numbe
     const regenCaptureFlips = result.regenCaptureFlips || [];
 
     if (result.moved && result.moved.length > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.hyperactiveMovedImmediate());
+        emitHyperactiveLog(LOG_MESSAGES.hyperactiveMovedImmediate());
     }
     if (result.destroyed && result.destroyed.length > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.hyperactiveDestroyedImmediate());
+        emitHyperactiveLog(LOG_MESSAGES.hyperactiveDestroyedImmediate());
     }
 
     // Animate using the pre-move DOM first, then sync to post-move state.
@@ -423,7 +430,7 @@ async function processHyperactiveImmediateAtPlacement(player: number, row: numbe
             await animateHyperactiveMove(m.from, m.to);
         }
     }
-    emitBoardUpdate();
+    emitHyperactiveBoardUpdate();
 
     if (result.flipped.length > 0) {
         const delay = getAnimationTimingForHyperactive('FLIP_ANIMATION_DURATION') || 800;
@@ -482,27 +489,14 @@ async function processHyperactiveImmediateAtPlacement(player: number, row: numbe
             }
         }
 
-        if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
-            CardUtilsModule.addChargeWithDelta(cardState, playerKey, result.flipped.length, 'hyperactive_immediate_flip');
-        } else {
-            cardState.charge[playerKey] = Math.min(CHARGE_MAX || 99, (cardState.charge[playerKey] || 0) + result.flipped.length);
-        }
+        emitHyperactiveCardStateChange();
         if (regenCaptureFlips.length > 0) {
-            for (const pos of regenCaptureFlips) {
-                const color = gameState.board[pos.row][pos.col];
-                const key = color === BLACK ? 'black' : (color === WHITE ? 'white' : null);
-                if (!key) continue;
-                if (CardUtilsModule && typeof CardUtilsModule.addChargeWithDelta === 'function') {
-                    CardUtilsModule.addChargeWithDelta(cardState, key, 1, 'regen_capture_flip');
-                } else {
-                    cardState.charge[key] = Math.min(CHARGE_MAX || 99, (cardState.charge[key] || 0) + 1);
-                }
-            }
+            console.warn('[HYPERACTIVE IMMEDIATE] regen capture charge updates should be performed by pipeline');
         }
     }
 
-    emitBoardUpdate();
-    emitGameStateChange();
+    emitHyperactiveBoardUpdate();
+    emitHyperactiveGameStateChange();
 
     await requestHyperactiveFrame();
 }

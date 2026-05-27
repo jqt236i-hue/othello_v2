@@ -716,6 +716,42 @@ const Targets = CardTargets || {};
         return candidates;
     }
 
+    function pickTabooReverseFlips(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any, deps: any = {}) {
+        const candidates = typeof deps.getTabooReverseCandidates === 'function'
+            ? deps.getTabooReverseCandidates(cardState, gameState, playerKey, row, col)
+            : getTabooReverseCandidates(cardState, gameState, playerKey, row, col);
+        if (candidates.length === 0) {
+            return { applied: false, flips: [], direction: null, score: 0 };
+        }
+
+        const maxScore = candidates.reduce((max: any, one: any) => Math.max(max, Number(one && one.score) || 0), 0);
+        const topCandidates = candidates.filter((one: any) => (Number(one && one.score) || 0) === maxScore);
+
+        const fallbackPrng = (cardState && cardState._boardOpsRandomSource && typeof cardState._boardOpsRandomSource.random === 'function')
+            ? cardState._boardOpsRandomSource
+            : (cardState && cardState._currentActionMeta && cardState._currentActionMeta.randomSource && typeof cardState._currentActionMeta.randomSource.random === 'function')
+                ? cardState._currentActionMeta.randomSource
+                : (cardState && cardState._defaultRandomSource && typeof cardState._defaultRandomSource.random === 'function')
+                    ? cardState._defaultRandomSource
+                    : null;
+        const resolveIndex = typeof deps.resolveDeterministicRandomIndex === 'function'
+            ? deps.resolveDeterministicRandomIndex
+            : null;
+        const index = topCandidates.length === 1
+            ? 0
+            : (resolveIndex
+                ? resolveIndex(topCandidates.length, prng, fallbackPrng, 'CardLogic.applyChainChoice')
+                : Math.floor(Math.max(0, Math.min(0.999999, Number(prng && prng.random ? prng.random() : 0))) * topCandidates.length));
+        const chosen = topCandidates[index] || topCandidates[0];
+
+        return {
+            applied: true,
+            flips: (chosen.flips || []).map((pos: any) => ({ row: pos.row, col: pos.col })),
+            direction: chosen.direction ? [chosen.direction[0], chosen.direction[1]] : null,
+            score: Number(chosen.score) || 0
+        };
+    }
+
     function getSelectableTargets(cardState: any, gameState: any, playerKey: any) {
         const pending = (cardState && cardState.pendingEffectByPlayer) ? cardState.pendingEffectByPlayer[playerKey] : null;
         if (!pending) return [];
@@ -1229,6 +1265,7 @@ export = {
     getBoardExpansionTargets,
     getBoardShrinkTargets,
     getTabooReverseCandidates,
+    pickTabooReverseFlips,
     getSelectableTargets,
     getDestroyTargets,
     getSwapTargets,

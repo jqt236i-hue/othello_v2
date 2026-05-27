@@ -10,7 +10,21 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
-declare const emitLogAdded: any;
+const ControllerEvents = _require('../controller-events');
+const LOG_MESSAGES = _require('../log-messages');
+const GameControllerSlim = _require('../game-controller-slim');
+
+function emitSwapLog(message: string): void {
+    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
+        ControllerEvents.emitLogAdded(message);
+    }
+}
+
+function posToNotation(row: number, col: number): string {
+    return GameControllerSlim && typeof GameControllerSlim.posToNotation === 'function'
+        ? GameControllerSlim.posToNotation(row, col)
+        : `${row},${col}`;
+}
 
 function getSwapSelectedEvent(result: any) {
     return result && Array.isArray(result.rawEvents)
@@ -26,12 +40,12 @@ function getSwapSelectionPrompt(): string {
 }
 
 function emitSwapAppliedLog(playerKey: string, selected: any): void {
-    if (typeof emitLogAdded !== 'function' || !selected) return;
+    if (!selected) return;
     if (typeof LOG_MESSAGES !== 'undefined' && LOG_MESSAGES && typeof LOG_MESSAGES.swapApplied === 'function') {
-        emitLogAdded(LOG_MESSAGES.swapApplied(playerKey === 'black' ? '黒' : '白', posToNotation(selected.row, selected.col), selected.withCard));
+        emitSwapLog(LOG_MESSAGES.swapApplied(playerKey === 'black' ? '黒' : '白', posToNotation(selected.row, selected.col), selected.withCard));
         return;
     }
-    emitLogAdded(`${playerKey === 'black' ? '黒' : '白'}が${posToNotation(selected.row, selected.col)}と手札を交換`);
+    emitSwapLog(`${playerKey === 'black' ? '黒' : '白'}が${posToNotation(selected.row, selected.col)}と手札を交換`);
 }
 
 async function handleSwapSelection(row: number, col: number, playerKey: string) {

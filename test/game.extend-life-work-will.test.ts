@@ -42,6 +42,14 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
       data: { type: 'WORK', ownerColor: 'black', workStage: 3, remainingOwnerTurns: 2 }
     });
     cardState.markers.push({
+      id: 9103,
+      kind: 'specialStone',
+      row: 2,
+      col: 2,
+      owner: 'black',
+      data: { type: 'GUARD', remainingOwnerTurns: 3 }
+    });
+    cardState.markers.push({
       id: 9102,
       kind: 'specialStone',
       row: 3,

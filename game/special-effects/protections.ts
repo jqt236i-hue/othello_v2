@@ -26,34 +26,16 @@ var BoardOpsModule = null;
 try { BoardOpsModule = (typeof require === 'function') ? require('../logic/board_ops') : (typeof BoardOps !== 'undefined' ? BoardOps : null); } catch (e) { BoardOpsModule = BoardOpsModule || null; }
 const waitMs = (ms: number) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
 
-async function processExpiredProtectionsAtTurnEnd(player: number) {
-    // Find protected stones from unified specialStones
-    const protectedStones = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.getSpecialMarkers === 'function')
-        ? MarkersAdapter.getSpecialMarkers(cardState).filter((m: any) => m.data && m.data.type === 'PROTECTED')
-        : (cardState && cardState.markers ? cardState.markers.filter((m: any) => m.kind === 'specialStone' && m.data && m.data.type === 'PROTECTED') : []);
-    if (protectedStones.length === 0) return;
+async function processExpiredProtectionsAtTurnEnd(player: number, precomputedEvents: any[] | null = null) {
+    const events = Array.isArray(precomputedEvents) ? precomputedEvents : [];
+    const expired = events
+        .filter((ev: any) => ev && ev.type === 'protection_expired' && Array.isArray(ev.details))
+        .flatMap((ev: any) => ev.details);
+    if (!expired.length) return;
 
-    // Find protected stones that are expiring for this player
-    const expiringStones = protectedStones.filter((p: any) => p.data && p.data.expiresForPlayer === player);
-
-    if (expiringStones.length === 0) return;
-
-    // Animate fade-out for each expiring stone
-    const animationPromises = expiringStones.map((p: any) => animateProtectionExpireAt(p.row, p.col));
+    // Rule state cleanup is owned by the turn pipeline; this module only preserves presentation pacing.
+    const animationPromises = expired.map((p: any) => animateProtectionExpireAt(p.row, p.col));
     await Promise.all(animationPromises);
-
-    // Remove expired protections from cardState (unified array)
-    if (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && typeof MarkersAdapter.removeMarkersAt === 'function') {
-        for (const p of expiringStones) {
-            MarkersAdapter.removeMarkersAt(cardState, p.row, p.col, { kind: 'specialStone', type: 'PROTECTED', owner: p.owner });
-        }
-    } else if (cardState && cardState.markers) {
-        cardState.markers = cardState.markers.filter((m: any) => !(m.kind === 'specialStone' && m.data && m.data.type === 'PROTECTED' && m.data.expiresForPlayer === player));
-    }
-
-    // Update display
-    emitBoardUpdate();
-    emitGameStateChange();
 }
 
 /**

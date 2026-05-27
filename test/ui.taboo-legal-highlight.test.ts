@@ -62,7 +62,7 @@ describe('TABOO_REVERSE_WILL legal hint highlight', () => {
     delete global.gameState;
   });
 
-  test('shows normal-only as green and taboo-available cells as red', () => {
+  test('shows normal-only as green and taboo-available cells as purple', () => {
     const diff = require('../ui/diff-renderer.js');
     diff.renderBoardDiff(boardEl);
 
@@ -75,12 +75,15 @@ describe('TABOO_REVERSE_WILL legal hint highlight', () => {
     expect(tabooOnlyCell).toBeTruthy();
 
     expect(tabooAndNormalCell.classList.contains('legal')).toBe(true);
-    expect(tabooAndNormalCell.classList.contains('effect-target-highlight')).toBe(true);
+    expect(tabooAndNormalCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(tabooAndNormalCell.classList.contains('effect-target-highlight')).toBe(false);
 
     expect(normalOnlyCell.classList.contains('legal')).toBe(true);
     expect(normalOnlyCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(normalOnlyCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     expect(tabooOnlyCell.classList.contains('legal')).toBe(true);
-    expect(tabooOnlyCell.classList.contains('effect-target-highlight')).toBe(true);
+    expect(tabooOnlyCell.classList.contains('effect-target-highlight-positive')).toBe(true);
+    expect(tabooOnlyCell.classList.contains('effect-target-highlight')).toBe(false);
   });
 });

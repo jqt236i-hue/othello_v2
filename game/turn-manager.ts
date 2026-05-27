@@ -1,40 +1,10 @@
 
 import type { CardState, GameState, PlayerKey } from '../src/types';
 
-declare const debugLog: any;
 declare const executeMove: any;
-declare const updateCpuCharacter: any;
 declare const initCardState: any;
 declare const dealInitialCards: any;
 declare const getGamePrng: any;
-// Card effect selection handlers (injected by UI bootstrap / card-effects modules)
-declare const handleDestroySelection: any;
-declare const handleStrongWindSelection: any;
-declare const handleBuoyancySelection: any;
-declare const handleSuperBuoyancySelection: any;
-declare const handleGravitySelection: any;
-declare const handleSuperGravitySelection: any;
-declare const handleSuperAttractionSelection: any;
-declare const handleTeleportSelection: any;
-declare const handleTemptSelection: any;
-declare const handleCaptureSelection: any;
-declare const handleTrapSelection: any;
-declare const handleGuardSelection: any;
-declare const handleLivingWillSelection: any;
-declare const handleHyperactiveInheritSelection: any;
-declare const handleExtendLifeSelection: any;
-declare const handleCorrosionSelection: any;
-declare const handleTimeBombSelection: any;
-declare const handleSwapSelection: any;
-declare const handlePositionSwapSelection: any;
-declare const handleBoardExpansionSelection: any;
-declare const handleBoardShrinkSelection: any;
-declare const handleBlockadeSelection: any;
-declare const handleMeteorSelection: any;
-declare const handleFreezeSelection: any;
-declare const handleSeedSelection: any;
-declare const handleCloneSelection: any;
-
 declare const __non_webpack_require__: NodeRequire | undefined;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -52,7 +22,6 @@ const CardLogic = _require('./logic/cards');
 const Core = _require('./logic/core');
 const { createGameState, isGameOver } = Core;
 const TurnPipelinePhases = _require('./turn/turn_pipeline_phases');
-const { isDebugLogAvailable } = _require('../is-env-capable');
 const { ensureCurrentPlayerCanActOrPass } = _require('./pass-handler');
 let OwnerHelpersModule: any = null;
 try {
@@ -66,11 +35,6 @@ const BoardPresentation = _require('./logic/presentation');
 const TurnPipelineUIAdapter = _require('./turn/pipeline_ui_adapter');
 const PendingCoordinatorForTurnManager = _require('./turn/pending-coordinator');
 const ActionManagerModule = _require('./schema/action_manager');
-const BombsModule = _require('./special-effects/bombs');
-const UDGModule = _require('./special-effects/udg');
-const DragonsModule = _require('./special-effects/dragons');
-const BreedingModule = _require('./special-effects/breeding');
-const HyperactiveModule = _require('./special-effects/hyperactive');
 const { resetCpuTurnHandlerState } = _require('./cpu-turn-handler');
 // Note: debugLog is a legacy function set by UI bootstrap; use with typeof guard
 
@@ -103,40 +67,26 @@ function resetCpuTurnSchedulingStateForTurnManager() {
     }
 }
 
-function getPlaybackStateForTurnManager() {
-    try {
-        const playbackState = readTurnManagerRuntimeValue('PlaybackStateManager');
-        if (playbackState) return playbackState;
-    } catch (e) { /* ignore */ }
-    return null;
-}
-
 function readTurnManagerProcessing() {
-    const playbackState = getPlaybackStateForTurnManager();
-    if (playbackState && typeof playbackState.getProcessing === 'function') {
-        return playbackState.getProcessing() === true;
-    }
+    try {
+        const impl = getUIImpl();
+        if (impl && typeof impl.readProcessing === 'function') return impl.readProcessing() === true;
+    } catch (e) { /* ignore */ }
     const runtimeProcessing = typeof readTurnManagerRuntimeValue('isProcessing') !== 'undefined'
         ? readTurnManagerRuntimeValue('isProcessing')
         : undefined;
-    const localProcessing = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isProcessing !== 'undefined')
-        ? __uiImpl.isProcessing
-        : (typeof isProcessing !== 'undefined' ? isProcessing : runtimeProcessing);
-    return localProcessing;
+    return runtimeProcessing === true;
 }
 
 function readTurnManagerCardAnimating() {
-    const playbackState = getPlaybackStateForTurnManager();
-    if (playbackState && typeof playbackState.getCardAnimating === 'function') {
-        return playbackState.getCardAnimating() === true;
-    }
+    try {
+        const impl = getUIImpl();
+        if (impl && typeof impl.readCardAnimating === 'function') return impl.readCardAnimating() === true;
+    } catch (e) { /* ignore */ }
     const runtimeCardAnimating = typeof readTurnManagerRuntimeValue('isCardAnimating') !== 'undefined'
         ? readTurnManagerRuntimeValue('isCardAnimating')
         : undefined;
-    const localCardAnimating = (typeof __uiImpl !== 'undefined' && typeof __uiImpl.isCardAnimating !== 'undefined')
-        ? __uiImpl.isCardAnimating
-        : (typeof isCardAnimating !== 'undefined' ? isCardAnimating : runtimeCardAnimating);
-    return localCardAnimating;
+    return runtimeCardAnimating === true;
 }
 
 function setTurnManagerBusyState(options: any) {
@@ -146,7 +96,6 @@ function setTurnManagerBusyState(options: any) {
             processing: options === true,
             cardAnimating: options === true
         };
-    const playbackState = getPlaybackStateForTurnManager();
     const hasProcessing = Object.prototype.hasOwnProperty.call(config, 'processing');
     const hasCardAnimating = Object.prototype.hasOwnProperty.call(config, 'cardAnimating');
     const hasPlaybackActive = Object.prototype.hasOwnProperty.call(config, 'playbackActive');
@@ -154,50 +103,25 @@ function setTurnManagerBusyState(options: any) {
     const nextCardAnimating = hasCardAnimating ? (config.cardAnimating === true) : null;
     const nextPlaybackActive = hasPlaybackActive ? (config.playbackActive === true) : null;
 
-    if (playbackState) {
-        if (typeof playbackState.setBusyState === 'function') {
-            playbackState.setBusyState(config);
-        } else {
-            if (hasProcessing && typeof playbackState.setProcessing === 'function') {
-                playbackState.setProcessing(nextProcessing);
-            }
-            if (hasCardAnimating && typeof playbackState.setCardAnimating === 'function') {
-                playbackState.setCardAnimating(nextCardAnimating);
-            }
-            if (hasPlaybackActive && typeof playbackState.setPlaybackActive === 'function') {
-                playbackState.setPlaybackActive(nextPlaybackActive);
-            }
-        }
-        if (nextPlaybackActive === false && typeof playbackState.setPlaybackStartedAt === 'function') {
-            playbackState.setPlaybackStartedAt(null);
-        }
-    }
+    try {
+        const impl = getUIImpl();
+        if (impl && typeof impl.setBusyState === 'function') impl.setBusyState(config);
+    } catch (e) { /* ignore */ }
 
     try {
-        if (hasProcessing) isProcessing = nextProcessing;
-    } catch (e) { /* ignore */ }
-    try {
         if (hasProcessing) writeTurnManagerRuntimeValue('isProcessing', nextProcessing);
-    } catch (e) { /* ignore */ }
-    try {
-        if (hasCardAnimating) isCardAnimating = nextCardAnimating;
     } catch (e) { /* ignore */ }
     try {
         if (hasCardAnimating) writeTurnManagerRuntimeValue('isCardAnimating', nextCardAnimating);
     } catch (e) { /* ignore */ }
     try {
         if (hasPlaybackActive) {
-            VisualPlaybackActive = nextPlaybackActive;
             writeTurnManagerRuntimeValue('VisualPlaybackActive', nextPlaybackActive);
             if (nextPlaybackActive) {
-                if (!Number.isFinite(Number(__playbackActiveSince))) {
-                    __playbackActiveSince = Date.now();
-                }
                 if (!Number.isFinite(Number(readTurnManagerRuntimeValue('__playbackActiveSince')))) {
-                    writeTurnManagerRuntimeValue('__playbackActiveSince', __playbackActiveSince);
+                    writeTurnManagerRuntimeValue('__playbackActiveSince', Date.now());
                 }
             } else {
-                __playbackActiveSince = null;
                 writeTurnManagerRuntimeValue('__playbackActiveSince', null);
             }
         }
@@ -211,17 +135,17 @@ function setTurnManagerBusyState(options: any) {
 }
 
 function isVisualPlaybackActiveForTurnManager() {
-    const playbackState = getPlaybackStateForTurnManager();
-    if (playbackState && typeof playbackState.getPlaybackActive === 'function') {
-        return playbackState.getPlaybackActive() === true;
-    }
+    try {
+        const impl = getUIImpl();
+        if (impl && typeof impl.readPlaybackActive === 'function') return impl.readPlaybackActive() === true;
+    } catch (e) { /* ignore */ }
     try {
         const runtimePlaybackActive = readTurnManagerRuntimeValue('VisualPlaybackActive');
         if (typeof runtimePlaybackActive !== 'undefined') {
             return runtimePlaybackActive === true;
         }
     } catch (e) { /* ignore */ }
-    return VisualPlaybackActive === true;
+    return false;
 }
 
 function emitLogAddedForTurnManager(message: any, level?: any) {
@@ -233,27 +157,26 @@ function emitLogAddedForTurnManager(message: any, level?: any) {
 }
 
 function clearPlaybackLockForTurnManager() {
-    const playbackState = getPlaybackStateForTurnManager();
-    if (playbackState && typeof playbackState.abortPlayback === 'function') {
-        playbackState.abortPlayback();
-    } else if (playbackState && typeof playbackState.clearPlaybackLock === 'function') {
-        playbackState.clearPlaybackLock();
-    } else {
-        setTurnManagerBusyState({
-            cardAnimating: false,
-            playbackActive: false
-        });
-    }
+    try {
+        const impl = getUIImpl();
+        if (impl && typeof impl.clearPlaybackLock === 'function' && impl.clearPlaybackLock() === true) return;
+    } catch (e) { /* ignore */ }
+    setTurnManagerBusyState({
+        cardAnimating: false,
+        playbackActive: false
+    });
 }
 
 function getPlaybackStartedAtForTurnManager() {
-    const playbackState = getPlaybackStateForTurnManager();
-    if (playbackState && typeof playbackState.getPlaybackStartedAt === 'function') {
-        const startedAt = Number(playbackState.getPlaybackStartedAt());
-        return Number.isFinite(startedAt) ? startedAt : null;
-    }
     try {
-        const startedAt = Number(typeof __playbackActiveSince !== 'undefined' ? __playbackActiveSince : readTurnManagerRuntimeValue('__playbackActiveSince'));
+        const impl = getUIImpl();
+        if (impl && typeof impl.readPlaybackStartedAt === 'function') {
+            const startedAt = Number(impl.readPlaybackStartedAt());
+            return Number.isFinite(startedAt) ? startedAt : null;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const startedAt = Number(readTurnManagerRuntimeValue('__playbackActiveSince'));
         return Number.isFinite(startedAt) ? startedAt : null;
     } catch (e) { /* ignore */ }
     return null;
@@ -261,9 +184,10 @@ function getPlaybackStartedAtForTurnManager() {
 
 function isPlaybackRunningForTurnManager() {
     try {
-        const animationEngine = readTurnManagerRuntimeValue('AnimationEngine');
-        if (animationEngine && typeof animationEngine.isPlaying === 'boolean') {
-            return animationEngine.isPlaying === true;
+        const impl = getUIImpl();
+        if (impl && typeof impl.readPlaybackRunning === 'function') {
+            const running = impl.readPlaybackRunning();
+            return typeof running === 'boolean' ? running : null;
         }
     } catch (e) { /* ignore */ }
     return null;
@@ -304,15 +228,19 @@ function emitPresentationEventViaBoardOps(ev: any) {
         if (BoardPresentation && typeof BoardPresentation.emitPresentationEvent === 'function') return BoardPresentation.emitPresentationEvent(cardState, ev);
     } catch (e) { /* ignore */ }
     try {
-        const ops = readTurnManagerRuntimeValue('BoardOps');
-        if (ops) {
-            ops.emitPresentationEvent(cardState, ev);
-            return true;
-        }
+        const impl = getUIImpl();
+        if (impl && typeof impl.emitPresentationEvent === 'function') return impl.emitPresentationEvent(ev) === true;
     } catch (e) { /* ignore */ }
     // Silent fallback: presentation helper may not be available during early bootstrap.
     return false;
 } 
+
+async function playTurnStartSpecialEffectsViaUI(player: number, events: any[]): Promise<void> {
+    const impl = __uiImpl_turn_manager || {};
+    if (impl && typeof impl.playTurnStartSpecialEffects === 'function') {
+        await impl.playTurnStartSpecialEffects(player, Array.isArray(events) ? events : []);
+    }
+}
 
 // Configuration and UI-DI (module-level config, no runtime-root writes)
 let __uiImpl_turn_manager: any = {};
@@ -369,10 +297,82 @@ function readTurnManagerRuntimeFunction(key: string): any {
     return typeof value === 'function' ? value : null;
 }
 
+function resolveTurnManagerRuntimeFunction(key: string): any {
+    const impl = __uiImpl_turn_manager || {};
+    try {
+        if (typeof impl.resolveRuntimeFunction === 'function') {
+            const candidate = impl.resolveRuntimeFunction(key);
+            if (typeof candidate === 'function') return candidate;
+        }
+    } catch (e) { /* ignore */ }
+    return readTurnManagerRuntimeFunction(key);
+}
+
 function callTurnManagerRuntimeFunction(key: string, ...args: any[]): any {
-    const fn = readTurnManagerRuntimeFunction(key);
+    const fn = resolveTurnManagerRuntimeFunction(key);
     if (!fn) return undefined;
     return fn(...args);
+}
+
+function showTurnManagerResultIfAvailable() {
+    const showResultFn = resolveTurnManagerRuntimeFunction('showResult');
+    if (typeof showResultFn !== 'function') return false;
+    try {
+        showResultFn();
+        return true;
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function logTurnManagerDebug(message: any, level?: any, data?: any) {
+    if (!isTurnManagerDebugAvailable()) return false;
+    const debugLogFn = resolveTurnManagerRuntimeFunction('debugLog');
+    try {
+        if (typeof debugLogFn === 'function') {
+            debugLogFn(message, level, data);
+            return true;
+        }
+        if (typeof console !== 'undefined' && typeof console.log === 'function') {
+            if (typeof data !== 'undefined') console.log(message, data);
+            else console.log(message);
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function isTurnManagerDebugAvailable() {
+    try {
+        const debugAvailableFn = resolveTurnManagerRuntimeFunction('isDebugLogAvailable');
+        if (typeof debugAvailableFn === 'function') {
+            return debugAvailableFn() === true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        return readTurnManagerRuntimeValue('DEBUG_TURN_MANAGER_LOG') === true;
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function updateCpuCharacterForTurnManager() {
+    const updateFn = resolveTurnManagerRuntimeFunction('updateCpuCharacter');
+    if (typeof updateFn !== 'function') return false;
+    try {
+        updateFn();
+        return true;
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function getTurnManagerPrng() {
+    const runtimePrngFn = resolveTurnManagerRuntimeFunction('getGamePrng');
+    if (typeof runtimePrngFn === 'function') {
+        try { return runtimePrngFn(); } catch (e) { /* ignore */ }
+    }
+    try {
+        if (typeof getGamePrng === 'function') return getGamePrng();
+    } catch (e) { /* ignore */ }
+    return undefined;
 }
 
 function getTurnManagerRuntimeRoot(): any {
@@ -490,11 +490,6 @@ function getTurnManagerCardStateRef(): any {
     return null;
 }
 
-// Module-scoped UI locks (local state; replaces runtime-root writes)
-let isProcessing: any;
-let isCardAnimating: any;
-let VisualPlaybackActive: any;
-let __playbackActiveSince: any;
 let cpuSmartness = { black: 1, white: 1 }; // @compat - read by some modules through UI runtime, keep until Wave F
 var resetGameGeneration = 0;
 
@@ -512,7 +507,7 @@ function getTurnManagerTimerService() {
     }
 }
 
-// Prefer shared scheduling helper when available; fallback to TimerService or setTimeout
+// Prefer shared scheduling helper when available; fallback to TimerService.
 let scheduleRetry = null;
 const tu = _require('./timer-utils'); if (tu && typeof tu.scheduleRetry === 'function') scheduleRetry = tu.scheduleRetry; 
 if (!scheduleRetry) {
@@ -520,9 +515,7 @@ if (!scheduleRetry) {
         const timerService = getTurnManagerTimerService();
         if (timerService) {
             timerService.setTimeout(fn, delayMs);
-            return;
         }
-        setTimeout(fn, delayMs);
     };
 }
 
@@ -548,8 +541,8 @@ function captureServerAuthoredCardUseBoardClickForTurnManager(row: number, col: 
 }
 
 function handleCellClick(row: number, col: number) {
-    if (isDebugLogAvailable()) {
-        debugLog(`[CELL-CLICK] User clicked (${row},${col})`, 'debug', {
+    if (isTurnManagerDebugAvailable()) {
+        logTurnManagerDebug(`[CELL-CLICK] User clicked (${row},${col})`, 'debug', {
             currentPlayer: gameState.currentPlayer,
             isAnimationInProgress: isAnimationInProgress()
         });
@@ -575,10 +568,7 @@ function handleCellClick(row: number, col: number) {
     }
 
     if (pendingDispatchKey) {
-        const pendingSelectionHandler = resolveBoardPendingSelectionHandlerForTurnManager(pendingDispatchKey);
-        if (typeof pendingSelectionHandler === 'function') {
-            pendingSelectionHandler(row, col, playerKey);
-        }
+        dispatchPendingSelectionForTurnManager(pendingDispatchKey, row, col, playerKey, pending);
         return;
     }
 
@@ -593,8 +583,8 @@ function handleCellClick(row: number, col: number) {
     const _findMoveForCell = readTurnManagerRuntimeFunction('findMoveForCell') || (MoveGeneratorModule && MoveGeneratorModule.findMoveForCell);
     const move = _findMoveForCell ? _findMoveForCell(gameState.currentPlayer, row, col, pending, protection, perma) : null;
     if (!move) {
-        if (isDebugLogAvailable()) {
-            debugLog(`[MOVE] Invalid move attempted at (${row},${col})`, 'warn', {
+        if (isTurnManagerDebugAvailable()) {
+            logTurnManagerDebug(`[MOVE] Invalid move attempted at (${row},${col})`, 'warn', {
                 currentPlayer: gameState.currentPlayer,
                 hasPending: !!pending
             });
@@ -602,8 +592,8 @@ function handleCellClick(row: number, col: number) {
         return;
     }
 
-    if (isDebugLogAvailable()) {
-        debugLog(`[MOVE] Valid move found at (${row},${col})`, 'info', {
+    if (isTurnManagerDebugAvailable()) {
+        logTurnManagerDebug(`[MOVE] Valid move found at (${row},${col})`, 'info', {
             flips: move.flips ? move.flips.length : 0,
             currentPlayer: gameState.currentPlayer,
             playerKey
@@ -640,19 +630,47 @@ function isAnimationInProgress() {
 
 function shouldAllowPendingSelectionDuringAnimation(playerKey: any, pending: any, pendingDispatchKey: any) {
     if (!pending || !pendingDispatchKey || pending.stage !== 'selectTarget') return false;
-    if (readTurnManagerProcessing()) return false;
-    const playbackState = getPlaybackStateForTurnManager();
-    if (!playbackState || typeof playbackState.shouldAllowSelectionEntryDuringPlayback !== 'function') {
-        return false;
-    }
     try {
-        return playbackState.shouldAllowSelectionEntryDuringPlayback({
-            playerKey,
-            pendingType: pending.type
-        }) === true;
+        const impl = getUIImpl();
+        if (
+            impl
+            && typeof impl.shouldAllowSelectionEntryDuringPlayback === 'function'
+            && impl.shouldAllowSelectionEntryDuringPlayback({
+                playerKey,
+                pendingType: pending.type
+            }) === true
+        ) {
+            return true;
+        }
     } catch (e) {
-        return false;
+        // fall through to runtime-context fallback
     }
+
+    const normalizedPlayerKey = getPlayerKey(playerKey);
+    const normalizedPendingType = String(pending && pending.type ? pending.type : '').trim().toUpperCase();
+    const allowsBySelectionEntryContext = (context: any) => {
+        if (!context || typeof context !== 'object') return false;
+        const contextPlayerKey = String(context.playerKey || '').trim().toLowerCase();
+        const contextPendingType = String(context.pendingType || '').trim().toUpperCase();
+        const expiresAt = Number(context.expiresAt);
+        if (contextPlayerKey !== normalizedPlayerKey) return false;
+        if (contextPendingType !== normalizedPendingType) return false;
+        if (Number.isFinite(expiresAt) && expiresAt < Date.now()) return false;
+        return true;
+    };
+
+    try {
+        if (allowsBySelectionEntryContext(readTurnManagerRuntimeValue('__selectionEntryPlaybackContext'))) {
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        const runtimeRoot = getTurnManagerRuntimeRoot();
+        if (allowsBySelectionEntryContext(runtimeRoot && runtimeRoot.__selectionEntryPlaybackContext)) {
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
 }
 
 function readTurnManagerMatchMode() {
@@ -917,73 +935,57 @@ function resolvePendingSelectionDispatchKeyForTurnManager(pendingType: any) {
 }
 
 function readPendingForTurnManager(playerKey: any) {
-    var pendingCoordinator = resolvePendingCoordinatorForTurnManager();
-    if (pendingCoordinator && typeof pendingCoordinator.readPendingEffect === 'function') {
-        return pendingCoordinator.readPendingEffect(cardState, playerKey);
+    const runtimeCardStateRef = getTurnManagerCardStateRef();
+    let localCardStateRef: any = null;
+    try {
+        localCardStateRef = (cardState && typeof cardState === 'object') ? cardState : null;
+    } catch (e) { /* ignore */ }
+
+    const candidateCardStates: any[] = [];
+    if (runtimeCardStateRef && typeof runtimeCardStateRef === 'object') {
+        candidateCardStates.push(runtimeCardStateRef);
     }
-    return (cardState && cardState.pendingEffectByPlayer)
-        ? (cardState.pendingEffectByPlayer[playerKey] || null)
-        : null;
+    if (localCardStateRef && typeof localCardStateRef === 'object' && localCardStateRef !== runtimeCardStateRef) {
+        candidateCardStates.push(localCardStateRef);
+    }
+
+    var pendingCoordinator = resolvePendingCoordinatorForTurnManager();
+    for (let index = 0; index < candidateCardStates.length; index += 1) {
+        const cardStateRef = candidateCardStates[index];
+        if (!cardStateRef || typeof cardStateRef !== 'object') continue;
+        if (pendingCoordinator && typeof pendingCoordinator.readPendingEffect === 'function') {
+            const pending = pendingCoordinator.readPendingEffect(cardStateRef, playerKey);
+            if (pending) return pending;
+            continue;
+        }
+        if (cardStateRef.pendingEffectByPlayer && cardStateRef.pendingEffectByPlayer[playerKey]) {
+            return cardStateRef.pendingEffectByPlayer[playerKey];
+        }
+    }
+    return null;
 }
 
-function resolveBoardPendingSelectionHandlerForTurnManager(dispatchKey: any) {
-    switch (String(dispatchKey || '')) {
-    case 'destroy':
-        return (typeof handleDestroySelection === 'function') ? handleDestroySelection : null;
-    case 'strong_wind':
-        return (typeof handleStrongWindSelection === 'function') ? handleStrongWindSelection : null;
-    case 'buoyancy':
-        return (typeof handleBuoyancySelection === 'function') ? handleBuoyancySelection : null;
-    case 'super_buoyancy':
-        return (typeof handleSuperBuoyancySelection === 'function') ? handleSuperBuoyancySelection : null;
-    case 'gravity':
-        return (typeof handleGravitySelection === 'function') ? handleGravitySelection : null;
-    case 'super_gravity':
-        return (typeof handleSuperGravitySelection === 'function') ? handleSuperGravitySelection : null;
-    case 'super_attraction':
-        return (typeof handleSuperAttractionSelection === 'function') ? handleSuperAttractionSelection : null;
-    case 'teleport':
-    case 'cell_teleport':
-        return (typeof handleTeleportSelection === 'function') ? handleTeleportSelection : null;
-    case 'tempt':
-        return (typeof handleTemptSelection === 'function') ? handleTemptSelection : null;
-    case 'capture':
-        return (typeof handleCaptureSelection === 'function') ? handleCaptureSelection : null;
-    case 'trap':
-        return (typeof handleTrapSelection === 'function') ? handleTrapSelection : null;
-    case 'guard':
-        return (typeof handleGuardSelection === 'function') ? handleGuardSelection : null;
-    case 'living_will':
-        return (typeof handleLivingWillSelection === 'function') ? handleLivingWillSelection : null;
-    case 'hyperactive_inherit':
-        return (typeof handleHyperactiveInheritSelection === 'function') ? handleHyperactiveInheritSelection : null;
-    case 'extend_life':
-        return (typeof handleExtendLifeSelection === 'function') ? handleExtendLifeSelection : null;
-    case 'corrosion':
-        return (typeof handleCorrosionSelection === 'function') ? handleCorrosionSelection : null;
-    case 'time_bomb':
-        return (typeof handleTimeBombSelection === 'function') ? handleTimeBombSelection : null;
-    case 'swap_with_enemy':
-        return (typeof handleSwapSelection === 'function') ? handleSwapSelection : null;
-    case 'position_swap':
-        return (typeof handlePositionSwapSelection === 'function') ? handlePositionSwapSelection : null;
-    case 'board_expansion':
-        return (typeof handleBoardExpansionSelection === 'function') ? handleBoardExpansionSelection : null;
-    case 'board_shrink':
-        return (typeof handleBoardShrinkSelection === 'function') ? handleBoardShrinkSelection : null;
-    case 'blockade':
-        return (typeof handleBlockadeSelection === 'function') ? handleBlockadeSelection : null;
-    case 'meteor':
-        return (typeof handleMeteorSelection === 'function') ? handleMeteorSelection : null;
-    case 'freeze':
-        return (typeof handleFreezeSelection === 'function') ? handleFreezeSelection : null;
-    case 'seed':
-        return (typeof handleSeedSelection === 'function') ? handleSeedSelection : null;
-    case 'clone':
-        return (typeof handleCloneSelection === 'function') ? handleCloneSelection : null;
-    default:
-        return null;
-    }
+function dispatchPendingSelectionForTurnManager(dispatchKey: any, row: number, col: number, playerKey: string, pending: any) {
+    const payload = { dispatchKey, row, col, playerKey, pending };
+    try {
+        const dispatchFn = resolveTurnManagerRuntimeFunction('dispatchPendingSelection');
+        if (typeof dispatchFn === 'function') {
+            return dispatchFn(payload) === true;
+        }
+    } catch (e) { /* ignore */ }
+
+    try {
+        const resolveHandler = resolveTurnManagerRuntimeFunction('resolvePendingSelectionHandler');
+        const handler = (typeof resolveHandler === 'function')
+            ? resolveHandler(dispatchKey, pending, payload)
+            : null;
+        if (typeof handler === 'function') {
+            handler(row, col, playerKey, pending);
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+
+    return false;
 }
 
 function clearPendingSelectionActionCacheForTurnManager() {
@@ -1053,9 +1055,7 @@ function resetGame(options?: any) {
         cpuSmartnessRef.white = clampCpuLevel((vals && vals.white) || cpuSmartnessRef.white || 1);
     }
 
-    if (typeof updateCpuCharacter === 'function') {
-        updateCpuCharacter();
-    }
+    updateCpuCharacterForTurnManager();
 
     let cardInitOptions: any = {};
     if (__uiImpl_turn_manager && typeof __uiImpl_turn_manager.buildCardInitOptions === 'function') {
@@ -1125,7 +1125,7 @@ function resetGame(options?: any) {
     if (ActionManagerModule && ActionManagerModule.ActionManager) {
         ActionManagerModule.ActionManager.reset();
         try { ActionManagerModule.ActionManager.clearStorage(); } catch (e) { /* ignore */ }
-        if (isDebugLogAvailable()) console.log('[resetGame] ActionManager reset and cleared storage');
+        logTurnManagerDebug('[resetGame] ActionManager reset and cleared storage', 'debug');
     }
 
     // Clear UI log via helper if available (game/ must not touch DOM)
@@ -1142,8 +1142,9 @@ function resetGame(options?: any) {
     try { emitGameStateChange(); } catch (e) { /* ignore */ }
 
     const runTurnStartAfterReset = () => {
-        if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.onTurnStart === 'function') {
-            return __uiImpl.onTurnStart(BLACK);
+        const injectedOnTurnStart = resolveTurnManagerRuntimeFunction('onTurnStart');
+        if (typeof injectedOnTurnStart === 'function' && injectedOnTurnStart !== onTurnStart) {
+            return injectedOnTurnStart(BLACK);
         }
         return onTurnStart(BLACK);
     };
@@ -1251,15 +1252,15 @@ async function onTurnStart(player: number) {
     const playerKey = getPlayerKey(player);
     ensureTurnManagerCardStateShape(getTurnManagerCardStateRef());
 
-    const safeIsProcessing = (typeof isProcessing !== 'undefined') ? isProcessing : undefined;
-    const safeIsCardAnimating = (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined;
-    if (isDebugLogAvailable()) console.log('[DEBUG][onTurnStart] enter', { player, playerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, USE_TURN_PIPELINE: !!(__uiImpl_turn_manager && __uiImpl_turn_manager.USE_TURN_PIPELINE) });
+    const safeIsProcessing = readTurnManagerProcessing();
+    const safeIsCardAnimating = readTurnManagerCardAnimating();
+    logTurnManagerDebug('[DEBUG][onTurnStart] enter', 'debug', { player, playerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, USE_TURN_PIPELINE: !!(__uiImpl_turn_manager && __uiImpl_turn_manager.USE_TURN_PIPELINE) });
 
     // Record hand size before turn start to detect if a draw happened
     const handSizeBefore = cardState.hands[playerKey].length;
 
-    if (isDebugLogAvailable()) {
-        debugLog(`[TURN-START] onTurnStart called for ${playerKey}, handBefore: ${handSizeBefore}, turnCount: ${cardState.turnCountByPlayer[playerKey]}`, 'info');
+    if (isTurnManagerDebugAvailable()) {
+        logTurnManagerDebug(`[TURN-START] onTurnStart called for ${playerKey}, handBefore: ${handSizeBefore}, turnCount: ${cardState.turnCountByPlayer[playerKey]}`, 'info');
     }
 
     // 1. Shared Logic Turn Start (Reset flags, tick active effect durations, Draw)
@@ -1275,8 +1276,8 @@ async function onTurnStart(player: number) {
             throw new Error('[CRITICAL][onTurnStart] Core is undefined; TurnPipelinePhases.applyTurnStartPhase cannot run');
         }
         // Provide runtime PRNG to pipeline so start-of-turn effects that need randomness can run in browser
-        const runtimePrng = (typeof getGamePrng === 'function') ? getGamePrng() : ((typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.getGamePrng === 'function') ? __uiImpl.getGamePrng() : undefined);
-        if (isDebugLogAvailable()) console.log('[onTurnStart] runtimePrng available:', !!runtimePrng);
+        const runtimePrng = getTurnManagerPrng();
+        logTurnManagerDebug('[onTurnStart] runtimePrng available:', 'debug', { available: !!runtimePrng });
         TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, playerKey, _startEvents, runtimePrng);
         // Convert any presentation events emitted during turn-start into PlaybackEvents
         const adapter = getTurnPipelineUIAdapter();
@@ -1303,11 +1304,11 @@ async function onTurnStart(player: number) {
     const handSizeAfter = cardState.hands[playerKey].length;
     const newTurnCount = cardState.turnCountByPlayer[playerKey];
 
-    if (isDebugLogAvailable()) {
-        debugLog(`[TURN-START] After turn-start phase: handAfter: ${handSizeAfter}, newTurnCount: ${newTurnCount}`, 'info');
+    if (isTurnManagerDebugAvailable()) {
+        logTurnManagerDebug(`[TURN-START] After turn-start phase: handAfter: ${handSizeAfter}, newTurnCount: ${newTurnCount}`, 'info');
     }
 
-    if (isDebugLogAvailable()) console.log('[DEBUG][onTurnStart] exit', { playerKey, handSizeBefore, handSizeAfter, newTurnCount, isProcessing, isCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
+    logTurnManagerDebug('[DEBUG][onTurnStart] exit', 'debug', { playerKey, handSizeBefore, handSizeAfter, newTurnCount, isProcessing: readTurnManagerProcessing(), isCardAnimating: readTurnManagerCardAnimating(), pendingEffect: cardState.pendingEffectByPlayer });
 
     // 2. Log
     const turnCount = gameState.turnNumber + 1;
@@ -1357,23 +1358,8 @@ async function onTurnStart(player: number) {
         // Ensure UI consumes the playback events
         requestUIRender();
     }
-    // processBombs etc. are accessed via imported modules
     if (!othelloMode) {
-        if (typeof BombsModule.processBombs === 'function') {
-            await BombsModule.processBombs(_startEvents);
-        }
-        if (typeof UDGModule.processUltimateDestroyGodsAtTurnStart === 'function') {
-            await UDGModule.processUltimateDestroyGodsAtTurnStart(player, null, _startEvents);
-        }
-        if (typeof DragonsModule.processUltimateReverseDragonsAtTurnStart === 'function') {
-            await DragonsModule.processUltimateReverseDragonsAtTurnStart(player, _startEvents);
-        }
-        if (typeof BreedingModule.processBreedingEffectsAtTurnStart === 'function') {
-            await BreedingModule.processBreedingEffectsAtTurnStart(player, _startEvents);
-        }
-        if (typeof HyperactiveModule.processHyperactiveMovesAtTurnStart === 'function') {
-            await HyperactiveModule.processHyperactiveMovesAtTurnStart(player, null, _startEvents);
-        }
+        await playTurnStartSpecialEffectsViaUI(player, _startEvents);
     }
 
     // 5. Update UI — queue a STATE_UPDATED presentation event; UI should consume and perform actual emits/renders
@@ -1388,7 +1374,7 @@ async function onTurnStart(player: number) {
     }
 
     if (isGameOver(gameState)) {  // isGameOver imported from Core
-        if (typeof showResult === 'function') showResult();
+        showTurnManagerResultIfAvailable();
         setTurnManagerBusyState({ processing: false });
         return {
             playbackEvents: Array.isArray(turnStartPlaybackEvents) ? turnStartPlaybackEvents : []
@@ -1402,7 +1388,7 @@ async function onTurnStart(player: number) {
     }
 
     // 7. DEBUG: Shared Hand Logic (opt-in only)
-    if (typeof __uiImpl !== 'undefined' && __uiImpl && __uiImpl.DEBUG_SHARED_HAND) {
+    if (readTurnManagerRuntimeValue('DEBUG_SHARED_HAND') === true) {
         if (cardState.hands.white.length > 0) {
             console.log('[DEBUG] Transferring White cards to Black for Shared Hand mode', cardState.hands.white);
             cardState.hands.black.push(...cardState.hands.white);
@@ -1410,8 +1396,8 @@ async function onTurnStart(player: number) {
             // Update UI again to reflect transfer
             if (readTurnManagerRuntimeFunction('requestCardUiSync')) {
                 callTurnManagerRuntimeFunction('requestCardUiSync', 'turn-manager:shared-hand-debug');
-            } else if (typeof renderCardUI === 'function') {
-                renderCardUI();
+            } else if (readTurnManagerRuntimeFunction('renderCardUI')) {
+                callTurnManagerRuntimeFunction('renderCardUI');
             }
         }
     }

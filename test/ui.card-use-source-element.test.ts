@@ -602,6 +602,78 @@ describe('card use source element selection', () => {
     });
   });
 
+  test.each([
+    ['seed_01', 'SEED_WILL'],
+    ['cell_teleport_01', 'CELL_TELEPORT_WILL']
+  ])('useSelectedCard restores %s board pending when adapter snapshot misses it', (cardId, cardType) => {
+    global.cardState.selectedCardId = cardId;
+    global.cardState.selectedCardOwnerKey = 'black';
+    global.cardState.hands.black = [cardId];
+    global.cardState.pendingEffectByPlayer.black = null;
+    global.CardLogic = {
+      getCardDef: (id) => ({ id, type: cardType, name: cardType, desc: 'd', cost: 1 })
+    };
+    const nextCardState = {
+      ...global.cardState,
+      charge: { black: 9, white: 10 },
+      hands: { black: [], white: ['dup_card'] },
+      hasUsedCardThisTurnByPlayer: { black: true, white: false },
+      pendingEffectByPlayer: { black: null, white: null }
+    };
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      nextCardState,
+      nextGameState: global.gameState,
+      playbackEvents: []
+    }));
+
+    require('../cards/card-interaction.js');
+
+    window.useSelectedCard();
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+    expect(global.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: cardType,
+      cardId,
+      stage: 'selectTarget'
+    }));
+  });
+
+  test.each([
+    ['seed_01', 'SEED_WILL'],
+    ['cell_teleport_01', 'CELL_TELEPORT_WILL']
+  ])('debug useSelectedCard restores %s board pending when adapter snapshot misses it', (cardId, cardType) => {
+    window.DEBUG_UNLIMITED_USAGE = true;
+    global.cardState.selectedCardId = cardId;
+    global.cardState.selectedCardOwnerKey = 'black';
+    global.cardState.hands.black = [cardId];
+    global.cardState.pendingEffectByPlayer.black = null;
+    global.CardLogic = {
+      getCardDef: (id) => ({ id, type: cardType, name: cardType, desc: 'd', cost: 1 })
+    };
+    const nextCardState = {
+      ...global.cardState,
+      pendingEffectByPlayer: { black: null, white: null }
+    };
+    global.TurnPipelineUIAdapter.runTurnWithAdapter = jest.fn(() => ({
+      ok: true,
+      nextCardState,
+      nextGameState: global.gameState,
+      playbackEvents: []
+    }));
+
+    require('../cards/card-interaction.js');
+
+    window.useSelectedCard();
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalledTimes(1);
+    expect(global.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: cardType,
+      cardId,
+      stage: 'selectTarget'
+    }));
+  });
+
   test('useSelectedCard hides deferred generated throw-chain card until later placement playback reveals it', () => {
     const nextCardState = {
       ...global.cardState,

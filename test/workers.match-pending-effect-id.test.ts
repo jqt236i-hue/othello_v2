@@ -927,7 +927,7 @@ describe('worker pendingEffectId contract', () => {
           row: 2,
           col: 2,
           owner: 'white',
-          data: { type: 'GUARD', remainingOwnerTurns: 2 }
+          data: { type: 'WORK', remainingOwnerTurns: 2 }
         }
       ]
     });
@@ -943,7 +943,7 @@ describe('worker pendingEffectId contract', () => {
         id: 32,
         row: 2,
         col: 2,
-        data: expect.objectContaining({ type: 'GUARD', remainingOwnerTurns: 1 })
+        data: expect.objectContaining({ type: 'WORK', remainingOwnerTurns: 1 })
       })
     ]));
     expect(result.payload.playbackEvents).toEqual(expect.arrayContaining([
@@ -951,7 +951,7 @@ describe('worker pendingEffectId contract', () => {
         type: 'status_applied',
         rawType: 'STATUS_TICK',
         meta: expect.objectContaining({
-          special: 'GUARD',
+          special: 'WORK',
           timer: 1,
           reason: 'corrosion_applied',
           highlightTone: 'negative'

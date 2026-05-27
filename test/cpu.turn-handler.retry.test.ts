@@ -15,6 +15,9 @@ describe('cpu-turn-handler helpers', () => {
   afterEach(() => {
     // restore timers
     mod.setTimers(null);
+    if (typeof mod.setCpuTurnTimerService === 'function') {
+      mod.setCpuTurnTimerService(null);
+    }
     if (typeof mod.setCpuUIImpl === 'function') {
       mod.setCpuUIImpl({});
     }
@@ -48,19 +51,22 @@ describe('cpu-turn-handler helpers', () => {
     expect(called).toBe(true);
   });
 
-  test('scheduleRetry falls back to setTimeout when timers absent', () => {
+  test('scheduleRetry uses injected TimerService when timers are absent', () => {
     mod.setTimers(null);
-    jest.useFakeTimers();
     const cb = jest.fn();
-    // Force require('./timers').waitMs to throw so shared helper falls back to setTimeout
-    const timersModule = require('../game/timers.js');
-    const spy = jest.spyOn(timersModule, 'waitMs').mockImplementation(() => { throw new Error('no'); });
+    const callbacks: Array<() => void> = [];
+    const timerService = {
+      setTimeout: jest.fn((callback: () => void, delay: number) => {
+        callbacks.push(callback);
+        return { delay };
+      })
+    };
+    mod.setCpuTurnTimerService(timerService);
 
     mod.scheduleRetry(cb, 20);
-    jest.advanceTimersByTime(20);
+    expect(timerService.setTimeout).toHaveBeenCalledWith(expect.any(Function), 20);
+    callbacks.forEach(callback => callback());
     expect(cb).toHaveBeenCalled();
-
-    spy.mockRestore();
   });
 
   test('getPendingTypeHandlers returns handlers that invoke CPU selection helpers', async () => {
@@ -138,7 +144,11 @@ describe('cpu-turn-handler helpers', () => {
       setProcessing: jest.fn()
     };
     mod.setCpuUIImpl({
-      getPlaybackStateManager: () => global.PlaybackStateManager
+      readProcessing: () => global.PlaybackStateManager.getProcessing(),
+      readAnimationBusy: () => (
+        global.PlaybackStateManager.getCardAnimating()
+        || global.PlaybackStateManager.getPlaybackActive()
+      )
     });
     global.gameState = {
       currentPlayer: global.WHITE,
@@ -155,7 +165,11 @@ describe('cpu-turn-handler helpers', () => {
     mod.setCpuUIImpl({
       resolveRuntimeFunction: resolveGlobalRuntimeFunction,
       resolveRuntimeValue: resolveGlobalRuntimeValue,
-      getPlaybackStateManager: () => global.PlaybackStateManager
+      readProcessing: () => global.PlaybackStateManager.getProcessing(),
+      readAnimationBusy: () => (
+        global.PlaybackStateManager.getCardAnimating()
+        || global.PlaybackStateManager.getPlaybackActive()
+      )
     });
 
     await mod.processCpuTurn();

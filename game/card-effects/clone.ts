@@ -1,5 +1,4 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
-declare const emitLogAdded: (...args: any[]) => void;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
@@ -11,6 +10,13 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const ControllerEvents = _require('../controller-events');
+
+function emitCloneLog(message: string): void {
+    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
+        ControllerEvents.emitLogAdded(message);
+    }
+}
 
 function getCloneSelectedEvent(result: any, rawEventType: string): any {
     return result && Array.isArray(result.rawEvents)
@@ -47,9 +53,9 @@ async function handleCloneLikeSelection(row: number, col: number, playerKey: str
         buildPlaybackMeta: () => ({ cause: playbackCause, target: { row, col } }),
         afterStateChange: ({ result }: any) => {
             const selected = getCloneSelectedEvent(result, selectedEventType);
-            if (!selected || typeof emitLogAdded !== 'function') return;
+            if (!selected) return;
             const spawnedCount = Array.isArray(selected.spawned) ? selected.spawned.length : 0;
-            emitLogAdded(successLogBuilder(spawnedCount, selected));
+            emitCloneLog(successLogBuilder(spawnedCount, selected));
         }
     });
 }

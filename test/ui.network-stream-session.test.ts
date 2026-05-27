@@ -1,0 +1,108 @@
+describe('NetworkStreamSessionController', () => {
+  let controller: any;
+  let stateObj: any;
+  let eventSources: any[];
+  let EventSourceMock: any;
+  let callbacks: any;
+
+  beforeEach(() => {
+    jest.resetModules();
+
+    eventSources = [];
+    callbacks = {
+      closeExistingStream: jest.fn(),
+      emitStatus: jest.fn(),
+      createStreamPayloadHandler: jest.fn((handler: any) => handler),
+      markStreamActivity: jest.fn(),
+      scheduleStreamWatchdog: jest.fn(),
+      clearReconnectTimer: jest.fn(),
+      scheduleReconnectRecoverySync: jest.fn(),
+      completeReconnectRecoveryFromStream: jest.fn(),
+      handlePresencePayload: jest.fn(),
+      handleChatPayload: jest.fn(),
+      handleStreamSnapshotPayload: jest.fn(),
+      applyPayloadSessionState: jest.fn(),
+      maybeSyncFromHeartbeat: jest.fn(),
+      isActive: jest.fn(() => true),
+      scheduleStreamReconnect: jest.fn()
+    };
+
+    stateObj = {
+      active: true,
+      roomId: 'ABC',
+      seatKey: 'white',
+      seatToken: 'token_white',
+      serverUrl: 'http://localhost:8787/',
+      lastStreamEventId: 'evt-1',
+      reconnectAttempt: 1,
+      eventSource: null
+    };
+
+    EventSourceMock = class MockEventSource {
+      static OPEN = 1;
+      url: string;
+      readyState: number;
+      listeners: Record<string, any>;
+      onmessage: any;
+      onopen: any;
+      onerror: any;
+      constructor(url: string) {
+        this.url = url;
+        this.readyState = 1;
+        this.listeners = {};
+        this.onmessage = null;
+        this.onopen = null;
+        this.onerror = null;
+        eventSources.push(this);
+      }
+      addEventListener(name: string, handler: any) {
+        this.listeners[name] = handler;
+      }
+    };
+
+    const { createNetworkStreamSessionController } = require('../ui/network/stream-session.js');
+    controller = createNetworkStreamSessionController({
+      getState: () => stateObj,
+      withTrailingSlashRemoved: (url: any) => String(url || '').replace(/\/+$/, ''),
+      eventSourceClass: EventSourceMock,
+      ...callbacks
+    });
+  });
+
+  test('builds reconnect stream URL with lastEventId', () => {
+    expect(controller.buildStreamUrl({ reconnect: true })).toBe(
+      'http://localhost:8787/api/match/stream?roomId=ABC&seatKey=white&seatToken=token_white&lastEventId=evt-1'
+    );
+  });
+
+  test('openStream creates EventSource and wires handlers', () => {
+    controller.openStream({ reconnect: true });
+
+    expect(callbacks.closeExistingStream).toHaveBeenCalled();
+    expect(eventSources).toHaveLength(1);
+    expect(stateObj.eventSource).toBe(eventSources[0]);
+    expect(callbacks.markStreamActivity).toHaveBeenCalled();
+    expect(callbacks.scheduleStreamWatchdog).toHaveBeenCalled();
+    expect(typeof eventSources[0].listeners.snapshot).toBe('function');
+    expect(eventSources[0].onmessage).toBe(eventSources[0].listeners.snapshot);
+  });
+
+  test('onopen resets reconnect attempt and schedules recovery sync after reconnect', () => {
+    controller.openStream({ reconnect: true });
+    eventSources[0].onopen();
+
+    expect(stateObj.reconnectAttempt).toBe(0);
+    expect(callbacks.clearReconnectTimer).toHaveBeenCalled();
+    expect(callbacks.emitStatus).toHaveBeenCalledWith('ネット対戦: 接続を回復しました', false);
+    expect(callbacks.scheduleReconnectRecoverySync).toHaveBeenCalled();
+  });
+
+  test('onerror schedules reconnect when stream is no longer open', () => {
+    controller.openStream();
+    eventSources[0].readyState = 2;
+    eventSources[0].onerror();
+
+    expect(callbacks.emitStatus).toHaveBeenCalledWith('ネット対戦: 接続が不安定です（再接続待機）', true);
+    expect(callbacks.scheduleStreamReconnect).toHaveBeenCalled();
+  });
+});

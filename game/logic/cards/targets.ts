@@ -42,6 +42,7 @@ function resolveTargetsModuleOrGlobal(id: string, globalKey: string): any {
 
 const SharedConstants = resolveTargetsModuleOrGlobal('../../../shared-constants', 'SharedConstants');
 const BoardUtils = resolveTargetsModuleOrGlobal('../../../shared/shared-board-utils', 'SharedBoardUtils');
+const CaptureSourceModule = resolveTargetsModuleOrGlobal('../cards-internal/capture-source', 'CardCaptureSource');
 
 const { EMPTY } = SharedConstants || {};
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
@@ -204,6 +205,24 @@ function forEachBoardShapeCell(gameState: GameState, visitor: (row: number, col:
     }
 }
 
+function getCardUtils(): any {
+    return ((typeof module === 'object' && module.exports) ? safeRequire('./utils') : null) || getRuntimeGlobalValue('CardUtils');
+}
+
+function getCaptureMarkerAt(cardState: any, row: number, col: number): any | null {
+    const cardUtils = getCardUtils();
+    if (cardUtils && typeof cardUtils.getSpecialMarkerAt === 'function') {
+        return cardUtils.getSpecialMarkerAt(cardState, row, col);
+    }
+    const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
+    return markers.find((marker: any) => (
+        marker &&
+        marker.kind === 'specialStone' &&
+        marker.row === row &&
+        marker.col === col
+    )) || null;
+}
+
 function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: string): Array<{row: number; col: number}> {
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
     const res: Array<{row: number; col: number}> = [];
@@ -217,7 +236,7 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
         m.data.type === 'GUARD'
     );
     // Prefer CardUtils if available (handles bombs and special stones uniformly)
-    const CardUtils = ((typeof module === 'object' && module.exports) ? safeRequire('./utils') : null) || getRuntimeGlobalValue('CardUtils');
+    const CardUtils = getCardUtils();
     forEachBoardShapeCell(gameState, (r, c) => {
         if (isGuarded(r, c)) return;
         // Must be a special stone or bomb owned by opponent and not an empty cell
@@ -239,7 +258,14 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
 }
 
 function getCaptureWillTargets(cardState: any, gameState: GameState, playerKey: string): Array<{row: number; col: number}> {
-    return getTemptWillTargets(cardState, gameState, playerKey);
+    const targets = getTemptWillTargets(cardState, gameState, playerKey);
+    if (!CaptureSourceModule || typeof CaptureSourceModule.resolveCaptureSourceInfo !== 'function') {
+        return targets.filter((target) => !!getCaptureMarkerAt(cardState, target.row, target.col));
+    }
+    return targets.filter((target) => {
+        const markerEntry = getCaptureMarkerAt(cardState, target.row, target.col);
+        return !!CaptureSourceModule.resolveCaptureSourceInfo(markerEntry);
+    });
 }
 
 export = {

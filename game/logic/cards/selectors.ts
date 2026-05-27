@@ -710,6 +710,47 @@ function getHyperactiveInheritTargets(cardState: CardState, gameState: GameState
     return getGuardTargets(cardState, gameState, playerKey);
 }
 
+function getExtendLifeTargets(cardState: CardState, _gameState: GameState, playerKey: PlayerKey): TargetCell[] {
+    const ownerKey = String(playerKey || '');
+    const cs = cardState as any;
+    const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
+    const res: TargetCell[] = [];
+    const seen = new Set<string>();
+    for (const marker of markers) {
+        if (!marker || marker.kind !== 'specialStone') continue;
+        if (marker.owner !== ownerKey) continue;
+        const remaining = (marker.data && Number.isFinite(marker.data.remainingOwnerTurns))
+            ? Number(marker.data.remainingOwnerTurns)
+            : null;
+        if (typeof remaining !== 'number' || remaining <= 0) continue;
+        const key = `${marker.row},${marker.col}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        res.push({ row: marker.row, col: marker.col });
+    }
+    return res;
+}
+
+function getCorrosionTargets(cardState: CardState, _gameState: GameState, _playerKey: PlayerKey): TargetCell[] {
+    const cs = cardState as any;
+    const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
+    const res: TargetCell[] = [];
+    const seen = new Set<string>();
+    for (const marker of markers) {
+        if (!marker || marker.kind !== 'specialStone') continue;
+        if (isGuardProtectedCell(cardState, marker.row, marker.col)) continue;
+        const remaining = (marker.data && Number.isFinite(marker.data.remainingOwnerTurns))
+            ? Number(marker.data.remainingOwnerTurns)
+            : null;
+        if (typeof remaining !== 'number' || remaining <= 0) continue;
+        const key = `${marker.row},${marker.col}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        res.push({ row: marker.row, col: marker.col });
+    }
+    return res;
+}
+
 // Return time-bomb targets: own stones (normal/special both allowed), excluding bombs.
 function getTimeBombTargets(cardState: CardState, gameState: GameState, playerKey: PlayerKey): TargetCell[] {
     return getGuardTargets(cardState, gameState, playerKey);
@@ -1187,6 +1228,8 @@ export = {
     getGuardTargets,
     getLivingWillTargets,
     getHyperactiveInheritTargets,
+    getExtendLifeTargets,
+    getCorrosionTargets,
     getTimeBombTargets,
     getTeleportTargets,
     getCellTeleportTargets,

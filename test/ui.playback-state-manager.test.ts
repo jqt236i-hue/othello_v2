@@ -194,6 +194,32 @@ describe('PlaybackStateManager runtime helpers', () => {
     expect(global.window.__suppressNextBoardExpansionRevealSound).toBe(false);
   });
 
+  test('clearPlaybackLock clears selection settlement locks by default', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const token = manager.acquireSelectionSettlementLock({ source: 'unit-test' });
+
+    expect(manager.hasSelectionSettlementLock()).toBe(true);
+
+    manager.clearPlaybackLock();
+
+    expect(manager.hasSelectionSettlementLock()).toBe(false);
+    expect(manager.releaseSelectionSettlementLock(token)).toBe(false);
+    expect(global.window.__selectionSettlementLockActive).toBe(false);
+  });
+
+  test('clearPlaybackLock can preserve selection settlement locks when requested', () => {
+    const manager = require('../ui/playback-state-manager.js');
+    const token = manager.acquireSelectionSettlementLock({ source: 'unit-test' });
+
+    manager.clearPlaybackLock({ preserveSelectionSettlementLock: true });
+
+    expect(manager.hasSelectionSettlementLock()).toBe(true);
+    expect(manager.getProcessing()).toBe(true);
+
+    expect(manager.releaseSelectionSettlementLock(token)).toBe(true);
+    expect(manager.hasSelectionSettlementLock()).toBe(false);
+  });
+
   test('abortPlayback clears playback timing and busy flags together', () => {
     const manager = require('../ui/playback-state-manager.js');
     manager.setInteractionLock(true);

@@ -18,6 +18,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         processing: false,
         cardAnimating: false
     };
+    let nextSelectionSettlementLockId = 1;
+    const activeSelectionSettlementLocks: any[] = [];
+    let sharedSelectionBusyLockToken: any = null;
 
     function normalizePendingType(pendingType: any) {
         return String(pendingType || '').trim().toUpperCase();
@@ -53,16 +56,32 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return (typeof bridge[name] === 'function') ? bridge[name] : null;
     }
 
+    function invokeSignalBridgeMethod(name: string, args: any[] = []) {
+        const bridge = getSignalBridge();
+        if (!bridge || typeof name !== 'string') return undefined;
+        const method = bridge[name];
+        if (typeof method !== 'function') return undefined;
+        try {
+            return method.apply(bridge, Array.isArray(args) ? args : []);
+        } catch (e) {
+            return undefined;
+        }
+    }
+
     function resolveGlobalValue(name: any) {
         if (typeof name !== 'string' || !name) return undefined;
+        const bridge = getSignalBridge();
         try {
-            if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis as any, name)) {
-                return (globalThis as any)[name];
+            const resolveRuntimeValue = readSignalBridgeMethod('resolveRuntimeValue')
+                || readSignalBridgeMethod('readRuntimeValue');
+            if (resolveRuntimeValue) {
+                const value = resolveRuntimeValue(name);
+                if (typeof value !== 'undefined') return value;
             }
         } catch (e) { /* ignore */ }
         try {
-            if (typeof window !== 'undefined' && window && Object.prototype.hasOwnProperty.call(window as any, name)) {
-                return (window as any)[name];
+            if (bridge && Object.prototype.hasOwnProperty.call(bridge, name)) {
+                return bridge[name];
             }
         } catch (e) { /* ignore */ }
         return undefined;
@@ -175,21 +194,31 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return cachedPendingCoordinator;
     }
 
-    function getPlaybackStateManager() {
-        const bridge = getSignalBridge();
-        if (bridge && bridge.playbackStateManager && typeof bridge.playbackStateManager === 'object') {
-            return bridge.playbackStateManager;
+    function beginSelectionSettlementLock(meta: any) {
+        const token = {
+            id: nextSelectionSettlementLockId++,
+            meta: (meta && typeof meta === 'object') ? Object.assign({}, meta) : null,
+            playbackToken: null
+        };
+        token.playbackToken = invokeSignalBridgeMethod('acquireSelectionSettlementLock', [token.meta]) || null;
+        activeSelectionSettlementLocks.push(token);
+        return { id: token.id };
+    }
+
+    function endSelectionSettlementLock(token: any) {
+        const tokenId = Number(token && token.id);
+        if (!Number.isFinite(tokenId)) return false;
+        const lockIndex = activeSelectionSettlementLocks.findIndex((entry) => Number(entry && entry.id) === tokenId);
+        if (lockIndex < 0) return false;
+        const [lockEntry] = activeSelectionSettlementLocks.splice(lockIndex, 1);
+        if (lockEntry && lockEntry.playbackToken) {
+            invokeSignalBridgeMethod('releaseSelectionSettlementLock', [lockEntry.playbackToken]);
         }
-        const getPlaybackStateManagerFromBridge = readSignalBridgeMethod('getPlaybackStateManager');
-        if (getPlaybackStateManagerFromBridge) {
-            try {
-                const playbackStateFromBridge = getPlaybackStateManagerFromBridge();
-                if (playbackStateFromBridge && typeof playbackStateFromBridge === 'object') {
-                    return playbackStateFromBridge;
-                }
-            } catch (e) { /* ignore */ }
-        }
-        return null;
+        return true;
+    }
+
+    function isSelectionSettlementLocked() {
+        return activeSelectionSettlementLocks.length > 0;
     }
 
     function resolvePendingSelectionContract(pendingType: any) {
@@ -341,114 +370,60 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function setSelectionProcessing(nextValue: any) {
-        const playbackState = getPlaybackStateManager();
         const normalized = nextValue === true;
         localSelectionBusyState.processing = normalized;
-        if (!playbackState || typeof playbackState !== 'object') return true;
-        try {
-            if (typeof playbackState.setBusyState === 'function') {
-                playbackState.setBusyState({ processing: normalized });
-                return true;
-            }
-            if (typeof playbackState.setProcessing === 'function') {
-                playbackState.setProcessing(normalized);
-                return true;
-            }
-        } catch (e) { /* ignore */ }
+        invokeSignalBridgeMethod('setSelectionProcessing', [normalized]);
         return true;
     }
 
     function setSelectionCardAnimating(nextValue: any) {
-        const playbackState = getPlaybackStateManager();
         const normalized = nextValue === true;
         localSelectionBusyState.cardAnimating = normalized;
-        if (!playbackState || typeof playbackState !== 'object') return true;
-        try {
-            if (typeof playbackState.setBusyState === 'function') {
-                playbackState.setBusyState({ cardAnimating: normalized });
-                return true;
-            }
-            if (typeof playbackState.setCardAnimating === 'function') {
-                playbackState.setCardAnimating(normalized);
-                return true;
-            }
-        } catch (e) { /* ignore */ }
+        invokeSignalBridgeMethod('setSelectionCardAnimating', [normalized]);
         return true;
     }
 
     function setSelectionBusy(nextValue: any) {
-        const playbackState = getPlaybackStateManager();
         const normalized = nextValue === true;
+        if (normalized) {
+            if (!sharedSelectionBusyLockToken) {
+                sharedSelectionBusyLockToken = beginSelectionSettlementLock({ source: 'selection_busy_bridge' });
+            }
+        } else if (sharedSelectionBusyLockToken) {
+            endSelectionSettlementLock(sharedSelectionBusyLockToken);
+            sharedSelectionBusyLockToken = null;
+        }
         localSelectionBusyState.processing = normalized;
         localSelectionBusyState.cardAnimating = normalized;
-        if (playbackState && typeof playbackState === 'object') {
-            try {
-                if (typeof playbackState.setBusyState === 'function') {
-                    playbackState.setBusyState({
-                        processing: normalized,
-                        cardAnimating: normalized
-                    });
-                    return true;
-                }
-            } catch (e) { /* ignore */ }
-        }
+        invokeSignalBridgeMethod('setSelectionBusy', [normalized]);
         return true;
     }
 
     function readSelectionBusyState() {
-        const playbackState = getPlaybackStateManager();
-        if (!playbackState || typeof playbackState !== 'object') {
+        const settlementLocked = isSelectionSettlementLocked();
+        const bridgeState = invokeSignalBridgeMethod('readSelectionBusyState', [{
+            settlementLocked,
+            localSelectionBusyState: Object.assign({}, localSelectionBusyState)
+        }]);
+        if (bridgeState && typeof bridgeState === 'object') {
             return {
-                processing: localSelectionBusyState.processing === true,
-                cardAnimating: localSelectionBusyState.cardAnimating === true
+                processing: settlementLocked || bridgeState.processing === true,
+                cardAnimating: settlementLocked || bridgeState.cardAnimating === true
             };
         }
 
-        let processing = false;
-        let cardAnimating = false;
-        try {
-            if (typeof playbackState.getProcessing === 'function') {
-                processing = playbackState.getProcessing() === true;
-            }
-        } catch (e) { /* ignore */ }
-        try {
-            if (typeof playbackState.getCardAnimating === 'function') {
-                cardAnimating = playbackState.getCardAnimating() === true;
-            }
-        } catch (e) { /* ignore */ }
-
         return {
-            processing,
-            cardAnimating
+            processing: settlementLocked || localSelectionBusyState.processing === true,
+            cardAnimating: settlementLocked || localSelectionBusyState.cardAnimating === true
         };
     }
 
     function shouldAllowSelectionEntryDuringPlayback(playerKey: any, pendingType: any) {
-        const playbackState = getPlaybackStateManager();
-        if (!playbackState || typeof playbackState.shouldAllowSelectionEntryDuringPlayback !== 'function') {
-            return false;
-        }
-        try {
-            return playbackState.shouldAllowSelectionEntryDuringPlayback({
-                playerKey,
-                pendingType
-            }) === true;
-        } catch (e) {
-            return false;
-        }
+        return invokeSignalBridgeMethod('shouldAllowSelectionEntryDuringPlayback', [{ playerKey, pendingType }]) === true;
     }
 
     function clearSelectionEntryDuringPlayback() {
-        const playbackState = getPlaybackStateManager();
-        if (!playbackState || typeof playbackState.clearSelectionEntryPlaybackContext !== 'function') {
-            return false;
-        }
-        try {
-            playbackState.clearSelectionEntryPlaybackContext();
-            return true;
-        } catch (e) {
-            return false;
-        }
+        return invokeSignalBridgeMethod('clearSelectionEntryPlaybackContext') === true;
     }
 
     function readMatchMode() {
@@ -924,14 +899,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             suppressBoardExpansionRevealSound: true
         };
 
-        const playbackState = getPlaybackStateManager();
-        if (playbackState && typeof playbackState.armBoardUpdateContext === 'function') {
-            try {
-                playbackState.armBoardUpdateContext(context);
-                return true;
-            } catch (e) { /* ignore */ }
-        }
-        return false;
+        return invokeSignalBridgeMethod('armSelectionBoardUpdateContext', [context]) === true;
     }
 
     function emitSelectionStateChangeSignals(playbackEvents: any) {
@@ -970,14 +938,20 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const allowSelectionEntryDuringPlayback = shouldAllowSelectionEntryDuringPlayback(playerKey, resolvedPendingType);
         const busyState = readSelectionBusyState();
         if (
-            busyState.processing === true
-            || (busyState.cardAnimating === true && allowSelectionEntryDuringPlayback !== true)
+            allowSelectionEntryDuringPlayback !== true
+            && (busyState.processing === true || busyState.cardAnimating === true)
         ) {
             return { ok: false, reason: 'busy' };
         }
         if (allowSelectionEntryDuringPlayback === true) {
             clearSelectionEntryDuringPlayback();
         }
+        const selectionSettlementLockToken = beginSelectionSettlementLock({
+            playerKey,
+            pendingType: resolvedPendingType,
+            actionType,
+            source: 'selection_flow_compatibility'
+        });
         const ownsSelectionCardAnimating = allowSelectionEntryDuringPlayback !== true;
         setSelectionProcessing(true);
         if (ownsSelectionCardAnimating) {
@@ -1098,6 +1072,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 fallbackExecution: true
             };
         } finally {
+            endSelectionSettlementLock(selectionSettlementLockToken);
             if (shouldFinalize) {
                 try {
                     const finalizeOptions = Object.assign({
@@ -1110,12 +1085,12 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         cardStateValue: stateRefs.cardState,
                         onHumanTurnReady: defaultSelectionHandoffRender,
                         ensureCurrentPlayerCanActOrPass: resolveRootFunction('ensureCurrentPlayerCanActOrPass'),
-                        clearCardAnimatingOnFinish: ownsSelectionCardAnimating
+                        clearCardAnimatingOnFinish: true
                     }, (opts.finalizeOptions && typeof opts.finalizeOptions === 'object') ? opts.finalizeOptions : {});
                     await finalizePendingSelectionFlow(finalizeOptions);
                 } catch (e) {
                     setSelectionProcessing(false);
-                    if (ownsSelectionCardAnimating) setSelectionCardAnimating(false);
+                    setSelectionCardAnimating(false);
                 }
             } else {
                 if (shouldClearPendingActionOnExit) {
@@ -1125,7 +1100,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                     });
                 }
                 setSelectionProcessing(false);
-                if (ownsSelectionCardAnimating) setSelectionCardAnimating(false);
+                setSelectionCardAnimating(false);
             }
         }
     }
@@ -1145,6 +1120,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             getPendingCoordinator,
             shouldAllowSelectionEntryDuringPlayback,
             readSelectionBusyState,
+            beginSelectionSettlementLock,
+            endSelectionSettlementLock,
             clearSelectionEntryDuringPlayback,
             setSelectionProcessing,
             setSelectionCardAnimating,
@@ -1187,6 +1164,9 @@ export = {
     setSelectionProcessing,
     setSelectionCardAnimating,
     setSelectionBusy,
+    beginSelectionSettlementLock,
+    endSelectionSettlementLock,
+    isSelectionSettlementLocked,
     createPendingSelectionAction,
     readPendingSelectionAction,
     syncPendingSelectionActionCache,

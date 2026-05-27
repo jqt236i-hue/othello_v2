@@ -10,6 +10,8 @@ import _generate_asset_manifest from './generate-asset-manifest';
 const { generateManifest } = _generate_asset_manifest;
 import _generate_observation_gacha_catalog from './generate-observation-gacha-catalog';
 const { generateObservationGachaCatalogs } = _generate_observation_gacha_catalog;
+import _sync_browser_script_versions from './sync-browser-script-versions';
+const { syncBrowserScriptVersions } = _sync_browser_script_versions;
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -25,6 +27,7 @@ interface ServeArgs {
 
 interface ArtifactRefreshState {
     lastAssetSourceFingerprint: string;
+    lastBrowserScriptFingerprint: string;
 }
 
 interface ArtifactRefreshOptions {
@@ -187,6 +190,34 @@ function refreshGeneratedCatalogArtifacts(rootPath: string) {
     }
 }
 
+function computeBrowserScriptFingerprint(rootPath: string) {
+    const resolvedRoot = path.resolve(String(rootPath || '.'));
+    const trackedFiles = [
+        path.join(resolvedRoot, 'entry-browser.js'),
+        path.join(resolvedRoot, 'public', 'module-registry.js')
+    ];
+    const entries: string[] = [];
+    for (const filePath of trackedFiles) {
+        if (!fs.existsSync(filePath)) continue;
+        const stats = fs.statSync(filePath);
+        const relativePath = path.relative(resolvedRoot, filePath).replace(/\\/g, '/');
+        entries.push(`${relativePath}:${Math.floor(stats.mtimeMs)}:${stats.size}`);
+    }
+    entries.sort();
+    return JSON.stringify(entries);
+}
+
+function refreshBrowserScriptVersions(rootPath: string) {
+    const resolvedRoot = path.resolve(String(rootPath || '.'));
+    const indexPath = path.join(resolvedRoot, 'index.html');
+    const entryBrowserPath = path.join(resolvedRoot, 'entry-browser.js');
+    const moduleRegistryPath = path.join(resolvedRoot, 'public', 'module-registry.js');
+    if (!fs.existsSync(indexPath) || !fs.existsSync(entryBrowserPath) || !fs.existsSync(moduleRegistryPath)) {
+        return;
+    }
+    syncBrowserScriptVersions({ rootDir: resolvedRoot, write: true });
+}
+
 function collectAssetSourceEntries(dirPath: string, basePath: string, entries: string[]): void {
     if (!fs.existsSync(dirPath)) return;
     const dirEntries = fs.readdirSync(dirPath, { withFileTypes: true });
@@ -225,21 +256,38 @@ function refreshGeneratedCatalogArtifactsIfNeeded(rootPath: string, state: Artif
     return { changed: true, fingerprint: nextFingerprint };
 }
 
+function refreshBrowserScriptVersionsIfNeeded(rootPath: string, state: ArtifactRefreshState) {
+    const resolvedRoot = path.resolve(String(rootPath || '.'));
+    const nextFingerprint = computeBrowserScriptFingerprint(resolvedRoot);
+    if (state.lastBrowserScriptFingerprint === nextFingerprint) {
+        return { changed: false, fingerprint: nextFingerprint };
+    }
+    refreshBrowserScriptVersions(resolvedRoot);
+    state.lastBrowserScriptFingerprint = nextFingerprint;
+    return { changed: true, fingerprint: nextFingerprint };
+}
+
 function startArtifactRefreshLoop(rootPath: string, options: ArtifactRefreshOptions = {}) {
     const resolvedRoot = path.resolve(String(rootPath || '.'));
     const intervalMs = Number.isFinite(Number(options.intervalMs))
         ? Math.max(250, Math.floor(Number(options.intervalMs)))
         : 500;
     const state = {
-        lastAssetSourceFingerprint: computeAssetSourceFingerprint(resolvedRoot)
+        lastAssetSourceFingerprint: computeAssetSourceFingerprint(resolvedRoot),
+        lastBrowserScriptFingerprint: computeBrowserScriptFingerprint(resolvedRoot)
     };
     const tick = () => {
         try {
-            return refreshGeneratedCatalogArtifactsIfNeeded(resolvedRoot, state);
+            const assetResult = refreshGeneratedCatalogArtifactsIfNeeded(resolvedRoot, state);
+            const browserResult = refreshBrowserScriptVersionsIfNeeded(resolvedRoot, state);
+            return { assetResult, browserResult };
         } catch (error) {
             const message = error instanceof Error ? error.message : error;
             console.warn('[serve] asset refresh failed:', message);
-            return { changed: false, fingerprint: state.lastAssetSourceFingerprint, error };
+            return {
+                assetResult: { changed: false, fingerprint: state.lastAssetSourceFingerprint, error },
+                browserResult: { changed: false, fingerprint: state.lastBrowserScriptFingerprint, error }
+            };
         }
     };
     const timer = setInterval(tick, intervalMs);
@@ -264,6 +312,7 @@ async function main() {
     const entrypoint = resolveHttpServerEntrypoint();
     const resolvedRoot = path.resolve(process.cwd(), args.root || '.');
     refreshGeneratedCatalogArtifacts(resolvedRoot);
+    refreshBrowserScriptVersions(resolvedRoot);
     const artifactRefreshLoop = startArtifactRefreshLoop(resolvedRoot);
     const selectedPort = await chooseServePort(args);
     if (selectedPort !== args.preferredPort) {

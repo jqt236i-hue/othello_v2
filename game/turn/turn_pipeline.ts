@@ -15,6 +15,7 @@ const CardLogic = _require('../logic/cards');
 const Core = _require('../logic/core');
 const TurnPipelinePhases = _require('./turn_pipeline_phases');
 const BoardOps = _require('../logic/board_ops');
+const SubPlacementContinuation = _require('./sub-placement-continuation');
 
 const OwnerHelpersModule = (() => {
   try {
@@ -45,7 +46,12 @@ function applyTurn(cardState: any, gameState: any, playerKey: string, action: an
   }
   try {
     // 1) Turn start processing
-    if (opts.skipTurnStart !== true) {
+    const skipTurnStartForSubPlacement = (
+      SubPlacementContinuation &&
+      typeof SubPlacementContinuation.isSubPlacementTurnActive === 'function' &&
+      SubPlacementContinuation.isSubPlacementTurnActive(cardState, normalizedPlayerKey)
+    );
+    if (opts.skipTurnStart !== true && skipTurnStartForSubPlacement !== true) {
       TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, normalizedPlayerKey, events, p);
     }
 

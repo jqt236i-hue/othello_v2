@@ -98,10 +98,11 @@ describe('pending selection card contracts', () => {
     }
   });
 
-  test('registry CPU and UI handler names are wired to runtime surfaces', () => {
+  test('registry CPU handlers and UI dispatch keys are wired to runtime surfaces', () => {
     const registry = PendingSelectionRegistry.PENDING_SELECTION_REGISTRY;
     const cpuDecisionSource = fs.readFileSync(path.join(repoRoot, 'game/cpu-decision.ts'), 'utf8');
-    const uiSource = fs.readFileSync(path.join(repoRoot, 'game/turn-manager.ts'), 'utf8');
+    const uiBootstrapSource = fs.readFileSync(path.join(repoRoot, 'ui/bootstrap.ts'), 'utf8');
+    const turnManagerSource = fs.readFileSync(path.join(repoRoot, 'game/turn-manager.ts'), 'utf8');
     const byDispatchKey = PendingSelectionRegistry.getPendingSelectionCpuHandlerNamesByDispatchKey();
 
     for (const [cardType, entry] of Object.entries(registry) as any[]) {
@@ -111,11 +112,12 @@ describe('pending selection card contracts', () => {
           expect(cpuDecisionSource).toContain(handlerName);
         }
       }
-      if (entry.uiHandlerName) {
-        expect(uiSource).toContain(entry.uiHandlerName);
+      if (entry.needsTargetSelection && entry.kind !== 'hand_overlay') {
+        expect(uiBootstrapSource).toContain(`${entry.dispatchKey}: '`);
       }
       expect(PendingSelectionRegistry.getPendingSelectionEntry(cardType)).toEqual(entry);
     }
+    expect(turnManagerSource).toContain('dispatchPendingSelection');
   });
 
   test('CPU pending dispatch is derived from registry dispatch keys', () => {

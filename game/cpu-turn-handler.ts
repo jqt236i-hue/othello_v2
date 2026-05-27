@@ -8,8 +8,6 @@ import type { CardState, GameState, PlayerKey } from '../src/types';
 
 // Global declarations for functions not in ui/globals.d.ts
 declare const countDiscs: any;
-declare const emitLogAdded: any;
-declare const debugLog: any;
 declare const selectCardFromOnnxPolicyAsync: any;
 declare const applyCardChoice: any;
 declare const buildCardUseDecisionContext: any;
@@ -48,9 +46,6 @@ declare const cpuSelectMeteorWillWithPolicy: any;
 declare const cpuSelectFreezeWillWithPolicy: any;
 declare const cpuSelectSeedWillWithPolicy: any;
 declare const cpuSelectCloneWillWithPolicy: any;
-declare let isProcessing: any;
-declare let isCardAnimating: any;
-declare let VisualPlaybackActive: any;
 
 // CPU turn orchestration extracted from turn-manager
 
@@ -90,6 +85,7 @@ function requireCpuTurnHandlerModuleOrNull(id: string): any {
 }
 
 const PendingSelectionRegistryForCpu = requireCpuTurnHandlerModuleOrNull('./logic/cards-internal/pending-selection-registry');
+const CpuTurnControllerEvents = requireCpuTurnHandlerModuleOrNull('./controller-events');
 let cardEffectsHelpers: any = null;
 if (typeof require === 'function') {
     try { cardEffectsHelpers = _require('./card-effects/helpers'); } catch (e) { /* ignore */ }
@@ -199,6 +195,34 @@ function resolveRuntimeFunction(name: string): Function | null {
     return null;
 }
 
+function emitCpuTurnLogAdded(message: any, kind?: string): boolean {
+    try {
+        const runtimeEmitLogAdded = resolveRuntimeFunction('emitLogAdded');
+        if (typeof runtimeEmitLogAdded === 'function') {
+            if (typeof kind === 'undefined') runtimeEmitLogAdded(message);
+            else runtimeEmitLogAdded(message, kind);
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (CpuTurnControllerEvents && typeof CpuTurnControllerEvents.emitLogAdded === 'function') {
+            CpuTurnControllerEvents.emitLogAdded(message, kind);
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function showCpuResultIfAvailable(): boolean {
+    const showResultFn = resolveRuntimeFunction('showResult');
+    if (typeof showResultFn !== 'function') return false;
+    try {
+        showResultFn();
+        return true;
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
 function resolveGenerateMovesForPlayer(): Function | null {
     const runtimeFn = resolveRuntimeFunction('generateMovesForPlayer');
     if (runtimeFn) return runtimeFn;
@@ -217,17 +241,31 @@ function resolveRuntimeValue(name: string): any {
             return __uiImpl_cpu[name];
         }
     } catch (e) { /* ignore */ }
-    try {
-        if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis as any, name)) {
-            return (globalThis as any)[name];
-        }
-    } catch (e) { /* ignore */ }
-    try {
-        if (typeof window !== 'undefined' && window && Object.prototype.hasOwnProperty.call(window as any, name)) {
-            return (window as any)[name];
-        }
-    } catch (e) { /* ignore */ }
     return undefined;
+}
+
+function clampCpuLevelForTurn(value: any): number {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 1;
+    return Math.max(1, Math.min(6, Math.floor(n)));
+}
+
+function resolveCpuLevelForTurn(playerKey: PlayerKey): number {
+    try {
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.readCpuSmartness === 'function') {
+            const smartness = __uiImpl_cpu.readCpuSmartness();
+            if (smartness && Object.prototype.hasOwnProperty.call(smartness, playerKey)) {
+                return clampCpuLevelForTurn(smartness[playerKey]);
+            }
+        }
+    } catch (e) { /* ignore */ }
+
+    const cpuSmartnessRef = resolveRuntimeValue('cpuSmartness')
+        || (typeof cpuSmartness !== 'undefined' ? cpuSmartness : null);
+    if (cpuSmartnessRef && Object.prototype.hasOwnProperty.call(cpuSmartnessRef, playerKey)) {
+        return clampCpuLevelForTurn(cpuSmartnessRef[playerKey]);
+    }
+    return 1;
 }
 
 function resolveCpuCardLogic() {
@@ -396,56 +434,51 @@ function isOthelloModeForCpuTurnHandler() {
     return mode === 'reversi' || mode === 'othello';
 }
 
+function readCpuTurnQuerySearch(): string {
+    try {
+        const readQuerySearch = (__uiImpl_cpu && typeof __uiImpl_cpu.readQuerySearch === 'function')
+            ? __uiImpl_cpu.readQuerySearch
+            : ((__uiImpl_cpu && typeof __uiImpl_cpu.readLocationSearch === 'function')
+                ? __uiImpl_cpu.readLocationSearch
+                : null);
+        if (readQuerySearch) {
+            const value = readQuerySearch();
+            return typeof value === 'string' ? value : '';
+        }
+    } catch (e) { /* ignore */ }
+    return '';
+}
+
 function shouldUseOthelloOnnxMoveDecisionForCpuTurnHandler() {
     if (!isOthelloModeForCpuTurnHandler()) return false;
     try {
         if (typeof process !== 'undefined' && process && process.env && process.env.CPU_DISABLE_OTHELLO_ONNX === '1') return false;
     } catch (e) { /* ignore */ }
     try {
-        const root: any = typeof window !== 'undefined' ? window : null;
-        const qs = root && root.location && typeof root.location.search === 'string' ? root.location.search : '';
+        const qs = readCpuTurnQuerySearch();
         if (/[?&]othelloOnnx=(?:0|false)\b/i.test(qs) || /[?&]othello_onnx=(?:0|false)\b/i.test(qs)) return false;
     } catch (e) { /* ignore */ }
     return true;
 }
 
-function getPlaybackStateForCpuTurn() {
+function readCpuProcessing() {
     try {
-        if (__uiImpl_cpu && typeof __uiImpl_cpu.getPlaybackStateManager === 'function') {
-            const playbackState = __uiImpl_cpu.getPlaybackStateManager();
-            if (playbackState) return playbackState;
-        }
-        if (__uiImpl_cpu && __uiImpl_cpu.PlaybackStateManager) {
-            return __uiImpl_cpu.PlaybackStateManager;
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.readProcessing === 'function') {
+            return __uiImpl_cpu.readProcessing() === true;
         }
     } catch (e) { /* ignore */ }
-    return null;
-}
-
-function readCpuProcessing() {
-    const playbackState = getPlaybackStateForCpuTurn();
-    if (playbackState && typeof playbackState.getProcessing === 'function') {
-        return playbackState.getProcessing() === true;
-    }
     const runtimeProcessing = resolveRuntimeValue('isProcessing');
     if (typeof runtimeProcessing !== 'undefined') return runtimeProcessing === true;
-    // @compat - fallback to free variable (injected by turn-manager or bootstrap)
-    if (typeof isProcessing !== 'undefined') return isProcessing === true;
     return false;
 }
 
 function setCpuProcessing(active: any) {
     const next = active === true;
-    const playbackState = getPlaybackStateForCpuTurn();
-    if (playbackState && typeof playbackState.setProcessing === 'function') {
-        playbackState.setProcessing(next);
-    }
     try {
         if (__uiImpl_cpu && typeof __uiImpl_cpu.setProcessing === 'function') {
             __uiImpl_cpu.setProcessing(next);
         }
     } catch (e) { /* ignore */ }
-    try { isProcessing = next; } catch (e) { /* ignore */ }
     return next;
 }
 
@@ -461,10 +494,32 @@ function shouldAbortCpuForHumanMode(playerKey: any, context: any) {
 }
 
 function debugCpuTrace(message: any, meta?: any) {
+    emitCpuDebugLog(message, 'debug', meta || {});
+}
+
+function isCpuDebugLogAvailable(): boolean {
     try {
-        if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
-            if (typeof debugLog === 'function') {
-                debugLog(message, 'debug', meta || {});
+        const isDebugAvailableFn = resolveRuntimeFunction('isDebugLogAvailable');
+        if (typeof isDebugAvailableFn === 'function') {
+            return isDebugAvailableFn() === true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (resolveRuntimeValue('DEBUG_CPU_LOG') === true) return true;
+    } catch (e) { /* ignore */ }
+    try {
+        const qs = readCpuTurnQuerySearch();
+        return /[?&]debug=(?:1|true)\b/i.test(qs);
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function emitCpuDebugLog(message: any, level?: any, meta?: any) {
+    try {
+        if (isCpuDebugLogAvailable()) {
+            const debugLogFn = resolveRuntimeFunction('debugLog');
+            if (typeof debugLogFn === 'function') {
+                debugLogFn(message, level || 'debug', meta || {});
             } else {
                 console.log(message, meta || {});
             }
@@ -819,7 +874,6 @@ function resolveCommentaryCpuLevel(playerKey: any, explicitLevel: any) {
 function emitCpuCommentary(eventType: any, playerKey: any, extra: any) {
     const runtime = resolveCpuCommentaryRuntime();
     if (!runtime || typeof runtime.requestCommentary !== 'function') return;
-    if (typeof emitLogAdded !== 'function') return;
 
     const helpers = resolveCommentaryContextHelpers();
     const counts = countDiscsSafe(gameState);
@@ -861,7 +915,7 @@ function emitCpuCommentary(eventType: any, playerKey: any, extra: any) {
     runtime.requestCommentary(context).then((text: any) => {
         const entry = formatPresentationCommentaryResult(playerKey, text);
         if (!entry) return;
-        emitLogAdded(Object.assign({
+        emitCpuTurnLogAdded(Object.assign({
             kind: 'commentary',
             speakerRole: 'cpu'
         }, entry));
@@ -1136,8 +1190,11 @@ function createPresentationRuntime(dependencies: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const delay = Number.isFinite(payload.delayMs) ? payload.delayMs : 0;
         const timerService = getCpuTurnTimerService();
-        const scheduleFn = (typeof opts.setTimeout === 'function') ? opts.setTimeout : (timerService ? timerService.setTimeout.bind(timerService) : setTimeout);
+        const scheduleFn = (typeof opts.setTimeout === 'function')
+            ? opts.setTimeout
+            : (timerService ? timerService.setTimeout.bind(timerService) : null);
         const cpuTurnFn = (typeof opts.processCpuTurn === 'function') ? opts.processCpuTurn : processScheduledCpuTurn;
+        if (typeof scheduleFn !== 'function') return null;
 
         return scheduleFn(function () {
             try {
@@ -1295,24 +1352,15 @@ function setTimers(t: any): void {
 function getTimers(): any { return timers; }
 
 function isUiAnimationBusy() {
-    const playbackState = getPlaybackStateForCpuTurn();
-    if (playbackState) {
-        if (typeof playbackState.getCardAnimating === 'function' && playbackState.getCardAnimating() === true) {
-            return true;
+    try {
+        if (__uiImpl_cpu && typeof __uiImpl_cpu.readAnimationBusy === 'function') {
+            return __uiImpl_cpu.readAnimationBusy() === true;
         }
-        if (typeof playbackState.getPlaybackActive === 'function' && playbackState.getPlaybackActive() === true) {
-            return true;
-        }
-    }
-    // @compat - isCardAnimating / VisualPlaybackActive as free variables (module-level in turn-manager)
+    } catch (e) { /* ignore */ }
     const runtimeCard = resolveRuntimeValue('isCardAnimating');
     const runtimePlayback = resolveRuntimeValue('VisualPlaybackActive');
-    const localCard = typeof runtimeCard !== 'undefined'
-        ? runtimeCard === true
-        : ((typeof isCardAnimating !== 'undefined') ? !!isCardAnimating : false);
-    const winPlayback = typeof runtimePlayback !== 'undefined'
-        ? runtimePlayback === true
-        : ((typeof VisualPlaybackActive !== 'undefined') ? (VisualPlaybackActive === true) : false);
+    const localCard = typeof runtimeCard !== 'undefined' ? runtimeCard === true : false;
+    const winPlayback = typeof runtimePlayback !== 'undefined' ? runtimePlayback === true : false;
     return localCard || winPlayback;
 }
 const _cpuRetryPendingByPlayer: Record<string, any> = { black: null, white: null };
@@ -1345,8 +1393,6 @@ function resetCpuTurnHandlerState() {
         try {
             if (timerService) {
                 timerService.clearTimeout(tid);
-            } else {
-                clearTimeout(tid as any);
             }
         } catch (e) { /* ignore */ }
     }
@@ -1505,7 +1551,7 @@ function tryApplyAnyUsableCard(playerKey: any) {
 
 // Prefer shared scheduleRetry helper from game/timer-utils when available, fallback to a local implementation
 // Build scheduleRetry as a small wrapper that prefers injected timers with a real impl,
-// then falls back to setTimeout.
+// then falls back to the injected TimerService.
 function hasUsableWaitMs(t: any) {
     if (!t || typeof t.waitMs !== 'function') return false;
     // game/timers exposes hasTimerImpl(): false means Promise.resolve() immediate fallback
@@ -1534,13 +1580,7 @@ function scheduleRetry(fn: any, delayMs: any = getAnimationRetryDelayMs()) {
         return;
     }
 
-    // 3) Fallback to global setTimeout
-    const tid = setTimeout(() => {
-        _scheduledRetryTimerIds.delete(tid);
-        try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); }
-    }, delayMs);
-    _scheduledRetryTimerIds.add(tid);
-    if (tid && typeof tid.unref === 'function') tid.unref();
+    // 3) No timer implementation is available in this runtime.
 }
 
 // Return a mapping of shared pending-dispatch keys => async handler for a given playerKey.
@@ -1585,15 +1625,14 @@ async function processCpuTurn(): Promise<void> {
         setCpuProcessing(false);
         return;
     }
-    const localIsCardAnimating = resolveRuntimeValue('isCardAnimating') === true
-        || ((typeof isCardAnimating !== 'undefined') ? !!isCardAnimating : false);
+    const localIsCardAnimating = isUiAnimationBusy();
     debugCpuTrace('[DEBUG][processCpuTurn] enter', {
         isProcessing: readCpuProcessing(),
         isCardAnimating: localIsCardAnimating,
         gameStateCurrentPlayer: gameState && gameState.currentPlayer
     });
     if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
-        if (typeof showResult === 'function') showResult();
+        showCpuResultIfAvailable();
         setCpuProcessing(false);
         debugCpuTrace('[DEBUG][processCpuTurn] skip: game over');
         return;
@@ -1617,7 +1656,7 @@ async function processAutoBlackTurn(): Promise<void> {
     if (isHumanVsHumanModeEnabled()) return;
     // Re-enabled for Auto mode: invoke black run with autoMode flag
     if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
-        if (typeof showResult === 'function') showResult();
+        showCpuResultIfAvailable();
         setCpuProcessing(false);
         return;
     }
@@ -1631,8 +1670,8 @@ function handleCpuTurnError(playerKey: PlayerKey, selfName: string, error: any, 
     console.error(`[AI] Error in runCpuTurn for ${playerKey}:`, error);
     console.error(`[AI] Error message: ${message}`);
     console.error(`[AI] Error stack: ${error && error.stack ? error.stack : ''}`);
-    if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
-        debugLog(`[AI] CPU Error for ${playerKey}: ${message}`, 'error', {
+    if (isCpuDebugLogAvailable()) {
+        emitCpuDebugLog(`[AI] CPU Error for ${playerKey}: ${message}`, 'error', {
             errorStack: error && error.stack ? error.stack : '',
             playerKey
         });
@@ -1647,9 +1686,7 @@ function handleCpuTurnError(playerKey: PlayerKey, selfName: string, error: any, 
         clearCpuPendingSelection(playerKey);
     }
     setCpuProcessing(false);
-    if (typeof emitLogAdded === 'function') {
-        emitLogAdded(`${selfName}の思考中にエラーが発生しました`);
-    }
+    emitCpuTurnLogAdded(`${selfName}の思考中にエラーが発生しました`);
     resetPendingSelectRetryState(playerKey);
     scheduleRunCpuTurn(playerKey, { autoMode }, getAnimationRetryDelayMs());
 }
@@ -1669,7 +1706,7 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
     }
 
     if (typeof isGameOver === 'function' && gameState && isGameOver(gameState)) {
-        if (typeof showResult === 'function') showResult();
+        showCpuResultIfAvailable();
         setCpuProcessing(false);
         return;
     }
@@ -1683,8 +1720,8 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
         return;
     }
 
-    if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
-        debugLog(`[AI] Starting CPU turn for ${playerKey}`, 'info', {
+    if (isCpuDebugLogAvailable()) {
+        emitCpuDebugLog(`[AI] Starting CPU turn for ${playerKey}`, 'info', {
             playerKey,
             isWhite,
             autoMode,
@@ -1713,11 +1750,7 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
     }
 
     try {
-        const cpuSmartnessRef = resolveRuntimeValue('cpuSmartness')
-            || (typeof cpuSmartness !== 'undefined' ? cpuSmartness : null);
-        const level = (cpuSmartnessRef && Number.isFinite(cpuSmartnessRef[playerKey]))
-            ? cpuSmartnessRef[playerKey]
-            : 1;
+        const level = resolveCpuLevelForTurn(playerKey);
         const hasUsedCardThisTurn = !!(cardState && cardState.hasUsedCardThisTurnByPlayer && cardState.hasUsedCardThisTurnByPlayer[playerKey]);
         const hasPendingSelection = !!readCpuPendingSelection(playerKey);
         const othelloMode = isOthelloModeForCpuTurnHandler();
@@ -1806,8 +1839,8 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             const pendingDispatchKey = resolvePendingSelectionDispatchKeyForCpu(pending.type);
             const handler = pendingDispatchKey ? (getPendingDispatchHandlers(playerKey) as any)[pendingDispatchKey] : null;
             if (handler) {
-                if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
-                    debugLog(`[AI] CPU selecting ${pending.type.replace(/_/g, ' ').toLowerCase()} target`, 'debug', { playerKey, pendingEffect: pending });
+                if (isCpuDebugLogAvailable()) {
+                    emitCpuDebugLog(`[AI] CPU selecting ${pending.type.replace(/_/g, ' ').toLowerCase()} target`, 'debug', { playerKey, pendingEffect: pending });
                 }
                 await handler();
                 if (shouldAbortCpuForHumanMode(playerKey, 'after_pending_selection')) {
@@ -1949,23 +1982,14 @@ async function runCpuTurn(playerKey: PlayerKey, { autoMode = false }: { autoMode
             }
             return;
         }
-        if (typeof isDebugLogAvailable === 'function' && isDebugLogAvailable()) {
-            debugLog(`[AI] Move selected`, 'info', {
+        if (isCpuDebugLogAvailable()) {
+            emitCpuDebugLog(`[AI] Move selected`, 'info', {
                 playerKey,
                 selectedMove: { row: move.row, col: move.col },
                 candidateCount: candidateMoves.length,
                 flips: move.flips ? move.flips.length : 0
             });
         }
-        try {
-            console.log(`[CPU] ${playerKey} move selected`, {
-                row: move.row,
-                col: move.col,
-                level,
-                candidateCount: candidateMoves.length
-            });
-        } catch (e) { /* ignore */ }
-
         const minThinkMs = resolveLv6MinThinkMs(playerKey, level, autoMode);
         const thinkElapsedMs = Math.max(0, Date.now() - turnStartMs);
         const extraDelayMs = Math.max(0, minThinkMs - thinkElapsedMs);

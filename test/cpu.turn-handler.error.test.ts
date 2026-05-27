@@ -62,6 +62,7 @@ describe('cpu-turn-handler error recovery', () => {
       setProcessing: (next) => {
         global.isProcessing = next === true;
       },
+      emitLogAdded: (...args) => global.emitLogAdded(...args),
       generateMovesForPlayer: () => {
         throw new Error('forced generate failure');
       }
@@ -90,6 +91,7 @@ describe('cpu-turn-handler error recovery', () => {
       setProcessing: (next) => {
         global.isProcessing = next === true;
       },
+      emitLogAdded: (...args) => global.emitLogAdded(...args),
       generateMovesForPlayer: () => [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }]
     });
 
@@ -120,6 +122,7 @@ describe('cpu-turn-handler error recovery', () => {
       setProcessing: (next) => {
         global.isProcessing = next === true;
       },
+      emitLogAdded: (...args) => global.emitLogAdded(...args),
       generateMovesForPlayer: () => [{ row: 2, col: 3, flips: [{ row: 3, col: 3 }] }],
       executeMove: jest.fn(() => Promise.reject(new Error('forced execute failure')))
     });

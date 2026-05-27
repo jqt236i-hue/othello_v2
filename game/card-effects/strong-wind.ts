@@ -10,10 +10,16 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
-declare const emitLogAdded: any;
+const ControllerEvents = _require('../controller-events');
 
 function getPlayerLabel(playerKey: string): string {
     return playerKey === 'black' ? '黒' : '白';
+}
+
+function emitMovementLog(message: string): void {
+    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
+        ControllerEvents.emitLogAdded(message);
+    }
 }
 
 async function handleMovementSelection(row: number, col: number, playerKey: string, options: any) {
@@ -35,9 +41,7 @@ async function handleMovementSelection(row: number, col: number, playerKey: stri
         },
         buildPlaybackMeta: () => ({ cause: opts.cause, target: { row, col } }),
         afterStateChange: () => {
-            if (typeof emitLogAdded === 'function') {
-                emitLogAdded(`${getPlayerLabel(playerKey)}が${opts.activationName}を発動`);
-            }
+            emitMovementLog(`${getPlayerLabel(playerKey)}が${opts.activationName}を発動`);
         }
     });
 }
@@ -118,13 +122,12 @@ async function handleSuperAttractionSelection(row: number, col: number, playerKe
         validateResult: ({ result }: any) => !!getSuperAttractionSelectedEvent(result),
         buildPlaybackMeta: () => ({ cause: 'SUPER_ATTRACTION_WILL', target: { row, col } }),
         afterStateChange: ({ result }: any) => {
-            if (typeof emitLogAdded !== 'function') return;
             const selected = getSuperAttractionSelectedEvent(result);
             if (selected && selected.completed === false) {
-                emitLogAdded('超引力: 引き寄せ先のマスを選んでください');
+                emitMovementLog('超引力: 引き寄せ先のマスを選んでください');
                 return;
             }
-            emitLogAdded(`${getPlayerLabel(playerKey)}が超引力を発動`);
+            emitMovementLog(`${getPlayerLabel(playerKey)}が超引力を発動`);
         }
     });
 }

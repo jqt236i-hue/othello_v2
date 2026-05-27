@@ -157,6 +157,7 @@ describe('TRAP_WILL selection turn handoff', () => {
     globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
 
     const { handleTrapSelection } = require('../game/card-effects/trap.js');
+    const selectionFlow = require('../game/card-effects/selection-flow.js');
     const pendingPromise = handleTrapSelection(2, 2, 'black');
     await Promise.resolve();
     await Promise.resolve();
@@ -164,11 +165,19 @@ describe('TRAP_WILL selection turn handoff', () => {
     expect(typeof releasePlayback).toBe('function');
     expect(global.isProcessing).toBe(true);
     expect(global.isCardAnimating).toBe(true);
+    expect(selectionFlow.isSelectionSettlementLocked()).toBe(true);
     expect(global.onTurnStart).not.toHaveBeenCalled();
+
+    await expect(handleTrapSelection(3, 3, 'black')).resolves.toMatchObject({
+      ok: false,
+      reason: 'busy'
+    });
+    expect(global.NetworkMatchClient.publishSnapshot).toHaveBeenCalledTimes(0);
 
     releasePlayback();
     await pendingPromise;
 
     expect(global.isCardAnimating).toBe(false);
+    expect(selectionFlow.isSelectionSettlementLocked()).toBe(false);
   });
 });

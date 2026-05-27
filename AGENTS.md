@@ -11,6 +11,7 @@ othello_v2/
 ├── 01-rulebook.md              # ゲーム仕様・カード仕様・UI表示仕様の一次情報
 ├── index.html                  # main browser entry
 ├── entry-browser.js            # classic browser bootstrap / module loading
+├── 正本/                       # detailed desired behavior notes for cards, turn flow, presentation, sound, and audit status
 ├── cards/                      # display catalog and card UI surfaces
 ├── game/                       # headless rules, turn flow, CPU runtime helpers
 ├── ui/                         # browser UI, playback, input, DI, network client
@@ -19,7 +20,7 @@ othello_v2/
 ├── utils/                      # authority / normalization helpers shared across runtimes
 ├── workers/                    # Cloudflare Worker authority entry
 ├── scripts/                    # build, check, codegen, local server, selfplay orchestration
-├── ai/train/                   # Python training scripts and setup
+├── training/                    # selfplay/training scripts, Python trainers, and docs
 ├── test/                       # main Jest tests
 ├── tests/                      # Jest setup and visual-regression tooling
 └── worker-public/              # generated/mirrored deploy surface; do not edit first
@@ -30,6 +31,7 @@ othello_v2/
 | Task | Location | Notes |
 | --- | --- | --- |
 | Player-visible behavior | `01-rulebook.md` | Update before implementation when rules, cards, UI timing, or visible text change. |
+| Detailed desired behavior / audit notes | `正本/*.md` | Use for card-specific behavior, turn order, animation, sound, and confidence/audit notes. Update only when a player-visible spec is changed or clarified and the existing note would become stale. |
 | Hard rules / completion | `AGENTS.md` | Repo-wide must-follow constraints. |
 | Architecture boundary | `docs/architecture-contracts.md` | Module contracts, authority, DI, runtime equivalence. |
 | Browser boot | `index.html`, `entry-browser.js`, `ui/bootstrap.ts`, `ui/bootstrap/init-*.ts` | Load order and DI are fragile. |
@@ -41,7 +43,7 @@ othello_v2/
 | Shared helpers | `shared/*`, `utils/owner-helpers.ts`, `shared-constants.ts`, `constants/*` | Avoid local copies of normalization/constants. |
 | Browser integration tests | `test/e2e/*`, `tests/visual-regression/*` | `test/e2e/` is Playwright-on-Jest with local static server; `tests/` is harness/visual tooling. |
 | Worker mirror | `scripts/prepare-worker-assets.ts`, `worker-public/*` | Sync via `npm run worker:prepare`; never source-edit mirror. |
-| Training | `scripts/run-selfplay-*`, `src/engine/selfplay-runner.ts`, `ai/train/*` | JS orchestrates profiles; Python trains model artifacts. |
+| Training | `scripts/run-selfplay-*.js`, `training/scripts/run-selfplay-*.ts`, `src/engine/selfplay-runner.ts`, `training/python/*` | Root `scripts/*.js` are CLI entries/wrappers; TS orchestration lives under `training/scripts/`; Python trains model artifacts. |
 | Tests | `test/*.test.ts`, `game/ai/__tests__`, `scripts/__tests__` | Main suite is `test/`; `tests/` is setup/visual tooling. |
 
 ## CODE MAP
@@ -67,6 +69,9 @@ othello_v2/
 - Prefer `.ts` when a `.ts`/`.js` pair exists. Adjacent `.js` is usually a dist wrapper; check `docs/typescript-migration-js-allowlist.md` before editing `.js`.
 - `game/` stays headless. `ui/` consumes public APIs, events, and DI hooks only.
 - `events[]` playback order and Single Visual Writer are part of the UI contract.
+- Animation, effects, and sound are presentation/playback consumers. They may react to state, snapshots, and `events[]`, but must not decide gameplay results or be called directly from `game/`.
+- `events[]` are presentation-time replay instructions. They must preserve playback order, but they are not stronger authority than canonical game state or network snapshots.
+- UI preview, busy flags, playback locks, and animation state are settlement/presentation state, not canonical gameplay state.
 - Debug behavior is gated by explicit flags such as `?debug=1`; normal play must not get debug side effects.
 - `owner` / `player` / color forms are normalized at boundaries; do not mix internal representations.
 - Generated catalogs and manifests come from scripts, not hand edits.
@@ -75,6 +80,7 @@ othello_v2/
 
 - Before editing, confirm whether the target is source of truth, generated output, or a mirror. Change root source first, then regenerate or mirror through the existing scripts.
 - For rules, card behavior, UI timing, visible text, or player-facing display changes, check `01-rulebook.md` before implementation and update it when the behavior changes.
+- For card behavior, turn order, animation, sound, highlight, or network-visible gameplay changes, also check the relevant `正本/` document. Update `正本/` only when the intended player-visible spec changes, is clarified, or would otherwise become stale; do not touch it for internal-only refactors, generated/mirror sync, or test-only changes.
 - Keep headless layers headless: do not introduce DOM, `window`, audio, timer, or network dependencies into `game/`, `shared/`, CPU logic, or pure card logic.
 - For UI changes, preserve `events[]` playback order and the Single Visual Writer contract. Add presentation through the existing UI bridge instead of creating another board writer.
 - For network changes, treat Worker/local-server snapshots and authority helpers as canonical. Client runtime, preview, and reconciliation state must not become authority.

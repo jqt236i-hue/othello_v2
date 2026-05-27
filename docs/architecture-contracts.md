@@ -113,8 +113,8 @@ The Lv6 CPU training/runtime path spans `constants/`, `scripts/`, `ui/`, and `ga
 
 - `constants/cpu-lv6-shared-profile.ts` is the canonical source for shared browser Lv6 defaults and shared teacher defaults; the adjacent `.js` file is a compatibility wrapper/projection.
 - `shared/cpu-lv6-runtime-capability.ts` is the canonical pure resolver for browser Lv6 decision-mode interpretation, primary-vs-auxiliary ONNX role, runtime guard budgets, and standard-board compatibility checks; the adjacent `.js` file is a compatibility wrapper/projection.
-- `scripts/load-training-profile.ts` is the canonical merger for shared-profile values, named profile YAML, gate YAML, launcher overrides, and derived runtime/training defaults; `scripts/load-training-profile.js` is the Node entry compatibility wrapper.
-- `scripts/resolve-training-profile.ts` and `scripts/run-selfplay-training-profile.ts` own launcher behavior over that resolved structure; their `.js` siblings are CLI compatibility wrappers and must not contain alternate precedence logic.
+- `training/scripts/load-training-profile.ts` is the canonical merger for shared-profile values, named profile YAML, gate YAML, launcher overrides, and derived runtime/training defaults; `scripts/load-training-profile.js` is the Node entry compatibility wrapper.
+- `training/scripts/resolve-training-profile.ts` and `training/scripts/run-selfplay-training-profile.ts` own launcher behavior over that resolved structure; their root `scripts/*.js` siblings are CLI compatibility wrappers and must not contain alternate precedence logic.
 - `ui/handlers/cpu-policy.ts`, `game/cpu-decision.ts`, and `game/cpu-turn-handler.ts` must consume that shared runtime capability resolver instead of re-implementing Lv6 decision-mode parsing separately.
 
 Current behavior is intentionally preserved:

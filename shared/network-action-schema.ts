@@ -38,8 +38,8 @@
 
     function cloneData<T>(value: T): T {
         try {
-            if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
-                return globalThis.structuredClone(value);
+            if (typeof structuredClone === 'function') {
+                return structuredClone(value);
             }
         } catch (e) { /* ignore */ }
         return JSON.parse(JSON.stringify(value));

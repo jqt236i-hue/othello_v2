@@ -1,5 +1,4 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
-declare const emitLogAdded: any;
 
 function _require(id: string): any {
   if (typeof __non_webpack_require__ !== 'undefined') {
@@ -11,6 +10,8 @@ function _require(id: string): any {
   throw new Error('Unable to require ' + id);
 }
 const LOG_MESSAGES = _require('../log-messages');
+const ControllerEvents = _require('../controller-events');
+const { getPlayerDisplayName } = _require('../card-effects/helpers');
 
 /**
  * @file breeding.js
@@ -20,6 +21,47 @@ const LOG_MESSAGES = _require('../log-messages');
 let __uiImpl_breeding: any = {};
 function setUIImpl(obj: any) { __uiImpl_breeding = obj || {}; }
 
+function emitBreedingLog(message: any): void {
+    if (__uiImpl_breeding && typeof __uiImpl_breeding.emitLogAdded === 'function') {
+        __uiImpl_breeding.emitLogAdded(message, 'effect');
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
+        ControllerEvents.emitLogAdded(message, 'effect');
+    }
+}
+
+function emitBreedingBoardUpdate(): void {
+    if (__uiImpl_breeding && typeof __uiImpl_breeding.emitBoardUpdate === 'function') {
+        __uiImpl_breeding.emitBoardUpdate();
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitBoardUpdate === 'function') ControllerEvents.emitBoardUpdate();
+}
+
+function emitBreedingGameStateChange(): void {
+    if (__uiImpl_breeding && typeof __uiImpl_breeding.emitGameStateChange === 'function') {
+        __uiImpl_breeding.emitGameStateChange();
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitGameStateChange === 'function') ControllerEvents.emitGameStateChange();
+}
+
+function emitBreedingCardStateChange(): void {
+    if (__uiImpl_breeding && typeof __uiImpl_breeding.emitCardStateChange === 'function') {
+        __uiImpl_breeding.emitCardStateChange();
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitCardStateChange === 'function') ControllerEvents.emitCardStateChange();
+}
+
+function getBreedingPlayerName(player: number): string {
+    if (__uiImpl_breeding && typeof __uiImpl_breeding.getPlayerName === 'function') {
+        return __uiImpl_breeding.getPlayerName(player);
+    }
+    return getPlayerDisplayName(player);
+}
+
 // Timers abstraction (UI may inject via timers.setTimerImpl)
 let timers = null;
 if (typeof require === 'function') {
@@ -27,7 +69,7 @@ if (typeof require === 'function') {
 }
 const waitMs = (ms: number) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
 
-// Animation timing import (replacing globalThis.getAnimationTiming)
+// Animation timing import through module dependency.
 let _getAnimationTiming_baked: ((key: string) => number) | null = null;
 if (typeof require === 'function') {
     try { ({ getAnimationTiming: _getAnimationTiming_baked } = _require('../../constants/animation-constants')); } catch (e) { /* ignore */ }
@@ -75,12 +117,12 @@ async function processBreedingEffectsAtTurnStart(player: number, precomputedEven
             }
         }
     } else {
-        // Fallback: call CardLogic (discouraged for UI-only path)
-        result = CardLogic.processBreedingEffects(cardState, gameState, playerKey);
+        console.error('[BREEDING] No precomputed pipeline events provided; skipping breeding presentation');
+        return;
     }
 
     if (result.spawned.length > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.breedingSpawnedImmediate(getPlayerName(player), result.spawned.length));
+        emitBreedingLog(LOG_MESSAGES.breedingSpawnedImmediate(getBreedingPlayerName(player), result.spawned.length));
     }
 
     // Refresh breeding timers BEFORE any fade-out so "0" can be visible on the last tick.
@@ -91,13 +133,12 @@ async function processBreedingEffectsAtTurnStart(player: number, precomputedEven
 
     // Charge updates MUST be applied by the rule pipeline; do not mutate rule state here.
     if (result.flipped.length > 0) {
-        if (typeof emitCardStateChange === 'function') emitCardStateChange();
-        else console.warn('[BREEDING] charge updates should come from pipeline; emitCardStateChange not available');
+        emitBreedingCardStateChange();
     }
 
     if (hasPlayback) {
         // PlaybackEngine will handle visuals; ensure UI consumes presentation events.
-        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+        try { emitBreedingBoardUpdate(); } catch (e) { /* ignore */ }
         return;
     }
 
@@ -124,8 +165,8 @@ async function processBreedingEffectsAtTurnStart(player: number, precomputedEven
     }
 
     // Final UI sync after all animations
-    try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
-    try { if (typeof emitGameStateChange === 'function') emitGameStateChange(); } catch (e) { /* ignore */ }
+    try { emitBreedingBoardUpdate(); } catch (e) { /* ignore */ }
+    try { emitBreedingGameStateChange(); } catch (e) { /* ignore */ }
 }
 
 /**
@@ -138,14 +179,17 @@ async function processBreedingEffectsAtTurnStart(player: number, precomputedEven
  */
 async function processBreedingImmediateAtPlacement(player: number, row: number, col: number, precomputedResult: any = null) {
     const playerKey = player === BLACK ? 'black' : 'white';
-    const result = precomputedResult || CardLogic.processBreedingEffectsAtAnchor(cardState, gameState, playerKey, row, col);
+    if (!precomputedResult) {
+        console.error('[BREEDING IMMEDIATE] No precomputed pipeline result provided; skipping breeding presentation');
+        return;
+    }
+    const result = precomputedResult;
 
     if (result.spawned.length > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.breedingSpawned(getPlayerName(player), result.spawned.length));
+        emitBreedingLog(LOG_MESSAGES.breedingSpawned(getBreedingPlayerName(player), result.spawned.length));
     }
     if (result.flipped.length > 0) {
-        if (typeof emitCardStateChange === 'function') emitCardStateChange();
-        else console.warn('[BREEDING IMMEDIATE] charge updates should come from pipeline; emitCardStateChange not available');
+        emitBreedingCardStateChange();
     }
 
     // Spawn animation removed — UI should create discs from presentationEvents. Preserve pacing.

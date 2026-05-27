@@ -9,13 +9,9 @@ declare const BLACK: any;
 declare const WHITE: any;
 declare const TurnPipeline: any;
 declare const TurnPipelineUIAdapter: any;
-declare let isProcessing: any;
-declare const isCardAnimating: any;
 declare const processCpuTurn: any;
 declare const onTurnStart: any;
-declare const emitLogAdded: any;
 declare const CPU_TURN_DELAY_MS: any;
-declare const isDebugLogAvailable: any;
 
 let __uiImpl_move_executor: any = {};
 function setUIImpl(obj: any) {
@@ -29,6 +25,24 @@ function writeMoveExecutorRuntimeValue(key: string, value: any): void {
             __uiImpl_move_executor.writeRuntimeValue(key, value);
         }
     } catch (e) { /* ignore */ }
+}
+
+function readMoveExecutorProcessing() {
+    try {
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.readProcessing === 'function') {
+            return __uiImpl_move_executor.readProcessing() === true;
+        }
+    } catch (e) { /* ignore */ }
+    return undefined;
+}
+
+function readMoveExecutorCardAnimating() {
+    try {
+        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.readCardAnimating === 'function') {
+            return __uiImpl_move_executor.readCardAnimating() === true;
+        }
+    } catch (e) { /* ignore */ }
+    return undefined;
 }
 
 function requireMoveExecutorModuleOrNull(id: string): any {
@@ -121,31 +135,11 @@ function resolveMoveExecutorAuthPlayerKey(turnOwnerKey: string) {
         : turnOwnerKey;
 }
 
-function getPlaybackStateForMoveExecutor() {
-    try {
-        if (__uiImpl_move_executor && __uiImpl_move_executor.PlaybackStateManager) {
-            return __uiImpl_move_executor.PlaybackStateManager;
-        }
-        if (__uiImpl_move_executor && typeof __uiImpl_move_executor.getPlaybackStateManager === 'function') {
-            const playbackState = __uiImpl_move_executor.getPlaybackStateManager();
-            if (playbackState && typeof playbackState === 'object') return playbackState;
-        }
-    } catch (e) { /* ignore */ }
-    return null;
-}
-
 function setMoveExecutorProcessing(active: boolean) {
     const next = active === true;
-    const playbackState = getPlaybackStateForMoveExecutor();
-    if (playbackState && typeof playbackState.setBusyState === 'function') {
-        playbackState.setBusyState({ processing: next });
-    } else if (playbackState && typeof playbackState.setProcessing === 'function') {
-        playbackState.setProcessing(next);
-    }
     if (__uiImpl_move_executor && typeof __uiImpl_move_executor.setProcessing === 'function') {
         try { __uiImpl_move_executor.setProcessing(next); } catch (e) { /* ignore */ }
     }
-    try { isProcessing = next; } catch (e) { /* ignore */ }
     return next;
 }
 
@@ -154,7 +148,12 @@ function isMoveExecutorDebugEnabled() {
         if (__uiImpl_move_executor && __uiImpl_move_executor.DEBUG_MOVE_EXEC_LOG === true) return true;
     } catch (e) { /* ignore */ }
     try {
-        if (typeof isDebugLogAvailable === 'function') return !!isDebugLogAvailable();
+        if (
+            __uiImpl_move_executor &&
+            typeof __uiImpl_move_executor.isDebugLogAvailable === 'function'
+        ) {
+            return __uiImpl_move_executor.isDebugLogAvailable() === true;
+        }
     } catch (e) { /* ignore */ }
     return false;
 }
@@ -395,8 +394,8 @@ async function executeMove(move: any) {
         let pipeline = resolveMoveExecutorTurnPipeline();
         const pipelineAvailable = (adapter && pipeline);
 
-        const safeIsProcessing = (typeof isProcessing !== 'undefined') ? isProcessing : undefined;
-        const safeIsCardAnimating = (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined;
+        const safeIsProcessing = readMoveExecutorProcessing();
+        const safeIsCardAnimating = readMoveExecutorCardAnimating();
         debugMoveExecutorLog('[DEBUG][executeMove] enter', { playerKey, turnOwnerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, USE_TURN_PIPELINE: !!(__uiImpl_move_executor && __uiImpl_move_executor.USE_TURN_PIPELINE), DEBUG_HUMAN_VS_HUMAN: !!(__uiImpl_move_executor && __uiImpl_move_executor.DEBUG_HUMAN_VS_HUMAN), pendingEffectByPlayer: cardState.pendingEffectByPlayer });
 
         if (!pipelineAvailable) {
@@ -412,9 +411,9 @@ async function executeMove(move: any) {
         console.error('[CRITICAL] Error in executeMove:', error);
         setMoveExecutorProcessing(false);
     } finally {
-        const safeIsProcessing = (typeof isProcessing !== 'undefined') ? isProcessing : undefined;
-        const safeIsCardAnimating = (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined;
-        debugMoveExecutorLog('[DEBUG][executeMove] exit', { isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, uiIsProcessing: (__uiImpl_move_executor && typeof __uiImpl_move_executor.isProcessing !== 'undefined' ? __uiImpl_move_executor.isProcessing : undefined), uiIsCardAnimating: (__uiImpl_move_executor && typeof __uiImpl_move_executor.isCardAnimating !== 'undefined' ? __uiImpl_move_executor.isCardAnimating : undefined), gameStateCurrentPlayer: gameState && gameState.currentPlayer });
+        const safeIsProcessing = readMoveExecutorProcessing();
+        const safeIsCardAnimating = readMoveExecutorCardAnimating();
+        debugMoveExecutorLog('[DEBUG][executeMove] exit', { isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, gameStateCurrentPlayer: gameState && gameState.currentPlayer });
     }
 }
 
@@ -454,7 +453,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
     if (res.ok === false) {
         console.warn('[MoveExecutor] Action rejected:', res.rejectedReason, 'events:', JSON.stringify(res.events || res, null, 2));
         // Do not record, do not increment turnIndex
-        // Important: reset isProcessing to allow auto-loop to continue
+        // Important: reset processing state to allow auto-loop to continue
         setMoveExecutorProcessing(false);
         emitMoveExecutorBoardUpdate();
         return;
@@ -495,8 +494,8 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
         }
     }
 
-    const safeIsProcessing = (typeof isProcessing !== 'undefined') ? isProcessing : undefined;
-    const safeIsCardAnimating = (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined;
+    const safeIsProcessing = readMoveExecutorProcessing();
+    const safeIsCardAnimating = readMoveExecutorCardAnimating();
     debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] after apply', { gameStateCurrentPlayer: gameState.currentPlayer, playerKey, isProcessing: safeIsProcessing, isCardAnimating: safeIsCardAnimating, pendingEffect: cardState.pendingEffectByPlayer });
 
     const phases = res.phases || {};
@@ -562,7 +561,7 @@ async function executeMoveViaPipeline(move: any, hadSelection: boolean, playerKe
                         debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] skip stale scheduled CPU callback', expectedCpuSchedule);
                         return;
                     }
-                    debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduled CPU callback firing, isProcessing, isCardAnimating', { isProcessing: (typeof isProcessing !== 'undefined') ? isProcessing : undefined, isCardAnimating: (typeof isCardAnimating !== 'undefined') ? isCardAnimating : undefined });
+                    debugMoveExecutorLog('[DEBUG][executeMoveViaPipeline] scheduled CPU callback firing, isProcessing, isCardAnimating', { isProcessing: readMoveExecutorProcessing(), isCardAnimating: readMoveExecutorCardAnimating() });
                     setMoveExecutorProcessing(false);
                     try { processScheduledCpuTurn(); } catch (e) {
                         setMoveExecutorProcessing(false);

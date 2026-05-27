@@ -10,7 +10,6 @@ const { getPlayerKey, getPlayerDisplayName } = cardEffectsHelpers;
 const CardSystem = _require('../../card-system');
 const ControllerEvents = _require('../controller-events');
 const LOG_MESSAGES = _require('../log-messages');
-const { isDebugLogAvailable, safeDebugLog } = _require('../../is-env-capable');
 
 let cachedPendingCoordinator: any = null;
 let __uiImpl_placement: any = {};
@@ -40,6 +39,21 @@ function emitPlacementLog(message: string): void {
     if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
         ControllerEvents.emitLogAdded(message);
     }
+}
+
+function emitPlacementDebugLog(message: string, level: string = 'debug', meta?: any): void {
+    try {
+        if (
+            !__uiImpl_placement ||
+            typeof __uiImpl_placement.isDebugLogAvailable !== 'function' ||
+            __uiImpl_placement.isDebugLogAvailable() !== true
+        ) {
+            return;
+        }
+        if (typeof __uiImpl_placement.debugLog === 'function') {
+            __uiImpl_placement.debugLog(message, level, meta || null);
+        }
+    } catch (e) { /* ignore */ }
 }
 
 function readPlacementPendingType(move: any): string | null {
@@ -87,9 +101,7 @@ function logPlacementEffects(effects: any, player: any): void {
     }
     if (effects.protected) {
         emitPlacementLog(LOG_MESSAGES.protectNext(ownerName));
-        if (isDebugLogAvailable()) {
-            safeDebugLog('[EFFECT] Protected stone formed (UI-only)', 'info');
-        }
+        emitPlacementDebugLog('[EFFECT] Protected stone formed (UI-only)', 'info');
     }
     if (effects.permaProtected) {
         emitPlacementLog(LOG_MESSAGES.permaProtectNext(ownerName));
@@ -143,9 +155,7 @@ function applyProtectionAfterMove(move: any, effects: any): any {
     logPlacementEffects(effects, move.player);
 
     if (effects.protected) {
-        if (isDebugLogAvailable()) {
-            safeDebugLog('[EFFECT] Protected stone formed at (' + move.row + ',' + move.col + ')', 'info');
-        }
+        emitPlacementDebugLog('[EFFECT] Protected stone formed at (' + move.row + ',' + move.col + ')', 'info');
     }
 
     if (effects.regenTriggered && effects.regenTriggered > 0) {

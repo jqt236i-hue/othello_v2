@@ -1,7 +1,4 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
-declare function emitEffectLog(message: any): void;
-declare function emitNormalLog(message: any): void;
-declare function emitLogAdded(message: any, kind?: string): void;
 declare const ActionManager: any;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
@@ -46,9 +43,18 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     const SharedBoardUtils = requireOptionalModule('../../shared/shared-board-utils');
     const PlaybackEventHelpers = requireOptionalModule('../../shared/playback-event-helpers');
     const TurnPipelinePhaseHelpers = requireOptionalModule('./turn_pipeline_phase_helpers');
+    const PipelineUIBoardEventPlaybackModule = requireOptionalModule('./pipeline-ui/board-event-playback');
+    const PipelineUIBoardEventMapperModule = requireOptionalModule('./pipeline-ui/board-event-mapper');
+    const PipelineUIPassiveEventPlaybackModule = requireOptionalModule('./pipeline-ui/passive-event-playback');
+    const PipelineUIPlaybackAfterStateModule = requireOptionalModule('./pipeline-ui/playback-after-state');
+    const PipelineUILogMappersModule = requireOptionalModule('./pipeline-ui/log-mappers');
+    const PipelineUIPlaybackUtilsModule = requireOptionalModule('./pipeline-ui/playback-utils');
+    const PipelineUIGeneratedThrowChainPlaybackModule = requireOptionalModule('./pipeline-ui/generated-throw-chain-playback');
+    const PipelineUISoundCueAssemblerModule = requireOptionalModule('./pipeline-ui/sound-cue-assembler');
     const DestroyOutcomeContract = requireOptionalModule('../../shared/destroy-outcome-contract');
     const SpecialStoneRegistry = requireOptionalModule('../../shared/special-stone-registry');
     const StoneStatusSnapshot = requireOptionalModule('../../shared/stone-status-snapshot');
+    const ControllerEvents = requireOptionalModule('../controller-events');
     const PresentationEffectProfiles = safeRequire('../../shared/presentation-effect-profiles') || unwrapModule(readRuntimeGlobal('PresentationEffectProfiles'));
 
     const REGEN_CAUSE = 'REGEN';
@@ -120,6 +126,48 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return undefined;
     }
 
+    function emitPipelineEffectLog(message: any): void {
+        if (!message) return;
+        try {
+            if (pipelineUIAdapterRuntime && typeof pipelineUIAdapterRuntime.emitEffectLog === 'function') {
+                pipelineUIAdapterRuntime.emitEffectLog(message);
+                return;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (ControllerEvents && typeof ControllerEvents.emitEffectLog === 'function') {
+                ControllerEvents.emitEffectLog(message);
+                return;
+            }
+            if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
+                ControllerEvents.emitLogAdded(message, 'effect');
+            }
+        } catch (e) { /* ignore */ }
+    }
+
+    function emitPipelineNormalLog(message: any): void {
+        if (!message) return;
+        try {
+            if (pipelineUIAdapterRuntime && typeof pipelineUIAdapterRuntime.emitNormalLog === 'function') {
+                pipelineUIAdapterRuntime.emitNormalLog(message);
+                return;
+            }
+            if (pipelineUIAdapterRuntime && typeof pipelineUIAdapterRuntime.emitLogAdded === 'function') {
+                pipelineUIAdapterRuntime.emitLogAdded(message, 'normal');
+                return;
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (ControllerEvents && typeof ControllerEvents.emitNormalLog === 'function') {
+                ControllerEvents.emitNormalLog(message);
+                return;
+            }
+            if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
+                ControllerEvents.emitLogAdded(message, 'normal');
+            }
+        } catch (e) { /* ignore */ }
+    }
+
     const CARD_EFFECT_FLIP_RAW_EVENT_TYPES = new Set([
         'dragon_converted_start',
         'dragon_converted_immediate',
@@ -169,19 +217,22 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         white: []
     };
 
-    function _clearDeferredGeneratedThrowChainPlaybackForPlayer(ownerKey: any) {
-        if (ownerKey !== 'black' && ownerKey !== 'white') return;
-        deferredGeneratedThrowChainPlaybackByPlayer[ownerKey] = [];
+    function getPipelineUIGeneratedThrowChainPlaybackDeps() {
+        return {
+            generatedThrowChainReason: GENERATED_THROW_CHAIN_REASON,
+            normalizePlayerKey: _normalizePlayerKey
+        };
     }
 
     function clearDeferredGeneratedThrowChainPlayback(playerKey: any) {
-        const ownerKey = _normalizePlayerKey(playerKey);
-        if (ownerKey) {
-            _clearDeferredGeneratedThrowChainPlaybackForPlayer(ownerKey);
-            return;
+        if (!(PipelineUIGeneratedThrowChainPlaybackModule && typeof PipelineUIGeneratedThrowChainPlaybackModule.clearDeferredGeneratedThrowChainPlayback === 'function')) {
+            throw new Error('PipelineUIAdapter generated throw-chain module unavailable');
         }
-        _clearDeferredGeneratedThrowChainPlaybackForPlayer('black');
-        _clearDeferredGeneratedThrowChainPlaybackForPlayer('white');
+        return PipelineUIGeneratedThrowChainPlaybackModule.clearDeferredGeneratedThrowChainPlayback(
+            playerKey,
+            deferredGeneratedThrowChainPlaybackByPlayer,
+            getPipelineUIGeneratedThrowChainPlaybackDeps()
+        );
     }
 
     function _getMultiPlaceLabel(type: any, fallbackLabel: any) {
@@ -632,89 +683,45 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     }
 
     function _createPlaybackPhaseState() {
-        return {
-            currentPhase: 1,
-            prevWasChainFlip: false,
-            prevChainFlipLink: null,
-            prevDestroyCause: null,
-            durationEndRevertPhase: null,
-            superCrushPhase: null,
-            superCrushActionId: null,
-            gluttonousEatPhase: null,
-            gluttonousEatActionId: null,
-            willHunterKingSlashPhase: null,
-            prevWasProliferationDestroy: false
-        };
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.createPlaybackPhaseState === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
+        }
+        return PipelineUIBoardEventPlaybackModule.createPlaybackPhaseState();
     }
 
     function _createPlaybackEventBase(ev: any, finalCardState: any) {
-        return {
-            meta: ev && ev.meta ? ev.meta : null,
-            rawType: ev && ev.type ? ev.type : null,
-            actionId: ev && ev.actionId ? ev.actionId : null,
-            effectBlockId: ev && ev.effectBlockId ? ev.effectBlockId : (ev && ev.meta && ev.meta.effectBlockId ? ev.meta.effectBlockId : null),
-            turnIndex: (ev && typeof ev.turnIndex === 'number')
-                ? ev.turnIndex
-                : (finalCardState && typeof finalCardState.turnIndex === 'number' ? finalCardState.turnIndex : 0),
-            plyIndex: (ev && typeof ev.plyIndex === 'number') ? ev.plyIndex : null
-        };
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.createPlaybackEventBase === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
+        }
+        return PipelineUIBoardEventPlaybackModule.createPlaybackEventBase(ev, finalCardState);
     }
 
     function _createPlaybackEvent(playbackBase: any, type: any, phase: any, targets: any) {
-        return Object.assign({
-            type,
-            phase,
-            targets: Array.isArray(targets) ? targets : []
-        }, playbackBase || null);
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.createPlaybackEvent === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
+        }
+        return PipelineUIBoardEventPlaybackModule.createPlaybackEvent(playbackBase, type, phase, targets);
     }
 
     function _clearChainFlipPhaseState(phaseState: any) {
-        phaseState.prevWasChainFlip = false;
-        phaseState.prevChainFlipLink = null;
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.clearChainFlipPhaseState === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
+        }
+        return PipelineUIBoardEventPlaybackModule.clearChainFlipPhaseState(phaseState);
     }
 
     function _preparePassivePlaybackPhaseState(phaseState: any, options?: any) {
-        _clearChainFlipPhaseState(phaseState);
-        phaseState.prevDestroyCause = null;
-        if (!options || options.clearWillHunter !== false) {
-            phaseState.willHunterKingSlashPhase = null;
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.preparePassivePlaybackPhaseState === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
         }
-        if (!options || options.preserveDurationEndRevert !== true) {
-            phaseState.durationEndRevertPhase = null;
-        }
+        return PipelineUIBoardEventPlaybackModule.preparePassivePlaybackPhaseState(phaseState, options);
     }
 
     function _planDurationEndRevertPlaybackPhase(phaseState: any, hasPriorPlaybackEvent: any) {
-        if (Number.isInteger(phaseState.durationEndRevertPhase)) {
-            return phaseState.durationEndRevertPhase;
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.planDurationEndRevertPlaybackPhase === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
         }
-        if (hasPriorPlaybackEvent) {
-            phaseState.currentPhase++;
-        }
-        phaseState.durationEndRevertPhase = phaseState.currentPhase;
-        return phaseState.durationEndRevertPhase;
-    }
-
-    function _clearGroupedDestroyPhaseState(phaseState: any) {
-        phaseState.willHunterKingSlashPhase = null;
-        phaseState.gluttonousEatPhase = null;
-        phaseState.gluttonousEatActionId = null;
-        phaseState.superCrushPhase = null;
-        phaseState.superCrushActionId = null;
-    }
-
-    function _assignActionScopedPhase(phaseState: any, phaseField: any, actionIdField: any, actionId: any) {
-        const hasActionMismatch =
-            phaseState[phaseField] !== null &&
-            phaseState[actionIdField] !== null &&
-            actionId !== null &&
-            phaseState[actionIdField] !== actionId;
-        if (phaseState[phaseField] === null || hasActionMismatch) {
-            phaseState.currentPhase++;
-            phaseState[phaseField] = phaseState.currentPhase;
-        }
-        phaseState[actionIdField] = actionId;
-        return phaseState[phaseField];
+        return PipelineUIBoardEventPlaybackModule.planDurationEndRevertPlaybackPhase(phaseState, hasPriorPlaybackEvent);
     }
 
     function _getDestroyOutcomeKind(meta: any) {
@@ -780,14 +787,6 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         })
     ]);
 
-    function _isDeferredSpawnPresentationEvent(ev: any) {
-        return !!(
-            ev &&
-            ev.type === 'SPAWN' &&
-            DEFERRED_SPAWN_PLAYBACK_PROFILES.some((profile: any) => _matchesSpawnCauseAndReason(ev, profile.cause, profile.reasonPrefix))
-        );
-    }
-
     function _matchesSpawnCauseAndReason(subject: any, cause: any, reasonPrefix: any) {
         return PresentationEffectProfiles.matchesCauseReasonProfile(subject, { cause, reasonPrefix });
     }
@@ -820,542 +819,197 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return null;
     }
 
-    function _isCloneLikeSpawnPresentationEvent(ev: any, spawnMeta: any) {
-        const spawnCause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
-        return (
-            (spawnCause === 'CLONE_WILL' || spawnCause === 'PROLIFERATION_WILL') &&
-            spawnMeta &&
-            Number.isInteger(spawnMeta.fromRow) &&
-            Number.isInteger(spawnMeta.fromCol)
-        );
+    function getPipelineUIBoardEventPlaybackDeps() {
+        return {
+            batchDestroyCauses: BATCH_DESTROY_CAUSES,
+            superCrushCauses: SUPER_CRUSH_CAUSES,
+            stoneSalvationGodCause: STONE_SALVATION_GOD_CAUSE,
+            cardEffectSpawnProfiles: CARD_EFFECT_SPAWN_PROFILES,
+            deferredSpawnPlaybackProfiles: DEFERRED_SPAWN_PLAYBACK_PROFILES,
+            destroyOutcomeKinds: DESTROY_OUTCOME_KINDS,
+            isCardEffectSpawnEventLike: _isCardEffectSpawnEventLike,
+            matchesSpawnCauseAndReason: _matchesSpawnCauseAndReason,
+            getDestroyOutcomeKind: _getDestroyOutcomeKind,
+            getMoveIntent: _getMoveIntent,
+            getPrimaryTimerFromMeta,
+            getInheritedTimerFromMeta,
+            getInheritedOwnerFromMeta,
+            getFlipEvadeRemainingFromMeta,
+            getInheritedFlipEvadeRemainingFromMeta,
+            getDestroyEvadeRemainingFromMeta,
+            isChainFlipPresentationEvent,
+            getChainFlipLink,
+            isRegenTriggeredChange,
+            isLivingWillRestorePresentationEvent,
+            isLivingWillRestoreChange
+        };
     }
 
-    function _isGluttonousEatDestroyPresentationEvent(ev: any) {
-        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'GLUTTONOUS_WILL' &&
-            String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('gluttonous_eat') === 0;
+    function getPipelineUIPlaybackAfterStateDeps() {
+        return {
+            getVisualSpecialFromMeta,
+            shouldPreferFinalVisualStateForStatusApplied,
+            getPrimaryTimerFromMeta,
+            getInheritedTimerFromMeta,
+            getInheritedOwnerFromMeta,
+            getFlipEvadeRemainingFromMeta,
+            getInheritedFlipEvadeRemainingFromMeta,
+            getDestroyEvadeRemainingFromMeta,
+            getVisualStateAt
+        };
     }
 
-    function _isSuperCrushDestroyPresentationEvent(ev: any) {
-        const cause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
-        const reason = String(ev && ev.reason ? ev.reason : '').toLowerCase();
-        return SUPER_CRUSH_CAUSES.has(cause) &&
-            (reason.indexOf('super_buoyancy_collision') === 0 || reason.indexOf('super_gravity_collision') === 0 || reason.indexOf('super_attraction_collision') === 0);
+    function createCardVisualDescriptorForPlayback(cardId: any, meta: any) {
+        return (PlaybackEventHelpers && typeof PlaybackEventHelpers.createCardVisualDescriptor === 'function')
+            ? PlaybackEventHelpers.createCardVisualDescriptor(cardId || null, meta || null)
+            : null;
     }
 
-    function _isWillHunterKingSlashDestroyPresentationEvent(ev: any) {
-        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'WILL_HUNTER_KING' &&
-            String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('will_hunter_king_slash') === 0;
+    function getPipelineUIPassiveEventPlaybackDeps() {
+        return {
+            normalizePlayerKey: _normalizePlayerKey,
+            preparePassivePlaybackPhaseState: _preparePassivePlaybackPhaseState,
+            isBoardShrinkHoleStatusAppliedPresentationEvent: _isBoardShrinkHoleStatusAppliedPresentationEvent,
+            isLivingWillConsumedStatus,
+            hasLivingWillTriggeredDestroyPresentationEventAt,
+            hasLivingWillRestoreChangePresentationEventAt,
+            planDestroyPlayback: _planDestroyPlayback,
+            livingWillCause: LIVING_WILL_CAUSE,
+            livingWillConsumedReason: LIVING_WILL_CONSUMED_REASON,
+            isSpecialDurationExpiredStatusRemovedEvent: _isSpecialDurationExpiredStatusRemovedEvent,
+            isRegenConsumedStatus,
+            planDurationEndRevertPlaybackPhase: _planDurationEndRevertPlaybackPhase,
+            createCardVisualDescriptor: createCardVisualDescriptorForPlayback,
+            resolveWorkIncomeBubbleText: _resolveWorkIncomeBubbleText,
+            resolveWorkRemovedBubbleText: _resolveWorkRemovedBubbleText,
+            isWorkDurationExpiredPresentationEvent: _isWorkDurationExpiredPresentationEvent,
+            hasLivingWillRestorePresentationEventForSource,
+            createPlaybackEvent: _createPlaybackEvent,
+            hasDurationEndMarker: _hasDurationEndMarker,
+            isObserverLostBubblePresentationEvent
+        };
     }
 
     function _isBoardShrinkHoleStatusAppliedPresentationEvent(ev: any) {
-        const meta = ev && ev.meta && typeof ev.meta === 'object' ? ev.meta : null;
-        return !!(
-            ev &&
-            ev.type === 'STATUS_APPLIED' &&
-            meta &&
-            String(meta.special || '').toUpperCase() === 'METEOR_HOLE' &&
-            String(meta.visualVariant || '').toUpperCase() === 'BOARD_FRAME'
-        );
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.isBoardShrinkHoleStatusAppliedPresentationEvent === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
+        }
+        return PipelineUIBoardEventPlaybackModule.isBoardShrinkHoleStatusAppliedPresentationEvent(ev);
     }
 
-    function _isGluttonousEatMovePresentationEvent(ev: any) {
-        const moveIntent = _getMoveIntent(ev);
-        if (moveIntent === 'hyperactive_move') {
-            return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'GLUTTONOUS_WILL';
+    function _isDeferredSpawnPresentationEvent(ev: any) {
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.isDeferredSpawnPresentationEvent === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
         }
-        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'GLUTTONOUS_WILL' &&
-            String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('gluttonous_eat_move') === 0;
-    }
-
-    function _isSuperCrushMovePresentationEvent(ev: any) {
-        const moveIntent = _getMoveIntent(ev);
-        if (moveIntent === 'crush_move') return true;
-        const cause = String(ev && ev.cause ? ev.cause : '').toUpperCase();
-        const reason = String(ev && ev.reason ? ev.reason : '').toLowerCase();
-        return SUPER_CRUSH_CAUSES.has(cause) &&
-            (reason.indexOf('super_buoyancy_move') === 0 || reason.indexOf('super_gravity_move') === 0 || reason.indexOf('super_attraction_move') === 0);
-    }
-
-    function _isWillHunterKingSlashMovePresentationEvent(ev: any) {
-        const moveIntent = _getMoveIntent(ev);
-        if (moveIntent === 'anchor_move' || moveIntent === 'hyperactive_move') {
-            return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'WILL_HUNTER_KING';
-        }
-        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'WILL_HUNTER_KING' &&
-            String(ev && ev.reason ? ev.reason : '').toLowerCase().indexOf('will_hunter_king_slash_move') === 0;
-    }
-
-    function _isExtremeForcedSwapMovePresentationEvent(ev: any) {
-        return String(ev && ev.cause ? ev.cause : '').toUpperCase() === 'EXTREME_HYPERACTIVE_WILL' &&
-            String(ev && ev.reason ? ev.reason : '').toLowerCase() === 'extreme_hyperactive_forced_swap';
-    }
-
-    function _isExtremeForcedSwapMovePairPresentation(firstEv: any, secondEv: any) {
-        if (!_isExtremeForcedSwapMovePresentationEvent(firstEv) || !_isExtremeForcedSwapMovePresentationEvent(secondEv)) {
-            return false;
-        }
-        if (
-            !Number.isInteger(firstEv.prevRow) ||
-            !Number.isInteger(firstEv.prevCol) ||
-            !Number.isInteger(firstEv.row) ||
-            !Number.isInteger(firstEv.col) ||
-            !Number.isInteger(secondEv.prevRow) ||
-            !Number.isInteger(secondEv.prevCol) ||
-            !Number.isInteger(secondEv.row) ||
-            !Number.isInteger(secondEv.col)
-        ) {
-            return false;
-        }
-        if (
-            firstEv.row !== secondEv.prevRow ||
-            firstEv.col !== secondEv.prevCol ||
-            firstEv.prevRow !== secondEv.row ||
-            firstEv.prevCol !== secondEv.col
-        ) {
-            return false;
-        }
-        if (
-            firstEv.actionId &&
-            secondEv.actionId &&
-            firstEv.actionId !== secondEv.actionId
-        ) {
-            return false;
-        }
-        return true;
-    }
-
-    function _canSkipEventBetweenExtremeForcedSwapMoves(firstEv: any, candidateEv: any) {
-        const candidateType = String(candidateEv && candidateEv.type ? candidateEv.type : '').toUpperCase();
-        if (
-            candidateType !== 'STATUS_APPLIED' &&
-            candidateType !== 'STATUS_TICK' &&
-            candidateType !== 'STATUS_REMOVED'
-        ) {
-            return false;
-        }
-        if (
-            firstEv &&
-            firstEv.actionId &&
-            candidateEv &&
-            candidateEv.actionId &&
-            firstEv.actionId !== candidateEv.actionId
-        ) {
-            return false;
-        }
-        return true;
+        return PipelineUIBoardEventPlaybackModule.isDeferredSpawnPresentationEvent(ev, getPipelineUIBoardEventPlaybackDeps());
     }
 
     function _findExtremeForcedSwapMovePairPresentationIndex(presentationEvents: any, firstIndex: any) {
-        const firstEv = Array.isArray(presentationEvents) ? presentationEvents[firstIndex] : null;
-        if (!_isExtremeForcedSwapMovePresentationEvent(firstEv)) return -1;
-        for (let index = firstIndex + 1; index < presentationEvents.length; index += 1) {
-            const candidateEv = presentationEvents[index];
-            if (_isExtremeForcedSwapMovePairPresentation(firstEv, candidateEv)) {
-                return index;
-            }
-            // Only skip passive status events so we do not reorder unrelated move writers.
-            if (!_canSkipEventBetweenExtremeForcedSwapMoves(firstEv, candidateEv)) {
-                break;
-            }
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.findExtremeForcedSwapMovePairPresentationIndex === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
         }
-        return -1;
-    }
-
-    function _createOverlapReturnAfterState(meta: any, overlapOwner: any, overlapSpecial: any, includeMetaVisual: any) {
-        return {
-            color: overlapOwner === 'black' ? 1 : (overlapOwner === 'white' ? -1 : 0),
-            special: overlapSpecial,
-            timer: includeMetaVisual ? getPrimaryTimerFromMeta(meta) : null,
-            owner: overlapOwner || null,
-            inheritedTimer: includeMetaVisual ? getInheritedTimerFromMeta(meta) : null,
-            inheritedOwner: includeMetaVisual ? getInheritedOwnerFromMeta(meta) : null,
-            flipEvadeRemaining: includeMetaVisual ? getFlipEvadeRemainingFromMeta(meta) : null,
-            inheritedFlipEvadeRemaining: includeMetaVisual ? getInheritedFlipEvadeRemainingFromMeta(meta) : null,
-            destroyEvadeRemaining: includeMetaVisual ? getDestroyEvadeRemainingFromMeta(meta) : null
-        };
-    }
-
-    function _createOverlapReturnPlaybackEvent(playbackBase: any, options: any) {
-        const from = options && options.from ? options.from : null;
-        const to = options && options.to ? options.to : null;
-        const meta = options && options.meta ? options.meta : null;
-        const overlapOwner = (options && typeof options.owner === 'string' && options.owner)
-            ? options.owner
-            : null;
-        const overlapSpecial = options && options.special ? options.special : null;
-        return _createPlaybackEvent(playbackBase, 'move', options && options.phase, [{
-            from: { r: from && from.r, col: from && from.col },
-            to: { r: to && to.r, col: to && to.col },
-            ownerBefore: overlapOwner,
-            ownerAfter: overlapOwner,
-            cause: options && Object.prototype.hasOwnProperty.call(options, 'cause') ? options.cause : null,
-            reason: options && Object.prototype.hasOwnProperty.call(options, 'reason') ? options.reason : null,
-            overlapReturn: true,
-            meta,
-            sourceRow: from && from.r,
-            sourceCol: from && from.col,
-            after: _createOverlapReturnAfterState(meta, overlapOwner, overlapSpecial, !!(options && options.includeMetaVisual))
-        }]);
+        return PipelineUIBoardEventPlaybackModule.findExtremeForcedSwapMovePairPresentationIndex(presentationEvents, firstIndex);
     }
 
     function _createExtremeForcedSwapPlaybackEvent(playbackBase: any, phase: any, leadEv: any, followEv: any) {
-        const playbackMeta = (playbackBase && playbackBase.meta && typeof playbackBase.meta === 'object')
-            ? Object.assign({}, playbackBase.meta)
-            : {};
-        playbackMeta.sequence = 'extreme_hyperactive_forced_swap';
-        return _createPlaybackEvent(
-            Object.assign({}, playbackBase || {}, { meta: playbackMeta }),
-            'move',
-            phase,
-            [{
-                from: { r: leadEv.prevRow, col: leadEv.prevCol },
-                to: { r: leadEv.row, col: leadEv.col },
-                stoneId: leadEv.stoneId,
-                ownerBefore: leadEv.ownerBefore,
-                ownerAfter: leadEv.ownerAfter,
-                cause: leadEv.cause || null,
-                reason: leadEv.reason || null,
-                meta: (leadEv && leadEv.meta && typeof leadEv.meta === 'object') ? leadEv.meta : null,
-                extremeForcedSwapRole: 'lead'
-            }, {
-                from: { r: followEv.prevRow, col: followEv.prevCol },
-                to: { r: followEv.row, col: followEv.col },
-                stoneId: followEv.stoneId,
-                ownerBefore: followEv.ownerBefore,
-                ownerAfter: followEv.ownerAfter,
-                cause: followEv.cause || null,
-                reason: followEv.reason || null,
-                meta: (followEv && followEv.meta && typeof followEv.meta === 'object') ? followEv.meta : null,
-                extremeForcedSwapRole: 'follow'
-            }]
-        );
-    }
-
-    function _getSpawnOverlapReturnSpec(ev: any, spawnMeta: any) {
-        if (!_isProliferationSpawnPresentationEvent(ev) || !spawnMeta) return null;
-        const proliferationTriggeredBy = String(spawnMeta.proliferationTriggeredBy ? spawnMeta.proliferationTriggeredBy : '').toUpperCase();
-        const proliferationTriggerReason = String(spawnMeta.proliferationTriggerReason ? spawnMeta.proliferationTriggerReason : '').toLowerCase();
-        const isGluttonousTriggered =
-            proliferationTriggeredBy === 'GLUTTONOUS_WILL' &&
-            proliferationTriggerReason.indexOf('gluttonous_eat') === 0;
-        const isWillHunterTriggered =
-            proliferationTriggeredBy === 'WILL_HUNTER_KING' &&
-            proliferationTriggerReason.indexOf('will_hunter_king_slash') === 0;
-        if (
-            !Number.isInteger(spawnMeta.sourceRow) ||
-            !Number.isInteger(spawnMeta.sourceCol) ||
-            !Number.isInteger(spawnMeta.proliferationOriginRow) ||
-            !Number.isInteger(spawnMeta.proliferationOriginCol) ||
-            (!isGluttonousTriggered && !isWillHunterTriggered)
-        ) {
-            return null;
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.createExtremeForcedSwapPlaybackEvent === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
         }
-        const overlapOwner = (typeof spawnMeta.projectileOwner === 'string' && spawnMeta.projectileOwner)
-            ? spawnMeta.projectileOwner
-            : ((typeof spawnMeta.owner === 'string' && spawnMeta.owner) ? spawnMeta.owner : ev && ev.ownerAfter);
-        return {
-            owner: overlapOwner,
-            special: isGluttonousTriggered ? 'GLUTTONOUS' : 'WILL_HUNTER_KING',
-            cause: proliferationTriggeredBy,
-            reason: isGluttonousTriggered ? 'gluttonous_eat_overlap_return' : 'will_hunter_king_slash_overlap_return',
-            from: { r: spawnMeta.sourceRow, col: spawnMeta.sourceCol },
-            to: { r: spawnMeta.proliferationOriginRow, col: spawnMeta.proliferationOriginCol },
-            meta: spawnMeta,
-            includeMetaVisual: true
-        };
-    }
-
-    function _getGhostBlockedOverlapReturnSpec(ev: any, destroyMeta: any, destroyOutcomeKind: any, isGluttonousEatDestroy: any, isWillHunterKingSlashDestroy: any) {
-        if (
-            destroyOutcomeKind !== DESTROY_OUTCOME_KINDS.GHOST_BLOCKED ||
-            !destroyMeta ||
-            !Number.isInteger(destroyMeta.sourceRow) ||
-            !Number.isInteger(destroyMeta.sourceCol) ||
-            (!isGluttonousEatDestroy && !isWillHunterKingSlashDestroy)
-        ) {
-            return null;
-        }
-        return {
-            owner: (typeof destroyMeta.projectileOwner === 'string' && destroyMeta.projectileOwner)
-                ? destroyMeta.projectileOwner
-                : null,
-            special: isGluttonousEatDestroy ? 'GLUTTONOUS' : 'WILL_HUNTER_KING',
-            cause: ev && ev.cause ? ev.cause : null,
-            reason: isGluttonousEatDestroy ? 'gluttonous_eat_overlap_return' : 'will_hunter_king_slash_overlap_return',
-            from: { r: destroyMeta.sourceRow, col: destroyMeta.sourceCol },
-            to: { r: ev && ev.row, col: ev && ev.col },
-            meta: destroyMeta,
-            includeMetaVisual: false
-        };
+        return PipelineUIBoardEventPlaybackModule.createExtremeForcedSwapPlaybackEvent(playbackBase, phase, leadEv, followEv);
     }
 
     function _planSpawnPlayback(phaseState: any, ev: any, playbackBase: any, followsProliferationDestroy: any) {
-        _clearChainFlipPhaseState(phaseState);
-        phaseState.prevDestroyCause = null;
-        phaseState.durationEndRevertPhase = null;
-        phaseState.willHunterKingSlashPhase = null;
-
-        const spawnMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
-        const overlapSpec = _getSpawnOverlapReturnSpec(ev, spawnMeta);
-        const spawnProfile = _getCardEffectSpawnProfile(ev);
-        const sequentialSpawnIndex = spawnMeta && Number.isFinite(Number(spawnMeta.spawnIndex))
-            ? Math.trunc(Number(spawnMeta.spawnIndex))
-            : null;
-        const followsPreservedProliferationDestroy =
-            followsProliferationDestroy &&
-            _isProliferationSpawnPresentationEvent(ev);
-        let phase = phaseState.currentPhase;
-        const leadingPlaybackEvents = [];
-
-        if (followsPreservedProliferationDestroy && !overlapSpec) {
-            phaseState.currentPhase++;
-            phase = phaseState.currentPhase;
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.planSpawnPlayback === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
         }
-        if (overlapSpec) {
-            if (!followsPreservedProliferationDestroy) {
-                phaseState.currentPhase++;
-            }
-            leadingPlaybackEvents.push(_createOverlapReturnPlaybackEvent(playbackBase, Object.assign({}, overlapSpec, {
-                phase: phaseState.currentPhase
-            })));
-        }
-        if (
-            spawnProfile &&
-            (
-                (spawnProfile as any).alwaysAdvancePhase === true ||
-                (sequentialSpawnIndex !== null && sequentialSpawnIndex >= spawnProfile.phaseStartIndex)
-            )
-        ) {
-            phaseState.currentPhase++;
-            phase = phaseState.currentPhase;
-        }
-        if (isLivingWillRestorePresentationEvent(ev)) {
-            phaseState.currentPhase++;
-            phase = phaseState.currentPhase;
-        }
-
-        let type = 'spawn';
-        let targets: any;
-        if (_isCloneLikeSpawnPresentationEvent(ev, spawnMeta)) {
-            if (overlapSpec) {
-                phaseState.currentPhase++;
-                phase = phaseState.currentPhase;
-            }
-            type = 'move';
-            targets = [{
-                from: { r: spawnMeta.fromRow, col: spawnMeta.fromCol },
-                to: { r: ev.row, col: ev.col },
-                stoneId: ev.stoneId,
-                ownerBefore: ev.ownerAfter,
-                ownerAfter: ev.ownerAfter,
-                cause: ev.cause || null,
-                reason: ev.reason || null,
-                clone: true
-            }];
-        } else {
-            const spawnTarget: any = {
-                r: ev.row,
-                col: ev.col,
-                stoneId: ev.stoneId,
-                ownerAfter: ev.ownerAfter,
-                cause: ev.cause || null,
-                reason: ev.reason || null
-            };
-            if (spawnMeta && String(ev && ev.cause ? ev.cause : '').toUpperCase() === STONE_SALVATION_GOD_CAUSE) {
-                if (typeof spawnMeta.destroyedOwner === 'string') spawnTarget.destroyedOwner = spawnMeta.destroyedOwner;
-                if (typeof spawnMeta.revivedOwner === 'string') spawnTarget.revivedOwner = spawnMeta.revivedOwner;
-            }
-            targets = [spawnTarget];
-        }
-
-        return {
-            phase,
-            type,
-            targets,
-            leadingPlaybackEvents
-        };
+        return PipelineUIBoardEventPlaybackModule.planSpawnPlayback(
+            phaseState,
+            ev,
+            playbackBase,
+            followsProliferationDestroy,
+            getPipelineUIBoardEventPlaybackDeps()
+        );
     }
 
     function _planDestroyPlayback(phaseState: any, ev: any, destroyMeta: any, playbackBase: any) {
-        _clearChainFlipPhaseState(phaseState);
-        phaseState.durationEndRevertPhase = null;
-        const destroyCauseUpper = String(ev && ev.cause ? ev.cause : '').toUpperCase();
-        const isGluttonousEatDestroy = _isGluttonousEatDestroyPresentationEvent(ev);
-        const isSuperCrushDestroy = _isSuperCrushDestroyPresentationEvent(ev);
-        const isWillHunterKingSlashDestroy = _isWillHunterKingSlashDestroyPresentationEvent(ev);
-        let phase: any;
-
-        if (isGluttonousEatDestroy) {
-            phaseState.willHunterKingSlashPhase = null;
-            phaseState.superCrushPhase = null;
-            phaseState.superCrushActionId = null;
-            phase = _assignActionScopedPhase(
-                phaseState,
-                'gluttonousEatPhase',
-                'gluttonousEatActionId',
-                ev && ev.actionId ? ev.actionId : null
-            );
-        } else if (isSuperCrushDestroy) {
-            phaseState.willHunterKingSlashPhase = null;
-            phaseState.gluttonousEatPhase = null;
-            phaseState.gluttonousEatActionId = null;
-            phaseState.superCrushPhase = _assignActionScopedPhase(
-                phaseState,
-                'superCrushPhase',
-                'superCrushActionId',
-                ev && ev.actionId ? ev.actionId : null
-            );
-            phase = phaseState.superCrushPhase;
-        } else if (isWillHunterKingSlashDestroy) {
-            phaseState.gluttonousEatPhase = null;
-            phaseState.gluttonousEatActionId = null;
-            phaseState.superCrushPhase = null;
-            phaseState.superCrushActionId = null;
-            phaseState.currentPhase++;
-            phaseState.willHunterKingSlashPhase = phaseState.currentPhase;
-            phase = phaseState.willHunterKingSlashPhase;
-        } else if (BATCH_DESTROY_CAUSES.has(destroyCauseUpper)) {
-            _clearGroupedDestroyPhaseState(phaseState);
-            if (phaseState.prevDestroyCause !== destroyCauseUpper) {
-                phaseState.currentPhase++;
-            }
-            phase = phaseState.currentPhase;
-        } else {
-            _clearGroupedDestroyPhaseState(phaseState);
-            phaseState.currentPhase++;
-            phase = phaseState.currentPhase;
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.planDestroyPlayback === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
         }
-
-        phaseState.prevDestroyCause = destroyCauseUpper;
-        const destroyOutcomeKind = _getDestroyOutcomeKind(destroyMeta);
-        phaseState.prevWasProliferationDestroy = destroyOutcomeKind === DESTROY_OUTCOME_KINDS.PROLIFERATED;
-
-        const overlapSpec = _getGhostBlockedOverlapReturnSpec(
+        return PipelineUIBoardEventPlaybackModule.planDestroyPlayback(
+            phaseState,
             ev,
             destroyMeta,
-            destroyOutcomeKind,
-            isGluttonousEatDestroy,
-            isWillHunterKingSlashDestroy
+            playbackBase,
+            getPipelineUIBoardEventPlaybackDeps()
         );
-        const trailingPlaybackEvents = overlapSpec
-            ? [_createOverlapReturnPlaybackEvent(playbackBase, Object.assign({}, overlapSpec, { phase }))]
-            : [];
-
-        return { phase, trailingPlaybackEvents };
     }
 
     function _planChangePlaybackPhase(phaseState: any, ev: any) {
-        phaseState.durationEndRevertPhase = null;
-        phaseState.prevDestroyCause = null;
-        phaseState.willHunterKingSlashPhase = null;
-        const isChainFlip = isChainFlipPresentationEvent(ev);
-        const chainFlipLink = isChainFlip ? getChainFlipLink(ev) : null;
-        let phase = phaseState.currentPhase;
-        if (isLivingWillRestoreChange(ev)) {
-            phaseState.currentPhase++;
-            phase = phaseState.currentPhase;
-            phaseState.prevWasChainFlip = false;
-            phaseState.prevChainFlipLink = null;
-            return phase;
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.planChangePlaybackPhase === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
         }
-        if (isChainFlip && (!phaseState.prevWasChainFlip || phaseState.prevChainFlipLink !== chainFlipLink)) {
-            phaseState.currentPhase++;
-            phase = phaseState.currentPhase;
-        }
-        if (isRegenTriggeredChange(ev)) {
-            phaseState.currentPhase++;
-            phase = phaseState.currentPhase;
-        }
-        phaseState.prevWasChainFlip = isChainFlip;
-        phaseState.prevChainFlipLink = isChainFlip ? chainFlipLink : null;
-        return phase;
+        return PipelineUIBoardEventPlaybackModule.planChangePlaybackPhase(phaseState, ev, getPipelineUIBoardEventPlaybackDeps());
     }
 
     function _planMovePlaybackPhase(phaseState: any, ev: any) {
-        _clearChainFlipPhaseState(phaseState);
-        phaseState.durationEndRevertPhase = null;
-        phaseState.prevDestroyCause = null;
-        const moveActionId = ev && ev.actionId ? ev.actionId : null;
-        const isSuperCrushActionMatched =
-            phaseState.superCrushActionId === null ||
-            moveActionId === null ||
-            phaseState.superCrushActionId === moveActionId;
-        const isGluttonousActionMatched =
-            phaseState.gluttonousEatActionId === null ||
-            moveActionId === null ||
-            phaseState.gluttonousEatActionId === moveActionId;
-        let phase: any;
-        if (_isGluttonousEatMovePresentationEvent(ev) && phaseState.gluttonousEatPhase !== null && isGluttonousActionMatched) {
-            phase = phaseState.gluttonousEatPhase;
-        } else if (_isSuperCrushMovePresentationEvent(ev) && phaseState.superCrushPhase !== null && isSuperCrushActionMatched) {
-            phase = phaseState.superCrushPhase;
-        } else if (_isWillHunterKingSlashMovePresentationEvent(ev) && phaseState.willHunterKingSlashPhase !== null) {
-            phase = phaseState.willHunterKingSlashPhase;
-        } else {
-            phaseState.currentPhase++;
-            phase = phaseState.currentPhase;
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.planMovePlaybackPhase === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
         }
-        phaseState.gluttonousEatPhase = null;
-        phaseState.gluttonousEatActionId = null;
-        phaseState.superCrushPhase = null;
-        phaseState.superCrushActionId = null;
-        phaseState.willHunterKingSlashPhase = null;
-        return phase;
-    }
-
-    function _getPresentationEffectBlockKey(ev: any) {
-        if (!ev || (ev.type !== 'DESTROY' && ev.type !== 'MOVE')) return null;
-        const meta = (ev.meta && typeof ev.meta === 'object') ? ev.meta : {};
-        const effectBlockId = String(ev.effectBlockId || meta.effectBlockId || '').trim();
-        if (effectBlockId) return `effectBlock:${effectBlockId}`;
-        const cause = String(ev.cause || '').toUpperCase();
-        const sourceRow = Number.isInteger(ev.sourceRow)
-            ? ev.sourceRow
-            : (Number.isInteger(meta.sourceRow) ? meta.sourceRow : null);
-        const sourceCol = Number.isInteger(ev.sourceCol)
-            ? ev.sourceCol
-            : (Number.isInteger(meta.sourceCol) ? meta.sourceCol : null);
-        const projectileOwner = String(ev.projectileOwner || meta.projectileOwner || '').trim();
-        const actionId = String(ev.actionId || '').trim();
-        return [
-            actionId,
-            cause,
-            sourceRow === null ? '' : String(sourceRow),
-            sourceCol === null ? '' : String(sourceCol),
-            projectileOwner
-        ].join('|');
+        return PipelineUIBoardEventPlaybackModule.planMovePlaybackPhase(phaseState, ev, getPipelineUIBoardEventPlaybackDeps());
     }
 
     function _orderDeferredSpawnsForPlayback(presEvents: any) {
-        if (!Array.isArray(presEvents) || presEvents.length <= 1) return Array.isArray(presEvents) ? presEvents.slice() : [];
-        const ordered: any[] = [];
-        const pendingSpawns: any[] = [];
-        let currentBlockKey: string | null = null;
-        const flushSpawns = () => {
-            if (!pendingSpawns.length) return;
-            ordered.push(...pendingSpawns);
-            pendingSpawns.length = 0;
-        };
-
-        for (const ev of presEvents) {
-            if (_isDeferredSpawnPresentationEvent(ev)) {
-                pendingSpawns.push(ev);
-                continue;
-            }
-            const nextBlockKey = _getPresentationEffectBlockKey(ev);
-            if (!nextBlockKey) {
-                flushSpawns();
-                currentBlockKey = null;
-            } else if (pendingSpawns.length && currentBlockKey === null) {
-                flushSpawns();
-            } else if (pendingSpawns.length && currentBlockKey !== null && nextBlockKey !== currentBlockKey) {
-                flushSpawns();
-            }
-            ordered.push(ev);
-            currentBlockKey = nextBlockKey;
+        if (!(PipelineUIBoardEventPlaybackModule && typeof PipelineUIBoardEventPlaybackModule.orderDeferredSpawnsForPlayback === 'function')) {
+            throw new Error('PipelineUIAdapter board event playback module unavailable');
         }
-        flushSpawns();
-        return ordered;
+        return PipelineUIBoardEventPlaybackModule.orderDeferredSpawnsForPlayback(presEvents, getPipelineUIBoardEventPlaybackDeps());
+    }
+
+    function _populatePlaybackEventAfterState(pEvent: any, ev: any, finalCardState: any, finalGameState: any) {
+        if (!(PipelineUIPlaybackAfterStateModule && typeof PipelineUIPlaybackAfterStateModule.populatePlaybackEventAfterState === 'function')) {
+            throw new Error('PipelineUIAdapter playback after-state module unavailable');
+        }
+        return PipelineUIPlaybackAfterStateModule.populatePlaybackEventAfterState(
+            pEvent,
+            ev,
+            finalCardState,
+            finalGameState,
+            getPipelineUIPlaybackAfterStateDeps()
+        );
+    }
+
+    function _mapPassivePresentationEvent(ctx: any) {
+        if (!(PipelineUIPassiveEventPlaybackModule && typeof PipelineUIPassiveEventPlaybackModule.mapPassivePresentationEvent === 'function')) {
+            throw new Error('PipelineUIAdapter passive event playback module unavailable');
+        }
+        return PipelineUIPassiveEventPlaybackModule.mapPassivePresentationEvent(
+            ctx,
+            getPipelineUIPassiveEventPlaybackDeps()
+        );
+    }
+
+    function getPipelineUIBoardEventMapperDeps() {
+        return {
+            clonePlaybackEventWithPhase: _clonePlaybackEventWithPhase,
+            phaseNum: _phaseNum,
+            planSpawnPlayback: _planSpawnPlayback,
+            planDestroyPlayback: _planDestroyPlayback,
+            planChangePlaybackPhase: _planChangePlaybackPhase,
+            findExtremeForcedSwapMovePairPresentationIndex: _findExtremeForcedSwapMovePairPresentationIndex,
+            planMovePlaybackPhase: _planMovePlaybackPhase,
+            createExtremeForcedSwapPlaybackEvent: _createExtremeForcedSwapPlaybackEvent,
+            clearChainFlipPhaseState: _clearChainFlipPhaseState
+        };
+    }
+
+    function _mapBoardPresentationEvent(ctx: any) {
+        if (!(PipelineUIBoardEventMapperModule && typeof PipelineUIBoardEventMapperModule.mapBoardPresentationEvent === 'function')) {
+            throw new Error('PipelineUIAdapter board event mapper module unavailable');
+        }
+        return PipelineUIBoardEventMapperModule.mapBoardPresentationEvent(
+            ctx,
+            getPipelineUIBoardEventMapperDeps()
+        );
     }
 
     /**
@@ -1373,420 +1027,33 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             const ev = presentationEvents[presIndex];
             const followsProliferationDestroy = phaseState.prevWasProliferationDestroy;
             phaseState.prevWasProliferationDestroy = false;
-            const trailingPlaybackEvents = [];
+            const trailingPlaybackEvents: any[] = [];
             const playbackBase = _createPlaybackEventBase(ev, finalCardState);
             const pEvent = _createPlaybackEvent(playbackBase, null, phaseState.currentPhase, []);
 
-            switch (ev.type) {
-                case 'PLAYBACK_EVENTS':
-                    if (Array.isArray(ev.events)) {
-                        for (const playbackEvent of ev.events) {
-                            if (!playbackEvent || typeof playbackEvent !== 'object' || !playbackEvent.type) continue;
-                            playbackEvents.push(_clonePlaybackEventWithPhase(
-                                playbackEvent,
-                                _phaseNum(playbackEvent.phase)
-                            ));
-                        }
-                    }
-                    pEvent.type = null;
-                    break;
-                case 'PLAY_HAND_ANIMATION': {
-                    const ownerKey = _normalizePlayerKey(ev.owner || ev.player);
-                    pEvent.type = 'place_hand_animation';
-                    pEvent.phase = 0;
-                    pEvent.targets = [{
-                        r: ev.row,
-                        col: ev.col,
-                        player: ownerKey,
-                        owner: ownerKey
-                    }];
-                    break;
-                }
-                case 'SPAWN': {
-                    const spawnPlan = _planSpawnPlayback(
-                        phaseState,
-                        ev,
-                        playbackBase,
-                        followsProliferationDestroy
-                    );
-                    if (spawnPlan.leadingPlaybackEvents.length) {
-                        playbackEvents.push(...spawnPlan.leadingPlaybackEvents);
-                    }
-                    pEvent.type = spawnPlan.type;
-                    pEvent.phase = spawnPlan.phase;
-                    pEvent.targets = spawnPlan.targets;
-                    break;
-                }
-                case 'DESTROY': {
-                    const destroyMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
-                    const destroyPlan = _planDestroyPlayback(
-                        phaseState,
-                        ev,
-                        destroyMeta,
-                        playbackBase
-                    );
-                    pEvent.type = 'destroy';
-                    pEvent.phase = destroyPlan.phase;
-                    pEvent.targets = [{
-                        r: ev.row,
-                        col: ev.col,
-                        stoneId: ev.stoneId,
-                        ownerBefore: ev.ownerBefore,
-                        cause: ev.cause || null,
-                        reason: ev.reason || null,
-                        meta: destroyMeta,
-                        sourceRow: destroyMeta && Number.isInteger(destroyMeta.sourceRow) ? destroyMeta.sourceRow : null,
-                        sourceCol: destroyMeta && Number.isInteger(destroyMeta.sourceCol) ? destroyMeta.sourceCol : null,
-                        projectileOwner: destroyMeta && typeof destroyMeta.projectileOwner === 'string' ? destroyMeta.projectileOwner : null,
-                        projectileStone: destroyMeta && typeof destroyMeta.projectileStone === 'string' ? destroyMeta.projectileStone : null
-                    }];
-                    if (destroyPlan.trailingPlaybackEvents.length) {
-                        trailingPlaybackEvents.push(...destroyPlan.trailingPlaybackEvents);
-                    }
-                    break;
-                }
-                case 'CHANGE': {
-                    const changeMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
-                    pEvent.type = 'flip';
-                    pEvent.targets = [{
-                        r: ev.row,
-                        col: ev.col,
-                        ownerBefore: ev.ownerBefore,
-                        ownerAfter: ev.ownerAfter,
-                        cause: ev.cause || null,
-                        reason: ev.reason || null,
-                        meta: changeMeta
-                    }];
-                    pEvent.phase = _planChangePlaybackPhase(phaseState, ev);
-                    break;
-                }
-                case 'MOVE': {
-                    const forcedSwapPairIndex = _findExtremeForcedSwapMovePairPresentationIndex(presentationEvents, presIndex);
-                    if (forcedSwapPairIndex >= 0) {
-                        const forcedSwapPhase = _planMovePlaybackPhase(phaseState, ev);
-                        Object.assign(
-                            pEvent,
-                            _createExtremeForcedSwapPlaybackEvent(
-                                playbackBase,
-                                forcedSwapPhase,
-                                ev,
-                                presentationEvents[forcedSwapPairIndex]
-                            )
-                        );
-                        consumedPresentationIndexes.add(forcedSwapPairIndex);
-                        break;
-                    }
-                    pEvent.type = 'move';
-                    pEvent.targets = [{
-                        from: { r: ev.prevRow, col: ev.prevCol },
-                        to: { r: ev.row, col: ev.col },
-                        stoneId: ev.stoneId,
-                        ownerBefore: ev.ownerBefore,
-                        ownerAfter: ev.ownerAfter,
-                        cause: ev.cause || null,
-                        reason: ev.reason || null,
-                        meta: (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null
-                    }];
-                    pEvent.phase = _planMovePlaybackPhase(phaseState, ev);
-                    break;
-                }
-                case 'STATUS_APPLIED':
-                    if (!_isBoardShrinkHoleStatusAppliedPresentationEvent(ev)) {
-                        _preparePassivePlaybackPhaseState(phaseState);
-                    }
-                    pEvent.type = 'status_applied';
-                    pEvent.targets = [{ r: ev.row, col: ev.col }];
-                    break;
-                case 'STATUS_TICK':
-                    _preparePassivePlaybackPhaseState(phaseState);
-                    pEvent.type = 'status_applied';
-                    pEvent.targets = [{ r: ev.row, col: ev.col }];
-                    break;
-                case 'STATUS_REMOVED':
-                    if (isLivingWillConsumedStatus(ev)) {
-                        if (
-                            hasLivingWillTriggeredDestroyPresentationEventAt(presentationEvents, ev.row, ev.col) ||
-                            hasLivingWillRestoreChangePresentationEventAt(presentationEvents, ev.row, ev.col)
-                        ) {
-                            pEvent.type = null;
-                            pEvent.targets = [];
-                            break;
-                        }
-                        const livingWillMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
-                        const destroyPlan = _planDestroyPlayback(
-                            phaseState,
-                            {
-                                type: 'DESTROY',
-                                row: ev.row,
-                                col: ev.col,
-                                cause: LIVING_WILL_CAUSE,
-                                reason: LIVING_WILL_CONSUMED_REASON
-                            },
-                            livingWillMeta,
-                            playbackBase
-                        );
-                        pEvent.type = 'destroy';
-                        pEvent.phase = destroyPlan.phase;
-                        pEvent.targets = [{
-                            r: ev.row,
-                            col: ev.col,
-                            ownerBefore: livingWillMeta && livingWillMeta.owner ? livingWillMeta.owner : null,
-                            cause: LIVING_WILL_CAUSE,
-                            reason: LIVING_WILL_CONSUMED_REASON,
-                            meta: livingWillMeta
-                        }];
-                    } else {
-                        _preparePassivePlaybackPhaseState(phaseState, {
-                            preserveDurationEndRevert: _isSpecialDurationExpiredStatusRemovedEvent(ev)
-                        });
-                        pEvent.type = 'status_removed';
-                        pEvent.targets = [{ r: ev.row, col: ev.col }];
-                        if (isRegenConsumedStatus(ev)) {
-                            phaseState.currentPhase++;
-                            pEvent.phase = phaseState.currentPhase;
-                        } else if (_isSpecialDurationExpiredStatusRemovedEvent(ev)) {
-                            pEvent.phase = _planDurationEndRevertPlaybackPhase(phaseState, playbackEvents.length > 0);
-                        }
-                    }
-                    break;
-                case 'HAND_CLEAR':
-                case 'HAND_REMOVE':
-                    _preparePassivePlaybackPhaseState(phaseState);
-                    pEvent.type = 'hand_remove';
-                    pEvent.targets = [{
-                        player: ev.player || null,
-                        count: Number.isFinite(ev.count) ? ev.count : 0,
-                        reason: ev.reason || null,
-                        cardId: ev.cardId || null,
-                        cardIds: Array.isArray(ev.cardIds) ? ev.cardIds.slice() : null
-                    }];
-                    phaseState.currentPhase++;
-                    pEvent.phase = phaseState.currentPhase;
-                    break;
-                case 'DRAW_CARD':
-                case 'HAND_ADD': {
-                    _preparePassivePlaybackPhaseState(phaseState);
-                    const handAddReason = ev.reason || (ev.meta && ev.meta.reason) || null;
-                    const isCaptureWillHandAdd = String(handAddReason || '').trim().toLowerCase() === 'capture_will';
-                    const handAddVisualDescriptor = (PlaybackEventHelpers && typeof PlaybackEventHelpers.createCardVisualDescriptor === 'function')
-                        ? PlaybackEventHelpers.createCardVisualDescriptor(ev.cardId || null, ev.meta || null)
-                        : null;
-                    pEvent.type = isCaptureWillHandAdd ? 'capture_to_hand_animation' : 'hand_add';
-                    pEvent.targets = [{
-                        player: ev.player || null,
-                        cardId: ev.cardId || null,
-                        count: Number.isFinite(ev.count) ? ev.count : 1,
-                        reason: handAddReason,
-                        sourceType: ev.meta && ev.meta.sourceType ? ev.meta.sourceType : null,
-                        sourceCardId: ev.meta && ev.meta.sourceCardId ? ev.meta.sourceCardId : null,
-                        sourceName: ev.meta && ev.meta.sourceName ? ev.meta.sourceName : null,
-                        sourceSpecialType: ev.meta && ev.meta.sourceSpecialType ? ev.meta.sourceSpecialType : null,
-                        sourceRow: ev.meta && Number.isInteger(ev.meta.sourceRow) ? ev.meta.sourceRow : null,
-                        sourceCol: ev.meta && Number.isInteger(ev.meta.sourceCol) ? ev.meta.sourceCol : null,
-                        sourceOwner: ev.meta && ev.meta.sourceOwner ? ev.meta.sourceOwner : null,
-                        stoneId: ev.meta && Number.isInteger(ev.meta.stoneId) ? ev.meta.stoneId : null,
-                        insertIndex: ev.meta && Number.isInteger(ev.meta.insertIndex) ? ev.meta.insertIndex : null,
-                        generatedName: ev.meta && ev.meta.generatedName ? ev.meta.generatedName : null,
-                        visualDescriptor: handAddVisualDescriptor
-                    }];
-                    // Draw animation should run as its own readable step.
-                    phaseState.currentPhase++;
-                    pEvent.phase = phaseState.currentPhase;
-                    break;
-                }
-                case 'CARD_USED': {
-                    _preparePassivePlaybackPhaseState(phaseState);
-                    const visualDescriptor = (PlaybackEventHelpers && typeof PlaybackEventHelpers.createCardVisualDescriptor === 'function')
-                        ? PlaybackEventHelpers.createCardVisualDescriptor(ev.cardId || null, ev.meta || null)
-                        : null;
-                    pEvent.type = 'card_use_animation';
-                    pEvent.targets = [{
-                        player: ev.player || null,
-                        owner: (ev.meta && ev.meta.owner) ? ev.meta.owner : (ev.player || null),
-                        cardId: ev.cardId || null,
-                        cardType: (ev.meta && ev.meta.cardType) ? ev.meta.cardType : null,
-                        cost: (ev.meta && Number.isFinite(ev.meta.cost)) ? ev.meta.cost : null,
-                        name: (ev.meta && ev.meta.name) ? ev.meta.name : null,
-                        visualDescriptor
-                    }];
-                    // Card-use transport is also a readable step.
-                    phaseState.currentPhase++;
-                    pEvent.phase = phaseState.currentPhase;
-                    break;
-                }
-                case 'WORK_INCOME':
-                    _preparePassivePlaybackPhaseState(phaseState);
-                    pEvent.type = 'log';
-                    pEvent.targets = [];
-                    if (Number.isInteger(ev.row) && Number.isInteger(ev.col)) {
-                        playbackEvents.push(Object.assign(
-                            _createPlaybackEvent(playbackBase, 'observer_bubble', phaseState.currentPhase, [{
-                                r: ev.row,
-                                col: ev.col,
-                                owner: ev.owner || ev.player || (ev.meta && ev.meta.owner) || null,
-                                gained: Number(ev.gained) || 0,
-                                text: _resolveWorkIncomeBubbleText(ev),
-                                incomeStep: Number.isFinite(Number(ev.incomeStep))
-                                    ? Number(ev.incomeStep)
-                                    : (Number.isFinite(Number(ev.meta && ev.meta.incomeStep)) ? Number(ev.meta.incomeStep) : null)
-                            }]),
-                            {
-                                rawType: 'WORK_BUBBLE'
-                            }
-                        ));
-                    }
-                    break;
-                case 'WORK_REMOVED':
-                    _preparePassivePlaybackPhaseState(phaseState, {
-                        preserveDurationEndRevert: _isWorkDurationExpiredPresentationEvent(ev)
-                    });
-                    pEvent.type = 'log';
-                    pEvent.targets = [];
-                    if (_isWorkDurationExpiredPresentationEvent(ev)) {
-                        pEvent.phase = _planDurationEndRevertPlaybackPhase(phaseState, playbackEvents.length > 0);
-                    }
-                    if (
-                        !_isWorkDurationExpiredPresentationEvent(ev) &&
-                        Number.isInteger(ev.row) &&
-                        Number.isInteger(ev.col) &&
-                        !hasLivingWillRestorePresentationEventForSource(presentationEvents, ev.row, ev.col, 'WORK')
-                    ) {
-                        playbackEvents.push(Object.assign(
-                            _createPlaybackEvent(playbackBase, 'observer_bubble', phaseState.currentPhase, [{
-                                r: ev.row,
-                                col: ev.col,
-                                owner: ev.owner || ev.player || (ev.meta && ev.meta.owner) || null,
-                                gained: 0,
-                                text: _resolveWorkRemovedBubbleText(ev)
-                            }]),
-                            {
-                                rawType: 'WORK_BUBBLE'
-                            }
-                        ));
-                    }
-                    break;
-                case 'WORK_BUBBLE':
-                    _preparePassivePlaybackPhaseState(phaseState, { clearWillHunter: false });
-                    pEvent.type = 'observer_bubble';
-                    pEvent.targets = [{
-                        r: ev.row,
-                        col: ev.col,
-                        owner: ev.owner || ev.player || (ev.meta && ev.meta.owner) || null,
-                        gained: Number(ev.gained) || 0,
-                        text: (typeof ev.text === 'string' && ev.text.trim())
-                            ? ev.text.trim()
-                            : _resolveWorkIncomeBubbleText(ev)
-                    }];
-                    break;
-                case 'OBSERVER_TRIGGERED':
-                    _preparePassivePlaybackPhaseState(phaseState, { clearWillHunter: false });
-                    pEvent.type = 'observer_bubble';
-                    pEvent.targets = [{
-                        r: ev.row,
-                        col: ev.col,
-                        owner: ev.owner || ev.player || (ev.meta && ev.meta.owner) || null,
-                        gained: Number(ev.gained) || 0,
-                        text: (typeof ev.text === 'string' && ev.text.trim()) ? ev.text.trim() : ((ev.meta && typeof ev.meta.text === 'string' && ev.meta.text.trim()) ? ev.meta.text.trim() : null)
-                    }];
-                    break;
-                case 'SPECIAL_STONE_BUBBLE': {
-                    const bubbleScenario = (typeof ev.scenario === 'string' && ev.scenario.trim())
-                        ? ev.scenario.trim()
-                        : ((ev.meta && typeof ev.meta.scenario === 'string' && ev.meta.scenario.trim()) ? ev.meta.scenario.trim() : null);
-                    const bubbleReason = (typeof ev.reason === 'string' && ev.reason.trim())
-                        ? ev.reason.trim()
-                        : ((ev.meta && typeof ev.meta.reason === 'string' && ev.meta.reason.trim()) ? ev.meta.reason.trim() : bubbleScenario);
-                    const bubbleCause = (typeof ev.cause === 'string' && ev.cause.trim())
-                        ? ev.cause.trim()
-                        : ((ev.meta && typeof ev.meta.cause === 'string' && ev.meta.cause.trim()) ? ev.meta.cause.trim() : null);
-                    _preparePassivePlaybackPhaseState(phaseState, {
-                        clearWillHunter: false,
-                        preserveDurationEndRevert: _hasDurationEndMarker(bubbleScenario || bubbleReason, bubbleCause)
-                    });
-                    if (
-                        (bubbleScenario === 'destroy' || bubbleScenario === 'duration_end' || bubbleScenario === 'escape_exploded') &&
-                        hasLivingWillRestorePresentationEventForSource(
-                            presentationEvents,
-                            ev.row,
-                            ev.col,
-                            (typeof ev.special === 'string' && ev.special.trim())
-                                ? ev.special.trim()
-                                : ((ev.meta && typeof ev.meta.special === 'string' && ev.meta.special.trim()) ? ev.meta.special.trim() : null)
-                        )
-                    ) {
-                        pEvent.type = null;
-                        pEvent.targets = [];
-                        break;
-                    }
-                    pEvent.type = 'observer_bubble';
-                    pEvent.targets = [{
-                        r: ev.row,
-                        col: ev.col,
-                        owner: ev.owner || ev.player || (ev.meta && ev.meta.owner) || null,
-                        gained: Number(ev.gained) || 0,
-                        text: (typeof ev.text === 'string' && ev.text.trim()) ? ev.text.trim() : ((ev.meta && typeof ev.meta.text === 'string' && ev.meta.text.trim()) ? ev.meta.text.trim() : null),
-                        special: (typeof ev.special === 'string' && ev.special.trim())
-                            ? ev.special.trim()
-                            : ((ev.meta && typeof ev.meta.special === 'string' && ev.meta.special.trim()) ? ev.meta.special.trim() : null),
-                        scenario: bubbleScenario,
-                        reason: bubbleReason
-                    }];
-                    break;
-                }
-                case 'OBSERVER_BUBBLE':
-                    _preparePassivePlaybackPhaseState(phaseState);
-                    if (
-                        isObserverLostBubblePresentationEvent(ev) &&
-                        hasLivingWillRestorePresentationEventForSource(presentationEvents, ev.row, ev.col, 'OBSERVER')
-                    ) {
-                        pEvent.type = null;
-                        pEvent.targets = [];
-                        break;
-                    }
-                    pEvent.type = 'observer_bubble';
-                    pEvent.targets = [{
-                        r: ev.row,
-                        col: ev.col,
-                        owner: ev.owner || ev.player || (ev.meta && ev.meta.owner) || null,
-                        gained: Number(ev.gained) || 0,
-                        text: (typeof ev.text === 'string' && ev.text.trim()) ? ev.text.trim() : ((ev.meta && typeof ev.meta.text === 'string' && ev.meta.text.trim()) ? ev.meta.text.trim() : null)
-                    }];
-                    break;
-                case 'ROUND_BONUS_BANNER':
-                    _preparePassivePlaybackPhaseState(phaseState);
-                    pEvent.type = 'round_bonus_banner';
-                    pEvent.targets = [{
-                        amount: Number(ev.amount) || 0,
-                        roundNumber: Number(ev.roundNumber) || 0,
-                        durationMs: Number(ev.durationMs) || 2200,
-                        text: (typeof ev.text === 'string' && ev.text.trim())
-                            ? ev.text.trim()
-                            : null
-                    }];
-                    break;
-                case 'CHARGE_BUBBLE':
-                    _preparePassivePlaybackPhaseState(phaseState);
-                    // Keep charge gain bubbles in the same readable phase as the flip/move
-                    // that produced them so the board popup appears without an extra delay.
-                    pEvent.phase = phaseState.currentPhase;
-                    pEvent.type = 'observer_bubble';
-                    pEvent.targets = [{
-                        r: ev.row,
-                        col: ev.col,
-                        owner: ev.owner || ev.player || (ev.meta && ev.meta.owner) || null,
-                        gained: Number(ev.gained) || 0,
-                        text: (typeof ev.text === 'string' && ev.text.trim()) ? ev.text.trim() : null,
-                        bubbleKind: 'charge',
-                        sourceType: (ev.meta && ev.meta.sourceType) ? ev.meta.sourceType : null
-                    }];
-                    break;
-                default:
-                    // Unknown presentation event:
-                    // keep playback resilient by ignoring silently in player-facing logs.
-                    pEvent.type = null;
-                    _clearChainFlipPhaseState(phaseState);
-                    phaseState.prevDestroyCause = null;
+            if (!_mapPassivePresentationEvent({
+                ev,
+                phaseState,
+                pEvent,
+                playbackBase,
+                playbackEvents,
+                presentationEvents
+            })) {
+                const boardEventResult = _mapBoardPresentationEvent({
+                    ev,
+                    phaseState,
+                    pEvent,
+                    playbackBase,
+                    presentationEvents,
+                    presIndex,
+                    playbackEvents,
+                    trailingPlaybackEvents,
+                    consumedPresentationIndexes,
+                    followsProliferationDestroy
+                });
+                if (boardEventResult && boardEventResult.skip) {
                     continue;
+                }
             }
 
             if (ev.type !== 'DESTROY' && ev.type !== 'MOVE' && !_isDeferredSpawnPresentationEvent(ev)) {
@@ -1794,142 +1061,10 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                 phaseState.superCrushActionId = null;
             }
 
-            // NOTE: Do not populate 'after' using a final snapshot. Adapter is a thin transform.
-            // Instead, include minimal per-target 'after' info derived from the presentation event itself
-            // so that visual writers can render based on event payload without requiring snapshots.
-            if (pEvent.type !== 'log' && pEvent.type !== 'card_use_animation' && pEvent.type !== 'observer_bubble') {
-                const eventMeta = (ev && ev.meta && typeof ev.meta === 'object') ? ev.meta : null;
-                for (const t of pEvent.targets) {
-                    const targetMeta = (t && t.meta && typeof t.meta === 'object') ? t.meta : eventMeta;
-                    // Add a best-effort 'after' using event-sourced owner fields (no final snapshot)
-                    if (t.ownerAfter !== undefined) {
-                        t.after = {
-                            color: (t.ownerAfter === 'black') ? 1 : -1,
-                            special: getVisualSpecialFromMeta(targetMeta),
-                            timer: getPrimaryTimerFromMeta(targetMeta),
-                            owner: (targetMeta && targetMeta.owner) || null,
-                            inheritedTimer: getInheritedTimerFromMeta(targetMeta),
-                            inheritedOwner: getInheritedOwnerFromMeta(targetMeta),
-                            flipEvadeRemaining: getFlipEvadeRemainingFromMeta(targetMeta),
-                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(targetMeta),
-                            destroyEvadeRemaining: getDestroyEvadeRemainingFromMeta(targetMeta)
-                        };
-                    } else if (pEvent.type === 'spawn') {
-                        t.after = {
-                            color: (t.ownerAfter === 'black') ? 1 : -1,
-                            special: getVisualSpecialFromMeta(targetMeta),
-                            timer: getPrimaryTimerFromMeta(targetMeta),
-                            owner: (targetMeta && targetMeta.owner) || null,
-                            inheritedTimer: getInheritedTimerFromMeta(targetMeta),
-                            inheritedOwner: getInheritedOwnerFromMeta(targetMeta),
-                            flipEvadeRemaining: getFlipEvadeRemainingFromMeta(targetMeta),
-                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(targetMeta),
-                            destroyEvadeRemaining: getDestroyEvadeRemainingFromMeta(targetMeta)
-                        };
-                    } else if (pEvent.type === 'move') {
-                        const afterColor = (t.ownerAfter === 'black') ? 1 : ((t.ownerAfter === 'white') ? -1 : 0);
-                        t.after = {
-                            color: afterColor,
-                            special: getVisualSpecialFromMeta(targetMeta),
-                            timer: getPrimaryTimerFromMeta(targetMeta),
-                            owner: (targetMeta && targetMeta.owner) || t.ownerAfter || null,
-                            inheritedTimer: getInheritedTimerFromMeta(targetMeta),
-                            inheritedOwner: getInheritedOwnerFromMeta(targetMeta),
-                            flipEvadeRemaining: getFlipEvadeRemainingFromMeta(targetMeta),
-                            inheritedFlipEvadeRemaining: getInheritedFlipEvadeRemainingFromMeta(targetMeta),
-                            destroyEvadeRemaining: getDestroyEvadeRemainingFromMeta(targetMeta)
-                        };
-                    } else if (pEvent.type === 'destroy') {
-                        t.after = {
-                            color: 0,
-                            special: null,
-                            timer: null,
-                            owner: null,
-                            inheritedTimer: null,
-                            inheritedOwner: null,
-                            flipEvadeRemaining: null,
-                            inheritedFlipEvadeRemaining: null,
-                            destroyEvadeRemaining: null
-                        };
-                    } else if (pEvent.type === 'status_applied' || pEvent.type === 'status_removed') {
-                        const visual = getVisualStateAt(t.r, t.col, finalCardState, finalGameState);
-                        const specialFromEventRaw = (ev.meta && ev.meta.special) || null;
-                        const specialFromEvent = getVisualSpecialFromMeta(ev.meta);
-                        const ownerFromEvent = (ev.meta && ev.meta.owner) || null;
-                        const inheritedTimerFromEvent = getInheritedTimerFromMeta(ev.meta);
-                        const inheritedOwnerFromEvent = getInheritedOwnerFromMeta(ev.meta);
-                        const flipEvadeRemainingFromEvent = getFlipEvadeRemainingFromMeta(ev.meta);
-                        const inheritedFlipEvadeRemainingFromEvent = getInheritedFlipEvadeRemainingFromMeta(ev.meta);
-                        const destroyEvadeRemainingFromEvent = getDestroyEvadeRemainingFromMeta(ev.meta);
-                        const isStatusRemoved = pEvent.type === 'status_removed';
-                        const preferFinalVisualStateForApply = !isStatusRemoved &&
-                            shouldPreferFinalVisualStateForStatusApplied(
-                                specialFromEventRaw,
-                                visual.special || null,
-                                visual.livingWillAura === true
-                            );
-                        let color = visual.color || 0;
-                        if (color === 0 && (specialFromEventRaw === 'TRAP' || specialFromEventRaw === 'TRAP_REVEAL')) {
-                            if (ownerFromEvent === 'black' || ownerFromEvent === 1 || ownerFromEvent === '1') color = 1;
-                            if (ownerFromEvent === 'white' || ownerFromEvent === -1 || ownerFromEvent === '-1') color = -1;
-                        }
-                        const specialForVisual = isStatusRemoved
-                            ? (visual.special || null)
-                            : (preferFinalVisualStateForApply ? (visual.special || null) : (specialFromEvent || visual.special || null));
-                        const timerForVisual = isStatusRemoved
-                            ? (visual.timer || null)
-                            : (preferFinalVisualStateForApply ? (visual.timer || null) : ((ev.meta && ev.meta.timer) || visual.timer || null));
-                        const ownerForVisual = isStatusRemoved
-                            ? (visual.owner || null)
-                            : (preferFinalVisualStateForApply ? (visual.owner || ownerFromEvent || null) : (ownerFromEvent || visual.owner || null));
-                        const inheritedTimerForVisual = isStatusRemoved
-                            ? (visual.inheritedTimer || null)
-                            : (preferFinalVisualStateForApply ? (visual.inheritedTimer || null) : (inheritedTimerFromEvent || visual.inheritedTimer || null));
-                        const inheritedOwnerForVisual = isStatusRemoved
-                            ? (visual.inheritedOwner || null)
-                            : (preferFinalVisualStateForApply ? (visual.inheritedOwner || null) : (inheritedOwnerFromEvent || visual.inheritedOwner || null));
-                        const flipEvadeRemainingForVisual = isStatusRemoved
-                            ? (visual.flipEvadeRemaining ?? null)
-                            : (preferFinalVisualStateForApply
-                                ? (visual.flipEvadeRemaining ?? null)
-                                : ((flipEvadeRemainingFromEvent ?? visual.flipEvadeRemaining) ?? null));
-                        const inheritedFlipEvadeRemainingForVisual = isStatusRemoved
-                            ? (visual.inheritedFlipEvadeRemaining ?? null)
-                            : (preferFinalVisualStateForApply
-                                ? (visual.inheritedFlipEvadeRemaining ?? null)
-                                : ((inheritedFlipEvadeRemainingFromEvent ?? visual.inheritedFlipEvadeRemaining) ?? null));
-                        const destroyEvadeRemainingForVisual = isStatusRemoved
-                            ? (visual.destroyEvadeRemaining ?? null)
-                            : (preferFinalVisualStateForApply
-                                ? (visual.destroyEvadeRemaining ?? null)
-                                : ((destroyEvadeRemainingFromEvent ?? visual.destroyEvadeRemaining) ?? null));
-                        t.after = {
-                            color,
-                            special: specialForVisual,
-                            timer: timerForVisual,
-                            owner: ownerForVisual,
-                            inheritedTimer: inheritedTimerForVisual,
-                            inheritedOwner: inheritedOwnerForVisual,
-                            flipEvadeRemaining: flipEvadeRemainingForVisual,
-                            inheritedFlipEvadeRemaining: inheritedFlipEvadeRemainingForVisual,
-                            destroyEvadeRemaining: destroyEvadeRemainingForVisual,
-                            livingWillAura: visual.livingWillAura === true
-                        };
-                    } else {
-                        t.after = {
-                            color: 0,
-                            special: null,
-                            timer: null,
-                            owner: null,
-                            inheritedTimer: null,
-                            inheritedOwner: null,
-                            flipEvadeRemaining: null,
-                            inheritedFlipEvadeRemaining: null,
-                            destroyEvadeRemaining: null
-                        };
-                    }
-                }
-            }
+            // NOTE: Do not populate 'after' using a final snapshot. Adapter remains a thin transform.
+            // The after-state module derives minimal per-target visual state from the event payload
+            // and final visual markers only when status events need that lookup.
+            _populatePlaybackEventAfterState(pEvent, ev, finalCardState, finalGameState);
 
             if (pEvent.type) playbackEvents.push(pEvent);
             if (trailingPlaybackEvents.length) playbackEvents.push(...trailingPlaybackEvents);
@@ -1939,165 +1074,91 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return _appendGeneratedThrowChainPlayback(generatedThrowChainSplit.immediateEvents, generatedThrowChainSplit.deferredEvents);
     }
 
+    function getPipelineUIPlaybackUtilsOptions() {
+        return { generatedThrowChainReason: GENERATED_THROW_CHAIN_REASON };
+    }
+
     function _phaseNum(v: any) {
-        const n = Number(v);
-        return Number.isFinite(n) ? n : 0;
+        if (!(PipelineUIPlaybackUtilsModule && typeof PipelineUIPlaybackUtilsModule.phaseNum === 'function')) {
+            throw new Error('PipelineUIAdapter playback utils module unavailable');
+        }
+        return PipelineUIPlaybackUtilsModule.phaseNum(v);
     }
 
     function _getPrimaryPlaybackTarget(ev: any) {
-        if (ev && Array.isArray(ev.targets) && ev.targets.length > 0) {
-            return ev.targets[0];
+        if (!(PipelineUIPlaybackUtilsModule && typeof PipelineUIPlaybackUtilsModule.getPrimaryPlaybackTarget === 'function')) {
+            throw new Error('PipelineUIAdapter playback utils module unavailable');
         }
-        return ev || null;
-    }
-
-    function _hasGeneratedThrowChainReason(reason: any) {
-        return String(reason || '').trim().toLowerCase() === GENERATED_THROW_CHAIN_REASON;
-    }
-
-    function _isGeneratedThrowChainHandAddPlaybackEvent(ev: any) {
-        if (!ev || ev.type !== 'hand_add') return false;
-        if (String(ev.rawType || '').toUpperCase() !== 'HAND_ADD') return false;
-        if (_hasGeneratedThrowChainReason(ev.reason)) return true;
-        if (_hasGeneratedThrowChainReason(ev.meta && ev.meta.reason)) return true;
-        const candidates = Array.isArray(ev.targets) && ev.targets.length > 0
-            ? ev.targets
-            : [ev];
-        return candidates.some((target: any) => !!target && _hasGeneratedThrowChainReason(target.reason));
-    }
-
-    function _countPlaybackCards(ev: any) {
-        const target = _getPrimaryPlaybackTarget(ev);
-        const count = Number(target && target.count);
-        return Number.isFinite(count) ? Math.max(1, Math.trunc(count)) : 1;
+        return PipelineUIPlaybackUtilsModule.getPrimaryPlaybackTarget(ev);
     }
 
     function _clonePlaybackTarget(target: any) {
-        if (!target || typeof target !== 'object') return target;
-        const clonedTarget = Object.assign({}, target);
-        if (target.from && typeof target.from === 'object') clonedTarget.from = Object.assign({}, target.from);
-        if (target.to && typeof target.to === 'object') clonedTarget.to = Object.assign({}, target.to);
-        if (target.after && typeof target.after === 'object') clonedTarget.after = Object.assign({}, target.after);
-        if (target.meta && typeof target.meta === 'object') clonedTarget.meta = Object.assign({}, target.meta);
-        return clonedTarget;
+        if (!(PipelineUIPlaybackUtilsModule && typeof PipelineUIPlaybackUtilsModule.clonePlaybackTarget === 'function')) {
+            throw new Error('PipelineUIAdapter playback utils module unavailable');
+        }
+        return PipelineUIPlaybackUtilsModule.clonePlaybackTarget(target);
     }
 
     function _clonePlaybackEventWithPhase(ev: any, phase: any) {
-        const clonedEvent = Object.assign({}, ev, { phase });
-        if (clonedEvent.meta && typeof clonedEvent.meta === 'object') {
-            clonedEvent.meta = Object.assign({}, clonedEvent.meta);
+        if (!(PipelineUIPlaybackUtilsModule && typeof PipelineUIPlaybackUtilsModule.clonePlaybackEventWithPhase === 'function')) {
+            throw new Error('PipelineUIAdapter playback utils module unavailable');
         }
-        if (Array.isArray(ev && ev.targets)) {
-            clonedEvent.targets = ev.targets.map((target: any) => _clonePlaybackTarget(target));
-        }
-        return clonedEvent;
-    }
-
-    function _setDeferredGeneratedThrowChainPlayback(playerKey: any, events: any) {
-        const ownerKey = _normalizePlayerKey(playerKey) || 'black';
-        deferredGeneratedThrowChainPlaybackByPlayer[ownerKey] = Array.isArray(events)
-            ? events.map((ev: any) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)))
-            : [];
-    }
-
-    function _takeDeferredGeneratedThrowChainPlayback(playerKey: any) {
-        const ownerKey = _normalizePlayerKey(playerKey) || 'black';
-        const queued = Array.isArray(deferredGeneratedThrowChainPlaybackByPlayer[ownerKey])
-            ? deferredGeneratedThrowChainPlaybackByPlayer[ownerKey].slice()
-            : [];
-        _clearDeferredGeneratedThrowChainPlaybackForPlayer(ownerKey);
-        return queued;
+        return PipelineUIPlaybackUtilsModule.clonePlaybackEventWithPhase(ev, phase);
     }
 
     function _extractGeneratedThrowChainPlayback(playbackEvents: any) {
-        const immediateEvents = [];
-        const deferredEvents = [];
-        for (const ev of Array.isArray(playbackEvents) ? playbackEvents : []) {
-            if (_isGeneratedThrowChainHandAddPlaybackEvent(ev)) {
-                deferredEvents.push(ev);
-            } else {
-                immediateEvents.push(ev);
-            }
+        if (!(PipelineUIPlaybackUtilsModule && typeof PipelineUIPlaybackUtilsModule.extractGeneratedThrowChainPlayback === 'function')) {
+            throw new Error('PipelineUIAdapter playback utils module unavailable');
         }
-        return { immediateEvents, deferredEvents };
+        return PipelineUIPlaybackUtilsModule.extractGeneratedThrowChainPlayback(playbackEvents, getPipelineUIPlaybackUtilsOptions());
     }
 
     function _appendGeneratedThrowChainPlayback(playbackEvents: any, deferredEvents: any) {
-        const baseEvents = Array.isArray(playbackEvents) ? playbackEvents.slice() : [];
-        const pendingEvents = Array.isArray(deferredEvents) ? deferredEvents : [];
-        if (pendingEvents.length <= 0) return baseEvents;
-
-        const startPhase = Math.max(1, _maxPhase(baseEvents) + 1);
-        for (let index = 0; index < pendingEvents.length; index += 1) {
-            baseEvents.push(_clonePlaybackEventWithPhase(pendingEvents[index], startPhase + index));
+        if (!(PipelineUIPlaybackUtilsModule && typeof PipelineUIPlaybackUtilsModule.appendGeneratedThrowChainPlayback === 'function')) {
+            throw new Error('PipelineUIAdapter playback utils module unavailable');
         }
-        return baseEvents;
+        return PipelineUIPlaybackUtilsModule.appendGeneratedThrowChainPlayback(playbackEvents, deferredEvents);
     }
 
     function _processGeneratedThrowChainPlayback(playbackEvents: any, action: any, playerKey: any) {
-        const split = _extractGeneratedThrowChainPlayback(playbackEvents);
-        const actionType = String(action && action.type ? action.type : '').toLowerCase();
-        const ownerKey = _normalizePlayerKey(playerKey) || 'black';
-
-        if (actionType === 'use_card') {
-            if (split.deferredEvents.length > 0) {
-                _setDeferredGeneratedThrowChainPlayback(ownerKey, split.deferredEvents);
-                return {
-                    playbackEvents: split.immediateEvents,
-                    deferredGeneratedThrowChainHandAdd: {
-                        playerKey: ownerKey,
-                        count: split.deferredEvents.reduce((sum: any, ev: any) => sum + _countPlaybackCards(ev), 0),
-                        reason: GENERATED_THROW_CHAIN_REASON
-                    }
-                };
-            }
-            return { playbackEvents: split.immediateEvents, deferredGeneratedThrowChainHandAdd: null };
+        if (!(PipelineUIGeneratedThrowChainPlaybackModule && typeof PipelineUIGeneratedThrowChainPlaybackModule.processGeneratedThrowChainPlayback === 'function')) {
+            throw new Error('PipelineUIAdapter generated throw-chain module unavailable');
         }
-
-        if (actionType === 'place') {
-            const queuedDeferredEvents = _takeDeferredGeneratedThrowChainPlayback(ownerKey);
-            const allDeferredEvents = queuedDeferredEvents.concat(split.deferredEvents);
-            return {
-                playbackEvents: _appendGeneratedThrowChainPlayback(split.immediateEvents, allDeferredEvents),
-                deferredGeneratedThrowChainHandAdd: null
-            };
-        }
-
-        if (split.deferredEvents.length > 0) {
-            _setDeferredGeneratedThrowChainPlayback(ownerKey, split.deferredEvents);
-        }
-
-        return { playbackEvents: split.immediateEvents, deferredGeneratedThrowChainHandAdd: null };
+        return PipelineUIGeneratedThrowChainPlaybackModule.processGeneratedThrowChainPlayback(
+            playbackEvents,
+            action,
+            playerKey,
+            deferredGeneratedThrowChainPlaybackByPlayer,
+            getPipelineUIGeneratedThrowChainPlaybackDeps()
+        );
     }
 
     function _maxPhase(playbackEvents: any) {
-        const arr = Array.isArray(playbackEvents) ? playbackEvents : [];
-        return arr.reduce((maxP: any, ev: any) => {
-            const p = _phaseNum(ev && ev.phase);
-            return p > maxP ? p : maxP;
-        }, 0);
+        if (!(PipelineUIPlaybackUtilsModule && typeof PipelineUIPlaybackUtilsModule.maxPhase === 'function')) {
+            throw new Error('PipelineUIAdapter playback utils module unavailable');
+        }
+        return PipelineUIPlaybackUtilsModule.maxPhase(playbackEvents);
     }
 
     function _findPhase(playbackEvents: any, predicate: any, fallbackPhase: any) {
-        const arr = Array.isArray(playbackEvents) ? playbackEvents : [];
-        for (const ev of arr) {
-            if (predicate(ev)) return _phaseNum(ev && ev.phase);
+        if (!(PipelineUIPlaybackUtilsModule && typeof PipelineUIPlaybackUtilsModule.findPhase === 'function')) {
+            throw new Error('PipelineUIAdapter playback utils module unavailable');
         }
-        return _phaseNum(fallbackPhase);
+        return PipelineUIPlaybackUtilsModule.findPhase(playbackEvents, predicate, fallbackPhase);
     }
 
     function _rawDetailCount(ev: any) {
-        if (!ev || !Array.isArray(ev.details)) return 0;
-        return ev.details.length;
+        if (!(PipelineUIPlaybackUtilsModule && typeof PipelineUIPlaybackUtilsModule.rawDetailCount === 'function')) {
+            throw new Error('PipelineUIAdapter playback utils module unavailable');
+        }
+        return PipelineUIPlaybackUtilsModule.rawDetailCount(ev);
     }
 
     function _hasRawEvent(rawEvents: any, type: any, predicate?: any) {
-        const events = Array.isArray(rawEvents) ? rawEvents : [];
-        for (const ev of events) {
-            if (!ev || ev.type !== type) continue;
-            if (!predicate || predicate(ev)) return true;
+        if (!(PipelineUIPlaybackUtilsModule && typeof PipelineUIPlaybackUtilsModule.hasRawEvent === 'function')) {
+            throw new Error('PipelineUIAdapter playback utils module unavailable');
         }
-        return false;
+        return PipelineUIPlaybackUtilsModule.hasRawEvent(rawEvents, type, predicate);
     }
 
     function normalizePlaybackEvents(playbackEvents: any, _unused?: any) {
@@ -2282,977 +1343,57 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return true;
     }
 
-    function _createSoundCuePlanningContext(playbackEvents: any, rawEvents: any, presentationEvents: any) {
-        const base = Array.isArray(playbackEvents) ? playbackEvents.slice() : [];
+    function getPipelineUISoundCueAssemblerDeps() {
         return {
-            base,
-            raw: Array.isArray(rawEvents) ? rawEvents : [],
-            pres: Array.isArray(presentationEvents) ? presentationEvents : [],
-            fallbackPhase: _maxPhase(base) + 1,
-            added: [],
-            seenSingleKeys: new Set()
+            bombDestroyCauses: BOMB_DESTROY_CAUSES,
+            cardEffectFlipSoundKey: CARD_EFFECT_FLIP_SOUND_KEY,
+            ultimateAnchorMoveSoundKey: ULTIMATE_ANCHOR_MOVE_SOUND_KEY,
+            cardEffectSpawnProfiles: CARD_EFFECT_SPAWN_PROFILES,
+            soundEventType: SOUND_EVENT_TYPE,
+            maxPhase: _maxPhase,
+            phaseNum: _phaseNum,
+            clonePlaybackEventWithPhase: _clonePlaybackEventWithPhase,
+            findPhase: _findPhase,
+            rawDetailCount: _rawDetailCount,
+            hasRawEvent: _hasRawEvent,
+            countCardEffectFlipFallbackEvents: _countCardEffectFlipFallbackEvents,
+            isCardEffectSpawnEventLike: _isCardEffectSpawnEventLike,
+            isCardEffectSpawnPlaybackEvent: _isCardEffectSpawnPlaybackEvent,
+            isCardEffectFlipPresentationEvent,
+            isDestroyWithCause: _isDestroyWithCause,
+            isHyperactiveMoveTarget: _isHyperactiveMoveTarget,
+            isLivingWillRestoreEventLike: _isLivingWillRestoreEventLike,
+            isSeedSproutEventLike: _isSeedSproutEventLike,
+            isSpecialDurationExpiredPlaybackEvent: _isSpecialDurationExpiredPlaybackEvent,
+            isUltimateAnchorMoveTarget: _isUltimateAnchorMoveTarget,
+            getMoveIntent: _getMoveIntent,
+            isBoardShrinkDestroyTarget: _isBoardShrinkDestroyTarget,
+            isSuperCrushMoveTarget: _isSuperCrushMoveTarget,
+            isWorkFlipOrDestroyRemovedPresentationEvent: _isWorkFlipOrDestroyRemovedPresentationEvent,
+            isDestroyDragonBreathDestroyTarget: _isDestroyDragonBreathDestroyTarget,
+            isDestroyRemovalOutcome: _isDestroyRemovalOutcome,
+            isGluttonousEatDestroyTarget: _isGluttonousEatDestroyTarget,
+            isGoldSilverSelfDestroyEvent: _isGoldSilverSelfDestroyEvent,
+            isGoldSilverSelfDestroyTarget: _isGoldSilverSelfDestroyTarget,
+            isLightningDestroyTarget: _isLightningDestroyTarget,
+            isRobotVacuumSuckDestroyTarget: _isRobotVacuumSuckDestroyTarget,
+            isSniperShotDestroyTarget: _isSniperShotDestroyTarget,
+            isSpecialDurationExpiredDestroyTarget: _isSpecialDurationExpiredDestroyTarget,
+            isUltimateDestroyGodDestroyTarget: _isUltimateDestroyGodDestroyTarget,
+            isWillHunterKingSlashDestroyTarget: _isWillHunterKingSlashDestroyTarget
         };
-    }
-
-    function _pushSoundCue(ctx: any, soundKey: any, phase: any, sourceType: any, options: any = {}) {
-        const key = String(soundKey || '').trim();
-        const allowRepeat = !!(options && options.allowRepeat === true);
-        if (!key) return;
-        if (!allowRepeat) {
-            if (ctx.seenSingleKeys.has(key)) return;
-            ctx.seenSingleKeys.add(key);
-        }
-        ctx.added.push({
-            type: SOUND_EVENT_TYPE,
-            phase: _phaseNum(phase),
-            targets: [{ soundKey: key }],
-            meta: sourceType ? { sourceType } : null
-        });
-    }
-
-    function _tagCardUseAnimationPlaybackTarget(ctx: any, patch: any) {
-        const anchorIndex = ctx.base.findIndex((ev: any) => ev && ev.type === 'card_use_animation');
-        if (anchorIndex < 0) return false;
-        const anchor = ctx.base[anchorIndex];
-        const targets = Array.isArray(anchor.targets) ? anchor.targets.slice() : [];
-        const firstTarget = targets[0] ? Object.assign({}, targets[0]) : {};
-        targets[0] = Object.assign(firstTarget, patch || {});
-        anchor.targets = targets;
-        return true;
-    }
-
-    function _appendPlaybackEventsIntoCardUseAnimationTarget(ctx: any, propertyName: any, playbackEvents: any) {
-        const deferredEvents = Array.isArray(playbackEvents)
-            ? playbackEvents
-                .filter((ev: any) => !!ev)
-                .map((ev: any) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)))
-            : [];
-        if (!deferredEvents.length) return false;
-        const anchorIndex = ctx.base.findIndex((ev: any) => ev && ev.type === 'card_use_animation');
-        if (anchorIndex < 0) return false;
-        const anchor = ctx.base[anchorIndex];
-        const targets = Array.isArray(anchor.targets) ? anchor.targets.slice() : [];
-        const firstTarget = targets[0] ? Object.assign({}, targets[0]) : {};
-        const existingEvents = Array.isArray(firstTarget[propertyName])
-            ? firstTarget[propertyName]
-                .filter((ev: any) => !!ev)
-                .map((ev: any) => _clonePlaybackEventWithPhase(ev, _phaseNum(ev && ev.phase)))
-            : [];
-        firstTarget[propertyName] = existingEvents.concat(deferredEvents);
-        targets[0] = firstTarget;
-        anchor.targets = targets;
-        return true;
-    }
-
-    function _movePlaybackEventsIntoCardUseAnimationTarget(ctx: any, predicate: any, propertyName: any) {
-        const deferredEvents = ctx.base
-            .filter((ev: any) => !!ev && predicate(ev));
-        if (!deferredEvents.length) return false;
-        if (!_appendPlaybackEventsIntoCardUseAnimationTarget(ctx, propertyName, deferredEvents)) return false;
-        for (let i = ctx.base.length - 1; i >= 0; i--) {
-            if (ctx.base[i] && predicate(ctx.base[i])) ctx.base.splice(i, 1);
-        }
-        return true;
-    }
-
-    function _moveFirstPlaybackEventIntoCardUseAnimationTarget(ctx: any, sourceEvents: any, predicate: any, propertyName: any) {
-        if (!Array.isArray(sourceEvents)) return false;
-        const matchIndex = sourceEvents.findIndex((ev: any) => !!ev && predicate(ev));
-        if (matchIndex < 0) return false;
-        const matchedEvent = sourceEvents[matchIndex];
-        if (!_appendPlaybackEventsIntoCardUseAnimationTarget(ctx, propertyName, [matchedEvent])) return false;
-        sourceEvents.splice(matchIndex, 1);
-        return true;
-    }
-
-    function _collectUniquePhases(playbackEvents: any, predicate: any) {
-        return Array.from(new Set(
-            (Array.isArray(playbackEvents) ? playbackEvents : [])
-                .filter((ev: any) => predicate(ev))
-                .map((ev: any) => _phaseNum(ev && ev.phase))
-                .filter((phase: any) => phase > 0)
-        )).sort((a: any, b: any) => a - b);
-    }
-
-    function _pushCueForPhases(ctx: any, phases: any, soundKey: any, sourceType: any) {
-        for (const phase of phases) {
-            _pushSoundCue(ctx, soundKey, phase, sourceType, { allowRepeat: true });
-        }
-    }
-
-    function _pushRepeatedCueForMatchingTargets(ctx: any, events: any, targetPredicate: any, soundKey: any, sourceType: any) {
-        for (const ev of Array.isArray(events) ? events : []) {
-            const phase = _phaseNum(ev && ev.phase);
-            const targets = Array.isArray(ev && ev.targets) ? ev.targets : [];
-            const hitCount = targets.filter((target: any) => targetPredicate(target)).length;
-            for (let i = 0; i < hitCount; i++) {
-                _pushSoundCue(ctx, soundKey, phase, sourceType, { allowRepeat: true });
-            }
-        }
-    }
-
-    function _pushCueForMatchingEventPhases(ctx: any, events: any, targetPredicate: any, soundKey: any, sourceType: any) {
-        const phases = _collectUniquePhases(events, (ev: any) => (
-            ev &&
-            Array.isArray(ev.targets) &&
-            ev.targets.some((target: any) => targetPredicate(target))
-        ));
-        _pushCueForPhases(ctx, phases, soundKey, sourceType);
-    }
-
-    function _pushRepeatedCueForCardEffectSpawnProfiles(ctx: any, events: any, soundKey: any) {
-        for (const profile of CARD_EFFECT_SPAWN_PROFILES) {
-            _pushRepeatedCueForMatchingTargets(
-                ctx,
-                events,
-                (target: any) => _isCardEffectSpawnEventLike(target, profile),
-                soundKey,
-                profile.soundSourceType
-            );
-        }
-    }
-
-    function _deferFirstCardEffectSpawnIntoDisappearPlayback(ctx: any, profile: any, soundKey: any) {
-        if (!_hasRawEvent(ctx.raw, profile.rawResolvedType, (ev: any) => Number(ev && ev.spawnedCount) > 0)) {
-            return;
-        }
-        const movedSpawn = _moveFirstPlaybackEventIntoCardUseAnimationTarget(
-            ctx,
-            ctx.base,
-            (ev: any) => _isCardEffectSpawnPlaybackEvent(ev, profile),
-            'disappearPlaybackEvents'
-        );
-        if (!movedSpawn) return;
-        _moveFirstPlaybackEventIntoCardUseAnimationTarget(
-            ctx,
-            ctx.added,
-            (ev: any) => ev &&
-                ev.type === SOUND_EVENT_TYPE &&
-                ev.meta &&
-                ev.meta.sourceType === profile.soundSourceType &&
-                Array.isArray(ev.targets) &&
-                ev.targets.some((target: any) => String(target && target.soundKey ? target.soundKey : '').trim() === String(soundKey || '').trim()),
-            'disappearPlaybackEvents'
-        );
-    }
-
-    function _planCoreSoundCues(ctx: any) {
-        const bombDestroyPhases = _collectUniquePhases(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t: any) => _isDestroyWithCause(t, BOMB_DESTROY_CAUSES))
-        );
-        if (bombDestroyPhases.length > 0) {
-            _pushCueForPhases(ctx, bombDestroyPhases, 'bomb_explode', 'bomb_destroy');
-        } else if (_hasRawEvent(ctx.raw, 'bombs_exploded', (ev: any) => !!(ev && ev.details))) {
-            _pushSoundCue(ctx, 'bomb_explode', ctx.fallbackPhase, 'bombs_exploded');
-        }
-
-        const breedingPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'spawn' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
-                const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                const reason = String(t && t.reason ? t.reason : '').toLowerCase();
-                return cause === 'BREEDING' || reason.indexOf('breeding_spawn') === 0;
-            }),
-            ctx.fallbackPhase
-        );
-        if (
-            _hasRawEvent(ctx.raw, 'breeding_spawned_start', (ev: any) => _rawDetailCount(ev) > 0) ||
-            _hasRawEvent(ctx.raw, 'breeding_spawned_immediate', (ev: any) => _rawDetailCount(ev) > 0)
-        ) {
-            _pushSoundCue(ctx, 'breeding_spawn', breedingPhase, 'breeding_spawned');
-        }
-        _pushRepeatedCueForCardEffectSpawnProfiles(
-            ctx,
-            ctx.base.filter((ev: any) => ev && ev.type === 'spawn'),
-            'breeding_spawn'
-        );
-
-        const seedSproutEvents = ctx.base.filter((ev: any) => (
-            ev &&
-            ev.type === 'spawn' &&
-            Array.isArray(ev.targets) &&
-            ev.targets.some((target: any) => _isSeedSproutEventLike(target))
-        ));
-        if (seedSproutEvents.length > 0) {
-            _pushRepeatedCueForMatchingTargets(
-                ctx,
-                seedSproutEvents,
-                (target: any) => _isSeedSproutEventLike(target),
-                'seed_sprout',
-                'seed_sprout'
-            );
-        }
-
-        const livingWillRestoreEvents = ctx.base.filter((ev: any) => (
-            ev &&
-            (ev.type === 'spawn' || ev.type === 'flip') &&
-            Array.isArray(ev.targets) &&
-            ev.targets.some((target: any) => _isLivingWillRestoreEventLike(target))
-        ));
-        if (livingWillRestoreEvents.length > 0) {
-            _pushRepeatedCueForMatchingTargets(
-                ctx,
-                livingWillRestoreEvents,
-                (target: any) => _isLivingWillRestoreEventLike(target),
-                'living_will_restored',
-                'living_will_restored'
-            );
-        }
-
-        const hasAppliedTemptSelection = _hasRawEvent(ctx.raw, 'tempt_selected', (ev: any) => !!(ev && ev.applied));
-        const hasTemptSelectionEvent = _hasRawEvent(ctx.raw, 'tempt_selected');
-        const hasAppliedSwapSelection = _hasRawEvent(ctx.raw, 'swap_selected', (ev: any) => !!(ev && ev.swapped));
-        const hasSwapSelectionEvent = _hasRawEvent(ctx.raw, 'swap_selected');
-        const shouldIncludeCardEffectFlipTarget = (target: any) => {
-            if (!isCardEffectFlipPresentationEvent(target)) return false;
-            const reason = String(target && target.reason ? target.reason : '').toLowerCase();
-            if (reason.indexOf('tempt_applied') === 0) {
-                return hasAppliedTemptSelection || !hasTemptSelectionEvent;
-            }
-            if (reason.indexOf('swap_with_enemy') === 0) {
-                return hasAppliedSwapSelection || !hasSwapSelectionEvent;
-            }
-            return true;
-        };
-        const cardEffectFlipPhases = _collectUniquePhases(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t: any) => shouldIncludeCardEffectFlipTarget(t))
-        );
-        if (cardEffectFlipPhases.length > 0) {
-            _pushCueForPhases(ctx, cardEffectFlipPhases, CARD_EFFECT_FLIP_SOUND_KEY, 'card_effect_flip');
-        } else {
-            const cardEffectFlipFallbackCount = _countCardEffectFlipFallbackEvents(ctx.raw);
-            for (let i = 0; i < cardEffectFlipFallbackCount; i++) {
-                _pushSoundCue(ctx, CARD_EFFECT_FLIP_SOUND_KEY, ctx.fallbackPhase + i, 'card_effect_flip', { allowRepeat: true });
-            }
-        }
-
-        const ultimateAnchorMoveEvents = ctx.base.filter((ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => _isUltimateAnchorMoveTarget(t)));
-        if (ultimateAnchorMoveEvents.length > 0) {
-            _pushRepeatedCueForMatchingTargets(
-                ctx,
-                ultimateAnchorMoveEvents,
-                (target: any) => _isUltimateAnchorMoveTarget(target),
-                ULTIMATE_ANCHOR_MOVE_SOUND_KEY,
-                'ultimate_anchor_moved'
-            );
-        } else {
-            const fallbackMoveCount = ctx.raw.reduce((sum: any, ev: any) => {
-                if (!ev || !ev.type) return sum;
-                if (
-                    ev.type !== 'dragon_moved_start' &&
-                    ev.type !== 'dragon_moved_immediate' &&
-                    ev.type !== 'udg_moved_start' &&
-                    ev.type !== 'udg_moved_immediate' &&
-                    ev.type !== 'will_hunter_king_moved_start' &&
-                    ev.type !== 'will_hunter_king_moved_immediate'
-                ) {
-                    return sum;
-                }
-                return sum + _rawDetailCount(ev);
-            }, 0);
-            for (let i = 0; i < fallbackMoveCount; i++) {
-                _pushSoundCue(ctx, ULTIMATE_ANCHOR_MOVE_SOUND_KEY, ctx.fallbackPhase + i, 'ultimate_anchor_moved', { allowRepeat: true });
-            }
-        }
-
-        const hyperactiveMoveEvents = ctx.base.filter((ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => _isHyperactiveMoveTarget(t)));
-        if (hyperactiveMoveEvents.length > 0) {
-            _pushRepeatedCueForMatchingTargets(
-                ctx,
-                hyperactiveMoveEvents,
-                (target: any) => _isHyperactiveMoveTarget(target),
-                'hyperactive_move',
-                'hyperactive_moved'
-            );
-        } else {
-            const fallbackMoveCount = ctx.raw.reduce((sum: any, ev: any) => {
-                if (!ev || !ev.type) return sum;
-                if (
-                    ev.type !== 'hyperactive_moved_start' &&
-                    ev.type !== 'hyperactive_moved_immediate' &&
-                    ev.type !== 'ultimate_hyperactive_moved_start' &&
-                    ev.type !== 'ultimate_hyperactive_moved_immediate' &&
-                    ev.type !== 'robot_vacuum_moved_start' &&
-                    ev.type !== 'robot_vacuum_moved_immediate'
-                ) {
-                    return sum;
-                }
-                return sum + _rawDetailCount(ev);
-            }, 0);
-            for (let i = 0; i < fallbackMoveCount; i++) {
-                _pushSoundCue(ctx, 'hyperactive_move', ctx.fallbackPhase + i, 'hyperactive_moved', { allowRepeat: true });
-            }
-        }
-
-        const specialRevertedPhase = _findPhase(ctx.base, _isSpecialDurationExpiredPlaybackEvent, ctx.fallbackPhase);
-        if (ctx.base.some(_isSpecialDurationExpiredPlaybackEvent)) {
-            _pushSoundCue(ctx, 'special_reverted', specialRevertedPhase, 'special_reverted');
-        }
-    }
-
-    function _planSelectionSoundCues(ctx: any) {
-        const trapSelectPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'TRAP',
-            ctx.fallbackPhase
-        );
-        const timeBombSelectPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'TIME_BOMB',
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'trap_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'trap_select', trapSelectPhase, 'trap_selected');
-        }
-        if (_hasRawEvent(ctx.raw, 'time_bomb_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'trap_select', timeBombSelectPhase, 'time_bomb_selected');
-        }
-
-        const guardSelectPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'GUARD',
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'guard_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'guard_select', guardSelectPhase, 'guard_selected');
-        }
-
-        const livingWillPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'LIVING_WILL',
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'living_will_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'living_will_selected', livingWillPhase, 'living_will_selected');
-        }
-
-        const hyperactiveInheritSelectPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'INHERITED_HYPERACTIVE',
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'hyperactive_inherit_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'guard_select', hyperactiveInheritSelectPhase, 'hyperactive_inherit_selected');
-        }
-
-        const blockadeSelectPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'BLOCKADE',
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'blockade_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'blockade_select', blockadeSelectPhase, 'blockade_selected');
-        }
-
-        const freezeSelectPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'FREEZE',
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'freeze_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'freeze_select', freezeSelectPhase, 'freeze_selected');
-        }
-
-        const trapTriggeredEvent = ctx.raw.find((ev: any) => ev && ev.type === 'trap_triggered' && _rawDetailCount(ev) > 0);
-        const trapTriggeredDetail = trapTriggeredEvent && Array.isArray(trapTriggeredEvent.details)
-            ? trapTriggeredEvent.details[0]
-            : null;
-        const trapTriggeredPhase = (trapTriggeredDetail && Number.isInteger(trapTriggeredDetail.row) && Number.isInteger(trapTriggeredDetail.col))
-            ? _findPhase(
-                ctx.base,
-                (ev: any) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t: any) => t && t.r === trapTriggeredDetail.row && t.col === trapTriggeredDetail.col),
-                ctx.fallbackPhase
-            )
-            : ctx.fallbackPhase;
-        if (trapTriggeredEvent) {
-            _pushSoundCue(ctx, 'trap_triggered', trapTriggeredPhase, 'trap_triggered');
-        }
-
-        const strongWindPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
-                if (_getMoveIntent(t) === 'wind_move') return true;
-                const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                const reason = String(t && t.reason ? t.reason : '').toLowerCase();
-                return cause === 'STRONG_WIND_WILL' || reason.indexOf('strong_wind_move') === 0;
-            }),
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'strong_wind_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'strong_wind_move', strongWindPhase, 'strong_wind_selected');
-        }
-
-        const positionSwapPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
-                if (_getMoveIntent(t) === 'position_swap') return true;
-                const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                const reason = String(t && t.reason ? t.reason : '').toLowerCase();
-                return cause === 'POSITION_SWAP_WILL' || reason.indexOf('position_swap') === 0;
-            }),
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'position_swap_selected', (ev: any) => !!(ev && ev.applied && ev.completed))) {
-            _pushSoundCue(ctx, 'position_swap_move', positionSwapPhase, 'position_swap_selected');
-        }
-
-        const superBuoyancyPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
-                if (!_isSuperCrushMoveTarget(t)) return false;
-                const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                return cause === 'BUOYANCY_WILL' || cause === 'SUPER_BUOYANCY_WILL';
-            }),
-            ctx.fallbackPhase
-        );
-        const hasBuoyancySelected = _hasRawEvent(ctx.raw, 'buoyancy_selected', (ev: any) => !!(ev && ev.applied));
-        const hasSuperBuoyancySelected = _hasRawEvent(ctx.raw, 'super_buoyancy_selected', (ev: any) => !!(ev && ev.applied));
-        if (hasBuoyancySelected || hasSuperBuoyancySelected) {
-            _pushSoundCue(ctx, 'super_buoyancy_move', superBuoyancyPhase, hasBuoyancySelected ? 'buoyancy_selected' : 'super_buoyancy_selected');
-        }
-
-        const superGravityPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
-                if (!_isSuperCrushMoveTarget(t)) return false;
-                const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                return cause === 'GRAVITY_WILL' || cause === 'SUPER_GRAVITY_WILL';
-            }),
-            ctx.fallbackPhase
-        );
-        const hasGravitySelected = _hasRawEvent(ctx.raw, 'gravity_selected', (ev: any) => !!(ev && ev.applied));
-        const hasSuperGravitySelected = _hasRawEvent(ctx.raw, 'super_gravity_selected', (ev: any) => !!(ev && ev.applied));
-        if (hasGravitySelected || hasSuperGravitySelected) {
-            _pushSoundCue(ctx, 'super_gravity_move', superGravityPhase, hasGravitySelected ? 'gravity_selected' : 'super_gravity_selected');
-        }
-
-        const superAttractionPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
-                if (!_isSuperCrushMoveTarget(t)) return false;
-                const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                return cause === 'SUPER_ATTRACTION_WILL';
-            }),
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'super_attraction_selected', (ev: any) => !!(ev && ev.applied && ev.completed !== false))) {
-            _pushSoundCue(ctx, 'super_attraction_move', superAttractionPhase, 'super_attraction_selected');
-        }
-
-        const teleportPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
-                if (_getMoveIntent(t) === 'teleport_move') return true;
-                const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                const reason = String(t && t.reason ? t.reason : '').toLowerCase();
-                return cause === 'TELEPORT_WILL' || reason.indexOf('teleport_move') === 0;
-            }),
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'teleport_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'teleport_select', teleportPhase, 'teleport_selected');
-        }
-
-        const trapMisfirePhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
-                const reason = String(t && t.reason ? t.reason : '').toLowerCase();
-                return reason.indexOf('trap_disarmed') >= 0 || reason.indexOf('trap_expired') >= 0;
-            }),
-            ctx.fallbackPhase
-        );
-        if (
-            _hasRawEvent(ctx.raw, 'trap_disarmed', (ev: any) => _rawDetailCount(ev) > 0) ||
-            _hasRawEvent(ctx.raw, 'trap_expired', (ev: any) => _rawDetailCount(ev) > 0)
-        ) {
-            _pushSoundCue(ctx, 'trap_misfire', trapMisfirePhase, 'trap_misfire');
-        }
-
-        const clonePhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'move' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
-                const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                return !!(t && t.clone === true) || cause === 'CLONE_WILL' || cause === 'PROLIFERATION_WILL';
-            }),
-            ctx.fallbackPhase
-        );
-        if (
-            _hasRawEvent(ctx.raw, 'clone_selected', (ev: any) => !!(ev && ev.applied)) ||
-            ctx.pres.some((ev: any) => (
-                ev &&
-                ev.type === 'SPAWN' &&
-                String(ev.cause || '').toUpperCase() === 'PROLIFERATION_WILL' &&
-                String(ev.reason || '').toLowerCase().indexOf('proliferation_spawn') === 0
-            ))
-        ) {
-            _pushSoundCue(ctx, 'clone_spawn', clonePhase, 'clone_selected');
-        }
-
-        const extendLifePhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() !== 'TRAP',
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'extend_life_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'extend_life', extendLifePhase, 'extend_life_selected');
-        }
-
-        const corrosionPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'card_use_animation',
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'corrosion_will_resolved', (ev: any) => Number(ev && ev.affectedCount) > 0)) {
-            _pushSoundCue(ctx, 'corrosion_tick', corrosionPhase, 'corrosion_will_resolved');
-        }
-
-        const temptPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'flip' && Array.isArray(ev.targets) && ev.targets.some((t: any) => {
-                const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-                const reason = String(t && t.reason ? t.reason : '').toLowerCase();
-                return cause === 'TEMPT_WILL' || reason.indexOf('tempt_applied') === 0;
-            }),
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'tempt_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'tempt_select', temptPhase, 'tempt_selected');
-        }
-
-        const capturePhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'capture_to_hand_animation',
-            ctx.fallbackPhase
-        );
-        if (_hasRawEvent(ctx.raw, 'capture_selected', (ev: any) => !!(ev && ev.applied))) {
-            _pushSoundCue(ctx, 'tempt_select', capturePhase, 'capture_selected');
-        }
-
-        const hasBoardShrinkDestroyPlayback = ctx.base.some((ev: any) => (
-            ev &&
-            ev.type === 'destroy' &&
-            Array.isArray(ev.targets) &&
-            ev.targets.some((target: any) => _isBoardShrinkDestroyTarget(target))
-        ));
-        const boardShrinkPhase = _findPhase(
-            ctx.base,
-            (ev: any) => (
-                ev &&
-                ev.type === 'status_applied' &&
-                (
-                    (ev.meta && String(ev.meta.special || '').toUpperCase() === 'METEOR_HOLE') ||
-                    (Array.isArray(ev.targets) && ev.targets.some((target: any) => (
-                        target &&
-                        target.after &&
-                        String(target.after.special || '').toUpperCase() === 'METEOR_HOLE'
-                    )))
-                )
-            ),
-            _findPhase(
-                ctx.base,
-                (ev: any) => ev && ev.type === 'card_use_animation',
-                ctx.fallbackPhase
-            )
-        );
-        if (
-            !hasBoardShrinkDestroyPlayback &&
-            _hasRawEvent(ctx.raw, 'board_shrink_selected', (ev: any) => !!(
-                ev &&
-                ev.applied &&
-                ev.completed !== false &&
-                Array.isArray(ev.changedTargets) &&
-                ev.changedTargets.length > 0
-            ))
-        ) {
-            _pushSoundCue(ctx, 'board_shrink_selected', boardShrinkPhase, 'board_shrink_selected');
-        }
-    }
-
-    function _planCardAndEconomySoundCues(ctx: any) {
-        const cardUseAnimationPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'card_use_animation',
-            0
-        );
-        const postCardUsePhase = cardUseAnimationPhase > 0 ? (cardUseAnimationPhase + 1) : ctx.fallbackPhase;
-        const hasCardUse = (
-            ctx.pres.some((ev: any) => !!ev && ev.type === 'CARD_USED') ||
-            _hasRawEvent(ctx.raw, 'card_used')
-        );
-        const hasTreasureGain = _hasRawEvent(ctx.raw, 'treasure_box_gain', (ev: any) => Number(ev && ev.gained) > 0);
-        if (hasCardUse && cardUseAnimationPhase > 0) {
-            _pushSoundCue(ctx, 'card_use_button', cardUseAnimationPhase, 'card_used');
-        }
-        if (hasTreasureGain) {
-            _pushSoundCue(ctx, 'treasure_gain', postCardUsePhase, 'treasure_box_gain');
-        }
-
-        const roundBonusBannerPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'round_bonus_banner',
-            ctx.fallbackPhase
-        );
-        const hasRoundBonusBanner = ctx.pres.some((ev: any) => (
-            ev &&
-            ev.type === 'ROUND_BONUS_BANNER' &&
-            Number(ev.amount) > 0
-        ));
-        if (hasRoundBonusBanner) {
-            _pushSoundCue(ctx, 'round_bonus', roundBonusBannerPhase, 'round_bonus');
-        }
-
-        if (_hasRawEvent(ctx.raw, 'loss_will_resolved', (ev: any) => Number(ev && ev.removedCount) > 0)) {
-            _tagCardUseAnimationPlaybackTarget(ctx, { disappearSoundKey: 'loss_will_reset' });
-            _movePlaybackEventsIntoCardUseAnimationTarget(
-                ctx,
-                (ev: any) => ev && ev.type === 'status_removed' && ev.meta && ev.meta.reason === 'loss_will_reset',
-                'disappearPlaybackEvents'
-            );
-        }
-        for (const profile of CARD_EFFECT_SPAWN_PROFILES) {
-            _deferFirstCardEffectSpawnIntoDisappearPlayback(ctx, profile, 'breeding_spawn');
-        }
-
-        const strongWillPromotedPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'status_applied' && ev.meta && ev.meta.reason === 'strong_will_promoted',
-            ctx.fallbackPhase
-        );
-        const hasStrongWillPromotion = ctx.pres.some((ev: any) => (
-            ev &&
-            ev.type === 'STATUS_APPLIED' &&
-            String(ev.reason || (ev.meta && ev.meta.reason) || '').toLowerCase() === 'strong_will_promoted'
-        ));
-        if (hasStrongWillPromotion) {
-            _pushSoundCue(ctx, 'strong_will_promoted', strongWillPromotedPhase, 'strong_will_promoted');
-        }
-
-        const condemnPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev &&
-                ev.type === 'hand_remove' &&
-                Array.isArray(ev.targets) &&
-                ev.targets.some((target: any) => String(target && target.reason ? target.reason : '').toLowerCase() === 'condemn_will'),
-            _findPhase(
-                ctx.base,
-                (ev: any) => ev && ev.type === 'card_use_animation',
-                ctx.fallbackPhase
-            )
-        );
-        if (_hasRawEvent(ctx.raw, 'condemn_selected', (ev: any) => !!(ev && ev.applied && ev.destroyedCardId))) {
-            _pushSoundCue(ctx, 'stone_destroy', condemnPhase, 'condemn_selected');
-        }
-
-        const executionPhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev &&
-                ev.type === 'hand_remove' &&
-                Array.isArray(ev.targets) &&
-                ev.targets.some((target: any) => String(target && target.reason ? target.reason : '').toLowerCase() === 'execution_will'),
-            _findPhase(
-                ctx.base,
-                (ev: any) => ev && ev.type === 'card_use_animation',
-                ctx.fallbackPhase
-            )
-        );
-        if (_hasRawEvent(ctx.raw, 'execution_will_resolved', (ev: any) => Number(ev && ev.destroyedCount) > 0)) {
-            _pushSoundCue(ctx, 'stone_destroy', executionPhase, 'execution_will_resolved');
-        }
-
-        const workIncomePhase = _findPhase(
-            ctx.base,
-            (ev: any) => ev && ev.rawType === 'WORK_INCOME',
-            _findPhase(
-                ctx.base,
-                (ev: any) => ev && ev.type === 'status_applied' && ev.meta && String(ev.meta.special || '').toUpperCase() === 'WORK',
-                ctx.fallbackPhase
-            )
-        );
-        const hasWorkIncome16 = ctx.pres.some((ev: any) => ev && ev.type === 'WORK_INCOME' && Number(ev.gained) === 16);
-        const hasWorkIncome = ctx.pres.some((ev: any) => ev && ev.type === 'WORK_INCOME' && Number(ev.gained) > 0);
-        if (hasWorkIncome16) {
-            _pushSoundCue(ctx, 'work_income_16', workIncomePhase, 'work_income');
-        } else if (hasWorkIncome && !hasTreasureGain) {
-            _pushSoundCue(ctx, 'charge_gain_common', workIncomePhase, 'work_income');
-        }
-
-        const workRemovedEvents = ctx.pres.filter((ev: any) => _isWorkFlipOrDestroyRemovedPresentationEvent(ev));
-        if (workRemovedEvents.length > 0) {
-            const workRemovedPlaybackEvents = ctx.base.filter((ev: any) => ev && ev.rawType === 'WORK_REMOVED');
-            const workRemovedFallbackPhase = _findPhase(
-                ctx.base,
-                (ev: any) => ev && ev.rawType === 'WORK_REMOVED',
-                ctx.fallbackPhase
-            );
-            for (let i = 0; i < workRemovedEvents.length; i++) {
-                const playbackEv = workRemovedPlaybackEvents[i];
-                const phase = playbackEv ? _phaseNum(playbackEv.phase) : workRemovedFallbackPhase;
-                _pushSoundCue(ctx, 'work_removed', phase, 'work_removed', { allowRepeat: true });
-            }
-        }
-    }
-
-    function _isGenericDestroyPlaybackEvent(ev: any) {
-        if (!ev || ev.type !== 'destroy' || !Array.isArray(ev.targets)) return false;
-        if (_isSpecialDurationExpiredPlaybackEvent(ev)) return false;
-        return ev.targets.some((t: any) => {
-            if (!_isDestroyRemovalOutcome(t)) return false;
-            const cause = String(t && t.cause ? t.cause : '').toUpperCase();
-            const reason = String(t && t.reason ? t.reason : '').toLowerCase();
-            if (BOMB_DESTROY_CAUSES.has(cause)) return false;
-            if (_isBoardShrinkDestroyTarget(t)) return false;
-            if (_isSniperShotDestroyTarget(t)) return false;
-            if (_isLightningDestroyTarget(t)) return false;
-            if (_isUltimateDestroyGodDestroyTarget(t)) return false;
-            if (_isDestroyDragonBreathDestroyTarget(t)) return false;
-            if (_isRobotVacuumSuckDestroyTarget(t)) return false;
-            if (_isGluttonousEatDestroyTarget(t)) return false;
-            if (_isWillHunterKingSlashDestroyTarget(t)) return false;
-            if (_isGoldSilverSelfDestroyTarget(t)) return false;
-            if (_isSpecialDurationExpiredDestroyTarget(t)) return false;
-            if (cause === 'TRAP_WILL' && (reason.indexOf('trap_expired') >= 0 || reason.indexOf('trap_disarmed') >= 0)) return false;
-            return true;
-        });
-    }
-
-    function _planDestroySoundCues(ctx: any) {
-        const sniperDestroyEvents = ctx.base.filter((ev: any) => (
-            ev &&
-            ev.type === 'destroy' &&
-            Array.isArray(ev.targets) &&
-            ev.targets.some((t: any) => _isSniperShotDestroyTarget(t))
-        ));
-        if (sniperDestroyEvents.length > 0) {
-            _pushRepeatedCueForMatchingTargets(
-                ctx,
-                sniperDestroyEvents,
-                (target: any) => _isSniperShotDestroyTarget(target) && _isDestroyRemovalOutcome(target),
-                'stone_destroy',
-                'sniper_shot'
-            );
-        }
-
-        const lightningDestroyEvents = ctx.base.filter((ev: any) => (
-            ev &&
-            ev.type === 'destroy' &&
-            Array.isArray(ev.targets) &&
-            ev.targets.some((t: any) => _isLightningDestroyTarget(t))
-        ));
-        if (lightningDestroyEvents.length > 0) {
-            _pushRepeatedCueForMatchingTargets(
-                ctx,
-                lightningDestroyEvents,
-                (target: any) => _isLightningDestroyTarget(target) && _isDestroyRemovalOutcome(target),
-                'stone_destroy',
-                'lightning_destroyed'
-            );
-        }
-
-        const ultimateDestroyGodDestroyEvents = ctx.base.filter((ev: any) => (
-            ev &&
-            ev.type === 'destroy' &&
-            Array.isArray(ev.targets) &&
-            ev.targets.some((t: any) => _isUltimateDestroyGodDestroyTarget(t))
-        ));
-        if (ultimateDestroyGodDestroyEvents.length > 0) {
-            _pushCueForMatchingEventPhases(
-                ctx,
-                ultimateDestroyGodDestroyEvents,
-                (target: any) => _isUltimateDestroyGodDestroyTarget(target) && _isDestroyRemovalOutcome(target),
-                'stone_destroy',
-                'udg_destroyed'
-            );
-        }
-
-        const destroyDragonDestroyEvents = ctx.base.filter((ev: any) => (
-            ev &&
-            ev.type === 'destroy' &&
-            Array.isArray(ev.targets) &&
-            ev.targets.some((t: any) => _isDestroyDragonBreathDestroyTarget(t))
-        ));
-        if (destroyDragonDestroyEvents.length > 0) {
-            _pushCueForMatchingEventPhases(
-                ctx,
-                destroyDragonDestroyEvents,
-                (target: any) => _isDestroyDragonBreathDestroyTarget(target) && _isDestroyRemovalOutcome(target),
-                'stone_destroy',
-                'destroy_dragon_breath'
-            );
-        }
-
-        const robotVacuumSuckPhases = _collectUniquePhases(
-            ctx.base,
-            (ev: any) => ev && ev.type === 'destroy' && Array.isArray(ev.targets) && ev.targets.some((t: any) => _isRobotVacuumSuckDestroyTarget(t))
-        );
-        _pushCueForPhases(ctx, robotVacuumSuckPhases, 'robot_vacuum_suck', 'robot_vacuum_suck');
-
-        const gluttonousDestroyEvents = ctx.base.filter((ev: any) => (
-            ev &&
-            ev.type === 'destroy' &&
-            Array.isArray(ev.targets) &&
-            ev.targets.some((t: any) => _isGluttonousEatDestroyTarget(t))
-        ));
-        if (gluttonousDestroyEvents.length > 0) {
-            _pushCueForMatchingEventPhases(
-                ctx,
-                gluttonousDestroyEvents,
-                (target: any) => _isGluttonousEatDestroyTarget(target) && _isDestroyRemovalOutcome(target),
-                'stone_destroy',
-                'gluttonous_eat'
-            );
-        }
-
-        const willHunterKingDestroyEvents = ctx.base.filter((ev: any) => (
-            ev &&
-            ev.type === 'destroy' &&
-            Array.isArray(ev.targets) &&
-            ev.targets.some((t: any) => _isWillHunterKingSlashDestroyTarget(t))
-        ));
-        if (willHunterKingDestroyEvents.length > 0) {
-            _pushCueForMatchingEventPhases(
-                ctx,
-                willHunterKingDestroyEvents,
-                (target: any) => _isWillHunterKingSlashDestroyTarget(target) && _isDestroyRemovalOutcome(target),
-                'stone_destroy',
-                'will_hunter_king_slash'
-            );
-        }
-
-        const goldSilverSelfDestroyPhases = _collectUniquePhases(ctx.base, (ev: any) => _isGoldSilverSelfDestroyEvent(ev));
-        _pushCueForPhases(ctx, goldSilverSelfDestroyPhases, 'charge_gain_common', 'gold_silver_self_destroy');
-
-        const boardShrinkDestroyPhases = _collectUniquePhases(
-            ctx.base,
-            (ev: any) => ev &&
-                ev.type === 'destroy' &&
-                Array.isArray(ev.targets) &&
-                ev.targets.some((t: any) => _isBoardShrinkDestroyTarget(t) && _isDestroyRemovalOutcome(t))
-        );
-        _pushCueForPhases(ctx, boardShrinkDestroyPhases, 'board_shrink_selected', 'board_shrink_selected');
-
-        if (ctx.base.some(_isGenericDestroyPlaybackEvent)) {
-            const genericDestroyPhase = _findPhase(ctx.base, _isGenericDestroyPlaybackEvent, ctx.fallbackPhase);
-            _pushSoundCue(ctx, 'stone_destroy', genericDestroyPhase, 'destroy');
-        }
     }
 
     function appendSoundEffectPlaybackEvents(playbackEvents: any, rawEvents: any, presentationEvents: any) {
-        const ctx = _createSoundCuePlanningContext(playbackEvents, rawEvents, presentationEvents);
-        if (!ctx.raw.length && !ctx.base.length) return ctx.base;
-        _planCoreSoundCues(ctx);
-        _planSelectionSoundCues(ctx);
-        _planCardAndEconomySoundCues(ctx);
-        _planDestroySoundCues(ctx);
-        ctx.added.sort((a: any, b: any) => _phaseNum(a.phase) - _phaseNum(b.phase));
-        return ctx.base.concat(ctx.added);
-    }
-
-    function _playerLabel(playerKey: any) {
-        return playerKey === 'black' ? '黒' : '白';
-    }
-
-    function _toPosText(pos: any) {
-        if (!pos || !Number.isInteger(pos.row) || !Number.isInteger(pos.col)) return '';
-        if (SharedBoardUtils && typeof SharedBoardUtils.formatPosTextJa === 'function') {
-            return SharedBoardUtils.formatPosTextJa(pos);
+        if (!(PipelineUISoundCueAssemblerModule && typeof PipelineUISoundCueAssemblerModule.appendSoundEffectPlaybackEvents === 'function')) {
+            throw new Error('PipelineUIAdapter sound cue assembler module unavailable');
         }
-        if (pos.col === -1) return `左外${pos.row + 1}`;
-        if (pos.col === 8) return `右外${pos.row + 1}`;
-        const file = String.fromCharCode('A'.charCodeAt(0) + pos.col);
-        return `${file}${pos.row + 1}`;
-    }
-
-    function _specialLabelJa(rawSpecial: any) {
-        if (SpecialStoneRegistry && typeof SpecialStoneRegistry.getSpecialStoneDisplayName === 'function') {
-            const displayName = SpecialStoneRegistry.getSpecialStoneDisplayName(rawSpecial, null);
-            if (displayName) return displayName;
-        }
-        const s = String(rawSpecial || '').toUpperCase();
-        if (s === 'BREEDING') return '繁殖石';
-        if (s === 'TIME_BOMB') return '時限爆弾';
-        if (s === 'TIME_STOP') return '時間停石';
-        if (s === 'DRAGON') return '究極反転龍';
-        if (s === 'DESTROY_DRAGON' || s === 'DESTROY_DRAGON_WILL') return '破壊龍';
-        if (s === 'ULTIMATE_DESTROY_GOD') return '究極破壊神';
-        if (s === 'SNIPER') return '狙撃石';
-        if (s === 'LIGHTNING') return '落雷石';
-        if (s === 'OBSERVER') return '盤理の観測者石';
-        if (s === 'HYPERACTIVE') return '多動石';
-        if (s === 'EXTREME_HYPERACTIVE') return '極悪多動魔';
-        if (s === 'ESCAPE_HYPERACTIVE') return '逃亡石';
-        if (s === 'GLUTTONOUS') return '悪食石';
-        if (s === 'ULTIMATE_HYPERACTIVE') return '究極多動神';
-        if (s === 'REGEN') return '復活石';
-        if (s === 'WORK') return '労働石';
-        if (s === 'CROSS_BOMB') return '十字爆弾';
-        if (s === 'X_BOMB') return 'クロス爆弾';
-        if (s === 'PROTECTED') return '反転保護';
-        if (s === 'PERMA_PROTECTED') return '永続反転保護';
-        if (s === 'ABSOLUTE_PROTECTED') return '絶対保護';
-        if (s === 'GUARD') return '守る石';
-        if (s === 'TRAP' || s === 'TRAP_REVEAL') return '罠石';
-        if (s === 'BLOCKADE') return '封鎖マス';
-        return rawSpecial || '';
-    }
-
-    function _detailCount(ev: any) {
-        return (ev && Array.isArray(ev.details)) ? ev.details.length : 0;
-    }
-
-    function _detailGainedSum(ev: any) {
-        if (!ev || !Array.isArray(ev.details)) return 0;
-        return ev.details.reduce((sum: any, one: any) => sum + (Number(one && one.gained) || 0), 0);
-    }
-
-    function _hyperactiveLabel(ev: any, fallback: any) {
-        const details = (ev && Array.isArray(ev.details)) ? ev.details : null;
-        const first = details && details[0] ? details[0] : null;
-        const markerType = String(first && (first.specialType || first.type) ? (first.specialType || first.type) : '').toUpperCase();
-        if (markerType === 'INHERITED_HYPERACTIVE') return '継承多動石';
-        if (markerType === 'EXTREME_HYPERACTIVE') return '極悪多動魔';
-        if (markerType === 'ESCAPE_HYPERACTIVE') return '逃亡石';
-        if (markerType === 'GLUTTONOUS') return '悪食石';
-        return fallback;
-    }
-
-    function _pushCountLog(logs: any, ev: any, label: any, suffix: any) {
-        logs.push(`${label}${_detailCount(ev)}${suffix}`);
-    }
-
-    function _countMatchingDetails(ev: any, predicate: any) {
-        const details = (ev && Array.isArray(ev.details)) ? ev.details : [];
-        return details.reduce((sum: any, detail: any) => sum + (predicate(detail) ? 1 : 0), 0);
-    }
-
-    function _isDurationEndRevertDetail(detail: any) {
-        const reason = String(detail && detail.reason ? detail.reason : '').toLowerCase();
-        return !!(detail && detail.reverted === true) || reason === 'duration_end' || reason === 'anchor_expired';
-    }
-
-    function _pushSplitDestroyedVsRevertedLog(push: any, ev: any, label: any, destroyedWord: any = '消滅') {
-        const revertedCount = _countMatchingDetails(ev, _isDurationEndRevertDetail);
-        const totalCount = _detailCount(ev);
-        const destroyedCount = Math.max(0, totalCount - revertedCount);
-        if (destroyedCount > 0) push(`${label}${destroyedCount}個が${destroyedWord}`);
-        if (revertedCount > 0) push(`${label}${revertedCount}個が通常石に戻る`);
-    }
-
-    function _observerExpiredLogText(ev: any) {
-        const durationCount = _countMatchingDetails(ev, (detail: any) => String(detail && detail.reason ? detail.reason : '').toLowerCase() === 'duration_end');
-        const lostCount = _countMatchingDetails(ev, (detail: any) => String(detail && detail.reason ? detail.reason : '').toLowerCase() === 'anchor_lost');
-        const totalCount = _detailCount(ev);
-        if (durationCount > 0 && lostCount === 0) return `盤理の観測者: 親石${durationCount}個が通常石に戻る`;
-        if (lostCount > 0 && durationCount === 0 && lostCount === totalCount) return `盤理の観測者: 親石${lostCount}個が失われて効果終了`;
-        return `盤理の観測者: 親石${totalCount}個の効果が終了`;
-    }
-
-    function _formatCrystalStonePlacementLog(effects: any) {
-        const gain = Number.isFinite(Number(effects && effects.crystalStoneGain))
-            ? Math.max(0, Number(effects.crystalStoneGain))
-            : 0;
-        return `演算の意志：数字マス布石 +${gain}（2倍）`;
+        return PipelineUISoundCueAssemblerModule.appendSoundEffectPlaybackEvents(
+            playbackEvents,
+            rawEvents,
+            presentationEvents,
+            getPipelineUISoundCueAssemblerDeps()
+        );
     }
 
     function _normalizePlayerKey(v: any) {
@@ -3265,454 +1406,34 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return null;
     }
 
-    function _resolveEventActorKey(ev: any, fallbackPlayerKey: any) {
-        const byPlayer = _normalizePlayerKey(ev && ev.player);
-        if (byPlayer) return byPlayer;
-        const details = ev && Array.isArray(ev.details) ? ev.details : null;
-        if (details && details.length > 0) {
-            const byDetailOwner = _normalizePlayerKey(details[0] && details[0].owner);
-            if (byDetailOwner) return byDetailOwner;
-            const byDetailOwnerKey = _normalizePlayerKey(details[0] && details[0].ownerKey);
-            if (byDetailOwnerKey) return byDetailOwnerKey;
-        }
-        return _normalizePlayerKey(fallbackPlayerKey) || 'black';
-    }
-
-    function _withActorPrefix(line: any, actorKey: any) {
-        const text = String(line || '').trim();
-        if (!text) return '';
-        if (/^(黒|白):/.test(text)) return text;
-        return `${_playerLabel(actorKey)}: ${text}`;
+    function getPipelineUILogMapperDeps() {
+        return {
+            SharedBoardUtils,
+            SpecialStoneRegistry,
+            OwnerHelpersModule,
+            formatMultiPlaceActivationLog: _formatMultiPlaceActivationLog,
+            formatMultiPlaceConsumedLog: _formatMultiPlaceConsumedLog,
+            isWorkDurationExpiredPresentationEvent: _isWorkDurationExpiredPresentationEvent
+        };
     }
 
     function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: any) {
-        const logs: any[] = [];
-        const events = Array.isArray(rawEvents) ? rawEvents : [];
-        const seenStatusTick = new Set();
-
-        for (const ev of events) {
-            if (!ev || !ev.type) continue;
-            const actorKey = _resolveEventActorKey(ev, playerKey);
-            const push = (line: any) => {
-                const msg = _withActorPrefix(line, actorKey);
-                if (msg) logs.push(msg);
-            };
-            switch (ev.type) {
-                case 'bombs_exploded':
-                    push(`時限爆弾が${(ev.details && Array.isArray(ev.details.exploded)) ? ev.details.exploded.length : 0}箇所で爆発`);
-                    break;
-                case 'chain_flipped':
-                    push(`連鎖: ${_detailCount(ev)}枚を追加反転`);
-                    break;
-                case 'taboo_reverse_flipped':
-                    push(`禁忌の反転: ${_detailCount(ev)}枚を反転`);
-                    break;
-                case 'dragon_converted_start':
-                case 'dragon_converted_immediate':
-                    push(`究極反転龍: ${_detailCount(ev)}枚を反転`);
-                    break;
-                case 'dragon_moved_start':
-                case 'dragon_moved_immediate':
-                    push(`究極反転龍: ${_detailCount(ev)}回移動`);
-                    break;
-                case 'dragon_destroyed_anchor_start':
-                case 'dragon_destroyed_anchor_immediate':
-                    push(`究極反転龍: 親石${_detailCount(ev)}個が通常石に戻る`);
-                    break;
-                case 'breeding_spawned_start':
-                case 'breeding_spawned_immediate':
-                    push(`繁殖石: ${_detailCount(ev)}個を生成`);
-                    break;
-                case 'breeding_flipped_start':
-                case 'breeding_flipped_immediate':
-                    push(`繁殖石: ${_detailCount(ev)}枚を反転`);
-                    break;
-                case 'breeding_destroyed_anchor_start':
-                    push(`繁殖石: 親石${_detailCount(ev)}個が通常石に戻る`);
-                    break;
-                case 'hyperactive_moved_start':
-                case 'hyperactive_moved_immediate':
-                    push(`${_hyperactiveLabel(ev, '多動石')}: ${_detailCount(ev)}回移動`);
-                    break;
-                case 'hyperactive_destroyed_start':
-                case 'hyperactive_destroyed_immediate':
-                    _pushSplitDestroyedVsRevertedLog(push, ev, `${_hyperactiveLabel(ev, '多動石')}: `);
-                    break;
-                case 'hyperactive_flipped_start':
-                case 'hyperactive_flipped_immediate':
-                    push(`${_hyperactiveLabel(ev, '多動石')}: ${_detailCount(ev)}枚を反転`);
-                    break;
-                case 'extreme_hyperactive_repelled_start':
-                case 'extreme_hyperactive_repelled_immediate':
-                    push(`極悪多動魔: 隣接石を${_detailCount(ev)}個退避`);
-                    break;
-                case 'robot_vacuum_moved_start':
-                case 'robot_vacuum_moved_immediate':
-                    push(`ロボット掃除機石: ${_detailCount(ev)}回移動`);
-                    break;
-                case 'robot_vacuum_sucked_start':
-                case 'robot_vacuum_sucked_immediate':
-                    push(`ロボット掃除機石: ${_detailCount(ev)}個を吸い込み`);
-                    break;
-                case 'robot_vacuum_destroyed_start':
-                case 'robot_vacuum_destroyed_immediate':
-                    push(`ロボット掃除機石: ${_detailCount(ev)}個が消滅`);
-                    break;
-                case 'robot_vacuum_expired_start':
-                    push(`ロボット掃除機石: ${_detailCount(ev)}個が通常石に戻る`);
-                    break;
-                case 'robot_vacuum_flipped_start':
-                case 'robot_vacuum_flipped_immediate':
-                    push(`ロボット掃除機石: ${_detailCount(ev)}枚を反転`);
-                    break;
-                case 'ultimate_hyperactive_moved_start':
-                case 'ultimate_hyperactive_moved_immediate':
-                    push(`究極多動神: ${_detailCount(ev)}回移動`);
-                    break;
-                case 'ultimate_hyperactive_destroyed_start':
-                case 'ultimate_hyperactive_destroyed_immediate':
-                    _pushSplitDestroyedVsRevertedLog(push, ev, '究極多動神: ');
-                    break;
-                case 'ultimate_hyperactive_flipped_start':
-                case 'ultimate_hyperactive_flipped_immediate':
-                    push(`究極多動神: ${_detailCount(ev)}枚を反転`);
-                    break;
-                case 'regen_triggered_start':
-                case 'regen_triggered':
-                    push(`復活石: ${_detailCount(ev)}個が再生`);
-                    break;
-                case 'regen_capture_flipped_start':
-                case 'regen_capture_flipped':
-                    push(`復活石: 再生後に${_detailCount(ev)}枚を反転`);
-                    break;
-                case 'udg_destroyed_start':
-                case 'udg_destroyed_immediate':
-                    push(`究極破壊神: ${_detailCount(ev)}個を破壊`);
-                    break;
-                case 'udg_moved_start':
-                case 'udg_moved_immediate':
-                    push(`究極破壊神: ${_detailCount(ev)}回移動`);
-                    break;
-                case 'udg_expired_start':
-                case 'udg_expired_immediate':
-                    push(`究極破壊神: 親石${_detailCount(ev)}個が通常石に戻る`);
-                    break;
-                case 'destroy_dragon_destroyed_start':
-                case 'destroy_dragon_destroyed_immediate':
-                    push(`破壊龍: ${_detailCount(ev)}個を破壊`);
-                    break;
-                case 'destroy_dragon_expired_start':
-                case 'destroy_dragon_expired_immediate':
-                    push(`破壊龍: 親石${_detailCount(ev)}個が通常石に戻る`);
-                    break;
-                case 'sniper_destroyed_start':
-                case 'sniper_destroyed_immediate':
-                    push(`狙撃石: ${_detailCount(ev)}個を破壊`);
-                    break;
-                case 'sniper_expired_start':
-                case 'sniper_expired_immediate':
-                    push(`狙撃石: 親石${_detailCount(ev)}個が通常石に戻る`);
-                    break;
-                case 'lightning_destroyed_start':
-                case 'lightning_destroyed_immediate':
-                    push(`落雷石: ${_detailCount(ev)}個を破壊`);
-                    break;
-                case 'lightning_expired_start':
-                case 'lightning_expired_immediate':
-                    push(`落雷石: 親石${_detailCount(ev)}個が通常石に戻る`);
-                    break;
-                case 'will_hunter_king_destroyed_start':
-                case 'will_hunter_king_destroyed_immediate':
-                    push(`意志狩りの王: ${_detailCount(ev)}個を斬撃破壊`);
-                    break;
-                case 'will_hunter_king_moved_start':
-                case 'will_hunter_king_moved_immediate':
-                    push(`意志狩りの王: ${_detailCount(ev)}回移動`);
-                    break;
-                case 'will_hunter_king_expired_start':
-                case 'will_hunter_king_expired_immediate':
-                    push(`意志狩りの王: 親石${_detailCount(ev)}個が通常石に戻る`);
-                    break;
-                case 'observer_triggered_start':
-                case 'observer_triggered_immediate':
-                    push(`盤理の観測者: 布石+${_detailGainedSum(ev)}`);
-                    break;
-                case 'observer_expired_start':
-                case 'observer_expired_immediate':
-                    push(_observerExpiredLogText(ev));
-                    break;
-                case 'destroy_selected':
-                    if (ev.destroyed) push(`破壊の意志で${_toPosText(ev.target)}を破壊`);
-                    else if (ev.regenerated) push(`破壊の意志: ${_toPosText(ev.target)} は復活した`);
-                    else if (ev.proliferated) push(`破壊の意志: ${_toPosText(ev.target)} は石を残したまま増殖`);
-                    else if (ev.blockedByGhost) push(`破壊の意志: ${_toPosText(ev.target)} は幽体化で無効化`);
-                    else if (ev.evaded) push(`破壊の意志: ${_toPosText(ev.target)} は回避した`);
-                    break;
-                case 'strong_wind_selected':
-                    if (ev.applied) push(`強風で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動`);
-                    break;
-                case 'buoyancy_selected':
-                    if (ev.applied) push(`浮力で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動`);
-                    break;
-                case 'super_buoyancy_selected':
-                    if (ev.applied) push(`超浮力で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動（破壊${Array.isArray(ev.destroyed) ? ev.destroyed.length : 0}）`);
-                    break;
-                case 'gravity_selected':
-                    if (ev.applied) push(`重力で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動`);
-                    break;
-                case 'super_gravity_selected':
-                    if (ev.applied) push(`超重力で${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動（破壊${Array.isArray(ev.destroyed) ? ev.destroyed.length : 0}）`);
-                    break;
-                case 'teleport_selected':
-                    if (ev.applied) {
-                        if (ev.cardType === 'CELL_TELEPORT_WILL') {
-                            push(`マステレポートで${_toPosText(ev.from)}→${_toPosText(ev.to)}へ移動し、元マスを穴化`);
-                        } else {
-                            push(`テレポートで${_toPosText(ev.from)}→${_toPosText(ev.to)}に移動`);
-                        }
-                    }
-                    break;
-                case 'rebuild_will_resolved':
-                    push(`再構築の意志: 手札${Number(ev.destroyedCount) || 0}枚を破壊し、${Number(ev.drawnCount) || 0}枚ドロー`);
-                    break;
-                case 'supply_will_resolved':
-                    push(`補給の意志: ${Number(ev.drawnCount) || 0}枚ドロー`);
-                    break;
-                case 'corner_tribute_resolved':
-                    push(`角の代償: 相手の布石を${Number(ev.stolen) || 0}奪取`);
-                    break;
-                case 'ribo_will_resolved':
-                    push(`リボ払いの意志: 布石+${Number(ev.gained) || 0}、以後${Number(ev.remainingOwnerTurns) || 0}ターンは開始時に${Number(ev.repaymentAmount) || 0}返済`);
-                    break;
-                case 'ribo_will_repaid':
-                    push(`リボ払いの意志: 布石-${Number(ev.repaid) || 0}返済（残り${Number(ev.remainingOwnerTurns) || 0}ターン）`);
-                    break;
-                case 'ribo_will_shortage':
-                    push(`リボ払いの意志: 布石不足で自石${Number(ev.destroyedCount) || 0}個を破壊（残り${Number(ev.remainingOwnerTurns) || 0}ターン）`);
-                    break;
-                case 'gluttonous_will_hand_destroyed':
-                    push(`悪食の意志: 手札${Number(ev.destroyedCount) || 0}枚を破壊`);
-                    break;
-                case 'loss_will_resolved':
-                    push(`意志の喪失: 特殊石${Number(ev.removedCount) || 0}個を通常石に戻す`);
-                    break;
-                case 'corrosion_will_resolved':
-                    push(`腐食の意志: 特殊石${Number(ev.affectedCount) || 0}個の持続ターンを半減`);
-                    break;
-                case 'reinforcement_will_resolved':
-                    push(`増援の意志: 通常石${Number(ev.spawnedCount) || 0}個を配置${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
-                    break;
-                case 'salvation_will_resolved':
-                    push(`救済の意志: 破壊石${Number(ev.spawnedCount) || 0}個を通常石として救済${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
-                    break;
-                case 'execution_will_resolved':
-                    push(`執行の意志: 相手手札を${Number(ev.destroyedCount) || 0}枚破壊`);
-                    break;
-                case 'equality_will_resolved':
-                    push(`平等の意志: 通常石${Number(ev.spawnedCount) || 0}個を生成${(Number(ev.flippedCount) || 0) > 0 ? `、${Number(ev.flippedCount) || 0}枚を反転` : ''}`);
-                    break;
-                case 'heaven_blessing_selected':
-                    if (ev.applied) push('天の恵みでカード獲得');
-                    break;
-                case 'condemn_selected':
-                    if (ev.applied) push('断罪で相手カードを破壊');
-                    break;
-                case 'tempt_selected':
-                    if (ev.applied) push('誘惑で特殊石を奪取');
-                    break;
-                case 'swap_selected':
-                    if (ev.swapped) push(`交換で${_toPosText({ row: ev.row, col: ev.col })}を変換`);
-                    break;
-                case 'position_swap_first_selected':
-                    if (ev.applied) push(`入替の意志: 1つ目に${_toPosText(ev.from || ev.target)}を選択`);
-                    break;
-                case 'position_swap_selected':
-                    if (ev.applied && ev.completed) push(`入替の意志: ${_toPosText(ev.from)} と ${_toPosText(ev.to)} を入替`);
-                    break;
-                case 'trap_selected':
-                    if (ev.applied) push('罠石がどこかに潜んでいる...');
-                    break;
-                case 'guard_selected':
-                    if (ev.applied) push('守る意志で完全保護を付与');
-                    break;
-                case 'extend_life_selected':
-                    if (ev.applied) push(ev && ev.cardType === 'EXTEND_LIFE_GOD' ? '延命神で持続を4倍化' : '延命の意志で持続を延長');
-                    break;
-                case 'time_bomb_selected':
-                    if (ev.applied) push(`時限爆弾を${_toPosText(ev.target)}に設置`);
-                    break;
-                case 'time_stop_god_cost_resolved':
-                    if (Number(ev.destroyedCount) > 0) push(`時間停石: 自石${Number(ev.destroyedCount) || 0}個を破壊`);
-                    break;
-                case 'time_stop_triggered':
-                    push('時間停石: 時間停止が発動し、2連続で行動');
-                    break;
-                case 'time_stop_fizzled':
-                    push('時間停石: 親石消失で不発');
-                    break;
-                case 'clone_selected':
-                    if (ev.applied) push(`複製の意志: ${_toPosText(ev.target)}から${_detailCount(ev)}個を生成`);
-                    break;
-                case 'board_expansion_first_selected':
-                    if (ev.applied) push(`盤面拡張神: 1つ目に${_toPosText(ev.target)}を選択`);
-                    break;
-                case 'board_expansion_selected':
-                    if (ev.applied) {
-                        if (ev.cardType === 'BOARD_EXPANSION_GOD') {
-                            const addedCount = Array.isArray(ev.added) ? ev.added.length : 0;
-                            push(`盤面拡張神: 2角から${addedCount || 6}マス拡張`);
-                        } else {
-                            const sideLabel = ev.side === 'left' ? '左' : (ev.side === 'right' ? '右' : '左右');
-                            push(`盤面拡張: ${sideLabel}側へ1マス拡張`);
-                        }
-                    }
-                    break;
-                case 'board_shrink_selected':
-                    if (ev.applied) {
-                        if (ev.completed === false) {
-                            if (ev.cardType === 'BOARD_SHRINK_GOD') {
-                                push(`盤面縮小神: 1つ目に${_toPosText(ev.firstTarget || ev.target)}を選択`);
-                            } else {
-                                const remaining = Number(ev.remainingSelections) || 0;
-                                push(`盤面縮小: 外周マスを選択（残り${remaining}）`);
-                            }
-                        } else {
-                            const changedCount = Array.isArray(ev.changedTargets) ? ev.changedTargets.length : 0;
-                            push(ev.cardType === 'BOARD_SHRINK_GOD'
-                                ? `盤面縮小神: ${changedCount}マスを穴化`
-                                : `盤面縮小: ${changedCount}マスを穴化`);
-                        }
-                    }
-                    break;
-                case 'blockade_selected':
-                    if (ev.applied) push(`封鎖の意志: ${_toPosText(ev.target)}を3ターン封鎖`);
-                    break;
-                case 'meteor_selected':
-                    if (ev.applied) push(`隕石: ${_toPosText(ev.target)}をマスごと破壊`);
-                    break;
-                case 'freeze_selected':
-                    if (ev.applied) push(`凍結の意志: ${_toPosText(ev.target)}を5ターン凍結`);
-                    break;
-                case 'treasure_box_gain':
-                    push(`宝箱: 布石+${Number(ev.gained) || 0}`);
-                    break;
-                case 'board_bonus_gain':
-                    push(`数字マス${_toPosText(ev)}: 布石+${Number(ev.gained) || Number(ev.bonus) || 0}${Number(ev.multiplier) > 1 ? `（${Number(ev.multiplier)}倍）` : ''}`);
-                    break;
-                case 'trap_triggered': {
-                    const details = Array.isArray(ev.details) ? ev.details : [];
-                    if (details.length > 0) {
-                        const destroyedHand = details.reduce((sum: any, d: any) => sum + (Number(d && (d.destroyedHandCount ?? d.stolenHandCount)) || 0), 0);
-                        push(`罠石が発動: 布石最大20奪取 / 手札全破壊（${destroyedHand}枚）`);
-                    }
-                    break;
-                }
-                case 'trap_expired':
-                    if (_detailCount(ev) > 0) push('罠石は不発で消滅');
-                    break;
-                case 'trap_disarmed':
-                    if (_detailCount(ev) > 0) push('罠石は不発で解除');
-                    break;
-                case 'placement_effects':
-                    if (ev.effects) {
-                        const e = ev.effects;
-                        if (e.doublePlaceActivated) push(_formatMultiPlaceActivationLog(e));
-                        if (e.freePlacementUsed && !e.sniperPlaced) push('自由の意志:自由な空きマスに配置');
-                        if (e.sniperPlaced) push('狙撃の意志: 狙撃石を設置');
-                        if (e.lightningPlaced) push('落雷の意志: 落雷石を設置');
-                        if (e.observerPlaced) push('盤理の観測者を設置');
-                        if (e.willHunterKingPlaced) push('意志狩りの王を設置');
-                        if (e.silverStoneUsed) push('銀石: 獲得布石3倍');
-                        if (e.goldStoneUsed) push('金石: 獲得布石4倍');
-                        if (e.rainbowStoneUsed) push('虹石: 獲得布石6倍');
-                        if (e.crystalStoneUsed) push(_formatCrystalStonePlacementLog(e));
-                        if (e.protected) push('反転保護を付与');
-                        if (e.permaProtected) push('永続反転保護を付与');
-                        if (e.bombPlaced) push('時限爆弾を設置');
-                        if (e.timeStopPlaced) push('時間停石を設置');
-                        if (e.dragonPlaced) push('究極反転龍を設置');
-                        if (e.ultimateDestroyGodPlaced) push('究極破壊神を設置');
-                        if (e.ultimateHyperactivePlaced) push('究極多動神を設置');
-                        if (e.instantHyperactivePlaced) push('瞬間多動石を設置');
-                        if (e.escapeHyperactivePlaced) push('逃亡石を設置');
-                        if (e.extremeHyperactivePlaced) push('極悪多動魔を設置');
-                        if (e.robotVacuumPlaced) push('ロボット掃除機石を設置');
-                        if (e.gluttonousPlaced) push('悪食石を設置');
-                        if (e.hyperactivePlaced && !e.instantHyperactivePlaced && !e.escapeHyperactivePlaced && !e.extremeHyperactivePlaced && !e.robotVacuumPlaced && !e.gluttonousPlaced) push('多動石を設置');
-                        if (e.crossBombExploded) push(`十字爆弾: ${e.crossBombDestroyed || 0}個を爆破`);
-                        if (e.xBombExploded) push(`クロス爆弾: ${e.xBombDestroyed || 0}個を爆破`);
-                        if (e.plunderAmount > 0) push(`吸収の意志: 布石を${e.plunderAmount}吸収`);
-                    }
-                    break;
-                case 'extra_place_consumed':
-                    push(_formatMultiPlaceConsumedLog(ev));
-                    break;
-                default:
-                    break;
-            }
+        if (!(PipelineUILogMappersModule && typeof PipelineUILogMappersModule.mapEffectLogsFromPipeline === 'function')) {
+            throw new Error('PipelineUIAdapter log mapper module unavailable');
         }
-
-        const pres = Array.isArray(presEvents) ? presEvents : [];
-        for (const ev of pres) {
-            if (!ev) continue;
-            const actorKey = _resolveEventActorKey(ev, playerKey);
-            const push = (line: any) => {
-                const msg = _withActorPrefix(line, actorKey);
-                if (msg) logs.push(msg);
-            };
-            if (ev.type === 'WORK_INCOME') {
-                const gained = Number.isFinite(ev.gained) ? ev.gained : ((ev.meta && Number.isFinite(ev.meta.gained)) ? ev.meta.gained : 0);
-                push(`労働石: 布石 +${gained}`);
-                continue;
-            }
-            if (ev.type === 'WORK_REMOVED') {
-                if (_isWorkDurationExpiredPresentationEvent(ev)) push('労働石: 通常石に戻る');
-                else push('労働石: 効果終了');
-                continue;
-            }
-            if (!ev || ev.type !== 'STATUS_TICK' || !ev.meta) continue;
-            const special = String(ev.meta.special || '');
-            const timer = ev.meta.timer;
-            const key = `${special}:${ev.row},${ev.col}:${timer}`;
-            if (seenStatusTick.has(key)) continue;
-            seenStatusTick.add(key);
-            if (special === 'TIME_BOMB' && Number.isFinite(timer)) {
-                push(`時限爆弾: ${_toPosText(ev)} のカウント ${timer}`);
-            } else if (special && Number.isFinite(timer)) {
-                push(`${_specialLabelJa(special)}: ${_toPosText(ev)} の残り ${timer}`);
-            }
-        }
-
-        // De-duplicate only consecutive identical entries.
-        const compact = [];
-        for (const line of logs) {
-            if (!line) continue;
-            if (compact.length > 0 && compact[compact.length - 1] === line) continue;
-            compact.push(line);
-        }
-        return compact;
+        return PipelineUILogMappersModule.mapEffectLogsFromPipeline(
+            rawEvents,
+            presEvents,
+            playerKey,
+            getPipelineUILogMapperDeps()
+        );
     }
 
     function mapNormalLogsFromPipeline(rawEvents: any, playerKey: any) {
-        const logs = [];
-        const actor = _playerLabel(playerKey);
-        const events = Array.isArray(rawEvents) ? rawEvents : [];
-
-        for (const ev of events) {
-            if (!ev || !ev.type) continue;
-            if (ev.type === 'place') {
-                const flipCount = Array.isArray(ev.flips) ? ev.flips.length : 0;
-                if (flipCount > 0) logs.push(`${actor}が${flipCount}枚反転！`);
-            }
+        if (!(PipelineUILogMappersModule && typeof PipelineUILogMappersModule.mapNormalLogsFromPipeline === 'function')) {
+            throw new Error('PipelineUIAdapter log mapper module unavailable');
         }
-
-                const compact: any[] = [];
-        for (const line of logs) {
-            if (!line) continue;
-            if (compact.length > 0 && compact[compact.length - 1] === line) continue;
-            compact.push(line);
-        }
-        return compact;
+        return PipelineUILogMappersModule.mapNormalLogsFromPipeline(rawEvents, playerKey);
     }
 
     /**
@@ -3792,16 +1513,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         const normalLogMessages = mapNormalLogsFromPipeline(result.events, playerKey);
         if (!suppressUiLogs) {
             try {
-                if (typeof emitEffectLog === 'function') {
-                    for (const msg of effectLogMessages) emitEffectLog(msg);
-                } else if (typeof emitLogAdded === 'function') {
-                    for (const msg of effectLogMessages) emitLogAdded(msg, 'effect');
-                }
-                if (typeof emitNormalLog === 'function') {
-                    for (const msg of normalLogMessages) emitNormalLog(msg);
-                } else if (typeof emitLogAdded === 'function') {
-                    for (const msg of normalLogMessages) emitLogAdded(msg, 'normal');
-                }
+                for (const msg of effectLogMessages) emitPipelineEffectLog(msg);
+                for (const msg of normalLogMessages) emitPipelineNormalLog(msg);
             } catch (e) { /* ignore */ }
         }
 

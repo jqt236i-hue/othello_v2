@@ -16,12 +16,12 @@ Selfplay engine and runner code. This tree is separate from `game/` / `ui/`; use
 
 ## Related operational paths
 
-- Training orchestration starts in `scripts/run-selfplay-training-cycle.ts` and `scripts/run-selfplay-training-profile.ts`.
-- Python model training lives under `ai/train/` and is documented in `ai/train/README.md`.
+- Training orchestration starts in `training/scripts/run-selfplay-training-cycle.ts` and `training/scripts/run-selfplay-training-profile.ts`; root `scripts/run-selfplay-*.js` files are CLI wrappers.
+- Python model training lives under `training/python/` and is documented in `training/python/README.md`.
 - Model/profile contracts are in `docs/architecture-contracts.md` §5.2.
 
 ## Verification
 
-- Focused tests usually use `test/selfplay.*.test.*` and `test/src.*` / engine-related names.
+- Focused tests usually use `training/tests/selfplay.runner.test.ts`, `training/tests/selfplay.*.test.ts`, and nearby engine-related names.
 - For training pipeline changes, run the closest selfplay/training Jest test before any long-running profile command.
 - `.ts` changes still require `npm run typecheck` and `npm run build:ts`.

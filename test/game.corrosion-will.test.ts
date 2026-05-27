@@ -27,6 +27,23 @@ describe('CORROSION_WILL（腐食の意志）', () => {
     expect(usable).toEqual([]);
   });
 
+  test('getUsableCardIds: 完全保護中の特殊石だけなら CORROSION_WILL は使用可能扱いしない', () => {
+    const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'CORROSION_WILL');
+    expect(def).toBeTruthy();
+
+    const { cardState, gameState } = makeState();
+    cardState.hands.black = [def.id];
+    cardState.charge.black = def.cost;
+    gameState.board[2][2] = SharedConstants.WHITE;
+    cardState.markers = [
+      { id: 10, row: 2, col: 2, kind: 'specialStone', owner: 'white', createdSeq: 10, data: { type: 'WORK', remainingOwnerTurns: 5 } },
+      { id: 11, row: 2, col: 2, kind: 'specialStone', owner: 'white', createdSeq: 11, data: { type: 'GUARD', remainingOwnerTurns: 3 } }
+    ];
+
+    const usable = CardLogic.getUsableCardIds(cardState, gameState, 'black');
+    expect(usable).toEqual([]);
+  });
+
   test('use card後に対象選択し、選んだ特殊石の持続ターンだけ半減する（最小1）', () => {
     const def = (SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'CORROSION_WILL');
     expect(def).toBeTruthy();
@@ -44,7 +61,8 @@ describe('CORROSION_WILL（腐食の意志）', () => {
       { id: 1, row: 2, col: 2, kind: 'specialStone', owner: 'black', createdSeq: 1, data: { type: 'WORK', remainingOwnerTurns: 5 } },
       { id: 2, row: 3, col: 3, kind: 'specialStone', owner: 'white', createdSeq: 2, data: { type: 'GUARD', remainingOwnerTurns: 3 } },
       { id: 3, row: 4, col: 4, kind: 'specialStone', owner: 'black', createdSeq: 3, data: { type: 'WORK', remainingOwnerTurns: 1 } },
-      { id: 4, row: 1, col: 1, kind: 'specialStone', owner: 'black', createdSeq: 4, data: { type: 'METEOR_HOLE' } }
+      { id: 4, row: 1, col: 1, kind: 'specialStone', owner: 'black', createdSeq: 4, data: { type: 'METEOR_HOLE' } },
+      { id: 5, row: 3, col: 3, kind: 'specialStone', owner: 'white', createdSeq: 5, data: { type: 'WORK', remainingOwnerTurns: 7 } }
     ];
 
     const useAction = { type: 'use_card', useCardId: def.id };
@@ -64,11 +82,13 @@ describe('CORROSION_WILL（腐食の意志）', () => {
     const guard = cardState.markers.find((m) => m && m.id === 2);
     const workB = cardState.markers.find((m) => m && m.id === 3);
     const hole = cardState.markers.find((m) => m && m.id === 4);
+    const protectedWork = cardState.markers.find((m) => m && m.id === 5);
 
     expect(workA.data.remainingOwnerTurns).toBe(2);
     expect(guard.data.remainingOwnerTurns).toBe(3);
     expect(workB.data.remainingOwnerTurns).toBe(1);
     expect(hole.data.type).toBe('METEOR_HOLE');
     expect(hole.data.remainingOwnerTurns).toBeUndefined();
+    expect(protectedWork.data.remainingOwnerTurns).toBe(7);
   });
 });

@@ -336,6 +336,48 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     expect(global.isCardAnimating).toBe(false);
   });
 
+  test('overlay destroy click does not publish twice before deferred selection settles', async () => {
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    global.NetworkMatchClient = client;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+    const selectBtn = document.getElementById('heaven-blessing-select-btn');
+    expect(selectBtn).toBeTruthy();
+    expect(selectBtn.disabled).toBe(false);
+
+    selectBtn.click();
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(publishBodies).toHaveLength(1);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+
+    selectBtn.click();
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(publishBodies).toHaveLength(1);
+
+    releasePlayback();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+  });
+
   test('overlay destroy button does not play stone_destroy locally for condemn selection', async () => {
     require('../cards/card-interaction.js');
 

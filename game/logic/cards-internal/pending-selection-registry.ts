@@ -25,7 +25,6 @@ interface PendingSelectionRegistryEntry {
     target?: PendingSelectionTargetConfig;
     action?: PendingSelectionActionConfig;
     cpuHandlerNames?: string[];
-    uiHandlerName?: string;
 }
 
 const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> = Object.freeze({
@@ -39,8 +38,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'destroy',
         target: { method: 'getDestroyTargets', argsKey: 'board' },
         action: { policyMethod: 'chooseDestroyTarget', field: 'destroyTarget' },
-        cpuHandlerNames: ['cpuSelectDestroyWithPolicy'],
-        uiHandlerName: 'handleDestroySelection'
+        cpuHandlerNames: ['cpuSelectDestroyWithPolicy']
     },
     STRONG_WIND_WILL: {
         kind: 'end_turn',
@@ -51,8 +49,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'strong_wind',
         target: { method: 'getStrongWindTargets', argsKey: 'board' },
         action: { policyMethod: 'chooseStrongWindTarget', field: 'strongWindTarget' },
-        cpuHandlerNames: ['cpuSelectStrongWindWillWithPolicy'],
-        uiHandlerName: 'handleStrongWindSelection'
+        cpuHandlerNames: ['cpuSelectStrongWindWillWithPolicy']
     },
     BUOYANCY_WILL: {
         kind: 'end_turn',
@@ -63,8 +60,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'buoyancy',
         target: { method: 'getBuoyancyTargets', argsKey: 'board' },
         action: { policyMethod: 'chooseBuoyancyTarget', field: 'buoyancyTarget' },
-        cpuHandlerNames: ['cpuSelectBuoyancyWillWithPolicy'],
-        uiHandlerName: 'handleBuoyancySelection'
+        cpuHandlerNames: ['cpuSelectBuoyancyWillWithPolicy']
     },
     SUPER_BUOYANCY_WILL: {
         kind: 'end_turn',
@@ -75,8 +71,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'super_buoyancy',
         target: { method: 'getSuperBuoyancyTargets', argsKey: 'board' },
         action: { policyMethod: 'chooseSuperBuoyancyTarget', field: 'superBuoyancyTarget' },
-        cpuHandlerNames: ['cpuSelectSuperBuoyancyWillWithPolicy'],
-        uiHandlerName: 'handleSuperBuoyancySelection'
+        cpuHandlerNames: ['cpuSelectSuperBuoyancyWillWithPolicy']
     },
     GRAVITY_WILL: {
         kind: 'end_turn',
@@ -87,8 +82,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'gravity',
         target: { method: 'getGravityTargets', argsKey: 'board' },
         action: { policyMethod: 'chooseGravityTarget', field: 'gravityTarget' },
-        cpuHandlerNames: ['cpuSelectGravityWillWithPolicy'],
-        uiHandlerName: 'handleGravitySelection'
+        cpuHandlerNames: ['cpuSelectGravityWillWithPolicy']
     },
     SUPER_GRAVITY_WILL: {
         kind: 'end_turn',
@@ -99,8 +93,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'super_gravity',
         target: { method: 'getSuperGravityTargets', argsKey: 'board' },
         action: { policyMethod: 'chooseSuperGravityTarget', field: 'superGravityTarget' },
-        cpuHandlerNames: ['cpuSelectSuperGravityWillWithPolicy'],
-        uiHandlerName: 'handleSuperGravitySelection'
+        cpuHandlerNames: ['cpuSelectSuperGravityWillWithPolicy']
     },
     SUPER_ATTRACTION_WILL: {
         kind: 'multi_stage',
@@ -111,8 +104,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'super_attraction',
         target: { method: 'getSuperAttractionTargets', argsKey: 'player_pending' },
         action: { policyMethod: 'chooseSuperAttractionTarget', field: 'superAttractionTarget' },
-        cpuHandlerNames: ['cpuSelectSuperAttractionWillWithPolicy'],
-        uiHandlerName: 'handleSuperAttractionSelection'
+        cpuHandlerNames: ['cpuSelectSuperAttractionWillWithPolicy']
     },
     TELEPORT_WILL: {
         kind: 'continue_turn',
@@ -123,8 +115,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'teleport',
         target: { method: 'getTeleportTargets', argsKey: 'board' },
         action: { policyMethod: 'chooseTeleportTarget', field: 'teleportTarget' },
-        cpuHandlerNames: ['cpuSelectTeleportWillWithPolicy'],
-        uiHandlerName: 'handleTeleportSelection'
+        cpuHandlerNames: ['cpuSelectTeleportWillWithPolicy']
     },
     CELL_TELEPORT_WILL: {
         kind: 'continue_turn',
@@ -135,8 +126,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'cell_teleport',
         target: { method: 'getCellTeleportTargets', argsKey: 'board' },
         action: { policyMethod: 'chooseCellTeleportTarget', field: 'teleportTarget' },
-        cpuHandlerNames: ['cpuSelectCellTeleportWillWithPolicy'],
-        uiHandlerName: 'handleTeleportSelection'
+        cpuHandlerNames: ['cpuSelectCellTeleportWillWithPolicy']
     },
     TEMPT_WILL: {
         kind: 'continue_turn',
@@ -147,8 +137,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'tempt',
         target: { method: 'getTemptWillTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseTemptTarget', field: 'temptTarget' },
-        cpuHandlerNames: ['cpuSelectTemptWillWithPolicy'],
-        uiHandlerName: 'handleTemptSelection'
+        cpuHandlerNames: ['cpuSelectTemptWillWithPolicy']
     },
     CAPTURE_WILL: {
         kind: 'continue_turn',
@@ -159,8 +148,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'capture',
         target: { method: 'getCaptureWillTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseCaptureTarget', field: 'captureTarget' },
-        cpuHandlerNames: ['cpuSelectCaptureWillWithPolicy'],
-        uiHandlerName: 'handleCaptureSelection'
+        cpuHandlerNames: ['cpuSelectCaptureWillWithPolicy']
     },
     TRAP_WILL: {
         kind: 'end_turn',
@@ -171,8 +159,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'trap',
         target: { method: 'getTrapTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseTrapTarget', field: 'trapTarget' },
-        cpuHandlerNames: ['cpuSelectTrapWillWithPolicy'],
-        uiHandlerName: 'handleTrapSelection'
+        cpuHandlerNames: ['cpuSelectTrapWillWithPolicy']
     },
     GUARD_WILL: {
         kind: 'continue_turn',
@@ -183,8 +170,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'guard',
         target: { method: 'getGuardTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseGuardTarget', field: 'guardTarget' },
-        cpuHandlerNames: ['cpuSelectGuardWillWithPolicy'],
-        uiHandlerName: 'handleGuardSelection'
+        cpuHandlerNames: ['cpuSelectGuardWillWithPolicy']
     },
     GUARDIAN_GOD: {
         kind: 'continue_turn',
@@ -195,8 +181,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'guard',
         target: { method: 'getGuardTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseGuardTarget', field: 'guardTarget' },
-        cpuHandlerNames: ['cpuSelectGuardWillWithPolicy'],
-        uiHandlerName: 'handleGuardSelection'
+        cpuHandlerNames: ['cpuSelectGuardWillWithPolicy']
     },
     LIVING_WILL: {
         kind: 'continue_turn',
@@ -207,8 +192,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'living_will',
         target: { method: 'getLivingWillTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseLivingWillTarget', field: 'livingWillTarget' },
-        cpuHandlerNames: ['cpuSelectLivingWillWithPolicy'],
-        uiHandlerName: 'handleLivingWillSelection'
+        cpuHandlerNames: ['cpuSelectLivingWillWithPolicy']
     },
     HYPERACTIVE_INHERIT_WILL: {
         kind: 'continue_turn',
@@ -219,8 +203,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'hyperactive_inherit',
         target: { method: 'getHyperactiveInheritTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseHyperactiveInheritTarget', field: 'hyperactiveInheritTarget' },
-        cpuHandlerNames: ['cpuSelectHyperactiveInheritWillWithPolicy'],
-        uiHandlerName: 'handleHyperactiveInheritSelection'
+        cpuHandlerNames: ['cpuSelectHyperactiveInheritWillWithPolicy']
     },
     EXTEND_LIFE_WILL: {
         kind: 'continue_turn',
@@ -231,8 +214,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'extend_life',
         target: { method: 'getExtendLifeTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseExtendLifeTarget', field: 'extendTarget' },
-        cpuHandlerNames: ['cpuSelectExtendLifeWillWithPolicy'],
-        uiHandlerName: 'handleExtendLifeSelection'
+        cpuHandlerNames: ['cpuSelectExtendLifeWillWithPolicy']
     },
     EXTEND_LIFE_GOD: {
         kind: 'continue_turn',
@@ -243,8 +225,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'extend_life',
         target: { method: 'getExtendLifeTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseExtendLifeTarget', field: 'extendTarget' },
-        cpuHandlerNames: ['cpuSelectExtendLifeWillWithPolicy'],
-        uiHandlerName: 'handleExtendLifeSelection'
+        cpuHandlerNames: ['cpuSelectExtendLifeWillWithPolicy']
     },
     CORROSION_WILL: {
         kind: 'continue_turn',
@@ -255,8 +236,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'corrosion',
         target: { method: 'getCorrosionTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseCorrosionTarget', field: 'corrosionTarget' },
-        cpuHandlerNames: ['cpuSelectCorrosionWillWithPolicy'],
-        uiHandlerName: 'handleCorrosionSelection'
+        cpuHandlerNames: ['cpuSelectCorrosionWillWithPolicy']
     },
     CLONE_WILL: {
         kind: 'continue_turn',
@@ -267,8 +247,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'clone',
         target: { method: 'getCloneTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseCloneTarget', field: 'cloneTarget' },
-        cpuHandlerNames: ['cpuSelectCloneWillWithPolicy'],
-        uiHandlerName: 'handleCloneSelection'
+        cpuHandlerNames: ['cpuSelectCloneWillWithPolicy']
     },
     BLOCKADE_WILL: {
         kind: 'continue_turn',
@@ -280,8 +259,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'blockade',
         target: { method: 'getBlockadeTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseBlockadeTarget', field: 'blockadeTarget' },
-        cpuHandlerNames: ['cpuSelectBlockadeWillWithPolicy'],
-        uiHandlerName: 'handleBlockadeSelection'
+        cpuHandlerNames: ['cpuSelectBlockadeWillWithPolicy']
     },
     BOARD_EXPANSION_WILL: {
         kind: 'continue_turn',
@@ -293,8 +271,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'board_expansion',
         target: { method: 'getBoardExpansionTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseBoardExpansionTarget', field: 'expansionTarget' },
-        cpuHandlerNames: ['cpuSelectBoardExpansionWillWithPolicy'],
-        uiHandlerName: 'handleBoardExpansionSelection'
+        cpuHandlerNames: ['cpuSelectBoardExpansionWillWithPolicy']
     },
     BOARD_EXPANSION_GOD: {
         kind: 'multi_stage',
@@ -306,8 +283,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'board_expansion',
         target: { method: 'getBoardExpansionGodTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseBoardExpansionTarget', field: 'expansionTarget' },
-        cpuHandlerNames: ['cpuSelectBoardExpansionWillWithPolicy'],
-        uiHandlerName: 'handleBoardExpansionSelection'
+        cpuHandlerNames: ['cpuSelectBoardExpansionWillWithPolicy']
     },
     BOARD_SHRINK_WILL: {
         kind: 'multi_stage',
@@ -319,8 +295,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'board_shrink',
         target: { method: 'getBoardShrinkTargets', argsKey: 'player', minimumCount: 3 },
         action: { policyMethod: 'chooseBoardShrinkTarget', field: 'shrinkTarget' },
-        cpuHandlerNames: ['cpuSelectBoardShrinkWithPolicy'],
-        uiHandlerName: 'handleBoardShrinkSelection'
+        cpuHandlerNames: ['cpuSelectBoardShrinkWithPolicy']
     },
     BOARD_SHRINK_GOD: {
         kind: 'multi_stage',
@@ -332,8 +307,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'board_shrink',
         target: { method: 'getBoardShrinkGodTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseBoardShrinkTarget', field: 'shrinkTarget' },
-        cpuHandlerNames: ['cpuSelectBoardShrinkWithPolicy'],
-        uiHandlerName: 'handleBoardShrinkSelection'
+        cpuHandlerNames: ['cpuSelectBoardShrinkWithPolicy']
     },
     FREEZE_WILL: {
         kind: 'continue_turn',
@@ -345,8 +319,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'freeze',
         target: { method: 'getFreezeTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseFreezeTarget', field: 'freezeTarget' },
-        cpuHandlerNames: ['cpuSelectFreezeWillWithPolicy'],
-        uiHandlerName: 'handleFreezeSelection'
+        cpuHandlerNames: ['cpuSelectFreezeWillWithPolicy']
     },
     SEED_WILL: {
         kind: 'continue_turn',
@@ -358,8 +331,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'seed',
         target: { method: 'getSeedTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseSeedTarget', field: 'seedTarget' },
-        cpuHandlerNames: ['cpuSelectSeedWillWithPolicy'],
-        uiHandlerName: 'handleSeedSelection'
+        cpuHandlerNames: ['cpuSelectSeedWillWithPolicy']
     },
     POSITION_SWAP_WILL: {
         kind: 'multi_stage',
@@ -371,8 +343,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'position_swap',
         target: { method: 'getPositionSwapTargets', argsKey: 'player_pending', minimumCount: 2 },
         action: { policyMethod: 'choosePositionSwapTarget', field: 'positionSwapTarget' },
-        cpuHandlerNames: ['cpuSelectPositionSwapWillWithPolicy'],
-        uiHandlerName: 'handlePositionSwapSelection'
+        cpuHandlerNames: ['cpuSelectPositionSwapWillWithPolicy']
     },
     METEOR_WILL: {
         kind: 'continue_turn',
@@ -384,8 +355,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'meteor',
         target: { method: 'getMeteorTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseMeteorTarget', field: 'meteorTarget' },
-        cpuHandlerNames: ['cpuSelectMeteorWillWithPolicy'],
-        uiHandlerName: 'handleMeteorSelection'
+        cpuHandlerNames: ['cpuSelectMeteorWillWithPolicy']
     },
     TIME_BOMB: {
         kind: 'continue_turn',
@@ -396,8 +366,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'time_bomb',
         target: { method: 'getTimeBombTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseTimeBombTarget', field: 'bombTarget' },
-        cpuHandlerNames: ['cpuSelectTimeBombWithPolicy'],
-        uiHandlerName: 'handleTimeBombSelection'
+        cpuHandlerNames: ['cpuSelectTimeBombWithPolicy']
     },
     SWAP_WITH_ENEMY: {
         kind: 'end_turn',
@@ -408,8 +377,7 @@ const PENDING_SELECTION_REGISTRY: Record<string, PendingSelectionRegistryEntry> 
         dispatchKey: 'swap_with_enemy',
         target: { method: 'getSwapTargets', argsKey: 'player' },
         action: { policyMethod: 'chooseSwapTarget', field: 'swapTarget' },
-        cpuHandlerNames: ['cpuSelectSwapWithEnemyWithPolicy'],
-        uiHandlerName: 'handleSwapSelection'
+        cpuHandlerNames: ['cpuSelectSwapWithEnemyWithPolicy']
     },
     HEAVEN_BLESSING: {
         kind: 'hand_overlay',

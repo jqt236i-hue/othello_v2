@@ -40,6 +40,23 @@ describe('DESTROY_ONE_STONE destroy evade E2E', () => {
       },
       { timeout: 10000 }
     );
+    await page.evaluate(() => {
+      const playbackState = typeof window.require === 'function'
+        ? window.require('ui/playback-state-manager.js')
+        : null;
+      if (window.AnimationEngine && typeof window.AnimationEngine.abortAndSync === 'function') {
+        window.AnimationEngine.abortAndSync();
+      }
+      if (playbackState && typeof playbackState.clearPlaybackLock === 'function') {
+        playbackState.clearPlaybackLock();
+      }
+      window.waitForPlaybackIdle = () => Promise.resolve();
+      window.VisualPlaybackActive = false;
+      isProcessing = false;
+      isCardAnimating = false;
+      window.isProcessing = false;
+      window.isCardAnimating = false;
+    });
     await page.waitForFunction(() => {
       const bareAnimating = typeof isCardAnimating !== 'undefined' ? isCardAnimating : false;
       return window.VisualPlaybackActive !== true && bareAnimating !== true;
@@ -97,8 +114,24 @@ describe('DESTROY_ONE_STONE destroy evade E2E', () => {
 
     await page.evaluate(async () => {
       const destroyModule = window.require('game/card-effects/destroy.js');
-      await destroyModule.executeDestroy(4, 4, 'black');
-      if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+      const result = await destroyModule.executeDestroy(4, 4, 'black');
+      if (!result || result.ok !== true) {
+        throw new Error(`executeDestroy failed: ${result && result.reason ? result.reason : 'unknown'}`);
+      }
+      const playbackState = window.require('ui/playback-state-manager.js');
+      if (playbackState && typeof playbackState.clearPlaybackLock === 'function') {
+        playbackState.clearPlaybackLock();
+      }
+      window.VisualPlaybackActive = false;
+      isProcessing = false;
+      isCardAnimating = false;
+      window.isProcessing = false;
+      window.isCardAnimating = false;
+      window.cardState.presentationEvents = [];
+      window.cardState._presentationEventsPersist = [];
+      const boardRenderer = window.require('ui/board-renderer.js');
+      if (boardRenderer && typeof boardRenderer.renderBoardFull === 'function') boardRenderer.renderBoardFull();
+      else if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
       else if (typeof renderBoard === 'function') renderBoard();
     });
 

@@ -11,6 +11,7 @@ describe('move-executor presentation emission', () => {
         delete global.NetworkMatchClient;
         delete global.isGameOver;
         delete global.showResult;
+        delete global.PlaybackStateManager;
     });
     function installProcessingMirror(moveExecutor: any) {
         moveExecutor.setUIImpl({
@@ -89,6 +90,38 @@ describe('move-executor presentation emission', () => {
             type: 'PLAYBACK_EVENTS'
         }));
         expect(global.BoardOps.emitPresentationEvent).not.toHaveBeenCalled();
+    });
+
+    test('processing state is delegated through setProcessing bridge, not PlaybackStateManager shape', async () => {
+        global.BoardOps = { emitPresentationEvent: jest.fn() };
+        global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
+        global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
+
+        const setProcessing = jest.fn();
+        const getPlaybackStateManager = jest.fn(() => ({
+            setBusyState: jest.fn(),
+            setProcessing: jest.fn()
+        }));
+        const moveExecutor = require('../game/move-executor.js');
+        moveExecutor.setUIImpl({
+            setProcessing,
+            getPlaybackStateManager
+        });
+
+        const publishPromise = Promise.resolve({ ok: true });
+        const adapter = {
+            runTurnWithAdapter: jest.fn(() => ({
+                ok: true,
+                skippedLocalExecution: true,
+                publishPromise
+            }))
+        };
+
+        await moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
+
+        expect(setProcessing).toHaveBeenCalledWith(true);
+        expect(setProcessing).toHaveBeenLastCalledWith(false);
+        expect(getPlaybackStateManager).not.toHaveBeenCalled();
     });
 
     test('injected network publisher is preferred over global NetworkMatchClient', async () => {
@@ -334,18 +367,17 @@ describe('move-executor presentation emission', () => {
         expect(global.renderCardUI).not.toHaveBeenCalled();
     });
 
-    test('skipped local execution without publishPromise clears processing through PlaybackStateManager', async () => {
+    test('skipped local execution without publishPromise clears processing through setProcessing bridge', async () => {
         global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
         global.isProcessing = true;
-        global.PlaybackStateManager = {
-            setBusyState: jest.fn()
-        };
+        const setProcessing = jest.fn((next: boolean) => {
+            global.isProcessing = next === true;
+        });
 
         const moveExecutor = require('../game/move-executor.js');
-        installProcessingMirror(moveExecutor);
         moveExecutor.setUIImpl({
-            getPlaybackStateManager: () => global.PlaybackStateManager
+            setProcessing
         });
         const adapter = {
             runTurnWithAdapter: jest.fn(() => ({ skippedLocalExecution: true }))
@@ -353,7 +385,7 @@ describe('move-executor presentation emission', () => {
 
         await moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
 
-        expect(global.PlaybackStateManager.setBusyState).toHaveBeenCalledWith({ processing: false });
+        expect(setProcessing).toHaveBeenCalledWith(false);
         expect(global.isProcessing).toBe(false);
     });
 
@@ -361,10 +393,10 @@ describe('move-executor presentation emission', () => {
         global.cardState = { pendingEffectByPlayer: { black: null, white: null }, turnIndex: 0 };
         global.gameState = { currentPlayer: 1, board: Array(8).fill().map(() => Array(8).fill(0)) };
         global.isProcessing = false;
-        global.PlaybackStateManager = {
-            setBusyState: jest.fn()
-        };
         global.emitBoardUpdate = jest.fn();
+        const setProcessing = jest.fn((next: boolean) => {
+            global.isProcessing = next === true;
+        });
 
         let resolvePublish: any;
         const publishPromise = new Promise((resolve) => {
@@ -372,9 +404,8 @@ describe('move-executor presentation emission', () => {
         });
 
         const moveExecutor = require('../game/move-executor.js');
-        installProcessingMirror(moveExecutor);
         moveExecutor.setUIImpl({
-            getPlaybackStateManager: () => global.PlaybackStateManager
+            setProcessing
         });
         const adapter = {
             runTurnWithAdapter: jest.fn(() => ({
@@ -386,13 +417,13 @@ describe('move-executor presentation emission', () => {
         const executionPromise = moveExecutor.executeMoveViaPipeline({ row: 2, col: 3, player: 1 }, false, 'black', adapter, {});
         await Promise.resolve();
 
-        expect(global.PlaybackStateManager.setBusyState).toHaveBeenCalledWith({ processing: true });
+        expect(setProcessing).toHaveBeenCalledWith(true);
         expect(global.isProcessing).toBe(true);
 
         resolvePublish({ ok: true });
         await executionPromise;
 
-        expect(global.PlaybackStateManager.setBusyState).toHaveBeenLastCalledWith({ processing: false });
+        expect(setProcessing).toHaveBeenLastCalledWith(false);
         expect(global.isProcessing).toBe(false);
     });
 });

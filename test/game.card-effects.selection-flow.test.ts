@@ -84,6 +84,81 @@ describe('selection-flow', () => {
         };
         selectionFlow.setSignalBridge({
             getPlaybackStateManager: () => globalForSelectionFlow.PlaybackStateManager,
+            acquireSelectionSettlementLock: (meta: any) => {
+                const playbackState = globalForSelectionFlow.PlaybackStateManager;
+                return playbackState && typeof playbackState.acquireSelectionSettlementLock === 'function'
+                    ? playbackState.acquireSelectionSettlementLock(meta)
+                    : null;
+            },
+            releaseSelectionSettlementLock: (token: any) => {
+                const playbackState = globalForSelectionFlow.PlaybackStateManager;
+                if (playbackState && typeof playbackState.releaseSelectionSettlementLock === 'function') {
+                    playbackState.releaseSelectionSettlementLock(token);
+                    return true;
+                }
+                return false;
+            },
+            setSelectionProcessing: (next: boolean) => {
+                const playbackState = globalForSelectionFlow.PlaybackStateManager;
+                if (playbackState && typeof playbackState.setBusyState === 'function') {
+                    playbackState.setBusyState({ processing: next === true });
+                    return true;
+                }
+                return false;
+            },
+            setSelectionCardAnimating: (next: boolean) => {
+                const playbackState = globalForSelectionFlow.PlaybackStateManager;
+                if (playbackState && typeof playbackState.setBusyState === 'function') {
+                    playbackState.setBusyState({ cardAnimating: next === true });
+                    return true;
+                }
+                return false;
+            },
+            setSelectionBusy: (next: boolean) => {
+                const playbackState = globalForSelectionFlow.PlaybackStateManager;
+                if (playbackState && typeof playbackState.setBusyState === 'function') {
+                    playbackState.setBusyState({ processing: next === true, cardAnimating: next === true });
+                    return true;
+                }
+                return false;
+            },
+            readSelectionBusyState: (payload: any) => {
+                const playbackState = globalForSelectionFlow.PlaybackStateManager;
+                const localState = payload && payload.localSelectionBusyState ? payload.localSelectionBusyState : {};
+                return {
+                    processing: payload && payload.settlementLocked === true
+                        ? true
+                        : !!(playbackState && typeof playbackState.getProcessing === 'function'
+                            ? playbackState.getProcessing()
+                            : localState.processing),
+                    cardAnimating: payload && payload.settlementLocked === true
+                        ? true
+                        : !!(playbackState && typeof playbackState.getCardAnimating === 'function'
+                            ? playbackState.getCardAnimating()
+                            : localState.cardAnimating)
+                };
+            },
+            shouldAllowSelectionEntryDuringPlayback: (payload: any) => {
+                const playbackState = globalForSelectionFlow.PlaybackStateManager;
+                return !!(playbackState && typeof playbackState.shouldAllowSelectionEntryDuringPlayback === 'function'
+                    && playbackState.shouldAllowSelectionEntryDuringPlayback(payload || {}));
+            },
+            clearSelectionEntryPlaybackContext: () => {
+                const playbackState = globalForSelectionFlow.PlaybackStateManager;
+                if (playbackState && typeof playbackState.clearSelectionEntryPlaybackContext === 'function') {
+                    playbackState.clearSelectionEntryPlaybackContext();
+                    return true;
+                }
+                return false;
+            },
+            armSelectionBoardUpdateContext: (context: any) => {
+                const playbackState = globalForSelectionFlow.PlaybackStateManager;
+                if (playbackState && typeof playbackState.armBoardUpdateContext === 'function') {
+                    playbackState.armBoardUpdateContext(context);
+                    return true;
+                }
+                return false;
+            },
             readMatchMode: () => globalForSelectionFlow.getCurrentMatchMode ? globalForSelectionFlow.getCurrentMatchMode() : 'local',
             getGameState: () => globalForSelectionFlow.gameState,
             getCardState: () => globalForSelectionFlow.cardState,
@@ -115,6 +190,17 @@ describe('selection-flow', () => {
     });
 
     afterEach(() => {
+        try {
+            selectionFlow.setSelectionBusy(false);
+        } catch (e) { /* ignore */ }
+        try {
+            if (globalForSelectionFlow.PlaybackStateManager && typeof globalForSelectionFlow.PlaybackStateManager.clearSelectionSettlementLocks === 'function') {
+                globalForSelectionFlow.PlaybackStateManager.clearSelectionSettlementLocks();
+            }
+            if (globalForSelectionFlow.PlaybackStateManager && typeof globalForSelectionFlow.PlaybackStateManager.clearPlaybackLock === 'function') {
+                globalForSelectionFlow.PlaybackStateManager.clearPlaybackLock();
+            }
+        } catch (e) { /* ignore */ }
         delete globalForSelectionFlow.cardState;
         delete globalForSelectionFlow.gameState;
         delete globalForSelectionFlow.PlaybackStateManager;
@@ -155,6 +241,38 @@ describe('selection-flow', () => {
         test('正常系: 両方の状態を同時に設定できる', () => {
             const result = selectionFlow.setSelectionBusy(true);
             expect(result).toBe(true);
+        });
+    });
+
+    describe('selection settlement lock', () => {
+        test('matching token only releases mirrored busy state', () => {
+            const playbackStateManager = require('../ui/playback-state-manager.js');
+            playbackStateManager.clearSelectionSettlementLocks();
+            playbackStateManager.clearPlaybackLock();
+            globalForSelectionFlow.PlaybackStateManager = playbackStateManager;
+
+            const firstToken = selectionFlow.beginSelectionSettlementLock({ source: 'unit_test_first' });
+            const secondToken = selectionFlow.beginSelectionSettlementLock({ source: 'unit_test_second' });
+
+            expect(selectionFlow.isSelectionSettlementLocked()).toBe(true);
+            expect(playbackStateManager.hasSelectionSettlementLock()).toBe(true);
+            expect(playbackStateManager.getProcessing()).toBe(true);
+            expect(playbackStateManager.getCardAnimating()).toBe(true);
+            expect(playbackStateManager.getPlaybackActive()).toBe(true);
+
+            expect(selectionFlow.endSelectionSettlementLock({ id: 99999 })).toBe(false);
+            expect(playbackStateManager.getProcessing()).toBe(true);
+
+            expect(selectionFlow.endSelectionSettlementLock(firstToken)).toBe(true);
+            expect(selectionFlow.isSelectionSettlementLocked()).toBe(true);
+            expect(playbackStateManager.getProcessing()).toBe(true);
+
+            expect(selectionFlow.endSelectionSettlementLock(secondToken)).toBe(true);
+            expect(selectionFlow.isSelectionSettlementLocked()).toBe(false);
+            expect(playbackStateManager.hasSelectionSettlementLock()).toBe(false);
+            expect(playbackStateManager.getProcessing()).toBe(false);
+            expect(playbackStateManager.getCardAnimating()).toBe(false);
+            expect(playbackStateManager.getPlaybackActive()).toBe(false);
         });
     });
 
@@ -310,6 +428,47 @@ describe('selection-flow', () => {
             });
 
             expect(result.ok).toBe(true);
+        });
+
+        test('allowSelectionEntryDuringPlayback 経路でも cardAnimating を解放する', async () => {
+            const pendingCoordinator = require('../game/turn/pending-coordinator');
+            pendingCoordinator.readPendingEffect.mockReturnValue({
+                type: 'TRAP_WILL',
+                stage: 'selectTarget'
+            });
+
+            if (globalForSelectionFlow.PlaybackStateManager) {
+                globalForSelectionFlow.PlaybackStateManager.shouldAllowSelectionEntryDuringPlayback = jest.fn(() => true);
+            }
+
+            const adapter = {
+                runTurnWithAdapter: jest.fn(() => ({
+                    ok: true,
+                    nextCardState: globalForSelectionFlow.cardState,
+                    nextGameState: globalForSelectionFlow.gameState,
+                    playbackEvents: [{ type: 'trap_selected' }],
+                    rawEvents: [{ type: 'trap_selected', applied: true }]
+                }))
+            };
+            globalForSelectionFlow.TurnPipelineUIAdapter = adapter;
+            globalForSelectionFlow.TurnPipeline = {};
+
+            const result = await selectionFlow.executePendingSelection({
+                row: 3,
+                col: 4,
+                playerKey: 'black',
+                pendingType: 'TRAP_WILL',
+                actionPayload: { trapTarget: { row: 3, col: 4 } },
+                validateResult: ({ result }: { result: { rawEvents?: Array<{ type?: string; applied?: boolean }> } }) => {
+                    const event = result.rawEvents?.find((e) => e.type === 'trap_selected');
+                    return !!(event && event.applied);
+                }
+            });
+
+            expect(result.ok).toBe(true);
+            expect(globalForSelectionFlow.PlaybackStateManager.setBusyState).toHaveBeenCalledWith(
+                expect.objectContaining({ cardAnimating: false })
+            );
         });
 
         test('境界条件: ペンディングがない場合は失敗', async () => {

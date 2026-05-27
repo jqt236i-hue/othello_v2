@@ -5,21 +5,25 @@ jest.mock('../game/card-effects/selection-flow', () => ({
 }));
 
 const { handleCaptureSelection } = require('../game/card-effects/capture.js');
+const ControllerEvents = require('../game/controller-events.js');
+
 describe('capture', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();
-        global.LOG_MESSAGES = {
-            captureSelectPrompt: jest.fn(() => '奪う石を選んでください'),
-            captureApplied: jest.fn((player, pos, cardName) => `${player}:${pos}:${cardName}`)
-        };
-        global.posToNotation = jest.fn((row, col) => `${row},${col}`);
         global.emitLogAdded = jest.fn();
+        ControllerEvents.setControllerEventsRuntime({
+            GameEvents: {
+                EVENT_TYPES: { LOG_ADDED: 'LOG_ADDED' },
+                gameEvents: {
+                    emit: (_type, payload) => global.emitLogAdded(payload.text)
+                }
+            }
+        });
     });
 
     afterEach(() => {
-        delete global.LOG_MESSAGES;
-        delete global.posToNotation;
         delete global.emitLogAdded;
+        ControllerEvents.setControllerEventsRuntime(null);
     });
 
     test('module load: exported function presence', () => {
@@ -39,9 +43,9 @@ describe('capture', () => {
         const callArg = mockExecutePendingSelection.mock.calls[0][0];
         expect(callArg.pendingType).toBe('CAPTURE_WILL');
         expect(callArg.actionPayload).toEqual({ captureTarget: { row: 1, col: 2 } });
-        expect(callArg.invalidMessage()).toBe('奪う石を選んでください');
+        expect(callArg.invalidMessage()).toBe('捕獲する相手特殊石を選んでください');
         expect(callArg.buildPlaybackMeta()).toEqual({ cause: 'CAPTURE_WILL', target: { row: 1, col: 2 } });
-        expect(global.emitLogAdded).toHaveBeenCalledWith('白:1,2:カードA');
+        expect(global.emitLogAdded).toHaveBeenCalledWith('白が捕獲の意志で c2 からカードAを回収した');
     });
 
     test('境界条件: 対象イベントがない場合は無効', async () => {

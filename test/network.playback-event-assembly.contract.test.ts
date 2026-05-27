@@ -1179,12 +1179,12 @@ function buildPlaybackParityFixtures() {
         row: 2,
         col: 2,
         owner: 'white',
-        data: { type: 'GUARD', remainingOwnerTurns: 2 }
+        data: { type: 'WORK', remainingOwnerTurns: 2 }
       }],
       expectedStatusTick: {
         row: 2,
         col: 2,
-        special: 'GUARD',
+        special: 'WORK',
         reason: 'corrosion_applied',
         highlightTone: 'negative'
       }

@@ -58,7 +58,12 @@ describe('special-effects dragons UI boundary', () => {
       setDiscColorAt,
       removeBombOverlayAt,
       animateFadeOutAt,
-      getAnimationTiming: () => 0
+      getAnimationTiming: () => 0,
+      emitBoardUpdate: global.emitBoardUpdate,
+      emitGameStateChange: global.emitGameStateChange,
+      emitCardStateChange: global.emitCardStateChange,
+      emitLogAdded: global.emitLogAdded,
+      getPlayerName: global.getPlayerName
     });
 
     await dragons.processUltimateReverseDragonsAtTurnStart(global.BLACK, [
@@ -88,7 +93,12 @@ describe('special-effects dragons UI boundary', () => {
     global.PresentationHelper = globalPresentationHelper;
     dragons.setUIImpl({
       playPresentationEvents: jest.fn(),
-      emitPresentationEvent
+      emitPresentationEvent,
+      emitBoardUpdate: global.emitBoardUpdate,
+      emitGameStateChange: global.emitGameStateChange,
+      emitCardStateChange: global.emitCardStateChange,
+      emitLogAdded: global.emitLogAdded,
+      getPlayerName: global.getPlayerName
     });
 
     await dragons.processUltimateReverseDragonsAtTurnStart(global.BLACK, [

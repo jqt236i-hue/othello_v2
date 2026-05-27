@@ -50,12 +50,12 @@ function parseArgs(argv: any) {
     depthMid: 3,
     depthEnd: 4,
     exactSolveEmpties: 10,
-    onnxValueRerank: false,
+    onnxValueRerank: true,
     onnxPolicyBlendWeight: 0,
-    heuristicRerankWeight: 8,
-    policyWeight: 0.12,
+    heuristicRerankWeight: 3.0,
+    policyWeight: 0.75,
     topK: 8,
-    whiteSafetyMultiplier: 1.65,
+    whiteSafetyMultiplier: 1.45,
     out: "othello-ai/data/onnx/onnx-vs-table.eval.json",
     verbose: false
   };

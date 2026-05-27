@@ -10,15 +10,25 @@ const {
     handleSuperGravitySelection,
     handleSuperAttractionSelection
 } = require('../game/card-effects/strong-wind');
+const ControllerEvents = require('../game/controller-events.js');
 
 describe('strong-wind', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();
         global.emitLogAdded = jest.fn();
+        ControllerEvents.setControllerEventsRuntime({
+            GameEvents: {
+                EVENT_TYPES: { LOG_ADDED: 'LOG_ADDED' },
+                gameEvents: {
+                    emit: (_type, payload) => global.emitLogAdded(payload.text)
+                }
+            }
+        });
     });
 
     afterEach(() => {
         delete global.emitLogAdded;
+        ControllerEvents.setControllerEventsRuntime(null);
     });
 
     test('module load: exported function presence', () => {

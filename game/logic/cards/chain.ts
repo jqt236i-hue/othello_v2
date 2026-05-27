@@ -47,6 +47,20 @@ if (!CardFlips || typeof CardFlips.getDirectionalChainFlips !== 'function') {
 interface Point { row: number; col: number }
 interface ChainCandidate { from: Point; dir: any; score: number; flips: Point[] }
 interface ChainResult { applied: boolean; flips: Point[]; chosen: ChainCandidate | null }
+type ApplyChainDeps = {
+    readCardPendingEffect: (cardState: any, playerKey: any) => any;
+    getChainWillConfig: (pendingType: any) => any;
+    blackValue: any;
+    whiteValue: any;
+    getCardContext: (cardState: any) => any;
+    defaultPrng: any;
+    resolveChainWillMaxLinks: (gameState: any, chainConfig: any) => any;
+    findChainChoice?: (gameState: any, primaryFlips: any[], ownerVal: number, context: any, prng?: { random(): number }) => ChainResult;
+    BoardOpsModule?: any;
+    eventCause: any;
+    clearBombAt: (cardState: any, row: any, col: any) => any;
+    clearHyperactiveAtPositions: (cardState: any, positions: any[]) => any;
+};
 
 function normalizePoint(p: any): Point {
     if (Array.isArray(p)) return { row: p[0], col: p[1] };
@@ -105,6 +119,53 @@ function findChainChoice(
     return { applied: true, flips: chosen.flips, chosen };
 }
 
+function applyChainWillAfterMove(cardState: any, gameState: any, playerKey: any, primaryFlips: any, prng: any, deps: ApplyChainDeps): any {
+    const pending = deps.readCardPendingEffect(cardState, playerKey);
+    const chainConfig = pending ? deps.getChainWillConfig(pending.type) : null;
+    if (!pending || !chainConfig) {
+        return { applied: false, flips: [], chosen: null };
+    }
+
+    const playerValue = playerKey === 'black' ? (deps.blackValue || 1) : (deps.whiteValue || -1);
+    const context = deps.getCardContext(cardState);
+    const p = prng || deps.defaultPrng;
+    const choose = deps.findChainChoice || findChainChoice;
+
+    const appliedFlips = [];
+    const chosenSteps = [];
+    let sourceFlips = Array.isArray(primaryFlips) ? primaryFlips.slice() : [];
+    const maxLinks = deps.resolveChainWillMaxLinks(gameState, chainConfig);
+    for (let i = 0; i < maxLinks; i++) {
+        const res = choose(gameState, sourceFlips, playerValue, context, p);
+        if (!res || !res.applied || !Array.isArray(res.flips) || res.flips.length === 0) break;
+        const chainLink = i + 1;
+        const appliedThisLink = [];
+        for (const pos of res.flips) {
+            let changed = true;
+            if (deps.BoardOpsModule && typeof deps.BoardOpsModule.changeAt === 'function') {
+                const changeRes = deps.BoardOpsModule.changeAt(cardState, gameState, pos.row, pos.col, playerKey, deps.eventCause, 'chain_flip', { chainLink });
+                changed = !!(changeRes && changeRes.changed);
+            } else {
+                gameState.board[pos.row][pos.col] = playerValue;
+            }
+            if (!changed) continue;
+            deps.clearBombAt(cardState, pos.row, pos.col);
+            const appliedPos = { row: pos.row, col: pos.col };
+            appliedThisLink.push(appliedPos);
+            appliedFlips.push(appliedPos);
+        }
+        if (appliedThisLink.length > 0) {
+            deps.clearHyperactiveAtPositions(cardState, appliedThisLink);
+            chosenSteps.push(res.chosen || null);
+        }
+        sourceFlips = appliedThisLink;
+        if (sourceFlips.length === 0) break;
+    }
+    if (appliedFlips.length === 0) return { applied: false, flips: [], chosen: null, chosenSteps: [] };
+    return { applied: true, flips: appliedFlips, chosen: chosenSteps[chosenSteps.length - 1] || null, chosenSteps };
+}
+
 export = {
-    findChainChoice
+    findChainChoice,
+    applyChainWillAfterMove
 };

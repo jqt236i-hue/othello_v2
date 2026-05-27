@@ -23,6 +23,16 @@ function makeBoard() {
     return board;
 }
 
+function createCapturingTimerService(callbacks: Array<() => void>) {
+    return {
+        setTimeout: jest.fn((callback: () => void, delay: number) => {
+            callbacks.push(callback);
+            return { delay, index: callbacks.length };
+        }),
+        clearTimeout: jest.fn()
+    };
+}
+
 describe('cpu-turn-handler onnx hold behavior', () => {
     beforeEach(() => {
         mod.resetCpuTurnHandlerState();
@@ -63,6 +73,8 @@ describe('cpu-turn-handler onnx hold behavior', () => {
                 if (nextCardState) global.cardState = nextCardState;
                 if (nextGameState) global.gameState = nextGameState;
             },
+            readMatchMode: () => global.MATCH_MODE || null,
+            readQuerySearch: () => global.__CPU_TEST_QUERY_SEARCH || '',
             resolveExecuteMove: () => global.executeMove
         });
     });
@@ -71,8 +83,19 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         mod.resetCpuTurnHandlerState();
         mod.setCpuUIImpl({});
         mod.setTimers(null);
+        mod.setCpuTurnTimerService(null);
         delete global.__BENCH_FAST_MODE;
         delete global.ANIMATION_RETRY_DELAY_MS;
+        delete global.MATCH_MODE;
+        delete global.TurnPipeline;
+        delete global.TurnPipelineUIAdapter;
+        delete global.generateMovesForPlayer;
+        delete global.selectMoveFromOnnxPolicyAsync;
+        delete global.selectCpuMoveWithPolicy;
+        delete global.cpuMaybeDestroyHandCardWithPolicy;
+        delete global.__CPU_TEST_QUERY_SEARCH;
+        delete global.isGameOver;
+        delete global.showResult;
     });
 
     test('respects ONNX hold in stable state', async () => {
@@ -95,6 +118,23 @@ describe('cpu-turn-handler onnx hold behavior', () => {
 
         expect(global.selectCardFromOnnxPolicyAsync).toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
+    });
+
+    test('reads processing through CPU bridge without inspecting PlaybackStateManager shape', async () => {
+        const readProcessing = jest.fn(() => true);
+        const getPlaybackStateManager = jest.fn(() => ({
+            getProcessing: jest.fn(() => false)
+        }));
+        mod.setCpuUIImpl({
+            readProcessing,
+            getPlaybackStateManager
+        });
+        global.gameState = { board: makeBoard(), currentPlayer: 1, turnNumber: 10 };
+
+        await mod.processAutoBlackTurn();
+
+        expect(readProcessing).toHaveBeenCalled();
+        expect(getPlaybackStateManager).not.toHaveBeenCalled();
     });
 
     test('overrides ONNX hold in emergency state for Lv6', async () => {
@@ -244,6 +284,78 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         expect(global.selectCpuMoveWithPolicy).toHaveBeenCalled();
     });
 
+    test('runCpuTurn commits the ONNX move directly without policy fallback override', async () => {
+        const onnxMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+        const fallbackMove = { row: 5, col: 4, flips: [{ row: 4, col: 4 }] };
+        global.CardLogic = {
+            getUsableCardIds: () => [],
+            hasUsableCard: () => false,
+            getCardDef: (id: string) => ({ id })
+        };
+        global.cardState = {
+            hands: { white: [], black: [] },
+            charge: { white: 0, black: 0 },
+            pendingEffectByPlayer: { white: null, black: null },
+            hasUsedCardThisTurnByPlayer: { white: false, black: false },
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+        };
+        global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 30 };
+        global.MATCH_MODE = 'reversi';
+        global.generateMovesForPlayer = jest.fn(() => [onnxMove, fallbackMove]);
+        global.selectMoveFromOnnxPolicyAsync = jest.fn(async () => onnxMove);
+        global.selectCpuMoveWithPolicy = jest.fn(() => fallbackMove);
+
+        await mod.runCpuTurn('white');
+
+        expect(global.selectMoveFromOnnxPolicyAsync).toHaveBeenCalledWith([onnxMove, fallbackMove], 'white', 6);
+        expect(global.selectCpuMoveWithPolicy).not.toHaveBeenCalled();
+        expect(global.executeMove).toHaveBeenCalledWith(onnxMove);
+    });
+
+    test('uses injected query search to disable Othello ONNX move path', async () => {
+        const onnxMove = { row: 2, col: 3, flips: [{ row: 3, col: 3 }] };
+        const fallbackMove = { row: 5, col: 4, flips: [{ row: 4, col: 4 }] };
+        global.CardLogic = {
+            getUsableCardIds: () => [],
+            hasUsableCard: () => false,
+            getCardDef: (id: string) => ({ id })
+        };
+        global.cardState = {
+            hands: { white: [], black: [] },
+            charge: { white: 0, black: 0 },
+            pendingEffectByPlayer: { white: null, black: null },
+            hasUsedCardThisTurnByPlayer: { white: false, black: false },
+            hasDestroyedCardThisTurnByPlayer: { white: false, black: false }
+        };
+        global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 30 };
+        global.MATCH_MODE = 'reversi';
+        global.__CPU_TEST_QUERY_SEARCH = '?othelloOnnx=0';
+        global.generateMovesForPlayer = jest.fn(() => [onnxMove, fallbackMove]);
+        global.selectMoveFromOnnxPolicyAsync = jest.fn(async () => onnxMove);
+        global.selectCpuMoveWithPolicy = jest.fn(() => fallbackMove);
+
+        await mod.runCpuTurn('white');
+
+        expect(global.selectMoveFromOnnxPolicyAsync).not.toHaveBeenCalled();
+        expect(global.selectCpuMoveWithPolicy).toHaveBeenCalled();
+        expect(global.executeMove).toHaveBeenCalledWith(fallbackMove);
+    });
+
+    test('processCpuTurn shows game-over result through injected runtime function', async () => {
+        global.gameState = { board: makeBoard(), currentPlayer: 'white', turnNumber: 30 };
+        global.cardState = {
+            hands: { white: [], black: [] },
+            charge: { white: 0, black: 0 },
+            pendingEffectByPlayer: { white: null, black: null }
+        };
+        global.isGameOver = jest.fn(() => true);
+        global.showResult = jest.fn();
+
+        await mod.processCpuTurn();
+
+        expect(global.showResult).toHaveBeenCalledTimes(1);
+    });
+
     test('no-legal-moves retry still falls back to policy and direct card use after ONNX hold', async () => {
         global.cardState = {
             hands: { white: ['card_a'], black: [] },
@@ -268,8 +380,9 @@ describe('cpu-turn-handler onnx hold behavior', () => {
     });
 
     test('runCpuTurn destroys bucket2 FATE_WILL before card-use path in browser Lv6 flow', async () => {
-        const callbacks: Function[] = [];
-        const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation(((callback: (...args: any[]) => void) => { callbacks.push(callback); return 1; }) as any);
+        const callbacks: Array<() => void> = [];
+        const timerService = createCapturingTimerService(callbacks);
+        mod.setCpuTurnTimerService(timerService);
         global.cpuMaybeDestroyHandCardWithPolicy = cpuDecision.cpuMaybeDestroyHandCardWithPolicy;
         global.cardState = {
             hands: { white: ['fate_01'], black: [] },
@@ -310,14 +423,15 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         expect(action.destroyCardId).toBe('fate_01');
         expect(global.selectCardFromOnnxPolicyAsync).not.toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
-        expect(setTimeoutSpy).toHaveBeenCalled();
+        expect(timerService.setTimeout).toHaveBeenCalled();
         // Execute stored callbacks to clean up timers
         callbacks.forEach(cb => cb());
     });
 
     test('runCpuTurn destroys bucket3 CORNER_TRIBUTE before card-use path in browser Lv6 flow', async () => {
-        const callbacks: Function[] = [];
-        const setTimeoutSpy = jest.spyOn(global, 'setTimeout').mockImplementation(((callback: (...args: any[]) => void) => { callbacks.push(callback); return 1; }) as any);
+        const callbacks: Array<() => void> = [];
+        const timerService = createCapturingTimerService(callbacks);
+        mod.setCpuTurnTimerService(timerService);
         global.cpuMaybeDestroyHandCardWithPolicy = cpuDecision.cpuMaybeDestroyHandCardWithPolicy;
         global.cardState = {
             hands: { white: ['corner_tribute_01'], black: [] },
@@ -358,7 +472,7 @@ describe('cpu-turn-handler onnx hold behavior', () => {
         expect(action.destroyCardId).toBe('corner_tribute_01');
         expect(global.selectCardFromOnnxPolicyAsync).not.toHaveBeenCalled();
         expect(global.cpuMaybeUseCardWithPolicy).not.toHaveBeenCalled();
-        expect(setTimeoutSpy).toHaveBeenCalled();
+        expect(timerService.setTimeout).toHaveBeenCalled();
         // Execute stored callbacks to clean up timers
         callbacks.forEach(cb => cb());
     });

@@ -1,10 +1,11 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
-declare const emitLogAdded: any;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
   : require;
 const LOG_MESSAGES = _require('../log-messages');
+const ControllerEvents = _require('../controller-events');
+const { getPlayerDisplayName } = _require('../card-effects/helpers');
 
 /**
  * @file udg.js
@@ -13,6 +14,39 @@ const LOG_MESSAGES = _require('../log-messages');
 
 let __uiImpl_udg: any = {};
 function setUIImpl(obj: any) { __uiImpl_udg = obj || {}; }
+
+function emitUdgLog(message: any): void {
+    if (__uiImpl_udg && typeof __uiImpl_udg.emitLogAdded === 'function') {
+        __uiImpl_udg.emitLogAdded(message, 'effect');
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
+        ControllerEvents.emitLogAdded(message, 'effect');
+    }
+}
+
+function emitUdgBoardUpdate(): void {
+    if (__uiImpl_udg && typeof __uiImpl_udg.emitBoardUpdate === 'function') {
+        __uiImpl_udg.emitBoardUpdate();
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitBoardUpdate === 'function') ControllerEvents.emitBoardUpdate();
+}
+
+function emitUdgGameStateChange(): void {
+    if (__uiImpl_udg && typeof __uiImpl_udg.emitGameStateChange === 'function') {
+        __uiImpl_udg.emitGameStateChange();
+        return;
+    }
+    if (ControllerEvents && typeof ControllerEvents.emitGameStateChange === 'function') ControllerEvents.emitGameStateChange();
+}
+
+function getUdgPlayerName(player: number): string {
+    if (__uiImpl_udg && typeof __uiImpl_udg.getPlayerName === 'function') {
+        return __uiImpl_udg.getPlayerName(player);
+    }
+    return getPlayerDisplayName(player);
+}
 
 function hasPlaybackEngineForUdg(): boolean {
     return typeof __uiImpl_udg.playPresentationEvents === 'function';
@@ -58,24 +92,23 @@ async function processUltimateDestroyGodsAtTurnStart(player: number, precomputed
                 }
             }
         } else {
-            // Fall back to logic-layer call, but this is discouraged for UI-only path
-            console.warn('[UDG] No precomputed pipeline result/events provided; falling back to CardLogic (discouraged)');
-            result = CardLogic.processUltimateDestroyGodEffects(cardState, gameState, playerKey);
+            console.error('[UDG] No precomputed pipeline result/events provided; skipping UDG presentation');
+            return;
         }
     }
 
     // UDG anchor timer visuals are UI-only. Let the UI sync timers from state (emit a board update).
     if (Array.isArray(result.anchors) && result.anchors.length > 0) {
-        if (typeof emitBoardUpdate === 'function') emitBoardUpdate();
+        emitUdgBoardUpdate();
     }
 
     if (result.destroyed.length > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.udgDestroyed(getPlayerName(player), result.destroyed.length));
+        emitUdgLog(LOG_MESSAGES.udgDestroyed(getUdgPlayerName(player), result.destroyed.length));
     }
 
     if (hasPlayback) {
         // PlaybackEngine will handle destroy visuals; ensure UI consumes presentation events.
-        try { if (typeof emitBoardUpdate === 'function') emitBoardUpdate(); } catch (e) { /* ignore */ }
+        try { emitUdgBoardUpdate(); } catch (e) { /* ignore */ }
         return;
     }
 
@@ -95,8 +128,8 @@ async function processUltimateDestroyGodsAtTurnStart(player: number, precomputed
         }
     }
 
-    emitBoardUpdate();
-    emitGameStateChange();
+    emitUdgBoardUpdate();
+    emitUdgGameStateChange();
 }
 
 /**
@@ -109,17 +142,21 @@ async function processUltimateDestroyGodsAtTurnStart(player: number, precomputed
  */
 async function processUltimateDestroyGodImmediateAtPlacement(player: number, row: number, col: number, precomputedResult: any = null) {
     const playerKey = player === BLACK ? 'black' : 'white';
-    const result = precomputedResult || CardLogic.processUltimateDestroyGodEffectsAtAnchor(cardState, gameState, playerKey, row, col, { decrementRemainingOwnerTurns: false });
+    if (!precomputedResult) {
+        console.error('[UDG IMMEDIATE] No precomputed pipeline result provided; skipping UDG presentation');
+        return;
+    }
+    const result = precomputedResult;
 
     if (result.destroyed.length > 0) {
-        if (typeof emitLogAdded === 'function') emitLogAdded(LOG_MESSAGES.udgDestroyedImmediate(getPlayerName(player), result.destroyed.length));
+        emitUdgLog(LOG_MESSAGES.udgDestroyedImmediate(getUdgPlayerName(player), result.destroyed.length));
         const unique = new Map();
         for (const p of result.destroyed) unique.set(`${p.row},${p.col}`, p);
         await Promise.all(Array.from(unique.values()).map(p => animateUdgFadeOut(p.row, p.col)));
     }
 
-    emitBoardUpdate();
-    emitGameStateChange();
+    emitUdgBoardUpdate();
+    emitUdgGameStateChange();
 }
 
 if (typeof module !== 'undefined' && module.exports) {

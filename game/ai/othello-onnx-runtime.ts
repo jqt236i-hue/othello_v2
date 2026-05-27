@@ -29,11 +29,11 @@ let _inferenceMaxMs = 0;
 let _config = {
   enabled: true,
   minLevel: 6,
-  useValueRerank: false,
-  policyWeight: 0.12,
+  useValueRerank: true,
+  policyWeight: 0.75,
   topK: 8,
-  heuristicRerankWeight: 8.0,
-  whiteSafetyMultiplier: 1.65,
+  heuristicRerankWeight: 3.0,
+  whiteSafetyMultiplier: 1.45,
   ortApi: null as any
 };
 

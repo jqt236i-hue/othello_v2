@@ -140,7 +140,7 @@ describe('animation-engine guard timer rendering', () => {
     expect(disc.querySelector('.work-timer').textContent).toBe('20');
   });
 
-  test('腐食の STATUS_TICK は赤セルハイライトを出しつつ timer だけ更新する', async () => {
+  test('腐食の STATUS_TICK は紫セルハイライトを出しつつ timer だけ更新する', async () => {
     const crossfadeSpy = jest.fn(() => Promise.resolve());
     jest.doMock('../ui/stone-visuals', () => ({
       crossfadeStoneVisual: crossfadeSpy
@@ -173,8 +173,8 @@ describe('animation-engine guard timer rendering', () => {
     });
 
     expect(crossfadeSpy).not.toHaveBeenCalled();
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(disc.querySelector('.work-timer').textContent).toBe('2');
   });
 
@@ -303,7 +303,7 @@ describe('animation-engine guard timer rendering', () => {
     expect(disc.classList.contains('white')).toBe(false);
   });
 
-  test('TIME_BOMB の STATUS_APPLIED は赤セルハイライトを一瞬出す', async () => {
+  test('TIME_BOMB の STATUS_APPLIED は紫セルハイライトを一瞬出す', async () => {
     const crossfadeSpy = jest.fn(() => Promise.resolve());
     jest.doMock('../ui/stone-visuals', () => ({
       crossfadeStoneVisual: crossfadeSpy
@@ -339,11 +339,11 @@ describe('animation-engine guard timer rendering', () => {
 
     expect(crossfadeSpy).toHaveBeenCalledTimes(1);
     expect(sleepSpy).toHaveBeenCalled();
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
-    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
-    expect(cell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(cell.classList.contains('effect-target-highlight-positive')).toBe(false);
   });
 
   test('AFTERIMAGE_WILL の STATUS_APPLIED は紫セルハイライトを一瞬出す', async () => {
@@ -554,8 +554,8 @@ describe('animation-engine guard timer rendering', () => {
     expect(syncSpy).not.toHaveBeenCalled();
     expect(disc.classList.contains('black')).toBe(true);
     expect(disc.classList.contains('white')).toBe(false);
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
     expect(sleepSpy).toHaveBeenCalled();
   });
 
@@ -789,8 +789,8 @@ describe('animation-engine guard timer rendering', () => {
 
     expect(discCrossfadeSpy).toHaveBeenCalledTimes(1);
     expect(crossfadeSpy).not.toHaveBeenCalled();
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
   });
 
   test('freeze duration_end の STATUS_REMOVED は freeze overlay fade を使う', async () => {
@@ -859,8 +859,8 @@ describe('animation-engine guard timer rendering', () => {
       newColor: 1,
       fadeIn: false
     }));
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
   });
 
   test('fadeOutFreezeOverlay removes frozen-cell visuals after fade', async () => {
@@ -1913,7 +1913,7 @@ describe('animation-engine guard timer rendering', () => {
     delete global.animateFadeOutAt;
   });
 
-  test('card-effect flip applies and clears red cell highlight during animation', async () => {
+  test('card-effect flip applies and clears purple cell highlight during animation', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board')!;
 
@@ -1942,16 +1942,16 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(targetCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(targetCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     sleepSpy.mockRestore();
     addSpy.mockRestore();
     removeSpy.mockRestore();
   });
 
-  test('non-card-effect flip does not apply red cell highlight', async () => {
+  test('non-card-effect flip does not apply effect cell highlight', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board')!;
 
@@ -2094,7 +2094,7 @@ describe('animation-engine guard timer rendering', () => {
     fadeSpy.mockRestore();
   });
 
-  test('free placement spawn applies and clears red cell highlight', async () => {
+  test('free placement spawn applies and clears purple cell highlight', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board')!;
 
@@ -2119,12 +2119,56 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(targetCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(targetCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
+  });
+
+  test('Seed Will sprout spawn keeps purple cell highlight visible briefly', async () => {
+    const engine = require('../ui/animation-engine');
+    const board = document.getElementById('board')!;
+
+    const targetCell = document.createElement('div');
+    targetCell.className = 'cell';
+    targetCell.dataset.row = '1';
+    targetCell.dataset.col = '1';
+    board.appendChild(targetCell);
+
+    const addSpy = jest.spyOn(targetCell.classList, 'add');
+    const removeSpy = jest.spyOn(targetCell.classList, 'remove');
+    const sleepSpy = jest.spyOn(engine, '_sleep').mockResolvedValue(undefined);
+
+    await engine.handleSpawn({
+      type: 'spawn',
+      targets: [{
+        r: 1,
+        col: 1,
+        cause: 'SEED_WILL',
+        reason: 'seed_sprout',
+        ownerAfter: 'black',
+        meta: {
+          spawnIntent: 'normal_spawn',
+          seedSprout: true,
+          seedOwner: 'black'
+        },
+        after: { color: 1, special: null, timer: null, owner: 'black' }
+      }]
+    });
+
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-spawn');
+    expect(sleepSpy).toHaveBeenCalled();
+    expect(targetCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+    sleepSpy.mockRestore();
   });
 
   test('Equality Will spawn keeps purple cell highlight visible briefly', async () => {
@@ -2287,7 +2331,7 @@ describe('animation-engine guard timer rendering', () => {
     sleepSpy.mockRestore();
   });
 
-  test('free placement place event applies and clears red cell highlight', async () => {
+  test('free placement place event applies and clears purple cell highlight', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board')!;
 
@@ -2312,9 +2356,9 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(targetCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(targetCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
@@ -2349,7 +2393,7 @@ describe('animation-engine guard timer rendering', () => {
     expect(disc.style.transition).toBe('');
   });
 
-  test('strong wind move applies and clears red cell highlight at destination', async () => {
+  test('strong wind move applies and clears purple cell highlight at destination', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board')!;
 
@@ -2384,15 +2428,15 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(toCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
   });
 
-  test('gluttonous eat move applies and clears red cell highlight at destination', async () => {
+  test('gluttonous eat move applies and clears purple cell highlight at destination', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board')!;
 
@@ -2428,9 +2472,9 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(toCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
@@ -2502,7 +2546,7 @@ describe('animation-engine guard timer rendering', () => {
     removeSpy.mockRestore();
   });
 
-  test('teleport move applies and clears red cell highlight at destination', async () => {
+  test('teleport move applies and clears purple cell highlight at destination', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board')!;
 
@@ -2538,15 +2582,15 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(toCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
   });
 
-  test('cell teleport move applies and clears red cell highlight at destination', async () => {
+  test('cell teleport move applies and clears purple cell highlight at destination', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board')!;
 
@@ -2578,15 +2622,16 @@ describe('animation-engine guard timer rendering', () => {
         ownerAfter: 'black',
         cause: 'CELL_TELEPORT_WILL',
         reason: 'teleport_move',
+        meta: { moveIntent: 'teleport_move' },
         after: { color: 1, special: null, timer: null, owner: 'black' }
       }]
     });
 
-    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
-    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
-    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(addSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(removeSpy).not.toHaveBeenCalledWith('effect-target-highlight');
+    expect(toCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     addSpy.mockRestore();
     removeSpy.mockRestore();
@@ -2648,7 +2693,7 @@ describe('animation-engine guard timer rendering', () => {
     removeToSpy.mockRestore();
   });
 
-  test('position swap move applies and clears red cell highlight on both cells', async () => {
+  test('position swap move applies and clears purple cell highlight on both cells', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board')!;
 
@@ -2686,12 +2731,12 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(addFromSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(addToSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeFromSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeToSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(fromCell.classList.contains('effect-target-highlight')).toBe(false);
-    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(addFromSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addToSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeFromSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeToSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(fromCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(toCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     addFromSpy.mockRestore();
     addToSpy.mockRestore();
@@ -2699,7 +2744,7 @@ describe('animation-engine guard timer rendering', () => {
     removeToSpy.mockRestore();
   });
 
-  test('flip evade move applies and clears red cell highlight on source cell only', async () => {
+  test('flip evade move applies and clears purple cell highlight on source cell only', async () => {
     const engine = require('../ui/animation-engine');
     const board = document.getElementById('board')!;
 
@@ -2742,12 +2787,12 @@ describe('animation-engine guard timer rendering', () => {
       }]
     });
 
-    expect(addFromSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeFromSpy).toHaveBeenCalledWith('effect-target-highlight');
-    expect(addToSpy).not.toHaveBeenCalledWith('effect-target-highlight');
-    expect(removeToSpy).not.toHaveBeenCalledWith('effect-target-highlight');
-    expect(fromCell.classList.contains('effect-target-highlight')).toBe(false);
-    expect(toCell.classList.contains('effect-target-highlight')).toBe(false);
+    expect(addFromSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeFromSpy).toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(addToSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(removeToSpy).not.toHaveBeenCalledWith('effect-target-highlight-positive');
+    expect(fromCell.classList.contains('effect-target-highlight-positive')).toBe(false);
+    expect(toCell.classList.contains('effect-target-highlight-positive')).toBe(false);
 
     addFromSpy.mockRestore();
     addToSpy.mockRestore();

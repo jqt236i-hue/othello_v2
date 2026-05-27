@@ -18,7 +18,7 @@ CPU algorithm and runtime helper layer. `game/cpu-decision.ts` and `game/cpu-tur
 - Adjacent `.js` / `.ts` pairs exist during migration; verify whether the caller imports the shim or TypeScript-built output.
 - Prefer injected random/time/config sources for new work. If touching existing direct randomness, avoid expanding the pattern.
 - Keep expensive search bounded by level/profile settings; no unbounded fallback loops.
-- Training orchestration lives in `scripts/` and `ai/train/`; this directory is browser/headless runtime code.
+- Training orchestration lives in root CLI wrappers under `scripts/`, TypeScript sources under `training/scripts/`, and Python trainers under `training/python/`; this directory is browser/headless runtime code.
 
 ## Anti-patterns
 
@@ -32,4 +32,4 @@ CPU algorithm and runtime helper layer. `game/cpu-decision.ts` and `game/cpu-tur
 - Focused tests: `test/cpu.*`, `test/game.cpu*`, `test/game.ai*`, and `game/ai/__tests__/*`.
 - Runtime/model path changes: include policy-table / ONNX runtime focused tests where present.
 - TypeScript changes: `npm run typecheck` and `npm run build:ts`.
-- Training-pipeline adjacency: prefer `npm run selfplay:preflight` or focused `test/selfplay.*`; do not start long training jobs as routine verification.
+- Training-pipeline adjacency: prefer `npm run selfplay:preflight` or focused `training/tests/selfplay.*`; do not start long training jobs as routine verification.

@@ -18,21 +18,17 @@ function hasUsableWaitMs(t: any): boolean {
 function scheduleRetry(fn: any, delayMs: number = 80, timers: any = null) {
     let t: any = timers;
     if (!t) {
-        try { t = _require('./timers'); } catch (e) { /* use setTimeout fallback */ }
+        try { t = _require('./timers'); } catch (e) { /* no injected timer */ }
     }
 
     if (hasUsableWaitMs(t)) {
         try {
             return t.waitMs(delayMs).then(() => { try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); } });
         } catch (e) {
-            // fallback to setTimeout
+            // fall through to no-op when timer injection fails
         }
     }
-
-    const tid = setTimeout(() => {
-        try { fn(); } catch (e) { console.error('[AI] scheduleRetry callback failed', e); }
-    }, delayMs);
-    if (tid && typeof tid.unref === 'function') tid.unref();
+    return null;
 }
 
 module.exports = { scheduleRetry };

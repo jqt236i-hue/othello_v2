@@ -8,13 +8,10 @@ import type {
     MatchWorkerDeckGlobals,
     MatchWorkerDeckSelection,
     MatchWorkerEnv,
-    MatchWorkerLeaderboardEntry,
-    MatchWorkerLeaderboardMode,
     MatchWorkerLeaderboardStore,
     MatchWorkerPlaybackAdapter,
     MatchWorkerPlaybackAssembly,
     MatchWorkerPlaybackDiagnostics,
-    MatchWorkerParsedChatMessage,
     MatchWorkerPreparedSnapshotBroadcast,
     MatchWorkerPrng,
     MatchWorkerPublicSnapshot,
@@ -52,6 +49,17 @@ import {
     assertMatchRoomDurableObjectConstructor,
     assertMatchWorkerEntrypoint
 } from './match-worker-contract';
+import { createMatchWorkerApiController } from './match-worker-api';
+import { createMatchWorkerBroadcastController } from './match-worker-broadcast-controller';
+import { createMatchWorkerChatController } from './match-worker-chat-controller';
+import { createMatchWorkerLeaderboardHelpers } from './match-worker-leaderboard';
+import { createMatchWorkerLeaderboardRoomController } from './match-worker-leaderboard-room';
+import { createMatchWorkerStreamController } from './match-worker-stream-controller';
+import { createMatchWorkerStreamRouteController } from './match-worker-stream-route-controller';
+import { createMatchWorkerStreamSessionController } from './match-worker-stream-session-controller';
+import { createMatchWorkerTimeoutController } from './match-worker-timeout-controller';
+import { createMatchWorkerTurnTimerController } from './match-worker-turn-timer-controller';
+import { createMatchWorkerTurnTimerHelpers } from './match-worker-turn-timer';
 import deepClone from '../utils/deepClone.js';
 import matchAuthority from '../utils/match-authority.js';
 import networkActionSchemaModule = require('../shared/network-action-schema.js');
@@ -87,8 +95,10 @@ import cardEffectResolverModule from '../game/cards/effect-resolver.js';
 import cardTimingProcessorModule from '../game/cards/timing-processor.js';
 import cardTargetResolverModule from '../game/cards/target-resolver.js';
 import cardStatusCellsEffectsModule = require('../game/cards/effects/status-cells.js');
+import subPlacementContinuationModule = require('../game/turn/sub-placement-continuation.js');
 
 const MatchAuthority = matchAuthority;
+const SubPlacementContinuation = subPlacementContinuationModule;
 type MatchWorkerCryptoLike = {
     getRandomValues(array: Uint8Array): Uint8Array;
 };
@@ -163,6 +173,23 @@ const CORS_HEADERS = {
     'Access-Control-Allow-Headers': 'Content-Type'
 };
 
+const MatchWorkerLeaderboardHelpers = createMatchWorkerLeaderboardHelpers({
+    storageVersion: LEADERBOARD_STORAGE_VERSION,
+    playerNameMax: LEADERBOARD_PLAYER_NAME_MAX,
+    playerIdPattern: LEADERBOARD_PLAYER_ID_RE,
+    defaultLimit: LEADERBOARD_DEFAULT_LIMIT,
+    maxLimit: LEADERBOARD_MAX_LIMIT,
+    maxStoredPlayers: LEADERBOARD_MAX_STORED_PLAYERS
+});
+
+const MatchWorkerTurnTimerHelpers = createMatchWorkerTurnTimerHelpers({
+    limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
+    limitMs: NETWORK_TURN_LIMIT_MS,
+    resolveTurnSeatKey,
+    parseSeatKeyOptional,
+    asRecord
+});
+
 function asRecord(value: unknown): Record<string, unknown> {
     return value && typeof value === 'object' ? value as Record<string, unknown> : {};
 }
@@ -171,9 +198,22 @@ function asRuntimeModule(value: unknown): MatchWorkerRuntimeModule {
     return value && typeof value === 'object' ? value as MatchWorkerRuntimeModule : {};
 }
 
+function unwrapRuntimeModule(value: unknown, depth = 0): unknown {
+    if (!value || typeof value !== 'object' || depth > 5) return value;
+    const source = asRecord(value);
+    const moduleExports = source['module.exports'];
+    if (moduleExports && moduleExports !== value) {
+        return unwrapRuntimeModule(moduleExports, depth + 1);
+    }
+    const defaultExport = source.default;
+    if (defaultExport && defaultExport !== value) {
+        return unwrapRuntimeModule(defaultExport, depth + 1);
+    }
+    return value;
+}
+
 function resolveModuleDefault(mod: unknown): MatchWorkerRuntimeModule {
-    const source = asRecord(mod);
-    return asRuntimeModule(source.default || mod);
+    return asRuntimeModule(unwrapRuntimeModule(mod));
 }
 
 function withCORS(response: Response): Response {
@@ -277,9 +317,7 @@ function importWorkerGlobal(importPath: string, globalKey: string): Promise<unkn
     if (!mod) {
         return Promise.reject(new Error(`Worker preload module missing: ${importPath}`));
     }
-    const modRecord = asRecord(mod);
-    const moduleExports = modRecord['module.exports'] || null;
-    const resolved = moduleExports || modRecord.default || mod;
+    const resolved = unwrapRuntimeModule(mod);
     if (globalKey && resolved) {
         setRuntimeGlobalValue(globalKey, resolved);
     }
@@ -405,7 +443,12 @@ function createWorkerTurnPipelineModule(
         }
         try {
             const applyTurnStartPhase = TurnPipelinePhases.applyTurnStartPhase;
-            if (opts.skipTurnStart !== true) {
+            const skipTurnStartForSubPlacement = (
+                SubPlacementContinuation &&
+                typeof SubPlacementContinuation.isSubPlacementTurnActive === 'function' &&
+                SubPlacementContinuation.isSubPlacementTurnActive(cardState, normalizedPlayerKey)
+            );
+            if (opts.skipTurnStart !== true && skipTurnStartForSubPlacement !== true) {
                 if (typeof applyTurnStartPhase !== 'function') {
                     throw new Error('TurnPipelinePhases.applyTurnStartPhase is required');
                 }
@@ -644,82 +687,6 @@ function normalizeOperationId(value: unknown): string {
 
 function ensureAcceptedOperationsBySeat(room: MatchAuthorityRoomState | null | undefined): MatchAuthorityAcceptedOperationsBySeat {
     return MatchAuthority.ensureAcceptedOperationsBySeat(room);
-}
-
-function normalizeLeaderboardPlayerId(value: unknown): string | null {
-    const normalized = String(value || '').trim();
-    if (!LEADERBOARD_PLAYER_ID_RE.test(normalized)) return null;
-    return normalized;
-}
-
-function normalizeLeaderboardPlayerName(value: unknown): string {
-    const normalized = String(value || '').replace(/\s+/g, ' ').trim();
-    const clipped = Array.from(normalized).slice(0, LEADERBOARD_PLAYER_NAME_MAX).join('');
-    return clipped || 'ななし';
-}
-
-function normalizeLeaderboardMode(value: unknown): MatchWorkerLeaderboardMode {
-    if (value === 'network') return 'network';
-    if (value === 'cpu') return 'cpu';
-    return 'cpu';
-}
-
-function clampLeaderboardScore(value: unknown): number {
-    const score = Number(value);
-    if (!Number.isFinite(score)) return 0;
-    return Math.max(0, Math.min(100000, Math.trunc(score)));
-}
-
-function normalizeLeaderboardCpuLevel(value: unknown): number | null {
-    if (!Number.isFinite(Number(value))) return null;
-    const level = Math.trunc(Number(value));
-    return Math.max(1, Math.min(6, level));
-}
-
-function normalizeLeaderboardLimit(value: unknown): number {
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed)) return LEADERBOARD_DEFAULT_LIMIT;
-    return Math.max(1, Math.min(LEADERBOARD_MAX_LIMIT, Math.trunc(parsed)));
-}
-
-function normalizeLeaderboardEntry(value: unknown, fallbackPlayerId?: unknown): MatchWorkerLeaderboardEntry | null {
-    if (!value || typeof value !== 'object') return null;
-
-    const entry = asRecord(value);
-    const playerId = normalizeLeaderboardPlayerId(entry.playerId || fallbackPlayerId);
-    if (!playerId) return null;
-
-    const updatedAt = Number.isFinite(Number(entry.updatedAt))
-        ? Math.max(0, Math.trunc(Number(entry.updatedAt)))
-        : Date.now();
-    const submittedAt = Number.isFinite(Number(entry.submittedAt))
-        ? Math.max(0, Math.trunc(Number(entry.submittedAt)))
-        : updatedAt;
-
-    return {
-        playerId,
-        playerName: normalizeLeaderboardPlayerName(entry.playerName),
-        bestScore: clampLeaderboardScore(entry.bestScore),
-        lastScore: clampLeaderboardScore(entry.lastScore),
-        mode: normalizeLeaderboardMode(entry.mode),
-        cpuLevel: normalizeLeaderboardCpuLevel(entry.cpuLevel),
-        scoreVersion: Number.isFinite(Number(entry.scoreVersion)) ? Math.max(0, Math.trunc(Number(entry.scoreVersion))) : null,
-        turnCount: Number.isFinite(Number(entry.turnCount)) ? Math.max(0, Math.trunc(Number(entry.turnCount))) : null,
-        updatedAt,
-        submittedAt
-    };
-}
-
-function isLeaderboardEntry(value: MatchWorkerLeaderboardEntry | null): value is MatchWorkerLeaderboardEntry {
-    return value !== null;
-}
-
-function sortLeaderboardEntries(entries: MatchWorkerLeaderboardEntry[]): void {
-    entries.sort((a, b) => {
-        if (b.bestScore !== a.bestScore) return b.bestScore - a.bestScore;
-        if (a.updatedAt !== b.updatedAt) return a.updatedAt - b.updatedAt;
-        return String(a.playerName || '').localeCompare(String(b.playerName || ''), 'ja');
-    });
 }
 
 async function makeInitialSnapshot(seed: unknown, options: unknown): Promise<MatchAuthorityRoomState> {
@@ -1025,6 +992,11 @@ async function applyCommandPublishToSnapshot(
     }
 
     const prng = createCommandActionPrng(room, currentSnapshot, SeededPRNG);
+    const skipTurnStartForSubPlacement = (
+        SubPlacementContinuation &&
+        typeof SubPlacementContinuation.isSubPlacementTurnActive === 'function' &&
+        SubPlacementContinuation.isSubPlacementTurnActive(currentCardState, playerKey)
+    );
     const result = TurnPipeline.applyTurnSafe(
         currentCardState,
         currentSnapshot.gameState,
@@ -1033,7 +1005,8 @@ async function applyCommandPublishToSnapshot(
         prng,
         {
             currentStateVersion: currentTurnIndex,
-            prngState: currentCardState.prngState
+            prngState: currentCardState.prngState,
+            skipTurnStart: skipTurnStartForSubPlacement
         }
     );
 
@@ -1393,73 +1366,19 @@ function resolveTurnSeatKey(room: MatchWorkerRoomState | null | undefined): Matc
 }
 
 function createPausedTurnTimer(room: MatchWorkerRoomState | null | undefined): Record<string, unknown> {
-    return {
-        limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
-        active: false,
-        turnSeatKey: resolveTurnSeatKey(room),
-        turnStartedAt: null,
-        turnDeadlineAt: null
-    };
+    return MatchWorkerTurnTimerHelpers.createPausedTurnTimer(room);
 }
 
 function createActiveTurnTimer(room: MatchWorkerRoomState | null | undefined, nowMs: unknown): Record<string, unknown> {
-    const now = Number.isFinite(Number(nowMs)) ? Math.max(0, Math.trunc(Number(nowMs))) : Date.now();
-    return {
-        limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
-        active: true,
-        turnSeatKey: resolveTurnSeatKey(room),
-        turnStartedAt: now,
-        turnDeadlineAt: now + NETWORK_TURN_LIMIT_MS
-    };
+    return MatchWorkerTurnTimerHelpers.createActiveTurnTimer(room, nowMs);
 }
 
 function areTurnTimersEqual(a: unknown, b: unknown): boolean {
-    const left = asRecord(a);
-    const right = asRecord(b);
-    const leftSeat = parseSeatKeyOptional(left.turnSeatKey) || 'black';
-    const rightSeat = parseSeatKeyOptional(right.turnSeatKey) || 'black';
-    const leftStarted = Number.isFinite(Number(left.turnStartedAt)) ? Number(left.turnStartedAt) : null;
-    const rightStarted = Number.isFinite(Number(right.turnStartedAt)) ? Number(right.turnStartedAt) : null;
-    const leftDeadline = Number.isFinite(Number(left.turnDeadlineAt)) ? Number(left.turnDeadlineAt) : null;
-    const rightDeadline = Number.isFinite(Number(right.turnDeadlineAt)) ? Number(right.turnDeadlineAt) : null;
-
-    return (
-        !!left.active === !!right.active
-        && leftSeat === rightSeat
-        && leftStarted === rightStarted
-        && leftDeadline === rightDeadline
-        && Number(left.limitSeconds) === Number(right.limitSeconds)
-    );
+    return MatchWorkerTurnTimerHelpers.areTurnTimersEqual(a, b);
 }
 
 function toPublicTurnTimer(room: MatchWorkerRoomState | null | undefined, nowMs: unknown): Record<string, unknown> {
-    const timer = (room && room.turnTimer && typeof room.turnTimer === 'object') ? room.turnTimer : null;
-    const timerRecord = asRecord(timer);
-    const serverNow = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
-    const deadline = timer && Number.isFinite(Number(timerRecord.turnDeadlineAt)) ? Number(timerRecord.turnDeadlineAt) : null;
-    const startedAt = timer && Number.isFinite(Number(timerRecord.turnStartedAt)) ? Number(timerRecord.turnStartedAt) : null;
-    const active = !!(timer && timerRecord.active === true && deadline !== null);
-
-    return {
-        limitSeconds: NETWORK_TURN_LIMIT_SECONDS,
-        active,
-        turnSeatKey: parseSeatKeyOptional(timerRecord.turnSeatKey) || resolveTurnSeatKey(room),
-        turnStartedAt: active ? startedAt : null,
-        turnDeadlineAt: active ? deadline : null,
-        remainingMs: active && deadline !== null ? Math.max(0, Math.trunc(deadline - serverNow)) : null
-    };
-}
-
-function parseChatMessageText(value: unknown): MatchWorkerParsedChatMessage {
-    const normalized = String(value || '').replace(/[\r\n]+/g, ' ').trim();
-    if (!normalized) {
-        return { ok: false, reason: 'MESSAGE_REQUIRED' };
-    }
-    const chars = Array.from(normalized);
-    if (chars.length > CHAT_MAX_LENGTH) {
-        return { ok: false, reason: 'MESSAGE_TOO_LONG' };
-    }
-    return { ok: true, text: chars.join('') };
+    return MatchWorkerTurnTimerHelpers.toPublicTurnTimer(room, nowMs);
 }
 
 function buildSnapshotPayload(room: MatchWorkerRoomState, meta: MatchWorkerSnapshotPayloadMeta | null | undefined, viewerSeatKey: unknown): Record<string, unknown> {
@@ -1519,64 +1438,6 @@ function sseChunk(eventName: unknown, payload: unknown, eventId?: unknown): stri
     const idLine = hasEventId ? `id: ${String(eventId)}\n` : '';
     const eventLine = eventName ? `event: ${eventName}\n` : '';
     return `${idLine}${eventLine}data: ${data}\n\n`;
-}
-
-function getRoomStub(env: MatchWorkerEnv, roomId: string) {
-    if (!env.MATCH_ROOM) throw new Error('MATCH_ROOM binding is required');
-    const doId = env.MATCH_ROOM.idFromName(roomId);
-    return env.MATCH_ROOM.get(doId);
-}
-
-function getLeaderboardStub(env: MatchWorkerEnv) {
-    return getRoomStub(env, LEADERBOARD_ROOM_ID);
-}
-
-async function forwardJsonToRoom(env: MatchWorkerEnv, roomId: string, pathname: string, payload: unknown): Promise<Response> {
-    const stub = getRoomStub(env, roomId);
-    const req = new Request(`https://room${pathname}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload || {})
-    });
-    const response = await stub.fetch(req);
-    return withCORS(response);
-}
-
-async function forwardGetToRoom(env: MatchWorkerEnv, roomId: string, pathname: string, sourceUrl: string): Promise<Response> {
-    const stub = getRoomStub(env, roomId);
-    const urlObj = new URL(sourceUrl);
-    const target = new URL(`https://room${pathname}`);
-    for (const [key, value] of urlObj.searchParams.entries()) {
-        target.searchParams.set(key, value);
-    }
-    target.searchParams.set('roomId', roomId);
-
-    const req = new Request(target.toString(), { method: 'GET' });
-    const response = await stub.fetch(req);
-    return withCORS(response);
-}
-
-async function forwardJsonToLeaderboard(env: MatchWorkerEnv, pathname: string, payload: unknown): Promise<Response> {
-    const stub = getLeaderboardStub(env);
-    const req = new Request(`https://room${pathname}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload || {})
-    });
-    const response = await stub.fetch(req);
-    return withCORS(response);
-}
-
-async function forwardGetToLeaderboard(env: MatchWorkerEnv, pathname: string, sourceUrl: string): Promise<Response> {
-    const stub = getLeaderboardStub(env);
-    const urlObj = new URL(sourceUrl);
-    const target = new URL(`https://room${pathname}`);
-    for (const [key, value] of urlObj.searchParams.entries()) {
-        target.searchParams.set(key, value);
-    }
-    const req = new Request(target.toString(), { method: 'GET' });
-    const response = await stub.fetch(req);
-    return withCORS(response);
 }
 
 async function resolveDeckSelection(rawDeckCodeValue: unknown): Promise<MatchWorkerDeckSelection> {
@@ -1682,75 +1543,25 @@ async function handleCreate(env: MatchWorkerEnv, options: unknown): Promise<Resp
     return jsonResponse(500, { ok: false, reason: 'CREATE_RETRY_EXHAUSTED' });
 }
 
-async function parsePostBody(request: Request): Promise<
-    { ok: true; body: Record<string, unknown> } | { ok: false; response: Response }
-> {
-    const raw = await request.text();
-    const body = parseJsonBody(raw);
-    if (body === null) {
-        return { ok: false, response: jsonResponse(400, { ok: false, reason: 'INVALID_JSON' }) };
-    }
-    return { ok: true, body };
+const MatchWorkerApiController = createMatchWorkerApiController({
+    corsHeaders: CORS_HEADERS,
+    leaderboardRoomId: LEADERBOARD_ROOM_ID,
+    normalizeRoomId,
+    jsonResponse,
+    withCORS,
+    handleCreate
+});
+
+function getRoomStub(env: MatchWorkerEnv, roomId: string) {
+    return MatchWorkerApiController.getRoomStub(env, roomId);
 }
 
-async function handleMatchApi(request: Request, env: MatchWorkerEnv): Promise<Response> {
-    const urlObj = new URL(request.url);
-    const pathname = urlObj.pathname;
-
-    if (request.method === 'OPTIONS') {
-        return new Response(null, { status: 204, headers: CORS_HEADERS });
-    }
-
-    if (request.method === 'POST' && pathname === '/api/match/create') {
-        const parsed = await parsePostBody(request);
-        if (!parsed.ok) return parsed.response;
-        return handleCreate(env, parsed.body || {});
-    }
-
-    if (request.method === 'POST' && (pathname === '/api/match/join' || pathname === '/api/match/leave' || pathname === '/api/match/publish' || pathname === '/api/match/chat' || pathname === '/api/match/hand-skin')) {
-        const parsed = await parsePostBody(request);
-        if (!parsed.ok) return parsed.response;
-
-        const body = parsed.body || {};
-        const roomId = normalizeRoomId(body.roomId);
-        if (!roomId) {
-            return jsonResponse(400, { ok: false, reason: 'ROOM_ID_REQUIRED' });
-        }
-        body.roomId = roomId;
-
-        return forwardJsonToRoom(env, roomId, pathname, body);
-    }
-
-    if (request.method === 'GET' && (pathname === '/api/match/state' || pathname === '/api/match/stream')) {
-        const roomId = normalizeRoomId(urlObj.searchParams.get('roomId') || '');
-        if (!roomId) {
-            return jsonResponse(400, { ok: false, reason: 'ROOM_ID_REQUIRED' });
-        }
-        return forwardGetToRoom(env, roomId, pathname, request.url);
-    }
-
-    return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+function handleMatchApi(request: Request, env: MatchWorkerEnv): Promise<Response> {
+    return MatchWorkerApiController.handleMatchApi(request, env);
 }
 
-async function handleLeaderboardApi(request: Request, env: MatchWorkerEnv): Promise<Response> {
-    const urlObj = new URL(request.url);
-    const pathname = urlObj.pathname;
-
-    if (request.method === 'OPTIONS') {
-        return new Response(null, { status: 204, headers: CORS_HEADERS });
-    }
-
-    if (request.method === 'POST' && pathname === '/api/leaderboard/submit') {
-        const parsed = await parsePostBody(request);
-        if (!parsed.ok) return parsed.response;
-        return forwardJsonToLeaderboard(env, pathname, parsed.body || {});
-    }
-
-    if (request.method === 'GET' && pathname === '/api/leaderboard/list') {
-        return forwardGetToLeaderboard(env, pathname, request.url);
-    }
-
-    return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+function handleLeaderboardApi(request: Request, env: MatchWorkerEnv): Promise<Response> {
+    return MatchWorkerApiController.handleLeaderboardApi(request, env);
 }
 
 export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
@@ -1761,6 +1572,14 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     encoder: TextEncoder;
     heartbeatTimerId: ReturnType<typeof setTimeout> | null;
     sseEventBuffer: MatchAuthorityBufferedSseEventRecord[];
+    leaderboardRoomController: ReturnType<typeof createMatchWorkerLeaderboardRoomController>;
+    broadcastController: ReturnType<typeof createMatchWorkerBroadcastController>;
+    chatController: ReturnType<typeof createMatchWorkerChatController>;
+    streamController: ReturnType<typeof createMatchWorkerStreamController>;
+    streamRouteController: ReturnType<typeof createMatchWorkerStreamRouteController>;
+    streamSessionController: ReturnType<typeof createMatchWorkerStreamSessionController>;
+    turnTimerController: ReturnType<typeof createMatchWorkerTurnTimerController>;
+    timeoutController: ReturnType<typeof createMatchWorkerTimeoutController>;
 
     constructor(state: DurableObjectStateLike) {
         this.state = state;
@@ -1770,6 +1589,115 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         this.encoder = new TextEncoder();
         this.heartbeatTimerId = null;
         this.sseEventBuffer = [];
+        this.leaderboardRoomController = createMatchWorkerLeaderboardRoomController({
+            storage: this.state.storage,
+            storageKey: LEADERBOARD_STORAGE_KEY,
+            defaultLimit: LEADERBOARD_DEFAULT_LIMIT,
+            helpers: MatchWorkerLeaderboardHelpers,
+            jsonResponse
+        });
+        this.broadcastController = createMatchWorkerBroadcastController({
+            getRoom: () => this.room,
+            getStreams: () => this.streams,
+            nextSseEventId: () => this.nextSseEventId(),
+            rememberBufferedSseEvent: (record) => this.rememberBufferedSseEvent(record),
+            saveRoom: () => this.saveRoom(),
+            sendSse: (streamId, eventName, payload, options) => this.sendSse(streamId, eventName, payload, options),
+            buildSnapshotPayload,
+            buildPresencePayload
+        });
+        this.chatController = createMatchWorkerChatController({
+            getRoom: () => this.room,
+            loadRoom: () => this.loadRoom(),
+            saveRoom: () => this.saveRoom(),
+            applyExpiredTurnTimeoutIfNeeded: () => this.applyExpiredTurnTimeoutIfNeeded(),
+            normalizePlayerKey,
+            buildPublicSeatState,
+            toPublicTurnTimer,
+            withPublicSeatState,
+            toPublicNetworkDebugEnabled,
+            classifySeatTokenRejectionReason,
+            broadcastChat: (payload) => this.broadcastChat(payload),
+            jsonResponse,
+            chatMaxLength: CHAT_MAX_LENGTH,
+            chatHistoryLimit: CHAT_HISTORY_LIMIT
+        });
+        this.streamController = createMatchWorkerStreamController({
+            getRoom: () => this.room,
+            getSseEventBuffer: () => this.sseEventBuffer,
+            setSseEventBuffer: (buffer) => { this.sseEventBuffer = buffer; },
+            getStreams: () => this.streams,
+            getHeartbeatTimerId: () => this.heartbeatTimerId,
+            setHeartbeatTimerId: (value) => { this.heartbeatTimerId = value; },
+            encoder: this.encoder,
+            normalizeRoomId,
+            appendBufferedSseEvent: MatchAuthority.appendBufferedSseEvent,
+            makeSseStreamId: MatchAuthority.makeSseStreamId,
+            cryptoLike: crypto as unknown as MatchWorkerCryptoLike,
+            buildHeartbeatPayload,
+            saveRoom: () => this.saveRoom(),
+            sseChunk,
+            heartbeatIntervalMs: SSE_HEARTBEAT_INTERVAL_MS,
+            writeTimeoutMs: SSE_WRITE_TIMEOUT_MS
+        });
+        this.streamRouteController = createMatchWorkerStreamRouteController({
+            getRoom: () => this.room,
+            getStreams: () => this.streams,
+            getSseEventBuffer: () => this.sseEventBuffer,
+            loadRoom: () => this.loadRoom(),
+            applyExpiredTurnTimeoutIfNeeded: () => this.applyExpiredTurnTimeoutIfNeeded(),
+            parseSeatKeyOptional,
+            resolveAuthenticatedSeatKey,
+            classifySeatTokenRejectionReason,
+            getBufferedSseReplayEvents: MatchAuthority.getBufferedSseReplayEvents,
+            makeSseStreamId: MatchAuthority.makeSseStreamId,
+            buildSnapshotPayload,
+            scheduleInitialStreamDelivery: (options) => this.streamSessionController.scheduleInitialStreamDelivery(options),
+            closeStream: (streamId) => this.closeStream(streamId),
+            ensureHeartbeatTimer: () => this.ensureHeartbeatTimer(),
+            jsonResponse,
+            corsHeaders: CORS_HEADERS,
+            cryptoLike: crypto as unknown as MatchWorkerCryptoLike
+        });
+        this.streamSessionController = createMatchWorkerStreamSessionController({
+            appendAuthorityLog: MatchAuthority.appendAuthorityLog,
+            buildHeartbeatPayload,
+            withPublicSeatState,
+            toPublicRoomDeck,
+            toPublicNetworkDebugEnabled,
+            toPublicChatMessages,
+            sendSse: (streamId, eventName, payload, options) => this.sendSse(streamId, eventName, payload, options),
+            closeStream: (streamId) => this.closeStream(streamId)
+        });
+        this.turnTimerController = createMatchWorkerTurnTimerController({
+            getRoom: () => this.room,
+            getStorage: () => this.state && this.state.storage ? this.state.storage : null,
+            loadCoreLogicModule,
+            hasTwoActiveSeats,
+            resolveTurnSeatKey,
+            parseSeatKeyOptional,
+            createPausedTurnTimer,
+            createActiveTurnTimer,
+            areTurnTimersEqual
+        });
+        this.timeoutController = createMatchWorkerTimeoutController({
+            getRoom: () => this.room,
+            asRecord,
+            parseSeatKeyOptional,
+            resolveTurnSeatKey,
+            refreshTurnTimer: (options) => this.refreshTurnTimer(options),
+            saveRoom: () => this.saveRoom(),
+            loadCoreLogicModule,
+            deepClone,
+            stripTransientPresentationState: MatchAuthority.stripTransientPresentationState,
+            reconcileTurnStartAndCollectPlayback,
+            reportPlaybackAssemblyDiagnostics: MatchAuthority.reportPlaybackAssemblyDiagnostics,
+            toPublicNetworkDebugEnabled,
+            toDebugPlaybackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics,
+            computeAuthoritativeStateHash: MatchAuthority.computeAuthoritativeStateHash,
+            appendAuthorityLog: MatchAuthority.appendAuthorityLog,
+            broadcastSnapshot: (meta) => this.broadcastSnapshot(meta)
+        });
     }
 
     async loadRoom(): Promise<void> {
@@ -1808,212 +1736,58 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     nextSseEventId(): string {
-        const room = this.room;
-        if (!room || typeof room !== 'object') {
-            return MatchAuthority.makeSseStreamId(Date.now(), crypto as unknown as MatchWorkerCryptoLike);
-        }
-
-        const prevSeq = Number.isFinite(Number(room.eventSeq))
-            ? Math.max(0, Math.trunc(Number(room.eventSeq)))
-            : 0;
-        const nextSeq = prevSeq + 1;
-        room.eventSeq = nextSeq;
-
-        const roomId = normalizeRoomId(room.roomId || 'room') || 'room';
-        const stateVersion = Number.isFinite(Number(room.stateVersion))
-            ? Math.max(0, Math.trunc(Number(room.stateVersion)))
-            : 0;
-
-        return `${roomId}_${stateVersion}_${nextSeq}`;
+        return this.streamController.nextSseEventId();
     }
 
     rememberBufferedSseEvent(record: MatchAuthorityBufferedSseEventRecordInput): void {
-        const nextBuffer = MatchAuthority.appendBufferedSseEvent(
-            this.room && Array.isArray(this.room.sseEventBuffer) ? this.room.sseEventBuffer : this.sseEventBuffer,
-            record
-        );
-        this.sseEventBuffer = nextBuffer;
-        if (this.room && typeof this.room === 'object') {
-            this.room.sseEventBuffer = nextBuffer.slice();
-        }
+        this.streamController.rememberBufferedSseEvent(record);
     }
 
     buildBufferedSnapshotEvent(meta: MatchWorkerSnapshotPayloadMeta | null | undefined, eventId: string): {
         record: MatchAuthorityBufferedSseEventRecordInput;
         payloadByViewer: Partial<Record<MatchAuthoritySeatKey, unknown>>;
     } {
-        if (!this.room) {
-            return {
-                record: { eventId, eventName: 'snapshot', payloadByViewer: {} },
-                payloadByViewer: {}
-            };
-        }
-        const payloadByViewer = {
-            black: buildSnapshotPayload(this.room, meta, 'black'),
-            white: buildSnapshotPayload(this.room, meta, 'white')
-        };
-        return {
-            record: {
-                eventId,
-                eventName: 'snapshot',
-                payloadByViewer
-            },
-            payloadByViewer
-        };
+        return this.broadcastController.buildBufferedSnapshotEvent(meta, eventId);
     }
 
     prepareSnapshotBroadcast(meta: MatchWorkerSnapshotPayloadMeta | null | undefined): MatchWorkerPreparedSnapshotBroadcast {
-        const eventId = this.nextSseEventId();
-        const { record, payloadByViewer } = this.buildBufferedSnapshotEvent(meta, eventId);
-        return {
-            eventId,
-            record,
-            payloadByViewer,
-            fallbackPayload: this.room ? buildSnapshotPayload(this.room, meta, null) : {}
-        };
+        return this.broadcastController.prepareSnapshotBroadcast(meta);
     }
 
     async broadcastPreparedSnapshot(preparedSnapshot: MatchWorkerPreparedSnapshotBroadcast | null | undefined): Promise<void> {
-        if (!this.room || !preparedSnapshot) return;
-        this.rememberBufferedSseEvent(preparedSnapshot.record);
-        await this.saveRoom();
-        const streamEntries = Array.from(this.streams.entries());
-        if (streamEntries.length === 0) return;
-        await Promise.all(streamEntries.map(([streamId, streamInfo]) => {
-            const viewerSeatKey = streamInfo && streamInfo.seatKey ? streamInfo.seatKey : null;
-            const payload = (viewerSeatKey && preparedSnapshot.payloadByViewer[viewerSeatKey])
-                ? preparedSnapshot.payloadByViewer[viewerSeatKey]
-                : preparedSnapshot.fallbackPayload;
-            return this.sendSse(streamId, 'snapshot', payload, { eventId: preparedSnapshot.eventId });
-        }));
+        await this.broadcastController.broadcastPreparedSnapshot(preparedSnapshot);
     }
 
     ensureHeartbeatTimer(): void {
-        if (this.heartbeatTimerId !== null) return;
-        if (this.streams.size === 0) return;
-
-        this.heartbeatTimerId = setTimeout(() => {
-            this.heartbeatTimerId = null;
-            if (this.streams.size === 0) return;
-
-            this.broadcastHeartbeat().catch(() => {
-                // Keep heartbeat loop resilient even if one tick fails.
-            }).finally(() => {
-                this.ensureHeartbeatTimer();
-            });
-        }, SSE_HEARTBEAT_INTERVAL_MS);
+        this.streamController.ensureHeartbeatTimer();
     }
 
     async broadcastHeartbeat(): Promise<void> {
-        if (!this.room) return;
-        const streamEntries = Array.from(this.streams.entries());
-        if (streamEntries.length === 0) return;
-
-        const serverTime = Date.now();
-        const payload = buildHeartbeatPayload(this.room, serverTime);
-        const eventId = this.nextSseEventId();
-        this.rememberBufferedSseEvent({
-            eventId,
-            eventName: 'heartbeat',
-            payload
-        });
-        await this.saveRoom();
-
-        await Promise.all(streamEntries.map(([streamId]) => (
-            this.sendSse(streamId, 'heartbeat', payload, { eventId })
-        )));
+        await this.streamController.broadcastHeartbeat();
     }
 
     async closeStream(streamId: string): Promise<void> {
-        const stream = this.streams.get(streamId);
-        if (!stream) return;
-        this.streams.delete(streamId);
-        if (this.streams.size === 0 && this.heartbeatTimerId !== null) {
-            try { clearTimeout(this.heartbeatTimerId); } catch (e) { /* ignore */ }
-            this.heartbeatTimerId = null;
-        }
-        try {
-            await stream.writer.close();
-        } catch (e) {
-            try { stream.writer.releaseLock(); } catch (inner) { /* ignore */ }
-        }
+        await this.streamController.closeStream(streamId);
     }
 
     async closeStreamsForSeat(seatKey: unknown): Promise<void> {
-        if (!seatKey || !this.streams || this.streams.size === 0) return;
-        for (const [streamId, stream] of Array.from(this.streams.entries())) {
-            if (!stream || stream.seatKey !== seatKey) continue;
-            await this.closeStream(streamId);
-        }
+        await this.streamController.closeStreamsForSeat(seatKey);
     }
 
     async sendSse(streamId: string, eventName: string, payload: unknown, options?: Record<string, unknown> | null): Promise<void> {
-        const stream = this.streams.get(streamId);
-        if (!stream) return;
-        const opts = (options && typeof options === 'object') ? options : {};
-        const hasEventId = Object.prototype.hasOwnProperty.call(opts, 'eventId');
-        const eventId = hasEventId ? opts.eventId : this.nextSseEventId();
-        const timeoutMs = Number.isFinite(Number(opts.timeoutMs))
-            ? Math.max(0, Math.trunc(Number(opts.timeoutMs)))
-            : SSE_WRITE_TIMEOUT_MS;
-        const chunk = sseChunk(eventName, payload, eventId);
-        try {
-            const writePromise = stream.writer.write(this.encoder.encode(chunk));
-            if (timeoutMs > 0) {
-                await Promise.race([
-                    writePromise,
-                    new Promise((_, reject) => {
-                        setTimeout(() => reject(new Error('SSE_WRITE_TIMEOUT')), timeoutMs);
-                    })
-                ]);
-            } else {
-                await writePromise;
-            }
-        } catch (e) {
-            await this.closeStream(streamId);
-        }
+        await this.streamController.sendSse(streamId, eventName, payload, options);
     }
 
     async broadcastSnapshot(meta: MatchWorkerSnapshotPayloadMeta | null | undefined): Promise<void> {
-        if (!this.room) return;
-        const preparedCandidate = asRecord(meta).__preparedSnapshot;
-        const preparedSnapshot = preparedCandidate && typeof preparedCandidate === 'object'
-            ? preparedCandidate as MatchWorkerPreparedSnapshotBroadcast
-            : this.prepareSnapshotBroadcast(meta);
-        await this.broadcastPreparedSnapshot(preparedSnapshot);
+        await this.broadcastController.broadcastSnapshot(meta);
     }
 
     async broadcastPresence(meta: MatchWorkerPresencePayloadMeta | null | undefined): Promise<void> {
-        if (!this.room) return;
-        const payload = buildPresencePayload(this.room, meta || {});
-        const eventId = this.nextSseEventId();
-        this.rememberBufferedSseEvent({
-            eventId,
-            eventName: 'presence',
-            payload
-        });
-        await this.saveRoom();
-        const streamEntries = Array.from(this.streams.entries());
-        if (streamEntries.length === 0) return;
-        await Promise.all(streamEntries.map(([streamId]) => (
-            this.sendSse(streamId, 'presence', payload, { eventId })
-        )));
+        await this.broadcastController.broadcastPresence(meta);
     }
 
     async broadcastChat(payload: unknown): Promise<void> {
-        if (!this.room) return;
-        const eventId = this.nextSseEventId();
-        this.rememberBufferedSseEvent({
-            eventId,
-            eventName: 'chat',
-            payload
-        });
-        await this.saveRoom();
-        const streamEntries = Array.from(this.streams.entries());
-        if (streamEntries.length === 0) return;
-        await Promise.all(streamEntries.map(([streamId]) => (
-            this.sendSse(streamId, 'chat', payload, { eventId })
-        )));
+        await this.broadcastController.broadcastChat(payload);
     }
 
     createRoomState(roomId: string, initOptions?: MatchWorkerRoomCreateOptions | null): MatchWorkerRoomState {
@@ -2067,164 +1841,19 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async syncTurnTimerAlarm(): Promise<boolean> {
-        const room = this.room;
-        if (!room || !this.state || !this.state.storage) return false;
-        const storage = this.state.storage;
-        const timer = (room.turnTimer && typeof room.turnTimer === 'object') ? room.turnTimer : null;
-        if (!timer || timer.active !== true || !Number.isFinite(Number(timer.turnDeadlineAt))) {
-            if (typeof storage.deleteAlarm === 'function') {
-                await storage.deleteAlarm();
-                return true;
-            }
-            return false;
-        }
-        if (typeof storage.setAlarm === 'function') {
-            await storage.setAlarm(Math.max(0, Math.trunc(Number(timer.turnDeadlineAt))));
-            return true;
-        }
-        return false;
+        return this.turnTimerController.syncTurnTimerAlarm();
     }
 
     async isSnapshotGameOver(snapshot: MatchWorkerPublicSnapshot | null | undefined): Promise<boolean> {
-        if (!snapshot || !snapshot.gameState) return false;
-        try {
-            const core = await loadCoreLogicModule();
-            return !!core.isGameOver(snapshot.gameState);
-        } catch (e) {
-            return false;
-        }
+        return this.turnTimerController.isSnapshotGameOver(snapshot);
     }
 
     async refreshTurnTimer(options?: MatchWorkerTurnTimerOptions | null): Promise<boolean> {
-        const opts = asRecord(options);
-        const room = this.room;
-        if (!room) return false;
-
-        const nowMs = Number.isFinite(Number(opts.nowMs)) ? Math.max(0, Math.trunc(Number(opts.nowMs))) : Date.now();
-        const turnSeatKey = resolveTurnSeatKey(room);
-        const shouldRunBySeats = hasTwoActiveSeats(room);
-        const isGameOver = shouldRunBySeats ? await this.isSnapshotGameOver(room.snapshot as MatchWorkerPublicSnapshot | null | undefined) : false;
-        const shouldBeActive = shouldRunBySeats && !isGameOver;
-
-        if (!shouldBeActive) {
-            const pausedTimer = createPausedTurnTimer(room);
-            const changed = !areTurnTimersEqual(room.turnTimer, pausedTimer);
-            room.turnTimer = pausedTimer;
-            await this.syncTurnTimerAlarm();
-            return changed;
-        }
-
-        const timer = (room.turnTimer && typeof room.turnTimer === 'object') ? room.turnTimer : null;
-        if (!opts.forceRestart && timer && timer.active === true) {
-            const timerSeatKey = parseSeatKeyOptional(timer.turnSeatKey);
-            const timerDeadline = Number(timer.turnDeadlineAt);
-            if (timerSeatKey === turnSeatKey && Number.isFinite(timerDeadline)) {
-                timer.limitSeconds = NETWORK_TURN_LIMIT_SECONDS;
-                return false;
-            }
-        }
-
-        const activeTimer = createActiveTurnTimer(room, nowMs);
-        const changed = !areTurnTimersEqual(room.turnTimer, activeTimer);
-        room.turnTimer = activeTimer;
-        await this.syncTurnTimerAlarm();
-        return changed;
+        return this.turnTimerController.refreshTurnTimer(options);
     }
 
     async applyExpiredTurnTimeoutIfNeeded(options?: MatchWorkerTurnTimerOptions | null): Promise<MatchWorkerTurnTimeoutResult> {
-        const opts = asRecord(options);
-        if (!this.room) return { applied: false };
-
-        const nowMs = Number.isFinite(Number(opts.nowMs)) ? Math.max(0, Math.trunc(Number(opts.nowMs))) : Date.now();
-        const timerRefreshed = await this.refreshTurnTimer({ nowMs, forceRestart: false });
-        if (timerRefreshed) {
-            this.room.updatedAt = nowMs;
-            await this.saveRoom();
-        }
-
-        const room = this.room;
-        const timer = (room && room.turnTimer && typeof room.turnTimer === 'object') ? room.turnTimer : null;
-        if (!timer || timer.active !== true) return { applied: false };
-
-        const deadline = Number(timer.turnDeadlineAt);
-        if (!Number.isFinite(deadline) || deadline > nowMs) return { applied: false };
-
-        const snapshot = room && room.snapshot && typeof room.snapshot === 'object'
-            ? room.snapshot as MatchWorkerPublicSnapshot
-            : null;
-        if (!snapshot || !snapshot.gameState || !snapshot.cardState) return { applied: false };
-
-        const timedOutSeatKey = parseSeatKeyOptional(timer.turnSeatKey) || resolveTurnSeatKey(room);
-        const currentTurnSeatKey = resolveTurnSeatKey(room);
-        if (timedOutSeatKey !== currentTurnSeatKey) {
-            const corrected = await this.refreshTurnTimer({ nowMs, forceRestart: true });
-            if (corrected) {
-                room.updatedAt = nowMs;
-                await this.saveRoom();
-            }
-            return { applied: false };
-        }
-
-        const core = await loadCoreLogicModule();
-        const nextSnapshot = deepClone(snapshot) as MatchWorkerPublicSnapshot;
-        nextSnapshot.gameState = core.applyPass(nextSnapshot.gameState);
-        MatchAuthority.stripTransientPresentationState(nextSnapshot);
-        if (nextSnapshot.cardState && typeof nextSnapshot.cardState === 'object') {
-            if (
-                parseSeatKeyOptional(nextSnapshot.cardState.selectedCardOwnerKey) === timedOutSeatKey
-            ) {
-                nextSnapshot.cardState.selectedCardId = null;
-                nextSnapshot.cardState.selectedCardOwnerKey = null;
-            }
-        }
-        if (nextSnapshot.cardState && nextSnapshot.cardState.pendingEffectByPlayer && typeof nextSnapshot.cardState.pendingEffectByPlayer === 'object') {
-            asRecord(nextSnapshot.cardState.pendingEffectByPlayer)[timedOutSeatKey] = null;
-        }
-        const serverPlaybackAssembly = await reconcileTurnStartAndCollectPlayback(room, nextSnapshot);
-        MatchAuthority.reportPlaybackAssemblyDiagnostics('worker-timeout-pass', serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, {
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room)
-        });
-        const serverPlaybackEvents = (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.playbackEvents))
-            ? serverPlaybackAssembly.playbackEvents
-            : [];
-        const serverEffectLogs = (serverPlaybackAssembly && Array.isArray(serverPlaybackAssembly.effectLogs))
-            ? serverPlaybackAssembly.effectLogs
-            : [];
-
-        room.stateVersion = Number.isFinite(Number(room.stateVersion))
-            ? Math.max(0, Math.trunc(Number(room.stateVersion))) + 1
-            : 1;
-
-        nextSnapshot.stateVersion = room.stateVersion;
-        nextSnapshot.updatedAt = nowMs;
-        room.snapshot = nextSnapshot;
-        room.updatedAt = nowMs;
-        room.authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(nextSnapshot);
-        MatchAuthority.appendAuthorityLog(room, {
-            kind: 'timeout_applied',
-            actionType: 'timeout_pass',
-            committedVersion: room.stateVersion,
-            stateHashAfter: room.authoritativeStateHash,
-            timeoutReason: 'turn_deadline_expired'
-        }, undefined);
-
-        await this.refreshTurnTimer({ nowMs, forceRestart: true });
-        await this.saveRoom();
-
-        await this.broadcastSnapshot({
-            playerKey: timedOutSeatKey,
-            actionType: 'timeout_pass',
-            playbackEvents: serverPlaybackEvents,
-            effectLogs: serverEffectLogs,
-            playbackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics(serverPlaybackAssembly && serverPlaybackAssembly.diagnostics, toPublicNetworkDebugEnabled(room)),
-            operationId: `timeout_${room.stateVersion}_${nowMs}`
-        });
-
-        return {
-            applied: true,
-            stateVersion: room.stateVersion,
-            playerKey: timedOutSeatKey
-        };
+        return this.timeoutController.applyExpiredTurnTimeoutIfNeeded(options);
     }
 
     async alarm() {
@@ -2827,239 +2456,27 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async handleStream(request: Request): Promise<Response> {
-        await this.loadRoom();
-        const room = this.room;
-        if (!room) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-
-        await this.applyExpiredTurnTimeoutIfNeeded();
-
-        const urlObj = new URL(request.url);
-        const seatKey = parseSeatKeyOptional(urlObj.searchParams.get('seatKey') || '');
-        const seatToken = String(urlObj.searchParams.get('seatToken') || '').trim();
-        const resumeEventId = String(urlObj.searchParams.get('lastEventId') || '').trim();
-        const viewerSeatKey = resolveAuthenticatedSeatKey(room, seatKey, seatToken);
-        if (!viewerSeatKey) {
-            return jsonResponse(403, { ok: false, reason: classifySeatTokenRejectionReason(seatToken) });
-        }
-
-        const { readable, writable } = new TransformStream();
-        const writer = writable.getWriter();
-
-        const streamId = MatchAuthority.makeSseStreamId(Date.now(), crypto as unknown as MatchWorkerCryptoLike);
-        this.streams.set(streamId, { writer, seatKey: viewerSeatKey });
-        this.ensureHeartbeatTimer();
-        const lastEventId = String(request.headers.get('Last-Event-ID') || resumeEventId).trim();
-        const replayBuffer = Array.isArray(room.sseEventBuffer) ? room.sseEventBuffer : this.sseEventBuffer;
-        const replayEvents = MatchAuthority.getBufferedSseReplayEvents(replayBuffer, lastEventId, viewerSeatKey);
-
-        const onAbort = () => {
-            this.closeStream(streamId).catch(() => {});
-        };
-
-        try {
-            if (request.signal && typeof request.signal.addEventListener === 'function') {
-                request.signal.addEventListener('abort', onAbort, { once: true });
-            }
-        } catch (e) { /* ignore */ }
-
-        const initialPayload = buildSnapshotPayload(room, { playbackEvents: [] }, viewerSeatKey);
-
-        queueMicrotask(() => {
-            (async () => {
-                try {
-                    if (Array.isArray(replayEvents)) {
-                        MatchAuthority.appendAuthorityLog(room, {
-                            kind: replayEvents.length > 0 ? 'stream_resume_replay' : 'stream_resume_heartbeat',
-                            stateHashBefore: room.authoritativeStateHash,
-                            dedupeOutcome: replayEvents.length > 0 ? 'replay' : 'empty_replay'
-                        }, undefined);
-                        if (replayEvents.length > 0) {
-                            for (const event of replayEvents) {
-                                await this.sendSse(streamId, event.eventName, event.payload, { eventId: event.eventId });
-                            }
-                        } else {
-                            await this.sendSse(streamId, 'heartbeat', buildHeartbeatPayload(room, Date.now()), { eventId: null });
-                        }
-                        return;
-                    }
-                    MatchAuthority.appendAuthorityLog(room, {
-                        kind: 'stream_resume_full_sync',
-                        stateHashBefore: room.authoritativeStateHash,
-                        dedupeOutcome: 'full_sync'
-                    }, undefined);
-                    await this.sendSse(streamId, 'snapshot', initialPayload);
-                    await this.sendSse(streamId, 'chat', withPublicSeatState(room, {
-                        ok: true,
-                        roomId: room.roomId,
-                        type: 'history',
-                        roomDeck: toPublicRoomDeck(room),
-                        networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-                        messages: toPublicChatMessages(room)
-                    }));
-                } catch (e) {
-                    this.closeStream(streamId).catch(() => {});
-                }
-            })();
-        });
-
-        return new Response(readable, {
-            status: 200,
-            headers: {
-                'Content-Type': 'text/event-stream; charset=utf-8',
-                'Cache-Control': 'no-cache, no-transform',
-                Connection: 'keep-alive',
-                ...CORS_HEADERS
-            }
-        });
+        return this.streamRouteController.handleStream(request);
     }
 
     async loadLeaderboardStore(): Promise<MatchWorkerLeaderboardStore> {
-        const empty: MatchWorkerLeaderboardStore = {
-            version: LEADERBOARD_STORAGE_VERSION,
-            players: {},
-            updatedAt: Date.now()
-        };
-
-        const raw = await this.state.storage.get(LEADERBOARD_STORAGE_KEY);
-        if (!raw || typeof raw !== 'object') return empty;
-        const rawRecord = asRecord(raw);
-
-        const playersRaw = (rawRecord.players && typeof rawRecord.players === 'object') ? asRecord(rawRecord.players) : {};
-        const players: Record<string, MatchWorkerLeaderboardEntry> = {};
-
-        for (const [key, entry] of Object.entries(playersRaw)) {
-            const normalized = normalizeLeaderboardEntry(entry, key);
-            if (!normalized) continue;
-            players[normalized.playerId] = normalized;
-        }
-
-        const updatedAt = Number.isFinite(Number(rawRecord.updatedAt))
-            ? Math.max(0, Math.trunc(Number(rawRecord.updatedAt)))
-            : Date.now();
-
-        return {
-            version: LEADERBOARD_STORAGE_VERSION,
-            players,
-            updatedAt
-        };
+        return this.leaderboardRoomController.loadLeaderboardStore();
     }
 
     async saveLeaderboardStore(store: MatchWorkerLeaderboardStore): Promise<void> {
-        await this.state.storage.put(LEADERBOARD_STORAGE_KEY, {
-            version: LEADERBOARD_STORAGE_VERSION,
-            players: (store && store.players && typeof store.players === 'object') ? store.players : {},
-            updatedAt: Number.isFinite(Number(store && store.updatedAt)) ? Math.max(0, Math.trunc(Number(store.updatedAt))) : Date.now()
-        });
+        await this.leaderboardRoomController.saveLeaderboardStore(store);
     }
 
     listLeaderboardEntries(store: MatchWorkerLeaderboardStore, limit: unknown): Array<Record<string, unknown>> {
-        const rows = Object.values((store && store.players) || {})
-            .map((entry) => normalizeLeaderboardEntry(entry))
-            .filter(isLeaderboardEntry);
-
-        sortLeaderboardEntries(rows);
-
-        const clipped = rows.slice(0, normalizeLeaderboardLimit(limit));
-        return clipped.map((entry, index) => ({
-            rank: index + 1,
-            playerId: entry.playerId,
-            playerName: entry.playerName,
-            bestScore: entry.bestScore,
-            mode: entry.mode,
-            cpuLevel: entry.cpuLevel,
-            updatedAt: entry.updatedAt,
-            scoreVersion: entry.scoreVersion,
-            turnCount: entry.turnCount
-        }));
+        return this.leaderboardRoomController.listLeaderboardEntries(store, limit);
     }
 
     async handleLeaderboardSubmit(body: Record<string, unknown>): Promise<Response> {
-        const playerId = normalizeLeaderboardPlayerId(body && body.playerId);
-        if (!playerId) {
-            return jsonResponse(400, { ok: false, reason: 'PLAYER_ID_REQUIRED' });
-        }
-
-        const playerName = normalizeLeaderboardPlayerName(body && body.playerName);
-        const score = clampLeaderboardScore(body && body.score);
-        const mode = normalizeLeaderboardMode(body && body.mode);
-        const cpuLevel = normalizeLeaderboardCpuLevel(body && body.cpuLevel);
-        const scoreVersion = Number.isFinite(Number(body && body.scoreVersion)) ? Math.max(0, Math.trunc(Number(body.scoreVersion))) : null;
-        const turnCount = Number.isFinite(Number(body && body.turnCount)) ? Math.max(0, Math.trunc(Number(body.turnCount))) : null;
-
-        const store = await this.loadLeaderboardStore();
-        const now = Date.now();
-        const current = normalizeLeaderboardEntry(store.players[playerId], playerId);
-        const previousBest = current ? current.bestScore : 0;
-        const updated = score > previousBest;
-        const bestScore = updated ? score : previousBest;
-        const nextMode = (updated || !current) ? mode : current.mode;
-        const nextCpuLevel = (updated || !current) ? cpuLevel : current.cpuLevel;
-        const nextScoreVersion = (updated || !current) ? scoreVersion : current.scoreVersion;
-        const nextTurnCount = (updated || !current) ? turnCount : current.turnCount;
-
-        store.players[playerId] = {
-            playerId,
-            playerName,
-            bestScore,
-            lastScore: score,
-            mode: nextMode,
-            cpuLevel: nextCpuLevel,
-            scoreVersion: nextScoreVersion,
-            turnCount: nextTurnCount,
-            updatedAt: updated ? now : (current ? current.updatedAt : now),
-            submittedAt: now
-        };
-
-        const allRows = Object.values(store.players)
-            .map((entry) => normalizeLeaderboardEntry(entry))
-            .filter(isLeaderboardEntry);
-        sortLeaderboardEntries(allRows);
-
-        if (allRows.length > LEADERBOARD_MAX_STORED_PLAYERS) {
-            const keep = new Set(allRows.slice(0, LEADERBOARD_MAX_STORED_PLAYERS).map((entry) => entry.playerId));
-            for (const id of Object.keys(store.players)) {
-                if (!keep.has(id)) delete store.players[id];
-            }
-        }
-
-        store.updatedAt = now;
-        await this.saveLeaderboardStore(store);
-
-        const listLimit = normalizeLeaderboardLimit(body && body.limit);
-        const entries = this.listLeaderboardEntries(store, listLimit);
-        const playerRank = allRows.findIndex((entry) => entry.playerId === playerId) + 1;
-
-        return jsonResponse(200, {
-            ok: true,
-            version: LEADERBOARD_STORAGE_VERSION,
-            playerId,
-            playerName,
-            updated,
-            previousBest,
-            bestScore,
-            score,
-            rank: playerRank > 0 ? playerRank : null,
-            entries,
-            updatedAt: store.updatedAt,
-            serverTime: Date.now()
-        });
+        return this.leaderboardRoomController.handleLeaderboardSubmit(body);
     }
 
     async handleLeaderboardList(urlObj: URL): Promise<Response> {
-        const limit = normalizeLeaderboardLimit(urlObj && urlObj.searchParams ? urlObj.searchParams.get('limit') : LEADERBOARD_DEFAULT_LIMIT);
-        const store = await this.loadLeaderboardStore();
-        const entries = this.listLeaderboardEntries(store, limit);
-
-        return jsonResponse(200, {
-            ok: true,
-            version: LEADERBOARD_STORAGE_VERSION,
-            limit,
-            entries,
-            updatedAt: store.updatedAt,
-            serverTime: Date.now()
-        });
+        return this.leaderboardRoomController.handleLeaderboardList(urlObj);
     }
 
     async fetch(request: Request): Promise<Response> {
@@ -3128,90 +2545,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async handleChat(body: Record<string, unknown>): Promise<Response> {
-        await this.loadRoom();
-        const room = this.room;
-
-        if (!room) {
-            return jsonResponse(404, { ok: false, reason: 'ROOM_NOT_FOUND' });
-        }
-
-        await this.applyExpiredTurnTimeoutIfNeeded();
-
-        const seatKey = normalizePlayerKey(body.seatKey);
-        const seatToken = String(body.seatToken || '').trim();
-        const publicSeats = buildPublicSeatState(room).seats;
-        if (!publicSeats[seatKey]) {
-            return jsonResponse(403, withPublicSeatState(room, {
-                ok: false,
-                reason: 'SEAT_NOT_JOINED',
-                turnTimer: toPublicTurnTimer(room, Date.now()),
-                serverTime: Date.now()
-            }));
-        }
-        if (!seatToken || !room.seatTokens || room.seatTokens[seatKey] !== seatToken) {
-            return jsonResponse(403, withPublicSeatState(room, {
-                ok: false,
-                reason: 'SEAT_TOKEN_MISMATCH',
-                turnTimer: toPublicTurnTimer(room, Date.now()),
-                serverTime: Date.now()
-            }));
-        }
-        if (!publicSeats.black || !publicSeats.white) {
-            return jsonResponse(409, withPublicSeatState(room, {
-                ok: false,
-                reason: 'CHAT_DISABLED',
-                turnTimer: toPublicTurnTimer(room, Date.now()),
-                serverTime: Date.now()
-            }));
-        }
-
-        const parsedText = parseChatMessageText(body.message);
-        if (!parsedText.ok) {
-            return jsonResponse(400, withPublicSeatState(room, {
-                ok: false,
-                reason: parsedText.reason,
-                maxLength: CHAT_MAX_LENGTH,
-                turnTimer: toPublicTurnTimer(room, Date.now()),
-                serverTime: Date.now()
-            }));
-        }
-
-        room.chatSeq = Number.isFinite(Number(room.chatSeq)) ? Number(room.chatSeq) : 0;
-        room.chatSeq += 1;
-
-        const message = {
-            id: room.chatSeq,
-            seatKey,
-            text: parsedText.text,
-            serverTime: Date.now()
-        };
-
-        room.chatMessages = Array.isArray(room.chatMessages) ? room.chatMessages : [];
-        room.chatMessages.push(message);
-        if (room.chatMessages.length > CHAT_HISTORY_LIMIT) {
-            room.chatMessages.splice(0, room.chatMessages.length - CHAT_HISTORY_LIMIT);
-        }
-        room.updatedAt = message.serverTime;
-        await this.saveRoom();
-
-        const payload = withPublicSeatState(room, {
-            ok: true,
-            roomId: room.roomId,
-            type: 'message',
-            message,
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room)
-        });
-
-        await this.broadcastChat(payload);
-
-        return jsonResponse(200, withPublicSeatState(room, {
-            ok: true,
-            roomId: room.roomId,
-            message,
-            networkDebugEnabled: toPublicNetworkDebugEnabled(room),
-            turnTimer: toPublicTurnTimer(room, Date.now()),
-            serverTime: Date.now()
-        }));
+        return this.chatController.handleChat(body);
     }
 }
 

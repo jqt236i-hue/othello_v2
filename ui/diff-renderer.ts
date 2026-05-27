@@ -2011,7 +2011,7 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
         cell.classList.add('effect-target-highlight-positive');
     }
     if (state.isTabooLegal && !state.blockade && !state.frozen) {
-        cell.classList.add('effect-target-highlight');
+        cell.classList.add('effect-target-highlight-positive');
     }
     if (state.isSelectableFriendly && !state.blockade && !state.frozen) {
         cell.classList.add('selectable-friendly');
@@ -2343,8 +2343,8 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
 
             cell.classList.toggle('legal-free', shouldShowLegalFree);
             cell.classList.toggle('legal', shouldShowLegal);
-            cell.classList.toggle('effect-target-highlight', shouldShowTabooLegal);
-            cell.classList.toggle('effect-target-highlight-positive', shouldShowSelectedTargetHighlight);
+            cell.classList.toggle('effect-target-highlight', false);
+            cell.classList.toggle('effect-target-highlight-positive', shouldShowSelectedTargetHighlight || shouldShowTabooLegal);
             cell.classList.toggle('selectable-friendly', shouldShowSelectable);
             cell.classList.toggle('selectable-friendly-no-circle', shouldShowExtendLifeTarget);
             _applyTimeStopLegalEmphasisForDiff(cell);

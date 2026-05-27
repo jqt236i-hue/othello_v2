@@ -5,21 +5,25 @@ jest.mock('../game/card-effects/selection-flow', () => ({
 }));
 
 const { handleSwapSelection } = require('../game/card-effects/swap.js');
+const ControllerEvents = require('../game/controller-events.js');
+
 describe('swap', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();
-        global.LOG_MESSAGES = {
-            swapSelectPrompt: jest.fn(() => '交換する敵石を選んでください'),
-            swapApplied: jest.fn((player, pos, withCard) => `${player}が${pos}と手札を交換`)
-        };
         global.emitLogAdded = jest.fn();
-        global.posToNotation = jest.fn((row, col) => `${String.fromCharCode(65 + col)}${row + 1}`);
+        ControllerEvents.setControllerEventsRuntime({
+            GameEvents: {
+                EVENT_TYPES: { LOG_ADDED: 'LOG_ADDED' },
+                gameEvents: {
+                    emit: (_type, payload) => global.emitLogAdded(payload.text)
+                }
+            }
+        });
     });
 
     afterEach(() => {
-        delete global.LOG_MESSAGES;
         delete global.emitLogAdded;
-        delete global.posToNotation;
+        ControllerEvents.setControllerEventsRuntime(null);
     });
 
     test('正常系: SWAP_WITH_ENEMYでexecutePendingSelectionが正しく呼ばれる', async () => {
@@ -118,22 +122,20 @@ describe('swap', () => {
         await handleSwapSelection(3, 4, 'black');
     });
 
-    test('invalidMessage: LOG_MESSAGESからメッセージを取得', async () => {
+    test('invalidMessage: 正本メッセージを取得', async () => {
         mockExecutePendingSelection.mockImplementation((options) => {
             const message = options.invalidMessage();
-            expect(message).toBe('交換する敵石を選んでください');
-            expect(global.LOG_MESSAGES.swapSelectPrompt).toHaveBeenCalled();
+            expect(message).toBe('交換対象（相手の石）を選んでください');
             return Promise.resolve({ ok: true });
         });
 
         await handleSwapSelection(3, 4, 'black');
     });
 
-    test('invalidMessage: LOG_MESSAGESがない場合のフォールバック', async () => {
-        delete global.LOG_MESSAGES;
+    test('invalidMessage: 正本メッセージが使える', async () => {
         mockExecutePendingSelection.mockImplementation((options) => {
             const message = options.invalidMessage();
-            expect(message).toBe('交換する敵石を選んでください');
+            expect(message).toBe('交換対象（相手の石）を選んでください');
             return Promise.resolve({ ok: true });
         });
 
@@ -153,7 +155,7 @@ describe('swap', () => {
 
         await handleSwapSelection(3, 4, 'black');
 
-        expect(global.emitLogAdded).toHaveBeenCalledWith('黒がE4と手札を交換');
+        expect(global.emitLogAdded).toHaveBeenCalledWith('黒が交換の意志で e4 を自分の石に変換');
     });
 
     test('emitSwapAppliedLog: 白プレイヤーのログ', async () => {
@@ -169,10 +171,10 @@ describe('swap', () => {
 
         await handleSwapSelection(3, 4, 'white');
 
-        expect(global.emitLogAdded).toHaveBeenCalledWith('白がE4と手札を交換');
+        expect(global.emitLogAdded).toHaveBeenCalledWith('白が交換の意志で e4 を自分の石に変換');
     });
 
-    test('emitSwapAppliedLog: LOG_MESSAGESがある場合はそちらを使用', async () => {
+    test('emitSwapAppliedLog: 正本ログメッセージを使用', async () => {
         const selectedEvent = { type: 'swap_selected', swapped: true, row: 3, col: 4, withCard: 'trap' };
         mockExecutePendingSelection.mockImplementation((options) => {
             if (typeof options.afterStateChange === 'function') {
@@ -185,7 +187,7 @@ describe('swap', () => {
 
         await handleSwapSelection(3, 4, 'black');
 
-        expect(global.LOG_MESSAGES.swapApplied).toHaveBeenCalledWith('黒', 'E4', 'trap');
+        expect(global.emitLogAdded).toHaveBeenCalledWith('黒が交換の意志で e4 を自分の石に変換');
     });
 
     test('validateResult: resultがnullの場合は無効', async () => {

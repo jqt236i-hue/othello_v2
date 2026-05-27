@@ -1,0 +1,121 @@
+const { createCpuDecisionCardRisk } = require('../game/cpu-decision-card-risk');
+
+function createCardRisk(overrides = {}) {
+  const board = overrides.board || Array.from({ length: 8 }, () => Array(8).fill(0));
+  return createCpuDecisionCardRisk({
+    getCpuPolicyCore: overrides.getCpuPolicyCore || (() => ({
+      scoreCardUseDecision: () => ({ score: 16, minUseScore: 12, shouldUse: true }),
+      chooseMoveByLookahead: () => ({ row: 0, col: 0, flips: [{ row: 0, col: 1 }] })
+    })),
+    getCardLogic: overrides.getCardLogic || (() => ({
+      getCardCost: () => 6,
+      getCardDef: () => ({ type: 'TREASURE_BOX' })
+    })),
+    getCardState: () => ({
+      boardBonusByCell: { '0,0': 2 },
+      boardBonusConsumedByCell: {}
+    }),
+    buildCardUseDecisionContext: () => overrides.context || ({
+      forceUseCard: false,
+      cornerEmergency: false,
+      discDiff: 2,
+      handSize: 5,
+      ownCharge: 40,
+      legalMovesCount: 2,
+      lowDiscEmergency: false,
+      whiteLv6Mode: true,
+      hasCornerMoveNow: false,
+      highBonusMoveAvailable: false
+    }),
+    getCurrentCpuBoard: () => board,
+    isPlayableBoard: () => true,
+    buildLv6LookaheadOptions: () => ({
+      depth: 5,
+      maxBranch: 6,
+      nodeBudget: 350000,
+      maxTimeMs: 900,
+      endgameSolveEmpties: 18,
+      endgameDepth: 14,
+      endgameNodeBudget: 1500000,
+      endgameMaxTimeMs: 1600
+    }),
+    resolveLv6LookaheadTimeCaps: () => ({
+      quiescenceMoveCapMs: 900,
+      quiescenceEndgameMinMs: 300,
+      quiescenceEndgameCapMs: 1600
+    }),
+    createLookaheadMetaLogger: () => jest.fn(),
+    getBoardBonusValueAt: (row, col) => (row === 0 && col === 0 ? 2 : 0),
+    isCornerCell: (row, col) => (row === 0 || row === 7) && (col === 0 || col === 7),
+    isEdgeCell: (row, col) => row === 0 || row === 7 || col === 0 || col === 7,
+    applyMoveByFlipsForCpu: () => board,
+    hasCornerMoveOnBoardForPlayer: overrides.hasCornerMoveOnBoardForPlayer || (() => false),
+    resolveCardType: (_cardId, cardDef) => (cardDef && cardDef.type) || 'METEOR_WILL'
+  });
+}
+
+describe('cpu decision card risk module', () => {
+  test('isCardChoiceAllowedByHighConfidence relaxes gate under Lv6 white pressure', () => {
+    const cardRisk = createCardRisk();
+
+    expect(cardRisk.isCardChoiceAllowedByHighConfidence('white', 6, 2, 'treasure_01', null)).toBe(true);
+  });
+
+  test('isCardChoiceAllowedByRisk follows scoreCardUseDecision shouldUse flag', () => {
+    const cardRisk = createCardRisk({
+      getCpuPolicyCore: () => ({
+        scoreCardUseDecision: () => ({ score: -5, minUseScore: 12, shouldUse: false })
+      })
+    });
+
+    expect(cardRisk.isCardChoiceAllowedByRisk('white', 6, 2, 'risky_01', {})).toBe(false);
+  });
+
+  test('buildCardQuiescenceSnapshot captures best-move shape and opponent corner result', () => {
+    const cardRisk = createCardRisk({
+      hasCornerMoveOnBoardForPlayer: () => true
+    });
+
+    const snapshot = cardRisk.buildCardQuiescenceSnapshot('white', 6, [{ row: 0, col: 0, flips: [] }], {
+      playerValue: -1
+    });
+
+    expect(snapshot).toMatchObject({
+      bestMove: { row: 0, col: 0 },
+      bestMoveBonus: 2,
+      bestMoveFlips: 1,
+      bestMoveCorner: true,
+      bestMoveEdge: false,
+      oppCornerAfterBest: true
+    });
+  });
+
+  test('shouldHoldCardByQuiescence holds high-variance card when quiet best move is strong', () => {
+    const cardRisk = createCardRisk();
+
+    const hold = cardRisk.shouldHoldCardByQuiescence(
+      'white',
+      6,
+      'meteor_01',
+      { type: 'METEOR_WILL' },
+      {
+        forceUseCard: false,
+        cornerEmergency: false,
+        discDiff: 2,
+        handSize: 2,
+        ownCharge: 12,
+        legalMovesCount: 5
+      },
+      {
+        bestMove: { row: 0, col: 0 },
+        bestMoveCorner: true,
+        bestMoveBonus: 2,
+        bestMoveFlips: 1,
+        bestMoveEdge: false,
+        oppCornerAfterBest: false
+      }
+    );
+
+    expect(hold).toBe(true);
+  });
+});

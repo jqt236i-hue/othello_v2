@@ -141,6 +141,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     global.emitCardStateChange = jest.fn();
     global.emitGameStateChange = jest.fn();
     global.ensureCurrentPlayerCanActOrPass = jest.fn();
+    global.processPassTurn = jest.fn();
     global.addLog = jest.fn();
     global.isGameOver = jest.fn(() => false);
     global.waitForPlaybackIdle = jest.fn(() => Promise.resolve());
@@ -242,6 +243,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     delete global.emitCardStateChange;
     delete global.emitGameStateChange;
     delete global.ensureCurrentPlayerCanActOrPass;
+    delete global.processPassTurn;
     delete global.addLog;
     delete global.isGameOver;
     delete global.waitForPlaybackIdle;
@@ -302,5 +304,61 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
 
     window.onCardClick('offer_2', 'black');
     expect(global.cardState.selectedCardId).toBe('offer_2');
+  });
+
+  test('対象確定直後に次入力が通らない', async () => {
+    let releasePlayback;
+    global.waitForPlaybackIdle = jest.fn(() => new Promise((resolve) => {
+      releasePlayback = resolve;
+    }));
+    globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    global.NetworkMatchClient = client;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: '縺上ｍ' });
+    expect(created.ok).toBe(true);
+
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+    const offerCards = document.querySelectorAll('.heaven-offer-card');
+    expect(offerCards).toHaveLength(2);
+    offerCards[1].click();
+
+    const selectBtn = document.getElementById('heaven-blessing-select-btn');
+    expect(selectBtn).toBeTruthy();
+    selectBtn.click();
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(typeof releasePlayback).toBe('function');
+    expect(global.isProcessing).toBe(true);
+    expect(global.isCardAnimating).toBe(true);
+
+    window.onCardClick('offer_2', 'black');
+    window.passCurrentTurn();
+
+    expect(global.cardState.selectedCardId).toBeNull();
+    expect(global.processPassTurn).not.toHaveBeenCalled();
+
+    releasePlayback();
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+
+    window.onCardClick('offer_2', 'black');
+    expect(global.cardState.selectedCardId).toBe('offer_2');
+
+    window.passCurrentTurn();
+    expect(global.processPassTurn).toHaveBeenCalledTimes(1);
   });
 });

@@ -519,7 +519,130 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     return false;
                 }
             },
+            resolveRuntimeValue: (name: string) => {
+                try {
+                    if (typeof name !== 'string' || typeof globalThis === 'undefined') return undefined;
+                    return Object.prototype.hasOwnProperty.call(globalThis, name)
+                        ? (globalThis as any)[name]
+                        : undefined;
+                } catch (e: any) {
+                    return undefined;
+                }
+            },
             getPlaybackStateManager: () => getPlaybackStateModuleForReset(),
+            acquireSelectionSettlementLock: (meta: any) => {
+                try {
+                    const playbackState = getPlaybackStateModuleForReset();
+                    if (playbackState && typeof playbackState.acquireSelectionSettlementLock === 'function') {
+                        return playbackState.acquireSelectionSettlementLock(meta);
+                    }
+                } catch (e: any) { /* ignore */ }
+                return null;
+            },
+            releaseSelectionSettlementLock: (token: any) => {
+                try {
+                    const playbackState = getPlaybackStateModuleForReset();
+                    if (playbackState && typeof playbackState.releaseSelectionSettlementLock === 'function') {
+                        playbackState.releaseSelectionSettlementLock(token);
+                        return true;
+                    }
+                } catch (e: any) { /* ignore */ }
+                return false;
+            },
+            setSelectionProcessing: (next: boolean) => {
+                try {
+                    const normalized = next === true;
+                    const playbackState = getPlaybackStateModuleForReset();
+                    if (playbackState && typeof playbackState.setBusyState === 'function') {
+                        playbackState.setBusyState({ processing: normalized });
+                        return true;
+                    }
+                    if (playbackState && typeof playbackState.setProcessing === 'function') {
+                        playbackState.setProcessing(normalized);
+                        return true;
+                    }
+                } catch (e: any) { /* ignore */ }
+                return false;
+            },
+            setSelectionCardAnimating: (next: boolean) => {
+                try {
+                    const normalized = next === true;
+                    const playbackState = getPlaybackStateModuleForReset();
+                    if (playbackState && typeof playbackState.setBusyState === 'function') {
+                        playbackState.setBusyState({ cardAnimating: normalized });
+                        return true;
+                    }
+                    if (playbackState && typeof playbackState.setCardAnimating === 'function') {
+                        playbackState.setCardAnimating(normalized);
+                        return true;
+                    }
+                } catch (e: any) { /* ignore */ }
+                return false;
+            },
+            setSelectionBusy: (next: boolean) => {
+                try {
+                    const normalized = next === true;
+                    const playbackState = getPlaybackStateModuleForReset();
+                    if (playbackState && typeof playbackState.setBusyState === 'function') {
+                        playbackState.setBusyState({
+                            processing: normalized,
+                            cardAnimating: normalized
+                        });
+                        return true;
+                    }
+                } catch (e: any) { /* ignore */ }
+                return false;
+            },
+            readSelectionBusyState: (payload: any) => {
+                const settlementLocked = payload && payload.settlementLocked === true;
+                const localState = payload && payload.localSelectionBusyState && typeof payload.localSelectionBusyState === 'object'
+                    ? payload.localSelectionBusyState
+                    : {};
+                let processing = localState.processing === true;
+                let cardAnimating = localState.cardAnimating === true;
+                try {
+                    const playbackState = getPlaybackStateModuleForReset();
+                    if (playbackState && typeof playbackState.getProcessing === 'function') {
+                        processing = playbackState.getProcessing() === true;
+                    }
+                    if (playbackState && typeof playbackState.getCardAnimating === 'function') {
+                        cardAnimating = playbackState.getCardAnimating() === true;
+                    }
+                } catch (e: any) { /* ignore */ }
+                return {
+                    processing: settlementLocked || processing,
+                    cardAnimating: settlementLocked || cardAnimating
+                };
+            },
+            shouldAllowSelectionEntryDuringPlayback: (payload: any) => {
+                try {
+                    const playbackState = getPlaybackStateModuleForReset();
+                    if (playbackState && typeof playbackState.shouldAllowSelectionEntryDuringPlayback === 'function') {
+                        return playbackState.shouldAllowSelectionEntryDuringPlayback(payload || {}) === true;
+                    }
+                } catch (e: any) { /* ignore */ }
+                return false;
+            },
+            clearSelectionEntryPlaybackContext: () => {
+                try {
+                    const playbackState = getPlaybackStateModuleForReset();
+                    if (playbackState && typeof playbackState.clearSelectionEntryPlaybackContext === 'function') {
+                        playbackState.clearSelectionEntryPlaybackContext();
+                        return true;
+                    }
+                } catch (e: any) { /* ignore */ }
+                return false;
+            },
+            armSelectionBoardUpdateContext: (context: any) => {
+                try {
+                    const playbackState = getPlaybackStateModuleForReset();
+                    if (playbackState && typeof playbackState.armBoardUpdateContext === 'function') {
+                        playbackState.armBoardUpdateContext(context);
+                        return true;
+                    }
+                } catch (e: any) { /* ignore */ }
+                return false;
+            },
             getGameState: () => {
                 try {
                     return typeof globalThis !== 'undefined' ? (globalThis as any).gameState : null;
@@ -944,6 +1067,16 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
 
         const timersImpl = _makeTimersImpl();
 
+        try {
+            const gameCoreLogic = require('../game/game-core-logic');
+            if (gameCoreLogic && typeof gameCoreLogic.setUIImpl === 'function') {
+                gameCoreLogic.setUIImpl({
+                    isDebugLogAvailable: () => isDebugSessionEnabled(),
+                    debugLog
+                });
+            }
+        } catch (e: any) { /* ignore in non-module UI contexts */ }
+
         // Inject into game/timers when available (one-time)
         try {
             const root: any = (typeof globalThis !== 'undefined') ? globalThis : null;
@@ -1024,6 +1157,8 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             (globalThis as any).emitLogAdded(message);
                         }
                     },
+                    isDebugLogAvailable: () => isDebugSessionEnabled(),
+                    debugLog,
                     getCardState: () => {
                         try { return typeof globalThis !== 'undefined' ? (globalThis as any).cardState || null : null; } catch (e: any) { return null; }
                     }
@@ -1189,6 +1324,17 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             } catch (e: any) { /* ignore */ }
                             return false;
                         },
+                        readQuerySearch: () => readDebugQueryString(),
+                        isDebugLogAvailable: () => isDebugSessionEnabled(),
+                        debugLog,
+                        readCpuSmartness: () => {
+                            const readLevel = (id: string) => {
+                                const el = (typeof document !== 'undefined') ? document.getElementById(id) as HTMLSelectElement | null : null;
+                                const n = Number(el && el.value);
+                                return Number.isFinite(n) ? Math.max(1, Math.min(6, Math.floor(n))) : 1;
+                            };
+                            return { black: readLevel('smartBlack'), white: readLevel('smartWhite') };
+                        },
                         resolveRuntimeFunction: (name: string) => {
                             try {
                                 if (typeof name !== 'string' || typeof globalThis === 'undefined') return null;
@@ -1208,18 +1354,36 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                                 return undefined;
                             }
                         },
-                        getPlaybackStateManager: () => {
+                        readProcessing: () => {
                             try {
-                                const playbackStateManager = require('./playback-state-manager');
-                                if (playbackStateManager) return playbackStateManager;
+                                const playbackState = getPlaybackStateModuleForReset();
+                                if (playbackState && typeof playbackState.getProcessing === 'function') {
+                                    return playbackState.getProcessing() === true;
+                                }
                             } catch (e: any) { /* ignore */ }
                             try {
-                                return (typeof globalThis !== 'undefined' && (globalThis as any).PlaybackStateManager)
-                                    ? (globalThis as any).PlaybackStateManager
-                                    : null;
+                                return typeof globalThis !== 'undefined' && (globalThis as any).isProcessing === true;
                             } catch (e: any) {
-                                return null;
+                                return false;
                             }
+                        },
+                        readAnimationBusy: () => {
+                            try {
+                                const playbackState = getPlaybackStateModuleForReset();
+                                if (playbackState && typeof playbackState.getCardAnimating === 'function' && playbackState.getCardAnimating() === true) {
+                                    return true;
+                                }
+                                if (playbackState && typeof playbackState.getPlaybackActive === 'function' && playbackState.getPlaybackActive() === true) {
+                                    return true;
+                                }
+                            } catch (e: any) { /* ignore */ }
+                            try {
+                                if (typeof globalThis !== 'undefined') {
+                                    return (globalThis as any).isCardAnimating === true
+                                        || (globalThis as any).VisualPlaybackActive === true;
+                                }
+                            } catch (e: any) { /* ignore */ }
+                            return false;
                         },
                         readBenchFastMode: () => {
                             try {
@@ -1287,6 +1451,14 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         },
                         setProcessing: (next: boolean) => {
                             try {
+                                const playbackState = getPlaybackStateModuleForReset();
+                                if (playbackState && typeof playbackState.setBusyState === 'function') {
+                                    playbackState.setBusyState({ processing: next === true });
+                                } else if (playbackState && typeof playbackState.setProcessing === 'function') {
+                                    playbackState.setProcessing(next === true);
+                                }
+                            } catch (e: any) { /* ignore */ }
+                            try {
                                 if (typeof globalThis !== 'undefined') {
                                     (globalThis as any).isProcessing = next === true;
                                 }
@@ -1301,6 +1473,17 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                                     (globalThis as any).gameState = nextGameState;
                                 }
                             } catch (e: any) { /* ignore */ }
+                        },
+                        emitLogAdded: (message: any, kind?: any) => {
+                            try {
+                                const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitLogAdded : null;
+                                if (typeof fn !== 'function') return false;
+                                if (typeof kind === 'undefined') fn(message);
+                                else fn(message, kind);
+                                return true;
+                            } catch (e: any) {
+                                return false;
+                            }
                         },
                         getCommentaryRuntimeRoot: () => {
                             try {
@@ -1346,6 +1529,25 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                                 } catch (e: any) { /* ignore */ }
                                 return false;
                             },
+                            resolveRuntimeFunction: (name: string) => {
+                                try {
+                                    if (typeof name !== 'string' || typeof globalThis === 'undefined') return null;
+                                    const candidate = (globalThis as any)[name];
+                                    return typeof candidate === 'function' ? candidate : null;
+                                } catch (e: any) {
+                                    return null;
+                                }
+                            },
+                            showResult: () => {
+                                try {
+                                    const fn = typeof globalThis !== 'undefined' ? (globalThis as any).showResult : null;
+                                    if (typeof fn !== 'function') return false;
+                                    fn();
+                                    return true;
+                                } catch (e: any) {
+                                    return false;
+                                }
+                            },
                             getActionManager: () => {
                                 try {
                                     return typeof globalThis !== 'undefined' ? (globalThis as any).ActionManager : null;
@@ -1358,6 +1560,32 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                                     return typeof globalThis !== 'undefined' ? (globalThis as any).NetworkTurnHandoff : null;
                                 } catch (e: any) {
                                     return null;
+                                }
+                            },
+                            setProcessing: (next: boolean) => {
+                                try {
+                                    const playbackState = getPlaybackStateModuleForReset();
+                                    if (playbackState && typeof playbackState.setBusyState === 'function') {
+                                        playbackState.setBusyState({ processing: next === true });
+                                    } else if (playbackState && typeof playbackState.setProcessing === 'function') {
+                                        playbackState.setProcessing(next === true);
+                                    }
+                                } catch (e: any) { /* ignore */ }
+                                try {
+                                    if (typeof globalThis !== 'undefined') {
+                                        (globalThis as any).isProcessing = next === true;
+                                    }
+                                } catch (e: any) { /* ignore */ }
+                            },
+                            publishSnapshot: (meta: any) => {
+                                try {
+                                    if (typeof globalThis === 'undefined' || !(globalThis as any).NetworkMatchClient) return undefined;
+                                    const client = (globalThis as any).NetworkMatchClient;
+                                    if (typeof client.publishSnapshot !== 'function') return undefined;
+                                    if (typeof client.isActive === 'function' && client.isActive() !== true) return undefined;
+                                    return client.publishSnapshot(meta);
+                                } catch (e: any) {
+                                    return undefined;
                                 }
                             },
                             emitBoardUpdate: () => {
@@ -1377,6 +1605,16 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                                 } catch (e: any) {
                                     return false;
                                 }
+                            },
+                            emitLogAdded: (message: any, kind?: any) => {
+                                try {
+                                    const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitLogAdded : null;
+                                    if (typeof fn !== 'function') return false;
+                                    fn(message, kind);
+                                    return true;
+                                } catch (e: any) {
+                                    return false;
+                                }
                             }
                         });
                     }
@@ -1390,18 +1628,6 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         }
                     } catch (e: any) { /* ignore */ }
                 }
-                try {
-                    const playbackStateManager = require('./playback-state-manager');
-                    if (playbackStateManager && typeof passHandler.setPlaybackStateManager === 'function') {
-                        passHandler.setPlaybackStateManager(playbackStateManager);
-                    }
-                } catch (e: any) { /* ignore */ }
-                try {
-                    const networkClient = require('./network-client');
-                    if (networkClient && typeof passHandler.setNetworkMatchClient === 'function') {
-                        passHandler.setNetworkMatchClient(networkClient);
-                    }
-                } catch (e: any) { /* ignore */ }
             }
         } catch (e: any) { /* ignore */ }
 
@@ -1434,6 +1660,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                         } catch (e: any) { /* ignore */ }
                         return false;
                     },
+                    isDebugLogAvailable: () => isDebugSessionEnabled(),
                     readQuerySearch: () => {
                         try {
                             return (typeof location !== 'undefined' && location && typeof location.search === 'string')
@@ -1465,6 +1692,41 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     readCpuLv6PendingSelectionBudgetMs: () => {
                         try {
                             return typeof globalThis !== 'undefined' ? (globalThis as any).CPU_LV6_PENDING_SELECTION_ONNX_MAX_MS : undefined;
+                        } catch (e: any) { /* ignore */ }
+                        return undefined;
+                    },
+                    emitCardStateChange: () => {
+                        try {
+                            const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitCardStateChange : null;
+                            if (typeof fn === 'function') return fn();
+                        } catch (e: any) { /* ignore */ }
+                        return undefined;
+                    },
+                    emitBoardUpdate: () => {
+                        try {
+                            const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitBoardUpdate : null;
+                            if (typeof fn === 'function') return fn();
+                        } catch (e: any) { /* ignore */ }
+                        return undefined;
+                    },
+                    emitGameStateChange: () => {
+                        try {
+                            const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitGameStateChange : null;
+                            if (typeof fn === 'function') return fn();
+                        } catch (e: any) { /* ignore */ }
+                        return undefined;
+                    },
+                    emitLogAdded: (message: any, kind?: any) => {
+                        try {
+                            const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitLogAdded : null;
+                            if (typeof fn === 'function') return fn(message, kind);
+                        } catch (e: any) { /* ignore */ }
+                        return undefined;
+                    },
+                    emitEffectLog: (message: any) => {
+                        try {
+                            const fn = typeof globalThis !== 'undefined' ? (globalThis as any).emitEffectLog : null;
+                            if (typeof fn === 'function') return fn(message);
                         } catch (e: any) { /* ignore */ }
                         return undefined;
                     },
@@ -1536,6 +1798,8 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             const turnPipelinePhases = require('../game/turn/turn_pipeline_phases');
             if (turnPipelinePhases && typeof turnPipelinePhases.setTurnPipelinePhasesRuntime === 'function') {
                 turnPipelinePhases.setTurnPipelinePhasesRuntime({
+                    isDebugLogAvailable: () => isDebugSessionEnabled(),
+                    debugLog,
                     readMatchMode: () => {
                         try {
                             if (typeof globalThis !== 'undefined' && typeof (globalThis as any).getCurrentMatchMode === 'function') {
@@ -1544,6 +1808,22 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             if (typeof globalThis !== 'undefined') return (globalThis as any).MATCH_MODE;
                         } catch (e: any) { /* ignore */ }
                         return null;
+                    }
+                });
+            }
+        } catch (e: any) { /* ignore */ }
+
+        try {
+            const hyperactiveCards = require('../game/logic/cards/hyperactive');
+            if (hyperactiveCards && typeof hyperactiveCards.setHyperactiveRuntime === 'function') {
+                hyperactiveCards.setHyperactiveRuntime({
+                    isDebugLogAvailable: () => isDebugSessionEnabled(),
+                    debugLog,
+                    readRuntimeModule: (key: string) => {
+                        try {
+                            if (typeof globalThis !== 'undefined') return (globalThis as any)[key];
+                        } catch (e: any) { /* ignore */ }
+                        return undefined;
                     }
                 });
             }
@@ -1640,10 +1920,50 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             },
             setProcessing: (next: boolean) => {
                 try {
+                    const playbackState = getPlaybackStateModuleForReset();
+                    if (playbackState && typeof playbackState.setBusyState === 'function') {
+                        playbackState.setBusyState({ processing: next === true });
+                    } else if (playbackState && typeof playbackState.setProcessing === 'function') {
+                        playbackState.setProcessing(next === true);
+                    }
+                } catch (e: any) { /* ignore */ }
+                try {
                     if (typeof globalThis !== 'undefined') {
                         (globalThis as any).isProcessing = next === true;
                     }
                 } catch (e: any) { /* ignore */ }
+            },
+            readProcessing: () => {
+                try {
+                    const playbackState = getPlaybackStateModuleForReset();
+                    if (playbackState && typeof playbackState.getProcessing === 'function') {
+                        return playbackState.getProcessing() === true;
+                    }
+                    if (playbackState && typeof playbackState.isProcessing !== 'undefined') {
+                        return playbackState.isProcessing === true;
+                    }
+                } catch (e: any) { /* ignore */ }
+                try {
+                    return typeof globalThis !== 'undefined' && (globalThis as any).isProcessing === true;
+                } catch (e: any) {
+                    return false;
+                }
+            },
+            readCardAnimating: () => {
+                try {
+                    const playbackState = getPlaybackStateModuleForReset();
+                    if (playbackState && typeof playbackState.getCardAnimating === 'function') {
+                        return playbackState.getCardAnimating() === true;
+                    }
+                    if (playbackState && typeof playbackState.isCardAnimating !== 'undefined') {
+                        return playbackState.isCardAnimating === true;
+                    }
+                } catch (e: any) { /* ignore */ }
+                try {
+                    return typeof globalThis !== 'undefined' && (globalThis as any).isCardAnimating === true;
+                } catch (e: any) {
+                    return false;
+                }
             },
             writeRuntimeValue: (key: string, value: any) => {
                 try {
@@ -1775,7 +2095,8 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 } catch (e: any) {
                     return false;
                 }
-            }
+            },
+            isDebugLogAvailable: () => isDebugSessionEnabled()
         }), timersImpl);
         try {
             const moveExecutor = require('../game/move-executor');
@@ -1800,11 +2121,186 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                     getRuntimeRoot: () => {
                         try { return typeof globalThis !== 'undefined' ? globalThis : null; } catch (e: any) { return null; }
                     },
+                    isDebugLogAvailable: () => isDebugSessionEnabled(),
                     readRuntimeValue: (key: string) => {
                         try { return typeof globalThis !== 'undefined' ? (globalThis as any)[key] : undefined; } catch (e: any) { return undefined; }
                     },
                     writeRuntimeValue: (key: string, value: any) => {
                         try { if (typeof globalThis !== 'undefined') (globalThis as any)[key] = value; } catch (e: any) { /* ignore */ }
+                    },
+                    readProcessing: () => {
+                        try {
+                            const playbackState = getPlaybackStateModuleForReset();
+                            if (playbackState && typeof playbackState.getProcessing === 'function') {
+                                return playbackState.getProcessing() === true;
+                            }
+                        } catch (e: any) { /* ignore */ }
+                        try { return typeof globalThis !== 'undefined' && (globalThis as any).isProcessing === true; } catch (e: any) { return false; }
+                    },
+                    readCardAnimating: () => {
+                        try {
+                            const playbackState = getPlaybackStateModuleForReset();
+                            if (playbackState && typeof playbackState.getCardAnimating === 'function') {
+                                return playbackState.getCardAnimating() === true;
+                            }
+                        } catch (e: any) { /* ignore */ }
+                        try { return typeof globalThis !== 'undefined' && (globalThis as any).isCardAnimating === true; } catch (e: any) { return false; }
+                    },
+                    readPlaybackActive: () => {
+                        try {
+                            const playbackState = getPlaybackStateModuleForReset();
+                            if (playbackState && typeof playbackState.getPlaybackActive === 'function') {
+                                return playbackState.getPlaybackActive() === true;
+                            }
+                        } catch (e: any) { /* ignore */ }
+                        try { return typeof globalThis !== 'undefined' && (globalThis as any).VisualPlaybackActive === true; } catch (e: any) { return false; }
+                    },
+                    setBusyState: (config: any) => {
+                        const next = (config && typeof config === 'object') ? config : {};
+                        try {
+                            const playbackState = getPlaybackStateModuleForReset();
+                            if (playbackState && typeof playbackState.setBusyState === 'function') {
+                                playbackState.setBusyState(next);
+                            } else if (playbackState) {
+                                if (Object.prototype.hasOwnProperty.call(next, 'processing') && typeof playbackState.setProcessing === 'function') {
+                                    playbackState.setProcessing(next.processing === true);
+                                }
+                                if (Object.prototype.hasOwnProperty.call(next, 'cardAnimating') && typeof playbackState.setCardAnimating === 'function') {
+                                    playbackState.setCardAnimating(next.cardAnimating === true);
+                                }
+                                if (Object.prototype.hasOwnProperty.call(next, 'playbackActive') && typeof playbackState.setPlaybackActive === 'function') {
+                                    playbackState.setPlaybackActive(next.playbackActive === true);
+                                }
+                            }
+                            if (playbackState && next.playbackActive === false && typeof playbackState.setPlaybackStartedAt === 'function') {
+                                playbackState.setPlaybackStartedAt(null);
+                            }
+                        } catch (e: any) { /* ignore */ }
+                        try {
+                            if (typeof globalThis !== 'undefined') {
+                                if (Object.prototype.hasOwnProperty.call(next, 'processing')) (globalThis as any).isProcessing = next.processing === true;
+                                if (Object.prototype.hasOwnProperty.call(next, 'cardAnimating')) (globalThis as any).isCardAnimating = next.cardAnimating === true;
+                                if (Object.prototype.hasOwnProperty.call(next, 'playbackActive')) {
+                                    (globalThis as any).VisualPlaybackActive = next.playbackActive === true;
+                                    if (next.playbackActive === true && !Number.isFinite(Number((globalThis as any).__playbackActiveSince))) {
+                                        (globalThis as any).__playbackActiveSince = Date.now();
+                                    } else if (next.playbackActive === false) {
+                                        (globalThis as any).__playbackActiveSince = null;
+                                    }
+                                }
+                            }
+                        } catch (e: any) { /* ignore */ }
+                    },
+                    clearPlaybackLock: () => {
+                        try {
+                            const playbackState = getPlaybackStateModuleForReset();
+                            if (playbackState && typeof playbackState.abortPlayback === 'function') {
+                                playbackState.abortPlayback();
+                                return true;
+                            }
+                            if (playbackState && typeof playbackState.clearPlaybackLock === 'function') {
+                                playbackState.clearPlaybackLock();
+                                return true;
+                            }
+                        } catch (e: any) { /* ignore */ }
+                        return false;
+                    },
+                    readPlaybackStartedAt: () => {
+                        try {
+                            const playbackState = getPlaybackStateModuleForReset();
+                            if (playbackState && typeof playbackState.getPlaybackStartedAt === 'function') {
+                                return playbackState.getPlaybackStartedAt();
+                            }
+                        } catch (e: any) { /* ignore */ }
+                        try { return typeof globalThis !== 'undefined' ? (globalThis as any).__playbackActiveSince : null; } catch (e: any) { return null; }
+                    },
+                    readPlaybackRunning: () => {
+                        try {
+                            const root = typeof globalThis !== 'undefined' ? (globalThis as any) : null;
+                            const engine = root && root.AnimationEngine;
+                            if (engine && typeof engine.isPlaying === 'boolean') return engine.isPlaying === true;
+                        } catch (e: any) { /* ignore */ }
+                        return null;
+                    },
+                    shouldAllowSelectionEntryDuringPlayback: (payload: any) => {
+                        try {
+                            const playbackState = getPlaybackStateModuleForReset();
+                            if (playbackState && typeof playbackState.shouldAllowSelectionEntryDuringPlayback === 'function') {
+                                return playbackState.shouldAllowSelectionEntryDuringPlayback(payload || {}) === true;
+                            }
+                        } catch (e: any) { /* ignore */ }
+                        return false;
+                    },
+                    emitPresentationEvent: (ev: any) => {
+                        try {
+                            const presentationHelper = resolvePresentationHelperModule();
+                            if (!presentationHelper || typeof presentationHelper.emitPresentationEvent !== 'function') return false;
+                            const cardStateRef = typeof globalThis !== 'undefined' ? (globalThis as any).cardState : null;
+                            return presentationHelper.emitPresentationEvent(cardStateRef, ev) === true;
+                        } catch (e: any) {
+                            return false;
+                        }
+                    },
+                    playTurnStartSpecialEffects: async (player: any, events: any[]) => {
+                        const startEvents = Array.isArray(events) ? events : [];
+                        const run = async (moduleId: string, fnName: string, args: any[]) => {
+                            try {
+                                const mod = require(moduleId);
+                                const fn = mod && mod[fnName];
+                                if (typeof fn === 'function') await fn(...args);
+                            } catch (e: any) { /* ignore */ }
+                        };
+                        await run('../game/special-effects/bombs', 'processBombs', [startEvents]);
+                        await run('../game/special-effects/udg', 'processUltimateDestroyGodsAtTurnStart', [player, null, startEvents]);
+                        await run('../game/special-effects/dragons', 'processUltimateReverseDragonsAtTurnStart', [player, startEvents]);
+                        await run('../game/special-effects/breeding', 'processBreedingEffectsAtTurnStart', [player, startEvents]);
+                        await run('../game/special-effects/hyperactive', 'processHyperactiveMovesAtTurnStart', [player, null, startEvents]);
+                    },
+                    dispatchPendingSelection: (payload: any) => {
+                        const handlerNames: Record<string, string> = {
+                            destroy: 'handleDestroySelection',
+                            strong_wind: 'handleStrongWindSelection',
+                            buoyancy: 'handleBuoyancySelection',
+                            super_buoyancy: 'handleSuperBuoyancySelection',
+                            gravity: 'handleGravitySelection',
+                            super_gravity: 'handleSuperGravitySelection',
+                            super_attraction: 'handleSuperAttractionSelection',
+                            teleport: 'handleTeleportSelection',
+                            cell_teleport: 'handleTeleportSelection',
+                            tempt: 'handleTemptSelection',
+                            capture: 'handleCaptureSelection',
+                            trap: 'handleTrapSelection',
+                            guard: 'handleGuardSelection',
+                            living_will: 'handleLivingWillSelection',
+                            hyperactive_inherit: 'handleHyperactiveInheritSelection',
+                            extend_life: 'handleExtendLifeSelection',
+                            corrosion: 'handleCorrosionSelection',
+                            clone: 'handleCloneSelection',
+                            blockade: 'handleBlockadeSelection',
+                            board_expansion: 'handleBoardExpansionSelection',
+                            board_shrink: 'handleBoardShrinkSelection',
+                            freeze: 'handleFreezeSelection',
+                            seed: 'handleSeedSelection',
+                            position_swap: 'handlePositionSwapSelection',
+                            meteor: 'handleMeteorSelection',
+                            time_bomb: 'handleTimeBombSelection',
+                            swap_with_enemy: 'handleSwapSelection'
+                        };
+                        const key = String(payload && payload.dispatchKey || '');
+                        const handlerName = handlerNames[key];
+                        if (!handlerName) return false;
+                        const roots = [
+                            (typeof window !== 'undefined' ? window : null),
+                            (typeof globalThis !== 'undefined' ? globalThis : null)
+                        ];
+                        for (let index = 0; index < roots.length; index += 1) {
+                            const root = roots[index] as unknown as Record<string, any> | null;
+                            const handler = root ? root[handlerName] : null;
+                            if (typeof handler !== 'function') continue;
+                            handler(payload.row, payload.col, payload.playerKey);
+                            return true;
+                        }
+                        return false;
                     },
                     readCpuSmartness: () => {
                         const readLevel = (id: string) => {
@@ -1828,6 +2324,26 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                             return typeof globalThis !== 'undefined' && (globalThis as any).DEBUG_HUMAN_VS_HUMAN === true;
                         } catch (e: any) { /* ignore */ }
                         return false;
+                    },
+                    updateCpuCharacter: () => {
+                        try {
+                            const fn = typeof globalThis !== 'undefined' ? (globalThis as any).updateCpuCharacter : null;
+                            if (typeof fn !== 'function') return false;
+                            fn();
+                            return true;
+                        } catch (e: any) {
+                            return false;
+                        }
+                    },
+                    showResult: () => {
+                        try {
+                            const fn = typeof globalThis !== 'undefined' ? (globalThis as any).showResult : null;
+                            if (typeof fn !== 'function') return false;
+                            fn();
+                            return true;
+                        } catch (e: any) {
+                            return false;
+                        }
                     },
                     readNetworkSeatKey: () => {
                         try {

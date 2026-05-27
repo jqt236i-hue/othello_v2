@@ -32,15 +32,10 @@ async function processBombs(precomputedEvents: any = null): Promise<void> {
         bombOwnerValByPos.set(String(b.row) + ',' + String(b.col), ownerVal);
     }
 
-    const activeKey = (typeof getPlayerKey === 'function') ? getPlayerKey(gameState.currentPlayer) : (gameState.currentPlayer === SharedConstants.BLACK ? 'black' : 'white');
     const events = Array.isArray(precomputedEvents) ? precomputedEvents.slice() : [];
     if (events.length === 0) {
-        if (typeof TurnPipelinePhases !== 'undefined' && typeof TurnPipelinePhases.applyTurnStartPhase === 'function') {
-            TurnPipelinePhases.applyTurnStartPhase(CardLogic, Core, cardState, gameState, activeKey, events);
-        } else {
-            console.error('[PROCESS-BOMBS] TurnPipelinePhases.applyTurnStartPhase not available; skipping bomb processing');
-            return;
-        }
+        console.error('[PROCESS-BOMBS] No precomputed pipeline events provided; skipping bomb presentation');
+        return;
     }
 
     const bombEvents = events.filter((e: any) => e.type === 'bombs_exploded');

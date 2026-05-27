@@ -56,6 +56,19 @@ function createAheadNoLegalMoveGameState() {
   );
 }
 
+function createBehindTwoEmptyCellGameState() {
+  const board = Array.from({ length: 8 }, () => Array(8).fill(Shared.WHITE));
+  board[0][0] = Shared.BLACK;
+  board[7][6] = Shared.EMPTY;
+  board[6][7] = Shared.EMPTY;
+  return {
+    board,
+    currentPlayer: Shared.BLACK,
+    turnNumber: 1,
+    consecutivePasses: 0
+  };
+}
+
 describe('LAST_RESORT（最後の切り札）', () => {
   test('通常合法手があると getUsableCardIds に出ない', () => {
     const def = (Shared.CARD_DEFS || []).find((card) => card && card.type === 'LAST_RESORT');
@@ -155,6 +168,11 @@ describe('LAST_RESORT（最後の切り札）', () => {
     expect(useRes.cardState.pendingEffectByPlayer.black.type).toBe('LAST_RESORT');
     expect(useRes.cardState.pendingEffectByPlayer.black.placementsRemaining).toBe(3);
 
+    cardState.debugNoDraw = false;
+    cardState.turnIndex = 12;
+    cardState.turnCountByPlayer.black = 6;
+    cardState.decks.black = ['draw_should_not_happen'];
+
     const firstPlaceRes = TurnPipeline.applyTurn(
       cardState,
       gameState,
@@ -165,6 +183,9 @@ describe('LAST_RESORT（最後の切り札）', () => {
 
     expect(firstPlaceRes.gameState.currentPlayer).toBe(Shared.BLACK);
     expect(firstPlaceRes.gameState.turnNumber).toBe(1);
+    expect(firstPlaceRes.cardState.turnIndex).toBe(12);
+    expect(firstPlaceRes.cardState.turnCountByPlayer.black).toBe(6);
+    expect(firstPlaceRes.cardState.decks.black).toEqual(['draw_should_not_happen']);
     expect(firstPlaceRes.cardState.pendingEffectByPlayer.black).toBeTruthy();
     expect(firstPlaceRes.cardState.pendingEffectByPlayer.black.type).toBe('LAST_RESORT');
     expect(firstPlaceRes.cardState.pendingEffectByPlayer.black.placementsRemaining).toBe(2);
@@ -181,6 +202,9 @@ describe('LAST_RESORT（最後の切り札）', () => {
 
     expect(secondPlaceRes.gameState.currentPlayer).toBe(Shared.BLACK);
     expect(secondPlaceRes.gameState.turnNumber).toBe(1);
+    expect(secondPlaceRes.cardState.turnIndex).toBe(12);
+    expect(secondPlaceRes.cardState.turnCountByPlayer.black).toBe(6);
+    expect(secondPlaceRes.cardState.decks.black).toEqual(['draw_should_not_happen']);
     expect(secondPlaceRes.cardState.pendingEffectByPlayer.black).toBeTruthy();
     expect(secondPlaceRes.cardState.pendingEffectByPlayer.black.type).toBe('LAST_RESORT');
     expect(secondPlaceRes.cardState.pendingEffectByPlayer.black.placementsRemaining).toBe(1);
@@ -197,8 +221,60 @@ describe('LAST_RESORT（最後の切り札）', () => {
 
     expect(thirdPlaceRes.gameState.currentPlayer).toBe(Shared.WHITE);
     expect(thirdPlaceRes.gameState.turnNumber).toBe(2);
+    expect(thirdPlaceRes.cardState.turnIndex).toBe(12);
+    expect(thirdPlaceRes.cardState.turnCountByPlayer.black).toBe(6);
+    expect(thirdPlaceRes.cardState.decks.black).toEqual(['draw_should_not_happen']);
     expect(thirdPlaceRes.cardState.pendingEffectByPlayer.black).toBeNull();
     expect(thirdPlaceRes.cardState.extraPlaceRemainingByPlayer.black).toBe(0);
     expect(thirdPlaceRes.gameState.board[3][5]).toBe(Shared.BLACK);
+  });
+
+  test('空きマスが尽きたら LAST_RESORT の残り自由配置を破棄して手番交代する', () => {
+    const def = (Shared.CARD_DEFS || []).find((card) => card && card.type === 'LAST_RESORT');
+    expect(def).toBeTruthy();
+
+    const prng = createPrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = createBehindTwoEmptyCellGameState();
+
+    cardState.hands.black = [def.id];
+    cardState.charge.black = def.cost;
+
+    const useRes = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'use_card', useCardId: def.id },
+      prng
+    );
+    expect(useRes.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: 'LAST_RESORT',
+      placementsRemaining: 3
+    }));
+
+    const firstPlaceRes = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 7, col: 6 },
+      prng
+    );
+    expect(firstPlaceRes.gameState.currentPlayer).toBe(Shared.BLACK);
+    expect(firstPlaceRes.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: 'LAST_RESORT',
+      placementsRemaining: 2
+    }));
+
+    const secondPlaceRes = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 6, col: 7 },
+      prng
+    );
+    expect(secondPlaceRes.gameState.currentPlayer).toBe(Shared.WHITE);
+    expect(secondPlaceRes.gameState.turnNumber).toBe(2);
+    expect(secondPlaceRes.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(secondPlaceRes.cardState.extraPlaceRemainingByPlayer.black).toBe(0);
   });
 });

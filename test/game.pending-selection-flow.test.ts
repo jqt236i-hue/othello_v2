@@ -6,6 +6,80 @@ import * as TurnPipelineUIAdapter from '../game/turn/pipeline_ui_adapter.js';
 import * as BoardExpansionEffects from '../game/card-effects/board-expansion.js';
 import * as BoardShrinkEffects from '../game/card-effects/board-shrink.js';
 
+function createPlaybackBridgeMethods(playbackStateManager) {
+  return {
+    getPlaybackStateManager: () => playbackStateManager,
+    acquireSelectionSettlementLock: (meta) => (
+      playbackStateManager && typeof playbackStateManager.acquireSelectionSettlementLock === 'function'
+        ? playbackStateManager.acquireSelectionSettlementLock(meta)
+        : null
+    ),
+    releaseSelectionSettlementLock: (token) => {
+      if (playbackStateManager && typeof playbackStateManager.releaseSelectionSettlementLock === 'function') {
+        playbackStateManager.releaseSelectionSettlementLock(token);
+        return true;
+      }
+      return false;
+    },
+    setSelectionProcessing: (next) => {
+      if (playbackStateManager && typeof playbackStateManager.setBusyState === 'function') {
+        playbackStateManager.setBusyState({ processing: next === true });
+        return true;
+      }
+      return false;
+    },
+    setSelectionCardAnimating: (next) => {
+      if (playbackStateManager && typeof playbackStateManager.setBusyState === 'function') {
+        playbackStateManager.setBusyState({ cardAnimating: next === true });
+        return true;
+      }
+      return false;
+    },
+    setSelectionBusy: (next) => {
+      if (playbackStateManager && typeof playbackStateManager.setBusyState === 'function') {
+        playbackStateManager.setBusyState({ processing: next === true, cardAnimating: next === true });
+        return true;
+      }
+      return false;
+    },
+    readSelectionBusyState: (payload) => {
+      const settlementLocked = payload && payload.settlementLocked === true;
+      const localState = payload && payload.localSelectionBusyState ? payload.localSelectionBusyState : {};
+      return {
+        processing: settlementLocked || (
+          playbackStateManager && typeof playbackStateManager.getProcessing === 'function'
+            ? playbackStateManager.getProcessing() === true
+            : localState.processing === true
+        ),
+        cardAnimating: settlementLocked || (
+          playbackStateManager && typeof playbackStateManager.getCardAnimating === 'function'
+            ? playbackStateManager.getCardAnimating() === true
+            : localState.cardAnimating === true
+        )
+      };
+    },
+    shouldAllowSelectionEntryDuringPlayback: (payload) => (
+      playbackStateManager && typeof playbackStateManager.shouldAllowSelectionEntryDuringPlayback === 'function'
+        ? playbackStateManager.shouldAllowSelectionEntryDuringPlayback(payload || {}) === true
+        : false
+    ),
+    clearSelectionEntryPlaybackContext: () => {
+      if (playbackStateManager && typeof playbackStateManager.clearSelectionEntryPlaybackContext === 'function') {
+        playbackStateManager.clearSelectionEntryPlaybackContext();
+        return true;
+      }
+      return false;
+    },
+    armSelectionBoardUpdateContext: (context) => {
+      if (playbackStateManager && typeof playbackStateManager.armBoardUpdateContext === 'function') {
+        playbackStateManager.armBoardUpdateContext(context);
+        return true;
+      }
+      return false;
+    }
+  };
+}
+
 function attachPlaybackStateManager() {
   const playbackStateManager = require('../ui/playback-state-manager.js');
   playbackStateManager.clearPlaybackLock();
@@ -23,7 +97,7 @@ function attachPlaybackStateManager() {
       global.cardState = nextCardState;
       return true;
     },
-    getPlaybackStateManager: () => playbackStateManager,
+    ...createPlaybackBridgeMethods(playbackStateManager),
     waitForPlaybackIdle: () => {
       if (typeof global.waitForPlaybackIdle === 'function') {
         return global.waitForPlaybackIdle();
@@ -787,7 +861,7 @@ describe('pending selection flow contracts', () => {
         global.cardState = nextCardState;
         return true;
       },
-      getPlaybackStateManager: () => playbackStateManager,
+      ...createPlaybackBridgeMethods(playbackStateManager),
       publishSnapshot,
       isNetworkPublishActive: () => true,
       scheduleCpuTurn: (delay, callback) => setTimeout(callback, delay),

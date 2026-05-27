@@ -5,16 +5,25 @@ jest.mock('../game/card-effects/selection-flow', () => ({
 }));
 
 const { handlePositionSwapSelection } = require('../game/card-effects/position-swap.js');
+const ControllerEvents = require('../game/controller-events.js');
+
 describe('position-swap', () => {
     beforeEach(() => {
         mockExecutePendingSelection.mockClear();
-        global.posToNotation = jest.fn((row, col) => `${row},${col}`);
         global.emitLogAdded = jest.fn();
+        ControllerEvents.setControllerEventsRuntime({
+            GameEvents: {
+                EVENT_TYPES: { LOG_ADDED: 'LOG_ADDED' },
+                gameEvents: {
+                    emit: (_type, payload) => global.emitLogAdded(payload.text)
+                }
+            }
+        });
     });
 
     afterEach(() => {
-        delete global.posToNotation;
         delete global.emitLogAdded;
+        ControllerEvents.setControllerEventsRuntime(null);
     });
 
     test('module load: exported function presence', () => {
@@ -36,7 +45,7 @@ describe('position-swap', () => {
         expect(callArg.actionPayload).toEqual({ positionSwapTarget: { row: 2, col: 2 } });
         expect(callArg.invalidMessage).toBe('入替対象の石を選んでください');
         expect(callArg.buildPlaybackMeta()).toEqual({ cause: 'POSITION_SWAP_WILL', target: { row: 2, col: 2 } });
-        expect(global.emitLogAdded).toHaveBeenCalledWith('黒が入替の意志で1,1と2,2を入替');
+        expect(global.emitLogAdded).toHaveBeenCalledWith('黒が入替の意志でb2とc3を入替');
     });
 
     test('境界条件: 対象イベントがない場合は無効', async () => {

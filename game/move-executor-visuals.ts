@@ -10,11 +10,6 @@ function _require(id: string): any {
   throw new Error('Unable to require ' + id);
 }
 
-// Globals injected at runtime by UI
-declare var __uiImpl: any;
-declare var AnimationEngine: any;
-declare var CardLogic: any;
-
 // Module-level variable for injected UI visuals implementation
 let __uiImpl_move_exec_visuals: any = {};
 
@@ -23,73 +18,56 @@ const getMoveExecutorVisuals: any = undefined;
 
 // Visual helpers and animation sequence for move execution
 
-function _assertNotDuringPlayback() {
-    if (__uiImpl_move_exec_visuals && __uiImpl_move_exec_visuals.VisualPlaybackActive === true) {
-        if (__uiImpl.__DEV__ === true) {
-            throw new Error('Legacy visual helper called during active VisualPlayback (dev fail-fast)');
-        } else {
-            console.error('Legacy visual helper called during active VisualPlayback. Aborting playback and syncing final state (prod fallback)');
-            if (typeof AnimationEngine !== 'undefined' && AnimationEngine && typeof AnimationEngine.abortAndSync === 'function') {
-                AnimationEngine.abortAndSync();
-            }
-            return false;
-        }
-    }
-    return true;
+function readMoveExecutorVisualFunction(name: string): any {
+    const impl = __uiImpl_move_exec_visuals || {};
+    return typeof impl[name] === 'function' ? impl[name] : null;
 }
 
 function applyFlipAnimations(flipsToAnimate: any) {
-    // Delegate to injected UI implementation if present
-    if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.applyFlipAnimations === 'function') {
-        return __uiImpl.applyFlipAnimations(flipsToAnimate);
-    }
+    const fn = readMoveExecutorVisualFunction('applyFlipAnimations');
+    if (fn) return fn(flipsToAnimate);
     return undefined;
 }
 
 function setDiscColorAt(row: any, col: any, color: any) {
-    if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.setDiscColorAt === 'function') {
-        return __uiImpl.setDiscColorAt(row, col, color);
-    }
+    const fn = readMoveExecutorVisualFunction('setDiscColorAt');
+    if (fn) return fn(row, col, color);
     return undefined;
 }
 
 function removeBombOverlayAt(row: any, col: any) {
-    if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.removeBombOverlayAt === 'function') {
-        return __uiImpl.removeBombOverlayAt(row, col);
-    }
+    const fn = readMoveExecutorVisualFunction('removeBombOverlayAt');
+    if (fn) return fn(row, col);
     return undefined;
 }
 
 function clearAllStoneVisualEffectsAt(row: any, col: any) {
-    if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.clearAllStoneVisualEffectsAt === 'function') {
-        return __uiImpl.clearAllStoneVisualEffectsAt(row, col);
-    }
+    const fn = readMoveExecutorVisualFunction('clearAllStoneVisualEffectsAt');
+    if (fn) return fn(row, col);
     return undefined;
 }
 
 function syncDiscVisualToCurrentState(row: any, col: any) {
-    if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.syncDiscVisualToCurrentState === 'function') {
-        return __uiImpl.syncDiscVisualToCurrentState(row, col);
-    }
+    const fn = readMoveExecutorVisualFunction('syncDiscVisualToCurrentState');
+    if (fn) return fn(row, col);
     return undefined;
 }
 
-const TIME_BOMB_TURNS = (typeof CardLogic !== 'undefined' && Number.isFinite(CardLogic.TIME_BOMB_TURNS))
-    ? CardLogic.TIME_BOMB_TURNS
-    : 3;
-
 function getFlipAnimMs() {
-    const val = (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.getFlipAnimMs === 'function') ? __uiImpl.getFlipAnimMs() : undefined;
+    const fn = readMoveExecutorVisualFunction('getFlipAnimMs');
+    const val = fn ? fn() : undefined;
     return typeof val === 'number' ? val : 600;
 }
 
 function getPhaseGapMs() {
-    const val = (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.getPhaseGapMs === 'function') ? __uiImpl.getPhaseGapMs() : undefined;
+    const fn = readMoveExecutorVisualFunction('getPhaseGapMs');
+    const val = fn ? fn() : undefined;
     return typeof val === 'number' ? val : 200;
 }
 
 function getTurnTransitionGapMs() {
-    const val = (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.getTurnTransitionGapMs === 'function') ? __uiImpl.getTurnTransitionGapMs() : undefined;
+    const fn = readMoveExecutorVisualFunction('getTurnTransitionGapMs');
+    const val = fn ? fn() : undefined;
     return typeof val === 'number' ? val : getPhaseGapMs();
 }
 
@@ -99,47 +77,41 @@ try { timers = _require('../timers'); } catch (e) { /* ignore */ }
 const _waitMs = (ms: any) => (timers && typeof timers.waitMs === 'function') ? timers.waitMs(ms) : Promise.resolve();
 
 async function animateFlipsWithDeferredColor(flips: any, fromColor: any, toColor: any) {
-    if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.animateFlipsWithDeferredColor === 'function') {
-        return __uiImpl.animateFlipsWithDeferredColor(flips, fromColor, toColor);
-    }
+    const fn = readMoveExecutorVisualFunction('animateFlipsWithDeferredColor');
+    if (fn) return fn(flips, fromColor, toColor);
     return undefined;
 }
 
 async function animateRegenBack(regenedPositions: any, flipperColor: any) {
-    if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.animateRegenBack === 'function') {
-        return __uiImpl.animateRegenBack(regenedPositions, flipperColor);
-    }
+    const fn = readMoveExecutorVisualFunction('animateRegenBack');
+    if (fn) return fn(regenedPositions, flipperColor);
     return undefined;
 }
 
 // Game-side wrappers for common UI animations (safe no-op when UI not present)
 async function animateFadeOutAt(row: any, col: any, options: any) {
-    if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.animateFadeOutAt === 'function') {
-        return __uiImpl_move_exec_visuals.animateFadeOutAt(row, col, options);
-    }
+    const fn = readMoveExecutorVisualFunction('animateFadeOutAt');
+    if (fn) return fn(row, col, options);
     const delay = (options && options.durationMs) ? options.durationMs : 0;
     return _waitMs(delay);
 }
 
 async function animateDestroyAt(row: any, col: any, options: any) {
-    if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.animateDestroyAt === 'function') {
-        return __uiImpl_move_exec_visuals.animateDestroyAt(row, col, options);
-    }
+    const fn = readMoveExecutorVisualFunction('animateDestroyAt');
+    if (fn) return fn(row, col, options);
     const delay = (options && options.durationMs) ? options.durationMs : 0;
     return _waitMs(delay);
 }
 
 async function animateHyperactiveMove(from: any, to: any, options?: any) {
-    if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.animateHyperactiveMove === 'function') {
-        return __uiImpl_move_exec_visuals.animateHyperactiveMove(from, to, options);
-    }
+    const fn = readMoveExecutorVisualFunction('animateHyperactiveMove');
+    if (fn) return fn(from, to, options);
     return Promise.resolve();
 }
 
 async function animateHyperactiveMoveChain(moves: any) {
-    if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.animateHyperactiveMoveChain === 'function') {
-        return __uiImpl_move_exec_visuals.animateHyperactiveMoveChain(moves);
-    }
+    const fn = readMoveExecutorVisualFunction('animateHyperactiveMoveChain');
+    if (fn) return fn(moves);
     if (!Array.isArray(moves)) {
         return Promise.resolve();
     }
@@ -151,38 +123,31 @@ async function animateHyperactiveMoveChain(moves: any) {
 }
 
 function hasPlaybackEngine() {
-    if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.hasPlaybackEngine === 'function') {
-        return __uiImpl_move_exec_visuals.hasPlaybackEngine() === true;
-    }
-    return false;
+    const fn = readMoveExecutorVisualFunction('hasPlaybackEngine');
+    return fn ? fn() === true : false;
 }
 
 async function playDrawAnimation(player: any, drawnCardId: any) {
-    if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.playDrawAnimation === 'function') {
-        return __uiImpl_move_exec_visuals.playDrawAnimation(player, drawnCardId);
-    }
+    const fn = readMoveExecutorVisualFunction('playDrawAnimation');
+    if (fn) return fn(player, drawnCardId);
     return Promise.resolve();
 }
 
 async function updateDeckVisual() {
-    if (typeof __uiImpl_move_exec_visuals !== 'undefined' && __uiImpl_move_exec_visuals && typeof __uiImpl_move_exec_visuals.updateDeckVisual === 'function') {
-        return __uiImpl_move_exec_visuals.updateDeckVisual();
-    }
+    const fn = readMoveExecutorVisualFunction('updateDeckVisual');
+    if (fn) return fn();
     return Promise.resolve();
 }
 
 function applyPendingSpecialstoneVisual(move: any, pendingType: any) {
-    if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.applyPendingSpecialstoneVisual === 'function') {
-        return __uiImpl.applyPendingSpecialstoneVisual(move, pendingType);
-    }
+    const fn = readMoveExecutorVisualFunction('applyPendingSpecialstoneVisual');
+    if (fn) return fn(move, pendingType);
     return undefined;
 }
 
 async function runMoveVisualSequence(move: any, hadSelection: any, phases: any, effects: any, immediate: any) {
-    // Delegate to injected UI implementation if present. Ensure we are not delegating to ourselves (avoid infinite recursion).
-    if (typeof __uiImpl !== 'undefined' && __uiImpl && typeof __uiImpl.runMoveVisualSequence === 'function' && __uiImpl.runMoveVisualSequence !== runMoveVisualSequence) {
-        return __uiImpl.runMoveVisualSequence(move, hadSelection, phases, effects, immediate);
-    }
+    const fn = readMoveExecutorVisualFunction('runMoveVisualSequence');
+    if (fn && fn !== runMoveVisualSequence) return fn(move, hadSelection, phases, effects, immediate);
     return undefined;
 }
 

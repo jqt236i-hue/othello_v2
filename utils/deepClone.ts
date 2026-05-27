@@ -3,9 +3,9 @@
  * Prefer structuredClone when available; fallback to JSON clone.
  */
 function deepClone<T>(value: T): T {
-    if (typeof globalThis !== 'undefined' && typeof globalThis.structuredClone === 'function') {
+    if (typeof structuredClone === 'function') {
         try {
-            return globalThis.structuredClone(value);
+            return structuredClone(value);
         } catch (e) {
             // Some persisted playback/presentation metadata still carries transient
             // helper functions. JSON cloning preserves the serializable state shape

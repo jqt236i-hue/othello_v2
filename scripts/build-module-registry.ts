@@ -5,6 +5,8 @@
  */
 import * as fs from 'fs';
 import * as path from 'path';
+import _sync_browser_script_versions from './sync-browser-script-versions';
+const { syncBrowserScriptVersions } = _sync_browser_script_versions;
 
 declare const __non_webpack_require__: NodeRequire | undefined;
 
@@ -17,6 +19,21 @@ const DIST = path.join(ROOT, 'dist');
 const OUT = path.join(ROOT, 'public', 'module-registry.js');
 const WRITE_RETRY_COUNT = 5;
 const WRITE_RETRY_DELAY_MS = 100;
+
+interface BuildRegistryOptions {
+    rootDir?: string;
+    distDir?: string;
+    outFile?: string;
+    write?: boolean;
+    log?: boolean;
+    syncScriptVersions?: boolean;
+}
+
+interface BuildRegistryResult {
+    content: string;
+    outFile: string;
+    wroteFile: boolean;
+}
 
 const BROWSER_MODULE_PREFIXES = [
     'cards/',
@@ -145,13 +162,16 @@ function writeFileWithRetry(filePath: string, content: string): void {
     throw lastError;
 }
 
-function buildRegistry(options?: any): void {
+function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | null {
     const opts = (options && typeof options === 'object') ? options : {};
     const rootDir = opts.rootDir ? path.resolve(String(opts.rootDir)) : ROOT;
     const distDir = opts.distDir ? path.resolve(String(opts.distDir)) : path.join(rootDir, 'dist');
     const outFile = opts.outFile ? path.resolve(String(opts.outFile)) : path.join(rootDir, 'public', 'module-registry.js');
+    const shouldWrite = opts.write !== false;
+    const shouldLog = opts.log !== false;
+    const shouldSyncScriptVersions = opts.syncScriptVersions !== false;
     if (!fs.existsSync(distDir)) {
-        return;
+        return null;
     }
     const jsFiles: string[] = [];
     walkDir(distDir, distDir, jsFiles);
@@ -223,16 +243,35 @@ function buildRegistry(options?: any): void {
     lines.push('})();');
     lines.push('');
 
-    fs.mkdirSync(path.dirname(outFile), { recursive: true });
-    writeFileWithRetry(outFile, lines.join('\n'));
-
-    console.log('[module-registry] wrote ' + jsFiles.length + ' modules to ' + path.relative(rootDir, outFile));
-    if (skipped.length > 0) {
-        console.log('[module-registry] skipped ' + skipped.length + ' files:');
-        skipped.forEach(s => {
-            console.log('  - ' + s);
-        });
+    const content = lines.join('\n');
+    let wroteFile = false;
+    if (shouldWrite) {
+        fs.mkdirSync(path.dirname(outFile), { recursive: true });
+        const current = fs.existsSync(outFile) ? fs.readFileSync(outFile, 'utf8') : null;
+        if (current !== content) {
+            writeFileWithRetry(outFile, content);
+            wroteFile = true;
+        }
+        if (shouldSyncScriptVersions && fs.existsSync(path.join(rootDir, 'index.html'))) {
+            syncBrowserScriptVersions({ rootDir, write: true });
+        }
     }
+
+    if (shouldLog) {
+        console.log('[module-registry] wrote ' + jsFiles.length + ' modules to ' + path.relative(rootDir, outFile));
+        if (skipped.length > 0) {
+            console.log('[module-registry] skipped ' + skipped.length + ' files:');
+            skipped.forEach(s => {
+                console.log('  - ' + s);
+            });
+        }
+    }
+
+    return {
+        content,
+        outFile,
+        wroteFile
+    };
 }
 
 if (require.main === module) {

@@ -40,7 +40,14 @@ describe('special-effects breeding UI boundary', () => {
     };
 
     const breeding = require('../game/special-effects/breeding.js');
-    breeding.setUIImpl({ animateFadeOutAt });
+    breeding.setUIImpl({
+      animateFadeOutAt,
+      emitBoardUpdate: global.emitBoardUpdate,
+      emitGameStateChange: global.emitGameStateChange,
+      emitCardStateChange: global.emitCardStateChange,
+      emitLogAdded: global.emitLogAdded,
+      getPlayerName: global.getPlayerName
+    });
 
     await breeding.processBreedingEffectsAtTurnStart(global.BLACK, [
       { type: 'breeding_destroyed_start', details: [{ row: 3, col: 4 }] }

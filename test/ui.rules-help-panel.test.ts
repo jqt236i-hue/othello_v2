@@ -270,10 +270,10 @@ describe('rules help panel', () => {
           : '自分石1つに完全保護を付与する。3ターン持続。',
         detailText: cardDef.id === 'afterimage_will_01'
           ? '次に置く石を残像石化する。\n回避に成功した時だけ対応する回数を消費する。'
-          : '完全保護中は反転・交換・破壊・誘惑を受けない。',
+          : '完全保護中は敵対的・強制的な石効果を受けない。',
         distinctDetailText: cardDef.id === 'afterimage_will_01'
           ? '次に置く石を残像石化する。\n回避に成功した時だけ対応する回数を消費する。'
-          : '完全保護中は反転・交換・破壊・誘惑を受けない。',
+          : '完全保護中は敵対的・強制的な石効果を受けない。',
         effectTags: cardDef.id === 'afterimage_will_01'
           ? [
             { kind: 'flip-evasion', value: 3, label: '反転回避3回' },
@@ -316,7 +316,7 @@ describe('rules help panel', () => {
 
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-section-title')).map((el) => el.textContent)).toContain('効果タグ');
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['完全保護', '3ターン持続']);
-    expect(cardDescEl.textContent).toContain('完全保護中は反転・交換・破壊・誘惑を受けない。');
+    expect(cardDescEl.textContent).toContain('完全保護中は敵対的・強制的な石効果を受けない。');
   });
 
   test('effect glossary list includes 反転回避 and 破壊回避 entries', () => {

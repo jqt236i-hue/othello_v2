@@ -15,6 +15,8 @@ describe('UI bootstrap early CPU registration', () => {
     try { delete global.resetRenderStats; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.hideCpuSpeechBubble; } catch (e) { /* Intentionally empty: test cleanup guard */ }
     try { delete global.PlaybackStateManager; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.showResult; } catch (e) { /* Intentionally empty: test cleanup guard */ }
+    try { delete global.isProcessing; } catch (e) { /* Intentionally empty: test cleanup guard */ }
   });
 
   test('installGameDI registers processCpuTurn when cpu-turn-handler exposes it', () => {
@@ -45,10 +47,17 @@ describe('UI bootstrap early CPU registration', () => {
     expect(mockCpu.setCpuUIImpl).toHaveBeenCalledTimes(1);
     expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readMatchMode).toBe('function');
     expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readHumanVsHumanMode).toBe('function');
+    expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readQuerySearch).toBe('function');
+    expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readProcessing).toBe('function');
+    expect(typeof mockCpu.setCpuUIImpl.mock.calls[0][0].readAnimationBusy).toBe('function');
     expect(setPassHandlerRuntime).toHaveBeenCalledTimes(1);
     expect(setPassHandlerRuntime.mock.calls[0][0].processCpuTurn).toBe(mockCpu.processCpuTurn);
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].readMatchMode).toBe('function');
     expect(typeof setPassHandlerRuntime.mock.calls[0][0].readHumanVsHumanMode).toBe('function');
+    expect(typeof setPassHandlerRuntime.mock.calls[0][0].resolveRuntimeFunction).toBe('function');
+    expect(typeof setPassHandlerRuntime.mock.calls[0][0].showResult).toBe('function');
+    expect(typeof setPassHandlerRuntime.mock.calls[0][0].setProcessing).toBe('function');
+    expect(typeof setPassHandlerRuntime.mock.calls[0][0].publishSnapshot).toBe('function');
     expect(setCpuDecisionRuntime).toHaveBeenCalledTimes(1);
     expect(setCpuDecisionRuntime.mock.calls[0][0].processCpuTurn).toBe(mockCpu.processCpuTurn);
     expect(typeof setCpuDecisionRuntime.mock.calls[0][0].readMatchMode).toBe('function');
@@ -78,7 +87,12 @@ describe('UI bootstrap early CPU registration', () => {
     window.PresentationHelper = {
       emitPresentationEvent: jest.fn(() => true)
     };
-    window.PlaybackStateManager = { sentinel: true };
+    window.PlaybackStateManager = {
+      sentinel: true,
+      setBusyState: jest.fn(),
+      getProcessing: jest.fn(() => false),
+      getCardAnimating: jest.fn(() => false)
+    };
     window.emitCardStateChange = jest.fn();
     window.emitBoardUpdate = jest.fn();
     window.emitGameStateChange = jest.fn();
@@ -101,6 +115,8 @@ describe('UI bootstrap early CPU registration', () => {
     expect(typeof bridgeState.bridge.readMatchMode).toBe('function');
     expect(typeof bridgeState.bridge.readHumanVsHumanMode).toBe('function');
     expect(bridgeState.bridge.getPlaybackStateManager()).toBe(window.PlaybackStateManager);
+    expect(bridgeState.bridge.setSelectionBusy(true)).toBe(true);
+    expect(window.PlaybackStateManager.setBusyState).toHaveBeenCalledWith({ processing: true, cardAnimating: true });
     expect(bridgeState.bridge.emitPlaybackEvents([{ type: 'flip', phase: 1 }], { cause: 'FREEZE_WILL' }, window.cardState)).toBe(true);
     expect(window.PresentationHelper.emitPresentationEvent).toHaveBeenCalledWith(window.cardState, {
       type: 'PLAYBACK_EVENTS',
@@ -169,6 +185,62 @@ describe('UI bootstrap early CPU registration', () => {
     dom.window.close();
   });
 
+  test('installGameDI wires move-executor processing through UI PlaybackStateManager bridge', () => {
+    const setMoveExecutorUIImpl = jest.fn();
+    const playbackState = {
+      setBusyState: jest.fn(),
+      setProcessing: jest.fn()
+    };
+    global.PlaybackStateManager = playbackState;
+    jest.doMock('../game/move-executor', () => ({ setUIImpl: setMoveExecutorUIImpl }));
+    jest.doMock('../game/cpu-turn-handler', () => ({}));
+
+    const uiBoot = require('../ui/bootstrap.js');
+    uiBoot.installGameDI();
+
+    const uiImpl = setMoveExecutorUIImpl.mock.calls
+      .map((args) => args && args[0])
+      .find((impl) => impl && typeof impl.setProcessing === 'function');
+
+    expect(uiImpl).toBeDefined();
+    uiImpl.setProcessing(true);
+
+    expect(playbackState.setBusyState).toHaveBeenCalledWith({ processing: true });
+    expect(playbackState.setProcessing).not.toHaveBeenCalled();
+    expect(global.isProcessing).toBe(true);
+  });
+
+  test('installGameDI wires CPU processing through UI PlaybackStateManager bridge', () => {
+    const setCpuUIImpl = jest.fn();
+    const playbackState = {
+      getProcessing: jest.fn(() => false),
+      setBusyState: jest.fn(),
+      setProcessing: jest.fn()
+    };
+    global.PlaybackStateManager = playbackState;
+    jest.doMock('../game/cpu-turn-handler', () => ({
+      processCpuTurn: jest.fn(),
+      processAutoBlackTurn: jest.fn(),
+      setCpuUIImpl
+    }));
+
+    const uiBoot = require('../ui/bootstrap.js');
+    uiBoot.installGameDI();
+
+    const uiImpl = setCpuUIImpl.mock.calls
+      .map((args) => args && args[0])
+      .find((impl) => impl && typeof impl.setProcessing === 'function');
+
+    expect(uiImpl).toBeDefined();
+    expect(uiImpl.readProcessing()).toBe(false);
+    uiImpl.setProcessing(true);
+
+    expect(playbackState.getProcessing).toHaveBeenCalled();
+    expect(playbackState.setBusyState).toHaveBeenCalledWith({ processing: true });
+    expect(playbackState.setProcessing).not.toHaveBeenCalled();
+    expect(global.isProcessing).toBe(true);
+  });
+
   test('resetTransientUIState clears lingering fx ghosts and stale has-disc shadows', () => {
     const dom = new JSDOM(`<!doctype html><html><body>
       <div id="board" class="playback-locked">
@@ -202,6 +274,10 @@ describe('UI bootstrap early CPU registration', () => {
       .find((impl) => impl && typeof impl.resetTransientUIState === 'function');
     const uiImpl = matchingCall;
     expect(typeof uiImpl.resetTransientUIState).toBe('function');
+    expect(typeof uiImpl.showResult).toBe('function');
+    global.showResult = jest.fn();
+    expect(uiImpl.showResult()).toBe(true);
+    expect(global.showResult).toHaveBeenCalledTimes(1);
 
     const board = document.getElementById('board');
     const cell = board.querySelector('.cell');

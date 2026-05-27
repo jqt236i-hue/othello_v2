@@ -4,15 +4,26 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
   : require;
 
-declare function emitLogAdded(message: any, kind?: string): void;
-declare function posToNotation(row: number, col: number): string;
-
 /**
  * @file position-swap.js
  * @description Position Swap Will card handlers
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
+const ControllerEvents = _require('../controller-events');
+const GameControllerSlim = _require('../game-controller-slim');
+
+function emitPositionSwapLog(message: string): void {
+    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
+        ControllerEvents.emitLogAdded(message);
+    }
+}
+
+function posToNotation(row: number, col: number): string {
+    return GameControllerSlim && typeof GameControllerSlim.posToNotation === 'function'
+        ? GameControllerSlim.posToNotation(row, col)
+        : `${row},${col}`;
+}
 
 function getPositionSwapFirstSelectedEvent(result: any) {
     return result && Array.isArray(result.rawEvents)
@@ -38,13 +49,12 @@ async function handlePositionSwapSelection(row: number, col: number, playerKey: 
         validateResult: ({ result }: { result: any }) => !!(getPositionSwapFirstSelectedEvent(result) || getPositionSwapCompletedEvent(result)),
         buildPlaybackMeta: () => ({ cause: 'POSITION_SWAP_WILL', target: { row, col } }),
         afterStateChange: ({ result }: { result: any }) => {
-            if (typeof emitLogAdded !== 'function') return;
             const swapped = getPositionSwapCompletedEvent(result);
             if (swapped) {
-                emitLogAdded(`${playerKey === 'black' ? '黒' : '白'}が入替の意志で${posToNotation(swapped.from.row, swapped.from.col)}と${posToNotation(swapped.to.row, swapped.to.col)}を入替`);
+                emitPositionSwapLog(`${playerKey === 'black' ? '黒' : '白'}が入替の意志で${posToNotation(swapped.from.row, swapped.from.col)}と${posToNotation(swapped.to.row, swapped.to.col)}を入替`);
                 return;
             }
-            emitLogAdded('入替の意志: 2つ目の石を選んでください');
+            emitPositionSwapLog('入替の意志: 2つ目の石を選んでください');
         }
     });
 }

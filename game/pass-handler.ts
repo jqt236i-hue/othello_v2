@@ -12,11 +12,8 @@ declare const Core: any;
 declare const CoreLogic: any;
 declare const CardLogic: any;
 declare const TurnPipeline: any;
-declare let isProcessing: any;
 declare const processCpuTurn: any;
 declare const getPlayerName: any;
-declare const emitLogAdded: any;
-declare const showResult: any;
 declare const onTurnStart: any;
 declare const isGameOver: any;
 declare const getLegalMoves: any;
@@ -57,10 +54,9 @@ if (typeof require === 'function') {
     try { passHandlerCardEffectsHelpers = require('./card-effects/helpers'); } catch (e) { /* ignore */ }
     try { passHandlerSpecialEffectsHelpers = require('./special-effects/helpers'); } catch (e) { /* ignore */ }
 }
+const PassHandlerControllerEvents = require('./controller-events');
 // DI imports for UI-cross-boundary modules (graceful degradation via try/catch)
-let playbackStateManagerModule: any = null;
 let cpuTurnHandlerModule: any = null;
-let networkMatchClientModule: any = null;
 let passHandlerRuntime: any = null;
 if (typeof require === 'function') {
     try { cpuTurnHandlerModule = require('./cpu-turn-handler'); } catch (e) { /* ignore */ }
@@ -70,12 +66,27 @@ function setPassHandlerRuntime(runtime: any) {
     passHandlerRuntime = (runtime && typeof runtime === 'object') ? runtime : null;
 }
 
-function setPlaybackStateManager(module: any) {
-    playbackStateManagerModule = module;
+function resolvePassHandlerRuntimeFunction(name: string) {
+    try {
+        if (passHandlerRuntime && typeof passHandlerRuntime.resolveRuntimeFunction === 'function') {
+            const candidate = passHandlerRuntime.resolveRuntimeFunction(name);
+            if (typeof candidate === 'function') return candidate;
+        }
+        if (passHandlerRuntime && typeof passHandlerRuntime[name] === 'function') {
+            return passHandlerRuntime[name];
+        }
+    } catch (e) { /* ignore */ }
+    return null;
 }
 
-function setNetworkMatchClient(module: any) {
-    networkMatchClientModule = module;
+function showPassHandlerResultIfAvailable() {
+    const showResultFn = resolvePassHandlerRuntimeFunction('showResult');
+    if (typeof showResultFn !== 'function') return false;
+    try {
+        showResultFn();
+        return true;
+    } catch (e) { /* ignore */ }
+    return false;
 }
 
 function getActiveProtectionForPlayer(playerValue: any) {
@@ -102,20 +113,13 @@ function getFlipBlockers() {
     return [];
 }
 
-function getPlaybackStateForPassHandler() {
-    if (playbackStateManagerModule) return playbackStateManagerModule;
-    return null;
-}
-
 function setPassHandlerProcessing(active: boolean) {
     const next = active === true;
-    const playbackState = getPlaybackStateForPassHandler();
-    if (playbackState && typeof playbackState.setBusyState === 'function') {
-        playbackState.setBusyState({ processing: next });
-    } else if (playbackState && typeof playbackState.setProcessing === 'function') {
-        playbackState.setProcessing(next);
-    }
-    try { isProcessing = next; } catch (e) { /* ignore */ }
+    try {
+        if (passHandlerRuntime && typeof passHandlerRuntime.setProcessing === 'function') {
+            passHandlerRuntime.setProcessing(next);
+        }
+    } catch (e) { /* ignore */ }
     return next;
 }
 
@@ -174,6 +178,23 @@ function emitPassHandlerGameStateChange() {
     try {
         if (passHandlerRuntime && typeof passHandlerRuntime.emitGameStateChange === 'function') {
             return passHandlerRuntime.emitGameStateChange() === true;
+        }
+    } catch (e) { /* ignore */ }
+    return false;
+}
+
+function emitPassHandlerLog(message: any, kind?: string) {
+    try {
+        if (passHandlerRuntime && typeof passHandlerRuntime.emitLogAdded === 'function') {
+            if (typeof kind === 'undefined') passHandlerRuntime.emitLogAdded(message);
+            else passHandlerRuntime.emitLogAdded(message, kind);
+            return true;
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (PassHandlerControllerEvents && typeof PassHandlerControllerEvents.emitLogAdded === 'function') {
+            PassHandlerControllerEvents.emitLogAdded(message, kind);
+            return true;
         }
     } catch (e) { /* ignore */ }
     return false;
@@ -251,8 +272,6 @@ function scheduleWithDelay(delayMs: number, callback: () => void, immediateWitho
         callback();
         return;
     }
-    const tid = setTimeout(callback, safeDelay);
-    if (tid && typeof (tid as any).unref === 'function') (tid as any).unref();
 }
 
 const WHITE_CPU_TURN_RETRY_DELAY_MS = 32;
@@ -380,12 +399,9 @@ function isCpuControlledPlayer(playerKey: string) {
 }
 
 function publishNetworkSnapshot(meta: any) {
-    let client = networkMatchClientModule;
     try {
-        if (!client) return;
-        if (typeof client.publishSnapshot !== 'function') return;
-        if (typeof client.isActive === 'function' && !client.isActive()) return;
-        client.publishSnapshot(meta || {});
+        if (!passHandlerRuntime || typeof passHandlerRuntime.publishSnapshot !== 'function') return;
+        passHandlerRuntime.publishSnapshot(meta || {});
     } catch (e) { /* ignore */ }
 }
 
@@ -480,7 +496,7 @@ function finalizeNoActionTerminal() {
     if (gameState && (typeof gameState.consecutivePasses !== 'number' || gameState.consecutivePasses < 2)) {
         gameState.consecutivePasses = 2;
     }
-    if (typeof showResult === 'function') showResult();
+    showPassHandlerResultIfAvailable();
     setPassHandlerProcessing(false);
     return true;
 }
@@ -601,7 +617,7 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishActio
     const safeLastPlayerKey = normalizePlayerKey(lastPlayerKey, 'black');
 
     if (typeof isGameOver === 'function' && isGameOver(gameState)) {
-        if (typeof showResult === 'function') showResult();
+        showPassHandlerResultIfAvailable();
         setPassHandlerProcessing(false);
         publishPassSnapshot(safeLastPlayerKey, publishAction);
         return true;
@@ -626,7 +642,7 @@ async function legacyFinalizePassTurnHandoff(lastPlayerKey: string, publishActio
     const humanMode = isHumanVsHumanModeEnabled();
     if (!nextMoves.length && !nextHasCard) {
         if (typeof isGameOver === 'function' && isGameOver(gameState)) {
-            if (typeof showResult === 'function') showResult();
+            showPassHandlerResultIfAvailable();
             setPassHandlerProcessing(false);
             publishPassSnapshot(safeLastPlayerKey, publishAction);
             return true;
@@ -713,7 +729,7 @@ async function finalizePassTurnHandoff(lastPlayerKey: string, publishAction: any
 async function handleDoublePlaceNoSecondMove(move: any, passedPlayer: any) {
     const playerName = getPlayerName(passedPlayer);
     scheduleWithDelay(DOUBLE_PLACE_PASS_DELAY_MS, async () => {
-        if (typeof emitLogAdded === 'function') emitLogAdded(`${playerName}: 追加配置の続きが無いため終了`);
+        emitPassHandlerLog(`${playerName}: 追加配置の続きが無いため終了`);
         const playerKey = normalizePlayerKey(passedPlayer, 'black');
 
         const result = applyPassViaPipeline(playerKey);
@@ -730,7 +746,7 @@ async function handleBlackPassWhenNoMoves() {
     const safeBlackPassDelay = (typeof BLACK_PASS_DELAY_MS !== 'undefined') ? BLACK_PASS_DELAY_MS : 1000;
     const safeBlackName = (typeof BLACK !== 'undefined' && typeof getPlayerName === 'function') ? getPlayerName(BLACK) : '黒';
     scheduleWithDelay(safeBlackPassDelay, async () => {
-        if (typeof emitLogAdded === 'function') emitLogAdded(`${safeBlackName}: パス (置ける場所がありません)`);
+        emitPassHandlerLog(`${safeBlackName}: パス (置ける場所がありません)`);
         const passedPlayer = gameState.currentPlayer;
         const playerKey = normalizePlayerKey(passedPlayer, 'black');
 
@@ -747,7 +763,7 @@ async function handleBlackPassWhenNoMoves() {
 async function processPassTurn(playerKey: string, autoMode?: boolean) {
     const normalizedRequestPlayerKey = normalizePlayerKey(playerKey, 'black');
     const selfName = normalizedRequestPlayerKey === 'white' ? '白' : '黒';
-    if (typeof emitLogAdded === 'function') emitLogAdded(`${selfName}: パス${autoMode ? ' (AUTO)' : ''}`);
+    emitPassHandlerLog(`${selfName}: パス${autoMode ? ' (AUTO)' : ''}`);
     const passedPlayer = gameState.currentPlayer;
     const passedPlayerKey = normalizePlayerKey(passedPlayer, normalizedRequestPlayerKey);
 
@@ -768,7 +784,5 @@ export = {
     hasUsableCardFor,
     ensureCurrentPlayerCanActOrPass,
     setPassHandlerTimerService,
-    setPassHandlerRuntime,
-    setPlaybackStateManager,
-    setNetworkMatchClient
+    setPassHandlerRuntime
 };

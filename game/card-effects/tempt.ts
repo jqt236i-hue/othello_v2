@@ -10,7 +10,21 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 
 const PendingSelectionFlow = _require('./selection-flow');
-declare const emitLogAdded: any;
+const ControllerEvents = _require('../controller-events');
+const LOG_MESSAGES = _require('../log-messages');
+const GameControllerSlim = _require('../game-controller-slim');
+
+function emitTemptLog(message: string): void {
+    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
+        ControllerEvents.emitLogAdded(message);
+    }
+}
+
+function posToNotation(row: number, col: number): string {
+    return GameControllerSlim && typeof GameControllerSlim.posToNotation === 'function'
+        ? GameControllerSlim.posToNotation(row, col)
+        : `${row},${col}`;
+}
 
 function wasSelectionApplied(result: any, rawEventType: string): boolean {
     const selected = result && Array.isArray(result.rawEvents)
@@ -31,8 +45,7 @@ async function handleTemptSelection(row: number, col: number, playerKey: string)
         validateResult: ({ result }: any) => wasSelectionApplied(result, 'tempt_selected'),
         buildPlaybackMeta: () => ({ cause: 'TEMPT_WILL', target: { row, col } }),
         afterStateChange: () => {
-            if (typeof emitLogAdded !== 'function') return;
-            emitLogAdded(LOG_MESSAGES.temptApplied(playerKey === 'black' ? '黒' : '白', posToNotation(row, col)));
+            emitTemptLog(LOG_MESSAGES.temptApplied(playerKey === 'black' ? '黒' : '白', posToNotation(row, col)));
         }
     });
 }

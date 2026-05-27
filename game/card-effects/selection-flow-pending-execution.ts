@@ -5,6 +5,8 @@ interface SelectionPendingExecutionDeps {
     getPendingCoordinator: () => any;
     shouldAllowSelectionEntryDuringPlayback: (playerKey: any, pendingType: any) => boolean;
     readSelectionBusyState: () => { processing: boolean; cardAnimating: boolean };
+    beginSelectionSettlementLock: (meta: any) => any;
+    endSelectionSettlementLock: (token: any) => boolean;
     clearSelectionEntryDuringPlayback: () => any;
     setSelectionProcessing: (nextValue: any) => any;
     setSelectionCardAnimating: (nextValue: any) => any;
@@ -135,8 +137,8 @@ async function executePendingSelection(options: any, deps: SelectionPendingExecu
     const allowSelectionEntryDuringPlayback = deps.shouldAllowSelectionEntryDuringPlayback(playerKey, resolvedPendingType);
     const busyState = deps.readSelectionBusyState();
     if (
-        busyState.processing === true
-        || (busyState.cardAnimating === true && allowSelectionEntryDuringPlayback !== true)
+        allowSelectionEntryDuringPlayback !== true
+        && (busyState.processing === true || busyState.cardAnimating === true)
     ) {
         return { ok: false, reason: 'busy' };
     }
@@ -144,6 +146,12 @@ async function executePendingSelection(options: any, deps: SelectionPendingExecu
     if (allowSelectionEntryDuringPlayback === true) {
         deps.clearSelectionEntryDuringPlayback();
     }
+    const selectionSettlementLockToken = deps.beginSelectionSettlementLock({
+        playerKey,
+        pendingType: resolvedPendingType,
+        actionType,
+        source: 'selection_flow_pending_execution'
+    });
     const ownsSelectionCardAnimating = allowSelectionEntryDuringPlayback !== true;
     deps.setSelectionProcessing(true);
     if (ownsSelectionCardAnimating) {
@@ -485,6 +493,7 @@ async function executePendingSelection(options: any, deps: SelectionPendingExecu
             playbackEvents
         };
     } finally {
+        deps.endSelectionSettlementLock(selectionSettlementLockToken);
         if (shouldFinalize) {
             try {
                 const finalizeOptions = Object.assign({
@@ -498,14 +507,12 @@ async function executePendingSelection(options: any, deps: SelectionPendingExecu
                     onHumanTurnReady: opts.defaultSelectionHandoffRender,
                     ensureCurrentPlayerCanActOrPass: deps.resolveRootFunction('ensureCurrentPlayerCanActOrPass'),
                     skipNetworkPublish: skipFinalizeNetworkPublish,
-                    clearCardAnimatingOnFinish: ownsSelectionCardAnimating
+                    clearCardAnimatingOnFinish: true
                 }, (opts.finalizeOptions && typeof opts.finalizeOptions === 'object') ? opts.finalizeOptions : {});
                 await deps.finalizePendingSelectionFlow(finalizeOptions);
             } catch (e) {
                 deps.setSelectionProcessing(false);
-                if (ownsSelectionCardAnimating) {
-                    deps.setSelectionCardAnimating(false);
-                }
+                deps.setSelectionCardAnimating(false);
                 const ensureFn = deps.resolveRootFunction('ensureCurrentPlayerCanActOrPass');
                 if (typeof ensureFn === 'function') {
                     try { ensureFn({ useBlackDelay: true }); } catch (ignore) { /* ignore */ }
@@ -520,9 +527,7 @@ async function executePendingSelection(options: any, deps: SelectionPendingExecu
                 pendingAction = null;
             }
             deps.setSelectionProcessing(false);
-            if (ownsSelectionCardAnimating) {
-                deps.setSelectionCardAnimating(false);
-            }
+            deps.setSelectionCardAnimating(false);
         }
     }
 }
