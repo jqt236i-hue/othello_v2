@@ -14,7 +14,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 const LOG_MESSAGES = _require('../log-messages');
-const ControllerEvents = _require('../controller-events');
+const SpecialEffectsPresentationBridge = _require('./presentation-bridge');
 
 let BoardOpsModule: any = null;
 try { BoardOpsModule = (typeof require === 'function') ? require('../logic/board_ops') : (typeof BoardOps !== 'undefined' ? BoardOps : null); } catch (e) { BoardOpsModule = BoardOpsModule || null; }
@@ -39,82 +39,47 @@ try {
     } catch (_e) { /* ignore */ }
 }
 
-let __uiImpl_hyperactive: any = {};
-function setUIImpl(obj: any) { __uiImpl_hyperactive = obj || {}; }
+function setUIImpl(obj: any) { SpecialEffectsPresentationBridge.setUIImpl('hyperactive', obj); }
 
 function emitHyperactiveLog(message: any): void {
-    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.emitLogAdded === 'function') {
-        __uiImpl_hyperactive.emitLogAdded(message, 'effect');
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
-        ControllerEvents.emitLogAdded(message, 'effect');
-    }
+    SpecialEffectsPresentationBridge.emitLogAdded('hyperactive', message, 'effect');
 }
 
 function emitHyperactiveBoardUpdate(): void {
-    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.emitBoardUpdate === 'function') {
-        __uiImpl_hyperactive.emitBoardUpdate();
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitBoardUpdate === 'function') ControllerEvents.emitBoardUpdate();
+    SpecialEffectsPresentationBridge.emitBoardUpdate('hyperactive');
 }
 
 function emitHyperactiveGameStateChange(): void {
-    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.emitGameStateChange === 'function') {
-        __uiImpl_hyperactive.emitGameStateChange();
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitGameStateChange === 'function') ControllerEvents.emitGameStateChange();
+    SpecialEffectsPresentationBridge.emitGameStateChange('hyperactive');
 }
 
 function emitHyperactiveCardStateChange(): void {
-    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.emitCardStateChange === 'function') {
-        __uiImpl_hyperactive.emitCardStateChange();
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitCardStateChange === 'function') ControllerEvents.emitCardStateChange();
+    SpecialEffectsPresentationBridge.emitCardStateChange('hyperactive');
 }
 
 function hasPlaybackEngineForHyperactive(): boolean {
-    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.hasPlaybackEngine === 'function') {
-        return __uiImpl_hyperactive.hasPlaybackEngine() === true;
-    }
-    return false;
+    return SpecialEffectsPresentationBridge.hasPlaybackEngine('hyperactive');
 }
 
 async function animateHyperactiveFadeOut(row: number, col: number, options?: any): Promise<any> {
-    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.animateFadeOutAt === 'function') {
-        return __uiImpl_hyperactive.animateFadeOutAt(row, col, options);
-    }
-    return undefined;
+    return SpecialEffectsPresentationBridge.animateFadeOutAt('hyperactive', row, col, options);
 }
 
-async function animateHyperactiveMove(from: any, to: any): Promise<any> {
-    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.animateHyperactiveMove === 'function') {
-        return __uiImpl_hyperactive.animateHyperactiveMove(from, to);
-    }
-    return undefined;
+async function runHyperactiveMoveVisual(from: any, to: any): Promise<any> {
+    return SpecialEffectsPresentationBridge.animateHyperactiveMove('hyperactive', from, to);
 }
 
-async function animateHyperactiveMoveChain(moves: any[]): Promise<any> {
-    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.animateHyperactiveMoveChain === 'function') {
-        return __uiImpl_hyperactive.animateHyperactiveMoveChain(moves);
-    }
-    return undefined;
+async function runHyperactiveMoveChainVisual(moves: any[]): Promise<any> {
+    return SpecialEffectsPresentationBridge.animateHyperactiveMoveChain('hyperactive', moves);
 }
 
 function setHyperactiveDiscColorAt(row: number, col: number, color: number): any {
-    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.setDiscColorAt === 'function') {
-        return __uiImpl_hyperactive.setDiscColorAt(row, col, color);
-    }
-    return undefined;
+    return SpecialEffectsPresentationBridge.setDiscColorAt('hyperactive', row, col, color);
 }
 
 function getAnimationTimingForHyperactive(key: string): any {
-    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.getAnimationTiming === 'function') {
-        return __uiImpl_hyperactive.getAnimationTiming(key);
-    }
+    const injected = SpecialEffectsPresentationBridge.getAnimationTiming('hyperactive', key);
+    if (typeof injected !== 'undefined') return injected;
     if (typeof require === 'function') {
         try {
             const { getAnimationTiming } = require('../../constants/animation-constants');
@@ -125,37 +90,15 @@ function getAnimationTimingForHyperactive(key: string): any {
 }
 
 function waitHyperactiveMs(ms: number): Promise<any> {
-    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.waitMs === 'function') {
-        return __uiImpl_hyperactive.waitMs(ms);
-    }
-    let timers: any = null;
-    if (typeof require === 'function') {
-        try { timers = require('../timers'); } catch (e) { /* ignore */ }
-    }
-    return timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve();
+    return SpecialEffectsPresentationBridge.waitMs('hyperactive', ms);
 }
 
 function requestHyperactiveFrame(): Promise<any> {
-    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.requestFrame === 'function') {
-        return __uiImpl_hyperactive.requestFrame();
-    }
-    let timers: any = null;
-    if (typeof require === 'function') {
-        try { timers = require('../timers'); } catch (e) { /* ignore */ }
-    }
-    return timers && typeof timers.requestFrame === 'function' ? timers.requestFrame() : Promise.resolve();
+    return SpecialEffectsPresentationBridge.requestFrame('hyperactive');
 }
 
 function emitPresentationEventViaBoardOps(ev: any) {
-    if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.emitPresentationEvent === 'function') {
-        return __uiImpl_hyperactive.emitPresentationEvent(ev);
-    }
-    try {
-        const pres = (typeof require === 'function') ? require('../logic/presentation') : null;
-        if (pres && typeof pres.emitPresentationEvent === 'function') return pres.emitPresentationEvent(cardState, ev);
-    } catch (e) { /* ignore */ }
-    try { console.warn('[hyperactive] Presentation helper not available'); } catch (e) { }
-    return false;
+    return SpecialEffectsPresentationBridge.emitPresentationEvent('hyperactive', cardState, ev);
 }
 
 function resolveHyperactiveTurnStartDeps() {
@@ -303,11 +246,11 @@ async function processHyperactiveMovesAtTurnStart(player: number, precomputedRes
     const allMoved = (result.moved || [])
         .concat(result.ultimateMoved || []);
     if (allMoved.length > 0) {
-        if (__uiImpl_hyperactive && typeof __uiImpl_hyperactive.animateHyperactiveMoveChain === 'function') {
-            await animateHyperactiveMoveChain(allMoved);
+        if (typeof SpecialEffectsPresentationBridge.readFunction('hyperactive', 'animateHyperactiveMoveChain') === 'function') {
+            await runHyperactiveMoveChainVisual(allMoved);
         } else {
             for (const m of allMoved) {
-                await animateHyperactiveMove(m.from, m.to);
+                await runHyperactiveMoveVisual(m.from, m.to);
             }
         }
     }
@@ -427,7 +370,7 @@ async function processHyperactiveImmediateAtPlacement(player: number, row: numbe
     }
     if (result.moved.length > 0) {
         for (const m of result.moved) {
-            await animateHyperactiveMove(m.from, m.to);
+            await runHyperactiveMoveVisual(m.from, m.to);
         }
     }
     emitHyperactiveBoardUpdate();

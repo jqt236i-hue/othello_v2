@@ -27,14 +27,7 @@ const PASS_HANDLER_VERSION = '2.0'; // TurnPipeline-only version
 let passHandlerTimerService: any = null;
 function setPassHandlerTimerService(service: any) { passHandlerTimerService = service; }
 function getPassHandlerTimerService() {
-    if (passHandlerTimerService) return passHandlerTimerService;
-    try {
-        const { createTimerService } = require('./timer-service');
-        passHandlerTimerService = createTimerService('browser');
-        return passHandlerTimerService;
-    } catch (e) {
-        return null;
-    }
+    return passHandlerTimerService || null;
 }
 
 // Timers abstraction (injected by UI)

@@ -87,6 +87,36 @@ describe('LOSS_WILL（意志の喪失）', () => {
     expect((cardState.markers || []).filter((m) => m && m.kind === 'specialStone' && m.data && m.data.category === 'bomb')).toHaveLength(0);
   });
 
+  test('use card: 石状態・罠・盤面マーカーは解除されない', () => {
+    const { cardState, gameState } = makeState();
+    cardState.hands.black = ['loss_will_01'];
+    cardState.charge.black = LOSS_WILL_COST;
+
+    gameState.board[1][1] = 1;
+    gameState.board[1][2] = 1;
+    gameState.board[1][3] = -1;
+    gameState.board[1][4] = 1;
+
+    cardState.markers = [
+      { id: 11, row: 1, col: 1, kind: 'specialStone', owner: 'black', createdSeq: 11, data: { type: 'WORK', remainingOwnerTurns: 4 } },
+      { id: 12, row: 1, col: 2, kind: 'specialStone', owner: 'black', createdSeq: 12, data: { type: 'GUARD', remainingOwnerTurns: 3 } },
+      { id: 13, row: 1, col: 3, kind: 'specialStone', owner: 'white', createdSeq: 13, data: { type: 'TRAP', hidden: true } },
+      { id: 14, row: 1, col: 4, kind: 'specialStone', owner: 'black', createdSeq: 14, data: { type: 'BLOCKADE', remainingOwnerTurns: 2 } },
+      { id: 15, row: 1, col: 4, kind: 'specialStone', owner: 'black', createdSeq: 15, data: { type: 'TIME_BOMB', category: 'bomb', remainingTurns: 2 } }
+    ];
+    cardState._nextMarkerId = 16;
+    cardState._nextCreatedSeq = 16;
+
+    const res = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'use_card', useCardId: 'loss_will_01' }, { shuffle: () => {}, random: () => 0.5 });
+
+    expect(res.events.some((e) => e && e.type === 'loss_will_resolved' && e.removedCount === 2)).toBe(true);
+    expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'WORK')).toBe(false);
+    expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'TIME_BOMB')).toBe(false);
+    expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'GUARD')).toBe(true);
+    expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'TRAP')).toBe(true);
+    expect((cardState.markers || []).some((m) => m && m.data && m.data.type === 'BLOCKADE')).toBe(true);
+  });
+
   test('特殊石も爆弾もない場合は使用できない', () => {
     const { cardState, gameState } = makeState();
     cardState.hands.black = ['loss_will_01'];

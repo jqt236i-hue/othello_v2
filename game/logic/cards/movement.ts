@@ -30,6 +30,10 @@ const RandomSourceModule = ((typeof module === 'object' && module.exports)
     ? safeRequire('../cards-internal/random-source')
     : null) || (typeof self !== 'undefined' ? (self as any).CardRandomSource : null);
 
+const SelectorsCoreUtils = ((typeof module === 'object' && module.exports)
+    ? safeRequire('./selectors-core-utils')
+    : null) || (typeof self !== 'undefined' ? (self as any).CardSelectorsCoreUtils : null);
+
 const EMPTY = Number.isFinite(Number(SharedConstants && SharedConstants.EMPTY))
     ? Number(SharedConstants.EMPTY)
     : 0;
@@ -74,22 +78,26 @@ interface MovePlan {
     destroyed: Array<{row: number; col: number}>;
     direction: number[];
     movedDistance: number;
+    pathCells?: Array<{row: number; col: number}>;
+    segments?: Array<{
+        from: { row: number; col: number };
+        to: { row: number; col: number };
+        dr: number;
+        dc: number;
+        length: number;
+    }>;
+    waypoints?: Array<{row: number; col: number}>;
+    selectedPathVariant?: 'single_segment' | 'diagonal_first' | 'axis_first';
 }
 
-function normalizeLineDirection(fromRow: number, fromCol: number, toRow: number, toCol: number): number[] | null {
-    const rowDelta = toRow - fromRow;
-    const colDelta = toCol - fromCol;
-    if (rowDelta === 0 && colDelta === 0)
-        return null;
-    const absRow = Math.abs(rowDelta);
-    const absCol = Math.abs(colDelta);
-    if (rowDelta !== 0 && colDelta !== 0 && absRow !== absCol)
-        return null;
-    if (rowDelta !== 0 && colDelta !== 0)
-        return [rowDelta > 0 ? 1 : -1, colDelta > 0 ? 1 : -1];
-    if (rowDelta !== 0)
-        return [rowDelta > 0 ? 1 : -1, 0];
-    return [0, colDelta > 0 ? 1 : -1];
+function getSuperAttractionPathCandidates(fromRow: number, fromCol: number, toRow: number, toCol: number): any[] {
+    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.getSuperAttractionPathCandidates === 'function') {
+        return SelectorsCoreUtils.getSuperAttractionPathCandidates(
+            { row: fromRow, col: fromCol },
+            { row: toRow, col: toCol }
+        );
+    }
+    return [];
 }
 
 function collectVerticalCrushMovePlan(cardState: any, gameState: GameState, row: number, col: number, dr: number, deps: any): MovePlan | null {
@@ -136,50 +144,84 @@ function collectVerticalCrushMovePlan(cardState: any, gameState: GameState, row:
     };
 }
 
-function collectLineCrushMovePlanToTarget(cardState: any, gameState: GameState, row: number, col: number, targetRow: number, targetCol: number, deps: any): MovePlan | null {
-    if (!Number.isInteger(row) || !Number.isInteger(col) || !Number.isInteger(targetRow) || !Number.isInteger(targetCol))
-        return null;
-    const direction = normalizeLineDirection(row, col, targetRow, targetCol);
-    if (!direction)
-        return null;
+function isSuperAttractionCandidateLegal(cardState: any, gameState: GameState, candidate: any, deps: any): boolean {
     const hasBoardShapeCellForCard = deps.hasBoardShapeCellForCard || (() => false);
     const isBlockedCell = deps.isBlockedCell || (() => false);
     const getCellValueForCard = deps.getCellValueForCard || (() => null);
     const findSpecialMarkerAt = deps.findSpecialMarkerAt || (() => null);
-    if (!hasBoardShapeCellForCard(cardState, gameState, targetRow, targetCol))
-        return null;
-    const destroyed: Array<{row: number; col: number}> = [];
-    const [dr, dc] = direction;
-    let currentRow = row + dr;
-    let currentCol = col + dc;
-    while (hasBoardShapeCellForCard(cardState, gameState, currentRow, currentCol)) {
-        if (isBlockedCell(cardState, currentRow, currentCol, gameState))
-            return null;
-        const cellValue = getCellValueForCard(gameState, currentRow, currentCol);
-        if (cellValue !== EMPTY) {
-            if (findSpecialMarkerAt(cardState, currentRow, currentCol, 'GUARD'))
-                return null;
-            const isDestination = currentRow === targetRow && currentCol === targetCol;
-            if (isDestination && findSpecialMarkerAt(cardState, currentRow, currentCol, 'GHOST'))
-                return null;
-            destroyed.push({ row: currentRow, col: currentCol });
-        }
-        if (currentRow === targetRow && currentCol === targetCol) {
-            const movedDistance = Math.abs(targetRow - row) + Math.abs(targetCol - col);
-            if (movedDistance <= 0)
-                return null;
-            return {
-                from: { row, col },
-                to: { row: targetRow, col: targetCol },
-                destroyed,
-                direction,
-                movedDistance
-            };
-        }
-        currentRow += dr;
-        currentCol += dc;
+    const pathCells = Array.isArray(candidate && candidate.pathCells) ? candidate.pathCells : [];
+    if (pathCells.length <= 0)
+        return false;
+
+    for (let index = 0; index < pathCells.length; index += 1) {
+        const point = pathCells[index];
+        if (!point || !hasBoardShapeCellForCard(cardState, gameState, point.row, point.col))
+            return false;
+        if (isBlockedCell(cardState, point.row, point.col, gameState))
+            return false;
+        const cellValue = getCellValueForCard(gameState, point.row, point.col);
+        if (cellValue !== EMPTY && findSpecialMarkerAt(cardState, point.row, point.col, 'GUARD'))
+            return false;
+        if (index === pathCells.length - 1 && cellValue !== EMPTY && findSpecialMarkerAt(cardState, point.row, point.col, 'GHOST'))
+            return false;
     }
-    return null;
+    return true;
+}
+
+function collectSuperAttractionMovePlanToTarget(
+    cardState: any,
+    gameState: GameState,
+    row: number,
+    col: number,
+    targetRow: number,
+    targetCol: number,
+    prng: any,
+    deps: any
+): MovePlan | null {
+    if (!Number.isInteger(row) || !Number.isInteger(col) || !Number.isInteger(targetRow) || !Number.isInteger(targetCol))
+        return null;
+    const getCellValueForCard = deps.getCellValueForCard || (() => null);
+    const candidates = getSuperAttractionPathCandidates(row, col, targetRow, targetCol)
+        .filter((candidate: any) => isSuperAttractionCandidateLegal(cardState, gameState, candidate, deps));
+    if (candidates.length <= 0)
+        return null;
+
+    const selected = candidates.length > 1
+        ? candidates[Math.max(0, Math.min(candidates.length - 1, Math.floor(resolveRandomSource(prng).random() * candidates.length)))]
+        : candidates[0];
+    const pathCells: Array<{row: number; col: number}> = Array.isArray(selected && selected.pathCells)
+        ? selected.pathCells.map((point: any) => ({ row: point.row, col: point.col }))
+        : [];
+    if (pathCells.length <= 0)
+        return null;
+
+    const destroyed = pathCells
+        .filter((point) => getCellValueForCard(gameState, point.row, point.col) !== EMPTY)
+        .map((point) => ({ row: point.row, col: point.col }));
+    const to = pathCells[pathCells.length - 1];
+    return {
+        from: { row, col },
+        to: { row: to.row, col: to.col },
+        destroyed,
+        direction: Array.isArray(selected && selected.segments) && selected.segments[0]
+            ? [selected.segments[0].dr, selected.segments[0].dc]
+            : [0, 0],
+        movedDistance: Number(selected && selected.movedDistance) || pathCells.length,
+        pathCells,
+        segments: Array.isArray(selected && selected.segments)
+            ? selected.segments.map((segment: any) => ({
+                from: { row: segment.from.row, col: segment.from.col },
+                to: { row: segment.to.row, col: segment.to.col },
+                dr: segment.dr,
+                dc: segment.dc,
+                length: segment.length
+            }))
+            : [],
+        waypoints: Array.isArray(selected && selected.waypoints)
+            ? selected.waypoints.map((point: any) => ({ row: point.row, col: point.col }))
+            : [],
+        selectedPathVariant: selected && selected.variant ? selected.variant : 'single_segment'
+    };
 }
 
 function collectVerticalSlideMoveOption(cardState: any, gameState: GameState, row: number, col: number, dr: number, deps: any): MoveOption | null {
@@ -278,6 +320,16 @@ interface MovementResult {
     destroyed?: Array<{row: number; col: number}>;
     destroyedCount?: number;
     failedAt?: { row: number; col: number };
+    pathCells?: Array<{row: number; col: number}>;
+    segments?: Array<{
+        from: { row: number; col: number };
+        to: { row: number; col: number };
+        dr: number;
+        dc: number;
+        length: number;
+    }>;
+    waypoints?: Array<{row: number; col: number}>;
+    selectedPathVariant?: 'single_segment' | 'diagonal_first' | 'axis_first';
 }
 
 function applyStrongWindWill(cardState: any, gameState: GameState, playerKey: string, row: number, col: number, prng: any, deps: any = {}): MovementResult {
@@ -439,7 +491,7 @@ function applyVerticalCrushWill(cardState: any, gameState: GameState, playerKey:
     };
 }
 
-function applySuperAttractionWill(cardState: any, gameState: GameState, playerKey: string, row: number, col: number, deps: any = {}): MovementResult {
+function applySuperAttractionWill(cardState: any, gameState: GameState, playerKey: string, row: number, col: number, prng: any, deps: any = {}): MovementResult {
     const pendingType = 'SUPER_ATTRACTION_WILL';
     const cs = cardState as any;
     const pending = cs && cs.pendingEffectByPlayer ? cs.pendingEffectByPlayer[playerKey] : null;
@@ -480,7 +532,7 @@ function applySuperAttractionWill(cardState: any, gameState: GameState, playerKe
         return { applied: false, reason: 'source_out_of_board' };
     if (cellValue === EMPTY)
         return { applied: false, reason: 'source_empty' };
-    const plan = collectLineCrushMovePlanToTarget(cardState, gameState, first.row, first.col, row, col, deps);
+    const plan = collectSuperAttractionMovePlanToTarget(cardState, gameState, first.row, first.col, row, col, prng, deps);
     if (!plan)
         return { applied: false, reason: 'no_move_options' };
     const totalTravelDistance = Number(plan.movedDistance) || 1;
@@ -491,7 +543,7 @@ function applySuperAttractionWill(cardState: any, gameState: GameState, playerKe
             const target = plan.destroyed[index];
             if (!target)
                 continue;
-            const collisionDistance = Math.abs(target.row - first.row) + Math.abs(target.col - first.col);
+            const collisionDistance = Math.max(1, (plan.pathCells || []).findIndex((point) => point.row === target.row && point.col === target.col) + 1);
             const collisionProgress = Math.max(0, Math.min(1, collisionDistance / totalTravelDistance));
             if (typeof destroyAt === 'function') {
                 const result = destroyAt(cardState, gameState, target.row, target.col, pendingType, 'super_attraction_collision', {
@@ -521,7 +573,17 @@ function applySuperAttractionWill(cardState: any, gameState: GameState, playerKe
         if (typeof moveAt === 'function') {
             const result = moveAt(cardState, gameState, first.row, first.col, plan.to.row, plan.to.col, pendingType, 'super_attraction_move', {
                 collisionCount: destroyed.length,
-                travelDistance: totalTravelDistance
+                travelDistance: totalTravelDistance,
+                selectedPathVariant: plan.selectedPathVariant,
+                pathCells: Array.isArray(plan.pathCells) ? plan.pathCells.map((point) => ({ row: point.row, col: point.col })) : [],
+                segments: Array.isArray(plan.segments) ? plan.segments.map((segment) => ({
+                    from: { row: segment.from.row, col: segment.from.col },
+                    to: { row: segment.to.row, col: segment.to.col },
+                    dr: segment.dr,
+                    dc: segment.dc,
+                    length: segment.length
+                })) : [],
+                waypoints: Array.isArray(plan.waypoints) ? plan.waypoints.map((point) => ({ row: point.row, col: point.col })) : []
             });
             if (!result || !result.moved) {
                 blockFailure = { applied: false, reason: 'move_failed' };
@@ -558,7 +620,17 @@ function applySuperAttractionWill(cardState: any, gameState: GameState, playerKe
         destroyed,
         destroyedCount: destroyed.length,
         movedDistance: plan.movedDistance,
-        direction: plan.direction
+        direction: plan.direction,
+        pathCells: Array.isArray(plan.pathCells) ? plan.pathCells.map((point) => ({ row: point.row, col: point.col })) : [],
+        segments: Array.isArray(plan.segments) ? plan.segments.map((segment) => ({
+            from: { row: segment.from.row, col: segment.from.col },
+            to: { row: segment.to.row, col: segment.to.col },
+            dr: segment.dr,
+            dc: segment.dc,
+            length: segment.length
+        })) : [],
+        waypoints: Array.isArray(plan.waypoints) ? plan.waypoints.map((point) => ({ row: point.row, col: point.col })) : [],
+        selectedPathVariant: plan.selectedPathVariant
     };
 }
 

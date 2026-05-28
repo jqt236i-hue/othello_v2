@@ -7,6 +7,7 @@ describe('board cell long press info', () => {
     Object.defineProperty(ev, 'button', { value: p.button ?? 0 });
     Object.defineProperty(ev, 'clientX', { value: p.clientX ?? 0 });
     Object.defineProperty(ev, 'clientY', { value: p.clientY ?? 0 });
+    Object.defineProperty(ev, 'pointerType', { value: p.pointerType });
     target.dispatchEvent(ev);
   }
 
@@ -48,6 +49,95 @@ describe('board cell long press info', () => {
 
     expect(global.handleCellClick).toHaveBeenCalledTimes(1);
     expect(global.handleCellClick).toHaveBeenCalledWith(2, 3);
+  });
+
+  test('mouse hover shows stone info without clicking', () => {
+    global.gameState.board[4][2] = global.BLACK;
+
+    const mod = require('../ui/diff-renderer.js');
+    const cell = document.createElement('div');
+    document.getElementById('board').appendChild(cell);
+    mod.attachBoardCellInteraction(cell, 4, 2);
+
+    dispatchPointer(cell, 'pointerenter', { pointerType: 'mouse', clientX: 88, clientY: 92 });
+
+    const panel = document.getElementById('stone-info-panel');
+    expect(panel).not.toBeNull();
+    expect(panel.classList.contains('visible')).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
+    expect(global.handleCellClick).toHaveBeenCalledTimes(0);
+  });
+
+  test('mouse leave keeps hover stone info visible', () => {
+    global.gameState.board[4][2] = global.BLACK;
+
+    const mod = require('../ui/diff-renderer.js');
+    const cell = document.createElement('div');
+    document.getElementById('board').appendChild(cell);
+    mod.attachBoardCellInteraction(cell, 4, 2);
+
+    dispatchPointer(cell, 'pointerenter', { pointerType: 'mouse', clientX: 88, clientY: 92 });
+    const panel = document.getElementById('stone-info-panel');
+    expect(panel.classList.contains('visible')).toBe(true);
+
+    dispatchPointer(cell, 'pointerleave', { pointerType: 'mouse', clientX: 120, clientY: 132 });
+    expect(panel.classList.contains('visible')).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
+  });
+
+  test('touch tap shows stone info and keeps normal click behavior', () => {
+    global.gameState.board[4][2] = global.BLACK;
+
+    const mod = require('../ui/diff-renderer.js');
+    const cell = document.createElement('div');
+    document.getElementById('board').appendChild(cell);
+    mod.attachBoardCellInteraction(cell, 4, 2);
+
+    dispatchPointer(cell, 'pointerdown', { pointerType: 'touch', button: 0, clientX: 88, clientY: 92 });
+    jest.advanceTimersByTime(120);
+    dispatchPointer(cell, 'pointerup', { pointerType: 'touch', button: 0, clientX: 88, clientY: 92 });
+
+    const panel = document.getElementById('stone-info-panel');
+    expect(panel).not.toBeNull();
+    expect(panel.classList.contains('visible')).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
+    expect(global.handleCellClick).toHaveBeenCalledTimes(1);
+    expect(global.handleCellClick).toHaveBeenCalledWith(4, 2);
+  });
+
+  test('hover on empty cell keeps stone info panel hidden', () => {
+    const mod = require('../ui/diff-renderer.js');
+    const cell = document.createElement('div');
+    document.getElementById('board').appendChild(cell);
+    mod.attachBoardCellInteraction(cell, 0, 0);
+
+    dispatchPointer(cell, 'pointerenter', { pointerType: 'mouse', clientX: 20, clientY: 20 });
+
+    const panel = document.getElementById('stone-info-panel');
+    expect(panel).not.toBeNull();
+    expect(panel.classList.contains('visible')).toBe(false);
+  });
+
+  test('hover on empty cell after visible stone preserves previous stone info', () => {
+    global.gameState.board[4][2] = global.BLACK;
+
+    const mod = require('../ui/diff-renderer.js');
+    const board = document.getElementById('board');
+    const stoneCell = document.createElement('div');
+    const emptyCell = document.createElement('div');
+    board.appendChild(stoneCell);
+    board.appendChild(emptyCell);
+    mod.attachBoardCellInteraction(stoneCell, 4, 2);
+    mod.attachBoardCellInteraction(emptyCell, 0, 0);
+
+    dispatchPointer(stoneCell, 'pointerenter', { pointerType: 'mouse', clientX: 88, clientY: 92 });
+    const panel = document.getElementById('stone-info-panel');
+    expect(panel.classList.contains('visible')).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
+
+    dispatchPointer(emptyCell, 'pointerenter', { pointerType: 'mouse', clientX: 20, clientY: 20 });
+    expect(panel.classList.contains('visible')).toBe(true);
+    expect(document.getElementById('stone-info-name').textContent).toBe('黒石');
   });
 
   test('long press shows info and does not execute click action', () => {

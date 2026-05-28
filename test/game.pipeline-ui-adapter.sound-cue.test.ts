@@ -481,6 +481,28 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(cue.phase).toBe(8);
   });
 
+  test('遠距離 proliferation spawn も clone_spawn sound を move phase に合わせる', () => {
+    const base = [{
+      type: 'move',
+      phase: 9,
+      targets: [{ from: { r: 3, col: 3 }, to: { r: 1, col: 6 }, clone: true, cause: 'PROLIFERATION_WILL', reason: 'proliferation_spawn' }]
+    }];
+    const pres = [{
+      type: 'SPAWN',
+      row: 1,
+      col: 6,
+      ownerAfter: 'black',
+      cause: 'PROLIFERATION_WILL',
+      reason: 'proliferation_spawn'
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, [], pres);
+    const cue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'clone_spawn');
+
+    expect(cue).toBeTruthy();
+    expect(cue.phase).toBe(9);
+  });
+
   test('breeding spawn を保ちつつ Equality Will の各 spawn phase に breeding_spawn を重ねる', () => {
     const base = [
       {

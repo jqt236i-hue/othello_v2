@@ -719,25 +719,22 @@ function _getProliferationOwnerTurns(): number {
     return Number.isFinite(raw) ? Math.max(1, Math.trunc(raw)) : 10;
 }
 
-function _collectAdjacentEmptyCells(cardState: any, gameState: any, row: number, col: number): Array<{ row: number; col: number }> {
-    const out: Array<{ row: number; col: number }> = [];
-    for (let rowOffset = -1; rowOffset <= 1; rowOffset++) {
-        for (let colOffset = -1; colOffset <= 1; colOffset++) {
-            if (rowOffset === 0 && colOffset === 0) continue;
-            const pos = _normalizeCellPosition(row + rowOffset, col + colOffset);
-            if (!pos) continue;
-            if (pos.row === row && pos.col === col) continue;
-            if (out.some((entry) => entry.row === pos.row && entry.col === pos.col)) continue;
-            if (getCellValue(gameState, pos.row, pos.col) !== EMPTY) continue;
-            if (_isBlockedDestinationCell(cardState, pos.row, pos.col)) continue;
-            out.push(pos);
+function _findProliferationDestination(cardState: any, gameState: any, row: number, col: number, meta: any): { row: number; col: number } | null {
+    const allCandidates = _collectBoardShapeEmptyCells(cardState, gameState);
+    if (!allCandidates.length) return null;
+    let minDistance = Number.POSITIVE_INFINITY;
+    let candidates: Array<{ row: number; col: number }> = [];
+    for (const candidate of allCandidates) {
+        const distance = _getChebyshevDistance(row, col, candidate.row, candidate.col);
+        if (distance < minDistance) {
+            minDistance = distance;
+            candidates = [candidate];
+            continue;
+        }
+        if (distance === minDistance) {
+            candidates.push(candidate);
         }
     }
-    return out;
-}
-
-function _findProliferationDestination(cardState: any, gameState: any, row: number, col: number, meta: any): { row: number; col: number } | null {
-    const candidates = _collectAdjacentEmptyCells(cardState, gameState, row, col);
     if (!candidates.length) return null;
     const randomSource = _resolveBoardOpsRandomSource(cardState, meta);
     return candidates[_resolveRandomIndex(randomSource, candidates.length)] || candidates[0] || null;

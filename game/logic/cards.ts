@@ -1071,6 +1071,7 @@ const {
             ensureMarkers,
             getSpecialMarkers,
             getBombMarkers,
+            getMarkerRuleClass,
             isAbsoluteProtectedCell,
             ensureSalvationDestroyedLedger
         });
@@ -1956,6 +1957,22 @@ const {
         return requireCardMarkersMethod('getSpecialOwnerAt')(cardState, row, col);
     }
 
+    function getMarkerRuleClass(marker: any) {
+        return requireCardMarkersMethod('getMarkerRuleClass')(marker);
+    }
+
+    function getTrueSpecialStoneMarkerAt(cardState: any, row: any, col: any) {
+        return requireCardMarkersMethod('getTrueSpecialStoneMarkerAt')(cardState, row, col);
+    }
+
+    function isTrueSpecialStoneAt(cardState: any, row: any, col: any) {
+        return requireCardMarkersMethod('isTrueSpecialStoneAt')(cardState, row, col);
+    }
+
+    function getTrueSpecialStoneOwnerAt(cardState: any, row: any, col: any) {
+        return requireCardMarkersMethod('getTrueSpecialStoneOwnerAt')(cardState, row, col);
+    }
+
     function getTemptWillTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetAccessModule.getTemptWillTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
@@ -2036,12 +2053,12 @@ const {
         return CardTargetAccessModule.getHyperactiveInheritTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
 
-    // Return targets: only your own special stones that have a numeric remainingOwnerTurns > 0
+    // Return targets: own true special stones / stone statuses with remainingOwnerTurns > 0
     function getExtendLifeTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetAccessModule.getExtendLifeTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
 
-    // Return targets: all timed special stones that have a numeric remainingOwnerTurns > 0
+    // Return targets: all true special stones / stone statuses with remainingOwnerTurns > 0
     function getCorrosionTargets(cardState: any, gameState: any, playerKey: any) {
         return CardTargetAccessModule.getCorrosionTargets(cardState, gameState, playerKey, getCardTargetAccessDeps());
     }
@@ -2166,8 +2183,8 @@ const {
     function applyTemptWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return CardOwnershipEffectsModule.applyTemptWill(cardState, gameState, playerKey, row, col, {
             readCardPendingEffect,
-            isSpecialStoneAt,
-            getSpecialOwnerAt,
+            isTrueSpecialStoneAt,
+            getTrueSpecialStoneOwnerAt,
             getCellValueForCard,
             getSpecialMarkers,
             isAbsoluteProtectedCell,
@@ -2188,12 +2205,12 @@ const {
     function applyCaptureWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
         return CardOwnershipEffectsModule.applyCaptureWill(cardState, gameState, playerKey, row, col, {
             readCardPendingEffect,
-            isSpecialStoneAt,
-            getSpecialOwnerAt,
+            isTrueSpecialStoneAt,
+            getTrueSpecialStoneOwnerAt,
             getCellValueForCard,
             getSpecialMarkers,
             isAbsoluteProtectedCell,
-            getSpecialMarkerAt,
+            getTrueSpecialStoneMarkerAt,
             resolveCaptureSourceInfo,
             CardLivingWillModule,
             addCardToHand,
@@ -2628,8 +2645,8 @@ const {
         });
     }
 
-    function applySuperAttractionWill(cardState: any, gameState: any, playerKey: any, row: any, col: any) {
-        return CardMovementModule.applySuperAttractionWill(cardState, gameState, playerKey, row, col, {
+    function applySuperAttractionWill(cardState: any, gameState: any, playerKey: any, row: any, col: any, prng: any) {
+        return CardMovementModule.applySuperAttractionWill(cardState, gameState, playerKey, row, col, prng, {
             getSuperAttractionTargets,
             getCellValueForCard,
             hasBoardShapeCellForCard,

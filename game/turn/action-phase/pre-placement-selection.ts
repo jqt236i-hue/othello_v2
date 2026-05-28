@@ -183,7 +183,8 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
             opts.gameState,
             opts.playerKey,
             action.superAttractionTarget.row,
-            action.superAttractionTarget.col
+            action.superAttractionTarget.col,
+            p
         );
         opts.events.push({
             type: res && res.completed === false ? 'super_attraction_first_selected' : 'super_attraction_selected',
@@ -194,7 +195,11 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
             firstTarget: res && res.firstTarget ? res.firstTarget : null,
             from: res && res.from ? res.from : null,
             to: res && res.to ? res.to : null,
-            destroyed: res && Array.isArray(res.destroyed) ? res.destroyed.slice() : []
+            destroyed: res && Array.isArray(res.destroyed) ? res.destroyed.slice() : [],
+            selectedPathVariant: res && res.selectedPathVariant ? res.selectedPathVariant : null,
+            pathCells: res && Array.isArray(res.pathCells) ? res.pathCells.slice() : [],
+            segments: res && Array.isArray(res.segments) ? res.segments.slice() : [],
+            waypoints: res && Array.isArray(res.waypoints) ? res.waypoints.slice() : []
         });
         opts.applyTrapEffectsAfterSelection();
         return true;

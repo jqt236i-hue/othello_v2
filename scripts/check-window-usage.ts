@@ -7,12 +7,30 @@ declare const __non_webpack_require__: NodeRequire | undefined;
 const root = path.resolve(__dirname, '..', '..');
 
 type Violation = { file: string; line: number; label: string };
+type PatternViolation = { pattern: RegExp; label: string };
+
+const specialEffectsBannedIdentifiers = new Set([
+    'animateFadeOutAt',
+    'animateDestroyAt',
+    'animateHyperactiveMove',
+    'animateHyperactiveMoveChain',
+    'setDiscColorAt',
+    'removeBombOverlayAt',
+    'removeRegenOverlayAt',
+    'emitBoardUpdate',
+    'emitGameStateChange',
+    'emitCardStateChange',
+    'waitMs',
+    'requestFrame'
+]);
 
 function shouldCheck(filePath: string): boolean {
     const allowedTargets = [
         'game/',
         'shared/',
+        'constants/',
         'src/',
+        'utils/owner-helpers.ts',
         'card-system.js',
         'shared-constants.js',
         'sound-engine.js',
@@ -22,7 +40,21 @@ function shouldCheck(filePath: string): boolean {
 }
 
 function shouldEnforceGlobalThis(filePath: string): boolean {
-    return filePath.indexOf('game/') === 0;
+    return filePath.indexOf('game/') === 0
+        || filePath === 'utils/owner-helpers.ts';
+}
+
+function shouldEnforceDomlessConstants(filePath: string): boolean {
+    return filePath.indexOf('constants/') === 0;
+}
+
+function shouldEnforcePureOwnerHelpers(filePath: string): boolean {
+    return filePath === 'utils/owner-helpers.ts';
+}
+
+function shouldEnforceSpecialEffectsBridge(filePath: string): boolean {
+    return filePath.indexOf('game/special-effects/') === 0
+        && filePath !== 'game/special-effects/presentation-bridge.ts';
 }
 
 function isGeneratedOrMirror(filePath: string): boolean {
@@ -104,6 +136,35 @@ function readStaticElementAccessKey(node: ts.Node): string | null {
     return null;
 }
 
+function isAllowedSpecialEffectsBridgeIdentifier(node: ts.Identifier): boolean {
+    const parent = node.parent;
+    if (!(ts.isPropertyAccessExpression(parent) || ts.isPropertyAccessChain(parent))) return false;
+    if (parent.name !== node) return false;
+    const base = unwrapExpressionBase(parent.expression);
+    return ts.isIdentifier(base) && base.text === 'SpecialEffectsPresentationBridge';
+}
+
+function collectPatternViolations(filePath: string): PatternViolation[] {
+    const violations: PatternViolation[] = [];
+    if (shouldEnforceDomlessConstants(filePath)) {
+        violations.push({ pattern: /\bHTMLElement\b/g, label: 'HTMLElement' });
+    }
+    if (shouldEnforcePureOwnerHelpers(filePath)) {
+        violations.push({ pattern: /\bwindow\b/g, label: 'window' });
+        violations.push({ pattern: /\bdocument\b/g, label: 'document' });
+    }
+    if (shouldEnforceSpecialEffectsBridge(filePath)) {
+        violations.push({ pattern: /\bControllerEvents\b/g, label: 'special-effects ControllerEvents' });
+        violations.push({ pattern: /(?:^|[^\w.])(?:_require|require)\('\.\.\/timers'\)/g, label: "special-effects require('../timers')" });
+        violations.push({ pattern: /\b__uiImpl_[A-Za-z0-9_]*\b/g, label: 'special-effects __uiImpl' });
+    }
+    if (filePath.indexOf('game/') === 0 && filePath !== 'game/timer-service.ts') {
+        violations.push({ pattern: /(?:^|[^\w.])(?:_require|require)\('\.\/timer-service'\)/g, label: "require('./timer-service')" });
+        violations.push({ pattern: /\bcreateTimerService\s*\(\s*['"]browser['"]\s*\)/g, label: "createTimerService('browser')" });
+    }
+    return violations;
+}
+
 const files = walk(root)
     .map((absolutePath) => path.relative(root, absolutePath).replace(/\\/g, '/'))
     .filter((relativePath) => isSourceOfTruthFile(relativePath));
@@ -115,6 +176,7 @@ for (const f of files) {
     try { content = fs.readFileSync(absolutePath, 'utf8'); } catch (e) { continue; }
     const scriptKind = f.endsWith('.ts') ? ts.ScriptKind.TS : ts.ScriptKind.JS;
     const sourceFile = ts.createSourceFile(f, content, ts.ScriptTarget.Latest, true, scriptKind);
+    const patternViolations = collectPatternViolations(f);
 
     const visit = (node: ts.Node): void => {
         const propertyBase = collectPropertyAccessBase(node);
@@ -153,6 +215,21 @@ for (const f of files) {
         ) {
             violations.push({ file: f, line: toLine(sourceFile, node), label: 'root NetworkMatchClient' });
         }
+        if (ts.isIdentifier(node)) {
+            if (shouldEnforceDomlessConstants(f) && node.text === 'HTMLElement') {
+                violations.push({ file: f, line: toLine(sourceFile, node), label: 'HTMLElement' });
+            }
+            if (shouldEnforcePureOwnerHelpers(f) && (node.text === 'window' || node.text === 'document')) {
+                violations.push({ file: f, line: toLine(sourceFile, node), label: node.text });
+            }
+            if (shouldEnforceSpecialEffectsBridge(f)) {
+                if (node.text === 'ControllerEvents' || /^__uiImpl_[A-Za-z0-9_]*$/.test(node.text)) {
+                    violations.push({ file: f, line: toLine(sourceFile, node), label: `special-effects ${node.text}` });
+                } else if (specialEffectsBannedIdentifiers.has(node.text) && !isAllowedSpecialEffectsBridgeIdentifier(node)) {
+                    violations.push({ file: f, line: toLine(sourceFile, node), label: `special-effects ${node.text}` });
+                }
+            }
+        }
         if (ts.isCallExpression(node)
             && ts.isIdentifier(node.expression)
             && node.expression.text === 'require'
@@ -169,6 +246,15 @@ for (const f of files) {
     };
 
     visit(sourceFile);
+
+    for (const patternViolation of patternViolations) {
+        patternViolation.pattern.lastIndex = 0;
+        let match: RegExpExecArray | null = null;
+        while ((match = patternViolation.pattern.exec(content)) !== null) {
+            const line = sourceFile.getLineAndCharacterOfPosition(match.index).line + 1;
+            violations.push({ file: f, line, label: patternViolation.label });
+        }
+    }
 }
 
 if (globalThisRefs.length > 0) {

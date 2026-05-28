@@ -76,6 +76,16 @@ othello_v2/
 - `owner` / `player` / color forms are normalized at boundaries; do not mix internal representations.
 - Generated catalogs and manifests come from scripts, not hand edits.
 
+## AUTHORITY / PRESENTATION CONTRACT
+
+- Game decides canonical results; UI presents those results.
+- `game/`, CPU logic, pure card logic, and `shared/` may compute canonical state, validate actions, emit `events[]`, and return presentation metadata. They must not directly call browser UI, DOM, sound, animation, network clients, or global UI handlers.
+- `ui/` may consume public game APIs, canonical state, snapshots, injected hooks, and `events[]` to render board state, play animation/sound, collect input, and publish network actions through UI/network bridges.
+- Presentation and settlement state such as preview, animation locks, busy flags, playback locks, hover/highlight state, and sound state must not become canonical gameplay authority.
+- Violations include `game/` or `shared/` discovering `NetworkMatchClient`, reading `window` / `document` / `globalThis` UI state directly, invoking UI handler names, deciding results from animation/sound/playback state, or using normal-play debug side effects as control flow.
+- Valid bridges are explicit DI hooks, public game APIs, canonical snapshots, and ordered `events[]`. If a new bridge is needed, add it at the boundary layer and keep the core logic headless.
+- When auditing this contract, start with `npm run check:window` and a focused search such as `rg -n "window\\.|document\\.|globalThis\\.|self\\.|NetworkMatchClient" game shared --glob "*.ts"`.
+
 ## WORK RULES
 
 - Before editing, confirm whether the target is source of truth, generated output, or a mirror. Change root source first, then regenerate or mirror through the existing scripts.

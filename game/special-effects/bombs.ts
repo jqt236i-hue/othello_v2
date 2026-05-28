@@ -9,15 +9,13 @@ const MarkersAdapter = _require('../logic/markers_adapter');
 const TurnPipelinePhases = _require('../turn/turn_pipeline_phases');
 const CardLogic = _require('../logic/cards');
 const Core = _require('../logic/core');
-const ControllerEvents = _require('../controller-events');
 const LOG_MESSAGES = _require('../log-messages');
 const { getPlayerKey } = _require('../card-effects/helpers');
 const GameControllerSlim = _require('../game-controller-slim');
-
-let __uiImpl_bombs: any = {};
+const SpecialEffectsPresentationBridge = _require('./presentation-bridge');
 
 function setUIImpl(impl: any): void {
-    __uiImpl_bombs = impl && typeof impl === 'object' ? impl : {};
+    SpecialEffectsPresentationBridge.setUIImpl('bombs', impl);
 }
 
 async function processBombs(precomputedEvents: any = null): Promise<void> {
@@ -40,11 +38,11 @@ async function processBombs(precomputedEvents: any = null): Promise<void> {
 
     const bombEvents = events.filter((e: any) => e.type === 'bombs_exploded');
     if (!bombEvents || bombEvents.length === 0) {
-        try { if (typeof ControllerEvents.emitGameStateChange === 'function') ControllerEvents.emitGameStateChange(); } catch (e) { /* ignore */ }
+        try { SpecialEffectsPresentationBridge.emitGameStateChange('bombs'); } catch (e) { /* ignore */ }
         return;
     }
 
-    const hasPlayback = typeof __uiImpl_bombs.playPresentationEvents === 'function';
+    const hasPlayback = SpecialEffectsPresentationBridge.hasPlaybackEngine('bombs');
 
     const alreadyAnimated = new Set<string>();
 
@@ -53,11 +51,11 @@ async function processBombs(precomputedEvents: any = null): Promise<void> {
         if (!result || !result.exploded || result.exploded.length === 0) continue;
 
         for (const pos of result.exploded) {
-            if (typeof ControllerEvents.emitLogAdded === 'function') ControllerEvents.emitLogAdded(LOG_MESSAGES.bombExploded(GameControllerSlim.posToNotation(pos.row, pos.col)));
+            SpecialEffectsPresentationBridge.emitLogAdded('bombs', LOG_MESSAGES.bombExploded(GameControllerSlim.posToNotation(pos.row, pos.col)));
         }
 
         if (hasPlayback) {
-            try { if (typeof ControllerEvents.emitBoardUpdate === 'function') ControllerEvents.emitBoardUpdate(); } catch (e) { /* ignore */ }
+            try { SpecialEffectsPresentationBridge.emitBoardUpdate('bombs'); } catch (e) { /* ignore */ }
             continue;
         }
 
@@ -69,27 +67,25 @@ async function processBombs(precomputedEvents: any = null): Promise<void> {
             alreadyAnimated.add(key);
 
             if (explodedKeySet.has(key)) {
-                if (typeof __uiImpl_bombs.animateFadeOutAt === 'function') {
-                    batch.push(__uiImpl_bombs.animateFadeOutAt(pos.row, pos.col, {
-                        createGhost: true,
-                        color: bombOwnerValByPos.get(key)
-                    }));
-                }
-            } else if (typeof __uiImpl_bombs.animateFadeOutAt === 'function') {
-                batch.push(__uiImpl_bombs.animateFadeOutAt(pos.row, pos.col));
+                batch.push(SpecialEffectsPresentationBridge.animateFadeOutAt('bombs', pos.row, pos.col, {
+                    createGhost: true,
+                    color: bombOwnerValByPos.get(key)
+                }));
+            } else {
+                batch.push(SpecialEffectsPresentationBridge.animateFadeOutAt('bombs', pos.row, pos.col));
             }
         }
         if (batch.length > 0) await Promise.all(batch);
     }
 
     if (!hasPlayback) {
-        try { if (typeof ControllerEvents.emitBoardUpdate === 'function') ControllerEvents.emitBoardUpdate(); } catch (e) { /* ignore */ }
-        try { if (typeof ControllerEvents.emitGameStateChange === 'function') ControllerEvents.emitGameStateChange(); } catch (e) { /* ignore */ }
+        try { SpecialEffectsPresentationBridge.emitBoardUpdate('bombs'); } catch (e) { /* ignore */ }
+        try { SpecialEffectsPresentationBridge.emitGameStateChange('bombs'); } catch (e) { /* ignore */ }
     }
 }
 
 async function explodeBombUI(row: number, col: number): Promise<void> {
-    if (typeof ControllerEvents.emitLogAdded === 'function') ControllerEvents.emitLogAdded(LOG_MESSAGES.bombExploded(GameControllerSlim.posToNotation(row, col)));
+    SpecialEffectsPresentationBridge.emitLogAdded('bombs', LOG_MESSAGES.bombExploded(GameControllerSlim.posToNotation(row, col)));
 
     const hasCellAt = (targetRow: number, targetCol: number): boolean => {
         if (targetRow >= 0 && targetRow < 8 && targetCol >= 0 && targetCol < 8) return true;
@@ -123,12 +119,11 @@ async function explodeBombUI(row: number, col: number): Promise<void> {
         }
     }
 
-    if (typeof __uiImpl_bombs.playAnimationEvents === 'function') {
-        await __uiImpl_bombs.playAnimationEvents([{ type: 'destroy', phase: 3, targets }]);
+    const playAnimationEvents = SpecialEffectsPresentationBridge.readFunction('bombs', 'playAnimationEvents');
+    if (typeof playAnimationEvents === 'function') {
+        await SpecialEffectsPresentationBridge.playAnimationEvents('bombs', [{ type: 'destroy', phase: 3, targets }]);
     } else {
-        const tasks = typeof __uiImpl_bombs.animateDestroyAt === 'function'
-            ? targets.map((t: any) => __uiImpl_bombs.animateDestroyAt(t.r, t.col))
-            : [];
+        const tasks = targets.map((t: any) => SpecialEffectsPresentationBridge.animateDestroyAt('bombs', t.r, t.col));
         await Promise.all(tasks);
     }
 }

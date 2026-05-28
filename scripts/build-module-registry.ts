@@ -99,6 +99,12 @@ const EXTRA_BROWSER_MODULES: Array<{ source: string; key: string; aliases?: stri
     }
 ];
 
+function isRootRuntimeModule(rel: string): boolean {
+    if (!rel.endsWith('.runtime.js')) return false;
+    if (rel.includes('/src/types/')) return false;
+    return BROWSER_MODULE_PREFIXES.some(prefix => rel.startsWith(prefix));
+}
+
 function isBrowserModule(rel: string): boolean {
     if (rel.startsWith('dist/') || rel.startsWith('worker-public/')) return false;
     if (rel.includes('/src/types/')) return false;
@@ -138,6 +144,16 @@ function appendRegisteredModuleWithJsAlias(lines: string[], moduleKey: string, c
     if (!moduleKey.endsWith('.js')) {
         appendRegisteredModule(lines, moduleKey + '.js', content);
     }
+}
+
+function collectRootRuntimeModules(rootDir: string): string[] {
+    const rootJsFiles: string[] = [];
+    for (const prefix of BROWSER_MODULE_PREFIXES) {
+        const sourceDir = path.join(rootDir, prefix);
+        if (!fs.existsSync(sourceDir)) continue;
+        walkDir(sourceDir, rootDir, rootJsFiles);
+    }
+    return rootJsFiles.filter(isRootRuntimeModule).sort();
 }
 
 function sleepSync(ms: number): void {
@@ -238,6 +254,25 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
             appendRegisteredModule(lines, alias, content);
             registeredKeys.add(alias);
         }
+    }
+
+    for (const rel of collectRootRuntimeModules(rootDir)) {
+        const moduleKey = rel.replace(/\.js$/, '');
+        if (registeredKeys.has(moduleKey) || registeredKeys.has(moduleKey + '.js')) {
+            skipped.push(rel + ' (duplicate runtime key)');
+            continue;
+        }
+        const fullPath = path.join(rootDir, rel);
+        let content: string;
+        try {
+            content = fs.readFileSync(fullPath, 'utf8');
+        } catch {
+            skipped.push(rel + ' (missing runtime source)');
+            continue;
+        }
+        appendRegisteredModuleWithJsAlias(lines, moduleKey, content);
+        registeredKeys.add(moduleKey);
+        registeredKeys.add(moduleKey + '.js');
     }
 
     lines.push('})();');

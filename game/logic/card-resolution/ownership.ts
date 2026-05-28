@@ -52,8 +52,8 @@ function transferCellMarkerOwnership(cardState: CardState, row: number, col: num
 
 function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
-    const isSpecialStoneAt = deps && deps.isSpecialStoneAt;
-    const getSpecialOwnerAt = deps && deps.getSpecialOwnerAt;
+    const isTrueSpecialStoneAt = (deps && deps.isTrueSpecialStoneAt) || (deps && deps.isSpecialStoneAt);
+    const getTrueSpecialStoneOwnerAt = (deps && deps.getTrueSpecialStoneOwnerAt) || (deps && deps.getSpecialOwnerAt);
     const getCellValueForCard = deps && deps.getCellValueForCard;
     const getSpecialMarkers = deps && deps.getSpecialMarkers;
     const isAbsoluteProtectedCell = deps && deps.isAbsoluteProtectedCell;
@@ -66,8 +66,8 @@ function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: P
 
     if (
         typeof readCardPendingEffect !== 'function' ||
-        typeof isSpecialStoneAt !== 'function' ||
-        typeof getSpecialOwnerAt !== 'function' ||
+        typeof isTrueSpecialStoneAt !== 'function' ||
+        typeof getTrueSpecialStoneOwnerAt !== 'function' ||
         typeof getCellValueForCard !== 'function' ||
         typeof getSpecialMarkers !== 'function' ||
         typeof removeMarkersAt !== 'function' ||
@@ -83,8 +83,8 @@ function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: P
     }
 
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
-    if (!isSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
-    if (getSpecialOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
+    if (!isTrueSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
+    if (getTrueSpecialStoneOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
     if (getCellValueForCard(gameState, row, col) === EMPTY) return { applied: false, reason: 'empty' };
     const guarded = getSpecialMarkers(cardState).some((m: any) => (
         m &&
@@ -135,12 +135,12 @@ function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: P
 
 function applyCaptureWill(cardState: CardState, gameState: GameState, playerKey: PlayerKey, row: number, col: number, deps: any): Record<string, any> {
     const readCardPendingEffect = deps && deps.readCardPendingEffect;
-    const isSpecialStoneAt = deps && deps.isSpecialStoneAt;
-    const getSpecialOwnerAt = deps && deps.getSpecialOwnerAt;
+    const isTrueSpecialStoneAt = (deps && deps.isTrueSpecialStoneAt) || (deps && deps.isSpecialStoneAt);
+    const getTrueSpecialStoneOwnerAt = (deps && deps.getTrueSpecialStoneOwnerAt) || (deps && deps.getSpecialOwnerAt);
     const getCellValueForCard = deps && deps.getCellValueForCard;
     const getSpecialMarkers = deps && deps.getSpecialMarkers;
     const isAbsoluteProtectedCell = deps && deps.isAbsoluteProtectedCell;
-    const getSpecialMarkerAt = deps && deps.getSpecialMarkerAt;
+    const getTrueSpecialStoneMarkerAt = (deps && deps.getTrueSpecialStoneMarkerAt) || (deps && deps.getSpecialMarkerAt);
     const resolveCaptureSourceInfo = deps && deps.resolveCaptureSourceInfo;
     const CardLivingWillModule = deps && deps.CardLivingWillModule;
     const addCardToHand = deps && deps.addCardToHand;
@@ -154,11 +154,11 @@ function applyCaptureWill(cardState: CardState, gameState: GameState, playerKey:
 
     if (
         typeof readCardPendingEffect !== 'function' ||
-        typeof isSpecialStoneAt !== 'function' ||
-        typeof getSpecialOwnerAt !== 'function' ||
+        typeof isTrueSpecialStoneAt !== 'function' ||
+        typeof getTrueSpecialStoneOwnerAt !== 'function' ||
         typeof getCellValueForCard !== 'function' ||
         typeof getSpecialMarkers !== 'function' ||
-        typeof getSpecialMarkerAt !== 'function' ||
+        typeof getTrueSpecialStoneMarkerAt !== 'function' ||
         typeof resolveCaptureSourceInfo !== 'function' ||
         typeof addCardToHand !== 'function' ||
         typeof getStoneIdAtForCard !== 'function' ||
@@ -177,8 +177,8 @@ function applyCaptureWill(cardState: CardState, gameState: GameState, playerKey:
     }
 
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
-    if (!isSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
-    if (getSpecialOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
+    if (!isTrueSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
+    if (getTrueSpecialStoneOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
     if (getCellValueForCard(gameState, row, col) === EMPTY) return { applied: false, reason: 'empty' };
     const guarded = getSpecialMarkers(cardState).some((m: any) => (
         m &&
@@ -192,7 +192,7 @@ function applyCaptureWill(cardState: CardState, gameState: GameState, playerKey:
         return { applied: false, reason: 'absolute_protected' };
     }
 
-    const markerEntry = getSpecialMarkerAt(cardState, row, col);
+    const markerEntry = getTrueSpecialStoneMarkerAt(cardState, row, col);
     const captureSource = resolveCaptureSourceInfo(markerEntry);
     if (!captureSource || !captureSource.sourceCardId) {
         return { applied: false, reason: 'missing_source_card' };

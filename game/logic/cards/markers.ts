@@ -41,6 +41,7 @@ const MarkersAdapterModule = resolveCardMarkersModuleOrGlobal('../markers_adapte
 const CardUtilsModule = resolveCardMarkersModuleOrGlobal('./utils', 'CardUtils');
 const CardExpansionModule = resolveCardMarkersModuleOrGlobal('./expansion', 'CardExpansion');
 const PresentationModule = resolveCardMarkersModuleOrGlobal('../presentation', 'PresentationHelper');
+const SpecialStoneRegistry = resolveCardMarkersModuleOrGlobal('../../../shared/special-stone-registry', 'SpecialStoneRegistry');
 
 const { BOARD_SIZE } = SharedConstants || {};
 const MarkersAdapter = MarkersAdapterModule || null;
@@ -195,6 +196,31 @@ function isSpecialStoneMarker(marker: any): boolean {
     );
 }
 
+function getMarkerRuleClass(marker: any): string | null {
+    if (!marker || typeof marker !== 'object') return null;
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.classifyMarkerRuleClass === 'function') {
+        return SpecialStoneRegistry.classifyMarkerRuleClass(marker);
+    }
+    const type = String(marker && marker.data && marker.data.type || '').toUpperCase();
+    if (isBombCategoryMarker(marker) || type === 'TIME_BOMB') return 'bomb';
+    if (type === 'TRAP') return 'trap';
+    if (type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE' || type === 'SEED') return 'board_marker';
+    if (type === 'HYPERACTIVE' && !!(marker && marker.data && marker.data.instantPlacementOnly)) return 'placement_effect';
+    if (type === 'CROSS_BOMB' || type === 'X_BOMB' || type === 'GOLD' || type === 'SILVER' || type === 'RAINBOW') return 'placement_effect';
+    if (type === 'PROTECTED' || type === 'PERMA_PROTECTED' || type === 'GUARD' || type === 'ABSOLUTE_PROTECTED' || type === 'GHOST' || type === 'AFTERIMAGE_WILL' || type === 'REGEN' || type === 'LIVING_WILL') return 'stone_status';
+    if (!type) return null;
+    return 'true_special_stone';
+}
+
+function isTrueSpecialStoneMarker(marker: any): boolean {
+    return getMarkerRuleClass(marker) === 'true_special_stone';
+}
+
+function isDurationAffectableMarker(marker: any): boolean {
+    const ruleClass = getMarkerRuleClass(marker);
+    return ruleClass === 'true_special_stone' || ruleClass === 'stone_status';
+}
+
 function getBombMarkerType(marker: any): string | null {
     if (MarkersAdapter && typeof MarkersAdapter.getBombMarkerType === 'function') {
         return MarkersAdapter.getBombMarkerType(marker);
@@ -338,12 +364,32 @@ function getSpecialMarkerAt(cardState: CardState, row: number, col: number): { k
     return null;
 }
 
+function getTrueSpecialStoneMarkerAt(cardState: CardState, row: number, col: number): { kind: string; category: string | null; marker: any } | null {
+    const special = getSpecialMarkers(cardState).find((marker: any) => (
+        marker &&
+        marker.row === row &&
+        marker.col === col &&
+        isTrueSpecialStoneMarker(marker)
+    ));
+    if (!special) return null;
+    return { kind: 'specialStone', category: getMarkerCategory(special), marker: special };
+}
+
 function isSpecialStoneAt(cardState: CardState, row: number, col: number): boolean {
     return !!getSpecialMarkerAt(cardState, row, col);
 }
 
+function isTrueSpecialStoneAt(cardState: CardState, row: number, col: number): boolean {
+    return !!getTrueSpecialStoneMarkerAt(cardState, row, col);
+}
+
 function getSpecialOwnerAt(cardState: CardState, row: number, col: number): PlayerKey | null {
     const entry = getSpecialMarkerAt(cardState, row, col);
+    return entry && entry.marker ? entry.marker.owner : null;
+}
+
+function getTrueSpecialStoneOwnerAt(cardState: CardState, row: number, col: number): PlayerKey | null {
+    const entry = getTrueSpecialStoneMarkerAt(cardState, row, col);
     return entry && entry.marker ? entry.marker.owner : null;
 }
 
@@ -567,6 +613,7 @@ function applyExtendLifeSelection(cardState: CardState, gameState: GameState, pl
 
     const specialsAtCell = getSpecialMarkers(cardState).filter((marker: any) => (
         marker &&
+        isDurationAffectableMarker(marker) &&
         marker.row === row &&
         marker.col === col &&
         marker.owner === playerKey &&
@@ -639,6 +686,7 @@ function applyCorrosionWill(cardState: CardState, gameState: GameState, playerKe
     const details: any[] = [];
     for (const marker of getSpecialMarkers(cardState)) {
         if (!marker || marker.row !== row || marker.col !== col) continue;
+        if (!isDurationAffectableMarker(marker)) continue;
         if (!marker.data || !Number.isFinite(marker.data.remainingOwnerTurns)) continue;
 
         const before = Number(marker.data.remainingOwnerTurns);
@@ -659,6 +707,7 @@ function applyCorrosionWill(cardState: CardState, gameState: GameState, playerKe
     const primaryMarker = getPrimaryDurationMarker(
         getSpecialMarkers(cardState).filter((marker: any) => (
             marker &&
+            isDurationAffectableMarker(marker) &&
             marker.row === row &&
             marker.col === col &&
             marker.data &&
@@ -686,6 +735,9 @@ export = {
     getBombMarkerType,
     isBombCategoryMarker,
     isSpecialStoneMarker,
+    getMarkerRuleClass,
+    isTrueSpecialStoneMarker,
+    isDurationAffectableMarker,
     getSpecialMarkers,
     getBombMarkers,
     getBlockadeMarkers,
@@ -697,8 +749,11 @@ export = {
     findBombMarkerAt,
     removeMarkersAt,
     getSpecialMarkerAt,
+    getTrueSpecialStoneMarkerAt,
     isSpecialStoneAt,
+    isTrueSpecialStoneAt,
     getSpecialOwnerAt,
+    getTrueSpecialStoneOwnerAt,
     clearStoneIdAtForCard,
     getStoneIdAtForCard,
     setStoneIdAtForCard,

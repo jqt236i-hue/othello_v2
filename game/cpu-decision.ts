@@ -1198,14 +1198,7 @@ function emitCpuDecisionEffectLog(message: any): any {
 let cpuTimerService: any = null;
 function setCpuTimerService(service: any): any { cpuTimerService = service; }
 function getCpuTimerService(): any {
-    if (cpuTimerService) return cpuTimerService;
-    try {
-        const { createTimerService } = _require('./timer-service');
-        cpuTimerService = createTimerService('browser');
-        return cpuTimerService;
-    } catch (e) {
-        return null;
-    }
+    return cpuTimerService || null;
 }
 
 const CpuDecisionSelectionFlow = (CpuDecisionSelectionFlowModule && typeof CpuDecisionSelectionFlowModule.createCpuDecisionSelectionFlow === 'function')
@@ -3738,7 +3731,12 @@ async function cpuSelectSuperAttractionWillWithPolicy(playerKey: any): Promise<a
     if (pipelineResult) return;
 
     if (typeof CardLogic !== 'undefined' && typeof CardLogic.applySuperAttractionWill === 'function') {
-        const res = CardLogic.applySuperAttractionWill(cardState, gameState, playerKey, target.row, target.col);
+        const randomSource = (
+            cardState &&
+            cardState._defaultRandomSource &&
+            typeof cardState._defaultRandomSource.random === 'function'
+        ) ? cardState._defaultRandomSource : undefined;
+        const res = CardLogic.applySuperAttractionWill(cardState, gameState, playerKey, target.row, target.col, randomSource);
         if (!res || !res.applied) {
             clearCpuPendingEffect(playerKey);
         }

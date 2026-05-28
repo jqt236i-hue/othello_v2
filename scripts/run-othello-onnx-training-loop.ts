@@ -4,6 +4,12 @@
 const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const { DEFAULT_OTHELLO_ONNX_LOOP_ARGS } = require("./othello-onnx-training-defaults");
+const {
+  buildRepeatedHardcaseSelfplayArgs,
+  rememberHardcaseReplayPath,
+  writeWhiteLossHardcases
+} = require("./othello-onnx-hardcase-replay");
 
 const SCHEMA_VERSION = "othello_onnx_training_loop.v1";
 
@@ -25,61 +31,49 @@ function timestampTag(prefix: any) {
   return `${prefix}_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
 }
 
+function resolveProfilePath(profile: any) {
+  const raw = String(profile || "").trim();
+  if (!raw) return "";
+  const direct = path.resolve(process.cwd(), raw);
+  if (fs.existsSync(direct)) return direct;
+  const named = path.resolve(process.cwd(), "othello-ai", "training", "profiles", `${raw}.json`);
+  if (fs.existsSync(named)) return named;
+  throw new Error(`othello ONNX training profile not found: ${raw}`);
+}
+
+function loadProfileDefaults(argv: any) {
+  let profile = "";
+  for (let i = 0; i < argv.length; i += 1) {
+    const cur = argv[i];
+    if (cur === "--profile") {
+      profile = String(argv[i + 1] || "");
+      break;
+    }
+  }
+  const profilePath = resolveProfilePath(profile);
+  if (!profilePath) return { profile: "", profilePath: "", args: {} };
+  const payload = JSON.parse(fs.readFileSync(profilePath, "utf8"));
+  const defaults = payload && typeof payload === "object" && payload.args && typeof payload.args === "object"
+    ? payload.args
+    : payload;
+  if (!defaults || typeof defaults !== "object" || Array.isArray(defaults)) {
+    throw new Error(`invalid othello ONNX training profile: ${profilePath}`);
+  }
+  return { profile, profilePath, args: defaults };
+}
+
 function parseArgs(argv: any) {
+  const profile = loadProfileDefaults(argv);
   const args = {
-    sessionTag: "",
-    iterations: 999,
-    trainGames: 1024,
-    evalGames: 128,
-    jobs: 8,
-    datasetMaxRecords: 200000,
-    replayWindow: 4,
-    epochs: 18,
-    batchSize: 1024,
-    hiddenDim: 384,
-    depth: 5,
-    dropout: 0.04,
-    valueLossWeight: 0.5,
-    whiteSampleWeight: 3.2,
-    blackSampleWeight: 1,
-    gatePairs: 16,
-    gateOpeningPlies: 8,
-    gateMinWhitePointRate: 0.55,
-    gateMinWhiteDiscDiff: 0,
-    championGatePairs: 16,
-    championGateMinPointRate: 0.525,
-    championGateMinWhitePointRate: 0.55,
-    championGateMinWhiteDiscDiff: 0,
-    heuristicRerankWeight: 3.0,
-    policyWeight: 0.75,
-    topK: 8,
-    whiteSafetyMultiplier: 1.45,
-    seed: 260524,
-    openingPliesMin: 2,
-    openingPliesMax: 10,
-    openingPreferredPlayer: "white",
-    openingPreferredPlayerRate: 1,
-    depthOpening: 2,
-    depthMid: 2,
-    depthEnd: 3,
-    exactSolveEmpties: 8,
-    explorationOpening: 0.1,
-    explorationMid: 0.04,
-    explorationEnd: 0,
-    runtimeModelOut: "data/models/othello/policy-value.onnx",
-    runtimeMetaOut: "data/models/othello/policy-value.onnx.meta.json",
-    championModelOut: "othello-ai/data/models/policy-value.onnx.champion.onnx",
-    championMetaOut: "othello-ai/data/models/policy-value.onnx.champion.onnx.meta.json",
-    policyTable: "othello-ai/data/models/policy-table.champion.json",
-    valueTable: "othello-ai/data/models/value-table.champion.json",
-    baseline: "heuristic",
-    preflight: false,
-    help: false
+    ...DEFAULT_OTHELLO_ONNX_LOOP_ARGS,
+    ...profile.args,
+    profile: profile.profilePath || profile.profile || ""
   };
 
   for (let i = 0; i < argv.length; i += 1) {
     const cur = argv[i];
     if (cur === "--help" || cur === "-h") args.help = true;
+    else if (cur === "--profile") { args.profile = profile.profilePath || String(argv[++i] || ""); }
     else if (cur === "--session-tag") args.sessionTag = String(argv[++i] || "");
     else if (cur === "--iterations") args.iterations = parseIntArg(argv[++i], args.iterations, 1);
     else if (cur === "--train-games") args.trainGames = parseIntArg(argv[++i], args.trainGames, 1);
@@ -87,12 +81,16 @@ function parseArgs(argv: any) {
     else if (cur === "--jobs" || cur === "-j") args.jobs = parseIntArg(argv[++i], args.jobs, 1);
     else if (cur === "--dataset-max-records") args.datasetMaxRecords = parseIntArg(argv[++i], args.datasetMaxRecords, 1);
     else if (cur === "--replay-window") args.replayWindow = parseIntArg(argv[++i], args.replayWindow, 1);
+    else if (cur === "--hardcase-replay-window") args.hardcaseReplayWindow = parseIntArg(argv[++i], args.hardcaseReplayWindow, 0);
+    else if (cur === "--hardcase-replay-weight") args.hardcaseReplayWeight = parseIntArg(argv[++i], args.hardcaseReplayWeight, 1);
+    else if (cur === "--hardcase-max-records") args.hardcaseMaxRecords = parseIntArg(argv[++i], args.hardcaseMaxRecords, 1);
     else if (cur === "--epochs") args.epochs = parseIntArg(argv[++i], args.epochs, 1);
     else if (cur === "--batch-size") args.batchSize = parseIntArg(argv[++i], args.batchSize, 1);
     else if (cur === "--hidden-dim") args.hiddenDim = parseIntArg(argv[++i], args.hiddenDim, 8);
     else if (cur === "--depth") args.depth = parseIntArg(argv[++i], args.depth, 1);
     else if (cur === "--dropout") args.dropout = parseFloatArg(argv[++i], args.dropout, 0, 0.9);
     else if (cur === "--value-loss-weight") args.valueLossWeight = parseFloatArg(argv[++i], args.valueLossWeight, 0, 10);
+    else if (cur === "--policy-loss-weight") args.policyLossWeight = parseFloatArg(argv[++i], args.policyLossWeight, 0, 10);
     else if (cur === "--white-sample-weight") args.whiteSampleWeight = parseFloatArg(argv[++i], args.whiteSampleWeight, 0.01, 100);
     else if (cur === "--black-sample-weight") args.blackSampleWeight = parseFloatArg(argv[++i], args.blackSampleWeight, 0.01, 100);
     else if (cur === "--gate-pairs") args.gatePairs = parseIntArg(argv[++i], args.gatePairs, 1);
@@ -112,6 +110,8 @@ function parseArgs(argv: any) {
     else if (cur === "--opening-plies-max") args.openingPliesMax = parseIntArg(argv[++i], args.openingPliesMax, 0);
     else if (cur === "--opening-preferred-player") args.openingPreferredPlayer = String(argv[++i] || "white");
     else if (cur === "--opening-preferred-player-rate") args.openingPreferredPlayerRate = parseFloatArg(argv[++i], args.openingPreferredPlayerRate, 0, 1);
+    else if (cur === "--opening-seed-bank") args.openingSeedBankPath = String(argv[++i] || "");
+    else if (cur === "--opening-seed-bank-sample-rate") args.openingSeedBankSampleRate = parseFloatArg(argv[++i], args.openingSeedBankSampleRate, 0, 1);
     else if (cur === "--depth-opening") args.depthOpening = parseIntArg(argv[++i], args.depthOpening, 1);
     else if (cur === "--depth-mid") args.depthMid = parseIntArg(argv[++i], args.depthMid, 1);
     else if (cur === "--depth-end") args.depthEnd = parseIntArg(argv[++i], args.depthEnd, 1);
@@ -123,6 +123,7 @@ function parseArgs(argv: any) {
     else if (cur === "--runtime-meta-out") args.runtimeMetaOut = String(argv[++i] || args.runtimeMetaOut);
     else if (cur === "--champion-model-out") args.championModelOut = String(argv[++i] || args.championModelOut);
     else if (cur === "--champion-meta-out") args.championMetaOut = String(argv[++i] || args.championMetaOut);
+    else if (cur === "--init-onnx") args.initOnnx = String(argv[++i] || args.initOnnx);
     else if (cur === "--policy-table") args.policyTable = String(argv[++i] || args.policyTable);
     else if (cur === "--value-table") args.valueTable = String(argv[++i] || args.valueTable);
     else if (cur === "--baseline") args.baseline = String(argv[++i] || args.baseline);
@@ -130,6 +131,9 @@ function parseArgs(argv: any) {
   }
 
   if (!args.sessionTag) args.sessionTag = timestampTag("othello_onnx_loop");
+  if (args.openingSeedBankPath && !fs.existsSync(path.resolve(process.cwd(), args.openingSeedBankPath))) {
+    throw new Error(`opening seed bank not found: ${args.openingSeedBankPath}`);
+  }
   if (args.preflight) {
     args.iterations = 1;
     args.trainGames = Math.min(args.trainGames, 16);
@@ -146,6 +150,7 @@ function printHelp() {
   console.log([
     "Usage: node scripts/run-othello-onnx-training-loop.js [options]",
     "  --session-tag <tag>",
+    "  --profile <name|path>",
     "  --iterations <n>",
     "  --train-games <n>",
     "  --eval-games <n>",
@@ -160,11 +165,17 @@ function printHelp() {
     "  --policy-weight <n>",
     "  --top-k <n>",
     "  --white-safety-multiplier <n>",
+    "  --policy-loss-weight <n>",
+    "  --hardcase-replay-window <n>",
+    "  --hardcase-replay-weight <n>",
+    "  --opening-seed-bank <path>",
+    "  --opening-seed-bank-sample-rate <n>",
     "  --exploration-opening <n>",
     "  --exploration-mid <n>",
     "  --exploration-end <n>",
     "  --runtime-model-out <path>",
-    "  --runtime-meta-out <path>"
+    "  --runtime-meta-out <path>",
+    "  --init-onnx <path>"
   ].join("\n"));
 }
 
@@ -289,6 +300,13 @@ function main(argv: any = process.argv.slice(2)) {
   const python = path.resolve(process.cwd(), ".venv", "Scripts", "python.exe");
   const node = process.execPath;
   const replaySelfplay: any[] = [];
+  const hardcaseReplay: any[] = [];
+  const openingSeedBankArgs = args.openingSeedBankPath
+    ? [
+        "--opening-seed-bank", args.openingSeedBankPath,
+        "--opening-seed-bank-sample-rate", String(args.openingSeedBankSampleRate)
+      ]
+    : [];
 
   try {
     for (let iteration = 1; iteration <= args.iterations; iteration += 1) {
@@ -314,6 +332,7 @@ function main(argv: any = process.argv.slice(2)) {
         "--opening-plies-max", String(args.openingPliesMax),
         "--opening-preferred-player", args.openingPreferredPlayer,
         "--opening-preferred-player-rate", String(args.openingPreferredPlayerRate),
+        ...openingSeedBankArgs,
         "--depth-opening", String(args.depthOpening),
         "--depth-mid", String(args.depthMid),
         "--depth-end", String(args.depthEnd),
@@ -337,6 +356,7 @@ function main(argv: any = process.argv.slice(2)) {
         "--opening-plies-max", String(args.openingPliesMax),
         "--opening-preferred-player", args.openingPreferredPlayer,
         "--opening-preferred-player-rate", String(args.openingPreferredPlayerRate),
+        ...openingSeedBankArgs,
         "--depth-opening", String(args.depthOpening),
         "--depth-mid", String(args.depthMid),
         "--depth-end", String(args.depthEnd),
@@ -361,22 +381,27 @@ function main(argv: any = process.argv.slice(2)) {
         "--max-records", String(args.datasetMaxRecords)
       ];
       for (const item of replaySelfplay) datasetArgs.push("--selfplay", item);
+      datasetArgs.push(...buildRepeatedHardcaseSelfplayArgs(hardcaseReplay, args.hardcaseReplayWeight));
       runCommand(summary, "build_dataset", python, datasetArgs);
 
       updateSummary(summary, summaryPath, { phase: "train_onnx" });
       const model = path.join(iterDir, `policy-value.${tag}.onnx`);
       const metrics = path.join(iterDir, `policy-value.${tag}.metrics.json`);
+      const initOnnx = args.initOnnx || (fs.existsSync(args.championModelOut) ? args.championModelOut : "");
+      const initArgs = initOnnx ? ["--init-onnx", initOnnx] : [];
       runCommand(summary, "train_onnx", python, [
         "othello-ai/training/train-onnx-policy-value.py",
         "--dataset", dataset,
         "--onnx-out", model,
         "--metrics-out", metrics,
+        ...initArgs,
         "--epochs", String(args.epochs),
         "--batch-size", String(args.batchSize),
         "--hidden-dim", String(args.hiddenDim),
         "--depth", String(args.depth),
         "--dropout", String(args.dropout),
         "--value-loss-weight", String(args.valueLossWeight),
+        "--policy-loss-weight", String(args.policyLossWeight),
         "--white-sample-weight", String(args.whiteSampleWeight),
         "--black-sample-weight", String(args.blackSampleWeight)
       ]);
@@ -444,6 +469,16 @@ function main(argv: any = process.argv.slice(2)) {
       let runtimeModelOut = "";
       let runtimeMetaOut = "";
       const shouldPromote = gateResult.promoted && championGateResult.promoted && args.preflight !== true;
+      let hardcasePath = "";
+      let hardcaseRecords = 0;
+      if (!shouldPromote && args.preflight !== true && args.hardcaseReplayWindow > 0) {
+        hardcasePath = path.join(iterDir, `hardcases.white-loss.${tag}.ndjson`);
+        hardcaseRecords = writeWhiteLossHardcases([trainData, evalData], hardcasePath, args.hardcaseMaxRecords);
+        if (hardcaseRecords > 0) {
+          rememberHardcaseReplayPath(hardcaseReplay, hardcasePath, args.hardcaseReplayWindow);
+          appendLog(summary.launcherLog, `[${args.sessionTag}] hardcase_replay added records=${hardcaseRecords} path=${hardcasePath}`);
+        }
+      }
       if (shouldPromote) {
         copyFile(model, args.championModelOut);
         copyFile(`${model}.meta.json`, args.championMetaOut);
@@ -466,6 +501,8 @@ function main(argv: any = process.argv.slice(2)) {
         gateEval,
         championGateEval,
         promoted: shouldPromote,
+        hardcaseReplayPath: hardcasePath,
+        hardcaseReplayRecords: hardcaseRecords,
         gatePassed: gateResult.promoted,
         championGatePassed: championGateResult.promoted,
         gate: {
@@ -515,5 +552,6 @@ function main(argv: any = process.argv.slice(2)) {
 if (require.main === module) main();
 
 export {
-  main
+  main,
+  parseArgs
 };

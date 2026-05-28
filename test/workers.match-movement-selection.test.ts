@@ -169,10 +169,10 @@ describe('worker movement pending selection publish', () => {
       actionKey: 'superAttractionTarget',
       source: { row: 2, col: 2 },
       pendingFirstTarget: { row: 2, col: 2 },
-      actionTarget: { row: 5, col: 5 },
-      blocker: { row: 4, col: 4 },
-      destination: { row: 5, col: 5 },
-      moveIntent: 'crush_move'
+      actionTarget: { row: 5, col: 4 },
+      destination: { row: 5, col: 4 },
+      moveIntent: 'crush_move',
+      expectPathMeta: true
     },
     {
       cardId: 'teleport_01',
@@ -218,6 +218,21 @@ describe('worker movement pending selection publish', () => {
     }));
     if (config.destination) {
       expect(result.moveEvent.targets[0].to).toEqual({ r: config.destination.row, col: config.destination.col });
+    }
+    if (config.expectPathMeta) {
+      expect(result.moveEvent.targets[0].meta).toEqual(expect.objectContaining({
+        selectedPathVariant: expect.stringMatching(/^(diagonal_first|axis_first)$/),
+        waypoints: expect.arrayContaining([
+          expect.objectContaining({ row: expect.any(Number), col: expect.any(Number) })
+        ]),
+        segments: expect.arrayContaining([
+          expect.objectContaining({
+            from: expect.objectContaining({ row: expect.any(Number), col: expect.any(Number) }),
+            to: expect.objectContaining({ row: expect.any(Number), col: expect.any(Number) }),
+            length: expect.any(Number)
+          })
+        ])
+      }));
     }
     if (config.createsMeteorHole) {
       expect(result.sourceMarkers).toEqual(expect.arrayContaining([

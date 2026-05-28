@@ -143,4 +143,45 @@ describe('special stone visual rule', () => {
     const res = CardLogic.applyTemptWill(cardState, gameState, 'black', 4, 4);
     expect(res).toMatchObject({ applied: false, reason: 'not_special' });
   });
+
+  test('TEMPT_WILL は爆弾・石状態・配置時効果を特殊石対象として選べない', () => {
+    const prng = { shuffle: (arr) => arr, random: () => 0 };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = createGameState();
+    gameState.board[2][2] = Shared.WHITE;
+    gameState.board[2][3] = Shared.WHITE;
+    gameState.board[2][4] = Shared.WHITE;
+    cardState.pendingEffectByPlayer.black = { type: 'TEMPT_WILL', stage: 'selectTarget', cardId: 'tempt_01' };
+    cardState.markers.push(
+      {
+        id: 7,
+        kind: 'specialStone',
+        row: 2,
+        col: 2,
+        owner: 'white',
+        data: { type: 'TIME_BOMB', category: 'bomb' }
+      },
+      {
+        id: 8,
+        kind: 'specialStone',
+        row: 2,
+        col: 3,
+        owner: 'white',
+        data: { type: 'GUARD', remainingOwnerTurns: 3 }
+      },
+      {
+        id: 9,
+        kind: 'specialStone',
+        row: 2,
+        col: 4,
+        owner: 'white',
+        data: { type: 'HYPERACTIVE', instantPlacementOnly: true }
+      }
+    );
+
+    expect(CardLogic.getTemptWillTargets(cardState, gameState, 'black')).toEqual([]);
+    expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 2)).toMatchObject({ applied: false, reason: 'not_special' });
+    expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 3)).toMatchObject({ applied: false, reason: 'not_special' });
+    expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 4)).toMatchObject({ applied: false, reason: 'not_special' });
+  });
 });

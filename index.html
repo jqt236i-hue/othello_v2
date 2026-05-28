@@ -52,6 +52,12 @@
 
     <div id="round-display-panel" aria-live="polite" aria-atomic="true">ROUND 1</div>
 
+    <div id="stone-info-panel" class="stone-info-panel" aria-live="polite" aria-atomic="true" aria-hidden="true">
+        <div id="stone-info-name" class="stone-info-name"></div>
+        <div id="stone-info-desc" class="stone-info-desc"></div>
+        <div id="stone-info-meta" class="stone-info-meta"></div>
+    </div>
+
     <div id="effect-live-panel" aria-live="polite" aria-atomic="false">
         <div class="effect-live-title">効果ログ</div>
         <div id="effect-live-lines"></div>
@@ -369,12 +375,13 @@
         <div id="hero-label">リバーシの勇者</div>
     </div>
 
-    <button id="gachaOpenBtn" class="btn-small" type="button" aria-controls="gachaOverlay" aria-expanded="false">ガチャ</button>
-    <button id="leaderboardOpenBtn" class="btn-small" type="button" aria-controls="leaderboardOverlay" aria-expanded="false">ランキング</button>
-    <button id="deckBuilderOpenBtn" class="btn-small" type="button" aria-controls="deckBuilderOverlay" aria-expanded="false">デッキ</button>
-    <button id="storyModeOpenBtn" class="btn-small" type="button" aria-controls="story-root" aria-expanded="false">ストーリー</button>
-    <button id="rulesHelpBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="rules-help-panel">HELP</button>
-    <button id="handSkinBtn" class="btn-small" type="button" aria-expanded="false" aria-controls="handSkinPanel" aria-label="見た目設定">SKIN</button>
+    <div id="leftActionButtons" aria-label="左下メニュー">
+        <button id="gachaOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="gachaOverlay" aria-expanded="false">ガチャ</button>
+        <button id="leaderboardOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="leaderboardOverlay" aria-expanded="false">ランキング</button>
+        <button id="deckBuilderOpenBtn" class="btn-small left-action-btn" type="button" aria-controls="deckBuilderOverlay" aria-expanded="false">デッキ</button>
+        <button id="rulesHelpBtn" class="btn-small left-action-btn" type="button" aria-expanded="false" aria-controls="rules-help-panel">HELP</button>
+        <button id="handSkinBtn" class="btn-small left-action-btn" type="button" aria-expanded="false" aria-controls="handSkinPanel" aria-label="見た目設定">SKIN</button>
+    </div>
 
     <div id="handSkinPanel" aria-hidden="true" role="dialog" aria-modal="false" aria-label="見た目設定">
         <div id="handSkinPanelHeader">
@@ -665,7 +672,7 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js"></script>
-    <script src="public/module-registry.js?v=203108370740918"></script>
+    <script src="public/module-registry.js?v=252865673561247"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
     <script src="entry-browser.js?v=43646021194010"></script>

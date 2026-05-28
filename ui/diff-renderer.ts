@@ -847,12 +847,20 @@ function _ensureStoneInfoPanel() {
     panel = document.createElement('div');
     panel.id = 'stone-info-panel';
     panel.className = 'stone-info-panel';
+    panel.setAttribute('aria-live', 'polite');
+    panel.setAttribute('aria-atomic', 'true');
+    panel.setAttribute('aria-hidden', 'true');
     panel.innerHTML = [
         '<div id="stone-info-name" class="stone-info-name"></div>',
         '<div id="stone-info-desc" class="stone-info-desc"></div>',
         '<div id="stone-info-meta" class="stone-info-meta"></div>'
     ].join('');
-    document.body.appendChild(panel);
+    const effectPanel = document.getElementById('effect-live-panel');
+    if (effectPanel && effectPanel.parentNode) {
+        effectPanel.parentNode.insertBefore(panel, effectPanel);
+    } else {
+        document.body.appendChild(panel);
+    }
     return panel;
 }
 
@@ -860,7 +868,35 @@ function _hideStoneInfoPanel() {
     const panel = _ensureStoneInfoPanel();
     if (!panel) return;
     panel.classList.remove('visible');
+    panel.setAttribute('aria-hidden', 'true');
     _closeStoneInfoTagPanel();
+}
+
+function _isStoneInfoPanelVisible() {
+    if (typeof document === 'undefined') return false;
+    const panel = document.getElementById('stone-info-panel');
+    return !!(panel && panel.classList.contains('visible'));
+}
+
+function _isHoverPointerEvent(ev: any) {
+    if (ev && ev.pointerType === 'touch') return false;
+    if (ev && (ev.pointerType === 'mouse' || ev.pointerType === 'pen')) return true;
+    try {
+        if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+            return window.matchMedia('(hover: hover)').matches;
+        }
+    } catch (e: any) { /* ignore */ }
+    return true;
+}
+
+function _isTouchStoneInfoEvent(ev: any) {
+    if (ev && ev.pointerType === 'touch') return true;
+    try {
+        if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+            return window.matchMedia('(hover: none)').matches;
+        }
+    } catch (e: any) { /* ignore */ }
+    return false;
 }
 
 function _ensureStoneInfoTagPanel() {
@@ -1164,8 +1200,14 @@ function _getBreedingSproutStoneInfo(row: any, col: any) {
     return BREEDING_SPROUT_STONE_INFO[ownerKey] || null;
 }
 
-function showSpecialStoneInfoAt(row: any, col: any) {
+function showSpecialStoneInfoAt(row: any, col: any, options?: any) {
     _closeStoneInfoTagPanel();
+    const preserveOnEmpty = !!(options && options.preserveOnEmpty);
+    const keepOrHideEmpty = () => {
+        if (preserveOnEmpty && _isStoneInfoPanelVisible()) return false;
+        _hideStoneInfoPanel();
+        return false;
+    };
     const entries = _getMarkerEntriesAt(row, col);
     const entry = entries.find((one) => !_isOverlayOnlyMarkerEntryForDiff(one)) || null;
     let info: any = null;
@@ -1173,8 +1215,7 @@ function showSpecialStoneInfoAt(row: any, col: any) {
     if (entry) {
         const type = _getEntryType(entry);
         if (!type) {
-            _hideStoneInfoPanel();
-            return false;
+            return keepOrHideEmpty();
         }
 
         const hasGuard = _hasGuardMarkerAt(row, col);
@@ -1194,8 +1235,7 @@ function showSpecialStoneInfoAt(row: any, col: any) {
         } else {
             info = _getNormalStoneInfo(row, col);
             if (!info) {
-                _hideStoneInfoPanel();
-                return false;
+                return keepOrHideEmpty();
             }
             if (entries.length > 0) {
                 badges.push(..._buildSpecialStoneBadges(entries, _hasGuardMarkerAt(row, col), null));
@@ -1217,19 +1257,9 @@ function showSpecialStoneInfoAt(row: any, col: any) {
     _renderStoneInfoMetaBadges(metaEl, badges);
 
     panel.classList.add('visible');
-
-    const cell = _getCachedCell(row, col);
-    if (cell && typeof window !== 'undefined') {
-        const rect = cell.getBoundingClientRect();
-        const panelRect = panel.getBoundingClientRect();
-        const margin = 10;
-        const maxLeft = Math.max(margin, window.innerWidth - panelRect.width - margin);
-        const left = Math.min(maxLeft, Math.max(margin, rect.left + 6));
-        const topCandidate = rect.top - panelRect.height - 8;
-        const top = topCandidate < margin ? Math.min(window.innerHeight - panelRect.height - margin, rect.bottom + 8) : topCandidate;
-        panel.style.left = `${left}px`;
-        panel.style.top = `${Math.max(margin, top)}px`;
-    }
+    panel.setAttribute('aria-hidden', 'false');
+    panel.style.removeProperty('left');
+    panel.style.removeProperty('top');
 
     return true;
 }
@@ -1282,6 +1312,12 @@ function attachBoardCellInteraction(cell: any, row: any, col: any) {
         }, LONG_PRESS_MS);
     });
 
+    cell.addEventListener('pointerenter', (ev: any) => {
+        if (!_isHoverPointerEvent(ev)) return;
+        _ensureOutsideCloseHandler();
+        showSpecialStoneInfoAt(row, col, { preserveOnEmpty: true });
+    });
+
     cell.addEventListener('pointermove', (ev: any) => {
         if (!pressActive) return;
         const dx = Math.abs(Number(ev.clientX || 0) - startX);
@@ -1299,11 +1335,16 @@ function attachBoardCellInteraction(cell: any, row: any, col: any) {
             ev.preventDefault();
             return;
         }
-        _hideStoneInfoPanel();
+        if (_isTouchStoneInfoEvent(ev)) {
+            showSpecialStoneInfoAt(row, col);
+        }
         handleCellClick(row, col);
     });
 
     cell.addEventListener('pointercancel', () => clearPress());
+    cell.addEventListener('pointerleave', () => {
+        clearPress();
+    });
     cell.addEventListener('mouseleave', () => clearPress());
 }
 

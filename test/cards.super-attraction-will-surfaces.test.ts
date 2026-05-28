@@ -7,7 +7,7 @@ const EXPECTED_BASE_CARD = Object.freeze({
   name_ja: '超引力',
   type: 'SUPER_ATTRACTION_WILL',
   cost: 40,
-  desc_ja: '盤面の石1つを選び、同じ行・列・斜め45度上の指定マスまで引き寄せる。経路上と指定マス上の石はすべて破壊する。',
+  desc_ja: '盤面の石1つを選び、盤面上の別マスまで最短経路で引き寄せる。経路上と指定マス上の石はすべて破壊する。',
   display_type_ja: '殲滅'
 });
 
@@ -17,7 +17,7 @@ const EXPECTED_BROWSER_CARD = Object.freeze({
   desc: EXPECTED_BASE_CARD.desc_ja
 });
 
-const EXPECTED_QUICK_TEXT = '石1つを指定マスまで引き寄せ、経路上の石を破壊';
+const EXPECTED_QUICK_TEXT = '石1つを任意マスまで引き寄せ、経路上の石を破壊';
 
 function getCardById(catalog, cardId) {
   return ((catalog && catalog.cards) || []).find((card) => card && card.id === cardId) || null;
@@ -55,7 +55,8 @@ describe('SUPER_ATTRACTION_WILL catalog/help surfaces', () => {
     const sharedCard = ((SharedConstants.CARD_DEFS || []).find((card) => card && card.type === 'SUPER_ATTRACTION_WILL')) || null;
 
     expect(CardInteractionEffects.quickCardEffectByType.SUPER_ATTRACTION_WILL).toBe(EXPECTED_QUICK_TEXT);
-    expect(CardInteractionEffects.detailCardEffectByType.SUPER_ATTRACTION_WILL).toContain('同じ行・列・斜め45度上');
+    expect(CardInteractionEffects.detailCardEffectByType.SUPER_ATTRACTION_WILL).toContain('盤面上の別マス');
+    expect(CardInteractionEffects.detailCardEffectByType.SUPER_ATTRACTION_WILL).toContain('最短経路');
     expect(sharedCard).toEqual(expect.objectContaining({
       id: EXPECTED_BASE_CARD.id,
       name: EXPECTED_BASE_CARD.name_ja,

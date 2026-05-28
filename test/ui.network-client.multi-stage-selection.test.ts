@@ -524,7 +524,8 @@ describe.each(CASES)('$label authoritative multi-stage contract', ({
     expect(global.gameState.currentPlayer).toBe(global.BLACK);
     expect(global.gameState.turnNumber).toBe(12);
     expect(global.cardState.pendingEffectByPlayer.black).toEqual(intermediatePending);
-    expect(global.ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+    expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+    expect(global.ensureCurrentPlayerCanActOrPass).not.toHaveBeenCalled();
     expect(global.isProcessing).toBe(false);
     expect(global.isCardAnimating).toBe(false);
   });

@@ -18,6 +18,62 @@ let stoneVisuals: any = null;
 let presentationResolver: any = null;
 let playbackEngineModule: any = null;
 
+function isPresentationDebugEnabled(): boolean {
+  try {
+    const search = (typeof location !== 'undefined' && location && typeof location.search === 'string')
+      ? location.search
+      : ((typeof globalThis !== 'undefined' && (globalThis as any).location && typeof (globalThis as any).location.search === 'string')
+        ? (globalThis as any).location.search
+        : '');
+    return /[?&]debug=1(?:&|$)/.test(search) || /[?&]debug=true(?:&|$)/i.test(search);
+  } catch (e) { /* ignore */ }
+  return false;
+}
+
+function emitPresentationDebugConsole(eventType: string, details?: any): void {
+  if (!isPresentationDebugEnabled()) {
+    try {
+      const client = resolveFromGlobal('NetworkMatchClient');
+      const state = client && typeof client.getState === 'function' ? client.getState() : null;
+      if (!state || state.networkDebugEnabled !== true) return;
+    } catch (e) {
+      return;
+    }
+  }
+  const line = `[presentation-debug] ${String(eventType || '').trim()}`;
+  if (!line || line === '[presentation-debug]') return;
+  try {
+    if (typeof console !== 'undefined' && console && typeof console.log === 'function') {
+      if (details && typeof details === 'object') {
+        console.log(line, details);
+      } else {
+        console.log(line);
+      }
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function getPlaybackTargetSummary(playbackEvents: any[]): any[] {
+  const out: any[] = [];
+  const events = Array.isArray(playbackEvents) ? playbackEvents : [];
+  for (const event of events) {
+    if (!event || typeof event !== 'object') continue;
+    const targets = Array.isArray(event.targets) ? event.targets : [];
+    out.push({
+      type: String(event.type || '').trim(),
+      phase: Number.isFinite(Number(event.phase)) ? Number(event.phase) : null,
+      targetCount: targets.length,
+      causes: Array.from(new Set(targets
+        .map((target: any) => String(target && target.cause || '').trim())
+        .filter((value: string) => !!value))),
+      reasons: Array.from(new Set(targets
+        .map((target: any) => String(target && target.reason || '').trim())
+        .filter((value: string) => !!value)))
+    });
+  }
+  return out;
+}
+
 function resolvePresentationResolver(): any {
   if (presentationResolver) return presentationResolver;
   try {
@@ -347,8 +403,23 @@ function normalizePlaybackEventsForUi(payload: any[]): any[] {
       (typeof cardState !== 'undefined') ? cardState : null,
       (typeof gameState !== 'undefined') ? gameState : null
     );
-    return Array.isArray(mapped) && mapped.length > 0 ? mapped : payload;
+    const normalized = Array.isArray(mapped) && mapped.length > 0 ? mapped : payload;
+    emitPresentationDebugConsole('playback_batch_normalized', {
+      rawCount: payload.length,
+      rawTypes: payload.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value),
+      normalizedCount: Array.isArray(normalized) ? normalized.length : 0,
+      normalizedTypes: Array.isArray(normalized)
+        ? normalized.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value)
+        : [],
+      usedAdapter: Array.isArray(mapped) && mapped.length > 0
+    });
+    return normalized;
   } catch (e) {
+    emitPresentationDebugConsole('playback_batch_normalize_failed', {
+      rawCount: payload.length,
+      rawTypes: payload.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value),
+      error: e && (e as any).message ? String((e as any).message) : String(e || '')
+    });
     return payload;
   }
 }
@@ -370,34 +441,86 @@ async function playPlaybackEvents(ev: any, options?: any): Promise<void> {
   const payload = normalizePlaybackEventsForUi(Array.isArray(ev && ev.events) ? ev.events : []);
   if (!payload.length) return;
   const suppressPlayback = !!(ev && ev.meta && ev.meta.suppressPlayback === true);
+  const payloadTypes = payload.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value);
 
   const opts = options && typeof options === 'object' ? options : {};
+  emitPresentationDebugConsole('playback_batch_received', {
+    source: ev && ev.meta && ev.meta.source ? String(ev.meta.source) : '',
+    suppressPlayback,
+    payloadCount: payload.length,
+    payloadTypes,
+    targetSummary: getPlaybackTargetSummary(payload)
+  });
   if (!suppressPlayback) {
     if (opts.emitEnemyCardReaction !== false) {
       emitCpuReactionToEnemyCardFromPlayback(payload);
     }
   }
-  if (suppressPlayback) return;
+  if (suppressPlayback) {
+    emitPresentationDebugConsole('playback_batch_suppressed', {
+      source: ev && ev.meta && ev.meta.source ? String(ev.meta.source) : '',
+      payloadCount: payload.length,
+      payloadTypes
+    });
+    return;
+  }
 
   const playbackDispatchDeps = getPlaybackDispatchDeps();
   const playbackEngine = resolvePlaybackEngine();
   try {
     if (playbackEngine && typeof playbackEngine.dispatchPresentationEvent === 'function') {
+      const startedAt = Date.now();
+      emitPresentationDebugConsole('playback_batch_dispatch_engine', {
+        payloadCount: payload.length,
+        payloadTypes,
+        hasAnimationEngine: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine),
+        animationEngineHasPlay: !!(playbackDispatchDeps && playbackDispatchDeps.AnimationEngine && typeof playbackDispatchDeps.AnimationEngine.play === 'function')
+      });
       await playbackEngine.dispatchPresentationEvent({
         type: 'PLAYBACK_EVENTS',
         events: payload
       }, playbackDispatchDeps);
+      emitPresentationDebugConsole('playback_batch_dispatch_engine_resolved', {
+        payloadCount: payload.length,
+        payloadTypes,
+        elapsedMs: Date.now() - startedAt
+      });
       return;
     }
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    emitPresentationDebugConsole('playback_batch_dispatch_engine_failed', {
+      payloadCount: payload.length,
+      payloadTypes,
+      error: e && (e as any).message ? String((e as any).message) : String(e || '')
+    });
+  }
 
   try {
     const animationEngine = playbackDispatchDeps.AnimationEngine;
     if (animationEngine && typeof animationEngine.play === 'function') {
+      const startedAt = Date.now();
+      emitPresentationDebugConsole('playback_batch_animation_engine', {
+        payloadCount: payload.length,
+        payloadTypes
+      });
       await animationEngine.play(payload);
+      emitPresentationDebugConsole('playback_batch_animation_engine_resolved', {
+        payloadCount: payload.length,
+        payloadTypes,
+        elapsedMs: Date.now() - startedAt
+      });
       return;
     }
+    emitPresentationDebugConsole('playback_batch_no_animation_engine', {
+      payloadCount: payload.length,
+      payloadTypes
+    });
   } catch (e) {
+    emitPresentationDebugConsole('playback_batch_failed', {
+      payloadCount: payload.length,
+      payloadTypes,
+      error: e && (e as any).message ? String((e as any).message) : String(e || '')
+    });
     try { console.warn('[PresentationHandler] playback failed', e); } catch (e2) { /* ignore */ }
   }
 }
@@ -516,6 +639,12 @@ function flushPendingPresentationEvents(): any[] {
 async function flushBoardPresentationEvents(): Promise<void> {
   try {
     const events = flushPendingPresentationEvents();
+    emitPresentationDebugConsole('board_updated_flush', {
+      eventCount: Array.isArray(events) ? events.length : 0,
+      eventTypes: Array.isArray(events)
+        ? events.map((item: any) => String(item && item.type || '').trim()).filter((value: string) => !!value)
+        : []
+    });
     try {
       const drainChargeDeltaPopups = (typeof window !== 'undefined' && typeof (window as any).drainVisibleChargeDeltaPopups === 'function')
         ? (window as any).drainVisibleChargeDeltaPopups

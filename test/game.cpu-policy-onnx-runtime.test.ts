@@ -81,13 +81,70 @@ describe('policy-onnx-runtime', () => {
     freshRuntime.configure({
       enabled: true,
       minLevel: 6,
-      readQuerySearch: () => '?onnxWebGpu=1'
+      readQuerySearch: () => '?onnxWebGpu=1',
+      ortApi: global.ort
     });
 
     const ok = await freshRuntime.loadFromUrl('model.onnx', 'meta.json', jest.fn(async () => ({ ok: false })));
 
     expect(ok).toBe(true);
     expect(create).toHaveBeenCalledWith('model.onnx', { executionProviders: ['webgpu', 'wasm'] });
+  });
+
+  test('loadFromUrl reconstructs ONNX bytes from chunk manifest', async () => {
+    jest.resetModules();
+    const create = jest.fn(async () => ({
+      inputNames: ['obs'],
+      outputNames: ['logits'],
+      run: jest.fn()
+    }));
+    const InferenceSession = function InferenceSession() {};
+    InferenceSession.create = create;
+    global.ort = {
+      Tensor: function Tensor(type, data, dims) {
+        this.type = type;
+        this.data = data;
+        this.dims = dims;
+      },
+      InferenceSession
+    };
+    jest.doMock('onnxruntime-web', () => global.ort);
+    const freshRuntime = require(path.resolve(__dirname, '..', 'game', 'ai', 'policy-onnx-runtime.js'));
+    const fetchImpl = jest.fn(async (url) => {
+      if (url === 'model.onnx') {
+        const manifest = {
+          assetType: 'policy_table.chunks.v1',
+          sourceBytes: 6,
+          chunks: [
+            { url: 'model.onnx.chunk.000', bytes: 3 },
+            { url: 'model.onnx.chunk.001', bytes: 3 }
+          ]
+        };
+        return {
+          ok: true,
+          arrayBuffer: async () => Buffer.from(JSON.stringify(manifest), 'utf8')
+        };
+      }
+      if (url === 'model.onnx.chunk.000') {
+        return { ok: true, arrayBuffer: async () => Uint8Array.from([1, 2, 3]).buffer };
+      }
+      if (url === 'model.onnx.chunk.001') {
+        return { ok: true, arrayBuffer: async () => Uint8Array.from([4, 5, 6]).buffer };
+      }
+      if (url === 'meta.json') {
+        return {
+          ok: true,
+          json: async () => ({ inputName: 'obs', outputName: 'logits', schemaVersion: freshRuntime.MODEL_SCHEMA_VERSION })
+        };
+      }
+      return { ok: false };
+    });
+
+    const ok = await freshRuntime.loadFromUrl('model.onnx', 'meta.json', fetchImpl);
+
+    expect(ok).toBe(true);
+    expect(create).toHaveBeenCalledWith(expect.any(Uint8Array), { executionProviders: ['wasm'] });
+    expect(Array.from(create.mock.calls[0][0])).toEqual([1, 2, 3, 4, 5, 6]);
   });
 
   test('chooseMove returns null on non-8x8 board even when model is loaded', async () => {

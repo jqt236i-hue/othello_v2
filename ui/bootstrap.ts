@@ -6,6 +6,56 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+let OwnerHelpersModule: any = null;
+try {
+    if (typeof _require === 'function') {
+        OwnerHelpersModule = _require('../utils/owner-helpers');
+    }
+} catch (e: any) { /* ignore */ }
+if (!OwnerHelpersModule) {
+    try {
+        if (typeof window !== 'undefined' && window && (window as any).OwnerHelpers) {
+            OwnerHelpersModule = (window as any).OwnerHelpers;
+        }
+    } catch (e: any) { /* ignore */ }
+}
+
+function createInjectedTimerService(timersImpl: any) {
+    const hasUsableWaitMs = !!(timersImpl && typeof timersImpl.waitMs === 'function');
+
+    return {
+        setTimeout(callback: any, delay: any) {
+            const handle: any = { cancelled: false };
+            handle.unref = () => handle;
+            if (!hasUsableWaitMs) return handle;
+            Promise.resolve(timersImpl.waitMs(delay)).then(() => {
+                if (handle.cancelled) return;
+                try { callback(); } catch (e: any) { /* ignore */ }
+            });
+            return handle;
+        },
+        clearTimeout(handle: any) {
+            if (handle && typeof handle === 'object') handle.cancelled = true;
+        },
+        setInterval(callback: any, delay: any) {
+            const handle: any = { cancelled: false };
+            handle.unref = () => handle;
+            if (!hasUsableWaitMs) return handle;
+            const tick = () => {
+                if (handle.cancelled) return;
+                try { callback(); } catch (e: any) { /* ignore */ }
+                if (handle.cancelled) return;
+                Promise.resolve(timersImpl.waitMs(delay)).then(tick);
+            };
+            Promise.resolve(timersImpl.waitMs(delay)).then(tick);
+            return handle;
+        },
+        clearInterval(handle: any) {
+            if (handle && typeof handle === 'object') handle.cancelled = true;
+        }
+    };
+}
+
 declare const SoundEngine: any;
 declare const updateCpuCharacter: (...args: any[]) => any;
 declare const SharedUIBootstrap: any;
@@ -1296,7 +1346,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         } catch (e: any) { /* ignore */ }
     }
 
-    function installNetworkDI() {
+    function installNetworkDI(timerService: any) {
         // Early registration: if the CPU turn handler is available on the game side, register its
         // processCpuTurn/processAutoBlackTurn to UIBootstrap so UI consumers can schedule CPU
         // turns immediately without waiting for other bootstrap steps. This avoids boot-order
@@ -1307,6 +1357,9 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 const cpuGlobals: any = {};
                 if (typeof cpu.processCpuTurn === 'function') cpuGlobals.processCpuTurn = cpu.processCpuTurn;
                 if (typeof cpu.processAutoBlackTurn === 'function') cpuGlobals.processAutoBlackTurn = cpu.processAutoBlackTurn;
+                if (typeof cpu.setCpuTurnTimerService === 'function') {
+                    cpu.setCpuTurnTimerService(timerService || null);
+                }
                 if (typeof cpu.setCpuUIImpl === 'function') {
                     cpu.setCpuUIImpl({
                         readMatchMode: () => {
@@ -1508,6 +1561,9 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
                 const passGlobals: any = {};
                 if (typeof passHandler.processPassTurn === 'function') passGlobals.processPassTurn = passHandler.processPassTurn;
                 if (typeof passHandler.ensureCurrentPlayerCanActOrPass === 'function') passGlobals.ensureCurrentPlayerCanActOrPass = passHandler.ensureCurrentPlayerCanActOrPass;
+                if (typeof passHandler.setPassHandlerTimerService === 'function') {
+                    passHandler.setPassHandlerTimerService(timerService || null);
+                }
                 try {
                     if (typeof passHandler.setPassHandlerRuntime === 'function') {
                         let cpu: any = null;
@@ -1633,6 +1689,11 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
 
         try {
             const cpuDecision = require('../game/cpu-decision');
+            if (cpuDecision) {
+                if (typeof cpuDecision.setCpuTimerService === 'function') {
+                    cpuDecision.setCpuTimerService(timerService || null);
+                }
+            }
             if (cpuDecision && typeof cpuDecision.setCpuDecisionRuntime === 'function') {
                 let cpu: any = null;
                 try { cpu = require('../game/cpu-turn-handler'); } catch (e: any) { /* ignore */ }
@@ -1870,7 +1931,7 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         } catch (e: any) { /* ignore */ }
     }
 
-    function installUIDI(timersImpl: any) {
+    function installUIDI(timersImpl: any, timerService: any) {
         // Move visuals
         _connect('./move-executor-visuals', '../game/move-executor-visuals', (uiMod: any) => ({
             applyFlipAnimations: uiMod.applyFlipAnimations,
@@ -2103,6 +2164,9 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
             if (moveExecutor && typeof moveExecutor.executeMove === 'function' && typeof globalThis !== 'undefined') {
                 (globalThis as any).executeMove = moveExecutor.executeMove;
             }
+            if (moveExecutor && typeof moveExecutor.setMoveExecutorTimerService === 'function') {
+                moveExecutor.setMoveExecutorTimerService(timerService || null);
+            }
         } catch (e: any) { /* ignore */ }
 
         // Visual effects map
@@ -2116,6 +2180,9 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         // Turn manager helpers (readCpuSmartness / scheduleCpuTurn / isDocumentHidden / pulseDeckUI)
         try {
             const tm = require('../game/turn-manager');
+            if (tm && typeof tm.setTurnManagerTimerService === 'function') {
+                tm.setTurnManagerTimerService(timerService || null);
+            }
             if (tm && typeof tm.setUIImpl === 'function') {
                 tm.setUIImpl({
                     getRuntimeRoot: () => {
@@ -2403,9 +2470,10 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         if (_gameDIInstallResult) return _gameDIInstallResult;
 
         const timersImpl = installCoreDI();
+        const timerService = createInjectedTimerService(timersImpl);
         installCardDI();
-        installNetworkDI();
-        installUIDI(timersImpl);
+        installNetworkDI(timerService);
+        installUIDI(timersImpl, timerService);
         try {
             const sharedBootstrap = resolveSharedUIBootstrapHelpers();
             const sharedGlobals = sharedBootstrap && typeof sharedBootstrap.getRegisteredUIGlobals === 'function'
@@ -2458,6 +2526,15 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
     function getRegisteredUIGlobals() {
         return Object.assign({}, _uiGlobals);
     }
+
+    function ensureOwnerHelpersGlobal() {
+        if (!OwnerHelpersModule) return null;
+        try {
+            registerUIGlobals({ OwnerHelpers: OwnerHelpersModule });
+        } catch (e: any) { /* ignore */ }
+        return OwnerHelpersModule;
+    }
+
     function isGameDIInstalled() {
         return !!_gameDIInstallResult;
     }
@@ -2594,6 +2671,8 @@ declare const processAutoBlackTurn: (...args: any[]) => any | undefined;
         }
         return { status: 'no_asset_manifest' };
     }
+
+    ensureOwnerHelpersGlobal();
 
     const UIBootstrap = {
         addLog: (typeof addLog === 'function') ? addLog : function () { return false; },

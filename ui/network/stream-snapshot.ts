@@ -35,6 +35,16 @@ function createNetworkStreamSnapshotController(config?: any): any {
     const shouldShadowStreamPlayback = isSelfOperation
       && typeof cfg.shouldApplyStreamSnapshotAsShadowPlayback === 'function'
       && cfg.shouldApplyStreamSnapshotAsShadowPlayback(trackedPublish, playbackEvents);
+    if (typeof cfg.recordNetworkTelemetry === 'function') {
+      cfg.recordNetworkTelemetry('stream_snapshot_playback_decision', {
+        operationId,
+        snapshotVersion,
+        isSelfOperation,
+        isTerminalResultSnapshot,
+        playbackEventCount: playbackEvents.length,
+        shouldShadowStreamPlayback
+      });
+    }
     const streamPlaybackApplyOptions = typeof cfg.buildShadowAwarePlaybackApplyOptions === 'function'
       ? cfg.buildShadowAwarePlaybackApplyOptions(
         playbackEvents,

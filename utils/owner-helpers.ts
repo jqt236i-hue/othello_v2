@@ -399,9 +399,4 @@ interface OwnerHelpersApi {
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = OwnerHelpers;
     }
-    try {
-        if (typeof window !== 'undefined') {
-            (window as unknown as OwnerHelpersRoot & { OwnerHelpers?: OwnerHelpersApi }).OwnerHelpers = OwnerHelpers;
-        }
-    } catch (e) {}
 })(typeof self !== 'undefined' ? self as unknown as OwnerHelpersRoot : globalThis as OwnerHelpersRoot);

@@ -1,4 +1,31 @@
-const PipelineUIPlaybackUtilsModule = require('./playback-utils');
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+
+function readRuntimeModuleGlobal(globalKey: string): any {
+    if (!globalKey) return null;
+    try {
+        if (typeof self !== 'undefined' && (self as any)[globalKey]) {
+            return (self as any)[globalKey];
+        }
+        if (typeof globalThis !== 'undefined' && (globalThis as any)[globalKey]) {
+            return (globalThis as any)[globalKey];
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function requirePipelineUIModule(id: string, globalKey: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return readRuntimeModuleGlobal(globalKey);
+    }
+}
+
+const PipelineUIPlaybackUtilsModule = requirePipelineUIModule('./playback-utils', 'PipelineUIPlaybackUtils');
 
 type GeneratedThrowChainPlaybackDeps = {
     generatedThrowChainReason: string;

@@ -32,6 +32,7 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
 
     gameState.board[2][2] = SharedConstants.BLACK;
     gameState.board[3][3] = SharedConstants.BLACK;
+    gameState.board[4][4] = SharedConstants.BLACK;
 
     cardState.markers.push({
       id: 9101,
@@ -56,6 +57,14 @@ describe('EXTEND_LIFE_WILL × WORK_WILL', () => {
       col: 3,
       owner: 'black',
       data: { type: 'WORK', ownerColor: 'black', workStage: 3, remainingOwnerTurns: 0 }
+    });
+    cardState.markers.push({
+      id: 9104,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: { type: 'BLOCKADE', remainingOwnerTurns: 3 }
     });
 
     cardState.pendingEffectByPlayer.black = { type: 'EXTEND_LIFE_WILL', stage: 'selectTarget' };

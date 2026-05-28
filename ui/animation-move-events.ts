@@ -103,19 +103,87 @@ function ensureMoveDiscVisible(discEl: any) {
     try { discEl.style.opacity = ''; } catch (e: any) { /* ignore */ }
 }
 
-function buildMoveGhostAnimationSpec(moveSemantics: any, deltaX: any, deltaY: any) {
+function normalizeWaypointPosition(rawPoint: any) {
+    const row = Number(rawPoint && rawPoint.row);
+    const col = Number(rawPoint && rawPoint.col);
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+    return { row, col };
+}
+
+function resolveMoveWaypointDeltas(target: any, fromRect: any, deps: AnimationMoveEventDeps) {
+    const meta = (target && target.meta && typeof target.meta === 'object') ? target.meta : null;
+    const rawWaypoints = Array.isArray(meta && meta.waypoints) ? meta.waypoints : [];
+    const destination = target && target.to ? { row: Number(target.to.r), col: Number(target.to.col) } : null;
+    const normalizedWaypoints = rawWaypoints
+        .map((point: any) => normalizeWaypointPosition(point))
+        .filter((point: any) => !!point);
+    if (
+        destination &&
+        Number.isInteger(destination.row) &&
+        Number.isInteger(destination.col) &&
+        !normalizedWaypoints.some((point: any) => point.row === destination.row && point.col === destination.col)
+    ) {
+        normalizedWaypoints.push(destination);
+    }
+    if (normalizedWaypoints.length <= 0) return [];
+
+    const out = [];
+    for (const point of normalizedWaypoints) {
+        const cell = deps.getCellEl(point.row, point.col);
+        if (!cell || typeof cell.getBoundingClientRect !== 'function') return [];
+        const rect = cell.getBoundingClientRect();
+        out.push({
+            deltaX: rect.left - fromRect.left,
+            deltaY: rect.top - fromRect.top
+        });
+    }
+    return out;
+}
+
+function resolveMovePathBreakOffsets(target: any) {
+    const meta = (target && target.meta && typeof target.meta === 'object') ? target.meta : null;
+    const segments = Array.isArray(meta && meta.segments) ? meta.segments : [];
+    if (segments.length <= 1) return [];
+
+    const totalLength = segments.reduce((sum: number, segment: any) => {
+        const length = Number(segment && segment.length);
+        return sum + (Number.isFinite(length) && length > 0 ? length : 0);
+    }, 0);
+    if (!(totalLength > 0)) return [];
+
+    let travelled = 0;
+    const out = [];
+    for (let index = 0; index < segments.length - 1; index += 1) {
+        const length = Number(segments[index] && segments[index].length);
+        travelled += Number.isFinite(length) && length > 0 ? length : 0;
+        out.push(Math.max(0, Math.min(1, travelled / totalLength)));
+    }
+    return out;
+}
+
+function buildMoveGhostAnimationSpec(
+    moveSemantics: any,
+    deltaX: any,
+    deltaY: any,
+    waypointDeltas: Array<{ deltaX: number; deltaY: number }> = [],
+    breakOffsets: number[] = []
+) {
     const normalizedCause = String(moveSemantics && moveSemantics.cause ? moveSemantics.cause : '').toUpperCase();
     const normalizedReason = String(moveSemantics && moveSemantics.reason ? moveSemantics.reason : '').toLowerCase();
     const normalizedIntent = String(moveSemantics && moveSemantics.moveIntent ? moveSemantics.moveIntent : '').toLowerCase();
+    const pathDeltas = Array.isArray(waypointDeltas) && waypointDeltas.length > 0
+        ? waypointDeltas
+        : [{ deltaX, deltaY }];
+    const finalDelta = pathDeltas[pathDeltas.length - 1] || { deltaX, deltaY };
     const defaultSpec = {
         keyframes: [
             { transform: 'translate(0, 0)' },
-            { transform: `translate(${deltaX}px, ${deltaY}px)` }
+            { transform: `translate(${finalDelta.deltaX}px, ${finalDelta.deltaY}px)` }
         ],
         easing: 'cubic-bezier(0.2, 0.85, 0.3, 1)'
     };
-    const absX = Math.abs(deltaX);
-    const absY = Math.abs(deltaY);
+    const absX = Math.abs(finalDelta.deltaX);
+    const absY = Math.abs(finalDelta.deltaY);
     const dominantTravel = Math.max(absX, absY);
     if (dominantTravel <= 0) return defaultSpec;
 
@@ -162,6 +230,30 @@ function buildMoveGhostAnimationSpec(moveSemantics: any, deltaX: any, deltaY: an
         (normalizedIntent === 'crush_move' && normalizedReason.indexOf('gravity_move') === 0) ||
         (normalizedIntent === 'crush_move' && normalizedReason.indexOf('super_gravity_move') === 0)
     ) {
+        if (
+            normalizedCause === 'SUPER_ATTRACTION_WILL' &&
+            pathDeltas.length > 1
+        ) {
+            const keyframes = [{ transform: 'translate(0, 0) scale(1)', offset: 0 }];
+            for (let index = 0; index < pathDeltas.length; index += 1) {
+                const point = pathDeltas[index];
+                const isLast = index === pathDeltas.length - 1;
+                const offset = isLast
+                    ? 1
+                    : Math.max(0, Math.min(1, Number(breakOffsets[index]) || ((index + 1) / pathDeltas.length)));
+                keyframes.push({
+                    transform: isLast
+                        ? `translate(${Math.round(point.deltaX)}px, ${Math.round(point.deltaY)}px) scale(1)`
+                        : `translate(${Math.round(point.deltaX)}px, ${Math.round(point.deltaY)}px) scale(1.05)`,
+                    offset
+                });
+            }
+            return {
+                keyframes,
+                easing: 'cubic-bezier(0.36, 0.08, 0.74, 0.98)'
+            };
+        }
+
         const drop = Math.max(20, Math.round(dominantTravel * 0.22));
         return {
             keyframes: [
@@ -641,6 +733,8 @@ async function handleMoveEvent(ev: any, deps: AnimationMoveEventDeps) {
             const toRect = toCell.getBoundingClientRect();
             const deltaX = toRect.left - fromRect.left;
             const deltaY = toRect.top - fromRect.top;
+            const waypointDeltas = resolveMoveWaypointDeltas(target, fromRect, deps);
+            const breakOffsets = resolveMovePathBreakOffsets(target);
             const noAnim = deps.isNoAnim();
 
             if (noAnim || moveSemantics.isTeleportMove) {
@@ -683,7 +777,7 @@ async function handleMoveEvent(ev: any, deps: AnimationMoveEventDeps) {
                 let anim: any = null;
                 if (typeof ghost.animate === 'function') {
                     try {
-                        const animationSpec = buildMoveGhostAnimationSpec(moveSemantics, deltaX, deltaY);
+                        const animationSpec = buildMoveGhostAnimationSpec(moveSemantics, deltaX, deltaY, waypointDeltas, breakOffsets);
                         anim = ghost.animate(animationSpec.keyframes, {
                             duration: durationMs,
                             easing: animationSpec.easing

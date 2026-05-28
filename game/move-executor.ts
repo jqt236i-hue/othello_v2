@@ -65,16 +65,6 @@ if (moveExecutorControllerEvents) {
 // TimerService DI
 let moveExecutorTimerService: any = null;
 function setMoveExecutorTimerService(service: any) { moveExecutorTimerService = service; }
-function getMoveExecutorTimerService() {
-    if (moveExecutorTimerService) return moveExecutorTimerService;
-    try {
-        const timerServiceModule = requireMoveExecutorModuleOrNull('./timer-service');
-        moveExecutorTimerService = timerServiceModule.createTimerService('browser');
-        return moveExecutorTimerService;
-    } catch (e) {
-        return null;
-    }
-}
 
 let moveExecutorNetworkTurnHandoff: any = requireMoveExecutorModuleOrNull('./network-turn-handoff');
 

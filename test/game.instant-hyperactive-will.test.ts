@@ -39,7 +39,7 @@ describe('INSTANT_HYPERACTIVE_WILL（瞬間多動）', () => {
     expect(marker).toBeTruthy();
   });
 
-  test('配置ターン内で3回移動し、最後に破壊で消滅する', () => {
+  test('配置ターン内で3回移動し、最後に通常石へ戻る', () => {
     const prng = makePrng();
     const cardState = CardLogic.createCardState(prng);
     const gameState = Core.createGameState();
@@ -65,17 +65,38 @@ describe('INSTANT_HYPERACTIVE_WILL（瞬間多動）', () => {
     const moved = (res.events || []).find(ev => ev && ev.type === 'hyperactive_moved_immediate');
     const flipped = (res.events || []).find(ev => ev && ev.type === 'hyperactive_flipped_immediate');
     const destroyed = (res.events || []).find(ev => ev && ev.type === 'hyperactive_destroyed_immediate');
+    const removed = (res.presentationEvents || []).find(ev => ev && ev.type === 'STATUS_REMOVED' && ev.reason === 'duration_end');
 
     expect(moved && moved.details).toBeTruthy();
     expect(moved.details.length).toBe(3);
     expect(destroyed && destroyed.details).toBeTruthy();
     expect(destroyed.details.length).toBe(1);
+    expect(destroyed.details[0]).toEqual(expect.objectContaining({
+      specialType: 'HYPERACTIVE',
+      reverted: true,
+      reason: 'duration_end'
+    }));
     expect(flipped && flipped.details && flipped.details.length).toBeGreaterThanOrEqual(1);
+    expect(removed).toMatchObject({
+      row: expect.any(Number),
+      col: expect.any(Number),
+      cause: 'HYPERACTIVE',
+      reason: 'duration_end',
+      meta: expect.objectContaining({
+        special: 'HYPERACTIVE',
+        owner: 'black',
+        reason: 'duration_end'
+      })
+    });
 
     const marker = (cardState.markers || []).find(m =>
       m && m.kind === 'specialStone' && m.data && m.data.type === 'HYPERACTIVE'
     );
     expect(marker).toBeUndefined();
+
+    const lastMove = moved.details[moved.details.length - 1];
+    expect(lastMove && lastMove.to).toBeTruthy();
+    expect(gameState.board[lastMove.to.row][lastMove.to.col]).toBe(Core.BLACK);
   });
 
   test('移動反転の布石ポップアップは最後の移動先をアンカーにする', () => {

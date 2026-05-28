@@ -3,6 +3,8 @@ import * as os from 'os';
 import * as path from 'path';
 
 const {
+    OPTIONAL_FILES,
+    GENERATED_OPTIONAL_ASSETS,
     ROOT_FILES,
     VERIFY_DIRS,
     VERIFY_ROOT_FILES,
@@ -151,7 +153,8 @@ describe('prepare-worker-assets', () => {
                 compressedRelativePath: 'data/models/othello/policy-table.json.chunk.',
                 manifestRelativePath: sourceRelativePath,
                 compression: 'split',
-                chunkSizeBytes: 5
+                chunkSizeBytes: 5,
+                splitThresholdBytes: 10
             }]
         };
 
@@ -169,5 +172,47 @@ describe('prepare-worker-assets', () => {
         ]);
         expect(fs.readFileSync(path.join(outDir, manifest.chunks[0].url), 'utf8')).toBe('abcde');
         expect(fs.readFileSync(path.join(outDir, manifest.chunks[2].url), 'utf8')).toBe('kl');
+    });
+
+    test('copies split-capable optional assets directly when under threshold', () => {
+        const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-prepare-direct-'));
+        cleanupDirs.push(rootDir);
+        const outDir = path.join(rootDir, 'worker-public-out');
+        const sourceRelativePath = 'data/models/othello/policy-value.onnx';
+        const options = {
+            rootDir,
+            outDir,
+            rootFiles: [],
+            verifyRootFiles: [],
+            dirs: [],
+            verifyDirs: [],
+            optionalFiles: [],
+            generatedOptionalAssets: [{
+                sourceRelativePath,
+                compressedRelativePath: 'data/models/othello/policy-value.onnx.chunk.',
+                manifestRelativePath: sourceRelativePath,
+                compression: 'split',
+                chunkSizeBytes: 5,
+                splitThresholdBytes: 12
+            }]
+        };
+
+        writeFile(path.join(rootDir, sourceRelativePath), 'abc');
+        prepareWorkerAssets(options);
+
+        expect(fs.readFileSync(path.join(outDir, sourceRelativePath), 'utf8')).toBe('abc');
+        expect(fs.existsSync(path.join(outDir, 'data/models/othello/policy-value.onnx.chunk.000'))).toBe(false);
+    });
+
+    test('routes ONNX binaries through generated split assets instead of raw optional copies', () => {
+        const generatedPaths = GENERATED_OPTIONAL_ASSETS.map((one) => one.sourceRelativePath);
+        expect(generatedPaths).toEqual(expect.arrayContaining([
+            'data/models/policy-net.onnx',
+            'data/models/policy-card.onnx',
+            'data/models/policy-target.onnx',
+            'data/models/policy-value.onnx',
+            'data/models/othello/policy-value.onnx'
+        ]));
+        expect(OPTIONAL_FILES).not.toEqual(expect.arrayContaining(generatedPaths));
     });
 });

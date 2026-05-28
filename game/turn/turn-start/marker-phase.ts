@@ -4,8 +4,29 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     ? __non_webpack_require__
     : require;
 
-const TurnStartBombPhaseModule = _require('./bomb-phase');
-const TurnStartSpecialStonePhaseModule = _require('./special-stone-phase');
+function readRuntimeModuleGlobal(globalKey: string): any {
+    if (!globalKey) return null;
+    try {
+        if (typeof self !== 'undefined' && (self as any)[globalKey]) {
+            return (self as any)[globalKey];
+        }
+        if (typeof globalThis !== 'undefined' && (globalThis as any)[globalKey]) {
+            return (globalThis as any)[globalKey];
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function requireTurnStartModule(id: string, globalKey: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return readRuntimeModuleGlobal(globalKey);
+    }
+}
+
+const TurnStartBombPhaseModule = requireTurnStartModule('./bomb-phase', 'TurnStartBombPhase');
+const TurnStartSpecialStonePhaseModule = requireTurnStartModule('./special-stone-phase', 'TurnStartSpecialStonePhase');
 
 type TurnStartMarkerAnchor = {
     isBomb: boolean;

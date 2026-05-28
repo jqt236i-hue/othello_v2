@@ -25,11 +25,32 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         return mod;
     }
 
+    const PIPELINE_UI_ADAPTER_MODULE_GLOBALS: Record<string, string> = Object.freeze({
+        '../logic/markers_adapter': 'MarkersAdapter',
+        '../../utils/owner-helpers': 'OwnerHelpers',
+        '../../shared/shared-board-utils': 'SharedBoardUtils',
+        '../../shared/playback-event-helpers': 'PlaybackEventHelpers',
+        './turn_pipeline_phase_helpers': 'TurnPipelinePhaseHelpers',
+        './pipeline-ui/board-event-playback': 'PipelineUIBoardEventPlayback',
+        './pipeline-ui/board-event-mapper': 'PipelineUIBoardEventMapper',
+        './pipeline-ui/passive-event-playback': 'PipelineUIPassiveEventPlayback',
+        './pipeline-ui/playback-after-state': 'PipelineUIPlaybackAfterState',
+        './pipeline-ui/log-mappers': 'PipelineUILogMappers',
+        './pipeline-ui/playback-utils': 'PipelineUIPlaybackUtils',
+        './pipeline-ui/generated-throw-chain-playback': 'PipelineUIGeneratedThrowChainPlayback',
+        './pipeline-ui/sound-cue-assembler': 'PipelineUISoundCueAssembler',
+        '../../shared/destroy-outcome-contract': 'DestroyOutcomeContract',
+        '../../shared/special-stone-registry': 'SpecialStoneRegistry',
+        '../../shared/stone-status-snapshot': 'StoneStatusSnapshot',
+        '../controller-events': 'ControllerEvents',
+        '../../shared/presentation-effect-profiles': 'PresentationEffectProfiles'
+    });
+
     function requireOptionalModule(id: string): any {
         try {
             return _require(id);
         } catch (e) {
-            return null;
+            return readRuntimeGlobal(PIPELINE_UI_ADAPTER_MODULE_GLOBALS[id]);
         }
     }
 

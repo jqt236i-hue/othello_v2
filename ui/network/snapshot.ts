@@ -11,6 +11,7 @@ import type { CardState, GameState, PlayerKey } from '../../src/types';
 function createNetworkSnapshotController(config: any): any {
     const cfg = (config && typeof config === 'object') ? config : {};
     const rootRef = cfg.root || (typeof globalThis !== 'undefined' ? globalThis : null);
+    let networkPlaybackBatchSeq = 0;
     function resolveNetworkSnapshotModuleOrNull(modulePath: string, globalName: string): any {
         try {
             if (rootRef && rootRef[globalName]) {
@@ -213,6 +214,195 @@ function createNetworkSnapshotController(config: any): any {
         } catch (e) { /* ignore */ }
     }
 
+    function readPresentationQueueLengths(cardStateRef: any): any {
+        return {
+            presentationQueueLength: Array.isArray(cardStateRef && cardStateRef.presentationEvents)
+                ? cardStateRef.presentationEvents.length
+                : 0,
+            persistentQueueLength: Array.isArray(cardStateRef && cardStateRef._presentationEventsPersist)
+                ? cardStateRef._presentationEventsPersist.length
+                : 0
+        };
+    }
+
+    function appendPlaybackPresentationEventDirect(cardStateRef: any, ev: any): boolean {
+        if (!cardStateRef || typeof cardStateRef !== 'object' || !ev) return false;
+        if (!Array.isArray(cardStateRef.presentationEvents)) cardStateRef.presentationEvents = [];
+        if (!Array.isArray(cardStateRef._presentationEventsPersist)) cardStateRef._presentationEventsPersist = [];
+        cardStateRef.presentationEvents.push(ev);
+        cardStateRef._presentationEventsPersist.push(ev);
+        return true;
+    }
+
+    function removeNetworkPlaybackBatchFromQueue(cardStateRef: any, networkPlaybackBatchId: string): any {
+        const batchId = String(networkPlaybackBatchId || '').trim();
+        if (!batchId || !cardStateRef || typeof cardStateRef !== 'object') {
+            return {
+                removedPresentationEvents: 0,
+                removedPersistentEvents: 0
+            };
+        }
+        function removeFromQueue(queue: any): any {
+            if (!Array.isArray(queue)) return 0;
+            const before = queue.length;
+            for (let index = queue.length - 1; index >= 0; index -= 1) {
+                const entry = queue[index];
+                const meta = entry && entry.meta && typeof entry.meta === 'object' ? entry.meta : null;
+                if (meta && String(meta.networkPlaybackBatchId || '') === batchId) {
+                    queue.splice(index, 1);
+                }
+            }
+            return before - queue.length;
+        }
+        return {
+            removedPresentationEvents: removeFromQueue(cardStateRef.presentationEvents),
+            removedPersistentEvents: removeFromQueue(cardStateRef._presentationEventsPersist)
+        };
+    }
+
+    function getPlaybackEventTypes(playbackEvents: any[]): string[] {
+        if (!Array.isArray(playbackEvents)) return [];
+        return playbackEvents
+            .map((event) => String(event && event.type || '').trim())
+            .filter((value) => !!value);
+    }
+
+    function resolveNetworkPlaybackDirectHandler(): any {
+        const injected = resolveGlobalFunction('handlePresentationEvent', cfg.handlePresentationEvent);
+        if (typeof injected === 'function') return injected;
+        try {
+            if (rootRef && rootRef.PresentationHandler && typeof rootRef.PresentationHandler.handlePresentationEvent === 'function') {
+                return rootRef.PresentationHandler.handlePresentationEvent.bind(rootRef.PresentationHandler);
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined'
+                && (globalThis as any).PresentationHandler
+                && typeof (globalThis as any).PresentationHandler.handlePresentationEvent === 'function') {
+                return (globalThis as any).PresentationHandler.handlePresentationEvent.bind((globalThis as any).PresentationHandler);
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function resolveNetworkPlaybackDrain(): any {
+        const injected = resolveGlobalFunction('onBoardUpdated', cfg.onBoardUpdated);
+        if (typeof injected === 'function') return injected;
+        try {
+            if (rootRef && rootRef.PresentationHandler && typeof rootRef.PresentationHandler.onBoardUpdated === 'function') {
+                return rootRef.PresentationHandler.onBoardUpdated.bind(rootRef.PresentationHandler);
+            }
+        } catch (e) { /* ignore */ }
+        try {
+            if (typeof globalThis !== 'undefined'
+                && (globalThis as any).PresentationHandler
+                && typeof (globalThis as any).PresentationHandler.onBoardUpdated === 'function') {
+                return (globalThis as any).PresentationHandler.onBoardUpdated.bind((globalThis as any).PresentationHandler);
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
+    function createPlaybackRequest(started: boolean, result?: any, batchInfo?: any): any {
+        return {
+            started: started === true,
+            result,
+            networkPlaybackBatchId: batchInfo && batchInfo.networkPlaybackBatchId ? batchInfo.networkPlaybackBatchId : '',
+            playbackEventCount: batchInfo && batchInfo.playbackEventCount ? batchInfo.playbackEventCount : 0
+        };
+    }
+
+    function playbackRequestStarted(request: any): boolean {
+        return !!(request && request.started === true);
+    }
+
+    function requestNetworkPlaybackDrain(batchInfo: any, source: string): any {
+        if (!batchInfo || batchInfo.queued !== true) return createPlaybackRequest(false, null, batchInfo);
+        const drain = resolveNetworkPlaybackDrain();
+        if (typeof drain !== 'function') {
+            emitTelemetry('snapshot_playback_drain_unavailable', {
+                source,
+                networkPlaybackBatchId: batchInfo.networkPlaybackBatchId || '',
+                playbackEventCount: batchInfo.playbackEventCount || 0
+            });
+            return createPlaybackRequest(false, null, batchInfo);
+        }
+        try {
+            const result = drain({
+                source,
+                reason: 'network_snapshot_playback_ready',
+                networkPlaybackBatchId: batchInfo.networkPlaybackBatchId || ''
+            });
+            emitTelemetry('snapshot_playback_drain_requested', {
+                source,
+                networkPlaybackBatchId: batchInfo.networkPlaybackBatchId || '',
+                playbackEventCount: batchInfo.playbackEventCount || 0
+            });
+            return createPlaybackRequest(true, result, batchInfo);
+        } catch (e) {
+            emitTelemetry('snapshot_playback_drain_failed', {
+                source,
+                networkPlaybackBatchId: batchInfo.networkPlaybackBatchId || '',
+                playbackEventCount: batchInfo.playbackEventCount || 0,
+                error: e && (e as any).message ? String((e as any).message) : String(e || '')
+            });
+            return createPlaybackRequest(false, null, batchInfo);
+        }
+    }
+
+    function requestNetworkPlaybackDirectDispatch(batchInfo: any, source: string): any {
+        if (!batchInfo || batchInfo.queued !== true || !batchInfo.presentationEvent) {
+            return createPlaybackRequest(false, null, batchInfo);
+        }
+        const handler = resolveNetworkPlaybackDirectHandler();
+        const event = batchInfo.presentationEvent;
+        const playbackEventCount = batchInfo.playbackEventCount || 0;
+        const networkPlaybackBatchId = batchInfo.networkPlaybackBatchId || '';
+        if (typeof handler !== 'function') {
+            emitTelemetry('snapshot_playback_direct_dispatch_unavailable', {
+                source,
+                networkPlaybackBatchId,
+                playbackEventCount,
+                playbackEventTypes: getPlaybackEventTypes(event.events)
+            });
+            return createPlaybackRequest(false, null, batchInfo);
+        }
+        try {
+            const result = handler(event);
+            const removed = removeNetworkPlaybackBatchFromQueue(
+                resolveGlobalObject('cardState'),
+                networkPlaybackBatchId
+            );
+            emitTelemetry('snapshot_playback_direct_dispatch_requested', Object.assign({
+                source,
+                networkPlaybackBatchId,
+                playbackEventCount,
+                playbackEventTypes: getPlaybackEventTypes(event.events)
+            }, removed, readPresentationQueueLengths(resolveGlobalObject('cardState'))));
+            if (result && typeof result.catch === 'function') {
+                result.catch((error: any) => {
+                    emitTelemetry('snapshot_playback_direct_dispatch_failed', {
+                        source,
+                        networkPlaybackBatchId,
+                        playbackEventCount,
+                        playbackEventTypes: getPlaybackEventTypes(event.events),
+                        error: error && error.message ? String(error.message) : String(error || '')
+                    });
+                });
+            }
+            return createPlaybackRequest(true, result, batchInfo);
+        } catch (e) {
+            emitTelemetry('snapshot_playback_direct_dispatch_failed', {
+                source,
+                networkPlaybackBatchId,
+                playbackEventCount,
+                playbackEventTypes: getPlaybackEventTypes(event.events),
+                error: e && (e as any).message ? String((e as any).message) : String(e || '')
+            });
+            return createPlaybackRequest(false, null, batchInfo);
+        }
+    }
+
     function readBoardGeometry(value: any): any {
         const boardUtils = resolveSharedBoardUtils();
         if (boardUtils && typeof boardUtils.readBoardGeometry === 'function') {
@@ -264,23 +454,86 @@ function createNetworkSnapshotController(config: any): any {
         setGlobalValue(targetName, source);
     }
 
-    function emitPlaybackEvents(playbackEvents: any[], options: any): void {
-        if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return;
+    function emitPlaybackEvents(playbackEvents: any[], options: any): any {
+        if (!Array.isArray(playbackEvents) || playbackEvents.length === 0) return null;
         const opts = (options && typeof options === 'object') ? options : {};
         const boardOps = resolveGlobalObject('BoardOps') || {};
         const cardStateRef = resolveGlobalObject('cardState');
+        const source = opts.source || 'network_snapshot';
+        const networkPlaybackBatchId = source + '_' + String(++networkPlaybackBatchSeq);
+        const ev = {
+            type: 'PLAYBACK_EVENTS',
+            events: playbackEvents,
+            meta: {
+                source,
+                suppressPlayback: opts.suppressPlayback === true,
+                networkPlaybackBatchId
+            }
+        };
         try {
+            let queued = false;
+            let queueMethod = 'none';
             if (boardOps && typeof boardOps.emitPresentationEvent === 'function') {
-                boardOps.emitPresentationEvent(cardStateRef, {
-                    type: 'PLAYBACK_EVENTS',
-                    events: playbackEvents,
-                    meta: {
-                        source: opts.source || 'network_snapshot',
-                        suppressPlayback: opts.suppressPlayback === true
-                    }
+                try {
+                    boardOps.emitPresentationEvent(cardStateRef, ev);
+                    queued = true;
+                    queueMethod = 'board_ops';
+                } catch (e) {
+                    emitTelemetry('snapshot_playback_events_board_ops_enqueue_failed', {
+                        source,
+                        suppressPlayback: opts.suppressPlayback === true,
+                        playbackEventCount: playbackEvents.length,
+                        networkPlaybackBatchId,
+                        error: e && (e as any).message ? String((e as any).message) : String(e || '')
+                    });
+                    queued = appendPlaybackPresentationEventDirect(cardStateRef, ev);
+                    queueMethod = queued ? 'direct_card_state_queue_after_board_ops_failure' : 'none';
+                }
+            } else {
+                queued = appendPlaybackPresentationEventDirect(cardStateRef, ev);
+                queueMethod = queued ? 'direct_card_state_queue' : 'none';
+            }
+            const queueLengths = readPresentationQueueLengths(cardStateRef);
+            emitTelemetry('snapshot_playback_events_enqueued', Object.assign({
+                source,
+                suppressPlayback: opts.suppressPlayback === true,
+                playbackEventCount: playbackEvents.length,
+                queued,
+                queueMethod,
+                networkPlaybackBatchId
+            }, queueLengths));
+            if (!queued) {
+                emitTelemetry('snapshot_playback_events_enqueue_failed', {
+                    source,
+                    suppressPlayback: opts.suppressPlayback === true,
+                    playbackEventCount: playbackEvents.length,
+                    networkPlaybackBatchId,
+                    reason: 'presentation_queue_unavailable'
                 });
             }
-        } catch (e) { /* ignore */ }
+            return {
+                queued,
+                queueMethod,
+                networkPlaybackBatchId,
+                playbackEventCount: playbackEvents.length,
+                presentationEvent: ev
+            };
+        } catch (e) {
+            emitTelemetry('snapshot_playback_events_enqueue_failed', {
+                source,
+                suppressPlayback: opts.suppressPlayback === true,
+                playbackEventCount: playbackEvents.length,
+                networkPlaybackBatchId,
+                error: e && (e as any).message ? String((e as any).message) : String(e || '')
+            });
+            return {
+                queued: false,
+                queueMethod: 'none',
+                networkPlaybackBatchId,
+                playbackEventCount: playbackEvents.length,
+                presentationEvent: ev
+            };
+        }
     }
 
     function clearTransientPresentationQueues(cardStateRef: any): void {
@@ -478,6 +731,36 @@ function createNetworkSnapshotController(config: any): any {
         try { if (renderCardUI) renderCardUI(); } catch (e) { /* ignore */ }
     }
 
+    function requestDeferredBoardRefreshAfterPlayback(request: any, source: string): boolean {
+        if (!playbackRequestStarted(request)) return false;
+        const networkPlaybackBatchId = request.networkPlaybackBatchId || '';
+        const playbackEventCount = request.playbackEventCount || 0;
+        const runRefresh = () => {
+            emitTelemetry('snapshot_playback_post_playback_refresh_requested', {
+                source,
+                networkPlaybackBatchId,
+                playbackEventCount
+            });
+            refreshUi({
+                deferCardUiUntilPlaybackIdle: false
+            });
+        };
+        emitTelemetry('snapshot_playback_board_refresh_deferred', {
+            source,
+            networkPlaybackBatchId,
+            playbackEventCount
+        });
+        const result = request.result;
+        if (result && typeof result.finally === 'function') {
+            Promise.resolve(result)
+                .finally(runRefresh)
+                .catch(() => { /* direct/drain telemetry already records playback failures */ });
+            return true;
+        }
+        setTimeout(runRefresh, 0);
+        return true;
+    }
+
     function refreshUi(options?: any): any {
         const opts = (options && typeof options === 'object') ? options : {};
         let cardStateChangeRequested = false;
@@ -490,42 +773,44 @@ function createNetworkSnapshotController(config: any): any {
             const emitGameStateChange = resolveGlobalFunction('emitGameStateChange', cfg.emitGameStateChange);
             if (emitGameStateChange) emitGameStateChange();
         } catch (e) { /* ignore */ }
-        try {
-            const injectedEmitBoardUpdate = (typeof cfg.emitBoardUpdate === 'function')
-                ? cfg.emitBoardUpdate
-                : null;
-            const injectedRenderBoard = (typeof cfg.renderBoard === 'function')
-                ? cfg.renderBoard
-                : null;
-            if (injectedEmitBoardUpdate) {
-                injectedEmitBoardUpdate({
-                    source: 'network_snapshot',
-                    reason: 'snapshot_refresh'
-                });
-                boardUpdateRequested = true;
-            } else if (injectedRenderBoard) {
-                injectedRenderBoard();
-                boardUpdateRequested = true;
-            } else {
-                const boardUpdateDispatch = resolveBoardUpdateDispatch();
-                if (boardUpdateDispatch && typeof boardUpdateDispatch.requestBoardUpdate === 'function') {
-                    boardUpdateRequested = boardUpdateDispatch.requestBoardUpdate({
-                        emitBoardUpdate: cfg.emitBoardUpdate,
-                        renderBoard: cfg.renderBoard,
+        if (opts.skipBoardUpdate !== true) {
+            try {
+                const injectedEmitBoardUpdate = (typeof cfg.emitBoardUpdate === 'function')
+                    ? cfg.emitBoardUpdate
+                    : null;
+                const injectedRenderBoard = (typeof cfg.renderBoard === 'function')
+                    ? cfg.renderBoard
+                    : null;
+                if (injectedEmitBoardUpdate) {
+                    injectedEmitBoardUpdate({
                         source: 'network_snapshot',
                         reason: 'snapshot_refresh'
-                    }) === true;
+                    });
+                    boardUpdateRequested = true;
+                } else if (injectedRenderBoard) {
+                    injectedRenderBoard();
+                    boardUpdateRequested = true;
                 } else {
-                    const emitBoardUpdate = resolveGlobalFunction('emitBoardUpdate', cfg.emitBoardUpdate);
-                    const renderBoard = resolveGlobalFunction('renderBoard', cfg.renderBoard);
-                    if (emitBoardUpdate) boardUpdateRequested = emitBoardUpdate() === true;
-                    else if (renderBoard) {
-                        renderBoard();
-                        boardUpdateRequested = true;
+                    const boardUpdateDispatch = resolveBoardUpdateDispatch();
+                    if (boardUpdateDispatch && typeof boardUpdateDispatch.requestBoardUpdate === 'function') {
+                        boardUpdateRequested = boardUpdateDispatch.requestBoardUpdate({
+                            emitBoardUpdate: cfg.emitBoardUpdate,
+                            renderBoard: cfg.renderBoard,
+                            source: 'network_snapshot',
+                            reason: 'snapshot_refresh'
+                        }) === true;
+                    } else {
+                        const emitBoardUpdate = resolveGlobalFunction('emitBoardUpdate', cfg.emitBoardUpdate);
+                        const renderBoard = resolveGlobalFunction('renderBoard', cfg.renderBoard);
+                        if (emitBoardUpdate) boardUpdateRequested = emitBoardUpdate() === true;
+                        else if (renderBoard) {
+                            renderBoard();
+                            boardUpdateRequested = true;
+                        }
                     }
                 }
-            }
-        } catch (e) { /* ignore */ }
+            } catch (e) { /* ignore */ }
+        }
         if (!cardStateChangeRequested) {
             renderCardUiAfterPlaybackIfNeeded({
                 deferUntilPlaybackIdle: opts.deferCardUiUntilPlaybackIdle === true
@@ -568,40 +853,55 @@ function createNetworkSnapshotController(config: any): any {
         const cardStateRef = details.cardStateRef || null;
         const busyStateBeforeSnapshot = details.busyStateBeforeSnapshot || null;
         const shouldEmitShadowPlayback = presentationState.shouldEmitShadowPlayback === true;
+        let networkPlaybackRequest: any = null;
 
         setBusyState(presentationState.shouldKeepBusy === true);
         if (playbackEvents.length > 0) {
-            armBoardUpdateDuringPlayback(
-                'network_snapshot',
-                'snapshot_playback_event_emit_board_sync'
-            );
+            let queuedPlaybackBatch: any = null;
             armPlaybackLockForIncomingPlayback();
-            emitPlaybackEvents(playbackEvents, { source: 'network_snapshot' });
+            queuedPlaybackBatch = emitPlaybackEvents(playbackEvents, { source: 'network_snapshot' });
+            networkPlaybackRequest = requestNetworkPlaybackDirectDispatch(queuedPlaybackBatch, 'network_snapshot');
+            if (!playbackRequestStarted(networkPlaybackRequest)) {
+                networkPlaybackRequest = requestNetworkPlaybackDrain(queuedPlaybackBatch, 'network_snapshot');
+            }
         } else if (shouldEmitShadowPlayback) {
+            let queuedShadowPlaybackBatch: any = null;
             armBoardUpdateDuringPlayback(
                 opts.shadowPlaybackSource || 'self_snapshot_sync',
                 'snapshot_shadow_playback_event_emit_board_sync'
             );
-            emitPlaybackEvents(shadowPlaybackEvents, {
+            queuedShadowPlaybackBatch = emitPlaybackEvents(shadowPlaybackEvents, {
                 source: opts.shadowPlaybackSource || 'self_snapshot_sync',
                 suppressPlayback: true
             });
+            const shadowPlaybackRequest = requestNetworkPlaybackDirectDispatch(queuedShadowPlaybackBatch, opts.shadowPlaybackSource || 'self_snapshot_sync');
+            if (!playbackRequestStarted(shadowPlaybackRequest)) {
+                requestNetworkPlaybackDrain(queuedShadowPlaybackBatch, opts.shadowPlaybackSource || 'self_snapshot_sync');
+            }
             setBusyState(false);
         }
 
         maybeShowResultFromSnapshot(nextVersion, opts);
+        const deferImmediateBoardRefreshForPlayback =
+            playbackEvents.length > 0 && playbackRequestStarted(networkPlaybackRequest);
         if (playbackEvents.length > 0 || shouldEmitShadowPlayback) {
             armSuppressFallbackFlipDuringSnapshotPlayback(
                 shouldEmitShadowPlayback ? (opts.shadowPlaybackSource || 'self_snapshot_sync') : 'network_snapshot',
                 shouldEmitShadowPlayback ? 'snapshot_shadow_playback_suppress_fallback_flip' : 'snapshot_playback_suppress_fallback_flip'
             );
-            armBoardUpdateDuringPlayback(
-                shouldEmitShadowPlayback ? (opts.shadowPlaybackSource || 'self_snapshot_sync') : 'network_snapshot',
-                shouldEmitShadowPlayback ? 'snapshot_shadow_playback_board_sync' : 'snapshot_playback_board_sync'
-            );
+            if (!deferImmediateBoardRefreshForPlayback) {
+                armBoardUpdateDuringPlayback(
+                    shouldEmitShadowPlayback ? (opts.shadowPlaybackSource || 'self_snapshot_sync') : 'network_snapshot',
+                    shouldEmitShadowPlayback ? 'snapshot_shadow_playback_board_sync' : 'snapshot_playback_board_sync'
+                );
+            }
+        }
+        if (deferImmediateBoardRefreshForPlayback) {
+            requestDeferredBoardRefreshAfterPlayback(networkPlaybackRequest, 'network_snapshot');
         }
         const refreshState = refreshUi({
-            deferCardUiUntilPlaybackIdle: playbackEvents.length > 0 || shouldEmitShadowPlayback
+            deferCardUiUntilPlaybackIdle: playbackEvents.length > 0 || shouldEmitShadowPlayback,
+            skipBoardUpdate: deferImmediateBoardRefreshForPlayback
         });
 
         if (shouldEmitShadowPlayback) {

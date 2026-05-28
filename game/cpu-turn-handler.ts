@@ -53,14 +53,7 @@ declare const cpuSelectCloneWillWithPolicy: any;
 let cpuTurnTimerService: any = null;
 function setCpuTurnTimerService(service: any): void { cpuTurnTimerService = service; }
 function getCpuTurnTimerService() {
-    if (cpuTurnTimerService) return cpuTurnTimerService;
-    try {
-        const { createTimerService } = _require('./timer-service');
-        cpuTurnTimerService = createTimerService('browser');
-        return cpuTurnTimerService;
-    } catch (e) {
-        return null;
-    }
+    return cpuTurnTimerService || null;
 }
 
 // Timers abstraction (injected by UI)
@@ -239,6 +232,11 @@ function resolveRuntimeValue(name: string): any {
         }
         if (__uiImpl_cpu && Object.prototype.hasOwnProperty.call(__uiImpl_cpu, name)) {
             return __uiImpl_cpu[name];
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis, name)) {
+            return (globalThis as any)[name];
         }
     } catch (e) { /* ignore */ }
     return undefined;
@@ -1190,9 +1188,12 @@ function createPresentationRuntime(dependencies: any) {
         const opts = (options && typeof options === 'object') ? options : {};
         const delay = Number.isFinite(payload.delayMs) ? payload.delayMs : 0;
         const timerService = getCpuTurnTimerService();
+        const globalSetTimeout = (typeof setTimeout === 'function') ? setTimeout : null;
         const scheduleFn = (typeof opts.setTimeout === 'function')
             ? opts.setTimeout
-            : (timerService ? timerService.setTimeout.bind(timerService) : null);
+            : (timerService && typeof timerService.setTimeout === 'function')
+                ? timerService.setTimeout.bind(timerService)
+                : globalSetTimeout;
         const cpuTurnFn = (typeof opts.processCpuTurn === 'function') ? opts.processCpuTurn : processScheduledCpuTurn;
         if (typeof scheduleFn !== 'function') return null;
 

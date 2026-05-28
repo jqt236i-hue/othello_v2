@@ -110,6 +110,8 @@ describe('applySnapshot single-writer baseline', () => {
     delete global.emitBoardUpdate;
     delete global.renderCardUI;
     delete global.BoardOps;
+    delete global.handlePresentationEvent;
+    delete global.onBoardUpdated;
     delete global.syncPendingSelectionActionCache;
     delete global.isProcessing;
     delete global.isCardAnimating;
@@ -196,6 +198,110 @@ describe('applySnapshot single-writer baseline', () => {
       cardAnimating: true,
       playbackActive: true
     }));
+  });
+
+  test('network playback は presentation drain を開始し、最終盤面 board update を playback 後へ遅延する', async () => {
+    const stateObj = { stateVersion: 10 };
+    const order = [];
+    global.onBoardUpdated = jest.fn(() => {
+      order.push('presentation-drain');
+      return Promise.resolve();
+    });
+    global.emitBoardUpdate = jest.fn(() => {
+      order.push('board-update');
+      return true;
+    });
+    const ctrl = createController(stateObj);
+
+    ctrl.applySnapshot(createSnapshot(11), {
+      playbackEvents: [{ type: 'destroy', phase: 1, targets: [{ r: 2, col: 3 }] }]
+    });
+
+    expect(global.onBoardUpdated).toHaveBeenCalledTimes(1);
+    expect(global.emitBoardUpdate).not.toHaveBeenCalled();
+    expect(order).toEqual(['presentation-drain']);
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.emitBoardUpdate).toHaveBeenCalled();
+    expect(order).toEqual(['presentation-drain', 'board-update']);
+  });
+
+  test('network playback は直接 PresentationHandler に渡し、最終盤面 board update を playback 後へ遅延する', async () => {
+    const stateObj = { stateVersion: 10 };
+    const order = [];
+    global.BoardOps = {
+      emitPresentationEvent: jest.fn((state, ev) => {
+        emittedEvents.push(ev);
+        if (!Array.isArray(state.presentationEvents)) state.presentationEvents = [];
+        if (!Array.isArray(state._presentationEventsPersist)) state._presentationEventsPersist = [];
+        state.presentationEvents.push(ev);
+        state._presentationEventsPersist.push(ev);
+      })
+    };
+    global.handlePresentationEvent = jest.fn((ev) => {
+      order.push('direct-playback');
+      expect(ev).toEqual(expect.objectContaining({ type: 'PLAYBACK_EVENTS' }));
+      return Promise.resolve();
+    });
+    global.emitBoardUpdate = jest.fn(() => {
+      order.push('board-update');
+      return true;
+    });
+    const ctrl = createController(stateObj);
+
+    ctrl.applySnapshot(createSnapshot(11), {
+      playbackEvents: [{ type: 'destroy', phase: 1, targets: [{ r: 2, col: 3 }] }]
+    });
+
+    expect(global.handlePresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.emitBoardUpdate).not.toHaveBeenCalled();
+    expect(order).toEqual(['direct-playback']);
+    expect(global.cardState.presentationEvents).toEqual([]);
+    expect(global.cardState._presentationEventsPersist).toEqual([]);
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(global.emitBoardUpdate).toHaveBeenCalled();
+    expect(order).toEqual(['direct-playback', 'board-update']);
+  });
+
+  test('BoardOps の enqueue が失敗しても direct queue fallback で network playback を再生する', async () => {
+    const stateObj = { stateVersion: 10 };
+    const order = [];
+    global.BoardOps = {
+      emitPresentationEvent: jest.fn(() => {
+        throw new Error('board ops unavailable');
+      })
+    };
+    global.handlePresentationEvent = jest.fn((ev) => {
+      order.push('direct-playback');
+      expect(ev).toEqual(expect.objectContaining({ type: 'PLAYBACK_EVENTS' }));
+      return Promise.resolve();
+    });
+    global.emitBoardUpdate = jest.fn(() => {
+      order.push('board-update');
+      return true;
+    });
+    const ctrl = createController(stateObj);
+
+    const applied = ctrl.applySnapshot(createSnapshot(11), {
+      playbackEvents: [{ type: 'destroy', phase: 1, targets: [{ r: 2, col: 3 }] }]
+    });
+
+    expect(applied).toBe(true);
+    expect(global.BoardOps.emitPresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.handlePresentationEvent).toHaveBeenCalledTimes(1);
+    expect(global.cardState.presentationEvents).toEqual([]);
+    expect(global.cardState._presentationEventsPersist).toEqual([]);
+    expect(order).toEqual(['direct-playback']);
+
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(order).toEqual(['direct-playback', 'board-update']);
   });
 
   test('playbackEvents ありの場合 diff fallback flip を抑止する board update context を arm する', () => {

@@ -25,6 +25,10 @@ let SharedBoardUtils: any = null;
 try {
     SharedBoardUtils = _require('../../shared/shared-board-utils');
 } catch (e: any) { /* ignore */ }
+let OnnxAssetLoader: any = null;
+try {
+    OnnxAssetLoader = _require('./onnx-asset-loader');
+} catch (e: any) { /* ignore */ }
 const PADDED_BOARD_MIN = SharedBoardUtils && Number.isFinite(Number(SharedBoardUtils.PADDED_BOARD_MIN))
     ? Number(SharedBoardUtils.PADDED_BOARD_MIN)
     : -1;
@@ -417,7 +421,15 @@ async function loadFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any) {
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _metaUrl;
 
     try {
-        const session = await createInferenceSession(ortApi, targetModel);
+        let modelSource = targetModel;
+        if (OnnxAssetLoader && typeof OnnxAssetLoader.loadOnnxAssetSource === 'function') {
+            try {
+                modelSource = await OnnxAssetLoader.loadOnnxAssetSource(targetModel, fetchImpl);
+            } catch (assetErr) {
+                modelSource = targetModel;
+            }
+        }
+        const session = await createInferenceSession(ortApi, modelSource);
         const meta = await loadMetaJson(targetMeta, fetchImpl);
         _session = session;
         _meta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
@@ -451,7 +463,15 @@ async function loadCardModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any)
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _cardMetaUrl;
 
     try {
-        const session = await createInferenceSession(ortApi, targetModel);
+        let modelSource = targetModel;
+        if (OnnxAssetLoader && typeof OnnxAssetLoader.loadOnnxAssetSource === 'function') {
+            try {
+                modelSource = await OnnxAssetLoader.loadOnnxAssetSource(targetModel, fetchImpl);
+            } catch (assetErr) {
+                modelSource = targetModel;
+            }
+        }
+        const session = await createInferenceSession(ortApi, modelSource);
         const meta = await loadMetaJson(targetMeta, fetchImpl);
         _cardSession = session;
         _cardMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
@@ -487,7 +507,15 @@ async function loadTargetModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: an
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _targetMetaUrl;
 
     try {
-        const session = await createInferenceSession(ortApi, targetModel);
+        let modelSource = targetModel;
+        if (OnnxAssetLoader && typeof OnnxAssetLoader.loadOnnxAssetSource === 'function') {
+            try {
+                modelSource = await OnnxAssetLoader.loadOnnxAssetSource(targetModel, fetchImpl);
+            } catch (assetErr) {
+                modelSource = targetModel;
+            }
+        }
+        const session = await createInferenceSession(ortApi, modelSource);
         const meta = await loadMetaJson(targetMeta, fetchImpl);
         _targetSession = session;
         _targetMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };
@@ -521,7 +549,15 @@ async function loadValueModelFromUrl(modelUrl: any, metaUrl: any, fetchImpl: any
     const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _valueMetaUrl;
 
     try {
-        const session = await createInferenceSession(ortApi, targetModel);
+        let modelSource = targetModel;
+        if (OnnxAssetLoader && typeof OnnxAssetLoader.loadOnnxAssetSource === 'function') {
+            try {
+                modelSource = await OnnxAssetLoader.loadOnnxAssetSource(targetModel, fetchImpl);
+            } catch (assetErr) {
+                modelSource = targetModel;
+            }
+        }
+        const session = await createInferenceSession(ortApi, modelSource);
         const meta = await loadMetaJson(targetMeta, fetchImpl);
         _valueSession = session;
         _valueMeta = meta || { schemaVersion: POLICY_ONNX_MODEL_SCHEMA_VERSION, inputDim: BASE_INPUT_DIM, baseInputDim: BASE_INPUT_DIM };

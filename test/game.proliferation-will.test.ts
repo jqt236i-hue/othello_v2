@@ -179,6 +179,98 @@ describe('PROLIFERATION_WILL（増殖の意志）', () => {
     expect(presentationEvents.indexOf(destroyEvent)).toBeLessThan(presentationEvents.indexOf(spawnEvent));
   });
 
+  test('周囲に空きが無い時は最も近い空きへ増殖する', () => {
+    const { cardState, gameState, prng } = createState([0]);
+
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        gameState.board[row][col] = Shared.WHITE;
+      }
+    }
+    gameState.board[3][3] = Shared.BLACK;
+    gameState.board[1][6] = Shared.EMPTY;
+    gameState.board[6][1] = Shared.EMPTY;
+    cardState.markers.push({
+      id: 1151,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'PROLIFERATION' }
+    });
+
+    const out = BoardOps.destroyAt(cardState, gameState, 3, 3, 'SYSTEM', 'nearest_empty_destroy', { randomSource: prng });
+
+    expect(out).toMatchObject({
+      kind: 'proliferated',
+      destroyed: false,
+      proliferated: true,
+      from: { row: 3, col: 3 },
+      to: { row: 1, col: 6 }
+    });
+    expect(gameState.board[3][3]).toBe(Shared.BLACK);
+    expect(gameState.board[1][6]).toBe(Shared.BLACK);
+    expect(gameState.board[6][1]).toBe(Shared.EMPTY);
+
+    const presentationEvents = CardLogic.flushPresentationEvents(cardState) || [];
+    const destroyEvent = presentationEvents.find((event) => event && event.type === 'DESTROY' && event.row === 3 && event.col === 3);
+    const spawnEvent = presentationEvents.find((event) => event && event.type === 'SPAWN' && event.row === 1 && event.col === 6);
+    expect(destroyEvent && destroyEvent.meta).toEqual(expect.objectContaining({
+      proliferationDestinationRow: 1,
+      proliferationDestinationCol: 6
+    }));
+    expect(spawnEvent && spawnEvent.meta).toEqual(expect.objectContaining({
+      proliferationOriginRow: 3,
+      proliferationOriginCol: 3
+    }));
+  });
+
+  test('最短距離の空きが複数ある時はランダムで1マス選ぶ', () => {
+    const first = createState([0]);
+
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        first.gameState.board[row][col] = Shared.WHITE;
+      }
+    }
+    first.gameState.board[3][3] = Shared.BLACK;
+    first.gameState.board[1][3] = Shared.EMPTY;
+    first.gameState.board[3][5] = Shared.EMPTY;
+    first.cardState.markers.push({
+      id: 1171,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'PROLIFERATION' }
+    });
+
+    const firstOut = BoardOps.destroyAt(first.cardState, first.gameState, 3, 3, 'SYSTEM', 'equal_distance_first', { randomSource: first.prng });
+    expect(firstOut.to).toEqual({ row: 1, col: 3 });
+
+    const second = createState([0.99]);
+
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        second.gameState.board[row][col] = Shared.WHITE;
+      }
+    }
+    second.gameState.board[3][3] = Shared.BLACK;
+    second.gameState.board[1][3] = Shared.EMPTY;
+    second.gameState.board[3][5] = Shared.EMPTY;
+    second.cardState.markers.push({
+      id: 1172,
+      kind: 'specialStone',
+      row: 3,
+      col: 3,
+      owner: 'black',
+      data: { type: 'PROLIFERATION' }
+    });
+
+    const secondOut = BoardOps.destroyAt(second.cardState, second.gameState, 3, 3, 'SYSTEM', 'equal_distance_second', { randomSource: second.prng });
+    expect(secondOut.to).toEqual({ row: 3, col: 5 });
+  });
+
   test('増殖して生まれた石も後続の破壊で再度増殖する', () => {
     const { cardState, gameState, prng } = createState([0, 0]);
 
@@ -285,7 +377,7 @@ describe('PROLIFERATION_WILL（増殖の意志）', () => {
     expect(second.cardState.pendingEffectByPlayer.black).toBeNull();
   });
 
-  test('周囲に空きが無い時は通常どおり破壊される', () => {
+  test('盤面全体に空きが無い時は通常どおり破壊される', () => {
     const { cardState, gameState } = createState();
 
     for (let row = 0; row < 8; row++) {

@@ -12,6 +12,10 @@ const BOARD_CELLS = 64;
 
 let _ort: any = null;
 try { _ort = _require('onnxruntime-web'); } catch (e) { /* optional browser dependency */ }
+let OnnxAssetLoader: any = null;
+try { OnnxAssetLoader = _require('./onnx-asset-loader'); } catch (e) { /* optional runtime helper */ }
+let EndgameSolver: any = null;
+try { EndgameSolver = _require('./othello-endgame-solver'); } catch (e) { /* optional runtime helper */ }
 
 let _session: any = null;
 let _meta: any = null;
@@ -34,6 +38,9 @@ let _config = {
   topK: 8,
   heuristicRerankWeight: 3.0,
   whiteSafetyMultiplier: 1.45,
+  exactSolveEmpties: 10,
+  exactSolveNodeBudget: 50000,
+  exactSolveMaxMs: 250,
   ortApi: null as any
 };
 
@@ -46,6 +53,9 @@ function configure(config: any) {
   if (Number.isFinite(Number(next.topK))) _config.topK = Math.max(1, Math.floor(Number(next.topK)));
   if (Number.isFinite(Number(next.heuristicRerankWeight))) _config.heuristicRerankWeight = Math.max(0, Number(next.heuristicRerankWeight));
   if (Number.isFinite(Number(next.whiteSafetyMultiplier))) _config.whiteSafetyMultiplier = Math.max(0.1, Number(next.whiteSafetyMultiplier));
+  if (Number.isFinite(Number(next.exactSolveEmpties))) _config.exactSolveEmpties = Math.max(0, Math.floor(Number(next.exactSolveEmpties)));
+  if (Number.isFinite(Number(next.exactSolveNodeBudget))) _config.exactSolveNodeBudget = Math.max(100, Math.floor(Number(next.exactSolveNodeBudget)));
+  if (Number.isFinite(Number(next.exactSolveMaxMs))) _config.exactSolveMaxMs = Math.max(1, Math.floor(Number(next.exactSolveMaxMs)));
   if (typeof next.sourceUrl === 'string' && next.sourceUrl.trim()) _sourceUrl = next.sourceUrl.trim();
   if (typeof next.metaUrl === 'string' && next.metaUrl.trim()) _metaUrl = next.metaUrl.trim();
   if (Object.prototype.hasOwnProperty.call(next, 'ortApi')) _config.ortApi = next.ortApi || null;
@@ -113,7 +123,15 @@ async function loadFromUrl(modelUrl?: string, metaUrl?: string, fetchImpl?: any)
   const targetModel = (typeof modelUrl === 'string' && modelUrl.trim()) ? modelUrl.trim() : _sourceUrl;
   const targetMeta = (typeof metaUrl === 'string' && metaUrl.trim()) ? metaUrl.trim() : _metaUrl;
   try {
-    const session = await ortApi.InferenceSession.create(targetModel, { executionProviders: ['wasm'] });
+    let modelSource = targetModel;
+    if (OnnxAssetLoader && typeof OnnxAssetLoader.loadOnnxAssetSource === 'function') {
+      try {
+        modelSource = await OnnxAssetLoader.loadOnnxAssetSource(targetModel, fetchImpl);
+      } catch (assetErr) {
+        modelSource = targetModel;
+      }
+    }
+    const session = await ortApi.InferenceSession.create(modelSource, { executionProviders: ['wasm'] });
     const meta = await loadMetaJson(targetMeta, fetchImpl);
     _session = session;
     _meta = meta || { inputDim: INPUT_DIM, outputDim: BOARD_CELLS };
@@ -269,6 +287,18 @@ function countEmptyCells(board: any): number {
   return empty;
 }
 
+function collectLegalMovesForPlayer(board: any, playerKey: any) {
+  const out: any[] = [];
+  if (!Array.isArray(board)) return out;
+  for (let row = 0; row < BOARD_SIZE; row += 1) {
+    for (let col = 0; col < BOARD_SIZE; col += 1) {
+      const flips = getFlips(board, row, col, playerKey);
+      if (flips.length > 0) out.push({ row, col, flips });
+    }
+  }
+  return out;
+}
+
 function scoreMoveSafety(board: any, move: any, playerKey: any, nextBoard?: any): number {
   let score = 0;
   if (isCornerMove(move)) score += 1.0;
@@ -421,6 +451,17 @@ async function chooseMove(candidates: any[], context: any) {
   const level = Number.isFinite(Number(context && context.level)) ? Number(context.level) : 1;
   if (level < _config.minLevel) return null;
   try {
+    const exactMove = EndgameSolver && typeof EndgameSolver.chooseExactEndgameMove === 'function'
+      ? EndgameSolver.chooseExactEndgameMove(candidates, context, _config, {
+          applyMoveForRerank,
+          collectLegalMovesForPlayer,
+          countDiscsForPlayer,
+          countEmptyCells,
+          oppositePlayerKey,
+          scoreMoveSafety
+        })
+      : null;
+    if (exactMove) return exactMove;
     const outputs = await runInference(Object.assign({}, context || {}, { candidateMoves: candidates }));
     const tensor = resolveTensor(outputs, _policyOutputName, 0);
     if (!tensor || !tensor.data) return null;
@@ -492,6 +533,9 @@ function getStatus() {
     topK: _config.topK,
     heuristicRerankWeight: _config.heuristicRerankWeight,
     whiteSafetyMultiplier: _config.whiteSafetyMultiplier,
+    exactSolveEmpties: _config.exactSolveEmpties,
+    exactSolveNodeBudget: _config.exactSolveNodeBudget,
+    exactSolveMaxMs: _config.exactSolveMaxMs,
     loaded: hasModel(),
     sourceUrl: _sourceUrl,
     metaUrl: _metaUrl,

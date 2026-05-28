@@ -1714,6 +1714,76 @@ describe('network playback event assembly contract', () => {
     expect(snapshot.cardState._currentActionMeta).toBeUndefined();
   });
 
+  test('assemblePlaybackEvents reconstructs sniper destroy playback when transient destroy presentation is missing', () => {
+    const result = helpers.assemblePlaybackEvents({
+      rawEvents: [
+        { type: 'place', row: 2, col: 2, player: 'black', actionId: 'place-sniper-1', turnIndex: 7 },
+        {
+          type: 'sniper_destroyed_immediate',
+          details: [{
+            row: 2,
+            col: 3,
+            sourceRow: 2,
+            sourceCol: 2,
+            projectileOwner: 'black',
+            projectileStone: 'SNIPER'
+          }]
+        }
+      ],
+      presentationEvents: [
+        {
+          type: 'SPAWN',
+          row: 2,
+          col: 2,
+          stoneId: 's-sniper-1',
+          ownerAfter: 'black',
+          cause: 'SNIPER_WILL',
+          reason: 'sniper_spawn',
+          meta: {
+            owner: 'black',
+            special: 'SNIPER',
+            timer: 5
+          }
+        }
+      ],
+      snapshot: {
+        cardState: { turnIndex: 7 },
+        gameState: { board: createBoard(8, 8), currentPlayer: -1 }
+      },
+      fallbackPlayerKey: 'black',
+      adapter,
+      normalizePlayerKey
+    });
+
+    expect(result.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'place_hand_animation', actionId: 'place-sniper-1' }),
+      expect.objectContaining({ type: 'spawn' }),
+      expect.objectContaining({
+        type: 'destroy',
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            r: 2,
+            col: 3,
+            cause: 'SNIPER_WILL',
+            reason: 'sniper_shot'
+          })
+        ])
+      }),
+      expect.objectContaining({
+        type: 'sound_effect',
+        meta: expect.objectContaining({
+          sourceType: 'sniper_shot'
+        }),
+        targets: expect.arrayContaining([
+          expect.objectContaining({
+            soundKey: 'stone_destroy'
+          })
+        ])
+      })
+    ]));
+    expect(result.diagnostics.warnings).toEqual([]);
+  });
+
   test('playback assembly does not mutate authoritative snapshot state', () => {
     const snapshot = {
       cardState: {

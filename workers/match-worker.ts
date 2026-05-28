@@ -77,6 +77,21 @@ import cardRandomSourceModule from '../game/logic/cards-internal/random-source.j
 import cardStateFactoryModule from '../game/logic/cards-internal/state-factory.js';
 import cardModuleResolverModule from '../game/logic/cards-internal/module-resolver.js';
 import cardPresentationHelpersModule from '../game/logic/cards-internal/presentation-helpers.js';
+import cardCaptureSourceModule = require('../game/logic/cards-internal/capture-source.js');
+import cardProgressionModule = require('../game/logic/cards-internal/progression.js');
+import cardRandomBoardSpawnModule = require('../game/logic/cards-internal/random-board-spawn.js');
+import cardRiboTimeStopModule = require('../game/logic/cards-internal/ribo-time-stop.js');
+import cardTargetAccessModule = require('../game/logic/cards-internal/target-access.js');
+import cardContextBuildersModule = require('../game/logic/cards-internal/context-builders.js');
+import cardDeckSetupModule = require('../game/logic/cards-internal/deck-setup.js');
+import cardHandAccessModule = require('../game/logic/cards-internal/hand-access.js');
+import cardAvailabilityModule = require('../game/logic/cards-internal/card-availability.js');
+import cardOfferBuildersModule = require('../game/logic/cards-internal/offer-builders.js');
+import cardEffectTargetCountsModule = require('../game/logic/cards-internal/effect-target-counts.js');
+import cardSalvationEffectModule = require('../game/logic/cards-internal/salvation-effect.js');
+import cardLossEffectModule = require('../game/logic/cards-internal/loss-effect.js');
+import cardFateEffectModule = require('../game/logic/cards-internal/fate-effect.js');
+import cardBoardShapeAccessModule = require('../game/logic/cards-internal/board-shape-access.js');
 import cardHandManagerModule from '../game/logic/cards-internal/hand-manager.js';
 import cardChargeLedgerModule from '../game/logic/cards-internal/charge-ledger.js';
 import cardPendingStateManagerModule from '../game/logic/cards-internal/pending-state-manager.js';
@@ -147,6 +162,21 @@ const WORKER_PRELOAD_MODULES: Readonly<Record<string, unknown>> = Object.freeze(
     '../game/logic/cards-internal/state-factory.js': cardStateFactoryModule,
     '../game/logic/cards-internal/module-resolver.js': cardModuleResolverModule,
     '../game/logic/cards-internal/presentation-helpers.js': cardPresentationHelpersModule,
+    '../game/logic/cards-internal/capture-source.js': cardCaptureSourceModule,
+    '../game/logic/cards-internal/progression.js': cardProgressionModule,
+    '../game/logic/cards-internal/random-board-spawn.js': cardRandomBoardSpawnModule,
+    '../game/logic/cards-internal/ribo-time-stop.js': cardRiboTimeStopModule,
+    '../game/logic/cards-internal/target-access.js': cardTargetAccessModule,
+    '../game/logic/cards-internal/context-builders.js': cardContextBuildersModule,
+    '../game/logic/cards-internal/deck-setup.js': cardDeckSetupModule,
+    '../game/logic/cards-internal/hand-access.js': cardHandAccessModule,
+    '../game/logic/cards-internal/card-availability.js': cardAvailabilityModule,
+    '../game/logic/cards-internal/offer-builders.js': cardOfferBuildersModule,
+    '../game/logic/cards-internal/effect-target-counts.js': cardEffectTargetCountsModule,
+    '../game/logic/cards-internal/salvation-effect.js': cardSalvationEffectModule,
+    '../game/logic/cards-internal/loss-effect.js': cardLossEffectModule,
+    '../game/logic/cards-internal/fate-effect.js': cardFateEffectModule,
+    '../game/logic/cards-internal/board-shape-access.js': cardBoardShapeAccessModule,
     '../game/logic/cards-internal/hand-manager.js': cardHandManagerModule,
     '../game/logic/cards-internal/charge-ledger.js': cardChargeLedgerModule,
     '../game/logic/cards-internal/pending-state-manager.js': cardPendingStateManagerModule,
@@ -364,6 +394,21 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
             ['../game/logic/cards-internal/state-factory.js', 'CardStateFactory'],
             ['../game/logic/cards-internal/module-resolver.js', 'CardModuleResolver'],
             ['../game/logic/cards-internal/presentation-helpers.js', 'CardPresentationHelpers'],
+            ['../game/logic/cards-internal/capture-source.js', 'CardCaptureSource'],
+            ['../game/logic/cards-internal/progression.js', 'CardProgression'],
+            ['../game/logic/cards-internal/random-board-spawn.js', 'CardRandomBoardSpawn'],
+            ['../game/logic/cards-internal/ribo-time-stop.js', 'CardRiboTimeStop'],
+            ['../game/logic/cards-internal/target-access.js', 'CardTargetAccess'],
+            ['../game/logic/cards-internal/context-builders.js', 'CardContextBuilders'],
+            ['../game/logic/cards-internal/deck-setup.js', 'CardDeckSetup'],
+            ['../game/logic/cards-internal/hand-access.js', 'CardHandAccess'],
+            ['../game/logic/cards-internal/card-availability.js', 'CardAvailability'],
+            ['../game/logic/cards-internal/offer-builders.js', 'CardOfferBuilders'],
+            ['../game/logic/cards-internal/effect-target-counts.js', 'CardEffectTargetCounts'],
+            ['../game/logic/cards-internal/salvation-effect.js', 'CardSalvationEffect'],
+            ['../game/logic/cards-internal/loss-effect.js', 'CardLossEffect'],
+            ['../game/logic/cards-internal/fate-effect.js', 'CardFateEffect'],
+            ['../game/logic/cards-internal/board-shape-access.js', 'CardBoardShapeAccess'],
             ['../game/logic/cards-internal/hand-manager.js', 'CardHandManager'],
             ['../game/logic/cards-internal/charge-ledger.js', 'CardChargeLedger'],
             ['../game/logic/cards-internal/pending-state-manager.js', 'CardPendingStateManager'],
@@ -391,6 +436,7 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
             ['../game/logic/cards/destroy_dragon.js', 'CardDestroyDragon'],
             ['../game/logic/cards/selectors.js', 'CardSelectors'],
             ['../game/logic/cards/work_will.js', 'CardWork'],
+            ['../game/logic/cards/observer_will.js', 'CardObserverWill'],
             ['../game/logic/cards/markers.js', 'CardMarkers'],
             ['../game/logic/board_ops.js', 'BoardOps'],
             ['../game/cards/state-manager.js', 'CardStateManager'],

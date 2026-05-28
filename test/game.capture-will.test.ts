@@ -175,6 +175,59 @@ describe('CAPTURE_WILL (捕獲の意志)', () => {
     expect(targets.some((target) => target.row === 4 && target.col === 4)).toBe(false);
   });
 
+  test('capture target list excludes bombs, traps, stone statuses, and placement effects', () => {
+    const { cardState, gameState } = makeState();
+    gameState.board[1][1] = -1;
+    gameState.board[1][2] = -1;
+    gameState.board[1][3] = -1;
+    gameState.board[1][4] = -1;
+    gameState.board[1][5] = -1;
+    cardState.markers.push(
+      {
+        id: 410,
+        kind: 'specialStone',
+        row: 1,
+        col: 1,
+        owner: 'white',
+        data: { type: 'TIME_BOMB', category: 'bomb', sourceType: 'TIME_BOMB', sourceCardId: 'time_bomb_01' }
+      },
+      {
+        id: 411,
+        kind: 'specialStone',
+        row: 1,
+        col: 2,
+        owner: 'white',
+        data: { type: 'TRAP', hidden: true, sourceType: 'TRAP_WILL', sourceCardId: 'trap_will_01' }
+      },
+      {
+        id: 412,
+        kind: 'specialStone',
+        row: 1,
+        col: 3,
+        owner: 'white',
+        data: { type: 'GUARD', remainingOwnerTurns: 3, sourceType: 'GUARD_WILL', sourceCardId: 'guard_will_01' }
+      },
+      {
+        id: 413,
+        kind: 'specialStone',
+        row: 1,
+        col: 4,
+        owner: 'white',
+        data: { type: 'HYPERACTIVE', instantPlacementOnly: true, sourceType: 'INSTANT_HYPERACTIVE_WILL', sourceCardId: 'instant_hyperactive_01' }
+      },
+      {
+        id: 414,
+        kind: 'specialStone',
+        row: 1,
+        col: 5,
+        owner: 'white',
+        data: { type: 'DRAGON', remainingOwnerTurns: 4, sourceType: 'ULTIMATE_REVERSE_DRAGON', sourceCardId: 'ultimate_reverse_dragon_01' }
+      }
+    );
+
+    expect(CardLogic.getCaptureWillTargets(cardState, gameState, 'black')).toEqual([{ row: 1, col: 5 }]);
+  });
+
   test('capture target list accepts legacy dragon markers without source metadata', () => {
     const captureDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'CAPTURE_WILL');
     const dragonDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'ULTIMATE_REVERSE_DRAGON');

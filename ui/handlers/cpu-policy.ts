@@ -922,6 +922,8 @@ async function initOthelloOnnxModel(): Promise<void> {
                 topK: 8,
                 heuristicRerankWeight: 3.0,
                 whiteSafetyMultiplier: 1.45,
+                exactSolveEmpties: 10,
+                exactSolveMaxMs: 250,
                 sourceUrl: modelUrl,
                 metaUrl,
                 ortApi

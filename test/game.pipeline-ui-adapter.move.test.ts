@@ -87,6 +87,43 @@ describe('pipeline_ui_adapter move mapping', () => {
     });
   });
 
+  test('maps distant PROLIFERATION_WILL SPAWN into clone-like move event from proliferation origin', () => {
+    const pres = [{
+      type: 'SPAWN',
+      row: 1,
+      col: 6,
+      stoneId: 's210',
+      ownerAfter: 'white',
+      cause: 'PROLIFERATION_WILL',
+      reason: 'proliferation_spawn',
+      meta: {
+        fromRow: 3,
+        fromCol: 3,
+        cloneVisual: true,
+        proliferationOriginRow: 3,
+        proliferationOriginCol: 3
+      }
+    }];
+
+    const out = adapter.mapToPlaybackEvents(
+      pres,
+      { markers: [] },
+      { board: Array(8).fill(null).map(() => Array(8).fill(0)) }
+    );
+
+    expect(Array.isArray(out)).toBe(true);
+    expect(out).toHaveLength(1);
+    expect(out[0].type).toBe('move');
+    expect(out[0].targets[0]).toMatchObject({
+      from: { r: 3, col: 3 },
+      to: { r: 1, col: 6 },
+      stoneId: 's210',
+      clone: true,
+      cause: 'PROLIFERATION_WILL',
+      reason: 'proliferation_spawn'
+    });
+  });
+
   test.each([
     ['GLUTTONOUS_WILL', 'gluttonous_eat', 'gluttonous_eat_overlap_return'],
     ['WILL_HUNTER_KING', 'will_hunter_king_slash', 'will_hunter_king_slash_overlap_return']

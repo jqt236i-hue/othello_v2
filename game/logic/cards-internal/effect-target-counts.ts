@@ -2,6 +2,7 @@ type EffectTargetCountsDeps = {
     ensureMarkers?: (cardState: any) => void;
     getSpecialMarkers?: (cardState: any) => any[];
     getBombMarkers?: (cardState: any) => any[];
+    getMarkerRuleClass?: (marker: any) => string | null;
     isAbsoluteProtectedCell?: (cardState: any, row: any, col: any) => boolean;
     ensureSalvationDestroyedLedger?: (cardState: any) => any;
 };
@@ -16,6 +17,9 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
     const getBombMarkers = typeof deps?.getBombMarkers === 'function'
         ? deps.getBombMarkers
         : (() => []);
+    const getMarkerRuleClass = typeof deps?.getMarkerRuleClass === 'function'
+        ? deps.getMarkerRuleClass
+        : (() => null);
     const isAbsoluteProtectedCell = typeof deps?.isAbsoluteProtectedCell === 'function'
         ? deps.isAbsoluteProtectedCell
         : (() => false);
@@ -39,8 +43,13 @@ export function createEffectTargetCounts(deps?: EffectTargetCountsDeps) {
         );
         const removableSpecials = specials.filter((marker: any) => {
             if (!marker) return false;
-            if (marker.data && marker.data.type === 'METEOR_HOLE') return false;
-            if (marker.data && marker.data.type === 'ABSOLUTE_PROTECTED') return false;
+            const ruleClass = getMarkerRuleClass(marker);
+            if (ruleClass) {
+                if (ruleClass !== 'true_special_stone') return false;
+            } else {
+                if (marker.data && marker.data.type === 'METEOR_HOLE') return false;
+                if (marker.data && marker.data.type === 'ABSOLUTE_PROTECTED') return false;
+            }
             if (!Number.isInteger(marker.row) || !Number.isInteger(marker.col)) return true;
             return !guardedCells.has(`${marker.row},${marker.col}`);
         });

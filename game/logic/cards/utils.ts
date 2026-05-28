@@ -24,6 +24,7 @@ function getRuntimeGlobalValue(key: string): any {
 }
 
 const SharedConstants = safeRequire('../../../shared-constants') || getRuntimeGlobalValue('SharedConstants');
+const SpecialStoneRegistry = safeRequire('../../../shared/special-stone-registry') || getRuntimeGlobalValue('SpecialStoneRegistry');
 
 let OwnerHelpersModule: any = null;
 OwnerHelpersModule = safeRequire('../../../utils/owner-helpers') || getRuntimeGlobalValue('OwnerHelpers');
@@ -192,6 +193,31 @@ function isNormalVisualSpecialMarker(marker: any): boolean {
     return type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'TRAP' || isHiddenTrapMarker(marker);
 }
 
+function getMarkerRuleClass(marker: any): string | null {
+    if (!marker || typeof marker !== 'object') return null;
+    if (SpecialStoneRegistry && typeof SpecialStoneRegistry.classifyMarkerRuleClass === 'function') {
+        return SpecialStoneRegistry.classifyMarkerRuleClass(marker);
+    }
+    const type = String(marker && marker.data && marker.data.type || '').toUpperCase();
+    if ((marker && marker.data && marker.data.category === 'bomb') || type === 'TIME_BOMB') return 'bomb';
+    if (type === 'TRAP') return 'trap';
+    if (type === 'BLOCKADE' || type === 'METEOR_HOLE' || type === 'FREEZE' || type === 'SEED') return 'board_marker';
+    if (type === 'HYPERACTIVE' && !!(marker && marker.data && marker.data.instantPlacementOnly)) return 'placement_effect';
+    if (type === 'CROSS_BOMB' || type === 'X_BOMB' || type === 'GOLD' || type === 'SILVER' || type === 'RAINBOW') return 'placement_effect';
+    if (type === 'PROTECTED' || type === 'PERMA_PROTECTED' || type === 'GUARD' || type === 'ABSOLUTE_PROTECTED' || type === 'GHOST' || type === 'AFTERIMAGE_WILL' || type === 'REGEN' || type === 'LIVING_WILL') return 'stone_status';
+    if (!type) return null;
+    return 'true_special_stone';
+}
+
+function isTrueSpecialStoneMarker(marker: any): boolean {
+    return getMarkerRuleClass(marker) === 'true_special_stone';
+}
+
+function isDurationAffectableMarker(marker: any): boolean {
+    const ruleClass = getMarkerRuleClass(marker);
+    return ruleClass === 'true_special_stone' || ruleClass === 'stone_status';
+}
+
 function getSpecialMarkerAt(cardState: any, row: any, col: any): any | null {
     const marker = getMarkers(cardState).find((candidate: any) => (
         candidate &&
@@ -204,8 +230,22 @@ function getSpecialMarkerAt(cardState: any, row: any, col: any): any | null {
     return marker || null;
 }
 
+function getTrueSpecialStoneMarkerAt(cardState: any, row: any, col: any): any | null {
+    const marker = getMarkers(cardState).find((candidate: any) => (
+        candidate &&
+        candidate.row === row &&
+        candidate.col === col &&
+        isTrueSpecialStoneMarker(candidate)
+    ));
+    return marker || null;
+}
+
 function isSpecialStoneAt(cardState: any, row: any, col: any): boolean {
     return !!getSpecialMarkerAt(cardState, row, col);
+}
+
+function isTrueSpecialStoneAt(cardState: any, row: any, col: any): boolean {
+    return !!getTrueSpecialStoneMarkerAt(cardState, row, col);
 }
 
 function isNonNormalStoneVisualAt(cardState: any, row: any, col: any): boolean {
@@ -214,6 +254,11 @@ function isNonNormalStoneVisualAt(cardState: any, row: any, col: any): boolean {
 
 function getSpecialOwnerAt(cardState: any, row: any, col: any): string | null {
     const marker = getSpecialMarkerAt(cardState, row, col);
+    return marker ? (marker.owner || null) : null;
+}
+
+function getTrueSpecialStoneOwnerAt(cardState: any, row: any, col: any): string | null {
+    const marker = getTrueSpecialStoneMarkerAt(cardState, row, col);
     return marker ? (marker.owner || null) : null;
 }
 
@@ -232,10 +277,16 @@ const utils = {
     setChargeWithDelta,
     addChargeWithDelta,
     addCharge,
+    getMarkerRuleClass,
+    isTrueSpecialStoneMarker,
+    isDurationAffectableMarker,
     getSpecialMarkerAt,
+    getTrueSpecialStoneMarkerAt,
     isSpecialStoneAt,
+    isTrueSpecialStoneAt,
     isNonNormalStoneVisualAt,
     getSpecialOwnerAt,
+    getTrueSpecialStoneOwnerAt,
     isNormalStoneForPlayer
 };
 

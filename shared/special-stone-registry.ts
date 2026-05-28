@@ -29,6 +29,14 @@
         [key: string]: string;
     }
 
+    type SpecialStoneRuleClass =
+        | 'true_special_stone'
+        | 'stone_status'
+        | 'bomb'
+        | 'trap'
+        | 'board_marker'
+        | 'placement_effect';
+
     const SPECIAL_STONE_TYPE_ALIASES: Readonly<TypeAliases> = Object.freeze({
         EXTREME_HYPERACTIVE_WILL: 'EXTREME_HYPERACTIVE',
         TRAP_REVEAL: 'TRAP',
@@ -234,6 +242,32 @@
         })
     });
 
+    const STONE_STATUS_TYPES: ReadonlySet<string> = new Set([
+        'PROTECTED',
+        'PERMA_PROTECTED',
+        'GUARD',
+        'ABSOLUTE_PROTECTED',
+        'GHOST',
+        'AFTERIMAGE_WILL',
+        'REGEN',
+        'LIVING_WILL'
+    ]);
+
+    const BOARD_MARKER_TYPES: ReadonlySet<string> = new Set([
+        'BLOCKADE',
+        'METEOR_HOLE',
+        'FREEZE',
+        'SEED'
+    ]);
+
+    const PLACEMENT_EFFECT_TYPES: ReadonlySet<string> = new Set([
+        'CROSS_BOMB',
+        'X_BOMB',
+        'GOLD',
+        'SILVER',
+        'RAINBOW'
+    ]);
+
     function normalizeSpecialStoneType(rawType: unknown): string | null {
         if (rawType === null || typeof rawType === 'undefined') return null;
         const asString = String(rawType).trim();
@@ -274,15 +308,93 @@
         return !!(info && info.overlayOnlyVisual === true);
     }
 
+    function classifySpecialStoneRuleClass(rawType: unknown, markerData?: any): SpecialStoneRuleClass | null {
+        const type = normalizeSpecialStoneType(rawType);
+        const data = (markerData && typeof markerData === 'object') ? markerData : null;
+        const category = String(data && data.category ? data.category : '').toLowerCase();
+
+        if (category === 'bomb' || type === 'TIME_BOMB') {
+            return 'bomb';
+        }
+        if (!type) return null;
+        if (type === 'TRAP') {
+            return 'trap';
+        }
+        if (type === 'HYPERACTIVE' && !!(data && data.instantPlacementOnly)) {
+            return 'placement_effect';
+        }
+        if (PLACEMENT_EFFECT_TYPES.has(type)) {
+            return 'placement_effect';
+        }
+        if (BOARD_MARKER_TYPES.has(type)) {
+            return 'board_marker';
+        }
+        if (STONE_STATUS_TYPES.has(type)) {
+            return 'stone_status';
+        }
+        return 'true_special_stone';
+    }
+
+    function classifyMarkerRuleClass(marker: any): SpecialStoneRuleClass | null {
+        if (!marker || typeof marker !== 'object') return null;
+        return classifySpecialStoneRuleClass(marker.data && marker.data.type, marker.data || null);
+    }
+
+    function isTrueSpecialStoneRuleClass(value: unknown): boolean {
+        return value === 'true_special_stone';
+    }
+
+    function isTrueSpecialStoneMarker(marker: any): boolean {
+        return classifyMarkerRuleClass(marker) === 'true_special_stone';
+    }
+
+    function isStoneStatusMarker(marker: any): boolean {
+        return classifyMarkerRuleClass(marker) === 'stone_status';
+    }
+
+    function isBombMarker(marker: any): boolean {
+        return classifyMarkerRuleClass(marker) === 'bomb';
+    }
+
+    function isTrapMarker(marker: any): boolean {
+        return classifyMarkerRuleClass(marker) === 'trap';
+    }
+
+    function isBoardMarker(marker: any): boolean {
+        return classifyMarkerRuleClass(marker) === 'board_marker';
+    }
+
+    function isPlacementEffectMarker(marker: any): boolean {
+        return classifyMarkerRuleClass(marker) === 'placement_effect';
+    }
+
+    function isDurationAffectableMarker(marker: any): boolean {
+        const ruleClass = classifyMarkerRuleClass(marker);
+        return ruleClass === 'true_special_stone' || ruleClass === 'stone_status';
+    }
+
     return {
         SPECIAL_STONE_REGISTRY,
         SPECIAL_STONE_TYPE_ALIASES,
+        STONE_STATUS_TYPES,
+        BOARD_MARKER_TYPES,
+        PLACEMENT_EFFECT_TYPES,
         normalizeSpecialStoneType,
         getSpecialStoneInfo,
         getSpecialStoneDisplayName,
         getSpecialStoneDescription,
         getSpecialStoneTimerClass,
-        isOverlayOnlySpecialStoneType
+        isOverlayOnlySpecialStoneType,
+        classifySpecialStoneRuleClass,
+        classifyMarkerRuleClass,
+        isTrueSpecialStoneRuleClass,
+        isTrueSpecialStoneMarker,
+        isStoneStatusMarker,
+        isBombMarker,
+        isTrapMarker,
+        isBoardMarker,
+        isPlacementEffectMarker,
+        isDurationAffectableMarker
     };
 }));
 

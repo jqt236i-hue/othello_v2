@@ -211,8 +211,15 @@ function getCardUtils(): any {
 
 function getCaptureMarkerAt(cardState: any, row: number, col: number): any | null {
     const cardUtils = getCardUtils();
+    if (cardUtils && typeof cardUtils.getTrueSpecialStoneMarkerAt === 'function') {
+        return cardUtils.getTrueSpecialStoneMarkerAt(cardState, row, col);
+    }
     if (cardUtils && typeof cardUtils.getSpecialMarkerAt === 'function') {
-        return cardUtils.getSpecialMarkerAt(cardState, row, col);
+        const markerEntry = cardUtils.getSpecialMarkerAt(cardState, row, col);
+        const ruleClass = cardUtils && typeof cardUtils.getMarkerRuleClass === 'function'
+            ? cardUtils.getMarkerRuleClass(markerEntry && markerEntry.marker ? markerEntry.marker : markerEntry)
+            : null;
+        return ruleClass === 'true_special_stone' ? markerEntry : null;
     }
     const markers = (cardState && Array.isArray(cardState.markers)) ? cardState.markers : [];
     return markers.find((marker: any) => (
@@ -235,13 +242,26 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
         m.data &&
         m.data.type === 'GUARD'
     );
-    // Prefer CardUtils if available (handles bombs and special stones uniformly)
     const CardUtils = getCardUtils();
     forEachBoardShapeCell(gameState, (r, c) => {
         if (isGuarded(r, c)) return;
-        // Must be a special stone or bomb owned by opponent and not an empty cell
+        if (CardUtils && typeof CardUtils.isTrueSpecialStoneAt === 'function') {
+            if (!CardUtils.isTrueSpecialStoneAt(cardState, r, c)) return;
+            if (typeof CardUtils.getTrueSpecialStoneOwnerAt === 'function' && CardUtils.getTrueSpecialStoneOwnerAt(cardState, r, c) !== opponentKey) return;
+            if (typeof CardUtils.getTrueSpecialStoneOwnerAt !== 'function' && typeof CardUtils.getSpecialOwnerAt === 'function' && CardUtils.getSpecialOwnerAt(cardState, r, c) !== opponentKey) return;
+            if (getCellValue(gameState, r, c) === P_EMPTY) return;
+            res.push({ row: r, col: c });
+            return;
+        }
         if (CardUtils && typeof CardUtils.isSpecialStoneAt === 'function') {
-            if (!CardUtils.isSpecialStoneAt(cardState, r, c)) return;
+            const markerEntry = typeof CardUtils.getSpecialMarkerAt === 'function'
+                ? CardUtils.getSpecialMarkerAt(cardState, r, c)
+                : null;
+            const marker = markerEntry && markerEntry.marker ? markerEntry.marker : markerEntry;
+            const ruleClass = CardUtils && typeof CardUtils.getMarkerRuleClass === 'function'
+                ? CardUtils.getMarkerRuleClass(marker)
+                : null;
+            if (ruleClass !== 'true_special_stone') return;
             if (CardUtils.getSpecialOwnerAt(cardState, r, c) !== opponentKey) return;
             if (getCellValue(gameState, r, c) === P_EMPTY) return;
             res.push({ row: r, col: c });
@@ -250,6 +270,10 @@ function getTemptWillTargets(cardState: any, gameState: GameState, playerKey: st
 
         const marker = (cardState.markers || []).find((m: any) => m.kind === 'specialStone' && m.row === r && m.col === c);
         if (!marker) return;
+        const ruleClass = CardUtils && typeof CardUtils.getMarkerRuleClass === 'function'
+            ? CardUtils.getMarkerRuleClass(marker)
+            : null;
+        if (ruleClass && ruleClass !== 'true_special_stone') return;
         if (marker.owner !== opponentKey) return;
         if (getCellValue(gameState, r, c) === P_EMPTY) return;
         res.push({ row: r, col: c });

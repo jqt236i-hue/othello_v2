@@ -10,64 +10,35 @@ function _require(id: string): any {
   throw new Error('Unable to require ' + id);
 }
 const LOG_MESSAGES = _require('../log-messages');
-const ControllerEvents = _require('../controller-events');
 const { getPlayerDisplayName } = _require('../card-effects/helpers');
+const SpecialEffectsPresentationBridge = _require('./presentation-bridge');
 
 /**
  * @file breeding.js
  * @description Breeding effect handlers
  */
 
-let __uiImpl_breeding: any = {};
-function setUIImpl(obj: any) { __uiImpl_breeding = obj || {}; }
+function setUIImpl(obj: any) { SpecialEffectsPresentationBridge.setUIImpl('breeding', obj); }
 
 function emitBreedingLog(message: any): void {
-    if (__uiImpl_breeding && typeof __uiImpl_breeding.emitLogAdded === 'function') {
-        __uiImpl_breeding.emitLogAdded(message, 'effect');
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
-        ControllerEvents.emitLogAdded(message, 'effect');
-    }
+    SpecialEffectsPresentationBridge.emitLogAdded('breeding', message, 'effect');
 }
 
 function emitBreedingBoardUpdate(): void {
-    if (__uiImpl_breeding && typeof __uiImpl_breeding.emitBoardUpdate === 'function') {
-        __uiImpl_breeding.emitBoardUpdate();
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitBoardUpdate === 'function') ControllerEvents.emitBoardUpdate();
+    SpecialEffectsPresentationBridge.emitBoardUpdate('breeding');
 }
 
 function emitBreedingGameStateChange(): void {
-    if (__uiImpl_breeding && typeof __uiImpl_breeding.emitGameStateChange === 'function') {
-        __uiImpl_breeding.emitGameStateChange();
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitGameStateChange === 'function') ControllerEvents.emitGameStateChange();
+    SpecialEffectsPresentationBridge.emitGameStateChange('breeding');
 }
 
 function emitBreedingCardStateChange(): void {
-    if (__uiImpl_breeding && typeof __uiImpl_breeding.emitCardStateChange === 'function') {
-        __uiImpl_breeding.emitCardStateChange();
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitCardStateChange === 'function') ControllerEvents.emitCardStateChange();
+    SpecialEffectsPresentationBridge.emitCardStateChange('breeding');
 }
 
 function getBreedingPlayerName(player: number): string {
-    if (__uiImpl_breeding && typeof __uiImpl_breeding.getPlayerName === 'function') {
-        return __uiImpl_breeding.getPlayerName(player);
-    }
-    return getPlayerDisplayName(player);
+    return SpecialEffectsPresentationBridge.getPlayerName('breeding', player, getPlayerDisplayName);
 }
-
-// Timers abstraction (UI may inject via timers.setTimerImpl)
-let timers = null;
-if (typeof require === 'function') {
-    try { timers = _require('../timers'); } catch (e) { /* ignore */ }
-}
-const waitMs = (ms: number) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
 
 // Animation timing import through module dependency.
 let _getAnimationTiming_baked: ((key: string) => number) | null = null;
@@ -76,13 +47,12 @@ if (typeof require === 'function') {
 }
 
 function hasPlaybackEngineForBreeding(): boolean {
-    return typeof __uiImpl_breeding.playPresentationEvents === 'function';
+    return SpecialEffectsPresentationBridge.hasPlaybackEngine('breeding');
 }
 
 function getAnimationTimingForBreeding(key: string): number | undefined {
-    if (__uiImpl_breeding && typeof __uiImpl_breeding.getAnimationTiming === 'function') {
-        try { return __uiImpl_breeding.getAnimationTiming(key); } catch (e) { /* ignore */ }
-    }
+    const injected = SpecialEffectsPresentationBridge.getAnimationTiming('breeding', key);
+    if (typeof injected !== 'undefined') return injected;
     return typeof _getAnimationTiming_baked === 'function' ? _getAnimationTiming_baked(key) : undefined;
 }
 
@@ -145,23 +115,19 @@ async function processBreedingEffectsAtTurnStart(player: number, precomputedEven
     // Spawn each stone sequentially (no opacity animation)
     for (const spawn of result.spawned) {
         // UI should create the disc from presentationEvents/BoardOps; preserve timing only
-        await waitMs(800);
+        await SpecialEffectsPresentationBridge.waitMs('breeding', 800);
     }
 
     // Flip animations for stones affected by the spawned stone
     if (result.flipped.length > 0) {
         // Flip animations are UI responsibilities. Preserve pacing but do not perform DOM changes here.
         const delay = getAnimationTimingForBreeding('FLIP_ANIMATION_DURATION') || 800;
-        await waitMs(delay);
+        await SpecialEffectsPresentationBridge.waitMs('breeding', delay);
     }
 
     // After spawning and splitting, handle destroyed anchors (fade-out)
     for (const pos of result.destroyed) {
-        if (__uiImpl_breeding && typeof __uiImpl_breeding.animateFadeOutAt === 'function') {
-            await __uiImpl_breeding.animateFadeOutAt(pos.row, pos.col);
-        } else {
-            await waitMs(300);
-        }
+        await SpecialEffectsPresentationBridge.animateFadeOutAt('breeding', pos.row, pos.col);
     }
 
     // Final UI sync after all animations
@@ -195,13 +161,13 @@ async function processBreedingImmediateAtPlacement(player: number, row: number, 
     // Spawn animation removed — UI should create discs from presentationEvents. Preserve pacing.
     const BREEDING_FADE_MS = 350; // preserve previous pacing
     for (const spawn of result.spawned) {
-        await waitMs(BREEDING_FADE_MS);
+        await SpecialEffectsPresentationBridge.waitMs('breeding', BREEDING_FADE_MS);
     }
 
     // Flip animation for affected stones: UI responsibility. Preserve pacing.
     if (result.flipped.length > 0) {
         const delay = getAnimationTimingForBreeding('FLIP_ANIMATION_DURATION') || 800;
-        await waitMs(delay);
+        await SpecialEffectsPresentationBridge.waitMs('breeding', delay);
     }
 
 }

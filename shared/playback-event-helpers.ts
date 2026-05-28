@@ -284,6 +284,98 @@
         return 'crush_move';
     }
 
+    function cloneJsonSafeValue<T>(value: T): T {
+        if (Array.isArray(value)) {
+            return value.map((item) => cloneJsonSafeValue(item)) as T;
+        }
+        if (!value || typeof value !== 'object') return value;
+        const cloned: Record<string, unknown> = {};
+        for (const key of Object.keys(value as Record<string, unknown>)) {
+            cloned[key] = cloneJsonSafeValue((value as Record<string, unknown>)[key]);
+        }
+        return cloned as T;
+    }
+
+    function createRawSelectionMoveMeta(event: Record<string, unknown>, moveIntent: string): Record<string, unknown> {
+        const meta: Record<string, unknown> = { moveIntent };
+        if (typeof event.selectedPathVariant === 'string' && String(event.selectedPathVariant).trim()) {
+            meta.selectedPathVariant = String(event.selectedPathVariant);
+        }
+        if (Array.isArray(event.pathCells) && event.pathCells.length > 0) {
+            meta.pathCells = cloneJsonSafeValue(event.pathCells);
+        }
+        if (Array.isArray(event.segments) && event.segments.length > 0) {
+            meta.segments = cloneJsonSafeValue(event.segments);
+        }
+        if (Array.isArray(event.waypoints) && event.waypoints.length > 0) {
+            meta.waypoints = cloneJsonSafeValue(event.waypoints);
+        }
+        return meta;
+    }
+
+    const RAW_IMMEDIATE_DESTROY_EVENT_PROFILES = Object.freeze({
+        sniper_destroyed_immediate: Object.freeze({ cause: 'SNIPER_WILL', reason: 'sniper_shot' }),
+        sniper_destroyed_start: Object.freeze({ cause: 'SNIPER_WILL', reason: 'sniper_shot' }),
+        lightning_destroyed_immediate: Object.freeze({ cause: 'LIGHTNING_WILL', reason: 'lightning_destroyed' }),
+        lightning_destroyed_start: Object.freeze({ cause: 'LIGHTNING_WILL', reason: 'lightning_destroyed' }),
+        udg_destroyed_immediate: Object.freeze({ cause: 'ULTIMATE_DESTROY_GOD', reason: 'udg_destroyed' }),
+        udg_destroyed_start: Object.freeze({ cause: 'ULTIMATE_DESTROY_GOD', reason: 'udg_destroyed' }),
+        destroy_dragon_destroyed_immediate: Object.freeze({ cause: 'DESTROY_DRAGON_WILL', reason: 'destroy_dragon_breath' }),
+        destroy_dragon_destroyed_start: Object.freeze({ cause: 'DESTROY_DRAGON_WILL', reason: 'destroy_dragon_breath' }),
+        robot_vacuum_destroyed_immediate: Object.freeze({ cause: 'ROBOT_VACUUM', reason: 'robot_vacuum_suck' }),
+        robot_vacuum_destroyed_start: Object.freeze({ cause: 'ROBOT_VACUUM', reason: 'robot_vacuum_suck' }),
+        will_hunter_king_destroyed_immediate: Object.freeze({ cause: 'WILL_HUNTER_KING', reason: 'will_hunter_king_slash' }),
+        will_hunter_king_destroyed_start: Object.freeze({ cause: 'WILL_HUNTER_KING', reason: 'will_hunter_king_slash' })
+    });
+
+    function getDestroyPlaybackSignature(event: unknown): string {
+        const ev = event && typeof event === 'object' ? event as Record<string, unknown> : {};
+        if (String(ev.type || '').trim().toLowerCase() !== 'destroy') return '';
+        const targets = Array.isArray(ev.targets) ? ev.targets : [];
+        const target = targets.length > 0 && targets[0] && typeof targets[0] === 'object'
+            ? targets[0] as Record<string, unknown>
+            : {};
+        const row = Number.isInteger(target.r) ? Number(target.r) : null;
+        const col = Number.isInteger(target.col) ? Number(target.col) : null;
+        if (row === null || col === null) return '';
+        const cause = String(target.cause || '').trim().toUpperCase();
+        const reason = String(target.reason || '').trim().toLowerCase();
+        return JSON.stringify({ row, col, cause, reason });
+    }
+
+    function mapRawImmediateDestroyEventsToPresentation(rawEvents: unknown[]): unknown[] {
+        const events = Array.isArray(rawEvents) ? rawEvents : [];
+        const presentationEvents: unknown[] = [];
+        for (const raw of events) {
+            const event = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
+            const type = String(event.type || '').trim().toLowerCase();
+            const profile = Object.prototype.hasOwnProperty.call(RAW_IMMEDIATE_DESTROY_EVENT_PROFILES, type)
+                ? (RAW_IMMEDIATE_DESTROY_EVENT_PROFILES as Record<string, { cause: string; reason: string }>)[type]
+                : null;
+            if (!profile || !Array.isArray(event.details) || event.details.length === 0) continue;
+            for (const detailValue of event.details) {
+                const detail = detailValue && typeof detailValue === 'object' ? detailValue as Record<string, unknown> : {};
+                const row = Number.isInteger(detail.row) ? Number(detail.row) : null;
+                const col = Number.isInteger(detail.col) ? Number(detail.col) : null;
+                if (row === null || col === null) continue;
+                const meta: Record<string, unknown> = {};
+                if (Number.isInteger(detail.sourceRow)) meta.sourceRow = Number(detail.sourceRow);
+                if (Number.isInteger(detail.sourceCol)) meta.sourceCol = Number(detail.sourceCol);
+                if (typeof detail.projectileOwner === 'string' && String(detail.projectileOwner).trim()) meta.projectileOwner = String(detail.projectileOwner);
+                if (typeof detail.projectileStone === 'string' && String(detail.projectileStone).trim()) meta.projectileStone = String(detail.projectileStone);
+                presentationEvents.push({
+                    type: 'DESTROY',
+                    row,
+                    col,
+                    cause: profile.cause,
+                    reason: profile.reason,
+                    meta: Object.keys(meta).length > 0 ? meta : undefined
+                });
+            }
+        }
+        return presentationEvents;
+    }
+
     function mapRawSelectionMoveEventsToPlayback(rawEvents: unknown[]): unknown[] {
         const events = Array.isArray(rawEvents) ? rawEvents : [];
         const playbackEvents: unknown[] = [];
@@ -297,6 +389,7 @@
             const cause = resolveRawSelectionMoveCause(type, ev);
             if (!cause) continue;
             const moveIntent = resolveRawSelectionMoveIntent(type, cause);
+            const moveMeta = createRawSelectionMoveMeta(ev, moveIntent);
             playbackEvents.push({
                 type: 'move',
                 phase: 1,
@@ -310,9 +403,9 @@
                     ownerAfter: ev.ownerAfter || ev.player || null,
                     cause,
                     reason: moveIntent,
-                    meta: { moveIntent }
+                    meta: cloneJsonSafeValue(moveMeta)
                 }],
-                meta: { moveIntent }
+                meta: moveMeta
             });
         }
         return playbackEvents;
@@ -329,7 +422,14 @@
         const to = normalizeRawPosition(target.to);
         if (!from || !to) return '';
         const cause = String(target.cause || '').trim().toUpperCase();
-        const reason = String(target.reason || (target.meta && typeof target.meta === 'object' ? (target.meta as Record<string, unknown>).moveIntent : '') || '').trim().toLowerCase();
+        const targetMeta = (target.meta && typeof target.meta === 'object')
+            ? target.meta as Record<string, unknown>
+            : {};
+        const reason = String(
+            targetMeta.moveIntent
+            || target.reason
+            || ''
+        ).trim().toLowerCase();
         return JSON.stringify({ from, to, cause, reason });
     }
 
@@ -431,6 +531,26 @@
                     playbackEvents = (rawPlacePlaybackEvents as unknown[])
                         .concat(missingBoardPlaybackEvents as unknown[])
                         .concat(playbackEvents.filter((event) => !rawPlacePlaybackEvents.some((placeEvent) => playbackEventKey(placeEvent) === playbackEventKey(event))));
+                }
+            }
+
+            const rawImmediateDestroyPresentationEvents = mapRawImmediateDestroyEventsToPresentation(rawEvents);
+            if (rawImmediateDestroyPresentationEvents.length > 0) {
+                const rawImmediateDestroyPlaybackEvents = adapter.mapToPlaybackEvents(
+                    rawImmediateDestroyPresentationEvents,
+                    snapshot && (snapshot as { cardState?: unknown }).cardState,
+                    snapshot && (snapshot as { gameState?: unknown }).gameState
+                );
+                if (!Array.isArray(rawImmediateDestroyPlaybackEvents)) {
+                    throw new Error('PlaybackEventHelpers.assemblePlaybackEvents expected adapter.mapToPlaybackEvents for raw immediate destroy events to return an array');
+                }
+                const existingDestroySignatures = new Set(playbackEvents.map(getDestroyPlaybackSignature).filter(Boolean));
+                const missingImmediateDestroyPlaybackEvents = rawImmediateDestroyPlaybackEvents
+                    .filter(isBoardVisualPlaybackEvent)
+                    .filter((event) => String((event as Record<string, unknown>).type || '').trim().toLowerCase() === 'destroy')
+                    .filter((event) => !existingDestroySignatures.has(getDestroyPlaybackSignature(event)));
+                if (missingImmediateDestroyPlaybackEvents.length > 0) {
+                    playbackEvents = playbackEvents.concat(missingImmediateDestroyPlaybackEvents as unknown[]);
                 }
             }
         }

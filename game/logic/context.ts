@@ -81,9 +81,14 @@ function mapBlockedMarkers(cardState: CardState | null | undefined): BlockedMark
 function getSafeCardContext(
     cardState: CardState | null | undefined,
     protectedStones?: Array<{row: number; col: number}>,
-    permaProtectedStones?: Array<{row: number; col: number}>
+    permaProtectedStones?: Array<{row: number; col: number}>,
+    cardLogic?: { getCardContext?: (cardState: CardState | null | undefined) => SafeCardContext }
 ): SafeCardContext {
-    // Prefer CardLogic when available
+    if (cardLogic && typeof cardLogic.getCardContext === 'function') {
+        return cardLogic.getCardContext(cardState);
+    }
+
+    // Prefer CardLogic when available.
     try {
         const cardsImpl = _require('./cards');
         if (cardsImpl && typeof cardsImpl.getCardContext === 'function') {

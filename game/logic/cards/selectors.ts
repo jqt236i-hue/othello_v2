@@ -496,18 +496,6 @@ function _collectVerticalCrushDestination(cardState: CardState, gameState: GameS
     return destination;
 }
 
-function normalizeLineDirection(fromRow: number, fromCol: number, toRow: number, toCol: number): { dr: number; dc: number } | null {
-    const rowDelta = toRow - fromRow;
-    const colDelta = toCol - fromCol;
-    if (rowDelta === 0 && colDelta === 0) return null;
-    const absRow = Math.abs(rowDelta);
-    const absCol = Math.abs(colDelta);
-    if (rowDelta !== 0 && colDelta !== 0 && absRow !== absCol) return null;
-    if (rowDelta !== 0 && colDelta !== 0) return { dr: rowDelta > 0 ? 1 : -1, dc: colDelta > 0 ? 1 : -1 };
-    if (rowDelta !== 0) return { dr: rowDelta > 0 ? 1 : -1, dc: 0 };
-    return { dr: 0, dc: colDelta > 0 ? 1 : -1 };
-}
-
 function isGhostCell(cardState: CardState, row: number, col: number): boolean {
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
@@ -521,25 +509,37 @@ function isGhostCell(cardState: CardState, row: number, col: number): boolean {
     ));
 }
 
-function canSuperAttractionTravelTo(cardState: CardState, gameState: GameState, fromRow: number, fromCol: number, toRow: number, toCol: number): boolean {
-    const direction = normalizeLineDirection(fromRow, fromCol, toRow, toCol);
-    if (!direction) return false;
-    if (!hasBoardShapeCell(gameState, toRow, toCol)) return false;
-
-    let r = fromRow + direction.dr;
-    let c = fromCol + direction.dc;
-    while (hasBoardShapeCell(gameState, r, c)) {
-        if (isBlockedCell(cardState, r, c)) return false;
-        const owner = getCellValue(gameState, r, c);
-        if (owner !== P_EMPTY && isGuardProtectedCell(cardState, r, c)) return false;
-        if (r === toRow && c === toCol) {
-            if (owner !== P_EMPTY && isGhostCell(cardState, r, c)) return false;
-            return true;
-        }
-        r += direction.dr;
-        c += direction.dc;
+function getSuperAttractionPathCandidates(fromRow: number, fromCol: number, toRow: number, toCol: number): any[] {
+    if (SelectorsCoreUtils && typeof SelectorsCoreUtils.getSuperAttractionPathCandidates === 'function') {
+        return SelectorsCoreUtils.getSuperAttractionPathCandidates(
+            { row: fromRow, col: fromCol },
+            { row: toRow, col: toCol }
+        );
     }
-    return false;
+    return [];
+}
+
+function isSuperAttractionPathCandidateLegal(cardState: CardState, gameState: GameState, candidate: any): boolean {
+    const pathCells = Array.isArray(candidate && candidate.pathCells) ? candidate.pathCells : [];
+    if (pathCells.length <= 0) return false;
+
+    for (let index = 0; index < pathCells.length; index += 1) {
+        const point = pathCells[index];
+        if (!point || !hasBoardShapeCell(gameState, point.row, point.col)) return false;
+        if (isBlockedCell(cardState, point.row, point.col)) return false;
+
+        const owner = getCellValue(gameState, point.row, point.col);
+        if (owner !== P_EMPTY && isGuardProtectedCell(cardState, point.row, point.col)) return false;
+        if (index === pathCells.length - 1 && owner !== P_EMPTY && isGhostCell(cardState, point.row, point.col)) return false;
+    }
+
+    return true;
+}
+
+function canSuperAttractionTravelTo(cardState: CardState, gameState: GameState, fromRow: number, fromCol: number, toRow: number, toCol: number): boolean {
+    if (!hasBoardShapeCell(gameState, toRow, toCol)) return false;
+    const candidates = getSuperAttractionPathCandidates(fromRow, fromCol, toRow, toCol);
+    return candidates.some((candidate: any) => isSuperAttractionPathCandidateLegal(cardState, gameState, candidate));
 }
 
 function hasSuperAttractionDestination(cardState: CardState, gameState: GameState, row: number, col: number): boolean {
@@ -714,10 +714,14 @@ function getExtendLifeTargets(cardState: CardState, _gameState: GameState, playe
     const ownerKey = String(playerKey || '');
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
+    const isDurationAffectableMarker = CardUtils && typeof CardUtils.isDurationAffectableMarker === 'function'
+        ? CardUtils.isDurationAffectableMarker
+        : ((marker: any) => !!(marker && marker.kind === 'specialStone'));
     const res: TargetCell[] = [];
     const seen = new Set<string>();
     for (const marker of markers) {
         if (!marker || marker.kind !== 'specialStone') continue;
+        if (!isDurationAffectableMarker(marker)) continue;
         if (marker.owner !== ownerKey) continue;
         const remaining = (marker.data && Number.isFinite(marker.data.remainingOwnerTurns))
             ? Number(marker.data.remainingOwnerTurns)
@@ -734,10 +738,14 @@ function getExtendLifeTargets(cardState: CardState, _gameState: GameState, playe
 function getCorrosionTargets(cardState: CardState, _gameState: GameState, _playerKey: PlayerKey): TargetCell[] {
     const cs = cardState as any;
     const markers = (cs && Array.isArray(cs.markers)) ? cs.markers : [];
+    const isDurationAffectableMarker = CardUtils && typeof CardUtils.isDurationAffectableMarker === 'function'
+        ? CardUtils.isDurationAffectableMarker
+        : ((marker: any) => !!(marker && marker.kind === 'specialStone'));
     const res: TargetCell[] = [];
     const seen = new Set<string>();
     for (const marker of markers) {
         if (!marker || marker.kind !== 'specialStone') continue;
+        if (!isDurationAffectableMarker(marker)) continue;
         if (isGuardProtectedCell(cardState, marker.row, marker.col)) continue;
         const remaining = (marker.data && Number.isFinite(marker.data.remainingOwnerTurns))
             ? Number(marker.data.remainingOwnerTurns)

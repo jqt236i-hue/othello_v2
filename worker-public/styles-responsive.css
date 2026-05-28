@@ -1,42 +1,18 @@
 /* ===== Media Queries for Mobile/Tablet Responsiveness ===== */
 
 @media (max-width: 56.25em) {
-    #gachaOpenBtn,
-    #leaderboardOpenBtn,
-    #deckBuilderOpenBtn {
-        left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        min-width: calc(80px * var(--layout-stage-scale));
-        padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
-        font-size: calc(11px * var(--layout-stage-scale));
-    }
-
-    #gachaOpenBtn {
-        bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(200px * var(--layout-stage-scale)));
-    }
-
-    #leaderboardOpenBtn {
-        bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(162px * var(--layout-stage-scale)));
-    }
-
-    #deckBuilderOpenBtn {
-        bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(124px * var(--layout-stage-scale)));
-    }
-
-    #rulesHelpBtn {
-        left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        bottom: calc(max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(48px * var(--layout-stage-scale)));
-        min-width: calc(56px * var(--layout-stage-scale));
-        padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
-        font-size: calc(11px * var(--layout-stage-scale));
-    }
-
-    #handSkinBtn {
+    #leftActionButtons {
         left: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-left));
         bottom: max(calc(10px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
-        min-width: calc(56px * var(--layout-stage-scale));
+        gap: calc(6px * var(--layout-stage-scale));
+    }
+
+    #leftActionButtons .left-action-btn {
+        min-width: calc(80px * var(--layout-stage-scale));
         min-height: calc(40px * var(--layout-stage-scale));
-        padding: calc(6px * var(--layout-stage-scale)) calc(8px * var(--layout-stage-scale));
-        font-size: calc(10px * var(--layout-stage-scale));
+        padding: calc(7px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+        font-size: calc(11px * var(--layout-stage-scale));
+        letter-spacing: 0.06em;
     }
 
     #handSkinPanel {
@@ -214,6 +190,14 @@ html.layout-profile-phone-portrait #hero-character-panel {
     display: none;
 }
 
+html.layout-profile-phone-portrait #stone-info-panel {
+    left: 50%;
+    top: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-top)) + min(74vw, calc(420px * var(--layout-stage-scale)), 47dvh) + calc(96px * var(--layout-stage-scale)));
+    width: min(calc(430px * var(--layout-stage-scale)), 94vw);
+    max-height: min(24dvh, calc(210px * var(--layout-stage-scale)));
+    transform: translateX(-50%);
+}
+
 html.layout-profile-phone-portrait #side-panel {
     left: auto;
     right: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-right));
@@ -261,19 +245,15 @@ html.layout-profile-phone-portrait #networkChatPanel.is-open {
     transform: translateX(-50%);
 }
 
-html.layout-profile-phone-portrait #rulesHelpBtn {
+html.layout-profile-phone-portrait #leftActionButtons {
     left: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left));
-    bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(44px * var(--layout-stage-scale)));
+    bottom: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
+    gap: calc(6px * var(--layout-stage-scale));
 }
 
-html.layout-profile-phone-portrait #leaderboardOpenBtn {
-    left: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left));
-    bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(176px * var(--layout-stage-scale)));
-}
-
-html.layout-profile-phone-portrait #deckBuilderOpenBtn {
-    left: max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-left));
-    bottom: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(132px * var(--layout-stage-scale)));
+html.layout-profile-phone-portrait #leftActionButtons .left-action-btn {
+    min-width: calc(76px * var(--layout-stage-scale));
+    min-height: calc(38px * var(--layout-stage-scale));
 }
 
 html.layout-profile-phone-portrait #deck-white,
@@ -446,9 +426,13 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
         width: clamp(calc(136px * var(--layout-stage-scale)), 34vw, calc(206px * var(--layout-stage-scale)));
     }
 
-    #rulesHelpBtn {
+    #leftActionButtons {
         left: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        bottom: calc(max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(40px * var(--layout-stage-scale)));
+        bottom: max(calc(6px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
+        gap: calc(5px * var(--layout-stage-scale));
+    }
+
+    #leftActionButtons .left-action-btn {
         min-width: calc(52px * var(--layout-stage-scale));
         padding: calc(6px * var(--layout-stage-scale)) calc(9px * var(--layout-stage-scale));
     }
@@ -728,9 +712,9 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
         overflow: visible;
     }
 
-    #rulesHelpBtn {
+    #leftActionButtons {
         left: max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-left));
-        bottom: calc(max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-bottom)) + calc(36px * var(--layout-stage-scale)));
+        bottom: max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-bottom));
     }
 
     #rules-help-panel {
@@ -979,6 +963,13 @@ html.sim-aspect-5-4 #effect-live-panel {
     padding: var(--profile-effect-padding);
 }
 
+#stone-info-panel {
+    left: var(--profile-effect-left);
+    top: var(--profile-effect-top);
+    transform: translateY(calc(-100% - calc(8px * var(--layout-stage-scale))));
+    width: var(--profile-effect-width);
+}
+
 #cpu-character-panel {
     top: var(--profile-cpu-panel-top);
     right: var(--profile-cpu-panel-right);
@@ -1184,6 +1175,13 @@ html.sim-aspect-5-4 #effect-live-panel {
         min-height: calc(var(--layout-anchor-effect-height) * var(--layout-stage-scale));
     }
 
+    html.layout-stage-enabled:not(.layout-profile-phone-portrait) #stone-info-panel {
+        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
+        top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
+        transform: translateY(calc(-100% - calc(8px * var(--layout-stage-scale))));
+        width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
+    }
+
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #cpu-character-panel {
         top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-cpu-top) * var(--layout-stage-scale)));
         right: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-cpu-right) * var(--layout-stage-scale)));
@@ -1308,12 +1306,7 @@ html.sim-aspect-5-4 #effect-live-panel {
         font-size: clamp(11px, calc(var(--layout-anchor-hero-label-font) * var(--layout-stage-scale)), 22px);
     }
 
-    html.layout-stage-enabled #rulesHelpBtn {
-        left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
-        bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(52px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
-    }
-
-    html.layout-stage-enabled #handSkinBtn {
+    html.layout-stage-enabled #leftActionButtons {
         left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
         bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + var(--layout-stage-bottom-safe-shift));
     }

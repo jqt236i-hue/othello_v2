@@ -416,7 +416,8 @@ async function runDatasetEvaluation(args: any, onnxModel: any, onnxMeta: any) {
     heuristicRerankWeight: args.heuristicRerankWeight,
     policyWeight: args.policyWeight,
     topK: args.topK,
-    whiteSafetyMultiplier: args.whiteSafetyMultiplier
+    whiteSafetyMultiplier: args.whiteSafetyMultiplier,
+    exactSolveEmpties: args.exactSolveEmpties
   });
 
   const stats = createStats();
@@ -566,7 +567,8 @@ async function main(argv: any = process.argv.slice(2)) {
       heuristicRerankWeight: args.heuristicRerankWeight,
       policyWeight: args.policyWeight,
       topK: args.topK,
-      whiteSafetyMultiplier: args.whiteSafetyMultiplier
+      whiteSafetyMultiplier: args.whiteSafetyMultiplier,
+      exactSolveEmpties: args.exactSolveEmpties
     });
   }
 

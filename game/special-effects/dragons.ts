@@ -18,13 +18,9 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 const LOG_MESSAGES = _require('../log-messages');
-const ControllerEvents = _require('../controller-events');
 const { getPlayerDisplayName } = _require('../card-effects/helpers');
+const SpecialEffectsPresentationBridge = _require('./presentation-bridge');
 
-// Timers abstraction (injected by UI)
-let timers: any = null;
-try { timers = (typeof require === 'function') ? require('../timers') : timers; } catch (e) { timers = timers || null; }
-const waitMs = (ms: number) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
 let BoardOpsModule: any = null;
 try { BoardOpsModule = (typeof require === 'function') ? require('../logic/board_ops') : (typeof BoardOps !== 'undefined' ? BoardOps : null); } catch (e) { BoardOpsModule = BoardOpsModule || null; }
 let CardUtilsModule: any = null;
@@ -41,99 +37,54 @@ try {
         if (Number.isFinite(Number(constants.CHARGE_MAX))) CHARGE_MAX = Number(constants.CHARGE_MAX);
     } catch (_e) { /* ignore */ }
 }
-let __uiImpl_dragons: any = {};
-function setUIImpl(obj: any) { __uiImpl_dragons = obj || {}; }
+function setUIImpl(obj: any) { SpecialEffectsPresentationBridge.setUIImpl('dragons', obj); }
 
 function emitDragonLog(message: any): void {
-    if (__uiImpl_dragons && typeof __uiImpl_dragons.emitLogAdded === 'function') {
-        __uiImpl_dragons.emitLogAdded(message, 'effect');
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
-        ControllerEvents.emitLogAdded(message, 'effect');
-    }
+    SpecialEffectsPresentationBridge.emitLogAdded('dragons', message, 'effect');
 }
 
 function emitDragonBoardUpdate(): void {
-    if (__uiImpl_dragons && typeof __uiImpl_dragons.emitBoardUpdate === 'function') {
-        __uiImpl_dragons.emitBoardUpdate();
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitBoardUpdate === 'function') ControllerEvents.emitBoardUpdate();
+    SpecialEffectsPresentationBridge.emitBoardUpdate('dragons');
 }
 
 function emitDragonGameStateChange(): void {
-    if (__uiImpl_dragons && typeof __uiImpl_dragons.emitGameStateChange === 'function') {
-        __uiImpl_dragons.emitGameStateChange();
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitGameStateChange === 'function') ControllerEvents.emitGameStateChange();
+    SpecialEffectsPresentationBridge.emitGameStateChange('dragons');
 }
 
 function emitDragonCardStateChange(): void {
-    if (__uiImpl_dragons && typeof __uiImpl_dragons.emitCardStateChange === 'function') {
-        __uiImpl_dragons.emitCardStateChange();
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitCardStateChange === 'function') ControllerEvents.emitCardStateChange();
+    SpecialEffectsPresentationBridge.emitCardStateChange('dragons');
 }
 
 function getDragonPlayerName(player: number): string {
-    if (__uiImpl_dragons && typeof __uiImpl_dragons.getPlayerName === 'function') {
-        return __uiImpl_dragons.getPlayerName(player);
-    }
-    return getPlayerDisplayName(player);
+    return SpecialEffectsPresentationBridge.getPlayerName('dragons', player, getPlayerDisplayName);
 }
 
 function hasPlaybackEngineForDragons(): boolean {
-    return typeof __uiImpl_dragons.playPresentationEvents === 'function';
+    return SpecialEffectsPresentationBridge.hasPlaybackEngine('dragons');
 }
 
 function getAnimationTimingForDragons(key: string): number | undefined {
-    if (__uiImpl_dragons && typeof __uiImpl_dragons.getAnimationTiming === 'function') {
-        try { return __uiImpl_dragons.getAnimationTiming(key); } catch (e) { /* ignore */ }
-    }
-    return undefined;
+    return SpecialEffectsPresentationBridge.getAnimationTiming('dragons', key);
 }
 
 function setDiscColorForDragons(row: number, col: number, color: number): any {
-    if (__uiImpl_dragons && typeof __uiImpl_dragons.setDiscColorAt === 'function') {
-        return __uiImpl_dragons.setDiscColorAt(row, col, color);
-    }
-    return undefined;
+    return SpecialEffectsPresentationBridge.setDiscColorAt('dragons', row, col, color);
 }
 
 function removeBombOverlayForDragons(row: number, col: number): any {
-    if (__uiImpl_dragons && typeof __uiImpl_dragons.removeBombOverlayAt === 'function') {
-        return __uiImpl_dragons.removeBombOverlayAt(row, col);
-    }
-    return undefined;
+    return SpecialEffectsPresentationBridge.removeBombOverlayAt('dragons', row, col);
 }
 
 async function removeRegenOverlayForDragons(row: number, col: number): Promise<any> {
-    if (__uiImpl_dragons && typeof __uiImpl_dragons.removeRegenOverlayAt === 'function') {
-        return __uiImpl_dragons.removeRegenOverlayAt(row, col);
-    }
-    return undefined;
+    return SpecialEffectsPresentationBridge.removeRegenOverlayAt('dragons', row, col);
 }
 
 async function animateDragonFadeOut(row: number, col: number, options: any): Promise<any> {
-    if (__uiImpl_dragons && typeof __uiImpl_dragons.animateFadeOutAt === 'function') {
-        return __uiImpl_dragons.animateFadeOutAt(row, col, options);
-    }
-    return undefined;
+    return SpecialEffectsPresentationBridge.animateFadeOutAt('dragons', row, col, options);
 }
 
 function emitPresentationEventViaBoardOps(ev: any) {
-    if (__uiImpl_dragons && typeof __uiImpl_dragons.emitPresentationEvent === 'function') {
-        try { return __uiImpl_dragons.emitPresentationEvent(ev); } catch (e) { /* ignore */ }
-    }
-    try {
-        const pres = (typeof require === 'function') ? require('../logic/presentation') : null;
-        if (pres && typeof pres.emitPresentationEvent === 'function') return pres.emitPresentationEvent(cardState, ev);
-    } catch (e) { /* ignore */ }
-    try { console.warn('[dragons] Presentation helper not available'); } catch (e) { }
-    return false;
+    return SpecialEffectsPresentationBridge.emitPresentationEvent('dragons', cardState, ev);
 }
 
 /**
@@ -266,7 +217,7 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
             .filter((p: any) => !regenedSet.has(`${p.row},${p.col}`))
             .map((p: any) => [p.row, p.col]);
         if (flipCoords.length > 0 && showSplitAnimation) {
-            await waitMs(delay);
+            await SpecialEffectsPresentationBridge.waitMs('dragons', delay);
             for (const pos of result.converted) {
                 if (regenedSet.has(`${pos.row},${pos.col}`)) continue;
                 setDiscColorForDragons(pos.row, pos.col, player);
@@ -288,7 +239,7 @@ async function processUltimateReverseDragonsAtTurnStart(player: number, precompu
                 for (const pos of regenRes.captureFlips) {
                     setDiscColorForDragons(pos.row, pos.col, -player);
                 }
-                await waitMs(delay);
+                await SpecialEffectsPresentationBridge.waitMs('dragons', delay);
                 for (const pos of regenRes.captureFlips) {
                     setDiscColorForDragons(pos.row, pos.col, player);
                 }
@@ -362,7 +313,7 @@ async function processUltimateReverseDragonImmediateAtPlacement(player: number, 
                 emitPresentationEventViaBoardOps({ type: 'CHANGE', row: r, col: c, ownerBefore, ownerAfter });
             }
             // Wait for animation duration before finalizing colors
-            await waitMs(delay);
+            await SpecialEffectsPresentationBridge.waitMs('dragons', delay);
         }
         for (const pos of result.converted) {
             setDiscColorForDragons(pos.row, pos.col, ownerColor);
@@ -389,7 +340,7 @@ async function processUltimateReverseDragonImmediateAtPlacement(player: number, 
                     emitPresentationEventViaBoardOps({ type: 'CHANGE', row: r, col: c, ownerBefore, ownerAfter });
                 }
             }
-            await waitMs(delay);
+            await SpecialEffectsPresentationBridge.waitMs('dragons', delay);
         }
     }
 

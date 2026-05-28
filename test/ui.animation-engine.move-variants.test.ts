@@ -140,6 +140,96 @@ describe.each(CASES)('animation-engine move variants %s', (cause, reason, midpoi
   });
 });
 
+describe('animation-engine super attraction waypoint path', () => {
+  let dom;
+
+  beforeEach(() => {
+    jest.resetModules();
+    dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.emitBoardUpdate = jest.fn();
+  });
+
+  afterEach(() => {
+    delete global.window;
+    delete global.document;
+    delete global.emitBoardUpdate;
+    if (dom && dom.window && typeof dom.window.close === 'function') {
+      dom.window.close();
+    }
+  });
+
+  test('follows the supplied bend waypoint during super attraction movement', async () => {
+    const board = document.getElementById('board');
+    const fromCell = document.createElement('div');
+    const bendCell = document.createElement('div');
+    const toCell = document.createElement('div');
+    const disc = document.createElement('div');
+    const animateCalls = [];
+
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '2';
+    fromCell.dataset.col = '2';
+    fromCell.getBoundingClientRect = () => ({ left: 20, top: 20, width: 50, height: 50 });
+
+    bendCell.className = 'cell';
+    bendCell.dataset.row = '4';
+    bendCell.dataset.col = '4';
+    bendCell.getBoundingClientRect = () => ({ left: 140, top: 140, width: 50, height: 50 });
+
+    toCell.className = 'cell';
+    toCell.dataset.row = '5';
+    toCell.dataset.col = '4';
+    toCell.getBoundingClientRect = () => ({ left: 140, top: 200, width: 50, height: 50 });
+
+    disc.className = 'disc black';
+    fromCell.appendChild(disc);
+    board.appendChild(fromCell);
+    board.appendChild(bendCell);
+    board.appendChild(toCell);
+
+    global.window.Element.prototype.animate = jest.fn((keyframes, options) => {
+      animateCalls.push({ keyframes, options });
+      return {
+        addEventListener(eventName, handler) {
+          if (eventName === 'finish' && typeof handler === 'function') {
+            handler();
+          }
+        },
+        removeEventListener() {},
+        finished: Promise.resolve()
+      };
+    });
+
+    const engine = require('../ui/animation-engine.js');
+    await engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 2, col: 2 },
+        to: { r: 5, col: 4 },
+        ownerAfter: 'black',
+        cause: 'SUPER_ATTRACTION_WILL',
+        reason: 'super_attraction_move',
+        meta: {
+          moveIntent: 'crush_move',
+          waypoints: [{ row: 4, col: 4 }, { row: 5, col: 4 }],
+          segments: [
+            { from: { row: 2, col: 2 }, to: { row: 4, col: 4 }, dr: 1, dc: 1, length: 2 },
+            { from: { row: 4, col: 4 }, to: { row: 5, col: 4 }, dr: 1, dc: 0, length: 1 }
+          ]
+        }
+      }]
+    });
+
+    expect(animateCalls).toHaveLength(1);
+    expect(animateCalls[0].keyframes).toHaveLength(3);
+    expect(String(animateCalls[0].keyframes[1].transform)).toContain('translate(120px, 120px)');
+    expect(animateCalls[0].keyframes[1].offset).toBeCloseTo(2 / 3, 5);
+    expect(String(animateCalls[0].keyframes[2].transform)).toContain('translate(120px, 180px)');
+  });
+});
+
 describe.each([
   ['GLUTTONOUS_WILL', 'gluttonous_eat_overlap_return'],
   ['WILL_HUNTER_KING', 'will_hunter_king_slash_overlap_return']

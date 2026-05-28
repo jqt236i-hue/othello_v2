@@ -8,7 +8,8 @@ describe('CardMarkers duration effects', () => {
       },
       markers: [
         { id: 1, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 5 } },
-        { id: 2, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'GUARD', remainingOwnerTurns: 3 } }
+        { id: 2, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'GUARD', remainingOwnerTurns: 3 } },
+        { id: 3, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'BLOCKADE', remainingOwnerTurns: 2 } }
       ]
     };
 
@@ -27,6 +28,7 @@ describe('CardMarkers duration effects', () => {
     });
     expect(cardState.markers[0].data.remainingOwnerTurns).toBe(10);
     expect(cardState.markers[1].data.remainingOwnerTurns).toBe(6);
+    expect(cardState.markers[2].data.remainingOwnerTurns).toBe(2);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
     expect(cardState._presentationEventsPersist).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -51,7 +53,8 @@ describe('CardMarkers duration effects', () => {
       },
       markers: [
         { id: 1, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 5 } },
-        { id: 2, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'GUARD', remainingOwnerTurns: 3 } }
+        { id: 2, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'GUARD', remainingOwnerTurns: 3 } },
+        { id: 3, row: 2, col: 2, kind: 'specialStone', owner: 'black', data: { type: 'FREEZE', remainingOwnerTurns: 4 } }
       ]
     };
 
@@ -70,6 +73,7 @@ describe('CardMarkers duration effects', () => {
     });
     expect(cardState.markers[0].data.remainingOwnerTurns).toBe(20);
     expect(cardState.markers[1].data.remainingOwnerTurns).toBe(12);
+    expect(cardState.markers[2].data.remainingOwnerTurns).toBe(4);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
     expect(cardState._presentationEventsPersist).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -95,7 +99,8 @@ describe('CardMarkers duration effects', () => {
       markers: [
         { id: 1, row: 3, col: 4, kind: 'specialStone', owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 5 } },
         { id: 2, row: 3, col: 4, kind: 'specialStone', owner: 'white', data: { type: 'GUARD', remainingOwnerTurns: 2 } },
-        { id: 3, row: 1, col: 1, kind: 'specialStone', owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 4 } }
+        { id: 3, row: 1, col: 1, kind: 'specialStone', owner: 'black', data: { type: 'WORK', remainingOwnerTurns: 4 } },
+        { id: 4, row: 3, col: 4, kind: 'specialStone', owner: 'white', data: { type: 'SEED', remainingOwnerTurns: 3 } }
       ]
     };
 
@@ -126,6 +131,7 @@ describe('CardMarkers duration effects', () => {
     expect(cardState.markers[0].data.remainingOwnerTurns).toBe(2);
     expect(cardState.markers[1].data.remainingOwnerTurns).toBe(1);
     expect(cardState.markers[2].data.remainingOwnerTurns).toBe(4);
+    expect(cardState.markers[3].data.remainingOwnerTurns).toBe(3);
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
     expect(cardState._presentationEventsPersist).toEqual(expect.arrayContaining([
       expect.objectContaining({

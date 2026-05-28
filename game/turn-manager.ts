@@ -497,14 +497,7 @@ var resetGameGeneration = 0;
 let turnManagerTimerService: any = null;
 function setTurnManagerTimerService(service: any) { turnManagerTimerService = service; }
 function getTurnManagerTimerService() {
-    if (turnManagerTimerService) return turnManagerTimerService;
-    try {
-        const { createTimerService } = _require('./timer-service');
-        turnManagerTimerService = createTimerService('browser');
-        return turnManagerTimerService;
-    } catch (e) {
-        return null;
-    }
+    return turnManagerTimerService || null;
 }
 
 // Prefer shared scheduling helper when available; fallback to TimerService.

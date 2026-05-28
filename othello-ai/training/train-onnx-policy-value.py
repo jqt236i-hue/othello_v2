@@ -19,6 +19,8 @@ from typing import Any
 import torch
 from torch import nn
 from torch.nn import functional as F
+import onnx
+from onnx import numpy_helper
 
 
 SCHEMA_VERSION = "othello_policy_value_onnx.v1"
@@ -74,6 +76,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--meta-out", default="", help="Output metadata JSON path. Default: <onnx-out>.meta.json")
     parser.add_argument("--metrics-out", default="", help="Optional metrics JSON path.")
+    parser.add_argument("--init-onnx", default="", help="Optional existing ONNX model to initialize matching weights from.")
     parser.add_argument("--max-records", type=int, default=0, help="Maximum JSONL records to load; 0 means all.")
     parser.add_argument("--epochs", type=int, default=6)
     parser.add_argument("--batch-size", type=int, default=512)
@@ -81,6 +84,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--depth", type=int, default=3)
     parser.add_argument("--dropout", type=float, default=0.05)
     parser.add_argument("--lr", type=float, default=0.001)
+    parser.add_argument("--policy-loss-weight", type=float, default=1.0)
     parser.add_argument("--value-loss-weight", type=float, default=0.35)
     parser.add_argument("--white-sample-weight", type=float, default=1.0)
     parser.add_argument("--black-sample-weight", type=float, default=1.0)
@@ -283,6 +287,7 @@ def evaluate(
     indices: list[int],
     device: str,
     value_loss_weight: float,
+    policy_loss_weight: float,
     white_sample_weight: float,
     black_sample_weight: float,
 ) -> dict[str, float]:
@@ -303,7 +308,7 @@ def evaluate(
         pred = torch.argmax(logits, dim=1)
         acc = weighted_mean((pred == y_policy).float(), weights)
         mae = weighted_mean(torch.abs(value - y_value).view(-1), weights)
-        loss = policy_loss + (value_loss * value_loss_weight)
+        loss = (policy_loss * policy_loss_weight) + (value_loss * value_loss_weight)
     return {
         "loss": float(loss.cpu()),
         "policyLoss": float(policy_loss.cpu()),
@@ -324,6 +329,43 @@ def write_json(path: str, payload: dict[str, Any]) -> None:
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=True, indent=2)
 
+def load_matching_onnx_weights(model: nn.Module, onnx_path: str) -> dict[str, Any]:
+    if not onnx_path.strip():
+        return {"path": "", "loaded": False, "loadedTensors": 0, "skippedTensors": 0, "error": ""}
+    if not os.path.exists(onnx_path):
+        return {"path": os.path.abspath(onnx_path), "loaded": False, "loadedTensors": 0, "skippedTensors": 0, "error": "file_not_found"}
+    try:
+        graph = onnx.load(onnx_path)
+        tensors = {init.name: torch.from_numpy(numpy_helper.to_array(init).copy()) for init in graph.graph.initializer}
+        state = model.state_dict()
+        loaded = 0
+        skipped = 0
+        next_state = {}
+        for name, current in state.items():
+            candidate = tensors.get(name)
+            if candidate is not None and tuple(candidate.shape) == tuple(current.shape):
+                next_state[name] = candidate.to(dtype=current.dtype)
+                loaded += 1
+            else:
+                next_state[name] = current
+                skipped += 1
+        model.load_state_dict(next_state)
+        return {
+            "path": os.path.abspath(onnx_path),
+            "loaded": loaded > 0,
+            "loadedTensors": loaded,
+            "skippedTensors": skipped,
+            "error": ""
+        }
+    except Exception as exc:
+        return {
+            "path": os.path.abspath(onnx_path),
+            "loaded": False,
+            "loadedTensors": 0,
+            "skippedTensors": 0,
+            "error": str(exc)
+        }
+
 
 def main() -> None:
     args = parse_args()
@@ -334,6 +376,14 @@ def main() -> None:
     train_idx, val_idx = split_indices(dataset.records_used, args.val_split, args.seed)
 
     model = OthelloPolicyValueNet(INPUT_DIM, args.hidden_dim, args.depth, args.dropout).to(device)
+    init_info = load_matching_onnx_weights(model, args.init_onnx)
+    if init_info.get("path"):
+        print(
+            f"[othello-onnx] init_onnx loaded={init_info['loaded']} "
+            f"loaded_tensors={init_info['loadedTensors']} skipped_tensors={init_info['skippedTensors']} "
+            f"path={init_info['path']} error={init_info['error']}",
+            flush=True,
+        )
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
 
     batch_size = max(1, int(args.batch_size))
@@ -352,14 +402,14 @@ def main() -> None:
             logits, value = model(x)
             policy_loss = weighted_mean(F.cross_entropy(logits, y_policy, reduction="none"), weights)
             value_loss = weighted_mean(torch.mean(torch.square(value - y_value), dim=1), weights)
-            loss = policy_loss + (value_loss * args.value_loss_weight)
+            loss = (policy_loss * args.policy_loss_weight) + (value_loss * args.value_loss_weight)
             loss.backward()
             optimizer.step()
             train_loss_total += float(loss.detach().cpu())
             train_batches += 1
 
-        train_metrics = evaluate(model, dataset, train_idx, device, args.value_loss_weight, args.white_sample_weight, args.black_sample_weight)
-        val_metrics = evaluate(model, dataset, val_idx, device, args.value_loss_weight, args.white_sample_weight, args.black_sample_weight)
+        train_metrics = evaluate(model, dataset, train_idx, device, args.value_loss_weight, args.policy_loss_weight, args.white_sample_weight, args.black_sample_weight)
+        val_metrics = evaluate(model, dataset, val_idx, device, args.value_loss_weight, args.policy_loss_weight, args.white_sample_weight, args.black_sample_weight)
         one = {
             "epoch": epoch,
             "trainBatchLoss": train_loss_total / max(1, train_batches),
@@ -389,8 +439,8 @@ def main() -> None:
         opset_version=17,
     )
 
-    final_train = evaluate(model, dataset, train_idx, device, args.value_loss_weight, args.white_sample_weight, args.black_sample_weight)
-    final_val = evaluate(model, dataset, val_idx, device, args.value_loss_weight, args.white_sample_weight, args.black_sample_weight)
+    final_train = evaluate(model, dataset, train_idx, device, args.value_loss_weight, args.policy_loss_weight, args.white_sample_weight, args.black_sample_weight)
+    final_val = evaluate(model, dataset, val_idx, device, args.value_loss_weight, args.policy_loss_weight, args.white_sample_weight, args.black_sample_weight)
     meta = {
         "schemaVersion": SCHEMA_VERSION,
         "datasetSchemaVersion": DATASET_SCHEMA_VERSION,
@@ -438,11 +488,13 @@ def main() -> None:
             "epochs": args.epochs,
             "batchSize": batch_size,
             "lr": args.lr,
+            "policyLossWeight": args.policy_loss_weight,
             "valueLossWeight": args.value_loss_weight,
             "whiteSampleWeight": args.white_sample_weight,
             "blackSampleWeight": args.black_sample_weight,
             "seed": args.seed,
             "device": device,
+            "initOnnx": init_info,
         },
         "metrics": {
             "train": final_train,

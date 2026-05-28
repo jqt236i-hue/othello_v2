@@ -1,9 +1,11 @@
 declare const __non_webpack_require__: NodeRequire | undefined;
 declare const BoardOps: any;
+declare const cardState: any;
 
 const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
   : require;
+const SpecialEffectsPresentationBridge = _require('./presentation-bridge');
 
 /**
  * @file protections.js
@@ -18,13 +20,8 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
  */
 // Timers abstraction (injected by UI)
 (function () {
-let timers = null;
-if (typeof require === 'function') {
-    try { timers = require('../timers'); } catch (e) { /* ignore */ }
-}
 var BoardOpsModule = null;
 try { BoardOpsModule = (typeof require === 'function') ? require('../logic/board_ops') : (typeof BoardOps !== 'undefined' ? BoardOps : null); } catch (e) { BoardOpsModule = BoardOpsModule || null; }
-const waitMs = (ms: number) => (timers && typeof timers.waitMs === 'function' ? timers.waitMs(ms) : Promise.resolve());
 
 async function processExpiredProtectionsAtTurnEnd(player: number, precomputedEvents: any[] | null = null) {
     const events = Array.isArray(precomputedEvents) ? precomputedEvents : [];
@@ -46,15 +43,10 @@ async function processExpiredProtectionsAtTurnEnd(player: number, precomputedEve
 async function animateProtectionExpireAt(row: number, col: number) {
     // Ask UI to animate protection expiry; UI may ignore if not present.
     try {
-        var BoardPresentation = (typeof require === 'function') ? require('../logic/presentation') : null;
-        if (BoardPresentation && typeof BoardPresentation.emitPresentationEvent === 'function') {
-            BoardPresentation.emitPresentationEvent(cardState, { type: 'PROTECTION_EXPIRE', row, col, durationMs: 600, effectKey: 'protectionExpire' });
-        } else {
-            try { console.warn('[protections] Presentation helper not available'); } catch (e) { /* Intentionally empty: console.warn unavailable */ }
-        }
+        SpecialEffectsPresentationBridge.emitPresentationEvent('protections', cardState, { type: 'PROTECTION_EXPIRE', row, col, durationMs: 600, effectKey: 'protectionExpire' });
     } catch (e) { try { console.warn('[protections] Presentation helper not available'); } catch (e) { /* Intentionally empty: console.warn unavailable */ } }
     // Preserve pacing: wait same duration so turn sequencing remains unchanged.
-    await waitMs(600);
+    await SpecialEffectsPresentationBridge.waitMs('protections', 600);
 }
 
 if (typeof module !== 'undefined' && module.exports) {

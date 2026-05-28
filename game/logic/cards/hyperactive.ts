@@ -1889,15 +1889,25 @@ function processInstantHyperactiveMoveAtAnchor(
     }
 
     if (destroyed.length === 0) {
-        let expired = false;
-        if (deps.BoardOps && typeof deps.BoardOps.destroyAt === 'function') {
-            const res = deps.BoardOps.destroyAt(cardState, gameState, entry.row, entry.col, 'HYPERACTIVE', 'instant_hyperactive_expired', { instant: true });
-            expired = !!(res && res.destroyed);
-        } else if (typeof deps.destroyAt === 'function') {
-            expired = !!deps.destroyAt(cardState, gameState, entry.row, entry.col);
-        }
-        if (expired) {
-            destroyed.push({ row: entry.row, col: entry.col });
+        const reverted = revertTimedSpecialAt(
+            cardState,
+            gameState,
+            entry.row,
+            entry.col,
+            playerKey,
+            'HYPERACTIVE',
+            deps,
+            'HYPERACTIVE',
+            'duration_end'
+        );
+        if (reverted) {
+            destroyed.push({
+                row: entry.row,
+                col: entry.col,
+                specialType: 'HYPERACTIVE',
+                reverted: true,
+                reason: 'duration_end'
+            });
         }
     }
 

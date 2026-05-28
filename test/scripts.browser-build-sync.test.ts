@@ -103,4 +103,30 @@ describe('browser build sync', () => {
             message: '[check-browser-build] index.html script versions are stale. Run `npm run build:browser`.'
         });
     });
+
+    test('buildRegistry registers root runtime modules that are not emitted into dist', () => {
+        const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'browser-build-runtime-'));
+        cleanupDirs.push(rootDir);
+
+        writeFile(path.join(rootDir, 'entry-browser.js'), 'console.log("entry-a");\n');
+        writeFile(path.join(rootDir, 'dist', 'game', 'visual-effects-map.js'), 'module.exports = require("./visual-effects-map.runtime");\n');
+        writeFile(path.join(rootDir, 'dist', 'game', 'network-turn-handoff.js'), 'module.exports = require("./network-turn-handoff.runtime");\n');
+        writeFile(path.join(rootDir, 'game', 'visual-effects-map.runtime.js'), 'module.exports = { runtime: "visual" };\n');
+        writeFile(path.join(rootDir, 'game', 'network-turn-handoff.runtime.js'), 'module.exports = { runtime: "handoff" };\n');
+        writeFile(path.join(rootDir, 'index.html'), [
+            '<!doctype html>',
+            '<html><body>',
+            '<script src="public/module-registry.js?v=1"></script>',
+            '<script src="entry-browser.js?v=1"></script>',
+            '</body></html>'
+        ].join('\n'));
+
+        buildRegistry({ rootDir, log: false });
+
+        const registry = fs.readFileSync(path.join(rootDir, 'public', 'module-registry.js'), 'utf8');
+        expect(registry).toContain('_r("game/visual-effects-map.runtime"');
+        expect(registry).toContain('_r("game/visual-effects-map.runtime.js"');
+        expect(registry).toContain('_r("game/network-turn-handoff.runtime"');
+        expect(registry).toContain('_r("game/network-turn-handoff.runtime.js"');
+    });
 });

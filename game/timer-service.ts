@@ -1,21 +1,7 @@
-declare const __non_webpack_require__: NodeRequire | undefined;
-
-const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
-  ? __non_webpack_require__
-  : require;
-
 /**
  * @file timer-service.js
- * Timer abstraction for game/ layer. Real timing is supplied by game/timers,
- * which is injected by the UI boundary.
+ * Timer abstraction for game/ layer. Real timing must be supplied by the UI boundary.
  */
-
-let TimersModule: any = null;
-try {
-  TimersModule = _require('./timers');
-} catch (e) {
-  TimersModule = null;
-}
 
 function hasInjectedTimers(timers: any): boolean {
   return !!(
@@ -25,26 +11,16 @@ function hasInjectedTimers(timers: any): boolean {
   );
 }
 
-function runSoon(callback: any): void {
-  if (typeof process !== 'undefined' && typeof process.nextTick === 'function') {
-    process.nextTick(callback);
-    return;
-  }
-  try { callback(); } catch (e) { /* ignore */ }
-}
-
 class TimerService {
-  mode: any;
   timers: any;
 
-  constructor(mode: any = 'browser', timers: any = TimersModule) {
-    this.mode = mode;
+  constructor(_mode: any = 'browser', timers: any = null) {
     this.timers = timers || null;
   }
 
   setTimeout(callback: any, delay: any): any {
-    const handle: any = { cancelled: false };
-    const timers = this.timers || TimersModule;
+    const handle: any = { cancelled: false, unref: () => handle };
+    const timers = this.timers;
     if (hasInjectedTimers(timers)) {
       try {
         Promise.resolve(timers.waitMs(delay)).then(() => {
@@ -52,12 +28,6 @@ class TimerService {
         });
         return handle;
       } catch (e) { /* fall through */ }
-    }
-
-    if (this.mode !== 'browser') {
-      runSoon(() => {
-        if (!handle.cancelled) callback();
-      });
     }
     return handle;
   }
@@ -67,8 +37,8 @@ class TimerService {
   }
 
   setInterval(callback: any, delay: any): any {
-    const handle: any = { cancelled: false };
-    const timers = this.timers || TimersModule;
+    const handle: any = { cancelled: false, unref: () => handle };
+    const timers = this.timers;
     const tick = () => {
       if (handle.cancelled) return;
       callback();
@@ -81,10 +51,6 @@ class TimerService {
         Promise.resolve(timers.waitMs(delay)).then(tick);
         return handle;
       } catch (e) { /* fall through */ }
-    }
-
-    if (this.mode !== 'browser') {
-      runSoon(tick);
     }
     return handle;
   }

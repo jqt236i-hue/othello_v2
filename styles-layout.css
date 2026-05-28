@@ -2266,70 +2266,46 @@ body.time-stop-active {
     background: linear-gradient(to bottom, #6d4c41, #4e342e);
 }
 
-#rulesHelpBtn {
-    position: fixed;
-    left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
-    bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(52px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
-    z-index: var(--z-floating-rules);
-    min-width: calc(64px * var(--layout-stage-scale));
-    padding: calc(8px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
-    font-weight: 700;
-    line-height: 1.1;
-    letter-spacing: 0.08em;
-    text-transform: lowercase;
-    border-color: #8d6e63;
-    color: #ffecb3;
-    background: linear-gradient(to bottom, #6d4c41, #3f2821);
-}
-
-#gachaOpenBtn,
-#leaderboardOpenBtn,
-#deckBuilderOpenBtn {
-    position: fixed;
-    left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
-    min-width: calc(96px * var(--layout-stage-scale));
-    padding: calc(8px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
-    font-weight: 700;
-    line-height: 1.1;
-    white-space: nowrap;
-}
-
-#gachaOpenBtn {
-    bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(260px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
-    z-index: var(--z-floating-overlay-control);
-}
-
-#leaderboardOpenBtn {
-    bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(208px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
-    z-index: var(--z-floating-control);
-}
-
-#deckBuilderOpenBtn {
-    bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + calc(156px * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
-    z-index: var(--z-floating-panel);
-}
-
-#handSkinBtn {
+#leftActionButtons {
     position: fixed;
     left: calc(var(--layout-stage-offset-x) + max(calc(var(--layout-anchor-rules-left) * var(--layout-stage-scale)), env(safe-area-inset-left)));
     bottom: calc(var(--layout-stage-offset-y) + max(calc(var(--layout-anchor-rules-bottom) * var(--layout-stage-scale)), calc(env(safe-area-inset-bottom) + 14px)) + var(--layout-stage-bottom-safe-shift));
-    z-index: calc(var(--z-floating-rules) - 1);
-    min-width: calc(74px * var(--layout-stage-scale));
+    z-index: var(--z-floating-rules);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: calc(8px * var(--layout-stage-scale));
+}
+
+#leftActionButtons .left-action-btn {
+    min-width: calc(96px * var(--layout-stage-scale));
     min-height: calc(46px * var(--layout-stage-scale));
     padding: calc(8px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: calc(12px * var(--layout-stage-scale));
     font-weight: 700;
+    line-height: 1.1;
     letter-spacing: 0.08em;
-    line-height: 1;
+    white-space: nowrap;
     border-color: #8d6e63;
     color: #ffecb3;
-    background: linear-gradient(to bottom, #66594c, #3a3028);
+    background: linear-gradient(to bottom, #6d4c41, #3f2821);
 }
 
-#rulesHelpBtn:hover {
+#rulesHelpBtn,
+#handSkinBtn {
+    letter-spacing: 0.1em;
+}
+
+#gachaOpenBtn,
+#leaderboardOpenBtn,
+#deckBuilderOpenBtn {
+    background: linear-gradient(to bottom, #705043, #412b24);
+}
+
+#leftActionButtons .left-action-btn:hover,
+#leftActionButtons .left-action-btn[aria-expanded="true"] {
     border-color: #d7b47a;
     background: linear-gradient(to bottom, #845841, #563828);
 }
@@ -2339,16 +2315,7 @@ body.time-stop-active {
     background: linear-gradient(to bottom, #5f4634, #3f2d22);
 }
 
-#handSkinBtn:hover,
-#handSkinBtn[aria-expanded="true"] {
-    border-color: #d7b47a;
-    background: linear-gradient(to bottom, #7b6857, #4b3d31);
-}
-
-#gachaOpenBtn:disabled,
-#leaderboardOpenBtn:disabled,
-#deckBuilderOpenBtn:disabled,
-#handSkinBtn:disabled {
+#leftActionButtons .left-action-btn:disabled {
     opacity: 0.58;
     cursor: default;
 }

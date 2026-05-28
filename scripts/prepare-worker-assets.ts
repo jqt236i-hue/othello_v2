@@ -42,6 +42,7 @@ interface GeneratedOptionalAssetTask {
     manifestRelativePath: string;
     compression: string;
     chunkSizeBytes?: number;
+    splitThresholdBytes?: number;
 }
 
 interface GeneratedOptionalAsset {
@@ -104,16 +105,11 @@ const VERIFY_ROOT_FILES: readonly string[] = Object.freeze(ROOT_FILES.slice());
 
 const OPTIONAL_FILES: readonly string[] = Object.freeze([
     'game/ai/commentary-data.js',
-    'data/models/policy-net.onnx',
     'data/models/policy-net.onnx.meta.json',
-    'data/models/policy-card.onnx',
     'data/models/policy-card.onnx.meta.json',
-    'data/models/policy-target.onnx',
     'data/models/policy-target.onnx.meta.json',
-    'data/models/policy-value.onnx',
     'data/models/policy-value.onnx.meta.json',
     'data/models/policy-table.json',
-    'data/models/othello/policy-value.onnx',
     'data/models/othello/policy-value.onnx.meta.json',
     'story/ui/story.css',
     'node_modules/onnxruntime-web/dist/ort.min.js',
@@ -123,7 +119,43 @@ const OPTIONAL_FILES: readonly string[] = Object.freeze([
     'node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.jsep.wasm'
 ]);
 
-const GENERATED_OPTIONAL_ASSETS: readonly GeneratedOptionalAssetTask[] = Object.freeze([]);
+const GENERATED_OPTIONAL_ASSETS: readonly GeneratedOptionalAssetTask[] = Object.freeze([
+    {
+        sourceRelativePath: 'data/models/policy-net.onnx',
+        compressedRelativePath: 'data/models/policy-net.onnx.chunk.',
+        manifestRelativePath: 'data/models/policy-net.onnx',
+        compression: 'split',
+        chunkSizeBytes: 8 * 1024 * 1024
+    },
+    {
+        sourceRelativePath: 'data/models/policy-card.onnx',
+        compressedRelativePath: 'data/models/policy-card.onnx.chunk.',
+        manifestRelativePath: 'data/models/policy-card.onnx',
+        compression: 'split',
+        chunkSizeBytes: 8 * 1024 * 1024
+    },
+    {
+        sourceRelativePath: 'data/models/policy-target.onnx',
+        compressedRelativePath: 'data/models/policy-target.onnx.chunk.',
+        manifestRelativePath: 'data/models/policy-target.onnx',
+        compression: 'split',
+        chunkSizeBytes: 8 * 1024 * 1024
+    },
+    {
+        sourceRelativePath: 'data/models/policy-value.onnx',
+        compressedRelativePath: 'data/models/policy-value.onnx.chunk.',
+        manifestRelativePath: 'data/models/policy-value.onnx',
+        compression: 'split',
+        chunkSizeBytes: 8 * 1024 * 1024
+    },
+    {
+        sourceRelativePath: 'data/models/othello/policy-value.onnx',
+        compressedRelativePath: 'data/models/othello/policy-value.onnx.chunk.',
+        manifestRelativePath: 'data/models/othello/policy-value.onnx',
+        compression: 'split',
+        chunkSizeBytes: 8 * 1024 * 1024
+    }
+]);
 
 const EXCLUDED_MIRROR_RELATIVE_PATHS = new Set([
     'game/logic/card-usage-prechecks.js',
@@ -264,6 +296,17 @@ function resolveGeneratedOptionalAssets(config: any) {
         if (task.compression === 'gzip') {
             compressed = zlib.gzipSync(raw, { level: 9 });
         } else if (task.compression === 'split') {
+            const splitThreshold = Math.max(1, Math.min(WORKER_ASSET_MAX_BYTES, Math.floor(Number(task.splitThresholdBytes) || WORKER_ASSET_MAX_BYTES)));
+            if (raw.length <= splitThreshold) {
+                out.push({
+                    relativePath: task.manifestRelativePath,
+                    content: raw
+                });
+                console.log(
+                    `[worker-prepare] generated-copy ${task.sourceRelativePath} raw=${toMiBString(raw.length)}MiB threshold=${toMiBString(splitThreshold)}MiB`
+                );
+                continue;
+            }
             const chunkSize = Math.max(1, Math.min(WORKER_ASSET_MAX_BYTES, Math.floor(Number(task.chunkSizeBytes) || (8 * 1024 * 1024))));
             const chunks = [];
             for (let offset = 0, index = 0; offset < raw.length; offset += chunkSize, index += 1) {

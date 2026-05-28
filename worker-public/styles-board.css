@@ -1306,16 +1306,21 @@ body.othello-mode-active :is(
 
 .stone-info-panel {
     position: fixed;
-    z-index: 10020;
+    left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
+    top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
+    z-index: 11992;
     display: none;
-    width: min(460px, calc(100vw - 20px));
-    padding: calc(14px * var(--layout-stage-scale)) calc(16px * var(--layout-stage-scale));
-    border-radius: calc(12px * var(--layout-stage-scale));
+    width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
+    max-height: min(calc(220px * var(--layout-stage-scale)), 34dvh);
+    overflow: auto;
+    padding: calc(10px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
+    border-radius: calc(8px * var(--layout-stage-scale));
     border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.34);
     background: rgba(10, 24, 18, 0.96);
     color: #f1fff6;
     box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
     pointer-events: auto;
+    transform: translateY(calc(-100% - calc(8px * var(--layout-stage-scale))));
 }
 
 /* Breeding propagation: freshly generated stones are shown as "sprouts" for one turn. */
@@ -1470,7 +1475,7 @@ body.othello-mode-active :is(
 
 @media (max-width: 40em) {
     .stone-info-panel {
-        width: min(94vw, 420px);
+        width: min(94vw, calc(420px * var(--layout-stage-scale)));
         padding: calc(12px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
     }
 

@@ -57,6 +57,21 @@ function assertOthelloAiRuntimeRegistry(registry: string, targetLabel: string) {
   }
 }
 
+function assertBrowserRuntimeCompanions(registry: string, targetLabel: string) {
+  const requiredModules = [
+    'game/visual-effects-map.runtime',
+    'game/network-turn-handoff.runtime'
+  ];
+
+  for (const moduleId of requiredModules) {
+    expect(registry).toContain(`_r("${moduleId}"`);
+  }
+
+  if (!requiredModules.every((moduleId) => registry.includes(`_r("${moduleId}"`))) {
+    throw new Error(`${targetLabel}: runtime companion modules are missing from registry`);
+  }
+}
+
 describe('sniper module load order', () => {
   test('index.html loads sniper.js before cards.js', () => {
     const htmlPath = path.join(__dirname, '..', 'index.html');
@@ -66,6 +81,7 @@ describe('sniper module load order', () => {
     const registry = fs.readFileSync(registryPath, 'utf8');
     assertSniperModuleRegistry(registry, 'public/module-registry.js');
     assertOthelloAiRuntimeRegistry(registry, 'public/module-registry.js');
+    assertBrowserRuntimeCompanions(registry, 'public/module-registry.js');
   });
 
   test('worker-public/index.html loads sniper.js before cards.js', () => {
@@ -76,5 +92,6 @@ describe('sniper module load order', () => {
     const registry = fs.readFileSync(registryPath, 'utf8');
     assertSniperModuleRegistry(registry, 'worker-public/public/module-registry.js');
     assertOthelloAiRuntimeRegistry(registry, 'worker-public/public/module-registry.js');
+    assertBrowserRuntimeCompanions(registry, 'worker-public/public/module-registry.js');
   });
 });

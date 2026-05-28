@@ -4,11 +4,50 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
   ? __non_webpack_require__
   : require;
 
+    const TURN_PIPELINE_PHASE_MODULE_GLOBALS: Record<string, string> = Object.freeze({
+        '../logic/markers_adapter': 'MarkersAdapter',
+        '../logic/cards/utils': 'CardUtils',
+        '../logic/context': 'CardContext',
+        '../../shared-constants': 'SharedConstants',
+        '../../utils/owner-helpers': 'OwnerHelpers',
+        '../../shared/destroy-outcome-contract': 'DestroyOutcomeContract',
+        './turn_pipeline_phase_helpers': 'TurnPipelinePhaseHelpers',
+        './pending-coordinator': 'TurnPendingCoordinator',
+        './sub-placement-continuation': 'TurnSubPlacementContinuation',
+        './action-phase/continuation': 'TurnActionPhaseContinuation',
+        './action-phase/placement-effects': 'TurnActionPhasePlacementEffects',
+        './card-usage/immediate-effects': 'TurnCardUsageImmediateEffects',
+        './board-charge': 'TurnBoardCharge',
+        './presentation-helpers': 'TurnPresentationHelpers',
+        './round-state': 'TurnRoundState',
+        './action-phase/pre-placement-selection': 'TurnActionPhasePrePlacementSelection',
+        './action-phase/place-resolution': 'TurnActionPhasePlaceResolution',
+        './action-phase/placement-immediate-effects': 'TurnActionPhasePlacementImmediateEffects',
+        './action-phase/turn-handoff': 'TurnActionPhaseTurnHandoff',
+        './phase-presentation-finalizer': 'TurnPhasePresentationFinalizer',
+        './turn-start/marker-phase': 'TurnStartMarkerPhase',
+        './turn-start/post-processing': 'TurnStartPostProcessing',
+        './turn-start/timer-phase': 'TurnStartTimerPhase'
+    });
+
+    function getRuntimeModuleGlobal(globalKey: string): any {
+        if (!globalKey) return null;
+        try {
+            if (typeof self !== 'undefined' && (self as any)[globalKey]) {
+                return (self as any)[globalKey];
+            }
+            if (typeof globalThis !== 'undefined' && (globalThis as any)[globalKey]) {
+                return (globalThis as any)[globalKey];
+            }
+        } catch (e) { /* ignore */ }
+        return null;
+    }
+
     function requireOptionalModule(id: string): any {
         try {
             return _require(id);
         } catch (e) {
-            return null;
+            return getRuntimeModuleGlobal(TURN_PIPELINE_PHASE_MODULE_GLOBALS[id]);
         }
     }
 
@@ -910,7 +949,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
         try {
             const ctxHelper = requireOptionalModule('../logic/context');
             if (ctxHelper && typeof ctxHelper.getSafeCardContext === 'function') {
-                ctx = ctxHelper.getSafeCardContext(cardState);
+                ctx = ctxHelper.getSafeCardContext(cardState, undefined, undefined, CardLogic);
             }
         } catch (e) { /* ignore and fallback */ }
         if (!ctx) {

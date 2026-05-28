@@ -4,59 +4,42 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== "undefined")
   ? __non_webpack_require__
   : require;
 const LOG_MESSAGES = _require('../log-messages');
-const ControllerEvents = _require('../controller-events');
 const { getPlayerDisplayName } = _require('../card-effects/helpers');
+const SpecialEffectsPresentationBridge = _require('./presentation-bridge');
 
 /**
  * @file udg.js
  * @description Ultimate Destroy God effect handlers
  */
 
-let __uiImpl_udg: any = {};
-function setUIImpl(obj: any) { __uiImpl_udg = obj || {}; }
+function setUIImpl(obj: any) { SpecialEffectsPresentationBridge.setUIImpl('udg', obj); }
 
 function emitUdgLog(message: any): void {
-    if (__uiImpl_udg && typeof __uiImpl_udg.emitLogAdded === 'function') {
-        __uiImpl_udg.emitLogAdded(message, 'effect');
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitLogAdded === 'function') {
-        ControllerEvents.emitLogAdded(message, 'effect');
-    }
+    SpecialEffectsPresentationBridge.emitLogAdded('udg', message, 'effect');
 }
 
 function emitUdgBoardUpdate(): void {
-    if (__uiImpl_udg && typeof __uiImpl_udg.emitBoardUpdate === 'function') {
-        __uiImpl_udg.emitBoardUpdate();
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitBoardUpdate === 'function') ControllerEvents.emitBoardUpdate();
+    SpecialEffectsPresentationBridge.emitBoardUpdate('udg');
 }
 
 function emitUdgGameStateChange(): void {
-    if (__uiImpl_udg && typeof __uiImpl_udg.emitGameStateChange === 'function') {
-        __uiImpl_udg.emitGameStateChange();
-        return;
-    }
-    if (ControllerEvents && typeof ControllerEvents.emitGameStateChange === 'function') ControllerEvents.emitGameStateChange();
+    SpecialEffectsPresentationBridge.emitGameStateChange('udg');
 }
 
 function getUdgPlayerName(player: number): string {
-    if (__uiImpl_udg && typeof __uiImpl_udg.getPlayerName === 'function') {
-        return __uiImpl_udg.getPlayerName(player);
-    }
-    return getPlayerDisplayName(player);
+    return SpecialEffectsPresentationBridge.getPlayerName('udg', player, getPlayerDisplayName);
 }
 
 function hasPlaybackEngineForUdg(): boolean {
-    return typeof __uiImpl_udg.playPresentationEvents === 'function';
+    return SpecialEffectsPresentationBridge.hasPlaybackEngine('udg');
 }
 
 async function animateUdgFadeOut(row: number, col: number, options?: any): Promise<any> {
-    if (__uiImpl_udg && typeof __uiImpl_udg.animateFadeOutAt === 'function') {
-        return __uiImpl_udg.animateFadeOutAt(row, col, options);
+    const injected = SpecialEffectsPresentationBridge.readFunction('udg', 'animateFadeOutAt');
+    if (typeof injected === 'function') {
+        return injected(row, col, options);
     }
-    return undefined;
+    return SpecialEffectsPresentationBridge.animateFadeOutAt('udg', row, col, options);
 }
 
 /**

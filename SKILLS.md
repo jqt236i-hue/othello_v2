@@ -34,19 +34,23 @@
 
 | Skill | 使う時 |
 | --- | --- |
-| `card-reversi-new-card` | 新カードを catalog / headless effect / pending selection / CPU / presentation / docs / tests まで end-to-end で追加する時 |
-| `card-reversi-card-change` | 既存カードの挙動、target、timing、availability、CPU 影響、presentation、rules help を変更する時 |
-| `card-reversi-card-text-change` | 既存カードの表示名、簡易説明、詳細説明、help copy だけを変え、ゲーム挙動は変えない時 |
-| `card-reversi-cost-change` | 既存カードの cost 数値だけを変え、catalog / generated projection / UI / docs / focused tests をそろえる時 |
+| `card-reversi-browser-new-card` | ブラウザ版の新カードを catalog / headless effect / pending selection / CPU / presentation / docs / tests まで end-to-end で追加する時 |
+| `card-reversi-browser-card-change` | ブラウザ版の既存カードの挙動、target、timing、availability、CPU 影響、presentation、rules help を変更する時 |
+| `card-reversi-browser-card-text-change` | ブラウザ版の既存カードの表示名、簡易説明、詳細説明、help copy だけを変え、ゲーム挙動は変えない時 |
+| `card-reversi-browser-cost-change` | ブラウザ版の既存カードの cost 数値だけを変え、catalog / generated projection / UI / docs / focused tests をそろえる時 |
+| `card-reversi-browser-live-network-check` | ブラウザ版の本番 network battle を Chrome + Edge の実ブラウザ分離で確認する時 |
+| `card-reversi-unity-ui-change` | Unity 版 `C:\Users\quarr\Documents\CARD-REVERSI` の UI / scene presentation / animation / audio / DebugSandbox 表示を変更する時 |
 | `safe-refactor-lifecycle` | 挙動を保った整理、重複解消、helper 抽出、ファイル分割、dead code 除去を行う時 |
 | `repo-instruction-auditor` | `AGENTS.md`, `SKILLS.md`, `README.ai.md`, repo-local skill など AI 向け指示文書を監査・更新する時 |
 
 ## 4. 選び方の近道
 
-- 新カード追加: `card-reversi-new-card`
-- 既存カードの仕様変更: `card-reversi-card-change`
-- 既存カードの文言だけ変更: `card-reversi-card-text-change`
-- 既存カードの cost だけ変更: `card-reversi-cost-change`
+- ブラウザ版の新カード追加: `card-reversi-browser-new-card`
+- ブラウザ版の既存カード仕様変更: `card-reversi-browser-card-change`
+- ブラウザ版の既存カード文言だけ変更: `card-reversi-browser-card-text-change`
+- ブラウザ版の既存カード cost だけ変更: `card-reversi-browser-cost-change`
+- ブラウザ版の本番 network battle 確認: `card-reversi-browser-live-network-check`
+- Unity 版の UI / presentation 変更: `card-reversi-unity-ui-change`
 - 挙動維持の refactor / cleanup: `safe-refactor-lifecycle`
 - AI 向け instruction / skill index の棚卸し: `repo-instruction-auditor`
 

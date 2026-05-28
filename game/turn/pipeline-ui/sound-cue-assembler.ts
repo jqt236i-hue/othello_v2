@@ -1,8 +1,35 @@
-const PipelineUICardEconomySoundCuesModule = require('./card-economy-sound-cues');
-const PipelineUICoreSoundCuesModule = require('./core-sound-cues');
-const PipelineUIDestroySoundCuesModule = require('./destroy-sound-cues');
-const PipelineUISelectionSoundCuesModule = require('./selection-sound-cues');
-const PipelineUISoundCueHelpersModule = require('./sound-cue-helpers');
+declare const __non_webpack_require__: NodeRequire | undefined;
+
+const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
+    ? __non_webpack_require__
+    : require;
+
+function readRuntimeModuleGlobal(globalKey: string): any {
+    if (!globalKey) return null;
+    try {
+        if (typeof self !== 'undefined' && (self as any)[globalKey]) {
+            return (self as any)[globalKey];
+        }
+        if (typeof globalThis !== 'undefined' && (globalThis as any)[globalKey]) {
+            return (globalThis as any)[globalKey];
+        }
+    } catch (e) { /* ignore */ }
+    return null;
+}
+
+function requirePipelineUIModule(id: string, globalKey: string): any {
+    try {
+        return _require(id);
+    } catch (e) {
+        return readRuntimeModuleGlobal(globalKey);
+    }
+}
+
+const PipelineUICardEconomySoundCuesModule = requirePipelineUIModule('./card-economy-sound-cues', 'PipelineUICardEconomySoundCues');
+const PipelineUICoreSoundCuesModule = requirePipelineUIModule('./core-sound-cues', 'PipelineUICoreSoundCues');
+const PipelineUIDestroySoundCuesModule = requirePipelineUIModule('./destroy-sound-cues', 'PipelineUIDestroySoundCues');
+const PipelineUISelectionSoundCuesModule = requirePipelineUIModule('./selection-sound-cues', 'PipelineUISelectionSoundCues');
+const PipelineUISoundCueHelpersModule = requirePipelineUIModule('./sound-cue-helpers', 'PipelineUISoundCueHelpers');
 
 type SoundCueAssemblerDeps = {
     bombDestroyCauses: Set<string>;

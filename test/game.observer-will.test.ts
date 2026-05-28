@@ -92,7 +92,7 @@ describe('OBSERVER_WILL（盤理の観測者）', () => {
     const placementEvent = events.find((ev) => ev && ev.type === 'placement_effects');
     expect(placementEvent && placementEvent.effects && placementEvent.effects.observerPlaced).toBe(true);
 
-    const triggered = events.find((ev) => ev && ev.type === 'observer_triggered_immediate');
+    const triggered = events.find((ev) => ev && ev.type === 'observer_triggered');
     expect(triggered).toBeUndefined();
 
     const marker = (cardState.markers || []).find((m) => (
