@@ -103,12 +103,14 @@ othello_v2/
 
 ## COMMIT POLICY
 
-- When an implementation, fix, documentation update, or verification pass reaches a coherent stopping point, the agent may create a commit without waiting for an explicit user prompt.
+- When an implementation, fix, documentation update, or verification pass reaches a coherent stopping point, create a commit without waiting for an explicit user prompt.
+- Treat the task as incomplete until the intended changes are either committed or a concrete blocker is reported.
+- Commit automatically for small and medium scoped changes when the diff can be cleanly separated from unrelated work.
 - Before committing, inspect `git status` and the relevant diff, and stage only files changed for the current task.
 - Do not include unrelated user changes, generated artifacts, mirror files, deleted assets, or work-in-progress changes unless they are required for the current task and were intentionally produced as part of it.
 - Keep commit messages short and concrete, in Japanese or English, so the completed work unit is clear from `git log`.
 - If tests or checks were run, report the commands and results in the final response.
-- If the change set is large, mixes unrelated edits, requires a product/rules decision, or cannot be separated safely, ask the user before committing.
+- If the change set is large, mixes unrelated edits, requires a product/rules decision, cannot be separated safely, or verification failed in a way that should block landing, do not commit; report the exact reason and ask how to proceed.
 
 ## ANTI-PATTERNS (THIS PROJECT)
 
