@@ -30,11 +30,16 @@ function createObserverResult(): any {
     };
 }
 
-function resolveObserverOptions(prngOrOpts: any, deps: ObserverWillDeps): any {
-    const hasOptionShape = !!(prngOrOpts && typeof prngOrOpts === 'object' && (
-        Object.prototype.hasOwnProperty.call(prngOrOpts, 'random') ||
+function hasObserverOptionShape(prngOrOpts: any): boolean {
+    return !!(
+        prngOrOpts &&
+        typeof prngOrOpts === 'object' &&
         Object.prototype.hasOwnProperty.call(prngOrOpts, 'decrementRemainingOwnerTurns')
-    ));
+    );
+}
+
+function resolveObserverOptions(prngOrOpts: any, deps: ObserverWillDeps): any {
+    const hasOptionShape = hasObserverOptionShape(prngOrOpts);
     const opts = hasOptionShape
         ? Object.assign({ random: deps.defaultPrng, decrementRemainingOwnerTurns: true }, prngOrOpts)
         : { random: prngOrOpts || deps.defaultPrng, decrementRemainingOwnerTurns: true };

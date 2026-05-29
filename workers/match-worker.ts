@@ -753,6 +753,7 @@ async function makeInitialSnapshot(seed: unknown, options: unknown): Promise<Mat
         startupEvents,
         prng
     );
+    persistTurnStartPrngState(asRecord(cardState), prng);
 
     return {
         gameState,
@@ -817,6 +818,11 @@ function normalizeCardStateForWorkerTurnStart(
         normalizedCardState._presentationEventsPersist = [];
     }
     return normalizedCardState;
+}
+
+function persistTurnStartPrngState(cardState: Record<string, unknown> | null | undefined, prng: MatchWorkerPrng | null | undefined): void {
+    if (!cardState || !prng || typeof prng.getState !== 'function') return;
+    cardState.prngState = prng.getState();
 }
 
 function createCommandActionPrng(room: MatchWorkerRoomState | null | undefined, snapshot: unknown, SeededPRNG: MatchWorkerSeededPrngModule): MatchWorkerPrng {
@@ -1153,6 +1159,7 @@ async function reconcileTurnStartIfNeeded(room: MatchWorkerRoomState | null | un
         turnStartEvents,
         prng
     );
+    persistTurnStartPrngState(snapshotRecord.cardState, prng);
     return opts.includeRawEvents ? turnStartEvents : snapshot;
 }
 

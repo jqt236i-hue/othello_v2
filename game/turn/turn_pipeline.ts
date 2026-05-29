@@ -163,7 +163,12 @@ function applyTurnSafe(cardState: any, gameState: any, playerKey: string, action
     } catch (e) {
       ResultSchemaModule = null;
     }
-    const prngState = (options && options.prngState) ? options.prngState : (prng && prng._seed ? { _seed: prng._seed } : null);
+    const prngState = (prng && typeof prng.getState === 'function')
+      ? prng.getState()
+      : ((options && options.prngState) ? options.prngState : (prng && prng._seed ? { _seed: prng._seed } : null));
+    if (res && res.cardState) {
+      res.cardState.prngState = prngState;
+    }
     const stateHash = (ResultSchemaModule && typeof ResultSchemaModule.extractHashableState === 'function' && typeof ResultSchemaModule.computeStateHashSync === 'function')
       ? ResultSchemaModule.computeStateHashSync(ResultSchemaModule.extractHashableState(res.gameState, res.cardState, prngState))
       : null;

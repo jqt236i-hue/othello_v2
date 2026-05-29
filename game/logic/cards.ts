@@ -3066,13 +3066,18 @@ const {
         });
     }
 
+    function hasTurnStartRandomOptionOverrides(prngOrOpts: any, extraKeys: string[]) {
+        if (!prngOrOpts || typeof prngOrOpts !== 'object' || !Array.isArray(extraKeys)) {
+            return false;
+        }
+        return extraKeys.some((key) => Object.prototype.hasOwnProperty.call(prngOrOpts, key));
+    }
+
     function processSniperWillEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
-        const hasOptionShape = !!(prngOrOpts && typeof prngOrOpts === 'object' && (
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'random') ||
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'decrementRemainingOwnerTurns') ||
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'destroyAt') ||
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'BoardOps')
-        ));
+        const hasOptionShape = hasTurnStartRandomOptionOverrides(
+            prngOrOpts,
+            ['decrementRemainingOwnerTurns', 'destroyAt', 'BoardOps']
+        );
         const deps = hasOptionShape
             ? Object.assign({ destroyAt, BoardOps: BoardOpsModule, random: defaultPrng }, prngOrOpts)
             : { destroyAt, BoardOps: BoardOpsModule, random: prngOrOpts || defaultPrng };
@@ -3103,12 +3108,10 @@ const {
     }
 
     function processLightningWillEffectsAtAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
-        const hasOptionShape = !!(prngOrOpts && typeof prngOrOpts === 'object' && (
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'random') ||
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'decrementRemainingOwnerTurns') ||
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'destroyAt') ||
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'BoardOps')
-        ));
+        const hasOptionShape = hasTurnStartRandomOptionOverrides(
+            prngOrOpts,
+            ['decrementRemainingOwnerTurns', 'destroyAt', 'BoardOps']
+        );
         const deps = hasOptionShape
             ? Object.assign({ destroyAt, BoardOps: BoardOpsModule, random: defaultPrng }, prngOrOpts)
             : { destroyAt, BoardOps: BoardOpsModule, random: prngOrOpts || defaultPrng };
@@ -3136,11 +3139,10 @@ const {
     }
 
     function processWillHunterKingEffectsAtTurnStartAnchor(cardState: any, gameState: any, playerKey: any, row: any, col: any, prngOrOpts: any) {
-        const hasOptionShape = !!(prngOrOpts && typeof prngOrOpts === 'object' && (
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'random') ||
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'decrementRemainingOwnerTurns') ||
-            Object.prototype.hasOwnProperty.call(prngOrOpts, 'BoardOps')
-        ));
+        const hasOptionShape = hasTurnStartRandomOptionOverrides(
+            prngOrOpts,
+            ['decrementRemainingOwnerTurns', 'BoardOps']
+        );
         const deps = hasOptionShape
             ? Object.assign({ BoardOps: BoardOpsModule, random: defaultPrng, decrementRemainingOwnerTurns: true }, prngOrOpts)
             : { BoardOps: BoardOpsModule, random: prngOrOpts || defaultPrng, decrementRemainingOwnerTurns: true };

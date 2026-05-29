@@ -126,6 +126,7 @@ function makeInitialSnapshot(seed: any, options: any) {
         startupEvents,
         prng
     );
+    persistTurnStartPrngState(cardState, prng);
 
     return {
         gameState,
@@ -240,6 +241,11 @@ function normalizeCardStateForTurnStart(room: any, snapshot: any) {
     return snapshot.cardState;
 }
 
+function persistTurnStartPrngState(cardState: any, prng: any) {
+    if (!cardState || !prng || typeof prng.getState !== 'function') return;
+    cardState.prngState = prng.getState();
+}
+
 function reconcileTurnStartIfNeeded(room: any, snapshot: any, options: any) {
     const opts = (options && typeof options === 'object') ? options : {};
     if (!snapshot || !snapshot.gameState || !snapshot.cardState) return opts.includeRawEvents ? [] : snapshot;
@@ -265,6 +271,7 @@ function reconcileTurnStartIfNeeded(room: any, snapshot: any, options: any) {
         turnStartEvents,
         prng
     );
+    persistTurnStartPrngState(snapshot.cardState, prng);
     return opts.includeRawEvents ? turnStartEvents : snapshot;
 }
 

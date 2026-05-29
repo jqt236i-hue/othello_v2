@@ -3,6 +3,7 @@ import * as CardLogic from '../game/logic/cards.js';
 import * as TurnPipelinePhases from '../game/turn/turn_pipeline_phases.js';
 import * as Core from '../game/logic/core.js';
 import * as BoardOps from '../game/logic/board_ops.js';
+import * as SeededPRNG from '../game/schema/prng.js';
 
 function createSequencePrng(sequence) {
   const values = Array.isArray(sequence) && sequence.length > 0 ? sequence.slice() : [0.5];
@@ -134,6 +135,29 @@ describe('OBSERVER_WILL（盤理の観測者）', () => {
     expect(out.gained).toBe(5);
     expect(out.remainingOwnerTurns).toBe(4);
     expect(cardState.charge.black).toBe(5);
+  });
+
+  test('直渡しされた PRNG オブジェクトでも serialized state が進む', () => {
+    const prng = SeededPRNG.createPRNG(123);
+    const { cardState, gameState } = createStates(prng);
+
+    gameState.board[4][4] = Shared.BLACK;
+    cardState.markers.push({
+      id: 9050,
+      kind: 'specialStone',
+      row: 4,
+      col: 4,
+      owner: 'black',
+      data: { type: 'OBSERVER', remainingOwnerTurns: 5 }
+    });
+
+    const before = prng.getState();
+    const out = CardLogic.processObserverWillEffectsAtTurnStartAnchor(cardState, gameState, 'black', 4, 4, prng);
+    const after = prng.getState();
+
+    expect(out.activated).toBe(true);
+    expect(after.calls).toBeGreaterThan(before.calls);
+    expect(after.calls - before.calls).toBe(out.triggered ? 2 : 1);
   });
 
   test('所有者ターン開始時に不発でも残りターンは減る', () => {
