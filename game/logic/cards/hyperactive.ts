@@ -25,9 +25,23 @@ function _require(id: string): any {
 }
 
 function getRuntimeGlobalValue(key: string): any {
+    if (!key) return undefined;
     try {
         if (hyperactiveRuntime && typeof hyperactiveRuntime.readRuntimeModule === 'function') {
-            return hyperactiveRuntime.readRuntimeModule(key);
+            const value = hyperactiveRuntime.readRuntimeModule(key);
+            if (value !== undefined && value !== null) {
+                return value;
+            }
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof globalThis !== 'undefined' && Object.prototype.hasOwnProperty.call(globalThis, key)) {
+            return (globalThis as any)[key];
+        }
+    } catch (e) { /* ignore */ }
+    try {
+        if (typeof self !== 'undefined' && Object.prototype.hasOwnProperty.call(self, key)) {
+            return (self as any)[key];
         }
     } catch (e) { /* ignore */ }
     return undefined;
