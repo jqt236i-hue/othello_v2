@@ -125,8 +125,9 @@
 1. `BREEDING_WILL` の生成を発生させる。
 2. `EQUALITY_WILL` と `REINFORCEMENT_WILL` の生成を発生させる。
 3. `SALVATION_WILL` と `STONE_SALVATION_GOD` の復活生成を発生させる。
-4. `CLONE_WILL` と `PROLIFERATION_WILL` の生成を発生させる。
-5. 生成先が強調表示されることを確認する。
+4. `SEED_WILL` の芽生え生成を発生させる。
+5. `CLONE_WILL` と `PROLIFERATION_WILL` の生成を発生させる。
+6. 生成先が強調表示されることを確認する。
 
 期待結果:
 

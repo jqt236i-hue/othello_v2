@@ -117,7 +117,7 @@
 
 正本は `cards/catalog.json`。Unity 側の定義は importer または検証可能な転記にする。
 
-現行 catalog は 87 件、有効 81 件、`enabled:false` 6 件。`display_type_ja` は 採掘 / 禁忌 / 戦闘 / 守護 / 執行 / 殲滅 / 特殊 / 繁栄 / 観測 を持つ。
+現行 catalog は 88 件、有効 82 件、`enabled:false` 6 件。`display_type_ja` は 採掘 / 禁忌 / 戦闘 / 守護 / 執行 / 殲滅 / 特殊 / 特殊石 / 繁栄 / 観測 を持つ。
 
 ## CardInstance
 

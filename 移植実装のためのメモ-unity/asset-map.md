@@ -33,6 +33,7 @@
 | `ULTIMATE_REVERSE_DRAGON` / `DRAGON` | ultimateDragon | `ultimate_reverse_dragon-*.png` | 移植時に割当 | 龍 |
 | `BREEDING_WILL` / `BREEDING` | breedingStone | `BREEDING_WILL-*.png` | 移植時に割当 | spawn 系 |
 | `PROLIFERATION_WILL` / `PROLIFERATION` | proliferationStone | `PROLIFERATION_WILL-*.png` | 移植時に割当 | 増殖 |
+| `THEORY_INCARNATION` | theoryIncarnationStone | `theory_incarnation-*.png` | 移植時に割当 | 数字マス倍率を持つ特殊石 |
 | `ULTIMATE_DESTROY_GOD` | ultimateDestroyGod | `ULTIMATE_DESTROY_GOD-*.png` | 移植時に割当 | 雷破壊 profile |
 | `STONE_SALVATION_GOD` | stoneSalvationGod | `STONE_SALVATION_GOD-*.png` | 移植時に割当 | 救済神 |
 | `SNIPER_WILL` / `SNIPER` | sniperStone | `sna-*.png` | 移植時に割当 | 狙撃弾演出 |
@@ -43,6 +44,8 @@
 | `WILL_HUNTER_KING` | willHunterKingStone | `WILL_HUNTER_KING-*.png` | 移植時に割当 | 斬撃 profile |
 | `DESTROY_DRAGON_WILL` / `DESTROY_DRAGON` | destroyDragonStone | `DESTROY_DRAGON-*.png` | 移植時に割当 | ブレス profile |
 | `HYPERACTIVE_WILL` / `HYPERACTIVE` | hyperactiveStone | `HYPERACTIVE_WILL-*.png` | 移植時に割当 | 多動 |
+| `HYPERACTIVE_INHERIT_WILL` / `INHERITED_HYPERACTIVE` | hyperactiveStone | `HYPERACTIVE_WILL-*.png` | 移植時に割当 | 継承多動 |
+| `INSTANT_HYPERACTIVE_WILL` | hyperactiveStone | `HYPERACTIVE_WILL-*.png` | 移植時に割当 | 瞬間多動 |
 | `ESCAPE_WILL` / `ESCAPE_HYPERACTIVE` | escapeHyperactiveStone | `ESCAPE_WILL-*.png` | 移植時に割当 | 爆発 batch destroy |
 | `EXTREME_HYPERACTIVE_WILL` | extremeHyperactiveStone | `EXTREME_HYPERACTIVE_WILL-*.png` | 移植時に割当 | 極悪多動魔 |
 | `ROBOT_VACUUM_WILL` / `ROBOT_VACUUM` | robotVacuumStone | `ROBOT_VACUUM_WILL-*.png` | 移植時に割当 | 吸い込み profile |
@@ -81,10 +84,13 @@
 | normal_spawn | `REINFORCEMENT_WILL` | `reinforcement_will_spawn` | 移植時に割当 | 増援 |
 | salvation_spawn | `SALVATION_WILL` | `salvation_spawn` | 移植時に割当 | 救済の意志 |
 | salvation_spawn | `STONE_SALVATION_GOD` | `stone_salvation_god_revive` | 移植時に割当 | 救済神 |
+| normal_spawn | `SEED_WILL` | `seed_sprout` | 移植時に割当 | 種の芽生え |
 | clone_spawn | `CLONE_WILL` | `clone_spawn` | 移植時に割当 | 複製 |
 | proliferation_spawn | `PROLIFERATION_WILL` | `proliferation_spawn` | 移植時に割当 | 増殖 |
 
 ## Sound Keys
+
+ここでは初期移植で独自対応が必要な cue を優先して列挙する。完全な cue 一覧は `game/turn/pipeline-ui/sound-cues.ts`, `game/turn/pipeline-ui/core-sound-cues.ts`, `game/turn/pipeline-ui/destroy-sound-cues.ts`, `01-rulebook.md` section 12.15 を参照する。
 
 | key | JS file / rulebook reference | Unity AudioClip | 備考 |
 | --- | --- | --- | --- |
@@ -94,6 +100,7 @@
 | `card_effect_flip` | `カード効果で石が反転したタイミング.mp3` | 移植時に割当 | 龍/連鎖/復活/交換/誘惑など |
 | `hand_remove` | pipeline playback event | 移植時に割当 | 手札破壊 fade out |
 | `breeding_spawn` | pipeline cue | 移植時に割当 | spawn 系 |
+| `seed_sprout` | pipeline cue | 移植時に割当 | 種の芽生え |
 | `clone_spawn` | pipeline cue | 移植時に割当 | clone/proliferation 系 |
 | `robot_vacuum_suck` | pipeline cue | 移植時に割当 | 吸い込み |
 | `gluttonous_eat` | pipeline cue | 移植時に割当 | 捕食 |

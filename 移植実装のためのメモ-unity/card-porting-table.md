@@ -88,6 +88,7 @@
 | 虹の意志 | `RAINBOW_STONE` | 10 | enabled | 採掘 |  | rainbowStone | 通常候補 | 未着手 |
 | 銀の意志 | `SILVER_STONE` | 3 | enabled | 採掘 |  | silverStone | 通常候補 | 未着手 |
 | 演算の意志 | `CRYSTAL_STONE` | 6 | enabled | 採掘 |  |  | 通常候補 | 未着手 |
+| 理論の化身 | `THEORY_INCARNATION` | 25 | enabled | 特殊石 |  | theoryIncarnationStone | 通常候補 | 未着手 |
 | 延命の意志 | `EXTEND_LIFE_WILL` | 4 | enabled | 守護 | yes |  | 通常候補 | 未着手 |
 | 延命神 | `EXTEND_LIFE_GOD` | 10 | enabled | 守護 | yes |  | 通常候補 | 未着手 |
 | 腐食の意志 | `CORROSION_WILL` | 2 | enabled | 執行 | yes |  | 通常候補 | 未着手 |

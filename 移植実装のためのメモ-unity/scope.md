@@ -67,7 +67,7 @@
 - JS 版と同じ初期カードプールでローカル対戦が最後まで遊べる。
 - CPU 対戦が開始から決着まで進行できる。
 - 全有効カードが使用条件、対象選択、効果、演出イベントのいずれかで扱われる。
-- catalog 上のカード 87 件のうち、有効 81 件を通常候補として扱う。
+- catalog 上のカード 88 件のうち、有効 82 件を通常候補として扱う。
 - `enabled:false` のカードは通常の山札/手札に出ない。
 - `enabled:false` の 6 件、`TRIPLE_CHAIN_WILL` / `QUAD_CHAIN_WILL` / `INFINITE_CHAIN_WILL` / `TRIPLE_PLACE` / `QUAD_PLACE` / `INFINITE_PLACE` は連続効果の定義としては扱える。
 - 盤面拡張/縮小、特殊石、破壊、復活、生成、移動が同じ順序で処理される。

@@ -27,11 +27,11 @@
 
 ## catalog の現状
 
-- 総カード定義: 87 件
-- 有効カード: 81 件
+- 総カード定義: 88 件
+- 有効カード: 82 件
 - `enabled:false`: 6 件
 - `enabled:false` の type: `TRIPLE_CHAIN_WILL`, `QUAD_CHAIN_WILL`, `INFINITE_CHAIN_WILL`, `TRIPLE_PLACE`, `QUAD_PLACE`, `INFINITE_PLACE`
-- `display_type_ja`: 採掘 / 禁忌 / 戦闘 / 守護 / 執行 / 殲滅 / 特殊 / 繁栄 / 観測
+- `display_type_ja`: 採掘 / 禁忌 / 戦闘 / 守護 / 執行 / 殲滅 / 特殊 / 特殊石 / 繁栄 / 観測
 
 `enabled:false` は通常山札に出さないが、二連鎖/二連投石などから続く定義としては実装対象に含める。
 
@@ -98,6 +98,7 @@ WORK_WILL
 ULTIMATE_REVERSE_DRAGON
 BREEDING_WILL
 PROLIFERATION_WILL
+THEORY_INCARNATION
 ULTIMATE_DESTROY_GOD
 STONE_SALVATION_GOD
 SNIPER_WILL
@@ -118,6 +119,8 @@ ULTIMATE_HYPERACTIVE_GOD
 CROSS_BOMB
 X_BOMB
 ```
+
+完全な placement-time visual 対応は `game/visual-effects-map.runtime.js` の `PENDING_TYPE_TO_EFFECT_KEY` を正とする。
 
 ## 救済神の注意
 
@@ -162,7 +165,7 @@ Unity 側で汎用 destroy / spawn だけに潰さない効果:
 - `ROBOT_VACUUM_WILL`: 吸い込み破壊と cell clear を専用扱い。
 - `GLUTTONOUS_WILL`: 捕食破壊と進入移動を同一フェーズで扱う。
 - `WILL_HUNTER_KING`: 斬撃演出。
-- spawn 系: `BREEDING`, `EQUALITY_WILL`, `REINFORCEMENT_WILL`, `SALVATION_WILL`, `STONE_SALVATION_GOD`, `CLONE_WILL`, `PROLIFERATION_WILL`。
+- spawn 系: `BREEDING`, `EQUALITY_WILL`, `REINFORCEMENT_WILL`, `SALVATION_WILL`, `STONE_SALVATION_GOD`, `SEED_WILL`, `CLONE_WILL`, `PROLIFERATION_WILL`。
 - batch destroy 系: `TIME_BOMB`, `CROSS_BOMB`, `X_BOMB`, `ESCAPE_HYPERACTIVE`。
 - 移動系: `BUOYANCY_WILL`, `SUPER_BUOYANCY_WILL`, `GRAVITY_WILL`, `SUPER_GRAVITY_WILL`, `SUPER_ATTRACTION_WILL`。
 - 吹き出し系: `OBSERVER_WILL`, `WORK_WILL`。

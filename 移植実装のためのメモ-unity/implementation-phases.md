@@ -14,7 +14,7 @@
 完了条件:
 
 - `GameCore` の単体テストが Unity scene なしで実行できる。
-- `cards/catalog.json` 87件、有効81件、`enabled:false` 6件を読み込める。
+- `cards/catalog.json` 88件、有効82件、`enabled:false` 6件を読み込める。
 
 ## Phase 1: Pure Reversi Core
 
