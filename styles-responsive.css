@@ -971,6 +971,23 @@ html.sim-aspect-5-4 #effect-live-panel {
     width: var(--profile-stone-info-width);
 }
 
+.stone-info-meta {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    gap: calc(3px * var(--layout-stage-scale));
+}
+
+.stone-info-effect-tag {
+    justify-content: flex-start;
+    max-width: 100%;
+    padding: calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
+    font-size: calc(8px * var(--layout-stage-scale));
+    line-height: 1.15;
+    text-align: left;
+    white-space: normal;
+}
+
 #cpu-character-panel {
     top: var(--profile-cpu-panel-top);
     right: var(--profile-cpu-panel-right);
