@@ -3008,6 +3008,89 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     overflow-y: auto;
 }
 
+#rules-help-card-list,
+#rules-help-card-detail,
+#rules-help-effects-list,
+#rules-help-updates-list,
+#rules-help-guide-layout,
+#rules-help-guide-layout #rules-help-rules-list,
+#rules-help-guide-layout #rules-help-controls-list,
+#rules-help-counters-layout {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201, 168, 76, 0.8) rgba(0, 0, 0, 0.14);
+    scrollbar-gutter: stable;
+}
+
+#rules-help-card-list::-webkit-scrollbar,
+#rules-help-card-detail::-webkit-scrollbar,
+#rules-help-effects-list::-webkit-scrollbar,
+#rules-help-updates-list::-webkit-scrollbar,
+#rules-help-guide-layout::-webkit-scrollbar,
+#rules-help-guide-layout #rules-help-rules-list::-webkit-scrollbar,
+#rules-help-guide-layout #rules-help-controls-list::-webkit-scrollbar,
+#rules-help-counters-layout::-webkit-scrollbar {
+    width: calc(8px * var(--layout-stage-scale));
+}
+
+#rules-help-card-list::-webkit-scrollbar-button,
+#rules-help-card-detail::-webkit-scrollbar-button,
+#rules-help-effects-list::-webkit-scrollbar-button,
+#rules-help-updates-list::-webkit-scrollbar-button,
+#rules-help-guide-layout::-webkit-scrollbar-button,
+#rules-help-guide-layout #rules-help-rules-list::-webkit-scrollbar-button,
+#rules-help-guide-layout #rules-help-controls-list::-webkit-scrollbar-button,
+#rules-help-counters-layout::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+#rules-help-card-list::-webkit-scrollbar-track,
+#rules-help-card-detail::-webkit-scrollbar-track,
+#rules-help-effects-list::-webkit-scrollbar-track,
+#rules-help-updates-list::-webkit-scrollbar-track,
+#rules-help-guide-layout::-webkit-scrollbar-track,
+#rules-help-guide-layout #rules-help-rules-list::-webkit-scrollbar-track,
+#rules-help-guide-layout #rules-help-controls-list::-webkit-scrollbar-track,
+#rules-help-counters-layout::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: calc(999px * var(--layout-stage-scale));
+}
+
+#rules-help-card-list::-webkit-scrollbar-thumb,
+#rules-help-card-detail::-webkit-scrollbar-thumb,
+#rules-help-effects-list::-webkit-scrollbar-thumb,
+#rules-help-updates-list::-webkit-scrollbar-thumb,
+#rules-help-guide-layout::-webkit-scrollbar-thumb,
+#rules-help-guide-layout #rules-help-rules-list::-webkit-scrollbar-thumb,
+#rules-help-guide-layout #rules-help-controls-list::-webkit-scrollbar-thumb,
+#rules-help-counters-layout::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        to bottom,
+        rgba(230, 197, 111, 0.88) 0%,
+        rgba(177, 135, 59, 0.86) 55%,
+        rgba(110, 78, 30, 0.9) 100%
+    );
+    border-radius: calc(999px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(0, 0, 0, 0.22);
+}
+
+#rules-help-card-list::-webkit-scrollbar-thumb:hover,
+#rules-help-card-detail::-webkit-scrollbar-thumb:hover,
+#rules-help-effects-list::-webkit-scrollbar-thumb:hover,
+#rules-help-updates-list::-webkit-scrollbar-thumb:hover,
+#rules-help-guide-layout::-webkit-scrollbar-thumb:hover,
+#rules-help-guide-layout #rules-help-rules-list::-webkit-scrollbar-thumb:hover,
+#rules-help-guide-layout #rules-help-controls-list::-webkit-scrollbar-thumb:hover,
+#rules-help-counters-layout::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+        to bottom,
+        rgba(245, 218, 138, 0.94) 0%,
+        rgba(201, 168, 76, 0.92) 55%,
+        rgba(126, 94, 40, 0.94) 100%
+    );
+}
+
 #rules-help-card-name {
     display: flex;
     flex-direction: column;
