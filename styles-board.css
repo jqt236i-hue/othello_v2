@@ -1324,9 +1324,9 @@ body.othello-mode-active :is(
     top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
     z-index: 11992;
     display: none;
-    width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
-    max-height: min(calc(220px * var(--layout-stage-scale)), 34dvh);
-    overflow: auto;
+    width: var(--profile-stone-info-width);
+    max-height: none;
+    overflow: visible;
     padding: calc(10px * var(--layout-stage-scale)) calc(11px * var(--layout-stage-scale));
     border-radius: calc(8px * var(--layout-stage-scale));
     border: var(--layout-size-border-thin) solid rgba(255, 255, 255, 0.34);
@@ -1377,14 +1377,14 @@ body.othello-mode-active :is(
     font-size: calc(19px * var(--layout-stage-scale));
     font-weight: 700;
     letter-spacing: 0.02em;
-    margin-bottom: calc(8px * var(--layout-stage-scale));
+    margin-bottom: calc(6px * var(--layout-stage-scale));
 }
 
 .stone-info-desc {
     font-size: calc(16px * var(--layout-stage-scale));
-    line-height: 1.6;
+    line-height: 1.5;
     color: #e6f5ec;
-    margin-bottom: calc(10px * var(--layout-stage-scale));
+    margin-bottom: calc(8px * var(--layout-stage-scale));
 }
 
 .stone-info-meta {
@@ -1392,7 +1392,7 @@ body.othello-mode-active :is(
     flex-wrap: wrap;
     justify-content: flex-start;
     align-items: center;
-    gap: calc(4px * var(--layout-stage-scale));
+    gap: calc(3px * var(--layout-stage-scale));
 }
 
 .stone-info-effect-tag {
@@ -1489,7 +1489,7 @@ body.othello-mode-active :is(
 
 @media (max-width: 40em) {
     .stone-info-panel {
-        width: min(94vw, calc(420px * var(--layout-stage-scale)));
+        width: min(94vw, max(280px, calc(320px * var(--layout-stage-scale))));
         padding: calc(12px * var(--layout-stage-scale)) calc(14px * var(--layout-stage-scale));
     }
 

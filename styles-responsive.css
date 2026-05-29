@@ -194,7 +194,8 @@ html.layout-profile-phone-portrait #stone-info-panel {
     left: 50%;
     top: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-top)) + min(74vw, calc(420px * var(--layout-stage-scale)), 47dvh) + calc(96px * var(--layout-stage-scale)));
     width: min(calc(430px * var(--layout-stage-scale)), 94vw);
-    max-height: min(24dvh, calc(210px * var(--layout-stage-scale)));
+    max-height: none;
+    overflow: visible;
     transform: translateX(-50%);
 }
 
@@ -967,7 +968,7 @@ html.sim-aspect-5-4 #effect-live-panel {
     left: var(--profile-effect-left);
     top: var(--profile-effect-top);
     transform: translateY(calc(-100% - calc(8px * var(--layout-stage-scale))));
-    width: var(--profile-effect-width);
+    width: var(--profile-stone-info-width);
 }
 
 #cpu-character-panel {
@@ -1179,7 +1180,7 @@ html.sim-aspect-5-4 #effect-live-panel {
         left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
         top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
         transform: translateY(calc(-100% - calc(8px * var(--layout-stage-scale))));
-        width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
+        width: var(--profile-stone-info-width);
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #cpu-character-panel {

@@ -95,6 +95,7 @@
     --profile-effect-left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
     --profile-effect-top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
     --profile-effect-width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
+    --profile-stone-info-width: min(94vw, clamp(280px, 26vw, 360px));
     --profile-effect-min-height: calc(var(--layout-anchor-effect-height) * var(--layout-stage-scale));
     --profile-effect-max-height: none;
     --profile-effect-padding: calc(9px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
