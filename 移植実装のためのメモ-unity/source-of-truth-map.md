@@ -23,7 +23,7 @@ Unity/C# 版は、既存 root 実装を正本として移植する。`worker-pub
 | デフォルトデッキ | `01-rulebook.md` section 4, `cards/catalog.json` | `DeckFactory` |
 | 初期手札/手札上限/通常ドロー | `01-rulebook.md` section 4 | `HandManager` |
 | カード一覧 | `cards/catalog.json` | `CardCatalog` / importer |
-| カード表示文 | `cards/catalog.json`, `cards/card-interaction-effects.ts` | Card detail UI |
+| カード表示文 / 補助タグ | `cards/catalog.json`, `cards/card-interaction-effects.ts` | Card detail UI |
 | カード使用前チェック | `game/logic/cards-internal/card-usage-prechecks.ts`, `game/logic/cards-internal/hand-manager.ts` | `CardUsageValidator` |
 | カード効果 | `game/logic/cards.ts`, `game/logic/cards-internal/*`, `game/card-effects/*` | `CardEffectResolver` |
 | 対象選択 | `game/logic/cards-internal/pending-selection-registry.ts` | `PendingSelectionRegistry` |

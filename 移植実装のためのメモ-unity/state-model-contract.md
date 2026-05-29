@@ -2,6 +2,8 @@
 
 この文書は、Unity/C# 版で保持する状態モデルの契約を定義する。名前は仮であり、実装時に C# 命名へ変えてよい。ただし責務は分ける。
 
+以下のフィールド列挙は、JS 実装の exact field 名一覧ではなく、Unity 側で保持または導出できるようにすべき責務の棚卸しである。canonical core state と UI projection / save / overlay state を別オブジェクトへ分けてもよいが、どれが authority かは曖昧にしない。
+
 ## MatchState
 
 対局全体の正本。
@@ -98,6 +100,8 @@
 
 初期移植ではデッキ作成機能を実装しないため、deck は固定ルールから生成する。
 
+`visibleHandInfo`, `revealedCards`, `fateOverride` は表示範囲や一時上書きの責務を示す。GameCore の canonical state に直置きしてもよいし、authority を崩さない別 projection として持ってもよい。
+
 デフォルトデッキは対局開始時に有効カードから 30 種を選ぶ。黒白でカード種は共通、山札順は別シャッフルにする。
 
 初期手札は黒白とも 0 枚、手札上限は 5 枚。5 枚時の通常ドローは失敗し、そのドロー機会は消える。
@@ -116,6 +120,8 @@
 - `tags`
 
 正本は `cards/catalog.json`。Unity 側の定義は importer または検証可能な転記にする。
+
+`displayTypeJa` は raw catalog の `display_type_ja` を Unity 側命名へ正規化した想定名である。`tags` は raw catalog には存在せず、`cards/card-interaction-effects.ts` などから導出する補助表示 metadata として扱う。
 
 現行 catalog は 88 件、有効 82 件、`enabled:false` 6 件。`display_type_ja` は 採掘 / 禁忌 / 戦闘 / 守護 / 執行 / 殲滅 / 特殊 / 特殊石 / 繁栄 / 観測 を持つ。
 
