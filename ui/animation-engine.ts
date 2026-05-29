@@ -725,6 +725,62 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 : PHASE_GAP_MS;
         }
 
+        _isHyperactiveLikeMoveEvent(ev: any) {
+            if (!ev || ev.type !== EVENT_TYPES.MOVE || !Array.isArray(ev.targets)) return false;
+            return ev.targets.some((target: any) => {
+                const cause = this._getTargetCause(target);
+                const reason = this._getTargetReason(target);
+                const moveIntent = String(target && target.meta && target.meta.moveIntent ? target.meta.moveIntent : '').toLowerCase();
+                return (
+                    moveIntent === 'hyperactive_move' ||
+                    moveIntent === 'anchor_move' ||
+                    cause === 'HYPERACTIVE' ||
+                    cause === 'AFTERIMAGE_WILL' ||
+                    cause === 'ESCAPE_HYPERACTIVE' ||
+                    cause === 'EXTREME_HYPERACTIVE_WILL' ||
+                    cause === 'HYPERACTIVE_INHERIT_WILL' ||
+                    cause === 'ULTIMATE_REVERSE_DRAGON' ||
+                    cause === 'ULTIMATE_DESTROY_GOD' ||
+                    cause === 'ROBOT_VACUUM' ||
+                    cause === 'GLUTTONOUS_WILL' ||
+                    cause === 'ULTIMATE_HYPERACTIVE' ||
+                    cause === 'ULTIMATE_HYPERACTIVE_GOD' ||
+                    reason.indexOf('hyperactive') >= 0 ||
+                    reason.indexOf('afterimage_will_flip_evade_move') === 0 ||
+                    reason.indexOf('gluttonous') >= 0 ||
+                    reason.indexOf('robot_vacuum_move') === 0 ||
+                    reason.indexOf('ultimate_reverse_dragon_move') === 0 ||
+                    reason.indexOf('ultimate_destroy_god_move') === 0
+                );
+            });
+        }
+
+        _shouldSkipPhaseGapBetween(phaseEvents: any[], nextEvents: any[]) {
+            const current = Array.isArray(phaseEvents) ? phaseEvents : [];
+            const next = Array.isArray(nextEvents) ? nextEvents : [];
+            const hasPlaceOrSpawn = current.some((e: any) => e && (e.type === EVENT_TYPES.PLACE || e.type === EVENT_TYPES.SPAWN || e.type === EVENT_TYPES.PLACE_HAND_ANIMATION));
+            const hasPlaceHandAnimation = current.some((e: any) => e && e.type === EVENT_TYPES.PLACE_HAND_ANIMATION);
+            const nextHasSpawn = next.some((e: any) => e && e.type === EVENT_TYPES.SPAWN);
+            const nextHasFlip = next.some((e: any) => e && e.type === EVENT_TYPES.FLIP);
+            const nextHasRegenBackFlip = hasRegenBackFlip(next);
+            const nextHasHyperactiveLikeMove = next.some((e: any) => this._isHyperactiveLikeMoveEvent(e));
+            const skipPlaceGap = hasPlaceOrSpawn && (
+                (nextHasFlip && !nextHasRegenBackFlip) ||
+                (hasPlaceHandAnimation && nextHasSpawn) ||
+                nextHasHyperactiveLikeMove
+            );
+            if (skipPlaceGap) return true;
+
+            const hasCardUseAnimation = current.some((e: any) => e && e.type === EVENT_TYPES.CARD_USE_ANIMATION);
+            const nextHasTreasureGainCue = next.some((ev: any) => {
+                if (!ev || ev.type !== EVENT_TYPES.SOUND_EFFECT) return false;
+                if (String(ev.soundKey || '').trim() === 'treasure_gain') return true;
+                const targets = Array.isArray(ev.targets) ? ev.targets : [];
+                return targets.some((t: any) => String((t && t.soundKey) || '').trim() === 'treasure_gain');
+            });
+            return hasCardUseAnimation && nextHasTreasureGainCue;
+        }
+
         async _runWithEffectTargetHighlight(cell: any, eventType: any, target: any, runner: any, minimumVisibleMs: any) {
             if (!cell || typeof runner !== 'function') return undefined;
 
@@ -1031,24 +1087,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                         // so treat the first spawn the same as an immediate follow-up flip.
                         const nextPhaseKey = sortedPhases[sortedPhases.indexOf(phase) + 1];
                         const nextEvents = phases[nextPhaseKey] || [];
-                        const hasPlaceOrSpawn = phaseEvents.some((e: any) => e && (e.type === EVENT_TYPES.PLACE || e.type === EVENT_TYPES.SPAWN || e.type === EVENT_TYPES.PLACE_HAND_ANIMATION));
-                        const hasPlaceHandAnimation = phaseEvents.some((e: any) => e && e.type === EVENT_TYPES.PLACE_HAND_ANIMATION);
-                        const nextHasSpawn = nextEvents.some((e: any) => e && e.type === EVENT_TYPES.SPAWN);
-                        const nextHasFlip = nextEvents.some((e: any) => e && e.type === EVENT_TYPES.FLIP);
-                        const nextHasRegenBackFlip = hasRegenBackFlip(nextEvents);
-                        const skipPlaceGap = hasPlaceOrSpawn && (
-                            (nextHasFlip && !nextHasRegenBackFlip) ||
-                            (hasPlaceHandAnimation && nextHasSpawn)
-                        );
-                        const hasCardUseAnimation = phaseEvents.some((e: any) => e && e.type === EVENT_TYPES.CARD_USE_ANIMATION);
-                        const nextHasTreasureGainCue = nextEvents.some((ev: any) => {
-                            if (!ev || ev.type !== EVENT_TYPES.SOUND_EFFECT) return false;
-                            if (String(ev.soundKey || '').trim() === 'treasure_gain') return true;
-                            const targets = Array.isArray(ev.targets) ? ev.targets : [];
-                            return targets.some((t: any) => String((t && t.soundKey) || '').trim() === 'treasure_gain');
-                        });
-                        const skipCardUseTreasureGap = hasCardUseAnimation && nextHasTreasureGainCue;
-                        if (!skipPlaceGap && !skipCardUseTreasureGap) {
+                        if (!this._shouldSkipPhaseGapBetween(phaseEvents, nextEvents)) {
                             await this._sleep(PHASE_GAP_MS);
                         }
                     }

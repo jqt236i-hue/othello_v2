@@ -127,6 +127,81 @@ describe('animation-engine _sleep', () => {
     delete global.window;
   });
 
+  test('spawn の直後 phase に多動系 move がある network playback でも追加ギャップなしで再生する', async () => {
+    const { JSDOM } = require('jsdom');
+    const dom = new JSDOM(`
+      <!doctype html>
+      <html>
+        <body>
+          <div id="board">
+            <div class="cell" data-row="2" data-col="2"></div>
+            <div class="cell" data-row="2" data-col="3"></div>
+          </div>
+        </body>
+      </html>
+    `);
+
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
+    global.window.requestAnimationFrame = global.requestAnimationFrame;
+    global.window.getEffectKeyForSpecialType = jest.fn(() => 'hyperactiveStone');
+    global.window.setDiscStoneImage = jest.fn();
+    global.window.clearStoneVisualEffectState = jest.fn();
+    global.window.applyStoneVisualEffect = jest.fn();
+    global.emitBoardUpdate = jest.fn();
+    global.SoundEngine = { init: jest.fn(), playEffectByKey: jest.fn() };
+
+    const animateSpy = jest.fn(() => ({
+      addEventListener(eventName, handler) {
+        if (eventName === 'finish' && typeof handler === 'function') handler();
+      },
+      removeEventListener() {},
+      finished: Promise.resolve()
+    }));
+    global.window.Element.prototype.animate = animateSpy;
+
+    const engine = require('../ui/animation-engine.js');
+    engine._sleep = jest.fn(() => Promise.resolve());
+
+    await engine.play([
+      {
+        type: 'spawn',
+        phase: 1,
+        targets: [{
+          r: 2,
+          col: 3,
+          ownerAfter: 'black',
+          cause: 'HYPERACTIVE',
+          reason: 'instant_hyperactive_spawn',
+          after: { color: 1, special: 'HYPERACTIVE', timer: 9, owner: 'black', flipEvadeRemaining: 1 }
+        }]
+      },
+      {
+        type: 'move',
+        phase: 2,
+        targets: [{
+          from: { r: 2, col: 3 },
+          to: { r: 2, col: 2 },
+          ownerAfter: 'black',
+          cause: 'HYPERACTIVE',
+          reason: 'hyperactive_move',
+          meta: { moveIntent: 'hyperactive_move' },
+          after: { color: 1, special: 'HYPERACTIVE', timer: 9, owner: 'black', flipEvadeRemaining: 1 }
+        }]
+      }
+    ]);
+
+    expect(engine._sleep).not.toHaveBeenCalled();
+
+    dom.window.close();
+    delete global.SoundEngine;
+    delete global.emitBoardUpdate;
+    delete global.requestAnimationFrame;
+    delete global.window;
+    delete global.document;
+  });
+
   test('network の place_hand_animation -> 特殊 spawn では通常石への描き戻しなしで配置する', async () => {
     const { JSDOM } = require('jsdom');
     const dom = new JSDOM(`
