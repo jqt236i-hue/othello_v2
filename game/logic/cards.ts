@@ -2514,6 +2514,10 @@ const {
         return CardTargetAccessModule.getSuperAttractionTargets(cardState, gameState, playerKey, pending, getCardTargetAccessDeps());
     }
 
+    function getSuperAttractionPathPreview(cardState: any, gameState: any, from: any, to: any) {
+        return CardTargetAccessModule.getSuperAttractionPathPreview(cardState, gameState, from, to, getCardTargetAccessDeps());
+    }
+
     function getGravityTargets(cardState: any, gameState: any) {
         return CardTargetAccessModule.getGravityTargets(cardState, gameState, getCardTargetAccessDeps());
     }
@@ -3703,6 +3707,7 @@ const cardsApi: any = {
         getGravityTargets,
         getSuperGravityTargets,
         getSuperAttractionTargets,
+        getSuperAttractionPathPreview,
         getTabooReverseCandidates,
         pickTabooReverseFlips,
         cancelPendingSelection,

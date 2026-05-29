@@ -580,6 +580,51 @@ function getSuperAttractionTargets(cardState: CardState, gameState: GameState, p
     return res;
 }
 
+function cloneSuperAttractionPathCandidate(candidate: any): any {
+    return {
+        variant: candidate && candidate.variant ? candidate.variant : 'single_segment',
+        pathCells: Array.isArray(candidate && candidate.pathCells)
+            ? candidate.pathCells.map((point: any) => ({ row: point.row, col: point.col }))
+            : [],
+        segments: Array.isArray(candidate && candidate.segments)
+            ? candidate.segments.map((segment: any) => ({
+                from: { row: segment.from.row, col: segment.from.col },
+                to: { row: segment.to.row, col: segment.to.col },
+                dr: segment.dr,
+                dc: segment.dc,
+                length: segment.length
+            }))
+            : [],
+        waypoints: Array.isArray(candidate && candidate.waypoints)
+            ? candidate.waypoints.map((point: any) => ({ row: point.row, col: point.col }))
+            : [],
+        movedDistance: Number(candidate && candidate.movedDistance) || 0
+    };
+}
+
+function getSuperAttractionPathPreview(cardState: CardState, gameState: GameState, from: any, to: any): any[] {
+    const fromRow = Number(from && from.row);
+    const fromCol = Number(from && from.col);
+    const toRow = Number(to && to.row);
+    const toCol = Number(to && to.col);
+    if (
+        !Number.isInteger(fromRow) ||
+        !Number.isInteger(fromCol) ||
+        !Number.isInteger(toRow) ||
+        !Number.isInteger(toCol)
+    ) {
+        return [];
+    }
+    if (fromRow === toRow && fromCol === toCol) return [];
+    const firstOwner = getCellValue(gameState, fromRow, fromCol);
+    if (firstOwner === null || firstOwner === P_EMPTY) return [];
+    if (!hasBoardShapeCell(gameState, toRow, toCol)) return [];
+
+    return getSuperAttractionPathCandidates(fromRow, fromCol, toRow, toCol)
+        .filter((candidate: any) => isSuperAttractionPathCandidateLegal(cardState, gameState, candidate))
+        .map(cloneSuperAttractionPathCandidate);
+}
+
 function _collectVerticalSlideDestination(cardState: CardState, gameState: GameState, row: number, col: number, dr: number): DestinationCell | null {
     if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
     if (dr !== -1 && dr !== 1) return null;
@@ -1230,6 +1275,7 @@ export = {
     getBuoyancyTargets,
     getSuperBuoyancyTargets,
     getSuperAttractionTargets,
+    getSuperAttractionPathPreview,
     getGravityTargets,
     getSuperGravityTargets,
     getTrapTargets,

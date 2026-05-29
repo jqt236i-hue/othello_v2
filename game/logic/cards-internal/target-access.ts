@@ -214,6 +214,10 @@ function getSuperAttractionTargets(cardState: any, gameState: any, playerKey: an
     return deps.CardSelectorsModule.getSuperAttractionTargets(cardState, gameState, playerKey, pending);
 }
 
+function getSuperAttractionPathPreview(cardState: any, gameState: any, from: any, to: any, deps: TargetAccessDeps) {
+    return deps.CardSelectorsModule.getSuperAttractionPathPreview(cardState, gameState, from, to);
+}
+
 function getGravityTargets(cardState: any, gameState: any, deps: TargetAccessDeps) {
     return deps.CardSelectorsModule.getGravityTargets(cardState, gameState);
 }
@@ -271,6 +275,7 @@ module.exports = {
     getBuoyancyTargets,
     getSuperGravityTargets,
     getSuperAttractionTargets,
+    getSuperAttractionPathPreview,
     getGravityTargets,
     getSelectableTargets
 };

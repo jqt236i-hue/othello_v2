@@ -256,6 +256,71 @@ describe('CardMovement module', () => {
     expect(targets).not.toEqual(expect.arrayContaining([{ row: 5, col: 4 }]));
   });
 
+  test('getSuperAttractionPathPreview returns all legal shortest path candidates', () => {
+    const gameState = Core.createGameState();
+    const cardState = CardLogic.createCardState();
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    gameState.board[2][2] = Core.BLACK;
+
+    const preview = CardLogic.getSuperAttractionPathPreview(
+      cardState,
+      gameState,
+      { row: 2, col: 2 },
+      { row: 5, col: 4 }
+    );
+
+    expect(preview.map((candidate) => candidate.variant).sort()).toEqual(['axis_first', 'diagonal_first']);
+    expect(preview).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        variant: 'diagonal_first',
+        pathCells: [{ row: 3, col: 3 }, { row: 4, col: 4 }, { row: 5, col: 4 }]
+      }),
+      expect.objectContaining({
+        variant: 'axis_first',
+        pathCells: [{ row: 3, col: 2 }, { row: 4, col: 3 }, { row: 5, col: 4 }]
+      })
+    ]));
+  });
+
+  test('getSuperAttractionPathPreview filters blocked candidates and supports straight paths', () => {
+    const gameState = Core.createGameState();
+    const cardState = CardLogic.createCardState();
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(0));
+    gameState.board[2][2] = Core.BLACK;
+    gameState.board[3][2] = Core.WHITE;
+    cardState.markers.push({
+      id: 'guarded-blocker',
+      kind: 'specialStone',
+      row: 3,
+      col: 2,
+      owner: 'white',
+      data: { type: 'GUARD', remainingOwnerTurns: 3 }
+    });
+
+    const blockedPreview = CardLogic.getSuperAttractionPathPreview(
+      cardState,
+      gameState,
+      { row: 2, col: 2 },
+      { row: 5, col: 4 }
+    );
+    expect(blockedPreview.map((candidate) => candidate.variant)).toEqual(['diagonal_first']);
+
+    const straightPreview = CardLogic.getSuperAttractionPathPreview(
+      cardState,
+      gameState,
+      { row: 2, col: 2 },
+      { row: 2, col: 5 }
+    );
+    expect(straightPreview).toEqual([
+      expect.objectContaining({
+        variant: 'single_segment',
+        pathCells: [{ row: 2, col: 3 }, { row: 2, col: 4 }, { row: 2, col: 5 }]
+      })
+    ]);
+  });
+
   test('applySuperAttractionWill chooses a shortest two-segment path by PRNG and keeps moving through ghost collisions', () => {
     const destroyed = [];
     const moved = [];

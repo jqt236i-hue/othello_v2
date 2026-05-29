@@ -279,6 +279,76 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
   });
 
+  test('previews SUPER_ATTRACTION_WILL hover paths after the first target is selected', () => {
+    const diff = require('../ui/diff-renderer.js');
+    global.gameState.board[2][2] = BLACK;
+    global.gameState.board[5][4] = WHITE;
+    global.cardState.pendingEffectByPlayer = {
+      black: {
+        type: 'SUPER_ATTRACTION_WILL',
+        stage: 'selectTarget',
+        cardId: 'super_attraction_01',
+        firstTarget: { row: 2, col: 2 }
+      },
+      white: null
+    };
+    global.CardLogic.getSelectableTargets = () => [{ row: 5, col: 4 }];
+    global.CardLogic.getSuperAttractionPathPreview = jest.fn(() => [
+      {
+        variant: 'diagonal_first',
+        pathCells: [{ row: 3, col: 3 }, { row: 4, col: 4 }, { row: 5, col: 4 }],
+        waypoints: [{ row: 4, col: 4 }, { row: 5, col: 4 }]
+      },
+      {
+        variant: 'axis_first',
+        pathCells: [{ row: 3, col: 2 }, { row: 4, col: 3 }, { row: 5, col: 4 }],
+        waypoints: [{ row: 3, col: 2 }, { row: 5, col: 4 }]
+      }
+    ]);
+
+    diff.renderBoardDiff(boardEl);
+
+    const targetCell = boardEl.querySelector('.cell[data-row="5"][data-col="4"]');
+    targetCell.dispatchEvent(Object.assign(new window.Event('pointerenter', { bubbles: true }), { pointerType: 'mouse' }));
+
+    const diagonalCell = boardEl.querySelector('.cell[data-row="3"][data-col="3"]');
+    const axisCell = boardEl.querySelector('.cell[data-row="3"][data-col="2"]');
+    expect(diagonalCell.classList.contains('super-attraction-path-preview')).toBe(true);
+    expect(axisCell.classList.contains('super-attraction-path-preview')).toBe(true);
+    expect(targetCell.classList.contains('super-attraction-path-preview')).toBe(true);
+    expect(targetCell.classList.contains('super-attraction-preview-destination')).toBe(true);
+
+    targetCell.dispatchEvent(Object.assign(new window.Event('pointerleave', { bubbles: true }), { pointerType: 'mouse' }));
+
+    expect(diagonalCell.classList.contains('super-attraction-path-preview')).toBe(false);
+    expect(axisCell.classList.contains('super-attraction-path-preview')).toBe(false);
+    expect(targetCell.classList.contains('super-attraction-preview-destination')).toBe(false);
+  });
+
+  test('does not preview SUPER_ATTRACTION_WILL paths for invalid hover targets', () => {
+    const diff = require('../ui/diff-renderer.js');
+    global.gameState.board[2][2] = BLACK;
+    global.cardState.pendingEffectByPlayer = {
+      black: {
+        type: 'SUPER_ATTRACTION_WILL',
+        stage: 'selectTarget',
+        cardId: 'super_attraction_01',
+        firstTarget: { row: 2, col: 2 }
+      },
+      white: null
+    };
+    global.CardLogic.getSelectableTargets = () => [{ row: 5, col: 4 }];
+    global.CardLogic.getSuperAttractionPathPreview = jest.fn(() => []);
+
+    diff.renderBoardDiff(boardEl);
+
+    const targetCell = boardEl.querySelector('.cell[data-row="5"][data-col="4"]');
+    targetCell.dispatchEvent(Object.assign(new window.Event('pointerenter', { bubbles: true }), { pointerType: 'mouse' }));
+
+    expect(boardEl.querySelector('.super-attraction-path-preview')).toBeNull();
+    expect(boardEl.querySelector('.super-attraction-preview-destination')).toBeNull();
+  });
+
   test('keeps the board grid size fixed even when shrink holes consume the full top edge', () => {
     const diff = require('../ui/diff-renderer.js');
     diff.renderBoardDiff(boardEl);

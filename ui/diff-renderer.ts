@@ -61,6 +61,7 @@ let boardDomSignature: any = null;
 let boardDomElement: any = null;
 let lastBoardExpansionRevealSoundKey: any = null;
 let suppressBoardExpansionRevealSoundThisRender = false;
+let superAttractionHoverPreview: any = null;
 
 function _getBoardShapeForDiff(gameState: any) {
     const board = (gameState && Array.isArray(gameState.board)) ? gameState.board : null;
@@ -631,6 +632,119 @@ function _collectPendingSelectedTargetHighlightKeysForDiff(pending: any) {
     return out;
 }
 
+function _normalizeSuperAttractionPreviewPoint(point: any) {
+    const row = Number(point && point.row);
+    const col = Number(point && point.col);
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+    return { row, col };
+}
+
+function _getCurrentPendingForSuperAttractionPreview() {
+    const gs = _resolveGameStateForDiffRender();
+    const cs = _resolveCardStateForDiffRender();
+    if (!gs || !cs || !cs.pendingEffectByPlayer) return null;
+    const playerKey = getPlayerKey(gs.currentPlayer);
+    const pending = cs.pendingEffectByPlayer[playerKey];
+    if (!pending || pending.stage !== 'selectTarget' || pending.type !== 'SUPER_ATTRACTION_WILL') return null;
+    const firstTarget = _normalizeSuperAttractionPreviewPoint(pending.firstTarget);
+    if (!firstTarget) return null;
+    return { gameState: gs, cardState: cs, playerKey, pending, firstTarget };
+}
+
+function _getSuperAttractionPreviewSignature(context: any, row: number, col: number) {
+    const pending = context && context.pending;
+    const first = context && context.firstTarget;
+    return [
+        context && context.playerKey,
+        pending && pending.cardId ? pending.cardId : '',
+        pending && pending.pendingEffectId ? pending.pendingEffectId : '',
+        first ? first.row : '',
+        first ? first.col : '',
+        row,
+        col
+    ].join('|');
+}
+
+function _requestSuperAttractionPreviewRender() {
+    if (!boardDomElement) return;
+    try {
+        renderBoardDiff(boardDomElement);
+    } catch (e: any) { /* UI-only hover update */ }
+}
+
+function _clearSuperAttractionHoverPreview() {
+    if (!superAttractionHoverPreview) return false;
+    superAttractionHoverPreview = null;
+    _requestSuperAttractionPreviewRender();
+    return true;
+}
+
+function _setSuperAttractionHoverPreview(row: any, col: any) {
+    const target = _normalizeSuperAttractionPreviewPoint({ row, col });
+    const context = _getCurrentPendingForSuperAttractionPreview();
+    if (!target || !context) return _clearSuperAttractionHoverPreview();
+    if (target.row === context.firstTarget.row && target.col === context.firstTarget.col) {
+        return _clearSuperAttractionHoverPreview();
+    }
+    if (typeof CardLogic === 'undefined' || !CardLogic || typeof CardLogic.getSuperAttractionPathPreview !== 'function') {
+        return _clearSuperAttractionHoverPreview();
+    }
+    const signature = _getSuperAttractionPreviewSignature(context, target.row, target.col);
+    if (superAttractionHoverPreview && superAttractionHoverPreview.signature === signature) {
+        return false;
+    }
+    let candidates: any[] = [];
+    try {
+        const result = CardLogic.getSuperAttractionPathPreview(
+            context.cardState,
+            context.gameState,
+            context.firstTarget,
+            target
+        );
+        candidates = Array.isArray(result) ? result : [];
+    } catch (e: any) {
+        candidates = [];
+    }
+    if (candidates.length <= 0) return _clearSuperAttractionHoverPreview();
+
+    superAttractionHoverPreview = {
+        signature,
+        firstTarget: context.firstTarget,
+        target,
+        candidates
+    };
+    _requestSuperAttractionPreviewRender();
+    return true;
+}
+
+function _getActiveSuperAttractionPreviewForDiff(pending: any) {
+    if (!superAttractionHoverPreview || !pending || pending.type !== 'SUPER_ATTRACTION_WILL') return null;
+    if (!pending.firstTarget) return null;
+    const first = _normalizeSuperAttractionPreviewPoint(pending.firstTarget);
+    const previewFirst = _normalizeSuperAttractionPreviewPoint(superAttractionHoverPreview.firstTarget);
+    if (!first || !previewFirst || first.row !== previewFirst.row || first.col !== previewFirst.col) return null;
+    return superAttractionHoverPreview;
+}
+
+function _collectSuperAttractionPreviewKeys(preview: any) {
+    const pathKeys = new Set();
+    const destinationKeys = new Set();
+    if (!preview || !Array.isArray(preview.candidates)) {
+        return { pathKeys, destinationKeys };
+    }
+    const target = _normalizeSuperAttractionPreviewPoint(preview.target);
+    if (target) destinationKeys.add(`${target.row},${target.col}`);
+    for (const candidate of preview.candidates) {
+        const pathCells = Array.isArray(candidate && candidate.pathCells) ? candidate.pathCells : [];
+        for (const point of pathCells) {
+            const normalized = _normalizeSuperAttractionPreviewPoint(point);
+            if (!normalized) continue;
+            pathKeys.add(`${normalized.row},${normalized.col}`);
+        }
+    }
+    return { pathKeys, destinationKeys };
+}
+
 function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
     const boardShape = _normalizeBoardShapeInputForDiff(shapeOrGameState);
     const emptyVal = (typeof EMPTY !== 'undefined') ? EMPTY : 0;
@@ -644,6 +758,8 @@ function _buildEmptyCellStateForDiffRender(shapeOrGameState: any) {
                 isLegalFree: false,
                 isTabooLegal: false,
                 isSelectedTargetHighlighted: false,
+                isSuperAttractionPathPreview: false,
+                isSuperAttractionPreviewDestination: false,
                 isSelectableFriendly: false,
                 isExtendLifeTarget: false,
                 breedingSprout: false,
@@ -1328,10 +1444,14 @@ function attachBoardCellInteraction(cell: any, row: any, col: any) {
     cell.addEventListener('pointerenter', (ev: any) => {
         if (!_isHoverPointerEvent(ev)) return;
         _ensureOutsideCloseHandler();
+        _setSuperAttractionHoverPreview(row, col);
         showSpecialStoneInfoAt(row, col, { preserveOnEmpty: true });
     });
 
     cell.addEventListener('pointermove', (ev: any) => {
+        if (_isHoverPointerEvent(ev)) {
+            _setSuperAttractionHoverPreview(row, col);
+        }
         if (!pressActive) return;
         const dx = Math.abs(Number(ev.clientX || 0) - startX);
         const dy = Math.abs(Number(ev.clientY || 0) - startY);
@@ -1355,10 +1475,16 @@ function attachBoardCellInteraction(cell: any, row: any, col: any) {
     });
 
     cell.addEventListener('pointercancel', () => clearPress());
-    cell.addEventListener('pointerleave', () => {
+    cell.addEventListener('pointerleave', (ev: any) => {
+        if (_isHoverPointerEvent(ev)) {
+            _clearSuperAttractionHoverPreview();
+        }
         clearPress();
     });
-    cell.addEventListener('mouseleave', () => clearPress());
+    cell.addEventListener('mouseleave', () => {
+        _clearSuperAttractionHoverPreview();
+        clearPress();
+    });
 }
 
 /**
@@ -1519,6 +1645,10 @@ function buildCurrentCellState() {
     const selectedTargetHighlightSet = isHumanTurn
         ? _collectPendingSelectedTargetHighlightKeysForDiff(pending)
         : new Set();
+    const superAttractionPreview = isHumanTurn
+        ? _getActiveSuperAttractionPreviewForDiff(pending)
+        : null;
+    const superAttractionPreviewKeys = _collectSuperAttractionPreviewKeys(superAttractionPreview);
 
     // Build unified special/bomb maps from markers (primary)
     const markerKinds = (typeof MarkersAdapter !== 'undefined' && MarkersAdapter && MarkersAdapter.MARKER_KINDS)
@@ -1722,6 +1852,8 @@ function buildCurrentCellState() {
             const isTabooLegal = showLegalHints && val === EMPTY && tabooLegalSet.has(key);
             const isLegalFree = showLegalHints && val === EMPTY && freePlacementActive;
             const isSelectedTargetHighlighted = isHumanTurn && selectedTargetHighlightSet.has(key);
+            const isSuperAttractionPathPreview = isHumanTurn && superAttractionPreviewKeys.pathKeys.has(key);
+            const isSuperAttractionPreviewDestination = isHumanTurn && superAttractionPreviewKeys.destinationKeys.has(key);
             const isSelectableFriendly = isHumanTurn && selectableTargetSet.has(key);
             const isExtendLifeTarget = isSelectableFriendly && isExtendLifeSelection;
             const bonusValueRaw = (val === EMPTY && !blockade && !frozen && !seed && boardBonusConsumedByCell[key] !== true)
@@ -1761,6 +1893,8 @@ function buildCurrentCellState() {
                 isLegalFree,
                 isTabooLegal,
                 isSelectedTargetHighlighted,
+                isSuperAttractionPathPreview,
+                isSuperAttractionPreviewDestination,
                 isSelectableFriendly,
                 isExtendLifeTarget,
                 breedingSprout: (val !== EMPTY) && sproutMap.has(key),
@@ -1815,6 +1949,8 @@ function buildCurrentCellState() {
         const isTabooLegal = showLegalHints && expVal === EMPTY && tabooLegalSet.has(expKey);
         const isLegalFree = showLegalHints && expVal === EMPTY && freePlacementActive;
         const isSelectedTargetHighlighted = isHumanTurn && selectedTargetHighlightSet.has(expKey);
+        const isSuperAttractionPathPreview = isHumanTurn && superAttractionPreviewKeys.pathKeys.has(expKey);
+        const isSuperAttractionPreviewDestination = isHumanTurn && superAttractionPreviewKeys.destinationKeys.has(expKey);
         const isSelectableFriendly = isHumanTurn && selectableTargetSet.has(expKey);
         const isExtendLifeTarget = isSelectableFriendly && isExtendLifeSelection;
         const blockade = blockadeMap.get(expKey) || null;
@@ -1853,6 +1989,8 @@ function buildCurrentCellState() {
             isLegalFree,
             isTabooLegal,
             isSelectedTargetHighlighted,
+            isSuperAttractionPathPreview,
+            isSuperAttractionPreviewDestination,
             isSelectableFriendly,
             isExtendLifeTarget,
             breedingSprout: false,
@@ -1912,6 +2050,8 @@ function cellStatesEqual(a: any, b: any) {
     if (a.isLegalFree !== b.isLegalFree) return false;
     if (!!a.isTabooLegal !== !!b.isTabooLegal) return false;
     if (!!a.isSelectedTargetHighlighted !== !!b.isSelectedTargetHighlighted) return false;
+    if (!!a.isSuperAttractionPathPreview !== !!b.isSuperAttractionPathPreview) return false;
+    if (!!a.isSuperAttractionPreviewDestination !== !!b.isSuperAttractionPreviewDestination) return false;
     if (a.isSelectableFriendly !== b.isSelectableFriendly) return false;
     if (!!a.isExtendLifeTarget !== !!b.isExtendLifeTarget) return false;
     if (!!a.breedingSprout !== !!b.breedingSprout) return false;
@@ -2063,6 +2203,12 @@ function updateCellDOM(cell: any, state: any, row: any, col: any, prevState: any
     }
     if (state.isSelectedTargetHighlighted) {
         cell.classList.add('effect-target-highlight-positive');
+    }
+    if (state.isSuperAttractionPathPreview) {
+        cell.classList.add('super-attraction-path-preview');
+    }
+    if (state.isSuperAttractionPreviewDestination) {
+        cell.classList.add('super-attraction-preview-destination');
     }
     if (state.isTabooLegal && !state.blockade && !state.frozen) {
         cell.classList.add('effect-target-highlight-positive');
@@ -2392,6 +2538,8 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
             const shouldShowLegal = !!(canShowHint && state && state.isLegal && !shouldShowLegalFree);
             const shouldShowTabooLegal = !!(canShowHint && state && state.isTabooLegal);
             const shouldShowSelectedTargetHighlight = !!(state && state.isSelectedTargetHighlighted);
+            const shouldShowSuperAttractionPathPreview = !!(state && state.isSuperAttractionPathPreview);
+            const shouldShowSuperAttractionPreviewDestination = !!(state && state.isSuperAttractionPreviewDestination);
             const shouldShowSelectable = !!(canShowHint && state && state.isSelectableFriendly);
             const shouldShowExtendLifeTarget = !!(canShowHint && state && state.isExtendLifeTarget);
 
@@ -2399,6 +2547,8 @@ function reconcileCellHintClasses(boardEl: any, currentState: any) {
             cell.classList.toggle('legal', shouldShowLegal);
             cell.classList.toggle('effect-target-highlight', false);
             cell.classList.toggle('effect-target-highlight-positive', shouldShowSelectedTargetHighlight || shouldShowTabooLegal);
+            cell.classList.toggle('super-attraction-path-preview', shouldShowSuperAttractionPathPreview);
+            cell.classList.toggle('super-attraction-preview-destination', shouldShowSuperAttractionPreviewDestination);
             cell.classList.toggle('selectable-friendly', shouldShowSelectable);
             cell.classList.toggle('selectable-friendly-no-circle', shouldShowExtendLifeTarget);
             _applyTimeStopLegalEmphasisForDiff(cell);
@@ -2578,6 +2728,7 @@ function resetRenderStats() {
     boardDomSignature = null;
     boardDomElement = null;
     lastBoardExpansionRevealSoundKey = null;
+    superAttractionHoverPreview = null;
 }
 
 function _isReversiModeForDiffRenderer() {
