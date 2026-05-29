@@ -114,21 +114,22 @@ describe('STRONG_WIND_WILL', () => {
     expect(cardState.charge.black).toBe(0);
   });
 
-  test('does not fall back to the opposite side when the selected side is blocked', () => {
+  test('chooses the only available side when one horizontal direction is blocked', () => {
     const { cardState, gameState } = makeState();
 
     gameState.board[3][3] = 1;
     gameState.board[3][2] = -1;
-    // Right side is open, but random 0.0 selects blocked left.
+    // Right side is open. The selected target remains valid and should still move.
 
     const targets = CardLogic.getStrongWindTargets(cardState, gameState);
     expect(targets).toEqual(expect.arrayContaining([{ row: 3, col: 3 }]));
 
     const res = CardLogic.applyStrongWindWill(cardState, gameState, 'black', 3, 3, { random: () => 0.0 });
-    expect(res && res.applied).toBe(false);
-    expect(res.reason).toBe('no_move_options');
-    expect(cardState.pendingEffectByPlayer.black).toBeTruthy();
-    expect(gameState.board[3][3]).toBe(1);
+    expect(res && res.applied).toBe(true);
+    expect(res.to).toEqual({ row: 3, col: 7 });
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(gameState.board[3][3]).toBe(0);
+    expect(gameState.board[3][7]).toBe(1);
   });
 
   test('can push a main-board stone into an empty expansion cell', () => {

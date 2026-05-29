@@ -132,6 +132,16 @@ describe('worker movement pending selection publish', () => {
       moveIntent: 'wind_move'
     },
     {
+      cardId: 'strong_wind_01',
+      pendingType: 'STRONG_WIND_WILL',
+      actionKey: 'strongWindTarget',
+      source: { row: 3, col: 3 },
+      blocker: { row: 3, col: 2 },
+      destination: { row: 3, col: 7 },
+      blockerShouldRemain: true,
+      moveIntent: 'wind_move'
+    },
+    {
       cardId: 'super_gravity_01',
       pendingType: 'SUPER_GRAVITY_WILL',
       actionKey: 'superGravityTarget',
@@ -200,7 +210,7 @@ describe('worker movement pending selection publish', () => {
       stateVersion: 1
     }));
     expect(result.sourceValue).toBe(0);
-    if (config.blocker) expect(result.blockerValue).toBe(0);
+    if (config.blocker) expect(result.blockerValue).toBe(config.blockerShouldRemain ? -1 : 0);
     expect(result.destinationValue).toBe(1);
     expect(result.storedPending).toBeNull();
     expect(result.moveEvent).toEqual(expect.objectContaining({

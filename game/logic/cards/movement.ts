@@ -347,12 +347,14 @@ function applyStrongWindWill(cardState: any, gameState: GameState, playerKey: st
     if (cellValue === EMPTY)
         return { applied: false, reason: 'empty' };
     const randomSource = resolveRandomSource(prng);
-    const selectedDirection = randomSource.random() < 0.5
-        ? STRONG_WIND_LEFT_DIRECTION
-        : STRONG_WIND_RIGHT_DIRECTION;
-    const selected = getStrongWindMoveOptionForDirection(cardState, gameState, row, col, selectedDirection, deps);
-    if (!selected)
+    const availableOptions = getStrongWindMoveOptions(cardState, gameState, row, col, deps);
+    if (availableOptions.length === 0)
         return { applied: false, reason: 'no_move_options' };
+    let randomValue = Number(randomSource.random());
+    if (!Number.isFinite(randomValue)) randomValue = 0;
+    if (randomValue < 0) randomValue = 0;
+    if (randomValue >= 1) randomValue = 0.999999;
+    const selected = availableOptions[Math.min(availableOptions.length - 1, Math.floor(randomValue * availableOptions.length))];
     const to = selected.target;
     const movedDistance = Math.abs(to.row - row) + Math.abs(to.col - col);
     if (typeof moveAt === 'function') {

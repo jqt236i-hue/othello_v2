@@ -61,6 +61,36 @@ describe('CardMovement module', () => {
     expect(cardState.markers[0]).toMatchObject({ row: 3, col: 5 });
   });
 
+  test('applyStrongWindWill uses the only available horizontal direction', () => {
+    const cardState = {
+      pendingEffectByPlayer: { black: { type: 'STRONG_WIND_WILL', stage: 'selectTarget', cardId: 'wind_01' } },
+      markers: []
+    };
+    const gameState = {};
+
+    const result = CardMovement.applyStrongWindWill(cardState, gameState, 'black', 3, 3, { random: () => 0.0 }, {
+      getCellValueForCard: (state, row, col) => {
+        if (row === 3 && col === 3) return 1;
+        if (row === 3 && (col === 4 || col === 5 || col === 6 || col === 7)) return 0;
+        if (row === 3 && col === 2) return 1;
+        return null;
+      },
+      hasBoardShapeCellForCard: (cs, gs, row, col) => row === 3 && col >= 2 && col <= 7,
+      isBlockedCell: () => false,
+      setCellValueForCard: jest.fn(() => true),
+      moveAt: jest.fn(() => ({ moved: true })),
+      getMarkers: () => []
+    });
+
+    expect(result).toMatchObject({
+      applied: true,
+      from: { row: 3, col: 3 },
+      to: { row: 3, col: 7 },
+      movedDistance: 4
+    });
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
   test('applySuperBuoyancyWill destroys collisions, moves the stone, and clears pending', () => {
     const destroyed = [];
     const moved = [];
