@@ -61,8 +61,8 @@ CardEffectResolver は Unity の UI、Prefab、Audio を直接操作しない。
 | `EQUALITY_WILL` | 石数が 10 個以上負け |
 | `REINFORCEMENT_WILL` | 増援配置できる対象が存在 |
 | `CORNER_TRIBUTE` | 相手の占有角数が 4 以上 |
-| `RIBO_WILL` | unlock turn 到達後 |
-| `LOSS_WILL` | 通常石へ戻せる特殊石が存在 |
+| `RIBO_WILL` | `turnIndex >= 19`（18手経過後） |
+| `LOSS_WILL` | 完全保護されていない特殊石本体または爆弾が 1 つ以上存在 |
 | `SALVATION_WILL` | 直前の相手ターンで救済対象の破壊石が存在 |
 | `EXECUTION_WILL` | 直前の相手ターンで自石が破壊され、相手手札が 1 枚以上 |
 | `HEAVEN_BLESSING` | 候補カードを 1 枚以上生成できる。候補数は最大 5 |

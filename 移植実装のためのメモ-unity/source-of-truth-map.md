@@ -34,7 +34,7 @@ Unity/C# 版は、既存 root 実装を正本として移植する。`worker-pub
 | 演出再生 | `ui/animation-engine.ts` | `AnimationPlayback` |
 | 特殊石見た目 | `game/visual-effects-map.runtime.js` | Prefab / Sprite / Material map |
 | CPU 判断 | `game/cpu-decision.ts`, `game/cpu-turn-handler.ts`, `game/ai/*` | `CpuDecisionEngine` |
-| CPU 共有 profile / Lv6 方針 | `constants/cpu-lv6-shared-profile.js`, `game/ai/*`, `01-rulebook.md` section 14 | `CpuPolicyProfile` |
+| CPU 共有 profile / Lv6 方針 | `constants/cpu-lv6-shared-profile.ts`, `game/ai/*`, `01-rulebook.md` section 14 | `CpuPolicyProfile` |
 | CPU 発話 | `game/ai/commentary-data.ts`, `01-rulebook.md` section 14.6 | `CpuCommentaryCatalog` |
 | 定数 | `constants/*`, `shared-constants.ts` | `GameConstants` |
 | 画面/音/演出仕様 | `01-rulebook.md` section 12+ | Unity scene / prefab / audio map |
