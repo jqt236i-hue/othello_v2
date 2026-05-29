@@ -254,6 +254,7 @@ const {
     const DESTROY_DRAGON_TURNS = 3;
     const LIGHTNING_WILL_TURNS = 5;
     const OBSERVER_WILL_TURNS = 5;
+    const THEORY_INCARNATION_TURNS = 10;
     const GHOST_WILL_TURNS = 5;
     const WILL_HUNTER_KING_TURNS = 8;
     const ROBOT_VACUUM_TURNS = 5;
@@ -864,9 +865,10 @@ const {
                 AFTERIMAGE_WILL_DESTROY_EVADE_LIMIT,
                 SNIPER_WILL_TURNS,
                 DESTROY_DRAGON_TURNS,
-                LIGHTNING_WILL_TURNS,
-                OBSERVER_WILL_TURNS,
-                GHOST_WILL_TURNS,
+        LIGHTNING_WILL_TURNS,
+        OBSERVER_WILL_TURNS,
+        THEORY_INCARNATION_TURNS,
+        GHOST_WILL_TURNS,
                 SEED_WILL_TURNS,
                 WILL_HUNTER_KING_TURNS,
                 ROBOT_VACUUM_TURNS,
@@ -3236,7 +3238,7 @@ const {
         if (!cardState || !Array.isArray(cardState.markers)) return;
         cardState.markers = cardState.markers.filter((m: any) => {
             if (m.kind !== (MARKER_KINDS ? MARKER_KINDS.SPECIAL_STONE : 'specialStone')) return true;
-            if (!m.data || (m.data.type !== 'HYPERACTIVE' && m.data.type !== 'ESCAPE_HYPERACTIVE' && m.data.type !== 'INHERITED_HYPERACTIVE' && m.data.type !== 'EXTREME_HYPERACTIVE' && m.data.type !== 'ROBOT_VACUUM' && m.data.type !== 'GLUTTONOUS' && m.data.type !== 'ULTIMATE_HYPERACTIVE' && m.data.type !== 'SNIPER' && m.data.type !== 'OBSERVER')) return true;
+            if (!m.data || (m.data.type !== 'HYPERACTIVE' && m.data.type !== 'ESCAPE_HYPERACTIVE' && m.data.type !== 'INHERITED_HYPERACTIVE' && m.data.type !== 'EXTREME_HYPERACTIVE' && m.data.type !== 'ROBOT_VACUUM' && m.data.type !== 'GLUTTONOUS' && m.data.type !== 'ULTIMATE_HYPERACTIVE' && m.data.type !== 'SNIPER' && m.data.type !== 'OBSERVER' && m.data.type !== 'THEORY_INCARNATION')) return true;
             if (findSpecialMarkerAt(cardState, m.row, m.col, 'GHOST')) return true;
             return !removeSet.has(`${m.row},${m.col}`);
         });
@@ -3563,6 +3565,7 @@ const cardsApi: any = {
         DESTROY_DRAGON_TURNS,
         LIGHTNING_WILL_TURNS,
         OBSERVER_WILL_TURNS,
+        THEORY_INCARNATION_TURNS,
         GHOST_WILL_TURNS,
         SEED_WILL_TURNS,
         WILL_HUNTER_KING_TURNS,

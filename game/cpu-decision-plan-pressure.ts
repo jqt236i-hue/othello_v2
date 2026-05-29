@@ -56,6 +56,7 @@ const CARD_TYPE_PLAN_PRESSURE_PROFILE = Object.freeze({
     GLUTTONOUS_WILL: makePlanPressureProfile(3, 4, 3, 3),
     GOLD_STONE: makePlanPressureProfile(1, 2, 0, 2),
     CRYSTAL_STONE: makePlanPressureProfile(1, 2, 1, 2),
+    THEORY_INCARNATION: makePlanPressureProfile(1, 2, 1, 2),
     RAINBOW_STONE: makePlanPressureProfile(1, 3, 0, 3),
     AFTERIMAGE_WILL: makePlanPressureProfile(0, 0, 0, 1),
     GUARDIAN_GOD: makePlanPressureProfile(0, 0, 0, 0),

@@ -303,6 +303,7 @@ interface DurationDefaults {
     ultimateDestroyGodTurns: number;
     sniperTurns: number;
     observerTurns: number;
+    theoryIncarnationTurns: number;
     ghostTurns: number;
     afterimageFlipEvadeLimit: number;
     afterimageDestroyEvadeLimit: number;
@@ -332,6 +333,7 @@ function getDurationDefaults(deps: LivingWillDeps): DurationDefaults {
         ultimateDestroyGodTurns: getNumericDefault(source.ultimateDestroyGodTurns, 5),
         sniperTurns: getNumericDefault(source.sniperTurns, 5),
         observerTurns: getNumericDefault(source.observerTurns, 5),
+        theoryIncarnationTurns: getNumericDefault(source.theoryIncarnationTurns, 10),
         ghostTurns: getNumericDefault(source.ghostTurns, 5),
         afterimageFlipEvadeLimit: getNumericDefault(source.afterimageFlipEvadeLimit, 3),
         afterimageDestroyEvadeLimit: getNumericDefault(source.afterimageDestroyEvadeLimit, 3),
@@ -385,6 +387,9 @@ function normalizeRestoreMarkerData(marker: any, ownerKey: PlayerKey, deps: Livi
         break;
     case 'OBSERVER':
         markerData.remainingOwnerTurns = defaults.observerTurns;
+        break;
+    case 'THEORY_INCARNATION':
+        markerData.remainingOwnerTurns = defaults.theoryIncarnationTurns;
         break;
     case 'GHOST':
         markerData.remainingOwnerTurns = defaults.ghostTurns;

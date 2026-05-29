@@ -1,6 +1,6 @@
 {
-  "version": "2026-05-23",
-  "generatedAt": "2026-05-23T12:37:07.207Z",
+  "version": "2026-05-29",
+  "generatedAt": "2026-05-29T13:31:47.619Z",
   "files": [
     {
       "path": "assets/images/stones/absolute_protect_next_stone-black.png",
@@ -165,6 +165,14 @@
     {
       "path": "assets/images/stones/STONE_SALVATION_GOD-white.png",
       "sha256": "02f50b48ef6f34992d8fd4f90521986284bff4f5f540888b69ce82d55e27fd64"
+    },
+    {
+      "path": "assets/images/stones/theory_incarnation-black.png",
+      "sha256": "d0dcf7deb47a4f4f1a6d009af451842e8c973444609a75d4ce0fb915c69ec75b"
+    },
+    {
+      "path": "assets/images/stones/theory_incarnation-white.png",
+      "sha256": "df48f4b1382f30258c85b4aeffde1d195de6447c50a9acf3f0e584984b6ff898"
     },
     {
       "path": "assets/images/stones/TIME_BOMB-black.png",

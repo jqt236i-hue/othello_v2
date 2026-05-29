@@ -176,6 +176,15 @@ const GAME_STONE_VISUAL_EFFECTS = {
         },
         dataAttributes: {}
     },
+    theoryIncarnationStone: {
+        cssClass: 'theory-incarnation-stone',
+        cssMethod: 'pseudoElement',
+        imagePathByOwner: {
+            '1': 'assets/images/stones/theory_incarnation-black.png',
+            '-1': 'assets/images/stones/theory_incarnation-white.png'
+        },
+        dataAttributes: {}
+    },
     ghostStone: {
         cssClass: 'hyperactive-stone',
         cssMethod: 'pseudoElement',
@@ -342,6 +351,7 @@ const PENDING_TYPE_TO_EFFECT_KEY = {
     'SNIPER_WILL': 'sniperStone',
     'LIGHTNING_WILL': 'lightningStone',
     'OBSERVER_WILL': 'observerStone',
+    'THEORY_INCARNATION': 'theoryIncarnationStone',
     'GHOST_WILL': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',
@@ -495,6 +505,7 @@ const SPECIAL_TYPE_TO_EFFECT_KEY = {
     'SNIPER': 'sniperStone',
     'LIGHTNING': 'lightningStone',
     'OBSERVER': 'observerStone',
+    'THEORY_INCARNATION': 'theoryIncarnationStone',
     'GHOST': 'ghostStone',
     'AFTERIMAGE_WILL': 'afterimageStone',
     'WILL_HUNTER_KING': 'willHunterKingStone',

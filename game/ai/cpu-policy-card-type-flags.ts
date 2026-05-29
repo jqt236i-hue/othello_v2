@@ -63,6 +63,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
         const isSupplyWill = cardType === 'SUPPLY_WILL';
         const isGoldStone = cardType === 'GOLD_STONE';
         const isCrystalStone = cardType === 'CRYSTAL_STONE';
+        const isTheoryIncarnation = cardType === 'THEORY_INCARNATION';
         const isRainbowStone = cardType === 'RAINBOW_STONE';
         const isSilverStone = cardType === 'SILVER_STONE';
         const isPlunderWill = cardType === 'PLUNDER_WILL';
@@ -107,12 +108,14 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isHyperactiveWill ||
             isInstantHyperactiveWill ||
             isUltimateDestroyGod ||
-            isUltimateHyperactiveGod
+            isUltimateHyperactiveGod ||
+            isTheoryIncarnation
         );
         const isChargeSwingCard = (
             cardType === 'PLUNDER_WILL' ||
             cardType === 'GOLD_STONE' ||
             cardType === 'CRYSTAL_STONE' ||
+            cardType === 'THEORY_INCARNATION' ||
             cardType === 'RAINBOW_STONE' ||
             cardType === 'SILVER_STONE'
         );
@@ -160,6 +163,7 @@ export function createCpuPolicyCardTypeFlags(deps?: CpuPolicyCardTypeFlagsDeps) 
             isSupplyWill,
             isGoldStone,
             isCrystalStone,
+            isTheoryIncarnation,
             isRainbowStone,
             isSilverStone,
             isPlunderWill,

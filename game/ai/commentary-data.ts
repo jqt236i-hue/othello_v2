@@ -92,6 +92,7 @@ const CARD_SUMMARY_OVERRIDES: Record<string, string> = Object.freeze({
   RAINBOW_STONE: '次の布石獲得を大きく増やす',
   SILVER_STONE: '次の布石獲得を強める',
   CRYSTAL_STONE: '数字マスの布石を増やす',
+  THEORY_INCARNATION: '数字マスの布石を継続して増やす',
   EXTEND_LIFE_WILL: '特殊石の持続を延ばす',
   EXTEND_LIFE_GOD: '特殊石の持続を大きく延ばす',
   CORROSION_WILL: '特殊石の持続を削る',

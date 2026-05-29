@@ -240,4 +240,124 @@ describe('数字マス（初期配置・配置報酬）', () => {
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
     expect(gameState.board[row][col]).toBe(Shared.BLACK);
   });
+
+  test('THEORY_INCARNATION は配置後、所有者の数字マス布石を2倍にする', () => {
+    const prng = createDeterministicPrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = {
+      board: Array(8).fill(null).map(() => Array(8).fill(Shared.EMPTY)),
+      currentPlayer: Shared.BLACK,
+      turnNumber: 1,
+      consecutivePasses: 0
+    };
+    gameState.board[2][4] = Shared.WHITE;
+    gameState.board[2][5] = Shared.BLACK;
+
+    cardState.pendingEffectByPlayer.black = { type: 'THEORY_INCARNATION', stage: 'awaitPlace' };
+    TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 2, col: 3 }, prng);
+
+    const marker = cardState.markers.find((entry) => entry && entry.kind === 'specialStone' && entry.data && entry.data.type === 'THEORY_INCARNATION');
+    expect(marker).toMatchObject({ row: 2, col: 3, owner: 'black', data: { remainingOwnerTurns: 10 } });
+
+    const targetKey = '0,0';
+    const targetBonus = Number(cardState.boardBonusByCell[targetKey] || 0);
+    expect(targetBonus).toBeGreaterThan(0);
+    gameState.board[0][1] = Shared.WHITE;
+    gameState.board[0][2] = Shared.BLACK;
+    gameState.currentPlayer = Shared.BLACK;
+    const before = Number(cardState.charge.black || 0);
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 0, col: 0 },
+      prng,
+      { skipTurnStart: true }
+    );
+
+    const bonusEvent = result.events.find((ev) => ev && ev.type === 'board_bonus_gain');
+    const placementEffects = result.events.find((ev) => ev && ev.type === 'placement_effects');
+    expect(Number(cardState.charge.black || 0) - before).toBe(1 + (targetBonus * 2));
+    expect(bonusEvent).toMatchObject({ bonus: targetBonus, gained: targetBonus * 2, multiplier: 2, boostedBy: 'THEORY_INCARNATION' });
+    expect(placementEffects.effects).toMatchObject({ theoryIncarnationUsed: true, theoryIncarnationGain: targetBonus * 2, chargeGained: 1 });
+  });
+
+  test('THEORY_INCARNATION は通常反転で特殊石状態を失い、倍率も終了する', () => {
+    const prng = createDeterministicPrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = {
+      board: Array(8).fill(null).map(() => Array(8).fill(Shared.EMPTY)),
+      currentPlayer: Shared.WHITE,
+      turnNumber: 1,
+      consecutivePasses: 0
+    };
+    gameState.board[0][0] = Shared.WHITE;
+    gameState.board[0][1] = Shared.BLACK;
+    gameState.board[0][2] = Shared.BLACK;
+    CardLogic.addMarker(cardState, 'specialStone', 0, 2, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 10 });
+
+    TurnPipeline.applyTurn(cardState, gameState, 'white', { type: 'place', row: 0, col: 3 }, prng, { skipTurnStart: true });
+
+    expect(gameState.board[0][2]).toBe(Shared.WHITE);
+    expect(cardState.markers.some((entry) => entry && entry.data && entry.data.type === 'THEORY_INCARNATION')).toBe(false);
+
+    const targetKey = '1,0';
+    const targetBonus = Number(cardState.boardBonusByCell[targetKey] || 0);
+    expect(targetBonus).toBeGreaterThan(0);
+    gameState.board[1][1] = Shared.WHITE;
+    gameState.board[1][2] = Shared.BLACK;
+    gameState.currentPlayer = Shared.BLACK;
+    const before = Number(cardState.charge.black || 0);
+    const result = TurnPipeline.applyTurn(cardState, gameState, 'black', { type: 'place', row: 1, col: 0 }, prng, { skipTurnStart: true });
+    const bonusEvent = result.events.find((ev) => ev && ev.type === 'board_bonus_gain');
+
+    expect(Number(cardState.charge.black || 0) - before).toBe(1 + targetBonus);
+    expect(bonusEvent).toMatchObject({ bonus: targetBonus, gained: targetBonus, multiplier: 1, boostedBy: null });
+  });
+
+  test('THEORY_INCARNATION は誘惑で所有者が変わると倍率対象も移る', () => {
+    const prng = createDeterministicPrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = {
+      board: Array(8).fill(null).map(() => Array(8).fill(Shared.EMPTY)),
+      currentPlayer: Shared.WHITE,
+      turnNumber: 1,
+      consecutivePasses: 0
+    };
+    gameState.board[2][2] = Shared.BLACK;
+    CardLogic.addMarker(cardState, 'specialStone', 2, 2, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 10 });
+    cardState.pendingEffectByPlayer.white = { type: 'TEMPT_WILL', stage: 'selectTarget' };
+
+    expect(CardLogic.applyTemptWill(cardState, gameState, 'white', 2, 2)).toMatchObject({ applied: true });
+    const marker = cardState.markers.find((entry) => entry && entry.data && entry.data.type === 'THEORY_INCARNATION');
+    expect(marker).toMatchObject({ owner: 'white' });
+
+    const targetKey = '0,0';
+    const targetBonus = Number(cardState.boardBonusByCell[targetKey] || 0);
+    expect(targetBonus).toBeGreaterThan(0);
+    gameState.board[0][1] = Shared.BLACK;
+    gameState.board[0][2] = Shared.WHITE;
+    gameState.currentPlayer = Shared.WHITE;
+    const before = Number(cardState.charge.white || 0);
+    const result = TurnPipeline.applyTurn(cardState, gameState, 'white', { type: 'place', row: 0, col: 0 }, prng, { skipTurnStart: true });
+    const bonusEvent = result.events.find((ev) => ev && ev.type === 'board_bonus_gain');
+
+    expect(Number(cardState.charge.white || 0) - before).toBe(1 + (targetBonus * 2));
+    expect(bonusEvent).toMatchObject({ bonus: targetBonus, gained: targetBonus * 2, multiplier: 2, boostedBy: 'THEORY_INCARNATION' });
+  });
+
+  test('THEORY_INCARNATION は所有者ターン開始で減算され、0で通常石に戻る', () => {
+    const prng = createDeterministicPrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = createInitialGameState();
+    gameState.board[0][0] = Shared.BLACK;
+    CardLogic.addMarker(cardState, 'specialStone', 0, 0, 'black', { type: 'THEORY_INCARNATION', remainingOwnerTurns: 1 });
+
+    CardLogic.onTurnStart(cardState, 'black', gameState, prng);
+
+    expect(gameState.board[0][0]).toBe(Shared.BLACK);
+    expect(cardState.markers.some((entry) => entry && entry.data && entry.data.type === 'THEORY_INCARNATION')).toBe(false);
+    expect(cardState.presentationEvents.some((event) => event && event.type === 'STATUS_REMOVED' && event.reason === 'duration_end' && event.meta && event.meta.special === 'THEORY_INCARNATION')).toBe(true);
+  });
 });

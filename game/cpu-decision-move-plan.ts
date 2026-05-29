@@ -140,6 +140,8 @@ export function createCpuDecisionMovePlan(config: CpuDecisionMovePlanConfig): an
                 maxLegalGain >= 3) ||
             (cardType === 'CRYSTAL_STONE' &&
                 maxLegalBoardBonus >= 3) ||
+            (cardType === 'THEORY_INCARNATION' &&
+                maxLegalBoardBonus >= 3) ||
             (cardType === 'PLUNDER_WILL' &&
                 maxLegalFlips >= 3 &&
                 maxLegalGain >= 3 &&

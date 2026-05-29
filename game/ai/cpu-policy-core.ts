@@ -309,7 +309,8 @@ const CHARGE_RAMP_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
         [
             'CORNER_TRIBUTE',
             'RIBO_WILL',
-            'OBSERVER_WILL'
+            'OBSERVER_WILL',
+            'THEORY_INCARNATION'
         ]
     )
     : new Set([
@@ -322,7 +323,8 @@ const CHARGE_RAMP_CARD_TYPES = (SharedCardHeuristics && typeof SharedCardHeurist
         'CORNER_TRIBUTE',
         'WORK_WILL',
         'RIBO_WILL',
-        'OBSERVER_WILL'
+        'OBSERVER_WILL',
+        'THEORY_INCARNATION'
     ]);
 
 const REBUILD_KEEP_PRIORITY_CARD_TYPES = new Set([
@@ -364,6 +366,7 @@ const STABILITY_CARD_TYPES = new Set([
     'WORK_WILL',
     'LIVING_WILL',
     'OBSERVER_WILL',
+    'THEORY_INCARNATION',
     'DESTROY_DRAGON_WILL',
     'WILL_HUNTER_KING',
     'STONE_SALVATION_GOD'
@@ -1359,6 +1362,7 @@ function scoreCardUseDecision(
         isSupplyWill,
         isGoldStone,
         isCrystalStone,
+        isTheoryIncarnation,
         isRainbowStone,
         isSilverStone,
         isPlunderWill,
@@ -1506,7 +1510,7 @@ function scoreCardUseDecision(
         ((isGoldStone || isRainbowStone || isSilverStone) &&
             maxLegalFlips >= 3 &&
             maxLegalGain >= 3) ||
-        (isCrystalStone && maxLegalBoardBonus >= 2) ||
+        ((isCrystalStone || isTheoryIncarnation) && maxLegalBoardBonus >= 2) ||
         (isPlunderWill &&
             maxLegalFlips >= 3 &&
             maxLegalGain >= 3 &&
@@ -1613,7 +1617,7 @@ function scoreCardUseDecision(
         if (
             mobilityPressureLevel >= 2 &&
             ((maxLegalFlips >= 4 && (isGoldStone || isRainbowStone || isSilverStone)) ||
-                (maxLegalBoardBonus >= 2 && isCrystalStone) ||
+                (maxLegalBoardBonus >= 2 && (isCrystalStone || isTheoryIncarnation)) ||
                 isGluttonousWill)
         ) {
             score += 84;
@@ -1781,11 +1785,11 @@ function scoreCardUseDecision(
         if (criticalLowDiscEmergency && maxLegalFlips >= 3) score += 48;
     }
 
-    if (isCrystalStone) {
+    if (isCrystalStone || isTheoryIncarnation) {
         const multiplier = 2;
         const gross = maxLegalBoardBonus * multiplier;
         const net = gross - cardCost;
-        score -= 18;
+        score -= isTheoryIncarnation ? 8 : 18;
         score += net * 7;
         if (maxLegalBoardBonus <= 0 && !ctx.forceUseCard) {
             score -= 360;
@@ -1808,6 +1812,7 @@ function scoreCardUseDecision(
         if (cornerEmergency && maxLegalBoardBonus <= 1) score -= 55;
         if (endgamePhase && maxLegalBoardBonus <= 1) score -= 45;
         if (criticalLowDiscEmergency && maxLegalBoardBonus >= 2) score += 42;
+        if (isTheoryIncarnation && !endgamePhase) score += 80;
     }
 
     if (isPlunderWill) {
@@ -2568,6 +2573,7 @@ function scoreCardRetentionPriority(
         isChainWill,
         isGoldStone,
         isCrystalStone,
+        isTheoryIncarnation,
         isRainbowStone,
         isSilverStone,
         isPlunderWill,

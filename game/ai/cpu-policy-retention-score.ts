@@ -68,6 +68,7 @@ type CpuPolicyRetentionFlags = {
     isChainWill: boolean;
     isGoldStone: boolean;
     isCrystalStone: boolean;
+    isTheoryIncarnation: boolean;
     isRainbowStone: boolean;
     isSilverStone: boolean;
     isPlunderWill: boolean;
@@ -157,6 +158,7 @@ export function createCpuPolicyRetentionScore() {
             isChainWill,
             isGoldStone,
             isCrystalStone,
+            isTheoryIncarnation,
             isRainbowStone,
             isSilverStone,
             isPlunderWill,
@@ -305,11 +307,12 @@ export function createCpuPolicyRetentionScore() {
             else if (maxLegalGain <= 2) score -= 30;
             else score += Math.min(isRainbowStone ? 110 : 80, maxLegalGain * (isRainbowStone ? 12 : 10));
         }
-        if (isCrystalStone) {
+        if (isCrystalStone || isTheoryIncarnation) {
             if (maxLegalBoardBonus <= 0) score -= 150;
             else if (maxLegalBoardBonus === 1) score -= 40;
             else score += Math.min(104, maxLegalBoardBonus * 30);
             if (ctx.highBonusMoveAvailable === true) score += 20;
+            if (isTheoryIncarnation && ctx.empties >= 18) score += 45;
         }
         if (isHeavenBlessing) {
             score += 30;

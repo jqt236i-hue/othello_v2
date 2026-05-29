@@ -214,6 +214,10 @@
             name: '盤理の観測者石',
             desc: 'ターン開始時、一定確率で布石を得る。'
         }),
+        THEORY_INCARNATION: Object.freeze({
+            name: '理論の化身',
+            desc: '所有者の数字マス布石獲得を2倍にする。'
+        }),
         GHOST: Object.freeze({
             name: '幽体石',
             desc: '反転や破壊の対象になるが、その効果を受けない。',

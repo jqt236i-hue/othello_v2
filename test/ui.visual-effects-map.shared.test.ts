@@ -157,6 +157,21 @@ describe('visual-effects map shared between game/ui', () => {
     expect(lightningMap.imagePathByOwner['-1']).toContain('rakurai-white.png');
   });
 
+  test('THEORY_INCARNATION が理論の化身画像へ解決される', async () => {
+    require('../ui/visual-effects-map');
+    require('../game/visual-effects-map');
+
+    const shared = window.GameVisualEffectsMap;
+    expect(shared).toBeTruthy();
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.THEORY_INCARNATION).toBe('theoryIncarnationStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.THEORY_INCARNATION).toBe('theoryIncarnationStone');
+
+    const theoryMap = shared.STONE_VISUAL_EFFECTS.theoryIncarnationStone;
+    expect(theoryMap).toBeTruthy();
+    expect(theoryMap.imagePathByOwner['1']).toContain('theory_incarnation-black.png');
+    expect(theoryMap.imagePathByOwner['-1']).toContain('theory_incarnation-white.png');
+  });
+
   test('GLUTTONOUS_WILL と GLUTTONOUS が悪食石画像へ解決される', async () => {
     require('../ui/visual-effects-map');
     require('../game/visual-effects-map');

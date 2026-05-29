@@ -31,6 +31,7 @@ interface Constants {
     DESTROY_DRAGON_TURNS: any;
     LIGHTNING_WILL_TURNS: any;
     OBSERVER_WILL_TURNS: any;
+    THEORY_INCARNATION_TURNS: any;
     GHOST_WILL_TURNS: any;
     PROLIFERATION_WILL_TURNS: any;
     SEED_WILL_TURNS: number;
@@ -92,6 +93,7 @@ function getConstants(context: Context): Constants {
         DESTROY_DRAGON_TURNS: constants.DESTROY_DRAGON_TURNS,
         LIGHTNING_WILL_TURNS: constants.LIGHTNING_WILL_TURNS,
         OBSERVER_WILL_TURNS: constants.OBSERVER_WILL_TURNS,
+        THEORY_INCARNATION_TURNS: constants.THEORY_INCARNATION_TURNS,
         GHOST_WILL_TURNS: constants.GHOST_WILL_TURNS,
         PROLIFERATION_WILL_TURNS: constants.PROLIFERATION_WILL_TURNS,
         SEED_WILL_TURNS: Number.isFinite(Number(constants.SEED_WILL_TURNS))
@@ -544,7 +546,7 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
             }
             continue;
         }
-        if ((dataType === 'GUARD' || dataType === 'BLOCKADE' || dataType === 'FREEZE' || dataType === 'GHOST' || dataType === 'PROLIFERATION' || dataType === 'STONE_SALVATION_GOD') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
+        if ((dataType === 'GUARD' || dataType === 'BLOCKADE' || dataType === 'FREEZE' || dataType === 'GHOST' || dataType === 'PROLIFERATION' || dataType === 'STONE_SALVATION_GOD' || dataType === 'THEORY_INCARNATION') && marker.owner === playerKey && typeof data.remainingOwnerTurns === 'number') {
             data.remainingOwnerTurns -= 1;
             if (data.remainingOwnerTurns <= 0 && typeof helpers.removeMarkersAt === 'function') {
                 if (dataType === 'GHOST') {
@@ -585,6 +587,26 @@ function onTurnStart(cardState: any, playerKey: string, gameState: any, prng: an
                         marker.row,
                         marker.col,
                         'STONE_SALVATION_GOD',
+                        marker.owner,
+                        'SYSTEM',
+                        'duration_end',
+                        {
+                            special: data.type,
+                            owner: marker.owner,
+                            timer: 0
+                        }
+                    );
+                    if (revertRes && revertRes.reverted) {
+                        continue;
+                    }
+                }
+                if (dataType === 'THEORY_INCARNATION' && BoardOpsModule && typeof BoardOpsModule.revertSpecialStoneAt === 'function') {
+                    const revertRes = BoardOpsModule.revertSpecialStoneAt(
+                        cardState,
+                        gameState,
+                        marker.row,
+                        marker.col,
+                        'THEORY_INCARNATION',
                         marker.owner,
                         'SYSTEM',
                         'duration_end',
@@ -794,6 +816,17 @@ function applyPlacementEffects(cardState: any, gameState: any, playerKey: string
             remainingOwnerTurns: constants.OBSERVER_WILL_TURNS
         });
         effects.observerPlaced = true;
+    }
+
+    if (pending && pending.type === 'THEORY_INCARNATION' && typeof helpers.addMarker === 'function') {
+        const remainingOwnerTurns = Number.isFinite(Number(constants.THEORY_INCARNATION_TURNS))
+            ? Math.max(1, Math.trunc(Number(constants.THEORY_INCARNATION_TURNS)))
+            : 10;
+        helpers.addMarker(cardState, specialStoneKind, row, col, playerKey, {
+            type: 'THEORY_INCARNATION',
+            remainingOwnerTurns
+        });
+        effects.theoryIncarnationPlaced = true;
     }
 
     if (pending && pending.type === 'GHOST_WILL' && typeof helpers.addMarker === 'function') {

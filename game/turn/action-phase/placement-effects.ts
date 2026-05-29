@@ -21,6 +21,18 @@ function resolvePlacementEffects(options: ResolvePlacementEffectsOptions): any {
     if (!opts.othelloMode && opts.numberCellMultiplierConfig && effects && opts.numberCellMultiplierConfig.gainField && opts.boardBonusGained > 0) {
         effects[opts.numberCellMultiplierConfig.effectFlag] = true;
         effects[opts.numberCellMultiplierConfig.gainField] = opts.boardBonusGained;
+        const extraEffectFlags = Array.isArray(opts.numberCellMultiplierConfig.extraEffectFlags)
+            ? opts.numberCellMultiplierConfig.extraEffectFlags
+            : [];
+        const extraGainFields = Array.isArray(opts.numberCellMultiplierConfig.extraGainFields)
+            ? opts.numberCellMultiplierConfig.extraGainFields
+            : [];
+        for (const flag of extraEffectFlags) {
+            if (flag) effects[flag] = true;
+        }
+        for (const field of extraGainFields) {
+            if (field) effects[field] = opts.boardBonusGained;
+        }
     }
 
     opts.events.push({

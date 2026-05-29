@@ -53,6 +53,49 @@ function emitFlipEvadeEvents(events: any[], flipEvadeResult: any): void {
     }
 }
 
+function getOwnerValue(Core: any, ownerKey: string): any {
+    return ownerKey === 'white' ? Core.WHITE : Core.BLACK;
+}
+
+function hasActiveTheoryIncarnationForPlayer(cardState: any, gameState: any, playerKey: string, Core: any): boolean {
+    const markers = cardState && Array.isArray(cardState.markers) ? cardState.markers : [];
+    const ownerValue = getOwnerValue(Core, playerKey);
+    for (const marker of markers) {
+        if (!marker || marker.kind !== 'specialStone' || marker.owner !== playerKey) continue;
+        const data = marker.data || {};
+        if (String(data.type || '').toUpperCase() !== 'THEORY_INCARNATION') continue;
+        if (Number.isFinite(Number(data.remainingOwnerTurns)) && Number(data.remainingOwnerTurns) <= 0) continue;
+        const boardRow = gameState && gameState.board ? gameState.board[marker.row] : null;
+        if (!Array.isArray(boardRow) || boardRow[marker.col] !== ownerValue) continue;
+        return true;
+    }
+    return false;
+}
+
+function buildNumberCellMultiplierConfig(pendingConfig: any, theoryActive: boolean): any {
+    const configs: any[] = [];
+    if (pendingConfig) configs.push(pendingConfig);
+    if (theoryActive) {
+        configs.push({
+            multiplier: 2,
+            effectFlag: 'theoryIncarnationUsed',
+            gainField: 'theoryIncarnationGain',
+            boostedBy: 'THEORY_INCARNATION'
+        });
+    }
+    if (!configs.length) return null;
+    if (configs.length === 1) return configs[0];
+    const multiplier = configs.reduce((value, config) => value * Number(config.multiplier || 1), 1);
+    return {
+        multiplier,
+        effectFlag: configs[0].effectFlag,
+        gainField: configs[0].gainField,
+        extraEffectFlags: configs.slice(1).map((config) => config.effectFlag).filter(Boolean),
+        extraGainFields: configs.slice(1).map((config) => config.gainField).filter(Boolean),
+        boostedBy: configs.map((config) => config.boostedBy || null).filter(Boolean).join('+')
+    };
+}
+
 function resolvePlacementAction(options: ResolvePlacementActionOptions): ResolvePlacementActionResult {
     const opts = (options && typeof options === 'object') ? options : ({} as ResolvePlacementActionOptions);
     const action = opts.action || {};
@@ -180,12 +223,18 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
         ? opts.cardState.boardBonusByCell
         : null;
     const pendingPlacementType = opts.getPendingEffectTypeForActionPhase(opts.CardLogic, opts.cardState, opts.playerKey);
-    const numberCellMultiplierConfig = (
+    const pendingNumberCellMultiplierConfig = (
         pendingPlacementType &&
         opts.CardLogic &&
         opts.CardLogic.NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS &&
         opts.CardLogic.NUMBER_CELL_CHARGE_MULTIPLIER_EFFECTS[pendingPlacementType]
     ) || null;
+    const numberCellMultiplierConfig = buildNumberCellMultiplierConfig(
+        pendingNumberCellMultiplierConfig
+            ? Object.assign({}, pendingNumberCellMultiplierConfig, { boostedBy: pendingPlacementType })
+            : null,
+        hasActiveTheoryIncarnationForPlayer(opts.cardState, opts.gameState, opts.playerKey, opts.Core)
+    );
     let boardBonusGained = 0;
     if (!opts.cardState.boardBonusConsumedByCell || typeof opts.cardState.boardBonusConsumedByCell !== 'object') {
         opts.cardState.boardBonusConsumedByCell = {};
@@ -215,7 +264,9 @@ function resolvePlacementAction(options: ResolvePlacementActionOptions): Resolve
             bonus: bonusValue,
             gained,
             multiplier: numberCellMultiplierConfig ? Number(numberCellMultiplierConfig.multiplier || 1) : 1,
-            boostedBy: numberCellMultiplierConfig ? pendingPlacementType : null
+            boostedBy: numberCellMultiplierConfig
+                ? (numberCellMultiplierConfig.boostedBy || pendingPlacementType || null)
+                : null
         });
     }
 
