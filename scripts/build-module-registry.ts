@@ -146,6 +146,16 @@ function appendRegisteredModuleWithJsAlias(lines: string[], moduleKey: string, c
     }
 }
 
+function resolveBrowserModuleSourcePath(rootDir: string, distDir: string, rel: string): string {
+    if (rel.endsWith('.runtime.js')) {
+        const rootRuntimePath = path.join(rootDir, rel);
+        if (fs.existsSync(rootRuntimePath)) {
+            return rootRuntimePath;
+        }
+    }
+    return path.join(distDir, rel);
+}
+
 function collectRootRuntimeModules(rootDir: string): string[] {
     const rootJsFiles: string[] = [];
     for (const prefix of BROWSER_MODULE_PREFIXES) {
@@ -210,7 +220,7 @@ function buildRegistry(options?: BuildRegistryOptions): BuildRegistryResult | nu
             continue;
         }
 
-        const fullPath = path.join(distDir, rel);
+        const fullPath = resolveBrowserModuleSourcePath(rootDir, distDir, rel);
         let content: string;
         try {
             content = fs.readFileSync(fullPath, 'utf8');

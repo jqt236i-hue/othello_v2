@@ -1,3 +1,3 @@
 "use strict";
 /** @type {any} */
-module.exports = require('../dist/game/visual-effects-map');
+module.exports = require('./visual-effects-map.runtime');

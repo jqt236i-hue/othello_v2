@@ -297,6 +297,34 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('createCardFaceElement composites theory incarnation special art', () => {
+    const dom = createRendererContext();
+    const { window } = dom;
+    window.GameVisualEffectsMap = require('../game/visual-effects-map');
+
+    window.CARD_DEFS = [
+      {
+        id: 'theory_incarnation',
+        name: '理論の化身',
+        desc: 'd',
+        cost: 25,
+        type: 'THEORY_INCARNATION',
+        display_type_ja: '特殊石'
+      }
+    ];
+
+    const blackCardEl = window.createCardFaceElement('theory_incarnation', { ownerKey: 'black' });
+    const whiteCardEl = window.createCardFaceElement('theory_incarnation', { ownerKey: 'white' });
+
+    expect(blackCardEl.classList.contains('has-special-art')).toBe(true);
+    expect(whiteCardEl.classList.contains('has-special-art')).toBe(true);
+    expect(blackCardEl.style.getPropertyValue('--card-special-art-image')).toContain('theory_incarnation-black.png');
+    expect(whiteCardEl.style.getPropertyValue('--card-special-art-image')).toContain('theory_incarnation-white.png');
+    expect(blackCardEl.dataset.cardVisualEffect).toBe('theoryIncarnationStone');
+
+    dom.window.close();
+  });
+
   test('createCardFaceElement uses blockade image override for blockade will cards', () => {
     const dom = createRendererContext();
     const { window } = dom;

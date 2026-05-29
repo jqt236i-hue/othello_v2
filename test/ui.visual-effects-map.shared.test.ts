@@ -172,6 +172,15 @@ describe('visual-effects map shared between game/ui', () => {
     expect(theoryMap.imagePathByOwner['-1']).toContain('theory_incarnation-white.png');
   });
 
+  test('CommonJS wrapper also exposes THEORY_INCARNATION visuals from the root runtime map', () => {
+    jest.resetModules();
+    const shared = require('../game/visual-effects-map.js');
+
+    expect(shared.PENDING_TYPE_TO_EFFECT_KEY.THEORY_INCARNATION).toBe('theoryIncarnationStone');
+    expect(shared.SPECIAL_TYPE_TO_EFFECT_KEY.THEORY_INCARNATION).toBe('theoryIncarnationStone');
+    expect(shared.resolveCardVisualImagePath('THEORY_INCARNATION', { owner: '1' })).toContain('theory_incarnation-black.png');
+  });
+
   test('GLUTTONOUS_WILL と GLUTTONOUS が悪食石画像へ解決される', async () => {
     require('../ui/visual-effects-map');
     require('../game/visual-effects-map');
