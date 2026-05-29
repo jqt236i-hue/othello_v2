@@ -1071,7 +1071,7 @@ function _resolveStoneInfoTagMeaningKey(tag: any) {
     if (key.startsWith('反転回避')) return '反転回避';
     if (key.startsWith('破壊回避')) return '破壊回避';
     if (key.startsWith('復活')) return '復活';
-    if (/^残り\d+ターン$/.test(key)) return '残りターン';
+    if (/^残り\d+(?:ターン|T)$/.test(key)) return '残りターン';
     return key;
 }
 

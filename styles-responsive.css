@@ -965,7 +965,7 @@ html.sim-aspect-5-4 #effect-live-panel {
 }
 
 #stone-info-panel {
-    left: var(--profile-effect-left);
+    left: var(--profile-stone-info-left);
     top: var(--profile-effect-top);
     transform: translateY(calc(-100% - calc(8px * var(--layout-stage-scale))));
     width: var(--profile-stone-info-width);
@@ -1177,7 +1177,7 @@ html.sim-aspect-5-4 #effect-live-panel {
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #stone-info-panel {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
+        left: var(--profile-stone-info-left);
         top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
         transform: translateY(calc(-100% - calc(8px * var(--layout-stage-scale))));
         width: var(--profile-stone-info-width);

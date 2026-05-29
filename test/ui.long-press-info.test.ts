@@ -252,7 +252,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-desc').textContent).toContain('カウント終了時に時間停止を発動する。');
     expect(document.getElementById('stone-info-desc').textContent).not.toContain('3回目');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('残り4ターン');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り4T');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
   });
 
@@ -298,7 +298,7 @@ describe('board cell long press info', () => {
 
     expect(document.getElementById('stone-info-name').textContent).toBe('究極多動神');
     expect(document.getElementById('stone-info-desc').textContent).toContain('ターン開始時に大きく移動し、移動後に反転する。');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('残り10ターン');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り10T');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り3回');
@@ -321,7 +321,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-name').textContent).toBe('幽体石');
     expect(document.getElementById('stone-info-desc').textContent).toContain('反転や破壊の対象になるが、その効果を受けない。');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('残り5ターン');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り5T');
     expect(document.getElementById('stone-info-meta').textContent).toContain('幽体');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('反転保護');
     expect(document.getElementById('stone-info-meta').textContent).not.toContain('破壊保護');
@@ -348,7 +348,9 @@ describe('board cell long press info', () => {
     expect(tagButtons.length).toBeGreaterThan(0);
 
     const evadeTagButton = tagButtons.find((el) => el.textContent.startsWith('反転回避'));
+    const remainingTurnTagButton = tagButtons.find((el) => el.textContent.startsWith('残り10T'));
     expect(evadeTagButton).toBeTruthy();
+    expect(remainingTurnTagButton).toBeTruthy();
 
     evadeTagButton.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
     const tagPanel = document.getElementById('stone-info-tag-panel');
@@ -359,6 +361,11 @@ describe('board cell long press info', () => {
 
     evadeTagButton.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
     expect(tagPanel.classList.contains('is-open')).toBe(false);
+
+    remainingTurnTagButton.dispatchEvent(new Event('click', { bubbles: true, cancelable: true }));
+    expect(tagPanel.classList.contains('is-open')).toBe(true);
+    expect(document.getElementById('stone-info-tag-title').textContent).toBe('残り10T');
+    expect(document.getElementById('stone-info-tag-body').textContent).toContain('ターン数');
   });
 
   test('long press adds 多動状態/反転回避 tags for hyperactive-family stones', () => {
@@ -390,9 +397,9 @@ describe('board cell long press info', () => {
       expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
       expect(document.getElementById('stone-info-meta').textContent).toContain('多動状態');
       if (target.type === 'INHERITED_HYPERACTIVE') {
-        expect(document.getElementById('stone-info-meta').textContent).not.toContain('残り10ターン');
+        expect(document.getElementById('stone-info-meta').textContent).not.toContain('残り10T');
       } else {
-        expect(document.getElementById('stone-info-meta').textContent).toContain('残り10ターン');
+        expect(document.getElementById('stone-info-meta').textContent).toContain('残り10T');
       }
       expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り1回');
     });
@@ -417,7 +424,7 @@ describe('board cell long press info', () => {
     expect(shown).toBe(true);
     expect(document.getElementById('stone-info-name').textContent).toBe('意志狩りの王');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('残り8ターン');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り8T');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り2回');
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避 残り2回');
   });
@@ -533,7 +540,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転保護');
     expect(document.getElementById('stone-info-meta').textContent).toContain('多動状態');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('残り4ターン');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り4T');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り1回');
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避 残り1回');
   });
@@ -559,7 +566,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-desc').textContent).toContain('多動状態が付与されている。');
     expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
     expect(document.getElementById('stone-info-meta').textContent).toContain('特殊石');
-    expect(document.getElementById('stone-info-meta').textContent).not.toContain('残り10ターン');
+    expect(document.getElementById('stone-info-meta').textContent).not.toContain('残り10T');
     expect(document.getElementById('stone-info-meta').textContent).toContain('反転回避 残り1回');
     expect(document.getElementById('stone-info-meta').textContent).toContain('破壊回避 残り1回');
   });
@@ -609,7 +616,7 @@ describe('board cell long press info', () => {
     expect(document.getElementById('stone-info-name').textContent).toBe('盤理の観測者石');
     expect(document.getElementById('stone-info-desc').textContent).toContain('ターン開始時、一定確率で布石を得る。');
     expect(document.getElementById('stone-info-desc').textContent).not.toContain('未登録');
-    expect(document.getElementById('stone-info-meta').textContent).toContain('残り5ターン');
+    expect(document.getElementById('stone-info-meta').textContent).toContain('残り5T');
   });
 
   test('long press on METEOR_HOLE shows registered meteor hole info', () => {

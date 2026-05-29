@@ -224,7 +224,7 @@
             || snapshots.some((snapshot) => normalizeSpecialStoneType(snapshot && snapshot.type) === 'INHERITED_HYPERACTIVE')
         )) tags.push('特殊石');
         if (displayTimer !== null && primaryType === 'REGEN') tags.push(`復活 残り${displayTimer}回`);
-        else if (displayTimer !== null) tags.push(`残り${displayTimer}ターン`);
+        else if (displayTimer !== null) tags.push(`残り${displayTimer}T`);
         if (livingWillAura) tags.push('生きる意志付与');
         if (primarySnapshot && primarySnapshot.hasGhost) tags.push('幽体');
         if (snapshots.some((snapshot) => snapshot.hasMobility)) tags.push('多動状態');

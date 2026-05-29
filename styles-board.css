@@ -1320,7 +1320,7 @@ body.othello-mode-active :is(
 
 .stone-info-panel {
     position: fixed;
-    left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
+    left: var(--profile-stone-info-left);
     top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
     z-index: 11992;
     display: none;
