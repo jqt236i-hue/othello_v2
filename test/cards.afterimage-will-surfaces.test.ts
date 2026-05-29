@@ -4,7 +4,7 @@ const generator = require(path.resolve(__dirname, '..', 'scripts', 'generate-cat
 
 const EXPECTED_BASE_CARD = Object.freeze({
   id: 'afterimage_will_01',
-  name_ja: '残像の意志',
+  name_ja: '避ける意志',
   type: 'AFTERIMAGE_WILL',
   cost: 8,
   desc_ja: '次に置く石は反転または破壊されたとき3回まで復活する、復活後挟める列があれば反転させる。',
@@ -13,7 +13,7 @@ const EXPECTED_BASE_CARD = Object.freeze({
 
 const EXPECTED_BROWSER_CARD = Object.freeze({
   ...EXPECTED_BASE_CARD,
-  name: '残像の意志',
+  name: '避ける意志',
   desc: '次に置く石は反転または破壊されたとき3回まで復活する、復活後挟める列があれば反転させる。'
 });
 

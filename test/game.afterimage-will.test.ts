@@ -21,7 +21,7 @@ function createState(randomValue = 0) {
   return { cardState, gameState, prng };
 }
 
-describe('AFTERIMAGE_WILL（残像の意志）', () => {
+describe('AFTERIMAGE_WILL（避ける意志）', () => {
   test('配置時に残像石マーカーと3/3回避回数が付く', () => {
     const { cardState, gameState } = createState();
 

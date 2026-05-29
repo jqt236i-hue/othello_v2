@@ -156,7 +156,7 @@ describe('card detail effect tags', () => {
 
     const cardDef = {
       id: 'afterimage_will_01',
-      name: '残像の意志',
+      name: '避ける意志',
       type: 'AFTERIMAGE_WILL',
       cost: 8,
       desc: '次に置く石を残像石化する。'

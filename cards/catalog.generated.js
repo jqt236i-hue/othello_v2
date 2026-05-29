@@ -54,7 +54,7 @@ window.CardCatalog = {
     },
     {
       "id": "afterimage_will_01",
-      "name_ja": "残像の意志",
+      "name_ja": "避ける意志",
       "type": "AFTERIMAGE_WILL",
       "cost": 8,
       "desc_ja": "次に置く石は反転または破壊されたとき3回まで復活する、復活後挟める列があれば反転させる。",

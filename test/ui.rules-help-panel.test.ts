@@ -296,7 +296,7 @@ describe('rules help panel', () => {
     global.CardInteractionEffects = window.CardInteractionEffects;
     window.CardCatalog = {
       cards: [
-        { id: 'afterimage_will_01', name: '残像の意志', type: 'AFTERIMAGE_WILL', cost: 1, desc: '効果A' },
+        { id: 'afterimage_will_01', name: '避ける意志', type: 'AFTERIMAGE_WILL', cost: 1, desc: '効果A' },
         { id: 'guard_01', name: '守る意志', type: 'GUARD_WILL', cost: 4, desc: '効果B' }
       ]
     };

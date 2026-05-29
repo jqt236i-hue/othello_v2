@@ -44,7 +44,7 @@
 - 狙撃の意志 (`SNIPER_WILL`)
 - 弱い意志 (`PROTECTED_NEXT_STONE`)
 - 幽霊の意志 (`GHOST_WILL`)
-- 残像の意志 (`AFTERIMAGE_WILL`)
+- 避ける意志 (`AFTERIMAGE_WILL`)
 - 交換の意志 (`SWAP_WITH_ENEMY`)
 - 入替の意志 (`POSITION_SWAP_WILL`)
 - 強い意志 (`PERMA_PROTECT_NEXT_STONE`)
