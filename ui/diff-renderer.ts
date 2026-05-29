@@ -724,6 +724,8 @@ const STONE_INFO_TAG_MEANINGS: Record<string, string> = Object.freeze({
     '多動状態': '両者ターン開始時にマス移動する状態。',
     '反転回避': '反転対象になったとき、マス移動でその石だけ回避する。',
     '破壊回避': '破壊対象になったとき、空きマスへ移動してその石だけ回避する。',
+    '復活': '失われた時に元の色や状態へ戻る。',
+    '残りターン': 'この石状態や特殊石効果が残っているターン数。',
     '特殊石': '通常石画像を使わない石。normal_stone-black.png / normal_stone-white.png 以外の見た目の石。',
     '繁殖生成石': '繁殖の意志でそのターンに新規生成された通常石。次の同一所有者ターン開始まで小さめの双葉表示になる。',
     '幽体': '反転・石破壊の対象にはなるが、その石自身は受けない。交換の意志の対象外で、入替や他の効果は通常どおり受ける。',
@@ -947,6 +949,16 @@ function _closeStoneInfoTagPanel() {
     _stoneInfoTagPanelState = { open: false, key: null };
 }
 
+function _resolveStoneInfoTagMeaningKey(tag: any) {
+    const key = String(tag || '').trim();
+    if (!key) return '';
+    if (key.startsWith('反転回避')) return '反転回避';
+    if (key.startsWith('破壊回避')) return '破壊回避';
+    if (key.startsWith('復活')) return '復活';
+    if (/^残り\d+ターン$/.test(key)) return '残りターン';
+    return key;
+}
+
 function _toggleStoneInfoTagPanel(tag: any) {
     const key = String(tag || '').trim();
     if (!key) return false;
@@ -959,7 +971,8 @@ function _toggleStoneInfoTagPanel(tag: any) {
 
     const refs = _ensureStoneInfoTagPanel();
     if (!refs || !refs.root || !refs.title || !refs.body) return false;
-    const meaning = STONE_INFO_TAG_MEANINGS[key] || `${key}の説明は未登録です。`;
+    const meaningKey = _resolveStoneInfoTagMeaningKey(key);
+    const meaning = STONE_INFO_TAG_MEANINGS[meaningKey] || `${key}の説明は未登録です。`;
     refs.title.textContent = key;
     refs.body.textContent = meaning;
     refs.root.classList.add('is-open');

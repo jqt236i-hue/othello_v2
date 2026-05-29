@@ -206,17 +206,32 @@
             : null;
         const livingWillAura = !!((opts && opts.livingWillAura) || snapshots.some((snapshot) => isLivingWillType(snapshot && snapshot.type)));
         const tags: string[] = [];
+        const sumCounters = (field: 'flipEvadeRemaining' | 'destroyEvadeRemaining'): number | null => {
+            const values = snapshots
+                .map((snapshot) => toCounterOrNull(snapshot && snapshot[field]))
+                .filter((value): value is number => value !== null && value > 0);
+            if (values.length <= 0) return null;
+            return values.reduce((sum, value) => sum + value, 0);
+        };
+        const displayTimer = primarySnapshot ? toCounterOrNull(primarySnapshot.displayTimer) : null;
+        const primaryType = normalizeSpecialStoneType(primarySnapshot && primarySnapshot.type);
+        const flipEvadeTotal = sumCounters('flipEvadeRemaining');
+        const destroyEvadeTotal = sumCounters('destroyEvadeRemaining');
 
         if (opts && opts.hasGuard) tags.push('守る意志適用中');
         if ((!opts || opts.includeSpecialStone !== false) && (
             nonOverlaySnapshots.length > 0
             || snapshots.some((snapshot) => normalizeSpecialStoneType(snapshot && snapshot.type) === 'INHERITED_HYPERACTIVE')
         )) tags.push('特殊石');
+        if (displayTimer !== null && primaryType === 'REGEN') tags.push(`復活 残り${displayTimer}回`);
+        else if (displayTimer !== null) tags.push(`残り${displayTimer}ターン`);
         if (livingWillAura) tags.push('生きる意志付与');
         if (primarySnapshot && primarySnapshot.hasGhost) tags.push('幽体');
         if (snapshots.some((snapshot) => snapshot.hasMobility)) tags.push('多動状態');
-        if (snapshots.some((snapshot) => snapshot.hasFlipEvade)) tags.push('反転回避');
-        if (snapshots.some((snapshot) => snapshot.hasDestroyEvade)) tags.push('破壊回避');
+        if (flipEvadeTotal !== null) tags.push(`反転回避 残り${flipEvadeTotal}回`);
+        else if (snapshots.some((snapshot) => snapshot.hasFlipEvade)) tags.push('反転回避');
+        if (destroyEvadeTotal !== null) tags.push(`破壊回避 残り${destroyEvadeTotal}回`);
+        else if (snapshots.some((snapshot) => snapshot.hasDestroyEvade)) tags.push('破壊回避');
         if (primarySnapshot && !primarySnapshot.hasGhost && primarySnapshot.hasFlipProtection) tags.push('反転保護');
         if (primarySnapshot && !primarySnapshot.hasGhost && primarySnapshot.hasDestroyProtection) tags.push('破壊保護');
 
