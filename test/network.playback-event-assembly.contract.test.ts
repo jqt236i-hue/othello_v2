@@ -1223,13 +1223,13 @@ function buildPlaybackParityFixtures() {
         col: 2,
         owner: 'white',
         data: {
-          type: 'FREEZE',
-          sourceType: 'FREEZE_WILL',
-          sourceCardId: 'freeze_01',
-          remainingOwnerTurns: 2
+          type: 'DRAGON',
+          sourceType: 'ULTIMATE_REVERSE_DRAGON',
+          sourceCardId: 'ultimate_reverse_dragon_01',
+          remainingOwnerTurns: 4
         }
       }],
-      expectedHandAdd: { player: 'black', cardId: 'freeze_01', reason: 'capture_will' }
+      expectedHandAdd: { player: 'black', cardId: 'ultimate_reverse_dragon_01', reason: 'capture_will' }
     }),
     buildWorkIncomeFixture(),
     buildObserverAnchorLostFixture(),
@@ -1301,7 +1301,25 @@ function normalizePlaybackTargetForParity(target) {
       }
       : null,
     moveIntent: target.moveIntent || meta.moveIntent || null,
-    special: target.special || meta.special || null
+    special: target.special || meta.special || null,
+    before: normalizePlaybackVisualStateForParity(target.before),
+    after: normalizePlaybackVisualStateForParity(target.after)
+  };
+}
+
+function normalizePlaybackVisualStateForParity(state) {
+  if (!state || typeof state !== 'object') return null;
+  return {
+    color: Number.isFinite(Number(state.color)) ? Number(state.color) : null,
+    owner: state.owner || null,
+    special: state.special || null,
+    timer: Number.isFinite(Number(state.timer)) ? Number(state.timer) : null,
+    inheritedTimer: Number.isFinite(Number(state.inheritedTimer)) ? Number(state.inheritedTimer) : null,
+    inheritedOwner: state.inheritedOwner || null,
+    flipEvadeRemaining: Number.isFinite(Number(state.flipEvadeRemaining)) ? Number(state.flipEvadeRemaining) : null,
+    inheritedFlipEvadeRemaining: Number.isFinite(Number(state.inheritedFlipEvadeRemaining)) ? Number(state.inheritedFlipEvadeRemaining) : null,
+    destroyEvadeRemaining: Number.isFinite(Number(state.destroyEvadeRemaining)) ? Number(state.destroyEvadeRemaining) : null,
+    livingWillAura: state.livingWillAura === true
   };
 }
 
@@ -1725,6 +1743,7 @@ describe('network playback event assembly contract', () => {
             col: 3,
             sourceRow: 2,
             sourceCol: 2,
+            ownerBefore: 'white',
             projectileOwner: 'black',
             projectileStone: 'SNIPER'
           }]
@@ -1765,7 +1784,12 @@ describe('network playback event assembly contract', () => {
             r: 2,
             col: 3,
             cause: 'SNIPER_WILL',
-            reason: 'sniper_shot'
+            reason: 'sniper_shot',
+            ownerBefore: 'white',
+            before: expect.objectContaining({
+              color: -1,
+              owner: 'white'
+            })
           })
         ])
       }),
@@ -2149,6 +2173,30 @@ describe('network playback event assembly contract', () => {
             ])
           })
         ]));
+        const moveEvent = expected.playbackEvents.find((event) => (
+          event &&
+          event.type === 'move' &&
+          Array.isArray(event.targets) &&
+          event.targets.some((target) => target && target.cause === fixture.name)
+        ));
+        const moveTarget = moveEvent && moveEvent.targets.find((target) => target && target.cause === fixture.name);
+        expect({
+          name: fixture.name,
+          before: moveTarget && moveTarget.before,
+          after: moveTarget && moveTarget.after
+        }).toEqual({
+          name: fixture.name,
+          before: expect.objectContaining({
+            color: expect.any(Number),
+            owner: expect.any(String)
+          }),
+          after: expect.objectContaining({
+            color: expect.any(Number),
+            owner: expect.any(String)
+          })
+        });
+        expect([1, -1]).toContain(moveTarget.before.color);
+        expect([1, -1]).toContain(moveTarget.after.color);
       }
       if (fixture.expectedStatusApplied) {
         expect(expected.playbackEvents).toEqual(expect.arrayContaining([

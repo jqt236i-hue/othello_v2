@@ -1478,6 +1478,7 @@ var AnimationShared = (AnimationResolver && typeof AnimationResolver.getAnimatio
                 resolveDestroySourceAnimationProfile: (target: any) => this._resolveDestroySourceAnimationProfile(target),
                 playDestroySourceAnimation: (target: any, profile: any) => this._playDestroySourceAnimation(target, profile),
                 animateDestroyGhostAtCell: (cell: any, ownerColor: any) => this._animateDestroyGhostAtCell(cell, ownerColor),
+                createDisc: (state: any) => this.createDisc(state),
                 removeDiscFromCell: (cell: any, disc: any) => this._removeDiscFromCell(cell, disc),
                 resolveOwnerClassFromColor: (ownerColor: any) => this._resolveOwnerClassFromColor(ownerColor)
             });

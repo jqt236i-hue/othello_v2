@@ -10,7 +10,13 @@ type PlaybackAfterStateDeps = {
     getVisualStateAt: (row: any, col: any, cardState: any, gameState: any) => any;
 };
 
-function createEmptyAfterState() {
+function ownerToColor(owner: any) {
+    if (owner === 'black' || owner === 1 || owner === '1') return 1;
+    if (owner === 'white' || owner === -1 || owner === '-1') return -1;
+    return 0;
+}
+
+function createEmptyVisualState() {
     return {
         color: 0,
         special: null,
@@ -20,37 +26,67 @@ function createEmptyAfterState() {
         inheritedOwner: null,
         flipEvadeRemaining: null,
         inheritedFlipEvadeRemaining: null,
-        destroyEvadeRemaining: null
+        destroyEvadeRemaining: null,
+        livingWillAura: false
+    };
+}
+
+function createEventSourcedVisual(target: any, targetMeta: any, ownerHint: any, deps: PlaybackAfterStateDeps) {
+    const visualOwner = (targetMeta && targetMeta.owner) || ((ownerHint === 'black' || ownerHint === 'white') ? ownerHint : null);
+    return {
+        color: ownerToColor(ownerHint || (targetMeta && targetMeta.owner)),
+        special: deps.getVisualSpecialFromMeta(targetMeta),
+        timer: deps.getPrimaryTimerFromMeta(targetMeta),
+        owner: visualOwner,
+        inheritedTimer: deps.getInheritedTimerFromMeta(targetMeta),
+        inheritedOwner: deps.getInheritedOwnerFromMeta(targetMeta),
+        flipEvadeRemaining: deps.getFlipEvadeRemainingFromMeta(targetMeta),
+        inheritedFlipEvadeRemaining: deps.getInheritedFlipEvadeRemainingFromMeta(targetMeta),
+        destroyEvadeRemaining: deps.getDestroyEvadeRemainingFromMeta(targetMeta),
+        livingWillAura: targetMeta && targetMeta.livingWillAura === true
     };
 }
 
 function createEventSourcedAfter(target: any, targetMeta: any, deps: PlaybackAfterStateDeps) {
-    return {
-        color: (target.ownerAfter === 'black') ? 1 : -1,
-        special: deps.getVisualSpecialFromMeta(targetMeta),
-        timer: deps.getPrimaryTimerFromMeta(targetMeta),
-        owner: (targetMeta && targetMeta.owner) || null,
-        inheritedTimer: deps.getInheritedTimerFromMeta(targetMeta),
-        inheritedOwner: deps.getInheritedOwnerFromMeta(targetMeta),
-        flipEvadeRemaining: deps.getFlipEvadeRemainingFromMeta(targetMeta),
-        inheritedFlipEvadeRemaining: deps.getInheritedFlipEvadeRemainingFromMeta(targetMeta),
-        destroyEvadeRemaining: deps.getDestroyEvadeRemainingFromMeta(targetMeta)
-    };
+    return createEventSourcedVisual(target, targetMeta, target && target.ownerAfter, deps);
+}
+
+function createEventSourcedBefore(target: any, targetMeta: any, deps: PlaybackAfterStateDeps) {
+    return createEventSourcedVisual(target, targetMeta, target && target.ownerBefore, deps);
 }
 
 function createMoveAfter(target: any, targetMeta: any, deps: PlaybackAfterStateDeps) {
-    const afterColor = (target.ownerAfter === 'black') ? 1 : ((target.ownerAfter === 'white') ? -1 : 0);
-    return {
-        color: afterColor,
-        special: deps.getVisualSpecialFromMeta(targetMeta),
-        timer: deps.getPrimaryTimerFromMeta(targetMeta),
-        owner: (targetMeta && targetMeta.owner) || target.ownerAfter || null,
-        inheritedTimer: deps.getInheritedTimerFromMeta(targetMeta),
-        inheritedOwner: deps.getInheritedOwnerFromMeta(targetMeta),
-        flipEvadeRemaining: deps.getFlipEvadeRemainingFromMeta(targetMeta),
-        inheritedFlipEvadeRemaining: deps.getInheritedFlipEvadeRemainingFromMeta(targetMeta),
-        destroyEvadeRemaining: deps.getDestroyEvadeRemainingFromMeta(targetMeta)
-    };
+    return createEventSourcedVisual(target, targetMeta, target && target.ownerAfter, deps);
+}
+
+function createMoveBefore(target: any, targetMeta: any, deps: PlaybackAfterStateDeps) {
+    return createEventSourcedVisual(target, targetMeta, target && target.ownerBefore, deps);
+}
+
+function createStatusBefore(playbackType: any, presentationEvent: any, target: any, finalCardState: any, finalGameState: any, deps: PlaybackAfterStateDeps) {
+    const eventMeta = presentationEvent && presentationEvent.meta && typeof presentationEvent.meta === 'object'
+        ? presentationEvent.meta
+        : null;
+    const ownerFromEvent = (eventMeta && eventMeta.owner) || (target && target.ownerBefore) || null;
+    const visual = deps.getVisualStateAt(target.r, target.col, finalCardState, finalGameState);
+    const before = createEventSourcedVisual(target, eventMeta, ownerFromEvent, deps);
+    if (before.color === 0 && visual && (visual.color === 1 || visual.color === -1)) {
+        before.color = visual.color;
+    }
+    if (!before.owner && visual && visual.owner) {
+        before.owner = visual.owner;
+    }
+    if (playbackType === 'status_applied') {
+        before.special = null;
+        before.timer = null;
+        before.inheritedTimer = null;
+        before.inheritedOwner = null;
+        before.flipEvadeRemaining = null;
+        before.inheritedFlipEvadeRemaining = null;
+        before.destroyEvadeRemaining = null;
+        before.livingWillAura = false;
+    }
+    return before;
 }
 
 function createStatusAfter(playbackType: any, presentationEvent: any, target: any, finalCardState: any, finalGameState: any, deps: PlaybackAfterStateDeps) {
@@ -132,18 +168,24 @@ function populatePlaybackEventAfterState(playbackEvent: any, presentationEvent: 
     const targets = Array.isArray(playbackEvent.targets) ? playbackEvent.targets : [];
     for (const target of targets) {
         const targetMeta = (target && target.meta && typeof target.meta === 'object') ? target.meta : eventMeta;
-        if (target.ownerAfter !== undefined) {
-            target.after = createEventSourcedAfter(target, targetMeta, deps);
-        } else if (playbackEvent.type === 'spawn') {
-            target.after = createEventSourcedAfter(target, targetMeta, deps);
+        if (playbackEvent.type === 'spawn') {
+            target.before = target.before || createEmptyVisualState();
+            target.after = target.after || createEventSourcedAfter(target, targetMeta, deps);
         } else if (playbackEvent.type === 'move') {
-            target.after = createMoveAfter(target, targetMeta, deps);
+            target.before = target.before || createMoveBefore(target, targetMeta, deps);
+            target.after = target.after || createMoveAfter(target, targetMeta, deps);
         } else if (playbackEvent.type === 'destroy') {
-            target.after = createEmptyAfterState();
+            target.before = target.before || createEventSourcedBefore(target, targetMeta, deps);
+            target.after = target.after || createEmptyVisualState();
         } else if (playbackEvent.type === 'status_applied' || playbackEvent.type === 'status_removed') {
-            target.after = createStatusAfter(playbackEvent.type, presentationEvent, target, finalCardState, finalGameState, deps);
+            target.before = target.before || createStatusBefore(playbackEvent.type, presentationEvent, target, finalCardState, finalGameState, deps);
+            target.after = target.after || createStatusAfter(playbackEvent.type, presentationEvent, target, finalCardState, finalGameState, deps);
+        } else if (target.ownerAfter !== undefined) {
+            target.before = target.before || createEventSourcedBefore(target, targetMeta, deps);
+            target.after = target.after || createEventSourcedAfter(target, targetMeta, deps);
         } else {
-            target.after = createEmptyAfterState();
+            target.before = target.before || createEmptyVisualState();
+            target.after = target.after || createEmptyVisualState();
         }
     }
     return playbackEvent;

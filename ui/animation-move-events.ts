@@ -292,14 +292,21 @@ function buildMoveGhostAnimationSpec(
 }
 
 function resolveMoveFallbackState(target: any) {
-    const fallbackState = (target && target.after && (target.after.color === 1 || target.after.color === -1))
-        ? target.after
-        : {
+    const hasBeforeState = target && target.before && (target.before.color === 1 || target.before.color === -1);
+    const hasAfterState = target && target.after && (target.after.color === 1 || target.after.color === -1);
+    let fallbackState = null;
+    if (hasBeforeState) {
+        fallbackState = target.before;
+    } else if (hasAfterState) {
+        fallbackState = target.after;
+    } else {
+        fallbackState = {
             color: (target && target.ownerAfter === 'black') ? 1 : ((target && target.ownerAfter === 'white') ? -1 : 0),
             special: target && target.after ? target.after.special : null,
             timer: target && target.after ? target.after.timer : null,
             owner: (target && target.after && target.after.owner) || (target && target.ownerAfter) || null
         };
+    }
     if (fallbackState.color !== 1 && fallbackState.color !== -1) return null;
     return fallbackState;
 }

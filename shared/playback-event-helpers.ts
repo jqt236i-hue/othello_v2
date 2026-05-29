@@ -263,6 +263,104 @@
         return { row, col };
     }
 
+    function ownerToColor(owner: unknown): number {
+        const normalized = parseSeatKeyOptional(owner);
+        if (normalized === 'black') return 1;
+        if (normalized === 'white') return -1;
+        return 0;
+    }
+
+    function colorToOwner(color: unknown): string | null {
+        const numeric = Number(color);
+        if (numeric === 1) return 'black';
+        if (numeric === -1) return 'white';
+        return null;
+    }
+
+    function readBoardColor(snapshot: unknown, row: number, col: number): number {
+        const snap = snapshot && typeof snapshot === 'object' ? snapshot as Record<string, unknown> : {};
+        const gameState = snap.gameState && typeof snap.gameState === 'object' ? snap.gameState as Record<string, unknown> : {};
+        const board = Array.isArray(gameState.board) ? gameState.board as unknown[] : [];
+        const rowValue = Array.isArray(board[row]) ? board[row] as unknown[] : null;
+        const cellValue = rowValue ? Number(rowValue[col]) : 0;
+        if (cellValue === 1 || cellValue === -1) return cellValue;
+        return 0;
+    }
+
+    function findMarkerAt(snapshot: unknown, row: number, col: number): Record<string, unknown> | null {
+        const snap = snapshot && typeof snapshot === 'object' ? snapshot as Record<string, unknown> : {};
+        const cardState = snap.cardState && typeof snap.cardState === 'object' ? snap.cardState as Record<string, unknown> : {};
+        const markers = Array.isArray(cardState.markers) ? cardState.markers : [];
+        for (const markerValue of markers) {
+            const marker = markerValue && typeof markerValue === 'object' ? markerValue as Record<string, unknown> : null;
+            if (!marker) continue;
+            if (marker.kind !== 'specialStone') continue;
+            if (Number(marker.row) === row && Number(marker.col) === col) return marker;
+        }
+        return null;
+    }
+
+    function readNumberOrNull(value: unknown): number | null {
+        if (value === null || value === undefined || value === '') return null;
+        return Number.isFinite(Number(value)) ? Number(value) : null;
+    }
+
+    function createEmptyVisualState() {
+        return {
+            color: 0,
+            owner: null,
+            special: null,
+            timer: null,
+            inheritedTimer: null,
+            inheritedOwner: null,
+            flipEvadeRemaining: null,
+            inheritedFlipEvadeRemaining: null,
+            destroyEvadeRemaining: null,
+            livingWillAura: false
+        };
+    }
+
+    function createMoveVisualStateFromSnapshot(snapshot: unknown, row: number, col: number, fallbackOwner: unknown) {
+        const marker = findMarkerAt(snapshot, row, col);
+        const markerData = marker && marker.data && typeof marker.data === 'object'
+            ? marker.data as Record<string, unknown>
+            : {};
+        let color = readBoardColor(snapshot, row, col);
+        const fallbackOwnerKey = parseSeatKeyOptional(fallbackOwner);
+        if (color === 0 && fallbackOwnerKey) {
+            color = ownerToColor(fallbackOwnerKey);
+        }
+        const owner = parseSeatKeyOptional(marker && marker.owner)
+            || colorToOwner(color)
+            || fallbackOwnerKey
+            || null;
+        return {
+            color,
+            owner,
+            special: markerData.type ? String(markerData.type) : null,
+            timer: readNumberOrNull(markerData.remainingOwnerTurns ?? markerData.timer),
+            inheritedTimer: readNumberOrNull(markerData.inheritedTimer),
+            inheritedOwner: parseSeatKeyOptional(markerData.inheritedOwner),
+            flipEvadeRemaining: readNumberOrNull(markerData.flipEvadeRemaining),
+            inheritedFlipEvadeRemaining: readNumberOrNull(markerData.inheritedFlipEvadeRemaining),
+            destroyEvadeRemaining: readNumberOrNull(markerData.destroyEvadeRemaining),
+            livingWillAura: markerData.livingWillAura === true || String(markerData.type || '').toUpperCase() === 'LIVING_WILL'
+        };
+    }
+
+    function createMovedStoneBeforeVisual(afterVisual: unknown, fallbackOwner: unknown) {
+        const after = afterVisual && typeof afterVisual === 'object'
+            ? cloneJsonSafeValue(afterVisual as Record<string, unknown>) as Record<string, unknown>
+            : createEmptyVisualState();
+        if (!after.owner) {
+            after.owner = parseSeatKeyOptional(fallbackOwner);
+        }
+        if (!after.color && after.owner) {
+            after.color = ownerToColor(after.owner);
+        }
+        return after;
+    }
+
     function resolveRawSelectionMoveCause(type: string, event: Record<string, unknown>): string | null {
         const explicit = String(event.cardType || event.cause || '').trim().toUpperCase();
         if (explicit) return explicit;
@@ -363,10 +461,12 @@
                 if (Number.isInteger(detail.sourceCol)) meta.sourceCol = Number(detail.sourceCol);
                 if (typeof detail.projectileOwner === 'string' && String(detail.projectileOwner).trim()) meta.projectileOwner = String(detail.projectileOwner);
                 if (typeof detail.projectileStone === 'string' && String(detail.projectileStone).trim()) meta.projectileStone = String(detail.projectileStone);
+                const ownerBefore = parseSeatKeyOptional(detail.ownerBefore || detail.owner);
                 presentationEvents.push({
                     type: 'DESTROY',
                     row,
                     col,
+                    ownerBefore,
                     cause: profile.cause,
                     reason: profile.reason,
                     meta: Object.keys(meta).length > 0 ? meta : undefined
@@ -376,8 +476,10 @@
         return presentationEvents;
     }
 
-    function mapRawSelectionMoveEventsToPlayback(rawEvents: unknown[]): unknown[] {
+    function mapRawSelectionMoveEventsToPlayback(rawEvents: unknown[], options?: unknown): unknown[] {
         const events = Array.isArray(rawEvents) ? rawEvents : [];
+        const opts = options && typeof options === 'object' ? options as Record<string, unknown> : {};
+        const snapshot = opts.snapshot || null;
         const playbackEvents: unknown[] = [];
         for (const raw of events) {
             const ev = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {};
@@ -390,6 +492,11 @@
             if (!cause) continue;
             const moveIntent = resolveRawSelectionMoveIntent(type, cause);
             const moveMeta = createRawSelectionMoveMeta(ev, moveIntent);
+            const fallbackOwner = ev.ownerAfter || ev.ownerBefore || null;
+            const afterVisual = createMoveVisualStateFromSnapshot(snapshot, to.row, to.col, fallbackOwner);
+            const beforeVisual = createMovedStoneBeforeVisual(afterVisual, ev.ownerBefore || fallbackOwner);
+            const ownerBefore = parseSeatKeyOptional(beforeVisual.owner) || parseSeatKeyOptional(ev.ownerBefore) || parseSeatKeyOptional(fallbackOwner);
+            const ownerAfter = parseSeatKeyOptional(afterVisual.owner) || parseSeatKeyOptional(ev.ownerAfter) || parseSeatKeyOptional(fallbackOwner);
             playbackEvents.push({
                 type: 'move',
                 phase: 1,
@@ -399,11 +506,13 @@
                 targets: [{
                     from: { r: from.row, col: from.col },
                     to: { r: to.row, col: to.col },
-                    ownerBefore: ev.ownerBefore || ev.player || null,
-                    ownerAfter: ev.ownerAfter || ev.player || null,
+                    ownerBefore,
+                    ownerAfter,
                     cause,
                     reason: moveIntent,
-                    meta: cloneJsonSafeValue(moveMeta)
+                    meta: cloneJsonSafeValue(moveMeta),
+                    before: beforeVisual,
+                    after: afterVisual
                 }],
                 meta: moveMeta
             });
@@ -555,7 +664,7 @@
             }
         }
 
-        const rawSelectionMoveEvents = mapRawSelectionMoveEventsToPlayback(rawEvents);
+        const rawSelectionMoveEvents = mapRawSelectionMoveEventsToPlayback(rawEvents, { snapshot });
         if (rawSelectionMoveEvents.length > 0) {
             const existingMoveKeys = new Set(playbackEvents.map(playbackEventKey));
             const existingMoveSignatures = new Set(playbackEvents.map(getMovePlaybackSignature).filter(Boolean));

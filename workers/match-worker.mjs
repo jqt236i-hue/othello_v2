@@ -4,5 +4,16 @@ const defaultWorker = distModule && distModule.default && typeof distModule.defa
   ? distModule.default
   : distModule;
 
-export const MatchRoomDurableObject = distModule.MatchRoomDurableObject;
+const MatchRoomDurableObjectExport = distModule && typeof distModule.MatchRoomDurableObject === 'function'
+  ? distModule.MatchRoomDurableObject
+  : distModule && distModule.default && typeof distModule.default.MatchRoomDurableObject === 'function'
+    ? distModule.default.MatchRoomDurableObject
+    : null;
+
+if (!MatchRoomDurableObjectExport) {
+  throw new Error('MatchRoomDurableObject export is unavailable from dist/workers/match-worker.js');
+}
+
+export const MatchRoomDurableObject = MatchRoomDurableObjectExport;
+export const MatchRoomDurableObjectV2 = MatchRoomDurableObjectExport;
 export default defaultWorker;

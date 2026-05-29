@@ -20,12 +20,52 @@ type AnimationDestroyEventDeps = {
     resolveDestroySourceAnimationProfile: (target: any) => any;
     playDestroySourceAnimation: (target: any, profile: any) => Promise<any>;
     animateDestroyGhostAtCell: (cell: any, ownerColor: any) => Promise<any>;
+    createDisc?: (state: any) => any;
     removeDiscFromCell: (cell: any, disc: any) => any;
     resolveOwnerClassFromColor: (ownerColor: any) => string;
 };
 
 function getDocumentRef(): any {
     return (typeof document !== 'undefined') ? document : null;
+}
+
+function resolveDestroyGhostVisualState(target: any, ownerColor: any) {
+    if (target && target.before && (target.before.color === 1 || target.before.color === -1)) {
+        return target.before;
+    }
+    if (ownerColor === 1 || ownerColor === -1) {
+        return {
+            color: ownerColor,
+            special: null,
+            timer: null,
+            owner: ownerColor === 1 ? 'black' : 'white'
+        };
+    }
+    return null;
+}
+
+async function animateDestroyVisualGhostAtCell(cell: any, target: any, ownerColor: any, deps: AnimationDestroyEventDeps) {
+    const ghostState = resolveDestroyGhostVisualState(target, ownerColor);
+    const canCreateVisualGhost = !!(deps.createDisc && ghostState);
+    if (!canCreateVisualGhost) {
+        if (ownerColor === null) {
+            await deps.sleep(deps.fadeOutMs);
+        } else {
+            await deps.animateDestroyGhostAtCell(cell, ownerColor);
+        }
+        return;
+    }
+
+    const ghost = deps.createDisc ? deps.createDisc(ghostState) : null;
+    if (!ghost) {
+        await deps.animateDestroyGhostAtCell(cell, ownerColor);
+        return;
+    }
+    ghost.style.pointerEvents = 'none';
+    ghost.classList.add('destroy-fade');
+    cell.appendChild(ghost);
+    await deps.sleep(deps.fadeOutMs);
+    if (ghost.parentElement) ghost.parentElement.removeChild(ghost);
 }
 
 async function handleDestroyEvent(ev: any, deps: AnimationDestroyEventDeps) {
@@ -71,11 +111,7 @@ async function handleDestroyEvent(ev: any, deps: AnimationDestroyEventDeps) {
                     await deps.sleep(Math.max(120, Math.floor(Number(deps.fadeOutMs) / 2)));
                     return;
                 }
-                if (ownerColor === null && !isSuperCrushCollision) {
-                    await deps.sleep(deps.fadeOutMs);
-                } else {
-                    await deps.animateDestroyGhostAtCell(cell, ownerColor);
-                }
+                await animateDestroyVisualGhostAtCell(cell, target, ownerColor, deps);
                 return;
             }
 

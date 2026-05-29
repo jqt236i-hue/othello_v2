@@ -1068,10 +1068,10 @@ describe('worker pendingEffectId contract', () => {
         col: 2,
         owner: 'white',
         data: {
-          type: 'FREEZE',
-          sourceType: 'FREEZE_WILL',
-          sourceCardId: 'freeze_01',
-          remainingOwnerTurns: 1
+          type: 'DRAGON',
+          sourceType: 'ULTIMATE_REVERSE_DRAGON',
+          sourceCardId: 'ultimate_reverse_dragon_01',
+          remainingOwnerTurns: 4
         }
       }]
     });
@@ -1083,7 +1083,7 @@ describe('worker pendingEffectId contract', () => {
     }));
     expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
     expect(result.internalSnapshot.gameState.board[2][2]).toBe(0);
-    expect(result.internalSnapshot.cardState.hands.black).toEqual(['freeze_01']);
+    expect(result.internalSnapshot.cardState.hands.black).toEqual(['ultimate_reverse_dragon_01']);
     expect(result.internalSnapshot.cardState.markers).not.toEqual(expect.arrayContaining([
       expect.objectContaining({ row: 2, col: 2 })
     ]));
@@ -1094,7 +1094,7 @@ describe('worker pendingEffectId contract', () => {
         targets: expect.arrayContaining([
           expect.objectContaining({
             player: 'black',
-            cardId: 'freeze_01',
+            cardId: 'ultimate_reverse_dragon_01',
             reason: 'capture_will'
           })
         ])

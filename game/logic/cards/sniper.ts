@@ -117,6 +117,7 @@ interface SniperEffectPosition {
 interface SniperDestroyedPosition extends SniperEffectPosition {
     sourceRow: number;
     sourceCol: number;
+    ownerBefore?: SniperSeatKey;
 }
 
 interface SniperExpiredPosition extends SniperEffectPosition {
@@ -366,6 +367,10 @@ const CardSniper = /**
         throw new Error('CardSniper requires an injected deterministic PRNG.');
     }
 
+    function getOpponentKey(playerKey: SniperSeatKey): SniperSeatKey {
+        return playerKey === 'black' ? 'white' : 'black';
+    }
+
     function pickNearestEnemyTarget(gameState: SniperGameState, sourceRow: number, sourceCol: number, enemyValue: SniperOwnerValue, randomFn: () => number): SniperEffectTarget | null {
         const candidates: SniperEffectTarget[] = [];
         const dims = resolveBoardDims(gameState);
@@ -415,6 +420,7 @@ const CardSniper = /**
 
         const playerValue = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const enemyValue = -playerValue;
+        const enemyOwnerKey = getOpponentKey(playerKey);
 
         const destroyAt: SniperDestroyAt = options.destroyAt || ((cs: SniperCardState, gs: SniperGameState, r: number, c: number): boolean => {
             const current = getCellValue(gs, r, c);
@@ -459,7 +465,8 @@ const CardSniper = /**
                         row: target.row,
                         col: target.col,
                         sourceRow: sniper.row,
-                        sourceCol: sniper.col
+                        sourceCol: sniper.col,
+                        ownerBefore: enemyOwnerKey
                     });
                 }
             }
@@ -511,6 +518,7 @@ const CardSniper = /**
 
         const playerValue = playerKey === 'black' ? (BLACK || 1) : (WHITE || -1);
         const enemyValue = -playerValue;
+        const enemyOwnerKey = getOpponentKey(playerKey);
 
         const destroyAt: SniperDestroyAt = options.destroyAt || ((cs: SniperCardState, gs: SniperGameState, r: number, c: number): boolean => {
             const current = getCellValue(gs, r, c);
@@ -557,7 +565,8 @@ const CardSniper = /**
                     row: target.row,
                     col: target.col,
                     sourceRow: row,
-                    sourceCol: col
+                    sourceCol: col,
+                    ownerBefore: enemyOwnerKey
                 });
             }
         }
