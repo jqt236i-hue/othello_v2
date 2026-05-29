@@ -23,7 +23,9 @@
 | CPU Lv4 手 | `assets/images/hand-skin/lv4.png` | 移植時に割当 | CPU 固定手画像 |
 | CPU Lv6 手 | `assets/images/hand-skin/lv6.png` | 移植時に割当 | CPU 固定手画像 |
 
-## 特殊石 Visual Key
+## 盤面石 Visual Key
+
+この表は、狭義の特殊石だけでなく、爆弾・配置時効果石・隠し罠のように盤面石として専用見た目または専用 key を使うものも含む。`PENDING_TYPE_TO_EFFECT_KEY` の完全対応に加えて、`ABSOLUTE_PROTECTED` や `CRYSTAL_STONE` のような marker-only / 補足 visual 参照も載せている。`01-rulebook.md` の「特殊石」定義とは一致しないため、分類判断は rulebook を優先する。
 
 | card / marker | visual key | JS image reference | Unity Asset | 備考 |
 | --- | --- | --- | --- | --- |
@@ -95,10 +97,11 @@
 | key | JS file / rulebook reference | Unity AudioClip | 備考 |
 | --- | --- | --- | --- |
 | `stone_place` | `assets/audio/sound-effect-skin/default.mp3` | 移植時に割当 | SE 音量に対して 0.75 倍 |
-| `card_use_button` | `カード使用ボタンを押したタイミング.mp3` | 移植時に割当 | 宝箱では鳴らさない |
+| `card_use_button` | `カード使用ボタンを押したタイミング.mp3` | 移植時に割当 | 宝箱でもカード使用 phase で再生し、その直後に `treasure_gain` を続ける |
 | `hand_card_select` | `手札のカードを選択したタイミング.mp3` | 移植時に割当 | 基本再生倍率からさらに 0.5 倍 |
 | `card_effect_flip` | `カード効果で石が反転したタイミング.mp3` | 移植時に割当 | 龍/連鎖/復活/交換/誘惑など |
 | `hand_remove` | pipeline playback event | 移植時に割当 | 手札破壊 fade out |
+| `treasure_gain` | pipeline cue | 移植時に割当 | 宝箱の布石獲得。天の恵みの確定音でも使う |
 | `breeding_spawn` | pipeline cue | 移植時に割当 | spawn 系 |
 | `seed_sprout` | pipeline cue | 移植時に割当 | 種の芽生え |
 | `clone_spawn` | pipeline cue | 移植時に割当 | clone/proliferation 系 |

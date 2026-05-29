@@ -137,7 +137,7 @@ AppFlow はゲーム外の導線を担当する。
 
 - `cards/catalog.json`
 - 定数相当の `GameConstants`
-- 特殊石見た目の AssetMap
+- 盤面石見た目 / visual key の AssetMap
 - 音声/演出 profile の AssetMap
 - ローカル保存された観測石所持数
 

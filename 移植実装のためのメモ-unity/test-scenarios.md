@@ -43,7 +43,7 @@
 期待結果:
 
 - deterministic RNG が正本。
-- 宝箱では `card_use_button` を再生しない。
+- 宝箱でも `card_use_button` を再生し、その直後に `treasure_gain` を再生する。
 
 ## 4. 対象選択カード
 
@@ -55,11 +55,14 @@
 6. `BOARD_SHRINK_WILL` を使用し、3 対象を選ぶまで解決しないことを確認する。
 7. `POSITION_SWAP_WILL` を使用し、2 対象を選ぶまで解決しないことを確認する。
 8. `HEAVEN_BLESSING` と `CONDEMN_WILL` が hand / candidate overlay として解決されることを確認する。
+9. `TRAP_WILL` を使用し、対象選択完了でそのまま手番終了することを確認する。
+10. `TRAP_WILL` は発動/不発で公開されるまで通常石見た目のままであることを確認する。
 
 期待結果:
 
 - pending selection 33 種類の kind / turnOutcome / cancel / dispatch / target resolver が一致する。
 - CPU も pending selection を経由する。
+- `TRAP_WILL` は `PENDING_TYPE_TO_EFFECT_KEY` に含まれても、配置直後には罠見た目へ切り替えない。
 
 ## 5. 救済神
 

@@ -15,14 +15,14 @@
 
 ## 分類の読み方
 
-- `対象選択`: `pending-selection-registry.ts` に登録されている。
-- `特殊見た目キー`: `game/visual-effects-map.runtime.js` の `PENDING_TYPE_TO_EFFECT_KEY` に対応がある。
+- `対象選択`: `game/logic/cards-internal/pending-selection-registry.ts` に登録されている。
+- `盤面見た目キー`: `game/visual-effects-map.runtime.js` の `PENDING_TYPE_TO_EFFECT_KEY` に対応がある。狭義の特殊石だけでなく、爆弾・配置時効果石・罠なども含む。
 - `通常候補`: `enabled:false` ではないため、デフォルトデッキ抽選候補に入る。
 - `連続定義`: `enabled:false` だが、二連鎖/二連投石などから到達する定義として実装対象に残す。
 
 ## 全カード表
 
-| name_ja | type | cost | catalog | display_type | 対象選択 | 特殊見た目キー | 移植扱い | 状態 |
+| name_ja | type | cost | catalog | display_type | 対象選択 | 盤面見た目キー | 移植扱い | 状態 |
 | --- | --- | ---: | --- | --- | --- | --- | --- | --- |
 | 宝箱 | `TREASURE_BOX` | 0 | enabled | 採掘 |  |  | 通常候補 | 未着手 |
 | 自由の意志 | `FREE_PLACEMENT` | 14 | enabled | 禁忌 |  |  | 通常候補 | 未着手 |

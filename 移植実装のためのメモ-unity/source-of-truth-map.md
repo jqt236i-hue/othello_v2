@@ -32,7 +32,7 @@ Unity/C# 版は、既存 root 実装を正本として移植する。`worker-pub
 | 所有者/色正規化 | `utils/owner-helpers.ts`, `shared/player-encoding.ts` | `PlayerCodec` / `OwnerNormalizer` |
 | 表示イベント | `game/turn/pipeline_ui_adapter.ts`, `shared/presentation-effect-profiles.ts` | `PresentationEvent` |
 | 演出再生 | `ui/animation-engine.ts` | `AnimationPlayback` |
-| 特殊石見た目 | `game/visual-effects-map.runtime.js` | Prefab / Sprite / Material map |
+| 盤面石見た目 / visual key | `game/visual-effects-map.runtime.js` | Prefab / Sprite / Material map |
 | CPU 判断 | `game/cpu-decision.ts`, `game/cpu-turn-handler.ts`, `game/ai/*` | `CpuDecisionEngine` |
 | CPU 共有 profile / Lv6 方針 | `constants/cpu-lv6-shared-profile.ts`, `game/ai/*`, `01-rulebook.md` section 14 | `CpuPolicyProfile` |
 | CPU 発話 | `game/ai/commentary-data.ts`, `01-rulebook.md` section 14.6 | `CpuCommentaryCatalog` |

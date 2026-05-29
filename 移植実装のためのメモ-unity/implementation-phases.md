@@ -96,11 +96,12 @@
 - 対象候補が最低必要数に満たないカードは使用不可になる。
 - CPU も pending selection を経由して対象を選ぶ。
 
-## Phase 6: Placement, Markers, Special Stones
+## Phase 6: Placement, Markers, Board Stone Visuals
 
 - 次配置 pending / armed state を実装する。
 - `PENDING_TYPE_TO_EFFECT_KEY` 相当の visual map を実装する。
-- 特殊石は配置直後から最終見た目を出す。
+- 狭義の特殊石は配置直後から最終見た目を出す。
+- `TRAP_WILL` は発動/不発で公開されるまで通常石見た目を維持する。
 - 持続ターン、反転回避、破壊回避、復活、救済神、凍結、封鎖、種を実装する。
 - `BoardOps.runEffectBlock()` 相当の effect block を実装する。
 

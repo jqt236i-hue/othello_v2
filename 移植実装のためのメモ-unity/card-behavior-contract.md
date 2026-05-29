@@ -10,7 +10,7 @@
 - 対象選択: `game/logic/cards-internal/pending-selection-registry.ts`
 - 配置時効果: `game/logic/cards-internal/effect-timing.ts`
 - 表示イベント: `game/turn/pipeline_ui_adapter.ts`, `shared/presentation-effect-profiles.ts`
-- 特殊石見た目: `game/visual-effects-map.runtime.js`
+- 盤面石見た目 / 配置時 visual key: `game/visual-effects-map.runtime.js`
 
 ## 実装分類
 
@@ -76,51 +76,59 @@ CardEffectResolver は Unity の UI、Prefab、Audio を直接操作しない。
 
 ただし、連鎖や追加配置など、カード効果の連続定義として参照される場合は、定義自体を実装対象に含める。
 
-## 特殊石
+## 盤面石 / 配置時見た目
 
-次配置で特殊石化するカードは、配置直後から最終見た目を出す方針を維持する。
+狭義の特殊石は、次配置で盤面に出た直後から最終見た目を出す方針を維持する。
+
+ただし、`TRAP_WILL` は例外で、発動/不発で公開される瞬間まで通常石見た目を保つ。`INSTANT_HYPERACTIVE_WILL`, `CROSS_BOMB`, `X_BOMB`, `GOLD_STONE`, `SILVER_STONE`, `RAINBOW_STONE` などは `01-rulebook.md` 上の「特殊石」ではないが、配置時効果として専用 visual key を使う。
 
 Unity 側では以下を対応させる。
 
 | JS 側 | Unity 側 |
 | --- | --- |
 | pending type | marker / specialType |
-| visual effect key | Prefab / Sprite / Material |
+| board visual key | Prefab / Sprite / Material |
 | presentation profile | Animation profile |
 
-次配置で marker を付ける代表 type:
+配置時 visual key を持つ pending type の完全一覧:
 
 ```text
 PROTECTED_NEXT_STONE
 PERMA_PROTECT_NEXT_STONE
-REGEN_WILL
-WORK_WILL
 ULTIMATE_REVERSE_DRAGON
 BREEDING_WILL
 PROLIFERATION_WILL
-THEORY_INCARNATION
 ULTIMATE_DESTROY_GOD
 STONE_SALVATION_GOD
 SNIPER_WILL
+LIGHTNING_WILL
 OBSERVER_WILL
+THEORY_INCARNATION
 GHOST_WILL
 AFTERIMAGE_WILL
-TIME_STOP_GOD
 WILL_HUNTER_KING
 DESTROY_DRAGON_WILL
-LIGHTNING_WILL
+ULTIMATE_HYPERACTIVE_GOD
 HYPERACTIVE_WILL
+HYPERACTIVE_INHERIT_WILL
 EXTREME_HYPERACTIVE_WILL
 ESCAPE_WILL
 ROBOT_VACUUM_WILL
 GLUTTONOUS_WILL
 INSTANT_HYPERACTIVE_WILL
-ULTIMATE_HYPERACTIVE_GOD
+REGEN_WILL
+GOLD_STONE
+RAINBOW_STONE
+SILVER_STONE
+WORK_WILL
+TIME_BOMB
+TIME_STOP_GOD
 CROSS_BOMB
 X_BOMB
+TRAP_WILL
 ```
 
-完全な placement-time visual 対応は `game/visual-effects-map.runtime.js` の `PENDING_TYPE_TO_EFFECT_KEY` を正とする。
+完全な placement-time visual 対応は `game/visual-effects-map.runtime.js` の `PENDING_TYPE_TO_EFFECT_KEY` を正とする。`TRAP_WILL` はこの一覧に含まれるが、見た目公開タイミングは別扱いである。
 
 ## 救済神の注意
 
@@ -150,7 +158,7 @@ enabled
 持続効果
 破壊/生成/移動
 PresentationEvent
-特殊石見た目
+盤面見た目
 Unity 実装 class
 確認状態
 ```
@@ -175,7 +183,7 @@ Unity 側で汎用 destroy / spawn だけに潰さない効果:
 1. cost と手札操作だけで閉じるカード
 2. 通常配置/反転に関わるカード
 3. 対象選択カード
-4. 特殊石 marker を持つカード
+4. 盤面石 marker / visual key を持つカード
 5. 破壊/復活/生成/移動を伴うカード
 6. 盤面拡張/縮小
 7. 複数段階 selection と disabled 連続カード
