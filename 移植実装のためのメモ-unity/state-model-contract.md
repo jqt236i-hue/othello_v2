@@ -190,7 +190,6 @@ PresentationEvent はゲーム結果の正本ではない。GameCore が確定�
 
 初期移植ではオンライン対戦を実装しないが、観測の意志、断罪の意志、天の恵みなどは手札や候補の表示範囲を扱う。
 
-- ローカル対戦では両者の入力者が同じ端末を使うため、UI 上の非公開表現は演出/UX として扱う。
 - CPU 対戦では CPU 側手札の見え方と GameCore の完全情報を分ける。
 - `REVEAL_HAND_WILL` は使用時点の相手手札だけを公開し、その後に引いたカードへ公開状態を広げない。
 - `CONDEMN_WILL` と `HEAVEN_BLESSING` は hand overlay / candidate overlay として pending selection と同じ扱いで状態化する。
