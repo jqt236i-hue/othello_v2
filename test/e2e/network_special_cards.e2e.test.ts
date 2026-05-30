@@ -984,6 +984,70 @@ describe('Network special cards E2E', () => {
     }
   }, 90000);
 
+  test('X_BOMB explosion keeps bomb sound and red highlight on both network clients', async () => {
+    const hostContext = await browser.newContext();
+    const guestContext = await browser.newContext();
+    const hostPage = await hostContext.newPage();
+    const guestPage = await guestContext.newPage();
+    const appUrl = `http://127.0.0.1:${staticPort}/?debug=1&matchServer=http://127.0.0.1:${matchPort}`;
+
+    try {
+      await hostPage.goto(appUrl);
+      await guestPage.goto(appUrl);
+      await waitForBootstrap(hostPage);
+      await waitForBootstrap(guestPage);
+
+      const roomId = await createDebugRoom(hostPage, '黒主');
+      await joinRoom(guestPage, roomId, '白主');
+      await hostPage.waitForFunction(
+        () => !!(
+          window.NetworkMatchClient
+          && window.NetworkMatchClient.getRoomSeats
+          && window.NetworkMatchClient.getRoomSeats().white === true
+        ),
+        { timeout: 15000 }
+      );
+
+      await installPlaybackProbe(hostPage, 'black');
+      await installPlaybackProbe(guestPage, 'white');
+      await usePlacementCard(hostPage, 'x_bomb_01', 2, 3);
+
+      await hostPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === -1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+      await guestPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === -1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+
+      const hostProbe = await readPlaybackProbe(hostPage);
+      const guestProbe = await readPlaybackProbe(guestPage);
+
+      expect(hostProbe.sounds).toContain('bomb_explode');
+      expect(hostProbe.highlights.some((entry: any) => String(entry.className || '').includes('effect-target-highlight'))).toBe(true);
+      expect(guestProbe.sounds).toContain('bomb_explode');
+      expect(guestProbe.highlights.some((entry: any) => String(entry.className || '').includes('effect-target-highlight'))).toBe(true);
+    } finally {
+      await stopPlaywrightPage(hostPage, 5000);
+      await stopPlaywrightPage(guestPage, 5000);
+      await hostContext.close().catch(() => undefined);
+      await guestContext.close().catch(() => undefined);
+    }
+  }, 90000);
+
   test('ESCAPE_WILL turn-start move keeps hyperactive sound and positive highlight on both network clients', async () => {
     const hostContext = await browser.newContext();
     const guestContext = await browser.newContext();
