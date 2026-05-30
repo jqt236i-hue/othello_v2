@@ -155,6 +155,39 @@ async function readCellState(page: any, row: number, col: number) {
   }, { row, col });
 }
 
+async function getFirstLegalMove(page: any) {
+  return page.evaluate(() => {
+    const hintedCell = document.querySelector('.cell.legal');
+    const hintedMove = hintedCell
+      ? {
+          row: Number(hintedCell.getAttribute('data-row')),
+          col: Number(hintedCell.getAttribute('data-col'))
+        }
+      : null;
+    const context = (
+      window.CardLogic
+      && typeof window.CardLogic.getCardContext === 'function'
+    )
+      ? window.CardLogic.getCardContext(window.cardState)
+      : { protectedStones: [], permaProtectedStones: [] };
+    const logicMoves = typeof window.getLegalMoves === 'function'
+      ? window.getLegalMoves(window.gameState, context.protectedStones, context.permaProtectedStones)
+      : [];
+    const firstLogicMove = Array.isArray(logicMoves) && logicMoves.length > 0
+      ? { row: Number(logicMoves[0].row), col: Number(logicMoves[0].col) }
+      : null;
+    return {
+      hintedMove: hintedMove && Number.isInteger(hintedMove.row) && Number.isInteger(hintedMove.col)
+        ? hintedMove
+        : null,
+      firstLogicMove: firstLogicMove && Number.isInteger(firstLogicMove.row) && Number.isInteger(firstLogicMove.col)
+        ? firstLogicMove
+        : null,
+      logicMoveCount: Array.isArray(logicMoves) ? logicMoves.length : 0
+    };
+  });
+}
+
 describe('Network special cards E2E', () => {
   let staticServer: any;
   let matchServer: any;
@@ -414,6 +447,119 @@ describe('Network special cards E2E', () => {
       });
       expect(guestState.currentPlayer).toBe(1);
       expect(guestState.turnNumber).toBe(hostState.turnNumber);
+    } finally {
+      await stopPlaywrightPage(hostPage, 5000);
+      await stopPlaywrightPage(guestPage, 5000);
+      await hostContext.close().catch(() => undefined);
+      await guestContext.close().catch(() => undefined);
+    }
+  }, 90000);
+
+  test('GUARD_WILL settles and still allows the guarded player to place a normal move', async () => {
+    const hostContext = await browser.newContext();
+    const guestContext = await browser.newContext();
+    const hostPage = await hostContext.newPage();
+    const guestPage = await guestContext.newPage();
+    const appUrl = `http://127.0.0.1:${staticPort}/?debug=1&matchServer=http://127.0.0.1:${matchPort}`;
+
+    try {
+      await hostPage.goto(appUrl);
+      await guestPage.goto(appUrl);
+      await waitForBootstrap(hostPage);
+      await waitForBootstrap(guestPage);
+
+      const roomId = await createDebugRoom(hostPage, '黒主');
+      await joinRoom(guestPage, roomId, '白主');
+      await hostPage.waitForFunction(
+        () => !!(
+          window.NetworkMatchClient
+          && window.NetworkMatchClient.getRoomSeats
+          && window.NetworkMatchClient.getRoomSeats().white === true
+        ),
+        { timeout: 15000 }
+      );
+
+      await fillDebugHand(hostPage);
+      await hostPage.evaluate(() => {
+        window.cardState.selectedCardId = 'guard_01';
+        window.cardState.selectedCardOwnerKey = 'black';
+        if (typeof window.renderCardUI === 'function') window.renderCardUI();
+        if (typeof window.useSelectedCard === 'function') window.useSelectedCard();
+      });
+
+      await hostPage.click('.cell[data-row="3"][data-col="4"]');
+      await hostPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === 1
+          && window.cardState
+          && window.cardState.pendingEffectByPlayer
+          && window.cardState.pendingEffectByPlayer.black === null
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+          && Array.isArray(window.cardState.markers)
+          && window.cardState.markers.some((marker) => (
+            marker
+            && marker.row === 3
+            && marker.col === 4
+            && marker.data
+            && marker.data.type === 'GUARD'
+          ))
+        ),
+        { timeout: 20000 }
+      );
+      await guestPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === 1
+          && window.cardState
+          && window.cardState.pendingEffectByPlayer
+          && window.cardState.pendingEffectByPlayer.black === null
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+          && Array.isArray(window.cardState.markers)
+          && window.cardState.markers.some((marker) => (
+            marker
+            && marker.row === 3
+            && marker.col === 4
+            && marker.data
+            && marker.data.type === 'GUARD'
+          ))
+        ),
+        { timeout: 20000 }
+      );
+
+      const firstLegalMove = await getFirstLegalMove(hostPage);
+      expect(firstLegalMove.firstLogicMove).toEqual(expect.objectContaining({
+        row: expect.any(Number),
+        col: expect.any(Number)
+      }));
+      expect(firstLegalMove.logicMoveCount).toBeGreaterThan(0);
+
+      const moveToPlay = firstLegalMove.hintedMove || firstLegalMove.firstLogicMove;
+      await hostPage.click(`.cell[data-row="${moveToPlay.row}"][data-col="${moveToPlay.col}"]`);
+      await hostPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === -1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+      await guestPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === -1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
     } finally {
       await stopPlaywrightPage(hostPage, 5000);
       await stopPlaywrightPage(guestPage, 5000);

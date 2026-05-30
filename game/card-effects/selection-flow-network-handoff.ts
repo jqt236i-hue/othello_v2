@@ -137,14 +137,14 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
         return true;
     }
 
-    const shouldSkipLocalPlaybackWait = !!(
+    const shouldDeferPlaybackWaitUntilAfterPublish = !!(
         deps.readMatchMode() === 'network'
         && contract
         && contract.deferNetworkPublish === true
         && deps.hasActiveNetworkPublishClient()
         && !skipNetworkPublish
     );
-    if (contract && contract.waitForPlaybackIdle && !shouldSkipLocalPlaybackWait) {
+    if (contract && contract.waitForPlaybackIdle && !shouldDeferPlaybackWaitUntilAfterPublish) {
         await waitForSelectionPlaybackIdle(playbackEvents, deps);
     }
 
@@ -156,6 +156,10 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
             playbackEvents
         };
         deps.publishPendingSelectionSnapshot(publishMeta);
+    }
+
+    if (contract && contract.waitForPlaybackIdle && shouldDeferPlaybackWaitUntilAfterPublish) {
+        await waitForSelectionPlaybackIdle(playbackEvents, deps);
     }
 
     if (!deps.shouldRetainPendingSelectionAction(cardStateValue, playerKey, pendingType)) {
