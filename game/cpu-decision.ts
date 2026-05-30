@@ -633,22 +633,27 @@ function resolveOthelloBrowserCpuRuntime(): any {
     return resolvedModule;
 }
 
-function isOthelloModeForCpuDecision(): boolean {
+function resolveCpuDecisionMatchMode(): string {
     try {
         if (cpuDecisionRuntime && typeof cpuDecisionRuntime.readMatchMode === 'function') {
             const mode = String(cpuDecisionRuntime.readMatchMode() || '').trim().toLowerCase();
-            if (mode) return mode === 'reversi' || mode === 'othello';
+            if (mode) return mode;
         }
         if (cpuDecisionRuntime && typeof cpuDecisionRuntime.getCurrentMatchMode === 'function') {
             const mode = String(cpuDecisionRuntime.getCurrentMatchMode() || '').trim().toLowerCase();
-            if (mode) return mode === 'reversi' || mode === 'othello';
+            if (mode) return mode;
         }
         if (cpuDecisionRuntime && typeof cpuDecisionRuntime.MATCH_MODE !== 'undefined') {
             const mode = String(cpuDecisionRuntime.MATCH_MODE || '').trim().toLowerCase();
-            return mode === 'reversi' || mode === 'othello';
+            if (mode) return mode;
         }
     } catch (e) { /* ignore */ }
-    return false;
+    return '';
+}
+
+function isOthelloModeForCpuDecision(): boolean {
+    const mode = resolveCpuDecisionMatchMode();
+    return mode === 'reversi' || mode === 'othello';
 }
 
 function resolveOthelloOnnxRuntime(): any {
@@ -804,8 +809,9 @@ function selectMoveFromLearnedPolicy(candidateMoves: any, playerKey: any, level:
     }
 }
 
-function selectMoveFromOthelloPolicy(candidateMoves: any, playerKey: any, level: any): any {
-    if (!isOthelloModeForCpuDecision() || !Number.isFinite(level) || level < 6) return null;
+function selectMoveFromOthelloPolicy(candidateMoves: any, playerKey: any, level: any, options?: any): any {
+    const forceEnabled = !!(options && options.forceEnabled === true);
+    if ((!isOthelloModeForCpuDecision() && !forceEnabled) || !Number.isFinite(level) || level < 6) return null;
     if (shouldUseOthelloOnnxRuntime()) {
         const onnxRuntime = resolveOthelloOnnxRuntime();
         try {
@@ -1268,9 +1274,7 @@ const CpuDecisionCardActions = (CpuDecisionCardActionsModule && typeof CpuDecisi
         resolveCardLogic: () => resolveCardLogicForCpuDecision(),
         readPendingEffect: (playerKey: any) => readCpuPendingEffect(playerKey),
         resolveCpuSmartnessLevel: (playerKey: any) => resolveCpuSmartnessLevel(playerKey),
-        readCardUseDisplayLevel: (playerKey: any) => ((typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-            ? Number(cpuSmartness[playerKey])
-            : 1),
+        readCardUseDisplayLevel: (playerKey: any) => resolveCpuSmartnessLevel(playerKey),
         resolvePlayerValue: (playerKey: any) => (playerKey === 'black'
             ? (typeof BLACK !== 'undefined' ? BLACK : 1)
             : (typeof WHITE !== 'undefined' ? WHITE : -1)),
@@ -1548,6 +1552,16 @@ async function selectMoveFromOnnxPolicyAsync(candidateMoves: any, playerKey: any
         console.warn(useOthelloOnnx ? '[CPU] othello ONNX runtime failed, fallback to default policy' : '[CPU] policy-onnx runtime failed, fallback to default policy', e);
         return null;
     }
+}
+
+function shouldForceCardModeLv6Placement(playerKey: any, pendingType: any, boardRef: any): any {
+    if (!playerKey) return false;
+    const mode = resolveCpuDecisionMatchMode();
+    if (mode !== 'cpu') return false;
+    if (pendingType) return false;
+    const board = boardRef || getCurrentCpuBoard();
+    if (!isPlayableBoard(board)) return false;
+    return canUseStandardBoardCpuPolicy(board, 'card-cpu-lv6-placement', playerKey, 6);
 }
 
 function isSameMoveByCoord(a: any, b: any): any {
@@ -1994,8 +2008,9 @@ const CpuDecisionMovePlan = (CpuDecisionMovePlanModule && typeof CpuDecisionMove
         getCpuPolicyCore: () => CpuPolicyCore,
         getCurrentCpuBoard: () => getCurrentCpuBoard(),
         onStrictPendingPlacementOverride: (playerKey: any, pendingType: any, bestAnchoredMove: any) => {
+            const level = resolveCpuSmartnessLevel(playerKey);
             cpuDebugLog(
-                `[CPU] Lv${cpuSmartness[playerKey] || 1} ${playerKey}: ${pendingType}配置を安定寄せへ補正 (${bestAnchoredMove.row}, ${bestAnchoredMove.col})`
+                `[CPU] Lv${level} ${playerKey}: ${pendingType}配置を安定寄せへ補正 (${bestAnchoredMove.row}, ${bestAnchoredMove.col})`
             );
         }
     })
@@ -2092,9 +2107,7 @@ const CpuDecisionPendingScore = (CpuDecisionPendingScoreModule && typeof CpuDeci
         scoreSeatStrategicValue,
         countBoardStatsForPlayer,
         getCornerProximity,
-        getCpuSmartnessLevel: (playerKey: any) => ((typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-            ? Number(cpuSmartness[playerKey])
-            : 1),
+        getCpuSmartnessLevel: (playerKey: any) => resolveCpuSmartnessLevel(playerKey),
         getCardState: () => ((typeof cardState !== 'undefined') ? cardState : null),
         getCpuPolicyCore: () => CpuPolicyCore,
         buildMovePlanContext,
@@ -2126,9 +2139,7 @@ const CpuDecisionPendingOnnx = (CpuDecisionPendingOnnxModule && typeof CpuDecisi
         choosePendingTargetWithPolicy,
         isSameMoveByCoord,
         scorePendingTargetByType,
-        getCpuSmartnessLevel: (playerKey: any) => ((typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-            ? Number(cpuSmartness[playerKey])
-            : 1),
+        getCpuSmartnessLevel: (playerKey: any) => resolveCpuSmartnessLevel(playerKey),
         resolvePolicyOnnxRuntime,
         canUseStandardBoardCpuPolicy,
         resolvePendingSelectionOnnxBudgetMs,
@@ -2441,7 +2452,7 @@ function selectCardFallback(cardState: any, gameState: any, playerKey: any, leve
  */
 function selectCardToUse(playerKey: any): any {
     // Pure decision: returns a candidate { cardId, cardDef } or null but does NOT apply it.
-    const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && typeof cpuSmartness[playerKey] !== 'undefined') ? cpuSmartness[playerKey] : 1;
+    const level = resolveCpuSmartnessLevel(playerKey);
     const player = playerKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)
         : (typeof WHITE !== 'undefined' ? WHITE : -1);
@@ -2639,44 +2650,49 @@ function cpuMaybeUseCardWithPolicy(playerKey: any): any {
  * @returns {Object} 選択された手
  */
 function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
-    const level = resolveCpuSmartnessLevel(playerKey);
+    const cardLevel = resolveCpuSmartnessLevel(playerKey);
 
     // 人間プレイヤーの場合はエラー（このコードは呼ばれてはいけない）
-    if (level < 0) {
+    if (cardLevel < 0) {
         console.error(`[CPU] selectCpuMoveWithPolicy called for human player ${playerKey}, returning random move`);
         return candidateMoves[Math.floor(cpuRng.random() * candidateMoves.length)];
     }
 
-    let prioritizedCandidateMoves = filterMovesByLv6PlacementPriority(playerKey, level, candidateMoves);
-    if (Number.isFinite(level) && level >= 6) {
-        const board = getCurrentCpuBoard();
+    const pendingType = resolvePendingType(playerKey);
+    const board = getCurrentCpuBoard();
+    const forceLv6Placement = shouldForceCardModeLv6Placement(playerKey, pendingType, board);
+    const placementLevel = forceLv6Placement ? 6 : cardLevel;
+
+    let prioritizedCandidateMoves = filterMovesByLv6PlacementPriority(playerKey, placementLevel, candidateMoves);
+    if (Number.isFinite(placementLevel) && placementLevel >= 6) {
         prioritizedCandidateMoves = filterLv6OpenCornerAdjacentMoves(prioritizedCandidateMoves, board);
     }
 
     const aiSelector = isAISystemAvailable() && typeof AISystem.selectMove === 'function'
         ? (moves: any, lv: any) => AISystem.selectMove(gameState, cardState, moves, lv, null)
         : null;
-    const pendingType = resolvePendingType(playerKey);
     if (pendingType === 'FREE_PLACEMENT' || pendingType === 'LAST_RESORT') {
         const pending = readCpuPendingEffect(playerKey);
         const pendingPicked = choosePendingTargetWithPolicy(playerKey, pendingType, prioritizedCandidateMoves, pending);
         if (pendingPicked) {
             cpuDebugLog(
-                `[CPU] Lv${level} ${playerKey}: ${pendingType}選択 (${pendingPicked.row}, ${pendingPicked.col}) - 反転${Array.isArray(pendingPicked.flips) ? pendingPicked.flips.length : 0}枚`
+                `[CPU] Lv${cardLevel} ${playerKey}: ${pendingType}選択 (${pendingPicked.row}, ${pendingPicked.col}) - 反転${Array.isArray(pendingPicked.flips) ? pendingPicked.flips.length : 0}枚`
             );
             return pendingPicked;
         }
     }
 
-    const othelloMove = (level >= 6) ? selectMoveFromOthelloPolicy(prioritizedCandidateMoves, playerKey, level) : null;
+    const othelloMove = (placementLevel >= 6)
+        ? selectMoveFromOthelloPolicy(prioritizedCandidateMoves, playerKey, placementLevel, { forceEnabled: forceLv6Placement })
+        : null;
     if (othelloMove) {
-        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: リバーシ専用AI選択 (${othelloMove.row}, ${othelloMove.col}) - 反転${Array.isArray(othelloMove.flips) ? othelloMove.flips.length : 0}枚`);
+        cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: リバーシ専用AI選択 (${othelloMove.row}, ${othelloMove.col}) - 反転${Array.isArray(othelloMove.flips) ? othelloMove.flips.length : 0}枚`);
         return othelloMove;
     }
 
-    const learnedMove = (level >= 6) ? selectMoveFromLearnedPolicy(prioritizedCandidateMoves, playerKey, level) : null;
-    const learnedScoreFn = createLearnedScoreFn(playerKey, level, prioritizedCandidateMoves.length);
-    const movePlanContext = (level >= 4) ? buildMovePlanContext(playerKey, level, prioritizedCandidateMoves) : null;
+    const learnedMove = (placementLevel >= 6) ? selectMoveFromLearnedPolicy(prioritizedCandidateMoves, playerKey, placementLevel) : null;
+    const learnedScoreFn = createLearnedScoreFn(playerKey, placementLevel, prioritizedCandidateMoves.length);
+    const movePlanContext = (placementLevel >= 4) ? buildMovePlanContext(playerKey, placementLevel, prioritizedCandidateMoves) : null;
     const movePlanScoreFn = (
         movePlanContext &&
         CpuPolicyCore &&
@@ -2692,7 +2708,7 @@ function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
         : null;
 
     if (learnedMove && !movePlanScoreFn) {
-        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 学習選択 (${learnedMove.row}, ${learnedMove.col}) - 反転${learnedMove.flips.length}枚`);
+        cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: 学習選択 (${learnedMove.row}, ${learnedMove.col}) - 反転${learnedMove.flips.length}枚`);
         return learnedMove;
     }
 
@@ -2700,7 +2716,7 @@ function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
         let score = 0;
         if (movePlanScoreFn) score += movePlanScoreFn(move);
         if (learnedScoreFn) {
-            const learnedWeight = movePlanScoreFn ? (level >= 6 ? 0.35 : 0.15) : 1.0;
+            const learnedWeight = movePlanScoreFn ? (placementLevel >= 6 ? 0.35 : 0.15) : 1.0;
             score += (Number(learnedScoreFn(move) || 0) * learnedWeight);
         }
         if (learnedMove && move && move.row === learnedMove.row && move.col === learnedMove.col) {
@@ -2710,7 +2726,7 @@ function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
     };
 
     if (
-        level >= 6 &&
+        placementLevel >= 6 &&
         CpuPolicyCore &&
         typeof CpuPolicyCore.chooseMoveByLookahead === 'function' &&
         isPlayableBoard(gameState && gameState.board)
@@ -2718,13 +2734,13 @@ function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
         const playerValue = playerKey === 'black'
             ? (typeof BLACK !== 'undefined' ? BLACK : 1)
             : (typeof WHITE !== 'undefined' ? WHITE : -1);
-        const lv6Lookahead = buildLv6LookaheadOptions(level, gameState.board, prioritizedCandidateMoves.length, playerKey);
-        const onSearchMeta = createLookaheadMetaLogger(playerKey, level, 'policy-lookahead');
+        const lv6Lookahead = buildLv6LookaheadOptions(placementLevel, gameState.board, prioritizedCandidateMoves.length, playerKey);
+        const onSearchMeta = createLookaheadMetaLogger(playerKey, placementLevel, 'policy-lookahead');
         const weightConfig = resolveCpuLv6LookaheadWeights();
         const looked = CpuPolicyCore.chooseMoveByLookahead(prioritizedCandidateMoves, {
             board: gameState.board,
             playerValue,
-            level,
+            level: placementLevel,
             depth: lv6Lookahead.depth,
             maxBranch: lv6Lookahead.maxBranch,
             nodeBudget: lv6Lookahead.nodeBudget,
@@ -2747,22 +2763,22 @@ function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
         if (looked) {
             const stabilized = maybeOverrideWithStrictPendingPlacement(looked, prioritizedCandidateMoves, playerKey, movePlanScoreFn);
             if (stabilized) {
-                cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 先読み選択 (${stabilized.row}, ${stabilized.col}) - 反転${stabilized.flips.length}枚`);
+                cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: 先読み選択 (${stabilized.row}, ${stabilized.col}) - 反転${stabilized.flips.length}枚`);
                 return stabilized;
             }
-            cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 先読み選択 (${looked.row}, ${looked.col}) - 反転${looked.flips.length}枚`);
+            cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: 先読み選択 (${looked.row}, ${looked.col}) - 反転${looked.flips.length}枚`);
             return looked;
         }
     }
 
     if (CpuPolicyCore && typeof CpuPolicyCore.chooseMove === 'function') {
-        const useHeuristic = !movePlanScoreFn && level >= 3;
-        const selected = CpuPolicyCore.chooseMove(prioritizedCandidateMoves, level, cpuRng, aiSelector, {
+        const useHeuristic = !movePlanScoreFn && placementLevel >= 3;
+        const selected = CpuPolicyCore.chooseMove(prioritizedCandidateMoves, placementLevel, cpuRng, aiSelector, {
             enableHeuristic: useHeuristic,
             scoreMove: (movePlanScoreFn || learnedScoreFn || learnedMove) ? combinedScoreFn : null
         });
         if (selected) {
-            cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 選択 (${selected.row}, ${selected.col}) - 反転${selected.flips.length}枚`);
+            cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: 選択 (${selected.row}, ${selected.col}) - 反転${selected.flips.length}枚`);
             return selected;
         }
     }
@@ -2773,8 +2789,8 @@ function selectCpuMoveWithPolicy(candidateMoves: any, playerKey: any): any {
         return prioritizedCandidateMoves[Math.floor(cpuRng.random() * prioritizedCandidateMoves.length)];
     }
     try {
-        const selectedMove = AISystem.selectMove(gameState, cardState, prioritizedCandidateMoves, level, null);
-        cpuDebugLog(`[CPU] Lv${level} ${playerKey}: 選択 (${selectedMove.row}, ${selectedMove.col}) - 反転${selectedMove.flips.length}枚`);
+        const selectedMove = AISystem.selectMove(gameState, cardState, prioritizedCandidateMoves, placementLevel, null);
+        cpuDebugLog(`[CPU] Lv${cardLevel} ${playerKey}: 選択 (${selectedMove.row}, ${selectedMove.col}) - 反転${selectedMove.flips.length}枚`);
         return selectedMove;
     } catch (e) {
         console.warn('[CPU] AISystem.selectMove failed, falling back to random', e);
@@ -3232,9 +3248,7 @@ function isCloneSplitEligibleSource(playerKey: any, row: any, col: any, markerPr
 
 function filterCloneSplitTargetsForLv6(playerKey: any, targets: any): any {
     if (!Array.isArray(targets) || targets.length <= 0) return [];
-    const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-        ? Number(cpuSmartness[playerKey])
-        : 1;
+    const level = resolveCpuSmartnessLevel(playerKey);
     if (level < 6) return targets;
     return targets.filter((target: any) => {
         if (!target) return false;
@@ -3490,7 +3504,7 @@ async function choosePendingTargetWithPolicyAsync(playerKey: any, pendingType: a
  * @param {string} playerKey - 'black' または 'white'
  */
 async function cpuSelectDestroyWithPolicy(playerKey: any): Promise<any> {
-    const level = cpuSmartness[playerKey] || 1;
+    const level = resolveCpuSmartnessLevel(playerKey);
     const board = getCurrentCpuBoard();
     const selectorTargets = (typeof CardLogic !== 'undefined' && typeof CardLogic.getSelectableTargets === 'function')
         ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
@@ -3762,9 +3776,7 @@ async function cpuSelectHeavenBlessingWithPolicy(playerKey: any): Promise<any> {
     let targetCardId = offers[0];
     let bestCost = -Infinity;
     let bestScore = Number.NEGATIVE_INFINITY;
-    const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-        ? Number(cpuSmartness[playerKey])
-        : 1;
+    const level = resolveCpuSmartnessLevel(playerKey);
     const player = playerKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)
         : (typeof WHITE !== 'undefined' ? WHITE : -1);
@@ -3856,9 +3868,7 @@ async function cpuSelectCondemnWillWithPolicy(playerKey: any): Promise<any> {
     let target = offers[0];
     let bestCost = -Infinity;
     let bestScore = Number.NEGATIVE_INFINITY;
-    const level = (typeof cpuSmartness !== 'undefined' && cpuSmartness && Number.isFinite(cpuSmartness[playerKey]))
-        ? Number(cpuSmartness[playerKey])
-        : 1;
+    const level = resolveCpuSmartnessLevel(playerKey);
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
     const opponentValue = opponentKey === 'black'
         ? (typeof BLACK !== 'undefined' ? BLACK : 1)

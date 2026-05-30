@@ -615,6 +615,142 @@ describe('cpu decision refactor helpers', () => {
     expect(global.CardLogic.applyCondemnWill).not.toHaveBeenCalled();
   });
 
+  test('cpuSelectHeavenBlessingWithPolicy uses injected smartness when global cpuSmartness is absent', async () => {
+    delete global.cpuSmartness;
+    cpuDecision.setCpuDecisionRuntime({
+      readModule: (name) => global[name],
+      emitCardStateChange: () => global.emitCardStateChange(),
+      emitBoardUpdate: () => global.emitBoardUpdate(),
+      emitGameStateChange: () => global.emitGameStateChange(),
+      emitLogAdded: (...args) => global.emitLogAdded(...args),
+      emitEffectLog: (...args) => (
+        typeof global.emitEffectLog === 'function'
+          ? global.emitEffectLog(...args)
+          : global.emitLogAdded(args[0], 'effect')
+      ),
+      readCpuSmartness: () => ({ white: 6, black: 1 })
+    });
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.getLegalMoves = () => [
+      { row: 0, col: 0, flips: [{ row: 1, col: 1 }] },
+      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] }
+    ];
+    global.cardState = {
+      hands: { white: ['heaven_01'], black: [] },
+      pendingEffectByPlayer: { white: { type: 'HEAVEN_BLESSING', stage: 'selectTarget', offers: ['guard_01', 'meteor_01'] }, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 18, black: 10 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.CardLogic = {
+      getCardDef: (id) => {
+        if (id === 'guard_01') return { id, type: 'GUARD_WILL' };
+        if (id === 'meteor_01') return { id, type: 'METEOR_WILL' };
+        return { id, type: 'HEAVEN_BLESSING' };
+      },
+      getCardCost: (id) => {
+        if (id === 'guard_01') return 2;
+        if (id === 'meteor_01') return 21;
+        return 3;
+      }
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectHeavenBlessingWithPolicy('white');
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.heavenBlessingCardId).toBe('guard_01');
+  });
+
+  test('cpuSelectCondemnWillWithPolicy uses injected smartness when global cpuSmartness is absent', async () => {
+    delete global.cpuSmartness;
+    cpuDecision.setCpuDecisionRuntime({
+      readModule: (name) => global[name],
+      emitCardStateChange: () => global.emitCardStateChange(),
+      emitBoardUpdate: () => global.emitBoardUpdate(),
+      emitGameStateChange: () => global.emitGameStateChange(),
+      emitLogAdded: (...args) => global.emitLogAdded(...args),
+      emitEffectLog: (...args) => (
+        typeof global.emitEffectLog === 'function'
+          ? global.emitEffectLog(...args)
+          : global.emitLogAdded(args[0], 'effect')
+      ),
+      readCpuSmartness: () => ({ white: 6, black: 1 })
+    });
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.getLegalMoves = () => [
+      { row: 0, col: 0, flips: [{ row: 1, col: 1 }] },
+      { row: 2, col: 3, flips: [{ row: 3, col: 3 }] }
+    ];
+    global.cardState = {
+      hands: { white: ['condemn_01'], black: ['guard_01', 'meteor_01'] },
+      pendingEffectByPlayer: {
+        white: {
+          type: 'CONDEMN_WILL',
+          stage: 'selectTarget',
+          offers: [
+            { handIndex: 0, cardId: 'guard_01' },
+            { handIndex: 1, cardId: 'meteor_01' }
+          ]
+        },
+        black: null
+      },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 18, black: 24 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    global.CardLogic = {
+      getCardDef: (id) => {
+        if (id === 'guard_01') return { id, type: 'GUARD_WILL' };
+        if (id === 'meteor_01') return { id, type: 'METEOR_WILL' };
+        return { id, type: 'CONDEMN_WILL' };
+      },
+      getCardCost: (id) => {
+        if (id === 'guard_01') return 2;
+        if (id === 'meteor_01') return 21;
+        return 6;
+      }
+    };
+    global.TurnPipeline = {};
+    global.TurnPipelineUIAdapter = {
+      runTurnWithAdapter: jest.fn(() => ({
+        ok: true,
+        nextCardState: {
+          ...global.cardState,
+          pendingEffectByPlayer: { ...global.cardState.pendingEffectByPlayer, white: null }
+        },
+        nextGameState: global.gameState,
+        playbackEvents: []
+      }))
+    };
+
+    await cpuDecision.cpuSelectCondemnWillWithPolicy('white');
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
+    const action = global.TurnPipelineUIAdapter.runTurnWithAdapter.mock.calls[0][3];
+    expect(action.condemnTargetIndex).toBe(0);
+  });
+
   test('Lv6 white relaxes high-confidence gate under hand and mobility pressure', () => {
     const scoreSpy = jest.spyOn(cpuPolicyCore, 'scoreCardUseDecision').mockReturnValue({
       score: 16,
@@ -1230,6 +1366,146 @@ describe('cpu decision refactor helpers', () => {
       level: 6,
       playerKey: 'white'
     }));
+  });
+
+  test('selectCpuMoveWithPolicy forces Lv6 placement path in cpu mode for normal turns', () => {
+    const candidates = [{ row: 2, col: 2, flips: [] }, { row: 3, col: 3, flips: [] }];
+    global.cpuSmartness.white = 1;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 12, black: 12 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    delete global.OthelloOnnxRuntime;
+    global.OthelloBrowserCpuRuntime = {
+      getStatus: jest.fn(() => ({ loaded: true, valueLoaded: true })),
+      chooseMove: jest.fn(() => candidates[1])
+    };
+    cpuDecision.setCpuDecisionRuntime({
+      readMatchMode: () => 'cpu',
+      readDebugFlag: (flag) => flag === 'CPU_DISABLE_OTHELLO_ONNX'
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+
+    expect(move).toBe(candidates[1]);
+    expect(global.OthelloBrowserCpuRuntime.chooseMove).toHaveBeenCalledWith(candidates, expect.objectContaining({
+      playerKey: 'white',
+      level: 6,
+      board: global.gameState.board
+    }));
+  });
+
+  test('selectCpuMoveWithPolicy keeps Lv6 placement pipeline when reversi runtime fails', () => {
+    const candidates = [{ row: 2, col: 2, flips: [] }, { row: 3, col: 3, flips: [] }];
+    global.cpuSmartness.white = 1;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 12, black: 12 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    delete global.OthelloOnnxRuntime;
+    global.OthelloBrowserCpuRuntime = {
+      getStatus: jest.fn(() => ({ loaded: true, valueLoaded: true })),
+      chooseMove: jest.fn(() => { throw new Error('runtime failed'); })
+    };
+    cpuDecision.setCpuDecisionRuntime({
+      readMatchMode: () => 'cpu',
+      readDebugFlag: (flag) => flag === 'CPU_DISABLE_OTHELLO_ONNX'
+    });
+    const lookedSpy = jest.spyOn(cpuPolicyCore, 'chooseMoveByLookahead').mockImplementation((moves, options) => {
+      expect(options.level).toBe(6);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+
+    expect(move).toBeDefined();
+    expect(lookedSpy).toHaveBeenCalled();
+  });
+
+  test('selectCpuMoveWithPolicy does not force Lv6 placement when pending effect exists in cpu mode', () => {
+    const candidates = [{ row: 2, col: 2, flips: [] }, { row: 3, col: 3, flips: [] }];
+    global.cpuSmartness.white = 1;
+    global.gameState = {
+      board: Array.from({ length: 8 }, () => Array(8).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: { type: 'WORK_WILL', stage: 'awaitPlace' }, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 12, black: 12 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    delete global.OthelloOnnxRuntime;
+    global.OthelloBrowserCpuRuntime = {
+      getStatus: jest.fn(() => ({ loaded: true, valueLoaded: true })),
+      chooseMove: jest.fn(() => candidates[1])
+    };
+    cpuDecision.setCpuDecisionRuntime({
+      readMatchMode: () => 'cpu'
+    });
+    const chooseMoveSpy = jest.spyOn(cpuPolicyCore, 'chooseMove').mockImplementation((moves, level) => {
+      expect(level).toBe(1);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+
+    expect(move).toBe(candidates[0]);
+    expect(chooseMoveSpy).toHaveBeenCalled();
+    expect(global.OthelloBrowserCpuRuntime.chooseMove).not.toHaveBeenCalled();
+  });
+
+  test('selectCpuMoveWithPolicy does not force Lv6 placement on non-standard board in cpu mode', () => {
+    const candidates = [{ row: 2, col: 2, flips: [] }, { row: 3, col: 3, flips: [] }];
+    global.cpuSmartness.white = 1;
+    global.gameState = {
+      board: Array.from({ length: 7 }, () => Array(9).fill(0)),
+      currentPlayer: -1
+    };
+    global.cardState = {
+      hands: { white: [], black: [] },
+      pendingEffectByPlayer: { white: null, black: null },
+      hasUsedCardThisTurnByPlayer: { white: false, black: false },
+      charge: { white: 12, black: 12 },
+      boardBonusByCell: {},
+      boardBonusConsumedByCell: {}
+    };
+    delete global.OthelloOnnxRuntime;
+    global.OthelloBrowserCpuRuntime = {
+      getStatus: jest.fn(() => ({ loaded: true, valueLoaded: true })),
+      chooseMove: jest.fn(() => candidates[1])
+    };
+    cpuDecision.setCpuDecisionRuntime({
+      readMatchMode: () => 'cpu'
+    });
+    const chooseMoveSpy = jest.spyOn(cpuPolicyCore, 'chooseMove').mockImplementation((moves, level) => {
+      expect(level).toBe(1);
+      return moves[0];
+    });
+
+    const move = cpuDecision.selectCpuMoveWithPolicy(candidates, 'white');
+
+    expect(move).toBe(candidates[0]);
+    expect(chooseMoveSpy).toHaveBeenCalled();
+    expect(global.OthelloBrowserCpuRuntime.chooseMove).not.toHaveBeenCalled();
   });
 
   test('selectCardToUse uses injected query reader for cpu trap-only debug mode', () => {

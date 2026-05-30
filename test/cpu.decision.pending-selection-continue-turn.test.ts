@@ -73,6 +73,7 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
       readMatchMode: () => 'cpu',
       readHumanVsHumanMode: () => false,
       processCpuTurn: global.processCpuTurn,
+      readCpuSmartness: () => ({ white: 4, black: 1 }),
       readModule: (name) => global[name]
     });
     PendingCoordinator.clearPendingSelectionActionCache();
@@ -121,5 +122,21 @@ describe('DESTROY_ONE_STONE CPU selection deferred publish', () => {
     expect(PendingCoordinator.readPendingSelectionAction('white')).toBeNull();
     expect(global.onTurnStart).not.toHaveBeenCalled();
     expect(global.processCpuTurn).not.toHaveBeenCalled();
+  });
+
+  test('CPU continue-turn selection still resolves when only injected smartness is available', async () => {
+    delete global.cpuSmartness;
+    PendingCoordinator.storePendingSelectionAction(
+      'white',
+      { type: 'pending_selection', cardId: 'destroy-card', turnIndex: 3 },
+      'DESTROY_ONE_STONE'
+    );
+
+    await cpuDecision.cpuSelectDestroyWithPolicy('white');
+
+    expect(global.TurnPipelineUIAdapter.runTurnWithAdapter).toHaveBeenCalled();
+    const action = runTurnMock.mock.calls[0][3];
+    expect(action.destroyTarget).toEqual({ row: 2, col: 3 });
+    expect(global.cardState.pendingEffectByPlayer.white).toBeNull();
   });
 });
