@@ -19,6 +19,9 @@ function _require(id: string): any {
 }
 
 function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
     if (typeof self !== 'undefined' && (self as any)[key]) {
         return (self as any)[key];
     }
@@ -1165,9 +1168,9 @@ const {
         return requireCardContextBuilders().getLivingWillModuleContext();
     }
 
-    const CardPendingStateManagerModule = requireOptionalCardLogicModule('./cards-internal/pending-state-manager');
-    const PendingCoordinatorModule = requireOptionalCardLogicModule('../turn/pending-coordinator');
-    const CardChargeLedgerModule = requireOptionalCardLogicModule('./cards-internal/charge-ledger');
+    const CardPendingStateManagerModule = resolveCardLogicGlobalOrModule('CardPendingStateManager', './cards-internal/pending-state-manager');
+    const PendingCoordinatorModule = resolveCardLogicGlobalOrModule('TurnPendingCoordinator', '../turn/pending-coordinator');
+    const CardChargeLedgerModule = resolveCardLogicGlobalOrModule('CardChargeLedger', './cards-internal/charge-ledger');
 
     function readCardPendingEffect(cardState: any, playerKey: any) {
         if (PendingCoordinatorModule && typeof PendingCoordinatorModule.readPendingEffect === 'function') {
@@ -1199,8 +1202,8 @@ const {
         return true;
     }
 
-    const BoardOpsModule = requireOptionalCardLogicModule('./board_ops');
-    const MarkersAdapter = requireOptionalCardLogicModule('./markers_adapter');
+    const BoardOpsModule = resolveCardLogicGlobalOrModule('BoardOps', './board_ops');
+    const MarkersAdapter = resolveCardLogicGlobalOrModule('MarkersAdapter', './markers_adapter');
     const MARKER_KINDS = (CardMarkersModule && CardMarkersModule.MARKER_KINDS)
         || (MarkersAdapter && MarkersAdapter.MARKER_KINDS);
     const MARKER_CATEGORIES = (CardMarkersModule && CardMarkersModule.MARKER_CATEGORIES)

@@ -381,22 +381,42 @@ function makeSeatToken(): string {
     return MatchAuthority.makeSeatToken(crypto as unknown as { getRandomValues(array: Uint8Array): Uint8Array });
 }
 
-function getRuntimeGlobalScope(): Record<string, unknown> | null {
-    if (typeof globalThis !== 'undefined') return globalThis;
-    if (typeof self !== 'undefined') return self;
+function getRuntimeGlobalScopes(): Record<string, unknown>[] {
+    const scopes: Record<string, unknown>[] = [];
+    if (typeof globalThis !== 'undefined' && globalThis) {
+        scopes.push(globalThis as Record<string, unknown>);
+    }
+    if (typeof self !== 'undefined' && self) {
+        const selfScope = self as Record<string, unknown>;
+        if (!scopes.includes(selfScope)) {
+            scopes.push(selfScope);
+        }
+    }
+    return scopes;
+}
+
+function readRuntimeGlobalValue(key: string): unknown {
+    if (!key) return null;
+    const scopes = getRuntimeGlobalScopes();
+    for (const scope of scopes) {
+        if (Object.prototype.hasOwnProperty.call(scope, key) && typeof scope[key] !== 'undefined') {
+            return scope[key];
+        }
+    }
     return null;
 }
 
 function setRuntimeGlobalValue(key: string, value: unknown): unknown {
-    const scope = getRuntimeGlobalScope();
-    if (!scope || !key) return value;
-    scope[key] = value;
+    const scopes = getRuntimeGlobalScopes();
+    if (!key || scopes.length <= 0) return value;
+    for (const scope of scopes) {
+        scope[key] = value;
+    }
     return value;
 }
 
 function importWorkerGlobal(importPath: string, globalKey: string): Promise<unknown> {
-    const scope = getRuntimeGlobalScope();
-    const runtimeValue = scope && globalKey ? scope[globalKey] : null;
+    const runtimeValue = readRuntimeGlobalValue(globalKey);
     if (hasUsableRuntimeModule(runtimeValue)) {
         return Promise.resolve(runtimeValue);
     }
@@ -407,7 +427,7 @@ function importWorkerGlobal(importPath: string, globalKey: string): Promise<unkn
         return Promise.reject(error);
     }
     const resolved = unwrapRuntimeModule(mod);
-    const globalAfterLoad = scope && globalKey ? scope[globalKey] : null;
+    const globalAfterLoad = readRuntimeGlobalValue(globalKey);
     const preferredResolved = ModuleExportUtils && typeof ModuleExportUtils.preferUsableModuleExport === 'function'
         ? ModuleExportUtils.preferUsableModuleExport(resolved, globalAfterLoad)
         : (hasUsableRuntimeModule(resolved) ? resolved : globalAfterLoad);
@@ -669,10 +689,27 @@ function createWorkerTurnPipelineModule(
                     delete cardStateRecord._currentActionMeta;
                 }
             }
-            const presentationEvents = (typeof CardLogic.flushPresentationEvents === 'function')
+            const queuedPresentationEvents = (cardState && Array.isArray(cardStateRecord.presentationEvents))
+                ? cardStateRecord.presentationEvents.slice()
+                : [];
+            const flushedPresentationEvents = (typeof CardLogic.flushPresentationEvents === 'function')
                 ? CardLogic.flushPresentationEvents(cardState)
-                : ((cardState && Array.isArray(cardStateRecord.presentationEvents)) ? cardStateRecord.presentationEvents.slice() : []);
-            return { gameState, cardState, events, presentationEvents: Array.isArray(presentationEvents) ? presentationEvents : [] };
+                : queuedPresentationEvents;
+            let presentationEvents = Array.isArray(flushedPresentationEvents)
+                ? flushedPresentationEvents
+                : [];
+            if (presentationEvents.length === 0 && queuedPresentationEvents.length > 0) {
+                presentationEvents = queuedPresentationEvents;
+            }
+            if (
+                presentationEvents.length === 0
+                && cardState
+                && Array.isArray(cardStateRecord._presentationEventsPersist)
+                && cardStateRecord._presentationEventsPersist.length > 0
+            ) {
+                presentationEvents = cardStateRecord._presentationEventsPersist.slice();
+            }
+            return { gameState, cardState, events, presentationEvents };
         } finally {
             if (cardState) {
                 if (previousBoardOpsRandomSource && typeof asRecord(previousBoardOpsRandomSource).random === 'function') {

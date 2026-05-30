@@ -21,6 +21,9 @@ function safeRequire(id: string): any {
 }
 
 function getRuntimeGlobalValue(key: string): any {
+    if (typeof globalThis !== 'undefined' && (globalThis as any)[key]) {
+        return (globalThis as any)[key];
+    }
     if (typeof self !== 'undefined' && (self as any)[key]) {
         return (self as any)[key];
     }

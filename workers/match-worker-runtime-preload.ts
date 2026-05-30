@@ -1,10 +1,18 @@
 type MatchWorkerRuntimeGlobalScope = Record<string, unknown>;
 const ModuleExportUtils = require('../shared/module-export-utils');
 
-function getRuntimeGlobalScope(): MatchWorkerRuntimeGlobalScope {
-    if (typeof globalThis !== 'undefined') return globalThis as MatchWorkerRuntimeGlobalScope;
-    if (typeof self !== 'undefined') return self as MatchWorkerRuntimeGlobalScope;
-    return {};
+function getRuntimeGlobalScopes(): MatchWorkerRuntimeGlobalScope[] {
+    const scopes: MatchWorkerRuntimeGlobalScope[] = [];
+    if (typeof globalThis !== 'undefined' && globalThis) {
+        scopes.push(globalThis as MatchWorkerRuntimeGlobalScope);
+    }
+    if (typeof self !== 'undefined' && self) {
+        const selfScope = self as MatchWorkerRuntimeGlobalScope;
+        if (!scopes.includes(selfScope)) {
+            scopes.push(selfScope);
+        }
+    }
+    return scopes;
 }
 
 function unwrapModule(mod: unknown): unknown {
@@ -24,17 +32,31 @@ function hasUsableRuntimeModule(mod: unknown): boolean {
     return Object.keys(mod as Record<string, unknown>).some((key) => key !== '__esModule');
 }
 
-const scope = getRuntimeGlobalScope();
+const scopes = getRuntimeGlobalScopes();
+
+function hasUsableGlobalRuntimeModule(globalKey: string): boolean {
+    if (!globalKey) return false;
+    for (const scope of scopes) {
+        if (hasUsableRuntimeModule(scope[globalKey])) return true;
+    }
+    return false;
+}
+
+function setGlobalRuntimeModule(globalKey: string, value: unknown): void {
+    for (const scope of scopes) {
+        scope[globalKey] = value;
+    }
+}
 
 function installRuntimeModule(globalKey: string, loadModule: () => unknown): void {
-    if (hasUsableRuntimeModule(scope[globalKey])) return;
+    if (hasUsableGlobalRuntimeModule(globalKey)) return;
     const loadedModule = unwrapModule(loadModule());
     if (hasUsableRuntimeModule(loadedModule)) {
-        scope[globalKey] = loadedModule;
+        setGlobalRuntimeModule(globalKey, loadedModule);
         return;
     }
-    if (hasUsableRuntimeModule(scope[globalKey])) return;
-    scope[globalKey] = loadedModule;
+    if (hasUsableGlobalRuntimeModule(globalKey)) return;
+    setGlobalRuntimeModule(globalKey, loadedModule);
 }
 
 installRuntimeModule('CardCatalog', () => require('../cards/catalog.js'));
