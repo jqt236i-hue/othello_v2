@@ -205,7 +205,7 @@ describe('GHOST_WILL（幽霊の意志）', () => {
     expect(findGhostMarker(cardState, 3, 3)).toBeUndefined();
   });
 
-  test('tempt and position swap still work on ghost stone', () => {
+  test('ghost can be targeted by tempt but deflects it, and position swap still works', () => {
     const prng = createPrng(0);
     const cardState = CardLogic.createCardState(prng);
     const gameState = createEmptyGameState();
@@ -219,12 +219,25 @@ describe('GHOST_WILL（幽霊の意志）', () => {
       owner: 'black',
       data: { type: 'GHOST', remainingOwnerTurns: 5 }
     });
+    expect(CardLogic.getTemptWillTargets(cardState, gameState, 'white')).toEqual(expect.arrayContaining([{ row: 4, col: 4 }]));
     cardState.pendingEffectByPlayer.white = { type: 'TEMPT_WILL', stage: 'selectTarget', cardId: 'tempt_01' };
 
     const temptRes = CardLogic.applyTemptWill(cardState, gameState, 'white', 4, 4);
-    expect(temptRes && temptRes.applied).toBe(true);
-    expect(gameState.board[4][4]).toBe(Core.WHITE);
-    expect(findGhostMarker(cardState, 4, 4)).toEqual(expect.objectContaining({ owner: 'white' }));
+    expect(temptRes).toMatchObject({ applied: true, blockedByGhost: true, reason: 'ghost_protected' });
+    expect(cardState.pendingEffectByPlayer.white).toBeNull();
+    expect(gameState.board[4][4]).toBe(Core.BLACK);
+    expect(findGhostMarker(cardState, 4, 4)).toEqual(expect.objectContaining({ owner: 'black' }));
+    expect(CardLogic.flushPresentationEvents(cardState)).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'CHANGE',
+        row: 4,
+        col: 4,
+        meta: expect.objectContaining({
+          blockedByGhost: true,
+          special: 'GHOST'
+        })
+      })
+    ]));
 
     gameState.board[1][1] = Core.BLACK;
     cardState.markers.push({

@@ -228,6 +228,57 @@ describe('CAPTURE_WILL (捕獲の意志)', () => {
     expect(CardLogic.getCaptureWillTargets(cardState, gameState, 'black')).toEqual([{ row: 1, col: 5 }]);
   });
 
+  test('capture target list includes ghost, but applying capture is deflected by ghost', () => {
+    const captureDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'CAPTURE_WILL');
+    expect(captureDef).toBeTruthy();
+
+    const { cardState, gameState } = makeState();
+    gameState.board[3][5] = -1;
+    cardState.hands.black = [captureDef.id];
+    cardState.charge.black = captureDef.cost;
+    cardState.markers.push({
+      id: 499,
+      kind: 'specialStone',
+      row: 3,
+      col: 5,
+      owner: 'white',
+      data: { type: 'GHOST', remainingOwnerTurns: 5 }
+    });
+
+    const targets = CardLogic.getCaptureWillTargets(cardState, gameState, 'black');
+    expect(targets).toEqual(expect.arrayContaining([{ row: 3, col: 5 }]));
+
+    expect(CardLogic.applyCardUsage(cardState, gameState, 'black', captureDef.id)).toBe(true);
+    const res = CardLogic.applyCaptureWill(cardState, gameState, 'black', 3, 5);
+
+    expect(res).toMatchObject({
+      applied: true,
+      blockedByGhost: true,
+      reason: 'ghost_protected',
+      sourceSpecialType: 'GHOST'
+    });
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(gameState.board[3][5]).toBe(-1);
+    expect((cardState.markers || []).some((marker) => (
+      marker &&
+      marker.row === 3 &&
+      marker.col === 5 &&
+      marker.data &&
+      marker.data.type === 'GHOST' &&
+      marker.owner === 'white'
+    ))).toBe(true);
+    expect(cardState.hands.black).toEqual([]);
+    expect((cardState.presentationEvents || []).some((ev) => (
+      ev &&
+      ev.type === 'DESTROY' &&
+      ev.row === 3 &&
+      ev.col === 5 &&
+      ev.meta &&
+      ev.meta.blockedByGhost === true &&
+      ev.meta.special === 'GHOST'
+    ))).toBe(true);
+  });
+
   test('capture target list accepts legacy dragon markers without source metadata', () => {
     const captureDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'CAPTURE_WILL');
     const dragonDef = SharedConstants.CARD_DEFS.find((def) => def && def.type === 'ULTIMATE_REVERSE_DRAGON');

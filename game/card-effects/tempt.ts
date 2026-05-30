@@ -44,7 +44,18 @@ async function handleTemptSelection(row: number, col: number, playerKey: string)
         invalidMessage: () => LOG_MESSAGES.temptSelectPrompt(),
         validateResult: ({ result }: any) => wasSelectionApplied(result, 'tempt_selected'),
         buildPlaybackMeta: () => ({ cause: 'TEMPT_WILL', target: { row, col } }),
-        afterStateChange: () => {
+        afterStateChange: (context: any = {}) => {
+            const result = context && context.result;
+            const rawEvent = result && Array.isArray(result.rawEvents)
+                ? result.rawEvents.find((event: any) => event && event.type === 'tempt_selected')
+                : null;
+            if (rawEvent && rawEvent.blockedByGhost) {
+                const blockedMessage = LOG_MESSAGES && typeof LOG_MESSAGES.temptGhostBlocked === 'function'
+                    ? LOG_MESSAGES.temptGhostBlocked(playerKey === 'black' ? '黒' : '白', posToNotation(row, col))
+                    : `${playerKey === 'black' ? '黒' : '白'}が誘惑の意志を使ったが幽体に受け流された`;
+                emitTemptLog(blockedMessage);
+                return;
+            }
             emitTemptLog(LOG_MESSAGES.temptApplied(playerKey === 'black' ? '黒' : '白', posToNotation(row, col)));
         }
     });

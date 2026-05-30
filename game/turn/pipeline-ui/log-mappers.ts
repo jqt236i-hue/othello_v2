@@ -372,7 +372,10 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                 if (ev.applied) push('断罪で相手カードを破壊');
                 break;
             case 'tempt_selected':
-                if (ev.applied) push('誘惑で特殊石を奪取');
+                if (ev.applied) {
+                    if (ev.blockedByGhost) push('誘惑は幽体に受け流された');
+                    else push('誘惑で特殊石を奪取');
+                }
                 break;
             case 'swap_selected':
                 if (ev.swapped) push(`交換で${_toPosText({ row: ev.row, col: ev.col }, deps)}を変換`);

@@ -184,4 +184,28 @@ describe('special stone visual rule', () => {
     expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 3)).toMatchObject({ applied: false, reason: 'not_special' });
     expect(CardLogic.applyTemptWill(cardState, gameState, 'black', 2, 4)).toMatchObject({ applied: false, reason: 'not_special' });
   });
+
+  test('TEMPT_WILL は幽体を対象にできるが、効果は幽体に受け流される', () => {
+    const prng = { shuffle: (arr) => arr, random: () => 0 };
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = createGameState();
+    gameState.board[6][1] = Shared.WHITE;
+    cardState.pendingEffectByPlayer.black = { type: 'TEMPT_WILL', stage: 'selectTarget', cardId: 'tempt_01' };
+    cardState.markers.push({
+      id: 30,
+      kind: 'specialStone',
+      row: 6,
+      col: 1,
+      owner: 'white',
+      data: { type: 'GHOST', remainingOwnerTurns: 5 }
+    });
+
+    expect(CardLogic.getTemptWillTargets(cardState, gameState, 'black')).toEqual(expect.arrayContaining([{ row: 6, col: 1 }]));
+    const res = CardLogic.applyTemptWill(cardState, gameState, 'black', 6, 1);
+    expect(res).toMatchObject({ applied: true, blockedByGhost: true, reason: 'ghost_protected' });
+    expect(gameState.board[6][1]).toBe(Shared.WHITE);
+    expect(cardState.markers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 6, col: 1, owner: 'white', data: expect.objectContaining({ type: 'GHOST' }) })
+    ]));
+  });
 });

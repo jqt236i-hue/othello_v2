@@ -2213,6 +2213,7 @@ const {
             getSpecialMarkers,
             isAbsoluteProtectedCell,
             getTrueSpecialStoneMarkerAt,
+            BoardOpsModule,
             resolveCaptureSourceInfo,
             CardLivingWillModule,
             addCardToHand,

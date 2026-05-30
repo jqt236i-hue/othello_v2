@@ -294,7 +294,13 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
             action.temptTarget.row,
             action.temptTarget.col
         );
-        opts.events.push({ type: 'tempt_selected', player: opts.playerKey, target: action.temptTarget, applied: !!(res && res.applied) });
+        opts.events.push({
+            type: 'tempt_selected',
+            player: opts.playerKey,
+            target: action.temptTarget,
+            applied: !!(res && res.applied),
+            blockedByGhost: !!(res && res.blockedByGhost)
+        });
         opts.applyTrapEffectsAfterSelection();
         return true;
     } else if (pending && pending.type === 'TEMPT_WILL' && action.temptTarget == null) {
@@ -314,6 +320,7 @@ function resolvePrePlacementSelectionAction(options: ResolvePrePlacementSelectio
             player: opts.playerKey,
             target: action.captureTarget,
             applied: !!(res && res.applied),
+            blockedByGhost: !!(res && res.blockedByGhost),
             capturedCardId: (res && res.capturedCardId) ? res.capturedCardId : null,
             capturedCardType: (res && res.capturedCardType) ? res.capturedCardType : null,
             capturedCardName: (res && res.capturedCardName) ? res.capturedCardName : null,

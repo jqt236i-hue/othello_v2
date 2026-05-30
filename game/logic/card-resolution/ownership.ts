@@ -13,6 +13,27 @@ import type { CardState, GameState, PlayerKey } from '../../../src/types';
 
     const { BLACK, WHITE, EMPTY } = SharedConstants || {};
 
+function unwrapMarkerEntry(markerEntry: any): any | null {
+    if (!markerEntry || typeof markerEntry !== 'object') return null;
+    if (markerEntry.marker && typeof markerEntry.marker === 'object') return markerEntry.marker;
+    return markerEntry;
+}
+
+function normalizeMarkerType(marker: any): string {
+    return String(marker && marker.data && marker.data.type ? marker.data.type : '').toUpperCase();
+}
+
+function findGhostMarkerAt(cardState: CardState, row: number, col: number, getSpecialMarkers: any): any | null {
+    if (typeof getSpecialMarkers !== 'function') return null;
+    const marker = getSpecialMarkers(cardState).find((entry: any) => (
+        entry &&
+        entry.row === row &&
+        entry.col === col &&
+        normalizeMarkerType(entry) === 'GHOST'
+    ));
+    return marker || null;
+}
+
 function transferCellMarkerOwnership(cardState: CardState, row: number, col: number, playerKey: PlayerKey, deps: any): Record<string, any> {
     const getMarkers = deps && deps.getMarkers;
     if (typeof getMarkers !== 'function') {
@@ -83,8 +104,16 @@ function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: P
     }
 
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
-    if (!isTrueSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
-    if (getTrueSpecialStoneOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
+    const isOpponentTrueSpecial = isTrueSpecialStoneAt(cardState, row, col)
+        && getTrueSpecialStoneOwnerAt(cardState, row, col) === opponentKey;
+    const ghostMarker = findGhostMarkerAt(cardState, row, col, getSpecialMarkers);
+    const isOpponentGhost = !!(ghostMarker && ghostMarker.owner === opponentKey);
+    if (!isOpponentTrueSpecial && !isOpponentGhost) {
+        if (isTrueSpecialStoneAt(cardState, row, col) || (ghostMarker && ghostMarker.owner !== opponentKey)) {
+            return { applied: false, reason: 'not_opponent_special' };
+        }
+        return { applied: false, reason: 'not_special' };
+    }
     if (getCellValueForCard(gameState, row, col) === EMPTY) return { applied: false, reason: 'empty' };
     const guarded = getSpecialMarkers(cardState).some((m: any) => (
         m &&
@@ -96,6 +125,29 @@ function applyTemptWill(cardState: CardState, gameState: GameState, playerKey: P
     if (guarded) return { applied: false, reason: 'guarded' };
     if (typeof isAbsoluteProtectedCell === 'function' && isAbsoluteProtectedCell(cardState, row, col)) {
         return { applied: false, reason: 'absolute_protected' };
+    }
+
+    if (isOpponentGhost) {
+        if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
+            BoardOpsModule.changeAt(cardState, gameState, row, col, playerKey, 'TEMPT_WILL', 'tempt_convert');
+        } else if (typeof emitPresentationEvent === 'function') {
+            emitPresentationEvent(cardState, {
+                type: 'CHANGE',
+                row,
+                col,
+                ownerBefore: opponentKey,
+                ownerAfter: playerKey,
+                cause: 'TEMPT_WILL',
+                reason: 'tempt_convert',
+                meta: {
+                    blockedByGhost: true,
+                    special: 'GHOST',
+                    reason: 'tempt_convert'
+                }
+            });
+        }
+        clearCardPendingEffect(cardState, playerKey);
+        return { applied: true, blockedByGhost: true, reason: 'ghost_protected', row, col };
     }
 
     if (BoardOpsModule && typeof BoardOpsModule.changeAt === 'function') {
@@ -141,6 +193,7 @@ function applyCaptureWill(cardState: CardState, gameState: GameState, playerKey:
     const getSpecialMarkers = deps && deps.getSpecialMarkers;
     const isAbsoluteProtectedCell = deps && deps.isAbsoluteProtectedCell;
     const getTrueSpecialStoneMarkerAt = (deps && deps.getTrueSpecialStoneMarkerAt) || (deps && deps.getSpecialMarkerAt);
+    const BoardOpsModule = deps && deps.BoardOpsModule;
     const resolveCaptureSourceInfo = deps && deps.resolveCaptureSourceInfo;
     const CardLivingWillModule = deps && deps.CardLivingWillModule;
     const addCardToHand = deps && deps.addCardToHand;
@@ -177,8 +230,16 @@ function applyCaptureWill(cardState: CardState, gameState: GameState, playerKey:
     }
 
     const opponentKey = playerKey === 'black' ? 'white' : 'black';
-    if (!isTrueSpecialStoneAt(cardState, row, col)) return { applied: false, reason: 'not_special' };
-    if (getTrueSpecialStoneOwnerAt(cardState, row, col) !== opponentKey) return { applied: false, reason: 'not_opponent_special' };
+    const isOpponentTrueSpecial = isTrueSpecialStoneAt(cardState, row, col)
+        && getTrueSpecialStoneOwnerAt(cardState, row, col) === opponentKey;
+    const ghostMarker = findGhostMarkerAt(cardState, row, col, getSpecialMarkers);
+    const isOpponentGhost = !!(ghostMarker && ghostMarker.owner === opponentKey);
+    if (!isOpponentTrueSpecial && !isOpponentGhost) {
+        if (isTrueSpecialStoneAt(cardState, row, col) || (ghostMarker && ghostMarker.owner !== opponentKey)) {
+            return { applied: false, reason: 'not_opponent_special' };
+        }
+        return { applied: false, reason: 'not_special' };
+    }
     if (getCellValueForCard(gameState, row, col) === EMPTY) return { applied: false, reason: 'empty' };
     const guarded = getSpecialMarkers(cardState).some((m: any) => (
         m &&
@@ -190,6 +251,34 @@ function applyCaptureWill(cardState: CardState, gameState: GameState, playerKey:
     if (guarded) return { applied: false, reason: 'guarded' };
     if (typeof isAbsoluteProtectedCell === 'function' && isAbsoluteProtectedCell(cardState, row, col)) {
         return { applied: false, reason: 'absolute_protected' };
+    }
+
+    if (isOpponentGhost) {
+        if (BoardOpsModule && typeof BoardOpsModule.destroyAt === 'function') {
+            BoardOpsModule.destroyAt(cardState, gameState, row, col, 'CAPTURE_WILL', 'capture_selected');
+        } else if (typeof emitPresentationEvent === 'function') {
+            emitPresentationEvent(cardState, {
+                type: 'DESTROY',
+                row,
+                col,
+                ownerBefore: opponentKey,
+                cause: 'CAPTURE_WILL',
+                reason: 'capture_selected',
+                meta: {
+                    blockedByGhost: true,
+                    special: 'GHOST',
+                    reason: 'capture_selected'
+                }
+            });
+        }
+        clearCardPendingEffect(cardState, playerKey);
+        return {
+            applied: true,
+            target: { row, col },
+            blockedByGhost: true,
+            reason: 'ghost_protected',
+            sourceSpecialType: 'GHOST'
+        };
     }
 
     const markerEntry = getTrueSpecialStoneMarkerAt(cardState, row, col);
@@ -215,9 +304,10 @@ function applyCaptureWill(cardState: CardState, gameState: GameState, playerKey:
     const stoneId = getStoneIdAtForCard(cardState, gameState, row, col);
     const targetValue = getCellValueForCard(gameState, row, col);
     const ownerBefore = targetValue === (BLACK || 1) ? 'black' : 'white';
-    const wasWork = !!(markerEntry && markerEntry.marker && markerEntry.marker.data && markerEntry.marker.data.type === 'WORK');
+    const markerRef = unwrapMarkerEntry(markerEntry);
+    const wasWork = !!(markerRef && markerRef.data && markerRef.data.type === 'WORK');
     const removedSpecialType = captureSource.sourceSpecialType
-        || (markerEntry && markerEntry.marker && markerEntry.marker.data && markerEntry.marker.data.type)
+        || (markerRef && markerRef.data && markerRef.data.type)
         || null;
 
     clearStoneIdAtForCard(cardState, gameState, row, col);
