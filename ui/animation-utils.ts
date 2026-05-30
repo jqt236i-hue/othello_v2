@@ -180,12 +180,15 @@ function _isOwnerOnBottomSlot(playerKey: any) {
 const HAND_WRAPPER_WIDTH = 180;
 const HAND_MOTION_SPEED_MULTIPLIER = 1.3;
 const scaleHandMotionDuration = (baseMs: number): number => Math.max(1, Math.round(baseMs / HAND_MOTION_SPEED_MULTIPLIER));
-const HAND_PLACE_APPROACH_MS = scaleHandMotionDuration(400);
-const HAND_PLACE_BOB_MS = scaleHandMotionDuration(150);
-const HAND_PLACE_RETREAT_MS = scaleHandMotionDuration(300);
-const HAND_DRAW_PICKUP_MS = 140;
-const HAND_DRAW_MOVE_MS = 360;
-const HAND_DRAW_RETREAT_MS = 220;
+const PLACE_HAND_SPEED_BOOST = 1.2;
+const DRAW_HAND_SPEED_BOOST = 1.1;
+const boostHandDuration = (baseMs: number, boost: number): number => Math.max(1, Math.round(baseMs / boost));
+const HAND_PLACE_APPROACH_MS = boostHandDuration(scaleHandMotionDuration(400), PLACE_HAND_SPEED_BOOST);
+const HAND_PLACE_BOB_MS = boostHandDuration(scaleHandMotionDuration(150), PLACE_HAND_SPEED_BOOST);
+const HAND_PLACE_RETREAT_MS = boostHandDuration(scaleHandMotionDuration(300), PLACE_HAND_SPEED_BOOST);
+const HAND_DRAW_PICKUP_MS = boostHandDuration(140, DRAW_HAND_SPEED_BOOST);
+const HAND_DRAW_MOVE_MS = boostHandDuration(360, DRAW_HAND_SPEED_BOOST);
+const HAND_DRAW_RETREAT_MS = boostHandDuration(220, DRAW_HAND_SPEED_BOOST);
 
 function _resolveHandImageElement() {
     if (typeof document === 'undefined') return null;
