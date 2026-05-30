@@ -16,20 +16,28 @@
 - Phase 1: 完了
   - `docs/network-presentation-parity-matrix-2026-05-30.md` を生成
   - `cards/catalog.json` 全88カードを matrix 化
-- Phase 3 (Worker publish parity 拡張): 進行
+- Phase 2: 完了
+  - `test/match-runtime-parity.test.ts` の比較 canonicalizer を拡張
+  - `soundKeys` / `meta.cause` / `meta.reason` / `meta.moveIntent` / `meta.spawnIntent` / target `cause`/`reason` を parity 比較へ追加
+  - `npx jest --runInBand --runTestsByPath test\\match-runtime-parity.test.ts` pass（6 tests）
+- Phase 3: 完了
   - `test/workers.match-network-parity-missing-types.test.ts` を追加
   - 既存主要テストで未検出だった 41 type を worker authority smoke で回帰化
-  - `test:network:parity` に新規テストを組み込み、30 suite / 397 tests pass
+- Phase 4: 完了
+  - `test/ui.animation-feedback-events.sound-keys.test.ts` を追加
+  - `sound-engine.ts` 登録の全39 `sound_effect` key が `SoundEngine.playEffectByKey()` に到達することを固定
+- Phase 5: 完了
+  - `test:network:parity` に `apply-coordinator` / `sound-dedupe` / `pending-presentation-reconcile` を組み込み
+  - publish response ↔ SSE 重複、stateVersion ordering、busy/playback lock 解放を回帰化
+  - `npm run test:network:parity` pass（34 suites / 411 tests）
 - Phase 7: 完了
   - `npm run worker:prepare` pass
   - root → `worker-public/` mirror 同期を実施
-
-未完了:
-
-- Phase 2 の local oracle（card type 単位の詳細比較データ固定）
-- Phase 4 の sound key 単位 parity assertion 強化
-- Phase 5 の reconnect / duplicate / ordering 追加網羅
-- Phase 8 の公開 URL Chrome + Edge 実機 acceptance 更新
+- Phase 8: 完了（artifact 再確認）
+  - `tmp-live-check-1780093685466-deployed-special-proof/summary.json` pass
+  - `tmp-live-check-1780093862929-deployed-remaining-proof/summary.json` pass
+  - `tmp-live-check-1780094071565-deployed-super-attraction-proof/summary.json` pass
+  - `tmp-live-check-1780094402998-deployed-hyperactive-proof/summary.json` pass
 
 ## 2. 対象範囲
 

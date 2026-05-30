@@ -105,8 +105,22 @@
 | equality_will_01 | EQUALITY_WILL |  |  |  |  |  | Y | auto-covered |
 | fate_will_01 | FATE_WILL |  |  |  |  |  | Y | auto-covered |
 
-## 次アクション
+## Sound Key Coverage (2026-05-30)
 
-1. `playbackContract` 未検出の card type から、local oracle vs worker publish の詳細比較テストを追加する。
-2. `sound_effect` key 単位の網羅表を別セクションに追加し、ネット再生検証へ接続する。
-3. 公開 Chrome + Edge 実機確認で matrix の `live checked` 列を埋める。
+- source: `sound-engine.ts` `effectSoundFiles` = 39 keys
+- test: `test/ui.animation-feedback-events.sound-keys.test.ts`
+  - registered effect keys -> `SoundEngine.playEffectByKey()` forwarding pass
+  - single-event duplicate key dedupe pass
+- aggregate run: `npm run test:network:parity` pass（34 suites / 411 tests）
+
+## Live Acceptance Coverage (2026-05-30)
+
+- artifact: `tmp-live-check-1780093685466-deployed-special-proof/summary.json`
+  - scenario pass: 繁殖の意志 / 逃げる意志
+- artifact: `tmp-live-check-1780093862929-deployed-remaining-proof/summary.json`
+  - scenario pass: 狙撃の意志 / 強風の意志 / 捕獲の意志
+- artifact: `tmp-live-check-1780094071565-deployed-super-attraction-proof/summary.json`
+  - scenario pass: 超引力
+- artifact: `tmp-live-check-1780094402998-deployed-hyperactive-proof/summary.json`
+  - scenario pass: 多動の意志
+- all listed artifacts: `passed: true`

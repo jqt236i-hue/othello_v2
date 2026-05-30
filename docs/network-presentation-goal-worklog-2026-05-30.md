@@ -238,3 +238,20 @@ focused で使った代表例:
 
 このチャットで最後に Goal は完了として更新した。
 記録上の使用量は `2,074,046 tokens`、経過は約 `2 時間 34 分`。
+
+## 12. 2026-05-30 補遺（完遂計画実行フェーズ）
+
+`docs/network-presentation-completion-plan-2026-05-30.md` の実行として、次を追加で完了した。
+
+- `test/match-runtime-parity.test.ts` の parity 比較 canonicalizer を拡張し、`soundKeys` と `meta/target` の原因情報を比較対象へ追加
+- `test/ui.animation-feedback-events.sound-keys.test.ts` を新規追加し、`sound-engine.ts` 登録の全39 key が `SoundEngine.playEffectByKey()` に到達することを固定
+- `test:network:parity` スイートへ `apply-coordinator` / `sound-dedupe` / `pending-presentation-reconcile` を組み込み、重複SSE・順序・busy解放回帰を常時チェック化
+- 既存 live artifact（Chrome host + Edge guest）4件の `summary.json` を再確認し、`passed: true` を確認
+
+追加で確認したコマンド結果:
+
+- `npm run typecheck` pass
+- `npm run build:ts` pass
+- `npx jest --runInBand --runTestsByPath test\\match-runtime-parity.test.ts` pass（6 tests）
+- `npx jest --runInBand --runTestsByPath test\\ui.animation-feedback-events.sound-keys.test.ts` pass（2 tests）
+- `npm run test:network:parity` pass（34 suites / 411 tests）
