@@ -88,15 +88,18 @@ async function joinRoom(page: any, roomId: string, playerName: string) {
 }
 
 async function fillDebugHand(page: any) {
+  return fillDebugHandForSeat(page, 'black');
+}
+
+async function fillDebugHandForSeat(page: any, seatKey: 'black' | 'white') {
   await page.waitForFunction(
     () => !!(
       typeof window.useSelectedCard === 'function'
       && window.cardState
-      && Array.isArray(window.cardState.hands && window.cardState.hands.black)
     ),
     { timeout: 15000 }
   );
-  await page.evaluate(() => {
+  await page.evaluate((playerKey) => {
     window.DEBUG_UNLIMITED_USAGE = true;
     window.DEBUG_HUMAN_VS_HUMAN = true;
     if (window.__uiImpl_turn_manager) {
@@ -104,31 +107,36 @@ async function fillDebugHand(page: any) {
       window.__uiImpl_turn_manager.DEBUG_HUMAN_VS_HUMAN = true;
     }
     window.cardState.charge = window.cardState.charge || {};
-    window.cardState.charge.black = 100;
+    window.cardState.charge[playerKey] = 100;
     window.cardState.hasUsedCardThisTurnByPlayer = window.cardState.hasUsedCardThisTurnByPlayer || {};
-    window.cardState.hasUsedCardThisTurnByPlayer.black = false;
+    window.cardState.hasUsedCardThisTurnByPlayer[playerKey] = false;
     window.cardState.lastUsedCardByPlayer = window.cardState.lastUsedCardByPlayer || {};
-    window.cardState.lastUsedCardByPlayer.black = null;
+    window.cardState.lastUsedCardByPlayer[playerKey] = null;
     window.isProcessing = false;
     window.isCardAnimating = false;
     window.VisualPlaybackActive = false;
     if (typeof window.renderCardUI === 'function') window.renderCardUI();
-  });
+  }, seatKey);
   await page.waitForFunction(
-    () => Array.isArray(window.cardState && window.cardState.hands && window.cardState.hands.black)
-      && window.cardState.hands.black.includes('gold_stone'),
+    (playerKey) => Array.isArray(window.cardState && window.cardState.hands && window.cardState.hands[playerKey])
+      && window.cardState.hands[playerKey].includes('gold_stone'),
+    seatKey,
     { timeout: 15000 }
   );
 }
 
 async function usePlacementCard(page: any, cardId: string, row: number, col: number) {
-  await page.evaluate((selectedCardId) => {
+  await useCard(page, 'black', cardId);
+  await page.click(`.cell[data-row="${row}"][data-col="${col}"]`);
+}
+
+async function useCard(page: any, seatKey: 'black' | 'white', cardId: string) {
+  await page.evaluate(({ selectedCardId, playerKey }) => {
     window.cardState.selectedCardId = selectedCardId;
-    window.cardState.selectedCardOwnerKey = 'black';
+    window.cardState.selectedCardOwnerKey = playerKey;
     if (typeof window.renderCardUI === 'function') window.renderCardUI();
     if (typeof window.useSelectedCard === 'function') window.useSelectedCard();
-  }, cardId);
-  await page.click(`.cell[data-row="${row}"][data-col="${col}"]`);
+  }, { selectedCardId: cardId, playerKey: seatKey });
 }
 
 async function readCellState(page: any, row: number, col: number) {
@@ -184,6 +192,43 @@ async function getFirstLegalMove(page: any) {
         ? firstLogicMove
         : null,
       logicMoveCount: Array.isArray(logicMoves) ? logicMoves.length : 0
+    };
+  });
+}
+
+async function readProliferationState(page: any) {
+  return page.evaluate(() => {
+    const markers = Array.isArray(window.cardState && window.cardState.markers)
+      ? window.cardState.markers.filter((marker) => (
+          marker
+          && marker.data
+          && marker.data.type === 'PROLIFERATION'
+        )).map((marker) => ({
+          row: Number(marker.row),
+          col: Number(marker.col),
+          owner: marker.owner,
+          remainingOwnerTurns: marker.data.remainingOwnerTurns
+        }))
+      : [];
+    return {
+      currentPlayer: window.gameState ? window.gameState.currentPlayer : null,
+      turnNumber: window.gameState ? window.gameState.turnNumber : null,
+      pendingWhite: window.cardState && window.cardState.pendingEffectByPlayer
+        ? window.cardState.pendingEffectByPlayer.white
+        : null,
+      busy: {
+        processing: !!window.isProcessing,
+        cardAnimating: !!window.isCardAnimating,
+        playback: !!window.VisualPlaybackActive
+      },
+      markers,
+      boardByMarker: markers.map((marker) => ({
+        row: marker.row,
+        col: marker.col,
+        boardValue: window.gameState && window.gameState.board && window.gameState.board[marker.row]
+          ? window.gameState.board[marker.row][marker.col]
+          : null
+      }))
     };
   });
 }
@@ -560,6 +605,167 @@ describe('Network special cards E2E', () => {
         ),
         { timeout: 20000 }
       );
+    } finally {
+      await stopPlaywrightPage(hostPage, 5000);
+      await stopPlaywrightPage(guestPage, 5000);
+      await hostContext.close().catch(() => undefined);
+      await guestContext.close().catch(() => undefined);
+    }
+  }, 90000);
+
+  test('PROLIFERATION_WILL survives DESTROY_ONE_STONE and still hands off the turn on both network clients', async () => {
+    const hostContext = await browser.newContext();
+    const guestContext = await browser.newContext();
+    const hostPage = await hostContext.newPage();
+    const guestPage = await guestContext.newPage();
+    const appUrl = `http://127.0.0.1:${staticPort}/?debug=1&matchServer=http://127.0.0.1:${matchPort}`;
+
+    try {
+      await hostPage.goto(appUrl);
+      await guestPage.goto(appUrl);
+      await waitForBootstrap(hostPage);
+      await waitForBootstrap(guestPage);
+
+      const roomId = await createDebugRoom(hostPage, '黒主');
+      await joinRoom(guestPage, roomId, '白主');
+      await hostPage.waitForFunction(
+        () => !!(
+          window.NetworkMatchClient
+          && window.NetworkMatchClient.getRoomSeats
+          && window.NetworkMatchClient.getRoomSeats().white === true
+        ),
+        { timeout: 15000 }
+      );
+
+      await fillDebugHandForSeat(hostPage, 'black');
+      await fillDebugHandForSeat(guestPage, 'white');
+      await usePlacementCard(hostPage, 'proliferation_01', 2, 3);
+
+      await hostPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === -1
+          && window.gameState.board
+          && window.gameState.board[2][3] === 1
+          && Array.isArray(window.cardState && window.cardState.markers)
+          && window.cardState.markers.some((marker) => (
+            marker
+            && marker.row === 2
+            && marker.col === 3
+            && marker.data
+            && marker.data.type === 'PROLIFERATION'
+          ))
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+      await guestPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === -1
+          && window.gameState.board
+          && window.gameState.board[2][3] === 1
+          && Array.isArray(window.cardState && window.cardState.markers)
+          && window.cardState.markers.some((marker) => (
+            marker
+            && marker.row === 2
+            && marker.col === 3
+            && marker.data
+            && marker.data.type === 'PROLIFERATION'
+          ))
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+
+      await useCard(guestPage, 'white', 'destroy_01');
+      await guestPage.waitForFunction(
+        () => !!(
+          window.cardState
+          && window.cardState.pendingEffectByPlayer
+          && window.cardState.pendingEffectByPlayer.white
+          && window.cardState.pendingEffectByPlayer.white.type === 'DESTROY_ONE_STONE'
+          && window.cardState.pendingEffectByPlayer.white.stage === 'selectTarget'
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+      await guestPage.click('.cell[data-row="2"][data-col="3"]');
+
+      await hostPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === 1
+          && window.cardState
+          && window.cardState.pendingEffectByPlayer
+          && window.cardState.pendingEffectByPlayer.white === null
+          && Array.isArray(window.cardState.markers)
+          && window.cardState.markers.filter((marker) => (
+            marker
+            && marker.data
+            && marker.data.type === 'PROLIFERATION'
+          )).length >= 2
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+      await guestPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === 1
+          && window.cardState
+          && window.cardState.pendingEffectByPlayer
+          && window.cardState.pendingEffectByPlayer.white === null
+          && Array.isArray(window.cardState.markers)
+          && window.cardState.markers.filter((marker) => (
+            marker
+            && marker.data
+            && marker.data.type === 'PROLIFERATION'
+          )).length >= 2
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+
+      const hostState = await readProliferationState(hostPage);
+      const guestState = await readProliferationState(guestPage);
+
+      expect(hostState.pendingWhite).toBeNull();
+      expect(hostState.currentPlayer).toBe(1);
+      expect(hostState.busy).toEqual({
+        processing: false,
+        cardAnimating: false,
+        playback: false
+      });
+      expect(hostState.markers).toEqual(expect.arrayContaining([
+        expect.objectContaining({ row: 2, col: 3, owner: 'black' })
+      ]));
+      expect(hostState.markers.length).toBeGreaterThanOrEqual(2);
+      expect(hostState.boardByMarker.every((entry: any) => entry.boardValue === 1)).toBe(true);
+
+      expect(guestState.pendingWhite).toBeNull();
+      expect(guestState.currentPlayer).toBe(1);
+      expect(guestState.busy).toEqual({
+        processing: false,
+        cardAnimating: false,
+        playback: false
+      });
+      expect(guestState.markers).toEqual(expect.arrayContaining([
+        expect.objectContaining({ row: 2, col: 3, owner: 'black' })
+      ]));
+      expect(guestState.markers.length).toBeGreaterThanOrEqual(2);
+      expect(guestState.boardByMarker.every((entry: any) => entry.boardValue === 1)).toBe(true);
+      expect(guestState.turnNumber).toBe(hostState.turnNumber);
     } finally {
       await stopPlaywrightPage(hostPage, 5000);
       await stopPlaywrightPage(guestPage, 5000);

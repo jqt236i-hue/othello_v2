@@ -524,4 +524,60 @@ describe('PROLIFERATION_WILL（増殖の意志）', () => {
     ));
     expect(soundCue).toBeTruthy();
   });
+
+  test('DESTROY_ONE_STONE on a proliferation stone hands off the turn after proliferation resolves', () => {
+    const { cardState, gameState, prng } = createState([0]);
+
+    gameState.currentPlayer = Shared.WHITE;
+    gameState.turnNumber = 7;
+    gameState.board[2][3] = Shared.BLACK;
+    gameState.board[2][4] = Shared.EMPTY;
+    cardState.markers.push({
+      id: 1501,
+      kind: 'specialStone',
+      row: 2,
+      col: 3,
+      owner: 'black',
+      data: { type: 'PROLIFERATION', remainingOwnerTurns: PROLIFERATION_DURATION }
+    });
+    cardState.pendingEffectByPlayer.white = {
+      type: 'DESTROY_ONE_STONE',
+      stage: 'selectTarget',
+      cardId: 'destroy_01'
+    };
+
+    const result = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'white',
+      { type: 'place', destroyTarget: { row: 2, col: 3 } },
+      prng,
+      { skipTurnStart: true }
+    );
+
+    const destroySelected = (result.events || []).find((event) => event && event.type === 'destroy_selected');
+    expect(destroySelected).toMatchObject({
+      applied: true,
+      kind: 'proliferated',
+      proliferated: true,
+      from: { row: 2, col: 3 }
+    });
+    expect(destroySelected.to).toEqual(expect.objectContaining({
+      row: expect.any(Number),
+      col: expect.any(Number)
+    }));
+    expect(
+      Math.max(
+        Math.abs(destroySelected.to.row - 2),
+        Math.abs(destroySelected.to.col - 3)
+      )
+    ).toBeLessThanOrEqual(1);
+    expect(result.gameState.currentPlayer).toBe(Shared.BLACK);
+    expect(result.gameState.turnNumber).toBe(8);
+    expect(result.cardState.pendingEffectByPlayer.white).toBeNull();
+    expect(result.gameState.board[2][3]).toBe(Shared.BLACK);
+    expect(result.gameState.board[destroySelected.to.row][destroySelected.to.col]).toBe(Shared.BLACK);
+    expect(findProliferationMarker(result.cardState, 2, 3)).toBeTruthy();
+    expect(findProliferationMarker(result.cardState, destroySelected.to.row, destroySelected.to.col)).toBeTruthy();
+  });
 });
