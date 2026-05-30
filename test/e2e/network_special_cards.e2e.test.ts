@@ -233,6 +233,61 @@ async function readProliferationState(page: any) {
   });
 }
 
+async function installPlaybackProbe(page: any, seatKey: 'black' | 'white') {
+  await fillDebugHandForSeat(page, seatKey);
+  await page.evaluate(() => {
+    window.__testPlaybackSounds = [];
+    if (window.SoundEngine && typeof window.SoundEngine.playEffectByKey === 'function' && !window.__testPlaybackSoundWrapped) {
+      const originalPlayEffectByKey = window.SoundEngine.playEffectByKey.bind(window.SoundEngine);
+      window.SoundEngine.playEffectByKey = function (soundKey: string, ...rest: any[]) {
+        window.__testPlaybackSounds.push(String(soundKey));
+        return originalPlayEffectByKey(soundKey, ...rest);
+      };
+      window.__testPlaybackSoundWrapped = true;
+    }
+
+    window.__testPlaybackHighlights = [];
+    const board = document.getElementById('board');
+    if (board && !window.__testPlaybackObserver) {
+      window.__testPlaybackObserver = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          const cell = mutation.target as HTMLElement | null;
+          if (!cell || !cell.matches || !cell.matches('.cell')) continue;
+          if (
+            cell.classList.contains('effect-target-highlight')
+            || cell.classList.contains('effect-target-highlight-positive')
+          ) {
+            window.__testPlaybackHighlights.push({
+              row: Number(cell.getAttribute('data-row')),
+              col: Number(cell.getAttribute('data-col')),
+              className: cell.className
+            });
+          }
+        }
+      });
+      window.__testPlaybackObserver.observe(board, {
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class']
+      });
+    }
+  });
+}
+
+async function clearPlaybackProbe(page: any) {
+  await page.evaluate(() => {
+    window.__testPlaybackSounds = [];
+    window.__testPlaybackHighlights = [];
+  });
+}
+
+async function readPlaybackProbe(page: any) {
+  return page.evaluate(() => ({
+    sounds: Array.isArray(window.__testPlaybackSounds) ? window.__testPlaybackSounds.slice() : [],
+    highlights: Array.isArray(window.__testPlaybackHighlights) ? window.__testPlaybackHighlights.slice() : []
+  }));
+}
+
 describe('Network special cards E2E', () => {
   let staticServer: any;
   let matchServer: any;
@@ -766,6 +821,252 @@ describe('Network special cards E2E', () => {
       expect(guestState.markers.length).toBeGreaterThanOrEqual(2);
       expect(guestState.boardByMarker.every((entry: any) => entry.boardValue === 1)).toBe(true);
       expect(guestState.turnNumber).toBe(hostState.turnNumber);
+    } finally {
+      await stopPlaywrightPage(hostPage, 5000);
+      await stopPlaywrightPage(guestPage, 5000);
+      await hostContext.close().catch(() => undefined);
+      await guestContext.close().catch(() => undefined);
+    }
+  }, 90000);
+
+  test('BREEDING_WILL turn-start spawn keeps breeding sound and positive highlight on both network clients', async () => {
+    const hostContext = await browser.newContext();
+    const guestContext = await browser.newContext();
+    const hostPage = await hostContext.newPage();
+    const guestPage = await guestContext.newPage();
+    const appUrl = `http://127.0.0.1:${staticPort}/?debug=1&matchServer=http://127.0.0.1:${matchPort}`;
+
+    try {
+      await hostPage.goto(appUrl);
+      await guestPage.goto(appUrl);
+      await waitForBootstrap(hostPage);
+      await waitForBootstrap(guestPage);
+
+      const roomId = await createDebugRoom(hostPage, '黒主');
+      await joinRoom(guestPage, roomId, '白主');
+      await hostPage.waitForFunction(
+        () => !!(
+          window.NetworkMatchClient
+          && window.NetworkMatchClient.getRoomSeats
+          && window.NetworkMatchClient.getRoomSeats().white === true
+        ),
+        { timeout: 15000 }
+      );
+
+      await installPlaybackProbe(hostPage, 'black');
+      await installPlaybackProbe(guestPage, 'white');
+      await usePlacementCard(hostPage, 'breeding_01', 2, 3);
+
+      await hostPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === -1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+      await guestPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === -1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+
+      await clearPlaybackProbe(hostPage);
+      await clearPlaybackProbe(guestPage);
+      const guestMove = await getFirstLegalMove(guestPage);
+      const moveToPlay = guestMove.hintedMove || guestMove.firstLogicMove;
+      await guestPage.click(`.cell[data-row="${moveToPlay.row}"][data-col="${moveToPlay.col}"]`);
+
+      await hostPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === 1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+      await guestPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === 1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+
+      const hostProbe = await readPlaybackProbe(hostPage);
+      const guestProbe = await readPlaybackProbe(guestPage);
+
+      expect(hostProbe.sounds).toContain('breeding_spawn');
+      expect(hostProbe.highlights.some((entry: any) => String(entry.className || '').includes('effect-target-highlight-positive'))).toBe(true);
+      expect(guestProbe.sounds).toContain('breeding_spawn');
+      expect(guestProbe.highlights.some((entry: any) => String(entry.className || '').includes('effect-target-highlight-positive'))).toBe(true);
+    } finally {
+      await stopPlaywrightPage(hostPage, 5000);
+      await stopPlaywrightPage(guestPage, 5000);
+      await hostContext.close().catch(() => undefined);
+      await guestContext.close().catch(() => undefined);
+    }
+  }, 90000);
+
+  test('CROSS_BOMB explosion keeps bomb sound and red highlight on both network clients', async () => {
+    const hostContext = await browser.newContext();
+    const guestContext = await browser.newContext();
+    const hostPage = await hostContext.newPage();
+    const guestPage = await guestContext.newPage();
+    const appUrl = `http://127.0.0.1:${staticPort}/?debug=1&matchServer=http://127.0.0.1:${matchPort}`;
+
+    try {
+      await hostPage.goto(appUrl);
+      await guestPage.goto(appUrl);
+      await waitForBootstrap(hostPage);
+      await waitForBootstrap(guestPage);
+
+      const roomId = await createDebugRoom(hostPage, '黒主');
+      await joinRoom(guestPage, roomId, '白主');
+      await hostPage.waitForFunction(
+        () => !!(
+          window.NetworkMatchClient
+          && window.NetworkMatchClient.getRoomSeats
+          && window.NetworkMatchClient.getRoomSeats().white === true
+        ),
+        { timeout: 15000 }
+      );
+
+      await installPlaybackProbe(hostPage, 'black');
+      await installPlaybackProbe(guestPage, 'white');
+      await usePlacementCard(hostPage, 'cross_bomb_01', 2, 3);
+
+      await hostPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === -1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+      await guestPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === -1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+
+      const hostProbe = await readPlaybackProbe(hostPage);
+      const guestProbe = await readPlaybackProbe(guestPage);
+
+      expect(hostProbe.sounds).toContain('bomb_explode');
+      expect(hostProbe.highlights.some((entry: any) => String(entry.className || '').includes('effect-target-highlight'))).toBe(true);
+      expect(guestProbe.sounds).toContain('bomb_explode');
+      expect(guestProbe.highlights.some((entry: any) => String(entry.className || '').includes('effect-target-highlight'))).toBe(true);
+    } finally {
+      await stopPlaywrightPage(hostPage, 5000);
+      await stopPlaywrightPage(guestPage, 5000);
+      await hostContext.close().catch(() => undefined);
+      await guestContext.close().catch(() => undefined);
+    }
+  }, 90000);
+
+  test('ESCAPE_WILL turn-start move keeps hyperactive sound and positive highlight on both network clients', async () => {
+    const hostContext = await browser.newContext();
+    const guestContext = await browser.newContext();
+    const hostPage = await hostContext.newPage();
+    const guestPage = await guestContext.newPage();
+    const appUrl = `http://127.0.0.1:${staticPort}/?debug=1&matchServer=http://127.0.0.1:${matchPort}`;
+
+    try {
+      await hostPage.goto(appUrl);
+      await guestPage.goto(appUrl);
+      await waitForBootstrap(hostPage);
+      await waitForBootstrap(guestPage);
+
+      const roomId = await createDebugRoom(hostPage, '黒主');
+      await joinRoom(guestPage, roomId, '白主');
+      await hostPage.waitForFunction(
+        () => !!(
+          window.NetworkMatchClient
+          && window.NetworkMatchClient.getRoomSeats
+          && window.NetworkMatchClient.getRoomSeats().white === true
+        ),
+        { timeout: 15000 }
+      );
+
+      await installPlaybackProbe(hostPage, 'black');
+      await installPlaybackProbe(guestPage, 'white');
+      await usePlacementCard(hostPage, 'escape_01', 2, 3);
+
+      await hostPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === -1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+      await guestPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === -1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+
+      await clearPlaybackProbe(hostPage);
+      await clearPlaybackProbe(guestPage);
+      const guestMove = await getFirstLegalMove(guestPage);
+      const moveToPlay = guestMove.hintedMove || guestMove.firstLogicMove;
+      await guestPage.click(`.cell[data-row="${moveToPlay.row}"][data-col="${moveToPlay.col}"]`);
+
+      await hostPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === 1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+      await guestPage.waitForFunction(
+        () => !!(
+          window.gameState
+          && window.gameState.currentPlayer === 1
+          && window.isProcessing !== true
+          && window.isCardAnimating !== true
+          && window.VisualPlaybackActive !== true
+        ),
+        { timeout: 20000 }
+      );
+
+      const hostProbe = await readPlaybackProbe(hostPage);
+      const guestProbe = await readPlaybackProbe(guestPage);
+
+      expect(hostProbe.sounds).toContain('hyperactive_move');
+      expect(hostProbe.highlights.some((entry: any) => String(entry.className || '').includes('effect-target-highlight-positive'))).toBe(true);
+      expect(guestProbe.sounds).toContain('hyperactive_move');
+      expect(guestProbe.highlights.some((entry: any) => String(entry.className || '').includes('effect-target-highlight-positive'))).toBe(true);
     } finally {
       await stopPlaywrightPage(hostPage, 5000);
       await stopPlaywrightPage(guestPage, 5000);
