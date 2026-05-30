@@ -101,6 +101,18 @@ othello_v2/
 - Choose verification by blast radius. Prefer focused tests/preflights first; use `npm run test:network:parity` for network contracts and `npm run worker:prepare` for root-to-worker mirror impact.
 - Do not run long selfplay or training jobs unless explicitly requested. Use a focused preflight or small sample before any expensive run.
 
+## GIT HYGIENE
+
+- Start every session or task by running `git status --short` before editing.
+- If pre-existing changes are present, classify them before editing as related to the requested task, unrelated user/work-in-progress changes, generated or mirror output, or unknown changes that need explanation.
+- Do not stage, commit, revert, delete, or overwrite pre-existing unrelated changes.
+- If pre-existing changes are related to the task, inspect the relevant diff and continue from it instead of duplicating or undoing it.
+- If the task cannot be completed safely because of existing changes, report the exact files involved and ask how to proceed.
+- At the end of every implementation or documentation task, run `git status --short`, inspect the relevant diff, stage only files intentionally changed for the current task, and create a small concrete commit when the change is coherent.
+- Never use `git add -A` unless all changed files were intentionally produced for the current task.
+- Never use destructive cleanup commands such as `git reset --hard`, `git checkout --`, or deleting untracked files unless the user explicitly asks for that exact operation.
+- If unrelated dirty files remain after committing the current task, report them clearly in the final response.
+
 ## COMMIT POLICY
 
 - When an implementation, fix, documentation update, or verification pass reaches a coherent stopping point, create a commit without waiting for an explicit user prompt.
