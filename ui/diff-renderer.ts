@@ -1149,7 +1149,7 @@ function _renderStoneInfoMetaBadges(metaEl: any, badges: any) {
         metaEl.appendChild(chip);
     }
 
-    metaEl.style.display = 'flex';
+    metaEl.style.display = 'grid';
 }
 
 function _getMarkerKinds() {

@@ -972,14 +972,16 @@ html.sim-aspect-5-4 #effect-live-panel {
 }
 
 .stone-info-meta {
-    flex-direction: column;
-    flex-wrap: nowrap;
-    align-items: flex-start;
-    gap: calc(4px * var(--layout-stage-scale));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: calc(4px * var(--layout-stage-scale));
+    row-gap: calc(4px * var(--layout-stage-scale));
+    align-items: start;
 }
 
 .stone-info-effect-tag {
     justify-content: flex-start;
+    justify-self: start;
+    width: max-content;
     max-width: 100%;
     min-height: clamp(16px, calc(18px * var(--layout-stage-scale)), 18px);
     padding: clamp(2px, calc(2px * var(--layout-stage-scale)), 3px) clamp(5px, calc(6px * var(--layout-stage-scale)), 6px);
