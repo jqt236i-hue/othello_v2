@@ -794,6 +794,68 @@ describe('pending selection flow contracts', () => {
     expect(ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
   });
 
+  test('finalizePendingSelectionFlow runs onSettled after continue-turn intermediate selection clears busy flags', async () => {
+    const ensureCurrentPlayerCanActOrPass = jest.fn();
+    const onSettled = jest.fn(() => {
+      expect(global.isProcessing).toBe(false);
+      expect(global.isCardAnimating).toBe(false);
+    });
+    attachPlaybackStateManager();
+
+    global.MATCH_MODE = 'network';
+    global.waitForPlaybackIdle = jest.fn(() => Promise.resolve());
+    global.NetworkMatchClient = {
+      isActive: () => true,
+      publishSnapshot: jest.fn()
+    };
+    global.cardState = {
+      turnIndex: 19,
+      pendingEffectByPlayer: {
+        black: {
+          type: 'BOARD_SHRINK_GOD',
+          stage: 'selectTarget',
+          cardId: 'board_shrink_god_01',
+          firstTarget: { row: 0, col: 0 }
+        },
+        white: null
+      }
+    };
+    global.gameState = {
+      currentPlayer: 1,
+      turnNumber: 20,
+      board: Array.from({ length: 8 }, () => Array(8).fill(0))
+    };
+    global.ActionManager = {
+      ActionManager: {
+        createAction: (type, player, extra) => ({ type, player, ...(extra || {}) })
+      }
+    };
+    flow.createPendingSelectionAction('black', 'BOARD_SHRINK_GOD', {
+      shrinkTarget: { row: 0, col: 0 }
+    }, { cardState: global.cardState });
+
+    global.isProcessing = true;
+    global.isCardAnimating = true;
+
+    const result = await flow.finalizePendingSelectionFlow({
+      playerKey: 'black',
+      pendingType: 'BOARD_SHRINK_GOD',
+      playbackEvents: [{ type: 'selection_marker', phase: 1 }],
+      gameStateValue: global.gameState,
+      cardStateValue: global.cardState,
+      ensureCurrentPlayerCanActOrPass,
+      onSettled
+    });
+
+    expect(result).toBe(true);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect(global.NetworkMatchClient.publishSnapshot).not.toHaveBeenCalled();
+    expect(onSettled).toHaveBeenCalledTimes(1);
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+    expect(ensureCurrentPlayerCanActOrPass).toHaveBeenCalledTimes(1);
+  });
+
   test('finalizePendingSelectionFlow clears end-turn staged action cache on publish failure', async () => {
     const ensureCurrentPlayerCanActOrPass = jest.fn();
     attachPlaybackStateManager();
@@ -1034,7 +1096,7 @@ describe('pending selection flow contracts', () => {
       reason: 'pre_playback_state_sync',
       suppressBoardExpansionRevealSound: true
     }));
-    expect(global.emitBoardUpdate).toHaveBeenCalledTimes(1);
+    expect(global.emitBoardUpdate).toHaveBeenCalledTimes(2);
     playbackStateManager.clearBoardUpdateContext();
   });
 

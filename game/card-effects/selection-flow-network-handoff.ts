@@ -137,7 +137,14 @@ async function finalizePendingSelectionFlow(options: any, deps: SelectionFlowNet
         return true;
     }
 
-    if (contract && contract.waitForPlaybackIdle && !(deps.readMatchMode() === 'network' && contract.deferNetworkPublish === true && deps.hasActiveNetworkPublishClient())) {
+    const shouldSkipLocalPlaybackWait = !!(
+        deps.readMatchMode() === 'network'
+        && contract
+        && contract.deferNetworkPublish === true
+        && deps.hasActiveNetworkPublishClient()
+        && !skipNetworkPublish
+    );
+    if (contract && contract.waitForPlaybackIdle && !shouldSkipLocalPlaybackWait) {
         await waitForSelectionPlaybackIdle(playbackEvents, deps);
     }
 

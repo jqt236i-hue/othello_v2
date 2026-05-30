@@ -504,6 +504,7 @@ async function executePendingSelection(options: any, deps: SelectionPendingExecu
                     playbackEvents,
                     gameStateValue: stateRefs.gameState,
                     cardStateValue: stateRefs.cardState,
+                    onSettled: opts.defaultSelectionHandoffRender,
                     onHumanTurnReady: opts.defaultSelectionHandoffRender,
                     ensureCurrentPlayerCanActOrPass: deps.resolveRootFunction('ensureCurrentPlayerCanActOrPass'),
                     skipNetworkPublish: skipFinalizeNetworkPublish,

@@ -1,6 +1,7 @@
 const path = require('path');
 const http = require('http');
 const fs = require('fs');
+const MatchServerModule = require('../../dist/scripts/local-match-server.js');
 
 function resolveMimeType(filePath) {
   const ext = path.extname(filePath).toLowerCase();
@@ -61,6 +62,15 @@ function startStaticServer(port = 0) {
 
   server.__trackedSockets = sockets;
   server.listen(port, '127.0.0.1');
+  return server;
+}
+
+function startLocalMatchServer(port = 0, host = '127.0.0.1') {
+  if (!MatchServerModule || typeof MatchServerModule.createLocalMatchServer !== 'function') {
+    throw new Error('createLocalMatchServer is unavailable');
+  }
+  const server = MatchServerModule.createLocalMatchServer();
+  server.listen(port, host);
   return server;
 }
 
@@ -126,6 +136,7 @@ async function stopStaticServer(server) {
 module.exports = {
   resolveStaticFilePath,
   startStaticServer,
+  startLocalMatchServer,
   stopStaticServer,
   stopPlaywrightPage,
   stopPlaywrightBrowser

@@ -905,18 +905,46 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
     function emitSelectionStateChangeSignals(playbackEvents: any) {
         armSelectionBoardUpdateContext(playbackEvents);
         const emitStateChangesViaBridge = readSignalBridgeMethod('emitStateChanges');
-        if (typeof emitStateChangesViaBridge !== 'function') return false;
-        try {
-            return emitStateChangesViaBridge(playbackEvents) === true;
-        } catch (e) {
-            return false;
+        if (typeof emitStateChangesViaBridge === 'function') {
+            try {
+                if (emitStateChangesViaBridge(playbackEvents) === true) {
+                    return true;
+                }
+            } catch (e) {
+                // fall through to global fallback
+            }
         }
+        const signalNames = ['emitCardStateChange', 'emitBoardUpdate', 'emitGameStateChange'];
+        let emitted = false;
+        for (let index = 0; index < signalNames.length; index += 1) {
+            const signalFn = resolveRootFunction(signalNames[index]);
+            if (typeof signalFn !== 'function') continue;
+            try {
+                signalFn();
+                emitted = true;
+            } catch (e) { /* ignore */ }
+        }
+        return emitted;
     }
 
     function defaultSelectionHandoffRender() {
         const emitBoardUpdateViaBridge = readSignalBridgeMethod('emitBoardUpdate');
-        if (typeof emitBoardUpdateViaBridge !== 'function') return;
-        try { emitBoardUpdateViaBridge(); } catch (e) { /* ignore */ }
+        if (typeof emitBoardUpdateViaBridge === 'function') {
+            try {
+                if (emitBoardUpdateViaBridge() === true) return;
+            } catch (e) { /* ignore */ }
+        }
+        const emitBoardUpdateFallback = resolveRootFunction('emitBoardUpdate');
+        if (typeof emitBoardUpdateFallback === 'function') {
+            try {
+                emitBoardUpdateFallback();
+                return;
+            } catch (e) { /* ignore */ }
+        }
+        const renderBoardFallback = resolveRootFunction('renderBoard');
+        if (typeof renderBoardFallback === 'function') {
+            try { renderBoardFallback(); } catch (e) { /* ignore */ }
+        }
     }
 
     async function executePendingSelectionCompatibilityFallback(options: any) {
@@ -1083,6 +1111,7 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
                         playbackEvents,
                         gameStateValue: stateRefs.gameState,
                         cardStateValue: stateRefs.cardState,
+                        onSettled: defaultSelectionHandoffRender,
                         onHumanTurnReady: defaultSelectionHandoffRender,
                         ensureCurrentPlayerCanActOrPass: resolveRootFunction('ensureCurrentPlayerCanActOrPass'),
                         clearCardAnimatingOnFinish: true
