@@ -975,15 +975,17 @@ html.sim-aspect-5-4 #effect-live-panel {
     flex-direction: column;
     flex-wrap: nowrap;
     align-items: flex-start;
-    gap: calc(3px * var(--layout-stage-scale));
+    gap: calc(4px * var(--layout-stage-scale));
 }
 
 .stone-info-effect-tag {
     justify-content: flex-start;
     max-width: 100%;
-    padding: calc(1px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale));
-    font-size: calc(8px * var(--layout-stage-scale));
-    line-height: 1.15;
+    min-height: clamp(16px, calc(18px * var(--layout-stage-scale)), 18px);
+    padding: clamp(2px, calc(2px * var(--layout-stage-scale)), 3px) clamp(5px, calc(6px * var(--layout-stage-scale)), 6px);
+    font-size: clamp(9px, calc(11px * var(--layout-stage-scale)), 11px);
+    font-weight: 600;
+    line-height: 1.2;
     text-align: left;
     white-space: normal;
 }
