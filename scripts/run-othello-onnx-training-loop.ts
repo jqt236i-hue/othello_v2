@@ -380,6 +380,7 @@ function main(argv: any = process.argv.slice(2)) {
         "--summary-out", datasetSummary,
         "--max-records", String(args.datasetMaxRecords)
       ];
+      if (hardcaseReplay.length > 0 && args.hardcaseReplayWeight > 1) datasetArgs.push("--allow-repeated-selfplay");
       for (const item of replaySelfplay) datasetArgs.push("--selfplay", item);
       datasetArgs.push(...buildRepeatedHardcaseSelfplayArgs(hardcaseReplay, args.hardcaseReplayWeight));
       runCommand(summary, "build_dataset", python, datasetArgs);
@@ -418,6 +419,7 @@ function main(argv: any = process.argv.slice(2)) {
         "--policy-weight", String(args.policyWeight),
         "--top-k", String(args.topK),
         "--white-safety-multiplier", String(args.whiteSafetyMultiplier),
+        "--exact-solve-empties", String(args.exactSolveEmpties),
         "--out", datasetEval
       ]);
 
@@ -435,6 +437,7 @@ function main(argv: any = process.argv.slice(2)) {
         "--policy-weight", String(args.policyWeight),
         "--top-k", String(args.topK),
         "--white-safety-multiplier", String(args.whiteSafetyMultiplier),
+        "--exact-solve-empties", String(args.exactSolveEmpties),
         "--out", gateEval
       ]);
 
@@ -459,6 +462,7 @@ function main(argv: any = process.argv.slice(2)) {
         "--policy-weight", String(args.policyWeight),
         "--top-k", String(args.topK),
         "--white-safety-multiplier", String(args.whiteSafetyMultiplier),
+        "--exact-solve-empties", String(args.exactSolveEmpties),
         "--out", championGateEval
       ]);
       const championGateResult = summarizeGate(championGateEval, {

@@ -353,6 +353,7 @@ describe('rules help panel', () => {
     const html = fs.readFileSync(path.resolve(__dirname, '../index.html'), 'utf8');
     expect(html).toMatch(/data-help-tab="guide">ルールと操作<\/button>/);
     expect(html).toMatch(/data-help-tab="counters">数字UI<\/button>/);
+    expect(html).toMatch(/盤面の緑の強調マスが置ける場所です。マスを押すと石を置きます。/);
     expect(html).toMatch(/完全保護の残りターン/);
     expect(html).toMatch(/特殊石本体の持続ターン/);
     expect(html).toMatch(/カウントダウン専用の残り回数/);

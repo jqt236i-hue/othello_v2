@@ -550,6 +550,134 @@ function collectPendingSelectedTargetHighlightKeys(pending: any) {
     return out;
 }
 
+const BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS = 'board-shrink-god-direction-hint';
+const BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS = 'board-shrink-god-direction-target';
+const BOARD_SHRINK_GOD_DIRECTION_HINT_DIRECTION_CLASSES = [
+    'board-shrink-god-direction-up',
+    'board-shrink-god-direction-down',
+    'board-shrink-god-direction-left',
+    'board-shrink-god-direction-right'
+];
+
+function _resolveBoardShrinkGodDirectionForBoard(firstTarget: any, target: any) {
+    const firstRow = Number(firstTarget && firstTarget.row);
+    const firstCol = Number(firstTarget && firstTarget.col);
+    const targetRow = Number(target && target.row);
+    const targetCol = Number(target && target.col);
+    if (!Number.isInteger(firstRow) || !Number.isInteger(firstCol) || !Number.isInteger(targetRow) || !Number.isInteger(targetCol)) {
+        return null;
+    }
+    const rowDelta = targetRow - firstRow;
+    const colDelta = targetCol - firstCol;
+    if (Math.abs(colDelta) >= Math.abs(rowDelta) && colDelta !== 0) {
+        return colDelta > 0 ? 'right' : 'left';
+    }
+    if (rowDelta !== 0) {
+        return rowDelta > 0 ? 'down' : 'up';
+    }
+    return null;
+}
+
+function _buildBoardShrinkGodDirectionHintMapForBoard(pending: any, selectableTargets: any) {
+    const out = new Map();
+    if (!pending || pending.stage !== 'selectTarget' || String(pending.type || '').toUpperCase() !== 'BOARD_SHRINK_GOD') {
+        return out;
+    }
+    if (!pending.firstTarget || !Array.isArray(selectableTargets) || selectableTargets.length === 0) {
+        return out;
+    }
+    for (const target of selectableTargets) {
+        const row = Number(target && target.row);
+        const col = Number(target && target.col);
+        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+        const direction = _resolveBoardShrinkGodDirectionForBoard(pending.firstTarget, target);
+        if (!direction) continue;
+        out.set(`${row},${col}`, direction);
+    }
+    return out;
+}
+
+function _clearBoardShrinkGodDirectionHintForBoard(cell: any) {
+    if (!cell || !cell.classList) return;
+    cell.classList.remove(BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS, ...BOARD_SHRINK_GOD_DIRECTION_HINT_DIRECTION_CLASSES);
+    if (cell.dataset) {
+        delete cell.dataset.boardShrinkGodDirectionHint;
+    }
+    const hint = typeof cell.querySelector === 'function'
+        ? cell.querySelector(`.${BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS}`)
+        : null;
+    if (hint && hint.parentNode === cell) {
+        hint.parentNode.removeChild(hint);
+    }
+}
+
+function _ensureBoardShrinkGodDirectionHintForBoard(cell: any, direction: any) {
+    if (!cell || !cell.classList) return;
+    const arrowText = direction === 'up'
+        ? '↑'
+        : direction === 'down'
+            ? '↓'
+            : direction === 'left'
+                ? '←'
+                : '→';
+    cell.classList.add(BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS, `board-shrink-god-direction-${direction}`);
+    if (cell.dataset) {
+        cell.dataset.boardShrinkGodDirectionHint = direction;
+    }
+    let hint = typeof cell.querySelector === 'function'
+        ? cell.querySelector(`.${BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS}`)
+        : null;
+    if (!hint && typeof document !== 'undefined') {
+        hint = document.createElement('div');
+        hint.className = BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS;
+        hint.setAttribute('aria-hidden', 'true');
+        cell.appendChild(hint);
+    }
+    if (!hint) return;
+    hint.textContent = arrowText;
+    if (hint.dataset) {
+        hint.dataset.direction = direction;
+    }
+    hint.style.position = 'absolute';
+    hint.style.top = '50%';
+    hint.style.left = '50%';
+    hint.style.transform = 'translate(-50%, -50%)';
+    hint.style.display = 'flex';
+    hint.style.alignItems = 'center';
+    hint.style.justifyContent = 'center';
+    hint.style.width = 'calc(24px * var(--layout-stage-scale))';
+    hint.style.height = 'calc(24px * var(--layout-stage-scale))';
+    hint.style.borderRadius = '999px';
+    hint.style.border = 'var(--layout-size-border-thin) solid rgba(218, 246, 255, 0.78)';
+    hint.style.background = 'linear-gradient(180deg, rgba(16, 68, 76, 0.94) 0%, rgba(8, 29, 34, 0.92) 100%)';
+    hint.style.boxShadow = '0 0 calc(8px * var(--layout-stage-scale)) rgba(122, 244, 255, 0.35)';
+    hint.style.color = '#f7fdff';
+    hint.style.fontFamily = '"DotGothic16", "MS Gothic", "Osaka-Mono", monospace';
+    hint.style.fontSize = 'calc(15px * var(--layout-stage-scale))';
+    hint.style.fontWeight = '700';
+    hint.style.lineHeight = '1';
+    hint.style.textShadow = '0 0 calc(3px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.28)';
+    hint.style.pointerEvents = 'none';
+    hint.style.userSelect = 'none';
+    hint.style.zIndex = '48';
+}
+
+function _syncBoardShrinkGodDirectionHintsForBoard(boardEl: any, pending: any, selectableTargets: any) {
+    if (!boardEl || typeof boardEl.querySelectorAll !== 'function') return;
+    const hintMap = _buildBoardShrinkGodDirectionHintMapForBoard(pending, selectableTargets);
+    const cells = boardEl.querySelectorAll('.cell');
+    cells.forEach((cell: any) => {
+        const row = Number(cell && cell.dataset ? cell.dataset.row : NaN);
+        const col = Number(cell && cell.dataset ? cell.dataset.col : NaN);
+        const key = Number.isInteger(row) && Number.isInteger(col) ? `${row},${col}` : null;
+        if (!key || !hintMap.has(key)) {
+            _clearBoardShrinkGodDirectionHintForBoard(cell);
+            return;
+        }
+        _ensureBoardShrinkGodDirectionHintForBoard(cell, hintMap.get(key));
+    });
+}
+
 function renderBoard() {
     _syncTimeStopClassForBoardRenderer();
     // Single Visual Writer: skip renders while playback is active or already queued.
@@ -585,7 +713,6 @@ function renderBoard() {
         console.error('[Board Renderer] diff-renderer.js not loaded; rendering skipped');
         return;
     }
-
     updateOccupancyUI();
 }
 
@@ -1106,6 +1233,7 @@ function renderBoardFull() {
             boardEl.appendChild(cell);
         }
     }
+    _syncBoardShrinkGodDirectionHintsForBoard(boardEl, pending, selectableTargets);
 }
 
 // NOTE:

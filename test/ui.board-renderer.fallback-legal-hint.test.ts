@@ -228,6 +228,8 @@ describe('board-renderer fallback legal hints', () => {
     expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
     expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+    expect(selectableCell.getAttribute('data-board-shrink-god-direction-hint')).toBe('right');
+    expect(selectableCell.querySelector('.board-shrink-god-direction-hint')?.textContent).toBe('→');
   });
 
   test('renderBoardFull highlights BOARD_EXPANSION_GOD selected corners from firstTarget and selectedTargets', () => {

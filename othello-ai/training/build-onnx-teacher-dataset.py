@@ -35,6 +35,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--summary-out", required=True, help="Output summary JSON path.")
     parser.add_argument("--max-records", type=int, default=0, help="Optional sample cap for preflight.")
     parser.add_argument("--min-legal-moves", type=int, default=1)
+    parser.add_argument(
+        "--allow-repeated-selfplay",
+        action="store_true",
+        help="Preserve repeated --selfplay inputs so replay weights can intentionally re-read a dataset.",
+    )
     return parser.parse_args()
 
 
@@ -46,20 +51,23 @@ def load_json(path: str) -> dict[str, Any]:
     return payload
 
 
-def expand_paths(patterns: list[str]) -> list[str]:
+def expand_paths(patterns: list[str], allow_repeated: bool = False) -> list[str]:
     out: list[str] = []
     seen: set[str] = set()
     for pattern in patterns:
-        matches = glob.glob(pattern, recursive=True)
+        matches = sorted(glob.glob(pattern, recursive=True))
         if not matches and os.path.exists(pattern):
             matches = [pattern]
         for path in matches:
             full = os.path.abspath(path)
-            if full in seen or not os.path.isfile(full):
+            if not os.path.isfile(full):
                 continue
-            seen.add(full)
+            if not allow_repeated:
+                if full in seen:
+                    continue
+                seen.add(full)
             out.append(full)
-    return sorted(out)
+    return out if allow_repeated else sorted(out)
 
 
 def board_rows(board_key: str) -> list[list[str]] | None:
@@ -254,7 +262,7 @@ def main() -> int:
     if value_model.get("schemaVersion") != VALUE_SCHEMA:
         raise ValueError(f"value table must be {VALUE_SCHEMA}")
 
-    selfplay_paths = expand_paths(args.selfplay)
+    selfplay_paths = expand_paths(args.selfplay, args.allow_repeated_selfplay)
     if not selfplay_paths:
         raise ValueError("no selfplay inputs matched")
 

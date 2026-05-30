@@ -739,6 +739,102 @@ describe('animation-engine extreme forced swap playback', () => {
   });
 });
 
+describe('animation-engine network move final visual state', () => {
+  let dom;
+
+  beforeEach(() => {
+    jest.resetModules();
+    dom = new JSDOM('<!doctype html><html><body><div id="board"></div></body></html>');
+    global.window = dom.window;
+    global.document = dom.window.document;
+    global.emitBoardUpdate = jest.fn();
+  });
+
+  afterEach(() => {
+    delete global.window;
+    delete global.document;
+    delete global.emitBoardUpdate;
+    if (dom && dom.window && typeof dom.window.close === 'function') {
+      dom.window.close();
+    }
+  });
+
+  test('syncs a source-empty network move to the supplied special after-state', async () => {
+    const board = document.getElementById('board');
+    const fromCell = document.createElement('div');
+    const toCell = document.createElement('div');
+    const destinationDisc = document.createElement('div');
+    const animateCalls = [];
+
+    fromCell.className = 'cell';
+    fromCell.dataset.row = '4';
+    fromCell.dataset.col = '4';
+    fromCell.getBoundingClientRect = () => ({ left: 20, top: 20, width: 50, height: 50 });
+
+    toCell.className = 'cell has-disc';
+    toCell.dataset.row = '5';
+    toCell.dataset.col = '5';
+    toCell.getBoundingClientRect = () => ({ left: 90, top: 90, width: 50, height: 50 });
+
+    destinationDisc.className = 'disc black';
+    toCell.appendChild(destinationDisc);
+    board.appendChild(fromCell);
+    board.appendChild(toCell);
+
+    window.getEffectKeyForSpecialType = jest.fn((specialType) => (
+      String(specialType || '').toUpperCase() === 'ESCAPE_HYPERACTIVE' ? 'escapeHyperactiveStone' : null
+    ));
+    window.applyStoneVisualEffect = jest.fn((disc, effectKey) => {
+      if (effectKey === 'escapeHyperactiveStone') {
+        disc.classList.add('special-stone', 'escape-hyperactive-visual');
+      }
+    });
+    window.clearStoneVisualEffectState = jest.fn((disc) => {
+      if (disc) disc.classList.remove('special-stone', 'escape-hyperactive-visual');
+    });
+
+    global.window.Element.prototype.animate = jest.fn((keyframes, options) => {
+      animateCalls.push({ keyframes, options });
+      return {
+        addEventListener(eventName, handler) {
+          if (eventName === 'finish' && typeof handler === 'function') {
+            handler();
+          }
+        },
+        removeEventListener() {},
+        finished: Promise.resolve()
+      };
+    });
+
+    const engine = require('../ui/animation-engine.js');
+    await engine.handleMove({
+      type: 'move',
+      targets: [{
+        from: { r: 4, col: 4 },
+        to: { r: 5, col: 5 },
+        ownerBefore: 'black',
+        ownerAfter: 'black',
+        cause: 'ESCAPE_HYPERACTIVE',
+        reason: 'escape_hyperactive_move',
+        meta: { moveIntent: 'hyperactive_move', special: 'ESCAPE_HYPERACTIVE' },
+        after: {
+          color: 1,
+          owner: 'black',
+          special: 'ESCAPE_HYPERACTIVE',
+          timer: 5,
+          flipEvadeRemaining: 1
+        }
+      }]
+    });
+
+    expect(animateCalls).toHaveLength(1);
+    expect(fromCell.querySelector('.disc')).toBeNull();
+    expect(toCell.querySelector('.disc')).toBe(destinationDisc);
+    expect(destinationDisc.classList.contains('special-stone')).toBe(true);
+    expect(destinationDisc.querySelector('.flip-evade-timer').textContent).toBe('1');
+  });
+});
+
 describe('animation-engine move animation finish fallback', () => {
   let dom;
 

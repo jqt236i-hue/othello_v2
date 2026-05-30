@@ -382,6 +382,21 @@
         return 'crush_move';
     }
 
+    function resolveRawSelectionMoveReason(type: string, cause: string | null, moveIntent: string): string {
+        switch (type) {
+            case 'strong_wind_selected': return 'strong_wind_move';
+            case 'buoyancy_selected': return 'buoyancy_move';
+            case 'super_buoyancy_selected': return 'super_buoyancy_move';
+            case 'gravity_selected': return 'gravity_move';
+            case 'super_gravity_selected': return 'super_gravity_move';
+            case 'super_attraction_selected': return 'super_attraction_move';
+            case 'teleport_selected':
+                return cause === 'CELL_TELEPORT_WILL' ? 'cell_teleport_move' : 'teleport_move';
+            default:
+                return moveIntent;
+        }
+    }
+
     function cloneJsonSafeValue<T>(value: T): T {
         if (Array.isArray(value)) {
             return value.map((item) => cloneJsonSafeValue(item)) as T;
@@ -491,6 +506,7 @@
             const cause = resolveRawSelectionMoveCause(type, ev);
             if (!cause) continue;
             const moveIntent = resolveRawSelectionMoveIntent(type, cause);
+            const moveReason = resolveRawSelectionMoveReason(type, cause, moveIntent);
             const moveMeta = createRawSelectionMoveMeta(ev, moveIntent);
             const fallbackOwner = ev.ownerAfter || ev.ownerBefore || null;
             const afterVisual = createMoveVisualStateFromSnapshot(snapshot, to.row, to.col, fallbackOwner);
@@ -509,7 +525,7 @@
                     ownerBefore,
                     ownerAfter,
                     cause,
-                    reason: moveIntent,
+                    reason: moveReason,
                     meta: cloneJsonSafeValue(moveMeta),
                     before: beforeVisual,
                     after: afterVisual

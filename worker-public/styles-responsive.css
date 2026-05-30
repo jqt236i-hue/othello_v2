@@ -194,7 +194,8 @@ html.layout-profile-phone-portrait #stone-info-panel {
     left: 50%;
     top: calc(max(calc(8px * var(--layout-stage-scale)), env(safe-area-inset-top)) + min(74vw, calc(420px * var(--layout-stage-scale)), 47dvh) + calc(96px * var(--layout-stage-scale)));
     width: min(calc(430px * var(--layout-stage-scale)), 94vw);
-    max-height: min(24dvh, calc(210px * var(--layout-stage-scale)));
+    max-height: none;
+    overflow: visible;
     transform: translateX(-50%);
 }
 
@@ -602,14 +603,9 @@ html.layout-profile-phone-portrait #hand-black .card-item .card-badge-row .card-
 }
 
 @media (hover: hover) {
-    .cell.legal:hover::after {
-        background: rgba(100, 255, 100, 0.4);
-        transform: scale(1.3);
-        border-color: rgba(150, 255, 150, 0.8);
-        box-shadow: 0 0 8px rgba(100, 255, 100, 0.6);
-    }
-
-    .cell.legal:hover {
+    .cell.legal:hover,
+    .cell.legal-free:hover,
+    .cell.selectable-friendly:hover {
         cursor: pointer;
         background-color: rgba(255, 255, 255, 0.03);
     }
@@ -964,10 +960,31 @@ html.sim-aspect-5-4 #effect-live-panel {
 }
 
 #stone-info-panel {
-    left: var(--profile-effect-left);
+    left: var(--profile-stone-info-left);
     top: var(--profile-effect-top);
     transform: translateY(calc(-100% - calc(8px * var(--layout-stage-scale))));
-    width: var(--profile-effect-width);
+    width: var(--profile-stone-info-width);
+}
+
+.stone-info-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: calc(4px * var(--layout-stage-scale));
+    row-gap: calc(4px * var(--layout-stage-scale));
+    align-items: start;
+}
+
+.stone-info-effect-tag {
+    justify-content: flex-start;
+    justify-self: start;
+    width: max-content;
+    max-width: 100%;
+    min-height: clamp(16px, calc(18px * var(--layout-stage-scale)), 18px);
+    padding: clamp(2px, calc(2px * var(--layout-stage-scale)), 3px) clamp(5px, calc(6px * var(--layout-stage-scale)), 6px);
+    font-size: clamp(9px, calc(11px * var(--layout-stage-scale)), 11px);
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: left;
+    white-space: normal;
 }
 
 #cpu-character-panel {
@@ -1176,10 +1193,10 @@ html.sim-aspect-5-4 #effect-live-panel {
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #stone-info-panel {
-        left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
+        left: var(--profile-stone-info-left);
         top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
         transform: translateY(calc(-100% - calc(8px * var(--layout-stage-scale))));
-        width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
+        width: var(--profile-stone-info-width);
     }
 
     html.layout-stage-enabled:not(.layout-profile-phone-portrait) #cpu-character-panel {

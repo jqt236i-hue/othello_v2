@@ -1,4 +1,5 @@
 type MatchWorkerRuntimeGlobalScope = Record<string, unknown>;
+const ModuleExportUtils = require('../shared/module-export-utils');
 
 function getRuntimeGlobalScope(): MatchWorkerRuntimeGlobalScope {
     if (typeof globalThis !== 'undefined') return globalThis as MatchWorkerRuntimeGlobalScope;
@@ -7,14 +8,33 @@ function getRuntimeGlobalScope(): MatchWorkerRuntimeGlobalScope {
 }
 
 function unwrapModule(mod: unknown): unknown {
-    return mod && typeof mod === 'object' && 'default' in mod ? mod.default : mod;
+    if (ModuleExportUtils && typeof ModuleExportUtils.unwrapModuleExport === 'function') {
+        return ModuleExportUtils.unwrapModuleExport(mod);
+    }
+    return mod && typeof mod === 'object' && 'default' in mod ? (mod as Record<string, unknown>).default : mod;
+}
+
+function hasUsableRuntimeModule(mod: unknown): boolean {
+    if (ModuleExportUtils && typeof ModuleExportUtils.hasUsableModuleExport === 'function') {
+        return ModuleExportUtils.hasUsableModuleExport(mod);
+    }
+    if (!mod) return false;
+    if (typeof mod === 'function') return true;
+    if (typeof mod !== 'object') return true;
+    return Object.keys(mod as Record<string, unknown>).some((key) => key !== '__esModule');
 }
 
 const scope = getRuntimeGlobalScope();
 
 function installRuntimeModule(globalKey: string, loadModule: () => unknown): void {
-    if (scope[globalKey]) return;
-    scope[globalKey] = unwrapModule(loadModule());
+    if (hasUsableRuntimeModule(scope[globalKey])) return;
+    const loadedModule = unwrapModule(loadModule());
+    if (hasUsableRuntimeModule(loadedModule)) {
+        scope[globalKey] = loadedModule;
+        return;
+    }
+    if (hasUsableRuntimeModule(scope[globalKey])) return;
+    scope[globalKey] = loadedModule;
 }
 
 installRuntimeModule('CardCatalog', () => require('../cards/catalog.js'));
@@ -56,6 +76,8 @@ installRuntimeModule('CardEffectTiming', () => require('../game/logic/cards-inte
 installRuntimeModule('CardUtils', () => require('../game/logic/cards/utils.js'));
 installRuntimeModule('CardContext', () => require('../game/logic/context.js'));
 installRuntimeModule('CardExpansion', () => require('../game/logic/cards/expansion.js'));
+installRuntimeModule('CardSelectorsCoreUtils', () => require('../game/logic/cards/selectors-core-utils.js'));
+installRuntimeModule('CardSelectorsBoardShape', () => require('../game/logic/cards/selectors-board-shape.js'));
 installRuntimeModule('CardMovement', () => require('../game/logic/cards/movement.js'));
 installRuntimeModule('CardTeleport', () => require('../game/logic/cards/teleport.js'));
 installRuntimeModule('CardClone', () => require('../game/logic/cards/clone.js'));

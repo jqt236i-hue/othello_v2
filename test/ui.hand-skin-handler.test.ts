@@ -13,7 +13,20 @@ describe('hand skin handler', () => {
       <button id="handSkinBtn" aria-expanded="false"></button>
       <div id="handSkinPanel" aria-hidden="true">
         <button id="handSkinCloseBtn" type="button"></button>
-        <div id="handSkinOptions"></div>
+        <div id="appearancePanelTabs">
+          <button id="appearanceTabHand" type="button"></button>
+          <button id="appearanceTabBackground" type="button"></button>
+          <button id="appearanceTabFont" type="button"></button>
+        </div>
+        <div id="handSkinSection">
+          <div id="handSkinOptions"></div>
+        </div>
+        <div id="backgroundSkinSection" hidden>
+          <div id="backgroundSkinOptions"></div>
+        </div>
+        <div id="fontSkinSection" hidden>
+          <div id="fontSkinOptions"></div>
+        </div>
       </div>
       <img id="handImage" src="assets/images/hand-skin/勇者の手.png" alt="" />
     </body></html>`, { url: 'https://example.test/' });
@@ -111,6 +124,24 @@ describe('hand skin handler', () => {
     expect(panel.classList.contains('is-open')).toBe(false);
     expect(panel.getAttribute('aria-hidden')).toBe('true');
     expect(button.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  test('font tab persists selected font without affecting the selected hand skin', () => {
+    unlockAltGachaHandSkin();
+    window.localStorage.setItem('othello.handSkin', ALT_GACHA_HAND_SKIN_ID);
+    const mod = require('../ui/handlers/hand-skin.js');
+    const api = mod.setupHandSkinControls({ root: window });
+
+    document.getElementById('handSkinBtn').click();
+    document.getElementById('appearanceTabFont').click();
+    document.querySelector('[data-font-skin-id="dot-gothic"]').click();
+
+    expect(window.localStorage.getItem('othello.fontSkin')).toBe('dot-gothic');
+    expect(document.body.getAttribute('data-font-skin-id')).toBe('dot-gothic');
+    expect(document.documentElement.getAttribute('data-font-skin-id')).toBe('dot-gothic');
+    expect(document.body.style.getPropertyValue('--selected-app-font-family')).toContain('DotGothic16');
+    expect(api.getSelectedSkinId()).toBe(ALT_GACHA_HAND_SKIN_ID);
+    expect(document.getElementById('handImage').getAttribute('data-hand-skin-id')).toBe(ALT_GACHA_HAND_SKIN_ID);
   });
 
   test('unowned gacha skin in storage falls back to default', () => {
@@ -321,5 +352,7 @@ describe('hand skin handler', () => {
     expect(html).toMatch(/id="handSkinBtn"/);
     expect(html).toMatch(/id="handSkinPanel"/);
     expect(html).toMatch(/id="handSkinOptions"/);
+    expect(html).toMatch(/id="appearanceTabFont"/);
+    expect(html).toMatch(/id="fontSkinOptions"/);
   });
 });

@@ -347,6 +347,14 @@ function moveLiveDiscToDestination(fromCell: any, toCell: any, sourceCell: any, 
     return disc;
 }
 
+function syncMoveTargetDiscVisual(target: any, disc: any, deps: AnimationMoveEventDeps) {
+    if (!disc || !(target && target.after && (target.after.color === 1 || target.after.color === -1))) return disc;
+    try {
+        deps.syncDiscVisual(disc, target.after);
+    } catch (e: any) { /* ignore */ }
+    return disc;
+}
+
 function applyImmediateGhostOnlyMoveTarget(target: any, toCell: any, disc: any, deps: AnimationMoveEventDeps) {
     if (!toCell) return null;
     toCell.innerHTML = '';
@@ -755,6 +763,7 @@ async function handleMoveEvent(ev: any, deps: AnimationMoveEventDeps) {
                     } else {
                         targetDisc = applyImmediateGhostOnlyMoveTarget(target, toCell, disc, deps);
                     }
+                    syncMoveTargetDiscVisual(target, targetDisc, deps);
 
                     if (moveSemantics.isTeleportMove && !noAnim && targetDisc && typeof targetDisc.animate === 'function') {
                         const durationMs = 140;
@@ -807,10 +816,12 @@ async function handleMoveEvent(ev: any, deps: AnimationMoveEventDeps) {
                 await deps.waitForAnimationFinish(anim, durationMs, 220);
 
                 if (!useGhostOnly) {
-                    moveLiveDiscToDestination(fromCell, toCell, sourceCell, disc);
+                    const targetDisc = moveLiveDiscToDestination(fromCell, toCell, sourceCell, disc);
+                    syncMoveTargetDiscVisual(target, targetDisc, deps);
                     discHidden = false;
                 } else if (moveSemantics.isCloneMove) {
-                    ensureAnimatedCloneMoveTarget(target, toCell, deps);
+                    const targetDisc = ensureAnimatedCloneMoveTarget(target, toCell, deps);
+                    syncMoveTargetDiscVisual(target, targetDisc, deps);
                 }
             } finally {
                 cleanupMoveGhostPlayback(ghost, hiddenTargetDisc, discHidden, disc);

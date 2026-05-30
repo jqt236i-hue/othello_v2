@@ -68,6 +68,20 @@ describe('module-resolver', () => {
       expect(result).toEqual({ value: 1 });
     });
 
+    test('default validation rejects __esModule-only require result and falls back to global', () => {
+      global.MyUmdModule = { applyCaptureWill: () => true };
+      try {
+        const result = ModuleResolver.resolveModule({
+          requirePath: './umd-module',
+          requireFn: () => ({ __esModule: true }),
+          globalName: 'MyUmdModule'
+        });
+        expect(result).toBe(global.MyUmdModule);
+      } finally {
+        delete global.MyUmdModule;
+      }
+    });
+
     test('skips readLocal when not a function', () => {
       const result = ModuleResolver.resolveModule({
         readLocal: 'not-a-function',

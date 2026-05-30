@@ -510,6 +510,73 @@ function buildTurnStartDestroyFixture(kind) {
   };
 }
 
+function buildBreedingTurnStartSpawnFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  snapshot.cardState.pendingEffectByPlayer.black = { type: 'FREE_PLACEMENT', stage: 'awaitPlace' };
+  setStone(snapshot, 3, 3, 'black');
+  addSpecialMarker(snapshot, 3, 3, 'black', 'BREEDING', { remainingOwnerTurns: 5 });
+  return {
+    name: 'BREEDING_TURN_START_SPAWN',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 0,
+      col: 1,
+      actionId: 'fixture_breeding_turn_start_place',
+      __skipTurnStart: false
+    })
+  };
+}
+
+function buildEscapeTurnStartMoveFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  snapshot.cardState.pendingEffectByPlayer.black = { type: 'FREE_PLACEMENT', stage: 'awaitPlace' };
+  setStone(snapshot, 3, 3, 'black');
+  setStone(snapshot, 3, 4, 'white');
+  addSpecialMarker(snapshot, 3, 3, 'black', 'ESCAPE_HYPERACTIVE', {
+    remainingOwnerTurns: 5,
+    flipEvadeRemaining: 1
+  });
+  return {
+    name: 'ESCAPE_HYPERACTIVE_TURN_START_MOVE',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 0,
+      col: 1,
+      actionId: 'fixture_escape_turn_start_move_place',
+      __skipTurnStart: false
+    })
+  };
+}
+
+function buildEscapeTurnStartExplosionFixture() {
+  const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
+  snapshot.cardState.pendingEffectByPlayer.black = { type: 'FREE_PLACEMENT', stage: 'awaitPlace' };
+  setStone(snapshot, 3, 3, 'black');
+  for (let dr = -1; dr <= 1; dr += 1) {
+    for (let dc = -1; dc <= 1; dc += 1) {
+      if (dr === 0 && dc === 0) continue;
+      setStone(snapshot, 3 + dr, 3 + dc, 'white');
+    }
+  }
+  addSpecialMarker(snapshot, 3, 3, 'black', 'ESCAPE_HYPERACTIVE', {
+    remainingOwnerTurns: 5,
+    flipEvadeRemaining: 1
+  });
+  return {
+    name: 'ESCAPE_HYPERACTIVE_TURN_START_EXPLOSION',
+    snapshot,
+    action: buildCommandAction(2, {
+      playerKey: 'black',
+      row: 0,
+      col: 1,
+      actionId: 'fixture_escape_turn_start_explosion_place',
+      __skipTurnStart: false
+    })
+  };
+}
+
 function buildMeteorFixture() {
   const snapshot = createBaseSnapshot({ currentPlayer: 'black', turnIndex: 2 });
   addSalvationGod(snapshot, 7, 0, 'black');
@@ -1006,6 +1073,9 @@ function buildPlaybackParityFixtures() {
     buildTurnStartDestroyFixture('GLUTTONOUS'),
     buildTurnStartDestroyFixture('WILL_HUNTER_KING'),
     buildTurnStartDestroyFixture('ULTIMATE_DESTROY_GOD'),
+    buildBreedingTurnStartSpawnFixture(),
+    buildEscapeTurnStartMoveFixture(),
+    buildEscapeTurnStartExplosionFixture(),
     buildSimplePendingSelectionFixture({
       cardId: 'destroy_01',
       pendingType: 'DESTROY_ONE_STONE',
@@ -1808,6 +1878,49 @@ describe('network playback event assembly contract', () => {
     expect(result.diagnostics.warnings).toEqual([]);
   });
 
+  test('assemblePlaybackEvents preserves card-specific move reasons when raw selection fallback is needed', () => {
+    const snapshot = {
+      cardState: { turnIndex: 9 },
+      gameState: {
+        board: createBoard(8, 8),
+        currentPlayer: 1
+      }
+    };
+    snapshot.gameState.board[3][0] = Core.WHITE;
+
+    const result = helpers.assemblePlaybackEvents({
+      rawEvents: [{
+        type: 'super_attraction_selected',
+        applied: true,
+        completed: true,
+        from: { row: 3, col: 3 },
+        to: { row: 3, col: 0 },
+        selectedPathVariant: 'single_segment',
+        pathCells: [{ row: 3, col: 2 }, { row: 3, col: 1 }, { row: 3, col: 0 }]
+      }],
+      presentationEvents: [],
+      snapshot,
+      fallbackPlayerKey: 'black',
+      adapter,
+      normalizePlayerKey
+    });
+
+    expect(result.playbackEvents).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: 'move',
+        rawType: 'super_attraction_selected',
+        targets: [expect.objectContaining({
+          cause: 'SUPER_ATTRACTION_WILL',
+          reason: 'super_attraction_move',
+          meta: expect.objectContaining({ moveIntent: 'crush_move' }),
+          before: expect.objectContaining({ color: -1, owner: 'white' }),
+          after: expect.objectContaining({ color: -1, owner: 'white' })
+        })]
+      })
+    ]));
+    expect(result.diagnostics.warnings).toEqual([]);
+  });
+
   test('playback assembly does not mutate authoritative snapshot state', () => {
     const snapshot = {
       cardState: {
@@ -2107,6 +2220,107 @@ describe('network playback event assembly contract', () => {
                 to: { r: 3, col: 3 },
                 cause: 'POSITION_SWAP_WILL'
               })
+            ])
+          })
+        ]));
+      }
+      if (fixture.name === 'BREEDING_TURN_START_SPAWN') {
+        const breedingSpawn = expected.playbackEvents.find((event) => (
+          event &&
+          event.type === 'spawn' &&
+          Array.isArray(event.targets) &&
+          event.targets.some((target) => target && target.cause === 'BREEDING' && String(target.reason || '').indexOf('breeding_spawn') === 0)
+        ));
+        const spawnTarget = breedingSpawn && breedingSpawn.targets.find((target) => target && target.cause === 'BREEDING');
+        expect({
+          spawnTarget,
+          sound: expected.playbackEvents.find((event) => (
+            event &&
+            event.type === 'sound_effect' &&
+            Array.isArray(event.targets) &&
+            event.targets.some((target) => target && target.soundKey === 'breeding_spawn')
+          ))
+        }).toEqual({
+          spawnTarget: expect.objectContaining({
+            before: expect.objectContaining({ color: 0, special: null }),
+            after: expect.objectContaining({ color: 1, owner: 'black' })
+          }),
+          sound: expect.objectContaining({ type: 'sound_effect' })
+        });
+      }
+      if (fixture.name === 'ESCAPE_HYPERACTIVE_TURN_START_MOVE') {
+        const moveEvent = expected.playbackEvents.find((event) => (
+          event &&
+          event.type === 'move' &&
+          Array.isArray(event.targets) &&
+          event.targets.some((target) => target && target.cause === 'ESCAPE_HYPERACTIVE')
+        ));
+        const moveTarget = moveEvent && moveEvent.targets.find((target) => target && target.cause === 'ESCAPE_HYPERACTIVE');
+        expect({
+          moveTarget,
+          sound: expected.playbackEvents.find((event) => (
+            event &&
+            event.type === 'sound_effect' &&
+            Array.isArray(event.targets) &&
+            event.targets.some((target) => target && target.soundKey === 'hyperactive_move')
+          ))
+        }).toEqual({
+          moveTarget: expect.objectContaining({
+            from: { r: 3, col: 3 },
+            to: { r: 2, col: 2 },
+            reason: 'escape_hyperactive_move',
+            before: expect.objectContaining({
+              color: 1,
+              owner: 'black',
+              special: 'ESCAPE_HYPERACTIVE',
+              flipEvadeRemaining: 1
+            }),
+            after: expect.objectContaining({
+              color: 1,
+              owner: 'black',
+              special: 'ESCAPE_HYPERACTIVE',
+              flipEvadeRemaining: 1
+            })
+          }),
+          sound: expect.objectContaining({ type: 'sound_effect' })
+        });
+      }
+      if (fixture.name === 'ESCAPE_HYPERACTIVE_TURN_START_EXPLOSION') {
+        const escapeDestroys = expected.playbackEvents
+          .filter((event) => event && event.type === 'destroy')
+          .flatMap((event) => Array.isArray(event.targets)
+            ? event.targets.map((target) => ({ event, target }))
+            : [])
+          .filter(({ target }) => target && target.cause === 'ESCAPE_HYPERACTIVE' && target.reason === 'escape_no_candidates_explosion');
+        expect(escapeDestroys).toHaveLength(9);
+        expect(new Set(escapeDestroys.map(({ event }) => event.phase)).size).toBe(1);
+        expect(escapeDestroys).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            target: expect.objectContaining({
+              r: 3,
+              col: 3,
+              before: expect.objectContaining({
+                color: 1,
+                owner: 'black',
+                special: 'ESCAPE_HYPERACTIVE'
+              }),
+              after: expect.objectContaining({ color: 0, special: null })
+            })
+          })
+        ]));
+        expect(expected.playbackEvents).toEqual(expect.arrayContaining([
+          expect.objectContaining({
+            type: 'sound_effect',
+            targets: expect.arrayContaining([
+              expect.objectContaining({ soundKey: 'bomb_explode' })
+            ])
+          })
+        ]));
+        expect(expected.playbackEvents).toEqual(expect.not.arrayContaining([
+          expect.objectContaining({
+            type: 'sound_effect',
+            targets: expect.arrayContaining([
+              expect.objectContaining({ soundKey: 'stone_destroy' })
             ])
           })
         ]));

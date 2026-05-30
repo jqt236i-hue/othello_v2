@@ -2043,6 +2043,7 @@ function _destroyAtCore(cardState: any, gameState: any, row: number, col: number
         : null;
     if (livingWillMarker && cardLivingWillModule && typeof cardLivingWillModule.restoreFromLivingWillSnapshot === 'function') {
         const livingStoneId = getStoneIdAt(cardState, gameState, row, col);
+        const destroyMeta = _populateSpecialVisualMeta(cardState, row, col, _clonePresentationMeta(meta));
         setStoneIdAt(cardState, gameState, row, col, null);
         setCellValue(gameState, row, col, EMPTY);
         if (cardMarkers && typeof cardMarkers.removeMarkersAt === 'function') {
@@ -2052,7 +2053,6 @@ function _destroyAtCore(cardState: any, gameState: any, row: number, col: number
         } else if (Array.isArray(cardState.markers)) {
             cardState.markers = cardState.markers.filter((m: any) => !(m.row === row && m.col === col));
         }
-        const destroyMeta = _clonePresentationMeta(meta);
         destroyMeta.livingWillTriggered = true;
         emitPresentationEvent(cardState, {
             type: 'DESTROY',
@@ -2107,6 +2107,7 @@ function _destroyAtCore(cardState: any, gameState: any, row: number, col: number
 
     let stoneId: string | null = null;
     stoneId = getStoneIdAt(cardState, gameState, row, col);
+    const destroyMeta = _populateSpecialVisualMeta(cardState, row, col, _clonePresentationMeta(meta));
     setStoneIdAt(cardState, gameState, row, col, null);
 
     setCellValue(gameState, row, col, EMPTY);
@@ -2125,7 +2126,7 @@ function _destroyAtCore(cardState: any, gameState: any, row: number, col: number
         ownerBefore: ownerBeforeKeyForDestroy,
         cause: cause || null,
         reason: reason || null,
-        meta: _clonePresentationMeta(meta)
+        meta: destroyMeta
     });
 
     recordSalvationDestroy();

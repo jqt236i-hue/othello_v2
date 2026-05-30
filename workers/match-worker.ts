@@ -36,6 +36,8 @@ import type {
     MatchWorkerTurnStartModules,
     MatchWorkerRoomDeckMetadata
 } from './match-worker-types';
+
+const ModuleExportUtils = require('../shared/module-export-utils');
 import type {
     MatchAuthorityAcceptedOperationsBySeat,
     MatchAuthorityAcceptedOperationEntry,
@@ -62,64 +64,12 @@ import { createMatchWorkerTurnTimerController } from './match-worker-turn-timer-
 import { createMatchWorkerTurnTimerHelpers } from './match-worker-turn-timer';
 import deepClone from '../utils/deepClone.js';
 import matchAuthority from '../utils/match-authority.js';
-import networkActionSchemaModule = require('../shared/network-action-schema.js');
-import playbackEventHelpersModule = require('../shared/playback-event-helpers.js');
-import sharedConstantsModule from '../shared-constants.js';
-import sharedBoardUtilsModule = require('../shared/shared-board-utils.js');
-import deckSpecHelpersModule = require('../shared/deck-spec.js');
-import deckCodecModule = require('../shared/deck-codec.js');
-import playerEncodingModule = require('../shared/player-encoding.js');
-import destroyOutcomeContractModule = require('../shared/destroy-outcome-contract.js');
-import stoneStatusSnapshotModule = require('../shared/stone-status-snapshot.js');
-import specialStoneRegistryModule = require('../shared/special-stone-registry.js');
-import presentationEffectProfilesModule = require('../shared/presentation-effect-profiles.js');
-import cardRandomSourceModule from '../game/logic/cards-internal/random-source.js';
-import cardStateFactoryModule from '../game/logic/cards-internal/state-factory.js';
-import cardModuleResolverModule from '../game/logic/cards-internal/module-resolver.js';
-import cardPresentationHelpersModule from '../game/logic/cards-internal/presentation-helpers.js';
-import cardCaptureSourceModule = require('../game/logic/cards-internal/capture-source.js');
-import cardProgressionModule = require('../game/logic/cards-internal/progression.js');
-import cardRandomBoardSpawnModule = require('../game/logic/cards-internal/random-board-spawn.js');
-import cardRiboTimeStopModule = require('../game/logic/cards-internal/ribo-time-stop.js');
-import cardTargetAccessModule = require('../game/logic/cards-internal/target-access.js');
-import cardContextBuildersModule = require('../game/logic/cards-internal/context-builders.js');
-import cardDeckSetupModule = require('../game/logic/cards-internal/deck-setup.js');
-import cardHandAccessModule = require('../game/logic/cards-internal/hand-access.js');
-import cardAvailabilityModule = require('../game/logic/cards-internal/card-availability.js');
-import cardOfferBuildersModule = require('../game/logic/cards-internal/offer-builders.js');
-import cardEffectTargetCountsModule = require('../game/logic/cards-internal/effect-target-counts.js');
-import cardSalvationEffectModule = require('../game/logic/cards-internal/salvation-effect.js');
-import cardLossEffectModule = require('../game/logic/cards-internal/loss-effect.js');
-import cardFateEffectModule = require('../game/logic/cards-internal/fate-effect.js');
-import cardBoardShapeAccessModule = require('../game/logic/cards-internal/board-shape-access.js');
-import cardHandManagerModule from '../game/logic/cards-internal/hand-manager.js';
-import cardChargeLedgerModule from '../game/logic/cards-internal/charge-ledger.js';
-import cardPendingStateManagerModule from '../game/logic/cards-internal/pending-state-manager.js';
-import cardUsagePrechecksModule from '../game/logic/cards-internal/card-usage-prechecks.js';
-import cardEffectTimingModule from '../game/logic/cards-internal/effect-timing.js';
-import cardTimeBombModule from '../game/logic/cards/time_bomb.js';
-import dragonEffectsModule from '../game/logic/effects/dragon.js';
-import cardUdgModule from '../game/logic/cards/udg.js';
-import cardHyperactiveModule from '../game/logic/cards/hyperactive.js';
-import cardMarkersModule from '../game/logic/cards/markers.js';
-import boardOpsModule from '../game/logic/board_ops.js';
-import destroyOneStoneEffectsModule from '../game/logic/effects/destroy_one_stone.js';
-import swapWithEnemyEffectsModule from '../game/logic/effects/swap_with_enemy.js';
-import cardStateManagerModule from '../game/cards/state-manager.js';
-import cardEffectResolverModule from '../game/cards/effect-resolver.js';
-import cardTimingProcessorModule from '../game/cards/timing-processor.js';
-import cardTargetResolverModule from '../game/cards/target-resolver.js';
-import cardStatusCellsEffectsModule = require('../game/cards/effects/status-cells.js');
-import subPlacementContinuationModule = require('../game/turn/sub-placement-continuation.js');
 
 const MatchAuthority = matchAuthority;
-const SubPlacementContinuation = subPlacementContinuationModule;
 type MatchWorkerCryptoLike = {
     getRandomValues(array: Uint8Array): Uint8Array;
 };
 const ROOM_STORAGE_KEY = 'match_room_state_v1';
-const NetworkActionSchema = asRuntimeModule(networkActionSchemaModule);
-const PlaybackEventHelpers = asRuntimeModule(playbackEventHelpersModule);
 const CHAT_MAX_LENGTH = 20;
 const CHAT_HISTORY_LIMIT = 40;
 const NETWORK_PLAYER_NAME_MAX = Number.isFinite(Number(MatchAuthority.NETWORK_PLAYER_NAME_MAX))
@@ -147,55 +97,124 @@ let workerSharedConstantsPromise: Promise<unknown> | null = null;
 let workerSharedBoardUtilsPromise: Promise<unknown> | null = null;
 let workerDeckGlobalsPromise: Promise<unknown> | null = null;
 let workerCardGlobalsPromise: Promise<unknown> | null = null;
+let workerTurnPipelinePhaseGlobalsPromise: Promise<unknown> | null = null;
+let workerPipelineUIAdapterGlobalsPromise: Promise<unknown> | null = null;
 
-const WORKER_PRELOAD_MODULES: Readonly<Record<string, unknown>> = Object.freeze({
-    '../shared-constants.js': sharedConstantsModule,
-    '../shared/shared-board-utils.js': sharedBoardUtilsModule,
-    '../shared/deck-spec.js': deckSpecHelpersModule,
-    '../shared/deck-codec.js': deckCodecModule,
-    '../shared/player-encoding.js': playerEncodingModule,
-    '../shared/destroy-outcome-contract.js': destroyOutcomeContractModule,
-    '../shared/stone-status-snapshot.js': stoneStatusSnapshotModule,
-    '../shared/special-stone-registry.js': specialStoneRegistryModule,
-    '../shared/presentation-effect-profiles.js': presentationEffectProfilesModule,
-    '../game/logic/cards-internal/random-source.js': cardRandomSourceModule,
-    '../game/logic/cards-internal/state-factory.js': cardStateFactoryModule,
-    '../game/logic/cards-internal/module-resolver.js': cardModuleResolverModule,
-    '../game/logic/cards-internal/presentation-helpers.js': cardPresentationHelpersModule,
-    '../game/logic/cards-internal/capture-source.js': cardCaptureSourceModule,
-    '../game/logic/cards-internal/progression.js': cardProgressionModule,
-    '../game/logic/cards-internal/random-board-spawn.js': cardRandomBoardSpawnModule,
-    '../game/logic/cards-internal/ribo-time-stop.js': cardRiboTimeStopModule,
-    '../game/logic/cards-internal/target-access.js': cardTargetAccessModule,
-    '../game/logic/cards-internal/context-builders.js': cardContextBuildersModule,
-    '../game/logic/cards-internal/deck-setup.js': cardDeckSetupModule,
-    '../game/logic/cards-internal/hand-access.js': cardHandAccessModule,
-    '../game/logic/cards-internal/card-availability.js': cardAvailabilityModule,
-    '../game/logic/cards-internal/offer-builders.js': cardOfferBuildersModule,
-    '../game/logic/cards-internal/effect-target-counts.js': cardEffectTargetCountsModule,
-    '../game/logic/cards-internal/salvation-effect.js': cardSalvationEffectModule,
-    '../game/logic/cards-internal/loss-effect.js': cardLossEffectModule,
-    '../game/logic/cards-internal/fate-effect.js': cardFateEffectModule,
-    '../game/logic/cards-internal/board-shape-access.js': cardBoardShapeAccessModule,
-    '../game/logic/cards-internal/hand-manager.js': cardHandManagerModule,
-    '../game/logic/cards-internal/charge-ledger.js': cardChargeLedgerModule,
-    '../game/logic/cards-internal/pending-state-manager.js': cardPendingStateManagerModule,
-    '../game/logic/cards-internal/card-usage-prechecks.js': cardUsagePrechecksModule,
-    '../game/logic/cards-internal/effect-timing.js': cardEffectTimingModule,
-    '../game/logic/cards/time_bomb.js': cardTimeBombModule,
-    '../game/logic/effects/dragon.js': dragonEffectsModule,
-    '../game/logic/cards/udg.js': cardUdgModule,
-    '../game/logic/cards/hyperactive.js': cardHyperactiveModule,
-    '../game/logic/cards/markers.js': cardMarkersModule,
-    '../game/logic/board_ops.js': boardOpsModule,
-    '../game/logic/effects/destroy_one_stone.js': destroyOneStoneEffectsModule,
-    '../game/logic/effects/swap_with_enemy.js': swapWithEnemyEffectsModule,
-    '../game/cards/state-manager.js': cardStateManagerModule,
-    '../game/cards/effect-resolver.js': cardEffectResolverModule,
-    '../game/cards/timing-processor.js': cardTimingProcessorModule,
-    '../game/cards/target-resolver.js': cardTargetResolverModule,
-    '../game/cards/effects/status-cells.js': cardStatusCellsEffectsModule
+type MatchWorkerModuleLoader = () => unknown;
+
+const WORKER_PRELOAD_MODULE_LOADERS: Readonly<Record<string, MatchWorkerModuleLoader>> = Object.freeze({
+    '../shared-constants.js': () => require('../shared-constants.js'),
+    '../shared/shared-board-utils.js': () => require('../shared/shared-board-utils.js'),
+    '../shared/deck-spec.js': () => require('../shared/deck-spec.js'),
+    '../shared/deck-codec.js': () => require('../shared/deck-codec.js'),
+    '../shared/player-encoding.js': () => require('../shared/player-encoding.js'),
+    '../shared/destroy-outcome-contract.js': () => require('../shared/destroy-outcome-contract.js'),
+    '../shared/stone-status-snapshot.js': () => require('../shared/stone-status-snapshot.js'),
+    '../shared/special-stone-registry.js': () => require('../shared/special-stone-registry.js'),
+    '../shared/presentation-effect-profiles.js': () => require('../shared/presentation-effect-profiles.js'),
+    '../shared/network-action-schema.js': () => require('../shared/network-action-schema.js'),
+    '../shared/playback-event-helpers.js': () => require('../shared/playback-event-helpers.js'),
+    '../game/logic/cards-internal/random-source.js': () => require('../game/logic/cards-internal/random-source.js'),
+    '../game/logic/cards-internal/state-factory.js': () => require('../game/logic/cards-internal/state-factory.js'),
+    '../game/logic/cards-internal/module-resolver.js': () => require('../game/logic/cards-internal/module-resolver.js'),
+    '../game/logic/cards-internal/presentation-helpers.js': () => require('../game/logic/cards-internal/presentation-helpers.js'),
+    '../game/logic/cards-internal/capture-source.js': () => require('../game/logic/cards-internal/capture-source.js'),
+    '../game/logic/cards-internal/progression.js': () => require('../game/logic/cards-internal/progression.js'),
+    '../game/logic/cards-internal/random-board-spawn.js': () => require('../game/logic/cards-internal/random-board-spawn.js'),
+    '../game/logic/cards-internal/ribo-time-stop.js': () => require('../game/logic/cards-internal/ribo-time-stop.js'),
+    '../game/logic/cards-internal/target-access.js': () => require('../game/logic/cards-internal/target-access.js'),
+    '../game/logic/cards-internal/context-builders.js': () => require('../game/logic/cards-internal/context-builders.js'),
+    '../game/logic/cards-internal/deck-setup.js': () => require('../game/logic/cards-internal/deck-setup.js'),
+    '../game/logic/cards-internal/hand-access.js': () => require('../game/logic/cards-internal/hand-access.js'),
+    '../game/logic/cards-internal/card-availability.js': () => require('../game/logic/cards-internal/card-availability.js'),
+    '../game/logic/cards-internal/offer-builders.js': () => require('../game/logic/cards-internal/offer-builders.js'),
+    '../game/logic/cards-internal/effect-target-counts.js': () => require('../game/logic/cards-internal/effect-target-counts.js'),
+    '../game/logic/cards-internal/salvation-effect.js': () => require('../game/logic/cards-internal/salvation-effect.js'),
+    '../game/logic/cards-internal/loss-effect.js': () => require('../game/logic/cards-internal/loss-effect.js'),
+    '../game/logic/cards-internal/fate-effect.js': () => require('../game/logic/cards-internal/fate-effect.js'),
+    '../game/logic/cards-internal/board-shape-access.js': () => require('../game/logic/cards-internal/board-shape-access.js'),
+    '../game/logic/cards-internal/hand-manager.js': () => require('../game/logic/cards-internal/hand-manager.js'),
+    '../game/logic/cards-internal/charge-ledger.js': () => require('../game/logic/cards-internal/charge-ledger.js'),
+    '../game/logic/cards-internal/pending-state-manager.js': () => require('../game/logic/cards-internal/pending-state-manager.js'),
+    '../game/logic/cards-internal/card-usage-prechecks.js': () => require('../game/logic/cards-internal/card-usage-prechecks.js'),
+    '../game/logic/cards-internal/effect-timing.js': () => require('../game/logic/cards-internal/effect-timing.js'),
+    '../game/logic/cards/selectors-core-utils.js': () => require('../game/logic/cards/selectors-core-utils.js'),
+    '../game/logic/cards/selectors-board-shape.js': () => require('../game/logic/cards/selectors-board-shape.js'),
+    '../game/logic/cards/expansion.js': () => require('../game/logic/cards/expansion.js'),
+    '../game/logic/cards/movement.js': () => require('../game/logic/cards/movement.js'),
+    '../game/logic/cards/teleport.js': () => require('../game/logic/cards/teleport.js'),
+    '../game/logic/cards/clone.js': () => require('../game/logic/cards/clone.js'),
+    '../game/logic/cards/meteor.js': () => require('../game/logic/cards/meteor.js'),
+    '../game/logic/cards/shrink.js': () => require('../game/logic/cards/shrink.js'),
+    '../game/logic/cards/living_will.js': () => require('../game/logic/cards/living_will.js'),
+    '../game/logic/cards/targets.js': () => require('../game/logic/cards/targets.js'),
+    '../game/logic/cards/flips.js': () => require('../game/logic/cards/flips.js'),
+    '../game/logic/cards/chain.js': () => require('../game/logic/cards/chain.js'),
+    '../game/logic/cards/regen.js': () => require('../game/logic/cards/regen.js'),
+    '../game/logic/cards/time_bomb.js': () => require('../game/logic/cards/time_bomb.js'),
+    '../game/logic/cards/breeding.js': () => require('../game/logic/cards/breeding.js'),
+    '../game/logic/effects/dragon.js': () => require('../game/logic/effects/dragon.js'),
+    '../game/logic/cards/udg.js': () => require('../game/logic/cards/udg.js'),
+    '../game/logic/cards/hyperactive.js': () => require('../game/logic/cards/hyperactive.js'),
+    '../game/logic/cards/sniper.js': () => require('../game/logic/cards/sniper.js'),
+    '../game/logic/cards/lightning.js': () => require('../game/logic/cards/lightning.js'),
+    '../game/logic/cards/will_hunter_king.js': () => require('../game/logic/cards/will_hunter_king.js'),
+    '../game/logic/cards/destroy_dragon.js': () => require('../game/logic/cards/destroy_dragon.js'),
+    '../game/logic/cards/selectors.js': () => require('../game/logic/cards/selectors.js'),
+    '../game/logic/cards/work_will.js': () => require('../game/logic/cards/work_will.js'),
+    '../game/logic/cards/observer_will.js': () => require('../game/logic/cards/observer_will.js'),
+    '../game/logic/cards/markers.js': () => require('../game/logic/cards/markers.js'),
+    '../game/logic/board_ops.js': () => require('../game/logic/board_ops.js'),
+    '../game/logic/effects/destroy_one_stone.js': () => require('../game/logic/effects/destroy_one_stone.js'),
+    '../game/logic/effects/swap_with_enemy.js': () => require('../game/logic/effects/swap_with_enemy.js'),
+    '../game/cards/state-manager.js': () => require('../game/cards/state-manager.js'),
+    '../game/cards/effect-resolver.js': () => require('../game/cards/effect-resolver.js'),
+    '../game/cards/timing-processor.js': () => require('../game/cards/timing-processor.js'),
+    '../game/cards/target-resolver.js': () => require('../game/cards/target-resolver.js'),
+    '../game/logic/card-resolution/protect': () => require('../game/logic/card-resolution/protect'),
+    '../game/logic/card-resolution/trap': () => require('../game/logic/card-resolution/trap'),
+    '../game/logic/card-resolution/ownership': () => require('../game/logic/card-resolution/ownership'),
+    '../game/logic/card-resolution/board-expansion-apply': () => require('../game/logic/card-resolution/board-expansion-apply'),
+    '../game/logic/card-resolution/status-cells': () => require('../game/logic/card-resolution/status-cells'),
+    '../game/logic/card-resolution/hand-effects': () => require('../game/logic/card-resolution/hand-effects'),
+    '../game/logic/card-resolution/position-swap': () => require('../game/logic/card-resolution/position-swap'),
+    '../game/logic/markers_adapter.js': () => require('../game/logic/markers_adapter.js'),
+    '../game/logic/context': () => require('../game/logic/context'),
+    '../game/turn/turn_pipeline_phase_helpers.js': () => require('../game/turn/turn_pipeline_phase_helpers.js'),
+    '../game/turn/pending-coordinator.js': () => require('../game/turn/pending-coordinator.js'),
+    '../game/turn/action-phase/continuation.js': () => require('../game/turn/action-phase/continuation.js'),
+    '../game/turn/action-phase/placement-effects.js': () => require('../game/turn/action-phase/placement-effects.js'),
+    '../game/turn/card-usage/immediate-effects.js': () => require('../game/turn/card-usage/immediate-effects.js'),
+    '../game/turn/board-charge.js': () => require('../game/turn/board-charge.js'),
+    '../game/turn/presentation-helpers.js': () => require('../game/turn/presentation-helpers.js'),
+    '../game/turn/round-state.js': () => require('../game/turn/round-state.js'),
+    '../game/turn/action-phase/pre-placement-selection.js': () => require('../game/turn/action-phase/pre-placement-selection.js'),
+    '../game/turn/action-phase/place-resolution.js': () => require('../game/turn/action-phase/place-resolution.js'),
+    '../game/turn/action-phase/placement-immediate-effects.js': () => require('../game/turn/action-phase/placement-immediate-effects.js'),
+    '../game/turn/action-phase/turn-handoff.js': () => require('../game/turn/action-phase/turn-handoff.js'),
+    '../game/turn/phase-presentation-finalizer.js': () => require('../game/turn/phase-presentation-finalizer.js'),
+    '../game/turn/turn-start/bomb-phase.js': () => require('../game/turn/turn-start/bomb-phase.js'),
+    '../game/turn/turn-start/marker-phase.js': () => require('../game/turn/turn-start/marker-phase.js'),
+    '../game/turn/turn-start/post-processing.js': () => require('../game/turn/turn-start/post-processing.js'),
+    '../game/turn/turn-start/special-stone-phase.js': () => require('../game/turn/turn-start/special-stone-phase.js'),
+    '../game/turn/turn-start/timer-phase.js': () => require('../game/turn/turn-start/timer-phase.js'),
+    '../game/turn/pipeline-ui/board-event-playback.js': () => require('../game/turn/pipeline-ui/board-event-playback.js'),
+    '../game/turn/pipeline-ui/board-event-mapper.js': () => require('../game/turn/pipeline-ui/board-event-mapper.js'),
+    '../game/turn/pipeline-ui/passive-event-playback.js': () => require('../game/turn/pipeline-ui/passive-event-playback.js'),
+    '../game/turn/pipeline-ui/playback-after-state.js': () => require('../game/turn/pipeline-ui/playback-after-state.js'),
+    '../game/turn/pipeline-ui/log-mappers.js': () => require('../game/turn/pipeline-ui/log-mappers.js'),
+    '../game/turn/pipeline-ui/playback-utils.js': () => require('../game/turn/pipeline-ui/playback-utils.js'),
+    '../game/turn/pipeline-ui/generated-throw-chain-playback.js': () => require('../game/turn/pipeline-ui/generated-throw-chain-playback.js'),
+    '../game/turn/pipeline-ui/sound-cue-assembler.js': () => require('../game/turn/pipeline-ui/sound-cue-assembler.js'),
+    '../game/turn/pipeline-ui/card-economy-sound-cues.js': () => require('../game/turn/pipeline-ui/card-economy-sound-cues.js'),
+    '../game/turn/pipeline-ui/core-sound-cues.js': () => require('../game/turn/pipeline-ui/core-sound-cues.js'),
+    '../game/turn/pipeline-ui/destroy-sound-cues.js': () => require('../game/turn/pipeline-ui/destroy-sound-cues.js'),
+    '../game/turn/pipeline-ui/selection-sound-cues.js': () => require('../game/turn/pipeline-ui/selection-sound-cues.js'),
+    '../game/turn/pipeline-ui/sound-cue-helpers.js': () => require('../game/turn/pipeline-ui/sound-cue-helpers.js'),
+    '../game/logic/cards/utils.js': () => require('../game/logic/cards/utils.js'),
+    '../game/turn/sub-placement-continuation.js': () => require('../game/turn/sub-placement-continuation.js')
 });
+const WORKER_PRELOAD_MODULE_CACHE = new Map<string, unknown>();
 
 const CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
@@ -229,6 +248,9 @@ function asRuntimeModule(value: unknown): MatchWorkerRuntimeModule {
 }
 
 function unwrapRuntimeModule(value: unknown, depth = 0): unknown {
+    if (depth === 0 && ModuleExportUtils && typeof ModuleExportUtils.unwrapModuleExport === 'function') {
+        value = ModuleExportUtils.unwrapModuleExport(value);
+    }
     if (!value || typeof value !== 'object' || depth > 5) return value;
     const source = asRecord(value);
     const moduleExports = source['module.exports'];
@@ -242,8 +264,45 @@ function unwrapRuntimeModule(value: unknown, depth = 0): unknown {
     return value;
 }
 
+function hasUsableRuntimeModule(value: unknown): boolean {
+    if (ModuleExportUtils && typeof ModuleExportUtils.hasUsableModuleExport === 'function') {
+        return ModuleExportUtils.hasUsableModuleExport(value);
+    }
+    if (!value) return false;
+    if (typeof value === 'function') return true;
+    if (typeof value !== 'object') return true;
+    return Object.keys(value as Record<string, unknown>).some((key) => key !== '__esModule');
+}
+
 function resolveModuleDefault(mod: unknown): MatchWorkerRuntimeModule {
     return asRuntimeModule(unwrapRuntimeModule(mod));
+}
+
+function loadWorkerPreloadModule(importPath: string): unknown {
+    if (WORKER_PRELOAD_MODULE_CACHE.has(importPath)) {
+        return WORKER_PRELOAD_MODULE_CACHE.get(importPath);
+    }
+    const loader = Object.prototype.hasOwnProperty.call(WORKER_PRELOAD_MODULE_LOADERS, importPath)
+        ? WORKER_PRELOAD_MODULE_LOADERS[importPath]
+        : null;
+    if (typeof loader !== 'function') {
+        throw new Error(`Worker preload module missing: ${importPath}`);
+    }
+    const mod = loader();
+    WORKER_PRELOAD_MODULE_CACHE.set(importPath, mod);
+    return mod;
+}
+
+function getNetworkActionSchemaModule(): MatchWorkerRuntimeModule {
+    return resolveModuleDefault(loadWorkerPreloadModule('../shared/network-action-schema.js'));
+}
+
+function getPlaybackEventHelpersModule(): MatchWorkerRuntimeModule {
+    return resolveModuleDefault(loadWorkerPreloadModule('../shared/playback-event-helpers.js'));
+}
+
+function getSubPlacementContinuationModule(): MatchWorkerRuntimeModule {
+    return resolveModuleDefault(loadWorkerPreloadModule('../game/turn/sub-placement-continuation.js'));
 }
 
 function withCORS(response: Response): Response {
@@ -338,20 +397,26 @@ function setRuntimeGlobalValue(key: string, value: unknown): unknown {
 function importWorkerGlobal(importPath: string, globalKey: string): Promise<unknown> {
     const scope = getRuntimeGlobalScope();
     const runtimeValue = scope && globalKey ? scope[globalKey] : null;
-    if (runtimeValue) {
+    if (hasUsableRuntimeModule(runtimeValue)) {
         return Promise.resolve(runtimeValue);
     }
-    const mod = Object.prototype.hasOwnProperty.call(WORKER_PRELOAD_MODULES, importPath)
-        ? WORKER_PRELOAD_MODULES[importPath]
-        : null;
-    if (!mod) {
-        return Promise.reject(new Error(`Worker preload module missing: ${importPath}`));
+    let mod: unknown;
+    try {
+        mod = loadWorkerPreloadModule(importPath);
+    } catch (error) {
+        return Promise.reject(error);
     }
     const resolved = unwrapRuntimeModule(mod);
-    if (globalKey && resolved) {
+    const globalAfterLoad = scope && globalKey ? scope[globalKey] : null;
+    const preferredResolved = ModuleExportUtils && typeof ModuleExportUtils.preferUsableModuleExport === 'function'
+        ? ModuleExportUtils.preferUsableModuleExport(resolved, globalAfterLoad)
+        : (hasUsableRuntimeModule(resolved) ? resolved : globalAfterLoad);
+    if (globalKey && hasUsableRuntimeModule(preferredResolved)) {
+        setRuntimeGlobalValue(globalKey, preferredResolved);
+    } else if (globalKey && resolved) {
         setRuntimeGlobalValue(globalKey, resolved);
     }
-    return Promise.resolve(resolved);
+    return Promise.resolve(preferredResolved || resolved);
 }
 
 function ensureWorkerSharedConstants() {
@@ -414,6 +479,8 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
             ['../game/logic/cards-internal/pending-state-manager.js', 'CardPendingStateManager'],
             ['../game/logic/cards-internal/card-usage-prechecks.js', 'CardUsagePrechecks'],
             ['../game/logic/cards-internal/effect-timing.js', 'CardEffectTiming'],
+            ['../game/logic/cards/selectors-core-utils.js', 'CardSelectorsCoreUtils'],
+            ['../game/logic/cards/selectors-board-shape.js', 'CardSelectorsBoardShape'],
             ['../game/logic/cards/expansion.js', 'CardExpansion'],
             ['../game/logic/cards/movement.js', 'CardMovement'],
             ['../game/logic/cards/teleport.js', 'CardTeleport'],
@@ -439,10 +506,19 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
             ['../game/logic/cards/observer_will.js', 'CardObserverWill'],
             ['../game/logic/cards/markers.js', 'CardMarkers'],
             ['../game/logic/board_ops.js', 'BoardOps'],
+            ['../game/logic/effects/destroy_one_stone.js', 'DestroyOneStoneEffects'],
+            ['../game/logic/effects/swap_with_enemy.js', 'SwapWithEnemyEffects'],
             ['../game/cards/state-manager.js', 'CardStateManager'],
             ['../game/cards/effect-resolver.js', 'CardEffectResolver'],
             ['../game/cards/timing-processor.js', 'CardTimingProcessor'],
-            ['../game/cards/target-resolver.js', 'CardTargetResolver']
+            ['../game/cards/target-resolver.js', 'CardTargetResolver'],
+            ['../game/logic/card-resolution/protect', 'CardProtectEffects'],
+            ['../game/logic/card-resolution/trap', 'CardTrapEffects'],
+            ['../game/logic/card-resolution/ownership', 'CardOwnershipEffects'],
+            ['../game/logic/card-resolution/board-expansion-apply', 'CardBoardExpansionApply'],
+            ['../game/logic/card-resolution/status-cells', 'CardStatusCellsEffects'],
+            ['../game/logic/card-resolution/hand-effects', 'CardHandEffects'],
+            ['../game/logic/card-resolution/position-swap', 'CardPositionSwapEffects']
         ];
         const optionalGlobals: Array<[string, string]> = [
             ['../game/logic/cards/utils.js', 'CardUtils']
@@ -459,6 +535,69 @@ function ensureWorkerCardGlobals(): Promise<unknown> {
             ));
     }
     return workerCardGlobalsPromise;
+}
+
+function ensureWorkerTurnPipelinePhaseGlobals(): Promise<unknown> {
+    if (!workerTurnPipelinePhaseGlobalsPromise) {
+        const requiredGlobals: Array<[string, string]> = [
+            ['../game/logic/markers_adapter.js', 'MarkersAdapter'],
+            ['../game/logic/cards/utils.js', 'CardUtils'],
+            ['../game/logic/context', 'CardContext'],
+            ['../shared-constants.js', 'SharedConstants'],
+            ['../utils/owner-helpers.js', 'OwnerHelpers'],
+            ['../shared/destroy-outcome-contract.js', 'DestroyOutcomeContract'],
+            ['../game/turn/turn_pipeline_phase_helpers.js', 'TurnPipelinePhaseHelpers'],
+            ['../game/turn/pending-coordinator.js', 'TurnPendingCoordinator'],
+            ['../game/turn/sub-placement-continuation.js', 'TurnSubPlacementContinuation'],
+            ['../game/turn/action-phase/continuation.js', 'TurnActionPhaseContinuation'],
+            ['../game/turn/action-phase/placement-effects.js', 'TurnActionPhasePlacementEffects'],
+            ['../game/turn/card-usage/immediate-effects.js', 'TurnCardUsageImmediateEffects'],
+            ['../game/turn/board-charge.js', 'TurnBoardCharge'],
+            ['../game/turn/presentation-helpers.js', 'TurnPresentationHelpers'],
+            ['../game/turn/round-state.js', 'TurnRoundState'],
+            ['../game/turn/action-phase/pre-placement-selection.js', 'TurnActionPhasePrePlacementSelection'],
+            ['../game/turn/action-phase/place-resolution.js', 'TurnActionPhasePlaceResolution'],
+            ['../game/turn/action-phase/placement-immediate-effects.js', 'TurnActionPhasePlacementImmediateEffects'],
+            ['../game/turn/action-phase/turn-handoff.js', 'TurnActionPhaseTurnHandoff'],
+            ['../game/turn/phase-presentation-finalizer.js', 'TurnPhasePresentationFinalizer'],
+            ['../game/turn/turn-start/bomb-phase.js', 'TurnStartBombPhase'],
+            ['../game/turn/turn-start/marker-phase.js', 'TurnStartMarkerPhase'],
+            ['../game/turn/turn-start/post-processing.js', 'TurnStartPostProcessing'],
+            ['../game/turn/turn-start/special-stone-phase.js', 'TurnStartSpecialStonePhase'],
+            ['../game/turn/turn-start/timer-phase.js', 'TurnStartTimerPhase']
+        ];
+        workerTurnPipelinePhaseGlobalsPromise = requiredGlobals.reduce(
+            (promise, [importPath, globalKey]) => promise.then(() => importWorkerGlobal(importPath, globalKey)),
+            Promise.resolve<unknown>(undefined)
+        );
+    }
+    return workerTurnPipelinePhaseGlobalsPromise;
+}
+
+function ensureWorkerPipelineUIAdapterGlobals(): Promise<unknown> {
+    if (!workerPipelineUIAdapterGlobalsPromise) {
+        const requiredGlobals: Array<[string, string]> = [
+            ['../game/turn/pipeline-ui/playback-utils.js', 'PipelineUIPlaybackUtils'],
+            ['../game/turn/pipeline-ui/board-event-playback.js', 'PipelineUIBoardEventPlayback'],
+            ['../game/turn/pipeline-ui/board-event-mapper.js', 'PipelineUIBoardEventMapper'],
+            ['../game/turn/pipeline-ui/passive-event-playback.js', 'PipelineUIPassiveEventPlayback'],
+            ['../game/turn/pipeline-ui/playback-after-state.js', 'PipelineUIPlaybackAfterState'],
+            ['../game/turn/pipeline-ui/log-mappers.js', 'PipelineUILogMappers'],
+            ['../game/turn/pipeline-ui/generated-throw-chain-playback.js', 'PipelineUIGeneratedThrowChainPlayback'],
+            ['../game/turn/pipeline-ui/card-economy-sound-cues.js', 'PipelineUICardEconomySoundCues'],
+            ['../game/turn/pipeline-ui/core-sound-cues.js', 'PipelineUICoreSoundCues'],
+            ['../game/turn/pipeline-ui/destroy-sound-cues.js', 'PipelineUIDestroySoundCues'],
+            ['../game/turn/pipeline-ui/selection-sound-cues.js', 'PipelineUISelectionSoundCues'],
+            ['../game/turn/pipeline-ui/sound-cue-helpers.js', 'PipelineUISoundCueHelpers'],
+            ['../game/turn/pipeline-ui/sound-cue-assembler.js', 'PipelineUISoundCueAssembler']
+        ];
+        workerPipelineUIAdapterGlobalsPromise = ensureWorkerTurnPipelinePhaseGlobals()
+            .then(() => requiredGlobals.reduce(
+                (promise, [importPath, globalKey]) => promise.then(() => importWorkerGlobal(importPath, globalKey)),
+                Promise.resolve<unknown>(undefined)
+            ));
+    }
+    return workerPipelineUIAdapterGlobalsPromise;
 }
 
 function normalizeWorkerTurnPipelinePlayer(Core: MatchWorkerRuntimeModule | null | undefined, player: unknown): MatchAuthoritySeatKey | null {
@@ -489,6 +628,7 @@ function createWorkerTurnPipelineModule(
         }
         try {
             const applyTurnStartPhase = TurnPipelinePhases.applyTurnStartPhase;
+            const SubPlacementContinuation = getSubPlacementContinuationModule();
             const skipTurnStartForSubPlacement = (
                 SubPlacementContinuation &&
                 typeof SubPlacementContinuation.isSubPlacementTurnActive === 'function' &&
@@ -657,7 +797,7 @@ function loadTurnStartModules(): Promise<MatchWorkerTurnStartModules> {
         turnStartModulesPromise = Promise.all([
             loadCoreLogicModule(),
             ensureWorkerCardGlobals().then(() => import('../game/logic/cards.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerCardLogicModule)),
-            import('../game/turn/turn_pipeline_phases.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerTurnPipelinePhasesModule),
+            ensureWorkerTurnPipelinePhaseGlobals().then(() => import('../game/turn/turn_pipeline_phases.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerTurnPipelinePhasesModule)),
             import('../game/schema/prng.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerSeededPrngModule)
         ]).then(([Core, CardLogic, TurnPipelinePhases, SeededPRNG]) => ({
             Core,
@@ -675,8 +815,8 @@ function loadTurnPipelineModules(): Promise<MatchWorkerTurnPipelineModules> {
             ensureWorkerCardGlobals(),
             loadCoreLogicModule(),
             import('../game/logic/cards.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerCardLogicModule),
-            import('../game/turn/turn_pipeline_phases.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerTurnPipelinePhasesModule),
-            import('../game/turn/pipeline_ui_adapter.js').then(resolveModuleDefault),
+            ensureWorkerTurnPipelinePhaseGlobals().then(() => import('../game/turn/turn_pipeline_phases.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerTurnPipelinePhasesModule)),
+            ensureWorkerPipelineUIAdapterGlobals().then(() => import('../game/turn/pipeline_ui_adapter.js').then(resolveModuleDefault)),
             import('../game/logic/board_ops.js').then(resolveModuleDefault),
             import('../game/schema/prng.js').then((mod) => resolveModuleDefault(mod) as MatchWorkerSeededPrngModule)
         ]).then(([, Core, CardLogic, TurnPipelinePhases, TurnPipelineUIAdapter, BoardOps, SeededPRNG]) => ({
@@ -862,6 +1002,7 @@ function asWorkerSnapshot(value: unknown): MatchWorkerPublicSnapshot {
 function collectServerPlaybackEvents(snapshot: unknown, rawEvents: unknown, playbackAdapter: unknown): MatchWorkerPlaybackAssembly {
     const snapshotRecord = asWorkerSnapshot(snapshot);
     const playerKey = getCurrentPlayerKey(snapshotRecord.gameState);
+    const PlaybackEventHelpers = getPlaybackEventHelpersModule();
     const collectPlaybackEvents = PlaybackEventHelpers.collectServerPlaybackEvents as ((options: unknown) => MatchWorkerPlaybackAssembly);
     const assembly = collectPlaybackEvents({
         rawEvents,
@@ -932,6 +1073,7 @@ function appendTurnStartDrawPlaybackEvents(
     handState: MatchWorkerTurnStartHandState,
     playbackAdapter: unknown
 ): MatchWorkerPlaybackAssembly {
+    const PlaybackEventHelpers = getPlaybackEventHelpersModule();
     const appendDrawPlaybackEvents = PlaybackEventHelpers.appendTurnStartDrawPlaybackEvents as ((options: unknown) => MatchWorkerPlaybackAssembly);
     return appendDrawPlaybackEvents({
         playbackAssembly,
@@ -971,6 +1113,7 @@ async function applyCommandPublishToSnapshot(
     body: Record<string, unknown>,
     playerKey: MatchAuthoritySeatKey
 ): Promise<Record<string, unknown>> {
+    const NetworkActionSchema = getNetworkActionSchemaModule();
     if (!NetworkActionSchema || typeof NetworkActionSchema.buildAction !== 'function') {
         return { ok: false, rejectedReason: 'COMMAND_SCHEMA_UNAVAILABLE' };
     }
@@ -1044,6 +1187,7 @@ async function applyCommandPublishToSnapshot(
     }
 
     const prng = createCommandActionPrng(room, currentSnapshot, SeededPRNG);
+    const SubPlacementContinuation = getSubPlacementContinuationModule();
     const skipTurnStartForSubPlacement = (
         SubPlacementContinuation &&
         typeof SubPlacementContinuation.isSubPlacementTurnActive === 'function' &&
@@ -1075,6 +1219,7 @@ async function applyCommandPublishToSnapshot(
         gameState: result.gameState,
         cardState: result.cardState
     };
+    const PlaybackEventHelpers = getPlaybackEventHelpersModule();
     const collectActionPlaybackEvents = PlaybackEventHelpers.collectActionPlaybackEvents as ((options: unknown) => MatchWorkerPlaybackAssembly);
     const playbackAssembly = collectActionPlaybackEvents({
         result,
@@ -1625,14 +1770,14 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     encoder: TextEncoder;
     heartbeatTimerId: ReturnType<typeof setTimeout> | null;
     sseEventBuffer: MatchAuthorityBufferedSseEventRecord[];
-    leaderboardRoomController: ReturnType<typeof createMatchWorkerLeaderboardRoomController>;
-    broadcastController: ReturnType<typeof createMatchWorkerBroadcastController>;
-    chatController: ReturnType<typeof createMatchWorkerChatController>;
-    streamController: ReturnType<typeof createMatchWorkerStreamController>;
-    streamRouteController: ReturnType<typeof createMatchWorkerStreamRouteController>;
-    streamSessionController: ReturnType<typeof createMatchWorkerStreamSessionController>;
-    turnTimerController: ReturnType<typeof createMatchWorkerTurnTimerController>;
-    timeoutController: ReturnType<typeof createMatchWorkerTimeoutController>;
+    leaderboardRoomController: ReturnType<typeof createMatchWorkerLeaderboardRoomController> | null;
+    broadcastController: ReturnType<typeof createMatchWorkerBroadcastController> | null;
+    chatController: ReturnType<typeof createMatchWorkerChatController> | null;
+    streamController: ReturnType<typeof createMatchWorkerStreamController> | null;
+    streamRouteController: ReturnType<typeof createMatchWorkerStreamRouteController> | null;
+    streamSessionController: ReturnType<typeof createMatchWorkerStreamSessionController> | null;
+    turnTimerController: ReturnType<typeof createMatchWorkerTurnTimerController> | null;
+    timeoutController: ReturnType<typeof createMatchWorkerTimeoutController> | null;
 
     constructor(state: DurableObjectStateLike) {
         this.state = state;
@@ -1642,115 +1787,171 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
         this.encoder = new TextEncoder();
         this.heartbeatTimerId = null;
         this.sseEventBuffer = [];
-        this.leaderboardRoomController = createMatchWorkerLeaderboardRoomController({
-            storage: this.state.storage,
-            storageKey: LEADERBOARD_STORAGE_KEY,
-            defaultLimit: LEADERBOARD_DEFAULT_LIMIT,
-            helpers: MatchWorkerLeaderboardHelpers,
-            jsonResponse
-        });
-        this.broadcastController = createMatchWorkerBroadcastController({
-            getRoom: () => this.room,
-            getStreams: () => this.streams,
-            nextSseEventId: () => this.nextSseEventId(),
-            rememberBufferedSseEvent: (record) => this.rememberBufferedSseEvent(record),
-            saveRoom: () => this.saveRoom(),
-            sendSse: (streamId, eventName, payload, options) => this.sendSse(streamId, eventName, payload, options),
-            buildSnapshotPayload,
-            buildPresencePayload
-        });
-        this.chatController = createMatchWorkerChatController({
-            getRoom: () => this.room,
-            loadRoom: () => this.loadRoom(),
-            saveRoom: () => this.saveRoom(),
-            applyExpiredTurnTimeoutIfNeeded: () => this.applyExpiredTurnTimeoutIfNeeded(),
-            normalizePlayerKey,
-            buildPublicSeatState,
-            toPublicTurnTimer,
-            withPublicSeatState,
-            toPublicNetworkDebugEnabled,
-            classifySeatTokenRejectionReason,
-            broadcastChat: (payload) => this.broadcastChat(payload),
-            jsonResponse,
-            chatMaxLength: CHAT_MAX_LENGTH,
-            chatHistoryLimit: CHAT_HISTORY_LIMIT
-        });
-        this.streamController = createMatchWorkerStreamController({
-            getRoom: () => this.room,
-            getSseEventBuffer: () => this.sseEventBuffer,
-            setSseEventBuffer: (buffer) => { this.sseEventBuffer = buffer; },
-            getStreams: () => this.streams,
-            getHeartbeatTimerId: () => this.heartbeatTimerId,
-            setHeartbeatTimerId: (value) => { this.heartbeatTimerId = value; },
-            encoder: this.encoder,
-            normalizeRoomId,
-            appendBufferedSseEvent: MatchAuthority.appendBufferedSseEvent,
-            makeSseStreamId: MatchAuthority.makeSseStreamId,
-            cryptoLike: crypto as unknown as MatchWorkerCryptoLike,
-            buildHeartbeatPayload,
-            saveRoom: () => this.saveRoom(),
-            sseChunk,
-            heartbeatIntervalMs: SSE_HEARTBEAT_INTERVAL_MS,
-            writeTimeoutMs: SSE_WRITE_TIMEOUT_MS
-        });
-        this.streamRouteController = createMatchWorkerStreamRouteController({
-            getRoom: () => this.room,
-            getStreams: () => this.streams,
-            getSseEventBuffer: () => this.sseEventBuffer,
-            loadRoom: () => this.loadRoom(),
-            applyExpiredTurnTimeoutIfNeeded: () => this.applyExpiredTurnTimeoutIfNeeded(),
-            parseSeatKeyOptional,
-            resolveAuthenticatedSeatKey,
-            classifySeatTokenRejectionReason,
-            getBufferedSseReplayEvents: MatchAuthority.getBufferedSseReplayEvents,
-            makeSseStreamId: MatchAuthority.makeSseStreamId,
-            buildSnapshotPayload,
-            scheduleInitialStreamDelivery: (options) => this.streamSessionController.scheduleInitialStreamDelivery(options),
-            closeStream: (streamId) => this.closeStream(streamId),
-            ensureHeartbeatTimer: () => this.ensureHeartbeatTimer(),
-            jsonResponse,
-            corsHeaders: CORS_HEADERS,
-            cryptoLike: crypto as unknown as MatchWorkerCryptoLike
-        });
-        this.streamSessionController = createMatchWorkerStreamSessionController({
-            appendAuthorityLog: MatchAuthority.appendAuthorityLog,
-            buildHeartbeatPayload,
-            withPublicSeatState,
-            toPublicRoomDeck,
-            toPublicNetworkDebugEnabled,
-            toPublicChatMessages,
-            sendSse: (streamId, eventName, payload, options) => this.sendSse(streamId, eventName, payload, options),
-            closeStream: (streamId) => this.closeStream(streamId)
-        });
-        this.turnTimerController = createMatchWorkerTurnTimerController({
-            getRoom: () => this.room,
-            getStorage: () => this.state && this.state.storage ? this.state.storage : null,
-            loadCoreLogicModule,
-            hasTwoActiveSeats,
-            resolveTurnSeatKey,
-            parseSeatKeyOptional,
-            createPausedTurnTimer,
-            createActiveTurnTimer,
-            areTurnTimersEqual
-        });
-        this.timeoutController = createMatchWorkerTimeoutController({
-            getRoom: () => this.room,
-            asRecord,
-            parseSeatKeyOptional,
-            resolveTurnSeatKey,
-            refreshTurnTimer: (options) => this.refreshTurnTimer(options),
-            saveRoom: () => this.saveRoom(),
-            loadCoreLogicModule,
-            deepClone,
-            stripTransientPresentationState: MatchAuthority.stripTransientPresentationState,
-            reconcileTurnStartAndCollectPlayback,
-            reportPlaybackAssemblyDiagnostics: MatchAuthority.reportPlaybackAssemblyDiagnostics,
-            toPublicNetworkDebugEnabled,
-            toDebugPlaybackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics,
-            computeAuthoritativeStateHash: MatchAuthority.computeAuthoritativeStateHash,
-            appendAuthorityLog: MatchAuthority.appendAuthorityLog,
-            broadcastSnapshot: (meta) => this.broadcastSnapshot(meta)
-        });
+        this.leaderboardRoomController = null;
+        this.broadcastController = null;
+        this.chatController = null;
+        this.streamController = null;
+        this.streamRouteController = null;
+        this.streamSessionController = null;
+        this.turnTimerController = null;
+        this.timeoutController = null;
+    }
+
+    getLeaderboardRoomController() {
+        if (!this.leaderboardRoomController) {
+            this.leaderboardRoomController = createMatchWorkerLeaderboardRoomController({
+                storage: this.state.storage,
+                storageKey: LEADERBOARD_STORAGE_KEY,
+                defaultLimit: LEADERBOARD_DEFAULT_LIMIT,
+                helpers: MatchWorkerLeaderboardHelpers,
+                jsonResponse
+            });
+        }
+        return this.leaderboardRoomController;
+    }
+
+    getBroadcastController() {
+        if (!this.broadcastController) {
+            this.broadcastController = createMatchWorkerBroadcastController({
+                getRoom: () => this.room,
+                getStreams: () => this.streams,
+                nextSseEventId: () => this.nextSseEventId(),
+                rememberBufferedSseEvent: (record) => this.rememberBufferedSseEvent(record),
+                saveRoom: () => this.saveRoom(),
+                sendSse: (streamId, eventName, payload, options) => this.sendSse(streamId, eventName, payload, options),
+                buildSnapshotPayload,
+                buildPresencePayload
+            });
+        }
+        return this.broadcastController;
+    }
+
+    getChatController() {
+        if (!this.chatController) {
+            this.chatController = createMatchWorkerChatController({
+                getRoom: () => this.room,
+                loadRoom: () => this.loadRoom(),
+                saveRoom: () => this.saveRoom(),
+                applyExpiredTurnTimeoutIfNeeded: () => this.applyExpiredTurnTimeoutIfNeeded(),
+                normalizePlayerKey,
+                buildPublicSeatState,
+                toPublicTurnTimer,
+                withPublicSeatState,
+                toPublicNetworkDebugEnabled,
+                classifySeatTokenRejectionReason,
+                broadcastChat: (payload) => this.broadcastChat(payload),
+                jsonResponse,
+                chatMaxLength: CHAT_MAX_LENGTH,
+                chatHistoryLimit: CHAT_HISTORY_LIMIT
+            });
+        }
+        return this.chatController;
+    }
+
+    getStreamController() {
+        if (!this.streamController) {
+            this.streamController = createMatchWorkerStreamController({
+                getRoom: () => this.room,
+                getSseEventBuffer: () => this.sseEventBuffer,
+                setSseEventBuffer: (buffer) => { this.sseEventBuffer = buffer; },
+                getStreams: () => this.streams,
+                getHeartbeatTimerId: () => this.heartbeatTimerId,
+                setHeartbeatTimerId: (value) => { this.heartbeatTimerId = value; },
+                encoder: this.encoder,
+                normalizeRoomId,
+                appendBufferedSseEvent: MatchAuthority.appendBufferedSseEvent,
+                makeSseStreamId: MatchAuthority.makeSseStreamId,
+                cryptoLike: crypto as unknown as MatchWorkerCryptoLike,
+                buildHeartbeatPayload,
+                saveRoom: () => this.saveRoom(),
+                sseChunk,
+                heartbeatIntervalMs: SSE_HEARTBEAT_INTERVAL_MS,
+                writeTimeoutMs: SSE_WRITE_TIMEOUT_MS
+            });
+        }
+        return this.streamController;
+    }
+
+    getStreamSessionController() {
+        if (!this.streamSessionController) {
+            this.streamSessionController = createMatchWorkerStreamSessionController({
+                appendAuthorityLog: MatchAuthority.appendAuthorityLog,
+                buildHeartbeatPayload,
+                withPublicSeatState,
+                toPublicRoomDeck,
+                toPublicNetworkDebugEnabled,
+                toPublicChatMessages,
+                sendSse: (streamId, eventName, payload, options) => this.sendSse(streamId, eventName, payload, options),
+                closeStream: (streamId) => this.closeStream(streamId)
+            });
+        }
+        return this.streamSessionController;
+    }
+
+    getStreamRouteController() {
+        if (!this.streamRouteController) {
+            this.streamRouteController = createMatchWorkerStreamRouteController({
+                getRoom: () => this.room,
+                getStreams: () => this.streams,
+                getSseEventBuffer: () => this.sseEventBuffer,
+                loadRoom: () => this.loadRoom(),
+                applyExpiredTurnTimeoutIfNeeded: () => this.applyExpiredTurnTimeoutIfNeeded(),
+                parseSeatKeyOptional,
+                resolveAuthenticatedSeatKey,
+                classifySeatTokenRejectionReason,
+                getBufferedSseReplayEvents: MatchAuthority.getBufferedSseReplayEvents,
+                makeSseStreamId: MatchAuthority.makeSseStreamId,
+                buildSnapshotPayload,
+                scheduleInitialStreamDelivery: (options) => this.getStreamSessionController().scheduleInitialStreamDelivery(options),
+                closeStream: (streamId) => this.closeStream(streamId),
+                ensureHeartbeatTimer: () => this.ensureHeartbeatTimer(),
+                jsonResponse,
+                corsHeaders: CORS_HEADERS,
+                cryptoLike: crypto as unknown as MatchWorkerCryptoLike
+            });
+        }
+        return this.streamRouteController;
+    }
+
+    getTurnTimerController() {
+        if (!this.turnTimerController) {
+            this.turnTimerController = createMatchWorkerTurnTimerController({
+                getRoom: () => this.room,
+                getStorage: () => this.state && this.state.storage ? this.state.storage : null,
+                loadCoreLogicModule,
+                hasTwoActiveSeats,
+                resolveTurnSeatKey,
+                parseSeatKeyOptional,
+                createPausedTurnTimer,
+                createActiveTurnTimer,
+                areTurnTimersEqual
+            });
+        }
+        return this.turnTimerController;
+    }
+
+    getTimeoutController() {
+        if (!this.timeoutController) {
+            this.timeoutController = createMatchWorkerTimeoutController({
+                getRoom: () => this.room,
+                asRecord,
+                parseSeatKeyOptional,
+                resolveTurnSeatKey,
+                refreshTurnTimer: (options) => this.refreshTurnTimer(options),
+                saveRoom: () => this.saveRoom(),
+                loadCoreLogicModule,
+                deepClone,
+                stripTransientPresentationState: MatchAuthority.stripTransientPresentationState,
+                reconcileTurnStartAndCollectPlayback,
+                reportPlaybackAssemblyDiagnostics: MatchAuthority.reportPlaybackAssemblyDiagnostics,
+                toPublicNetworkDebugEnabled,
+                toDebugPlaybackDiagnostics: MatchAuthority.toDebugPlaybackDiagnostics,
+                computeAuthoritativeStateHash: MatchAuthority.computeAuthoritativeStateHash,
+                appendAuthorityLog: MatchAuthority.appendAuthorityLog,
+                broadcastSnapshot: (meta) => this.broadcastSnapshot(meta)
+            });
+        }
+        return this.timeoutController;
     }
 
     async loadRoom(): Promise<void> {
@@ -1789,58 +1990,58 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     nextSseEventId(): string {
-        return this.streamController.nextSseEventId();
+        return this.getStreamController().nextSseEventId();
     }
 
     rememberBufferedSseEvent(record: MatchAuthorityBufferedSseEventRecordInput): void {
-        this.streamController.rememberBufferedSseEvent(record);
+        this.getStreamController().rememberBufferedSseEvent(record);
     }
 
     buildBufferedSnapshotEvent(meta: MatchWorkerSnapshotPayloadMeta | null | undefined, eventId: string): {
         record: MatchAuthorityBufferedSseEventRecordInput;
         payloadByViewer: Partial<Record<MatchAuthoritySeatKey, unknown>>;
     } {
-        return this.broadcastController.buildBufferedSnapshotEvent(meta, eventId);
+        return this.getBroadcastController().buildBufferedSnapshotEvent(meta, eventId);
     }
 
     prepareSnapshotBroadcast(meta: MatchWorkerSnapshotPayloadMeta | null | undefined): MatchWorkerPreparedSnapshotBroadcast {
-        return this.broadcastController.prepareSnapshotBroadcast(meta);
+        return this.getBroadcastController().prepareSnapshotBroadcast(meta);
     }
 
     async broadcastPreparedSnapshot(preparedSnapshot: MatchWorkerPreparedSnapshotBroadcast | null | undefined): Promise<void> {
-        await this.broadcastController.broadcastPreparedSnapshot(preparedSnapshot);
+        await this.getBroadcastController().broadcastPreparedSnapshot(preparedSnapshot);
     }
 
     ensureHeartbeatTimer(): void {
-        this.streamController.ensureHeartbeatTimer();
+        this.getStreamController().ensureHeartbeatTimer();
     }
 
     async broadcastHeartbeat(): Promise<void> {
-        await this.streamController.broadcastHeartbeat();
+        await this.getStreamController().broadcastHeartbeat();
     }
 
     async closeStream(streamId: string): Promise<void> {
-        await this.streamController.closeStream(streamId);
+        await this.getStreamController().closeStream(streamId);
     }
 
     async closeStreamsForSeat(seatKey: unknown): Promise<void> {
-        await this.streamController.closeStreamsForSeat(seatKey);
+        await this.getStreamController().closeStreamsForSeat(seatKey);
     }
 
     async sendSse(streamId: string, eventName: string, payload: unknown, options?: Record<string, unknown> | null): Promise<void> {
-        await this.streamController.sendSse(streamId, eventName, payload, options);
+        await this.getStreamController().sendSse(streamId, eventName, payload, options);
     }
 
     async broadcastSnapshot(meta: MatchWorkerSnapshotPayloadMeta | null | undefined): Promise<void> {
-        await this.broadcastController.broadcastSnapshot(meta);
+        await this.getBroadcastController().broadcastSnapshot(meta);
     }
 
     async broadcastPresence(meta: MatchWorkerPresencePayloadMeta | null | undefined): Promise<void> {
-        await this.broadcastController.broadcastPresence(meta);
+        await this.getBroadcastController().broadcastPresence(meta);
     }
 
     async broadcastChat(payload: unknown): Promise<void> {
-        await this.broadcastController.broadcastChat(payload);
+        await this.getBroadcastController().broadcastChat(payload);
     }
 
     createRoomState(roomId: string, initOptions?: MatchWorkerRoomCreateOptions | null): MatchWorkerRoomState {
@@ -1894,19 +2095,19 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async syncTurnTimerAlarm(): Promise<boolean> {
-        return this.turnTimerController.syncTurnTimerAlarm();
+        return this.getTurnTimerController().syncTurnTimerAlarm();
     }
 
     async isSnapshotGameOver(snapshot: MatchWorkerPublicSnapshot | null | undefined): Promise<boolean> {
-        return this.turnTimerController.isSnapshotGameOver(snapshot);
+        return this.getTurnTimerController().isSnapshotGameOver(snapshot);
     }
 
     async refreshTurnTimer(options?: MatchWorkerTurnTimerOptions | null): Promise<boolean> {
-        return this.turnTimerController.refreshTurnTimer(options);
+        return this.getTurnTimerController().refreshTurnTimer(options);
     }
 
     async applyExpiredTurnTimeoutIfNeeded(options?: MatchWorkerTurnTimerOptions | null): Promise<MatchWorkerTurnTimeoutResult> {
-        return this.timeoutController.applyExpiredTurnTimeoutIfNeeded(options);
+        return this.getTimeoutController().applyExpiredTurnTimeoutIfNeeded(options);
     }
 
     async alarm() {
@@ -2509,27 +2710,27 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async handleStream(request: Request): Promise<Response> {
-        return this.streamRouteController.handleStream(request);
+        return this.getStreamRouteController().handleStream(request);
     }
 
     async loadLeaderboardStore(): Promise<MatchWorkerLeaderboardStore> {
-        return this.leaderboardRoomController.loadLeaderboardStore();
+        return this.getLeaderboardRoomController().loadLeaderboardStore();
     }
 
     async saveLeaderboardStore(store: MatchWorkerLeaderboardStore): Promise<void> {
-        await this.leaderboardRoomController.saveLeaderboardStore(store);
+        await this.getLeaderboardRoomController().saveLeaderboardStore(store);
     }
 
     listLeaderboardEntries(store: MatchWorkerLeaderboardStore, limit: unknown): Array<Record<string, unknown>> {
-        return this.leaderboardRoomController.listLeaderboardEntries(store, limit);
+        return this.getLeaderboardRoomController().listLeaderboardEntries(store, limit);
     }
 
     async handleLeaderboardSubmit(body: Record<string, unknown>): Promise<Response> {
-        return this.leaderboardRoomController.handleLeaderboardSubmit(body);
+        return this.getLeaderboardRoomController().handleLeaderboardSubmit(body);
     }
 
     async handleLeaderboardList(urlObj: URL): Promise<Response> {
-        return this.leaderboardRoomController.handleLeaderboardList(urlObj);
+        return this.getLeaderboardRoomController().handleLeaderboardList(urlObj);
     }
 
     async fetch(request: Request): Promise<Response> {
@@ -2598,7 +2799,7 @@ export class MatchRoomDurableObject implements MatchRoomDurableObjectApi {
     }
 
     async handleChat(body: Record<string, unknown>): Promise<Response> {
-        return this.chatController.handleChat(body);
+        return this.getChatController().handleChat(body);
     }
 }
 

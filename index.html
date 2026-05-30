@@ -171,7 +171,7 @@
                         <ol id="rules-help-controls-list">
                             <li>手札からカードを押すと、右のカード詳細で効果を確認できます。</li>
                             <li>カードを使うときは「使用」、不要なカードを捨てるときは「破壊」を押します。</li>
-                            <li>盤面の緑マーカーが置ける場所です。マスを押すと石を置きます。</li>
+                            <li>盤面の緑の強調マスが置ける場所です。マスを押すと石を置きます。</li>
                             <li>置ける場所がないときは「パス」を押して手番を渡せます。</li>
                             <li>右下パネルで「CPU / ネット対戦」、音量、BGMを調整できます。</li>
                             <li>石や特殊石を長押しすると、その石の効果を確認できます。</li>
@@ -391,12 +391,16 @@
         <div id="appearancePanelTabs" role="tablist" aria-label="見た目種別">
             <button id="appearanceTabHand" class="appearance-panel-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="handSkinSection">手</button>
             <button id="appearanceTabBackground" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="backgroundSkinSection">背景</button>
+            <button id="appearanceTabFont" class="appearance-panel-tab" type="button" role="tab" aria-selected="false" aria-controls="fontSkinSection">フォント</button>
         </div>
         <div id="handSkinSection" class="appearance-panel-section" data-appearance-section="hand">
             <div id="handSkinOptions" role="radiogroup" aria-label="手の見た目スキン"></div>
         </div>
         <div id="backgroundSkinSection" class="appearance-panel-section" data-appearance-section="background" hidden>
             <div id="backgroundSkinOptions" role="radiogroup" aria-label="背景画像"></div>
+        </div>
+        <div id="fontSkinSection" class="appearance-panel-section" data-appearance-section="font" hidden>
+            <div id="fontSkinOptions" role="radiogroup" aria-label="文字フォント"></div>
         </div>
     </div>
 
@@ -672,7 +676,7 @@
 
     <!-- Scripts -->
     <script src="public/runtime.js"></script>
-    <script src="public/module-registry.js?v=37889562060117"></script>
+    <script src="public/module-registry.js?v=163264174209844"></script>
     <script src="ui/layout-stage.js"></script>
     <script src="node_modules/onnxruntime-web/dist/ort.min.js"></script>
     <script src="entry-browser.js?v=43646021194010"></script>

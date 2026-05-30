@@ -138,7 +138,7 @@
     padding: var(--layout-size-charge-pad-y) calc(8px * var(--layout-stage-scale));
     border-radius: var(--layout-size-charge-radius);
     color: #ffd700;
-    font-family: 'Meiryo UI', 'BIZ UDPGothic', 'Yu Gothic UI', 'Hiragino Sans', sans-serif;
+    font-family: var(--selected-app-font-accent-family);
     font-size: var(--layout-size-charge-font);
     font-weight: 700;
     line-height: 1.1;
@@ -180,7 +180,7 @@
     border-radius: calc(999px * var(--layout-stage-scale));
     background: rgba(24, 28, 44, 0.92);
     color: #f5f8ff;
-    font-family: 'Meiryo UI', 'BIZ UDPGothic', 'Yu Gothic UI', 'Hiragino Sans', sans-serif;
+    font-family: var(--selected-app-font-accent-family);
     font-size: calc(12px * var(--layout-stage-scale));
     font-weight: 800;
     line-height: 1;
@@ -215,7 +215,7 @@
     padding: var(--layout-size-charge-delta-pad-y) var(--layout-size-charge-delta-pad-x);
     border-radius: var(--layout-size-charge-delta-radius);
     color: #e6f2ff;
-    font-family: 'Meiryo UI', 'BIZ UDPGothic', 'Yu Gothic UI', 'Hiragino Sans', sans-serif;
+    font-family: var(--selected-app-font-accent-family);
     font-size: var(--layout-size-charge-delta-font);
     font-weight: 700;
     line-height: 1.08;
@@ -328,7 +328,7 @@
     border-radius: calc(999px * var(--layout-stage-scale));
     background: rgba(24, 28, 44, 0.94);
     color: #f5f8ff;
-    font-family: 'Meiryo UI', 'BIZ UDPGothic', 'Yu Gothic UI', 'Hiragino Sans', sans-serif;
+    font-family: var(--selected-app-font-accent-family);
     font-size: calc(12px * var(--layout-stage-scale));
     font-weight: 800;
     line-height: 1;
@@ -2683,7 +2683,7 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     left: 50%;
     top: 50%;
     bottom: auto;
-    width: min(calc(320px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
+    width: min(calc(360px * var(--layout-stage-scale)), calc(100vw - calc(24px * var(--layout-stage-scale))));
     padding: calc(10px * var(--layout-stage-scale));
     border-radius: calc(14px * var(--layout-stage-scale));
     border: calc(1px * var(--layout-stage-scale)) solid rgba(216, 187, 126, 0.75);
@@ -2750,13 +2750,15 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 }
 
 #handSkinOptions,
-#backgroundSkinOptions {
+#backgroundSkinOptions,
+#fontSkinOptions {
     display: grid;
     gap: calc(8px * var(--layout-stage-scale));
 }
 
 .hand-skin-option,
-.background-skin-option {
+.background-skin-option,
+.font-skin-option {
     width: 100%;
     display: grid;
     grid-template-columns: calc(86px * var(--layout-stage-scale)) 1fr;
@@ -2774,14 +2776,17 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 .hand-skin-option:hover,
 .hand-skin-option:focus-visible,
 .background-skin-option:hover,
-.background-skin-option:focus-visible {
+.background-skin-option:focus-visible,
+.font-skin-option:hover,
+.font-skin-option:focus-visible {
     border-color: #d7b47a;
     background: rgba(255, 236, 179, 0.11);
     outline: none;
 }
 
 .hand-skin-option.is-selected,
-.background-skin-option.is-selected {
+.background-skin-option.is-selected,
+.font-skin-option.is-selected {
     border-color: #d7b47a;
     background: rgba(255, 236, 179, 0.16);
     box-shadow: inset 0 0 0 calc(1px * var(--layout-stage-scale)) rgba(255, 236, 179, 0.2);
@@ -2803,8 +2808,25 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     background: rgba(0, 0, 0, 0.22);
 }
 
+.font-skin-option-preview {
+    width: calc(86px * var(--layout-stage-scale));
+    height: calc(64px * var(--layout-stage-scale));
+    display: grid;
+    place-items: center;
+    padding: calc(6px * var(--layout-stage-scale));
+    border-radius: calc(8px * var(--layout-stage-scale));
+    background: rgba(0, 0, 0, 0.22);
+    color: #fff0cc;
+    font-size: calc(13px * var(--layout-stage-scale));
+    line-height: 1.16;
+    text-align: center;
+    white-space: pre-line;
+    letter-spacing: calc(0.3px * var(--layout-stage-scale));
+}
+
 .hand-skin-option-copy,
-.background-skin-option-copy {
+.background-skin-option-copy,
+.font-skin-option-copy {
     display: flex;
     flex-direction: column;
     gap: calc(4px * var(--layout-stage-scale));
@@ -2812,14 +2834,16 @@ input[type=range].compact-slider::-webkit-slider-thumb {
 }
 
 .hand-skin-option-label,
-.background-skin-option-label {
+.background-skin-option-label,
+.font-skin-option-label {
     font-size: calc(14px * var(--layout-stage-scale));
     font-weight: 700;
     color: #fff0cc;
 }
 
 .hand-skin-option-note,
-.background-skin-option-note {
+.background-skin-option-note,
+.font-skin-option-note {
     font-size: calc(11px * var(--layout-stage-scale));
     color: rgba(255, 240, 204, 0.78);
 }
@@ -3006,6 +3030,89 @@ input[type=range].compact-slider::-webkit-slider-thumb {
     gap: calc(10px * var(--layout-stage-scale));
     min-height: 0;
     overflow-y: auto;
+}
+
+#rules-help-card-list,
+#rules-help-card-detail,
+#rules-help-effects-list,
+#rules-help-updates-list,
+#rules-help-guide-layout,
+#rules-help-guide-layout #rules-help-rules-list,
+#rules-help-guide-layout #rules-help-controls-list,
+#rules-help-counters-layout {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201, 168, 76, 0.8) rgba(0, 0, 0, 0.14);
+    scrollbar-gutter: stable;
+}
+
+#rules-help-card-list::-webkit-scrollbar,
+#rules-help-card-detail::-webkit-scrollbar,
+#rules-help-effects-list::-webkit-scrollbar,
+#rules-help-updates-list::-webkit-scrollbar,
+#rules-help-guide-layout::-webkit-scrollbar,
+#rules-help-guide-layout #rules-help-rules-list::-webkit-scrollbar,
+#rules-help-guide-layout #rules-help-controls-list::-webkit-scrollbar,
+#rules-help-counters-layout::-webkit-scrollbar {
+    width: calc(8px * var(--layout-stage-scale));
+}
+
+#rules-help-card-list::-webkit-scrollbar-button,
+#rules-help-card-detail::-webkit-scrollbar-button,
+#rules-help-effects-list::-webkit-scrollbar-button,
+#rules-help-updates-list::-webkit-scrollbar-button,
+#rules-help-guide-layout::-webkit-scrollbar-button,
+#rules-help-guide-layout #rules-help-rules-list::-webkit-scrollbar-button,
+#rules-help-guide-layout #rules-help-controls-list::-webkit-scrollbar-button,
+#rules-help-counters-layout::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+#rules-help-card-list::-webkit-scrollbar-track,
+#rules-help-card-detail::-webkit-scrollbar-track,
+#rules-help-effects-list::-webkit-scrollbar-track,
+#rules-help-updates-list::-webkit-scrollbar-track,
+#rules-help-guide-layout::-webkit-scrollbar-track,
+#rules-help-guide-layout #rules-help-rules-list::-webkit-scrollbar-track,
+#rules-help-guide-layout #rules-help-controls-list::-webkit-scrollbar-track,
+#rules-help-counters-layout::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: calc(999px * var(--layout-stage-scale));
+}
+
+#rules-help-card-list::-webkit-scrollbar-thumb,
+#rules-help-card-detail::-webkit-scrollbar-thumb,
+#rules-help-effects-list::-webkit-scrollbar-thumb,
+#rules-help-updates-list::-webkit-scrollbar-thumb,
+#rules-help-guide-layout::-webkit-scrollbar-thumb,
+#rules-help-guide-layout #rules-help-rules-list::-webkit-scrollbar-thumb,
+#rules-help-guide-layout #rules-help-controls-list::-webkit-scrollbar-thumb,
+#rules-help-counters-layout::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+        to bottom,
+        rgba(230, 197, 111, 0.88) 0%,
+        rgba(177, 135, 59, 0.86) 55%,
+        rgba(110, 78, 30, 0.9) 100%
+    );
+    border-radius: calc(999px * var(--layout-stage-scale));
+    border: calc(1px * var(--layout-stage-scale)) solid rgba(0, 0, 0, 0.22);
+}
+
+#rules-help-card-list::-webkit-scrollbar-thumb:hover,
+#rules-help-card-detail::-webkit-scrollbar-thumb:hover,
+#rules-help-effects-list::-webkit-scrollbar-thumb:hover,
+#rules-help-updates-list::-webkit-scrollbar-thumb:hover,
+#rules-help-guide-layout::-webkit-scrollbar-thumb:hover,
+#rules-help-guide-layout #rules-help-rules-list::-webkit-scrollbar-thumb:hover,
+#rules-help-guide-layout #rules-help-controls-list::-webkit-scrollbar-thumb:hover,
+#rules-help-counters-layout::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+        to bottom,
+        rgba(245, 218, 138, 0.94) 0%,
+        rgba(201, 168, 76, 0.92) 55%,
+        rgba(126, 94, 40, 0.94) 100%
+    );
 }
 
 #rules-help-card-name {

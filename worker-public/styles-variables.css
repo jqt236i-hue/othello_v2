@@ -95,6 +95,12 @@
     --profile-effect-left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-effect-left) * var(--layout-stage-scale)));
     --profile-effect-top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-effect-top) * var(--layout-stage-scale)));
     --profile-effect-width: calc(var(--layout-anchor-effect-width) * var(--layout-stage-scale));
+    --profile-board-frame-outer-size: calc(var(--profile-board-max-size) + (calc(25px * var(--layout-stage-scale)) * 2));
+    --profile-stone-info-safe-left: max(calc(12px * var(--layout-stage-scale)), env(safe-area-inset-left));
+    --profile-stone-info-target-width: min(94vw, clamp(250px, 22vw, 300px));
+    --profile-stone-info-max-width: max(0px, calc((50vw - (var(--profile-board-frame-outer-size) / 2)) - var(--profile-stone-info-safe-left) - calc(16px * var(--layout-stage-scale))));
+    --profile-stone-info-width: min(var(--profile-stone-info-target-width), var(--profile-stone-info-max-width));
+    --profile-stone-info-left: max(var(--profile-stone-info-safe-left), min(var(--profile-effect-left), calc((50vw - (var(--profile-board-frame-outer-size) / 2)) - var(--profile-stone-info-width) - calc(16px * var(--layout-stage-scale)))));
     --profile-effect-min-height: calc(var(--layout-anchor-effect-height) * var(--layout-stage-scale));
     --profile-effect-max-height: none;
     --profile-effect-padding: calc(9px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));

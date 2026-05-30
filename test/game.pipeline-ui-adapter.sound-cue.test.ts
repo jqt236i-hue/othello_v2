@@ -1595,6 +1595,26 @@ describe('pipeline_ui_adapter sound cue mapping', () => {
     expect(stoneCue).toBeUndefined();
   });
 
+  test.each([
+    ['PROLIFERATION', 8],
+    ['STONE_SALVATION_GOD', 9]
+  ])('%s の status_removed duration_end は special_reverted を再生し stone_destroy を追加しない', (special, phase) => {
+    const base = [{
+      type: 'status_removed',
+      phase,
+      targets: [{ r: 2, col: 2, after: { color: 1, special: null, timer: null, owner: 'black' } }],
+      meta: { special, reason: 'duration_end' }
+    }];
+
+    const out = adapter.appendSoundEffectPlaybackEvents(base, []);
+    const expiredCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'special_reverted');
+    const stoneCue = out.find((ev) => ev && ev.type === 'sound_effect' && ev.targets && ev.targets[0] && ev.targets[0].soundKey === 'stone_destroy');
+
+    expect(expiredCue).toBeTruthy();
+    expect(expiredCue.phase).toBe(phase);
+    expect(stoneCue).toBeUndefined();
+  });
+
   test('ROBOT_VACUUM の吸い込み破壊は robot_vacuum_suck だけを再生し stone_destroy は追加しない', () => {
     const base = [{
       type: 'destroy',

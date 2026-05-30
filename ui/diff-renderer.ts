@@ -632,6 +632,150 @@ function _collectPendingSelectedTargetHighlightKeysForDiff(pending: any) {
     return out;
 }
 
+const BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS = 'board-shrink-god-direction-hint';
+const BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS = 'board-shrink-god-direction-target';
+const BOARD_SHRINK_GOD_DIRECTION_HINT_DIRECTION_CLASSES = [
+    'board-shrink-god-direction-up',
+    'board-shrink-god-direction-down',
+    'board-shrink-god-direction-left',
+    'board-shrink-god-direction-right'
+];
+
+function _resolveBoardShrinkGodDirectionForDiff(firstTarget: any, target: any) {
+    const firstRow = Number(firstTarget && firstTarget.row);
+    const firstCol = Number(firstTarget && firstTarget.col);
+    const targetRow = Number(target && target.row);
+    const targetCol = Number(target && target.col);
+    if (!Number.isInteger(firstRow) || !Number.isInteger(firstCol) || !Number.isInteger(targetRow) || !Number.isInteger(targetCol)) {
+        return null;
+    }
+    const rowDelta = targetRow - firstRow;
+    const colDelta = targetCol - firstCol;
+    if (Math.abs(colDelta) >= Math.abs(rowDelta) && colDelta !== 0) {
+        return colDelta > 0 ? 'right' : 'left';
+    }
+    if (rowDelta !== 0) {
+        return rowDelta > 0 ? 'down' : 'up';
+    }
+    return null;
+}
+
+function _buildBoardShrinkGodDirectionHintMapForDiff(pending: any, selectableTargets: any) {
+    const out = new Map();
+    if (!pending || pending.stage !== 'selectTarget' || String(pending.type || '').toUpperCase() !== 'BOARD_SHRINK_GOD') {
+        return out;
+    }
+    if (!pending.firstTarget || !Array.isArray(selectableTargets) || selectableTargets.length === 0) {
+        return out;
+    }
+    for (const target of selectableTargets) {
+        const row = Number(target && target.row);
+        const col = Number(target && target.col);
+        if (!Number.isInteger(row) || !Number.isInteger(col)) continue;
+        const direction = _resolveBoardShrinkGodDirectionForDiff(pending.firstTarget, target);
+        if (!direction) continue;
+        out.set(`${row},${col}`, direction);
+    }
+    return out;
+}
+
+function _clearBoardShrinkGodDirectionHintForDiff(cell: any) {
+    if (!cell || !cell.classList) return;
+    cell.classList.remove(BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS, ...BOARD_SHRINK_GOD_DIRECTION_HINT_DIRECTION_CLASSES);
+    if (cell.dataset) {
+        delete cell.dataset.boardShrinkGodDirectionHint;
+    }
+    const hint = typeof cell.querySelector === 'function'
+        ? cell.querySelector(`.${BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS}`)
+        : null;
+    if (hint && hint.parentNode === cell) {
+        hint.parentNode.removeChild(hint);
+    }
+}
+
+function _ensureBoardShrinkGodDirectionHintForDiff(cell: any, direction: any) {
+    if (!cell || !cell.classList) return;
+    const arrowText = direction === 'up'
+        ? '↑'
+        : direction === 'down'
+            ? '↓'
+            : direction === 'left'
+                ? '←'
+                : '→';
+    cell.classList.add(BOARD_SHRINK_GOD_DIRECTION_HINT_TARGET_CLASS, `board-shrink-god-direction-${direction}`);
+    if (cell.dataset) {
+        cell.dataset.boardShrinkGodDirectionHint = direction;
+    }
+    let hint = typeof cell.querySelector === 'function'
+        ? cell.querySelector(`.${BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS}`)
+        : null;
+    if (!hint && typeof document !== 'undefined') {
+        hint = document.createElement('div');
+        hint.className = BOARD_SHRINK_GOD_DIRECTION_HINT_CLASS;
+        hint.setAttribute('aria-hidden', 'true');
+        cell.appendChild(hint);
+    }
+    if (!hint) return;
+    hint.textContent = arrowText;
+    if (hint.dataset) {
+        hint.dataset.direction = direction;
+    }
+    hint.style.position = 'absolute';
+    hint.style.top = '50%';
+    hint.style.left = '50%';
+    hint.style.transform = 'translate(-50%, -50%)';
+    hint.style.display = 'flex';
+    hint.style.alignItems = 'center';
+    hint.style.justifyContent = 'center';
+    hint.style.width = 'calc(24px * var(--layout-stage-scale))';
+    hint.style.height = 'calc(24px * var(--layout-stage-scale))';
+    hint.style.borderRadius = '999px';
+    hint.style.border = 'var(--layout-size-border-thin) solid rgba(218, 246, 255, 0.78)';
+    hint.style.background = 'linear-gradient(180deg, rgba(16, 68, 76, 0.94) 0%, rgba(8, 29, 34, 0.92) 100%)';
+    hint.style.boxShadow = '0 0 calc(8px * var(--layout-stage-scale)) rgba(122, 244, 255, 0.35)';
+    hint.style.color = '#f7fdff';
+    hint.style.fontFamily = '"DotGothic16", "MS Gothic", "Osaka-Mono", monospace';
+    hint.style.fontSize = 'calc(15px * var(--layout-stage-scale))';
+    hint.style.fontWeight = '700';
+    hint.style.lineHeight = '1';
+    hint.style.textShadow = '0 0 calc(3px * var(--layout-stage-scale)) rgba(255, 255, 255, 0.28)';
+    hint.style.pointerEvents = 'none';
+    hint.style.userSelect = 'none';
+    hint.style.zIndex = '48';
+}
+
+function _syncBoardShrinkGodDirectionHintsForDiff(boardEl: any) {
+    if (!boardEl || typeof boardEl.querySelectorAll !== 'function') return;
+    const gameState = _resolveGameStateForDiffRender();
+    const cardState = _resolveCardStateForDiffRender();
+    const playerKey = gameState ? getPlayerKey(gameState.currentPlayer) : null;
+    const pending = playerKey && cardState && cardState.pendingEffectByPlayer
+        ? cardState.pendingEffectByPlayer[playerKey]
+        : null;
+    const selectableTargets = (
+        gameState &&
+        cardState &&
+        playerKey &&
+        typeof CardLogic !== 'undefined' &&
+        CardLogic &&
+        typeof CardLogic.getSelectableTargets === 'function'
+    )
+        ? CardLogic.getSelectableTargets(cardState, gameState, playerKey)
+        : [];
+    const hintMap = _buildBoardShrinkGodDirectionHintMapForDiff(pending, selectableTargets);
+    const cells = boardEl.querySelectorAll('.cell');
+    cells.forEach((cell: any) => {
+        const row = Number(cell && cell.dataset ? cell.dataset.row : NaN);
+        const col = Number(cell && cell.dataset ? cell.dataset.col : NaN);
+        const key = Number.isInteger(row) && Number.isInteger(col) ? `${row},${col}` : null;
+        if (!key || !hintMap.has(key)) {
+            _clearBoardShrinkGodDirectionHintForDiff(cell);
+            return;
+        }
+        _ensureBoardShrinkGodDirectionHintForDiff(cell, hintMap.get(key));
+    });
+}
+
 function _normalizeSuperAttractionPreviewPoint(point: any) {
     const row = Number(point && point.row);
     const col = Number(point && point.col);
@@ -844,7 +988,7 @@ const STONE_INFO_TAG_MEANINGS: Record<string, string> = Object.freeze({
     '残りターン': 'この石状態や特殊石効果が残っているターン数。',
     '特殊石': '通常石画像を使わない石。normal_stone-black.png / normal_stone-white.png 以外の見た目の石。',
     '繁殖生成石': '繁殖の意志でそのターンに新規生成された通常石。次の同一所有者ターン開始まで小さめの双葉表示になる。',
-    '幽体': '反転・石破壊の対象にはなるが、その石自身は受けない。交換の意志の対象外で、入替や他の効果は通常どおり受ける。',
+    '幽体': '反転・石破壊の対象にはなるが、その石自身は受けない。交換の意志の対象外。誘惑・捕獲は受け流し、入替や他の効果は通常どおり受ける。',
     '反転保護': '反転されない。挟める列ごと無効化する。',
     '破壊保護': '破壊効果を受けない。',
     '守る意志適用中': '守る意志または守護神の完全保護が重なっている。',
@@ -856,6 +1000,7 @@ let _stoneInfoTagPanelState: { open: boolean; key: string | null } = {
     key: null
 };
 let _stoneInfoTagAutoDismissBound = false;
+let _stoneInfoPanelRefs: any = null;
 
 function _isBoardHiddenTrap(marker: any) {
     if (!marker || !marker.data || marker.data.type !== 'TRAP') return false;
@@ -971,7 +1116,7 @@ function _ensureStoneInfoPanel() {
     panel.innerHTML = [
         '<div id="stone-info-name" class="stone-info-name"></div>',
         '<div id="stone-info-desc" class="stone-info-desc"></div>',
-        '<div id="stone-info-meta" class="stone-info-meta"></div>'
+        '<div id="stone-info-meta" class="stone-info-meta is-empty"></div>'
     ].join('');
     const effectPanel = document.getElementById('effect-live-panel');
     if (effectPanel && effectPanel.parentNode) {
@@ -979,7 +1124,50 @@ function _ensureStoneInfoPanel() {
     } else {
         document.body.appendChild(panel);
     }
+    _stoneInfoPanelRefs = null;
     return panel;
+}
+
+function _bindStoneInfoMetaBadgeEvents(metaEl: any) {
+    if (!metaEl || metaEl.dataset.boundBadgeClick === '1') return;
+    metaEl.addEventListener('click', (event: any) => {
+        const rawTarget = event ? (event.target as Element | null) : null;
+        const targetEl = rawTarget && rawTarget.nodeType === 1
+            ? rawTarget
+            : (rawTarget && rawTarget.parentElement ? rawTarget.parentElement : null);
+        const chip = targetEl && typeof targetEl.closest === 'function'
+            ? targetEl.closest('.stone-info-effect-tag-button')
+            : null;
+        if (!chip || !metaEl.contains(chip)) return;
+        const badge = String(chip.getAttribute('data-badge') || '').trim();
+        if (!badge) return;
+        if (event && typeof event.preventDefault === 'function') event.preventDefault();
+        if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+        _toggleStoneInfoTagPanel(badge);
+    });
+    metaEl.dataset.boundBadgeClick = '1';
+}
+
+function _getStoneInfoPanelRefs() {
+    const panel = _ensureStoneInfoPanel();
+    if (!panel) return null;
+    if (
+        _stoneInfoPanelRefs &&
+        _stoneInfoPanelRefs.panel === panel &&
+        _stoneInfoPanelRefs.name &&
+        _stoneInfoPanelRefs.desc &&
+        _stoneInfoPanelRefs.meta &&
+        _stoneInfoPanelRefs.panel.isConnected
+    ) {
+        return _stoneInfoPanelRefs;
+    }
+    const name = panel.querySelector('#stone-info-name');
+    const desc = panel.querySelector('#stone-info-desc');
+    const meta = panel.querySelector('#stone-info-meta');
+    if (!name || !desc || !meta) return null;
+    _bindStoneInfoMetaBadgeEvents(meta);
+    _stoneInfoPanelRefs = { panel, name, desc, meta };
+    return _stoneInfoPanelRefs;
 }
 
 function _hideStoneInfoPanel() {
@@ -1129,27 +1317,23 @@ function _renderStoneInfoMetaBadges(metaEl: any, badges: any) {
     ));
 
     if (!normalizedBadges.length) {
-        metaEl.style.display = 'none';
+        metaEl.classList.add('is-empty');
+        metaEl.removeAttribute('aria-label');
         _closeStoneInfoTagPanel();
         return;
     }
 
     metaEl.setAttribute('aria-label', '石効果タグ');
+    metaEl.classList.remove('is-empty');
     for (const badge of normalizedBadges) {
         const chip = document.createElement('button');
         chip.type = 'button';
         chip.className = 'stone-info-effect-tag stone-info-effect-tag-button';
         chip.textContent = badge;
+        chip.setAttribute('data-badge', badge);
         chip.setAttribute('aria-label', `${badge}の説明を表示`);
-        chip.addEventListener('click', (event) => {
-            if (event && typeof event.preventDefault === 'function') event.preventDefault();
-            if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
-            _toggleStoneInfoTagPanel(badge);
-        });
         metaEl.appendChild(chip);
     }
-
-    metaEl.style.display = 'grid';
 }
 
 function _getMarkerKinds() {
@@ -1373,22 +1557,17 @@ function showSpecialStoneInfoAt(row: any, col: any, options?: any) {
         }
     }
 
-    const panel = _ensureStoneInfoPanel();
-    if (!panel) return false;
+    const refs = _getStoneInfoPanelRefs();
+    if (!refs) return false;
 
-    const nameEl = document.getElementById('stone-info-name');
-    const descEl = document.getElementById('stone-info-desc');
-    const metaEl = document.getElementById('stone-info-meta');
-    if (!nameEl || !descEl || !metaEl) return false;
+    refs.name.textContent = info.name;
+    refs.desc.textContent = info.desc;
+    _renderStoneInfoMetaBadges(refs.meta, badges);
 
-    nameEl.textContent = info.name;
-    descEl.textContent = info.desc;
-    _renderStoneInfoMetaBadges(metaEl, badges);
-
-    panel.classList.add('visible');
-    panel.setAttribute('aria-hidden', 'false');
-    panel.style.removeProperty('left');
-    panel.style.removeProperty('top');
+    refs.panel.classList.add('visible');
+    refs.panel.setAttribute('aria-hidden', 'false');
+    refs.panel.style.removeProperty('left');
+    refs.panel.style.removeProperty('top');
 
     return true;
 }
@@ -2638,6 +2817,7 @@ function renderBoardDiff(boardEl: any) {
             }
             reconcileCellHasDiscClasses(boardEl);
             reconcileCellHintClasses(boardEl, previousBoardState);
+            _syncBoardShrinkGodDirectionHintsForDiff(boardEl);
             _scheduleBoardExpansionRevealSoundForDiff(revealExpansionKeys, nextSignature);
             if (typeof window !== 'undefined' && window.DEBUG_WORK_VISUALS === true) {
                 console.log('[DiffRenderer] Initial full render complete');
@@ -2691,6 +2871,7 @@ function renderBoardDiff(boardEl: any) {
 
         reconcileCellHasDiscClasses(boardEl);
         reconcileCellHintClasses(boardEl, currentState);
+        _syncBoardShrinkGodDirectionHintsForDiff(boardEl);
 
         return updatedCount;
     } finally {

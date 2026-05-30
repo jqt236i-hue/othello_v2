@@ -177,6 +177,53 @@ describe('INSTANT_HYPERACTIVE_WILL（瞬間多動）', () => {
     }
   });
 
+  test('最後に通常石へ戻る phase で special_reverted を再生する', () => {
+    const prng = makePrng();
+    const cardState = CardLogic.createCardState(prng);
+    const gameState = Core.createGameState();
+
+    cardState.pendingEffectByPlayer.black = {
+      type: 'INSTANT_HYPERACTIVE_WILL',
+      stage: null,
+      cardId: 'instant_hyperactive_01'
+    };
+
+    const res = TurnPipeline.applyTurn(
+      cardState,
+      gameState,
+      'black',
+      { type: 'place', row: 2, col: 3 },
+      prng
+    );
+
+    const playback = PipelineUiAdapter.mapToPlaybackEvents(
+      res.presentationEvents || [],
+      cardState,
+      gameState
+    );
+    const withSound = PipelineUiAdapter.appendSoundEffectPlaybackEvents(playback, res.events || [], res.presentationEvents || []);
+    const reverted = withSound.find((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'special_reverted'
+    ));
+    const statusRemoved = playback.find((ev) => ev && ev.type === 'status_removed' && ev.meta && ev.meta.special === 'HYPERACTIVE');
+    const stoneDestroy = withSound.find((ev) => (
+      ev &&
+      ev.type === 'sound_effect' &&
+      ev.targets &&
+      ev.targets[0] &&
+      ev.targets[0].soundKey === 'stone_destroy'
+    ));
+
+    expect(statusRemoved).toBeTruthy();
+    expect(reverted).toBeTruthy();
+    expect(reverted.phase).toBe(statusRemoved.phase);
+    expect(stoneDestroy).toBeUndefined();
+  });
+
   test('通常の多動の意志は配置ターンで即時移動しない', () => {
     const prng = makePrng();
     const cardState = CardLogic.createCardState(prng);

@@ -51,6 +51,7 @@ function parseArgs(argv: any) {
     depthEnd: 4,
     exactSolveEmpties: 10,
     onnxValueRerank: true,
+    onnxFullSearchRerank: false,
     onnxPolicyBlendWeight: 0,
     heuristicRerankWeight: 3.0,
     policyWeight: 0.75,
@@ -79,6 +80,8 @@ function parseArgs(argv: any) {
     else if (cur === "--exact-solve-empties") args.exactSolveEmpties = parseIntArg(argv[++i], args.exactSolveEmpties, 0);
     else if (cur === "--onnx-value-rerank") args.onnxValueRerank = true;
     else if (cur === "--no-onnx-value-rerank") args.onnxValueRerank = false;
+    else if (cur === "--onnx-full-search-rerank") args.onnxFullSearchRerank = true;
+    else if (cur === "--no-onnx-full-search-rerank") args.onnxFullSearchRerank = false;
     else if (cur === "--onnx-policy-blend-weight") args.onnxPolicyBlendWeight = Number(argv[++i]) || 0;
     else if (cur === "--heuristic-rerank-weight") args.heuristicRerankWeight = Number(argv[++i]);
     else if (cur === "--policy-weight") args.policyWeight = Number(argv[++i]);
@@ -107,6 +110,8 @@ function parseArgs(argv: any) {
         "  --exact-solve-empties <n>",
         "  --onnx-value-rerank        Pick by ONNX value after candidate move",
         "  --no-onnx-value-rerank",
+        "  --onnx-full-search-rerank  Use the legacy exhaustive value-only gate path instead of runtime.chooseMove",
+        "  --no-onnx-full-search-rerank",
         "  --onnx-policy-blend-weight <n>",
         "  --heuristic-rerank-weight <n>",
         "  --policy-weight <n>",
@@ -269,7 +274,7 @@ async function chooseMove(agent: any, state: any, legalMoves: any) {
   let selected = null;
   if (agent.kind === "onnx") {
     const runtime = agent.runtime || OthelloOnnxRuntime;
-    if (agent.valueRerank) {
+    if (agent.fullSearchRerank) {
       selected = await chooseOnnxMoveWithValueRerank(agent, state, legalMoves, playerKey);
     } else {
       selected = await runtime.chooseMove(legalMoves, {
@@ -556,7 +561,8 @@ async function main(argv: any = process.argv.slice(2)) {
     heuristicRerankWeight: args.heuristicRerankWeight,
     policyWeight: args.policyWeight,
     topK: args.topK,
-    whiteSafetyMultiplier: args.whiteSafetyMultiplier
+    whiteSafetyMultiplier: args.whiteSafetyMultiplier,
+    exactSolveEmpties: args.exactSolveEmpties
   });
   if (args.baseline === "onnx") {
     baselineRuntime = loadFreshOthelloOnnxRuntime();
@@ -582,10 +588,11 @@ async function main(argv: any = process.argv.slice(2)) {
   });
   const onnxAgent = {
     id: "onnx",
-    label: args.onnxValueRerank ? "onnxValueRerank" : "onnx",
+    label: args.onnxFullSearchRerank ? "onnxFullSearchRerank" : (args.onnxValueRerank ? "onnxRuntimeValueRerank" : "onnxRuntime"),
     kind: "onnx",
     stats: createStats(),
     valueRerank: args.onnxValueRerank,
+    fullSearchRerank: args.onnxFullSearchRerank,
     policyBlendWeight: args.onnxPolicyBlendWeight,
     runtime: candidateRuntime
   };
@@ -597,6 +604,7 @@ async function main(argv: any = process.argv.slice(2)) {
     models: { policyModel, valueModel },
     config,
     valueRerank: args.onnxValueRerank,
+    fullSearchRerank: args.onnxFullSearchRerank,
     policyBlendWeight: args.onnxPolicyBlendWeight,
     runtime: baselineRuntime
   };
@@ -625,6 +633,7 @@ async function main(argv: any = process.argv.slice(2)) {
       ,
       baseline: args.baseline,
       onnxValueRerank: args.onnxValueRerank,
+      onnxFullSearchRerank: args.onnxFullSearchRerank,
       onnxPolicyBlendWeight: args.onnxPolicyBlendWeight,
       heuristicRerankWeight: args.heuristicRerankWeight,
       policyWeight: args.policyWeight,
@@ -692,5 +701,6 @@ if (require.main === module) {
 }
 
 export {
-  main
+  main,
+  parseArgs
 };

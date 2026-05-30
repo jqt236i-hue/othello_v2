@@ -8,6 +8,8 @@ interface ModuleResolverOptions {
     required?: boolean;
 }
 
+const ModuleExportUtils = require('../../../shared/module-export-utils');
+
 function readGlobalModule(globalName: string): unknown {
     if (!globalName) return null;
     try {
@@ -24,17 +26,30 @@ function readGlobalModule(globalName: string): unknown {
 }
 
 function unwrapModule(value: unknown): unknown {
+    if (ModuleExportUtils && typeof ModuleExportUtils.unwrapModuleExport === 'function') {
+        return ModuleExportUtils.unwrapModuleExport(value);
+    }
     if (!value || typeof value !== 'object') return value;
     if (!Object.prototype.hasOwnProperty.call(value, 'default')) return value;
     const defaultValue = (value as Record<string, unknown>).default;
     return defaultValue || value;
 }
 
+function isUsableResolvedModule(value: unknown): boolean {
+    if (ModuleExportUtils && typeof ModuleExportUtils.hasUsableModuleExport === 'function') {
+        return ModuleExportUtils.hasUsableModuleExport(value);
+    }
+    if (!value) return false;
+    if (typeof value === 'function') return true;
+    if (typeof value !== 'object') return true;
+    return Object.keys(value as Record<string, unknown>).some((key) => key !== '__esModule');
+}
+
 function resolveModule(options: ModuleResolverOptions): unknown {
     const opts = (options && typeof options === 'object') ? options : {};
     const isValid = (typeof opts.isValid === 'function')
         ? opts.isValid
-        : function isTruthy(value: unknown) { return !!value; };
+        : function isTruthy(value: unknown) { return isUsableResolvedModule(value); };
     const label = String(opts.label || opts.globalName || opts.requirePath || 'module').trim() || 'module';
 
     let resolvedModule: unknown = null;
@@ -65,5 +80,6 @@ function resolveModule(options: ModuleResolverOptions): unknown {
 }
 
 export = {
-    resolveModule
+    resolveModule,
+    isUsableResolvedModule
 };

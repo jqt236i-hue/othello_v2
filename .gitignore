@@ -41,6 +41,7 @@ playwright-report/
 *.tmp
 *.cache
 tmp/
+tmp-*
 
 # Large archives
 *.zip
