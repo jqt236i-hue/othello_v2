@@ -43,6 +43,18 @@ function collectPlaybackEventsByType(events, type) {
   return (Array.isArray(events) ? events : []).filter((event) => event && event.type === type);
 }
 
+function pickFirstLegalMove(snapshot, seatKey = 'black') {
+  const currentPlayer = seatKey === 'white' ? Core.WHITE : Core.BLACK;
+  const legalMoves = Core.getLegalMoves(snapshot && snapshot.gameState, currentPlayer);
+  if (!Array.isArray(legalMoves) || legalMoves.length <= 0) {
+    throw new Error(`NO_LEGAL_MOVE_FOR_${seatKey.toUpperCase()}`);
+  }
+  return {
+    row: Number(legalMoves[0].row),
+    col: Number(legalMoves[0].col)
+  };
+}
+
 const EXPECTED_PENDING_TYPE_BY_CARD_ID = Object.freeze({
   destroy_01: 'DESTROY_ONE_STONE',
   swap_01: 'SWAP_WITH_ENEMY',
@@ -154,6 +166,102 @@ function runWorkerPublish(initialSnapshot, stateVersion, body, seed = 71) {
   const markerIndex = output.lastIndexOf(WORKER_RESULT_MARKER);
   if (markerIndex < 0) throw new Error(output || 'worker card pattern parity runner did not emit result marker');
   return JSON.parse(output.slice(markerIndex + WORKER_RESULT_MARKER.length));
+}
+
+function runWorkerPendingSelectionPlaceParityScenario(config) {
+  const cardId = config.cardId;
+  const seed = Number.isFinite(Number(config.seed)) ? Number(config.seed) : 71;
+  const runtime = createCardUseRuntime(cardId, seed);
+  if (typeof config.setupRuntime === 'function') {
+    config.setupRuntime(runtime);
+    runtime.getRoom().authoritativeStateHash = MatchAuthority.computeAuthoritativeStateHash(runtime.getSnapshot());
+  }
+  const initialSnapshot = clone(runtime.getSnapshot());
+  const initialVersion = runtime.getRoom().stateVersion;
+  const useBody = buildUseCardBody(runtime, cardId, `op_worker_pattern_${cardId}_use`);
+  const localUse = runtime.applyCommand(clone(useBody));
+  expect(localUse.ok).toBe(true);
+
+  const localSnapshotAfterUse = runtime.getSnapshot();
+  const localPlaceTurnIndex = Number(localSnapshotAfterUse && localSnapshotAfterUse.cardState && localSnapshotAfterUse.cardState.turnIndex) || 0;
+  const localMove = pickFirstLegalMove(localSnapshotAfterUse, 'black');
+  const localTargets = (typeof config.selectTargets === 'function')
+    ? config.selectTargets(localSnapshotAfterUse, localMove)
+    : {};
+  const localPlaceBody = {
+    seatKey: 'black',
+    playerKey: 'black',
+    baseVersion: runtime.getRoom().stateVersion,
+    operationId: `op_worker_pattern_${cardId}_place`,
+    actionType: 'place',
+    actor: 'black',
+    params: {
+      row: localMove.row,
+      col: localMove.col,
+      ...localTargets
+    },
+    turnIndex: localPlaceTurnIndex,
+    action: {
+      type: 'place',
+      playerKey: 'black',
+      row: localMove.row,
+      col: localMove.col,
+      turnIndex: localPlaceTurnIndex,
+      ...localTargets
+    }
+  };
+  const localPlace = runtime.applyCommand(clone(localPlaceBody));
+  expect(localPlace.ok).toBe(true);
+
+  const workerUse = runWorkerPublish(initialSnapshot, initialVersion, clone(useBody), seed);
+  expect(workerUse.status).toBe(200);
+  expect(workerUse.payload && workerUse.payload.ok).toBe(true);
+
+  const workerSnapshotAfterUse = clone(workerUse.payload.snapshot);
+  const workerPlaceTurnIndex = Number(workerSnapshotAfterUse && workerSnapshotAfterUse.cardState && workerSnapshotAfterUse.cardState.turnIndex) || 0;
+  const workerMove = pickFirstLegalMove(workerSnapshotAfterUse, 'black');
+  const workerTargets = (typeof config.selectTargets === 'function')
+    ? config.selectTargets(workerSnapshotAfterUse, workerMove)
+    : {};
+  const workerPlaceBody = {
+    seatKey: 'black',
+    playerKey: 'black',
+    baseVersion: Number(workerUse.payload.stateVersion),
+    operationId: `op_worker_pattern_${cardId}_place`,
+    actionType: 'place',
+    actor: 'black',
+    params: {
+      row: workerMove.row,
+      col: workerMove.col,
+      ...workerTargets
+    },
+    turnIndex: workerPlaceTurnIndex,
+    action: {
+      type: 'place',
+      playerKey: 'black',
+      row: workerMove.row,
+      col: workerMove.col,
+      turnIndex: workerPlaceTurnIndex,
+      ...workerTargets
+    }
+  };
+  const workerPlace = runWorkerPublish(workerSnapshotAfterUse, Number(workerUse.payload.stateVersion), workerPlaceBody, seed);
+  expect(workerPlace.status).toBe(200);
+  expect(workerPlace.payload && workerPlace.payload.ok).toBe(true);
+
+  const localPublic = MatchAuthority.buildPublicSnapshot(runtime.getRoom(), 'black');
+  expect(normalizePublicSnapshotForParity(workerPlace.payload.snapshot))
+    .toEqual(normalizePublicSnapshotForParity(localPublic));
+  expect(normalizePlaybackSummary(workerPlace.payload.playbackEvents))
+    .toEqual(normalizePlaybackSummary(localPlace.playbackEvents));
+  expect(workerPlace.payload.effectLogs || []).toEqual(localPlace.effectLogs || []);
+
+  return {
+    localUse,
+    localPlace,
+    workerUse,
+    workerPlace
+  };
 }
 
 describe('worker card pattern parity', () => {
@@ -301,6 +409,36 @@ describe('worker card pattern parity', () => {
     ]));
     expect(workerResult.payload.snapshot.cardState.hands.black).toEqual(expect.arrayContaining(['gold_stone', 'guard_01']));
     expect(workerResult.payload.snapshot.cardState.decks.black).toEqual([]);
+  }, 90000);
+
+  test.each([
+    ['cross bomb follow-up place', 'cross_bomb_01'],
+    ['x bomb follow-up place', 'x_bomb_01']
+  ])('%s keeps destroy/sound playback parity with headless authority result', (_label, cardId) => {
+    const result = runWorkerPendingSelectionPlaceParityScenario({
+      cardId,
+      seed: cardId === 'cross_bomb_01' ? 91 : 97,
+      selectTargets: () => ({ bombTarget: { row: 3, col: 3 } })
+    });
+
+    const localDestroyEvents = collectPlaybackEventsByType(result.localPlace.playbackEvents, 'destroy');
+    const localSoundEvents = collectPlaybackEventsByType(result.localPlace.playbackEvents, 'sound_effect');
+    const localSoundKeys = localSoundEvents
+      .map((event) => Array.isArray(event && event.targets) && event.targets[0] ? event.targets[0].soundKey : null)
+      .filter(Boolean);
+
+    expect(localDestroyEvents.length).toBeGreaterThan(0);
+    expect(localSoundKeys).toContain('bomb_explode');
+    expect(result.localPlace.effectLogs || []).toEqual(expect.arrayContaining([
+      expect.stringContaining('爆破')
+    ]));
+
+    const workerDestroyEvents = collectPlaybackEventsByType(result.workerPlace.payload.playbackEvents, 'destroy');
+    const workerSoundKeys = collectPlaybackEventsByType(result.workerPlace.payload.playbackEvents, 'sound_effect')
+      .map((event) => Array.isArray(event && event.targets) && event.targets[0] ? event.targets[0].soundKey : null)
+      .filter(Boolean);
+    expect(workerDestroyEvents.length).toBe(localDestroyEvents.length);
+    expect(workerSoundKeys).toContain('bomb_explode');
   }, 90000);
 });
 
