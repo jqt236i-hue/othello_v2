@@ -6,6 +6,31 @@
 
 この計画の完了条件は、「代表カードが通る」ではなく、現行 `cards/catalog.json` の全カードと、カード外の共通演出イベントについて、ローカル実行と Worker/net 対戦実行の presentation parity を自動テストと公開実機で確認できること。
 
+## 実行状況 (2026-05-30)
+
+- Phase 0: 完了
+  - `npm run typecheck` pass
+  - `npm run build:ts` pass
+  - `npm run match:check` pass
+  - `npm run test:network:parity` pass
+- Phase 1: 完了
+  - `docs/network-presentation-parity-matrix-2026-05-30.md` を生成
+  - `cards/catalog.json` 全88カードを matrix 化
+- Phase 3 (Worker publish parity 拡張): 進行
+  - `test/workers.match-network-parity-missing-types.test.ts` を追加
+  - 既存主要テストで未検出だった 41 type を worker authority smoke で回帰化
+  - `test:network:parity` に新規テストを組み込み、30 suite / 397 tests pass
+- Phase 7: 完了
+  - `npm run worker:prepare` pass
+  - root → `worker-public/` mirror 同期を実施
+
+未完了:
+
+- Phase 2 の local oracle（card type 単位の詳細比較データ固定）
+- Phase 4 の sound key 単位 parity assertion 強化
+- Phase 5 の reconnect / duplicate / ordering 追加網羅
+- Phase 8 の公開 URL Chrome + Edge 実機 acceptance 更新
+
 ## 2. 対象範囲
 
 対象に含めるもの:
