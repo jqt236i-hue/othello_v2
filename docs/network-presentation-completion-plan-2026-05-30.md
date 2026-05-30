@@ -30,6 +30,14 @@
   - `test:network:parity` に `apply-coordinator` / `sound-dedupe` / `pending-presentation-reconcile` を組み込み
   - publish response ↔ SSE 重複、stateVersion ordering、busy/playback lock 解放を回帰化
   - `npm run test:network:parity` pass（34 suites / 411 tests）
+- Phase 6: 完了
+  - `test/workers.match-worker-card-preload.test.ts` を現行 runtime 契約（`ModuleExportUtils` + `unwrapRuntimeModule` + preload/requiredGlobals）に更新
+  - focused suite pass:
+    - `test/shared.module-export-utils.test.ts`
+    - `test/game.cards-internal.module-resolver.test.ts`
+    - `test/workers.match-worker-preload.test.ts`
+    - `test/workers.match-worker-card-preload.test.ts`
+    - `test/workers.match-card-selector-preload.test.ts`
 - Phase 7: 完了
   - `npm run worker:prepare` pass
   - root → `worker-public/` mirror 同期を実施
@@ -38,6 +46,7 @@
   - `tmp-live-check-1780093862929-deployed-remaining-proof/summary.json` pass
   - `tmp-live-check-1780094071565-deployed-super-attraction-proof/summary.json` pass
   - `tmp-live-check-1780094402998-deployed-hyperactive-proof/summary.json` pass
+- 残りタスク: 0（計画上の全Phase完了）
 
 ## 2. 対象範囲
 

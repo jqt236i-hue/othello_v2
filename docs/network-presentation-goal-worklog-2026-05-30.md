@@ -255,3 +255,18 @@ focused で使った代表例:
 - `npx jest --runInBand --runTestsByPath test\\match-runtime-parity.test.ts` pass（6 tests）
 - `npx jest --runInBand --runTestsByPath test\\ui.animation-feedback-events.sound-keys.test.ts` pass（2 tests）
 - `npm run test:network:parity` pass（34 suites / 411 tests）
+
+## 13. 2026-05-30 追記（Phase 6 完了と残タスク 0 化）
+
+未完だった Phase 6（Worker runtime module audit）について、旧実装前提の回帰テストを現行契約へ更新し、focused suite と network parity 全体を再確認した。
+
+- 更新: `test/workers.match-worker-card-preload.test.ts`
+  - `scope.*` / 旧 `module.exports` 期待値を廃止
+  - `ModuleExportUtils` / `unwrapRuntimeModule` / preload map / requiredGlobals の現行契約を検証
+- focused suite pass:
+  - `npx jest --runInBand --runTestsByPath test/shared.module-export-utils.test.ts test/game.cards-internal.module-resolver.test.ts test/workers.match-worker-preload.test.ts test/workers.match-worker-card-preload.test.ts test/workers.match-card-selector-preload.test.ts`
+  - 結果: 5 suites / 24 tests 全pass
+- 総合確認:
+  - `npm run test:network:parity` pass（34 suites / 411 tests）
+
+これにより、`docs/network-presentation-completion-plan-2026-05-30.md` 上の残フェーズはすべて完了扱いとなり、残りタスクは 0。
