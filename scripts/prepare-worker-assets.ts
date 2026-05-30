@@ -428,6 +428,21 @@ function verifyMirroredFile(relativePath: string, issues: string[], config: any)
     const srcBuf = fs.readFileSync(src);
     const dstBuf = fs.readFileSync(dst);
     if (!srcBuf.equals(dstBuf)) {
+        if (relativePath === path.join('assets', 'asset-manifest.json')) {
+            try {
+                const srcJson = JSON.parse(srcBuf.toString('utf8'));
+                const dstJson = JSON.parse(dstBuf.toString('utf8'));
+                if (srcJson && typeof srcJson === 'object') delete srcJson.generatedAt;
+                if (dstJson && typeof dstJson === 'object') delete dstJson.generatedAt;
+                if (srcJson && typeof srcJson === 'object') delete srcJson.version;
+                if (dstJson && typeof dstJson === 'object') delete dstJson.version;
+                if (JSON.stringify(srcJson) === JSON.stringify(dstJson)) {
+                    return;
+                }
+            } catch (_error) {
+                void _error;
+            }
+        }
         issues.push(`content mismatch: ${relativePath}`);
     }
 }

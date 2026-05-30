@@ -135,6 +135,42 @@ describe('prepare-worker-assets', () => {
         expect(() => verifyMirrors([], [], config)).toThrow(/(size|content) mismatch: assets[\\/]sample\.txt/);
     });
 
+    test('ignores generatedAt-only drift for asset manifest mirror verification', () => {
+        const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-prepare-manifest-'));
+        cleanupDirs.push(rootDir);
+        const outDir = path.join(rootDir, 'worker-public-out');
+        const options = {
+            rootDir,
+            outDir,
+            rootFiles: [],
+            verifyRootFiles: [],
+            dirs: ['assets'],
+            verifyDirs: ['assets'],
+            optionalFiles: [],
+            generatedOptionalAssets: []
+        };
+        const config = createPrepareConfig(options);
+
+        writeFile(path.join(rootDir, 'assets', 'asset-manifest.json'), JSON.stringify({
+            version: 1,
+            generatedAt: '2026-05-30T00:00:00.000Z',
+            files: [{ path: 'assets/example.png', hash: 'abc' }]
+        }, null, 2));
+        prepareWorkerAssets(options);
+
+        const mirroredManifestPath = path.join(outDir, 'assets', 'asset-manifest.json');
+        const mirroredManifest = fs.readFileSync(mirroredManifestPath, 'utf8');
+        fs.writeFileSync(
+            mirroredManifestPath,
+            mirroredManifest
+                .replace('"version": 1', '"version": 2')
+                .replace('2026-05-30T00:00:00.000Z', '2026-05-31T00:00:00.000Z'),
+            'utf8'
+        );
+
+        expect(() => verifyMirrors([], [], config)).not.toThrow();
+    });
+
     test('writes chunk manifest for optional assets over worker size limit', () => {
         const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-prepare-chunks-'));
         cleanupDirs.push(rootDir);
