@@ -797,9 +797,15 @@
         const rawEvents = Array.isArray(opts.rawEvents)
             ? opts.rawEvents
             : (Array.isArray(result.events) ? result.events : []);
-        const presentationEvents = Array.isArray(result.presentationEvents)
-            ? result.presentationEvents
-            : (Array.isArray(resultCardState.presentationEvents) ? resultCardState.presentationEvents : []);
+        const presentationEvents = (
+            Array.isArray(result.presentationEvents) && result.presentationEvents.length > 0
+                ? result.presentationEvents
+                : (
+                    Array.isArray(resultCardState.presentationEvents) && resultCardState.presentationEvents.length > 0
+                        ? resultCardState.presentationEvents
+                        : (Array.isArray(resultCardState._presentationEventsPersist) ? resultCardState._presentationEventsPersist : [])
+                )
+        );
         const playbackPresentationEvents = presentationEvents.length > 0 ? presentationEvents : rawEvents;
         const playerKey = opts.playerKey || opts.fallbackPlayerKey || null;
         const assembly = mapServerPresentationToPlaybackEvents({

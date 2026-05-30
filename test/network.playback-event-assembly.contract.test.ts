@@ -402,9 +402,22 @@ function buildExpectedAssembly(snapshot, action, label = '') {
   if (!result || result.ok !== true) {
     throw new Error(`TURN_PIPELINE_FAILED:${label}:${result && result.rejectedReason ? result.rejectedReason : 'unknown'}:${result && result.errorMessage ? result.errorMessage : ''}`);
   }
+  const expectedPresentationEvents = (
+    Array.isArray(result.presentationEvents) && result.presentationEvents.length > 0
+      ? result.presentationEvents
+      : (
+          Array.isArray(result.cardState && result.cardState.presentationEvents) && result.cardState.presentationEvents.length > 0
+            ? result.cardState.presentationEvents
+            : (
+                Array.isArray(result.cardState && result.cardState._presentationEventsPersist)
+                  ? result.cardState._presentationEventsPersist
+                  : []
+              )
+        )
+  );
   return helpers.assemblePlaybackEvents({
     rawEvents: result.events,
-    presentationEvents: result.presentationEvents || (result.cardState && result.cardState.presentationEvents) || [],
+    presentationEvents: expectedPresentationEvents,
     snapshot: {
       cardState: result.cardState,
       gameState: result.gameState

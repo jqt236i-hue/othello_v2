@@ -1494,8 +1494,20 @@ const _require: NodeRequire = (typeof __non_webpack_require__ !== 'undefined')
             return { ok: false, rejectedReason: result.rejectedReason || 'UNKNOWN', events: result.events };
         }
 
-        // Prefer pipeline-produced presentationEvents when available
-        const pres = result.presentationEvents || result.cardState && result.cardState.presentationEvents || [];
+        // Keep fallback order aligned with worker runtime so parity tests and network playback stay consistent.
+        const pres = (
+            Array.isArray(result.presentationEvents) && result.presentationEvents.length > 0
+                ? result.presentationEvents
+                : (
+                    Array.isArray(result.cardState && result.cardState.presentationEvents) && result.cardState.presentationEvents.length > 0
+                        ? result.cardState.presentationEvents
+                        : (
+                            Array.isArray(result.cardState && result.cardState._presentationEventsPersist)
+                                ? result.cardState._presentationEventsPersist
+                                : []
+                        )
+                )
+        );
         const assembledPlayback = (PlaybackEventHelpers && typeof PlaybackEventHelpers.assemblePlaybackEvents === 'function')
             ? PlaybackEventHelpers.assemblePlaybackEvents({
                 rawEvents: result.events,
