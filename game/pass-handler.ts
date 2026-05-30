@@ -292,10 +292,22 @@ function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
     const expectedPlayerKey = normalizePlayerKeyOptional(opts.nextPlayerKey);
     const retryCount = Number.isFinite(opts.retryCount) ? Math.max(0, opts.retryCount) : 0;
     scheduleWithDelay(delayMs, () => {
+        const releaseCpuHandoffProcessing = () => {
+            setPassHandlerProcessing(false);
+        };
         const currentPlayerKey = normalizePlayerKeyOptional(gameState ? gameState.currentPlayer : null);
-        if (!currentPlayerKey) return;
-        if (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) return;
-        if (!isCpuControlledPlayer(currentPlayerKey)) return;
+        if (!currentPlayerKey) {
+            releaseCpuHandoffProcessing();
+            return;
+        }
+        if (expectedPlayerKey && currentPlayerKey !== expectedPlayerKey) {
+            releaseCpuHandoffProcessing();
+            return;
+        }
+        if (!isCpuControlledPlayer(currentPlayerKey)) {
+            releaseCpuHandoffProcessing();
+            return;
+        }
         const currentTurnNumber = (gameState && Number.isFinite(gameState.turnNumber)) ? gameState.turnNumber : null;
         const cpuFn = resolveCpuTurnFnForPass();
         if (!cpuFn) {
@@ -305,15 +317,19 @@ function scheduleWhiteCpuTurnGuarded(delayMs: number, options: any) {
                     expectedTurnNumber: currentTurnNumber !== null ? currentTurnNumber : expectedTurnNumber,
                     retryCount: retryCount + 1
                 });
+            } else {
+                releaseCpuHandoffProcessing();
             }
             return;
         }
         // Pass resolution can advance bookkeeping before the delayed callback fires.
         // If it is still white's turn, continue with the latest white turn instead of dropping the handoff.
         if (expectedTurnNumber !== null && currentTurnNumber !== null && expectedTurnNumber !== currentTurnNumber) {
+            releaseCpuHandoffProcessing();
             cpuFn();
             return;
         }
+        releaseCpuHandoffProcessing();
         cpuFn();
     });
 }

@@ -434,6 +434,46 @@ describe('pass-handler flows', () => {
         }
     });
 
+    test('white CPU scheduling clears processing before invoking CPU after pass', async () => {
+        jest.useFakeTimers();
+        delete require.cache[modPath];
+        const processingStates: boolean[] = [];
+        (global as any).processCpuTurn = jest.fn(() => {
+            processingStates.push((global as any).isProcessing === true);
+        });
+        (global as any).CPU_TURN_DELAY_MS = 10;
+        (global as any).cardState = { turnIndex: 0, turnCountByPlayer: { black: 0, white: 0 }, hands: { black: [], white: [] } };
+        (global as any).gameState = { currentPlayer: (global as any).BLACK, turnNumber: 3 };
+        (global as any).Core = { getLegalMoves: jest.fn(() => [{ row: 0, col: 0, flips: [[0, 1]] }]) };
+        (global as any).TurnPipeline = {
+            applyTurnSafe: jest.fn((cs: any, gs: any) => ({
+                ok: true,
+                gameState: Object.assign({}, gs, { currentPlayer: (global as any).WHITE, turnNumber: 4 }),
+                cardState: cs,
+                events: []
+            }))
+        };
+
+        try {
+            const ph = require('../game/pass-handler');
+            injectPassHandlerFakeTimerService(ph);
+            injectPassHandlerRuntimeFromGlobals(ph);
+
+            await expect(ph.processPassTurn('black', false)).resolves.toBe(true);
+            expect((global as any).isProcessing).toBe(true);
+
+            await jest.runOnlyPendingTimersAsync();
+
+            expect((global as any).processCpuTurn).toHaveBeenCalledTimes(1);
+            expect(processingStates).toEqual([false]);
+            expect((global as any).isProcessing).toBe(false);
+        } finally {
+            jest.clearAllTimers();
+            jest.useRealTimers();
+            delete (global as any).CPU_TURN_DELAY_MS;
+        }
+    });
+
     test('network mode と手番の表記揺れを正規化して自動パスを抑止する', () => {
         delete require.cache[modPath];
         (global as any).MATCH_MODE = 'network';
