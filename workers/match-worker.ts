@@ -1691,7 +1691,7 @@ async function resolveDeckSelection(rawDeckCodeValue: unknown): Promise<MatchWor
     try {
         const { deckSpecHelpers, deckCodecModule } = await loadDeckModules();
         const decodedDeckSpec = deckCodecModule.decodeDeckCode(rawDeckCode);
-        const normalizedDeckSpec = deckSpecHelpers.normalizeDeckSpec(decodedDeckSpec);
+        const normalizedDeckSpec = deckSpecHelpers.normalizeDeckSpec(decodedDeckSpec, { requireFullDeck: false });
         const summary = deckSpecHelpers.summarizeDeckSpec(normalizedDeckSpec);
         const canonicalDeckCode = deckCodecModule.encodeDeckSpec(normalizedDeckSpec);
         return {

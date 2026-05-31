@@ -143,7 +143,7 @@ function resolveDeckSelection(rawDeckCodeValue: any) {
     }
     try {
         const decoded = DeckCodecModule.decodeDeckCode(rawDeckCode);
-        const normalized = DeckSpecHelpers.normalizeDeckSpec(decoded);
+        const normalized = DeckSpecHelpers.normalizeDeckSpec(decoded, { requireFullDeck: false });
         const summary = DeckSpecHelpers.summarizeDeckSpec(normalized);
         const canonical = DeckCodecModule.encodeDeckSpec(normalized);
         return {

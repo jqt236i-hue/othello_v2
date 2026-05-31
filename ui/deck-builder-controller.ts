@@ -593,18 +593,13 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
             if (!roomDeck) return null;
 
             const fallbackChoice = createStandardChoice({ source: 'room', name: '部屋デッキ' });
-
-            if (!roomDeck.deckCode) {
-                return {
-                    choice: fallbackChoice,
-                    roomDeck
-                };
-            }
-
-            const roomChoice = createChoiceFromDeckCode(roomDeck.deckCode, {
-                source: 'room',
-                name: '部屋デッキ'
-            });
+            const roomDeckSpec = readRoomDeckSpec(roomDeck);
+            const roomChoice = roomDeckSpec
+                ? createCustomChoice(roomDeckSpec, {
+                    source: 'room',
+                    name: '部屋デッキ'
+                })
+                : null;
             if (!roomChoice) {
                 return {
                     choice: fallbackChoice,

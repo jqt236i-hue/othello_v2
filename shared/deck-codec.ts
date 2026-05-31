@@ -100,7 +100,13 @@
     function decodeDeckCode(deckCode: unknown): DeckSpec {
         const helpers = ensureDeckSpecHelpers();
         const parsed = parseDeckCode(deckCode);
-        const tokens = parsed.body.split('.').map((token: string) => token.trim()).filter((token: string) => token);
+        const rawTokens = parsed.body === ''
+            ? []
+            : parsed.body.split('.');
+        const tokens = rawTokens.map((token: string) => token.trim());
+        if (tokens.some((token: string) => !token)) {
+            throw createDeckCodeError('DECK_CODE_TOKEN_INVALID', 'deckCode の token が不正です');
+        }
 
         const cards = tokens.map((token: string) => {
             const match = token.match(/^([A-Za-z0-9_-]+)(?:\*(\d+))?$/);

@@ -14,10 +14,17 @@ describe('shared deck codec', () => {
     const DeckSpecHelpers = require('../shared/deck-spec.js');
     const firstCardId = DeckSpecHelpers.getEnabledCardDefs()[0].id;
 
-    const deckSpec = DeckSpecHelpers.normalizeDeckSpec([firstCardId, firstCardId]);
+    const deckSpec = DeckSpecHelpers.normalizeDeckSpec([firstCardId, firstCardId], { requireFullDeck: false });
     const summary = DeckSpecHelpers.summarizeDeckSpec(deckSpec);
 
     expect(summary.deckSize).toBe(2);
     expect(deckSpec.cards).toEqual([{ cardId: firstCardId, count: 2 }]);
+  });
+
+  test('空 token を含む deckCode は空デッキ扱いせず弾く', () => {
+    const DeckCodecModule = require('../shared/deck-codec.js');
+
+    expect(() => DeckCodecModule.decodeDeckCode('D1C1:.')).toThrow('deckCode の token が不正です');
+    expect(() => DeckCodecModule.decodeDeckCode('D1C1:guard_01..guard_01')).toThrow('deckCode の token が不正です');
   });
 });

@@ -548,6 +548,41 @@ describe('deck builder controller', () => {
     }
   });
 
+  test('network room deck が player別 custom でも実対局 summary は現在 seat の枚数を表示する', () => {
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    const DeckCodecModule = require('../shared/deck-codec.js');
+    const whiteDeck = createThirtyCardDeck(10);
+    const emptyDeckCode = `D1C${DeckSpecHelpers.getCatalogVersion()}:`;
+
+    window.NetworkMatchClient = {
+      isActive: () => true,
+      getSeatKey: () => 'black',
+      getRoomDeck: () => ({
+        mode: 'perPlayer',
+        deckCodeByPlayer: {
+          black: emptyDeckCode,
+          white: whiteDeck.deckCode
+        },
+        deckSizeByPlayer: {
+          black: 0,
+          white: 30
+        },
+        source: 'room'
+      })
+    };
+
+    try {
+      const controller = createController();
+      controller.open();
+
+      const effectiveSummary = document.querySelector('.deck-builder-effective-summary');
+      expect(effectiveSummary.textContent).toBe('実対局に使うデッキ: 部屋デッキ / 0枚（退出後はローカル設定へ戻ります）');
+      expect(controller.readActiveDeckSpec()).toEqual(DeckCodecModule.decodeDeckCode(emptyDeckCode));
+    } finally {
+      delete window.NetworkMatchClient;
+    }
+  });
+
   test('CPU対戦ではプレイヤー黒だけにカスタムデッキを渡し、CPU白はデフォルトデッキを維持する', () => {
     const localDeck = createThirtyCardDeck(0);
 

@@ -143,7 +143,7 @@ export interface MatchWorkerDeckGlobals {
 }
 
 export interface MatchWorkerDeckSpecHelpersModule extends MatchWorkerRuntimeModule {
-    normalizeDeckSpec(deckSpec: unknown): unknown;
+    normalizeDeckSpec(deckSpec: unknown, options?: { requireFullDeck?: boolean }): unknown;
     summarizeDeckSpec(deckSpec: unknown): { deckSize?: unknown; [key: string]: unknown };
 }
 
