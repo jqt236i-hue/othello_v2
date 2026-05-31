@@ -83,7 +83,6 @@ function executeHeavenSelection(playerKey: any, selectedCardId: any, deps: Overl
             onFailure: () => {
                 if (typeof deps.renderCardUI === 'function') deps.renderCardUI();
                 deps.addLog('天の恵みの選択送信に失敗しました');
-                deps.setPendingSelectionBusy(false);
             }
         })) {
             completed = true;
@@ -123,7 +122,6 @@ function executeCondemnSelection(playerKey: any, targetIndex: any, targetCardId:
             onFailure: () => {
                 if (typeof deps.renderCardUI === 'function') deps.renderCardUI();
                 deps.addLog('断罪の意志の選択送信に失敗しました');
-                deps.setPendingSelectionBusy(false);
             }
         })) {
             completed = true;

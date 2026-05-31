@@ -1874,13 +1874,6 @@ function _getWaitForPlaybackIdleFn() {
     return null;
 }
 
-function _getTrackedWaitForPlaybackIdlePromise() {
-    if (_cardInteractionPendingNetworkModule && typeof _cardInteractionPendingNetworkModule.getTrackedWaitForPlaybackIdlePromise === 'function') {
-        return _cardInteractionPendingNetworkModule.getTrackedWaitForPlaybackIdlePromise(_getCardInteractionPendingNetworkDeps());
-    }
-    return null;
-}
-
 function _waitForCardUseAnimationIdle() {
     if (_cardInteractionPendingNetworkModule && typeof _cardInteractionPendingNetworkModule.waitForCardUseAnimationIdle === 'function') {
         return _cardInteractionPendingNetworkModule.waitForCardUseAnimationIdle(_getCardInteractionPendingNetworkDeps());

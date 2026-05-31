@@ -147,7 +147,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     };
     global.renderCardUI = jest.fn();
     global.emitBoardUpdate = jest.fn();
-    global.emitCardStateChange = jest.fn();
+    global.emitCardStateChange = jest.fn(() => true);
     global.emitGameStateChange = jest.fn();
     global.ensureCurrentPlayerCanActOrPass = jest.fn();
     global.addLog = jest.fn();
@@ -157,6 +157,14 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     });
     global.waitForPlaybackIdle = jest.fn(() => playbackIdlePromise);
     globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
+    global.PresentationHandler = {
+      handlePresentationEvent: jest.fn(() => Promise.resolve(global.waitForPlaybackIdle()).finally(() => {
+        if (global.PlaybackStateManager && typeof global.PlaybackStateManager.setPlaybackActive === 'function') {
+          global.PlaybackStateManager.setPlaybackActive(false);
+        }
+      }))
+    };
+    global.window.PresentationHandler = global.PresentationHandler;
 
     global.ActionManager = {
       ActionManager: {
@@ -279,6 +287,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     delete global.TurnPipeline;
     delete global.TurnPipelineUIAdapter;
     delete global.PlaybackStateManager;
+    delete global.PresentationHandler;
     delete global.NetworkMatchClient;
     delete global.EventSource;
     delete global.fetch;
@@ -384,15 +393,12 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
 
   test('overlay destroy publish does not wait on its own selection lock forever', async () => {
     global.waitForPlaybackIdle = jest.fn(() => new Promise((resolve) => {
-      const poll = () => {
-        const playbackStateManager = global.PlaybackStateManager;
-        if (!playbackStateManager || typeof playbackStateManager.getPlaybackActive !== 'function' || !playbackStateManager.getPlaybackActive()) {
-          resolve();
-          return;
+      setTimeout(() => {
+        if (global.PlaybackStateManager && typeof global.PlaybackStateManager.setPlaybackActive === 'function') {
+          global.PlaybackStateManager.setPlaybackActive(false);
         }
-        setTimeout(poll, 0);
-      };
-      setTimeout(poll, 0);
+        resolve();
+      }, 0);
     }));
     globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
 

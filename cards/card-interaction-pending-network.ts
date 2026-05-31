@@ -15,86 +15,13 @@ type PendingNetworkDeps = {
 };
 
 function getWaitForPlaybackIdleFn(deps: PendingNetworkDeps) {
-    const rootRef = deps.getUiRootRef();
     const direct = (typeof deps.readDirectWaitForPlaybackIdle === 'function')
         ? deps.readDirectWaitForPlaybackIdle()
         : null;
     const waitForPlaybackFn = (typeof direct === 'function')
         ? direct
         : ((typeof window !== 'undefined' && typeof (window as any).waitForPlaybackIdle === 'function') ? (window as any).waitForPlaybackIdle : null);
-    if (typeof waitForPlaybackFn !== 'function') return null;
-    if ((waitForPlaybackFn as any).__cardInteractionTracked === true) {
-        return waitForPlaybackFn;
-    }
-    const trackedWaitForPlaybackIdle = function trackedWaitForPlaybackIdle(this: any, ...args: any[]) {
-        const result = waitForPlaybackFn.apply(this, args);
-        try {
-            const promise = Promise.resolve(result);
-            if (rootRef) {
-                (rootRef as any).__lastWaitForPlaybackIdlePromise = promise;
-            } else if (typeof globalThis !== 'undefined' && globalThis) {
-                (globalThis as any).__lastWaitForPlaybackIdlePromise = promise;
-            }
-        } catch (e) { /* ignore */ }
-        return result;
-    };
-    (trackedWaitForPlaybackIdle as any).__cardInteractionTracked = true;
-    if ((waitForPlaybackFn as any)._isMockFunction === true) {
-        (trackedWaitForPlaybackIdle as any)._isMockFunction = true;
-        (trackedWaitForPlaybackIdle as any).mock = (waitForPlaybackFn as any).mock;
-        const mockMethodNames = [
-            'getMockImplementation',
-            'getMockName',
-            'mockClear',
-            'mockReset',
-            'mockRestore',
-            'mockImplementation',
-            'mockImplementationOnce',
-            'mockName',
-            'mockRejectedValue',
-            'mockRejectedValueOnce',
-            'mockResolvedValue',
-            'mockResolvedValueOnce',
-            'mockReturnThis',
-            'mockReturnValue',
-            'mockReturnValueOnce'
-        ];
-        for (let index = 0; index < mockMethodNames.length; index += 1) {
-            const methodName = mockMethodNames[index];
-            if (typeof (waitForPlaybackFn as any)[methodName] === 'function') {
-                (trackedWaitForPlaybackIdle as any)[methodName] = (waitForPlaybackFn as any)[methodName].bind(waitForPlaybackFn);
-            }
-        }
-    }
-    try {
-        if (rootRef) {
-            rootRef.waitForPlaybackIdle = trackedWaitForPlaybackIdle as any;
-        }
-        if (typeof globalThis !== 'undefined' && globalThis) {
-            (globalThis as any).waitForPlaybackIdle = trackedWaitForPlaybackIdle;
-        }
-    } catch (e) { /* ignore */ }
-    return trackedWaitForPlaybackIdle;
-}
-
-function getTrackedWaitForPlaybackIdlePromise(deps: PendingNetworkDeps) {
-    const rootRef = deps.getUiRootRef();
-    const trackedPromise = rootRef
-        ? (rootRef as any).__lastWaitForPlaybackIdlePromise
-        : ((typeof globalThis !== 'undefined' && globalThis) ? (globalThis as any).__lastWaitForPlaybackIdlePromise : null);
-    return trackedPromise && typeof trackedPromise.then === 'function'
-        ? trackedPromise
-        : null;
-}
-
-function clearTrackedWaitForPlaybackIdlePromise(deps: PendingNetworkDeps) {
-    const rootRef = deps.getUiRootRef();
-    if (rootRef && typeof rootRef === 'object') {
-        (rootRef as any).__lastWaitForPlaybackIdlePromise = null;
-    }
-    if (typeof globalThis !== 'undefined' && globalThis) {
-        (globalThis as any).__lastWaitForPlaybackIdlePromise = null;
-    }
+    return typeof waitForPlaybackFn === 'function' ? waitForPlaybackFn : null;
 }
 
 function waitForCardUseAnimationIdle(deps: PendingNetworkDeps) {
@@ -166,21 +93,6 @@ function clearOrphanNetworkPlaybackQueues(deps: PendingNetworkDeps) {
     return removed > 0;
 }
 
-function keepInteractionLockedWithoutSelectionPlaybackLock(deps: PendingNetworkDeps) {
-    if (!deps.playbackStateManager
-        || typeof deps.playbackStateManager.clearPlaybackLock !== 'function'
-        || typeof deps.playbackStateManager.setBusyState !== 'function') {
-        return false;
-    }
-    deps.playbackStateManager.clearPlaybackLock();
-    deps.playbackStateManager.setBusyState({
-        processing: true,
-        cardAnimating: true,
-        playbackActive: false
-    });
-    return true;
-}
-
 function getPendingSelectionPublishSettleTimeoutMs(deps: PendingNetworkDeps) {
     const rootRef = deps.getUiRootRef();
     const readValue = (source: any) => {
@@ -192,18 +104,31 @@ function getPendingSelectionPublishSettleTimeoutMs(deps: PendingNetworkDeps) {
     return readValue(rootRef) ?? readValue(typeof globalThis !== 'undefined' ? globalThis : null) ?? 1500;
 }
 
-function waitForTrackedPlaybackIdleOrTimeout(deps: PendingNetworkDeps, trackedWait: any, finish: () => void) {
-    let settled = false;
-    let timer: any = null;
-    const finishOnce = () => {
-        if (settled) return;
-        settled = true;
-        if (timer !== null) clearTimeout(timer);
-        finish();
-    };
-    const timeoutMs = getPendingSelectionPublishSettleTimeoutMs(deps);
-    timer = setTimeout(finishOnce, timeoutMs);
-    Promise.resolve(trackedWait).then(finishOnce).catch(finishOnce);
+function waitForAuthoritativeVisualPlaybackDrain(deps: PendingNetworkDeps) {
+    const playbackStateManager = deps.playbackStateManager;
+    if (!playbackStateManager || typeof playbackStateManager.waitForVisualPlaybackDrain !== 'function') {
+        return Promise.resolve();
+    }
+    return Promise.resolve(playbackStateManager.waitForVisualPlaybackDrain({
+        getCardState: typeof deps.getCardStateValue === 'function' ? deps.getCardStateValue : undefined,
+        timeoutMs: getPendingSelectionPublishSettleTimeoutMs(deps)
+    }));
+}
+
+function clearAuthoritativeVisualPlaybackFlag(deps: PendingNetworkDeps) {
+    const playbackStateManager = deps.playbackStateManager;
+    if (!playbackStateManager || typeof playbackStateManager !== 'object') return false;
+    try {
+        if (typeof playbackStateManager.setPlaybackActive === 'function') {
+            playbackStateManager.setPlaybackActive(false);
+        }
+        if (typeof playbackStateManager.setPlaybackStartedAt === 'function') {
+            playbackStateManager.setPlaybackStartedAt(null);
+        }
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
 function getNetworkMatchClientRoot() {
@@ -235,41 +160,23 @@ function startNetworkOnlyPendingSelectionPublish(options: any, deps: PendingNetw
     if (publishLockPlayerKey) {
         deps.publishLocks[publishLockPlayerKey] = true;
     }
-    getWaitForPlaybackIdleFn(deps);
-    clearTrackedWaitForPlaybackIdlePromise(deps);
-    clearOrphanNetworkPlaybackQueues(deps);
-    keepInteractionLockedWithoutSelectionPlaybackLock(deps);
     const clearPublishLock = () => {
         if (!publishLockPlayerKey) return;
         deps.publishLocks[publishLockPlayerKey] = false;
     };
 
-    let successSettled = false;
-    let publishSuccessHandled = false;
+    let terminalSettled = false;
     const finishSuccessSettlement = () => {
-        if (successSettled) return;
-        successSettled = true;
+        if (terminalSettled) return;
+        terminalSettled = true;
         clearPublishLock();
-        try {
-            if (deps.playbackStateManager && typeof deps.playbackStateManager.clearPlaybackLock === 'function') {
-                deps.playbackStateManager.clearPlaybackLock({ preserveSelectionSettlementLock: true });
-            }
-        } catch (e) { /* ignore */ }
+        clearAuthoritativeVisualPlaybackFlag(deps);
         clearOrphanNetworkPlaybackQueues(deps);
         deps.setPendingSelectionBusy(false);
         deps.renderCardUiSafely();
     };
 
-    const isPendingSelectionResolved = () => {
-        if (!publishLockPlayerKey) return false;
-        const cardStateRef = typeof deps.getCardStateValue === 'function' ? deps.getCardStateValue() : null;
-        const pendingByPlayer = cardStateRef && cardStateRef.pendingEffectByPlayer;
-        return !!(pendingByPlayer && pendingByPlayer[publishLockPlayerKey] == null);
-    };
-
     const handlePublishSuccess = (publishResult: any) => {
-        if (publishSuccessHandled) return;
-        publishSuccessHandled = true;
         if (typeof opts.onSuccess === 'function') {
             opts.onSuccess(publishResult);
         }
@@ -277,30 +184,23 @@ function startNetworkOnlyPendingSelectionPublish(options: any, deps: PendingNetw
 
     const settleSuccessAfterPublish = () => {
         try {
-            Promise.resolve().then(() => {
-                clearOrphanNetworkPlaybackQueues(deps);
-                keepInteractionLockedWithoutSelectionPlaybackLock(deps);
-                const trackedWait = getTrackedWaitForPlaybackIdlePromise(deps);
-                if (!trackedWait) {
-                    finishSuccessSettlement();
-                    return;
-                }
-                waitForTrackedPlaybackIdleOrTimeout(deps, trackedWait, finishSuccessSettlement);
-            }).catch(finishSuccessSettlement);
+            waitForAuthoritativeVisualPlaybackDrain(deps)
+                .then(finishSuccessSettlement)
+                .catch(finishSuccessSettlement);
         } catch (e) {
             finishSuccessSettlement();
         }
     };
 
-    const schedulePublishResolutionWatchdog = () => {
-        setTimeout(() => {
-            if (successSettled || publishSuccessHandled || !isPendingSelectionResolved()) return;
-            handlePublishSuccess({ ok: true, recoveredBySettlementWatchdog: true });
-            settleSuccessAfterPublish();
-        }, getPendingSelectionPublishSettleTimeoutMs(deps));
+    const finishFailureSettlement = (publishResult: any) => {
+        if (terminalSettled) return;
+        terminalSettled = true;
+        clearPublishLock();
+        deps.setPendingSelectionBusy(false);
+        if (typeof opts.onFailure === 'function') {
+            opts.onFailure(publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' });
+        }
     };
-
-    schedulePublishResolutionWatchdog();
 
     Promise.resolve()
         .then(() => networkClient.publishSnapshot({
@@ -310,23 +210,16 @@ function startNetworkOnlyPendingSelectionPublish(options: any, deps: PendingNetw
             action: opts.action
         }))
         .then((publishResult: any) => {
-            if (successSettled) return;
+            if (terminalSettled) return;
             if (!publishResult || publishResult.ok !== true) {
-                clearPublishLock();
-                if (typeof opts.onFailure === 'function') {
-                    opts.onFailure(publishResult || { ok: false, reason: 'NETWORK_PUBLISH_FAILED' });
-                }
+                finishFailureSettlement(publishResult);
                 return;
             }
             handlePublishSuccess(publishResult);
             settleSuccessAfterPublish();
         })
         .catch(() => {
-            if (successSettled) return;
-            clearPublishLock();
-            if (typeof opts.onFailure === 'function') {
-                opts.onFailure({ ok: false, reason: 'NETWORK_PUBLISH_FAILED' });
-            }
+            finishFailureSettlement({ ok: false, reason: 'NETWORK_PUBLISH_FAILED' });
         });
 
     return true;
@@ -334,7 +227,8 @@ function startNetworkOnlyPendingSelectionPublish(options: any, deps: PendingNetw
 
 module.exports = {
     getWaitForPlaybackIdleFn,
-    getTrackedWaitForPlaybackIdlePromise,
+    waitForAuthoritativeVisualPlaybackDrain,
+    clearAuthoritativeVisualPlaybackFlag,
     waitForCardUseAnimationIdle,
     clearOrphanNetworkPlaybackQueues,
     getNetworkMatchClientRoot,

@@ -311,6 +311,110 @@ function hasPendingVisualPlayback(source?: any): boolean {
   return getPresentationQueueState(source).hasVisualPlayback === true;
 }
 
+function resolveVisualPlaybackDrainCardState(options?: any): any {
+  const opts = (options && typeof options === 'object') ? options : {};
+  if (opts.cardState && typeof opts.cardState === 'object') return opts.cardState;
+  if (typeof opts.getCardState === 'function') {
+    try {
+      const resolved = opts.getCardState();
+      if (resolved && typeof resolved === 'object') return resolved;
+    } catch (e) { /* ignore */ }
+  }
+  return undefined;
+}
+
+function getVisualPlaybackDrainTimeoutMs(options?: any): number {
+  const opts = (options && typeof options === 'object') ? options : {};
+  const explicit = Number(opts.timeoutMs);
+  if (Number.isFinite(explicit) && explicit >= 0) return Math.trunc(explicit);
+  const target = (opts.root && typeof opts.root === 'object') ? opts.root : getRoot();
+  const configured = Number(target && target.__pendingSelectionPublishSettleTimeoutMs);
+  if (Number.isFinite(configured) && configured >= 0) return Math.trunc(configured);
+  return 1500;
+}
+
+function isVisualPlaybackDrainComplete(options?: any): boolean {
+  return readMirroredValue('VisualPlaybackActive') !== true
+    && hasPendingVisualPlayback(resolveVisualPlaybackDrainCardState(options)) !== true;
+}
+
+function waitForVisualPlaybackDrain(options?: any): Promise<void> {
+  const opts = (options && typeof options === 'object') ? options : {};
+  return new Promise((resolve) => {
+    let settled = false;
+    let timeoutHandle: any = null;
+    let pollHandle: any = null;
+    let pollHandleType: 'raf' | 'timeout' | null = null;
+    const rootRef = (opts.root && typeof opts.root === 'object') ? opts.root : getRoot();
+
+    const clearPollHandle = () => {
+      if (pollHandle === null) return;
+      try {
+        if (pollHandleType === 'raf') {
+          const cancel = rootRef && typeof rootRef.cancelAnimationFrame === 'function'
+            ? rootRef.cancelAnimationFrame.bind(rootRef)
+            : (typeof cancelAnimationFrame === 'function' ? cancelAnimationFrame : null);
+          if (cancel) cancel(pollHandle);
+        } else {
+          clearTimeout(pollHandle);
+        }
+      } catch (e) { /* ignore */ }
+      pollHandle = null;
+      pollHandleType = null;
+    };
+
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      if (timeoutHandle !== null) {
+        clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+      }
+      clearPollHandle();
+      resolve();
+    };
+
+    const schedulePoll = (callback: () => void) => {
+      if (settled) return;
+      clearPollHandle();
+      try {
+        if (rootRef && typeof rootRef.requestAnimationFrame === 'function') {
+          pollHandle = rootRef.requestAnimationFrame(callback);
+          pollHandleType = 'raf';
+          return;
+        }
+      } catch (e) { /* ignore */ }
+      try {
+        if (typeof requestAnimationFrame === 'function') {
+          pollHandle = requestAnimationFrame(callback);
+          pollHandleType = 'raf';
+          return;
+        }
+      } catch (e) { /* ignore */ }
+      pollHandle = setTimeout(callback, 16);
+      pollHandleType = 'timeout';
+    };
+
+    const poll = () => {
+      pollHandle = null;
+      pollHandleType = null;
+      try {
+        if (isVisualPlaybackDrainComplete(opts)) {
+          finish();
+          return;
+        }
+      } catch (e) {
+        finish();
+        return;
+      }
+      schedulePoll(poll);
+    };
+
+    timeoutHandle = setTimeout(finish, getVisualPlaybackDrainTimeoutMs(opts));
+    poll();
+  });
+}
+
 function cloneBoardUpdateContext(context: any): any {
   if (!context || typeof context !== 'object') return null;
   return Object.assign({}, context);
@@ -642,6 +746,7 @@ function getRuntimePlaybackState(): any {
     getPresentationQueueEntries,
     hasPendingPresentationEvents,
     hasPendingVisualPlayback,
+    waitForVisualPlaybackDrain,
     shouldDeferBoardUpdate,
     shouldDeferUiSync,
     setBoardLockActive
@@ -702,6 +807,7 @@ const PlaybackStateManager = {
   getPresentationQueueEntries,
   hasPendingPresentationEvents,
   hasPendingVisualPlayback,
+  waitForVisualPlaybackDrain,
   shouldDeferBoardUpdate,
   shouldDeferUiSync,
   getBoardUpdateContext,

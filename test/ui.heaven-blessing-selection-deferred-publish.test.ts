@@ -138,7 +138,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     };
     global.renderCardUI = jest.fn();
     global.emitBoardUpdate = jest.fn();
-    global.emitCardStateChange = jest.fn();
+    global.emitCardStateChange = jest.fn(() => true);
     global.emitGameStateChange = jest.fn();
     global.ensureCurrentPlayerCanActOrPass = jest.fn();
     global.processPassTurn = jest.fn();
@@ -146,6 +146,14 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     global.isGameOver = jest.fn(() => false);
     global.waitForPlaybackIdle = jest.fn(() => Promise.resolve());
     globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
+    global.PresentationHandler = {
+      handlePresentationEvent: jest.fn(() => Promise.resolve(global.waitForPlaybackIdle()).finally(() => {
+        if (global.PlaybackStateManager && typeof global.PlaybackStateManager.setPlaybackActive === 'function') {
+          global.PlaybackStateManager.setPlaybackActive(false);
+        }
+      }))
+    };
+    global.window.PresentationHandler = global.PresentationHandler;
 
     global.ActionManager = {
       ActionManager: {
@@ -254,6 +262,7 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
     delete global.EventSource;
     delete global.fetch;
     delete global.PlaybackStateManager;
+    delete global.PresentationHandler;
     delete globalThis.waitForPlaybackIdle;
   });
 
@@ -360,5 +369,59 @@ describe('HEAVEN_BLESSING deferred publish from overlay selection', () => {
 
     window.passCurrentTurn();
     expect(global.processPassTurn).toHaveBeenCalledTimes(1);
+  });
+
+  test('heaven selection does not publish twice before deferred selection settles', async () => {
+    let releasePlayback;
+    global.waitForPlaybackIdle = jest.fn(() => new Promise((resolve) => {
+      releasePlayback = resolve;
+    }));
+    globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    global.NetworkMatchClient = client;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+    const offerCards = document.querySelectorAll('.heaven-offer-card');
+    expect(offerCards).toHaveLength(2);
+    offerCards[1].click();
+
+    const selectBtn = document.getElementById('heaven-blessing-select-btn');
+    expect(selectBtn).toBeTruthy();
+    selectBtn.click();
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(publishBodies).toHaveLength(1);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+
+    selectBtn.click();
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(publishBodies).toHaveLength(1);
+    expect(global.isProcessing).toBe(true);
+    expect(global.isCardAnimating).toBe(true);
+
+    releasePlayback();
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
   });
 });
