@@ -57,7 +57,7 @@ function cloneDraft(draft?: any): Draft {
 }
 
 function createDraftFromDeckSpec(deckSpec: any): Draft {
-  const normalizedSpec = ensureDeckSpecHelpers().normalizeDeckSpec(deckSpec);
+  const normalizedSpec = ensureDeckSpecHelpers().normalizeDeckSpec(deckSpec, { requireFullDeck: false });
   const countsById: Record<string, number> = {};
   let totalCount = 0;
 
@@ -143,7 +143,7 @@ function createExpandedCardIdsFromDraft(draft: any): string[] {
 }
 
 function createDeckSpecFromDraft(draft: any): any {
-  return ensureDeckSpecHelpers().createDeckSpecFromCardIds(createExpandedCardIdsFromDraft(draft));
+  return ensureDeckSpecHelpers().createDeckSpecFromCardIds(createExpandedCardIdsFromDraft(draft), { requireFullDeck: false });
 }
 
 function getDraftSummary(draft: any): any {
@@ -154,7 +154,7 @@ function getDraftSummary(draft: any): any {
     totalCount: normalized.totalCount,
     remainingCount,
     distinctCount,
-    canSave: normalized.totalCount === ensureDeckSpecHelpers().CUSTOM_DECK_SIZE
+    canSave: normalized.totalCount <= ensureDeckSpecHelpers().CUSTOM_DECK_SIZE
   };
 }
 

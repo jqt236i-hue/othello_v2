@@ -257,7 +257,7 @@
 
     function normalizeDeckSpec(input: unknown, options?: NormalizeOptions): DeckSpec {
         const opts = (options && typeof options === 'object') ? options : {};
-        const requireFullDeck = opts.requireFullDeck !== false;
+        const requireFullDeck = opts.requireFullDeck === true;
         const raw = (input && typeof input === 'object' && !Array.isArray(input))
             ? input as Record<string, unknown>
             : { cards: Array.isArray(input) ? input : [] };

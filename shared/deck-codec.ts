@@ -56,7 +56,7 @@
 
     function encodeDeckSpec(deckSpec: DeckSpec): string {
         const helpers = ensureDeckSpecHelpers();
-        const normalized = helpers.normalizeDeckSpec(deckSpec);
+        const normalized = helpers.normalizeDeckSpec(deckSpec, { requireFullDeck: false });
         const body = normalized.cards
             .map((entry: DeckEntry) => `${entry.cardId}${entry.count > 1 ? `*${entry.count}` : ''}`)
             .join('.');
@@ -75,7 +75,7 @@
             throw createDeckCodeError('DECK_CODE_REQUIRED', 'deckCode が空です');
         }
 
-        const match = raw.match(/^D(\d+)C(\d+):(.+)$/i);
+        const match = raw.match(/^D(\d+)C(\d+):(.*)$/i);
         if (!match) {
             throw createDeckCodeError('DECK_CODE_INVALID', 'deckCode の形式が不正です');
         }
@@ -101,9 +101,6 @@
         const helpers = ensureDeckSpecHelpers();
         const parsed = parseDeckCode(deckCode);
         const tokens = parsed.body.split('.').map((token: string) => token.trim()).filter((token: string) => token);
-        if (tokens.length === 0) {
-            throw createDeckCodeError('DECK_CODE_EMPTY', 'deckCode にカード情報がありません');
-        }
 
         const cards = tokens.map((token: string) => {
             const match = token.match(/^([A-Za-z0-9_-]+)(?:\*(\d+))?$/);
@@ -120,7 +117,7 @@
             version: helpers.DECK_SPEC_VERSION || 1,
             catalogVersion: parsed.catalogVersion,
             cards
-        });
+        }, { requireFullDeck: false });
     }
 
     interface SafeDecodeResult {

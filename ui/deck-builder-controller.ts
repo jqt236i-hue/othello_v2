@@ -252,7 +252,7 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
 
         function createCustomChoice(deckSpec: any, context: any) {
             const ctx = (context && typeof context === 'object') ? context : {};
-            const normalizedSpec = DeckSpecHelpers.normalizeDeckSpec(deckSpec);
+            const normalizedSpec = DeckSpecHelpers.normalizeDeckSpec(deckSpec, { requireFullDeck: false });
             const summary = DeckSpecHelpers.summarizeDeckSpec(normalizedSpec);
             return {
                 source: ctx.source || 'custom',
@@ -831,13 +831,21 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
                 titleText: normalizeChoiceLabel(editorPreset && editorPreset.name, 'プリセット編集'),
                 nameValue: state.editor.nameValue,
                 summaryText: `${draftSummary.totalCount}/${DeckSpecHelpers.CUSTOM_DECK_SIZE}枚 ・ 残り${draftSummary.remainingCount}枚`,
-                canSave: draftSummary.canSave,
-                canUse: draftSummary.canSave,
-                canCopy: draftSummary.canSave,
+                canSave: true,
+                canUse: true,
+                canCopy: true,
                 codeInputValue: state.editor.codeInputValue,
                 selectedCards,
                 candidateCards
             };
+        }
+
+        function buildHeaderSummaryText() {
+            if (state.view === 'editor') {
+                const draftSummary = DeckBuilderStateModule.getDraftSummary(state.editor.draft);
+                return `編集中: ${draftSummary.totalCount}/${DeckSpecHelpers.CUSTOM_DECK_SIZE}枚`;
+            }
+            return `ローカル設定: ${formatLocalChoiceSummary(state.activeLocalChoice)}`;
         }
 
         function buildViewModel() {
@@ -847,7 +855,7 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
                 view: state.view,
                 roomOverrideActive: effective.roomOverrideActive,
                 controlSummaryText: formatLocalChoiceSummary(state.activeLocalChoice),
-                headerSummaryText: `ローカル設定: ${formatLocalChoiceSummary(state.activeLocalChoice)}`,
+                headerSummaryText: buildHeaderSummaryText(),
                 effectiveSummaryText: formatEffectiveChoiceSummary(effective),
                 noticeText: state.noticeText,
                 noticeIsError: state.noticeIsError,
@@ -903,11 +911,6 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
         }
 
         function syncEditorCodeFromDraft() {
-            const draftSummary = DeckBuilderStateModule.getDraftSummary(state.editor.draft);
-            if (!draftSummary.canSave) {
-                state.editor.codeInputValue = '';
-                return;
-            }
             const deckSpec = DeckBuilderStateModule.createDeckSpecFromDraft(state.editor.draft);
             state.editor.codeInputValue = DeckCodecModule.encodeDeckSpec(deckSpec);
         }
@@ -1010,10 +1013,6 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
         }
 
         function writePresetFromEditor() {
-            const draftSummary = DeckBuilderStateModule.getDraftSummary(state.editor.draft);
-            if (!draftSummary.canSave) {
-                throw new Error('CUSTOM_DECK_INCOMPLETE');
-            }
             const deckSpec = DeckBuilderStateModule.createDeckSpecFromDraft(state.editor.draft);
             const deckCode = DeckCodecModule.encodeDeckSpec(deckSpec);
             state.editor.codeInputValue = deckCode;
@@ -1031,37 +1030,19 @@ const SharedUIBootstrap = _require('../shared/ui-bootstrap-shared');
         }
 
         function saveEditorPreset() {
-            try {
-                writePresetFromEditor();
-                emitNotice('プリセットを保存しました', false, false);
-            } catch (e: any) {
-                emitNotice('30枚そろえると保存できます', true, false);
-            }
+            writePresetFromEditor();
+            emitNotice('プリセットを保存しました', false, false);
             renderPreservingEditorScroll();
         }
 
         function useEditorDraft() {
-            try {
-                writePresetFromEditor();
-            } catch (e: any) {
-                emitNotice('30枚そろえると使用できます', true, false);
-                render();
-                return;
-            }
-
+            writePresetFromEditor();
             usePreset(state.editor.presetId);
             state.view = 'presets';
             render();
         }
 
         async function copyEditorCode() {
-            const draftSummary = DeckBuilderStateModule.getDraftSummary(state.editor.draft);
-            if (!draftSummary.canSave) {
-                emitNotice('30枚そろえると code をコピーできます', true, false);
-                render();
-                return;
-            }
-
             const deckCode = state.editor.codeInputValue || DeckCodecModule.encodeDeckSpec(DeckBuilderStateModule.createDeckSpecFromDraft(state.editor.draft));
             state.editor.codeInputValue = deckCode;
 

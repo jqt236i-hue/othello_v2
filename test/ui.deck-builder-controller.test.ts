@@ -365,6 +365,92 @@ describe('deck builder controller', () => {
     expect(refreshedCard.classList.contains('deck-builder-card-disabled')).toBe(false);
   });
 
+  test('編集中ヘッダに現在枚数を常時表示する', () => {
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    const { createDeckBuilderController } = require('../ui/deck-builder-controller.js');
+    const body = document.getElementById('body');
+    const header = document.getElementById('header');
+
+    createDeckBuilderController({
+      root: window,
+      refs: {
+        openBtn: document.getElementById('openBtn'),
+        controlSummary: document.getElementById('summary'),
+        overlay: document.getElementById('overlay'),
+        closeBtn: document.getElementById('closeBtn'),
+        headerSummary: header,
+        body
+      }
+    }).open();
+
+    openEditor(body);
+    expect(header.textContent).toBe('編集中: 0/30枚');
+
+    const targetCardId = DeckSpecHelpers.getEnabledCardDefs()
+      .slice()
+      .sort((left, right) => {
+        const leftCost = Number(left.cost) || 0;
+        const rightCost = Number(right.cost) || 0;
+        if (leftCost !== rightCost) return rightCost - leftCost;
+        return String(left.id || '').localeCompare(String(right.id || ''), 'en');
+      })[0].id;
+
+    const card = body.querySelector(`.deck-builder-candidate-grid .deck-builder-card[data-card-id="${targetCardId}"]`);
+    expect(card).toBeTruthy();
+    card.click();
+
+    expect(header.textContent).toBe('編集中: 1/30枚');
+  });
+
+  test('0枚デッキでも保存して使用できる', () => {
+    const DeckSpecHelpers = require('../shared/deck-spec.js');
+    const DeckCodecModule = require('../shared/deck-codec.js');
+    const body = document.getElementById('body');
+    const controller = createController();
+    const emptyDeckCode = `D1C${DeckSpecHelpers.getCatalogVersion()}:`;
+    const emptyDeckSpec = DeckCodecModule.decodeDeckCode(emptyDeckCode);
+
+    controller.open();
+    openEditor(body);
+
+    const buttons = Array.from(body.querySelectorAll('button'));
+    const saveButton = buttons.find((button) => button.textContent === '保存');
+    const useButton = buttons.find((button) => button.textContent === '使用');
+
+    expect(saveButton).toBeTruthy();
+    expect(useButton).toBeTruthy();
+    expect(saveButton.disabled).toBe(false);
+    expect(useButton.disabled).toBe(false);
+
+    saveButton.click();
+
+    const storedAfterSave = JSON.parse(localStorage.getItem('deck_builder_presets_v1'));
+    expect(storedAfterSave.presets[0].deckCode).toBe(emptyDeckCode);
+
+    const useButtonAfterSave = Array.from(body.querySelectorAll('button')).find((button) => button.textContent === '使用');
+    expect(useButtonAfterSave).toBeTruthy();
+    useButtonAfterSave.click();
+
+    expect(controller.getActiveLocalChoice()).toMatchObject({
+      mode: 'custom',
+      source: 'preset',
+      presetId: 'preset_1',
+      deckCode: emptyDeckCode,
+      deckSize: 0
+    });
+    expect(controller.readActiveDeckSpec()).toEqual(emptyDeckSpec);
+    expect(controller.buildCardInitOptions()).toMatchObject({
+      initialDeckSpecByPlayer: {
+        black: emptyDeckSpec
+      },
+      boardConfig: expect.objectContaining({
+        rows: 8,
+        cols: 8,
+        standard8x8: true
+      })
+    });
+  });
+
   test('無効なURL deckCode は保存済みプリセットへ戻し、URLもローカル設定へ戻す', () => {
     const { deckSpec, deckCode } = createThirtyCardDeck(0);
 
