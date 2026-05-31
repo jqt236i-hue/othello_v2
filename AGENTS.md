@@ -98,8 +98,8 @@ othello_v2/
 ## IMPLEMENTATION QUALITY
 
 - Before implementing, inspect the nearby source, ownership boundary, and existing helpers. Prefer the smallest design that fits the current architecture over a parallel local pattern.
-- Keep changes minimal but not fragile. Do not add abstraction, configuration, new layers, or new global state only for hypothetical future needs.
-- When a direct implementation would duplicate logic, mix responsibilities, or weaken a documented boundary, include a small local cleanup that keeps future changes narrower and easier to test.
+- Prefer the smallest coherent change that solves the real problem without weakening architecture boundaries. Do not force a local patch when the correct fix requires a broader refactor or documented design change.
+- When a direct implementation would duplicate logic, mix responsibilities, or weaken a documented boundary, expand the scope enough to fix the underlying structure instead of layering another workaround.
 - Before adding a new public API, cross-runtime helper, bridge, or dependency direction, confirm that an existing shared helper, DI hook, event, snapshot contract, or authority helper cannot cover the need.
 - Choose implementations that keep behavior localized, deterministic, and testable. If multiple approaches are plausible, prefer the one with the smallest future blast radius and note the reason in the final report when it matters.
 - Avoid temporary workarounds, broad `catch`, silent no-op paths, and success-shaped fallbacks. If a compromise is unavoidable, document the reason, risk, and follow-up in the final report.
