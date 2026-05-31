@@ -47,7 +47,7 @@ function finalizePendingSelectionAfterRun(playerKey: any, pendingType: any, runR
         deps.ensureCurrentPlayerCanActOrPassSafely();
         return;
     }
-    Promise.resolve(deps.pendingSelectionFlowModule.finalizePendingSelectionFlow({
+    Promise.resolve().then(() => deps.pendingSelectionFlowModule.finalizePendingSelectionFlow({
         playerKey,
         pendingType,
         playbackEvents,
