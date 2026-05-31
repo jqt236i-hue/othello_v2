@@ -55,7 +55,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     expect(def.id).toBe('stone_salvation_god_01');
     expect(def.name).toBe('救済神');
     expect(def.type).toBe('STONE_SALVATION_GOD');
-    expect(Number(def.cost)).toBe(25);
+    expect(Number(def.cost)).toBe(20);
     expect(catalogDef).toBeTruthy();
     expect(catalogDef.name_ja).toBe('救済神');
     expect(catalogDef.display_type_ja).toBe('繁栄');

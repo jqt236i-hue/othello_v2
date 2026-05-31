@@ -226,7 +226,7 @@ describe('card detail effect tags', () => {
       id: 'salvation_01',
       name: '救済の意志',
       type: 'SALVATION_WILL',
-      cost: 17,
+      cost: 10,
       desc: '直前の相手ターンで破壊された全ての石を自分の通常石としてランダムな空きマスへ配置する。対象0枚の時は使用不可。対象は自分・相手、通常石・特殊石を問わない。各復活石は、そのマスを起点に通常の挟み反転を行う。'
     };
 
@@ -251,7 +251,7 @@ describe('card detail effect tags', () => {
       id: 'salvation_01',
       name: '救済の意志',
       type: 'SALVATION_WILL',
-      cost: 17,
+      cost: 10,
       desc: '直前の相手ターンで破壊された全ての石を自分の通常石としてランダムな空きマスへ配置する。対象0枚の時は使用不可。対象は自分・相手、通常石・特殊石を問わない。各復活石は、そのマスを起点に通常の挟み反転を行う。'
     };
 
@@ -312,7 +312,7 @@ describe('card detail effect tags', () => {
       id: 'equality_will_01',
       name: '平等の意志',
       type: 'EQUALITY_WILL',
-      cost: 15,
+      cost: 8,
       desc: '相手の石数が自分より10個以上多い時のみ使用可。盤面の空きマスへランダムに最大3個、自分色の通常石を生成する。各生成石は、そのマスを起点に通常の挟み反転を行う。'
     };
 

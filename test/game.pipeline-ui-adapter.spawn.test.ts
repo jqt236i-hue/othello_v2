@@ -580,7 +580,7 @@ describe('pipeline_ui_adapter spawn mapping', () => {
         type: 'CARD_USED',
         player: 'black',
         cardId: 'salvation_01',
-        meta: { owner: 'black', cardType: 'SALVATION_WILL', cost: 17, name: '救済の意志',
+        meta: { owner: 'black', cardType: 'SALVATION_WILL', cost: 10, name: '救済の意志',
                 salvationWillResolved: true, spawnedCount: 3 }
       },
       {

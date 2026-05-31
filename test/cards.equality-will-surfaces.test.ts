@@ -6,7 +6,7 @@ const EXPECTED_BASE_CARD = Object.freeze({
   id: 'equality_will_01',
   name_ja: '平等の意志',
   type: 'EQUALITY_WILL',
-  cost: 15,
+  cost: 8,
   desc_ja: '空きマスに3個石をランダム配置、石数が10個以上負けているときに使用可能。',
   display_type_ja: '繁栄'
 });
