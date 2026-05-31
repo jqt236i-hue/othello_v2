@@ -736,6 +736,30 @@ describe('worker pendingEffectId contract', () => {
     ]));
   });
 
+  test('rectangular custom board expansion target selection uses current outer edge', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'board_expand_01',
+      pendingType: 'BOARD_EXPANSION_WILL',
+      actionKey: 'expansionTarget',
+      boardConfig: { rows: 8, cols: 9, standard8x8: false },
+      target: { row: 7, col: 8 }
+    });
+
+    const expansion = result.internalSnapshot.gameState.boardExpansion;
+    const cells = Array.isArray(expansion && expansion.cells) ? expansion.cells : [];
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalSnapshot.gameState.boardConfig).toMatchObject({ rows: 8, cols: 9 });
+    expect(cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 7, col: 9, side: 'right', owner: 0 })
+    ]));
+  });
+
   test('board expansion god final target selection adds six authoritative cells and clears pending state', () => {
     const result = runBoardPendingResolutionScenario({
       cardId: 'board_expand_god_01',
@@ -804,6 +828,41 @@ describe('worker pendingEffectId contract', () => {
       expect.objectContaining({ row: 9, col: 10, owner: 0 }),
       expect.objectContaining({ row: 10, col: 9, owner: 0 }),
       expect.objectContaining({ row: 10, col: 10, owner: 0 })
+    ]));
+  });
+
+  test('rectangular custom board expansion god final target selection uses rectangular corner geometry', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'board_expand_god_01',
+      pendingType: 'BOARD_EXPANSION_GOD',
+      actionKey: 'expansionTarget',
+      boardConfig: { rows: 8, cols: 9, standard8x8: false },
+      target: { row: 7, col: 8 },
+      pendingExtra: {
+        selectedCount: 1,
+        maxSelections: 2,
+        selectedTargets: [{ row: 0, col: 0 }]
+      }
+    });
+
+    const expansion = result.internalSnapshot.gameState.boardExpansion;
+    const cells = Array.isArray(expansion && expansion.cells) ? expansion.cells : [];
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalSnapshot.gameState.boardConfig).toMatchObject({ rows: 8, cols: 9 });
+    expect(cells).toHaveLength(6);
+    expect(cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: -1, owner: 0 }),
+      expect.objectContaining({ row: -1, col: 0, owner: 0 }),
+      expect.objectContaining({ row: 0, col: -1, owner: 0 }),
+      expect.objectContaining({ row: 7, col: 9, owner: 0 }),
+      expect.objectContaining({ row: 8, col: 8, owner: 0 }),
+      expect.objectContaining({ row: 8, col: 9, owner: 0 })
     ]));
   });
 
