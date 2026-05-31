@@ -281,7 +281,7 @@ describe('rules help panel', () => {
           ]
           : [
             { kind: 'full-protection', label: '完全保護' },
-            { kind: 'duration-turns', value: 3, label: '3ターン持続' }
+            { kind: 'duration-turns', value: 3, label: '3T持続' }
           ],
         numericTags: cardDef.id === 'afterimage_will_01'
           ? [
@@ -289,7 +289,7 @@ describe('rules help panel', () => {
             { kind: 'destroy-evasion', value: 3, label: '破壊回避3回' }
           ]
           : [
-            { kind: 'duration-turns', value: 3, label: '3ターン持続' }
+            { kind: 'duration-turns', value: 3, label: '3T持続' }
           ]
       })
     };
@@ -315,7 +315,7 @@ describe('rules help panel', () => {
     cardButtons[1].click();
 
     expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-section-title')).map((el) => el.textContent)).toContain('効果タグ');
-    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['完全保護', '3ターン持続']);
+    expect(Array.from(cardDescEl.querySelectorAll('.rules-help-card-tag')).map((el) => el.textContent)).toEqual(['完全保護', '3T持続']);
     expect(cardDescEl.textContent).toContain('完全保護中は敵対的・強制的な石効果を受けない。');
   });
 

@@ -86,7 +86,7 @@ describe('card interaction detail panel module', () => {
       effectTags: [
         { kind: 'status', label: '反転保護' },
         { kind: 'status', label: '反転保護' },
-        { kind: 'numeric', label: '5ターン持続' }
+        { kind: 'numeric', label: '5T持続' }
       ]
     };
     const model = ctx.controller.buildCardDetailDisplayModel(cardDef, 'black');
@@ -106,7 +106,7 @@ describe('card interaction detail panel module', () => {
     expect(liveStateEl?.style.display).toBe('block');
     expect(Array.from(tagsEl?.querySelectorAll('.card-detail-effect-tag') || []).map((el) => el.textContent)).toEqual([
       '反転保護',
-      '5ターン持続'
+      '5T持続'
     ]);
   });
 

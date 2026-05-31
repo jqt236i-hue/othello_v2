@@ -66,9 +66,9 @@ function buildCardEffectTag(kind: string, value?: number) {
   } else if (normalizedKind === CARD_EFFECT_TAG_KIND.DESTROY_EVASION) {
     label = `破壊回避${normalizedValue}回`;
   } else if (normalizedKind === CARD_EFFECT_TAG_KIND.DURATION_TURNS) {
-    label = `${normalizedValue}ターン持続`;
+    label = `${normalizedValue}T持続`;
   } else if (normalizedKind === CARD_EFFECT_TAG_KIND.DELAYED_ACTIVATION_TURNS) {
-    label = `${normalizedValue}ターン後に発動`;
+    label = `${normalizedValue}T後に発動`;
   } else {
     return null;
   }
