@@ -1307,8 +1307,8 @@ const {
         return CardExpansionModule.getExpansionDescriptorsForCard(gameState);
     }
 
-    function syncLegacyExpansionFieldsForCard(expansion: any) {
-        return CardExpansionModule.syncLegacyExpansionFieldsForCard(expansion, null);
+    function syncLegacyExpansionFieldsForCard(expansion: any, boardOrConfig?: any) {
+        return CardExpansionModule.syncLegacyExpansionFieldsForCard(expansion, boardOrConfig || null);
     }
 
     function ensureMutableBoardExpansionForCard(gameState: any) {
@@ -2348,6 +2348,7 @@ const {
         return CardBoardExpansionApplyModule.applyBoardExpansionWill(cardState, gameState, playerKey, row, col, {
             readCardPendingEffect,
             getBoardExpansionTargets,
+            resolveCardBoardConfig,
             ensureMutableBoardExpansionForCard,
             getExpansionDescriptorsForCard,
             resolveExpansionSideForCard,

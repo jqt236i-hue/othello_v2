@@ -137,7 +137,7 @@ describe('custom board config foundations', () => {
     };
     const cardState = {
       markers: [
-        { kind: 'specialStone', row: 4, col: 2, owner: 'white', data: { type: 'TIME_BOMB' } }
+        { kind: 'specialStone', row: 4, col: 2, owner: 'white', data: { type: 'DRAGON' } }
       ]
     };
 

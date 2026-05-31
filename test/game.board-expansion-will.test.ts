@@ -84,6 +84,45 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
     expect(blackTargetsAfterThree.some((t) => t.row === 4 && t.col === 0)).toBe(false);
   });
 
+  test('10x10の右端選択でも盤面拡張が現在盤面の外側へ追加される', () => {
+    const cardState = CardLogic.createCardState(createPrng(), { boardConfig: { rows: 10, cols: 10 } });
+    const gameState = Core.createGameState({ rows: 10, cols: 10 });
+
+    cardState.pendingEffectByPlayer.black = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+    const selected = CardLogic.applyBoardExpansionWill(cardState, gameState, 'black', 3, 9);
+
+    expect(selected).toEqual(expect.objectContaining({
+      applied: true,
+      side: 'right',
+      row: 3,
+      col: 10
+    }));
+    expect(gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ side: 'right', row: 3, col: 10, owner: Core.EMPTY })
+    ]));
+    expect(gameState.boardExpansion.usedByPlayer.black).toBe(true);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
+  test('10x10の下側行でも盤面拡張は8行固定で弾かれない', () => {
+    const cardState = CardLogic.createCardState(createPrng(), { boardConfig: { rows: 10, cols: 10 } });
+    const gameState = Core.createGameState({ rows: 10, cols: 10 });
+
+    cardState.pendingEffectByPlayer.black = { type: 'BOARD_EXPANSION_WILL', stage: 'selectTarget' };
+    const selected = CardLogic.applyBoardExpansionWill(cardState, gameState, 'black', 9, 0);
+
+    expect(selected).toEqual(expect.objectContaining({
+      applied: true,
+      side: 'left',
+      row: 9,
+      col: -1
+    }));
+    expect(gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ side: 'left', row: 9, col: -1, owner: Core.EMPTY })
+    ]));
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
   test('拡張セルは合法手として扱われ、通常反転に参加する', () => {
     const gameState = Core.createGameState();
     gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
@@ -369,6 +408,44 @@ describe('BOARD_EXPANSION_WILL（盤面拡張）', () => {
 
     const used = CardLogic.applyCardUsage(cardState, gameState, 'black', def.id);
     expect(used).toBe(false);
+    expect(cardState.pendingEffectByPlayer.black).toBeNull();
+  });
+
+  test('BOARD_EXPANSION_GODは10x10の角から現在盤面外側の6マスを追加する', () => {
+    const cardState = CardLogic.createCardState(createPrng(), { boardConfig: { rows: 10, cols: 10 } });
+    const gameState = Core.createGameState({ rows: 10, cols: 10 });
+    cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_EXPANSION_GOD',
+      stage: 'selectTarget',
+      selectedCount: 0,
+      maxSelections: 2,
+      selectedTargets: []
+    };
+
+    const firstSelected = CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 0, 0);
+    expect(firstSelected && firstSelected.applied).toBe(true);
+    expect(firstSelected && firstSelected.completed).toBe(false);
+
+    const applied = CardLogic.applyBoardExpansionGod(cardState, gameState, 'black', 9, 9);
+
+    expect(applied && applied.applied).toBe(true);
+    expect(applied && applied.completed).toBe(true);
+    expect(applied && applied.added).toEqual(expect.arrayContaining([
+      { row: -1, col: 0 },
+      { row: -1, col: -1 },
+      { row: 0, col: -1 },
+      { row: 9, col: 10 },
+      { row: 10, col: 10 },
+      { row: 10, col: 9 }
+    ]));
+    expect(gameState.boardExpansion.cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: 0, owner: Core.EMPTY }),
+      expect.objectContaining({ row: -1, col: -1, owner: Core.EMPTY }),
+      expect.objectContaining({ row: 0, col: -1, owner: Core.EMPTY }),
+      expect.objectContaining({ row: 9, col: 10, owner: Core.EMPTY }),
+      expect.objectContaining({ row: 10, col: 10, owner: Core.EMPTY }),
+      expect.objectContaining({ row: 10, col: 9, owner: Core.EMPTY })
+    ]));
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
   });
 

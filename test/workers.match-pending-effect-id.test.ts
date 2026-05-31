@@ -402,11 +402,13 @@ function runBoardPendingResolutionScenario(config) {
     `  const config = ${JSON.stringify(config)};`,
     "  const modulePath = process.argv[1];",
     "  const { MatchRoomDurableObject } = await import(modulePath);",
-    "  const board = Array.from({ length: 8 }, () => Array(8).fill(0));",
-    "  board[3][3] = -1;",
-    "  board[3][4] = 1;",
-    "  board[4][3] = 1;",
-    "  board[4][4] = -1;",
+    "  const boardConfig = config.boardConfig && typeof config.boardConfig === 'object' ? config.boardConfig : null;",
+    "  const boardRows = boardConfig && Number.isFinite(Number(boardConfig.rows)) ? Math.trunc(Number(boardConfig.rows)) : 8;",
+    "  const boardCols = boardConfig && Number.isFinite(Number(boardConfig.cols)) ? Math.trunc(Number(boardConfig.cols)) : 8;",
+    "  const board = Array.from({ length: boardRows }, () => Array(boardCols).fill(0));",
+    "  for (const stone of [{ row: 3, col: 3, value: -1 }, { row: 3, col: 4, value: 1 }, { row: 4, col: 3, value: 1 }, { row: 4, col: 4, value: -1 }]) {",
+    "    if (board[stone.row] && typeof board[stone.row][stone.col] !== 'undefined') board[stone.row][stone.col] = stone.value;",
+    "  }",
     "  if (config.extraBoard) {",
     "    for (const cell of config.extraBoard) board[cell.row][cell.col] = cell.value;",
     "  }",
@@ -440,7 +442,7 @@ function runBoardPendingResolutionScenario(config) {
     "    seatTokens: { black: 'token_black', white: 'token_white' },",
     "    seatHandSkins: { black: '', white: '' },",
     "    roomDeck: null,",
-    "    roomBoardConfig: null,",
+    "    roomBoardConfig: boardConfig,",
     "    networkDebugEnabled: false,",
     "    turnTimer: { limitSeconds: 120, active: false, turnSeatKey: 'black', turnStartedAt: null, turnDeadlineAt: null },",
     "    lastAcceptedOperationBySeat: { black: null, white: null },",
@@ -451,7 +453,7 @@ function runBoardPendingResolutionScenario(config) {
     "    chatSeq: 0,",
     "    snapshot: {",
     "      stateVersion: 0,",
-    "      gameState: { board, currentPlayer: 1, consecutivePasses: 0, turnNumber: 1, roundNumber: 1, roundCompletionByPlayer: { black: false, white: false }, pendingRoundBonus: null },",
+    "      gameState: Object.assign({ board, currentPlayer: 1, consecutivePasses: 0, turnNumber: 1, roundNumber: 1, roundCompletionByPlayer: { black: false, white: false }, pendingRoundBonus: null }, boardConfig ? { boardConfig } : {}),",
     "      cardState: {",
     "        deck: [], decks: { black: [], white: [] }, initialDeckSize: 0, initialDeckSizeByPlayer: { black: 0, white: 0 },",
     "        hands: { black: [], white: [] }, charge: { black: 80, white: 0 }, chargeGainedTotal: { black: 0, white: 0 }, chargeDeltaEvents: [],",
@@ -710,6 +712,30 @@ describe('worker pendingEffectId contract', () => {
     ]));
   });
 
+  test('custom board expansion target selection adds authoritative outer cell', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'board_expand_01',
+      pendingType: 'BOARD_EXPANSION_WILL',
+      actionKey: 'expansionTarget',
+      boardConfig: { rows: 10, cols: 10, standard8x8: false },
+      target: { row: 3, col: 9 }
+    });
+
+    const expansion = result.internalSnapshot.gameState.boardExpansion;
+    const cells = Array.isArray(expansion && expansion.cells) ? expansion.cells : [];
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(result.internalSnapshot.gameState.boardConfig).toMatchObject({ rows: 10, cols: 10 });
+    expect(cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 3, col: 10, side: 'right', owner: 0 })
+    ]));
+  });
+
   test('board expansion god final target selection adds six authoritative cells and clears pending state', () => {
     const result = runBoardPendingResolutionScenario({
       cardId: 'board_expand_god_01',
@@ -744,6 +770,40 @@ describe('worker pendingEffectId contract', () => {
     ]));
     expect(result.payload.effectLogs).toEqual(expect.arrayContaining([
       expect.stringContaining('盤面拡張神')
+    ]));
+  });
+
+  test('custom board expansion god final target selection adds six authoritative outer cells', () => {
+    const result = runBoardPendingResolutionScenario({
+      cardId: 'board_expand_god_01',
+      pendingType: 'BOARD_EXPANSION_GOD',
+      actionKey: 'expansionTarget',
+      boardConfig: { rows: 10, cols: 10, standard8x8: false },
+      target: { row: 9, col: 9 },
+      pendingExtra: {
+        selectedCount: 1,
+        maxSelections: 2,
+        selectedTargets: [{ row: 0, col: 0 }]
+      }
+    });
+
+    const expansion = result.internalSnapshot.gameState.boardExpansion;
+    const cells = Array.isArray(expansion && expansion.cells) ? expansion.cells : [];
+
+    expect(result.status).toBe(200);
+    expect(result.payload).toEqual(expect.objectContaining({
+      ok: true,
+      stateVersion: 1
+    }));
+    expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
+    expect(cells).toHaveLength(6);
+    expect(cells).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: -1, col: -1, owner: 0 }),
+      expect.objectContaining({ row: -1, col: 0, owner: 0 }),
+      expect.objectContaining({ row: 0, col: -1, owner: 0 }),
+      expect.objectContaining({ row: 9, col: 10, owner: 0 }),
+      expect.objectContaining({ row: 10, col: 9, owner: 0 }),
+      expect.objectContaining({ row: 10, col: 10, owner: 0 })
     ]));
   });
 
