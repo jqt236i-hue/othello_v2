@@ -32,7 +32,6 @@ othello_v2/
 | --- | --- | --- |
 | Player-visible behavior | `01-rulebook.md` | Update before implementation when rules, cards, UI timing, or visible text change. |
 | Detailed desired behavior / audit notes | `正本/*.md` | Use for card-specific behavior, turn order, animation, sound, and confidence/audit notes. Update only when a player-visible spec is changed or clarified and the existing note would become stale. |
-| Hard rules / completion | `AGENTS.md` | Repo-wide must-follow constraints. |
 | Architecture boundary | `docs/architecture-contracts.md` | Module contracts, authority, DI, runtime equivalence. |
 | Browser boot | `index.html`, `entry-browser.js`, `ui/bootstrap.ts`, `ui/bootstrap/init-*.ts` | Load order and DI are fragile. |
 | Game progression | `game/turn/*`, `game/turn-manager.ts`, `game/move-executor.ts` | Keep headless; UI bridge is explicit. |
@@ -67,10 +66,6 @@ othello_v2/
 - Priority order: `01-rulebook.md` → `docs/architecture-contracts.md` → this file → nested `AGENTS.md` → `SKILLS.md` / local `README.ai.md`.
 - Root files are source of truth; `dist/` and `worker-public/` are generated or mirrored surfaces.
 - Prefer `.ts` when a `.ts`/`.js` pair exists. Adjacent `.js` is usually a dist wrapper; check `docs/typescript-migration-js-allowlist.md` before editing `.js`.
-- `game/` stays headless. `ui/` consumes public APIs, events, and DI hooks only.
-- `events[]` playback order and Single Visual Writer are part of the UI contract.
-- Animation, effects, and sound are presentation/playback consumers. They may react to state, snapshots, and `events[]`, but must not decide gameplay results or be called directly from `game/`.
-- `events[]` are presentation-time replay instructions. They must preserve playback order, but they are not stronger authority than canonical game state or network snapshots.
 - UI preview, busy flags, playback locks, and animation state are settlement/presentation state, not canonical gameplay state.
 - Debug behavior is gated by explicit flags such as `?debug=1`; normal play must not get debug side effects.
 - `owner` / `player` / color forms are normalized at boundaries; do not mix internal representations.
@@ -97,7 +92,6 @@ othello_v2/
 - Pending selection network publish must stay behind the UI/network signal bridge. Do not make `game/card-effects/selection-flow.ts` discover or publish through a root `NetworkMatchClient` global.
 - Do not let Worker, local server, browser, and headless behavior drift through parallel implementations. Prefer shared contracts, codecs, and authority helpers, and keep runtime-specific differences at the boundary layer.
 - Use existing helpers for owner/player/color normalization, card target/cost checks, constants, Lv6 decision-mode parsing, and training profile handling. Do not add local duplicate parsing.
-- Make failures diagnosable. Avoid broad `catch`, silent return, or success-shaped fallback unless the caller has an explicit, tested recovery path.
 - Choose verification by blast radius. Prefer focused tests/preflights first; use `npm run test:network:parity` for network contracts and `npm run worker:prepare` for root-to-worker mirror impact.
 - Do not run long selfplay or training jobs unless explicitly requested. Use a focused preflight or small sample before any expensive run.
 
@@ -117,7 +111,7 @@ othello_v2/
 - Do not stage, commit, revert, delete, or overwrite pre-existing unrelated changes.
 - If pre-existing changes are related to the task, inspect the relevant diff and continue from it instead of duplicating or undoing it.
 - If the task cannot be completed safely because of existing changes, report the exact files involved and ask how to proceed.
-- At the end of every implementation or documentation task, run `git status --short`, inspect the relevant diff, stage only files intentionally changed for the current task, and create a small concrete commit when the change is coherent.
+- At the end of every implementation or documentation task, run `git status --short`, inspect the relevant diff, and stage only files intentionally changed for the current task.
 - Never use `git add -A` unless all changed files were intentionally produced for the current task.
 - Never use destructive cleanup commands such as `git reset --hard`, `git checkout --`, or deleting untracked files unless the user explicitly asks for that exact operation.
 - If unrelated dirty files remain after committing the current task, report them clearly in the final response.
@@ -139,7 +133,6 @@ othello_v2/
 - Adding DOM/window/sound/timer dependencies to `game/`, `shared/`, CPU logic, or card logic.
 - Creating a second board DOM writer during playback or reordering `events[]`.
 - Editing `worker-public/`, `dist/`, generated catalog files, or `public/module-registry.js` as source.
-- Hiding failures with broad catch, silent return, or success-shaped fallback.
 - Duplicating constants, Lv6 decision-mode parsing, owner/player normalization, or card target/cost checks.
 - Running long selfplay/training jobs when a focused preflight or test is enough.
 
