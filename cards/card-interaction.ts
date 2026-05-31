@@ -523,6 +523,10 @@ const _cardInteractionHandDomModule = _resolveCardInteractionModule({
     requirePath: './card-interaction-hand-dom'
 });
 
+const _cardRendererModule = _resolveCardInteractionModule({
+    requirePath: './card-renderer'
+});
+
 function _getCardInteractionPendingNetworkDeps() {
     return {
         getUiRootRef: _getUiRootRef,
@@ -593,6 +597,9 @@ function _getCardInteractionOverlayViewDeps() {
         getCardDisplayLabel: _getCardDisplayLabel,
         fitCardNameForDisplay: _fitCardNameForDisplay,
         appendCardDisplayBadges: _appendCardDisplayBadges,
+        createCardFaceElement: (_cardRendererModule && typeof _cardRendererModule.createCardFaceElement === 'function')
+            ? _cardRendererModule.createCardFaceElement
+            : undefined,
         getOverlayCardDescriptionText: _getOverlayCardDescriptionText,
         playUiEffectSound,
         executeHeavenSelection: _executeHeavenSelection,

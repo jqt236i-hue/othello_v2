@@ -108,6 +108,65 @@ describe('HEAVEN_BLESSING overlay flow', () => {
     expect(action.heavenBlessingCardId).toBe('offer_2');
   });
 
+  test('renders offer cards with the normal card face renderer', () => {
+    const overlayView = require('../cards/card-interaction-overlay-view.ts');
+    let overlayRefs = null;
+    const createCardFaceElement = jest.fn((cardId, options) => {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'card-item visible has-special-art';
+      cardEl.dataset.cardId = cardId;
+      cardEl.dataset.ownerKey = options.ownerKey;
+      const artEl = document.createElement('div');
+      artEl.className = 'card-special-art';
+      cardEl.appendChild(artEl);
+      const nameEl = document.createElement('span');
+      nameEl.className = 'card-name';
+      nameEl.textContent = '金の意志';
+      cardEl.appendChild(nameEl);
+      const costEl = document.createElement('div');
+      costEl.className = 'card-cost-badge';
+      cardEl.appendChild(costEl);
+      return cardEl;
+    });
+    overlayView.renderHeavenOverlay('black', {
+      getDocumentRef: () => document,
+      getWindowRef: () => window,
+      getOverlayRefs: () => overlayRefs,
+      setOverlayRefs: (refs) => { overlayRefs = refs; },
+      getCardStateValue: () => ({
+        hands: { black: ['dummy_01'], white: [] },
+        pendingEffectByPlayer: {
+          black: { type: 'HEAVEN_BLESSING', stage: 'selectTarget', offers: ['gold_stone'] },
+          white: null
+        }
+      }),
+      getHandLimit: () => 5,
+      getHeavenSelection: () => null,
+      setHeavenSelection: jest.fn(),
+      resolveCardDef: () => ({ id: 'gold_stone', name: '金の意志', cost: 6 }),
+      getCardCostTier: () => 'red',
+      getCardDisplayTypeKey: () => 'mining',
+      getCardDisplayLabel: () => '金の意志',
+      fitCardNameForDisplay: jest.fn(),
+      appendCardDisplayBadges: jest.fn(),
+      createCardFaceElement,
+      getOverlayCardDescriptionText: () => '説明',
+      playUiEffectSound: jest.fn(),
+      executeHeavenSelection: jest.fn(),
+      executeCondemnSelection: jest.fn()
+    });
+
+    const offer = document.querySelector('.heaven-offer-card');
+
+    expect(createCardFaceElement).toHaveBeenCalledWith('gold_stone', { ownerKey: 'black' });
+    expect(offer).toBeTruthy();
+    expect(offer.classList.contains('card-item')).toBe(true);
+    expect(offer.classList.contains('visible')).toBe(true);
+    expect(offer.classList.contains('has-special-art')).toBe(true);
+    expect(offer.querySelector('.card-special-art')).toBeTruthy();
+    expect(offer.querySelector('.card-cost-badge')).toBeTruthy();
+  });
+
   test('CONDEMN_WILL overlay click does not switch to treasure_gain sound', () => {
     global.cardState.pendingEffectByPlayer.black = {
       type: 'CONDEMN_WILL',

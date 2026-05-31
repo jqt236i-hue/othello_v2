@@ -24,6 +24,7 @@ type OverlayViewDeps = {
     getCardDisplayLabel: (cardId: any, cardDef: any) => any;
     fitCardNameForDisplay: (nameEl: any) => any;
     appendCardDisplayBadges: (cardEl: any, cardDef: any, cost: any, tier: any) => any;
+    createCardFaceElement?: (cardId: any, options?: any) => any;
     getOverlayCardDescriptionText: (cardDef: any, cardId: any) => any;
     playUiEffectSound: (effectKey: any) => any;
     executeHeavenSelection: (playerKey: any, selectedCardId: any) => any;
@@ -114,6 +115,48 @@ function resolveOverlayOfferByKey(offers: any, offerKey: any) {
     return null;
 }
 
+function getOverlayOfferOwnerKey(pendingType: any, playerKey: any) {
+    if (pendingType === 'CONDEMN_WILL') {
+        return playerKey === 'black' ? 'white' : 'black';
+    }
+    return playerKey;
+}
+
+function createFallbackOfferCard(cardId: any, cardDef: any, deps: OverlayViewDeps) {
+    const cardEl = deps.getDocumentRef().createElement('div');
+    cardEl.className = 'card-item visible';
+    cardEl.dataset.cardId = cardId;
+    const cost = cardDef ? (cardDef.cost || 0) : 0;
+    const tier = deps.getCardCostTier(cost);
+    cardEl.classList.add(`cost-tier-${tier}`);
+    const typeKey = deps.getCardDisplayTypeKey(cardDef);
+    if (typeKey) {
+        cardEl.dataset.cardType = typeKey;
+    }
+    const nameSpan = deps.getDocumentRef().createElement('span');
+    nameSpan.className = 'card-name';
+    nameSpan.textContent = deps.getCardDisplayLabel(cardId, cardDef);
+    cardEl.appendChild(nameSpan);
+    deps.fitCardNameForDisplay(nameSpan);
+    deps.appendCardDisplayBadges(cardEl, cardDef, cost, tier);
+    return cardEl;
+}
+
+function createOverlayOfferCard(cardId: any, cardDef: any, ownerKey: any, deps: OverlayViewDeps) {
+    if (typeof deps.createCardFaceElement === 'function') {
+        try {
+            const cardEl = deps.createCardFaceElement(cardId, { ownerKey });
+            const nameEl = cardEl && typeof cardEl.querySelector === 'function'
+                ? cardEl.querySelector('.card-name')
+                : null;
+            if (cardEl && (!nameEl || nameEl.textContent !== '?')) {
+                return cardEl;
+            }
+        } catch (e) { /* fallback below */ }
+    }
+    return createFallbackOfferCard(cardId, cardDef, deps);
+}
+
 function renderHeavenOverlay(playerKey: any, deps: OverlayViewDeps) {
     const refs = ensureHeavenOverlay(deps);
     if (!refs || !refs.root) return;
@@ -155,23 +198,11 @@ function renderHeavenOverlay(playerKey: any, deps: OverlayViewDeps) {
         const offerKey = getOverlayOfferKey(offer);
         const cardId = (offer && typeof offer === 'object') ? offer.cardId : offer;
         const def = deps.resolveCardDef(cardId);
-        const cardEl = deps.getDocumentRef().createElement('div');
-        cardEl.className = 'card-item visible heaven-offer-card';
+        const offerOwnerKey = getOverlayOfferOwnerKey(pendingType, playerKey);
+        const cardEl = createOverlayOfferCard(cardId, def, offerOwnerKey, deps);
+        cardEl.classList.add('heaven-offer-card');
         cardEl.dataset.cardId = cardId;
-        const cost = def ? (def.cost || 0) : 0;
-        const tier = deps.getCardCostTier(cost);
-        cardEl.classList.add(`cost-tier-${tier}`);
-        const typeKey = deps.getCardDisplayTypeKey(def);
-        if (typeKey) {
-            cardEl.dataset.cardType = typeKey;
-        }
         if (selectedKey === offerKey) cardEl.classList.add('selected');
-        const nameSpan = deps.getDocumentRef().createElement('span');
-        nameSpan.className = 'card-name';
-        nameSpan.textContent = deps.getCardDisplayLabel(cardId, def);
-        cardEl.appendChild(nameSpan);
-        deps.fitCardNameForDisplay(nameSpan);
-        deps.appendCardDisplayBadges(cardEl, def, cost, tier);
         cardEl.addEventListener('click', () => {
             if (pendingType === 'HEAVEN_BLESSING') {
                 deps.playUiEffectSound('hand_card_select');
