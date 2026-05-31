@@ -249,13 +249,29 @@ function _fitCardNameElement(nameEl: any, retriesRemaining: any = 6) {
             }
             nameEl.style.removeProperty('font-size');
             nameEl.style.removeProperty('letter-spacing');
+            const rootFontSkinId = (typeof document !== 'undefined' && document)
+                ? String(document.body?.getAttribute('data-font-skin-id') || document.documentElement?.getAttribute('data-font-skin-id') || '').trim()
+                : '';
+            const normalizedText = String(nameEl.textContent || '').replace(/\s+/g, '').trim();
+            const kanjiCount = Array.from(normalizedText).filter((char) => /[\u3400-\u9FFF\uF900-\uFAFF]/u.test(char)).length;
+            const prefersReadableFallback = rootFontSkinId === 'dot-gothic'
+                && !!normalizedText
+                && (kanjiCount >= 4 || (kanjiCount >= 3 && normalizedText.length >= 5));
+            if (nameEl.classList && typeof nameEl.classList.toggle === 'function') {
+                nameEl.classList.toggle('card-name-readable-fallback', prefersReadableFallback);
+            }
             const computed = (typeof window !== 'undefined' && typeof window.getComputedStyle === 'function')
                 ? window.getComputedStyle(nameEl)
                 : null;
             const baseFontPx = computed ? parseFloat(computed.fontSize) : NaN;
             if (!Number.isFinite(baseFontPx) || baseFontPx <= 0)
                 return;
-            const minFontPx = Math.max(8, Math.ceil(baseFontPx * 0.68));
+            const computedFontFamily = computed ? String(computed.fontFamily || '') : '';
+            const usesDotFont = !prefersReadableFallback && (/DotGothic16/i.test(computedFontFamily) || rootFontSkinId === 'dot-gothic');
+            const minFontPx = Math.max(
+                prefersReadableFallback ? 11 : (usesDotFont ? 10 : 8),
+                Math.ceil(baseFontPx * (prefersReadableFallback ? 0.78 : (usesDotFont ? 0.82 : 0.68)))
+            );
             let nextFontPx = baseFontPx;
             const applyFontSize = (fontPx: any) => {
                 const snappedFontPx = Math.max(minFontPx, Math.floor(fontPx));
@@ -267,8 +283,11 @@ function _fitCardNameElement(nameEl: any, retriesRemaining: any = 6) {
                 applyFontSize(nextFontPx - 1);
                 attempts += 1;
             }
-            if (nameEl.scrollWidth > availableWidth) {
+            if (!usesDotFont && !prefersReadableFallback && nameEl.scrollWidth > availableWidth) {
                 nameEl.style.letterSpacing = '-0.03em';
+            }
+            else {
+                nameEl.style.letterSpacing = '0';
             }
             attempts = 0;
             while (nameEl.scrollWidth > availableWidth && nextFontPx > minFontPx && attempts < 8) {

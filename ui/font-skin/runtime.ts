@@ -13,6 +13,7 @@ interface FontSkinDefinition {
   id: string;
   fontFamily: string;
   accentFontFamily?: string;
+  readableFontFamily?: string;
 }
 
 interface FontSkinCatalogModule {
@@ -71,6 +72,7 @@ function applyFontSkin(rootRef: Window | null | undefined, skinId: string): Font
   const rootEl = docRef.documentElement;
   const accentFontFamily = String(definition.accentFontFamily || definition.fontFamily || '').trim();
   const fontFamily = String(definition.fontFamily || '').trim();
+  const readableFontFamily = String(definition.readableFontFamily || accentFontFamily || fontFamily || '').trim();
   const targets = [rootEl, body].filter(Boolean) as HTMLElement[];
 
   targets.forEach((target) => {
@@ -85,7 +87,25 @@ function applyFontSkin(rootRef: Window | null | undefined, skinId: string): Font
     } else {
       target.style.removeProperty('--selected-app-font-accent-family');
     }
+    if (readableFontFamily) {
+      target.style.setProperty('--selected-app-font-readable-family', readableFontFamily);
+    } else {
+      target.style.removeProperty('--selected-app-font-readable-family');
+    }
   });
+
+  const fitCardName = ctx && typeof (ctx as Window & { fitCardNameElement?: (nameEl: Element) => void }).fitCardNameElement === 'function'
+    ? (ctx as Window & { fitCardNameElement?: (nameEl: Element) => void }).fitCardNameElement
+    : null;
+  if (fitCardName && docRef) {
+    Array.from(docRef.querySelectorAll('.card-name')).forEach((nameEl) => {
+      try {
+        fitCardName(nameEl);
+      } catch (e) {
+        /* ignore */
+      }
+    });
+  }
 
   return definition;
 }

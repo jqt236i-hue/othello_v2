@@ -138,7 +138,7 @@
     padding: var(--layout-size-charge-pad-y) calc(8px * var(--layout-stage-scale));
     border-radius: var(--layout-size-charge-radius);
     color: #ffd700;
-    font-family: var(--selected-app-font-accent-family);
+    font-family: var(--selected-app-font-readable-family);
     font-size: var(--layout-size-charge-font);
     font-weight: 700;
     line-height: 1.1;
@@ -180,7 +180,7 @@
     border-radius: calc(999px * var(--layout-stage-scale));
     background: rgba(24, 28, 44, 0.92);
     color: #f5f8ff;
-    font-family: var(--selected-app-font-accent-family);
+    font-family: var(--selected-app-font-readable-family);
     font-size: calc(12px * var(--layout-stage-scale));
     font-weight: 800;
     line-height: 1;
@@ -215,7 +215,7 @@
     padding: var(--layout-size-charge-delta-pad-y) var(--layout-size-charge-delta-pad-x);
     border-radius: var(--layout-size-charge-delta-radius);
     color: #e6f2ff;
-    font-family: var(--selected-app-font-accent-family);
+    font-family: var(--selected-app-font-readable-family);
     font-size: var(--layout-size-charge-delta-font);
     font-weight: 700;
     line-height: 1.08;
@@ -328,7 +328,7 @@
     border-radius: calc(999px * var(--layout-stage-scale));
     background: rgba(24, 28, 44, 0.94);
     color: #f5f8ff;
-    font-family: var(--selected-app-font-accent-family);
+    font-family: var(--selected-app-font-readable-family);
     font-size: calc(12px * var(--layout-stage-scale));
     font-weight: 800;
     line-height: 1;

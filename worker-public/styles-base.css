@@ -18,6 +18,7 @@ body {
     --app-background-image: url("assets/images/background/default.png");
     --selected-app-font-family: "Segoe UI", serif;
     --selected-app-font-accent-family: "Meiryo UI", "BIZ UDPGothic", "Yu Gothic UI", "Hiragino Sans", sans-serif;
+    --selected-app-font-readable-family: "Meiryo UI", "BIZ UDPGothic", "Yu Gothic UI", "Hiragino Sans", sans-serif;
     font-family: var(--selected-app-font-family);
     min-height: 100vh;
     margin: 0;
@@ -95,4 +96,96 @@ h1 {
     font-family: monospace;
     line-height: 1.2;
     opacity: 0.92;
+}
+
+body[data-font-skin-id="dot-gothic"] :is(
+    .btn-small,
+    .appearance-panel-tab,
+    .hand-skin-option,
+    .background-skin-option,
+    .font-skin-option,
+    #card-detail-desc,
+    #card-detail-live-state,
+    #card-detail-more,
+    #card-detail-tab-body,
+    #use-card-reason,
+    #destroy-card-btn,
+    #use-card-btn,
+    #toggle-card-detail-btn,
+    #pass-btn,
+    #cancel-card-btn,
+    #log,
+    #log .logEntry,
+    #effect-live-panel,
+    .effectLiveLine,
+    .stone-info-panel,
+    .stone-info-desc,
+    .stone-info-meta,
+    .stone-info-effect-tag,
+    #stone-info-tag-body,
+    #networkChatPanel,
+    #networkChatToggle,
+    #networkChatMessages,
+    #networkChatInput,
+    #gachaStatusText,
+    .gacha-details-copy,
+    .gacha-details-note,
+    #rules-help-card-desc,
+    .rules-help-card-section-body,
+    .rules-help-card-visual-note,
+    #rules-help-updates-list,
+    .rules-help-update-item,
+    .rules-help-update-empty,
+    .rules-help-effect-item dd,
+    #rules-help-guide-layout,
+    #rules-help-rules-list,
+    #rules-help-controls-list,
+    .rules-help-counter-summary-text,
+    .rules-help-counter-summary-note,
+    .rules-help-counter-cell--note,
+    .rules-help-counter-meaning,
+    .font-skin-option-copy,
+    .font-skin-option-note,
+    .held-use-card-name,
+    .held-use-card-cost
+) {
+    font-family: var(--selected-app-font-readable-family);
+}
+
+body[data-font-skin-id="dot-gothic"] :is(
+    .card-name,
+    .card-cost-badge,
+    .card-type-badge,
+    #card-detail-name,
+    .effect-live-title,
+    .stone-info-name,
+    #stone-info-tag-title,
+    .rules-help-card-title,
+    .rules-help-card-section-title,
+    .rules-help-update-version-title,
+    .rules-help-update-section-title,
+    .rules-help-effect-item dt,
+    .rules-help-guide-title,
+    .rules-help-counter-summary-title,
+    .rules-help-counter-label
+) {
+    font-family: var(--selected-app-font-family);
+    font-synthesis: none;
+    text-rendering: optimizeSpeed;
+}
+
+body[data-font-skin-id="dot-gothic"] .card-name {
+    width: calc(100% - (4px * var(--layout-stage-scale)));
+    padding: calc(var(--layout-size-card-badge-font) * 0.3) calc(var(--layout-size-card-badge-font) * 0.3);
+    line-height: 1.06;
+    font-weight: 400;
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.56);
+}
+
+body[data-font-skin-id="dot-gothic"] .card-name.card-name-readable-fallback {
+    font-family: var(--selected-app-font-readable-family);
+    font-weight: 700;
+    line-height: 1.04;
+    text-rendering: optimizeLegibility;
+    text-shadow: 0 calc(1px * var(--layout-stage-scale)) 0 rgba(0, 0, 0, 0.48);
 }
