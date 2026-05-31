@@ -1,0 +1,166 @@
+/* Sound Selector Styling */
+.sound-selector {
+    background: #2a1f15;
+    color: #d7ccc8;
+    border: var(--layout-size-border-thin) solid #4a3828;
+    padding: calc(5px * var(--layout-stage-scale)) calc(10px * var(--layout-stage-scale));
+    font-family: inherit;
+    font-size: calc(13px * var(--layout-stage-scale));
+    border-radius: calc(2px * var(--layout-stage-scale));
+    outline: none;
+    cursor: pointer;
+    vertical-align: middle;
+}
+
+.sound-selector:hover {
+    border-color: #5d4037;
+}
+
+/* CPU Character Panel - Top Right */
+#cpu-character-panel {
+    position: fixed;
+    top: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-cpu-top) * var(--layout-stage-scale)));
+    right: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-cpu-right) * var(--layout-stage-scale)));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(1px * var(--layout-stage-scale));
+    z-index: 100;
+    pointer-events: none;
+}
+
+#cpu-character-img {
+    width: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale) * var(--layout-cpu-image-scale));
+    height: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale) * var(--layout-cpu-image-scale));
+    object-fit: contain;
+    filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.8));
+    transition: all 0.3s ease;
+    opacity: 0;
+    margin-bottom: 0;
+    display: block;
+    order: 1;
+    transform-origin: center;
+    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(var(--cpu-level-scale, 1)) scaleX(var(--cpu-character-face-direction, 1));
+}
+
+#cpu-character-img[src]:not([src=""]) {
+    opacity: 1;
+}
+
+#cpu-character-img.is-network-opponent-hero {
+    --cpu-character-face-direction: -1;
+}
+
+#cpu-character-img:hover {
+    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(calc(var(--cpu-level-scale, 1) * 1.04)) scaleX(var(--cpu-character-face-direction, 1));
+    filter: drop-shadow(0 8px 20px rgba(255, 204, 153, 0.4));
+}
+
+#cpu-level-label {
+    font-size: clamp(13px, calc(var(--layout-anchor-cpu-label-font) * var(--layout-stage-scale)), var(--layout-anchor-cpu-label-font));
+    color: #d4af37;
+    font-weight: normal;
+    text-shadow:
+        calc(-2px * var(--layout-stage-scale)) calc(-2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.9),
+        calc(2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.9);
+    letter-spacing: calc(1.5px * var(--layout-stage-scale));
+    margin-top: 0;
+    margin-bottom: 0;
+    padding: 0;
+    order: 2;
+    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
+    transition: transform 0.25s ease;
+    z-index: 110;
+}
+
+#cpu-speech-bubble {
+    position: fixed;
+    left: 50%;
+    top: calc(40px * var(--layout-stage-scale));
+    transform: translate(-50%, -100%);
+    display: block;
+    max-width: min(46vw, 420px);
+    width: max-content;
+    padding: calc(8px * var(--layout-stage-scale)) calc(12px * var(--layout-stage-scale));
+    border-radius: calc(10px * var(--layout-stage-scale));
+    border: var(--layout-size-border-thin) solid var(--border-status);
+    background: var(--bg-panel-dark);
+    color: var(--color-text-bright);
+    font-size: calc(13px * var(--layout-stage-scale));
+    line-height: 1.35;
+    text-align: center;
+    box-shadow: var(--board-shadow-outer);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: 13100;
+    transition: opacity 0.16s ease, visibility 0.16s ease;
+    word-break: break-word;
+}
+
+#cpu-speech-bubble::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: calc(100% - calc(1px * var(--layout-stage-scale)));
+    transform: translateX(-50%);
+    border-style: solid;
+    border-width: calc(8px * var(--layout-stage-scale)) calc(7px * var(--layout-stage-scale)) 0 calc(7px * var(--layout-stage-scale));
+    border-color: var(--bg-panel-dark) transparent transparent transparent;
+}
+
+#cpu-speech-bubble.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Hero Character Panel - Bottom Left */
+#hero-character-panel {
+    position: fixed;
+    bottom: calc(var(--layout-stage-offset-y) + (var(--layout-anchor-hero-bottom) * var(--layout-stage-scale)) + var(--layout-stage-bottom-safe-shift));
+    left: calc(var(--layout-stage-offset-x) + (var(--layout-anchor-hero-left) * var(--layout-stage-scale)));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: calc(1px * var(--layout-stage-scale));
+    z-index: 100;
+    pointer-events: none;
+}
+
+#hero-character-img {
+    width: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale));
+    height: calc(var(--layout-anchor-hero-size) * var(--layout-stage-scale) * var(--layout-character-image-scale));
+    object-fit: contain;
+    filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.8));
+    transition: transform 0.3s ease, filter 0.3s ease, opacity 0.3s ease;
+    opacity: 1;
+    margin-top: 0;
+    display: block;
+    order: 1;
+    transform-origin: center;
+    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
+}
+
+#hero-character-img:hover {
+    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale))) scale(1.04);
+    filter: drop-shadow(0 8px 20px rgba(100, 150, 255, 0.4));
+}
+
+#hero-label {
+    font-size: clamp(13px, calc(var(--layout-anchor-hero-label-font) * var(--layout-stage-scale)), var(--layout-anchor-hero-label-font));
+    color: #d4af37;
+    font-weight: normal;
+    text-shadow:
+        calc(-2px * var(--layout-stage-scale)) calc(-2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.9),
+        calc(2px * var(--layout-stage-scale)) calc(2px * var(--layout-stage-scale)) calc(4px * var(--layout-stage-scale)) rgba(0, 0, 0, 0.9);
+    letter-spacing: calc(1.5px * var(--layout-stage-scale));
+    padding: 0;
+    order: 2;
+    transform: translateY(calc(var(--layout-anchor-character-offset-y) * var(--layout-stage-scale)));
+    margin-top: 0;
+    text-align: center;
+    transition: none;
+    z-index: 220;
+    position: relative;
+    display: block;
+}
