@@ -2,8 +2,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   CORE_UI_STYLE_FILES,
-  getExistingStyleFiles,
+  LAYOUT_STYLE_FILES,
+  readRepoTextFile,
   readLayoutCssSurface,
+  requireExistingStyleFiles,
 } from './helpers/css-test-helpers';
 
 describe('responsive layout rules for narrow aspect ratio', () => {
@@ -84,13 +86,34 @@ describe('responsive layout rules for narrow aspect ratio', () => {
   });
 
   test('core UI styles avoid direct fixed px declarations', () => {
-    const targets = getExistingStyleFiles(CORE_UI_STYLE_FILES);
+    const targets = requireExistingStyleFiles(CORE_UI_STYLE_FILES);
 
     targets.forEach((fileName) => {
       const cssPath = path.join(__dirname, '..', fileName);
       const css = fs.readFileSync(cssPath, 'utf8');
       expect(css).not.toMatch(/:\s*-?\d+(?:\.\d+)?px/);
     });
+  });
+
+  test('split layout styles keep the same cascade order in browser entries and worker assets', () => {
+    const extractStylesheetHrefs = (html: string): string[] =>
+      Array.from(html.matchAll(/<link\s+rel="stylesheet"\s+href="([^"]+)"/g)).map((match) => match[1]);
+    const assertLayoutCascadeOrder = (fileName: string): void => {
+      const hrefs = extractStylesheetHrefs(readRepoTextFile(fileName));
+      const layoutIndex = hrefs.indexOf('styles-layout.css');
+      expect(layoutIndex).toBeGreaterThanOrEqual(0);
+      expect(hrefs.slice(layoutIndex, layoutIndex + LAYOUT_STYLE_FILES.length)).toEqual(LAYOUT_STYLE_FILES);
+      expect(hrefs[layoutIndex + LAYOUT_STYLE_FILES.length]).toBe('styles-board.css');
+    };
+
+    assertLayoutCascadeOrder('index.html');
+    assertLayoutCascadeOrder('worker-public/index.html');
+
+    const prepareWorkerAssets = readRepoTextFile('scripts/prepare-worker-assets.ts');
+    const workerLayoutFiles = Array.from(prepareWorkerAssets.matchAll(/'([^']+\.css)'/g))
+      .map((match) => match[1])
+      .filter((fileName) => LAYOUT_STYLE_FILES.includes(fileName));
+    expect(workerLayoutFiles).toEqual(LAYOUT_STYLE_FILES);
   });
 
   test('stage layout script and variables exist', () => {

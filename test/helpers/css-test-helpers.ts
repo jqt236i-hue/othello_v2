@@ -22,12 +22,16 @@ export function readRepoTextFile(fileName: string): string {
   return fs.readFileSync(path.join(__dirname, '..', '..', fileName), 'utf8');
 }
 
-export function getExistingStyleFiles(fileNames: string[]): string[] {
-  return fileNames.filter((fileName) => fs.existsSync(path.join(__dirname, '..', '..', fileName)));
+export function requireExistingStyleFiles(fileNames: string[]): string[] {
+  const missingFiles = fileNames.filter((fileName) => !fs.existsSync(path.join(__dirname, '..', '..', fileName)));
+  if (missingFiles.length > 0) {
+    throw new Error(`Missing style files: ${missingFiles.join(', ')}`);
+  }
+  return fileNames;
 }
 
 export function readStyleSurface(fileNames: string[]): string {
-  return getExistingStyleFiles(fileNames)
+  return requireExistingStyleFiles(fileNames)
     .map((fileName) => readRepoTextFile(fileName))
     .join('\n');
 }
