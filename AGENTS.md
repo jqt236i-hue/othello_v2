@@ -134,7 +134,6 @@ othello_v2/
 - Creating a second board DOM writer during playback or reordering `events[]`.
 - Editing `worker-public/`, `dist/`, generated catalog files, or `public/module-registry.js` as source.
 - Duplicating constants, Lv6 decision-mode parsing, owner/player normalization, or card target/cost checks.
-- Running long selfplay/training jobs when a focused preflight or test is enough.
 
 ## COMMANDS
 
