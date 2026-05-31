@@ -383,6 +383,40 @@ describe('card renderer hand inspection', () => {
     dom.window.close();
   });
 
+  test('fitCardNameElement marks dense kanji names for readable fallback in dot font mode', () => {
+    const dom = createRendererContext();
+    const { window } = dom;
+    const nameEl = window.document.createElement('div');
+
+    nameEl.textContent = '入替の意志';
+    window.document.body.setAttribute('data-font-skin-id', 'dot-gothic');
+    window.document.body.appendChild(nameEl);
+    window.requestAnimationFrame = (callback) => callback();
+    window.getComputedStyle = jest.fn(() => ({
+      fontSize: '15.5px',
+      fontFamily: 'DotGothic16'
+    }));
+
+    Object.defineProperty(nameEl, 'clientWidth', {
+      configurable: true,
+      get: () => 120
+    });
+    Object.defineProperty(nameEl, 'offsetWidth', {
+      configurable: true,
+      get: () => 120
+    });
+    Object.defineProperty(nameEl, 'scrollWidth', {
+      configurable: true,
+      get: () => 100
+    });
+
+    window.fitCardNameElement(nameEl, 0);
+
+    expect(nameEl.classList.contains('card-name-readable-fallback')).toBe(true);
+
+    dom.window.close();
+  });
+
   test('cpu mode shows only locally revealed opponent hand copies face-up', () => {
     const dom = createRendererContext({
       matchMode: 'cpu',
