@@ -1,5 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import {
+  CORE_UI_STYLE_FILES,
+  getExistingStyleFiles,
+  readLayoutCssSurface,
+} from './helpers/css-test-helpers';
 
 describe('responsive layout rules for narrow aspect ratio', () => {
   test('styles-responsive.css defines 16:10 to 5:4 safeguards', () => {
@@ -79,14 +84,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
   });
 
   test('core UI styles avoid direct fixed px declarations', () => {
-    const targets = [
-      'styles-base.css',
-      'styles-layout.css',
-      'styles-board.css',
-      'styles-cards.css',
-      'styles-responsive.css',
-      'styles-animations.css',
-    ];
+    const targets = getExistingStyleFiles(CORE_UI_STYLE_FILES);
 
     targets.forEach((fileName) => {
       const cssPath = path.join(__dirname, '..', fileName);
@@ -100,8 +98,7 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     const stageJs = fs.readFileSync(stageJsPath, 'utf8');
     const varsPath = path.join(__dirname, '..', 'styles-variables.css');
     const varsCss = fs.readFileSync(varsPath, 'utf8');
-    const layoutPath = path.join(__dirname, '..', 'styles-layout.css');
-    const layoutCss = fs.readFileSync(layoutPath, 'utf8');
+    const layoutCss = readLayoutCssSurface();
     const responsivePath = path.join(__dirname, '..', 'styles-responsive.css');
     const responsiveCss = fs.readFileSync(responsivePath, 'utf8');
     const boardPath = path.join(__dirname, '..', 'styles-board.css');
@@ -212,11 +209,11 @@ describe('responsive layout rules for narrow aspect ratio', () => {
     expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active[\s\S]*animation:\s*round-bonus-banner-slide-down/);
     expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active\.is-round-bonus-fading[\s\S]*animation:\s*round-bonus-banner-fade-out/);
     expect(layoutCss).toMatch(/#round-display-panel\.is-round-bonus-active[\s\S]*min-height:\s*calc\(52px\s*\*\s*var\(--layout-stage-scale\)\)/);
-    expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*left:\s*calc\(var\(--layout-stage-offset-x\)\s*\+\s*\(var\(--layout-anchor-effect-left\)\s*\*\s*var\(--layout-stage-scale\)\)\)/);
+    expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*left:\s*var\(--profile-stone-info-left\)/);
     expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*top:\s*calc\(var\(--layout-stage-offset-y\)\s*\+\s*\(var\(--layout-anchor-effect-top\)\s*\*\s*var\(--layout-stage-scale\)\)\)/);
     expect(boardCss).toMatch(/\.stone-info-panel[\s\S]*transform:\s*translateY\(calc\(-100%\s*-\s*calc\(8px\s*\*\s*var\(--layout-stage-scale\)\)\)\)/);
     expect(responsiveCss).toMatch(/html\.layout-profile-phone-portrait\s+#stone-info-panel[\s\S]*transform:\s*translateX\(-50%\)/);
-    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#stone-info-panel[\s\S]*--layout-anchor-effect-left/);
+    expect(responsiveCss).toMatch(/html\.layout-stage-enabled:not\(\.layout-profile-phone-portrait\)\s+#stone-info-panel[\s\S]*left:\s*var\(--profile-stone-info-left\)/);
     expect(cardsCss).toMatch(/\.deck-stack[\s\S]*width:\s*calc\(var\(--layout-size-deck-width\)\s*\*\s*var\(--layout-priority-deck-scale\)\)/);
     expect(cardsCss).toMatch(/\.deck-stack::before[\s\S]*linear-gradient\(135deg,\s*#3d2e20 0%,\s*#24160d 52%,\s*#1a0f08 100%\)/);
     expect(cardsCss).toMatch(/\.card-item[\s\S]*width:\s*var\(--layout-size-card-width\)/);

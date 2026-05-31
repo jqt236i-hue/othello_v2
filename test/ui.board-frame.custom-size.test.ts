@@ -1,10 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { readLayoutCssSurface } from './helpers/css-test-helpers';
 
 describe('custom board frame styling', () => {
   test('styles keep the standard frame as the default and allow runtime expansion for oversized custom boards', () => {
     const baseCss = fs.readFileSync(path.join(__dirname, '..', 'styles-base.css'), 'utf8');
-    const layoutCss = fs.readFileSync(path.join(__dirname, '..', 'styles-layout.css'), 'utf8');
+    const layoutCss = readLayoutCssSurface();
     const boardCss = fs.readFileSync(path.join(__dirname, '..', 'styles-board.css'), 'utf8');
 
     expect(baseCss).toMatch(/body\.board-oversize-active[\s\S]*overflow:\s*auto/);
