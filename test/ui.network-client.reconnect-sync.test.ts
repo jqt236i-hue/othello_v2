@@ -269,6 +269,124 @@ describe('NetworkMatchClient reconnect and resync', () => {
     expect(stateFetchCount).toBe(0);
   });
 
+  test('reconnect fallback sync 後も multi-stage pendingEffectId を次回 publish へ持ち越す', async () => {
+    const pendingSnapshot = createSnapshot(2, {
+      currentPlayer: 1,
+      turnNumber: 2
+    });
+    pendingSnapshot.cardState.turnIndex = 2;
+    pendingSnapshot.cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_SHRINK_GOD',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_god_01',
+      pendingEffectId: 'pending_reconnect_1',
+      firstTarget: { row: 0, col: 0 }
+    };
+
+    global.fetch = jest.fn(async (url, init = {}) => {
+      const parsedUrl = new URL(String(url));
+      const path = parsedUrl.pathname;
+
+      if (path === '/api/match/join') {
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seatKey: 'black',
+          seatToken: 'token_black',
+          seats: { black: true, white: true },
+          stateVersion: 1,
+          snapshot: createSnapshot(1)
+        });
+      }
+
+      if (path === '/api/match/state') {
+        stateFetchCount += 1;
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seats: { black: true, white: true },
+          stateVersion: 2,
+          snapshot: pendingSnapshot
+        });
+      }
+
+      if (path === '/api/match/publish') {
+        const body = JSON.parse(String(init.body || '{}'));
+        publishBodies.push(body);
+        return jsonResponse(200, {
+          ok: true,
+          roomId: 'ABC',
+          seats: { black: true, white: true },
+          stateVersion: 3,
+          snapshot: createSnapshot(3, {
+            currentPlayer: 1,
+            turnNumber: 3
+          })
+        });
+      }
+
+      return jsonResponse(404, { ok: false, reason: 'NOT_FOUND' });
+    });
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    expect(client).toBeTruthy();
+
+    const joined = await client.joinRoom('ABC', { serverUrl: 'http://localhost:8787', playerName: 'しろ' });
+    expect(joined.ok).toBe(true);
+    expect(eventSources).toHaveLength(1);
+
+    const firstStream = eventSources[0];
+    firstStream.readyState = global.EventSource.CLOSED;
+    firstStream.onerror();
+
+    jest.advanceTimersByTime(500);
+    expect(eventSources).toHaveLength(2);
+
+    const secondStream = eventSources[1];
+    secondStream.onopen();
+
+    await Promise.resolve();
+    await Promise.resolve();
+    const syncResult = await client.syncLatestState();
+
+    expect(stateFetchCount).toBe(1);
+    expect(syncResult).toEqual({ ok: true, appliedSnapshot: true });
+    expect(client.getStateVersion()).toBe(2);
+    expect(global.cardState.pendingEffectByPlayer.black).toEqual(expect.objectContaining({
+      type: 'BOARD_SHRINK_GOD',
+      pendingEffectId: 'pending_reconnect_1',
+      firstTarget: { row: 0, col: 0 }
+    }));
+
+    const pendingSelectionState = JSON.parse(JSON.stringify(global.cardState.pendingEffectByPlayer.black));
+    const publishResult = await client.publishSnapshot({
+      playerKey: 'black',
+      actionType: 'place',
+      playbackEvents: [],
+      action: {
+        type: 'place',
+        playerKey: 'black',
+        row: 0,
+        col: 1,
+        turnIndex: 2,
+        shrinkTarget: { row: 0, col: 1 },
+        deferNetworkPublish: true,
+        pendingSelectionState
+      }
+    });
+
+    expect(publishResult.ok).toBe(true);
+    expect(publishBodies).toHaveLength(1);
+    expect(publishBodies[0].baseVersion).toBe(2);
+    expect(publishBodies[0].params.pendingSelectionState).toEqual(expect.objectContaining({
+      type: 'BOARD_SHRINK_GOD',
+      pendingEffectId: 'pending_reconnect_1',
+      firstTarget: { row: 0, col: 0 }
+    }));
+    expect(publishBodies[0].params.shrinkTarget).toEqual({ row: 0, col: 1 });
+  });
+
   test('state sync payload の roomBoardConfig が null でも snapshot の custom boardConfig を保持する', async () => {
     global.fetch = jest.fn(async (url) => {
       const parsedUrl = new URL(String(url));
