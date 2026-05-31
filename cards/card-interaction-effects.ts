@@ -183,7 +183,7 @@ const quickCardEffectByType: Record<string, string> = Object.freeze({
   OBSERVER_WILL: '次に置く石を観測化し、毎ターン30%の確率で布石1〜5を獲得（5ターン）',
   LIVING_WILL: '自分の石1つに生きる意志を付与。失われる時に1回だけ復活',
   EQUALITY_WILL: '空きマスに3個石をランダム配置、石数が10個以上負けているときに使用可能。',
-  REINFORCEMENT_WILL: '石に隣接する内側空きマスへランダム1マス通常石を配置する。(反転可能)',
+  REINFORCEMENT_WILL: '既存石の近くの空きマスに、自分の通常石を1個ランダム配置(反転可)',
   RIBO_WILL: '布石を30得る。その後9ターンの間4返済。足りない場合は自石2個を消滅させる。',
   SALVATION_WILL: '直前の相手ターンで破壊された全ての石を救済し、自分の通常石として空きマスにランダム配置。',
   STONE_SALVATION_GOD: '次に置く石を救済神化。破壊された石を救済神の持ち主の通常石として復活させる。',
