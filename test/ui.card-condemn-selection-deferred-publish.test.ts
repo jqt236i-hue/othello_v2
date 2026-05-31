@@ -283,6 +283,7 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     delete global.EventSource;
     delete global.fetch;
     delete globalThis.waitForPlaybackIdle;
+    delete globalThis.__pendingSelectionPublishSettleTimeoutMs;
   });
 
   test('network overlay selection publishes directly without local condemn playback replay', async () => {
@@ -423,6 +424,45 @@ describe('CONDEMN_WILL deferred publish from overlay selection', () => {
     expect(global.PlaybackStateManager.getPlaybackActive()).toBe(false);
     expect(global.isProcessing).toBe(false);
     expect(global.isCardAnimating).toBe(false);
+    expect((global.cardState.presentationEvents || []).some((event) => event && event.type === 'PLAYBACK_EVENTS')).toBe(false);
+    expect((global.cardState._presentationEventsPersist || []).some((event) => event && event.type === 'PLAYBACK_EVENTS')).toBe(false);
+  });
+
+  test('overlay destroy publish settles even when playback idle wait never resolves', async () => {
+    window.__pendingSelectionPublishSettleTimeoutMs = 10;
+    globalThis.__pendingSelectionPublishSettleTimeoutMs = 10;
+    global.waitForPlaybackIdle = jest.fn(() => new Promise(() => {}));
+    globalThis.waitForPlaybackIdle = global.waitForPlaybackIdle;
+
+    require('../ui/network-client.js');
+    const client = window.NetworkMatchClient;
+    global.NetworkMatchClient = client;
+
+    const created = await client.createRoom({ serverUrl: 'http://localhost:8787', playerName: 'くろ' });
+    expect(created.ok).toBe(true);
+
+    require('../cards/card-interaction.js');
+
+    window.updateCardDetailPanel();
+    const selectBtn = document.getElementById('heaven-blessing-select-btn');
+    expect(selectBtn).toBeTruthy();
+    selectBtn.click();
+
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(publishBodies).toHaveLength(1);
+    expect(global.waitForPlaybackIdle).toHaveBeenCalledTimes(1);
+    expect(global.isProcessing).toBe(true);
+    expect(global.isCardAnimating).toBe(true);
+
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    await Promise.resolve();
+
+    expect(global.isProcessing).toBe(false);
+    expect(global.isCardAnimating).toBe(false);
+    expect(global.cardState.pendingEffectByPlayer.black).toBeNull();
     expect((global.cardState.presentationEvents || []).some((event) => event && event.type === 'PLAYBACK_EVENTS')).toBe(false);
     expect((global.cardState._presentationEventsPersist || []).some((event) => event && event.type === 'PLAYBACK_EVENTS')).toBe(false);
   });

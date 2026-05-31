@@ -87,6 +87,16 @@ function getTrackedWaitForPlaybackIdlePromise(deps: PendingNetworkDeps) {
         : null;
 }
 
+function clearTrackedWaitForPlaybackIdlePromise(deps: PendingNetworkDeps) {
+    const rootRef = deps.getUiRootRef();
+    if (rootRef && typeof rootRef === 'object') {
+        (rootRef as any).__lastWaitForPlaybackIdlePromise = null;
+    }
+    if (typeof globalThis !== 'undefined' && globalThis) {
+        (globalThis as any).__lastWaitForPlaybackIdlePromise = null;
+    }
+}
+
 function waitForCardUseAnimationIdle(deps: PendingNetworkDeps) {
     const scheduleNextTick = (callback: any) => {
         try {
@@ -171,6 +181,31 @@ function keepInteractionLockedWithoutSelectionPlaybackLock(deps: PendingNetworkD
     return true;
 }
 
+function getPendingSelectionPublishSettleTimeoutMs(deps: PendingNetworkDeps) {
+    const rootRef = deps.getUiRootRef();
+    const readValue = (source: any) => {
+        const raw = source && typeof source === 'object'
+            ? Number(source.__pendingSelectionPublishSettleTimeoutMs)
+            : NaN;
+        return Number.isFinite(raw) && raw >= 0 ? Math.trunc(raw) : null;
+    };
+    return readValue(rootRef) ?? readValue(typeof globalThis !== 'undefined' ? globalThis : null) ?? 1500;
+}
+
+function waitForTrackedPlaybackIdleOrTimeout(deps: PendingNetworkDeps, trackedWait: any, finish: () => void) {
+    let settled = false;
+    let timer: any = null;
+    const finishOnce = () => {
+        if (settled) return;
+        settled = true;
+        if (timer !== null) clearTimeout(timer);
+        finish();
+    };
+    const timeoutMs = getPendingSelectionPublishSettleTimeoutMs(deps);
+    timer = setTimeout(finishOnce, timeoutMs);
+    Promise.resolve(trackedWait).then(finishOnce).catch(finishOnce);
+}
+
 function getNetworkMatchClientRoot() {
     if (typeof window !== 'undefined' && window && (window as any).NetworkMatchClient) {
         return window;
@@ -201,38 +236,71 @@ function startNetworkOnlyPendingSelectionPublish(options: any, deps: PendingNetw
         deps.publishLocks[publishLockPlayerKey] = true;
     }
     getWaitForPlaybackIdleFn(deps);
+    clearTrackedWaitForPlaybackIdlePromise(deps);
+    clearOrphanNetworkPlaybackQueues(deps);
+    keepInteractionLockedWithoutSelectionPlaybackLock(deps);
     const clearPublishLock = () => {
         if (!publishLockPlayerKey) return;
         deps.publishLocks[publishLockPlayerKey] = false;
     };
 
+    let successSettled = false;
+    let publishSuccessHandled = false;
+    const finishSuccessSettlement = () => {
+        if (successSettled) return;
+        successSettled = true;
+        clearPublishLock();
+        try {
+            if (deps.playbackStateManager && typeof deps.playbackStateManager.clearPlaybackLock === 'function') {
+                deps.playbackStateManager.clearPlaybackLock({ preserveSelectionSettlementLock: true });
+            }
+        } catch (e) { /* ignore */ }
+        clearOrphanNetworkPlaybackQueues(deps);
+        deps.setPendingSelectionBusy(false);
+        deps.renderCardUiSafely();
+    };
+
+    const isPendingSelectionResolved = () => {
+        if (!publishLockPlayerKey) return false;
+        const cardStateRef = typeof deps.getCardStateValue === 'function' ? deps.getCardStateValue() : null;
+        const pendingByPlayer = cardStateRef && cardStateRef.pendingEffectByPlayer;
+        return !!(pendingByPlayer && pendingByPlayer[publishLockPlayerKey] == null);
+    };
+
+    const handlePublishSuccess = (publishResult: any) => {
+        if (publishSuccessHandled) return;
+        publishSuccessHandled = true;
+        if (typeof opts.onSuccess === 'function') {
+            opts.onSuccess(publishResult);
+        }
+    };
+
     const settleSuccessAfterPublish = () => {
-        const finish = () => {
-            clearPublishLock();
-            try {
-                if (deps.playbackStateManager && typeof deps.playbackStateManager.clearPlaybackLock === 'function') {
-                    deps.playbackStateManager.clearPlaybackLock({ preserveSelectionSettlementLock: true });
-                }
-            } catch (e) { /* ignore */ }
-            clearOrphanNetworkPlaybackQueues(deps);
-            deps.setPendingSelectionBusy(false);
-            deps.renderCardUiSafely();
-        };
         try {
             Promise.resolve().then(() => {
                 clearOrphanNetworkPlaybackQueues(deps);
                 keepInteractionLockedWithoutSelectionPlaybackLock(deps);
                 const trackedWait = getTrackedWaitForPlaybackIdlePromise(deps);
                 if (!trackedWait) {
-                    finish();
+                    finishSuccessSettlement();
                     return;
                 }
-                Promise.resolve(trackedWait).then(finish).catch(finish);
-            }).catch(finish);
+                waitForTrackedPlaybackIdleOrTimeout(deps, trackedWait, finishSuccessSettlement);
+            }).catch(finishSuccessSettlement);
         } catch (e) {
-            finish();
+            finishSuccessSettlement();
         }
     };
+
+    const schedulePublishResolutionWatchdog = () => {
+        setTimeout(() => {
+            if (successSettled || publishSuccessHandled || !isPendingSelectionResolved()) return;
+            handlePublishSuccess({ ok: true, recoveredBySettlementWatchdog: true });
+            settleSuccessAfterPublish();
+        }, getPendingSelectionPublishSettleTimeoutMs(deps));
+    };
+
+    schedulePublishResolutionWatchdog();
 
     Promise.resolve()
         .then(() => networkClient.publishSnapshot({
@@ -242,6 +310,7 @@ function startNetworkOnlyPendingSelectionPublish(options: any, deps: PendingNetw
             action: opts.action
         }))
         .then((publishResult: any) => {
+            if (successSettled) return;
             if (!publishResult || publishResult.ok !== true) {
                 clearPublishLock();
                 if (typeof opts.onFailure === 'function') {
@@ -249,12 +318,11 @@ function startNetworkOnlyPendingSelectionPublish(options: any, deps: PendingNetw
                 }
                 return;
             }
-            if (typeof opts.onSuccess === 'function') {
-                opts.onSuccess(publishResult);
-            }
+            handlePublishSuccess(publishResult);
             settleSuccessAfterPublish();
         })
         .catch(() => {
+            if (successSettled) return;
             clearPublishLock();
             if (typeof opts.onFailure === 'function') {
                 opts.onFailure({ ok: false, reason: 'NETWORK_PUBLISH_FAILED' });
