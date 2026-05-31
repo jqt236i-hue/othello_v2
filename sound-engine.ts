@@ -14,9 +14,11 @@ interface BgmTrack {
     loopEnd?: number;
 }
 
-interface ResultBgmTrack {
+interface ResultBgmTrack extends BgmTrack {
     file: string;
     loop: boolean;
+    loopStart?: number;
+    loopEnd?: number;
 }
 
 interface EffectVolumeScales {
@@ -55,12 +57,15 @@ const SoundEngine = {
     currentTrackIndex: 5,
     allowBgmPlay: true, // Default to true requested by user
     resultBgmTracks: {
-        win: { file: 'assets/audio/other/勝利リザルト-bpm165.mp3', loop: false },
-        lose: { file: 'assets/audio/other/敗北リザルト-bpm115.mp3', loop: true }
+        win: { name: '勝利リザルト', file: 'assets/audio/other/勝利リザルト-bpm165.mp3', loop: false },
+        lose: { name: '敗北リザルト', file: 'assets/audio/other/敗北リザルト-bpm115.mp3', loop: true, loopEnd: 90 * 60 / 115 }
     } as Record<string, ResultBgmTrack>,
     _resultBgm: null as HTMLAudioElement | null,
+    _resultBgmSource: null as AudioBufferSourceNode | null,
+    _resultBgmGainNode: null as GainNode | null,
     _resultBgmOutcomeKey: null as string | null,
     _resultBgmPausedNormalBgm: false,
+    _resultBgmLoadToken: null as any,
     _bgmBufferedState: null as BgmBufferedState | null,
     _bgmBufferCache: {} as Record<string, AudioBuffer | Promise<AudioBuffer>>,
     _effectAudioPools: {} as EffectAudioPools,
@@ -205,8 +210,17 @@ const SoundEngine = {
     },
 
     _updateResultBgmVolume() {
-        if (!this._resultBgm) return;
-        this._resultBgm.volume = this._getBgmOutputVolume();
+        const volume = this._getBgmOutputVolume();
+        if (this._resultBgm) {
+            this._resultBgm.volume = volume;
+        }
+        if (this._resultBgmGainNode && this._resultBgmGainNode.gain) {
+            if (typeof this._resultBgmGainNode.gain.setValueAtTime === 'function' && this.ctx && Number.isFinite(Number(this.ctx.currentTime))) {
+                this._resultBgmGainNode.gain.setValueAtTime(volume, Number(this.ctx.currentTime));
+            } else if ('value' in this._resultBgmGainNode.gain) {
+                this._resultBgmGainNode.gain.value = volume;
+            }
+        }
     },
 
     _updateBufferedBgmVolume(state?: BgmBufferedState | null) {
@@ -838,10 +852,103 @@ const SoundEngine = {
         return audio;
     },
 
+    _canUseBufferedResultBgm(track: ResultBgmTrack | null) {
+        if (!track || track.loop !== true) return false;
+        if (typeof fetch !== 'function') return false;
+        const ctx = this.ctx || this._ensureAudioContext(false);
+        return !!(
+            ctx &&
+            typeof ctx.createBufferSource === 'function' &&
+            typeof ctx.createGain === 'function' &&
+            typeof ctx.decodeAudioData === 'function'
+        );
+    },
+
+    _resolveResultBgmLoopStart(track: ResultBgmTrack) {
+        const loopStart = Number(track && track.loopStart);
+        return Number.isFinite(loopStart) ? Math.max(0, loopStart) : 0;
+    },
+
+    _resolveResultBgmLoopEnd(track: ResultBgmTrack, duration: number, loopStart: number) {
+        const loopEnd = Number(track && track.loopEnd);
+        if (Number.isFinite(loopEnd) && loopEnd > loopStart && (!Number.isFinite(duration) || loopEnd <= duration + 0.01)) {
+            return loopEnd;
+        }
+        return Number.isFinite(duration) ? Math.max(loopStart, duration) : loopStart;
+    },
+
+    _playBufferedResultBgm(track: ResultBgmTrack, outcomeKey: string) {
+        const ctx = this.ctx || this._ensureAudioContext(true);
+        if (!ctx) return false;
+        try {
+            if (ctx.state === 'suspended' && typeof ctx.resume === 'function') {
+                ctx.resume();
+            }
+        } catch (e) { /* ignore */ }
+
+        this.pauseBgm();
+        const loadToken = {};
+        this._resultBgmLoadToken = loadToken;
+        this._resultBgmOutcomeKey = String(outcomeKey || '').trim();
+        this._resultBgmPausedNormalBgm = true;
+
+        this._loadBufferedBgmBuffer(track)
+            .then((buffer: AudioBuffer) => {
+                if (this._resultBgmLoadToken !== loadToken) return;
+                if (!buffer || this._resultBgmOutcomeKey !== outcomeKey) return;
+                const source = ctx.createBufferSource();
+                source.buffer = buffer;
+                source.loop = true;
+                source.loopStart = this._resolveResultBgmLoopStart(track);
+                source.loopEnd = this._resolveResultBgmLoopEnd(track, Number(buffer.duration), source.loopStart);
+
+                const gainNode = ctx.createGain();
+                gainNode.connect(ctx.destination);
+                source.connect(gainNode);
+
+                this._resultBgmSource = source;
+                this._resultBgmGainNode = gainNode;
+                this._updateResultBgmVolume();
+
+                source.onended = () => {
+                    if (this._resultBgmSource !== source) return;
+                    this._resultBgmSource = null;
+                };
+                source.start(0, 0);
+            })
+            .catch((e: any) => {
+                if (this._resultBgmLoadToken !== loadToken) return;
+                console.warn(`Buffered result BGM unavailable for ${track.file}: ${e && e.message ? e.message : e}`);
+                this._resultBgmLoadToken = null;
+                this._resultBgmOutcomeKey = null;
+                this._resultBgmPausedNormalBgm = false;
+                const audio = this._createResultBgmAudio(track);
+                if (!audio) return;
+                this.pauseBgm();
+                this._resultBgm = audio;
+                this._resultBgmOutcomeKey = String(outcomeKey || '').trim();
+                this._resultBgmPausedNormalBgm = true;
+                audio.onerror = () => {
+                    console.warn(`Result BGM play failed: ${track.file}`);
+                };
+                const playPromise = audio.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch((playError: any) => {
+                        console.warn(`Result BGM play failed (${track.file}): ${playError && playError.message ? playError.message : playError}`);
+                    });
+                }
+            });
+        return true;
+    },
+
     playResultBgm(outcomeKey: string) {
         const track = this._resolveResultBgmTrack(outcomeKey);
         if (!track) return false;
         this.stopResultBgm({ resumeBgm: false });
+
+        if (this._canUseBufferedResultBgm(track)) {
+            return this._playBufferedResultBgm(track, String(outcomeKey || '').trim());
+        }
 
         const audio = this._createResultBgmAudio(track);
         if (!audio) return false;
@@ -873,17 +980,32 @@ const SoundEngine = {
     stopResultBgm(options: any = {}) {
         const opts = options && typeof options === 'object' ? options : {};
         const audio = this._resultBgm;
-        const shouldResumeBgm = opts.resumeBgm === true && (audio || this._resultBgmPausedNormalBgm);
+        const source = this._resultBgmSource;
+        const gainNode = this._resultBgmGainNode;
+        const shouldResumeBgm = opts.resumeBgm === true && !!(audio || source || this._resultBgmPausedNormalBgm);
 
         this._resultBgm = null;
+        this._resultBgmSource = null;
+        this._resultBgmGainNode = null;
         this._resultBgmOutcomeKey = null;
         this._resultBgmPausedNormalBgm = false;
+        this._resultBgmLoadToken = null;
 
         if (audio) {
             audio.onended = null;
             audio.onerror = null;
             try { audio.pause(); } catch (e) { /* ignore */ }
             try { audio.currentTime = 0; } catch (e) { /* ignore */ }
+        }
+        if (source) {
+            source.onended = null;
+            try { source.stop(); } catch (e) { /* ignore */ }
+            if (typeof source.disconnect === 'function') {
+                try { source.disconnect(); } catch (e) { /* ignore */ }
+            }
+        }
+        if (gainNode && typeof gainNode.disconnect === 'function') {
+            try { gainNode.disconnect(); } catch (e) { /* ignore */ }
         }
 
         if (shouldResumeBgm) {

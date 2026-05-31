@@ -262,4 +262,92 @@ describe('sound handler', () => {
     expect(engine.playBgm).toHaveBeenCalledTimes(1);
     expect(engine.allowBgmPlay).toBe(true);
   });
+
+  test('real sound engine uses buffered 90-beat loop for defeat result BGM when available', async () => {
+    const createdSources = [];
+    const createdGains = [];
+    class FakeAudioContext {
+      constructor() {
+        this.state = 'running';
+        this.destination = {};
+        this.currentTime = 0;
+        this.decodeAudioData = jest.fn(() => Promise.resolve({ duration: 46.956553 }));
+      }
+
+      resume() {
+        this.state = 'running';
+        return Promise.resolve();
+      }
+
+      createBufferSource() {
+        const source = {
+          buffer: null,
+          loop: false,
+          loopStart: 0,
+          loopEnd: 0,
+          connect: jest.fn(),
+          start: jest.fn(),
+          stop: jest.fn(),
+          disconnect: jest.fn(),
+          onended: null
+        };
+        createdSources.push(source);
+        return source;
+      }
+
+      createGain() {
+        const gain = {
+          gain: {
+            value: 0,
+            setValueAtTime: jest.fn(function (value) {
+              this.value = value;
+            })
+          },
+          connect: jest.fn(),
+          disconnect: jest.fn()
+        };
+        createdGains.push(gain);
+        return gain;
+      }
+    }
+
+    const fetchMock = jest.fn(() => Promise.resolve({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(8))
+    }));
+    function AudioShouldNotBeUsed() {
+      throw new Error('HTML Audio fallback should not be used for buffered defeat loop');
+    }
+
+    const engine = loadSoundEngine({
+      AudioContext: FakeAudioContext,
+      fetch: fetchMock,
+      Audio: AudioShouldNotBeUsed
+    });
+    engine.bgm = { paused: false, pause: jest.fn(function () { this.paused = true; }) };
+    engine.allowBgmPlay = true;
+    engine.bgmVolume = 0.25;
+    engine.playBgm = jest.fn(function () {
+      this.allowBgmPlay = true;
+      this.bgm.paused = false;
+    });
+
+    expect(engine.playResultBgm('lose')).toBe(true);
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(fetchMock).toHaveBeenCalledWith('assets/audio/other/敗北リザルト-bpm115.mp3');
+    expect(createdSources).toHaveLength(1);
+    expect(createdSources[0].loop).toBe(true);
+    expect(createdSources[0].loopStart).toBe(0);
+    expect(createdSources[0].loopEnd).toBeCloseTo(90 * 60 / 115, 6);
+    expect(createdSources[0].start).toHaveBeenCalledWith(0, 0);
+    expect(createdGains[0].gain.setValueAtTime).toHaveBeenCalledWith(0.25, 0);
+
+    expect(engine.stopResultBgm({ resumeBgm: true })).toBe(true);
+
+    expect(createdSources[0].stop).toHaveBeenCalledTimes(1);
+    expect(createdSources[0].disconnect).toHaveBeenCalledTimes(1);
+    expect(createdGains[0].disconnect).toHaveBeenCalledTimes(1);
+    expect(engine.playBgm).toHaveBeenCalledTimes(1);
+  });
 });
