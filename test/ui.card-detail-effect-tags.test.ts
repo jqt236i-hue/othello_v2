@@ -80,7 +80,7 @@ describe('card detail effect tags', () => {
 
     const tagsEl = document.getElementById('card-detail-effect-tags');
     expect(tagsEl).not.toBeNull();
-    expect(getTagLabels()).toEqual(['反転保護', '5T持続']);
+    expect(getTagLabels()).toEqual(['反転保護', '5ターン持続']);
     expect(tagsEl.style.display).toBe('flex');
 
     const desc = document.getElementById('card-detail-desc').textContent;
@@ -107,7 +107,7 @@ describe('card detail effect tags', () => {
 
     const tagsEl = document.getElementById('card-detail-effect-tags');
     expect(tagsEl).not.toBeNull();
-    expect(getTagLabels()).toEqual(['5T持続']);
+    expect(getTagLabels()).toEqual(['5ターン持続']);
     expect(document.getElementById('card-detail-desc').textContent).toBe('次に置く石は毎ターン1マス移動し、周囲の敵石を1個吸い込む。吸い込むと持続ターンが1増える。');
   });
 
@@ -128,7 +128,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['反転保護', '3T持続']);
+    expect(getTagLabels()).toEqual(['反転保護', '3ターン持続']);
   });
 
   test('GUARD_WILL shows full protection together with duration', () => {
@@ -148,7 +148,7 @@ describe('card detail effect tags', () => {
 
     window.updateCardDetailPanel();
 
-    expect(getTagLabels()).toEqual(['完全保護', '3T持続']);
+    expect(getTagLabels()).toEqual(['完全保護', '3ターン持続']);
   });
 
   test('AFTERIMAGE_WILL shows flip and destroy evasion count tags together', () => {
@@ -195,7 +195,7 @@ describe('card detail effect tags', () => {
     expect(detailText).toContain('5回目の所有者ターン開始時');
     expect(detailText).toContain('反転保護は持たない');
 
-    expect(getTagLabels()).toEqual(['5T後に発動']);
+    expect(getTagLabels()).toEqual(['5ターン後に発動']);
   });
 
   test('TRAP_WILL keeps opponent-turn wording in text and does not invent a numeric tag', () => {

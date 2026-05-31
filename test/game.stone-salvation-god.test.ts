@@ -63,7 +63,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     expect(VisualEffectsMap.SPECIAL_TYPE_TO_EFFECT_KEY.STONE_SALVATION_GOD).toBe('stoneSalvationGod');
     expect(VisualEffectsMap.STONE_VISUAL_EFFECTS.stoneSalvationGod.imagePathByOwner['1']).toContain('STONE_SALVATION_GOD-black.png');
     expect(VisualEffectsMap.STONE_VISUAL_EFFECTS.stoneSalvationGod.imagePathByOwner['-1']).toContain('STONE_SALVATION_GOD-white.png');
-    expect(CardInteractionEffects.resolveCardEffectTags({ type: 'STONE_SALVATION_GOD' }).map((tag: any) => tag.label)).toEqual(['反転保護', '10T持続']);
+    expect(CardInteractionEffects.resolveCardEffectTags({ type: 'STONE_SALVATION_GOD' }).map((tag: any) => tag.label)).toEqual(['反転保護', '10ターン持続']);
   });
 
   test('next placed stone becomes a 10-turn flip-protected salvation god', () => {
