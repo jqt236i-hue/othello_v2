@@ -434,7 +434,7 @@ function mapEffectLogsFromPipeline(rawEvents: any, presEvents: any, playerKey: a
                             push(`盤面縮小神: 1つ目に${_toPosText(ev.firstTarget || ev.target, deps)}を選択`);
                         } else {
                             const remaining = Number(ev.remainingSelections) || 0;
-                            push(`盤面縮小: 外周マスを選択（残り${remaining}）`);
+                            push(`盤面縮小: 連続外周マスを選択（残り${remaining}）`);
                         }
                     } else {
                         const changedCount = Array.isArray(ev.changedTargets) ? ev.changedTargets.length : 0;

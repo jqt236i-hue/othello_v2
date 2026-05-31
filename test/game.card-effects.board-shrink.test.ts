@@ -25,7 +25,7 @@ describe('board-shrink', () => {
         const callArg = mockExecutePendingSelection.mock.calls[0][0];
         expect(callArg.pendingTypes).toEqual(['BOARD_SHRINK_WILL', 'BOARD_SHRINK_GOD']);
         expect(callArg.actionPayload).toEqual({ shrinkTarget: { row: 7, col: 0 } });
-        expect(callArg.invalidMessage({ pendingType: 'BOARD_SHRINK_WILL' })).toBe('外周のマスを3つ選んで盤面を縮小してください');
+        expect(callArg.invalidMessage({ pendingType: 'BOARD_SHRINK_WILL' })).toBe('外周の連続3マスを選んで盤面を縮小してください');
         expect(callArg.invalidMessage({ pendingType: 'BOARD_SHRINK_GOD', pending: {} })).toBe('縮小する辺の角マスを選んでください');
         expect(callArg.invalidMessage({ pendingType: 'BOARD_SHRINK_GOD', pending: { firstTarget: { row: 7, col: 0 } } })).toBe('角から伸ばす辺方向を選んでください');
         expect(callArg.buildPlaybackMeta({ pendingType: 'BOARD_SHRINK_GOD', pending: { firstTarget: { row: 7, col: 0 } } })).toEqual({

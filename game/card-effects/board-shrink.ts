@@ -30,7 +30,7 @@ async function handleBoardShrinkSelection(row: number, col: number, playerKey: s
                     ? '角から伸ばす辺方向を選んでください'
                     : '縮小する辺の角マスを選んでください';
             }
-            return '外周のマスを3つ選んで盤面を縮小してください';
+            return '外周の連続3マスを選んで盤面を縮小してください';
         },
         validateResult: ({ result }: { result: any }) => wasBoardShrinkSelectionApplied(result),
         buildPlaybackMeta: ({ pendingType, pending }: { pendingType: any; pending: any }) => ({

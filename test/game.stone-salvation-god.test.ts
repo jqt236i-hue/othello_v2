@@ -672,7 +672,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
   test('board shrink completes hole application before salvation god revives', () => {
     const { cardState, gameState } = createState([0]);
     gameState.board[3][3] = Shared.BLACK;
-    gameState.board[7][0] = Shared.BLACK;
+    gameState.board[7][5] = Shared.BLACK;
     cardState.markers.push({
       id: 1,
       kind: 'specialStone',
@@ -687,7 +687,7 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
       cardId: 'board_shrink_01',
       selectedCount: 2,
       maxSelections: 3,
-      selectedTargets: [{ row: 0, col: 7 }, { row: 7, col: 0 }]
+      selectedTargets: [{ row: 7, col: 5 }, { row: 7, col: 6 }]
     };
 
     const result = CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 7, 7);
@@ -703,10 +703,10 @@ describe('STONE_SALVATION_GOD（石救済神）', () => {
     const lastHoleIndex = visualEvents.map((event: any) => event.type).lastIndexOf('STATUS_APPLIED');
 
     expect(result).toMatchObject({ applied: true, completed: true });
-    expect(result.changedTargets).toEqual(expect.arrayContaining([{ row: 0, col: 7 }, { row: 7, col: 0 }, { row: 7, col: 7 }]));
+    expect(result.changedTargets).toEqual(expect.arrayContaining([{ row: 7, col: 5 }, { row: 7, col: 6 }, { row: 7, col: 7 }]));
     expect(firstSpawnIndex).toBeGreaterThan(lastHoleIndex);
-    expect(visualEvents.some((event: any) => event.type === 'DESTROY' && event.row === 7 && event.col === 0)).toBe(true);
-    expect(cardState.markers.some((marker: any) => marker && marker.row === 7 && marker.col === 0 && marker.data && marker.data.type === 'METEOR_HOLE' && marker.data.visualVariant === 'BOARD_FRAME')).toBe(true);
+    expect(visualEvents.some((event: any) => event.type === 'DESTROY' && event.row === 7 && event.col === 5)).toBe(true);
+    expect(cardState.markers.some((marker: any) => marker && marker.row === 7 && marker.col === 5 && marker.data && marker.data.type === 'METEOR_HOLE' && marker.data.visualVariant === 'BOARD_FRAME')).toBe(true);
     expect(cardState.pendingStoneSalvationGodRevivesByPlayer.black).toEqual([]);
   });
 

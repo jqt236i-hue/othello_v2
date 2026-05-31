@@ -516,6 +516,9 @@ export function createCpuDecisionPendingScore(config: CpuDecisionPendingScoreCon
             score += (oppAdj - ownAdj) * 90;
             return score;
         case 'BOARD_SHRINK_WILL':
+            if (Array.isArray(target.lineCells) && target.lineCells.length > 0) {
+                return scoreBoardShrinkLine(target.lineCells);
+            }
             if (hasSpecialMarkerTypeAt(row, col, 'ABSOLUTE_PROTECTED')) return -5200;
             score += opp ? 220 : (own ? -280 : 60);
             if (corner) score += opp ? 1400 : (own ? -5200 : 320);

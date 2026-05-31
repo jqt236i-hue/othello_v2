@@ -87,11 +87,11 @@ describe('cpu board shrink pending selection', () => {
     global.cardState.pendingEffectByPlayer.white = {
       type: 'BOARD_SHRINK_WILL',
       stage: 'selectTarget',
-      selectedTargets: [{ row: 0, col: 0 }, { row: 0, col: 7 }],
+      selectedTargets: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
       selectedCount: 2,
       maxSelections: 3
     };
-    global.CardLogic.getSelectableTargets.mockReturnValue([{ row: 3, col: -1 }]);
+    global.CardLogic.getSelectableTargets.mockReturnValue([{ row: 0, col: 2 }]);
 
     await cpuDecision.cpuSelectBoardShrinkWithPolicy('white');
 
@@ -99,12 +99,12 @@ describe('cpu board shrink pending selection', () => {
     expect(action).toEqual(expect.objectContaining({
       type: 'place',
       player: 'white',
-      shrinkTarget: { row: 3, col: -1 },
+      shrinkTarget: { row: 0, col: 2 },
       deferNetworkPublish: true,
       pendingSelectionState: {
         type: 'BOARD_SHRINK_WILL',
         stage: 'selectTarget',
-        selectedTargets: [{ row: 0, col: 0 }, { row: 0, col: 7 }],
+        selectedTargets: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
         selectedCount: 2,
         maxSelections: 3
       }

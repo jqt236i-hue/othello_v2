@@ -13,15 +13,15 @@ function getMarkersAt(cardState, row, col) {
 }
 
 describe('盤面縮小 / 盤面縮小神', () => {
-  test('盤面縮小は3回選択し、絶対保護だけ残して外周を穴化する', () => {
+  test('盤面縮小は連続外周3マスを選択し、絶対保護だけ残して外周を穴化する', () => {
     const cardState = CardLogic.createCardState(createPrng());
     const gameState = Core.createGameState();
     cardState.debugNoDraw = true;
 
     gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
     gameState.board[0][0] = Core.BLACK;
-    gameState.board[0][7] = Core.WHITE;
-    gameState.board[7][0] = Core.WHITE;
+    gameState.board[0][1] = Core.WHITE;
+    gameState.board[1][0] = Core.WHITE;
     cardState.markers.push({
       id: 'abs_1',
       kind: 'specialStone',
@@ -41,9 +41,9 @@ describe('盤面縮小 / 盤面縮小神', () => {
 
     const firstTargets = CardLogic.getBoardShrinkTargets(cardState, gameState, 'black');
     expect(firstTargets).toEqual(expect.arrayContaining([
-      { row: 0, col: 0 },
-      { row: 0, col: 7 },
-      { row: 7, col: 0 }
+      expect.objectContaining({ row: 0, col: 0 }),
+      expect.objectContaining({ row: 0, col: 1 }),
+      expect.objectContaining({ row: 1, col: 0 })
     ]));
 
     const firstRes = CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 0, 0);
@@ -55,23 +55,30 @@ describe('盤面縮小 / 盤面縮小神', () => {
       remainingSelections: 2
     }));
     expect(CardLogic.getBoardShrinkTargets(cardState, gameState, 'black').some((target) => target.row === 0 && target.col === 0)).toBe(false);
+    expect(CardLogic.getBoardShrinkTargets(cardState, gameState, 'black')).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 0, col: 1, direction: { row: 0, col: 1 } }),
+      expect.objectContaining({ row: 1, col: 0, direction: { row: 1, col: 0 } })
+    ]));
 
-    const secondRes = CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 0, 7);
+    const secondRes = CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 0, 1);
     expect(secondRes).toEqual(expect.objectContaining({
       applied: true,
       completed: false,
       selectedCount: 2,
       remainingSelections: 1
     }));
+    expect(CardLogic.getBoardShrinkTargets(cardState, gameState, 'black')).toEqual(expect.arrayContaining([
+      expect.objectContaining({ row: 1, col: 0, direction: { row: 1, col: 0 } })
+    ]));
 
-    const finalRes = CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 7, 0);
+    const finalRes = CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 1, 0);
     expect(finalRes).toEqual(expect.objectContaining({
       applied: true,
       completed: true
     }));
     expect(finalRes.changedTargets).toEqual(expect.arrayContaining([
-      { row: 0, col: 7 },
-      { row: 7, col: 0 }
+      { row: 0, col: 1 },
+      { row: 1, col: 0 }
     ]));
     expect(finalRes.skippedTargets).toEqual(expect.arrayContaining([
       expect.objectContaining({ row: 0, col: 0, reason: 'absolute_protected' })
@@ -79,8 +86,31 @@ describe('盤面縮小 / 盤面縮小神', () => {
     expect(cardState.pendingEffectByPlayer.black).toBeNull();
 
     expect(getMarkersAt(cardState, 0, 0).some((marker) => marker.data && marker.data.type === 'METEOR_HOLE')).toBe(false);
-    expect(getMarkersAt(cardState, 0, 7).some((marker) => marker.data && marker.data.type === 'METEOR_HOLE' && marker.data.visualVariant === 'BOARD_FRAME')).toBe(true);
-    expect(getMarkersAt(cardState, 7, 0).some((marker) => marker.data && marker.data.type === 'METEOR_HOLE' && marker.data.visualVariant === 'BOARD_FRAME')).toBe(true);
+    expect(getMarkersAt(cardState, 0, 1).some((marker) => marker.data && marker.data.type === 'METEOR_HOLE' && marker.data.visualVariant === 'BOARD_FRAME')).toBe(true);
+    expect(getMarkersAt(cardState, 1, 0).some((marker) => marker.data && marker.data.type === 'METEOR_HOLE' && marker.data.visualVariant === 'BOARD_FRAME')).toBe(true);
+  });
+
+  test('盤面縮小は1マス離れた外周マスを次候補にしない', () => {
+    const cardState = CardLogic.createCardState(createPrng());
+    const gameState = Core.createGameState();
+    cardState.debugNoDraw = true;
+
+    gameState.board = Array.from({ length: 8 }, () => Array(8).fill(Core.EMPTY));
+    cardState.pendingEffectByPlayer.black = {
+      type: 'BOARD_SHRINK_WILL',
+      stage: 'selectTarget',
+      cardId: 'board_shrink_01',
+      selectedCount: 1,
+      maxSelections: 3,
+      selectedTargets: [{ row: 0, col: 0 }]
+    };
+
+    const targets = CardLogic.getBoardShrinkTargets(cardState, gameState, 'black');
+    expect(targets.some((target) => target.row === 0 && target.col === 7)).toBe(false);
+    expect(CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 0, 7)).toEqual({
+      applied: false,
+      reason: 'invalid_target'
+    });
   });
 
   test('盤面縮小は盤面拡張マスも対象にできる', () => {
@@ -105,11 +135,11 @@ describe('盤面縮小 / 盤面縮小神', () => {
       cardId: 'board_shrink_01',
       selectedCount: 2,
       maxSelections: 3,
-      selectedTargets: [{ row: 0, col: 0 }, { row: 7, col: 0 }]
+      selectedTargets: [{ row: 3, col: 0 }, { row: 2, col: 0 }]
     };
 
     const targets = CardLogic.getBoardShrinkTargets(cardState, gameState, 'black');
-    expect(targets).toEqual(expect.arrayContaining([{ row: 3, col: -1 }]));
+    expect(targets).toEqual(expect.arrayContaining([expect.objectContaining({ row: 3, col: -1 })]));
 
     const finalRes = CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 3, -1);
     expect(finalRes).toEqual(expect.objectContaining({
@@ -136,7 +166,7 @@ describe('盤面縮小 / 盤面縮小神', () => {
       cardId: 'board_shrink_01',
       selectedCount: 2,
       maxSelections: 3,
-      selectedTargets: [{ row: 0, col: 7 }, { row: 7, col: 0 }]
+      selectedTargets: [{ row: 0, col: 1 }, { row: 0, col: 2 }]
     };
 
     const finalRes = CardLogic.applyBoardShrinkWill(cardState, gameState, 'black', 0, 0);

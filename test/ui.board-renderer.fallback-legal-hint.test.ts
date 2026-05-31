@@ -204,7 +204,7 @@ describe('board-renderer fallback legal hints', () => {
 
   test('renderBoardFull highlights already selected perimeter cells during BOARD_SHRINK_WILL targeting', () => {
     global.getLegalMoves.mockReturnValue([]);
-    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 2 }]);
+    global.CardLogic.getSelectableTargets = jest.fn(() => [{ row: 0, col: 2, direction: { row: 0, col: 1 } }]);
     global.cardState.pendingEffectByPlayer.black = {
       type: 'BOARD_SHRINK_WILL',
       stage: 'selectTarget',
@@ -228,6 +228,8 @@ describe('board-renderer fallback legal hints', () => {
     expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
     expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+    expect(selectableCell.getAttribute('data-board-shrink-will-direction-hint')).toBe('right');
+    expect(selectableCell.querySelector('.board-shrink-will-direction-hint')?.textContent).toBe('→');
   });
 
   test('renderBoardFull highlights the first selected corner during BOARD_SHRINK_GOD targeting', () => {

@@ -123,7 +123,7 @@ describe('card interaction detail actions module', () => {
       stage: 'selectTarget',
       selectedCount: 1,
       maxSelections: 3
-    })).toBe('盤面縮小: 外周マスをあと2つ選んでください');
+    })).toBe('盤面縮小: つながる外周マスをあと2つ選んでください');
   });
 
   test('standalone pending helpers preserve fallback behavior', () => {

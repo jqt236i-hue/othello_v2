@@ -183,7 +183,7 @@ describe('DiffRenderer destroy-fade cleanup', () => {
 
   test('updates BOARD_SHRINK_WILL selected-target highlight as pending selection changes', () => {
     const diff = require('../ui/diff-renderer.js');
-    global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 2 }];
+    global.CardLogic.getSelectableTargets = () => [{ row: 0, col: 2, direction: { row: 0, col: 1 } }];
 
     diff.renderBoardDiff(boardEl);
 
@@ -215,6 +215,8 @@ describe('DiffRenderer destroy-fade cleanup', () => {
     expect(selectableCell.classList.contains('effect-target-highlight-positive')).toBe(false);
     expect(firstCell.classList.contains('effect-target-highlight')).toBe(false);
     expect(selectableCell.classList.contains('selectable-friendly')).toBe(true);
+    expect(selectableCell.getAttribute('data-board-shrink-will-direction-hint')).toBe('right');
+    expect(selectableCell.querySelector('.board-shrink-will-direction-hint')?.textContent).toBe('→');
   });
 
   test('updates BOARD_SHRINK_GOD first-target highlight as pending selection changes', () => {

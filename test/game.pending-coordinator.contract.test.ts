@@ -344,7 +344,7 @@ describe('PendingCoordinator', () => {
         black: {
           type: 'BOARD_SHRINK_WILL',
           stage: 'selectTarget',
-          selectedTargets: [{ row: 0, col: 0 }, { row: 0, col: 7 }],
+          selectedTargets: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
           selectedCount: 2,
           maxSelections: 3
         },
@@ -361,7 +361,7 @@ describe('PendingCoordinator', () => {
     expect(shrinkWillAction.pendingSelectionState).toEqual({
       type: 'BOARD_SHRINK_WILL',
       stage: 'selectTarget',
-      selectedTargets: [{ row: 0, col: 0 }, { row: 0, col: 7 }],
+      selectedTargets: [{ row: 0, col: 0 }, { row: 0, col: 1 }],
       selectedCount: 2,
       maxSelections: 3
     });

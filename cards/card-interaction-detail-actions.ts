@@ -116,8 +116,8 @@ function createPendingSelectionPromptResolvers(): Record<string, PendingSelectio
             : 3;
         const remainingSelections = Math.max(0, maxSelections - selectedCount);
         return remainingSelections < maxSelections
-            ? `盤面縮小: 外周マスをあと${remainingSelections}つ選んでください`
-            : '盤面縮小: 外周マスを3つ選んでください';
+            ? `盤面縮小: つながる外周マスをあと${remainingSelections}つ選んでください`
+            : '盤面縮小: 外周の連続3マスを選んでください';
     };
 
     resolvers.BOARD_SHRINK_GOD = (pending, context) => {

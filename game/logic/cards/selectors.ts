@@ -48,6 +48,7 @@ const SelectorsBoardShape = resolveSelectorsModuleOrGlobal('./selectors-board-sh
 
 const { EMPTY } = SharedConstants || {};
 const P_EMPTY = (EMPTY === undefined || EMPTY === null) ? 0 : EMPTY;
+const BOARD_SHRINK_SELECTION_COUNT = 3;
 
 function getSelectorsBoardShapeDeps() {
     return {
@@ -354,6 +355,9 @@ interface TargetCell {
     row: number;
     col: number;
     side?: string | null;
+    direction?: { row: number; col: number } | null;
+    selectedTargets?: { row: number; col: number }[];
+    lineCells?: { row: number; col: number }[];
 }
 
 // Return all non-empty cells (for DESTROY_ONE_STONE)
@@ -1151,6 +1155,113 @@ function getCellTeleportTargets(cardState: CardState, gameState: GameState): Tar
     return res;
 }
 
+function normalizeTargetCell(target: any): TargetCell | null {
+    const row = Number(target && target.row);
+    const col = Number(target && target.col);
+    if (!Number.isInteger(row) || !Number.isInteger(col)) return null;
+    return { row, col };
+}
+
+function areOrthogonallyAdjacent(a: any, b: any): boolean {
+    if (!a || !b) return false;
+    return Math.abs(Number(a.row) - Number(b.row)) + Math.abs(Number(a.col) - Number(b.col)) === 1;
+}
+
+function buildBoardShrinkPerimeterGraph(cells: TargetCell[]): Map<string, TargetCell[]> {
+    const out = new Map<string, TargetCell[]>();
+    const normalized = cells.map(normalizeTargetCell).filter((cell): cell is TargetCell => !!cell);
+    for (const cell of normalized) {
+        out.set(toTargetKey(cell.row, cell.col), []);
+    }
+    for (let i = 0; i < normalized.length; i++) {
+        for (let j = i + 1; j < normalized.length; j++) {
+            const a = normalized[i];
+            const b = normalized[j];
+            if (!areOrthogonallyAdjacent(a, b)) continue;
+            out.get(toTargetKey(a.row, a.col))!.push(b);
+            out.get(toTargetKey(b.row, b.col))!.push(a);
+        }
+    }
+    return out;
+}
+
+function isConnectedBoardShrinkSelection(cells: TargetCell[], graph: Map<string, TargetCell[]>): boolean {
+    const normalized = cells.map(normalizeTargetCell).filter((cell): cell is TargetCell => !!cell);
+    if (normalized.length <= 1) return normalized.length === 1;
+    const expectedKeys = new Set(normalized.map((cell) => toTargetKey(cell.row, cell.col)));
+    const start = normalized[0];
+    const visited = new Set<string>();
+    const stack = [start];
+    while (stack.length > 0) {
+        const current = stack.pop()!;
+        const currentKey = toTargetKey(current.row, current.col);
+        if (visited.has(currentKey)) continue;
+        visited.add(currentKey);
+        const neighbors = graph.get(currentKey) || [];
+        for (const neighbor of neighbors) {
+            const neighborKey = toTargetKey(neighbor.row, neighbor.col);
+            if (expectedKeys.has(neighborKey) && !visited.has(neighborKey)) {
+                stack.push(neighbor);
+            }
+        }
+    }
+    return visited.size === expectedKeys.size;
+}
+
+function canCompleteBoardShrinkSelection(cells: TargetCell[], allCells: TargetCell[], graph: Map<string, TargetCell[]>): boolean {
+    const normalized = cells.map(normalizeTargetCell).filter((cell): cell is TargetCell => !!cell);
+    if (normalized.length >= BOARD_SHRINK_SELECTION_COUNT) {
+        return normalized.length === BOARD_SHRINK_SELECTION_COUNT && isConnectedBoardShrinkSelection(normalized, graph);
+    }
+    const selectedKeys = new Set(normalized.map((cell) => toTargetKey(cell.row, cell.col)));
+    for (const candidate of allCells) {
+        const candidateKey = toTargetKey(candidate.row, candidate.col);
+        if (selectedKeys.has(candidateKey)) continue;
+        const next = normalized.concat(candidate);
+        if (!isConnectedBoardShrinkSelection(next, graph)) continue;
+        if (canCompleteBoardShrinkSelection(next, allCells, graph)) return true;
+    }
+    return false;
+}
+
+function resolveBoardShrinkDirection(selectedTargets: TargetCell[], target: TargetCell): { row: number; col: number } | null {
+    for (let i = selectedTargets.length - 1; i >= 0; i--) {
+        const selected = selectedTargets[i];
+        if (!areOrthogonallyAdjacent(selected, target)) continue;
+        return {
+            row: target.row - selected.row,
+            col: target.col - selected.col
+        };
+    }
+    return null;
+}
+
+function filterBoardShrinkContinuousTargets(selectedTargets: TargetCell[], perimeterTargets: TargetCell[]): TargetCell[] {
+    const selected = selectedTargets.map(normalizeTargetCell).filter((cell): cell is TargetCell => !!cell);
+    const candidates = perimeterTargets.map(normalizeTargetCell).filter((cell): cell is TargetCell => !!cell);
+    const allCells = selected.concat(candidates);
+    const graph = buildBoardShrinkPerimeterGraph(allCells);
+    if (selected.length >= BOARD_SHRINK_SELECTION_COUNT) return [];
+    if (selected.length > 0 && !isConnectedBoardShrinkSelection(selected, graph)) return [];
+
+    return candidates
+        .filter((target) => {
+            const nextSelection = selected.concat(target);
+            if (!isConnectedBoardShrinkSelection(nextSelection, graph)) return false;
+            return canCompleteBoardShrinkSelection(nextSelection, allCells, graph);
+        })
+        .map((target) => {
+            const nextSelection = selected.concat(target).map((cell) => ({ row: cell.row, col: cell.col }));
+            return {
+                row: target.row,
+                col: target.col,
+                direction: resolveBoardShrinkDirection(selected, target),
+                selectedTargets: nextSelection,
+                lineCells: nextSelection
+            };
+        });
+}
+
 // Return blockade targets: all empty cells (including active expansion cells), excluding already blocked cells.
 function getBlockadeTargets(cardState: CardState, gameState: GameState): TargetCell[] {
     const gs = gameState as any;
@@ -1182,14 +1293,23 @@ function getMeteorTargets(cardState: CardState, gameState: GameState): TargetCel
 function getBoardShrinkTargets(cardState: CardState, gameState: GameState, playerKey: PlayerKey): TargetCell[] {
     const board = getShapeAwareBoard(cardState, gameState);
     if (!board || !SharedBoardUtils || typeof SharedBoardUtils.getPerimeterCells !== 'function') return [];
-    const selectedKeys = getBoardShrinkSelectedKeys(cardState, playerKey);
-    return SharedBoardUtils.getPerimeterCells(board)
+    const selectedTargets = Array.from(getBoardShrinkSelectedKeys(cardState, playerKey))
+        .map((key) => {
+            const parts = String(key).split(',');
+            const row = Number(parts[0]);
+            const col = Number(parts[1]);
+            return Number.isInteger(row) && Number.isInteger(col) ? { row, col } : null;
+        })
+        .filter((target): target is { row: number; col: number } => !!target);
+    const selectedKeys = new Set(selectedTargets.map((target) => toTargetKey(target.row, target.col)));
+    const perimeterTargets = SharedBoardUtils.getPerimeterCells(board)
         .filter((cell: any) => {
             if (!cell || !Number.isInteger(cell.row) || !Number.isInteger(cell.col)) return false;
             if (selectedKeys.has(toTargetKey(cell.row, cell.col))) return false;
             return !isFrozenCell(cardState, cell.row, cell.col);
         })
         .map((cell: any) => ({ row: cell.row, col: cell.col }));
+    return filterBoardShrinkContinuousTargets(selectedTargets, perimeterTargets);
 }
 
 interface CornerTarget {

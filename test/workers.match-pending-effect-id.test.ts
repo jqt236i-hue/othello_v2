@@ -976,7 +976,7 @@ describe('worker pendingEffectId contract', () => {
       pendingExtra: {
         selectedCount: 2,
         maxSelections: 3,
-        selectedTargets: [{ row: 0, col: 7 }, { row: 7, col: 0 }]
+        selectedTargets: [{ row: 7, col: 5 }, { row: 7, col: 6 }]
       }
     });
 
@@ -988,14 +988,14 @@ describe('worker pendingEffectId contract', () => {
     expect(result.internalSnapshot.cardState.pendingEffectByPlayer.black).toBeNull();
     expect(result.internalSnapshot.cardState.markers).toEqual(expect.arrayContaining([
       expect.objectContaining({
-        row: 0,
-        col: 7,
+        row: 7,
+        col: 5,
         owner: 'black',
         data: expect.objectContaining({ type: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' })
       }),
       expect.objectContaining({
         row: 7,
-        col: 0,
+        col: 6,
         owner: 'black',
         data: expect.objectContaining({ type: 'METEOR_HOLE', visualVariant: 'BOARD_FRAME' })
       }),
