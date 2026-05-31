@@ -101,6 +101,15 @@ othello_v2/
 - Choose verification by blast radius. Prefer focused tests/preflights first; use `npm run test:network:parity` for network contracts and `npm run worker:prepare` for root-to-worker mirror impact.
 - Do not run long selfplay or training jobs unless explicitly requested. Use a focused preflight or small sample before any expensive run.
 
+## IMPLEMENTATION QUALITY
+
+- Before implementing, inspect the nearby source, ownership boundary, and existing helpers. Prefer the smallest design that fits the current architecture over a parallel local pattern.
+- Keep changes minimal but not fragile. Do not add abstraction, configuration, new layers, or new global state only for hypothetical future needs.
+- When a direct implementation would duplicate logic, mix responsibilities, or weaken a documented boundary, include a small local cleanup that keeps future changes narrower and easier to test.
+- Before adding a new public API, cross-runtime helper, bridge, or dependency direction, confirm that an existing shared helper, DI hook, event, snapshot contract, or authority helper cannot cover the need.
+- Choose implementations that keep behavior localized, deterministic, and testable. If multiple approaches are plausible, prefer the one with the smallest future blast radius and note the reason in the final report when it matters.
+- Avoid temporary workarounds, broad `catch`, silent no-op paths, and success-shaped fallbacks. If a compromise is unavoidable, document the reason, risk, and follow-up in the final report.
+
 ## GIT HYGIENE
 
 - Start every session or task by running `git status --short` before editing.
